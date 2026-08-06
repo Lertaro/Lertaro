@@ -1,0 +1,71 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:app="clr-namespace:Lertaro.App">
+    <!-- Keyboard shortcut hint: a pill-shaped badge (Flow Launcher style) rather than bare text,
+         reusing HoverBackground/ShortcutColor/AccentBlue (already defined in every theme) instead
+         of introducing new themed resources every theme file would need to add too.
+         Used to be filled with a fully opaque HoverBackground, but the row's OWN selected
+         background is that same color (ResultItemStyle in ListBox.xaml): filled-on-filled made
+         the badge disappear entirely on a selected row. A saturated AccentBlue outline (border +
+         text) and a plain brighter/bolder text were both tried next, but each still read as too
+         attention-grabbing next to the row's own left accent bar. Now both the base fill and the
+         selected-state tint are low-opacity washes on separate overlay elements behind the text
+         (so their Opacity never dims the text itself), rather than an opaque fill or a recolored
+         border/text.
+
+         Shared by the full/quick search window's SearchResultTemplate (DataTemplates.xaml) and the
+         inline search window's InlineSearchResultTemplate (InlineSearchResult.xaml): previously
+         two copy-pasted copies, identical except font size. The TextBlock below deliberately has no
+         explicit FontSize: it inherits from whatever ambient FontSize the ContentPresenter hosting
+         this template is given at each call site (TextElement.FontSize="11" vs "12"), so this stays
+         one template instead of needing a second copy just for that one differing value.
+         ActionMenuItemTemplate (ActionMenuItem.xaml) has its own separate copy of this badge, not
+         merged in here: it binds against a different DataContext type (ActionMenuItem, not
+         AppSearchResult) with genuinely different visibility/selection triggers (IsSelected +
+         MenuItem.IsHighlighted, not ListBoxItem.IsSelected), so unifying it would require a shared
+         abstraction across both DataContext types rather than a plain markup move. -->
+    <DataTemplate x:Key="ShortcutHintBadgeTemplate" DataType="{x:Type app:AppSearchResult}">
+        <Border Margin="14,0,0,0"
+                CornerRadius="4"
+                BorderThickness="1"
+                VerticalAlignment="Center"
+                BorderBrush="Transparent">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="{Binding ShortcutVisibility}"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsEmptyResult}" Value="True">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsSearchSectionHeader}" Value="True">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <!-- Both overlays cover the OUTER border's full extent (no padding of their own), and the
+                 text carries the padding instead: an inset overlay (sized to just the padded text
+                 area) would read as a smaller pill than the outer border's own edge. -->
+            <Grid>
+                <Border CornerRadius="4" IsHitTestVisible="False" Background="{DynamicResource HoverBackground}" Opacity="0.5"/>
+                <Border CornerRadius="4" IsHitTestVisible="False">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+                            <Setter Property="Opacity" Value="0"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}, Path=IsSelected}" Value="True">
+                                    <Setter Property="Opacity" Value="0.05"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
+                <TextBlock Text="{Binding ShortcutHint}"
+                           Padding="7,3,7,3"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShortcutColor}"/>
+            </Grid>
+        </Border>
+    </DataTemplate>
+</ResourceDictionary>

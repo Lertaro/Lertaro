@@ -1,0 +1,78 @@
+<UserControl x:Class="Lertaro.App.Views.QuickPanel.QuickPanelSearchBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d" d:DesignWidth="300">
+    <!-- Split out of QuickPanelWindow.xaml purely to keep that file under the repo's per-file line
+         limit. DataContext is the panel's own view model, inherited from the window, so every binding
+         below is one of its members.
+
+         Built like the settings window's own search box, down to the glyph and the placeholder: it is
+         the same thing doing the same job, at the size this panel can afford. -->
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <!-- Merged here as well as in the window: a StaticResource in a UserControl resolves
+                 against that control's own resources when it is parsed, not against whatever tree it
+                 is eventually placed in, so the window having these is no help at all. -->
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="QuickPanelWindowResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Border Height="26" CornerRadius="{StaticResource CornerRadiusControl}"
+            Background="{DynamicResource ControlBackground}"
+            BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                       Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,4,0"/>
+
+            <Grid Grid.Column="1">
+                <TextBox x:Name="TxtFilter" Background="Transparent" BorderThickness="0" FontSize="12"
+                         Foreground="{DynamicResource TextPrimary}"
+                         CaretBrush="{DynamicResource TextPrimary}"
+                         Padding="0,0,4,0" VerticalContentAlignment="Center"
+                         Text="{Binding SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_SearchPlaceholder]}"
+                           IsHitTestVisible="False" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondary}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Text, ElementName=TxtFilter}" Value="">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+
+            <!-- Only once there is something to clear. A permanent x on a box this small is one more
+                 thing to aim at, in a panel that is already mostly aiming targets. -->
+            <Button Grid.Column="2" Content="&#xE711;" Command="{Binding ClearSearchCommand}"
+                    Width="16" Height="16" Margin="2,0,5,0" FontSize="8">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource QuickPanelTabCloseStyle}">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SearchQuery}" Value="">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+        </Grid>
+    </Border>
+</UserControl>

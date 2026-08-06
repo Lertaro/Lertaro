@@ -1,0 +1,8 @@
+{
+  "SystemSettings_PluginName": "システム設定検索",
+  "SystemSettings_Name": "システム設定検索",
+  "SystemSettings_Description": "システム設定",
+  "SystemSettings_PluginDesc": "システム設定へのショートカットプラグイン。検索結果から Windows コントロールパネルとシステム設定項目を直接検索して開けます。",
+  "Plugin_Comp_Desc_SystemSettingsItemProvider": "Windows の UWP 設定とコントロールパネルのリンクを収集し、高速なインデックス一致と直接実行を可能にします。",
+  "Plugin_Comp_Desc_SystemSettingsTranslationProvider": "ローカライズされた Windows 設定項目のタイトルをマッピング・翻訳します。"
+}

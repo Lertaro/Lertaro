@@ -1,0 +1,4 @@
+{
+  "Plugins_PinyinAliasPluginName": "ピンイン検索エイリアスプラグイン",
+  "Plugin_Comp_Desc_PinyinAliasProvider": "検索を高速化するために、非 ASCII テキストに対してピンイン表記のエイリアスを自動生成します。"
+}

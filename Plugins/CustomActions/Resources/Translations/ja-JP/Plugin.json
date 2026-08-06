@@ -1,0 +1,21 @@
+{
+  "CustomActions_PluginName": "カスタムアクションプラグイン",
+  "CustomActions_GroupName": "カスタムアクション",
+  "CustomActions_Config_ActionsLabel": "カスタムアクション一覧",
+  "CustomActions_Config_ActionsDesc": "検索結果のアクションメニューに表示するカスタムアクションを設定します。",
+  "CustomActions_Config_EnabledLabel": "有効",
+  "CustomActions_Config_TitleLabel": "タイトル",
+  "CustomActions_Config_PathLabel": "パス（プログラムまたはファイル）",
+  "CustomActions_Config_ParameterLabel": "パラメーター（%s または {} = 選択したパス。自動で引用符が付くため自分で引用符を追加しないでください。空欄の場合、引用符付きのパスそのものがパラメーターとして使われます）",
+  "CustomActions_Config_IconLabel": "アイコン（SVG パスデータ）",
+  "CustomActions_Config_WorkingDirLabel": "作業ディレクトリ",
+  "CustomActions_Config_RunSilentlyLabel": "サイレント実行",
+  "CustomActions_Config_RunAsAdminLabel": "管理者として実行",
+  "CustomActions_Config_HotkeyLabel": "ホットキー",
+  "CustomActions_Config_FolderOnlyLabel": "フォルダーのみ",
+  "CustomActions_Config_MultiSelectLabel": "複数選択に対応（選択したすべてのパスを一度の起動で渡す）",
+  "CustomActions_Config_ExtensionsLabel": "拡張子フィルター（例: .txt,.log; 空欄で制限なし）",
+  "CustomActions_PluginDesc": "カスタムアクションプラグイン。右クリックのコンテキストメニューアクションをユーザーがカスタマイズできるようにします。",
+  "Plugin_Comp_Desc_DynamicActionProvider": "検索結果のコンテキストメニューに動的なカスタムアクションメニューを挿入し、外部コマンドとパラメーターの整形に対応します。",
+  "Plugin_Comp_Desc_CustomActionsTranslationProvider": "カスタムアクション用の翻訳キーと多言語ローカライズを提供します。"
+}

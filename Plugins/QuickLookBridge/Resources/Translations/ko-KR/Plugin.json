@@ -1,0 +1,11 @@
+{
+  "QuickLookBridge_PluginName": "QuickLook 브리지",
+  "QuickLookBridge_PluginDesc": "실험적 기능: 외부 QuickLook(github.com/QL-Win/QuickLook) 인스턴스가 자체 명명된 파이프를 통해 연결 가능할 때마다, 모든 내장 미리 보기 제공자보다 우선하여 모든 미리 보기를 대신 처리합니다. 이 기능이 활성화되어 있는 동안 Lertaro 자체 미리 보기 패널은 숨겨지고, QuickLook의 별도 플로팅 창이 그 패널이 있던 정확한 위치에 도킹됩니다.",
+  "QuickLookBridge_ProviderName": "QuickLook 브리지",
+  "QuickLookBridge_GroupName": "QuickLook",
+  "QuickLookBridge_ActionName": "QuickLook에서 미리 보기",
+  "QuickLookBridge_ActionDesc": "명명된 파이프를 통해 선택한 파일 또는 폴더를 QuickLook 자체 미리 보기 창에서 엽니다.",
+  "Plugin_Comp_Desc_QuickLookPreviewProvider": "명명된 파이프를 통해 연결 가능한 QuickLook 인스턴스를 감지하여 모든 미리 보기를 넘기고, 활성화된 동안 Lertaro 자체 미리 보기 패널을 숨기며, QuickLook의 창을 그 패널의 위치에 도킹합니다.",
+  "Plugin_Comp_Desc_QuickLookBridgeTranslationProvider": "QuickLook 브리지 플러그인에 UI 번역 및 지역화 매핑을 제공합니다.",
+  "Plugin_Comp_Desc_PreviewInQuickLookAction": "명명된 파이프를 통해 선택한 결과의 QuickLook 미리 보기를 수동으로 실행합니다."
+}

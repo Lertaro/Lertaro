@@ -1,0 +1,9 @@
+{
+  "Plugins_Files_EnableInlineSearch": "Activar Búsqueda en Línea",
+  "Plugins_Files_EnableInlineSearchDesc": "Permite hacer doble clic o pulsar atajos de teclado en Files para invocar la búsqueda en línea",
+  "Plugins_Files_EnableQuickNav": "Activar Menú de Navegación Rápida",
+  "Plugins_Files_EnableQuickNavDesc": "Permite hacer clic central en la ventana de Files para invocar el menú de Navegación Rápida",
+  "Files_PluginDesc": "Complemento de integración con Files. Lee las rutas activas en Files para el salto rápido y la localización de archivos.",
+  "Plugin_Comp_Desc_FilesPathCollector": "Captura automáticamente las rutas de carpetas activas del administrador de archivos Files.",
+  "Plugin_Comp_Desc_FilesInlineSearchAdapter": "Ofrece búsqueda difusa/por pinyin en línea impulsada por la escritura y navegación dentro de las ventanas de Files."
+}

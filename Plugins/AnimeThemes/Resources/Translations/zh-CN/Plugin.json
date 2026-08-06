@@ -1,0 +1,9 @@
+{
+  "AnimeThemes_PluginName": "动漫主题",
+  "Theme_SakuraBloom": "樱花盛开",
+  "Theme_NeonGenesis": "新世纪",
+  "Theme_WeatheringBlue": "天气之子",
+  "AnimeThemes_PluginDesc": "动漫主题管理插件。为应用提供动漫主题风格化支持。",
+  "Plugin_Comp_Desc_AnimeThemeProvider": "为系统提供二次元动漫风格的个性化界面主题（如樱花盛开、新世纪、天气之子等）。",
+  "Plugin_Comp_Desc_AnimeTranslationProvider": "为动漫主题插件提供界面元素与多语言的翻译转换支持。"
+}

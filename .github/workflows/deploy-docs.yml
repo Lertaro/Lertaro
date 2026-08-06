@@ -1,0 +1,47 @@
+# Workflow for building VitePress and deploying to lertaro.github.io repo
+#
+name: Deploy VitePress site to Pages Repo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Site/**'
+      - '.github/workflows/deploy-docs.yml'
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: Site
+
+      - name: Build with VitePress
+        run: npm run site:build
+        working-directory: Site
+
+      - name: Deploy to lertaro.github.io
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          external_repository: Lertaro/lertaro.github.io
+          publish_dir: Site/.vitepress/dist
+          publish_branch: main

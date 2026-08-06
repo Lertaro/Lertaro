@@ -1,0 +1,9 @@
+{
+  "Plugins_Xyplorer_EnableInlineSearch": "Enable Inline Search",
+  "Plugins_Xyplorer_EnableInlineSearchDesc": "Allow double-clicking or pressing hotkeys in XYplorer to summon inline search",
+  "Plugins_Xyplorer_EnableQuickNav": "Enable Quick Navigation Menu",
+  "Plugins_Xyplorer_EnableQuickNavDesc": "Allow middle-clicking in XYplorer's file list to summon the Quick Navigation menu",
+  "Xyplorer_PluginDesc": "XYplorer integration plugin. Reads active paths and provides quick directory jumping in XYplorer.",
+  "Plugin_Comp_Desc_XyplorerPathCollector": "Reads and tracks the active pane's directory in XYplorer.",
+  "Plugin_Comp_Desc_XyplorerInlineSearchAdapter": "Provides inline typing filter navigation and directory jumping for XYplorer's file list panes."
+}

@@ -1,0 +1,198 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.General.GeneralSettingsSystemTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="700">
+    <!-- Split out of GeneralSettingsPage.xaml (the "System" tab) to keep that file under the
+         project's line-count convention. DataContext is inherited from the host page, so the
+         General.Xxx bindings below resolve exactly as they did when this content lived inline. -->
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Page-local, same as GeneralSettingsLayoutTab.xaml/GeneralSettingsPreviewWindowTab.xaml's
+                 own copies of this exact style: not pulled into a shared dictionary, matching how this
+                 codebase already keeps each settings tab self-contained. -->
+            <Style x:Key="SettingsTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                <Setter Property="Height" Value="30"/>
+                <Setter Property="Padding" Value="8,0"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TextBox">
+                            <Border x:Name="border" CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="true">
+                                    <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                                </Trigger>
+                                <Trigger Property="IsFocused" Value="true">
+                                    <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Page-local copy of FavoritesSettingsPage.xaml's own FavIconButton: same small square
+                 icon button used there for its own Browse-file button. -->
+            <Style x:Key="BrowseIconButton" TargetType="Button">
+                <Setter Property="Width" Value="30"/>
+                <Setter Property="Height" Value="30"/>
+                <Setter Property="Margin" Value="6,0,0,0"/>
+                <Setter Property="Padding" Value="0"/>
+                <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextSecondary2}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd" CornerRadius="6" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <TextBlock Style="{StaticResource SettingsHintText}" Margin="0,0,0,12"
+                    Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SysHint]}"/>
+
+        <Border Style="{StaticResource SettingsCard}">
+            <StackPanel>
+                <CheckBox x:Name="RowStartup" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_Startup]}"
+                           IsChecked="{Binding General.StartWithWindows, Mode=TwoWay}"
+                           Margin="0,4"/>
+
+                <CheckBox x:Name="RowAutoCheckUpdates" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_AutoCheckUpdates]}"
+                           IsChecked="{Binding General.AutoCheckUpdates, Mode=TwoWay}"
+                           Margin="0,4"/>
+
+                <CheckBox x:Name="RowAutoSilentUpdate" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_AutoSilentUpdate]}"
+                           IsChecked="{Binding General.AutoSilentUpdate, Mode=TwoWay}"
+                           IsEnabled="{Binding General.IsAutoSilentUpdateEnabled}"
+                           Margin="0,4"/>
+
+                <CheckBox x:Name="RowHardwareAcceleration" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_HardwareAcceleration]}"
+                           IsChecked="{Binding General.EnableHardwareAcceleration, Mode=TwoWay}"
+                           Margin="0,4"/>
+
+                <CheckBox x:Name="RowHideTrayIcon" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_HideTrayIcon]}"
+                           IsChecked="{Binding General.HideTrayIcon, Mode=TwoWay}"
+                           Margin="0,4"/>
+
+                <CheckBox x:Name="RowEnableFuzzyMatch" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_EnableFuzzyMatch]}"
+                           IsChecked="{Binding General.EnableFuzzyMatch, Mode=TwoWay}"
+                           Margin="0,4"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_EnableFuzzyMatchDesc]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap"/>
+
+                <Grid x:Name="RowGlobalTokenPrefix" Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>
+                        <ColumnDefinition Width="Auto" MinWidth="60"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_GlobalTokenPrefix]}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1"
+                             Style="{StaticResource SettingsTextBox}"
+                             Width="36" Height="26" MaxLength="1"
+                             TextAlignment="Center"
+                             HorizontalContentAlignment="Center"
+                             Text="{Binding General.GlobalTokenPrefix, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             VerticalAlignment="Center"/>
+                </Grid>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_GlobalTokenPrefixDesc]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+                <Grid x:Name="RowLogLevel" Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>
+                        <ColumnDefinition Width="Auto" MinWidth="150"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LogLevel]}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1"
+                              Style="{StaticResource SettingsComboBox}"
+                              ItemsSource="{Binding General.LogLevelOptions}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{Binding General.SelectedLogLevel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </Grid>
+
+                <Grid x:Name="RowLangSelect" Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>
+                        <ColumnDefinition Width="Auto" MinWidth="150"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LangSelect]}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1"
+                              Style="{StaticResource SettingsComboBox}"
+                              ItemsSource="{Binding General.LanguageOptions}"
+                              DisplayMemberPath="Label"
+                              SelectedValuePath="Value"
+                              SelectedValue="{Binding General.PreferredLanguage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource SettingsCard}" Margin="0,12,0,0">
+            <StackPanel>
+                <CheckBox x:Name="RowDefaultFileManagerEnabled" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerEnabled]}"
+                           IsChecked="{Binding General.DefaultFileManagerEnabled, Mode=TwoWay}"
+                           Margin="0,4"/>
+                <TextBlock Style="{StaticResource SettingsHintText}" Margin="0,0,0,8"
+                            Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerHint]}"/>
+
+                <StackPanel x:Name="GroupDefaultFileManagerFields" Visibility="{Binding General.DefaultFileManagerEnabled, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerPath]}" Margin="0,4,0,4"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="RowDefaultFileManagerPath" Grid.Column="0"
+                                 Style="{StaticResource SettingsTextBox}"
+                                 Text="{Binding General.DefaultFileManagerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Button Grid.Column="1" Content="&#xE8A5;" Style="{StaticResource BrowseIconButton}"
+                                ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerBrowseTooltip]}"
+                                Command="{Binding General.BrowseDefaultFileManagerPathCommand}"/>
+                    </Grid>
+
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerParameter]}" Margin="0,12,0,4"/>
+                    <TextBlock Style="{StaticResource SettingsHintText}" Margin="0,0,0,4" TextWrapping="Wrap"
+                                Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerParameterHint]}"/>
+                    <TextBox x:Name="RowDefaultFileManagerParameter"
+                             Style="{StaticResource SettingsTextBox}"
+                             Text="{Binding General.DefaultFileManagerParameter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

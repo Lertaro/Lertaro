@@ -1,0 +1,4 @@
+{
+  "WPS_PluginDesc": "WPS Office 集成插件。WPS 用的是自己的打開/儲存對話方塊，而不是 Windows 的，此插件可以讓 Lertaro 直接在其中填寫路徑（比如通過快速導航選單）。",
+  "Plugin_Comp_Desc_WPSFileDialogAdapter": "通過控件結構（而不是視窗標題，因為 WPS 有多語言版本）識別 WPS 文字、表格、演示和 PDF 的打開/儲存對話方塊，並讓 Lertaro 填寫其中的檔案名輸入框。"
+}

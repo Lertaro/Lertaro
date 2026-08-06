@@ -1,0 +1,134 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.HistorySettingsPage"
+             x:Name="Root"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+             mc:Ignorable="d"
+             d:DesignHeight="550" d:DesignWidth="700">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid Margin="0,0,10,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Style="{StaticResource SettingsSectionTitle}"
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History]}"/>
+
+            <!-- Tab header row -->
+            <ctrl:TabStripScrollView Margin="0,16,0,0">
+            <StackPanel Orientation="Horizontal">
+                <StackPanel Margin="0,0,28,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_Tab_Search]}"
+                            Command="{Binding SelectTabCommand}" CommandParameter="Search">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTab}" Value="Search">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTab}" Value="Search">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel>
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_Tab_Keyword]}"
+                            Command="{Binding SelectTabCommand}" CommandParameter="Keyword">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTab}" Value="Keyword">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTab}" Value="Keyword">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+            </ctrl:TabStripScrollView>
+            <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,10"/>
+
+            <TextBlock Margin="0,0,0,12" TextWrapping="Wrap">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource SettingsHintText}">
+                        <Setter Property="Text" Value="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_Hint]}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedTab}" Value="Keyword">
+                                <Setter Property="Text" Value="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_KeywordHint]}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </StackPanel>
+
+        <!-- Tab: Search History -->
+        <ctrl:HistoryListControl x:Name="TabSearchHistory" Grid.Row="1" DataContext="{Binding SearchHistory}"
+                                  PlaceholderText="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_SearchPlaceholder]}">
+            <ctrl:HistoryListControl.Style>
+                <Style TargetType="ctrl:HistoryListControl">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding DataContext.SelectedTab, ElementName=Root}" Value="Search">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ctrl:HistoryListControl.Style>
+        </ctrl:HistoryListControl>
+
+        <!-- Tab: Keyword History -->
+        <ctrl:HistoryListControl x:Name="TabKeywordHistory" Grid.Row="1" DataContext="{Binding KeywordHistory}"
+                                  PlaceholderText="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_KeywordPlaceholder]}">
+            <ctrl:HistoryListControl.Style>
+                <Style TargetType="ctrl:HistoryListControl">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding DataContext.SelectedTab, ElementName=Root}" Value="Keyword">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ctrl:HistoryListControl.Style>
+        </ctrl:HistoryListControl>
+    </Grid>
+</UserControl>

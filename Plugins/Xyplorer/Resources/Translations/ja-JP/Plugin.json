@@ -1,0 +1,9 @@
+{
+  "Plugins_Xyplorer_EnableInlineSearch": "インライン検索を有効化",
+  "Plugins_Xyplorer_EnableInlineSearchDesc": "XYplorer でダブルクリックまたはホットキーを押してインライン検索を呼び出せるようにします",
+  "Plugins_Xyplorer_EnableQuickNav": "クイックナビゲーションメニューを有効化",
+  "Plugins_Xyplorer_EnableQuickNavDesc": "XYplorer のファイル一覧で中クリックしてクイックナビゲーションメニューを呼び出せるようにします",
+  "Xyplorer_PluginDesc": "XYplorer 連携プラグイン。アクティブなパスを読み取り、XYplorer 内でクイックなディレクトリジャンプを提供します。",
+  "Plugin_Comp_Desc_XyplorerPathCollector": "XYplorer のアクティブなペインのディレクトリを読み取り、追跡します。",
+  "Plugin_Comp_Desc_XyplorerInlineSearchAdapter": "XYplorer のファイル一覧ペインに、インライン入力によるフィルターナビゲーションとディレクトリジャンプを提供します。"
+}

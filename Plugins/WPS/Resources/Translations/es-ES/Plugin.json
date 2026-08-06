@@ -1,0 +1,4 @@
+{
+  "WPS_PluginDesc": "Plugin de integración con WPS Office. WPS usa su propio cuadro de diálogo de abrir/guardar en lugar del de Windows, y esto permite que Lertaro escriba una ruta en él (por ejemplo, desde el menú de Navegación rápida).",
+  "Plugin_Comp_Desc_WPSFileDialogAdapter": "Detecta el cuadro de diálogo de abrir/guardar de WPS Writer, Hojas de cálculo, Presentación y PDF por su estructura de controles (no por el título de la ventana, ya que WPS está traducido) y permite que Lertaro rellene su campo de nombre de archivo."
+}

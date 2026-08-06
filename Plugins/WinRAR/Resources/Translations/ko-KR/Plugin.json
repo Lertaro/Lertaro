@@ -1,0 +1,4 @@
+{
+  "WinRAR_PluginDesc": "WinRAR 통합 플러그인입니다. WinRAR의 압축 풀기 대화 상자(예: 빠른 탐색 메뉴에서)에서 Lertaro가 대상 경로를 입력할 수 있게 해줍니다.",
+  "Plugin_Comp_Desc_WinRARExtractDialogAdapter": "WinRAR의 \"압축 풀 경로 및 옵션\" 대화 상자를 (WinRAR이 다국어로 제공되므로 창 제목이 아닌) 컨트롤 구조로 감지하여, Lertaro가 대상 경로 입력란을 채울 수 있게 합니다."
+}

@@ -1,0 +1,12 @@
+{
+  "Plugins_TotalCommander_EnableInlineSearch": "启用内联搜索",
+  "Plugins_TotalCommander_EnableInlineSearchDesc": "允许在 Total Commander 窗口中双击或按快捷键弹出内置搜索栏",
+  "Plugins_TotalCommander_EnableQuickNav": "启用快速导航菜单",
+  "Plugins_TotalCommander_EnableQuickNavDesc": "允许在 Total Commander 的文件列表中中键点击弹出快速导航菜单",
+  "Plugins_TotalCommander_DirMenu_Empty": "(空)",
+  "Plugins_TotalCommander_DirMenu_RootLabel": "常用目录",
+  "TotalCommander_PluginDesc": "Total Commander 增强集成插件。读取 Total Commander 的活动路径并在其中快捷跳转。",
+  "Plugin_Comp_Desc_TotalCommanderPathCollector": "实时提取经典的 Total Commander 文件管理器当前活动窗口或后台标签页的文件夹路径。",
+  "Plugin_Comp_Desc_TotalCommanderInlineSearchAdapter": "为 Total Commander 双栏文件管理器提供内嵌式的拼音与字符打字过滤定位和目录跳转功能。",
+  "Plugin_Comp_Desc_DirMenuProvider": "读取并展示 Total Commander 中的常用文件夹快捷菜单（Ctrl+D 常用目录），供快速导航级联菜单调用。"
+}

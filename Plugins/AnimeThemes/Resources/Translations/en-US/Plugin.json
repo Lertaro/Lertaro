@@ -1,0 +1,9 @@
+{
+  "AnimeThemes_PluginName": "Anime Themes",
+  "Theme_SakuraBloom": "Sakura Bloom",
+  "Theme_NeonGenesis": "Neon Genesis",
+  "Theme_WeatheringBlue": "Weathering Blue",
+  "AnimeThemes_PluginDesc": "Anime themes plugin. Provides stylized anime theme support for the application.",
+  "Plugin_Comp_Desc_AnimeThemeProvider": "Provides anime-themed UI visual styles (like Sakura Bloom, Neon Genesis, Weathering Blue).",
+  "Plugin_Comp_Desc_AnimeTranslationProvider": "Provides UI localization and multi-language translation support for the Anime Themes plugin."
+}

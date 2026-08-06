@@ -1,0 +1,21 @@
+{
+  "WebSearch_PluginName": "웹 검색 플러그인",
+  "WebSearch_PluginDesc": "검색 상자에 특정 트리거 키워드를 직접 입력하여 사용자 지정 또는 내장 검색 엔진(예: Google, Baidu, GitHub 등)으로 웹 검색을 빠르게 시작합니다.",
+  "WebSearch_ProviderName": "웹 검색",
+  "WebSearch_PlaceholderTitle": "{0}(으)로 검색",
+  "WebSearch_PlaceholderDesc": "키워드를 입력하고 Enter를 눌러 검색하세요",
+  "WebSearch_ResultTitle": "{0}(으)로 검색: {1}",
+  "WebSearch_ResultDesc": "Enter를 누르거나 클릭하여 브라우저에서 검색 결과 열기",
+  "WebSearch_Config_SourcesLabel": "사용자 지정 검색 소스",
+  "WebSearch_Config_SourcesDesc": "웹 검색을 위한 사용자 지정 검색 엔진과 키워드를 구성합니다.",
+  "WebSearch_Config_NameLabel": "이름",
+  "WebSearch_Config_KeywordLabel": "트리거 키워드",
+  "WebSearch_Config_IconLabel": "아이콘",
+  "WebSearch_Config_UrlLabel": "URL (%s를 플레이스홀더로 사용)",
+  "WebSearch_Config_SuggestUrlLabel": "제안 URL (선택 사항, %s를 플레이스홀더로 사용)",
+  "WebSearch_Config_SuggestUrlDesc": "비워두면 이 엔진의 제안 기능이 비활성화됩니다. 설정하면 입력하는 동안 실시간으로 최대 5개의 제안을 가져옵니다(OpenSearch JSON 형식).",
+  "WebSearch_SuggestionDesc": "{0} 제안 — Enter를 누르거나 클릭하여 검색",
+  "WebSearch_ProviderDesc": "키워드를 사용하여 검색 상자에서 주요 또는 사용자 지정 웹 검색 엔진을 빠르게 실행합니다.",
+  "Plugin_Comp_Desc_WebSearchInstantProvider": "검색 상자에 입력한 사용자 지정 검색 엔진 키워드(예: bd, gh)를 사용하여 실시간으로 웹 검색을 시작합니다.",
+  "Plugin_Comp_Desc_WebSearchTranslationProvider": "웹 검색 플러그인에 UI 번역 및 지역화 리소스를 제공합니다."
+}

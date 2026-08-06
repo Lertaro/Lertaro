@@ -1,0 +1,19 @@
+{
+  "BrowserData_PluginName": "瀏覽器書籤與紀錄",
+  "BrowserData_ProviderName": "瀏覽器書籤與紀錄",
+  "BrowserData_Config_TriggerKeywordLabel": "觸發詞",
+  "BrowserData_Config_TriggerKeywordDesc": "輸入此關鍵字（後面加一個空格加搜尋字詞）來觸發書籤/瀏覽紀錄搜尋，例如預設的 \"bm\"。",
+  "BrowserData_Config_IndexBookmarksLabel": "索引書籤",
+  "BrowserData_Config_IndexHistoryLabel": "索引瀏覽紀錄",
+  "BrowserData_Config_IndexHistoryDesc": "瀏覽紀錄的數量往往遠多於書籤——關閉此項可只搜尋書籤。",
+  "BrowserData_Config_ProfilesLabel": "瀏覽器設定檔清單",
+  "BrowserData_Config_ProfilesDesc": "手動新增要索引的瀏覽器設定檔資料夾（Profile 資料夾），支援 Chrome 系（Chrome/Edge/Brave 等）和 Firefox 系瀏覽器，可新增多個。",
+  "BrowserData_Config_NameLabel": "名稱",
+  "BrowserData_Config_IconDataLabel": "圖示（向量路徑資料，可選）",
+  "BrowserData_Config_IconDataDesc": "留空則使用預設圖示區分書籤與瀏覽紀錄。",
+  "BrowserData_Config_PathLabel": "設定檔路徑",
+  "BrowserData_Config_PathDesc": "瀏覽器的設定檔資料夾，例如 Chrome/Edge 的 \"...\\User Data\\Default\"，或 Firefox 的 \"...\\Profiles\\xxxxxxxx.default-release\"。",
+  "BrowserData_PluginDesc": "瀏覽器資料捷徑外掛程式。快速搜尋並存取主流瀏覽器的瀏覽紀錄、書籤等資料。",
+  "Plugin_Comp_Desc_BrowserDataInstantProvider": "即時在搜尋框中快速模糊比對主流瀏覽器（如 Chrome、Edge、Firefox）的瀏覽紀錄與書籤資料。",
+  "Plugin_Comp_Desc_BrowserDataTranslationProvider": "為瀏覽器資料捷徑外掛程式提供介面語言翻譯與多國語言在地化服務。"
+}

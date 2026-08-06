@@ -1,0 +1,13 @@
+{
+  "ProcessManager_PluginName": "Administrador de Procesos",
+  "ProcessManager_Name": "Administrador de Procesos",
+  "ProcessManager_Description": "Administrador de Procesos (ps)",
+  "ProcessManager_Path": "Ruta",
+  "ProcessManager_Window": "Ventana",
+  "ProcessManager_AccessDenied": "[Acceso Denegado]",
+  "ProcessManager_Config_TriggerKeywordLabel": "Palabra Clave de Activación",
+  "ProcessManager_Config_TriggerKeywordDesc": "Escribe esta palabra clave (opcionalmente seguida de un espacio y un término de búsqueda) para activar la búsqueda de procesos, por ejemplo, la predeterminada \"ps\".",
+  "ProcessManager_PluginDesc": "Complemento de administrador de procesos. Permite buscar, ver y finalizar los procesos del sistema en ejecución.",
+  "Plugin_Comp_Desc_ProcessManagerInstantProvider": "Busca procesos del sistema en ejecución por nombre, PID o título de ventana, y ofrece una acción de un clic para finalizar los procesos seleccionados desde el cuadro de búsqueda.",
+  "Plugin_Comp_Desc_ProcessManagerTranslationProvider": "Ofrece traducción de la interfaz y asignación de localización para el complemento Administrador de Procesos."
+}

@@ -1,0 +1,12 @@
+{
+  "Plugins_TotalCommander_EnableInlineSearch": "인라인 검색 사용",
+  "Plugins_TotalCommander_EnableInlineSearchDesc": "Total Commander에서 더블클릭하거나 단축키를 눌러 인라인 검색을 호출할 수 있게 합니다",
+  "Plugins_TotalCommander_EnableQuickNav": "빠른 탐색 메뉴 사용",
+  "Plugins_TotalCommander_EnableQuickNavDesc": "Total Commander의 파일 목록에서 가운데 버튼을 클릭하여 빠른 탐색 메뉴를 호출할 수 있게 합니다",
+  "Plugins_TotalCommander_DirMenu_Empty": "(비어 있음)",
+  "Plugins_TotalCommander_DirMenu_RootLabel": "디렉터리 단축 목록",
+  "TotalCommander_PluginDesc": "Total Commander 통합 플러그인입니다. 활성 경로를 읽고 Total Commander에서 빠른 디렉터리 이동을 제공합니다.",
+  "Plugin_Comp_Desc_TotalCommanderPathCollector": "Total Commander의 활성 패널 디렉터리를 읽고 추적합니다.",
+  "Plugin_Comp_Desc_TotalCommanderInlineSearchAdapter": "Total Commander 리스터 창에 인라인 입력 필터 탐색과 디렉터리 이동을 제공합니다.",
+  "Plugin_Comp_Desc_DirMenuProvider": "Total Commander의 디렉터리 단축 목록(Ctrl+D 메뉴)을 불러와 빠른 탐색 계단식 메뉴에 표시합니다."
+}

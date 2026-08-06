@@ -1,0 +1,9 @@
+{
+  "AnimeThemes_PluginName": "アニメテーマ",
+  "Theme_SakuraBloom": "桜咲く",
+  "Theme_NeonGenesis": "ネオンジェネシス",
+  "Theme_WeatheringBlue": "天気の子ブルー",
+  "AnimeThemes_PluginDesc": "アニメテーマプラグイン。アプリにアニメ風のスタイリッシュなテーマを提供します。",
+  "Plugin_Comp_Desc_AnimeThemeProvider": "アニメ風の UI ビジュアルスタイル（桜咲く、ネオンジェネシス、天気の子ブルーなど）を提供します。",
+  "Plugin_Comp_Desc_AnimeTranslationProvider": "アニメテーマプラグインの UI ローカライズと多言語翻訳サポートを提供します。"
+}

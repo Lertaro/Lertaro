@@ -1,0 +1,9 @@
+{
+  "Plugins_Files_EnableInlineSearch": "Enable Inline Search",
+  "Plugins_Files_EnableInlineSearchDesc": "Allow double-clicking or pressing hotkeys in Files to summon inline search",
+  "Plugins_Files_EnableQuickNav": "Enable Quick Navigation Menu",
+  "Plugins_Files_EnableQuickNavDesc": "Allow middle-clicking in Files' window to summon the Quick Navigation menu",
+  "Files_PluginDesc": "Files integration plugin. Reads active paths in Files for quick jumping and file location.",
+  "Plugin_Comp_Desc_FilesPathCollector": "Automatically captures active file manager folder paths from Files.",
+  "Plugin_Comp_Desc_FilesInlineSearchAdapter": "Provides inline typing-driven pinyin/fuzzy search and navigation inside Files windows."
+}

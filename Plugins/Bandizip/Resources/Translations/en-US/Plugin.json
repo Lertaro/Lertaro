@@ -1,0 +1,5 @@
+{
+  "Bandizip_PluginDesc": "Bandizip integration plugin. Lets Lertaro fill in the destination path in Bandizip's extract dialog and its add-files dialog (e.g. from the Quick Navigation menu).",
+  "Plugin_Comp_Desc_BandizipExtractDialogAdapter": "Detects Bandizip's \"choose extract path\" dialog by its control structure (not window title, since Bandizip is localized) and lets Lertaro fill in its destination path field.",
+  "Plugin_Comp_Desc_BandizipAddFilesDialogAdapter": "Detects Bandizip's \"choose files to add\" dialog by its control structure (not window title, since Bandizip is localized) and lets Lertaro navigate it to a target folder."
+}

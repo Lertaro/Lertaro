@@ -1,0 +1,153 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Tokens/Colors.xaml"/>
+        <ResourceDictionary Source="../Tokens/Spacing.xaml"/>
+        <ResourceDictionary Source="../Tokens/Motion.xaml"/>
+        <ResourceDictionary Source="../Tokens/Elevation.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- ═══════════ Settings Button Styles ═══════════ -->
+    <Style x:Key="SettingsButton" TargetType="Button">
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="MinWidth" Value="92"/>
+        <Setter Property="Padding" Value="14,0"/>
+        <Setter Property="Margin" Value="8,0,0,0"/>
+        <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryButtonText}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="ContentTemplate">
+            <Setter.Value>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </DataTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="Bd" CornerRadius="{StaticResource CornerRadiusControl}" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"/>
+                        <!-- Hover/pressed fade in as a same-shaped overlay whose own Opacity animates,
+                             rather than animating Bd's Background/BorderBrush directly: those are
+                             {DynamicResource} brushes shared by every button on the theme, so a
+                             ColorAnimation targeting them would mutate the shared brush instance instead
+                             of this one button. -->
+                        <Border x:Name="HoverOverlay" CornerRadius="{StaticResource CornerRadiusControl}"
+                                Background="{DynamicResource ControlHoverBackground}" BorderBrush="{DynamicResource AccentBlue}"
+                                BorderThickness="{TemplateBinding BorderThickness}" Opacity="0"/>
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsEnabled" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <MultiTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverOverlay" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.EnterActions>
+                            <MultiTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverOverlay" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.ExitActions>
+                            <Setter Property="Foreground" Value="{DynamicResource SecondaryButtonHoverText}"/>
+                        </MultiTrigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ControlDisabledBackground}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource ControlDisabledBorderBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource ControlDisabledForeground}"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="PrimarySettingsButton" TargetType="Button" BasedOn="{StaticResource SettingsButton}">
+        <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonText}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="Bd" CornerRadius="{StaticResource CornerRadiusControl}" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"/>
+                        <Border x:Name="HoverOverlay" CornerRadius="{StaticResource CornerRadiusControl}"
+                                Background="{DynamicResource PrimaryButtonHoverBackground}" BorderBrush="{DynamicResource PrimaryButtonHoverBackground}"
+                                BorderThickness="{TemplateBinding BorderThickness}" Opacity="0"/>
+                        <Border x:Name="PressedOverlay" CornerRadius="{StaticResource CornerRadiusControl}"
+                                Background="{DynamicResource PrimaryButtonPressedBackground}" BorderBrush="{DynamicResource PrimaryButtonPressedBackground}"
+                                BorderThickness="{TemplateBinding BorderThickness}" Opacity="0"/>
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsEnabled" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <MultiTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverOverlay" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.EnterActions>
+                            <MultiTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverOverlay" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.ExitActions>
+                        </MultiTrigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="PressedOverlay" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="{StaticResource DurationFast}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="PressedOverlay" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="{StaticResource DurationFast}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ControlDisabledBackground}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource ControlDisabledBorderBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource ControlDisabledForeground}"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

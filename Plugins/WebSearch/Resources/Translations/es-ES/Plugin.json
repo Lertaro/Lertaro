@@ -1,0 +1,21 @@
+{
+  "WebSearch_PluginName": "Complemento de Búsqueda Web",
+  "WebSearch_PluginDesc": "Inicia rápidamente búsquedas web con motores de búsqueda personalizados o integrados (como Google, Baidu, GitHub, etc.) escribiendo palabras clave de activación específicas directamente en el cuadro de búsqueda.",
+  "WebSearch_ProviderName": "Búsqueda Web",
+  "WebSearch_PlaceholderTitle": "Buscar con {0}",
+  "WebSearch_PlaceholderDesc": "Escribe palabras clave y pulsa Intro para buscar",
+  "WebSearch_ResultTitle": "Buscar con {0}: {1}",
+  "WebSearch_ResultDesc": "Pulsa Intro o haz clic para abrir los resultados de búsqueda en tu navegador",
+  "WebSearch_Config_SourcesLabel": "Fuentes de Búsqueda Personalizadas",
+  "WebSearch_Config_SourcesDesc": "Configura motores de búsqueda y palabras clave personalizados para la búsqueda web.",
+  "WebSearch_Config_NameLabel": "Nombre",
+  "WebSearch_Config_KeywordLabel": "Palabra Clave de Activación",
+  "WebSearch_Config_IconLabel": "Icono",
+  "WebSearch_Config_UrlLabel": "URL (usa %s como marcador de posición)",
+  "WebSearch_Config_SuggestUrlLabel": "URL de Sugerencias (opcional, usa %s como marcador de posición)",
+  "WebSearch_Config_SuggestUrlDesc": "Déjalo vacío para desactivar las sugerencias de este motor. Si se establece, se obtendrán hasta 5 sugerencias en vivo mientras escribes (formato JSON OpenSearch).",
+  "WebSearch_SuggestionDesc": "Sugerido por {0} — pulsa Intro o haz clic para buscar",
+  "WebSearch_ProviderDesc": "Activa rápidamente motores de búsqueda web populares o personalizados en el cuadro de búsqueda mediante palabras clave.",
+  "Plugin_Comp_Desc_WebSearchInstantProvider": "Inicia búsquedas web en tiempo real usando palabras clave de motores de búsqueda personalizados (como bd, gh) escritas en el cuadro de búsqueda.",
+  "Plugin_Comp_Desc_WebSearchTranslationProvider": "Ofrece traducciones de la interfaz y recursos de localización para el complemento de Búsqueda Web."
+}

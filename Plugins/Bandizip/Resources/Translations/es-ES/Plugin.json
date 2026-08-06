@@ -1,0 +1,5 @@
+{
+  "Bandizip_PluginDesc": "Complemento de integración con Bandizip. Permite que Lertaro rellene la ruta de destino en el cuadro de diálogo de extracción de Bandizip y en el de añadir archivos (por ejemplo, desde el menú de navegación rápida).",
+  "Plugin_Comp_Desc_BandizipExtractDialogAdapter": "Detecta el cuadro de diálogo \"elegir ruta de extracción\" de Bandizip por su estructura de controles (no por el título de la ventana, ya que Bandizip está localizado) y permite que Lertaro rellene su campo de ruta de destino.",
+  "Plugin_Comp_Desc_BandizipAddFilesDialogAdapter": "Detecta el cuadro de diálogo \"elegir archivos para añadir\" de Bandizip por su estructura de controles (no por el título de la ventana, ya que Bandizip está localizado) y permite que Lertaro lo navegue hasta una carpeta de destino."
+}

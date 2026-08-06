@@ -1,0 +1,9 @@
+{
+  "Plugins_Files_EnableInlineSearch": "启用内联搜索",
+  "Plugins_Files_EnableInlineSearchDesc": "允许在 Files 窗口中双击或按快捷键弹出内置搜索栏",
+  "Plugins_Files_EnableQuickNav": "启用快速导航菜单",
+  "Plugins_Files_EnableQuickNavDesc": "允许在 Files 窗口中中键点击弹出快速导航菜单",
+  "Files_PluginDesc": "Files 集成插件。读取 Files 的活动路径以实现快速跳转和文件定位。",
+  "Plugin_Comp_Desc_FilesPathCollector": "自动捕获并收集 Files 中当前处于前台活跃状态的文件夹路径。",
+  "Plugin_Comp_Desc_FilesInlineSearchAdapter": "为 Files 文件管理器的主界面提供内嵌式的拼音首字母过滤和键盘快捷检索定位。"
+}

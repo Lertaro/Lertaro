@@ -1,0 +1,9 @@
+{
+  "AnimeThemes_PluginName": "애니메 테마",
+  "Theme_SakuraBloom": "사쿠라 블룸",
+  "Theme_NeonGenesis": "네온 제네시스",
+  "Theme_WeatheringBlue": "웨더링 블루",
+  "AnimeThemes_PluginDesc": "애니메 테마 플러그인입니다. 애플리케이션에 스타일리시한 애니메 테마를 제공합니다.",
+  "Plugin_Comp_Desc_AnimeThemeProvider": "애니메 스타일의 UI 비주얼 테마(사쿠라 블룸, 네온 제네시스, 웨더링 블루 등)를 제공합니다.",
+  "Plugin_Comp_Desc_AnimeTranslationProvider": "애니메 테마 플러그인에 UI 지역화 및 다국어 번역 지원을 제공합니다."
+}

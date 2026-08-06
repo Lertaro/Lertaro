@@ -1,0 +1,12 @@
+{
+  "Plugins_TotalCommander_EnableInlineSearch": "Activar Búsqueda en Línea",
+  "Plugins_TotalCommander_EnableInlineSearchDesc": "Permite hacer doble clic o pulsar atajos de teclado en Total Commander para invocar la búsqueda en línea",
+  "Plugins_TotalCommander_EnableQuickNav": "Activar Menú de Navegación Rápida",
+  "Plugins_TotalCommander_EnableQuickNavDesc": "Permite hacer clic central en la lista de archivos de Total Commander para invocar el menú de Navegación Rápida",
+  "Plugins_TotalCommander_DirMenu_Empty": "(Vacío)",
+  "Plugins_TotalCommander_DirMenu_RootLabel": "Lista de Directorios Favoritos",
+  "TotalCommander_PluginDesc": "Complemento de integración con Total Commander. Lee las rutas activas y ofrece salto rápido de directorio en Total Commander.",
+  "Plugin_Comp_Desc_TotalCommanderPathCollector": "Lee y realiza el seguimiento de los directorios de panel activos de Total Commander.",
+  "Plugin_Comp_Desc_TotalCommanderInlineSearchAdapter": "Ofrece navegación por filtrado de escritura en línea y salto de directorio para las ventanas lister de Total Commander.",
+  "Plugin_Comp_Desc_DirMenuProvider": "Carga y presenta la lista de directorios favoritos de Total Commander (menú Ctrl+D) en la cascada de Navegación Rápida."
+}

@@ -1,0 +1,9 @@
+{
+  "Plugins_Xyplorer_EnableInlineSearch": "启用内联搜索",
+  "Plugins_Xyplorer_EnableInlineSearchDesc": "允许在 XYplorer 窗口中双击或按快捷键弹出内置搜索栏",
+  "Plugins_Xyplorer_EnableQuickNav": "启用快速导航菜单",
+  "Plugins_Xyplorer_EnableQuickNavDesc": "允许在 XYplorer 的文件列表中中键点击弹出快速导航菜单",
+  "Xyplorer_PluginDesc": "XYplorer 增强集成插件。读取 XYplorer 的活动路径并在其中快捷跳转。",
+  "Plugin_Comp_Desc_XyplorerPathCollector": "实时提取 XYplorer 文件管理器当前活动窗格的文件夹路径。",
+  "Plugin_Comp_Desc_XyplorerInlineSearchAdapter": "为 XYplorer 文件管理器提供内嵌式的拼音与字符打字过滤定位和目录跳转功能。"
+}

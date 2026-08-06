@@ -1,0 +1,13 @@
+{
+  "WindowSwitcher_PluginName": "視窗切換器",
+  "WindowSwitcher_Name": "視窗切換器",
+  "WindowSwitcher_Path": "路徑",
+  "WindowSwitcher_AccessDenied": "[存取被拒]",
+  "WindowSwitcher_Config_TriggerKeywordLabel": "觸發詞",
+  "WindowSwitcher_Config_TriggerKeywordDesc": "輸入此關鍵字（可跟一個空格加搜尋詞）來觸發視窗搜尋，例如預設的 \"win\"。",
+  "WindowSwitcher_Config_UseScreenshotIconsLabel": "用視窗內容作為圖示",
+  "WindowSwitcher_Config_UseScreenshotIconsDesc": "用每個視窗實際內容的小縮圖代替程式圖示顯示。縮圖在後臺擷取並短暫快取，關閉此選項可以完全避免這部分後臺截圖工作。",
+  "WindowSwitcher_PluginDesc": "視窗切換器外掛。按標題、處理程序名或 PID 列出當前開啟的、可切換的視窗（和 Alt+Tab 顯示的是同一批），選中即可切換到該視窗。",
+  "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "在搜尋列輸入特定觸發詞，可依標題、處理程序名稱或 PID 檢索目前開啟的視窗清單，並提供一鍵切換到所選視窗的功能。",
+  "Plugin_Comp_Desc_WindowSwitcherTranslationProvider": "為視窗切換器外掛提供介面語言翻譯與多語言本地化服務。"
+}

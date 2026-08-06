@@ -1,0 +1,273 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.ServiceSettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="700">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*" MinHeight="140"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Style="{StaticResource SettingsSectionTitle}"
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Service_Title]}"/>
+            <TextBlock Style="{StaticResource SettingsHintText}"
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Service_Hint]}"/>
+        </StackPanel>
+
+            <Border Grid.Row="1" Style="{StaticResource SettingsCard}" Margin="0,16,0,16" Padding="16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Visual indicator (Heartbeat / Ring / Alert) -->
+                    <Grid Grid.Column="0" VerticalAlignment="Center" Margin="0,0,24,0">
+                        <!-- Loading Ring -->
+                        <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" 
+                                   Foreground="{DynamicResource AccentBlue}" FontSize="32" 
+                                   RenderTransformOrigin="0.5,0.5"
+                                   Visibility="{Binding Service.ProgressBarVisibility}">
+                            <TextBlock.RenderTransform>
+                                <RotateTransform Angle="0"/>
+                            </TextBlock.RenderTransform>
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Service.ProgressBarVisibility}" Value="Visible">
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                                                         From="0" To="360" Duration="0:0:1.5" RepeatBehavior="Forever"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        
+                        <!-- Error icon (when not loading and error is visible) -->
+                        <Border Width="42" Height="42" CornerRadius="21" Background="{DynamicResource ErrorBackground}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Visibility="{Binding Service.ErrorIconVisibility}">
+                            <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" 
+                                       Foreground="{DynamicResource ErrorBrush}" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        
+                        <!-- Normal Checkmark (when not loading and error is collapsed) -->
+                        <Border Width="42" Height="42" CornerRadius="21" Background="{DynamicResource SuccessBadgeBackground}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding Service.ErrorIconVisibility}" Value="Collapsed"/>
+                                                <Condition Binding="{Binding Service.ProgressBarVisibility}" Value="Collapsed"/>
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" 
+                                       Foreground="{DynamicResource SuccessBadgeText}" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                    
+                    <!-- Title & description -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Service.LoadingTitle}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary2}" Margin="0,0,0,6"/>
+                        <TextBlock Text="{Binding Service.LoadingStats}" FontSize="12" Foreground="{DynamicResource TextSecondary2}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    
+                    <!-- Action Button -->
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <Button x:Name="RowActionInstall" Style="{StaticResource PrimarySettingsButton}"
+                                Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Service_ActionInstall]}"
+                                Height="38"
+                                Padding="22,0"
+                                FontSize="13"
+                                FontWeight="SemiBold"
+                                Command="{Binding Service.InstallServiceCommand}" 
+                                Visibility="{Binding Service.InstallButtonVisibility}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+        <!-- Log view: Service/App/Hook, mirroring the Hotkeys page's tab pattern -->
+        <Grid Grid.Row="2" Margin="0,4,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+                <ctrl:TabStripScrollView Grid.Column="0">
+                <StackPanel Orientation="Horizontal">
+                    <StackPanel Margin="0,0,28,0">
+                        <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Service_LogTab_App]}"
+                                Command="{Binding Log.SelectTabCommand}" CommandParameter="App">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Log.SelectedTab}" Value="App">
+                                            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Border>
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Log.SelectedTab}" Value="App">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,28,0">
+                        <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Service_LogTab_Hook]}"
+                                Command="{Binding Log.SelectTabCommand}" CommandParameter="Hook">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Log.SelectedTab}" Value="Hook">
+                                            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Border>
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Log.SelectedTab}" Value="Hook">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </StackPanel>
+                    <StackPanel>
+                        <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Service_LogTab_Service]}"
+                                Command="{Binding Log.SelectTabCommand}" CommandParameter="Service">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Log.SelectedTab}" Value="Service">
+                                            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Border>
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Log.SelectedTab}" Value="Service">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+                </ctrl:TabStripScrollView>
+
+                <Border Grid.Column="1" Height="34" CornerRadius="6" Margin="16,0,8,0" VerticalAlignment="Top"
+                        Background="{DynamicResource ControlBackground}"
+                        BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1">
+                    <Grid>
+                        <TextBox Background="Transparent" BorderThickness="0" FontSize="12"
+                                 Foreground="{DynamicResource TextPrimary}"
+                                 CaretBrush="{DynamicResource TextPrimary}"
+                                 Padding="10,0" VerticalContentAlignment="Center"
+                                 Text="{Binding Log.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Service_LogSearchPlaceholder]}"
+                                   IsHitTestVisible="False" FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondary}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Log.SearchText}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+
+                <ComboBox Grid.Column="2" Style="{StaticResource SettingsComboBox}" Width="90" Margin="0,0,8,0" VerticalAlignment="Top"
+                          ItemsSource="{Binding Log.LevelFilterOptions}"
+                          DisplayMemberPath="Label"
+                          SelectedValuePath="Value"
+                          SelectedValue="{Binding Log.LevelFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <Button x:Name="RowClearLog" Grid.Column="3" Style="{StaticResource SettingsButton}" VerticalAlignment="Top"
+                        Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Service_ClearLog]}"
+                        Command="{Binding Log.ClearCommand}"/>
+        </Grid>
+        <Border Grid.Row="3" Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,10"/>
+
+        <Border Grid.Row="4" Style="{StaticResource SettingsCard}" Padding="0">
+            <!-- RichTextBox instead of an ItemsControl/ListBox: read-only but still a real text-editing
+                 control, so character-level selection and Ctrl+C copy work natively, no hand-rolled
+                 selection/clipboard code needed, while a colored Run per line still gets the by-level
+                 coloring an ItemsControl of TextBlocks would give. The FlowDocument itself is rebuilt in
+                 code-behind whenever Log.Lines changes (RichTextBox has no ItemsSource to bind to). -->
+            <RichTextBox x:Name="LogTextBox" IsReadOnly="True" IsReadOnlyCaretVisible="True"
+                         Background="Transparent" BorderThickness="0" Padding="12,10"
+                         FontFamily="Consolas" FontSize="11"
+                         HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                         PreviewMouseWheel="LogTextBox_PreviewMouseWheel">
+                <!-- The app's TextBox style gives every plain TextBox this same themed context menu
+                     (Styles/Controls/Controls.xaml); it doesn't apply to RichTextBox (a different control type),
+                     so without this override it falls back to the unstyled native OS context menu. -->
+                <RichTextBox.ContextMenu>
+                    <ContextMenu Style="{DynamicResource {x:Type ContextMenu}}">
+                        <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.Cut"/>
+                        <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.Copy"/>
+                        <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.Paste"/>
+                    </ContextMenu>
+                </RichTextBox.ContextMenu>
+            </RichTextBox>
+        </Border>
+    </Grid>
+</UserControl>

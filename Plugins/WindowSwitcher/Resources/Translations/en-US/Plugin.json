@@ -1,0 +1,13 @@
+{
+  "WindowSwitcher_PluginName": "Window Switcher",
+  "WindowSwitcher_Name": "Window Switcher",
+  "WindowSwitcher_Path": "Path",
+  "WindowSwitcher_AccessDenied": "[Access Denied]",
+  "WindowSwitcher_Config_TriggerKeywordLabel": "Trigger Keyword",
+  "WindowSwitcher_Config_TriggerKeywordDesc": "Type this keyword (optionally followed by a space and a search term) to trigger window search, e.g. the default \"win\".",
+  "WindowSwitcher_Config_UseScreenshotIconsLabel": "Show Window Content as Icon",
+  "WindowSwitcher_Config_UseScreenshotIconsDesc": "Show a small live thumbnail of each window's actual content instead of its app icon. Thumbnails are captured in the background and cached briefly, so turning this off avoids that background capture work entirely.",
+  "WindowSwitcher_PluginDesc": "Window switcher plugin. Lists currently open, switchable windows (the same set Alt+Tab shows) by title, process name, or PID, and brings the selected one to the foreground.",
+  "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "Searches currently open windows by title, process name, or PID, and provides a one-click action to switch to the selected window in the search box.",
+  "Plugin_Comp_Desc_WindowSwitcherTranslationProvider": "Provides UI translation and localization mapping for the Window Switcher plugin."
+}

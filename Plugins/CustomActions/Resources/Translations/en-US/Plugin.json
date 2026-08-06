@@ -1,0 +1,21 @@
+{
+  "CustomActions_PluginName": "Custom Actions Plugin",
+  "CustomActions_GroupName": "Custom Actions",
+  "CustomActions_Config_ActionsLabel": "Custom Actions List",
+  "CustomActions_Config_ActionsDesc": "Configure custom actions that appear in the search results action menu.",
+  "CustomActions_Config_EnabledLabel": "Enabled",
+  "CustomActions_Config_TitleLabel": "Title",
+  "CustomActions_Config_PathLabel": "Path (Program or File)",
+  "CustomActions_Config_ParameterLabel": "Parameters (%s or {} = selected path; auto-quoted, don't add quotes yourself; left empty, the quoted path itself is used as the parameter)",
+  "CustomActions_Config_IconLabel": "Icon (SVG Path Data)",
+  "CustomActions_Config_WorkingDirLabel": "Working Directory",
+  "CustomActions_Config_RunSilentlyLabel": "Run Silently",
+  "CustomActions_Config_RunAsAdminLabel": "Run as Administrator",
+  "CustomActions_Config_HotkeyLabel": "Hotkey",
+  "CustomActions_Config_FolderOnlyLabel": "Folders Only",
+  "CustomActions_Config_MultiSelectLabel": "Supports multi-selection (passes all selected paths in one launch)",
+  "CustomActions_Config_ExtensionsLabel": "Extension Filter (e.g. .txt,.log; empty for no limit)",
+  "CustomActions_PluginDesc": "Custom actions plugin. Allows users to customize right-click context menu actions.",
+  "Plugin_Comp_Desc_DynamicActionProvider": "Injects dynamic custom action menus in search results context menus, supporting external commands and parameter formatting.",
+  "Plugin_Comp_Desc_CustomActionsTranslationProvider": "Provides translation keys and multi-language localization for Custom Actions."
+}

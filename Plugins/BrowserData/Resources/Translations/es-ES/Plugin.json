@@ -1,0 +1,19 @@
+{
+  "BrowserData_PluginName": "Marcadores e Historial del Navegador",
+  "BrowserData_ProviderName": "Marcadores e Historial del Navegador",
+  "BrowserData_Config_TriggerKeywordLabel": "Palabra Clave de Activación",
+  "BrowserData_Config_TriggerKeywordDesc": "Escribe esta palabra clave (seguida de un espacio y un término de búsqueda) para activar la búsqueda de marcadores/historial, por ejemplo, la predeterminada \"bm\".",
+  "BrowserData_Config_IndexBookmarksLabel": "Indexar Marcadores",
+  "BrowserData_Config_IndexHistoryLabel": "Indexar Historial",
+  "BrowserData_Config_IndexHistoryDesc": "El historial puede llegar a ser mucho más voluminoso que los marcadores; desactiva esta opción para buscar solo en los marcadores.",
+  "BrowserData_Config_ProfilesLabel": "Directorios de Perfiles del Navegador",
+  "BrowserData_Config_ProfilesDesc": "Añade manualmente las carpetas de perfil del navegador que quieras indexar. Compatible con navegadores de la familia Chrome (Chrome/Edge/Brave/...) y de la familia Firefox. Puedes añadir varias entradas.",
+  "BrowserData_Config_NameLabel": "Nombre",
+  "BrowserData_Config_IconDataLabel": "Icono (datos de ruta vectorial, opcional)",
+  "BrowserData_Config_IconDataDesc": "Déjalo vacío para usar el icono predeterminado (distingue los marcadores del historial).",
+  "BrowserData_Config_PathLabel": "Directorio de Perfil",
+  "BrowserData_Config_PathDesc": "La carpeta de perfil del navegador, por ejemplo \"...\\User Data\\Default\" para Chrome/Edge, o \"...\\Profiles\\xxxxxxxx.default-release\" para Firefox.",
+  "BrowserData_PluginDesc": "Complemento de acceso a datos del navegador. Busca y accede rápidamente al historial, los marcadores y otros datos de los navegadores más populares.",
+  "Plugin_Comp_Desc_BrowserDataInstantProvider": "Realiza coincidencias difusas en tiempo real con el historial y los marcadores de los navegadores más populares (Chrome, Edge, Firefox) en el cuadro de búsqueda.",
+  "Plugin_Comp_Desc_BrowserDataTranslationProvider": "Ofrece traducción de la interfaz y asignación de localización para el complemento de Datos del Navegador."
+}

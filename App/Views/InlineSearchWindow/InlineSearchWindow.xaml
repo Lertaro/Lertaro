@@ -1,0 +1,87 @@
+<Window x:Class="Lertaro.App.InlineSearchWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Lertaro.App"
+        xmlns:results="clr-namespace:Lertaro.App.Views.Controls.Results"
+        xmlns:services="clr-namespace:Lertaro.App.Services"
+        xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+        Title="Lertaro Inline"
+        Width="465" Height="550" SizeToContent="Manual"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        WindowStartupLocation="Manual"
+        Focusable="True"
+        ShowActivated="False">
+    <!-- Outer Grid to support bottom/top alignment of the visible panel inside the transparent window -->
+    <Grid x:Name="RootGrid" VerticalAlignment="Bottom">
+        <!-- Main card - inverted layout: results on top, search box at bottom -->
+        <Border x:Name="MainBorder" Margin="12" CornerRadius="8"
+                Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                VerticalAlignment="Bottom"
+                Effect="{StaticResource Elevation3}">
+            <!-- ClipToBounds lives on this separate inner Border, not MainBorder itself: putting it on
+                 the same element as Effect clips the drop shadow's own soft blur to a plain rectangle,
+                 leaving a hard square remnant right at the rounded corners instead of a smooth fade. Same
+                 split SearchWindow/SettingsWindow already use for the identical reason.
+                 helpers:RoundedClip.IsEnabled replaces plain ClipToBounds: ClipToBounds ignores
+                 CornerRadius entirely (a WPF limitation), so child content flush to the edge (e.g. the
+                 ContentBg row below) showed square corners poking past this Border's own rounded paint. -->
+            <Border x:Name="ClippingBorder" CornerRadius="8" helpers:RoundedClip.IsEnabled="True">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <!-- Results list & preview container (grows upward) -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- Separator -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- Search box (anchored at bottom) -->
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <!-- ═══════════ 1. Results Container (Wraps path banner and results list) ═══════════ -->
+                    <!-- ContentBg: a shade back from the outer CardBackground chrome/search box, matching
+                         the same recessed-content convention SearchWindow/QuickSearchWindow/QuickLookWindow
+                         use for their own results/preview area. -->
+                    <Grid x:Name="ResultsContainerWrapper" Grid.Row="0" Background="{DynamicResource ContentBg}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Top Path Preview Banner -->
+                        <Border x:Name="PathPreviewBorder" Grid.Row="0" Background="{DynamicResource ActionsHeaderBg}"
+                                BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1"
+                                CornerRadius="7,7,0,0"
+                                Padding="14,8,14,8"
+                                Visibility="Collapsed">
+                            <TextBlock x:Name="PathPreviewTextBlock"
+                                       Foreground="{DynamicResource TextSecondary2}"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"
+                                       LineHeight="16"/>
+                        </Border>
+
+                        <results:ResultsControl x:Name="ResultsPanelControl" Grid.Row="1"
+                                              ItemsSource="{Binding Results}"
+                                              SelectedItem="{Binding SelectedResult, Mode=TwoWay}"
+                                              ViewMode="List"
+                                              Visibility="{Binding ResultsPanelVisibility}"/>
+                    </Grid>
+                    <!-- ═══════════ 2. Separator ═══════════ -->
+                    <Rectangle x:Name="ResultsSeparator" Grid.Row="1" Height="1" Fill="{DynamicResource SeparatorBrush}"
+                               Margin="12,0,12,0"
+                               Visibility="{Binding ResultsSeparatorVisibility}"/>
+                    <!-- ═══════════ 3. Search Box (Bottom Anchored) ═══════════ -->
+                    <Border x:Name="SearchBoxBorder" Grid.Row="2" Background="{DynamicResource CardBackground}"
+                            CornerRadius="0,0,7,7"
+                            Padding="12,8,12,8">
+                        <local:SearchBoxControl x:Name="SearchBox" FontSize="14" Padding="0" IsIconOnLeft="False"
+                                                SearchText="{Binding SearchQuery, Mode=TwoWay}" IsServiceRunning="{Binding IsServiceConnected}"/>
+                    </Border>
+                </Grid>
+            </Border>
+        </Border>
+    </Grid>
+</Window>

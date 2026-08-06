@@ -1,0 +1,9 @@
+{
+  "AnimeThemes_PluginName": "動漫主題",
+  "Theme_SakuraBloom": "櫻花盛開",
+  "Theme_NeonGenesis": "新世紀",
+  "Theme_WeatheringBlue": "天氣之子",
+  "AnimeThemes_PluginDesc": "動漫主題管理外掛。為應用提供動漫主題風格化支援。",
+  "Plugin_Comp_Desc_AnimeThemeProvider": "為系統提供二次元動漫風格的個性化介面主題（如櫻花盛開、新世紀、天氣之子等）。",
+  "Plugin_Comp_Desc_AnimeTranslationProvider": "為動漫主題外掛提供介面元素與多語言的翻譯轉換支援。"
+}

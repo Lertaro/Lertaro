@@ -1,0 +1,17 @@
+{
+  "FileFilters_PluginName": "파일 필터",
+  "FileFilters_ProviderName": "파일 필터",
+  "FileFilters_Config_FiltersLabel": "파일 필터",
+  "FileFilters_Config_FiltersDesc": "대상 키워드 검색을 위한 사용자 지정 디렉터리 범위와 확장자를 구성합니다.",
+  "FileFilters_Config_EnabledLabel": "사용됨",
+  "FileFilters_Config_NameLabel": "필터 이름",
+  "FileFilters_Config_KeywordLabel": "바로 가기 키워드",
+  "FileFilters_Config_KeywordDesc": "이 파일 필터를 활성화할 키워드 접두사입니다(예: 'exe' 또는 'doc').",
+  "FileFilters_Config_FoldersLabel": "대상 폴더",
+  "FileFilters_Config_FoldersDesc": "한 줄에 하나씩 경로를 입력하세요. 네트워크 및 로컬 드라이브를 지원합니다.",
+  "FileFilters_Config_FilterPatternLabel": "확장자 / 패턴",
+  "FileFilters_Config_FilterPatternDesc": "필터 확장자 또는 검색 패턴입니다(예: '*.exe;*.lnk' 또는 '*').",
+  "FileFilters_PluginDesc": "사용자 지정 디렉터리 와일드카드 필터링 및 색인 플러그인입니다. 사용자가 색인화를 위한 특정 폴더 및 파일 확장자 필터링 규칙을 구성할 수 있게 합니다.",
+  "Plugin_Comp_Desc_FileFiltersSearchableItemProvider": "사용자가 구성한 사용자 지정 디렉터리에서 와일드카드 패턴(예: *.pdf)과 일치하는 파일 및 모든 하위 폴더를 검색하고 색인화하여 메인 검색 색인에 노출합니다.",
+  "Plugin_Comp_Desc_FileFiltersTranslationProvider": "파일 필터에 번역 및 언어 리소스 매핑을 제공합니다."
+}

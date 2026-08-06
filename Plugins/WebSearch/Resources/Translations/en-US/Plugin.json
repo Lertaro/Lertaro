@@ -1,0 +1,21 @@
+{
+  "WebSearch_PluginName": "Web Search Plugin",
+  "WebSearch_PluginDesc": "Quickly initiate web searches using custom or built-in search engines (like Google, Baidu, GitHub, etc.) by typing specific trigger keywords directly in the search box.",
+  "WebSearch_ProviderName": "Web Search",
+  "WebSearch_PlaceholderTitle": "Search with {0}",
+  "WebSearch_PlaceholderDesc": "Type keywords and press Enter to search",
+  "WebSearch_ResultTitle": "Search with {0}: {1}",
+  "WebSearch_ResultDesc": "Press Enter or click to open search results in your browser",
+  "WebSearch_Config_SourcesLabel": "Custom Search Sources",
+  "WebSearch_Config_SourcesDesc": "Configure custom search engines and keywords for web search.",
+  "WebSearch_Config_NameLabel": "Name",
+  "WebSearch_Config_KeywordLabel": "Trigger Keyword",
+  "WebSearch_Config_IconLabel": "Icon",
+  "WebSearch_Config_UrlLabel": "URL (use %s as placeholder)",
+  "WebSearch_Config_SuggestUrlLabel": "Suggestion URL (optional, use %s as placeholder)",
+  "WebSearch_Config_SuggestUrlDesc": "Leave empty to disable suggestions for this engine. When set, up to 5 live suggestions are fetched as you type (OpenSearch JSON format).",
+  "WebSearch_SuggestionDesc": "Suggested by {0} — press Enter or click to search",
+  "WebSearch_ProviderDesc": "Triggers mainstream or custom web search engines quickly in the search box using keywords.",
+  "Plugin_Comp_Desc_WebSearchInstantProvider": "Initiates real-time web searches using custom search engine keywords (like bd, gh) typed in the search box.",
+  "Plugin_Comp_Desc_WebSearchTranslationProvider": "Provides UI translations and localization resources for the Web Search plugin."
+}

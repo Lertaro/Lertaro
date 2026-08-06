@@ -1,0 +1,9 @@
+{
+  "Plugins_OneCommander_EnableInlineSearch": "Activar Búsqueda en Línea",
+  "Plugins_OneCommander_EnableInlineSearchDesc": "Permite hacer doble clic o pulsar atajos de teclado en OneCommander para invocar la búsqueda en línea",
+  "Plugins_OneCommander_EnableQuickNav": "Activar Menú de Navegación Rápida",
+  "Plugins_OneCommander_EnableQuickNavDesc": "Permite hacer clic central en la ventana de OneCommander para invocar el menú de Navegación Rápida",
+  "OneCommander_PluginDesc": "Complemento de integración con One Commander. Lee las rutas activas en One Commander para el salto rápido y la localización de archivos.",
+  "Plugin_Comp_Desc_OneCommanderPathCollector": "Captura automáticamente las rutas de carpetas activas del administrador de archivos One Commander.",
+  "Plugin_Comp_Desc_OneCommanderInlineSearchAdapter": "Ofrece búsqueda difusa/por pinyin en línea impulsada por la escritura y navegación dentro de las ventanas de One Commander."
+}

@@ -1,0 +1,13 @@
+{
+  "ProcessManager_PluginName": "进程管理",
+  "ProcessManager_Name": "进程管理",
+  "ProcessManager_Description": "进程管理 (ps)",
+  "ProcessManager_Path": "路径",
+  "ProcessManager_Window": "窗口",
+  "ProcessManager_AccessDenied": "[拒绝访问]",
+  "ProcessManager_Config_TriggerKeywordLabel": "触发词",
+  "ProcessManager_Config_TriggerKeywordDesc": "输入此关键字（可跟一个空格加搜索词）来触发进程搜索，例如默认的 \"ps\"。",
+  "ProcessManager_PluginDesc": "进程管理工具插件。支持搜索、查看与终止当前运行中的系统进程。",
+  "Plugin_Comp_Desc_ProcessManagerInstantProvider": "在搜索栏输入特定触发词，按进程名、PID 或窗口标题检索系统进程列表，并提供一键强杀（Kill）选定进程的快捷方式。",
+  "Plugin_Comp_Desc_ProcessManagerTranslationProvider": "为进程管理插件提供界面语言翻译与多语言本地化服务。"
+}

@@ -1,0 +1,9 @@
+{
+  "Plugins_Files_EnableInlineSearch": "インライン検索を有効化",
+  "Plugins_Files_EnableInlineSearchDesc": "Files でダブルクリックまたはホットキーを押してインライン検索を呼び出せるようにします",
+  "Plugins_Files_EnableQuickNav": "クイックナビゲーションメニューを有効化",
+  "Plugins_Files_EnableQuickNavDesc": "Files のウィンドウで中クリックしてクイックナビゲーションメニューを呼び出せるようにします",
+  "Files_PluginDesc": "Files 連携プラグイン。Files 内のアクティブなパスを読み取り、クイックジャンプとファイル位置特定を実現します。",
+  "Plugin_Comp_Desc_FilesPathCollector": "Files からアクティブなファイルマネージャーのフォルダーパスを自動的に取得します。",
+  "Plugin_Comp_Desc_FilesInlineSearchAdapter": "Files のウィンドウ内で、インラインの入力駆動によるピンイン/あいまい検索とナビゲーションを提供します。"
+}

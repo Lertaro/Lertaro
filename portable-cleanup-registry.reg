@@ -1,0 +1,15 @@
+Windows Registry Editor Version 5.00
+
+; Lertaro portable cleanup: removes the two per-user registry entries the running app creates on its
+; own (UrlProtocolManager.cs / StartupManager.cs) -- the portable build has no installer/uninstaller to
+; do this for you, so run this manually (double-click, confirm the prompt) before deleting the portable
+; folder if you want no trace left in the registry. Both are HKCU-only; no elevation is required.
+;
+; Removes the whole "lertaro://" URI protocol registration (HKEY_CURRENT_USER\Software\Classes\lertaro
+; and everything under it, e.g. shell\open\command).
+[-HKEY_CURRENT_USER\Software\Classes\lertaro]
+
+; Removes only Lertaro's own "Start with Windows" entry from the shared Run key -- the Run key itself,
+; and any other app's entries in it, are left untouched.
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run]
+"Lertaro"=-

@@ -1,0 +1,4 @@
+{
+  "Plugins_PinyinAliasPluginName": "병음 검색 별칭 플러그인",
+  "Plugin_Comp_Desc_PinyinAliasProvider": "검색 속도를 높이기 위해 비 ASCII 텍스트에 대한 병음 별칭을 자동으로 생성합니다."
+}

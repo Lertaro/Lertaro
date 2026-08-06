@@ -1,0 +1,12 @@
+{
+  "Plugins_TotalCommander_EnableInlineSearch": "インライン検索を有効化",
+  "Plugins_TotalCommander_EnableInlineSearchDesc": "Total Commander でダブルクリックまたはホットキーを押してインライン検索を呼び出せるようにします",
+  "Plugins_TotalCommander_EnableQuickNav": "クイックナビゲーションメニューを有効化",
+  "Plugins_TotalCommander_EnableQuickNavDesc": "Total Commander のファイル一覧で中クリックしてクイックナビゲーションメニューを呼び出せるようにします",
+  "Plugins_TotalCommander_DirMenu_Empty": "（空）",
+  "Plugins_TotalCommander_DirMenu_RootLabel": "ディレクトリホットリスト",
+  "TotalCommander_PluginDesc": "Total Commander 連携プラグイン。アクティブなパスを読み取り、Total Commander 内でクイックなディレクトリジャンプを提供します。",
+  "Plugin_Comp_Desc_TotalCommanderPathCollector": "Total Commander のアクティブなパネルのディレクトリを読み取り、追跡します。",
+  "Plugin_Comp_Desc_TotalCommanderInlineSearchAdapter": "Total Commander のリスターウィンドウに、インライン入力によるフィルターナビゲーションとディレクトリジャンプを提供します。",
+  "Plugin_Comp_Desc_DirMenuProvider": "Total Commander のディレクトリホットリスト（Ctrl+D メニュー）を読み込み、クイックナビゲーションのカスケードメニュー内に表示します。"
+}

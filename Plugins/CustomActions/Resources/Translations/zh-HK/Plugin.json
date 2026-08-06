@@ -1,0 +1,21 @@
+{
+  "CustomActions_PluginName": "自訂動作外掛程式",
+  "CustomActions_GroupName": "自訂動作",
+  "CustomActions_Config_ActionsLabel": "自訂動作清單",
+  "CustomActions_Config_ActionsDesc": "設定可在搜尋結果動作選單中顯示並觸發執行的自訂動作。",
+  "CustomActions_Config_EnabledLabel": "已啟用",
+  "CustomActions_Config_TitleLabel": "標題",
+  "CustomActions_Config_PathLabel": "路徑（程式或檔案）",
+  "CustomActions_Config_ParameterLabel": "參數（用 %s 或 {} 代表選取的路徑，會自動加引號，請勿自行加上引號；留空則直接把加好引號的路徑作為參數）",
+  "CustomActions_Config_IconLabel": "圖示（SVG Path 資料）",
+  "CustomActions_Config_WorkingDirLabel": "工作目錄",
+  "CustomActions_Config_RunSilentlyLabel": "靜默執行",
+  "CustomActions_Config_RunAsAdminLabel": "以系統管理員身分執行",
+  "CustomActions_Config_HotkeyLabel": "快捷鍵",
+  "CustomActions_Config_FolderOnlyLabel": "僅對資料夾生效",
+  "CustomActions_Config_MultiSelectLabel": "支援多重選取（選取多項時一次傳入全部路徑）",
+  "CustomActions_Config_ExtensionsLabel": "限制副檔名（例如 .txt,.log；留空表示不限制）",
+  "CustomActions_PluginDesc": "自訂動作外掛程式。允許使用者自訂右鍵操作選單動作。",
+  "Plugin_Comp_Desc_DynamicActionProvider": "在搜尋結果右鍵選單中注入動態自訂動作，支援外部命令呼叫及參數預留位置。",
+  "Plugin_Comp_Desc_CustomActionsTranslationProvider": "為自訂動作設定和執行介面提供在地化翻譯字典。"
+}

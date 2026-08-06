@@ -1,0 +1,4 @@
+{
+  "Plugins_SpanishAliasPluginName": "Spanish Accent Alias",
+  "Plugin_Comp_Desc_SpanishAliasProvider": "Enables typing plain ASCII letters (e.g. nino, cancion) to match Spanish accented files (e.g. Niño, Canción)."
+}

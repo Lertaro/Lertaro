@@ -1,0 +1,80 @@
+<Window x:Class="Lertaro.App.QuickSearchWindow"
+        x:Name="RootWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Lertaro.App"
+        xmlns:results="clr-namespace:Lertaro.App.Views.Controls.Results"
+        xmlns:services="clr-namespace:Lertaro.App.Services"
+        xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+        xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+        Title="Lertaro"
+        SizeToContent="WidthAndHeight"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        ResizeMode="NoResize"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        WindowStartupLocation="Manual"
+        SourceInitialized="Window_SourceInitialized"
+        Loaded="Window_Loaded"
+        Deactivated="Window_Deactivated"
+        PreviewKeyDown="Window_PreviewKeyDown">
+
+
+    <Grid x:Name="RootGrid">
+        <Border Margin="24,40,24,24" CornerRadius="8" Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
+                MouseLeftButtonDown="Border_MouseLeftButtonDown"
+                MouseMove="Border_MouseMove"
+                MouseLeftButtonUp="Border_MouseLeftButtonUp"
+                Effect="{StaticResource Elevation3}">
+
+            <!-- ClipToBounds ignores CornerRadius (a WPF limitation, not a bug here): helpers:RoundedClip
+                 builds a real rounded-rect Clip instead: child content flush to the edge would otherwise show
+                 square corners poking past this Border's own rounded paint. -->
+            <Border CornerRadius="7" helpers:RoundedClip.IsEnabled="True">
+                <Grid Width="{Binding SearchBarWidth}">
+            <Grid.RowDefinitions>
+                <!-- Search bar -->
+                <RowDefinition Height="Auto"/>
+                <!-- Separator -->
+                <RowDefinition Height="Auto"/>
+                <!-- Results panel (grows with content) -->
+                <RowDefinition Height="Auto"/>
+                <!-- Status bar -->
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- ═══════════ 1. Search Bar ═══════════ -->
+            <local:SearchBoxControl x:Name="SearchBox" Grid.Row="0" SearchText="{Binding SearchQuery, Mode=TwoWay}" Height="{Binding SearchBarHeight}" IsDynamicScalingEnabled="True" HorizontalAlignment="Stretch" IsServiceRunning="{Binding IsServiceConnected}"/>
+
+            <!-- ═══════════ 2. Separator ═══════════ -->
+            <Rectangle x:Name="ResultsSeparator"
+                       Grid.Row="1"
+                       Height="1"
+                       Margin="12,0,12,0"
+                       Fill="{DynamicResource SeparatorBrush}"
+                       Visibility="{Binding ResultsSeparatorVisibility}"/>
+
+            <!-- Recessed content tier behind the results rows, matching SearchWindow's own
+                 "Main Results Grid" (Background=ContentBg, a shade back from the outer CardBackground
+                 chrome/search bar) so every window's results area reads the same instead of being flat
+                 CardBackground everywhere with no depth. -->
+            <Border Grid.Row="2" Grid.RowSpan="2" Background="{DynamicResource ContentBg}"/>
+
+            <!-- ═══════════ 4. Results Panel ═══════════ -->
+            <results:ResultsControl x:Name="ResultsPanelControl" Grid.Row="2"
+                                  ItemsSource="{Binding Results}"
+                                  SelectedItem="{Binding SelectedResult, Mode=TwoWay}"
+                                  ViewMode="List"
+                                  Visibility="{Binding ResultsPanelVisibility}"/>
+
+            <!-- ═══════════ 5. Status bar (shown when loading or ready) ═══════════ -->
+            <local:StatusBarControl x:Name="StatusBarControl" Grid.Row="3"
+                                    Visibility="{Binding StatusBarVisibility}"/>
+        </Grid>
+            </Border>
+        </Border>
+</Grid>
+</Window>

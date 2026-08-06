@@ -1,0 +1,19 @@
+{
+  "BrowserData_PluginName": "瀏覽器書籤與歷史",
+  "BrowserData_ProviderName": "瀏覽器書籤與歷史",
+  "BrowserData_Config_TriggerKeywordLabel": "觸發詞",
+  "BrowserData_Config_TriggerKeywordDesc": "輸入此關鍵字（後跟一個空格加搜尋詞）來觸發書籤/歷史記錄搜尋，例如預設的 \"bm\"。",
+  "BrowserData_Config_IndexBookmarksLabel": "索引書籤",
+  "BrowserData_Config_IndexHistoryLabel": "索引歷史記錄",
+  "BrowserData_Config_IndexHistoryDesc": "歷史記錄數量往往遠多於書籤——關閉此項可只搜尋書籤。",
+  "BrowserData_Config_ProfilesLabel": "瀏覽器使用者目錄列表",
+  "BrowserData_Config_ProfilesDesc": "手動新增要索引的瀏覽器使用者資料目錄（Profile 資料夾），支援 Chrome 系（Chrome/Edge/Brave 等）和 Firefox 系瀏覽器，可新增多個。",
+  "BrowserData_Config_NameLabel": "名稱",
+  "BrowserData_Config_IconDataLabel": "圖示（向量路徑資料，可選）",
+  "BrowserData_Config_IconDataDesc": "留空則使用預設圖示區分書籤與歷史記錄。",
+  "BrowserData_Config_PathLabel": "使用者目錄路徑",
+  "BrowserData_Config_PathDesc": "瀏覽器的使用者資料目錄，例如 Chrome/Edge 的 \"...\\User Data\\Default\"，或 Firefox 的 \"...\\Profiles\\xxxxxxxx.default-release\"。",
+  "BrowserData_PluginDesc": "瀏覽器資料直達外掛。快速搜尋並存取主流瀏覽器的歷史記錄、書籤等資料。",
+  "Plugin_Comp_Desc_BrowserDataInstantProvider": "實時在搜尋框中快速模糊匹配主流瀏覽器（如 Chrome、Edge、Firefox）的歷史記錄與書籤資料。",
+  "Plugin_Comp_Desc_BrowserDataTranslationProvider": "為瀏覽器資料直達外掛提供介面語言翻譯與多語言本地化服務。"
+}

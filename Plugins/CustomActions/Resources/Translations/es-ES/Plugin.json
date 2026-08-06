@@ -1,0 +1,21 @@
+{
+  "CustomActions_PluginName": "Complemento de Acciones Personalizadas",
+  "CustomActions_GroupName": "Acciones Personalizadas",
+  "CustomActions_Config_ActionsLabel": "Lista de Acciones Personalizadas",
+  "CustomActions_Config_ActionsDesc": "Configura acciones personalizadas que aparecen en el menú de acciones de los resultados de búsqueda.",
+  "CustomActions_Config_EnabledLabel": "Activado",
+  "CustomActions_Config_TitleLabel": "Título",
+  "CustomActions_Config_PathLabel": "Ruta (Programa o Archivo)",
+  "CustomActions_Config_ParameterLabel": "Parámetros (%s o {} = ruta seleccionada; se entrecomilla automáticamente, no añadas comillas tú mismo; si se deja vacío, se usa la ruta entrecomillada como único parámetro)",
+  "CustomActions_Config_IconLabel": "Icono (Datos de Ruta SVG)",
+  "CustomActions_Config_WorkingDirLabel": "Directorio de Trabajo",
+  "CustomActions_Config_RunSilentlyLabel": "Ejecutar en Segundo Plano",
+  "CustomActions_Config_RunAsAdminLabel": "Ejecutar como Administrador",
+  "CustomActions_Config_HotkeyLabel": "Atajo de Teclado",
+  "CustomActions_Config_FolderOnlyLabel": "Solo Carpetas",
+  "CustomActions_Config_MultiSelectLabel": "Admite selección múltiple (pasa todas las rutas seleccionadas en un solo lanzamiento)",
+  "CustomActions_Config_ExtensionsLabel": "Filtro de Extensiones (por ejemplo, .txt,.log; vacío para no limitar)",
+  "CustomActions_PluginDesc": "Complemento de acciones personalizadas. Permite a los usuarios personalizar las acciones del menú contextual del botón derecho.",
+  "Plugin_Comp_Desc_DynamicActionProvider": "Inyecta menús de acciones personalizadas dinámicas en los menús contextuales de los resultados de búsqueda, admitiendo comandos externos y formato de parámetros.",
+  "Plugin_Comp_Desc_CustomActionsTranslationProvider": "Ofrece claves de traducción y localización multilingüe para Acciones Personalizadas."
+}

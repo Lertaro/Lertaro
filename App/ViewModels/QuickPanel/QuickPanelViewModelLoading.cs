@@ -1,0 +1,282 @@
+using Lertaro.App.ViewModels.Search;
+using Lertaro.Core;
+
+namespace Lertaro.App.ViewModels.QuickPanel;
+
+// What a refresh actually loads. Split out of QuickPanelViewModel.cs purely to keep that file under the
+// repo's per-file line limit; it has no state of its own and only ever operates on the one view model it
+// is part of.
+public partial class QuickPanelViewModel
+{
+    /// <summary>
+    /// Starts loading every workspace and returns as soon as there is something worth opening for --
+    /// or when everything has finished and there is not.
+    /// </summary>
+    /// <remarks>
+    /// Nothing waits on anything else. Each source is its own task, each group appears the moment its own
+    /// source is ready, and the panel opens on the first one to arrive rather than the last. A source on
+    /// a disconnected share used to hold the whole summon open behind it; now it costs only its own
+    /// group, which turns up late or not at all.
+    ///
+    /// The task returned is deliberately not "everything is loaded": the caller's question is only
+    /// whether to open a window, and that is answered by the first entry. The rest lands afterwards,
+    /// into a panel that is already on screen.
+    ///
+    /// Streaming stops at the source, not inside it. A source's entries are ordered and capped as a set
+    /// (see QuickPanelSourceLoader.Order), so emitting them one at a time would mean re-sorting the group
+    /// under the pointer and re-deciding which ones the cap keeps, on every arrival. A slow source
+    /// honestly shows up as its group arriving late; it should not show up as a list that will not sit
+    /// still.
+    /// </remarks>
+    public async Task RefreshAsync(string? processName = null, CancellationToken token = default)
+    {
+        // Each open starts unfiltered. The box is part of the window and every open builds a new one, so
+        // it is empty on screen -- a query left on this view model would narrow the list by something
+        // the user cannot see and did not type. Assigned to the field rather than the property: there is
+        // nothing to re-filter, the groups it would run over are about to be replaced.
+        _searchQuery = string.Empty;
+        OnPropertyChanged(nameof(SearchQuery));
+
+        var settings = _readSettings();
+        // Disabled workspaces and closed plugin tabs are dropped here rather than filtered at every use:
+        // a tab that isn't in the strip must also not be reachable by a process rule or the number keys.
+        var workspaces = settings.Tabs.Where(tab => tab.Enabled).ToList();
+        var candidates = OrderedTabs(settings, workspaces);
+
+        _content = new Dictionary<string, List<QuickPanelGroupViewModel>>(StringComparer.OrdinalIgnoreCase);
+        _tabs = new List<IQuickPanelTabSource>();
+        _pendingTabs = candidates;
+        // What the panel wants to open on, decided before anything has loaded. _activeTabId is what it
+        // is actually showing, which may be a stand-in until the wanted one turns up -- or forever, if
+        // that tab has nothing in it.
+        _wantedTabId = ResolveActiveTabId(settings, processName, workspaces, candidates);
+        _activeTabId = string.Empty;
+
+        RebuildTabs();
+        ShowActiveTab();
+
+        // Completed by the first group to land. Nothing else awaits it, so a summon that turns up empty
+        // still finishes -- through the WhenAll below rather than through this.
+        var firstArrival = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _firstArrival = firstArrival;
+
+        var everything = Task.WhenAll(candidates.Select(tab =>
+            tab.LoadAsync((group, rank) => Place(tab, group, rank), token)));
+
+        // Whichever comes first: something to show, or nothing left to wait for.
+        await Task.WhenAny(firstArrival.Task, everything).ConfigureAwait(true);
+        _firstArrival = null;
+    }
+
+    /// <summary>Tabs still loading, in configured order -- what a tab's own position is read from.</summary>
+    private List<IQuickPanelTabSource> _pendingTabs = new();
+
+    private TaskCompletionSource? _firstArrival;
+
+    /// <summary>Loads one workspace's visible folders, each on its own, and files each as it lands.</summary>
+    internal async Task LoadWorkspaceAsync(
+        QuickPanelTab workspace, Action<QuickPanelGroupViewModel, int> place, CancellationToken token)
+    {
+        var visible = QuickPanelGroupOrdering.Resolve(
+            workspace.Folders.Select(folder => folder.Id),
+            workspace.GroupOrder,
+            workspace.DisabledGroupIds).ToList();
+
+        await Task.WhenAll(visible.Select(async (id, rank) =>
+        {
+            if (workspace.Folders.FirstOrDefault(folder => folder.Id == id) is not { } folder) return;
+
+            var group = await BuildGroupAsync(workspace, folder, token).ConfigureAwait(true);
+            if (group != null) place(group, rank);
+        })).ConfigureAwait(true);
+    }
+
+    /// <summary>Files a finished group under its tab, in the position the settings give it.</summary>
+    /// <remarks>
+    /// At its configured rank, never appended. Groups now arrive in whatever order their sources happen
+    /// to finish, so appending would let a fast source outrank a slow one and quietly replace the user's
+    /// own order with a race -- the same trap the startup panel's tabs hit and solved the same way.
+    ///
+    /// The tab appears with the workspace's first group, for the same reason it disappears when a
+    /// workspace has none: a tab is only worth a place in the strip if there is something behind it.
+    /// </remarks>
+    private void Place(IQuickPanelTabSource tab, QuickPanelGroupViewModel group, int rank)
+    {
+        // Sources finish on their own tasks, so two can land at the same moment. In the running app the
+        // UI SynchronizationContext serialises the continuations and this is safe by accident of where
+        // they resume; the lock is what makes it true without depending on that, and it is the only
+        // thing holding these collections together anywhere there is no dispatcher.
+        lock (_placing)
+        {
+            if (!_content.TryGetValue(tab.Id, out var groups))
+            {
+                _content[tab.Id] = groups = new List<QuickPanelGroupViewModel>();
+                AddTab(tab);
+            }
+
+            var at = groups.FindIndex(existing => RankOf(existing.SourceId) > rank);
+            if (at < 0) at = groups.Count;
+            groups.Insert(at, group);
+            _ranks[group.SourceId] = rank;
+
+            if (tab.Id.Equals(_activeTabId, StringComparison.OrdinalIgnoreCase))
+                ShowActiveTab();
+        }
+
+        _firstArrival?.TrySetResult();
+    }
+
+    private readonly object _placing = new();
+
+    // Where each source sits in its workspace's configured order, remembered as it lands so the next
+    // arrival can be slotted against it.
+    private readonly Dictionary<string, int> _ranks = new(StringComparer.OrdinalIgnoreCase);
+
+    private int RankOf(string sourceId) => _ranks.TryGetValue(sourceId, out var rank) ? rank : int.MaxValue;
+
+    /// <summary>What the panel wants to be showing, which it may not be able to yet.</summary>
+    private string _wantedTabId = string.Empty;
+
+    /// <summary>Gives a tab its place in the strip, at the position the settings order it in.</summary>
+    /// <remarks>
+    /// Tabs arrive in whatever order they first produce something, so the position comes from the
+    /// configured order rather than from arrival -- appending would let a fast tab outrank a slow one and
+    /// quietly replace the user's own order with a race.
+    ///
+    /// The wanted tab may be slower than another, or may have nothing at all. Until it arrives the panel
+    /// shows the first tab it has, and switches the moment the wanted one does turn up. The wanted id is
+    /// never overwritten by that stand-in, which is what lets it still be honoured later.
+    /// </remarks>
+    private void AddTab(IQuickPanelTabSource tab)
+    {
+        var at = _pendingTabs.IndexOf(tab);
+        var before = _tabs.FindIndex(existing => _pendingTabs.IndexOf(existing) > at);
+        if (before < 0) before = _tabs.Count;
+        _tabs.Insert(before, tab);
+
+        var isWanted = tab.Id.Equals(_wantedTabId, StringComparison.OrdinalIgnoreCase);
+        var showingNothing = string.IsNullOrEmpty(_activeTabId)
+            || !_tabs.Any(existing => existing.Id.Equals(_activeTabId, StringComparison.OrdinalIgnoreCase));
+
+        if (isWanted || showingNothing)
+            _activeTabId = isWanted ? tab.Id : _tabs[0].Id;
+
+        RebuildTabs();
+        if (isWanted || showingNothing) ShowActiveTab();
+    }
+
+    /// <summary>The folder source behind a group, looked up across every workspace this refresh knows.</summary>
+    private QuickPanelFolderSource? SourceOf(string sourceId) => _pendingTabs
+        .OfType<WorkspaceTabSource>()
+        .SelectMany(tab => tab.Workspace.Folders)
+        .FirstOrDefault(folder => folder.Id.Equals(sourceId, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Loads one group's source again and puts the result back into that same group.</summary>
+    /// <remarks>
+    /// For after a drop: the files were copied by the shell behind its own dialog, and nothing tells the
+    /// panel they arrived. Only the one group is reloaded, and into the object that is already on screen,
+    /// so its sort, its view and whether it is collapsed all survive -- which a full refresh would not
+    /// leave alone.
+    ///
+    /// A source that has since gone (settings edited while the panel was up) simply leaves the group as
+    /// it was: there is nothing to load it from, and emptying it would be a worse answer than stale.
+    /// </remarks>
+    public async Task ReloadGroupAsync(QuickPanelGroupViewModel group, CancellationToken token = default)
+    {
+        var source = SourceOf(group.SourceId);
+        if (source == null) return;
+
+        List<SearchResult> results;
+        try
+        {
+            results = await _load(source, token).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[QuickPanel] Source '{source.Path}' failed to reload: {ex.Message}", LogLevel.Error);
+            return;
+        }
+
+        group.Replace(results
+            .Select((result, index) => (
+                Item: SearchResultHelper.CreateUiResult(result, string.Empty, index, isApplication: false, scope: null),
+                Modified: ReadModified(result)))
+            .ToList());
+
+        // A group that the reload emptied is hidden by its own HasMatches, so the panel's own "nothing
+        // here" line has to be recomputed against what is left.
+        IsEmpty = !Groups.Any(shown => shown.HasMatches);
+        UpdateLineNumberSizing();
+    }
+
+    /// <summary>One configured source, loaded and dressed as a group -- or null when it has nothing.</summary>
+    /// <remarks>
+    /// A source that came back empty is left out rather than shown as an empty heading. The panel is a
+    /// quarter of the window it docks to and every heading costs a row of it; which sources exist is
+    /// what the settings page is for, and a heading reading "(0)" that cannot be opened into anything
+    /// would spend that row saying so.
+    /// </remarks>
+    private async Task<QuickPanelGroupViewModel?> BuildGroupAsync(
+        QuickPanelTab workspace, QuickPanelFolderSource source, CancellationToken token)
+    {
+        List<SearchResult> results;
+        try
+        {
+            results = await _load(source, token).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // One unreachable folder (a disconnected drive, a permission change) costs its own group and
+            // nothing else: the rest of the workspace is still worth showing.
+            Logger.Log($"[QuickPanel] Source '{source.Path}' failed to load: {ex.Message}", LogLevel.Error);
+            return null;
+        }
+
+        if (results.Count == 0)
+            return null;
+
+        workspace.GroupPreferences.TryGetValue(source.Id, out var preference);
+
+        var items = results
+            .Select((result, index) => (
+                Item: SearchResultHelper.CreateUiResult(result, string.Empty, index, isApplication: false, scope: null),
+                Modified: ReadModified(result)))
+            .ToList();
+
+        return new QuickPanelGroupViewModel(
+            source.Id,
+            TitleOf(source, preference),
+            source.Path,
+            items,
+            QuickPanelGroupPreference.DefaultSortFor(source),
+            // The settings page owns this one: the header's own toggle overrides it for the session it
+            // is pressed in, and this is what the group opens as.
+            preference?.ThumbnailView ?? true,
+            preference?.Expanded ?? true,
+            source.AcceptsDrops);
+    }
+
+    private static string TitleOf(QuickPanelFolderSource source, QuickPanelGroupPreference? preference)
+        => string.IsNullOrWhiteSpace(preference?.DisplayName)
+            ? QuickPanelFolderSource.DefaultName(source.Path)
+            : preference!.DisplayName.Trim();
+
+    /// <summary>The result's modified time, without going to the filesystem for it.</summary>
+    /// <remarks>
+    /// The index answers for almost every result, so reading the file here instead would be a filesystem
+    /// round trip per row, on the UI thread, to re-learn something already recorded.
+    ///
+    /// MinValue is the index's "not known": those sort last and get no timestamp line, and
+    /// AppSearchResult's own throttled background read fills the value in for next time.
+    /// </remarks>
+    private static DateTime? ReadModified(SearchResult item)
+        => item.Metadata.Modified is var modified && modified != DateTime.MinValue ? modified : null;
+}

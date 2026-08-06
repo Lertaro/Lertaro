@@ -1,0 +1,4 @@
+{
+  "Plugins_PinyinAliasPluginName": "Complemento de Alias de Búsqueda por Pinyin",
+  "Plugin_Comp_Desc_PinyinAliasProvider": "Genera automáticamente alias de ortografía pinyin para texto no ASCII con el fin de acelerar la búsqueda."
+}

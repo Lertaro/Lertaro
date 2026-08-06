@@ -1,0 +1,12 @@
+{
+  "Plugins_TotalCommander_EnableInlineSearch": "啟用內嵌搜尋",
+  "Plugins_TotalCommander_EnableInlineSearchDesc": "允許在 Total Commander 視窗中雙擊或按快捷鍵彈出內建搜尋欄",
+  "Plugins_TotalCommander_EnableQuickNav": "啟用快速導航選單",
+  "Plugins_TotalCommander_EnableQuickNavDesc": "允許在 Total Commander 的檔案列表中中鍵點選彈出快速導航選單",
+  "Plugins_TotalCommander_DirMenu_Empty": "(空)",
+  "Plugins_TotalCommander_DirMenu_RootLabel": "常用目錄",
+  "TotalCommander_PluginDesc": "Total Commander 增強整合外掛。讀取 Total Commander 的活動路徑並在其中快捷跳轉。",
+  "Plugin_Comp_Desc_TotalCommanderPathCollector": "實時提取經典的 Total Commander 檔案管理員當前活動視窗或後臺標籤頁的資料夾路徑。",
+  "Plugin_Comp_Desc_TotalCommanderInlineSearchAdapter": "為 Total Commander 雙欄檔案管理員提供內嵌式的拼音與字元打字過濾定位和目錄跳轉功能。",
+  "Plugin_Comp_Desc_DirMenuProvider": "讀取並展示 Total Commander 中的常用資料夾快捷選單（Ctrl+D 常用目錄），供快速導航級聯選單呼叫。"
+}

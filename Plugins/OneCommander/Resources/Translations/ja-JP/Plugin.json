@@ -1,0 +1,9 @@
+{
+  "Plugins_OneCommander_EnableInlineSearch": "インライン検索を有効化",
+  "Plugins_OneCommander_EnableInlineSearchDesc": "OneCommander でダブルクリックまたはホットキーを押してインライン検索を呼び出せるようにします",
+  "Plugins_OneCommander_EnableQuickNav": "クイックナビゲーションメニューを有効化",
+  "Plugins_OneCommander_EnableQuickNavDesc": "OneCommander のウィンドウで中クリックしてクイックナビゲーションメニューを呼び出せるようにします",
+  "OneCommander_PluginDesc": "One Commander 連携プラグイン。One Commander 内のアクティブなパスを読み取り、クイックジャンプとファイル位置特定を実現します。",
+  "Plugin_Comp_Desc_OneCommanderPathCollector": "One Commander からアクティブなファイルマネージャーのフォルダーパスを自動的に取得します。",
+  "Plugin_Comp_Desc_OneCommanderInlineSearchAdapter": "One Commander のウィンドウ内で、インラインの入力駆動によるピンイン/あいまい検索とナビゲーションを提供します。"
+}

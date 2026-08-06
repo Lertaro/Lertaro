@@ -1,0 +1,11 @@
+{
+  "QuickLookBridge_PluginName": "QuickLook ブリッジ",
+  "QuickLookBridge_PluginDesc": "実験的機能: 外部の QuickLook（github.com/QL-Win/QuickLook）インスタンスが独自の名前付きパイプ経由で到達可能な場合、そのプレビューがすべての組み込みプレビュープロバイダーより優先して使用されます。この間、Lertaro 自身のプレビューパネルは非表示になり、QuickLook の独立したフローティングウィンドウが、そのパネルが本来占めるはずだった位置にドッキングされます。",
+  "QuickLookBridge_ProviderName": "QuickLook ブリッジ",
+  "QuickLookBridge_GroupName": "QuickLook",
+  "QuickLookBridge_ActionName": "QuickLook でプレビュー",
+  "QuickLookBridge_ActionDesc": "名前付きパイプ経由で、選択したファイルまたはフォルダーを QuickLook 自身のプレビューウィンドウで開きます。",
+  "Plugin_Comp_Desc_QuickLookPreviewProvider": "名前付きパイプ経由で到達可能な QuickLook インスタンスを検出し、すべてのプレビューをそれに委ねます。有効な間は Lertaro 自身のプレビューパネルを非表示にし、QuickLook のウィンドウをそのパネルの位置にドッキングします。",
+  "Plugin_Comp_Desc_QuickLookBridgeTranslationProvider": "QuickLook ブリッジプラグインの UI 翻訳とローカライズマッピングを提供します。",
+  "Plugin_Comp_Desc_PreviewInQuickLookAction": "名前付きパイプ経由で、選択した結果の QuickLook プレビューを手動でトリガーします。"
+}

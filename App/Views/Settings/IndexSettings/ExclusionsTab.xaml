@@ -1,0 +1,231 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.IndexSettings.ExclusionsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Templates.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Style="{StaticResource SettingsHintText}" Margin="0,0,0,12" TextWrapping="Wrap"
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_Hint]}"/>
+
+            <!-- Sub-tab header row -->
+            <StackPanel Orientation="Horizontal">
+                <StackPanel Margin="0,0,24,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_TabPath]}"
+                            Command="{Binding Exclusions.SelectSubTabCommand}" CommandParameter="Path">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Exclusions.SelectedSubTab}" Value="Path">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Exclusions.SelectedSubTab}" Value="Path">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="0,0,24,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_TabGlob]}"
+                            Command="{Binding Exclusions.SelectSubTabCommand}" CommandParameter="Glob">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Exclusions.SelectedSubTab}" Value="Glob">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Exclusions.SelectedSubTab}" Value="Glob">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="0,0,24,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_TabRegex]}"
+                            Command="{Binding Exclusions.SelectSubTabCommand}" CommandParameter="Regex">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Exclusions.SelectedSubTab}" Value="Regex">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Exclusions.SelectedSubTab}" Value="Regex">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+            <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,15"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Sub-tab: Path -->
+                <StackPanel x:Name="SubTabExclusionsPath">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Exclusions.SelectedSubTab}" Value="Path">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <Border Style="{StaticResource SettingsCard}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_PathCardDesc]}"
+                                       Style="{StaticResource SettingsHintText}" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                            <DockPanel Margin="0,0,0,10">
+                                <Button DockPanel.Dock="Right"
+                                        Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_AddBtn]}"
+                                        Style="{StaticResource PrimarySettingsButton}"
+                                        Command="{Binding Exclusions.AddPathCommand}" Margin="10,0,0,0"/>
+                                <TextBox Style="{StaticResource RuleTextBox}"
+                                         Text="{Binding Exclusions.NewExcludedPath, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding Exclusions.ExcludedPaths}" ItemTemplate="{StaticResource RuleItemTemplate}"/>
+                            <TextBox Style="{StaticResource RuleBulkTextBox}" Margin="0,10,0,8"
+                                     Text="{Binding Exclusions.ExcludedPathsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_GenerateBtn]}"
+                                        Style="{StaticResource SettingsButton}"
+                                        Command="{Binding Exclusions.ExportPathsTextCommand}" Margin="0,0,8,0"/>
+                                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_ApplyBtn]}"
+                                        Style="{StaticResource PrimarySettingsButton}"
+                                        Command="{Binding Exclusions.ApplyPathsTextCommand}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Sub-tab: Glob -->
+                <StackPanel x:Name="SubTabExclusionsGlob">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Exclusions.SelectedSubTab}" Value="Glob">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <Border Style="{StaticResource SettingsCard}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_GlobCardDesc]}"
+                                       Style="{StaticResource SettingsHintText}" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                            <DockPanel Margin="0,0,0,10">
+                                <Button DockPanel.Dock="Right"
+                                        Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_AddBtn]}"
+                                        Style="{StaticResource PrimarySettingsButton}"
+                                        Command="{Binding Exclusions.AddGlobCommand}" Margin="10,0,0,0"/>
+                                <TextBox Style="{StaticResource RuleTextBox}"
+                                         Text="{Binding Exclusions.NewIgnoredGlob, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding Exclusions.IgnoredGlobs}" ItemTemplate="{StaticResource GlobItemTemplate}"/>
+                            <TextBox Style="{StaticResource RuleBulkTextBox}" Margin="0,10,0,8"
+                                     Text="{Binding Exclusions.IgnoredGlobsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_GenerateBtn]}"
+                                        Style="{StaticResource SettingsButton}"
+                                        Command="{Binding Exclusions.ExportGlobsTextCommand}" Margin="0,0,8,0"/>
+                                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_ApplyBtn]}"
+                                        Style="{StaticResource PrimarySettingsButton}"
+                                        Command="{Binding Exclusions.ApplyGlobsTextCommand}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Sub-tab: Regex -->
+                <StackPanel x:Name="SubTabExclusionsRegex">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Exclusions.SelectedSubTab}" Value="Regex">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <Border Style="{StaticResource SettingsCard}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_RegexCardDesc]}"
+                                       Style="{StaticResource SettingsHintText}" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                            <DockPanel Margin="0,0,0,10">
+                                <Button DockPanel.Dock="Right"
+                                        Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_AddBtn]}"
+                                        Style="{StaticResource PrimarySettingsButton}"
+                                        Command="{Binding Exclusions.AddRegexCommand}" Margin="10,0,0,0"/>
+                                <TextBox Style="{StaticResource RuleTextBox}"
+                                         Text="{Binding Exclusions.NewIgnoredRegex, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding Exclusions.IgnoredRegexes}" ItemTemplate="{StaticResource RegexItemTemplate}"/>
+                            <TextBox Style="{StaticResource RuleBulkTextBox}" Margin="0,10,0,8"
+                                     Text="{Binding Exclusions.IgnoredRegexesText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_GenerateBtn]}"
+                                        Style="{StaticResource SettingsButton}"
+                                        Command="{Binding Exclusions.ExportRegexesTextCommand}" Margin="0,0,8,0"/>
+                                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_ApplyBtn]}"
+                                        Style="{StaticResource PrimarySettingsButton}"
+                                        Command="{Binding Exclusions.ApplyRegexesTextCommand}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

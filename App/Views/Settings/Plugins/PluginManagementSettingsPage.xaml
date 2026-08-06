@@ -1,0 +1,203 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.Plugins.PluginManagementSettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:conv="clr-namespace:Lertaro.App.Converters"
+             xmlns:vm="clr-namespace:Lertaro.App.ViewModels.Settings.Plugins"
+             xmlns:local="clr-namespace:Lertaro.App.Views.Settings.Plugins"
+             mc:Ignorable="d"
+             d:DesignHeight="520" d:DesignWidth="700">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+            <conv:BoolToVisibilityConverter x:Key="InvertBoolToVis" Invert="True"/>
+            <local:ComponentTypeToLabelConverter x:Key="TypeToLabel"/>
+
+            <!-- SidebarItemStyle with tighter sides. Its 16 is sized for the settings window's own
+                 section list, where a row is one short label; these rows carry an icon and two lines in
+                 a narrower pane, so the same inset leaves the content squeezed into the middle with
+                 whitespace either side. Vertical padding is left alone, the rows being tall already. -->
+            <Style x:Key="PluginListItemStyle" TargetType="ListBoxItem" BasedOn="{StaticResource SidebarItemStyle}">
+                <Setter Property="Padding" Value="8,10"/>
+            </Style>
+
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- No page-level ScrollViewer: the two panes scroll on their own (see below), and wrapping them in
+         one would scroll the header away and drag both panes with it as a single tall column. -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0">
+            <!-- Page header -->
+            <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource SettingsSectionTitle}"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_Title]}"
+                               VerticalAlignment="Center"/>
+                    <Border CornerRadius="4" Background="{DynamicResource BadgeBackground}" BorderBrush="{DynamicResource BadgeBorderBrush}" BorderThickness="1" Margin="8,0,0,0" Padding="5,1,5,2" VerticalAlignment="Center"
+                            Cursor="Hand" MouseLeftButtonUp="SdkBadge_MouseLeftButtonUp"
+                            ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_DevGuideTooltip]}">
+                        <TextBlock Text="{Binding HostSdkVersion, StringFormat='SDK v{0}'}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource BadgeText}" />
+                    </Border>
+                </StackPanel>
+
+                <!-- Nothing here any more: expand-all/collapse-all only meant something while every
+                     plugin was rendered down the page at once. -->
+            </Grid>
+            <TextBlock Style="{StaticResource SettingsHintText}"
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_Hint]}"/>
+
+            <!-- Empty state -->
+            <Border Style="{StaticResource SettingsCard}"
+                    Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_NoPlugins]}"
+                           Foreground="{DynamicResource TextSecondary2}"
+                           HorizontalAlignment="Center" Padding="0,8"/>
+            </Border>
+        </StackPanel>
+
+        <!-- Two independently scrolling panes with a hairline between them, matching how the settings
+             window itself divides its own section list from its content (SettingsWindow.xaml uses the
+             same BorderColor on a 1px edge). One shared scrollbar would have moved both panes together
+             and taken the header with them; a long plugin list and a long config form have nothing to do
+             with each other's scroll position.
+
+             Kept named PluginsList: the settings search reveals a plugin by looking this element up by
+             name (SettingsWindowSearchExtensions), and selecting the row is now what revealing means. -->
+        <Grid Grid.Row="1" Margin="0,12,0,0"
+              Visibility="{Binding IsEmpty, Converter={StaticResource InvertBoolToVis}}">
+            <!-- Both panes are proportional so a wider window widens the list too. Fixed at 200 it
+                 truncated plugin names at every window size, since the one thing that would have
+                 fixed that, more width, was the one thing it could never get. The detail side still
+                 takes the larger share: it holds the description, the component rows and the config
+                 form, where the list holds a name and a version. MinWidth on each keeps the split
+                 from starving either one on a narrow window. -->
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="200"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="3*" MinWidth="360"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- PluginListItemStyle is SidebarItemStyle with tighter sides (see Resources above), so this
+                 list still reads as the settings window nav list one level in, not a raw ListBox. -->
+            <ListBox x:Name="PluginsList" Grid.Column="0" ItemsSource="{Binding Plugins}"
+                     SelectedItem="{Binding SelectedPlugin, Mode=TwoWay}"
+                     ItemContainerStyle="{StaticResource PluginListItemStyle}"
+                     SelectionChanged="PluginsList_SelectionChanged"
+                     BorderThickness="0" Background="Transparent" Margin="0,0,8,0"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- The detail pane's icon tile at list scale. Same neutral tile and same
+                                 fallback glyph, because there is no per-plugin icon to draw: a plugin
+                                 does not supply one, so both places show the one mark that stands for
+                                 "a plugin" and the row is identifiable by its name.
+
+                                 Layered like the version pill below, and for the same reason: the tile
+                                 in the detail pane can be a flat fill because it sits on a card that
+                                 never changes colour, but here it sits on a row that tints itself when
+                                 selected, and a flat fill would sink into that tint and leave the glyph
+                                 floating on its own. -->
+                            <!-- Taller than the name and version stacked beside it, deliberately: with
+                                 the tile the shorter of the two it was the tile that ended up centred
+                                 against the text, which reads as the text leading the row. Being the
+                                 tallest thing here makes it set the row's height and the text centre
+                                 against it instead. -->
+                            <Grid Grid.Column="0" Width="42" Height="42" Margin="0,0,8,0" VerticalAlignment="Center">
+                                <Border CornerRadius="10" IsHitTestVisible="False"
+                                        Background="{DynamicResource HoverBackground}" Opacity="0.5"/>
+                                <Border CornerRadius="10" IsHitTestVisible="False">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+                                            <Setter Property="Opacity" Value="0"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}, Path=IsSelected}" Value="True">
+                                                    <Setter Property="Opacity" Value="0.05"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                                <TextBlock Text="&#xE71D;" FontFamily="Segoe MDL2 Assets"
+                                           FontSize="19" Foreground="{DynamicResource AccentBlue}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                <!-- The quick window's shortcut pill (ShortcutHintBadge.xaml) rather
+                                     than the header's SDK badge: one badge in a header reads as a
+                                     highlight, but those colours repeated down every row out-shout the
+                                     plugin names, which are what this list is for.
+
+                                     Built the same way that pill is, both layers included. The second
+                                     one is the point: a single fill sits on a row that carries its own
+                                     selection tint, so on the selected row the badge and the row behind
+                                     it end up the same colour and the badge disappears. The accent
+                                     overlay is what separates them again, and it is keyed off the row's
+                                     own IsSelected so the two can never drift apart. -->
+                                <Border CornerRadius="4" BorderThickness="1" BorderBrush="Transparent"
+                                        Margin="0,3,0,0" HorizontalAlignment="Left">
+                                    <Grid>
+                                        <Border CornerRadius="4" IsHitTestVisible="False"
+                                                Background="{DynamicResource HoverBackground}" Opacity="0.5"/>
+                                        <Border CornerRadius="4" IsHitTestVisible="False">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+                                                    <Setter Property="Opacity" Value="0"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}, Path=IsSelected}" Value="True">
+                                                            <Setter Property="Opacity" Value="0.05"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+                                        <TextBlock Text="{Binding Version, StringFormat='v{0}'}" FontSize="10"
+                                                   Padding="7,2,7,2" Foreground="{DynamicResource ShortcutColor}"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Border Grid.Column="1" Width="1" Background="{DynamicResource BorderColor}"/>
+
+            <!-- The detail pane (PluginCard) handles header fixing and internal content scrolling on its own. -->
+            <ContentControl Grid.Column="2" Margin="8,0,0,0" Content="{Binding SelectedPlugin}" Focusable="False">
+                <ContentControl.ContentTemplate>
+                    <DataTemplate>
+                        <local:PluginCard/>
+                    </DataTemplate>
+                </ContentControl.ContentTemplate>
+            </ContentControl>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The command name directly, since the installer now just adds {app} (where this sits alongside
+         Lertaro.App.exe etc.) to PATH: no more copy-then-rename-the-apphost step at runtime. -->
+    <AssemblyName>lff</AssemblyName>
+    <RootNamespace>Lertaro.Cli</RootNamespace>
+    <Version>1.0.3</Version>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lertaro.Cli.Tests" />
+  </ItemGroup>
+
+</Project>

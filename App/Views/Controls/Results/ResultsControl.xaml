@@ -1,0 +1,179 @@
+<UserControl x:Class="Lertaro.App.Views.Controls.Results.ResultsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:controls="clr-namespace:Lertaro.App.Views.Controls"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+             xmlns:local="clr-namespace:Lertaro.App.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="300" d:DesignWidth="600">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../../../Resources/Styles/Controls/ListBox.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid x:Name="ResultsPanel">
+        <!-- Unified container for results (either list or grid) -->
+        <Grid x:Name="GridSearchResultsContainer" Visibility="Visible">
+            <!-- Search results view (List Mode) -->
+            <Grid x:Name="GridSearchResults" Visibility="Visible">
+                <ListBox x:Name="LstResults"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Height="0"
+                          Padding="0"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                          VirtualizingPanel.IsVirtualizing="True"
+                          VirtualizingPanel.VirtualizationMode="Recycling"
+                          Style="{StaticResource SleekListBoxStyle}"
+                          ItemContainerStyle="{StaticResource ResultItemStyle}"
+                          ItemTemplate="{StaticResource SearchResultTemplate}"
+                          SelectionMode="Single"
+                          IsEnabled="{Binding IsResultsListEnabled}"/>
+            </Grid>
+
+            <!-- Search results view (Grid Mode) -->
+            <Grid x:Name="GridSearchResultsGrid" Visibility="Collapsed">
+                <ListView x:Name="LstGridResults"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                          VirtualizingPanel.IsVirtualizing="True"
+                          VirtualizingPanel.VirtualizationMode="Recycling"
+                          ItemContainerStyle="{StaticResource SearchResultItemStyle}"
+                          SelectionMode="Extended"
+                          IsEnabled="{Binding IsResultsListEnabled}"
+                          GridViewColumnHeader.Click="GridViewColumnHeader_Click">
+                    <ListView.View>
+                        <GridView>
+                            <!-- Name Column -->
+                            <GridViewColumn Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_HeaderName]}" Width="320" helpers:ColumnIdentity.Id="Name">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid Width="{Binding Path=ActualWidth, RelativeSource={RelativeSource AncestorType=ContentPresenter}}" VerticalAlignment="Stretch" Background="Transparent">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Image Grid.Column="0" Source="{Binding Icon}" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                            <ScrollViewer Grid.Column="1" Background="Transparent" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False" Margin="0,0,26,0"
+                                                          local:ScrollViewerHelper.BubbleMouseWheel="True">
+                                                <TextBlock Background="Transparent"
+                                                           Foreground="{DynamicResource TextPrimary2}"
+                                                           local:TextHighlighter.Text="{Binding Name}"
+                                                           local:TextHighlighter.HighlightText="{Binding SearchQuery}"
+                                                           local:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}"
+                                                           FontSize="13"
+                                                           VerticalAlignment="Center"
+                                                           helpers:MarqueeBehavior.EnableMarquee="True"/>
+                                            </ScrollViewer>
+                                        </Grid>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <!-- Path Column -->
+                            <GridViewColumn Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_HeaderPath]}" Width="260" helpers:ColumnIdentity.Id="Path">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid Width="{Binding Path=ActualWidth, RelativeSource={RelativeSource AncestorType=ContentPresenter}}" VerticalAlignment="Stretch" Background="Transparent">
+                                            <ScrollViewer Background="Transparent" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False" Margin="0,0,24,0"
+                                                          local:ScrollViewerHelper.BubbleMouseWheel="True">
+                                                <TextBlock Background="Transparent"
+                                                           Foreground="{DynamicResource TextSecondary2}"
+                                                           local:TextHighlighter.Text="{Binding ParentDir}"
+                                                           local:TextHighlighter.HighlightText="{Binding SearchQuery}"
+                                                           local:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}"
+                                                           FontSize="12"
+                                                           VerticalAlignment="Center"
+                                                           helpers:MarqueeBehavior.EnableMarquee="True"/>
+                                            </ScrollViewer>
+                                        </Grid>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <!-- Date Modified Column -->
+                            <GridViewColumn Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_HeaderDateModified]}" Width="120" helpers:ColumnIdentity.Id="DateModified">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DateModifiedText}"
+                                                   Background="Transparent"
+                                                   VerticalAlignment="Stretch"
+                                                   Foreground="{DynamicResource TextSecondary2}"
+                                                   FontSize="12"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </Grid>
+        </Grid>
+        <!-- Actions View (Self-drawn menu) -->
+        <Grid x:Name="GridActions" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Border Grid.Row="0" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1" 
+                    Height="{Binding SelectedItem.ActionsHeaderHeight, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}" Padding="14,0,14,0" Background="{DynamicResource ActionsHeaderBg}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_ActionsTargetTitle]}" Foreground="{DynamicResource AccentBlue}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <!-- ScrollViewer clips the TextBlock (which is left unwrapped, no TextTrimming, so
+                         it sizes to its full natural width) and MarqueeBehavior slides it left/right
+                         whenever that natural width overflows the available column: same pattern as
+                         the result rows' own name text below. -->
+                    <ScrollViewer Grid.Column="1" Margin="0,0,12,0" Background="Transparent" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False"
+                                  local:ScrollViewerHelper.BubbleMouseWheel="True">
+                        <TextBlock x:Name="TxtActionsTarget" Text="" Foreground="{DynamicResource TextPrimary}" FontSize="12" VerticalAlignment="Center"
+                                   helpers:MarqueeBehavior.EnableMarquee="True"/>
+                    </ScrollViewer>
+                    <TextBlock Grid.Column="2" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_EscBack]}" Foreground="{DynamicResource TextSecondary}" FontSize="11" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+            <!-- Actions List -->
+            <ListBox x:Name="LstActions" Grid.Row="1"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     ScrollViewer.CanContentScroll="False"
+                     Style="{StaticResource SleekListBoxStyle}"
+                     ItemContainerStyle="{StaticResource ActionItemStyle}"
+                     ItemTemplate="{StaticResource ActionMenuItemTemplate}"
+                     SelectionMode="Single"/>
+            
+            <!-- Actions No Results Hint -->
+            <TextBlock Grid.Row="1"
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_NoResult]}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontSize="13"
+                       Foreground="{DynamicResource TextSecondary2}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Items.Count, ElementName=LstActions}" Value="0">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
+    </Grid>
+</UserControl>

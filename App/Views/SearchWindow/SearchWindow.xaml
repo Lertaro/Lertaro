@@ -1,0 +1,284 @@
+<Window x:Class="Lertaro.App.SearchWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:Lertaro.App"
+        xmlns:converters="clr-namespace:Lertaro.App.Converters"
+        xmlns:controls="clr-namespace:Lertaro.App.Views.Controls"
+        xmlns:results="clr-namespace:Lertaro.App.Views.Controls.Results"
+        xmlns:services="clr-namespace:Lertaro.App.Services"
+        xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+        Title="{Binding WindowTitle}" Height="600" Width="1024"
+        MinHeight="480" MinWidth="800"
+        WindowStartupLocation="CenterScreen"
+        Background="Transparent"
+        AllowsTransparency="True"
+        WindowStyle="None"
+        ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <!-- Main border with shadow -->
+    <Border x:Name="MainBorder" CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource ContentBg}"
+            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8"
+            Effect="{StaticResource Elevation2}">
+        <!-- ClipToBounds ignores CornerRadius (a WPF limitation, not a bug here): helpers:RoundedClip
+             builds a real rounded-rect Clip instead: child content flush to the edge would otherwise show
+             square corners poking past this Border's own rounded paint. -->
+        <Border x:Name="ClippingBorder" CornerRadius="{StaticResource CornerRadiusWindow}" helpers:RoundedClip.IsEnabled="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <!-- Title Bar / Search Bar -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Main Content -->
+                    <RowDefinition Height="*"/>
+                    <!-- Status Bar -->
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <!-- ═══════════ 1. Title Bar + Search ═══════════ -->
+                <Border Grid.Row="0" Background="{DynamicResource HeaderBg}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1"
+                        CornerRadius="{StaticResource CornerRadiusWindowTop}">
+                    <!-- The drag handler sits HERE, on the header's full-width layout grid, rather than on
+                         the search bar's own container below. On that container it covered almost nothing:
+                         a Margin lies OUTSIDE the element, so the 12px around the search bar belonged to
+                         the parent Border, and the container's own area is filled edge to edge by
+                         SearchBoxControl, whose text box is deliberately excluded (see
+                         SearchWindowChromeHandler) and whose icon has handlers of its own. What was left to
+                         grab was a sliver beside the logo, which is why the window could only be moved by
+                         aiming at its top-left corner (issue #195).
+
+                         Background is Transparent rather than the theme's HeaderBg, which the Border behind
+                         still paints: an element with a null Background is not hit-testable at all, so
+                         hanging the drag region off a themed brush would make it vanish for any theme that
+                         did not define one. Transparent hit-tests, costs nothing to draw, and behaves the
+                         same on every theme. -->
+                    <Grid x:Name="HeaderDragArea" Background="Transparent" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <!-- Search bar area. The vertical margin is what actually sets how tall the drag
+                             band is: a Margin lies outside the element, so these bands above and below the
+                             search bar belong to HeaderDragArea and are the part of the header that can be
+                             grabbed. Widened from 12 to 16 because 12 still asked for a careful aim, and
+                             because growing the grip alone would have changed nothing: the grip is not
+                             hit-testable, it only shows where the band already is. -->
+                        <Grid Grid.Column="0" Margin="12,16,8,16">
+                            <!-- No dedicated drag grip: the header itself is the grab area now, and the
+                                 logo drags too (this window leaves IsIconClickable false, so the icon's
+                                 own press handler does not mark the event handled and it bubbles up). -->
+                            <!-- Shared SearchBoxControl component -->
+                            <app:SearchBoxControl x:Name="SearchBox" FontSize="15" Padding="0" IsIconOnLeft="True" SearchText="{Binding AdvancedQuery, Mode=TwoWay}" IsServiceRunning="{Binding IsServiceConnected}"/>
+                        </Grid>
+                        <!-- Drag grip: the affordance for the drag region above, which is otherwise
+                             invisible and so undiscoverable (issue #195 asked for a title bar precisely
+                             because there was nothing to aim at). Hidden at rest so the header stays as
+                             clean as it is now, and fades in whenever the pointer is anywhere in the
+                             header.
+
+                             WindowChromeText rather than the accent: this is chrome, not an action, and it
+                             is the same brush the minimize/maximize/close glyphs beside it already use, so
+                             the grip reads as part of the same furniture on every one of the themes. Every
+                             theme defines it, which a drag affordance has to be able to rely on.
+
+                             IsHitTestVisible is false so it never takes a click away from the drag grid
+                             underneath it: it is a hint about where to grab, not the grabbable thing. It
+                             sits centred in the band above the search bar, which is free space already.
+
+                             Width is 30% of the header, expressed as star columns rather than a binding
+                             with a multiplying converter: proportional layout is what star sizing already
+                             is, so the grip simply stretches into the middle column and tracks the window
+                             as it resizes with no converter, no code and no measure pass of its own.
+
+                             The hover trigger binds to HeaderDragArea by name rather than by ancestor
+                             type, because the nearest ancestor Grid is now this wrapper, whose own
+                             IsMouseOver is always false: it is not hit-testable. -->
+                        <Grid Grid.Column="0" Grid.ColumnSpan="2"
+                              VerticalAlignment="Top" Margin="0,5,0,0" IsHitTestVisible="False">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="35*"/>
+                                <ColumnDefinition Width="30*"/>
+                                <ColumnDefinition Width="35*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="1" Height="6" CornerRadius="3"
+                                    Background="{DynamicResource WindowChromeText}">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Opacity" Value="0"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsMouseOver, ElementName=HeaderDragArea}" Value="True">
+                                                <DataTrigger.EnterActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0.45"
+                                                                             Duration="{StaticResource DurationHover}"
+                                                                             EasingFunction="{StaticResource EaseOutCubic}"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </DataTrigger.EnterActions>
+                                                <DataTrigger.ExitActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0"
+                                                                             Duration="{StaticResource DurationHover}"
+                                                                             EasingFunction="{StaticResource EaseOutCubic}"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </DataTrigger.ExitActions>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                            </Border>
+                        </Grid>
+                        <!-- Window controls -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,6,6,0">
+                            <Button Content="&#xE72B;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_BackTooltip]}" Style="{StaticResource WindowControlButton}" Click="BtnBackToQuickSearch_Click" Margin="0,0,8,0"/>
+                            <Button Content="&#xE949;" Style="{StaticResource WindowControlButton}" Click="BtnMinimize_Click"/>
+                            <Button x:Name="BtnMaximize" Content="&#xE922;" Style="{StaticResource WindowControlButton}" Click="BtnMaximize_Click"/>
+                            <Button Content="&#xE8BB;" Style="{StaticResource CloseButton}" Click="BtnClose_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <!-- ═══════════ 2. Main Content ═══════════ -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <!-- Sidebar -->
+                        <ColumnDefinition Width="200" MinWidth="160" MaxWidth="280"/>
+                        <!-- Content Area -->
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <!-- Sidebar -->
+                    <controls:SearchSidebarControl Grid.Column="0"/>
+                    <!-- Main Results Grid -->
+                    <Grid Grid.Column="1" Background="{DynamicResource ContentBg}">
+                        <!-- Shared ResultsControl component in Grid Mode -->
+                        <results:ResultsControl x:Name="ResultsPanelControl"
+                                            ItemsSource="{Binding FilteredResults}"
+                                            ViewMode="Grid"
+                                            Visibility="Visible"/>
+                        <!-- No Results Hint -->
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_NoResult]}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontSize="16"
+                                   Foreground="{DynamicResource TextSecondary2}"
+                                   >
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowNoResultsHint}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <!-- Welcome View -->
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowWelcomeHint}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <!-- Search Icon -->
+                            <TextBlock Text="&#xE11A;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="48"
+                                       Foreground="{DynamicResource TextSecondary2}"
+                                       HorizontalAlignment="Center"
+                                       Opacity="0.5"
+                                       Margin="0,0,0,16"/>
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_WelcomeTitle]}"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       HorizontalAlignment="Center"
+                                       
+                                       Margin="0,0,0,0"/>
+                        </StackPanel>
+                        <!-- Actions View (Self-drawn context actions menu, decoupled and shared) -->
+                        <Grid x:Name="GridActions" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1" 
+                                    Height="{Binding SelectedItem.ActionsHeaderHeight, ElementName=ResultsPanelControl}" Padding="14,0,14,0" Background="{DynamicResource ActionsHeaderBg}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_ActionsTitle]}" Foreground="{DynamicResource AccentBlue}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="TxtActionsTarget" Grid.Column="1" Text="" Foreground="{DynamicResource TextPrimary}" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_EscBack]}" Foreground="{DynamicResource TextSecondary}" FontSize="11" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                            <!-- Actions List -->
+                            <ListBox x:Name="LstActions" Grid.Row="1"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     Style="{StaticResource SleekListBoxStyle}"
+                                     ItemContainerStyle="{StaticResource ActionItemStyle}"
+                                     ItemTemplate="{StaticResource ActionMenuItemTemplate}"
+                                     SelectionMode="Single"/>
+                        </Grid>
+                    </Grid>
+                </Grid>
+                <!-- ═══════════ 3. Status Bar ═══════════ -->
+                <Border Grid.Row="2" Background="{DynamicResource StatusBarBg}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0"
+                        CornerRadius="{StaticResource CornerRadiusWindowBottom}"
+                        Padding="16,8,16,8">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding FilteredResults.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <!-- Result count with accent dot -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse Width="6" Height="6" Fill="{DynamicResource AccentColor}"
+                                     Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtResultCount" Text="{Binding ResultCountText}"
+                                       FontSize="12" FontWeight="Medium"
+                                       Foreground="{DynamicResource TextSecondary2}"
+                                       
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <!-- Keyboard hint -->
+                        <TextBlock Grid.Column="2"
+                                   Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_HintKeyboard]}"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextSecondary2}"
+                                   
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Border>
+</Window>

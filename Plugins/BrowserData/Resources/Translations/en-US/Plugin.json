@@ -1,0 +1,19 @@
+{
+  "BrowserData_PluginName": "Browser Bookmarks & History",
+  "BrowserData_ProviderName": "Browser Bookmarks & History",
+  "BrowserData_Config_TriggerKeywordLabel": "Trigger Keyword",
+  "BrowserData_Config_TriggerKeywordDesc": "Type this keyword (followed by a space and a search term) to trigger bookmark/history search, e.g. the default \"bm\".",
+  "BrowserData_Config_IndexBookmarksLabel": "Index Bookmarks",
+  "BrowserData_Config_IndexHistoryLabel": "Index History",
+  "BrowserData_Config_IndexHistoryDesc": "History can grow much larger than bookmarks -- turn this off to search bookmarks only.",
+  "BrowserData_Config_ProfilesLabel": "Browser Profile Directories",
+  "BrowserData_Config_ProfilesDesc": "Manually add browser profile folders to index. Supports Chrome-family (Chrome/Edge/Brave/...) and Firefox-family browsers. You can add multiple entries.",
+  "BrowserData_Config_NameLabel": "Name",
+  "BrowserData_Config_IconDataLabel": "Icon (vector path data, optional)",
+  "BrowserData_Config_IconDataDesc": "Leave empty to use the default icon (distinguishes bookmarks from history).",
+  "BrowserData_Config_PathLabel": "Profile Directory",
+  "BrowserData_Config_PathDesc": "The browser's profile folder, e.g. \"...\\User Data\\Default\" for Chrome/Edge, or \"...\\Profiles\\xxxxxxxx.default-release\" for Firefox.",
+  "BrowserData_PluginDesc": "Browser data access plugin. Quickly search and access history, bookmarks, and other data from mainstream browsers.",
+  "Plugin_Comp_Desc_BrowserDataInstantProvider": "Fuzzy-matches history and bookmarks from mainstream browsers (Chrome, Edge, Firefox) in the search box in real-time.",
+  "Plugin_Comp_Desc_BrowserDataTranslationProvider": "Provides UI translation and localization mapping for the Browser Data plugin."
+}

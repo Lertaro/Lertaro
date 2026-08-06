@@ -1,0 +1,59 @@
+<UserControl x:Class="Lertaro.App.Views.Controls.ServiceStatusControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="400">
+    <Border Background="Transparent" Padding="20,30,20,30">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+            <!-- Spinner Progress Indicator -->
+            <Control x:Name="ProgressLoading"
+                     Style="{StaticResource ModernSpinnerStyle}"
+                     Width="40" Height="40"
+                     HorizontalAlignment="Center"
+                     Margin="0,0,0,18"
+                     Visibility="{Binding ProgressBarVisibility}"/>
+            
+            <!-- Warning / Error Icon -->
+            <Path x:Name="PathErrorIcon" Data="M12,2 L1,21 H23 Z M11,9 H13 V15 H11 Z M11,17 H13 V19 H11 Z"
+                  Fill="{DynamicResource WarningBrush}" Width="48" Height="48" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,16"
+                  Visibility="{Binding ErrorIconVisibility}"/>
+            
+            <!-- Title -->
+            <TextBlock x:Name="TxtLoadingTitle" Text="{Binding LoadingTitle}"
+                       FontSize="15"  FontWeight="SemiBold"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource TextPrimary}"
+                       TextAlignment="Center"/>
+            
+            <!-- Details / Stats -->
+            <TextBlock x:Name="TxtLoadingStats" Text="{Binding LoadingStats}"
+                       FontSize="13" 
+                       Foreground="{DynamicResource TextSecondary}"
+                       HorizontalAlignment="Center"
+                       Margin="0,8,0,0"
+                       TextAlignment="Center"/>
+            
+            <!-- Reinstall / Install Service Button -->
+            <Button x:Name="BtnInstallService" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Service_ActionInstall]}"
+                    Visibility="{Binding InstallButtonVisibility}"
+                    Command="{Binding InstallServiceCommand}"
+                    Padding="18,8"
+                    Margin="0,18,0,0"
+                    Background="{DynamicResource AccentBlue}"
+                    Foreground="{DynamicResource PrimaryButtonText}"
+                    
+                    FontWeight="Bold"
+                    BorderThickness="0"
+                    Cursor="Hand">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="6"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+        </StackPanel>
+    </Border>
+</UserControl>

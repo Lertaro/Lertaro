@@ -1,0 +1,11 @@
+{
+  "QuickLookBridge_PluginName": "Puente QuickLook",
+  "QuickLookBridge_PluginDesc": "Experimental: siempre que una instancia externa de QuickLook (github.com/QL-Win/QuickLook) sea accesible a través de su propia canalización con nombre, esta se hará cargo de las vistas previas de todo, por delante de cualquier proveedor de vista previa integrado. El propio panel de vista previa de Lertaro se ocultará mientras esto esté activo, y la ventana flotante independiente de QuickLook se acoplará exactamente en el lugar que habría ocupado ese panel.",
+  "QuickLookBridge_ProviderName": "Puente QuickLook",
+  "QuickLookBridge_GroupName": "QuickLook",
+  "QuickLookBridge_ActionName": "Vista Previa en QuickLook",
+  "QuickLookBridge_ActionDesc": "Abre el archivo o carpeta seleccionados en la ventana de vista previa propia de QuickLook, a través de su canalización con nombre.",
+  "Plugin_Comp_Desc_QuickLookPreviewProvider": "Detecta una instancia de QuickLook accesible a través de su canalización con nombre, le cede todas las vistas previas, oculta el panel de vista previa propio de Lertaro mientras está activa, y acopla la ventana de QuickLook en el lugar de ese panel.",
+  "Plugin_Comp_Desc_QuickLookBridgeTranslationProvider": "Ofrece traducción de la interfaz y asignación de localización para el complemento Puente QuickLook.",
+  "Plugin_Comp_Desc_PreviewInQuickLookAction": "Activa manualmente una vista previa de QuickLook para el resultado seleccionado a través de su canalización con nombre."
+}

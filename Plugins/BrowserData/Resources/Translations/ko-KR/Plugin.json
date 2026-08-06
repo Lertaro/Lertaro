@@ -1,0 +1,19 @@
+{
+  "BrowserData_PluginName": "브라우저 북마크 및 방문 기록",
+  "BrowserData_ProviderName": "브라우저 북마크 및 방문 기록",
+  "BrowserData_Config_TriggerKeywordLabel": "트리거 키워드",
+  "BrowserData_Config_TriggerKeywordDesc": "이 키워드(뒤에 공백과 검색어를 입력)를 입력하면 북마크/방문 기록 검색이 실행됩니다. 예: 기본값 \"bm\".",
+  "BrowserData_Config_IndexBookmarksLabel": "북마크 색인화",
+  "BrowserData_Config_IndexHistoryLabel": "방문 기록 색인화",
+  "BrowserData_Config_IndexHistoryDesc": "방문 기록은 북마크보다 훨씬 많아질 수 있습니다 -- 이 옵션을 끄면 북마크만 검색합니다.",
+  "BrowserData_Config_ProfilesLabel": "브라우저 프로필 디렉터리",
+  "BrowserData_Config_ProfilesDesc": "색인화할 브라우저 프로필 폴더를 수동으로 추가합니다. Chrome 계열(Chrome/Edge/Brave/...) 및 Firefox 계열 브라우저를 지원합니다. 여러 항목을 추가할 수 있습니다.",
+  "BrowserData_Config_NameLabel": "이름",
+  "BrowserData_Config_IconDataLabel": "아이콘 (벡터 경로 데이터, 선택 사항)",
+  "BrowserData_Config_IconDataDesc": "비워두면 기본 아이콘을 사용합니다(북마크와 방문 기록을 구분).",
+  "BrowserData_Config_PathLabel": "프로필 디렉터리",
+  "BrowserData_Config_PathDesc": "브라우저의 프로필 폴더입니다. 예: Chrome/Edge의 경우 \"...\\User Data\\Default\", Firefox의 경우 \"...\\Profiles\\xxxxxxxx.default-release\".",
+  "BrowserData_PluginDesc": "브라우저 데이터 접근 플러그인입니다. 주요 브라우저의 방문 기록, 북마크 등의 데이터를 빠르게 검색하고 접근할 수 있습니다.",
+  "Plugin_Comp_Desc_BrowserDataInstantProvider": "주요 브라우저(Chrome, Edge, Firefox)의 방문 기록과 북마크를 검색 상자에서 실시간으로 퍼지 매칭합니다.",
+  "Plugin_Comp_Desc_BrowserDataTranslationProvider": "브라우저 데이터 플러그인에 UI 번역 및 지역화 매핑을 제공합니다."
+}

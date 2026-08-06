@@ -1,0 +1,85 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.IndexSettings.FoldersTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Templates.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <TextBlock Style="{StaticResource SettingsHintText}" Margin="0,0,0,12"
+                   Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Folder_SectionHint]}"/>
+
+        <Border x:Name="RowFolderRebuild" Style="{StaticResource SettingsCard}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_IndexStatus]}"
+                               FontWeight="SemiBold" FontSize="13" />
+                    <TextBlock Text="{Binding NetworkDrive.FolderIndexSummary}"
+                               Foreground="{DynamicResource TextSecondary2}" Margin="0,5,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource PrimarySettingsButton}" Margin="0,0,8,0"
+                            Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_RebuildBtn]}"
+                            Command="{Binding NetworkDrive.RebuildFoldersCommand}"
+                            IsEnabled="{Binding NetworkDrive.CanRebuildFolders}"
+                            Visibility="{Binding NetworkDrive.HasFolderIndexes, Converter={StaticResource BoolToVis}}"/>
+                    <Button Style="{StaticResource PrimarySettingsButton}"
+                            Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Folder_AddBtn]}"
+                            Command="{Binding NetworkDrive.AddFolderCommand}"
+                            IsEnabled="{Binding NetworkDrive.CanAddFolder}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Style="{StaticResource SettingsCard}">
+            <StackPanel>
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="40"/>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="1.2*"/>
+                        <ColumnDefinition Width="1.1*"/>
+                        <ColumnDefinition Width="1.4*" MinWidth="126"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Folder_HeaderPath]}"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_HeaderStatus]}"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_HeaderItems]}"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_HeaderMode]}"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                </Grid>
+                <Border Background="{DynamicResource EmptyPlaceholderBackground}" BorderBrush="{DynamicResource EmptyPlaceholderBorderBrush}" BorderThickness="1" CornerRadius="6"
+                        Padding="24,32" Margin="0,8,0,0"
+                        Visibility="{Binding NetworkDrive.IsFolderIndexesEmpty, Converter={StaticResource BoolToVis}}">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="36"
+                                   Foreground="{DynamicResource EmptyPlaceholderIcon}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Folder_Placeholder]}" FontSize="13"
+                                   Foreground="{DynamicResource TextSecondary2}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <ItemsControl ItemsSource="{Binding NetworkDrive.FolderIndexes}" ItemTemplate="{StaticResource FolderIndexTemplate}"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

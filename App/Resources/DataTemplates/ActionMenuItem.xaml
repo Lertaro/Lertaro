@@ -1,0 +1,236 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:app="clr-namespace:Lertaro.App"
+                    xmlns:converters="clr-namespace:Lertaro.App.Converters">
+	<ResourceDictionary.MergedDictionaries>
+		<ResourceDictionary Source="../Styles/Tokens/Colors.xaml"/>
+	</ResourceDictionary.MergedDictionaries>
+
+	<!-- ═══════════ Self-Drawn Action Context Menu Item Template ═══════════ -->
+	<DataTemplate x:Key="ActionMenuItemTemplate" DataType="{x:Type app:ActionMenuItem}">
+		<Grid>
+			<!-- Separator view -->
+			<!-- Margin halved (was 0,4): in the self-drawn actions list this row's real height comes from
+			     ActionItemStyle's externally-bound MinHeight, so this margin only affects how much
+			     breathing room the line gets there, not the row's own height. In the flyout MenuItem
+			     style (ActionFlyoutMenuItemStyle), the header ContentPresenter is Center-aligned rather
+			     than Stretched, so its row sizes to this content's own natural/desired height: this
+			     margin change is what actually shrinks that row, per ActionFlyoutItems.CreateNonInteractiveItem's
+			     own comment on why MinHeight alone can't do it. -->
+			<Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SeparatorBrush}" Height="1" VerticalAlignment="Center" HorizontalAlignment="Stretch" Margin="0,1"
+                    Visibility="{Binding IsSeparator, Converter={StaticResource BoolToVis}}"/>
+
+			<!-- No explicit Height here (and no VerticalAlignment="Center" on the root Grid above): the
+			     row's own height already comes from ActionItemStyle's MinHeight (bound to the exact same
+			     ItemHeight/ScaledItemHeight), so re-deriving it a second time here and then centering a
+			     fixed-height Border inside a Stretch-filled ContentPresenter was redundant: any rounding
+			     difference between the two independently-evaluated bindings showed up as the header text
+			     sitting a pixel or two off from a normal row's own vertical center. Stretching this Border
+			     to fill the row and centering only the TextBlock inside it removes that second source of
+			     truth entirely, and a section header row cannot land off-center. -->
+			<Border Visibility="{Binding SectionHeaderVisibility}" VerticalAlignment="Stretch">
+				<TextBlock Text="{Binding SectionTitle}"
+                       Foreground="{DynamicResource AccentBlue}" VerticalAlignment="Center"
+                       Margin="0">
+					<TextBlock.Style>
+						<Style TargetType="TextBlock">
+							<Setter Property="FontSize" Value="12"/>
+							<Style.Triggers>
+								<DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro">
+									<Setter Property="FontSize" Value="{Binding ScaledSectionFontSize}"/>
+								</DataTrigger>
+							</Style.Triggers>
+						</Style>
+					</TextBlock.Style>
+				</TextBlock>
+			</Border>
+
+			<!-- Menu item view -->
+			<Grid Visibility="{Binding IsNormalItem, Converter={StaticResource BoolToVis}}">
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="*"/>
+					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="Auto"/>
+				</Grid.ColumnDefinitions>
+
+				<!-- Item Icon -->
+				<Image Grid.Column="0" Source="{Binding Icon}" Stretch="Uniform" Margin="4,0,4,0" VerticalAlignment="Center"
+                       Visibility="{Binding IconVisibility}" RenderOptions.BitmapScalingMode="HighQuality">
+					<Image.Style>
+						<Style TargetType="Image">
+							<Setter Property="Width" Value="16"/>
+							<Setter Property="Height" Value="16"/>
+							<Style.Triggers>
+								<DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro">
+									<Setter Property="Width" Value="{Binding ScaledIconSize}"/>
+									<Setter Property="Height" Value="{Binding ScaledIconSize}"/>
+								</DataTrigger>
+							</Style.Triggers>
+						</Style>
+					</Image.Style>
+				</Image>
+
+				<!-- Placeholder bullet when no icon -->
+				<Ellipse Grid.Column="0" Width="4" Height="4" Fill="{DynamicResource FileIconColor}" Margin="10,0,10,0" VerticalAlignment="Center"
+                         Visibility="{Binding PlaceholderVisibility}"/>
+
+				<TextBlock Grid.Column="1" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextPrimary}"
+                           converters:TextHighlighter.Text="{Binding Text}"
+                           converters:TextHighlighter.HighlightText="{Binding SearchQuery}"
+                           converters:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}"
+                           TextTrimming="CharacterEllipsis">
+					<TextBlock.Style>
+						<Style TargetType="TextBlock">
+							<Setter Property="FontSize" Value="13"/>
+							<Style.Triggers>
+								<DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro">
+									<Setter Property="FontSize" Value="{Binding ScaledTextFontSize}"/>
+								</DataTrigger>
+								<DataTrigger Binding="{Binding IsCompact}" Value="True">
+									<Setter Property="FontSize" Value="12.5"/>
+								</DataTrigger>
+							</Style.Triggers>
+						</Style>
+					</TextBlock.Style>
+				</TextBlock>
+
+				<!-- Keyboard shortcut hint: same pill badge as SearchResultTemplate (DataTemplates.xaml),
+				     reusing HoverBackground/ShortcutColor/AccentBlue rather than new themed resources.
+				     Selected/highlighted used to switch to an AccentBlue border + text, then a brighter/
+				     bolder text (see that template's own comment for the full history): both still read
+				     as too attention-grabbing next to the row's own left accent bar. Now background-only:
+				     a low-opacity AccentBlue wash behind the text via a separate element (so its Opacity
+				     doesn't also dim the text), text itself never changes color or weight.
+				     Driven by the ActionMenuItem's own IsSelected flag (plain DataContext binding, no
+				     RelativeSource) rather than ListBoxItem.IsSelected via AncestorType: that pattern
+				     works fine for the results list's own badge, but here it rendered every row as
+				     permanently selected (root cause not pinned down); IsSelected is kept in sync
+				     explicitly by LstActions.SelectionChanged (see ShellMenuPresenter). The MenuItem
+				     flyout variant (ActionFlyoutMenuItemStyle below) still reacts correctly via
+				     MenuItem.IsHighlighted, which was never broken. Both the base fill and the
+				     selected/highlighted tint are now low-opacity washes on separate overlay elements
+				     behind the text (so their Opacity never dims the text itself), rather than an opaque
+				     fill or a recolored border/text. Both overlays cover the OUTER border's full extent
+				     (no padding of their own, text carries the padding instead): an inset overlay would
+				     read as a smaller pill than the outer border's own edge. -->
+				<Border Grid.Column="2"
+                        Margin="14,0,0,0"
+                        CornerRadius="4"
+                        BorderThickness="1"
+                        VerticalAlignment="Center"
+                        BorderBrush="Transparent">
+					<Border.Style>
+						<Style TargetType="Border">
+							<Setter Property="Visibility" Value="Visible"/>
+							<Style.Triggers>
+								<DataTrigger Binding="{Binding ShortcutHint}" Value="">
+									<Setter Property="Visibility" Value="Collapsed"/>
+								</DataTrigger>
+								<DataTrigger Binding="{Binding ShortcutHint}" Value="{x:Null}">
+									<Setter Property="Visibility" Value="Collapsed"/>
+								</DataTrigger>
+							</Style.Triggers>
+						</Style>
+					</Border.Style>
+					<Grid>
+						<Border CornerRadius="4" IsHitTestVisible="False" Background="{DynamicResource HoverBackground}" Opacity="0.5"/>
+						<Border CornerRadius="4" IsHitTestVisible="False">
+							<Border.Style>
+								<Style TargetType="Border">
+									<Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+									<Setter Property="Opacity" Value="0"/>
+									<Style.Triggers>
+										<DataTrigger Binding="{Binding IsSelected}" Value="True">
+											<Setter Property="Opacity" Value="0.05"/>
+										</DataTrigger>
+										<DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type MenuItem}}, Path=IsHighlighted}" Value="True">
+											<Setter Property="Opacity" Value="0.05"/>
+										</DataTrigger>
+									</Style.Triggers>
+								</Style>
+							</Border.Style>
+						</Border>
+						<TextBlock Text="{Binding ShortcutHint}"
+                               Padding="7,3,7,3"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource ShortcutColor}">
+							<TextBlock.Style>
+								<Style TargetType="TextBlock">
+									<Setter Property="FontSize" Value="11"/>
+									<Style.Triggers>
+										<DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro">
+											<Setter Property="FontSize" Value="{Binding ScaledShortcutFontSize}"/>
+										</DataTrigger>
+									</Style.Triggers>
+								</Style>
+							</TextBlock.Style>
+						</TextBlock>
+					</Grid>
+				</Border>
+
+				<!-- Submenu indicator -->
+				<Path Grid.Column="3" Data="M0,0 L5,4 L0,8 Z" Fill="{DynamicResource ShortcutColor}" Width="5" Height="8" Stretch="Uniform" VerticalAlignment="Center" Margin="10,0,0,0"
+                      Visibility="{Binding HasSubMenu, Converter={StaticResource BoolToVis}}"/>
+			</Grid>
+		</Grid>
+	</DataTemplate>
+
+	<!-- ═══════════ Flyout MenuItem that renders identically to the actions list row ═══════════ -->
+	<!-- Used by the quick-nav right-click menu (PluginContextMenuHelper) so its rows are pixel-identical
+	     to the self-drawn actions list: same ActionMenuItemTemplate content + same container chrome as
+	     ActionItemStyle (rounded highlight, margins, height, AccentBar), while keeping MenuItem
+	     submenu/keyboard. Highlight color used to be SelectedBackground (a themed blue tint distinct
+	     from the plain actions list's gray HoverBackground): same action, two different highlight
+	     colors depending on which surface showed it. Unified to HoverBackground + the same left accent
+	     bar ActionItemStyle uses, so the flyout and the plain list read as the exact same control. -->
+	<Style x:Key="ActionFlyoutMenuItemStyle" TargetType="{x:Type MenuItem}">
+		<Setter Property="HeaderTemplate" Value="{StaticResource ActionMenuItemTemplate}"/>
+		<Setter Property="Cursor" Value="Hand"/>
+		<Setter Property="Focusable" Value="False"/>
+		<Setter Property="Template">
+			<Setter.Value>
+				<ControlTemplate TargetType="{x:Type MenuItem}">
+					<Grid>
+						<Rectangle x:Name="AccentBar" Width="3" HorizontalAlignment="Left"
+						           RadiusX="1.5" RadiusY="1.5" Fill="Transparent" Margin="0,2"/>
+						<Border x:Name="ItemBorder" Background="Transparent" CornerRadius="6" Margin="6,2,6,2" Padding="8,0,8,0" VerticalAlignment="Stretch">
+							<ContentPresenter ContentSource="Header" HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+						</Border>
+						<Popup x:Name="PART_Popup"
+						       Placement="Right"
+						       AllowsTransparency="True"
+						       Focusable="False"
+						       IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+						       PopupAnimation="Fade">
+							<Border Background="{DynamicResource MenuBackground}"
+							        BorderBrush="{DynamicResource MenuBorderBrush}"
+							        BorderThickness="1"
+							        CornerRadius="8"
+							        Padding="6"
+							        SnapsToDevicePixels="True">
+								<Border.Effect>
+									<DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="270" Color="{DynamicResource ShadowColor}" Opacity="0.08"/>
+								</Border.Effect>
+								<ScrollViewer Focusable="false">
+									<ItemsPresenter KeyboardNavigation.TabNavigation="Cycle"/>
+								</ScrollViewer>
+							</Border>
+						</Popup>
+					</Grid>
+					<ControlTemplate.Triggers>
+						<!-- Single highlight color for both mouse hover and keyboard selection (WPF sets
+						     IsHighlighted for both), matching the classic shell menu; avoids the flicker a
+						     separate IsMouseOver trigger caused when mouse-move events are swallowed. -->
+						<Trigger Property="IsHighlighted" Value="True">
+							<Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource HoverBackground}"/>
+							<Setter TargetName="AccentBar" Property="Fill" Value="{DynamicResource AccentBarColor}"/>
+						</Trigger>
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
+</ResourceDictionary>

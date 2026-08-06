@@ -1,0 +1,152 @@
+<UserControl x:Class="Lertaro.App.Views.Controls.HistoryListControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d"
+             d:DesignHeight="400" d:DesignWidth="700">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="HistorySearchTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                <Setter Property="Height" Value="34"/>
+                <Setter Property="Padding" Value="10,6"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="HistoryRowIconButton" TargetType="Button">
+                <Setter Property="Width" Value="32"/>
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Margin" Value="6,0,0,0"/>
+                <Setter Property="Padding" Value="0"/>
+                <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextSecondary2}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd" CornerRadius="6" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <DataTemplate x:Key="HistoryEntryTemplate">
+                <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="24"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Text="{Binding IconGlyph}"
+                                   Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+
+                        <StackPanel Grid.Column="1" Orientation="Vertical" Margin="8,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Primary}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimary2}" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding Secondary}" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondary2}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Secondary}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <Button Grid.Column="2" Content="&#xE74D;"
+                                Style="{StaticResource HistoryRowIconButton}"
+                                Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"/>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource SettingsCard}" Padding="16,12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBox x:Name="TxtHistorySearch" Grid.Row="0" Style="{StaticResource HistorySearchTextBox}" Margin="0,0,0,8"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"/>
+
+                <!-- Placeholder: same overlaid-TextBlock technique SearchBoxControl already uses for its
+                     own placeholder, since WPF's TextBox has no built-in watermark: this is the
+                     established pattern rather than a new one. PlaceholderText comes from the
+                     UserControl's own DP (see code-behind), not DataContext, since the Search/Keyword
+                     tabs share this one control with different History DataContexts. -->
+                <TextBlock Grid.Row="0" Margin="11,0,0,8"
+                           Foreground="{DynamicResource TextSecondary}"
+                           FontSize="13"
+                           VerticalAlignment="Center" HorizontalAlignment="Left"
+                           IsHitTestVisible="False"
+                           Text="{Binding PlaceholderText, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Text, ElementName=TxtHistorySearch}" Value="">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="320">
+                    <ItemsControl ItemsSource="{Binding FilteredItems}" ItemTemplate="{StaticResource HistoryEntryTemplate}"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <CheckBox x:Name="ChkEnable" Grid.Row="1" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_Enable]}"
+                  IsChecked="{Binding IsHistoryEnabled, Mode=TwoWay}"
+                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+
+        <Button x:Name="BtnClearAll" Grid.Row="1" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_Clear_All]}"
+                Style="{StaticResource SettingsButton}" HorizontalAlignment="Right" Margin="0,12,0,0"
+                Command="{Binding ClearAllCommand}"/>
+    </Grid>
+</UserControl>

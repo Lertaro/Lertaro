@@ -1,0 +1,328 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.QuickPanel.QuickPanelSettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:local="clr-namespace:Lertaro.App.Views.Settings.QuickPanel"
+             xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+             xmlns:conv="clr-namespace:Lertaro.App.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="760">
+    <!-- Workspaces on the left, the selected one on the right. Two panes rather than a dropdown above
+         one list: a workspace IS a set of sources, and the shape should say so. -->
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <conv:NullToVisibilityConverter x:Key="NullToVis"/>
+
+            <!-- Themed rather than the stock ListBoxItem, whose selection is a flat system-blue block
+                 that ignores the app's palette entirely. Same rounded/accent-bar shape the plugin list
+                 uses for its own master list, which is the identical job. -->
+            <Style x:Key="WorkspaceItemStyle" TargetType="ListBoxItem">
+                <Setter Property="Padding" Value="0"/>
+                <Setter Property="Margin" Value="0,0,0,2"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ListBoxItem">
+                            <Grid>
+                                <Rectangle x:Name="AccentBar" Width="3" HorizontalAlignment="Left"
+                                           RadiusX="1.5" RadiusY="1.5" Fill="Transparent" Margin="0,1"/>
+                                <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Margin="6,0,0,0" Padding="8,6">
+                                    <ContentPresenter/>
+                                </Border>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                                    <Setter TargetName="AccentBar" Property="Fill" Value="{DynamicResource AccentBlue}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- Horizontal explicitly Disabled, not left at the default: Hidden still measures the content
+         with unbounded width, so a long path in a source row resolved its Star column to the full
+         path length and pushed that row's buttons off the right edge with no bar to reach them. -->
+    <Grid Margin="0,0,10,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Style="{StaticResource SettingsSectionTitle}"
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_QuickPanel]}"/>
+
+            <CheckBox x:Name="RowQuickPanelEnabled" Margin="0,12,0,8"
+                      IsChecked="{Binding Enabled, Mode=TwoWay}"
+                      Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_Enabled]}"/>
+            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_HotkeyHint]}"
+                       Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+            <!-- The page's own two halves. Stacked, they pushed each other off the screen: both are
+                 lists that grow, and the plugin tabs sat below a workspace card tall enough to hide
+                 them. Same tab row the pane inside the workspace card uses for its own two halves. -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <StackPanel>
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_Workspaces]}"
+                            Command="{Binding SelectSectionCommand}" CommandParameter="Workspaces">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedSection}" Value="Workspaces">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedSection}" Value="Workspaces">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Margin="18,0,0,0"
+                            Visibility="{Binding HasPluginTabs, Converter={StaticResource BoolToVis}}">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_PluginTabs]}"
+                            Command="{Binding SelectSectionCommand}" CommandParameter="PluginTabs">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedSection}" Value="PluginTabs">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedSection}" Value="PluginTabs">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <!-- Section 1: Workspaces -->
+            <Border>
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource SettingsCard}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedSection}" Value="Workspaces">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <!-- Both columns are proportional, so widening the window widens the workspace
+                         list too instead of leaving it pinned at a width picked for the default size.
+                         MinWidth keeps a row's buttons reachable when the window is small; MaxWidth
+                         stops a wide window handing a list of short names half the card. -->
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="190" MaxWidth="340"/>
+                        <ColumnDefinition Width="2.5*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <DockPanel Grid.Column="0" Margin="0,0,16,0">
+                        <!-- Add and duplicate act on the list as a whole, so they sit on its header;
+                             reorder and delete belong to one row each and live in the rows, the way the
+                             plugin array editor's master list does it. Five buttons in a strip under a
+                             pane this narrow did not fit, and the last one was cut off. -->
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                            <Button DockPanel.Dock="Right" Content="&#xE8C8;" Style="{StaticResource RuleIconButton}"
+                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_DuplicateWorkspace]}"
+                                    Command="{Binding DuplicateTabCommand}"/>
+                            <Button DockPanel.Dock="Right" Content="&#xE710;" Style="{StaticResource RuleIconButton}"
+                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_AddWorkspace]}"
+                                    Command="{Binding AddTabCommand}"/>
+                            <TextBlock VerticalAlignment="Center"
+                                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_Workspaces]}"/>
+                        </DockPanel>
+                        <!-- Sizes to its rows and stops there: past that it scrolls inside its own
+                             pane rather than pushing the card past the bottom of the window, however
+                             many workspaces get added.
+
+                             HorizontalScrollBarVisibility="Disabled" for the reason the plugin array
+                             editor's own master list documents: left at the default, each row is
+                             handed an unbounded width, so the Star column resolves to however long
+                             the name happens to be and the list grows a horizontal bar instead of
+                             eliding. Bounding it to the pane is what makes TextTrimming work at all.
+                             CanContentScroll="False" so the vertical bar measures pixels rather than
+                             whole rows, which is what put a phantom bar on the sidebar. -->
+                        <ListBox x:Name="ListQuickPanelWorkspaces" ItemsSource="{Binding Tabs}"
+                                 SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
+                                 ItemContainerStyle="{StaticResource WorkspaceItemStyle}"
+                                 VerticalAlignment="Top"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.CanContentScroll="False"
+                                 HorizontalContentAlignment="Stretch"
+                                 BorderThickness="0" Background="Transparent"
+                                 helpers:DragReorder.IsEnabled="True">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="14"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Drag handle: the same six-dot grip every other reorderable
+                                             list in Settings uses, and the only place a drag may start
+                                             from (see DragReorder.IsHandle) so a press on the name or
+                                             the row background does not pick the row up by accident. -->
+                                        <Grid Width="14" Height="22" Margin="0,0,6,0" Background="Transparent"
+                                              Cursor="SizeAll" helpers:DragReorder.IsHandle="True">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <Ellipse Grid.Row="0" Grid.Column="0" Width="2" Height="2" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                            <Ellipse Grid.Row="0" Grid.Column="1" Width="2" Height="2" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                            <Ellipse Grid.Row="1" Grid.Column="0" Width="2" Height="2" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                            <Ellipse Grid.Row="1" Grid.Column="1" Width="2" Height="2" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                            <Ellipse Grid.Row="2" Grid.Column="0" Width="2" Height="2" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                            <Ellipse Grid.Row="2" Grid.Column="1" Width="2" Height="2" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                        </Grid>
+
+                                        <CheckBox Grid.Column="1" IsChecked="{Binding Enabled, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"
+                                                  ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_WorkspaceEnabledTooltip]}"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding EffectiveName}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource TextPrimary2}"/>
+                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="&#xE70E;" Style="{StaticResource RuleIconButton}" Width="22"
+                                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_MoveUpTooltip]}"
+                                                    Command="{Binding MoveUpSelfCommand}" CommandParameter="{Binding}"/>
+                                            <Button Content="&#xE70D;" Style="{StaticResource RuleIconButton}" Width="22"
+                                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_MoveDownTooltip]}"
+                                                    Command="{Binding MoveDownSelfCommand}" CommandParameter="{Binding}"/>
+                                            <Button Content="&#xE74D;" Style="{StaticResource RuleIconButton}" Width="22"
+                                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_RemoveWorkspace]}"
+                                                    Command="{Binding RemoveSelfCommand}" CommandParameter="{Binding}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+
+                    <!-- Deliberately NOT DataContext="{Binding SelectedTab}": the sub-tab state below
+                         lives on this page's own view model, so the pane keeps it and reaches the
+                         selected workspace through SelectedTab. -->
+                    <!-- Gone entirely when no workspace is selected, which is what deleting the last
+                         one leaves: a name box and a source list belonging to nothing is worse than an
+                         empty pane. Same treatment the plugin array editor gives its detail panel. -->
+                    <DockPanel Grid.Column="1" Visibility="{Binding SelectedTab, Converter={StaticResource NullToVis}}">
+                        <StackPanel DockPanel.Dock="Top">
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_WorkspaceName]}"
+                                       Margin="0,0,0,4"/>
+                            <Grid Margin="0,0,0,12">
+                                <TextBox x:Name="RowQuickPanelWorkspaceName" Style="{StaticResource RuleTextBox}"
+                                         Text="{Binding SelectedTab.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <!-- Watermark: an unnamed workspace shows the name it will actually be
+                                     called, rather than an empty box the user has to guess at. -->
+                                <TextBlock Text="{Binding SelectedTab.EffectiveName}" IsHitTestVisible="False"
+                                           Margin="10,0,0,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextSecondary}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedTab.Name}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                        </StackPanel>
+
+                        <local:QuickPanelWorkspaceTabs/>
+                    </DockPanel>
+                </Grid>
+            </Border>
+
+            <!-- Section 2: Plugin Tabs -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer.Style>
+                    <Style TargetType="ScrollViewer">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedSection}" Value="PluginTabs">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ScrollViewer.Style>
+
+                <Border Style="{StaticResource SettingsCard}">
+                    <ItemsControl x:Name="QuickPanelPluginTabsList" ItemsSource="{Binding PluginTabs}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <CheckBox Grid.Column="0" Content="{Binding Name}" IsChecked="{Binding IsOpen, Mode=TwoWay}"/>
+
+                                        <!-- The one display choice a plugin tab has. A folder source is
+                                             asked this on its own row in a workspace's source list; a
+                                             plugin tab has no such row, so it is asked here. -->
+                                        <CheckBox Grid.Column="1" IsChecked="{Binding ShowAsList, Mode=TwoWay}"
+                                                  Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_ViewList]}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

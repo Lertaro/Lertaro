@@ -1,0 +1,223 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.AppearanceSettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="700">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+                <ResourceDictionary Source="AppearanceThemeCardTemplate.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Card container: no ListBoxItem chrome of its own. Every selection cue (border,
+                 checkmark) is drawn inside ThemeCardTemplate below, keyed off IsSelected via a
+                 RelativeSource binding, so it can use the theme's own accent color instead of one
+                 fixed highlight color for every card. -->
+            <Style x:Key="ThemeCardContainerStyle" TargetType="ListBoxItem">
+                <Setter Property="Padding" Value="0"/>
+                <Setter Property="Margin" Value="0"/>
+                <!-- Not Focusable="False": ListBoxItem's own click-to-select handling ties into focus
+                     acquisition, so disabling it silently breaks mouse selection. Suppressing just the
+                     focus visual (the dotted rectangle) is enough to get the "no chrome" look. -->
+                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                <!-- Selecting a ListBoxItem (by click, or programmatically when a mode card switches
+                     SelectedThemeId) raises RequestBringIntoView. This ListBox has no ScrollViewer of
+                     its own (see ThemeCardListBox's Template below), so that request bubbles straight up
+                     to the page's own ScrollViewer and yanks the whole page to wherever the card sits:
+                     jarring on its own, and disruptive mid-click since the layout shifts under the
+                     cursor before the click even finishes. The grid is small enough to not need
+                     scroll-to-reveal in the first place, so this just swallows the request outright. -->
+                <EventSetter Event="RequestBringIntoView" Handler="ThemeCard_RequestBringIntoView"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ListBoxItem">
+                            <ContentPresenter/>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="ThemeCardListBox" TargetType="ListBox">
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="ItemContainerStyle" Value="{StaticResource ThemeCardContainerStyle}"/>
+                <Setter Property="ItemTemplate" Value="{StaticResource ThemeCardTemplate}"/>
+                <Setter Property="SelectedValuePath" Value="Id"/>
+                <!-- Belt-and-suspenders alongside ThemeCardContainerStyle's own EventSetter: when
+                     SelectedThemeId changes programmatically (a mode-card switch) right after this
+                     ListBox's ItemsSource just swapped to a freshly filtered list, the newly selected
+                     item's container can raise RequestBringIntoView before its own ItemContainerStyle
+                     has fully applied. Attaching here too, on the ListBox itself, is live from the
+                     moment the ListBox exists rather than per-item, so it can't miss that race. -->
+                <EventSetter Event="RequestBringIntoView" Handler="ThemeCard_RequestBringIntoView"/>
+                <Setter Property="ItemsPanel">
+                    <Setter.Value>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </Setter.Value>
+                </Setter>
+                <!-- The default ListBox template wraps items in its own ScrollViewer, which swallows
+                     mouse-wheel input even with nothing to scroll: hovering the blank space inside
+                     the card grid blocked the page's outer ScrollViewer from scrolling. This grid never
+                     needs to scroll internally (it just wraps and lets the page grow), so the template
+                     drops the ScrollViewer entirely instead of only hiding its scrollbar. -->
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ListBox">
+                            <ItemsPresenter/>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <TextBlock Style="{StaticResource SettingsSectionTitle}"
+                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_Title]}"/>
+            <TextBlock Style="{StaticResource SettingsHintText}"
+                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_Hint]}"/>
+
+            <TextBlock Style="{StaticResource SettingsGroupTitle}"
+                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_ModeGroupTitle]}"/>
+            <Border x:Name="RowThemeModeCards" Style="{StaticResource SettingsCard}">
+                <StackPanel Orientation="Horizontal">
+                    <!-- Light -->
+                    <StackPanel Margin="0,0,12,0" Cursor="Hand">
+                        <StackPanel.InputBindings>
+                            <MouseBinding MouseAction="LeftClick" Command="{Binding Appearance.SelectThemeModeCommand}" CommandParameter="Light"/>
+                        </StackPanel.InputBindings>
+                        <Border Width="108" Height="64" Style="{StaticResource PreviewCardShadowWrapperStyle}">
+                            <Border x:Name="ModeLightBorder" CornerRadius="10"
+                                    Background="#FFFFFF" BorderThickness="2" ClipToBounds="True">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Appearance.ThemeModeTag}" Value="Light">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="&#xE706;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                           Foreground="{DynamicResource AccentBlue}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Border>
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_ModeLight]}"
+                                   FontSize="12" Margin="2,6,0,0" Foreground="{DynamicResource TextSecondary}"/>
+                    </StackPanel>
+
+                    <!-- Dark -->
+                    <StackPanel Margin="0,0,12,0" Cursor="Hand">
+                        <StackPanel.InputBindings>
+                            <MouseBinding MouseAction="LeftClick" Command="{Binding Appearance.SelectThemeModeCommand}" CommandParameter="Dark"/>
+                        </StackPanel.InputBindings>
+                        <Border Width="108" Height="64" Style="{StaticResource PreviewCardShadowWrapperStyle}">
+                            <Border x:Name="ModeDarkBorder" CornerRadius="10"
+                                    Background="#1E1E1E" BorderThickness="2" ClipToBounds="True">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Appearance.ThemeModeTag}" Value="Dark">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="&#xE708;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                           Foreground="{DynamicResource AccentBlue}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Border>
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_ModeDark]}"
+                                   FontSize="12" Margin="2,6,0,0" Foreground="{DynamicResource TextSecondary}"/>
+                    </StackPanel>
+
+                    <!-- Follow System: half-light, half-dark, so the split itself explains the mode. -->
+                    <StackPanel Cursor="Hand">
+                        <StackPanel.InputBindings>
+                            <MouseBinding MouseAction="LeftClick" Command="{Binding Appearance.SelectThemeModeCommand}" CommandParameter="FollowSystem"/>
+                        </StackPanel.InputBindings>
+                        <Border Width="108" Height="64" Style="{StaticResource PreviewCardShadowWrapperStyle}">
+                            <Border x:Name="ModeFollowSystemBorder" CornerRadius="10"
+                                    BorderThickness="2" ClipToBounds="True">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Appearance.ThemeModeTag}" Value="FollowSystem">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <!-- ClipToBounds on the outer Border only clips to its plain rectangular
+                                     bounds, not the rounded CornerRadius shape: it doesn't round child
+                                     content the way it looks like it should. A diagonal split can't be
+                                     rounded per-corner the way the earlier vertical split was (each
+                                     triangle touches three of the four corners, not just two), so this
+                                     clips the whole Grid to an explicit rounded-rect geometry instead:
+                                     sized to the Border's own content area (108x64 outer, minus the 2px
+                                     BorderThickness on each side, minus ~2px CornerRadius shrink). -->
+                                <Grid>
+                                    <Grid.Clip>
+                                        <RectangleGeometry Rect="0,0,104,60" RadiusX="8" RadiusY="8"/>
+                                    </Grid.Clip>
+                                    <Polygon Points="0,0 104,0 0,60" Fill="#FFFFFF"/>
+                                    <Polygon Points="104,0 104,60 0,60" Fill="#1E1E1E"/>
+                                    <Border Width="26" Height="26" CornerRadius="13"
+                                            Background="{DynamicResource AccentBlue}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                                   Foreground="{DynamicResource PrimaryButtonText}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </Border>
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_ModeFollowSystem]}"
+                                   FontSize="12" Margin="2,6,0,0" Foreground="{DynamicResource TextSecondary}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Manual mode: one grid, filtered to whichever flavor (light/dark) is currently active. -->
+            <StackPanel x:Name="GroupManualTheme" Visibility="{Binding Appearance.IsManualThemeEnabled, Converter={StaticResource BoolToVis}}">
+                <TextBlock Style="{StaticResource SettingsGroupTitle}"
+                            Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ThemeSelect]}"/>
+                <Border Style="{StaticResource SettingsCard}">
+                    <ListBox x:Name="RowThemeCards" Style="{StaticResource ThemeCardListBox}"
+                             ItemsSource="{Binding Appearance.ManualThemeCards}"
+                             SelectedValue="{Binding Appearance.SelectedThemeId, Mode=TwoWay}"/>
+                </Border>
+            </StackPanel>
+
+            <!-- Follow-system mode: separate light/dark grids, each filtered to its own flavor. -->
+            <StackPanel x:Name="GroupFollowSystemTheme" Visibility="{Binding Appearance.FollowSystem, Converter={StaticResource BoolToVis}}">
+                <TextBlock Style="{StaticResource SettingsGroupTitle}"
+                            Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ThemeLightSelect]}"/>
+                <Border Style="{StaticResource SettingsCard}">
+                    <ListBox x:Name="RowThemeLightCards" Style="{StaticResource ThemeCardListBox}"
+                             ItemsSource="{Binding Appearance.LightThemeCards}"
+                             SelectedValue="{Binding Appearance.SelectedLightThemeId, Mode=TwoWay}"/>
+                </Border>
+
+                <TextBlock Style="{StaticResource SettingsGroupTitle}"
+                            Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ThemeDarkSelect]}"/>
+                <Border Style="{StaticResource SettingsCard}">
+                    <ListBox x:Name="RowThemeDarkCards" Style="{StaticResource ThemeCardListBox}"
+                             ItemsSource="{Binding Appearance.DarkThemeCards}"
+                             SelectedValue="{Binding Appearance.SelectedDarkThemeId, Mode=TwoWay}"/>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

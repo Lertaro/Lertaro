@@ -1,0 +1,54 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.Hotkey.HotkeyBlacklistTabSection"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d"
+             d:DesignHeight="400" d:DesignWidth="700">
+    <!-- Split out of HotkeySettingsPage.xaml (the "Blacklist" tab) to keep that file under the
+         project's line-count convention. DataContext is inherited from the host page: bindings here
+         (Blacklist.*) are HotkeySettingsViewModel/BlacklistSettingsViewModel members, same as before
+         extraction. Both cards are the one shared ProcessListEditorTemplate (see SettingsWindow.xaml),
+         which is also what the quick panel's per-workspace app list uses. -->
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <TextBlock Style="{StaticResource SettingsHintText}" Margin="0,0,0,12" TextWrapping="Wrap"
+                   Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Blacklist_Hint]}"/>
+
+        <Border Style="{StaticResource SettingsCard}">
+            <StackPanel>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Blacklist_GlobalTitle]}"
+                           FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Blacklist_ProcessCardDesc]}"
+                           Style="{StaticResource SettingsHintText}" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                <ContentControl x:Name="RowBlacklistGlobal" Focusable="False"
+                                Content="{Binding Blacklist.Global}"
+                                ContentTemplate="{StaticResource ProcessListEditorTemplate}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- The quick panel's own additions to the list above. Here rather than on its own page: this
+             is where a user comes to say "not in this app", and the panel reads both lists together. -->
+        <Border Style="{StaticResource SettingsCard}" Margin="0,15,0,0">
+            <StackPanel>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_BlacklistTitle]}"
+                           FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_BlacklistDesc]}"
+                           Style="{StaticResource SettingsHintText}" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                <ContentControl x:Name="RowQuickPanelBlacklist" Focusable="False"
+                                Content="{Binding Blacklist.QuickPanel}"
+                                ContentTemplate="{StaticResource ProcessListEditorTemplate}"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,286 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.General.GeneralSettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:local="clr-namespace:Lertaro.App.Views.Settings.General"
+             xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="700">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Style="{StaticResource SettingsSectionTitle}"
+                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_Title]}"/>
+            <TextBlock Style="{StaticResource SettingsHintText}"
+                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_Hint]}"/>
+
+            <!-- Tab header row -->
+            <ctrl:TabStripScrollView Margin="0,16,0,0">
+            <StackPanel Orientation="Horizontal">
+                <StackPanel Margin="0,0,28,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SysTitle]}"
+                            Command="{Binding General.SelectTabCommand}" CommandParameter="System">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding General.SelectedTab}" Value="System">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding General.SelectedTab}" Value="System">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="0,0,28,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutTitle]}"
+                            Command="{Binding General.SelectTabCommand}" CommandParameter="Layout">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding General.SelectedTab}" Value="Layout">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding General.SelectedTab}" Value="Layout">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="0,0,28,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SearchWindowTitle]}"
+                            Command="{Binding General.SelectTabCommand}" CommandParameter="SearchWindow">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding General.SelectedTab}" Value="SearchWindow">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding General.SelectedTab}" Value="SearchWindow">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="0,0,28,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_PreviewWindowTitle]}"
+                            Command="{Binding General.SelectTabCommand}" CommandParameter="PreviewWindow">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding General.SelectedTab}" Value="PreviewWindow">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding General.SelectedTab}" Value="PreviewWindow">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="0,0,28,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_QuickNavTitle]}"
+                            Command="{Binding General.SelectTabCommand}" CommandParameter="QuickNavigation">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding General.SelectedTab}" Value="QuickNavigation">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding General.SelectedTab}" Value="QuickNavigation">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel>
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_PreviewProvidersTitle]}"
+                            Command="{Binding General.SelectTabCommand}" CommandParameter="PreviewProviders">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding General.SelectedTab}" Value="PreviewProviders">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding General.SelectedTab}" Value="PreviewProviders">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+            </ctrl:TabStripScrollView>
+            <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,15"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Grid.IsSharedSizeScope="True">
+                <!-- Tab: System (extracted; see GeneralSettingsSystemTab.xaml) -->
+                <local:GeneralSettingsSystemTab x:Name="TabSystem">
+                    <local:GeneralSettingsSystemTab.Style>
+                        <Style TargetType="local:GeneralSettingsSystemTab">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding General.SelectedTab}" Value="System">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </local:GeneralSettingsSystemTab.Style>
+                </local:GeneralSettingsSystemTab>
+
+                <!-- Tab: Layout (extracted; see GeneralSettingsLayoutTab.xaml) -->
+                <local:GeneralSettingsLayoutTab x:Name="TabLayout">
+                    <local:GeneralSettingsLayoutTab.Style>
+                        <Style TargetType="local:GeneralSettingsLayoutTab">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding General.SelectedTab}" Value="Layout">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </local:GeneralSettingsLayoutTab.Style>
+                </local:GeneralSettingsLayoutTab>
+
+                <!-- Tab: Search Window (extracted; see GeneralSettingsSearchWindowTab.xaml) -->
+                <local:GeneralSettingsSearchWindowTab x:Name="TabSearchWindow">
+                    <local:GeneralSettingsSearchWindowTab.Style>
+                        <Style TargetType="local:GeneralSettingsSearchWindowTab">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding General.SelectedTab}" Value="SearchWindow">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </local:GeneralSettingsSearchWindowTab.Style>
+                </local:GeneralSettingsSearchWindowTab>
+
+                <!-- Tab: Preview Window (extracted; see GeneralSettingsPreviewWindowTab.xaml) -->
+                <local:GeneralSettingsPreviewWindowTab x:Name="TabPreviewWindow">
+                    <local:GeneralSettingsPreviewWindowTab.Style>
+                        <Style TargetType="local:GeneralSettingsPreviewWindowTab">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding General.SelectedTab}" Value="PreviewWindow">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </local:GeneralSettingsPreviewWindowTab.Style>
+                </local:GeneralSettingsPreviewWindowTab>
+
+                <!-- Tab: Quick Navigation (extracted; see GeneralSettingsQuickNavigationTab.xaml) -->
+                <local:GeneralSettingsQuickNavigationTab x:Name="TabQuickNavigation">
+                    <local:GeneralSettingsQuickNavigationTab.Style>
+                        <Style TargetType="local:GeneralSettingsQuickNavigationTab">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding General.SelectedTab}" Value="QuickNavigation">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </local:GeneralSettingsQuickNavigationTab.Style>
+                </local:GeneralSettingsQuickNavigationTab>
+
+                <!-- Tab: Preview Providers (see GeneralSettingsPreviewProvidersTab.xaml) -->
+                <local:GeneralSettingsPreviewProvidersTab x:Name="TabPreviewProviders">
+                    <local:GeneralSettingsPreviewProvidersTab.Style>
+                        <Style TargetType="local:GeneralSettingsPreviewProvidersTab">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding General.SelectedTab}" Value="PreviewProviders">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </local:GeneralSettingsPreviewProvidersTab.Style>
+                </local:GeneralSettingsPreviewProvidersTab>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

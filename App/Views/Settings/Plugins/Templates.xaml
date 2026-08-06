@@ -1,0 +1,304 @@
+<ResourceDictionary x:Class="Lertaro.App.Views.Settings.Plugins.PluginConfigTemplates"
+                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+                    xmlns:conv="clr-namespace:Lertaro.App.Converters"
+                    xmlns:local="clr-namespace:Lertaro.App.Views.Settings.Plugins">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+        <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+        <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+    <conv:BoolToVisibilityConverter x:Key="InvertBoolToVis" Invert="True"/>
+    <conv:NullToVisibilityConverter x:Key="NullToVis"/>
+    <local:EmptyStringToPlaceholderConverter x:Key="EmptyOrPlaceholder"/>
+    <conv:ReferenceEqualsConverter x:Key="RefEquals"/>
+    <local:BadgeFieldToVisibilityConverter x:Key="BadgeFieldToVis"/>
+
+    <!-- Selectable row container for the array master list -->
+    <Style x:Key="ArrayMasterListItemStyle" TargetType="ListBoxItem">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0,0,0,2"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Grid>
+                        <Rectangle x:Name="AccentBar" Width="3" HorizontalAlignment="Left"
+                                   RadiusX="1.5" RadiusY="1.5" Fill="Transparent" Margin="0,1"/>
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Margin="6,0,0,0" Padding="8,6">
+                            <ContentPresenter/>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                            <Setter TargetName="AccentBar" Property="Fill" Value="{DynamicResource AccentBarColor}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Implicit TextBox styling matching settings theme -->
+    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="ContextMenu"><Setter.Value><ContextMenu Style="{DynamicResource {x:Type ContextMenu}}"><MenuItem Command="ApplicationCommands.Cut"/><MenuItem Command="ApplicationCommands.Copy"/><MenuItem Command="ApplicationCommands.Paste"/></ContextMenu></Setter.Value></Setter>
+    </Style>
+
+
+    <DataTemplate x:Key="HotkeyFieldTemplate">
+        <ctrl:HotkeyRecorderControl Value="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    RequireModifier="{Binding HotkeyRequireModifier}"
+                                    Width="180" Height="26"/>
+    </DataTemplate>
+
+    <DataTemplate x:Key="FilePathFieldTemplate">
+        <StackPanel Orientation="Horizontal">
+            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="150" Height="26"/>
+            <Button Content="..." Style="{StaticResource SettingsButton}" MinWidth="0" Padding="4,0" Width="28" Height="26" Margin="4,0,0,0" Tag="File" Click="BrowsePath_Click"/>
+        </StackPanel>
+    </DataTemplate>
+
+    <DataTemplate x:Key="FolderPathFieldTemplate">
+        <StackPanel Orientation="Horizontal">
+            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="150" Height="26"/>
+            <Button Content="..." Style="{StaticResource SettingsButton}" MinWidth="0" Padding="4,0" Width="28" Height="26" Margin="4,0,0,0" Tag="Folder" Click="BrowsePath_Click"/>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- Implicit ComboBox styling to match SettingsComboBox -->
+    <Style TargetType="ComboBox" BasedOn="{StaticResource SettingsComboBox}">
+        <Setter Property="Height" Value="26"/>
+    </Style>
+
+    <!-- Renders just the value editor for a field (no label/description), shared by the
+         standalone field row below and by each cell of an array table. -->
+    <Style x:Key="FieldValueEditorStyle" TargetType="ContentControl">
+        <Setter Property="ContentTemplate">
+            <Setter.Value>
+                <DataTemplate/>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <!-- Boolean fields -->
+            <DataTrigger Binding="{Binding IsBoolean}" Value="True">
+                <Setter Property="ContentTemplate">
+                    <Setter.Value>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding Value, Mode=TwoWay}" Margin="0"/>
+                        </DataTemplate>
+                    </Setter.Value>
+                </Setter>
+            </DataTrigger>
+
+            <!-- Text fields -->
+            <DataTrigger Binding="{Binding IsText}" Value="True">
+                <Setter Property="ContentTemplate">
+                    <Setter.Value>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                         MaxLength="{Binding MaxLength}"
+                                         Width="{Binding EditorWidth}"
+                                         TextAlignment="{Binding TextAlignment}"
+                                         Height="26"/>
+                                <!-- Spacer for non-icon fields to align them with the icon field preview -->
+                                <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4"
+                                        Background="Transparent" BorderBrush="Transparent" BorderThickness="1"
+                                        Visibility="{Binding IsIconField, Converter={StaticResource InvertBoolToVis}}"
+                                        VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                <!-- Preview Icon if it's the Icon field -->
+                                <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4"
+                                        Background="{DynamicResource ControlBackground}"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
+                                        Visibility="{Binding IsIconField, Converter={StaticResource BoolToVis}}"
+                                        VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <Path Data="{Binding Value}" Fill="{DynamicResource DefaultPluginIconColor}"
+                                          Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                            </StackPanel>
+                        </DataTemplate>
+                    </Setter.Value>
+                </Setter>
+            </DataTrigger>
+
+            <!-- StringList fields -->
+            <DataTrigger Binding="{Binding IsStringList}" Value="True">
+                <Setter Property="ContentTemplate">
+                    <Setter.Value>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}"
+                                     Width="260" Height="80" AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
+                                     HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                     VerticalContentAlignment="Top" Padding="6,4" FontFamily="Cascadia Mono, Consolas"/>
+                        </DataTemplate>
+                    </Setter.Value>
+                </Setter>
+            </DataTrigger>
+
+            <!-- Integer fields -->
+            <DataTrigger Binding="{Binding IsInteger}" Value="True">
+                <Setter Property="ContentTemplate">
+                    <Setter.Value>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" Width="80" Height="26"/>
+                        </DataTemplate>
+                    </Setter.Value>
+                </Setter>
+            </DataTrigger>
+
+            <!-- Hotkey fields -->
+            <DataTrigger Binding="{Binding IsHotkey}" Value="True">
+                <Setter Property="ContentTemplate" Value="{StaticResource HotkeyFieldTemplate}"/>
+            </DataTrigger>
+
+            <!-- FilePath fields -->
+            <DataTrigger Binding="{Binding IsFilePath}" Value="True">
+                <Setter Property="ContentTemplate" Value="{StaticResource FilePathFieldTemplate}"/>
+            </DataTrigger>
+
+            <!-- FolderPath fields -->
+            <DataTrigger Binding="{Binding IsFolderPath}" Value="True">
+                <Setter Property="ContentTemplate" Value="{StaticResource FolderPathFieldTemplate}"/>
+            </DataTrigger>
+
+            <!-- Choice fields -->
+            <DataTrigger Binding="{Binding IsChoice}" Value="True">
+                <Setter Property="ContentTemplate">
+                    <Setter.Value>
+                        <DataTemplate>
+                            <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Value, Mode=TwoWay}" MinWidth="180"/>
+                        </DataTemplate>
+                    </Setter.Value>
+                </Setter>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Compact array-row delete button, reused by both the object-array table and the
+         scalar-array list so their rows line up the same way. -->
+    <Style x:Key="ArrayRowDeleteButton" TargetType="Button">
+        <Setter Property="Content" Value="&#xE74D;"/>
+        <Setter Property="Command" Value="{Binding DeleteCommand}"/>
+        <Setter Property="Width" Value="28"/>
+        <Setter Property="Height" Value="26"/>
+        <Setter Property="Margin" Value="8,0,0,0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary2}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="6" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Move Up/Down: same look as the delete button above, narrower since the master list column
+         is tight on space, and each row already carries three of these plus a title. -->
+    <!-- Add, on the list's own header rather than pinned under it. Same icon button as the row
+         buttons, so the list reads as one control instead of a list with a full-width button glued to
+         the bottom edge; it also stops the button drifting away from the list as the list grows. -->
+    <Style x:Key="ArrayHeaderAddButton" TargetType="Button" BasedOn="{StaticResource ArrayRowDeleteButton}">
+        <Setter Property="Content" Value="&#xE710;"/>
+        <Setter Property="Command" Value="{Binding AddCommand}"/>
+        <Setter Property="Width" Value="26"/>
+        <Setter Property="Height" Value="24"/>
+        <Setter Property="Margin" Value="4,0,0,0"/>
+    </Style>
+
+    <Style x:Key="ArrayHeaderDuplicateButton" TargetType="Button" BasedOn="{StaticResource ArrayHeaderAddButton}">
+        <Setter Property="Content" Value="&#xE8C8;"/>
+        <Setter Property="Command" Value="{Binding DuplicateCommand}"/>
+    </Style>
+
+    <Style x:Key="ArrayRowMoveUpButton" TargetType="Button" BasedOn="{StaticResource ArrayRowDeleteButton}">
+        <Setter Property="Content" Value="&#xE74A;"/>
+        <Setter Property="Command" Value="{Binding MoveUpCommand}"/>
+        <Setter Property="Width" Value="22"/>
+        <Setter Property="Margin" Value="4,0,0,0"/>
+    </Style>
+    <Style x:Key="ArrayRowMoveDownButton" TargetType="Button" BasedOn="{StaticResource ArrayRowDeleteButton}">
+        <Setter Property="Content" Value="&#xE74B;"/>
+        <Setter Property="Command" Value="{Binding MoveDownCommand}"/>
+        <Setter Property="Width" Value="22"/>
+        <Setter Property="Margin" Value="4,0,0,0"/>
+    </Style>
+
+    <!-- Label-above-editor row for an array item's detail panel. The window is wide enough
+         now (resizable) that the shared label-left/editor-right row below would leave an
+         awkward gap between them; stacking keeps each field readable at any window width. -->
+    <DataTemplate x:Key="ArrayDetailStackedFieldTemplate">
+        <StackPanel Margin="0,0,0,14">
+            <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"
+                       TextWrapping="Wrap" Margin="0,0,0,4" Visibility="{Binding Label, Converter={StaticResource StringToVis}}"/>
+            <TextBlock Text="{Binding Description}" FontSize="10" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"
+                       Margin="0,0,0,6" Visibility="{Binding Description, Converter={StaticResource StringToVis}}"/>
+            <ContentControl Content="{Binding}" HorizontalAlignment="Left" Focusable="False" Style="{StaticResource FieldValueEditorStyle}"/>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- Boolean fields read better as a compact label-left/checkbox-right row, matching a
+         normal settings toggle, instead of the stacked layout used for every other field type. -->
+    <DataTemplate x:Key="ArrayDetailBooleanFieldTemplate">
+        <Grid Margin="0,0,0,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"
+                           TextWrapping="Wrap" MaxWidth="320" HorizontalAlignment="Left" Visibility="{Binding Label, Converter={StaticResource StringToVis}}"/>
+                <TextBlock Text="{Binding Description}" FontSize="10" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"
+                           MaxWidth="320" HorizontalAlignment="Left" Margin="0,2,0,0" Visibility="{Binding Description, Converter={StaticResource StringToVis}}"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" IsChecked="{Binding Value, Mode=TwoWay}" VerticalAlignment="Center"/>
+        </Grid>
+    </DataTemplate>
+
+    <!-- Picks the stacked layout for most field types, but the compact row for Boolean fields. -->
+    <DataTemplate x:Key="ArrayDetailFieldTemplate">
+        <ContentControl Content="{Binding}" Focusable="False">
+            <ContentControl.Style>
+                <Style TargetType="ContentControl">
+                    <Setter Property="ContentTemplate" Value="{StaticResource ArrayDetailStackedFieldTemplate}"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsBoolean}" Value="True">
+                            <Setter Property="ContentTemplate" Value="{StaticResource ArrayDetailBooleanFieldTemplate}"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ContentControl.Style>
+        </ContentControl>
+    </DataTemplate>
+</ResourceDictionary>

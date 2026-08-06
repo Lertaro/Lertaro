@@ -1,0 +1,127 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.QuickPanel.QuickPanelWorkspaceTabs"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:local="clr-namespace:Lertaro.App.Views.Settings.QuickPanel"
+             xmlns:conv="clr-namespace:Lertaro.App.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="400" d:DesignWidth="520">
+    <!-- The selected workspace's two halves: its sources, and the apps it belongs to. DataContext is
+         the PAGE view model, not the selected workspace, because that is where SelectedSubTab lives:
+         which half is showing is a property of the page rather than of any one workspace, so switching
+         workspaces should not throw you back to the first tab. Whatever needs the workspace itself
+         reaches it through SelectedTab. -->
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <conv:BoolToVisibilityConverter x:Key="InvertBoolToVis" Invert="True"/>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+            <StackPanel>
+                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_TabSources]}"
+                        Command="{Binding SelectSubTabCommand}"
+                        CommandParameter="Sources">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedSubTab}" Value="Sources">
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Border>
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedSubTab}" Value="Sources">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Margin="18,0,0,0">
+                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_TabProcesses]}"
+                        Command="{Binding SelectSubTabCommand}"
+                        CommandParameter="Processes">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedSubTab}" Value="Processes">
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Border>
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedSubTab}" Value="Processes">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Grid>
+                <!-- The wrapper carries the visibility trigger, not the section itself: the section sets its
+                     own DataContext to the selected workspace, and SelectedSubTab lives a level up. -->
+                <Border>
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedSubTab}" Value="Sources">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <local:QuickPanelSourcesSection DataContext="{Binding SelectedTab}"/>
+                </Border>
+
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedSubTab}" Value="Processes">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_ProcessesDesc]}"
+                               Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <!-- The same editor the hotkey blacklist uses: same job, so the same type-and-add list
+                         rather than a bare text box. -->
+                    <ContentControl x:Name="RowQuickPanelProcesses" Focusable="False"
+                                    Content="{Binding SelectedTab.Processes}"
+                                    ContentTemplate="{StaticResource ProcessListEditorTemplate}"/>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

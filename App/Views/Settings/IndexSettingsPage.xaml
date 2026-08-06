@@ -1,0 +1,260 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.IndexSettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:indexSettings="clr-namespace:Lertaro.App.Views.Settings.IndexSettings"
+             xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+             mc:Ignorable="d"
+             d:DesignHeight="550" d:DesignWidth="700">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+                <ResourceDictionary Source="IndexSettings/Styles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Style="{StaticResource SettingsSectionTitle}"
+                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Index]}"/>
+            <TextBlock Style="{StaticResource SettingsHintText}"
+                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Index_Hint]}"/>
+
+            <!-- Tab header row -->
+            <ctrl:TabStripScrollView Margin="0,16,0,0">
+            <StackPanel Orientation="Horizontal">
+                <StackPanel Margin="0,0,28,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalDrive]}"
+                            Command="{Binding LocalDrive.SelectTabCommand}" CommandParameter="Local">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Local">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Local">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel>
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_NetworkDrive]}"
+                            Command="{Binding LocalDrive.SelectTabCommand}" CommandParameter="Network">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Network">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Network">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="28,0,0,0"
+                            Visibility="{Binding NetworkDrive.IsWslPanelVisible, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_WslSectionTitle]}"
+                            Command="{Binding LocalDrive.SelectTabCommand}" CommandParameter="Wsl">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Wsl">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Wsl">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="28,0,0,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_FolderIndex]}"
+                            Command="{Binding LocalDrive.SelectTabCommand}" CommandParameter="Folders">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Folders">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Folders">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="28,0,0,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Exclusions]}"
+                            Command="{Binding LocalDrive.SelectTabCommand}" CommandParameter="Exclusions">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Exclusions">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Exclusions">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+            </ctrl:TabStripScrollView>
+            <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,15"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ScrollViewer.Style>
+                    <Style TargetType="ScrollViewer">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Exclusions">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ScrollViewer.Style>
+
+                <StackPanel Grid.IsSharedSizeScope="True">
+                    <!-- Tab: Local -->
+                    <indexSettings:LocalTab x:Name="TabLocal">
+                        <indexSettings:LocalTab.Style>
+                            <Style TargetType="UserControl">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Local">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </indexSettings:LocalTab.Style>
+                    </indexSettings:LocalTab>
+
+                    <!-- Tab: Network -->
+                    <indexSettings:NetworkTab x:Name="TabNetwork">
+                        <indexSettings:NetworkTab.Style>
+                            <Style TargetType="UserControl">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Network">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </indexSettings:NetworkTab.Style>
+                    </indexSettings:NetworkTab>
+
+                    <!-- Tab: WSL -->
+                    <indexSettings:WslTab x:Name="TabWsl">
+                        <indexSettings:WslTab.Style>
+                            <Style TargetType="UserControl">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Wsl">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </indexSettings:WslTab.Style>
+                    </indexSettings:WslTab>
+
+                    <!-- Tab: Folders -->
+                    <indexSettings:FoldersTab x:Name="TabFolders">
+                        <indexSettings:FoldersTab.Style>
+                            <Style TargetType="UserControl">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Folders">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </indexSettings:FoldersTab.Style>
+                    </indexSettings:FoldersTab>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Tab: Exclusions (manages its own fixed sub-tab header and internal scrollviewer) -->
+            <indexSettings:ExclusionsTab x:Name="TabExclusions">
+                <indexSettings:ExclusionsTab.Style>
+                    <Style TargetType="UserControl">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding LocalDrive.SelectedTab}" Value="Exclusions">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </indexSettings:ExclusionsTab.Style>
+            </indexSettings:ExclusionsTab>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -1,0 +1,123 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.Plugins.PluginConfigSection"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:conv="clr-namespace:Lertaro.App.Converters"
+             xmlns:local="clr-namespace:Lertaro.App.Views.Settings.Plugins"
+             xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+             mc:Ignorable="d"
+             d:DesignHeight="300" d:DesignWidth="620">
+    <!-- The plugin config editor, lifted out of the modal PluginConfigWindow it used to be the body of
+         so it can render inline in the plugin's own card instead. Nothing about the fields themselves
+         changed: they are still the recursive, schema-driven rows from FieldRowTemplate.xaml, which
+         PluginFieldPromptWindow also uses. What changed is only the host, and with it the two bindings
+         that used to reach for an ancestor Window. -->
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+                <ResourceDictionary Source="FieldRowTemplate.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- RefEquals is not declared here: FieldRowTemplate.xaml above merges Templates.xaml, which
+                 already registers it under that key, and a second declaration would be a second instance
+                 of the same stateless converter. -->
+            <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+            <conv:BoolToVisibilityConverter x:Key="InvertBoolToVis" Invert="True"/>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- IsSharedSizeScope lets every field row's editor column (SharedSizeGroup="FieldEditor") sync to
+         the widest editor currently on screen, so their editors all start at the same X instead of each
+         row sizing its own independently. Scoped to this control rather than the page, so one plugin's
+         wide editor cannot push another plugin's rows across. -->
+    <Grid Grid.IsSharedSizeScope="True" Margin="0,4,0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Global NonGroup fields (e.g. 设置搜索触发词), positioned ABOVE sub-tabs -->
+        <ItemsControl Grid.Row="0" ItemsSource="{Binding NonGroupConfigFields}"
+                      Visibility="{Binding HasMultipleConfigGroups, Converter={StaticResource BoolToVis}}"/>
+
+        <!-- Fixed Sub-tab Header Bar and Hairline Divider Line (when 2+ groups exist) -->
+        <StackPanel Grid.Row="1" Visibility="{Binding HasMultipleConfigGroups, Converter={StaticResource BoolToVis}}">
+            <ctrl:TabStripScrollView Margin="0,12,0,16">
+                <ItemsControl ItemsSource="{Binding ConfigGroups}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,0,28,0">
+                                <Button Content="{Binding Label}"
+                                        Command="{Binding DataContext.SelectConfigGroupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                            <Style.Triggers>
+                                                <DataTrigger Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <MultiBinding Converter="{StaticResource RefEquals}">
+                                                            <Binding/>
+                                                            <Binding Path="DataContext.SelectedConfigGroup" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                                                        </MultiBinding>
+                                                    </DataTrigger.Binding>
+                                                    <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Border>
+                                    <Border.Style>
+                                        <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                            <Style.Triggers>
+                                                <DataTrigger Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <MultiBinding Converter="{StaticResource RefEquals}">
+                                                            <Binding/>
+                                                            <Binding Path="DataContext.SelectedConfigGroup" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                                                        </MultiBinding>
+                                                    </DataTrigger.Binding>
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ctrl:TabStripScrollView>
+            <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,12"/>
+        </StackPanel>
+
+        <!-- Scrollable content area: also contains non-group fields when no sub-tabs exist. -->
+        <ScrollViewer Grid.Row="2" Margin="0,4,0,0"
+                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <ItemsControl ItemsSource="{Binding NonGroupConfigFields}"
+                              Visibility="{Binding HasMultipleConfigGroups, Converter={StaticResource InvertBoolToVis}}"/>
+
+                <!-- 2+ top-level Groups: active group's children -->
+                <ItemsControl ItemsSource="{Binding SelectedConfigGroup.Children}"
+                              Visibility="{Binding HasMultipleConfigGroups, Converter={StaticResource BoolToVis}}"/>
+
+                <!-- 0 or 1 Groups: flat group rendering -->
+                <ItemsControl ItemsSource="{Binding ConfigGroups}"
+                              Visibility="{Binding HasMultipleConfigGroups, Converter={StaticResource InvertBoolToVis}}"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

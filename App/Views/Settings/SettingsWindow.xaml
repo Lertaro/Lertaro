@@ -1,0 +1,276 @@
+<Window x:Class="Lertaro.App.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:Lertaro.App.Views.Controls"
+        xmlns:services="clr-namespace:Lertaro.App.Services"
+        xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+        Title="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Title]}"
+        Height="720" Width="1280"
+        MinHeight="560" MinWidth="880"
+        WindowStartupLocation="CenterScreen"
+        Background="Transparent"
+        AllowsTransparency="True"
+        WindowStyle="None"
+        ResizeMode="CanResizeWithGrip"
+        StateChanged="Window_StateChanged">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border x:Name="MainBorder" CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource ContentBg}"
+            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8"
+            Effect="{StaticResource Elevation2}">
+        <!-- ClipToBounds ignores CornerRadius (a WPF limitation, not a bug here): helpers:RoundedClip
+             builds a real rounded-rect Clip instead: child content flush to the edge would otherwise show
+             square corners poking past this Border's own rounded paint. -->
+        <Border x:Name="ClippingBorder" CornerRadius="{StaticResource CornerRadiusWindow}" helpers:RoundedClip.IsEnabled="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="44"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="52"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1"
+                        CornerRadius="{StaticResource CornerRadiusWindowTop}"
+                        MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                            <Image x:Name="TitleBarLogo" Width="20" Height="20" Margin="0,0,10,0"/>
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Title]}"
+                                        FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Centered in the remaining space between the title and the window buttons,
+                             not the sidebar, so the sidebar stays full-width and the search box lives
+                             in the title bar as requested. -->
+                        <Border x:Name="SearchBoxBorder" Grid.Column="1" Width="320" Height="28" CornerRadius="{StaticResource CornerRadiusControl}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Background="{DynamicResource ControlBackground}"
+                                BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,4,0"/>
+                                <Grid Grid.Column="1">
+                                    <TextBox x:Name="TxtSettingsSearch" Background="Transparent" BorderThickness="0" FontSize="12"
+                                             Foreground="{DynamicResource TextPrimary}"
+                                             CaretBrush="{DynamicResource TextPrimary}"
+                                             Padding="0,0,8,0" VerticalContentAlignment="Center"
+                                             TextChanged="TxtSettingsSearch_TextChanged"
+                                             PreviewKeyDown="TxtSettingsSearch_KeyDown"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_SearchPlaceholder]}"
+                                               IsHitTestVisible="False" FontSize="12" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondary}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=TxtSettingsSearch}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0">
+                            <Button Content="&#xE949;" Style="{StaticResource WindowControlButton}" Click="BtnMinimize_Click"/>
+                            <Button x:Name="BtnMaximize" Content="&#xE922;" Style="{StaticResource WindowControlButton}" Click="BtnMaximize_Click"/>
+                            <Button Content="&#xE8BB;" Style="{StaticResource CloseButton}" Click="BtnClose_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Popup instead of replacing the sidebar list: results overlay the content area
+                     without disturbing the section list underneath, closer to a Win11-style search
+                     flyout. StaysOpen is True: with StaysOpen="False" clicking a result inside the
+                     popup would close it (losing the click) before SelectionChanged can fire; IsOpen is
+                     instead driven explicitly (see SettingsWindow.xaml.cs) by text-empty/Escape/section
+                     changes/window deactivation. -->
+                <Popup x:Name="SearchResultsPopup" PlacementTarget="{Binding ElementName=SearchBoxBorder}"
+                       Placement="Bottom" Width="320" VerticalOffset="4" StaysOpen="True" AllowsTransparency="True"
+                       PopupAnimation="Fade">
+                    <Border Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource WindowBorderBrush}"
+                            BorderThickness="1" CornerRadius="{StaticResource CornerRadiusPopover}" Padding="0,4"
+                            Effect="{StaticResource Elevation1}">
+                        <StackPanel>
+                            <ListBox x:Name="LstSearchResults" MaxHeight="400"
+                                     BorderThickness="0" Background="Transparent"
+                                     ItemContainerStyle="{StaticResource SidebarItemStyle}"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     MouseUp="LstSearchResults_MouseUp">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,2">
+                                            <TextBlock Text="{Binding Label}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding SectionLabel}" FontSize="11"
+                                                       Foreground="{DynamicResource TextSecondary2}" Margin="0,2,0,0"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock x:Name="TxtSearchNoResults"
+                                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_SearchNoResults]}"
+                                       Visibility="Collapsed" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondary2}" FontSize="12"
+                                       Margin="12,10"/>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Background="{DynamicResource SidebarBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,1,0">
+                        <DockPanel LastChildFill="True">
+                            <!-- Docked Bottom so "About" always sits at the sidebar's bottom edge regardless
+                                 of window height, instead of just trailing the last item in the main list. -->
+                            <ListBox x:Name="LstSectionsBottom" DockPanel.Dock="Bottom" BorderThickness="0" Background="Transparent"
+                                     Margin="0,0,0,14"
+                                     FontSize="15"
+                                     ItemContainerStyle="{StaticResource SidebarItemStyle}"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                     SelectionChanged="LstSectionsBottom_SelectionChanged">
+                                <ListBoxItem Tag="Appearance">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE790;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
+                                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Appearance]}"/>
+                                    </StackPanel>
+                                </ListBoxItem>
+                                <ListBoxItem Tag="About">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
+                                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_About]}"/>
+                                    </StackPanel>
+                                </ListBoxItem>
+                            </ListBox>
+                            <Border DockPanel.Dock="Bottom" Height="1" Background="{DynamicResource BorderColor}" Margin="12,4"/>
+                            <!-- CanContentScroll="False": a ListBox scrolls by ITEM by default, so its
+                                 viewport is rounded down to a whole number of rows. Every row that
+                                 fits by a fraction is one the viewport does not count, which showed a
+                                 scrollbar with all nine sections already visible and then scrolled a
+                                 full row past the last one into blank space. Pixel scrolling measures
+                                 what is actually there. -->
+                            <ListBox x:Name="LstSections" BorderThickness="0" Background="Transparent" Margin="0,14"
+                                 FontSize="15"
+                                 ItemContainerStyle="{StaticResource SidebarItemStyle}"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.CanContentScroll="False"
+                                 SelectionChanged="LstSections_SelectionChanged">
+                            <ListBoxItem Tag="Service">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE9F5;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Service]}"/>
+                                </StackPanel>
+                            </ListBoxItem>
+                            <ListBoxItem Tag="Index">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE8EF;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Index]}"/>
+                                </StackPanel>
+                            </ListBoxItem>
+                            <ListBoxItem Tag="General">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_General]}"/>
+                                </StackPanel>
+                            </ListBoxItem>
+                            <ListBoxItem Tag="Hotkeys">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE765;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Hotkeys]}"/>
+                                </StackPanel>
+                            </ListBoxItem>
+                            <ListBoxItem Tag="Plugins">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xECAA;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Plugins]}"/>
+                                </StackPanel>
+                            </ListBoxItem>
+                            <ListBoxItem Tag="Favorites">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE728;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Favorites]}"/>
+                                </StackPanel>
+                            </ListBoxItem>
+                            <ListBoxItem Tag="History">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE81C;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History]}"/>
+                                </StackPanel>
+                            </ListBoxItem>
+                            <ListBoxItem Tag="QuickPanel">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE8A1;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_QuickPanel]}"/>
+                                </StackPanel>
+                            </ListBoxItem>
+                            <ListBoxItem Tag="LocalSend">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE898;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Title]}"/>
+                                </StackPanel>
+                            </ListBoxItem>
+                        </ListBox>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- AdornerDecorator: this custom-chrome window (WindowStyle="None") has no default
+                         Window template to supply one, and the search result highlight flash (see
+                         SettingsSearchHighlight) needs an AdornerLayer somewhere above the settings pages. -->
+                    <AdornerDecorator Grid.Column="1" Margin="24,20,24,16">
+                    <!-- Pages are constructed lazily in code-behind (see SettingsWindow's PageXxx
+                         properties) and added to this host on first visit, instead of being declared
+                         here (issue #186): eagerly realizing every settings page's full visual tree up
+                         front made even opening "About" pay for every other tab's construction cost. -->
+                    <Grid x:Name="PagesHost"/>
+                    </AdornerDecorator>
+                </Grid>
+
+                <Border Grid.Row="2" Background="{DynamicResource StatusBarBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0"
+                        CornerRadius="{StaticResource CornerRadiusWindowBottom}">
+                    <Grid Margin="16,0">
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_SaveTip]}" 
+                                   Foreground="{DynamicResource TextSecondary2}" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button Style="{StaticResource PrimarySettingsButton}"
+                                    Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_OK]}"
+                                    Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApply}" Click="BtnClose_Click"/>
+                            <Button Style="{StaticResource SettingsButton}"
+                                    Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Cancel]}"
+                                    Click="BtnClose_Click"/>
+                            <Button Style="{StaticResource SettingsButton}"
+                                    Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Apply]}"
+                                    Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApply}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Border>
+</Window>

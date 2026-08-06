@@ -1,0 +1,17 @@
+{
+  "FileFilters_PluginName": "檔案篩選器",
+  "FileFilters_ProviderName": "檔案篩選器",
+  "FileFilters_Config_FiltersLabel": "檔案篩選器清單",
+  "FileFilters_Config_FiltersDesc": "設定自訂搜尋資料夾範圍和檔案篩選副檔名。",
+  "FileFilters_Config_EnabledLabel": "已啟用",
+  "FileFilters_Config_NameLabel": "篩選器名稱",
+  "FileFilters_Config_KeywordLabel": "觸發關鍵字",
+  "FileFilters_Config_KeywordDesc": "輸入框觸發此前置篩選的前綴關鍵字（如 'exe' 或 'doc'）。",
+  "FileFilters_Config_FoldersLabel": "監控資料夾清單",
+  "FileFilters_Config_FoldersDesc": "一行一個，支援本機磁碟與網絡共用磁碟。",
+  "FileFilters_Config_FilterPatternLabel": "比對副檔名",
+  "FileFilters_Config_FilterPatternDesc": "檔案比對規則或篩選副檔名（如 '*.exe;*.lnk'，預設 '*' 比對所有）。",
+  "FileFilters_PluginDesc": "自訂目錄萬用字元篩選索引外掛程式。允許使用者設定特定資料夾與副檔名篩選規則進行索引。",
+  "Plugin_Comp_Desc_FileFiltersSearchableItemProvider": "掃描並索引使用者在設定中指定的自訂目錄下符合萬用字元樣式（如 *.pdf）的檔案，以及每一層子資料夾，並加入主索引進行快捷搜尋。",
+  "Plugin_Comp_Desc_FileFiltersTranslationProvider": "為各種篩選條件大類提供多國語言翻譯服務。"
+}

@@ -1,0 +1,70 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.IndexSettings.WslTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Templates.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <TextBlock Style="{StaticResource SettingsHintText}" Margin="0,0,0,12"
+                   Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_WslSectionHint]}"/>
+
+        <Border x:Name="RowWslRebuild" Style="{StaticResource SettingsCard}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_IndexStatus]}"
+                               FontWeight="SemiBold" FontSize="13" />
+                    <TextBlock Text="{Binding NetworkDrive.WslIndexSummary}"
+                               Foreground="{DynamicResource TextSecondary2}" Margin="0,5,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource PrimarySettingsButton}"
+                            Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_RebuildBtn]}"
+                            Command="{Binding NetworkDrive.RebuildWslCommand}"
+                            IsEnabled="{Binding NetworkDrive.CanRebuildWsl}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Style="{StaticResource SettingsCard}">
+            <StackPanel>
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="40"/>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="1.2*"/>
+                        <ColumnDefinition Width="1.1*"/>
+                        <ColumnDefinition Width="1.4*" MinWidth="126"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_WslHeaderDistro]}"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_HeaderStatus]}"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_HeaderItems]}"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Network_HeaderMode]}"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                </Grid>
+
+                <ItemsControl ItemsSource="{Binding NetworkDrive.WslDrives}" ItemTemplate="{StaticResource WslDriveTemplate}"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

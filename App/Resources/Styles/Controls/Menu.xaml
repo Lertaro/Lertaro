@@ -1,0 +1,248 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:services="clr-namespace:Lertaro.App.Services">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Tokens/Colors.xaml"/>
+        <ResourceDictionary Source="../Tokens/Spacing.xaml"/>
+        <ResourceDictionary Source="../Tokens/Motion.xaml"/>
+        <ResourceDictionary Source="../Tokens/Elevation.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- ═══════════ Modern ContextMenu Styles ═══════════ -->
+    <Style TargetType="{x:Type ContextMenu}">
+        <Setter Property="Background" Value="{DynamicResource MenuBackground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="6"/>
+        <Setter Property="Grid.IsSharedSizeScope" Value="True"/>
+        <Setter Property="HasDropShadow" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ContextMenu}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{StaticResource CornerRadiusPopover}"
+                            Padding="{TemplateBinding Padding}"
+                            Effect="{StaticResource Elevation1}">
+                        <ScrollViewer x:Name="SubMenuScrollViewer" Focusable="false">
+                            <ItemsPresenter KeyboardNavigation.TabNavigation="Cycle"/>
+                        </ScrollViewer>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type MenuItem}">
+        <Setter Property="Height" Value="{x:Static services:UiMetrics.MenuItemHeight}"/>
+        <Setter Property="Foreground" Value="{DynamicResource MenuText}"/>
+        
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type MenuItem}">
+                    <Grid>
+                        <!-- HighlightOverlay carries the hover background as its own Opacity fade
+                             (same reasoning as ResultItemStyle's SelectionOverlay in ListBox.xaml):
+                             Bg's own Background never becomes {DynamicResource HoverBackground} directly,
+                             since animating that shared brush's Color would mutate it for every other
+                             menu item using it too. AccentBar's Fill likewise stays permanently
+                             AccentBarColor with only its Opacity toggling. -->
+                        <Rectangle x:Name="AccentBar" Width="3" HorizontalAlignment="Left"
+                                   RadiusX="1.5" RadiusY="1.5" Fill="{DynamicResource AccentBarColor}" Opacity="0" Margin="0,2"/>
+                        <Border x:Name="HighlightOverlay" CornerRadius="{StaticResource CornerRadiusControl}"
+                                Background="{DynamicResource HoverBackground}" Margin="2,1" Opacity="0"/>
+                        <Border x:Name="Bg" CornerRadius="{StaticResource CornerRadiusControl}" Background="Transparent" Margin="2,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition x:Name="ColIcon" Width="30" SharedSizeGroup="Icon"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition x:Name="ColArrow" Width="Auto"/>
+                                    <ColumnDefinition x:Name="ColShortcut" Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <!-- Icon area -->
+                                <ContentPresenter x:Name="Icon" ContentSource="Icon" Margin="6,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="16" MaxHeight="16">
+                                    <ContentPresenter.Resources>
+                                        <Style TargetType="{x:Type Image}">
+                                            <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality"/>
+                                        </Style>
+                                    </ContentPresenter.Resources>
+                                </ContentPresenter>
+                                <!-- Text area -->
+                                <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" Margin="8,0,16,0" VerticalAlignment="Center"/>
+                                <!-- Submenu Arrow indicator -->
+                                <TextBlock x:Name="Arrow"
+                                           Grid.Column="2"
+                                           Text="&#xE76C;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="10"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           Margin="8,0,8,0"
+                                           VerticalAlignment="Center"
+                                           Visibility="Collapsed"/>
+                                <!-- Shortcut text area -->
+                                <TextBlock Grid.Column="3"
+                                           Text="{TemplateBinding InputGestureText}"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           Margin="16,0,12,0"
+                                           VerticalAlignment="Center"
+                                           FontSize="11.5"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Submenu Popup -->
+                        <Popup x:Name="PART_Popup"
+                               Placement="Right"
+                               AllowsTransparency="True"
+                               Focusable="False"
+                               IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                               PopupAnimation="Fade">
+                            <Border Background="{DynamicResource MenuBackground}"
+                                    BorderBrush="{DynamicResource MenuBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource CornerRadiusPopover}"
+                                    Padding="4"
+                                    SnapsToDevicePixels="True"
+                                    Effect="{StaticResource Elevation1}">
+                                <ScrollViewer x:Name="SubMenuScrollViewer" Focusable="false">
+                                    <ItemsPresenter KeyboardNavigation.TabNavigation="Cycle"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="HasItems" Value="True">
+                            <Setter TargetName="Arrow" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="Icon" Value="{x:Null}">
+                            <Setter TargetName="ColIcon" Property="Width" Value="0"/>
+                        </Trigger>
+                        <Trigger Property="InputGestureText" Value="">
+                            <Setter TargetName="ColShortcut" Property="Width" Value="0"/>
+                        </Trigger>
+                        <Trigger Property="InputGestureText" Value="{x:Null}">
+                            <Setter TargetName="ColShortcut" Property="Width" Value="0"/>
+                        </Trigger>
+                        <!-- Was SelectedBackground (a themed blue tint distinct from every other list/menu
+                             surface's HoverBackground): unified so this menu (quick-nav cascader, tray
+                             icon menu) highlights the same way as the actions list/flyout. -->
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource MenuText}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HighlightOverlay" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                        <DoubleAnimation Storyboard.TargetName="AccentBar" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HighlightOverlay" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                        <DoubleAnimation Storyboard.TargetName="AccentBar" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource MenuDisabledText}"/>
+                            <Setter Property="Opacity" Value="0.35"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type Separator}">
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="Background" Value="{DynamicResource SeparatorBrush}"/>
+        <Setter Property="Margin" Value="6,4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Separator}">
+                    <Border Height="{TemplateBinding Height}" Background="{TemplateBinding Background}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Non-interactive group-header row for the quick-navigation cascader's root menu (one per
+         IQuickNavigationProvider), matching the actions list/flyout's own section-header look
+         (ActionMenuItemTemplate's SectionHeaderVisibility block) without pulling in that template's
+         icon/shortcut/submenu-arrow columns this plain-text row never needs. Height uses
+         MinSectionHeaderHeight (a compact label height, not a full clickable row's MenuItemHeight):
+         this row has no icon/hover chrome to fill out, so the full row height just read as excess
+         padding around small text. FontSize a notch below the item text's own 12.5 (not the same 12 a
+         header would get in the full-size actions list) so the size gap reads clearly at this menu's
+         own smaller scale. Margin left at 8px, matching where a normal row's own icon starts (Bg's own
+         2px margin + the icon ContentPresenter's own 6px margin in the default MenuItem style above). -->
+    <Style x:Key="QuickNavGroupHeaderStyle" TargetType="{x:Type MenuItem}">
+        <Setter Property="IsEnabled" Value="False"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsHitTestVisible" Value="False"/>
+        <Setter Property="Height" Value="{x:Static services:UiMetrics.MinSectionHeaderHeight}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type MenuItem}">
+                    <TextBlock Text="{TemplateBinding Header}" Foreground="{DynamicResource AccentBlue}"
+                               FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Same look as QuickNavGroupHeaderStyle above, but for a header carrying an embedded action
+         button (see QuickNavigationMenu.CreateHeaderMenuItem): Header is a Grid (label + button), not
+         a plain string, so this needs a ContentPresenter instead of a TextBlock bound to it. Left
+         enabled/hit-test-visible (unlike the plain style) so the button can actually receive clicks:
+         the row's own StaysOpenOnClick=True (set in code, since it's an instance property, not
+         style-settable the same way) keeps a click on the label/background from closing the menu with
+         no button pressed. -->
+    <Style x:Key="QuickNavGroupHeaderWithActionStyle" TargetType="{x:Type MenuItem}">
+        <Setter Property="Height" Value="{x:Static services:UiMetrics.MinSectionHeaderHeight}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type MenuItem}">
+                    <ContentPresenter Content="{TemplateBinding Header}" Margin="8,0,4,0" VerticalAlignment="Center"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The header's own embedded "+" button: compact, borderless until hovered so it doesn't
+         compete visually with the header label next to it. -->
+    <Style x:Key="QuickNavHeaderActionButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="4" Background="{TemplateBinding Background}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

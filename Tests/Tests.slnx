@@ -1,0 +1,24 @@
+<Solution>
+  <Project Path="Core/Core.csproj" />
+  <Project Path="Cli/Cli.csproj" />
+  <Project Path="App/App.csproj" />
+  <Project Path="Plugins/PinyinAlias/PinyinAlias.csproj" />
+  <Project Path="Plugins/CustomCommands/CustomCommands.csproj" />
+  <Project Path="Plugins/CustomActions/CustomActions.csproj" />
+  <Project Path="Plugins/WebSearch/WebSearch.csproj" />
+  <Project Path="Plugins/FolderCascader/FolderCascader.csproj" />
+  <Project Path="Plugins/CoreExtensions/CoreExtensions.csproj" />
+  <Project Path="Plugins/Files/Files.csproj" />
+  <Project Path="Plugins/OneCommander/OneCommander.csproj" />
+  <Project Path="Plugins/FileFilters/FileFilters.csproj" />
+  <Project Path="Plugins/BrowserData/BrowserData.csproj" />
+  <Project Path="Plugins/ProcessManager/ProcessManager.csproj" />
+  <Project Path="Plugins/WindowSwitcher/WindowSwitcher.csproj" />
+  <Project Path="Plugins/DirectoryOpus/DirectoryOpus.csproj" />
+  <Project Path="Plugins/QuickLookBridge/QuickLookBridge.csproj" />
+  <Project Path="Plugins/WinRAR/WinRAR.csproj" />
+  <Project Path="Plugins/Bandizip/Bandizip.csproj" />
+  <Project Path="Plugins/WPS/WPS.csproj" />
+  <Project Path="Plugins/SpanishAlias/SpanishAlias.csproj" />
+
+</Solution>

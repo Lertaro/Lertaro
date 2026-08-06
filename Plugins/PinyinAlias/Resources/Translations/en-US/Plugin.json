@@ -1,0 +1,4 @@
+{
+  "Plugins_PinyinAliasPluginName": "Pinyin Spelling Search Alias Plugin",
+  "Plugin_Comp_Desc_PinyinAliasProvider": "Automatically generates pinyin spelling aliases for non-ASCII text to speed up search."
+}

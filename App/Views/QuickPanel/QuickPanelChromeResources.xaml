@@ -1,0 +1,67 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- The panel's two small chrome buttons: the x on a workspace tab and the stay-open pin. Split out
+         of QuickPanelWindowResources.xaml purely to keep that file under the repo's per-file line limit,
+         and merged back into it, so everything that already merges those resources still sees these
+         without having to know they moved. -->
+    <!-- The stay-open pin. A ToggleButton with its own template, because a checked one paints the system
+         accent straight over whatever style it is given: the same reason the settings page's own options
+         button is a plain Button. The glyph carries the state, outline when the panel will dismiss
+         itself as usual, filled and accented while it has been asked not to. -->
+    <Style x:Key="QuickPanelStayOpenStyle" TargetType="ToggleButton">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Bd" Background="Transparent" CornerRadius="4">
+                        <TextBlock x:Name="Glyph" Text="&#xE718;" FontFamily="Segoe MDL2 Assets"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondary2}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHover}"/>
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Glyph" Property="Text" Value="&#xE77A;"/>
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The x on a workspace tab. Same construction as the startup panel's own close button, down to the
+         glyph and the hover box: they do the same thing to the same kind of strip, and a second look for
+         it would only be a second thing to keep in step. -->
+    <Style x:Key="QuickPanelTabCloseStyle" TargetType="Button">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary2}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="3" Background="{TemplateBinding Background}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ControlHoverBackground}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

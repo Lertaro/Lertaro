@@ -1,0 +1,11 @@
+{
+  "QuickLookBridge_PluginName": "QuickLook Bridge",
+  "QuickLookBridge_PluginDesc": "Experimental: whenever an external QuickLook (github.com/QL-Win/QuickLook) instance is reachable over its own named pipe, it takes over previews for everything, ahead of every built-in preview provider. Lertaro's own preview panel hides itself while this is active, and QuickLook's separate floating window is docked into the exact spot that panel would have occupied.",
+  "QuickLookBridge_ProviderName": "QuickLook Bridge",
+  "QuickLookBridge_GroupName": "QuickLook",
+  "QuickLookBridge_ActionName": "Preview in QuickLook",
+  "QuickLookBridge_ActionDesc": "Opens the selected file or folder in QuickLook's own preview window, over its named pipe.",
+  "Plugin_Comp_Desc_QuickLookPreviewProvider": "Detects a reachable QuickLook instance over its named pipe, hands off every preview to it, hides Lertaro's own preview panel while it's active, and docks QuickLook's window into that panel's spot.",
+  "Plugin_Comp_Desc_QuickLookBridgeTranslationProvider": "Provides UI translation and localization mapping for the QuickLook Bridge plugin.",
+  "Plugin_Comp_Desc_PreviewInQuickLookAction": "Manually triggers a QuickLook preview for the selected result over its named pipe."
+}

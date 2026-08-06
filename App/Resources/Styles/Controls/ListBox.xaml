@@ -1,0 +1,218 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Tokens/Colors.xaml"/>
+        <ResourceDictionary Source="../Tokens/Spacing.xaml"/>
+        <ResourceDictionary Source="../Tokens/Motion.xaml"/>
+        <ResourceDictionary Source="../Tokens/Elevation.xaml"/>
+        <ResourceDictionary Source="ScrollBar.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- ═══════════ ListBox Item Style ═══════════ -->
+    <Style x:Key="ResultItemStyle" TargetType="ListBoxItem">
+        <Setter Property="helpers:RippleAdorner.EnableRipple" Value="True"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="MinHeight" Value="{Binding ItemHeight}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Grid>
+                        <!-- SelectionOverlay carries the hover/selected background as its own Opacity
+                             fade rather than swapping ItemBorder's Background between Transparent and
+                             {DynamicResource HoverBackground}: a Storyboard can't animate a shared
+                             DynamicResource brush's Color without mutating that same brush everywhere
+                             else it's used, so the fade lives on a dedicated layer instead. Same for
+                             AccentBar: its Fill stays permanently AccentBarColor and only its own
+                             Opacity toggles. -->
+                        <Border x:Name="SelectionOverlay" CornerRadius="{StaticResource CornerRadiusControl}"
+                                Background="{DynamicResource HoverBackground}" Margin="6,2,6,2" Opacity="0"/>
+                        <Rectangle x:Name="AccentBar" Width="3" HorizontalAlignment="Left"
+                                   RadiusX="1.5" RadiusY="1.5" Fill="{DynamicResource AccentBarColor}" Opacity="0" Margin="0,2"/>
+                        <Border x:Name="ItemBorder"
+                                Background="Transparent"
+                                CornerRadius="{StaticResource CornerRadiusControl}"
+                                Margin="6,2,6,2"
+                                Padding="12,0,12,0"
+                                VerticalAlignment="Stretch"
+                                Cursor="Hand">
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <!-- No separate IsMouseOver trigger: hovering a row now selects it (see
+                             ResultsControl.xaml.cs's hover-to-select wiring), so IsSelected alone
+                             always covers the hover case too: a standalone hover trigger would be
+                             dead weight that never fires differently from selection. -->
+                        <Trigger Property="IsSelected" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="SelectionOverlay" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                        <DoubleAnimation Storyboard.TargetName="AccentBar" Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="SelectionOverlay" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                        <DoubleAnimation Storyboard.TargetName="AccentBar" Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <!-- Visibility=Collapsed, not just Opacity=0: a running "selected" animation's
+                             held value outranks a plain Setter on the SAME property (Opacity) regardless
+                             of trigger order or which condition changed last, so an Opacity Setter here
+                             can lose that fight. Visibility is a different property the animation never
+                             touches, so Collapsed hides the bar/overlay unconditionally no matter what
+                             the animation is doing underneath. -->
+                        <DataTrigger Binding="{Binding IsEmptyResult}" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="Transparent"/>
+                            <Setter TargetName="AccentBar" Property="Visibility" Value="Collapsed"/>
+                            <Setter TargetName="SelectionOverlay" Property="Visibility" Value="Collapsed"/>
+                            <Setter Property="IsHitTestVisible" Value="False"/>
+                            <Setter Property="Focusable" Value="False"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsListItem}" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Padding" Value="18,4,18,4"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsSearchSectionHeader}" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="Transparent"/>
+                            <Setter TargetName="ItemBorder" Property="Cursor" Value="Arrow"/>
+                            <Setter TargetName="AccentBar" Property="Visibility" Value="Collapsed"/>
+                            <Setter TargetName="SelectionOverlay" Property="Visibility" Value="Collapsed"/>
+                            <Setter Property="IsHitTestVisible" Value="False"/>
+                            <Setter Property="Focusable" Value="False"/>
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro Inline">
+                <Setter Property="MinHeight" Value="{Binding InlineItemHeight}"/>
+            </DataTrigger>
+            <!-- Quick window only: rows scale with the configured search box height. -->
+            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro">
+                <Setter Property="MinHeight" Value="{Binding ScaledItemHeight}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="ActionItemStyle" TargetType="ListBoxItem">
+        <Setter Property="helpers:RippleAdorner.EnableRipple" Value="True"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="MinHeight" Value="{Binding ItemHeight}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Grid>
+                        <Rectangle x:Name="AccentBar" Width="3" HorizontalAlignment="Left"
+                                   RadiusX="1.5" RadiusY="1.5" Fill="Transparent" Margin="0,2"/>
+                        <Border x:Name="ItemBorder"
+                                Background="Transparent"
+                                CornerRadius="{StaticResource CornerRadiusControl}"
+                                Margin="6,2,6,2"
+                                Padding="8,0,8,0"
+                                VerticalAlignment="Stretch"
+                                Cursor="Hand">
+                            <!-- Stretch (not Center): every row inside ActionMenuItemTemplate already
+                                 centers its own content within whatever height it's given, so this only
+                                 needs to hand over the row's real, final height rather than centering the
+                                 template's own independently-computed natural size within it: two
+                                 separately-rounded numbers landing a pixel apart was what made a section
+                                 header read as not quite vertically centered. -->
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                            <Setter TargetName="AccentBar" Property="Fill" Value="{DynamicResource AccentBarColor}"/>
+                        </Trigger>
+                        <DataTrigger Binding="{Binding IsSectionHeader}" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="Transparent"/>
+                            <Setter TargetName="AccentBar" Property="Fill" Value="Transparent"/>
+                            <Setter Property="IsHitTestVisible" Value="False"/>
+                            <Setter Property="Focusable" Value="False"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsSeparator}" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="Transparent"/>
+                            <Setter TargetName="AccentBar" Property="Fill" Value="Transparent"/>
+                            <Setter Property="IsHitTestVisible" Value="False"/>
+                            <Setter Property="Focusable" Value="False"/>
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <!-- Quick window only: action rows scale with the configured search box height. -->
+            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro">
+                <Setter Property="MinHeight" Value="{Binding ScaledItemHeight}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ═══════════ Sleek ListBox Style ═══════════ -->
+    <Style x:Key="SleekListBoxStyle" TargetType="{x:Type ListBox}">
+        <!-- Both Setters below are load-bearing, not decoration: a named Style with no BasedOn doesn't
+             inherit the theme's own implicit ListBox style (the one that would otherwise set these), so
+             without them a ListBox using this style silently falls back to ItemsControl's own bare
+             defaults: a plain, non-virtualizing StackPanel for ItemsPanel, and CanContentScroll=false
+             for ScrollViewer, either one of which alone is enough to defeat virtualization outright.
+             LstResults (ResultsControl.xaml) sets VirtualizingPanel.IsVirtualizing="True" directly on
+             itself, but that attached property only means anything once the realized panel is actually a
+             VirtualizingStackPanel: it was a silent no-op against the StackPanel this style used to
+             leave in place, and every row (however many thousand results a broad query returns) was being
+             fully realized and measured regardless of what was actually scrolled into view. -->
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <VirtualizingStackPanel/>
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ListBox}">
+                    <Border Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="0" SnapsToDevicePixels="true">
+                        <ScrollViewer Focusable="false" Padding="{TemplateBinding Padding}" CanContentScroll="{TemplateBinding ScrollViewer.CanContentScroll}" Style="{StaticResource SleekScrollViewerStyle}">
+                            <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        </ScrollViewer>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="Transparent"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type ListBox}" BasedOn="{StaticResource SleekListBoxStyle}"/>
+
+    <!-- ═══════════ Sleek ListView Style ═══════════ -->
+    <Style TargetType="{x:Type ListView}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+</ResourceDictionary>

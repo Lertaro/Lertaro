@@ -1,0 +1,17 @@
+{
+  "FileFilters_PluginName": "Filtros de Archivos",
+  "FileFilters_ProviderName": "Filtros de Archivos",
+  "FileFilters_Config_FiltersLabel": "Filtros de Archivos",
+  "FileFilters_Config_FiltersDesc": "Configura ámbitos de directorio y extensiones personalizados para búsquedas por palabra clave dirigidas.",
+  "FileFilters_Config_EnabledLabel": "Activado",
+  "FileFilters_Config_NameLabel": "Nombre del Filtro",
+  "FileFilters_Config_KeywordLabel": "Palabra Clave de Acceso Directo",
+  "FileFilters_Config_KeywordDesc": "Prefijo de palabra clave para activar este filtro de archivos (por ejemplo, 'exe' o 'doc').",
+  "FileFilters_Config_FoldersLabel": "Carpetas de Destino",
+  "FileFilters_Config_FoldersDesc": "Una ruta por línea. Admite unidades de red y locales.",
+  "FileFilters_Config_FilterPatternLabel": "Extensiones / Patrón",
+  "FileFilters_Config_FilterPatternDesc": "Extensión de filtro o patrón de búsqueda (por ejemplo, '*.exe;*.lnk' o '*').",
+  "FileFilters_PluginDesc": "Complemento de filtrado e indexación mediante comodines en directorios personalizados. Permite a los usuarios configurar reglas de filtrado por carpeta y extensión de archivo específicas para la indexación.",
+  "Plugin_Comp_Desc_FileFiltersSearchableItemProvider": "Escanea e indexa los archivos que coincidan con un patrón comodín (por ejemplo, *.pdf), además de todas las subcarpetas, en los directorios personalizados configurados por el usuario, exponiéndolos al índice de búsqueda principal.",
+  "Plugin_Comp_Desc_FileFiltersTranslationProvider": "Ofrece traducción y asignación de recursos de idioma para Filtros de Archivos."
+}

@@ -1,0 +1,73 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.IndexSettings.LocalTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Templates.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <TextBlock Style="{StaticResource SettingsHintText}" Margin="0,0,0,12"
+                   Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Local_Hint]}"/>
+
+        <Border x:Name="RowLocalRebuild" Style="{StaticResource SettingsCard}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Local_IndexStatus]}"
+                               FontWeight="SemiBold" FontSize="13" />
+                    <TextBlock Text="{Binding LocalDrive.IndexSummary}"
+                               Foreground="{DynamicResource TextSecondary2}" Margin="0,5,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource PrimarySettingsButton}"
+                            Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Local_RebuildBtn]}"
+                            Command="{Binding LocalDrive.RebuildCommand}" IsEnabled="{Binding LocalDrive.CanRebuild}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Style="{StaticResource SettingsCard}">
+            <StackPanel>
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="40"/><ColumnDefinition Width="70"/><ColumnDefinition Width="1.1*"/><ColumnDefinition Width="1.1*"/><ColumnDefinition Width="1*"/><ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Local_HeaderDrive]}"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Local_HeaderFileSystem]}"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Local_HeaderStatus]}"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Local_HeaderItems]}"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                </Grid>
+
+                <!-- Empty Placeholder Item -->
+                <Border Background="{DynamicResource EmptyPlaceholderBackground}" BorderBrush="{DynamicResource EmptyPlaceholderBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="24,32" Margin="0,8,0,0"
+                        Visibility="{Binding LocalDrive.IsLocalDrivesEmpty, Converter={StaticResource BoolToVis}}">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="&#xE783;" FontFamily="Segoe MDL2 Assets" FontSize="36" Foreground="{DynamicResource EmptyPlaceholderIcon}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                        <TextBlock Text="{Binding LocalDrive.DrivesPlaceholderText}" FontSize="13" Foreground="{DynamicResource TextSecondary2}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <ItemsControl ItemsSource="{Binding LocalDrive.LocalDrives}" ItemTemplate="{StaticResource LocalDriveTemplate}"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

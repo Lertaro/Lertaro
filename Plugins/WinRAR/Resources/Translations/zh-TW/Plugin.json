@@ -1,0 +1,4 @@
+{
+  "WinRAR_PluginDesc": "WinRAR 整合外掛。解壓壓縮檔時，可以讓 Lertaro 直接填寫目標路徑（比如透過快速導航選單）。",
+  "Plugin_Comp_Desc_WinRARExtractDialogAdapter": "透過控制項結構（而不是視窗標題，因為 WinRAR 有多語言版本）識別 WinRAR 的“解壓路徑和選項”對話方塊，並讓 Lertaro 填寫其中的目標路徑輸入框。"
+}

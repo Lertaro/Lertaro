@@ -1,0 +1,101 @@
+<UserControl x:Class="Lertaro.Plugins.CoreExtensions.Preview.Controls.MediaPreviewControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="False">
+    <UserControl.Resources>
+        <!-- Scoped to this control only: the transport bar's round icon-button look is specific to a
+             media player and isn't meant to be reused app-wide the way Button.xaml's styles are, but it
+             still keys every color off the same DynamicResource brushes the rest of the theme system uses. -->
+        <Style x:Key="TransportButton" TargetType="Button">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="15" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ControlHoverBackground}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="{DynamicResource ContentBg}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Video surface / audio placeholder / error fallback, stacked -->
+        <Grid Grid.Row="0" x:Name="SurfaceArea">
+            <MediaElement x:Name="Player" Stretch="Uniform" LoadedBehavior="Manual" UnloadedBehavior="Manual"
+                          ScrubbingEnabled="True" MouseLeftButtonDown="Player_MouseLeftButtonDown"/>
+
+            <!-- Audio-only files have no video surface to show: MediaOpened flips this visible once
+                 Player.HasVideo comes back false, so a still-loading video doesn't flash this first. -->
+            <StackPanel x:Name="AudioPlaceholder" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                <!-- EmptyPlaceholderIcon, not VideoIconColor: that one is a saturated badge accent meant
+                     for a small colored dot (the sidebar's "Video" type filter), not a large centered
+                     surface icon. EmptyPlaceholderIcon is the existing muted, per-theme-tuned token the
+                     Settings empty-state pages (LocalTab/FoldersTab/NetworkTab) already use for exactly
+                     this kind of placeholder. -->
+                <Path Width="56" Height="56" Stretch="Uniform" HorizontalAlignment="Center"
+                      Fill="{DynamicResource EmptyPlaceholderIcon}"
+                      Data="M9,3 L9,15.55 A3.5,3.5 0 1 0 11,18.7 L11,7 L18,5 L18,13.55 A3.5,3.5 0 1 0 20,16.7 L20,1 Z"/>
+                <TextBlock x:Name="TxtAudioTitle" Margin="0,12,0,0" FontSize="13" HorizontalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" MaxWidth="300" Foreground="{DynamicResource TextSecondary}"/>
+            </StackPanel>
+
+            <!-- Playback failed and no shell thumbnail could be recovered either -->
+            <StackPanel x:Name="ErrorPanel" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                <Image x:Name="ImgErrorIcon" Width="48" Height="48" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="TxtError" Margin="0,10,0,0" FontSize="12" HorizontalAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="300" TextAlignment="Center"
+                           Foreground="{DynamicResource ErrorBrush}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Transport bar -->
+        <Grid x:Name="TransportBar" Grid.Row="1" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="BtnPlayPause" Grid.Column="0" Style="{StaticResource TransportButton}" Click="BtnPlayPause_Click">
+                <Path x:Name="IconPlayPause" Width="14" Height="14" Stretch="Uniform" Fill="{DynamicResource TextPrimary}"/>
+            </Button>
+
+            <TextBlock x:Name="TxtCurrentTime" Grid.Column="1" Text="0:00" FontSize="11" VerticalAlignment="Center"
+                       Margin="6,0,8,0" Foreground="{DynamicResource TextSecondary}"/>
+
+            <Grid x:Name="ScrubTrack" Grid.Column="2" VerticalAlignment="Center" Height="16" Cursor="Hand" Background="Transparent"
+                  MouseLeftButtonDown="ScrubTrack_MouseLeftButtonDown" MouseMove="ScrubTrack_MouseMove" MouseLeftButtonUp="ScrubTrack_MouseLeftButtonUp">
+                <Border Height="4" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource SeparatorBrush}"/>
+                <Border x:Name="ScrubFill" Height="4" CornerRadius="2" VerticalAlignment="Center" HorizontalAlignment="Left"
+                        Width="0" Background="{DynamicResource AccentBlue}"/>
+            </Grid>
+
+            <TextBlock x:Name="TxtDuration" Grid.Column="3" Text="0:00" FontSize="11" VerticalAlignment="Center"
+                       Margin="8,0,4,0" Foreground="{DynamicResource TextSecondary}"/>
+
+            <Button x:Name="BtnMute" Grid.Column="4" Style="{StaticResource TransportButton}" Click="BtnMute_Click">
+                <Path x:Name="IconMute" Width="15" Height="15" Stretch="Uniform" Fill="{DynamicResource TextPrimary}"/>
+            </Button>
+        </Grid>
+    </Grid>
+</UserControl>

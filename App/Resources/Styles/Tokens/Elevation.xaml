@@ -1,0 +1,22 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ═══════════ Elevation Tokens ═══════════
+         3 tiers clustered from the DropShadowEffect values already scattered across the app, not
+         picked fresh. Color stays {DynamicResource ShadowColor}: sharing a DropShadowEffect (a
+         Freezable, same as a Brush) across many elements via StaticResource is standard WPF resource
+         sharing, so it still repaints on theme switch exactly like every existing inline shadow does. -->
+
+    <!-- Menus, submenus, dropdown popups, tooltips -->
+    <DropShadowEffect x:Key="Elevation1" Color="{DynamicResource ShadowColor}"
+                       BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="0.08"/>
+
+    <!-- Primary app windows (search, settings) -->
+    <DropShadowEffect x:Key="Elevation2" Color="{DynamicResource ShadowColor}"
+                       BlurRadius="20" ShadowDepth="2" Direction="315" Opacity="0.2"/>
+
+    <!-- Topmost floating windows (quick window, inline search) -->
+    <DropShadowEffect x:Key="Elevation3" Color="{DynamicResource ShadowColor}"
+                       BlurRadius="28" ShadowDepth="4" Direction="315" Opacity="0.24"/>
+
+</ResourceDictionary>

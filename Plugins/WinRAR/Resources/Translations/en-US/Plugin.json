@@ -1,0 +1,4 @@
+{
+  "WinRAR_PluginDesc": "WinRAR integration plugin. Lets Lertaro fill in the destination path in WinRAR's Extract dialog (e.g. from the Quick Navigation menu).",
+  "Plugin_Comp_Desc_WinRARExtractDialogAdapter": "Detects WinRAR's \"Extract path and options\" dialog by its control structure (not window title, since WinRAR is localized) and lets Lertaro fill in its destination path field."
+}

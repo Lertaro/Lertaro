@@ -1,0 +1,9 @@
+{
+  "Plugins_Xyplorer_EnableInlineSearch": "Activar Búsqueda en Línea",
+  "Plugins_Xyplorer_EnableInlineSearchDesc": "Permite hacer doble clic o pulsar atajos de teclado en XYplorer para invocar la búsqueda en línea",
+  "Plugins_Xyplorer_EnableQuickNav": "Activar Menú de Navegación Rápida",
+  "Plugins_Xyplorer_EnableQuickNavDesc": "Permite hacer clic central en la lista de archivos de XYplorer para invocar el menú de Navegación Rápida",
+  "Xyplorer_PluginDesc": "Complemento de integración con XYplorer. Lee las rutas activas y ofrece salto rápido de directorio en XYplorer.",
+  "Plugin_Comp_Desc_XyplorerPathCollector": "Lee y realiza el seguimiento del directorio del panel activo en XYplorer.",
+  "Plugin_Comp_Desc_XyplorerInlineSearchAdapter": "Ofrece navegación por filtrado de escritura en línea y salto de directorio para los paneles de lista de archivos de XYplorer."
+}

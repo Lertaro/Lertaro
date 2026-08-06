@@ -1,0 +1,17 @@
+{
+  "FileFilters_PluginName": "ファイルフィルター",
+  "FileFilters_ProviderName": "ファイルフィルター",
+  "FileFilters_Config_FiltersLabel": "ファイルフィルター一覧",
+  "FileFilters_Config_FiltersDesc": "対象を絞ったキーワード検索のために、カスタムのディレクトリ範囲と拡張子を設定します。",
+  "FileFilters_Config_EnabledLabel": "有効",
+  "FileFilters_Config_NameLabel": "フィルター名",
+  "FileFilters_Config_KeywordLabel": "ショートカットキーワード",
+  "FileFilters_Config_KeywordDesc": "このファイルフィルターを有効にするキーワードのプレフィックス（例: 'exe' や 'doc'）。",
+  "FileFilters_Config_FoldersLabel": "対象フォルダー",
+  "FileFilters_Config_FoldersDesc": "1行に1つのパスを入力します。ネットワークドライブとローカルドライブに対応しています。",
+  "FileFilters_Config_FilterPatternLabel": "拡張子 / パターン",
+  "FileFilters_Config_FilterPatternDesc": "フィルターする拡張子または検索パターン（例: '*.exe;*.lnk' や '*'）。",
+  "FileFilters_PluginDesc": "カスタムディレクトリのワイルドカードフィルタリング・インデックス化プラグイン。特定のフォルダーと拡張子のフィルタールールをインデックス用に設定できます。",
+  "Plugin_Comp_Desc_FileFiltersSearchableItemProvider": "ユーザーが設定したカスタムディレクトリ内で、ワイルドカードパターン（例: *.pdf）に一致するファイルとすべてのサブフォルダーをスキャンしてインデックス化し、メイン検索インデックスに公開します。",
+  "Plugin_Comp_Desc_FileFiltersTranslationProvider": "ファイルフィルター用の翻訳と言語リソースマッピングを提供します。"
+}

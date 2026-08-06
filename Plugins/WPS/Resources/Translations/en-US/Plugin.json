@@ -1,0 +1,4 @@
+{
+  "WPS_PluginDesc": "WPS Office integration plugin. WPS uses its own Open/Save dialog rather than the Windows one, and this lets Lertaro fill in a path there (e.g. from the Quick Navigation menu).",
+  "Plugin_Comp_Desc_WPSFileDialogAdapter": "Detects the Open/Save dialog of WPS Writer, Spreadsheets, Presentation and PDF by its control structure (not window title, since WPS is localized) and lets Lertaro fill in its file name field."
+}

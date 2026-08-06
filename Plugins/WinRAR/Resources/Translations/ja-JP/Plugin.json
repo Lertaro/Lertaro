@@ -1,0 +1,4 @@
+{
+  "WinRAR_PluginDesc": "WinRAR 連携プラグイン。WinRAR の展開ダイアログ（クイックナビゲーションメニューからなど）で、Lertaro が展開先パスを自動入力できるようにします。",
+  "Plugin_Comp_Desc_WinRARExtractDialogAdapter": "コントロール構造（WinRAR は多言語対応のためウィンドウタイトルではなく）から WinRAR の「展開先とオプション」ダイアログを検出し、Lertaro がその展開先パス欄に入力できるようにします。"
+}

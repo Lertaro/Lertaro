@@ -1,0 +1,13 @@
+{
+  "ProcessManager_PluginName": "Process Manager",
+  "ProcessManager_Name": "Process Manager",
+  "ProcessManager_Description": "Process Manager (ps)",
+  "ProcessManager_Path": "Path",
+  "ProcessManager_Window": "Window",
+  "ProcessManager_AccessDenied": "[Access Denied]",
+  "ProcessManager_Config_TriggerKeywordLabel": "Trigger Keyword",
+  "ProcessManager_Config_TriggerKeywordDesc": "Type this keyword (optionally followed by a space and a search term) to trigger process search, e.g. the default \"ps\".",
+  "ProcessManager_PluginDesc": "Process manager plugin. Supports searching, viewing, and killing currently running system processes.",
+  "Plugin_Comp_Desc_ProcessManagerInstantProvider": "Searches running system processes by name, PID, or window title, and provides a one-click action to kill selected processes in the search box.",
+  "Plugin_Comp_Desc_ProcessManagerTranslationProvider": "Provides UI translation and localization mapping for the Process Manager plugin."
+}

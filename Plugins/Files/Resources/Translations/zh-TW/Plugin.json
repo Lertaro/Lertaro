@@ -1,0 +1,9 @@
+{
+  "Plugins_Files_EnableInlineSearch": "啟用內嵌搜尋",
+  "Plugins_Files_EnableInlineSearchDesc": "允許在 Files 視窗中雙擊或按快捷鍵彈出內建搜尋欄",
+  "Plugins_Files_EnableQuickNav": "啟用快速導航選單",
+  "Plugins_Files_EnableQuickNavDesc": "允許在 Files 視窗中中鍵點選彈出快速導航選單",
+  "Files_PluginDesc": "Files 整合外掛。讀取 Files 的活動路徑以實現快速跳轉和檔案定位。",
+  "Plugin_Comp_Desc_FilesPathCollector": "自動捕獲並收集 Files 中當前處於前臺活躍狀態的資料夾路徑。",
+  "Plugin_Comp_Desc_FilesInlineSearchAdapter": "為 Files 檔案管理員的主介面提供內嵌式的拼音首字母過濾和鍵盤快捷檢索定位。"
+}

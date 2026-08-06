@@ -1,0 +1,22 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ═══════════ Corner Radius Tokens ═══════════
+         Scoped to the 3 roles that already existed in practice (menus/popups, in-card controls,
+         top-level card windows): values are the plurality already in use for each role, not new
+         numbers. Not a general spacing/margin token system; Margin/Padding stay per-control. -->
+
+    <!-- Menus, submenus, dropdown popups, flyouts -->
+    <CornerRadius x:Key="CornerRadiusPopover">8</CornerRadius>
+
+    <!-- List rows, buttons, tooltips, and other controls that live inside a window/card -->
+    <CornerRadius x:Key="CornerRadiusControl">6</CornerRadius>
+
+    <!-- Top-level card window outer chrome (search/settings/quick-look) -->
+    <CornerRadius x:Key="CornerRadiusWindow">10</CornerRadius>
+    <!-- Header/footer bands sit one BorderThickness inside the window's own CornerRadiusWindow so
+         their rounded corners stay flush with the outer border rather than showing a visible seam. -->
+    <CornerRadius x:Key="CornerRadiusWindowTop">9,9,0,0</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusWindowBottom">0,0,9,9</CornerRadius>
+
+</ResourceDictionary>

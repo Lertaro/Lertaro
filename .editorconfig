@@ -1,0 +1,76 @@
+root = true
+
+# All files
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# XML, XAML, and MSBuild Projects (.csproj)
+[*.{xml,xaml,csproj,sln,slnx}]
+indent_size = 4
+indent_style = space
+
+# JSON files
+[*.json]
+indent_size = 2
+indent_style = space
+
+# C# Code Files
+[*.cs]
+# ----- Diagnostics Severity & General Cleanup -----
+dotnet_diagnostic.IDE0005.severity = warning
+dotnet_diagnostic.IDE0001.severity = warning
+dotnet_diagnostic.IDE0002.severity = warning
+
+# ----- Modern C# Extreme Code Simplification Rules -----
+
+# 1. Namespace simplification (File-Scoped Namespace)
+# Convert namespace {...} to namespace X; (C# 10+), reducing indent level
+csharp_style_namespace_declarations = file_scoped:warning
+
+# 2. Simplified Using Variable Declaration
+# Convert using (var x = ...) {...} to using var x = ...; (C# 8+), reducing bracket nesting
+csharp_prefer_simple_using_statement = true:warning
+
+# 3. Collection Expression Simplification
+# Convert new List<T>(), new T[] etc. to [...] (C# 12+)
+csharp_style_prefer_collection_expression = true:warning
+
+# 4. Simplified Object Instantiation (Target-Typed New)
+# Convert Dictionary<string, string> dict = new Dictionary<string, string>() to new() (C# 9+)
+csharp_style_implicit_object_creation_or_cast = true:warning
+
+# 5. Pattern Matching & Switch Expression
+# Prefer switch expressions instead of switch-case statements where possible
+csharp_style_prefer_switch_expression = true:warning
+csharp_style_pattern_matching_over_as_with_null_check = true:warning
+csharp_style_pattern_matching_over_is_with_cast_check = true:warning
+csharp_style_inlined_variable_declaration = true:warning
+
+# 6. Null Handling Simplification
+# Prefer coalescing expression ?? instead of if-else null checking
+dotnet_style_coalesce_expression = true:warning
+# Prefer null propagation ?. instead of manual null check
+dotnet_style_null_propagation = true:warning
+# Simplify delegate calls
+csharp_style_conditional_delegate_call = true:warning
+
+# 7. Expression-Bodied Members
+# Force => instead of braces for single-line methods, constructors, properties, accessors, and lambdas
+csharp_style_expression_bodied_methods = true:warning
+csharp_style_expression_bodied_constructors = true:warning
+csharp_style_expression_bodied_properties = true:warning
+csharp_style_expression_bodied_accessors = true:warning
+csharp_style_expression_bodied_lambdas = true:warning
+
+# 8. Throw Expression Simplification
+# Prefer throw expressions directly in return or coalescing expressions
+csharp_style_prefer_throw_expression = true:warning
+
+# 9. Force var declarations where types are apparent
+csharp_style_var_for_built_in_types = true:warning
+csharp_style_var_when_type_is_apparent = true:warning
+csharp_style_var_elsewhere = true:warning

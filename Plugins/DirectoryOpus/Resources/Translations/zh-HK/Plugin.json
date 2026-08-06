@@ -1,0 +1,12 @@
+{
+  "Plugins_DirectoryOpus_EnableInlineSearch": "啟用內嵌搜尋",
+  "Plugins_DirectoryOpus_EnableInlineSearchDesc": "允許在 Directory Opus 視窗中雙擊或按快捷鍵彈出內建搜尋列",
+  "Plugins_DirectoryOpus_EnableQuickNav": "啟用快速導航選單",
+  "Plugins_DirectoryOpus_EnableQuickNavDesc": "允許在 Directory Opus 的檔案清單中按中鍵彈出快速導航選單",
+  "DirectoryOpus_PluginDesc": "Directory Opus 強化整合外掛程式。讀取 Directory Opus 的目前路徑及提供快速檔案定位服務。",
+  "Plugin_Comp_Desc_DirectoryOpusPathCollector": "讀取並擷取目前處於使用中狀態的 Directory Opus 雙欄或分頁的檔案目錄路徑。",
+  "Plugin_Comp_Desc_DirectoryOpusInlineSearchAdapter": "為 Directory Opus 雙欄檔案總管的主面板提供內嵌式的拼音首字母篩選與快速定位服務。",
+  "Plugins_DirectoryOpus_Favorites_RootLabel": "我的最愛",
+  "Plugins_DirectoryOpus_Favorites_Empty": "(空)",
+  "Plugin_Comp_Desc_FavoritesProvider": "讀取 Directory Opus 設定檔中的我的最愛選單，供快速導航級聯選單調用。"
+}

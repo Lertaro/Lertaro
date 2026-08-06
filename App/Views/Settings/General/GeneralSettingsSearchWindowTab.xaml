@@ -1,0 +1,286 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.General.GeneralSettingsSearchWindowTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="700">
+    <!-- Split out of GeneralSettingsPage.xaml (the "Search Window" tab) to keep that file under the
+         project's line-count convention. DataContext is inherited from the host page, so the
+         General.Xxx bindings below resolve exactly as they did when this content lived inline. -->
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="SettingsTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                <Setter Property="Height" Value="30"/>
+                <Setter Property="Padding" Value="8,0"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TextBox">
+                            <Border x:Name="border" CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="true">
+                                    <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                                </Trigger>
+                                <Trigger Property="IsFocused" Value="true">
+                                    <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Same shape as GeneralSettingsQuickNavigationTab.xaml's own QuickNavItemTemplate, wired to
+                 SidebarGroupOrder's Move Up/Down commands instead of QuickNavigationOrder's. -->
+            <DataTemplate x:Key="SidebarGroupOrderItemTemplate">
+                <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Grid.Column="0" Width="18" Height="24" Margin="0,0,10,0" Background="Transparent" VerticalAlignment="Center" Cursor="SizeAll" helpers:DragReorder.IsHandle="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Ellipse Grid.Row="0" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="0" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="1" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="1" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="2" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="2" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                        </Grid>
+
+                        <TextBlock Grid.Column="1" Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="&#xE74A;"
+                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveUpTooltip]}"
+                                    Style="{StaticResource QuickNavIconButton}"
+                                    Command="{Binding DataContext.General.SidebarGroupOrder.MoveUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}"/>
+                            <Button Content="&#xE74B;"
+                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveDownTooltip]}"
+                                    Style="{StaticResource QuickNavIconButton}"
+                                    Command="{Binding DataContext.General.SidebarGroupOrder.MoveDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <!-- Same shape as SidebarGroupOrderItemTemplate above, wired to ColumnOrder's own Move
+                 Up/Down commands. -->
+            <DataTemplate x:Key="ColumnOrderItemTemplate">
+                <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Grid.Column="0" Width="18" Height="24" Margin="0,0,10,0" Background="Transparent" VerticalAlignment="Center" Cursor="SizeAll" helpers:DragReorder.IsHandle="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Ellipse Grid.Row="0" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="0" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="1" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="1" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="2" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="2" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                        </Grid>
+
+                        <TextBlock Grid.Column="1" Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="&#xE74A;"
+                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveUpTooltip]}"
+                                    Style="{StaticResource QuickNavIconButton}"
+                                    Command="{Binding DataContext.General.ColumnOrder.MoveUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}"/>
+                            <Button Content="&#xE74B;"
+                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveDownTooltip]}"
+                                    Style="{StaticResource QuickNavIconButton}"
+                                    Command="{Binding DataContext.General.ColumnOrder.MoveDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <!-- Same shape as SidebarGroupOrderItemTemplate above, wired to ActionMenuGroupOrder's own
+                 Move Up/Down commands. -->
+            <DataTemplate x:Key="ActionMenuGroupOrderItemTemplate">
+                <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Grid.Column="0" Width="18" Height="24" Margin="0,0,10,0" Background="Transparent" VerticalAlignment="Center" Cursor="SizeAll" helpers:DragReorder.IsHandle="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Ellipse Grid.Row="0" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="0" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="1" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="1" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="2" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="2" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                        </Grid>
+
+                        <TextBlock Grid.Column="1" Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="&#xE74A;"
+                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveUpTooltip]}"
+                                    Style="{StaticResource QuickNavIconButton}"
+                                    Command="{Binding DataContext.General.ActionMenuGroupOrder.MoveUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}"/>
+                            <Button Content="&#xE74B;"
+                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveDownTooltip]}"
+                                    Style="{StaticResource QuickNavIconButton}"
+                                    Command="{Binding DataContext.General.ActionMenuGroupOrder.MoveDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <TextBlock Style="{StaticResource SettingsHintText}" Margin="0,0,0,12"
+                    Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SearchWindowHint]}"/>
+
+        <Border Style="{StaticResource SettingsCard}">
+            <StackPanel>
+                <Grid x:Name="RowSearchWindowWidth" Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>
+                        <ColumnDefinition Width="150"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SearchWindowWidth]}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Style="{StaticResource SettingsTextBox}" Text="{Binding General.MainWindow.Width, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                </Grid>
+
+                <Grid x:Name="RowSearchWindowHeight" Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>
+                        <ColumnDefinition Width="150"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SearchWindowHeight]}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Style="{StaticResource SettingsTextBox}" Text="{Binding General.MainWindow.Height, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                </Grid>
+
+                <Grid x:Name="RowSearchWindowReset" Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>
+                        <ColumnDefinition Width="150"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SearchWindowReset]}"
+                            Command="{Binding General.MainWindow.ResetCommand}"
+                            Style="{StaticResource SettingsButton}"
+                            Margin="0" HorizontalAlignment="Left"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource SettingsCard}" Margin="0,12,0,0">
+            <StackPanel>
+                <TextBlock x:Name="RowColumnOrderList" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ColumnOrderTitle]}"
+                           FontWeight="SemiBold" FontSize="13" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ColumnOrderHint]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                <ItemsControl ItemsSource="{Binding General.ColumnOrder.Items}" ItemTemplate="{StaticResource ColumnOrderItemTemplate}" helpers:DragReorder.IsEnabled="True">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource SettingsCard}" Margin="0,12,0,0">
+            <StackPanel>
+                <TextBlock x:Name="RowSidebarGroupOrderList" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SidebarGroupOrderTitle]}"
+                           FontWeight="SemiBold" FontSize="13" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SidebarGroupOrderHint]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                <ItemsControl ItemsSource="{Binding General.SidebarGroupOrder.Items}" ItemTemplate="{StaticResource SidebarGroupOrderItemTemplate}" helpers:DragReorder.IsEnabled="True">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource SettingsCard}" Margin="0,12,0,0">
+            <StackPanel>
+                <TextBlock x:Name="RowActionMenuGroupOrderList" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ActionMenuGroupOrderTitle]}"
+                           FontWeight="SemiBold" FontSize="13" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ActionMenuGroupOrderHint]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                <ItemsControl ItemsSource="{Binding General.ActionMenuGroupOrder.Items}" ItemTemplate="{StaticResource ActionMenuGroupOrderItemTemplate}" helpers:DragReorder.IsEnabled="True">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

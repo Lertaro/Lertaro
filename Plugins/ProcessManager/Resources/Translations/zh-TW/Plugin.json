@@ -1,0 +1,13 @@
+{
+  "ProcessManager_PluginName": "處理程序管理",
+  "ProcessManager_Name": "處理程序管理",
+  "ProcessManager_Description": "處理程序管理 (ps)",
+  "ProcessManager_Path": "路徑",
+  "ProcessManager_Window": "視窗",
+  "ProcessManager_AccessDenied": "[存取被拒]",
+  "ProcessManager_Config_TriggerKeywordLabel": "觸發詞",
+  "ProcessManager_Config_TriggerKeywordDesc": "輸入此關鍵字（可跟一個空格加搜尋詞）來觸發處理程序搜尋，例如預設的 \"ps\"。",
+  "ProcessManager_PluginDesc": "處理程序管理工具外掛。支援搜尋、檢視與終止當前執行中的系統處理程序。",
+  "Plugin_Comp_Desc_ProcessManagerInstantProvider": "在搜尋列輸入特定觸發詞，可依處理程序名稱、PID 或視窗標題檢索系統處理程序清單，並提供一鍵強制結束（Kill）所選處理程序的功能。",
+  "Plugin_Comp_Desc_ProcessManagerTranslationProvider": "為處理程序管理外掛提供介面語言翻譯與多語言本地化服務。"
+}

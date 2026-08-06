@@ -1,0 +1,237 @@
+<Window x:Class="Lertaro.App.Views.QuickPanel.QuickPanelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+        xmlns:services="clr-namespace:Lertaro.App.Services"
+        xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+        xmlns:local="clr-namespace:Lertaro.App.Views.QuickPanel"
+        xmlns:app="clr-namespace:Lertaro.App"
+        Title="Lertaro Quick Panel"
+        Width="330" Height="300" SizeToContent="Manual"
+        WindowStyle="None"
+        ResizeMode="CanResizeWithGrip"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        WindowStartupLocation="Manual"
+        Focusable="True"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        ShowActivated="False">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <!-- TabHeaderButtonStyle/TabUnderlineStyle live here, and StaticResource only fails at
+                     runtime, so leaving this out built cleanly and crashed on first open. -->
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+                <!-- Kept though the tile template is defined locally: this dictionary also supplies
+                     implicit templates and converters the shared styles above reach for, and a
+                     StaticResource that goes missing only fails when the window is opened. -->
+                <ResourceDictionary Source="../../Resources/DataTemplates.xaml"/>
+                <!-- The panel's own row, tile and group-header styles. Last, so they win over the
+                     shared dictionaries above; split into a file of their own only to keep this one
+                     under the repo's per-file line limit. -->
+                <ResourceDictionary Source="QuickPanelWindowResources.xaml"/>
+                <ResourceDictionary Source="QuickPanelGroupResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border CornerRadius="10" Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" ShadowDepth="2" Opacity="0.2" Color="{DynamicResource ShadowColor}"/>
+        </Border.Effect>
+        <Border CornerRadius="10" helpers:RoundedClip.IsEnabled="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="{DynamicResource HeaderBg}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1"
+                        VerticalAlignment="Top" Panel.ZIndex="1">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Opacity" Value="0"/>
+                            <Setter Property="Height" Value="14"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Opacity" Value="1"/>
+                                    <Setter Property="Height" Value="20"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid x:Name="DragArea" Height="14" Background="Transparent"
+                          MouseLeftButtonDown="DragArea_MouseLeftButtonDown">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="35*"/>
+                                <ColumnDefinition Width="30*"/>
+                                <ColumnDefinition Width="35*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="1" Height="6" CornerRadius="3"
+                                    Background="{DynamicResource WindowChromeText}" Opacity="0.45"/>
+                        </Grid>
+
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="0" Margin="12,16,12,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <local:QuickPanelTabStrip Grid.Column="0" VerticalAlignment="Bottom"/>
+                    <local:QuickPanelSearchBox x:Name="FilterBox" Grid.Column="1" Width="150"
+                                               Margin="8,0,0,4" VerticalAlignment="Bottom"/>
+
+                    <!-- Keeps this summon up when it loses the foreground. A pin, lit while it is on:
+                         the panel dismissing itself is its normal behaviour, so the state worth showing
+                         is the one that suspends it. Clickable as well as bound to the hotkey, since a
+                         pin that only reports is a pin you cannot press. -->
+                    <ToggleButton Grid.Column="2" Margin="6,0,0,4" VerticalAlignment="Bottom"
+                                  Width="24" Height="24"
+                                  IsChecked="{Binding IsStayOpen, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                  ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_StayOpenTooltip]}"
+                                  Style="{StaticResource QuickPanelStayOpenStyle}"/>
+                </Grid>
+                <!-- The whole content area listens for the click, not each group's list: the blank space
+                     that should drop the selection is as much the gap between two groups and the run
+                     below the last one as it is the end of a row of tiles. -->
+                <Border Grid.Row="1" Background="{DynamicResource ContentBg}"
+                        PreviewMouseLeftButtonDown="Content_PreviewMouseLeftButtonDown">
+                    <Grid>
+                        <!-- One block per source, each with its own header and its own list.
+                             Deliberately not a CollectionView's grouping, which is simpler and is what
+                             this used before: sorting on a view is a property of the whole view, so
+                             every group would share one order, and the order is meant to be per source.
+
+                             What that costs is stated where the group view model is defined: a selection
+                             now belongs to one group rather than spanning them. -->
+                        <ScrollViewer x:Name="GroupsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                      Margin="0,4,0,8">
+                            <ItemsControl ItemsSource="{Binding Groups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <!-- A group the filter left with nothing goes entirely, heading
+                                                  and all: a run of empty headings is the answer already,
+                                                  said once per folder. -->
+                                        <!-- The whole block is the drop target, header and list alike:
+                                             the folder is what a drop means, and aiming at a heading a
+                                             few pixels tall is not something to ask of a drag. The
+                                             outline it wears while a drop is over it lives on the group
+                                             (IsDropTarget), which is where the decision is made. -->
+                                        <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}"
+                                                  Header="{Binding}"
+                                                  HeaderTemplate="{StaticResource QuickPanelGroupHeaderTemplate}"
+                                                  Visibility="{Binding HasMatches, Converter={StaticResource BoolToVis}}"
+                                                  AllowDrop="True"
+                                                  DragOver="Group_DragOver" DragLeave="Group_DragLeave"
+                                                  Drop="Group_Drop"
+                                                  Style="{StaticResource QuickPanelGroupExpanderStyle}">
+                                            <!-- Its own scrolling is off: the groups scroll together in
+                                                 the viewer above, and a list that scrolled inside a group
+                                                 would trap the wheel in whichever one the pointer
+                                                 happened to be over.
+
+                                                 A view mode is three things at once and they are swapped
+                                                 together, since any one alone would leave the other two
+                                                 describing the view it is not. Read straight off the
+                                                 group now: which view suits a folder is a property of
+                                                 that folder, the same as its order. -->
+                                            <ListBox ItemsSource="{Binding Items}"
+                                                     Background="Transparent" BorderThickness="0" Padding="0"
+                                                     Margin="0,2,0,6"
+                                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                                     VerticalContentAlignment="Center"
+                                                     AlternationCount="2147483647"
+                                                     SelectionMode="Extended"
+                                                     MouseDoubleClick="ItemsList_MouseDoubleClick"
+                                                     MouseDown="ItemsList_MouseDown"
+                                                     PreviewMouseRightButtonUp="ItemsList_PreviewMouseRightButtonUp"
+                                                     Loaded="GroupList_Loaded" helpers:RubberBandSelection.IsEnabled="True"
+                                                     PreviewMouseWheel="GroupList_PreviewMouseWheel">
+                                                <ListBox.Style>
+                                                    <Style TargetType="ListBox" BasedOn="{StaticResource SleekListBoxStyle}">
+                                                        <Setter Property="ItemContainerStyle" Value="{StaticResource QuickPanelRowStyle}"/>
+                                                        <Setter Property="ItemTemplate" Value="{StaticResource QuickPanelDetailRowTemplate}"/>
+                                                        <Setter Property="ItemsPanel">
+                                                            <Setter.Value>
+                                                                <ItemsPanelTemplate>
+                                                                    <local:QuickPanelNumberedStackPanel
+                                                                        MaximumItemCount="{Binding DataContext.LargestVisibleGroupItemCount, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                                </ItemsPanelTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Value="True"
+                                                                         Binding="{Binding IsThumbnailView}">
+                                                                <Setter Property="Padding" Value="0"/>
+                                                                <Setter Property="ItemContainerStyle" Value="{StaticResource QuickPanelTileStyle}"/>
+                                                                <Setter Property="ItemTemplate" Value="{StaticResource QuickPanelTileTemplate}"/>
+                                                                <Setter Property="ItemsPanel">
+                                                                    <Setter.Value>
+                                                                        <ItemsPanelTemplate>
+                                                                            <local:QuickPanelNumberedWrapPanel
+                                                                                MaximumItemCount="{Binding DataContext.LargestVisibleGroupItemCount, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                                        </ItemsPanelTemplate>
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ListBox.Style>
+                                            </ListBox>
+                                        </Expander>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        <ContentControl x:Name="StickyGroupHeader" HorizontalAlignment="Stretch"
+                                        VerticalAlignment="Top" Panel.ZIndex="2" Visibility="Collapsed"
+                                        ContentTemplate="{StaticResource QuickPanelGroupHeaderTemplate}">
+                            <ContentControl.Template>
+                                <ControlTemplate TargetType="ContentControl">
+                                    <Border Background="{DynamicResource ContentBg}"
+                                            BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1">
+                                        <ContentPresenter Content="{TemplateBinding Content}"
+                                                          ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </ContentControl.Template>
+                        </ContentControl>
+
+                        <!-- Shown when the tab on screen has nothing in it. The panel not opening at all
+                             covers the case where nothing anywhere has anything; this covers the one
+                             where it opened for another tab's sake and this one is bare. -->
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_Empty]}"
+                                   Foreground="{DynamicResource TextSecondary2}" FontSize="12"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsEmpty}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Border>
+</Window>

@@ -1,0 +1,197 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.Hotkey.HotkeySettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+             xmlns:local="clr-namespace:Lertaro.App.Views.Settings.Hotkey"
+             mc:Ignorable="d"
+             d:DesignHeight="550" d:DesignWidth="700">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid Margin="0,0,10,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Style="{StaticResource SettingsSectionTitle}"
+                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_Title]}"/>
+            <TextBlock Style="{StaticResource SettingsHintText}"
+                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_Hint]}"/>
+
+            <!-- Tab header row -->
+            <ctrl:TabStripScrollView Margin="0,16,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <StackPanel Margin="0,0,28,0">
+                        <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_Tab_Global]}"
+                                Command="{Binding SelectTabCommand}" CommandParameter="Global">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedTab}" Value="Global">
+                                            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Border>
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedTab}" Value="Global">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </StackPanel>
+                    <StackPanel>
+                        <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_Tab_PluginActions]}"
+                                Command="{Binding SelectTabCommand}" CommandParameter="PluginActions">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedTab}" Value="PluginActions">
+                                            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Border>
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedTab}" Value="PluginActions">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </StackPanel>
+                    <StackPanel Margin="28,0,0,0">
+                        <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Blacklist]}"
+                                Command="{Binding SelectTabCommand}" CommandParameter="Blacklist">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedTab}" Value="Blacklist">
+                                            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Border>
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedTab}" Value="Blacklist">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </ctrl:TabStripScrollView>
+            <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,15"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Grid.IsSharedSizeScope="True">
+                <!-- Tab: Global (extracted; see HotkeyGlobalTabSection.xaml) -->
+                <local:HotkeyGlobalTabSection x:Name="TabGlobal">
+                    <local:HotkeyGlobalTabSection.Style>
+                        <Style TargetType="local:HotkeyGlobalTabSection">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedTab}" Value="Global">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </local:HotkeyGlobalTabSection.Style>
+                </local:HotkeyGlobalTabSection>
+
+                <!-- Tab: Plugin Actions -->
+                <StackPanel x:Name="TabPluginActions">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedTab}" Value="PluginActions">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+
+                    <!-- SettingsGroupTitle's default top margin (20) is meant to separate a group from a hint
+                         line above it; there's none here (unlike the "Global" tab, which overrides its first
+                         group's title margin the same way), so cancel it via the ItemsControl's own margin
+                         instead. Inter-group spacing is unaffected since that comes from each group's own
+                         title margin, not this outer offset. -->
+                    <ItemsControl x:Name="PluginActionGroupsList" ItemsSource="{Binding PluginActionGroups}" Margin="0,-20,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource SettingsGroupTitle}" Text="{Binding PluginName}"/>
+                                    <ItemsControl ItemsSource="{Binding Items}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,8,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" SharedSizeGroup="HotkeyLabel"/>
+                                                        <ColumnDefinition Width="200"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding DisplayName}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                                                    <ctrl:HotkeyRecorderControl Grid.Column="1" Width="200" Height="26"
+                                                        Value="{Binding HotkeyValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                        DefaultValue="{Binding DefaultHotkey}"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Border Style="{StaticResource SettingsGroupDivider}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Tab: Blacklist (extracted; see HotkeyBlacklistTabSection.xaml) -->
+                <local:HotkeyBlacklistTabSection x:Name="TabBlacklist">
+                    <local:HotkeyBlacklistTabSection.Style>
+                        <Style TargetType="local:HotkeyBlacklistTabSection">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedTab}" Value="Blacklist">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </local:HotkeyBlacklistTabSection.Style>
+                </local:HotkeyBlacklistTabSection>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

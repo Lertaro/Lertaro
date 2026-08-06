@@ -1,0 +1,4 @@
+{
+  "WinRAR_PluginDesc": "Complemento de integración con WinRAR. Permite que Lertaro rellene la ruta de destino en el cuadro de diálogo Extraer de WinRAR (por ejemplo, desde el menú de navegación rápida).",
+  "Plugin_Comp_Desc_WinRARExtractDialogAdapter": "Detecta el cuadro de diálogo \"Ruta y opciones de extracción\" de WinRAR por su estructura de controles (no por el título de la ventana, ya que WinRAR está localizado) y permite que Lertaro rellene su campo de ruta de destino."
+}

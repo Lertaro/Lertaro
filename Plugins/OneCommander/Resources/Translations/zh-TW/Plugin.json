@@ -1,0 +1,9 @@
+{
+  "Plugins_OneCommander_EnableInlineSearch": "啟用內嵌搜尋",
+  "Plugins_OneCommander_EnableInlineSearchDesc": "允許在 OneCommander 視窗中雙擊或按快捷鍵彈出內建搜尋欄",
+  "Plugins_OneCommander_EnableQuickNav": "啟用快速導航選單",
+  "Plugins_OneCommander_EnableQuickNavDesc": "允許在 OneCommander 視窗中中鍵點選彈出快速導航選單",
+  "OneCommander_PluginDesc": "One Commander 整合外掛。讀取 One Commander 的活動路徑以實現快速跳轉和檔案定位。",
+  "Plugin_Comp_Desc_OneCommanderPathCollector": "自動捕獲並收集 One Commander 中當前處於前臺活躍狀態的資料夾路徑。",
+  "Plugin_Comp_Desc_OneCommanderInlineSearchAdapter": "為 One Commander 檔案管理員的主介面提供內嵌式的拼音首字母過濾和鍵盤快捷檢索定位。"
+}

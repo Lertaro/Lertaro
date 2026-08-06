@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <!-- For FavoritesIcon, which rasterizes a WPF vector Geometry to the HBITMAP a DynamicMenuItem
+         carries: same reason TotalCommander's own csproj sets it. -->
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Lertaro.Plugins.DirectoryOpus</AssemblyName>
+    <Version>1.2.1</Version>
+      <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\PluginSdk\PluginSdk.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lertaro.Plugins.DirectoryOpus.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Translations\**\*.json" />
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Copy SourceFiles="$(TargetDir)$(TargetName).dll" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(TargetDir)$(TargetName).dll" DestinationFolder="..\..\Service\bin\$(Configuration)\net10.0-windows\Plugins\" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

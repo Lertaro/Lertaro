@@ -1,0 +1,70 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Tokens/Colors.xaml"/>
+        <ResourceDictionary Source="../Tokens/Motion.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- Chrome-style overflow arrow: collapsed by default (TabStripScrollView's own code-behind toggles
+         it based on ScrollViewer.HorizontalOffset/ScrollableWidth), same round-icon-button shape used
+         elsewhere for compact transport-style controls. -->
+    <Style x:Key="TabStripArrowButton" TargetType="Button">
+        <Setter Property="Width" Value="24"/>
+        <Setter Property="Height" Value="24"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="VerticalAlignment" Value="Top"/>
+        <Setter Property="Margin" Value="2,0,2,0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="12" Background="{TemplateBinding Background}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ControlHoverBackground}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type ctrl:TabStripScrollView}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ctrl:TabStripScrollView}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="PART_LeftButton" Grid.Column="0" Style="{StaticResource TabStripArrowButton}" Visibility="Collapsed">
+                            <Path Width="8" Height="14" Stretch="Uniform" Data="M15,4 L7,12 L15,20"
+                                  Stroke="{DynamicResource TextSecondary}" StrokeThickness="2"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                        </Button>
+
+                        <ScrollViewer x:Name="PART_Scroller" Grid.Column="1" HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Disabled" Focusable="False">
+                            <ContentPresenter/>
+                        </ScrollViewer>
+
+                        <Button x:Name="PART_RightButton" Grid.Column="2" Style="{StaticResource TabStripArrowButton}" Visibility="Collapsed">
+                            <Path Width="8" Height="14" Stretch="Uniform" Data="M9,4 L17,12 L9,20"
+                                  Stroke="{DynamicResource TextSecondary}" StrokeThickness="2"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                        </Button>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

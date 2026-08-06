@@ -1,0 +1,143 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.AboutSettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="700">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <TextBlock Style="{StaticResource SettingsSectionTitle}" 
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_Title]}"/>
+            <TextBlock Style="{StaticResource SettingsHintText}" 
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_Hint]}"/>
+
+            <Border Style="{StaticResource SettingsCard}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_Desc1]}" 
+                                   FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding AppVersion}" 
+                                   FontSize="14" Foreground="{DynamicResource TextSecondary2}" 
+                                   VerticalAlignment="Bottom" Margin="8,0,0,3"/>
+                        <TextBlock Text="{Binding CoreVersion}" 
+                                   FontSize="14" Foreground="{DynamicResource AccentColor}" 
+                                   VerticalAlignment="Bottom" Margin="12,0,0,3"/>
+                        <TextBlock Text="{Binding ServiceVersion}"
+                                   FontSize="14" Foreground="{Binding ServiceStatusBrush}"
+                                   VerticalAlignment="Bottom" Margin="12,0,0,3"/>
+                        <!-- WarningBrush, not AccentBlue/AccentColor: several themes (Sakura,
+                             WeatheringBlue, SakuraBloom, etc) deliberately use a single accent hue for
+                             both, which made this badge match CoreVersion's exactly. WarningBrush is the
+                             one semantic color that stays visually distinct from the accent in every
+                             theme checked: read as "a different color", not literally as a warning. -->
+                        <TextBlock Text="{Binding CliVersion}"
+                                   FontSize="14" Foreground="{DynamicResource WarningBrush}"
+                                   VerticalAlignment="Bottom" Margin="12,0,0,3"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_Desc2]}"
+                               Foreground="{DynamicResource TextSecondary2}"
+                               TextWrapping="Wrap"
+                               Margin="0,6,0,0"/>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_Desc3]}"
+                               Foreground="{DynamicResource TextSecondary2}"
+                               TextWrapping="Wrap"
+                               Margin="0,14,0,0"/>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_Desc4]}"
+                               Foreground="{DynamicResource TextSecondary2}"
+                               TextWrapping="Wrap"
+                               Margin="0,8,0,0"/>
+                    <WrapPanel Margin="0,14,0,0">
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_Homepage]}" Foreground="{DynamicResource TextSecondary2}"/>
+                        <TextBlock>
+                            <Hyperlink NavigateUri="https://lertaro.github.io/" RequestNavigate="Hyperlink_RequestNavigate">
+                                <Run Text="https://lertaro.github.io/"/>
+                            </Hyperlink>
+                        </TextBlock>
+                    </WrapPanel>
+                    <WrapPanel Margin="0,4,0,0">
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_UserGuide]}" Foreground="{DynamicResource TextSecondary2}"/>
+                        <TextBlock>
+                            <Hyperlink NavigateUri="{Binding UserGuideUri}" RequestNavigate="Hyperlink_RequestNavigate">
+                                <Run Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_UserGuideUrl], Mode=OneWay}"/>
+                            </Hyperlink>
+                        </TextBlock>
+                    </WrapPanel>
+                    <WrapPanel x:Name="RowUserConfigDir" Margin="0,4,0,0">
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_UserConfigDir]}" Foreground="{DynamicResource TextSecondary2}"/>
+                        <TextBlock>
+                            <Hyperlink Click="OpenUserConfigDir_Click">
+                                <Run Text="{Binding UserConfigDirPath, Mode=OneWay}"/>
+                            </Hyperlink>
+                        </TextBlock>
+                    </WrapPanel>
+                    <WrapPanel x:Name="RowSystemConfigDir" Margin="0,4,0,0">
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_SystemConfigDir]}" Foreground="{DynamicResource TextSecondary2}"/>
+                        <TextBlock>
+                            <Hyperlink Click="OpenSystemConfigDir_Click">
+                                <Run Text="{Binding SystemConfigDirPath, Mode=OneWay}"/>
+                            </Hyperlink>
+                        </TextBlock>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Update Section -->
+            <TextBlock Style="{StaticResource SettingsSectionTitle}" 
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_CheckUpdate]}"
+                       Margin="0,20,0,0"/>
+            <Border Style="{StaticResource SettingsCard}">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock x:Name="TxtUpdateStatus" 
+                                   Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_UpdateStatusHint]}" 
+                                   VerticalAlignment="Center" 
+                                   Foreground="{DynamicResource TextSecondary2}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,16,0"/>
+                        
+                        <Button x:Name="BtnCheckUpdate" Grid.Column="1" 
+                                Style="{StaticResource PrimarySettingsButton}" 
+                                Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_CheckUpdate]}" 
+                                Click="BtnCheckUpdate_Click" MinWidth="120"/>
+                    </Grid>
+
+                    <!-- Update Progress Bar -->
+                    <ProgressBar x:Name="PbUpdate" Margin="0,12,0,0" Visibility="Collapsed"/>
+
+                    <!-- Warning Tip for Non-Admins -->
+                    <TextBlock x:Name="TxtNoAdminWarning" Visibility="Collapsed"
+                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_NoAdminTip]}"
+                               Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="0,12,0,0" FontSize="12"/>
+
+                    <!-- Actions when new version found -->
+                    <StackPanel x:Name="SpUpdateActions" Orientation="Horizontal" Margin="0,12,0,0" Visibility="Collapsed">
+                        <Button x:Name="BtnAutoUpdate" Style="{StaticResource PrimarySettingsButton}" 
+                                 Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_ActionUpdate]}" 
+                                 Click="BtnAutoUpdate_Click" Margin="0,0,12,0" MinWidth="130"/>
+                        <Button x:Name="BtnGoToPage" Style="{StaticResource SettingsButton}" 
+                                 Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_ActionPage]}" 
+                                 Click="BtnGoToPage_Click" MinWidth="130"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

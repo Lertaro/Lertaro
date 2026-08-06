@@ -1,0 +1,98 @@
+<UserControl x:Class="Lertaro.App.Views.QuickPanel.QuickPanelTabStrip"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+             mc:Ignorable="d" d:DesignWidth="300">
+    <!-- Split out of QuickPanelWindow.xaml purely to keep that file under the repo's per-file line
+         limit. DataContext is the panel's own view model, inherited from the window, so every binding
+         below is one of its members. -->
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <!-- Merged here as well as in the window: a StaticResource in a UserControl resolves against
+                 that control's own resources when it is parsed, not against whatever tree it is
+                 eventually placed in. -->
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+                <ResourceDictionary Source="QuickPanelWindowResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- TabStripScrollView, same as the quick window's own startup panel strip: the workspaces are
+         user-configurable and an unnamed one takes a translated name, so the row can overflow a panel
+         this narrow and needs its left/right arrows.
+
+         Shown for even one workspace: the tab is also where that workspace's name and its close button
+         are, so hiding it until a second one exists left the first unnamed and unclosable. It shares a
+         row with the filter box, so it costs no height either way. -->
+    <ctrl:TabStripScrollView Visibility="{Binding HasTabStrip, Converter={StaticResource BoolToVis}}">
+        <!-- Dragging a tab reorders the workspaces, and the tab itself is the handle: there is nowhere
+             on a strip to put a grip, and a tab is already the thing you would reach for. IsHorizontal
+             so the drop line stands between two tabs rather than lying across them. -->
+        <ItemsControl ItemsSource="{Binding Tabs}"
+                      helpers:DragReorder.IsEnabled="True"
+                      helpers:DragReorder.IsHorizontal="True">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="{Binding Label}" Command="{Binding SelectCommand}"
+                                    helpers:DragReorder.IsHandle="True">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                        <!-- Two points down from the settings window's own tabs, which is
+                                             where that style is sized for. This panel is a quarter of the
+                                             window it docks to, and a 14pt strip stood taller than the
+                                             group headings under it.
+                                             Padding on all four sides, not just under: these are the
+                                             smallest tabs in the app, and the padding is the target now
+                                             that the style's template actually hit-tests it. The gap
+                                             between tabs absorbs the width, so nothing moves. -->
+                                        <Setter Property="FontSize" Value="12"/>
+                                        <Setter Property="Padding" Value="6,3,6,8"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <!-- Closes the tab, which disables the workspace rather than deleting it: the
+                                 sources behind one took assembling, and this is a statement about the
+                                 strip, not about them. Same glyph and the same treatment the startup
+                                 panel's own close carries. -->
+                            <Button Content="&#xE711;" Command="{Binding CloseCommand}"
+                                    Margin="6,0,0,7" Width="13" Height="13" FontSize="8"
+                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_CloseWorkspaceTooltip]}"
+                                    VerticalAlignment="Bottom"
+                                    Style="{StaticResource QuickPanelTabCloseStyle}"/>
+                        </StackPanel>
+                        <Border>
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </ctrl:TabStripScrollView>
+</UserControl>

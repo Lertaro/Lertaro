@@ -1,0 +1,12 @@
+{
+  "name": "lertaro-site",
+  "version": "1.0.0",
+  "scripts": {
+    "site:dev": "node copy-assets.js && vitepress dev",
+    "site:build": "node copy-assets.js && vitepress build",
+    "site:preview": "node copy-assets.js && vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.2.3"
+  }
+}

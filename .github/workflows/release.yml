@@ -1,0 +1,148 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      # 1. Checkout codebase with full history to retrieve previous tags/commits
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Configure .NET SDK
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # 3. Install Inno Setup packaging tool via Chocolatey
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup -y
+          echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
+
+      # 4. Execute the build and package batch script
+      - name: Run Build and Package Script
+        run: |
+          .\make.bat
+
+      # 5. Extract commit history since the previous tag as Release Notes
+      - name: Generate Changelog
+        id: changelog
+        shell: bash
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 "${{ github.ref_name }}^" 2>/dev/null || echo "")
+          echo "## Changelog (Commits)" > changelog.md
+          echo "" >> changelog.md
+          if [ -z "$PREV_TAG" ]; then
+            git log --pretty=format:"* %s (%h)" --no-merges >> changelog.md
+          else
+            git log --pretty=format:"* %s (%h)" --no-merges "$PREV_TAG..${{ github.ref_name }}" >> changelog.md
+          fi
+          echo "" >> changelog.md
+
+      # 5.5 Sign portable ZIP and generate hash checksums
+      - name: Sign Artifacts and Add Verification Info
+        shell: pwsh
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        run: |
+          # Calculate SHA-256 hashes of build artifacts
+          $exeHash = (Get-FileHash -Path "dist/Lertaro-Setup.exe" -Algorithm SHA256).Hash.ToLower()
+          $zipHash = (Get-FileHash -Path "dist/Lertaro-Portable.zip" -Algorithm SHA256).Hash.ToLower()
+          $exeHashArm = (Get-FileHash -Path "dist/Lertaro-Setup-arm64.exe" -Algorithm SHA256).Hash.ToLower()
+          $zipHashArm = (Get-FileHash -Path "dist/Lertaro-Portable-arm64.zip" -Algorithm SHA256).Hash.ToLower()
+          
+          # Sign portable zip if signing key is present
+          if ($env:SIGNING_KEY) {
+              # Write signing key to temp file
+              [System.IO.File]::WriteAllText("tempKey.pem", $env:SIGNING_KEY)
+              
+              # Sign using OpenSSL. Both portable zips, with the same key: they are the same release,
+              # and an unsigned arm64 download would look less trustworthy than the x64 one for no
+              # reason other than which machine the user happens to have.
+              openssl dgst -sha256 -sign tempKey.pem -out dist/Lertaro-Portable.zip.sig dist/Lertaro-Portable.zip
+              openssl dgst -sha256 -sign tempKey.pem -out dist/Lertaro-Portable-arm64.zip.sig dist/Lertaro-Portable-arm64.zip
+              
+              # Clean up private key file immediately
+              if (Test-Path "tempKey.pem") { Remove-Item -Force "tempKey.pem" }
+              
+              $signedText = "Successfully signed portable release with OpenSSL."
+          } else {
+              # Write a placeholder file so the release upload step doesn't fail when looking for .sig
+              New-Item -Path "dist/Lertaro-Portable.zip.sig" -ItemType File -Value "unsigned" > $null
+              New-Item -Path "dist/Lertaro-Portable-arm64.zip.sig" -ItemType File -Value "unsigned" > $null
+              $signedText = "Warning: Release is NOT signed (SIGNING_KEY secret is missing)."
+          }
+          Write-Host $signedText
+
+          # Append verification info to changelog.md
+          echo '' >> changelog.md
+          echo '## Security Verification' >> changelog.md
+          echo '' >> changelog.md
+          echo '### SHA-256 Checksums' >> changelog.md
+          echo "* **Lertaro-Setup.exe** (x64): ``$exeHash``" >> changelog.md
+          echo "* **Lertaro-Portable.zip** (x64): ``$zipHash``" >> changelog.md
+          echo "* **Lertaro-Setup-arm64.exe** (arm64): ``$exeHashArm``" >> changelog.md
+          echo "* **Lertaro-Portable-arm64.zip** (arm64): ``$zipHashArm``" >> changelog.md
+          
+          if ($env:SIGNING_KEY) {
+              echo '' >> changelog.md
+              echo '### Signature Verification (ECDsa NistP256)' >> changelog.md
+              echo 'The portable ZIP release is signed using our official release key.' >> changelog.md
+              echo '' >> changelog.md
+              echo 'To verify the signature manually using OpenSSL:' >> changelog.md
+              echo '```bash' >> changelog.md
+              echo '# 1. Save the public key shown above to ''public_key.pem''' >> changelog.md
+              echo '# 2. Run the following command:' >> changelog.md
+              echo 'openssl dgst -sha256 -verify public_key.pem -signature Lertaro-Portable.zip.sig Lertaro-Portable.zip' >> changelog.md
+              echo '# Expected output: Verified OK' >> changelog.md
+              echo '```' >> changelog.md
+              echo '' >> changelog.md
+              echo 'To verify the signature manually in PowerShell (.NET 5.0+):' >> changelog.md
+              echo '```powershell' >> changelog.md
+              echo '$zipBytes = [System.IO.File]::ReadAllBytes(''Lertaro-Portable.zip'')' >> changelog.md
+              echo '$sigBytes = [System.IO.File]::ReadAllBytes(''Lertaro-Portable.zip.sig'')' >> changelog.md
+              echo '$ecdsa = [System.Security.Cryptography.ECDsa]::Create()' >> changelog.md
+              echo '$pubKeyPem = ''-----BEGIN PUBLIC KEY-----' >> changelog.md
+              echo 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE117370jTbSPgIwHLntC+Bi3SD6gJ' >> changelog.md
+              echo 'QfxAySjSpUWa6zy4n0YHVv/ZWXM9zQlF2LTqpQC0iHNdJNH+MKU9UvDMTQ==' >> changelog.md
+              echo '-----END PUBLIC KEY-----''' >> changelog.md
+              echo '$ecdsa.ImportFromPem($pubKeyPem)' >> changelog.md
+              echo '$ecdsa.VerifyData($zipBytes, $sigBytes, [System.Security.Cryptography.HashAlgorithmName]::SHA256, [System.Security.Cryptography.DSASignatureFormat]::Rfc3279DerSequence)' >> changelog.md
+              echo '# Expected output: True' >> changelog.md
+              echo '```' >> changelog.md
+          } else {
+              echo '' >> changelog.md
+              echo '*Note: This release is unsigned (SIGNING_KEY missing).*' >> changelog.md
+          }
+
+      # 6. Publish release and upload artifacts (installer, portable ZIP, and signature)
+      # The new repository is not visible to legacy installs, so ARM64 assets use the conventional
+      # hyphenated suffix. Keep these names in sync with make.bat and UpdateAssetSelector.
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: changelog.md
+          files: |
+            dist/Lertaro-Setup.exe
+            dist/Lertaro-Portable.zip
+            dist/Lertaro-Portable.zip.sig
+            dist/Lertaro-Setup-arm64.exe
+            dist/Lertaro-Portable-arm64.zip
+            dist/Lertaro-Portable-arm64.zip.sig
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

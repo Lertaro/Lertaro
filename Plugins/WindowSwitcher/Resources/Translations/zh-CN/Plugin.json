@@ -1,0 +1,13 @@
+{
+  "WindowSwitcher_PluginName": "窗口切换器",
+  "WindowSwitcher_Name": "窗口切换器",
+  "WindowSwitcher_Path": "路径",
+  "WindowSwitcher_AccessDenied": "[拒绝访问]",
+  "WindowSwitcher_Config_TriggerKeywordLabel": "触发词",
+  "WindowSwitcher_Config_TriggerKeywordDesc": "输入此关键字（可跟一个空格加搜索词）来触发窗口搜索，例如默认的 \"win\"。",
+  "WindowSwitcher_Config_UseScreenshotIconsLabel": "用窗口内容作为图标",
+  "WindowSwitcher_Config_UseScreenshotIconsDesc": "用每个窗口实际内容的小缩略图代替程序图标显示。缩略图在后台截取并短暂缓存，关闭此选项可以完全避免这部分后台截图工作。",
+  "WindowSwitcher_PluginDesc": "窗口切换器插件。按标题、进程名或 PID 列出当前打开的、可切换的窗口（和 Alt+Tab 显示的是同一批），选中即可切换到该窗口。",
+  "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "在搜索栏输入特定触发词，按标题、进程名或 PID 检索当前打开的窗口列表，并提供一键切换到选定窗口的快捷方式。",
+  "Plugin_Comp_Desc_WindowSwitcherTranslationProvider": "为窗口切换器插件提供界面语言翻译与多语言本地化服务。"
+}

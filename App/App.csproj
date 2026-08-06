@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>logo.ico</ApplicationIcon>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <RetainVM>false</RetainVM>
+    <AssemblyName>Lertaro.App</AssemblyName>
+    <RootNamespace>Lertaro.App</RootNamespace>
+    <Version>4.2.7</Version>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Core.csproj" />
+    <ProjectReference Include="..\PluginSdk\PluginSdk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lertaro.App.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="logo.png" />
+    <Resource Include="logo.ico" />
+    <Resource Include="tray.png" />
+  </ItemGroup>
+
+</Project>

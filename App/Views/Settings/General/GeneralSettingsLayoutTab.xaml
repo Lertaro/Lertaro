@@ -1,0 +1,191 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.General.GeneralSettingsLayoutTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="700">
+    <!-- Split out of GeneralSettingsPage.xaml (the "Layout" tab) to keep that file under the
+         project's line-count convention. DataContext is inherited from the host page, so the
+         General.Xxx bindings below resolve exactly as they did when this content lived inline. -->
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="SettingsTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                <Setter Property="Height" Value="30"/>
+                <Setter Property="Padding" Value="8,0"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TextBox">
+                            <Border x:Name="border" CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="true">
+                                    <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                                </Trigger>
+                                <Trigger Property="IsFocused" Value="true">
+                                    <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Mirrors FavoritesSettingsPage.xaml's own FavIconButton exactly: same small square icon
+                 button used for its Move Up/Down actions, but defined locally rather than shared across
+                 UserControls, matching how SettingsTextBox above is already page-local rather than pulled
+                 from a shared dictionary. -->
+            <!-- Same shape as GeneralSettingsPage.xaml's QuickNavItemTemplate, just wired to
+                 ResultTypeOrder's own Move Up/Down commands instead of QuickNavigationOrder's. -->
+            <DataTemplate x:Key="ResultTypeOrderItemTemplate">
+                <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Grid.Column="0" Width="18" Height="24" Margin="0,0,10,0" Background="Transparent" VerticalAlignment="Center" Cursor="SizeAll" helpers:DragReorder.IsHandle="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Ellipse Grid.Row="0" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="0" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="1" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="1" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="2" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="2" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                        </Grid>
+
+                        <TextBlock Grid.Column="1" Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBox Text="{Binding TriggerChar, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     MaxLength="1"
+                                     Width="32" Height="32"
+                                     Padding="0"
+                                     HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                     Style="{StaticResource SettingsTextBox}"
+                                     Margin="0,0,6,0">
+                                <TextBox.ToolTip>
+                                    <ToolTip>
+                                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ResultTypeTriggerTooltip]}"
+                                                   TextWrapping="Wrap" MaxWidth="260"/>
+                                    </ToolTip>
+                                </TextBox.ToolTip>
+                            </TextBox>
+                            <Button Content="&#xE74A;"
+                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveUpTooltip]}"
+                                    Style="{StaticResource QuickNavIconButton}"
+                                    Command="{Binding DataContext.General.ResultTypeOrder.MoveUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}"/>
+                            <Button Content="&#xE74B;"
+                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveDownTooltip]}"
+                                    Style="{StaticResource QuickNavIconButton}"
+                                    Command="{Binding DataContext.General.ResultTypeOrder.MoveDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <TextBlock Style="{StaticResource SettingsHintText}" Margin="0,0,0,12"
+                    Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutHint]}"/>
+
+        <Border Style="{StaticResource SettingsCard}">
+            <StackPanel>
+                <TextBlock x:Name="RowLayoutSectionTitle" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutSectionTitle]}"
+                           FontWeight="SemiBold" FontSize="13" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutSectionHint]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                <Grid x:Name="RowLayoutWidth" Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>
+                        <ColumnDefinition Width="150"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutWidth]}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Style="{StaticResource SettingsTextBox}" Text="{Binding General.Layout.SearchBarWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                </Grid>
+
+                <Grid x:Name="RowLayoutHeight" Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>
+                        <ColumnDefinition Width="150"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutHeight]}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Style="{StaticResource SettingsTextBox}" Text="{Binding General.Layout.SearchBarHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                </Grid>
+
+                <CheckBox x:Name="RowLayoutShowClock" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutShowClock]}"
+                           IsChecked="{Binding General.Layout.ShowClock, Mode=TwoWay}"
+                           Margin="0,12,0,0"/>
+
+                <CheckBox x:Name="RowLayoutReopenFullWindow" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutReopenFullWindowOnHotkey]}"
+                           IsChecked="{Binding General.Layout.ReopenAsFullWindowOnRepeatHotkey, Mode=TwoWay}"
+                           Margin="0,8,0,0"/>
+
+                <CheckBox x:Name="RowLayoutLockPosition" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutLockPosition]}"
+                           IsChecked="{Binding General.Layout.LockPosition, Mode=TwoWay}"
+                           Margin="0,8,0,0"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutLockPositionHint]}"
+                           Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" Margin="24,4,0,0"/>
+
+                <Grid x:Name="RowLayoutReset" Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>
+                        <ColumnDefinition Width="150"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutReset]}"
+                            Command="{Binding General.Layout.ResetCommand}"
+                            Style="{StaticResource SettingsButton}"
+                            Margin="0" HorizontalAlignment="Left"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource SettingsCard}" Margin="0,12,0,0">
+            <StackPanel>
+                <TextBlock x:Name="RowResultTypeOrderList" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ResultTypeOrderTitle]}"
+                           FontWeight="SemiBold" FontSize="13" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ResultTypeOrderHint]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                <ItemsControl ItemsSource="{Binding General.ResultTypeOrder.Items}" ItemTemplate="{StaticResource ResultTypeOrderItemTemplate}" helpers:DragReorder.IsEnabled="True">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

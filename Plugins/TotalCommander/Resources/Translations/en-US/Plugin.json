@@ -1,0 +1,12 @@
+{
+  "Plugins_TotalCommander_EnableInlineSearch": "Enable Inline Search",
+  "Plugins_TotalCommander_EnableInlineSearchDesc": "Allow double-clicking or pressing hotkeys in Total Commander to summon inline search",
+  "Plugins_TotalCommander_EnableQuickNav": "Enable Quick Navigation Menu",
+  "Plugins_TotalCommander_EnableQuickNavDesc": "Allow middle-clicking in Total Commander's file list to summon the Quick Navigation menu",
+  "Plugins_TotalCommander_DirMenu_Empty": "(Empty)",
+  "Plugins_TotalCommander_DirMenu_RootLabel": "Directory Hotlist",
+  "TotalCommander_PluginDesc": "Total Commander integration plugin. Reads active paths and provides quick directory jumping in Total Commander.",
+  "Plugin_Comp_Desc_TotalCommanderPathCollector": "Reads and tracks the active panel directories of Total Commander.",
+  "Plugin_Comp_Desc_TotalCommanderInlineSearchAdapter": "Provides inline typing filter navigation and directory jumping for Total Commander lister windows.",
+  "Plugin_Comp_Desc_DirMenuProvider": "Loads and presents Total Commander's directory hotlist (Ctrl+D menu) in the Quick Navigation cascade."
+}

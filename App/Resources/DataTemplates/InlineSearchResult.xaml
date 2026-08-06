@@ -1,0 +1,250 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:app="clr-namespace:Lertaro.App"
+                    xmlns:local="clr-namespace:Lertaro.App.Converters"
+                    xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+                    xmlns:services="clr-namespace:Lertaro.App.Services">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Styles/Tokens/Colors.xaml"/>
+        <ResourceDictionary Source="ShortcutHintBadge.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+    <local:SplitColumnsConverter x:Key="SplitColumnsConverter"/>
+    <!-- ═══════════ Inline Search Result Item Template ═══════════ -->
+    <DataTemplate x:Key="InlineSearchResultTemplate" DataType="{x:Type app:AppSearchResult}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <!-- Icon -->
+                <ColumnDefinition Width="Auto"/>
+                <!-- Name -->
+                <ColumnDefinition Width="*"/>
+                <!-- Shortcut badge -->
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <!-- Height explicitly matches a normal row's own InlineItemHeight (rather than leaving it to
+                 this text's natural size + the container's MinHeight, whose interaction wasn't reliably
+                 producing the same number): this is the one thing everything else in the row is
+                 collapsed for when IsSearchSectionHeader is true, so its own height IS the row's height;
+                 letting it diverge from what InlineSearchWindowLayoutManager's own height-sum assumes for
+                 every row (including this one) is what left stray blank space at the bottom of the list.
+                 Height lives on this wrapping Border rather than the TextBlock itself: a TextBlock given
+                 an explicit Height taller than its own text renders that text top-aligned regardless of
+                 its own VerticalAlignment (that property positions the TextBlock's own box within ITS
+                 parent, not the text within the box): wrapping it is what lets VerticalAlignment="Center"
+                 on the TextBlock actually center the text within the now-taller row. -->
+            <Border Grid.ColumnSpan="3" Height="{Binding InlineItemHeight}">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSearchSectionHeader}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock FontSize="12"
+                       Foreground="{DynamicResource AccentBlue}"
+                       VerticalAlignment="Center"
+                       Text="{Binding Name}"/>
+            </Border>
+            <!-- File/Folder icon -->
+            <Image Grid.Column="0" Source="{Binding Icon}"
+                   Width="{x:Static services:UiMetrics.InlineIconSize}" Height="{x:Static services:UiMetrics.InlineIconSize}"
+                   Margin="0,0,14,0" VerticalAlignment="Center"
+                   RenderOptions.BitmapScalingMode="HighQuality">
+                <Image.Style>
+                    <Style TargetType="Image">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsEmptyResult}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsSearchSectionHeader}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsListItem}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Image.Style>
+            </Image>
+            <!-- Name & Path Container -->
+            <Grid VerticalAlignment="Center">
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Grid.Column" Value="1"/>
+                        <Setter Property="Grid.ColumnSpan" Value="1"/>
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsEmptyResult}" Value="True">
+                                <Setter Property="Grid.Column" Value="0"/>
+                                <Setter Property="Grid.ColumnSpan" Value="3"/>
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsSearchSectionHeader}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsListItem}" Value="True">
+                                <Setter Property="Grid.Column" Value="0"/>
+                                <Setter Property="Grid.ColumnSpan" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+                
+                <!-- Side-by-side name and path for standard results -->
+                <Grid>
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsListItem}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsEmptyResult}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="7*"/>
+                        <ColumnDefinition Width="3*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False"
+                                  local:ScrollViewerHelper.BubbleMouseWheel="True">
+                        <TextBlock 
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   local:TextHighlighter.HighlightText="{Binding SearchQuery}"
+                                   local:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}"
+                                   helpers:MarqueeBehavior.EnableMarquee="True"
+                                   FontSize="14"
+                                   VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="local:TextHighlighter.Text" Value="{Binding Name}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsJumpToExplorerPath}" Value="True">
+                                            <Setter Property="local:TextHighlighter.Text" Value="{Binding ParentDir}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </ScrollViewer>
+
+                    <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False" Margin="12,0,0,0"
+                                  local:ScrollViewerHelper.BubbleMouseWheel="True">
+                        <ScrollViewer.Style>
+                            <Style TargetType="ScrollViewer">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ParentDir}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ScrollViewer.Style>
+                        <TextBlock 
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   VerticalAlignment="Center"
+                                   helpers:MarqueeBehavior.EnableMarquee="True"
+                                   local:TextHighlighter.HighlightText="{Binding SearchQuery}"
+                                   local:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="local:TextHighlighter.Text" Value="{Binding ParentDir}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsJumpToExplorerPath}" Value="True">
+                                            <Setter Property="local:TextHighlighter.Text" Value="{Binding Name}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- Custom multi-column renderer (only for list items) -->
+                <ScrollViewer HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollBarVisibility="Disabled"
+                              Focusable="False"
+                              local:ScrollViewerHelper.BubbleMouseWheel="True">
+                    <ScrollViewer.Style>
+                        <Style TargetType="ScrollViewer">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsListItem}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ScrollViewer.Style>
+                    <ItemsControl ItemsSource="{Binding Name, Converter={StaticResource SplitColumnsConverter}}"
+                                  helpers:MarqueeBehavior.EnableMarquee="True">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <!-- Separator line (hidden for the first column) -->
+                                    <TextBlock Text="  │  " Foreground="{DynamicResource TextSecondary}" Opacity="0.4" VerticalAlignment="Center" FontSize="13">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource PreviousData}}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <!-- Column text -->
+                                    <TextBlock 
+                                               FontSize="14"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               VerticalAlignment="Center"
+                                               local:TextHighlighter.Text="{Binding}"
+                                               local:TextHighlighter.HighlightText="{Binding DataContext.SearchQuery, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                                               local:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- Empty Result View -->
+                <TextBlock Text="{Binding Name}"
+                           Foreground="{DynamicResource TextPrimary}"
+                           FontSize="14"
+                           TextAlignment="Center"
+                           HorizontalAlignment="Stretch">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsEmptyResult}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+            <!-- Shared badge markup: see ShortcutHintBadge.xaml's own comment for the full design
+                 history. FontSize is set here (not inside the shared template) so this window's own
+                 12pt badge text stays exactly what it was before the badge was shared with the
+                 full/quick search window's 11pt version. -->
+            <ContentPresenter Grid.Column="2"
+                               TextElement.FontSize="12"
+                               Content="{Binding}"
+                               ContentTemplate="{StaticResource ShortcutHintBadgeTemplate}"/>
+        </Grid>
+    </DataTemplate>
+</ResourceDictionary>

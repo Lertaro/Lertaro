@@ -1,0 +1,13 @@
+{
+  "ProcessManager_PluginName": "プロセスマネージャー",
+  "ProcessManager_Name": "プロセスマネージャー",
+  "ProcessManager_Description": "プロセスマネージャー (ps)",
+  "ProcessManager_Path": "パス",
+  "ProcessManager_Window": "ウィンドウ",
+  "ProcessManager_AccessDenied": "[アクセス拒否]",
+  "ProcessManager_Config_TriggerKeywordLabel": "トリガーキーワード",
+  "ProcessManager_Config_TriggerKeywordDesc": "このキーワード（任意でスペースと検索語を続ける）を入力するとプロセス検索が起動します。既定値は \"ps\" です。",
+  "ProcessManager_PluginDesc": "プロセスマネージャープラグイン。現在実行中のシステムプロセスの検索、表示、強制終了に対応します。",
+  "Plugin_Comp_Desc_ProcessManagerInstantProvider": "名前、PID、またはウィンドウタイトルで実行中のシステムプロセスを検索し、検索ボックスから選択したプロセスをワンクリックで強制終了できるようにします。",
+  "Plugin_Comp_Desc_ProcessManagerTranslationProvider": "プロセスマネージャープラグインの UI 翻訳とローカライズマッピングを提供します。"
+}

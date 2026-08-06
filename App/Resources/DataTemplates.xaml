@@ -1,0 +1,173 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:app="clr-namespace:Lertaro.App"
+                    xmlns:local="clr-namespace:Lertaro.App.Converters"
+                    xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Styles/Tokens/Colors.xaml"/>
+        <ResourceDictionary Source="DataTemplates/ShortcutHintBadge.xaml"/>
+        <ResourceDictionary Source="DataTemplates/InlineSearchResult.xaml"/>
+        <ResourceDictionary Source="DataTemplates/ActionMenuItem.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- ═══════════ Search Result Item Template ═══════════ -->
+    <DataTemplate x:Key="SearchResultTemplate" DataType="{x:Type app:AppSearchResult}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <!-- Icon -->
+                <ColumnDefinition Width="Auto"/>
+                <!-- Name + Path -->
+                <ColumnDefinition Width="*"/>
+                <!-- Shortcut badge -->
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.ColumnSpan="3"
+                       FontSize="12"
+                       Foreground="{DynamicResource AccentBlue}"
+                       VerticalAlignment="Center"
+                       Text="{Binding Name}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSearchSectionHeader}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <!-- File/Folder icon -->
+            <Image Grid.Column="0" Source="{Binding Icon}" Margin="0,0,14,0" VerticalAlignment="Center"
+                   RenderOptions.BitmapScalingMode="HighQuality">
+                <Image.Style>
+                    <Style TargetType="Image">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Setter Property="Width" Value="{Binding ResultIconSize}"/>
+                        <Setter Property="Height" Value="{Binding ResultIconSize}"/>
+                        <Style.Triggers>
+                            <!-- Quick window only: icons scale with the search box height. -->
+                            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro">
+                                <Setter Property="Width" Value="{Binding ScaledResultIconSize}"/>
+                                <Setter Property="Height" Value="{Binding ScaledResultIconSize}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsEmptyResult}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsSearchSectionHeader}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsListItem}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Image.Style>
+            </Image>
+
+            <!-- Name + directory path -->
+            <StackPanel VerticalAlignment="Center">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Setter Property="Grid.Column" Value="1"/>
+                        <Setter Property="Grid.ColumnSpan" Value="1"/>
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsEmptyResult}" Value="True">
+                                <Setter Property="Grid.Column" Value="0"/>
+                                <Setter Property="Grid.ColumnSpan" Value="3"/>
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsSearchSectionHeader}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsListItem}" Value="True">
+                                <Setter Property="Grid.Column" Value="0"/>
+                                <Setter Property="Grid.ColumnSpan" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+                <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False"
+                              local:ScrollViewerHelper.BubbleMouseWheel="True">
+                    <TextBlock 
+                               Foreground="{DynamicResource TextPrimary}"
+                               local:TextHighlighter.Text="{Binding Name}"
+                               local:TextHighlighter.HighlightText="{Binding SearchQuery}"
+                               local:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}"
+                               helpers:MarqueeBehavior.EnableMarquee="True">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontSize" Value="{Binding NameFontSize}"/>
+                                <Setter Property="TextAlignment" Value="Left"/>
+                                <Setter Property="HorizontalAlignment" Value="Left"/>
+                                <Setter Property="TextTrimming" Value="None"/>
+                                <Style.Triggers>
+                                    <!-- Quick window only: name text scales with the search box height. -->
+                                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro">
+                                        <Setter Property="FontSize" Value="{Binding ScaledNameFontSize}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsEmptyResult}" Value="True">
+                                        <Setter Property="FontSize" Value="24"/>
+                                        <Setter Property="TextAlignment" Value="Center"/>
+                                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </ScrollViewer>
+                <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False" Margin="0,2,0,0"
+                              local:ScrollViewerHelper.BubbleMouseWheel="True">
+                    <ScrollViewer.Style>
+                        <Style TargetType="ScrollViewer">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsApplication}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <!-- Blank subtitle (e.g. applications) shows name-only: hide the empty row. -->
+                                <DataTrigger Binding="{Binding ParentDir}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsEmptyResult}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ScrollViewer.Style>
+                    <TextBlock Foreground="{DynamicResource TextSecondary}"
+                               HorizontalAlignment="Left"
+                               helpers:MarqueeBehavior.EnableMarquee="True"
+                               local:TextHighlighter.Text="{Binding ParentDir}"
+                               local:TextHighlighter.HighlightText="{Binding SearchQuery}"
+                               local:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontSize" Value="{Binding PathFontSize}"/>
+                                <Style.Triggers>
+                                    <!-- Quick window only: path text scales with the search box height. -->
+                                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro">
+                                        <Setter Property="FontSize" Value="{Binding ScaledPathFontSize}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </ScrollViewer>
+            </StackPanel>
+
+            <!-- Shared badge markup: see ShortcutHintBadge.xaml's own comment for the full design
+                 history. FontSize is set here (not inside the shared template) so this window's own
+                 11pt badge text stays exactly what it was before the badge was shared with the
+                 inline search window's 12pt version. -->
+            <ContentPresenter Grid.Column="2"
+                               TextElement.FontSize="11"
+                               Content="{Binding}"
+                               ContentTemplate="{StaticResource ShortcutHintBadgeTemplate}"/>
+        </Grid>
+    </DataTemplate>
+
+</ResourceDictionary>

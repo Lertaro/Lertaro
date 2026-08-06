@@ -1,0 +1,8 @@
+{
+  "SystemSettings_PluginName": "System Settings Search",
+  "SystemSettings_Name": "System Settings Search",
+  "SystemSettings_Description": "System Settings",
+  "SystemSettings_PluginDesc": "System settings shortcut plugin. Search and open Windows Control Panel and system settings items directly from search results.",
+  "Plugin_Comp_Desc_SystemSettingsItemProvider": "Collects Windows UWP Settings and Control Panel links for rapid index matching and direct execution.",
+  "Plugin_Comp_Desc_SystemSettingsTranslationProvider": "Maps and translates localized Windows configuration titles."
+}

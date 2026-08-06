@@ -1,0 +1,17 @@
+{
+  "FileFilters_PluginName": "文件过滤器",
+  "FileFilters_ProviderName": "文件过滤器",
+  "FileFilters_Config_FiltersLabel": "文件过滤器列表",
+  "FileFilters_Config_FiltersDesc": "配置自定义检索文件夹范围和文件过滤后缀。",
+  "FileFilters_Config_EnabledLabel": "已启用",
+  "FileFilters_Config_NameLabel": "过滤器名称",
+  "FileFilters_Config_KeywordLabel": "触发关键字",
+  "FileFilters_Config_KeywordDesc": "输入框触发此前置过滤的前缀关键字（如 'exe' 或 'doc'）。",
+  "FileFilters_Config_FoldersLabel": "监控文件夹列表",
+  "FileFilters_Config_FoldersDesc": "一行一个，支持本地磁盘与网络共享盘。",
+  "FileFilters_Config_FilterPatternLabel": "匹配后缀",
+  "FileFilters_Config_FilterPatternDesc": "文件匹配规则或过滤后缀（如 '*.exe;*.lnk'，默认 '*' 匹配所有）。",
+  "FileFilters_PluginDesc": "自定义目录通配符过滤索引插件。允许用户配置特定文件夹与后缀过滤规则进行索引。",
+  "Plugin_Comp_Desc_FileFiltersSearchableItemProvider": "扫描并索引用户在配置中指定的自定义目录下匹配通配符模式（如 *.pdf）的文件，以及每一层子文件夹，并加入主索引进行快捷检索。",
+  "Plugin_Comp_Desc_FileFiltersTranslationProvider": "为各种过滤条件大类提供多语言翻译服务。"
+}

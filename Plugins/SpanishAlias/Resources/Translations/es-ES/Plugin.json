@@ -1,0 +1,4 @@
+{
+  "Plugins_SpanishAliasPluginName": "Alias de acentos en español",
+  "Plugin_Comp_Desc_SpanishAliasProvider": "Permite escribir letras ASCII simples (ej. nino, cancion) para buscar archivos con acentos en español (ej. Niño, Canción)."
+}

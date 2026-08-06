@@ -1,0 +1,4 @@
+{
+  "Plugins_SpanishAliasPluginName": "スペイン語アクセント エイリアス",
+  "Plugin_Comp_Desc_SpanishAliasProvider": "アクセントなしの ASCII 文字 (例: nino, cancion) を入力して、スペイン語のアクセント付きファイル名 (例: Niño, Canción) を検索できるようにします。"
+}

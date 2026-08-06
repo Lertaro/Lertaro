@@ -1,0 +1,11 @@
+{
+  "QuickLookBridge_PluginName": "QuickLook 橋接",
+  "QuickLookBridge_PluginDesc": "實驗性功能:只要能透過具名管道連上一個外部的 QuickLook(github.com/QL-Win/QuickLook)執行個體,所有預覽都會交給它,優先權高於所有內建預覽器。這段期間 Lertaro 自己的預覽面板會隱藏起來,QuickLook 那個獨立的浮動視窗會被停駐到原本預覽面板所在的位置。",
+  "QuickLookBridge_ProviderName": "QuickLook 橋接",
+  "QuickLookBridge_GroupName": "QuickLook",
+  "QuickLookBridge_ActionName": "用 QuickLook 預覽",
+  "QuickLookBridge_ActionDesc": "透過具名管道,在 QuickLook 自己的預覽視窗中開啟選取的檔案或資料夾。",
+  "Plugin_Comp_Desc_QuickLookPreviewProvider": "偵測是否能透過具名管道連上正在執行的 QuickLook,把所有預覽都交給它,在它作用期間隱藏 Lertaro 自己的預覽面板,並把 QuickLook 的視窗停駐到那個面板原本的位置。",
+  "Plugin_Comp_Desc_QuickLookBridgeTranslationProvider": "為 QuickLook 橋接外掛程式提供介面翻譯和在地化對應。",
+  "Plugin_Comp_Desc_PreviewInQuickLookAction": "透過具名管道,手動觸發對選取結果的 QuickLook 預覽。"
+}

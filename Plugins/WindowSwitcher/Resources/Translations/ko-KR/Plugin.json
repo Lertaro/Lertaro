@@ -1,0 +1,13 @@
+{
+  "WindowSwitcher_PluginName": "창 전환기",
+  "WindowSwitcher_Name": "창 전환기",
+  "WindowSwitcher_Path": "경로",
+  "WindowSwitcher_AccessDenied": "[접근 거부됨]",
+  "WindowSwitcher_Config_TriggerKeywordLabel": "트리거 키워드",
+  "WindowSwitcher_Config_TriggerKeywordDesc": "이 키워드(선택적으로 뒤에 공백과 검색어를 입력)를 입력하면 창 검색이 실행됩니다. 예: 기본값 \"win\".",
+  "WindowSwitcher_Config_UseScreenshotIconsLabel": "창 내용을 아이콘으로 표시",
+  "WindowSwitcher_Config_UseScreenshotIconsDesc": "앱 아이콘 대신 각 창의 실제 내용을 담은 작은 실시간 썸네일을 표시합니다. 썸네일은 백그라운드에서 캡처되어 잠시 캐시되므로, 이 옵션을 끄면 이 백그라운드 캡처 작업을 완전히 피할 수 있습니다.",
+  "WindowSwitcher_PluginDesc": "창 전환기 플러그인입니다. 현재 열려 있고 전환 가능한 창(Alt+Tab이 보여주는 것과 동일한 목록)을 제목, 프로세스 이름 또는 PID로 나열하고, 선택한 창을 포그라운드로 가져옵니다.",
+  "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "제목, 프로세스 이름 또는 PID로 현재 열려 있는 창을 검색하고, 검색 상자에서 선택한 창으로 한 번의 클릭으로 전환하는 기능을 제공합니다.",
+  "Plugin_Comp_Desc_WindowSwitcherTranslationProvider": "창 전환기 플러그인에 UI 번역 및 지역화 매핑을 제공합니다."
+}

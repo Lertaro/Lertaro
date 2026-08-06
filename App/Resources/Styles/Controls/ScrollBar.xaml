@@ -1,0 +1,211 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:converters="clr-namespace:Lertaro.App.Converters">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Tokens/Colors.xaml"/>
+        <ResourceDictionary Source="../Tokens/Spacing.xaml"/>
+        <ResourceDictionary Source="../Tokens/Motion.xaml"/>
+        <ResourceDictionary Source="../Tokens/Elevation.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- ═══════════ Sleek Scrollbar ═══════════ -->
+    <Style TargetType="{x:Type ScrollBar}">
+        <Setter Property="Stylus.IsPressAndHoldEnabled" Value="false"/>
+        <Setter Property="Stylus.IsFlicksEnabled" Value="false"/>
+        <Setter Property="Width" Value="6"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ScrollBar}">
+                    <Grid x:Name="Bg" SnapsToDevicePixels="true" Background="Transparent">
+                        <Track x:Name="PART_Track" IsDirectionReversed="true" IsEnabled="{TemplateBinding IsEnabled}">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}" Focusable="false">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="{x:Type RepeatButton}">
+                                            <Rectangle Fill="Transparent"/>
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb x:Name="Thumb">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <!-- The thumb colour is the theme's, so a theme can style its own
+                                                 scrollbars. What a theme has to get right is that a scrollbar lands on
+                                                 more than one surface: the window, a card, and the ControlBackground of
+                                                 a text box, which in a dark theme can be 30 levels lighter than the
+                                                 window. Picking the colour against the window alone leaves the thumb
+                                                 invisible inside text boxes, silently and only there.
+                                                 ThemeContrastTests checks every theme against every such surface, since
+                                                 nothing about a wrong value shows up anywhere else. -->
+                                            <Border x:Name="border"
+                                                    Width="4"
+                                                    HorizontalAlignment="Right"
+                                                    CornerRadius="2"
+                                                    Background="{DynamicResource ScrollBarThumbBackground}"
+                                                    Margin="0,0,1,0"
+                                                    Opacity="0.6"
+                                                    SnapsToDevicePixels="True"/>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="true">
+                                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource ScrollBarThumbHover}"/>
+                                                    <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                                                </Trigger>
+                                                <Trigger Property="IsDragging" Value="true">
+                                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource ScrollBarThumbDragging}"/>
+                                                    <Setter TargetName="border" Property="Opacity" Value="1.0"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}" Focusable="false">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="{x:Type RepeatButton}">
+                                            <Rectangle Fill="Transparent"/>
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Orientation" Value="Horizontal">
+                            <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="false"/>
+                            <Setter Property="Width" Value="Auto"/>
+                            <Setter Property="Height" Value="6"/>
+                            <Setter Property="MinHeight" Value="0"/>
+                            <Setter TargetName="Thumb" Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Thumb">
+                                        <Border x:Name="border"
+                                                Height="4"
+                                                VerticalAlignment="Bottom"
+                                                CornerRadius="2"
+                                                Background="{DynamicResource ScrollBarThumbBackground}"
+                                                Margin="0,0,0,1"
+                                                Opacity="0.6"
+                                                SnapsToDevicePixels="True"/>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="true">
+                                                <Setter TargetName="border" Property="Background" Value="{DynamicResource ScrollBarThumbHover}"/>
+                                                <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                                            </Trigger>
+                                            <Trigger Property="IsDragging" Value="true">
+                                                <Setter TargetName="border" Property="Background" Value="{DynamicResource ScrollBarThumbDragging}"/>
+                                                <Setter TargetName="border" Property="Opacity" Value="1.0"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter TargetName="Bg" Property="Background" Value="Transparent"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ═══════════ Sleek ScrollViewer ═══════════ -->
+    <Style x:Key="SleekScrollViewerStyle" TargetType="{x:Type ScrollViewer}">
+        <Setter Property="converters:ScrollViewerHelper.RevealOnHover" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ScrollViewer}">
+                    <Grid Background="{TemplateBinding Background}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
+                                                Grid.Column="0" Grid.Row="0"
+                                                Margin="{TemplateBinding Padding}"
+                                                Content="{TemplateBinding Content}"
+                                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                CanContentScroll="{TemplateBinding CanContentScroll}"/>
+
+                        <ScrollBar x:Name="PART_VerticalScrollBar"
+                                   Grid.Column="1" Grid.Row="0"
+                                   Width="6" MinWidth="0"
+                                   Value="{TemplateBinding VerticalOffset}"
+                                   Maximum="{TemplateBinding ScrollableHeight}"
+                                   ViewportSize="{TemplateBinding ViewportHeight}"
+                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                   Cursor="Arrow"
+                                   Opacity="0"/>
+
+                        <ScrollBar x:Name="PART_HorizontalScrollBar"
+                                   Grid.Column="0" Grid.Row="1"
+                                   Orientation="Horizontal"
+                                   Value="{TemplateBinding HorizontalOffset}"
+                                   Maximum="{TemplateBinding ScrollableWidth}"
+                                   ViewportSize="{TemplateBinding ViewportWidth}"
+                                   Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"
+                                   Cursor="Arrow"
+                                   Opacity="0"/>
+                    </Grid>
+
+                    <!-- Auto-hide (overlay-style): both scrollbar tracks stay at Opacity 0, present in
+                         the visual tree (so ComputedXScrollBarVisibility can still show/hide them when
+                         there's actually content to scroll) but invisible, until the pointer is
+                         anywhere over the ScrollViewer, not just the thin 6px track itself: matches how
+                         macOS/Windows 11 overlay scrollbars reveal on hover over the whole scrollable
+                         region rather than requiring the user to already know where the track is.
+
+                         The hover test prefers the enclosing text control's own IsMouseOver over this
+                         ScrollViewer's, because inside a RichTextBox the ScrollViewer's is unusable: the
+                         text is a FlowDocument, so the element under the pointer is a Run, and a Run is
+                         a ContentElement rather than a Visual. Its IsMouseOver travels up the CONTENT
+                         tree (Run to Paragraph to FlowDocument to RichTextBox) and never touches the
+                         visual chain in between, leaving this ScrollViewer reading false over every
+                         character of its own content. The scrollbar then revealed only on the parts of
+                         the template that are real visuals, i.e. within a few pixels of the track
+                         itself, which is exactly the reveal-on-hover behaviour it exists to avoid.
+
+                         The condition is PointerNear and not this ScrollViewer's own IsMouseOver
+                         because inside a RichTextBox the latter is false over the control's own text.
+                         ScrollViewerHelper computes it and explains why it is code rather than a
+                         trigger binding. -->
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="converters:ScrollViewerHelper.AlwaysShowScrollBarWhenNeeded" Value="True">
+                            <Setter TargetName="PART_VerticalScrollBar" Property="Opacity" Value="1"/>
+                            <Setter TargetName="PART_HorizontalScrollBar" Property="Opacity" Value="1"/>
+                        </Trigger>
+                        <Trigger Property="converters:ScrollViewerHelper.PointerNear" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="PART_VerticalScrollBar" Storyboard.TargetProperty="Opacity" To="1" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                        <DoubleAnimation Storyboard.TargetName="PART_HorizontalScrollBar" Storyboard.TargetProperty="Opacity" To="1" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="PART_VerticalScrollBar" Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                        <DoubleAnimation Storyboard.TargetName="PART_HorizontalScrollBar" Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type ScrollViewer}" BasedOn="{StaticResource SleekScrollViewerStyle}"/>
+
+</ResourceDictionary>

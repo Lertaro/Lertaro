@@ -1,0 +1,21 @@
+{
+  "WebSearch_PluginName": "網頁搜尋與快捷直達外掛程式",
+  "WebSearch_PluginDesc": "透過在搜尋框輸入特定的觸發詞，直接呼叫自訂或內建的搜尋引擎（如百度、Google、GitHub等）快速發起網頁搜尋。",
+  "WebSearch_ProviderName": "網頁搜尋",
+  "WebSearch_PlaceholderTitle": "使用 {0} 搜尋",
+  "WebSearch_PlaceholderDesc": "輸入關鍵字並按 Enter 進行搜尋",
+  "WebSearch_ResultTitle": "使用 {0} 搜尋: {1}",
+  "WebSearch_ResultDesc": "按 Enter 或按一下直接在瀏覽器中開啟搜尋結果",
+  "WebSearch_Config_SourcesLabel": "自訂搜尋來源",
+  "WebSearch_Config_SourcesDesc": "設定網頁搜尋的自訂搜尋引擎和關鍵字。",
+  "WebSearch_Config_NameLabel": "名稱",
+  "WebSearch_Config_KeywordLabel": "觸發關鍵字",
+  "WebSearch_Config_IconLabel": "圖示",
+  "WebSearch_Config_UrlLabel": "網址（使用 %s 作為預留位置）",
+  "WebSearch_Config_SuggestUrlLabel": "建議介面位址（可選，使用 %s 作為預留位置）",
+  "WebSearch_Config_SuggestUrlDesc": "留空則不啟用該引擎的搜尋建議。填寫後，將在輸入時即時取得最多 5 條建議（OpenSearch JSON 格式）。",
+  "WebSearch_SuggestionDesc": "{0} 建議 — 按 Enter 或按一下進行搜尋",
+  "WebSearch_ProviderDesc": "透過設定的關鍵字，在輸入框中快捷觸發主流搜尋引擎或自訂網頁搜尋。",
+  "Plugin_Comp_Desc_WebSearchInstantProvider": "在搜尋框中輸入自訂搜尋來源關鍵字（如 bd, gh），即可即時發起對應搜尋引擎的網頁搜尋。",
+  "Plugin_Comp_Desc_WebSearchTranslationProvider": "為網頁搜尋與快捷直達外掛程式本身提供介面選單和多國語言在地化翻譯服務。"
+}

@@ -1,0 +1,13 @@
+{
+  "ProcessManager_PluginName": "프로세스 관리자",
+  "ProcessManager_Name": "프로세스 관리자",
+  "ProcessManager_Description": "프로세스 관리자 (ps)",
+  "ProcessManager_Path": "경로",
+  "ProcessManager_Window": "창",
+  "ProcessManager_AccessDenied": "[접근 거부됨]",
+  "ProcessManager_Config_TriggerKeywordLabel": "트리거 키워드",
+  "ProcessManager_Config_TriggerKeywordDesc": "이 키워드(선택적으로 뒤에 공백과 검색어를 입력)를 입력하면 프로세스 검색이 실행됩니다. 예: 기본값 \"ps\".",
+  "ProcessManager_PluginDesc": "프로세스 관리자 플러그인입니다. 현재 실행 중인 시스템 프로세스를 검색, 확인, 종료할 수 있습니다.",
+  "Plugin_Comp_Desc_ProcessManagerInstantProvider": "이름, PID 또는 창 제목으로 실행 중인 시스템 프로세스를 검색하고, 검색 상자에서 선택한 프로세스를 한 번의 클릭으로 종료하는 기능을 제공합니다.",
+  "Plugin_Comp_Desc_ProcessManagerTranslationProvider": "프로세스 관리자 플러그인에 UI 번역 및 지역화 매핑을 제공합니다."
+}

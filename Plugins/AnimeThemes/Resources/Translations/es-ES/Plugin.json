@@ -1,0 +1,9 @@
+{
+  "AnimeThemes_PluginName": "Temas Anime",
+  "Theme_SakuraBloom": "Sakura en Flor",
+  "Theme_NeonGenesis": "Neon Genesis",
+  "Theme_WeatheringBlue": "El Tiempo Contigo",
+  "AnimeThemes_PluginDesc": "Complemento de temas anime. Ofrece compatibilidad con temas visuales estilizados de anime para la aplicación.",
+  "Plugin_Comp_Desc_AnimeThemeProvider": "Ofrece estilos visuales de interfaz con temática anime (como Sakura en Flor, Neon Genesis, El Tiempo Contigo).",
+  "Plugin_Comp_Desc_AnimeTranslationProvider": "Ofrece compatibilidad con la localización de la interfaz y traducción multilingüe para el complemento Temas Anime."
+}

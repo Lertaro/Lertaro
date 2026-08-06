@@ -1,0 +1,108 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Lertaro.Plugins.BrowserData</AssemblyName>
+    <Version>1.0.9</Version>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <!-- Microsoft.Data.Sqlite ships a native e_sqlite3.dll. A plain framework-dependent build with no
+         RuntimeIdentifier never selects/copies it (that normally only happens on `dotnet publish`).
+         Having a RID + forcing local-copy makes a normal `dotnet build` produce the full flattened
+         dependency set (managed DLLs + the native one, all flat, no runtimes/ subfolder) right next to
+         this plugin's own DLL, so Assembly.LoadFrom's own same-directory dependency probing finds
+         all of it automatically. Verified end-to-end (loaded from a subdirectory, opened a real
+         profile database) in scratch/SqlitePluginTest before wiring this up for real.
+
+         The RID is taken from whatever machine is building rather than written down, so a build on an
+         arm64 host produces the arm64 native library instead of an x86-64 one it cannot load. This was
+         a hardcoded win-x64 and that is exactly what it got wrong: publishing can always override it
+         with -r, but a plain `dotnet build` (build_and_run.bat, running the tests) had no way to, so
+         local development on arm64 silently got the wrong architecture.
+
+         Deliberately NOT removed altogether, and deliberately not <RuntimeIdentifiers> plural: with no
+         single RID selected the SDK copies the native asset for EVERY platform it ships, which is a
+         67MB runtimes/ tree covering android/ios/wasm (measured) instead of 2.3MB flat. Worse, nothing
+         would find it there: resolving runtimes/{rid}/native/ is what a deps.json is for, and this
+         project switches that off above, because plugins load through Assembly.LoadFrom and it probes
+         the loaded assembly's own directory only. -->
+    <UseCurrentRuntimeIdentifier>true</UseCurrentRuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\PluginSdk\PluginSdk.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <!-- Overrides the bundle's own transitively-pinned native lib version: 2.1.x has a known
+         high-severity advisory (GHSA-2m69-gcr7-jv3q) in the bundled sqlite3 build. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Translations\**\*.json" />
+  </ItemGroup>
+
+  <!-- Outputs to its own Plugins/Lertaro.Plugins.BrowserData/ subdirectory instead of the flat
+       shared Plugins/ folder, so its bundled Microsoft.Data.Sqlite/SQLitePCLRaw/e_sqlite3.dll files
+       don't spill into every other plugin's load directory. PluginLoader scans Plugins/ recursively
+       (see its own subdirectory support). Lertaro.PluginSdk.dll is excluded: the App already loads
+       its own copy of it directly.
+
+       Two destinations, because $(TargetDir) means different things depending on how this gets built:
+       - A normal `dotnet build` of Lertaro.slnx/Lertaro.Plugins.slnx gives this project its own
+         private bin folder, unrelated to the App's actual Plugins/ folder: needs an explicit
+         cross-project copy to get discovered at all (dest #2 below).
+       - build_and_run.bat instead builds the whole plugins solution with
+         /p:OutputPath=".../debug/Plugins/": EVERY plugin's $(TargetDir) becomes that one shared
+         folder directly, so this plugin's own DLL and its dependencies would just land flat in it
+         (the exact problem a subdirectory is meant to avoid) unless nested in place (dest #1 below).
+       Nesting into $(TargetDir)$(AssemblyName)\ first and deleting the flattened originals handles the
+       second case; copying that nested folder onward to the hardcoded App path handles the first. -->
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <!-- Named explicitly, NOT a $(TargetDir)*.dll wildcard: under build_and_run.bat's shared
+         /p:OutputPath, $(TargetDir) is the same folder every other plugin builds into too, and a
+         wildcard here would sweep up (and then delete, via the Delete step below) files that don't
+         belong to this project at all. Exists() guards each entry since not every one of these is
+         necessarily present in every build (e.g. a Release build without PDBs). -->
+    <ItemGroup>
+      <BrowserDataOutput Include="$(TargetDir)$(TargetName).dll" Condition="Exists('$(TargetDir)$(TargetName).dll')" />
+      <BrowserDataOutput Include="$(TargetDir)Microsoft.Data.Sqlite.dll" Condition="Exists('$(TargetDir)Microsoft.Data.Sqlite.dll')" />
+      <BrowserDataOutput Include="$(TargetDir)SQLitePCLRaw.batteries_v2.dll" Condition="Exists('$(TargetDir)SQLitePCLRaw.batteries_v2.dll')" />
+      <BrowserDataOutput Include="$(TargetDir)SQLitePCLRaw.core.dll" Condition="Exists('$(TargetDir)SQLitePCLRaw.core.dll')" />
+      <BrowserDataOutput Include="$(TargetDir)SQLitePCLRaw.provider.e_sqlite3.dll" Condition="Exists('$(TargetDir)SQLitePCLRaw.provider.e_sqlite3.dll')" />
+      <BrowserDataOutput Include="$(TargetDir)e_sqlite3.dll" Condition="Exists('$(TargetDir)e_sqlite3.dll')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BrowserDataOutput)" DestinationFolder="$(TargetDir)$(AssemblyName)\" SkipUnchangedFiles="true" />
+    <Delete Files="@(BrowserDataOutput)" />
+
+    <ItemGroup>
+      <BrowserDataNested Include="$(TargetDir)$(AssemblyName)\*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BrowserDataNested)" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\$(AssemblyName)\" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- make.bat uses `dotnet publish Lertaro.Plugins.slnx -o <dir>/Plugins`, which is a THIRD distinct
+       build shape: `-o` sets $(PublishDir), not $(OutputPath)/$(TargetDir); the PostBuild target above
+       never even runs against this folder, since Publish gathers its own dependency closure into
+       $(PublishDir) as a separate step, independent of whatever PostBuildEvent already did to
+       $(TargetDir). Every plugin's $(PublishDir) is that same shared "-o" folder, so this needs the
+       identical named-list nest-and-delete treatment, just retargeted at $(PublishDir) instead. -->
+  <Target Name="PostPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <BrowserDataPublishOutput Include="$(PublishDir)$(TargetName).dll" Condition="Exists('$(PublishDir)$(TargetName).dll')" />
+      <BrowserDataPublishOutput Include="$(PublishDir)Microsoft.Data.Sqlite.dll" Condition="Exists('$(PublishDir)Microsoft.Data.Sqlite.dll')" />
+      <BrowserDataPublishOutput Include="$(PublishDir)SQLitePCLRaw.batteries_v2.dll" Condition="Exists('$(PublishDir)SQLitePCLRaw.batteries_v2.dll')" />
+      <BrowserDataPublishOutput Include="$(PublishDir)SQLitePCLRaw.core.dll" Condition="Exists('$(PublishDir)SQLitePCLRaw.core.dll')" />
+      <BrowserDataPublishOutput Include="$(PublishDir)SQLitePCLRaw.provider.e_sqlite3.dll" Condition="Exists('$(PublishDir)SQLitePCLRaw.provider.e_sqlite3.dll')" />
+      <BrowserDataPublishOutput Include="$(PublishDir)e_sqlite3.dll" Condition="Exists('$(PublishDir)e_sqlite3.dll')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BrowserDataPublishOutput)" DestinationFolder="$(PublishDir)$(AssemblyName)\" SkipUnchangedFiles="true" />
+    <Delete Files="@(BrowserDataPublishOutput)" />
+  </Target>
+
+</Project>

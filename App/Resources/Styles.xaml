@@ -1,0 +1,15 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Styles/Tokens/Colors.xaml"/>
+        <ResourceDictionary Source="Styles/Tokens/Spacing.xaml"/>
+        <ResourceDictionary Source="Styles/Tokens/Motion.xaml"/>
+        <ResourceDictionary Source="Styles/Tokens/Elevation.xaml"/>
+        <ResourceDictionary Source="Styles/Controls/ScrollBar.xaml"/>
+        <ResourceDictionary Source="Styles/Controls/ListBox.xaml"/>
+        <ResourceDictionary Source="Styles/Controls/Button.xaml"/>
+        <ResourceDictionary Source="Styles/Controls/Controls.xaml"/>
+        <ResourceDictionary Source="Styles/Controls/Menu.xaml"/>
+        <ResourceDictionary Source="Styles/Controls/TabStripScrollView.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+</ResourceDictionary>

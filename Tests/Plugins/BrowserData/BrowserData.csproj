@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Lertaro.Plugins.BrowserData.Tests</AssemblyName>
+    <RootNamespace>Lertaro.Plugins.BrowserData.Tests</RootNamespace>
+    <!-- Same reason as the plugin this tests (see Plugins/BrowserData/BrowserData.csproj): a RID is
+         what gets Microsoft.Data.Sqlite's native e_sqlite3.dll copied out at all. Taken from the
+         building machine rather than hardcoded, so running these tests on an arm64 host loads an arm64
+         native library instead of an x86-64 one it cannot load. -->
+    <UseCurrentRuntimeIdentifier>true</UseCurrentRuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MSTest" Version="4.0.2" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- BrowserData.csproj's own PostBuild target nests+deletes its flat output DLL for the plugin
+         loader's benefit, which breaks a normal ProjectReference's copy-local step (the file it expects
+         to copy is gone by the time this project's build looks for it). Compiling its handful of
+         relevant source files directly into this test assembly sidesteps that entirely: no
+         InternalsVisibleTo needed either, since everything lands in the same assembly as the tests. -->
+    <Compile Include="..\..\..\Plugins\BrowserData\BrowserEntry.cs" Link="Source\BrowserEntry.cs" />
+    <Compile Include="..\..\..\Plugins\BrowserData\BrowserDataPlugin.cs" Link="Source\BrowserDataPlugin.cs" />
+    <Compile Include="..\..\..\Plugins\BrowserData\BrowserDataCache.cs" Link="Source\BrowserDataCache.cs" />
+    <Compile Include="..\..\..\Plugins\BrowserData\Readers\BrowserFamilyDetector.cs" Link="Source\Readers\BrowserFamilyDetector.cs" />
+    <Compile Include="..\..\..\Plugins\BrowserData\Readers\ChromiumBookmarksReader.cs" Link="Source\Readers\ChromiumBookmarksReader.cs" />
+    <Compile Include="..\..\..\Plugins\BrowserData\Readers\SqliteCopyReader.cs" Link="Source\Readers\SqliteCopyReader.cs" />
+    <Compile Include="..\..\..\Plugins\BrowserData\Readers\ChromiumHistoryReader.cs" Link="Source\Readers\ChromiumHistoryReader.cs" />
+    <Compile Include="..\..\..\Plugins\BrowserData\Readers\FirefoxPlacesReader.cs" Link="Source\Readers\FirefoxPlacesReader.cs" />
+    <Compile Include="**\*.cs" Exclude="bin\**;obj\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\PluginSdk\PluginSdk.csproj" />
+  </ItemGroup>
+
+</Project>

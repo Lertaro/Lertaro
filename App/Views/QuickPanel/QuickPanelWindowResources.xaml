@@ -1,0 +1,257 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:services="clr-namespace:Lertaro.App.Services"
+                    xmlns:local="clr-namespace:Lertaro.App.Views.QuickPanel"
+                     xmlns:conv="clr-namespace:Lertaro.App.Converters"
+                     xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+                     xmlns:app="clr-namespace:Lertaro.App">
+    <!-- Split out of QuickPanelWindow.xaml purely to keep that file under the repo's per-file line
+         limit; these are the panel's own row, tile and group-header styles, and nothing else uses them.
+         Merged last by the window, so they still win over the shared dictionaries above them there.
+
+         Everything here resolves within itself or through DynamicResource at runtime: nothing reaches
+         for a StaticResource out of another dictionary, which a merged dictionary loaded by pack URI
+         cannot rely on seeing. -->
+    <ResourceDictionary.MergedDictionaries>
+        <!-- The two small chrome buttons, split off for the same line-limit reason and merged back in
+             here so that everything already merging this file still finds them. -->
+        <ResourceDictionary Source="QuickPanelChromeResources.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- Five tiles to a row, sized from the list's own width: see the converter for why five. -->
+    <conv:QuickPanelTileMetrics x:Key="QuickPanelTileMetrics"/>
+    <!-- The full window's row, rebuilt for a ListBox. SearchResultItemStyle itself cannot be
+         reused: it targets ListViewItem and presents through a GridViewRowPresenter, neither of
+         which a plain ListBox has. Everything that makes it behave the way it does is here,
+         though, and none of it is what ResultItemStyle does.
+
+         A real IsMouseOver trigger, so hovering highlights without selecting. ResultItemStyle
+         has none, because the lists it was written for select on hover instead and take their
+         highlight from IsSelected; that indirection is also what kept fighting multi-selection
+         here, and with a genuine hover trigger there is nothing left to fight.
+
+         Plain Setters, no EnterActions or ExitActions. ResultItemStyle animates the selection
+         fade, which is the flicker on every click this panel had and the full window does not. -->
+    <Style x:Key="QuickPanelRowStyle" TargetType="ListBoxItem">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0"/>
+        <!-- The full window's own row height, which is what these should match. ItemHeight, the
+             other candidate, is sized for a large icon plus breathing room and made the rows
+             tower over everything. MinHeight rather than Height so a row can still grow if its
+             own content ever needs to. -->
+        <Setter Property="MinHeight" Value="{x:Static services:UiMetrics.ListItemHeight}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Grid>
+                        <Rectangle x:Name="AccentBar" Width="3" HorizontalAlignment="Left"
+                                   RadiusX="1.5" RadiusY="1.5" Fill="Transparent" Margin="0,2"/>
+                        <Border x:Name="ItemBorder" Background="Transparent"
+                                CornerRadius="6" Margin="2,2,6,2" Padding="4,0,12,0" Cursor="Hand">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ItemHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ItemHover}"/>
+                            <Setter TargetName="AccentBar" Property="Fill" Value="{DynamicResource AccentBarColor}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+
+
+    <local:ModifiedTimeConverter x:Key="ModifiedTime"/>
+    <local:QuickPanelDisplayNameConverter x:Key="DisplayNameWithParent"/>
+    <local:QuickPanelRelativeDirectoryConverter x:Key="RelativeDirectory"/>
+
+    <!-- The detail row. Not the shared SearchResultTemplate, which draws the path underneath the
+         name: the path is already in the group's own header, once, and repeating it on every row
+         of that group says nothing. The modified time goes there instead, bound rather than
+         written onto the item, so a row whose time the index has yet to learn fills itself in
+         when it arrives. -->
+    <DataTemplate x:Key="QuickPanelDetailRowTemplate" DataType="{x:Type app:AppSearchResult}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Image Grid.Column="0" Source="{Binding Icon}" Width="20" Height="20"
+                   Margin="0,0,10,0" VerticalAlignment="Center"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
+
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <!-- Lit through the same attached behaviour every other result list uses: it asks the
+                     row for the mask, so exactly the characters the fzf match aligned to light up. -->
+                <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False"
+                              conv:ScrollViewerHelper.BubbleMouseWheel="True">
+                    <TextBlock FontSize="12"
+                               conv:TextHighlighter.HighlightText="{Binding DataContext.SearchQuery, RelativeSource={RelativeSource AncestorType=Window}}"
+                               conv:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}"
+                               Foreground="{DynamicResource TextPrimary}"
+                               helpers:MarqueeBehavior.EnableMarquee="True">
+                        <conv:TextHighlighter.Text>
+                            <MultiBinding Converter="{StaticResource DisplayNameWithParent}">
+                                <Binding/>
+                                <Binding Path="DataContext.FolderPath" RelativeSource="{RelativeSource AncestorType=ListBox}"/>
+                            </MultiBinding>
+                        </conv:TextHighlighter.Text>
+                    </TextBlock>
+                </ScrollViewer>
+                <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False" Margin="0,1,0,0"
+                              conv:ScrollViewerHelper.BubbleMouseWheel="True">
+                    <TextBlock Text="{Binding DateModified, Converter={StaticResource ModifiedTime}}"
+                               FontSize="10"
+                               Foreground="{DynamicResource TextSecondary2}"
+                               helpers:MarqueeBehavior.EnableMarquee="True"/>
+                </ScrollViewer>
+            </StackPanel>
+        </Grid>
+    </DataTemplate>
+
+    <!-- The sort switch, in each group header. Its glyph names the order it would GIVE you,
+         same as the view switch below and for the same reason. -->
+    <Style x:Key="QuickPanelSortToggleStyle" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Width" Value="20"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="ToolTip" Value="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_SortByName]}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="Transparent" CornerRadius="4">
+                        <TextBlock x:Name="Glyph" Text="&#xE8CB;" FontFamily="Segoe MDL2 Assets"
+                                   FontSize="10" Foreground="{DynamicResource TextSecondary2}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHover}"/>
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                        </Trigger>
+                        <DataTrigger Binding="{Binding SortMode}" Value="NameAscending">
+                            <Setter TargetName="Glyph" Property="Text" Value="&#xE81C;"/>
+                            <Setter Property="ToolTip" Value="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_SortByModified]}"/>
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The view switch. Its glyph shows what pressing it gives you, not what you are looking
+         at: a list icon while the tiles are up, tiles while the list is. A toggle that pictures
+         the current state reads as a label and leaves the button looking inert. -->
+    <Style x:Key="QuickPanelViewToggleStyle" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Width" Value="20"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="ToolTip" Value="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_ViewList]}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="Transparent" CornerRadius="4">
+                        <TextBlock x:Name="Glyph" Text="&#xE8FD;" FontFamily="Segoe MDL2 Assets"
+                                   FontSize="10" Foreground="{DynamicResource TextSecondary2}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHover}"/>
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                        </Trigger>
+                        <DataTrigger Binding="{Binding IsThumbnailView}" Value="False">
+                            <Setter TargetName="Glyph" Property="Text" Value="&#xE80A;"/>
+                            <Setter Property="ToolTip" Value="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_ViewThumbnails]}"/>
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A thumbnail tile. Icon binds to the same property the list rows use, which already
+         resolves through ShellIconHelper and whatever thumbnail providers are installed, so
+         nothing new fetches images: this is the same picture at a size worth looking at.
+         The name is allowed two lines before it is cut, a file called something long being the
+         normal case rather than the exception at this width. -->
+    <DataTemplate x:Key="QuickPanelTileTemplate" DataType="{x:Type app:AppSearchResult}">
+        <!-- No width of its own any more: the wrap panel hands each tile a slot five to a row (see
+             QuickPanelTileMetrics) and this fills it. The picture is sized from that same width, so a
+             panel docked to a wide window gets thumbnails worth looking at rather than more of them. -->
+        <Grid Margin="2,4,2,4">
+            <!-- A box every tile shares, with the picture fitted inside it keeping its own shape. The
+                 box is wider than tall (see the converter): square left a band of empty tile above and
+                 below every 16:9 thumbnail, and letting each picture set its own height made every row
+                 as tall as its tallest member, which is what turned a folder of mixed content ragged. -->
+            <StackPanel x:Name="TileContent">
+            <Border x:Name="TileIcon"
+                    Height="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource QuickPanelTileMetrics}, ConverterParameter=IconHeight}"
+                    Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource QuickPanelTileMetrics}, ConverterParameter=Icon}">
+                <Image Source="{Binding Icon}" Stretch="Uniform"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+            </Border>
+            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False" Margin="0,6,0,0"
+                          conv:ScrollViewerHelper.BubbleMouseWheel="True">
+                <TextBlock FontSize="11"
+                           conv:TextHighlighter.Text="{Binding Name}"
+                           conv:TextHighlighter.HighlightText="{Binding DataContext.SearchQuery, RelativeSource={RelativeSource AncestorType=Window}}"
+                           conv:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}"
+                           Foreground="{DynamicResource TextPrimary}"
+                           TextAlignment="Center"
+                           helpers:MarqueeBehavior.EnableMarquee="True"/>
+            </ScrollViewer>
+            </StackPanel>
+        </Grid>
+    </DataTemplate>
+
+    <!-- The tile's container. Not the row style: that one stretches to the full width and draws a
+         left accent bar, both of which are for a list. A tile sizes to itself and takes the
+         highlight as a rounded box around the whole thing. -->
+    <Style x:Key="QuickPanelTileStyle" TargetType="ListBoxItem">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="ClipToBounds" Value="False"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="ToolTip">
+            <Setter.Value>
+                <MultiBinding Converter="{StaticResource RelativeDirectory}">
+                    <Binding/>
+                    <Binding Path="DataContext.FolderPath" RelativeSource="{RelativeSource AncestorType=ListBox}"/>
+                </MultiBinding>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="TileBorder" Background="Transparent" CornerRadius="6"
+                            Margin="2" Padding="2" Cursor="Hand">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="TileBorder" Property="Background" Value="{DynamicResource ItemHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="TileBorder" Property="Background" Value="{DynamicResource ItemHover}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

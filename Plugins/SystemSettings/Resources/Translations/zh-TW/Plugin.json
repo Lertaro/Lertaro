@@ -1,0 +1,8 @@
+{
+  "SystemSettings_PluginName": "系統設定搜尋",
+  "SystemSettings_Name": "系統設定搜尋",
+  "SystemSettings_Description": "系統設定",
+  "SystemSettings_PluginDesc": "系統設定快速直達外掛。在搜尋結果中直接檢索並一鍵開啟 Windows 控制面板和系統設定項。",
+  "Plugin_Comp_Desc_SystemSettingsItemProvider": "掃描並收集系統內建控制面板（Control Panel）項與 UWP 設定頁面列表供搜尋主索引快速直達。",
+  "Plugin_Comp_Desc_SystemSettingsTranslationProvider": "為海量 Windows 設定項中文名與英文名對照對映提供翻譯包。"
+}

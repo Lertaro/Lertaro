@@ -1,0 +1,234 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- Theme Metadata -->
+    <sys:String x:Key="ThemeId">NeonGenesis</sys:String>
+    <sys:Boolean x:Key="IsDark">True</sys:Boolean>
+    <!-- Kept below 1.0 for the neon-glass feel, but not lower: WindowOpacity dims the whole window
+         content (ThemeManager/WindowEffectHelper), text included, and this window blends with the
+         real desktop behind it (AllowsTransparency=True): too low a floor made body text hard to
+         read over an arbitrary backdrop. -->
+    <sys:Double x:Key="WindowOpacity">0.94</sys:Double>
+
+    <!-- Animated Visual Brush for Neon Genesis (Self-Contained Grid & Scanline Triggers) -->
+    <VisualBrush x:Key="ContentBg" TileMode="None" Stretch="Fill">
+        <VisualBrush.Visual>
+            <Grid Width="800" Height="600" ClipToBounds="True">
+                <!-- Base Dark Space Radial Background -->
+                <Grid.Background>
+                    <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="1.0" RadiusY="1.0">
+                        <GradientStop Color="#FF1E0D3E" Offset="0.0"/>
+                        <GradientStop Color="#FF0F0722" Offset="0.6"/>
+                        <GradientStop Color="#FF05020B" Offset="1.0"/>
+                    </RadialGradientBrush>
+                </Grid.Background>
+
+                <!-- Glowing Cyber Grid Overlay -->
+                <Grid Opacity="0.15">
+                    <Grid.RowDefinitions>
+                        <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Grid Lines -->
+                    <Border Grid.Row="0" Grid.ColumnSpan="10" BorderThickness="0,0,0,1" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Row="1" Grid.ColumnSpan="10" BorderThickness="0,0,0,1" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Row="2" Grid.ColumnSpan="10" BorderThickness="0,0,0,1" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Row="3" Grid.ColumnSpan="10" BorderThickness="0,0,0,1" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Row="4" Grid.ColumnSpan="10" BorderThickness="0,0,0,1" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Row="5" Grid.ColumnSpan="10" BorderThickness="0,0,0,1" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Row="6" Grid.ColumnSpan="10" BorderThickness="0,0,0,1" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Row="7" Grid.ColumnSpan="10" BorderThickness="0,0,0,1" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Row="8" Grid.ColumnSpan="10" BorderThickness="0,0,0,1" BorderBrush="#FF39FF14"/>
+                    
+                    <Border Grid.Column="0" Grid.RowSpan="10" BorderThickness="0,0,1,0" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Column="1" Grid.RowSpan="10" BorderThickness="0,0,1,0" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Column="2" Grid.RowSpan="10" BorderThickness="0,0,1,0" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Column="3" Grid.RowSpan="10" BorderThickness="0,0,1,0" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Column="4" Grid.RowSpan="10" BorderThickness="0,0,1,0" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Column="5" Grid.RowSpan="10" BorderThickness="0,0,1,0" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Column="6" Grid.RowSpan="10" BorderThickness="0,0,1,0" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Column="7" Grid.RowSpan="10" BorderThickness="0,0,1,0" BorderBrush="#FF39FF14"/>
+                    <Border Grid.Column="8" Grid.RowSpan="10" BorderThickness="0,0,1,0" BorderBrush="#FF39FF14"/>
+                </Grid>
+
+                <!-- Scanning Line -->
+                <Border Height="4" VerticalAlignment="Top" Background="#8039FF14">
+                    <Border.Effect>
+                        <BlurEffect Radius="10"/>
+                    </Border.Effect>
+                    <Border.RenderTransform>
+                        <TranslateTransform X="0" Y="0"/>
+                    </Border.RenderTransform>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="FrameworkElement.SizeChanged">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                                     From="0" To="600" Duration="0:0:6" RepeatBehavior="Forever"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
+                </Border>
+            </Grid>
+        </VisualBrush.Visual>
+    </VisualBrush>
+
+    <LinearGradientBrush x:Key="HeaderBg" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FF1D0F3F" Offset="0.0"/>
+        <GradientStop Color="#FF0E0620" Offset="1.0"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="SidebarBg" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#FF07030F" Offset="0.0"/>
+        <GradientStop Color="#FF160B30" Offset="1.0"/>
+    </LinearGradientBrush>
+
+    <!-- Alpha raised from AA (~67%) to DD (~87%): low enough to still read as translucent neon
+         glass, high enough that body text stays legible against whatever's on the real desktop
+         behind it (this window is AllowsTransparency=True). -->
+    <LinearGradientBrush x:Key="CardBackground" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#DD1C0E3D" Offset="0.0"/>
+        <GradientStop Color="#DD0B0518" Offset="1.0"/>
+    </LinearGradientBrush>
+
+    <SolidColorBrush x:Key="CardBorderBrush" Color="#8039FF14"/>
+    <!-- Body/filename text uses the same neutral tones every other theme uses (matching Dark.xaml),
+         not the theme's own neon colors: a vivid green/violet base made every result name compete
+         with the search-highlight color instead of reading calmly, unlike any other theme. The neon
+         identity stays everywhere else (accents, borders, icons, badges). -->
+    <SolidColorBrush x:Key="TextPrimary" Color="#CCCCCC"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#9D9D9D"/>
+    <!-- Was the same green as TextPrimary, which made the search-result match highlight (bound to
+         AccentBlue) invisible against normal result text. Reassigned to this theme's own established
+         "selection" purple (already used for ItemSelected/AccentBarColor below)
+         instead of introducing a new color. -->
+    <SolidColorBrush x:Key="AccentBlue" Color="#FF6725C0"/>
+    <!-- Translucent (not opaque) to match this theme's glass/neon aesthetic: a fully opaque hover
+         fill reads as a flat slab against the glowing grid/scanline backdrop everywhere else. -->
+    <SolidColorBrush x:Key="HoverBackground" Color="#AA311966"/>
+    <!-- Dedicated accent-bar color: this theme's row-selection tint is already high-contrast against
+         its hover fill, so the bar reuses it as-is. -->
+    <SolidColorBrush x:Key="AccentBarColor" Color="#FF6725C0"/>
+    <SolidColorBrush x:Key="SeparatorBrush" Color="#FF4A2A80"/>
+    <SolidColorBrush x:Key="FolderIconColor" Color="#FFFF5500"/> <!-- Neon Orange -->
+    <SolidColorBrush x:Key="FileIconColor" Color="#FF00FFFF"/> <!-- Cyan -->
+    <SolidColorBrush x:Key="ShortcutColor" Color="#FF00FFFF"/>
+
+    <LinearGradientBrush x:Key="ControlBackground" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FF140A28" Offset="0.0"/>
+        <GradientStop Color="#FF0B0518" Offset="1.0"/>
+    </LinearGradientBrush>
+    
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#FF4A2A80"/>
+    <SolidColorBrush x:Key="ControlHoverBackground" Color="#FF311966"/>
+    <SolidColorBrush x:Key="ControlDisabledBackground" Color="#FF0B0518"/>
+    <SolidColorBrush x:Key="ControlDisabledBorderBrush" Color="#FF201035"/>
+    <SolidColorBrush x:Key="ControlDisabledForeground" Color="#FF5A3E80"/>
+    <SolidColorBrush x:Key="SpinnerTrackBrush" Color="#FF4A2A80"/>
+    
+    <LinearGradientBrush x:Key="MenuBackground" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FF180C34" Offset="0.0"/>
+        <GradientStop Color="#FF0E0620" Offset="1.0"/>
+    </LinearGradientBrush>
+    
+    <SolidColorBrush x:Key="MenuBorderBrush" Color="#FF4A2A80"/>
+    <SolidColorBrush x:Key="MenuText" Color="#FF39FF14"/>
+    <SolidColorBrush x:Key="MenuDisabledText" Color="#FF5A3E80"/>
+    <SolidColorBrush x:Key="WindowChromeText" Color="#FFB688FF"/>
+    <SolidColorBrush x:Key="WindowControlHover" Color="#FF311966"/>
+    <SolidColorBrush x:Key="ActionsHeaderBg" Color="#FF23124D"/>
+    
+    <LinearGradientBrush x:Key="SettingsCardBackground" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#D9180C34" Offset="0.0"/>
+        <GradientStop Color="#D90E0620" Offset="1.0"/>
+    </LinearGradientBrush>
+    
+    <SolidColorBrush x:Key="SettingsCardBorderBrush" Color="#FF4A2A80"/>
+    <SolidColorBrush x:Key="SettingsRowBorderBrush" Color="#FF1C0E3D"/>
+    <SolidColorBrush x:Key="HeaderColumnBg" Color="#FF23124D"/>
+    <SolidColorBrush x:Key="HeaderColumnText" Color="#FFB688FF"/>
+    <SolidColorBrush x:Key="WindowBorderBrush" Color="#FF39FF14"/>
+    
+    <SolidColorBrush x:Key="SidebarHover" Color="#AA311966"/>
+    <SolidColorBrush x:Key="SidebarSelected" Color="#FF6725C0"/>
+    <SolidColorBrush x:Key="SidebarText" Color="#FFB688FF"/>
+    <SolidColorBrush x:Key="SidebarTextActive" Color="#FF39FF14"/>
+    <SolidColorBrush x:Key="SidebarAccent" Color="#FF39FF14"/>
+    <SolidColorBrush x:Key="ItemHover" Color="#AA311966"/>
+    <SolidColorBrush x:Key="ItemSelected" Color="#FF6725C0"/>
+    <SolidColorBrush x:Key="BorderColor" Color="#FF4A2A80"/>
+    <SolidColorBrush x:Key="AccentColor" Color="#FF6725C0"/>
+    <SolidColorBrush x:Key="TextPrimary2" Color="#CCCCCC"/>
+    <SolidColorBrush x:Key="TextSecondary2" Color="#9D9D9D"/>
+    
+    <LinearGradientBrush x:Key="StatusBarBg" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#FF07030F" Offset="0.0"/>
+        <GradientStop Color="#FF160B30" Offset="1.0"/>
+    </LinearGradientBrush>
+    
+    <SolidColorBrush x:Key="IconMutedBrush" Color="#FF5A3E80"/>
+    <SolidColorBrush x:Key="SuccessBrush" Color="#FF39FF14"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="#FFFF5500"/>
+    <SolidColorBrush x:Key="WarningBackground" Color="#FF381005"/>
+    <SolidColorBrush x:Key="WarningBorderBrush" Color="#FF6E2405"/>
+    <SolidColorBrush x:Key="BadgeBackground" Color="#FF23124D"/>
+    <SolidColorBrush x:Key="BadgeBorderBrush" Color="#FF4A2A80"/>
+    <SolidColorBrush x:Key="BadgeText" Color="#FFFF5500"/>
+    
+    <SolidColorBrush x:Key="PrimaryButtonText" Color="#FF0B0518"/>
+    <LinearGradientBrush x:Key="PrimaryButtonHoverBackground" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FF72FF58" Offset="0.0"/>
+        <GradientStop Color="#FF39FF14" Offset="1.0"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="PrimaryButtonPressedBackground" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FF39FF14" Offset="0.0"/>
+        <GradientStop Color="#FF24A30D" Offset="1.0"/>
+    </LinearGradientBrush>
+    
+    <SolidColorBrush x:Key="SecondaryButtonText" Color="#FFB688FF"/>
+    <SolidColorBrush x:Key="SecondaryButtonHoverText" Color="#FF39FF14"/>
+
+    <SolidColorBrush x:Key="SuccessBadgeBackground" Color="#FF122810"/>
+    <SolidColorBrush x:Key="SuccessBadgeBorderBrush" Color="#FF244D20"/>
+    <SolidColorBrush x:Key="SuccessBadgeText" Color="#FF39FF14"/>
+    
+    <SolidColorBrush x:Key="ErrorBackground" Color="#FF360912"/>
+    <SolidColorBrush x:Key="ErrorBorderBrush" Color="#FF661224"/>
+    <SolidColorBrush x:Key="ErrorBrush" Color="#FFFF3B4F"/>
+
+    <SolidColorBrush x:Key="EmptyPlaceholderBackground" Color="#FF0B0518"/>
+    <SolidColorBrush x:Key="EmptyPlaceholderBorderBrush" Color="#FF4A2A80"/>
+    <SolidColorBrush x:Key="EmptyPlaceholderIcon" Color="#FF5A3E80"/>
+
+    <Color x:Key="ShadowColor">#FF39FF14</Color>
+
+    <!-- Mappings -->
+    <SolidColorBrush x:Key="#333333" Color="#FF39FF14"/>
+    <SolidColorBrush x:Key="#3A3A3A" Color="#FF39FF14"/>
+    <SolidColorBrush x:Key="#333" Color="#FF39FF14"/>
+
+    <SolidColorBrush x:Key="VideoIconColor" Color="#FFFF5500"/>
+    <SolidColorBrush x:Key="ArchiveIconColor" Color="#FFB82CFF"/>
+    <SolidColorBrush x:Key="DefaultPluginIconColor" Color="#FF39FF14"/>
+
+    <LinearGradientBrush x:Key="ScrollBarThumbBackground" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#FF4B2879" Offset="0.0"/>
+        <GradientStop Color="#FF612495" Offset="1.0"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ScrollBarThumbHover" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#FF612495" Offset="0.0"/>
+        <GradientStop Color="#FF57FF38" Offset="1.0"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ScrollBarThumbDragging" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#FF57FF38" Offset="0.0"/>
+        <GradientStop Color="#FFFF6D24" Offset="1.0"/>
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="CloseButtonHoverBg" Color="#FFFF5500"/>
+    <SolidColorBrush x:Key="CalculatorIconColor" Color="#FF39FF14"/>
+
+</ResourceDictionary>

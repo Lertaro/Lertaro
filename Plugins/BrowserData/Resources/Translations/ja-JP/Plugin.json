@@ -1,0 +1,19 @@
+{
+  "BrowserData_PluginName": "ブラウザーのブックマークと履歴",
+  "BrowserData_ProviderName": "ブラウザーのブックマークと履歴",
+  "BrowserData_Config_TriggerKeywordLabel": "トリガーキーワード",
+  "BrowserData_Config_TriggerKeywordDesc": "このキーワード（後ろにスペースと検索語を続ける）を入力するとブックマーク・履歴検索が起動します。既定値は \"bm\" です。",
+  "BrowserData_Config_IndexBookmarksLabel": "ブックマークを索引化",
+  "BrowserData_Config_IndexHistoryLabel": "履歴を索引化",
+  "BrowserData_Config_IndexHistoryDesc": "履歴はブックマークよりはるかに件数が多くなりがちです。オフにするとブックマークのみを検索対象にできます。",
+  "BrowserData_Config_ProfilesLabel": "ブラウザープロファイルディレクトリ",
+  "BrowserData_Config_ProfilesDesc": "索引化するブラウザーのプロファイルフォルダーを手動で追加します。Chrome 系（Chrome/Edge/Brave など）と Firefox 系のブラウザーに対応しています。複数追加できます。",
+  "BrowserData_Config_NameLabel": "名前",
+  "BrowserData_Config_IconDataLabel": "アイコン（ベクターパスデータ、任意）",
+  "BrowserData_Config_IconDataDesc": "空欄にすると、ブックマークと履歴を区別する既定アイコンが使われます。",
+  "BrowserData_Config_PathLabel": "プロファイルディレクトリ",
+  "BrowserData_Config_PathDesc": "ブラウザーのプロファイルフォルダー。例: Chrome/Edge なら \"...\\User Data\\Default\"、Firefox なら \"...\\Profiles\\xxxxxxxx.default-release\"。",
+  "BrowserData_PluginDesc": "ブラウザーデータアクセスプラグイン。主要ブラウザーの履歴、ブックマークなどのデータを素早く検索・アクセスできます。",
+  "Plugin_Comp_Desc_BrowserDataInstantProvider": "主要ブラウザー（Chrome、Edge、Firefox）の履歴とブックマークを、検索ボックスでリアルタイムにあいまい検索します。",
+  "Plugin_Comp_Desc_BrowserDataTranslationProvider": "ブラウザーデータプラグインの UI 翻訳とローカライズマッピングを提供します。"
+}

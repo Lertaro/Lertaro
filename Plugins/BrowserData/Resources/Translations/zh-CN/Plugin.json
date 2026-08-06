@@ -1,0 +1,19 @@
+{
+  "BrowserData_PluginName": "浏览器书签与历史",
+  "BrowserData_ProviderName": "浏览器书签与历史",
+  "BrowserData_Config_TriggerKeywordLabel": "触发词",
+  "BrowserData_Config_TriggerKeywordDesc": "输入此关键字（后跟一个空格加搜索词）来触发书签/历史记录搜索，例如默认的 \"bm\"。",
+  "BrowserData_Config_IndexBookmarksLabel": "索引书签",
+  "BrowserData_Config_IndexHistoryLabel": "索引历史记录",
+  "BrowserData_Config_IndexHistoryDesc": "历史记录数量往往远多于书签——关闭此项可只搜索书签。",
+  "BrowserData_Config_ProfilesLabel": "浏览器用户目录列表",
+  "BrowserData_Config_ProfilesDesc": "手动添加要索引的浏览器用户资料目录（Profile 文件夹），支持 Chrome 系（Chrome/Edge/Brave 等）和 Firefox 系浏览器，可添加多个。",
+  "BrowserData_Config_NameLabel": "名称",
+  "BrowserData_Config_IconDataLabel": "图标（矢量路径数据，可选）",
+  "BrowserData_Config_IconDataDesc": "留空则使用默认图标区分书签与历史记录。",
+  "BrowserData_Config_PathLabel": "用户目录路径",
+  "BrowserData_Config_PathDesc": "浏览器的用户资料目录，例如 Chrome/Edge 的 \"...\\User Data\\Default\"，或 Firefox 的 \"...\\Profiles\\xxxxxxxx.default-release\"。",
+  "BrowserData_PluginDesc": "浏览器数据直达插件。快速搜索并访问主流浏览器的历史记录、书签等数据。",
+  "Plugin_Comp_Desc_BrowserDataInstantProvider": "实时在搜索框中快速模糊匹配主流浏览器（如 Chrome、Edge、Firefox）的历史记录与书签数据。",
+  "Plugin_Comp_Desc_BrowserDataTranslationProvider": "为浏览器数据直达插件提供界面语言翻译与多语言本地化服务。"
+}

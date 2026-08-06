@@ -1,0 +1,4 @@
+{
+  "Plugins_SpanishAliasPluginName": "西班牙语重音别名",
+  "Plugin_Comp_Desc_SpanishAliasProvider": "支持输入无重音 ASCII 字母（如 nino, cancion）匹配带重音的西班牙语文件名（如 Niño, Canción）。"
+}

@@ -1,0 +1,21 @@
+{
+  "CustomActions_PluginName": "사용자 지정 동작 플러그인",
+  "CustomActions_GroupName": "사용자 지정 동작",
+  "CustomActions_Config_ActionsLabel": "사용자 지정 동작 목록",
+  "CustomActions_Config_ActionsDesc": "검색 결과 동작 메뉴에 표시되는 사용자 지정 동작을 구성합니다.",
+  "CustomActions_Config_EnabledLabel": "사용됨",
+  "CustomActions_Config_TitleLabel": "제목",
+  "CustomActions_Config_PathLabel": "경로 (프로그램 또는 파일)",
+  "CustomActions_Config_ParameterLabel": "매개변수 (%s 또는 {} = 선택한 경로; 자동으로 따옴표가 붙으므로 직접 따옴표를 추가하지 마세요; 비워두면 따옴표로 묶인 경로 자체가 매개변수로 사용됩니다)",
+  "CustomActions_Config_IconLabel": "아이콘 (SVG Path 데이터)",
+  "CustomActions_Config_WorkingDirLabel": "작업 디렉터리",
+  "CustomActions_Config_RunSilentlyLabel": "무음으로 실행",
+  "CustomActions_Config_RunAsAdminLabel": "관리자 권한으로 실행",
+  "CustomActions_Config_HotkeyLabel": "단축키",
+  "CustomActions_Config_FolderOnlyLabel": "폴더에만 적용",
+  "CustomActions_Config_MultiSelectLabel": "다중 선택 지원 (선택한 모든 경로를 한 번에 전달하여 실행)",
+  "CustomActions_Config_ExtensionsLabel": "확장자 필터 (예: .txt,.log; 비워두면 제한 없음)",
+  "CustomActions_PluginDesc": "사용자 지정 동작 플러그인입니다. 사용자가 우클릭 컨텍스트 메뉴 동작을 사용자 지정할 수 있게 합니다.",
+  "Plugin_Comp_Desc_DynamicActionProvider": "검색 결과 컨텍스트 메뉴에 동적 사용자 지정 동작 메뉴를 삽입하며, 외부 명령과 매개변수 서식을 지원합니다.",
+  "Plugin_Comp_Desc_CustomActionsTranslationProvider": "사용자 지정 동작에 대한 번역 키와 다국어 지역화를 제공합니다."
+}

@@ -1,0 +1,21 @@
+{
+  "WebSearch_PluginName": "ウェブ検索プラグイン",
+  "WebSearch_PluginDesc": "検索ボックスに特定のトリガーキーワードを直接入力するだけで、カスタムまたは組み込みの検索エンジン（Google、百度（Baidu）、GitHub など）を使ってウェブ検索を素早く開始できます。",
+  "WebSearch_ProviderName": "ウェブ検索",
+  "WebSearch_PlaceholderTitle": "{0} で検索",
+  "WebSearch_PlaceholderDesc": "キーワードを入力して Enter を押すと検索します",
+  "WebSearch_ResultTitle": "{0} で検索: {1}",
+  "WebSearch_ResultDesc": "Enter または クリックでブラウザーに検索結果を開きます",
+  "WebSearch_Config_SourcesLabel": "カスタム検索ソース",
+  "WebSearch_Config_SourcesDesc": "ウェブ検索用のカスタム検索エンジンとキーワードを設定します。",
+  "WebSearch_Config_NameLabel": "名前",
+  "WebSearch_Config_KeywordLabel": "トリガーキーワード",
+  "WebSearch_Config_IconLabel": "アイコン",
+  "WebSearch_Config_UrlLabel": "URL（プレースホルダーとして %s を使用）",
+  "WebSearch_Config_SuggestUrlLabel": "候補 URL（任意、プレースホルダーとして %s を使用）",
+  "WebSearch_Config_SuggestUrlDesc": "空欄にすると、この検索エンジンの候補表示を無効化します。設定すると、入力中に最大5件のライブ候補を取得します（OpenSearch JSON 形式）。",
+  "WebSearch_SuggestionDesc": "{0} からの候補 — Enter または クリックで検索",
+  "WebSearch_ProviderDesc": "検索ボックスでキーワードを使い、主要な検索エンジンやカスタム検索エンジンを素早く起動します。",
+  "Plugin_Comp_Desc_WebSearchInstantProvider": "検索ボックスに入力したカスタム検索エンジンのキーワード（例: bd、gh）を使って、リアルタイムにウェブ検索を開始します。",
+  "Plugin_Comp_Desc_WebSearchTranslationProvider": "ウェブ検索プラグインの UI 翻訳とローカライズリソースを提供します。"
+}

@@ -1,0 +1,12 @@
+{
+  "Plugins_DirectoryOpus_EnableInlineSearch": "インライン検索を有効化",
+  "Plugins_DirectoryOpus_EnableInlineSearchDesc": "Directory Opus でダブルクリックまたはホットキーを押してインライン検索を呼び出せるようにします",
+  "Plugins_DirectoryOpus_EnableQuickNav": "クイックナビゲーションメニューを有効化",
+  "Plugins_DirectoryOpus_EnableQuickNavDesc": "Directory Opus のファイル一覧で中クリックしてクイックナビゲーションメニューを呼び出せるようにします",
+  "DirectoryOpus_PluginDesc": "Directory Opus 連携プラグイン。アクティブなパスを読み取り、Directory Opus 内でクイックなファイル位置特定サービスを提供します。",
+  "Plugin_Comp_Desc_DirectoryOpusPathCollector": "Directory Opus のファイルマネージャーパネルから、アクティブなフォルダーディレクトリのパスを読み取り収集します。",
+  "Plugin_Comp_Desc_DirectoryOpusInlineSearchAdapter": "Directory Opus のメインリスターウィンドウに、インラインのピンイン/頭文字フィルタリングとクイックナビゲーションを提供します。",
+  "Plugins_DirectoryOpus_Favorites_RootLabel": "お気に入り",
+  "Plugins_DirectoryOpus_Favorites_Empty": "(空)",
+  "Plugin_Comp_Desc_FavoritesProvider": "Directory Opus の設定ファイルからお気に入りメニューを読み取り、クイックナビゲーションのカスケードメニューとして提供します。"
+}

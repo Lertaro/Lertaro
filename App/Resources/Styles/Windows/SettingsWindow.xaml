@@ -1,0 +1,312 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:conv="clr-namespace:Lertaro.App.Converters"
+                    xmlns:services="clr-namespace:Lertaro.App.Services"
+                    xmlns:pconv="clr-namespace:Lertaro.App.Views.Settings.Plugins">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Tokens/Colors.xaml"/>
+        <!-- Needed for RuleTextBox's BasedOn="{StaticResource {x:Type TextBox}}" below: StaticResource
+             resolves against the dictionary this file itself merges, not wherever RuleTextBox ends up
+             being consumed from (same rule IndexSettings/Styles.xaml's own copy of this style already
+             had to account for). -->
+        <ResourceDictionary Source="../Controls/Controls.xaml"/>
+        <!-- SettingsComboBox/SettingsComboBoxItem: split out because the combo box's custom
+             ControlTemplate (toggle chrome + popup) is a large, self-contained unit that isn't
+             coupled to the other settings styles below. -->
+        <ResourceDictionary Source="SettingsComboBox.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <Style x:Key="SettingsSectionTitle" TargetType="TextBlock">
+        
+        <Setter Property="FontSize" Value="18"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="Margin" Value="0,0,0,4"/>
+    </Style>
+
+    <Style x:Key="SettingsHintText" TargetType="TextBlock">
+
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
+    <Style x:Key="SettingsCard" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource SettingsCardBackground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SettingsCardBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="16"/>
+        <Setter Property="Margin" Value="0,12,0,0"/>
+    </Style>
+
+    <Style x:Key="SettingsRow" TargetType="Border">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SettingsRowBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="Padding" Value="0,10"/>
+    </Style>
+
+    <Style x:Key="SettingsGroupTitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="Margin" Value="0,20,0,10"/>
+    </Style>
+
+    <Style x:Key="SettingsSubHeading" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="Margin" Value="0,14,0,8"/>
+    </Style>
+
+    <Style x:Key="SettingsGroupDivider" TargetType="Border">
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="Background" Value="{DynamicResource SettingsRowBorderBrush}"/>
+        <Setter Property="Margin" Value="0,10,0,0"/>
+    </Style>
+
+    <Style x:Key="TabHeaderButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Padding" Value="0,0,0,10"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <!-- The Border is what makes the padding clickable. Without it the template was a
+                         bare ContentPresenter, and an element with no Background is not hit-testable at
+                         all: the target was the text's own glyphs and nothing else, so the padding that
+                         looks like part of the tab did nothing. Transparent hit-tests and costs nothing
+                         to draw. Padding moves onto the Border from the presenter's Margin, which is the
+                         same geometry said the right way round. -->
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="TabUnderlineStyle" TargetType="Border">
+        <Setter Property="Height" Value="2"/>
+        <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+        <Setter Property="Margin" Value="0,-2,0,0"/>
+        <Setter Property="Visibility" Value="Collapsed"/>
+    </Style>
+
+    <!-- Plain-text "select all / deselect all" toggle: a real Button (chrome, border,
+         background) reads as a heavier action than it is next to a group label, so this
+         uses a hyperlink look instead to match its actual weight. -->
+    <Style x:Key="LinkButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <TextBlock x:Name="LinkText" Text="{TemplateBinding Content}" FontSize="{TemplateBinding FontSize}"
+                               Foreground="{TemplateBinding Foreground}"/>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="LinkText" Property="TextDecorations" Value="Underline"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Small square icon button for a rule/row action (remove, reorder, ...). Two variants exist
+         because their hover feedback genuinely differs: this one is background-only, used by the
+         Startup Panel's tab-order/recent-files rows. -->
+    <Style x:Key="RuleIconButton" TargetType="Button">
+        <Setter Property="Width" Value="32"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Margin" Value="6,0,0,0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary2}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="6" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ControlHoverBackground}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Same shape as RuleIconButton, but hover also tints the border/foreground accent-blue: used
+         by the Hotkey blacklist and Index exclusion-rule rows. -->
+    <Style x:Key="RuleIconButtonAccent" TargetType="Button">
+        <Setter Property="Width" Value="32"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Margin" Value="6,0,0,0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary2}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="6" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="RuleTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <Style x:Key="RuleBulkTextBox" TargetType="TextBox" BasedOn="{StaticResource RuleTextBox}">
+        <Setter Property="Height" Value="132"/>
+        <Setter Property="AcceptsReturn" Value="True"/>
+        <Setter Property="AcceptsTab" Value="True"/>
+        <Setter Property="TextWrapping" Value="NoWrap"/>
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="VerticalContentAlignment" Value="Top"/>
+        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas"/>
+    </Style>
+
+    <!-- Small square icon button for the result-type / quick-nav-provider reorder rows (Move Up/Down).
+         Hover tints border+foreground with AccentColor rather than AccentBlue, matching the General
+         settings page's own accent everywhere else: a different accent from RuleIconButtonAccent's
+         AccentBlue, kept as its own style rather than merged with it. -->
+    <Style x:Key="QuickNavIconButton" TargetType="Button">
+        <Setter Property="Width" Value="32"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Margin" Value="6,0,0,0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary2}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="6" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <pconv:ComponentTypeToBadgeBrushConverter x:Key="TypeToBrush"/>
+    <conv:StringToVisibilityConverter x:Key="StringToVis"/>
+
+    <!-- One editable list of process names: type-and-add, a row each, and a bulk box for pasting or
+         exporting the lot. Lives here rather than in one page because three lists want it now (the
+         hotkey blacklist, the quick panel's addition to it, and a workspace's own app list) and the
+         second and third were otherwise going to be bare text boxes. Content is a
+         ProcessBlacklistEditorViewModel; the row buttons reach its commands through the ItemsControl
+         rather than an ancestor UserControl, since the same template is used on several pages. -->
+    <DataTemplate x:Key="ProcessListRowTemplate">
+        <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                           Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13"
+                           Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="&#xE70F;"
+                            ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Blacklist_EditTooltip]}"
+                            Style="{StaticResource RuleIconButtonAccent}"
+                            Command="{Binding DataContext.EditProcessCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}"/>
+                    <Button Content="&#xE74D;"
+                            ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Blacklist_RemoveTooltip]}"
+                            Style="{StaticResource RuleIconButtonAccent}"
+                            Command="{Binding DataContext.RemoveProcessCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate x:Key="ProcessListEditorTemplate">
+        <StackPanel>
+            <DockPanel Margin="0,0,0,10">
+                <Button DockPanel.Dock="Right"
+                        Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Blacklist_AddBtn]}"
+                        Style="{StaticResource PrimarySettingsButton}"
+                        Command="{Binding AddProcessCommand}" Margin="10,0,0,0"/>
+                <TextBox Style="{StaticResource RuleTextBox}"
+                         Text="{Binding NewProcessName, UpdateSourceTrigger=PropertyChanged}"/>
+            </DockPanel>
+
+            <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource ProcessListRowTemplate}"/>
+
+            <TextBox Style="{StaticResource RuleBulkTextBox}" Margin="0,10,0,8"
+                     Text="{Binding BulkText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Blacklist_GenerateBtn]}"
+                        Style="{StaticResource SettingsButton}"
+                        Command="{Binding ExportTextCommand}" Margin="0,0,8,0"/>
+                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Blacklist_ApplyBtn]}"
+                        Style="{StaticResource PrimarySettingsButton}"
+                        Command="{Binding ApplyTextCommand}"/>
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+</ResourceDictionary>

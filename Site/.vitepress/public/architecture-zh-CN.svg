@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 310" width="840" height="310" class="architecture-diagram" style="width: 100%; max-width: 840px; margin: 20px auto; display: block; font-family: system-ui, -apple-system, sans-serif; background-color: transparent;">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="serviceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+    <linearGradient id="appGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </linearGradient>
+    <linearGradient id="hookGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#ef4444" />
+    </linearGradient>
+    <linearGradient id="dbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    
+    <!-- Shadow -->
+    <filter id="premium-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#0f172a" flood-opacity="0.06" />
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.04" />
+    </filter>
+  </defs>
+
+  <style>
+    .card-title { fill: #1e293b; transition: fill 0.3s; }
+    .card-desc { fill: #64748b; transition: fill 0.3s; }
+    .card-rect { fill: transparent; }
+    .border-default { stroke: #e2e8f0; transition: stroke 0.3s; }
+    @media (prefers-color-scheme: dark) {
+      .card-title { fill: #f8fafc; }
+      .card-desc { fill: #94a3b8; }
+      .border-default { stroke: #334155; }
+    }
+  </style>
+
+  <!-- Column 1: Service Indexer -->
+  <g filter="url(#premium-shadow)">
+    <rect x="50" y="40" width="200" height="90" rx="16" class="card-rect" stroke="url(#serviceGrad)" stroke-width="2.5" />
+    <rect x="65" y="55" width="8" height="8" rx="4" fill="#3b82f6" />
+    <text x="150" y="72" font-weight="800" font-size="15" class="card-title" text-anchor="middle">Service (索引)</text>
+    <text x="150" y="95" font-size="11" class="card-desc" text-anchor="middle" font-weight="500">bin: Service.exe --service</text>
+    <text x="150" y="112" font-size="9" fill="#3b82f6" text-anchor="middle" font-weight="700" letter-spacing="1">SYSTEM 权限守护</text>
+  </g>
+
+  <!-- Column 2: App UI -->
+  <g filter="url(#premium-shadow)">
+    <rect x="320" y="40" width="200" height="90" rx="16" class="card-rect" stroke="url(#appGrad)" stroke-width="2.5" />
+    <rect x="335" y="55" width="8" height="8" rx="4" fill="#8b5cf6" />
+    <text x="420" y="72" font-weight="800" font-size="15" class="card-title" text-anchor="middle">Lertaro.App</text>
+    <text x="420" y="95" font-size="11" class="card-desc" text-anchor="middle" font-weight="500">主程序交互窗口 (WPF)</text>
+    <text x="420" y="112" font-size="9" fill="#8b5cf6" text-anchor="middle" font-weight="700" letter-spacing="1">USER 桌面级交互</text>
+  </g>
+
+  <!-- Column 3: Service Hook -->
+  <g filter="url(#premium-shadow)">
+    <rect x="590" y="40" width="200" height="90" rx="16" class="card-rect" stroke="url(#hookGrad)" stroke-width="2.5" />
+    <rect x="605" y="55" width="8" height="8" rx="4" fill="#f59e0b" />
+    <text x="690" y="72" font-weight="800" font-size="15" class="card-title" text-anchor="middle">Service (钩子)</text>
+    <text x="690" y="95" font-size="11" class="card-desc" text-anchor="middle" font-weight="500">bin: Service.exe --hook</text>
+    <text x="690" y="112" font-size="9" fill="#f59e0b" text-anchor="middle" font-weight="700" letter-spacing="1">USER 会话输入监听</text>
+  </g>
+
+  <!-- Column 1 Downward: NTFS -->
+  <g filter="url(#premium-shadow)">
+    <rect x="50" y="190" width="200" height="80" rx="14" class="card-rect" stroke="url(#dbGrad)" stroke-width="2" />
+    <text x="150" y="225" font-weight="700" font-size="13" class="card-title" text-anchor="middle">NTFS MFT &amp; USN</text>
+    <text x="150" y="248" font-size="11" class="card-desc" text-anchor="middle">低延迟文件扫描与监听</text>
+  </g>
+
+  <!-- Column 2 Downward: Plugins -->
+  <g filter="url(#premium-shadow)">
+    <rect x="320" y="190" width="200" height="80" rx="14" class="card-rect" stroke="url(#appGrad)" stroke-width="2" />
+    <text x="420" y="225" font-weight="700" font-size="13" class="card-title" text-anchor="middle">用户本地插件</text>
+    <text x="420" y="248" font-size="11" class="card-desc" text-anchor="middle">CustomAlias / Settings</text>
+  </g>
+
+  <!-- Column 3 Downward: System Hooks -->
+  <g filter="url(#premium-shadow)">
+    <rect x="590" y="190" width="200" height="80" rx="14" class="card-rect border-default" stroke-width="2" />
+    <text x="690" y="225" font-weight="700" font-size="13" class="card-title" text-anchor="middle">Win32 Hooks &amp; Trackers</text>
+    <text x="690" y="248" font-size="11" class="card-desc" text-anchor="middle">快捷键拦截与路径追踪</text>
+  </g>
+
+  <!-- Search Pipe Connection (Indexer <-> App) -->
+  <g>
+    <path d="M 250 85 L 257 85 M 313 85 L 320 85" stroke="#3b82f6" stroke-dasharray="4,3" stroke-width="1.5" />
+    <polygon points="250,85 260,81 260,89" fill="#3b82f6" />
+    <polygon points="320,85 310,81 310,89" fill="#3b82f6" />
+    
+    <rect x="257" y="76" width="56" height="18" rx="5" fill="transparent" stroke="#3b82f6" stroke-width="1" />
+    <text x="285" y="89" font-size="9" fill="#3b82f6" text-anchor="middle" font-weight="700">检索通信</text>
+  </g>
+
+  <!-- Hook IPC Connection (Hook <-> App) -->
+  <g>
+    <path d="M 520 85 L 535 85 M 575 85 L 590 85" stroke="#f59e0b" stroke-dasharray="4,3" stroke-width="1.5" />
+    <polygon points="520,85 530,81 530,89" fill="#f59e0b" />
+    <polygon points="590,85 580,81 580,89" fill="#f59e0b" />
+    
+    <rect x="535" y="76" width="40" height="18" rx="5" fill="transparent" stroke="#f59e0b" stroke-width="1" />
+    <text x="555" y="89" font-size="9" fill="#f59e0b" text-anchor="middle" font-weight="700">IPC</text>
+  </g>
+
+  <!-- Column 1 Downward Line -->
+  <g>
+    <path d="M 150 130 L 150 190" stroke="#10b981" stroke-width="1.5" stroke-dasharray="3,3" />
+    <polygon points="150,190 145,180 155,180" fill="#10b981" />
+  </g>
+
+  <!-- Column 2 Downward Line -->
+  <g>
+    <path d="M 420 130 L 420 190" stroke="#8b5cf6" stroke-width="1.5" stroke-dasharray="3,3" />
+    <polygon points="420,190 415,180 425,180" fill="#8b5cf6" />
+  </g>
+
+  <!-- Column 3 Downward Line -->
+  <g>
+    <path d="M 690 130 L 690 190" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3,3" />
+    <polygon points="690,190 685,180 695,180" fill="#f59e0b" />
+  </g>
+</svg>

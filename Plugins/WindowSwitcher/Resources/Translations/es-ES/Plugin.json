@@ -1,0 +1,13 @@
+{
+  "WindowSwitcher_PluginName": "Selector de Ventanas",
+  "WindowSwitcher_Name": "Selector de Ventanas",
+  "WindowSwitcher_Path": "Ruta",
+  "WindowSwitcher_AccessDenied": "[Acceso Denegado]",
+  "WindowSwitcher_Config_TriggerKeywordLabel": "Palabra Clave de Activación",
+  "WindowSwitcher_Config_TriggerKeywordDesc": "Escribe esta palabra clave (opcionalmente seguida de un espacio y un término de búsqueda) para activar la búsqueda de ventanas, por ejemplo, la predeterminada \"win\".",
+  "WindowSwitcher_Config_UseScreenshotIconsLabel": "Mostrar el Contenido de la Ventana como Icono",
+  "WindowSwitcher_Config_UseScreenshotIconsDesc": "Muestra una pequeña miniatura en vivo del contenido real de cada ventana en lugar del icono de la aplicación. Las miniaturas se capturan en segundo plano y se almacenan en caché brevemente, por lo que desactivar esta opción evita por completo ese trabajo de captura en segundo plano.",
+  "WindowSwitcher_PluginDesc": "Complemento selector de ventanas. Lista las ventanas actualmente abiertas y a las que se puede cambiar (el mismo conjunto que muestra Alt+Tab) por título, nombre de proceso o PID, y lleva la seleccionada al primer plano.",
+  "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "Busca las ventanas actualmente abiertas por título, nombre de proceso o PID, y ofrece una acción de un clic para cambiar a la ventana seleccionada desde el cuadro de búsqueda.",
+  "Plugin_Comp_Desc_WindowSwitcherTranslationProvider": "Ofrece traducción de la interfaz y asignación de localización para el complemento Selector de Ventanas."
+}

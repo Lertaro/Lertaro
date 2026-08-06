@@ -1,0 +1,21 @@
+{
+  "WebSearch_PluginName": "网页搜索与快捷直达插件",
+  "WebSearch_PluginDesc": "通过在搜索框输入特定的触发词，直接调用自定义或内置的搜索引擎（如百度、谷歌、GitHub等）快速发起网页检索。",
+  "WebSearch_ProviderName": "网页搜索",
+  "WebSearch_PlaceholderTitle": "使用 {0} 搜索",
+  "WebSearch_PlaceholderDesc": "输入关键字并回车进行搜索",
+  "WebSearch_ResultTitle": "使用 {0} 搜索: {1}",
+  "WebSearch_ResultDesc": "回车或单击直接在浏览器中打开搜索结果",
+  "WebSearch_Config_SourcesLabel": "自定义搜索源",
+  "WebSearch_Config_SourcesDesc": "配置网页搜索的自定义搜索引擎和关键字。",
+  "WebSearch_Config_NameLabel": "名称",
+  "WebSearch_Config_KeywordLabel": "触发关键字",
+  "WebSearch_Config_IconLabel": "图标",
+  "WebSearch_Config_UrlLabel": "网址 (使用 %s 作为占位符)",
+  "WebSearch_Config_SuggestUrlLabel": "建议接口地址 (可选，使用 %s 作为占位符)",
+  "WebSearch_Config_SuggestUrlDesc": "留空则不启用该引擎的搜索建议。填写后，将在输入时实时获取最多 5 条建议（OpenSearch JSON 格式）。",
+  "WebSearch_SuggestionDesc": "{0} 建议 — 回车或单击进行搜索",
+  "WebSearch_ProviderDesc": "通过设置的关键字，在输入框中快捷触发主流搜索引擎或自定义网页搜索。",
+  "Plugin_Comp_Desc_WebSearchInstantProvider": "在搜索框中键入自定义搜索源关键字（如 bd, gh），即可实时发起对应搜索引擎的网页检索。",
+  "Plugin_Comp_Desc_WebSearchTranslationProvider": "为网页搜索与快捷直达插件本身提供界面菜单和多语言本地化翻译服务。"
+}

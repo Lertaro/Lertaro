@@ -1,0 +1,8 @@
+{
+  "SystemSettings_PluginName": "Búsqueda de Configuración del Sistema",
+  "SystemSettings_Name": "Búsqueda de Configuración del Sistema",
+  "SystemSettings_Description": "Configuración del Sistema",
+  "SystemSettings_PluginDesc": "Complemento de acceso directo a la configuración del sistema. Busca y abre elementos del Panel de Control de Windows y de la configuración del sistema directamente desde los resultados de búsqueda.",
+  "Plugin_Comp_Desc_SystemSettingsItemProvider": "Recopila los enlaces de la Configuración UWP de Windows y del Panel de Control para una coincidencia de índice rápida y una ejecución directa.",
+  "Plugin_Comp_Desc_SystemSettingsTranslationProvider": "Asigna y traduce los títulos localizados de la configuración de Windows."
+}

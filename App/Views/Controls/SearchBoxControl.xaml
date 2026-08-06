@@ -1,0 +1,288 @@
+<UserControl x:Class="Lertaro.App.SearchBoxControl"
+             x:Name="root"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d" 
+             d:DesignHeight="50" d:DesignWidth="600">
+    
+    <Grid>
+            <Grid.ColumnDefinitions>
+                <!-- Left Icon Column -->
+                <ColumnDefinition Width="Auto"/>
+                <!-- Actions Label Column -->
+                <ColumnDefinition Width="Auto"/>
+                <!-- TextBox Column -->
+                <ColumnDefinition Width="*"/>
+                <!-- Right Icon Column -->
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Icon Grid (Visible only when IsIconOnLeft is True) -->
+            <Grid Grid.Column="0" Margin="0,0,11,0" VerticalAlignment="Center"
+                  MouseRightButtonUp="Icon_MouseRightButtonUp"
+                  MouseLeftButtonDown="Icon_MouseLeftButtonDown" MouseLeftButtonUp="Icon_MouseLeftButtonUp" MouseMove="Icon_MouseMove"
+                  ToolTip="{Binding IconClickHint, ElementName=root}">
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Setter Property="Cursor" Value="Arrow"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsIconOnLeft, ElementName=root}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsInActionsMode, ElementName=root}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsIconClickable, ElementName=root}" Value="True">
+                                <Setter Property="Cursor" Value="Hand"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+                <!-- Monochrome logo icon: the ONE element, at all times: while a search is in flight it
+                     just breathes its own opacity (accent-colored) in place, rather than a separate
+                     spinner/glow shape popping in over it (see issue #132: the old hard Collapsed/Visible
+                     swap between the logo and a detached spinner flickered on nearly every keystroke). -->
+                <Border Width="{Binding LeftIconSize, ElementName=root}" Height="{Binding LeftIconSize, ElementName=root}" SnapsToDevicePixels="True" UseLayoutRounding="True" RenderOptions.BitmapScalingMode="HighQuality">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{DynamicResource TextSecondary}"/>
+                            <Setter Property="Opacity" Value="0.5"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsServiceRunning, ElementName=root}" Value="False">
+                                    <Setter Property="Background" Value="{DynamicResource WarningBrush}"/>
+                                    <Setter Property="Opacity" Value="0.8"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSearching}" Value="True">
+                                    <DataTrigger.EnterActions>
+                                        <BeginStoryboard x:Name="LeftLogoBreathe">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                 From="0.25" To="1" Duration="0:0:0.6"
+                                                                 AutoReverse="True" RepeatBehavior="Forever">
+                                                    <DoubleAnimation.EasingFunction>
+                                                        <SineEase EasingMode="EaseInOut"/>
+                                                    </DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </DataTrigger.EnterActions>
+                                    <DataTrigger.ExitActions>
+                                        <StopStoryboard BeginStoryboardName="LeftLogoBreathe"/>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <!-- FillBehavior="Stop": the default (HoldEnd) would keep this animation
+                                                     locking Opacity at 0.5 forever once it finishes, permanently masking
+                                                     the hover-highlight trigger below (Setter-based values never win over
+                                                     a still-holding animation) even after the mouse is back over the icon. -->
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0.5" Duration="0:0:0.2" FillBehavior="Stop"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </DataTrigger.ExitActions>
+                                </DataTrigger>
+                                <!-- Hover highlight: only when this window has actually wired up
+                                     IconLeftClicked (IsIconClickable): otherwise hovering would light
+                                     up an icon that does nothing when clicked. -->
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True"/>
+                                        <Condition Binding="{Binding IsIconClickable, ElementName=root}" Value="True"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Opacity" Value="1"/>
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Border.OpacityMask>
+                        <ImageBrush ImageSource="pack://application:,,,/Lertaro.App;component/tray.png"
+                                    RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Border.OpacityMask>
+                </Border>
+            </Grid>
+
+            <!-- Actions Label -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,11,0">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsInActionsMode, ElementName=root}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_ActionsTitle]}"
+                           Foreground="{DynamicResource AccentBlue}" FontSize="{Binding FontSize, ElementName=root}"
+                           VerticalAlignment="Center"/>
+                <!-- Vertical divider line: height tracks RightIconSize (already derived from the search
+                     box's own real height when IsDynamicScalingEnabled: see SearchBoxControl.xaml.cs)
+                     instead of a separate hardcoded number, so it keeps scaling with the search bar
+                     rather than drifting out of proportion on windows with a different configured height. -->
+                <Border Width="1" Height="{Binding RightIconSize, ElementName=root}" Margin="11,0,0,0" Background="{DynamicResource SeparatorBrush}" SnapsToDevicePixels="True"/>
+            </StackPanel>
+
+            <!-- TextBox -->
+            <TextBox x:Name="TxtSearch"
+                     Grid.Column="2"
+                     Text="{Binding SearchText, ElementName=root, UpdateSourceTrigger=PropertyChanged}"
+                     FontSize="{Binding FontSize, ElementName=root}"
+                     
+                     Foreground="{DynamicResource TextPrimary}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     VerticalAlignment="Center"
+                     CaretBrush="{DynamicResource TextPrimary}"/>
+
+            <!-- Placeholder -->
+            <TextBlock x:Name="TxtPlaceholder"
+                       Grid.Column="2"
+                       FontSize="{Binding FontSize, ElementName=root}"
+                       Foreground="{DynamicResource TextSecondary}"
+                       VerticalAlignment="Center"
+                       IsHitTestVisible="False">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Text" Value="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickSearch_Placeholder]}"/>
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Text, ElementName=TxtSearch}" Value="">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Text, ElementName=TxtSearch}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsInActionsMode, ElementName=root}" Value="True">
+                                <Setter Property="Text" Value="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_ActionsSearchPlaceholder]}"/>
+                            </DataTrigger>
+                            <!-- Quick window only, opt-in (General settings > Layout, see issue #101): while
+                                 the box is empty there's nothing useful to type-hint about, so the clock takes
+                                 over the same slot instead of adding a separate element elsewhere. Binds
+                                 straight to the ambient DataContext (QuickSearchViewModel), matching how
+                                 IsSearching elsewhere in this control already does the same. FallbackValue
+                                 keeps this a no-op in SearchWindow, whose DataContext (SearchViewModel)
+                                 doesn't expose ClockVisibility at all; InlineSearchWindow DOES share
+                                 QuickSearchViewModel, so it needs ClockVisibility's own IsInlineSearchContext
+                                 check instead to stay excluded.
+
+                                 IsInActionsMode=False is an explicit second condition (not just relying on
+                                 this trigger being declared after the IsInActionsMode one above) because
+                                 both conditions can be true at once: the box reads empty while browsing
+                                 actions the same as while idle, and a later plain Setter always wins a
+                                 tie over an earlier one regardless of which state feels more "current". -->
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding ClockVisibility, FallbackValue=Collapsed}" Value="Visible"/>
+                                    <Condition Binding="{Binding IsInActionsMode, ElementName=root}" Value="False"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Text" Value="{Binding ClockText}"/>
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <!-- Right Icon Grid (Visible only when IsIconOnLeft is False) -->
+            <!-- MouseUp rather than a middle-specific event, because WPF has none: the handler checks
+                 ChangedButton itself. Only this icon carries it, matching the indicator above: Stay Open
+                 is a quick-window feature and this is the logo that window shows. -->
+            <Grid Grid.Column="3" Margin="11,0,0,0" VerticalAlignment="Center"
+                  MouseRightButtonUp="Icon_MouseRightButtonUp"
+                  MouseLeftButtonDown="Icon_MouseLeftButtonDown" MouseLeftButtonUp="Icon_MouseLeftButtonUp" MouseMove="Icon_MouseMove"
+                  MouseUp="Icon_MouseUp"
+                  ToolTip="{Binding IconClickHint, ElementName=root}">
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Setter Property="Cursor" Value="Arrow"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsIconOnLeft, ElementName=root}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsInActionsMode, ElementName=root}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsIconClickable, ElementName=root}" Value="True">
+                                <Setter Property="Cursor" Value="Hand"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+                <!-- Monochrome logo icon: the ONE element, at all times: see the left-icon block's own
+                     comment for why (issue #132). -->
+                <Border Width="{Binding RightIconSize, ElementName=root}" Height="{Binding RightIconSize, ElementName=root}" SnapsToDevicePixels="True" UseLayoutRounding="True" RenderOptions.BitmapScalingMode="HighQuality">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{DynamicResource TextSecondary}"/>
+                            <Setter Property="Opacity" Value="0.6"/>
+                            <Style.Triggers>
+                                <!-- Right icon only: Stay Open is a quick-window feature and the quick
+                                     window leaves IsIconOnLeft false, so this is the logo it shows.
+                                     Declared ahead of the service-down trigger on purpose: when two
+                                     DataTriggers both match the later one wins, and "the service is
+                                     unreachable" has to keep outranking "you asked this window to stay".
+                                     TextPrimary, one step up from the TextSecondary above rather than a
+                                     colour of its own, so this reads as the logo lit up instead of a
+                                     light coming on. SuccessBrush was tried and is wrong for it: the
+                                     semantic brushes are a fixed hue that ignores the palette (the
+                                     curated themes all carry the same three greens), which both looks
+                                     out of place in otherwise neutral chrome and makes every theme look
+                                     identical here. TextPrimary genuinely follows each theme, and cannot
+                                     be taken for the warning or for the accent the searching state
+                                     breathes in. -->
+                                <DataTrigger Binding="{Binding IsStayOpen, ElementName=root}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource TextPrimary}"/>
+                                    <Setter Property="Opacity" Value="1.0"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsServiceRunning, ElementName=root}" Value="False">
+                                    <Setter Property="Background" Value="{DynamicResource WarningBrush}"/>
+                                    <Setter Property="Opacity" Value="0.8"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSearching}" Value="True">
+                                    <DataTrigger.EnterActions>
+                                        <BeginStoryboard x:Name="RightLogoBreathe">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                 From="0.25" To="1" Duration="0:0:0.6"
+                                                                 AutoReverse="True" RepeatBehavior="Forever">
+                                                    <DoubleAnimation.EasingFunction>
+                                                        <SineEase EasingMode="EaseInOut"/>
+                                                    </DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </DataTrigger.EnterActions>
+                                    <DataTrigger.ExitActions>
+                                        <StopStoryboard BeginStoryboardName="RightLogoBreathe"/>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <!-- FillBehavior="Stop": see the left-icon block's identical fix. -->
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0.6" Duration="0:0:0.2" FillBehavior="Stop"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </DataTrigger.ExitActions>
+                                </DataTrigger>
+                                <!-- Hover highlight: only when this window has actually wired up
+                                     IconLeftClicked (IsIconClickable): otherwise hovering would light
+                                     up an icon that does nothing when clicked. -->
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True"/>
+                                        <Condition Binding="{Binding IsIconClickable, ElementName=root}" Value="True"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Opacity" Value="1"/>
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Border.OpacityMask>
+                        <ImageBrush ImageSource="pack://application:,,,/Lertaro.App;component/tray.png"
+                                    RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Border.OpacityMask>
+                </Border>
+            </Grid>
+        </Grid>
+</UserControl>

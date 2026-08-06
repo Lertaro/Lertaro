@@ -1,0 +1,9 @@
+{
+  "Plugins_OneCommander_EnableInlineSearch": "인라인 검색 사용",
+  "Plugins_OneCommander_EnableInlineSearchDesc": "OneCommander에서 더블클릭하거나 단축키를 눌러 인라인 검색을 호출할 수 있게 합니다",
+  "Plugins_OneCommander_EnableQuickNav": "빠른 탐색 메뉴 사용",
+  "Plugins_OneCommander_EnableQuickNavDesc": "OneCommander 창에서 가운데 버튼을 클릭하여 빠른 탐색 메뉴를 호출할 수 있게 합니다",
+  "OneCommander_PluginDesc": "One Commander 통합 플러그인입니다. One Commander의 활성 경로를 읽어 빠른 이동과 파일 위치 찾기를 지원합니다.",
+  "Plugin_Comp_Desc_OneCommanderPathCollector": "One Commander에서 활성 파일 관리자 폴더 경로를 자동으로 캡처합니다.",
+  "Plugin_Comp_Desc_OneCommanderInlineSearchAdapter": "One Commander 창 내에서 인라인 입력 기반 병음/퍼지 검색과 탐색을 제공합니다."
+}

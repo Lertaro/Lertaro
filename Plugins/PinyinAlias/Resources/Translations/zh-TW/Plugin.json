@@ -1,0 +1,4 @@
+{
+  "Plugins_PinyinAliasPluginName": "拼音拼寫搜尋別名外掛",
+  "Plugin_Comp_Desc_PinyinAliasProvider": "為非 ASCII 文字（如中文）自動生成拼音首字母等搜尋別名以加速檢索。"
+}
