@@ -10,7 +10,9 @@ namespace Lertaro.Core.Services.Search;
 public class SearchService : IDisposable
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<List<SearchResult>>> _sessionDirectoryCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly CancellationTokenSource _cacheFillCts = new();
     private readonly SearchPipeClient _pipeClient = new();
+    private int _disposed;
 
     public Task<UsnIndexer.IndexerStatus> GetStatusAsync(CancellationToken token = default) => _pipeClient.GetStatusAsync(token);
 
@@ -170,6 +172,7 @@ public class SearchService : IDisposable
         Task<bool>? liveTask = null;
         if (needsLiveSearch && !string.IsNullOrEmpty(liveScanDir))
         {
+            var cacheFillToken = _cacheFillCts.Token;
             liveTask = Task.Run(async () =>
             {
                 try
@@ -180,10 +183,9 @@ public class SearchService : IDisposable
                     // targeted, so typing into a directory that needs one (excluded from the index, an
                     // unconfigured network drive, ...) queued every subsequent keystroke's own scan
                     // attempt behind whichever one happened to go first, none of which could even check
-                    // their own cancellation token until they finally got the lock. The shared scan itself
-                    // runs with CancellationToken.None (it keeps going and stays cached for later use even
-                    // if THIS caller's own search gets superseded a moment later); only the wait for it is
-                    // cancellable per caller, via WaitAsync.
+                    // their own cancellation token until they finally got the lock. The shared scan keeps
+                    // running when this one query is superseded so the next query in this window can reuse
+                    // it, but the SearchService owns its lifetime and cancels it when the window closes.
                     if (_sessionDirectoryCache.Count > 32)
                         _sessionDirectoryCache.Clear();
                     var onlyDirectChildren = parsed.IsPathMode && string.IsNullOrEmpty(liveScanFilter);
@@ -193,7 +195,7 @@ public class SearchService : IDisposable
                     // walk finished; streaming matches out as each directory is walked keeps the first,
                     // cold keystroke from looking frozen even though the underlying walk cost is unchanged.
                     var scanTask = _sessionDirectoryCache.GetOrAdd(liveScanDir,
-                        dir => Task.Run(() => LiveDirectorySearcher.ScanDirectory(dir, 10000, CancellationToken.None,
+                        dir => Task.Run(() => LiveDirectorySearcher.ScanDirectory(dir, 10000, cacheFillToken,
                             liveQuery: liveScanFilter, onLiveMatch: uniqueOnResult,
                             onlyDirectChildren: onlyDirectChildren, parentPath: liveScanDir)));
                     var entries = await scanTask.WaitAsync(token).ConfigureAwait(false);
@@ -249,5 +251,12 @@ public class SearchService : IDisposable
     internal Task<PipeResponse> SendPipeCommandAsync(SearchRequestMessage msg, CancellationToken token)
         => _pipeClient.SendPipeCommandAsync(msg, token);
 
-    public void Dispose() => GC.SuppressFinalize(this);
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+        _cacheFillCts.Cancel();
+        _cacheFillCts.Dispose();
+        GC.SuppressFinalize(this);
+    }
 }
