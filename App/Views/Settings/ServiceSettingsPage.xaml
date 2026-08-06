@@ -254,6 +254,7 @@
                  code-behind whenever Log.Lines changes (RichTextBox has no ItemsSource to bind to). -->
             <RichTextBox x:Name="LogTextBox" IsReadOnly="True" IsReadOnlyCaretVisible="True"
                          Background="Transparent" BorderThickness="0" Padding="12,10"
+                         CaretBrush="{DynamicResource TextPrimary}"
                          FontFamily="Consolas" FontSize="11"
                          HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                          PreviewMouseWheel="LogTextBox_PreviewMouseWheel">
