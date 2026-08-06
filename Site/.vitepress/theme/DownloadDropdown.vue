@@ -90,7 +90,7 @@ onUnmounted(() => {
         <div class="menu-section">{{ t('downloadArmSection') }}</div>
 
         <a
-          href="https://github.com/Lertaro/Lertaro/releases/latest/download/Lertaro-Setup_arm64.exe"
+          href="https://github.com/Lertaro/Lertaro/releases/latest/download/Lertaro-Setup-arm64.exe"
           class="menu-item compact"
         >
           <span class="item-icon">💾</span>
@@ -100,7 +100,7 @@ onUnmounted(() => {
         </a>
 
         <a
-          href="https://github.com/Lertaro/Lertaro/releases/latest/download/Lertaro-Portable_arm64.zip"
+          href="https://github.com/Lertaro/Lertaro/releases/latest/download/Lertaro-Portable-arm64.zip"
           class="menu-item compact"
         >
           <span class="item-icon">📦</span>
