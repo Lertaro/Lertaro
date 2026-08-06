@@ -47,11 +47,11 @@ public sealed class FzfFuzzyMatcherTests
     [TestMethod]
     public void FuzzyMatchV2_ScatteredCharactersInOrder_StillMatch()
     {
-        // "swiftlist" contains s, w, l as a scattered subsequence at indices 0, 1, 5.
-        var result = FzfFuzzyMatcher.FuzzyMatchV2("swiftlist", "swl", caseSensitive: false, FzfScoringScheme.Default);
+        // "lertaro" contains l, r, o as a scattered subsequence at indices 0, 2, 6.
+        var result = FzfFuzzyMatcher.FuzzyMatchV2("lertaro", "lro", caseSensitive: false, FzfScoringScheme.Default);
 
         Assert.AreEqual(0, result.Start);
-        Assert.AreEqual(6, result.End);
+        Assert.AreEqual(7, result.End);
     }
 
     [TestMethod]
