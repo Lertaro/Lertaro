@@ -21,8 +21,5 @@ public sealed class LocalSendClientHelperTests
     }
 
     [TestMethod]
-    public void GetMimeTypeForFileName_UsesTheFullOfficialMimeMap()
-    {
-        Assert.AreEqual("video/3gpp2", LocalSendClientHelper.GetMimeTypeForFileName("video.3g2"));
-    }
+    public void GetMimeTypeForFileName_UsesTheFullOfficialMimeMap() => Assert.AreEqual("video/3gpp2", LocalSendClientHelper.GetMimeTypeForFileName("video.3g2"));
 }

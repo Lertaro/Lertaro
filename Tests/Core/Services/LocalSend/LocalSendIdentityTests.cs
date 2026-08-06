@@ -1,4 +1,3 @@
-using Lertaro.Core;
 using Lertaro.Core.Services.LocalSend;
 
 namespace Lertaro.Core.Tests.Services.LocalSend;

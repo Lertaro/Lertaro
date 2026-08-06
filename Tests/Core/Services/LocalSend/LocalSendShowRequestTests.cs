@@ -14,8 +14,5 @@ public sealed class LocalSendShowRequestTests
     }
 
     [TestMethod]
-    public void ParseFiles_InvalidPayload_ReturnsNoFiles()
-    {
-        Assert.IsNull(LocalSendShowRequest.ParseFiles("not-json"));
-    }
+    public void ParseFiles_InvalidPayload_ReturnsNoFiles() => Assert.IsNull(LocalSendShowRequest.ParseFiles("not-json"));
 }
