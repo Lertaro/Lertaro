@@ -78,6 +78,20 @@ g lertaro github
 
 opens a Google search for "lertaro github" in your browser.
 
+## Translation
+
+Translator's default keyword is `tr`. Type text after it to translate into the language currently
+selected for Lertaro's interface:
+
+```
+tr hello
+```
+
+The result appears asynchronously; press **Enter** or click it to copy it. The text to translate is
+sent to Microsoft Translator, so this feature requires an Internet connection. Its target language
+is the App's current language setting. Change the keyword under **Settings → Plugins → Translator →
+Configure**.
+
 ## File Filters
 
 Index specific folders under their own rule, configured entirely under **Settings → Plugins →

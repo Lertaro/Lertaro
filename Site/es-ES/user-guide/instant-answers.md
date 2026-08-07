@@ -80,6 +80,16 @@ g lertaro github
 
 abre una búsqueda de Google de "lertaro github" en tu navegador.
 
+## Traducción
+
+La palabra clave predeterminada del complemento de traducción es `tr`. Escribe texto después de ella para traducirlo al idioma seleccionado actualmente para la interfaz de Lertaro:
+
+```
+tr hello
+```
+
+El resultado aparece de forma asíncrona; pulsa **Entrar** o haz clic para copiarlo. El texto que se va a traducir se envía a Microsoft Translator, por lo que esta función requiere conexión a Internet. El idioma de destino es el idioma actual de la App. Puedes cambiar la palabra clave en **Configuración → Plugins → Traducción → Configurar**.
+
 ## Filtros de archivos
 
 Indexa carpetas concretas bajo su propia regla, configurado por completo en **Configuración → Plugins → Filtros de

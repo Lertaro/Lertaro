@@ -16,7 +16,7 @@ This manual covers everything a day-to-day user needs:
   QuickLook preview pane.
 - **[Instant Answers & Keyword Shortcuts](./instant-answers)** — the calculator, environment
   variables, run-command shortcuts, and keyword-triggered plugins like Process Manager, Window
-  Switcher, Browser Data, Settings Search, and Web Search.
+  Switcher, Browser Data, Settings Search, Web Search, and Translator.
 - **[Command-Line Search (lff)](./cli)** — the fzf-style CLI companion for searching from a
   terminal.
 - **[URI Protocol (lertaro://)](./uri-protocol)** — jumping straight into a search or a

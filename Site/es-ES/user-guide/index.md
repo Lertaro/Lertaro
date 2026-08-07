@@ -17,7 +17,7 @@ Este manual cubre todo lo que un usuario habitual necesita:
   el panel de vista previa QuickLook.
 - **[Respuestas instantáneas y atajos de palabra clave](./instant-answers)** — la calculadora, las variables de
   entorno, los atajos de comandos y los plugins activados por palabra clave como Gestor de procesos, Cambio de
-  ventana, Datos del navegador, Búsqueda de configuración y Búsqueda web.
+  ventana, Datos del navegador, Búsqueda de configuración, Búsqueda web y Traducción.
 - **[Búsqueda por línea de comandos (lff)](./cli)** — el complemento de línea de comandos al estilo fzf para
   buscar desde una terminal.
 - **[Protocolo URI (lertaro://)](./uri-protocol)** — saltar directamente a una búsqueda o a un ajuste concreto
