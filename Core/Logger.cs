@@ -1,3 +1,6 @@
+using Lertaro.Core.Services.Installation;
+using System.Security.Principal;
+
 namespace Lertaro.Core;
 
 public enum LogLevel
@@ -10,21 +13,27 @@ public enum LogLevel
 
 public static class Logger
 {
-    /// <summary>
-    /// System-wide shared data directory: %ProgramData%\Lertaro
-    /// Used by the service for logs, index cache, etc.
-    /// </summary>
-    public static readonly string SharedDataDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-        "Lertaro");
+    private static readonly InstallationMode CurrentInstallationMode = InstallationDetector.Detect();
 
     /// <summary>
-    /// Per-user data directory: %LocalAppData%\Lertaro
-    /// Used by the UI for per-user logs.
+    /// System-wide shared data directory: %ProgramData%\Lertaro for an installed copy, or Data\Machine
+    /// beside a portable copy. Used by the service for logs, index cache, etc.
     /// </summary>
-    public static readonly string UserDataDir = Path.Combine(
+    public static readonly string SharedDataDir = DataDirectoryResolver.ResolveShared(
+        CurrentInstallationMode,
+        AppContext.BaseDirectory,
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData));
+
+    /// <summary>
+    /// Per-user data directory. A verified portable copy keeps its data under Data\Users\&lt;SID hash&gt;
+    /// so settings, history, certificates, and per-user caches travel with it without exposing the
+    /// account SID in a path. Installed copies retain %LocalAppData%\Lertaro.
+    /// </summary>
+    public static readonly string UserDataDir = DataDirectoryResolver.ResolveUser(
+        CurrentInstallationMode,
+        AppContext.BaseDirectory,
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Lertaro");
+        WindowsIdentity.GetCurrent().User!.Value);
 
     private static string _logDir = string.Empty;
     private static string _logPath = string.Empty;
