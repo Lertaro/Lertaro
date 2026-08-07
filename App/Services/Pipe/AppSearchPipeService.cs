@@ -23,14 +23,14 @@ namespace Lertaro.App.Services.Pipe;
 public static class AppSearchPipeService
 {
     // Two independent layers, matching how AppPipeService's own activation pipe scopes itself, plus one
-    // more: the per-username suffix means a different Windows account's App instance never contends for
+    // more: the per-SID and per-session suffix means a different Windows account's App instance never contends for
     // the exact same pipe name in the first place (Windows named pipes live in the machine-wide \\.\pipe\
     // namespace, not session-isolated by default), and the ACL below backs that with actual enforcement --
     // the OS itself rejects a connection attempt from any SID but the current user's, so even a guessed/
     // predicted name (Windows usernames aren't secret) can't cross accounts. This matters specifically for
     // this pipe (unlike the plain activation one) because a search request can return another user's own
     // file paths/network-drive contents.
-    private static readonly string PipeName = $"Lertaro_App_Search_Pipe_{Environment.UserName}";
+    private static readonly string PipeName = AppPipeNames.SearchPipeName;
     private static bool _keepRunning = true;
     private static readonly SearchService SharedSearchService = new();
 

@@ -28,4 +28,9 @@ public sealed class HookIpcNamesTests
 
     [TestMethod]
     public void EventPipeName_AndCmdPipeName_AreDistinct() => Assert.AreNotEqual(HookIpcNames.EventPipeName, HookIpcNames.CmdPipeName);
+
+    [TestMethod]
+    public void BuildName_UsesTheCombinedSidAndSessionHashInsteadOfTheUserName() => Assert.AreEqual(
+        "Lertaro_Hook_Events_session-hash",
+        HookIpcNames.BuildName("Events", "session-hash"));
 }

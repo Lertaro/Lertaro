@@ -14,7 +14,7 @@ public static class AppPipeService
     // instance's server loop below treats anything other than "ACTIVATE" as a lertaro:// URI to route.
     public static async Task SendActivateSignalAsync(string? uri = null, CancellationToken token = default)
     {
-        var pipeName = $"Lertaro_App_Pipe_{Environment.UserName}";
+        var pipeName = AppPipeNames.ActivationPipeName;
 
         try
         {
@@ -34,7 +34,7 @@ public static class AppPipeService
 
     private static async Task RunPipeServerAsync()
     {
-        var pipeName = $"Lertaro_App_Pipe_{Environment.UserName}";
+        var pipeName = AppPipeNames.ActivationPipeName;
         while (_keepRunningPipeServer)
         {
             try

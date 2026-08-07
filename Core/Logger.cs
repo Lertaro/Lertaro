@@ -1,5 +1,4 @@
 using Lertaro.Core.Services.Installation;
-using System.Security.Principal;
 
 namespace Lertaro.Core;
 
@@ -33,7 +32,7 @@ public static class Logger
         CurrentInstallationMode,
         AppContext.BaseDirectory,
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        WindowsIdentity.GetCurrent().User!.Value);
+        CurrentUserIdentity.SidHash);
 
     private static string _logDir = string.Empty;
     private static string _logPath = string.Empty;

@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
-
 namespace Lertaro.Core.Services.Installation;
 
 /// <summary>Chooses machine and per-user state directories for the running deployment form.</summary>
@@ -17,9 +14,6 @@ public static class DataDirectoryResolver
         string localApplicationDataDirectory,
         string userSid)
         => mode == InstallationMode.Portable
-            ? Path.Combine(applicationDirectory, "Data", "Users", HashSid(userSid))
+            ? Path.Combine(applicationDirectory, "Data", "Users", CurrentUserIdentity.Hash(userSid))
             : Path.Combine(localApplicationDataDirectory, "Lertaro");
-
-    internal static string HashSid(string userSid)
-        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(userSid))).ToLowerInvariant();
 }

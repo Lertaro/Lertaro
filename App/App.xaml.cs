@@ -14,6 +14,7 @@ using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.App.ViewModels.Settings.General;
 using Lertaro.Core;
 using Lertaro.Core.Hook.Ipc;
+using Lertaro.Core.Services.Installation;
 using Lertaro.Core.Services;
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 using Application = System.Windows.Application;
@@ -75,9 +76,9 @@ public partial class App : Application
 
         // Single instance check per user session
 
-        // We append the username to guarantee multi-user isolation on the same machine
-
-        var mutexName = $@"Local\Lertaro_App_{Environment.UserName}";
+        // The hash includes both SID and session, so accounts sharing a short username cannot collide
+        // and no account/session identifier is exposed in the mutex name.
+        var mutexName = $@"Local\Lertaro_App_{CurrentUserIdentity.SessionHash}";
         _appMutex = new Mutex(true, mutexName, out var createdNew);
         if (!createdNew)
         {
