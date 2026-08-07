@@ -131,9 +131,7 @@ a global block.
   one order; tabs drag to reorder, and each has an **×** that takes it out of the strip (turning a
   workspace off, or closing a plugin tab — both undone in the settings above). Closing the last one
   closes the panel.
-- **Group headings** carry a sort toggle (by name / by date modified), a view toggle (tiles / list)
-  and a collapse arrow. What you do to a group here lasts for as long as the panel is open; the
-  starting state is what the settings above say.
+- **Group headings** carry a sort toggle (by name / by date modified), a view toggle (tiles / list), and a collapse arrow. Click the heading itself or its arrow to expand or collapse the group, like a standard Windows group header; the sort and view controls keep their own actions. What you do to a group here lasts for as long as the panel is open; the starting state is what the settings above say.
 - **Line numbers** — every group shares the left gutter. List view numbers items; tile view numbers
   visual rows. Its width follows the largest visible number, so the gutter stays aligned. Scrolling
   never changes a group's expanded state; use its collapse arrow when you want to open or close it.

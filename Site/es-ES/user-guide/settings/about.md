@@ -4,18 +4,16 @@ Muestra los números de versión de los componentes App, Core, Service y CLI (co
 sano en ese momento), una breve descripción de Lertaro, y enlaces a la página de inicio del proyecto y a la guía
 de usuario en línea.
 
-## Carpetas de configuración
+## Carpetas de datos
 
 Dos enlaces más, justo debajo de esos, abren las carpetas desde las que Lertaro lee y en las que escribe su
 propia configuración — cada uno muestra la ruta real como texto del enlace pulsable, creando primero la carpeta si
 aún no existe:
 
-- **Carpeta de configuración de usuario** — la carpeta por usuario que contiene `user-settings.json`. Cada vez
-  que se guarda la configuración, el archivo anterior se rota a `user-settings.json.bak.1` (desplazando hacia
-  abajo cualquier copia de seguridad más antigua, hasta `.bak.5`) antes de escribir el nuevo, de modo que una
-  edición defectuosa o un fallo a mitad de guardado siempre deja una copia reciente desde la que restaurar.
-- **Carpeta de configuración del sistema** — la carpeta compartida, de ámbito de todo el equipo, usada por el
-  servicio en segundo plano (`machine-settings.json`, cachés del índice y registros del lado del servicio).
+- **Carpeta de datos de usuario** — la carpeta por usuario que contiene `user-settings.json`. Cada vez que se guarda la configuración, el archivo anterior se rota a `user-settings.json.bak.1` (desplazando hacia abajo cualquier copia de seguridad más antigua, hasta `.bak.5`) antes de escribir el nuevo, de modo que una edición defectuosa o un fallo a mitad de guardado siempre deja una copia reciente desde la que restaurar. También contiene el historial, certificados y cachés específicos del usuario.
+- **Carpeta de datos del equipo** — la carpeta de todo el equipo usada por el servicio en segundo plano (`machine-settings.json`, cachés del índice de unidades locales y registros del servicio).
+
+La versión instalada usa `%LocalAppData%\Lertaro` y `%ProgramData%\Lertaro`. La versión portátil usa `Data\Users\<SID hash>` y `Data\Machine` junto a la aplicación; si la carpeta portátil `Data` aún no se ha creado, reutiliza los datos existentes de la instalación por compatibilidad. Consulta [Datos portátiles](../getting-started#datos-portátiles) para conocer la prioridad.
 
 ## Buscar actualizaciones
 

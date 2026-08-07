@@ -9,6 +9,10 @@
 
 這兩種形式都分別提供 **x64** 和 **ARM64** 版本。上面這些是 x64 版本，在絕大多數電腦上都能執行——包括 Windows on ARM 裝置，只是以模擬方式執行。如果用的是 ARM 裝置，建議改用 `Lertaro-Setup-arm64.exe` 或 `Lertaro-Portable-arm64.zip`，它們是原生版本。自動更新會一直維持在你安裝時的架構上，所以要換成另一種，需要自己去下載。
 
+## 可攜版資料
+
+可攜版會在程式旁將機器資料儲存到 `Data\Machine`，並把每位使用者的私有資料儲存到 `Data\Users\<SID hash>`。如果其 `Data` 目錄尚未建立，為了相容會重複使用已有的 `%ProgramData%\Lertaro` 和 `%LocalAppData%\Lertaro` 資料；建立 `Data` 後，該可攜版將優先使用自己的資料並成為自包含副本。
+
 首次執行時，Lertaro 會安裝並啟動一個 Windows 服務（`Lertaro.Service`），專門負責檔案索引。這個拆分是有意為之的——如果好奇原因可以參考[架構設計](../dev-guide/architecture)——但作為一般使用者，只需要知道：**設定 → 執行狀態** 頁面會告訴你服務是否已安裝、是否在執行，如果還沒安裝，也可以在這裡安裝。
 
 ## 三種視窗

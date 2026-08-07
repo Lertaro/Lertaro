@@ -135,9 +135,7 @@ merezcan un bloqueo global.
   comparten una sola franja y un solo orden; las pestañas se arrastran para reordenarlas, y cada una tiene una **×**
   que la saca de la franja (apagando el espacio de trabajo, o cerrando la pestaña de plugin: ambas cosas se deshacen
   en los ajustes de arriba). Cerrar la última cierra el panel.
-- **Los encabezados de grupo** llevan un conmutador de orden (por nombre / por fecha de modificación), uno de vista
-  (miniaturas / lista) y una flecha para plegar. Lo que hagas aquí dura mientras el panel esté abierto; el estado
-  inicial es el que digan los ajustes de arriba.
+- **Los encabezados de grupo** llevan un conmutador de orden (por nombre / por fecha de modificación), uno de vista (miniaturas / lista) y una flecha para plegar. Haz clic en el encabezado o en su flecha para expandir o plegar el grupo, como en un encabezado estándar de Windows; los controles de orden y vista conservan sus propias acciones. Lo que hagas aquí dura mientras el panel esté abierto; el estado inicial es el que digan los ajustes de arriba.
 - **Números de línea** — todos los grupos comparten el margen izquierdo. La vista de lista numera elementos; la de mosaicos numera filas visuales. Su anchura sigue al mayor número visible, por lo que queda alineado. Desplazarse nunca cambia el estado expandido de un grupo: usa su flecha para abrirlo o cerrarlo.
 - **Seleccionar varios** — en vista de miniaturas, arrastra un recuadro por el espacio vacío para hacer una
   selección. La selección pertenece a un solo grupo, ya que cada grupo dibuja su propia lista; hacer clic en el

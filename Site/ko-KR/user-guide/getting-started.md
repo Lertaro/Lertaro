@@ -20,6 +20,10 @@
 동작하는 `Lertaro-Setup-arm64.exe` 또는 `Lertaro-Portable-arm64.zip`을 사용하세요. 자동
 업데이트는 설치할 때의 아키텍처를 그대로 유지하므로, 다른 쪽으로 옮기려면 직접 내려받아야 합니다.
 
+## 휴대용 데이터
+
+휴대용 버전은 애플리케이션 옆의 `Data\Machine`에 컴퓨터 데이터를, `Data\Users\<SID hash>`에 각 사용자의 개인 데이터를 저장합니다. `Data` 폴더가 아직 없으면 호환성을 위해 기존 `%ProgramData%\Lertaro` 및 `%LocalAppData%\Lertaro` 데이터를 재사용합니다. `Data`를 만들면 이 휴대용 복사본이 자체 데이터를 우선하여 독립적으로 동작합니다.
+
 처음 실행하면, Lertaro는 파일 인덱싱을 담당하는 Windows 서비스(`Lertaro.Service`)를 설치하고
 시작합니다. 이렇게 분리한 것은 의도적인 설계입니다 — 그 이유가 궁금하다면 [아키텍처](../dev-guide/architecture)를
 참고하세요 — 하지만 사용자로서 알아야 할 것은 하나뿐입니다. **설정 → 서비스 상태**에서 서비스가 설치되어

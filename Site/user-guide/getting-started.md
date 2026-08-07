@@ -23,6 +23,10 @@ run on any recent PC — including Windows on ARM, where they run emulated. On a
 stay on the architecture you installed, so moving between them means downloading the other build
 yourself.
 
+## Portable data
+
+A portable copy stores machine data in `Data\Machine` and each user's private data in `Data\Users\<SID hash>` beside the application. If its `Data` folder has not been created yet, existing `%ProgramData%\Lertaro` and `%LocalAppData%\Lertaro` data is reused for compatibility; create `Data` when you want the portable copy to take precedence and be self-contained.
+
 On first run, Lertaro installs and starts a Windows service (`Lertaro.Service`) that owns file
 indexing. This split exists on purpose — see [Architecture](../dev-guide/architecture) if you're
 curious why — but as a user, the only thing you need to know is: **Settings → Service Status**

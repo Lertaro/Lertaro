@@ -49,9 +49,9 @@ different in each of the [three windows](./getting-started#the-three-windows):
 
 ## Quick navigation (mouse)
 
-Enabled by default, toggled per-trigger in settings:
+Middle-click is enabled by default; double-click is disabled by default. Each trigger can be changed independently in settings:
 
-- **Double-click** empty space on the desktop or inside an Explorer window to trigger quick navigation.
+- **Double-click** empty space on the desktop or inside an Explorer window to trigger quick navigation when you enable this trigger.
 - **Middle-click** empty space on the desktop or inside an Explorer window — or the file list of a
   supported third-party file manager (Directory Opus, Total Commander, XYplorer, Files, ...), or a
   native Open/Save/Browse-for-folder dialog — to trigger quick navigation. Those other windows only

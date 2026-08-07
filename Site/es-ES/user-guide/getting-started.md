@@ -23,6 +23,10 @@ preferible `Lertaro-Setup-arm64.exe` o `Lertaro-Portable-arm64.zip`, que son nat
 automáticas mantienen la arquitectura que instalaste, así que pasar de una a otra implica descargar la otra
 versión tú mismo.
 
+## Datos portátiles
+
+Una copia portátil guarda los datos del equipo en `Data\Machine` y los datos privados de cada usuario en `Data\Users\<SID hash>`, junto a la aplicación. Si todavía no existe su carpeta `Data`, reutiliza los datos existentes de `%ProgramData%\Lertaro` y `%LocalAppData%\Lertaro` por compatibilidad; crea `Data` cuando quieras que la copia portátil tenga prioridad y sea autosuficiente.
+
 En el primer arranque, Lertaro instala e inicia un servicio de Windows (`Lertaro.Service`) que se encarga de
 la indexación de archivos. Esta división existe a propósito — ver [Arquitectura](../dev-guide/architecture) si
 tienes curiosidad por saber por qué — pero, como usuario, lo único que necesitas saber es: **Configuración →

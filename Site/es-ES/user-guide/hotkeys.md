@@ -51,10 +51,9 @@ distinto en cada una de las [tres ventanas](./getting-started#las-tres-ventanas)
 
 ## Navegación rápida (ratón)
 
-Activada por defecto, se puede alternar cada disparador por separado en la configuración:
+El clic central está activado por defecto y el doble clic está desactivado por defecto. Cada disparador se puede cambiar por separado en la configuración:
 
-- **Doble clic** en un espacio vacío del escritorio o dentro de una ventana del Explorador activa la navegación
-  rápida.
+- Cuando actives este disparador, un **doble clic** en un espacio vacío del escritorio o dentro de una ventana del Explorador activa la navegación rápida.
 - **Clic central** en un espacio vacío del escritorio o dentro de una ventana del Explorador — o en el panel de
   lista de archivos de un gestor de archivos de terceros compatible (Directory Opus, Total Commander, XYplorer,
   Files, ...), o en un diálogo nativo de Abrir/Guardar/Examinar carpetas — activa la navegación rápida. Esas otras
