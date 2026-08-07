@@ -25,6 +25,7 @@ internal sealed class QuickPanelScrollSupport
         var groups = FindVisualChildren<Expander>(_scrollViewer)
             .Where(expander => expander.DataContext is QuickPanelGroupViewModel)
             .ToList();
+        MaterializeApproachingGroups(groups);
         if (groups.Count < 2)
         {
             HideStickyHeader();
@@ -55,6 +56,23 @@ internal sealed class QuickPanelScrollSupport
 
         _stickyHeader.Content = stickyGroup;
         _stickyHeader.Visibility = Visibility.Visible;
+    }
+
+    // The panel deliberately has one outer scroller so group headers and rows move together. That
+    // prevents WPF's built-in ListBox virtualization from owning each nested list, so groups expose a
+    // bounded page and this outer viewport asks for the next one only when the user approaches it.
+    private void MaterializeApproachingGroups(IEnumerable<Expander> groups)
+    {
+        foreach (var expander in groups)
+        {
+            if (!expander.IsExpanded || expander.DataContext is not QuickPanelGroupViewModel group)
+                continue;
+
+            var bounds = expander.TransformToAncestor(_scrollViewer)
+                .TransformBounds(new Rect(new System.Windows.Point(), expander.RenderSize));
+            if (bounds.Bottom >= 0 && bounds.Bottom <= _scrollViewer.ViewportHeight + 240 && group.LoadNextPage())
+                return;
+        }
     }
 
     private void HideStickyHeader()

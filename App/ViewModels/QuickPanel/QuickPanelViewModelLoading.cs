@@ -1,4 +1,4 @@
-using Lertaro.App.ViewModels.Search;
+using Lertaro.App.ViewModels.QuickPanel.Loading;
 using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.QuickPanel;
@@ -22,11 +22,9 @@ public partial class QuickPanelViewModel
     /// whether to open a window, and that is answered by the first entry. The rest lands afterwards,
     /// into a panel that is already on screen.
     ///
-    /// Streaming stops at the source, not inside it. A source's entries are ordered and capped as a set
-    /// (see QuickPanelSourceLoader.Order), so emitting them one at a time would mean re-sorting the group
-    /// under the pointer and re-deciding which ones the cap keeps, on every arrival. A slow source
-    /// honestly shows up as its group arriving late; it should not show up as a list that will not sit
-    /// still.
+    /// Each source now streams bounded arrival batches into a group so one large recursive folder cannot
+    /// hold the whole panel closed. Those batches are only a provisional view: the source applies its
+    /// complete sort and cap once enumeration ends, so the final list remains exactly the configured one.
     /// </remarks>
     public async Task RefreshAsync(string? processName = null, CancellationToken token = default)
     {
@@ -86,8 +84,7 @@ public partial class QuickPanelViewModel
         {
             if (workspace.Folders.FirstOrDefault(folder => folder.Id == id) is not { } folder) return;
 
-            var group = await BuildGroupAsync(workspace, folder, token).ConfigureAwait(true);
-            if (group != null) place(group, rank);
+            await _groupLoader.LoadAsync(workspace, folder, group => place(group, rank), token).ConfigureAwait(true);
         })).ConfigureAwait(true);
     }
 
@@ -201,11 +198,7 @@ public partial class QuickPanelViewModel
             return;
         }
 
-        group.Replace(results
-            .Select((result, index) => (
-                Item: SearchResultHelper.CreateUiResult(result, string.Empty, index, isApplication: false, scope: null),
-                Modified: ReadModified(result)))
-            .ToList());
+        group.Replace(QuickPanelGroupLoader.Map(results));
 
         // A group that the reload emptied is hidden by its own HasMatches, so the panel's own "nothing
         // here" line has to be recomputed against what is left.
@@ -213,70 +206,4 @@ public partial class QuickPanelViewModel
         UpdateLineNumberSizing();
     }
 
-    /// <summary>One configured source, loaded and dressed as a group -- or null when it has nothing.</summary>
-    /// <remarks>
-    /// A source that came back empty is left out rather than shown as an empty heading. The panel is a
-    /// quarter of the window it docks to and every heading costs a row of it; which sources exist is
-    /// what the settings page is for, and a heading reading "(0)" that cannot be opened into anything
-    /// would spend that row saying so.
-    /// </remarks>
-    private async Task<QuickPanelGroupViewModel?> BuildGroupAsync(
-        QuickPanelTab workspace, QuickPanelFolderSource source, CancellationToken token)
-    {
-        List<SearchResult> results;
-        try
-        {
-            results = await _load(source, token).ConfigureAwait(true);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            // One unreachable folder (a disconnected drive, a permission change) costs its own group and
-            // nothing else: the rest of the workspace is still worth showing.
-            Logger.Log($"[QuickPanel] Source '{source.Path}' failed to load: {ex.Message}", LogLevel.Error);
-            return null;
-        }
-
-        if (results.Count == 0)
-            return null;
-
-        workspace.GroupPreferences.TryGetValue(source.Id, out var preference);
-
-        var items = results
-            .Select((result, index) => (
-                Item: SearchResultHelper.CreateUiResult(result, string.Empty, index, isApplication: false, scope: null),
-                Modified: ReadModified(result)))
-            .ToList();
-
-        return new QuickPanelGroupViewModel(
-            source.Id,
-            TitleOf(source, preference),
-            source.Path,
-            items,
-            QuickPanelGroupPreference.DefaultSortFor(source),
-            // The settings page owns this one: the header's own toggle overrides it for the session it
-            // is pressed in, and this is what the group opens as.
-            preference?.ThumbnailView ?? true,
-            preference?.Expanded ?? true,
-            source.AcceptsDrops);
-    }
-
-    private static string TitleOf(QuickPanelFolderSource source, QuickPanelGroupPreference? preference)
-        => string.IsNullOrWhiteSpace(preference?.DisplayName)
-            ? QuickPanelFolderSource.DefaultName(source.Path)
-            : preference!.DisplayName.Trim();
-
-    /// <summary>The result's modified time, without going to the filesystem for it.</summary>
-    /// <remarks>
-    /// The index answers for almost every result, so reading the file here instead would be a filesystem
-    /// round trip per row, on the UI thread, to re-learn something already recorded.
-    ///
-    /// MinValue is the index's "not known": those sort last and get no timestamp line, and
-    /// AppSearchResult's own throttled background read fills the value in for next time.
-    /// </remarks>
-    private static DateTime? ReadModified(SearchResult item)
-        => item.Metadata.Modified is var modified && modified != DateTime.MinValue ? modified : null;
 }

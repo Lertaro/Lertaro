@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+using Lertaro.App.Helpers;
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 
@@ -21,7 +21,11 @@ namespace Lertaro.App.ViewModels.QuickPanel;
 /// </remarks>
 public class QuickPanelGroupViewModel : ViewModelBase
 {
+    private const int InitialMaterializedItemCount = 128;
     private readonly List<(AppSearchResult Item, DateTime? Modified)> _loaded;
+    private readonly int _maxItems;
+    private int _matchingCount;
+    private int _materializedItemCount = InitialMaterializedItemCount;
 
     public QuickPanelGroupViewModel(
         string sourceId,
@@ -32,19 +36,23 @@ public class QuickPanelGroupViewModel : ViewModelBase
         bool thumbnailView = true,
         bool expanded = true,
         bool acceptsDrops = false,
-        bool showsHeading = true)
+        bool showsHeading = true,
+        bool isLoading = false,
+        int maxItems = 0)
     {
         SourceId = sourceId;
         Title = title;
         FolderPath = folderPath;
         AcceptsDrops = acceptsDrops;
         ShowsHeading = showsHeading;
+        _maxItems = maxItems;
         _loaded = loaded;
         // The fields, not the properties: each setter rebuilds, and the group has nothing to rebuild
         // from until the call below.
         _sortMode = sortMode;
         _isThumbnailView = thumbnailView;
         _isExpanded = expanded;
+        _isLoading = isLoading;
         Rebuild();
     }
 
@@ -83,7 +91,7 @@ public class QuickPanelGroupViewModel : ViewModelBase
     }
 
     /// <summary>How many entries this group is showing, which under a filter is how many matched.</summary>
-    public int Count => Items.Count;
+    public int Count => DisplayCount;
 
     private string _filter = string.Empty;
 
@@ -103,11 +111,27 @@ public class QuickPanelGroupViewModel : ViewModelBase
         if (string.Equals(_filter, normalized, StringComparison.Ordinal)) return;
 
         _filter = normalized;
-        Rebuild();
+        Rebuild(resetMaterialization: true);
     }
 
     /// <summary>Whether anything survived the filter -- a group with nothing left is hidden entirely.</summary>
-    public bool HasMatches => Items.Count > 0;
+    public bool HasMatches => _matchingCount > 0;
+
+    private bool _isLoading;
+
+    /// <summary>
+    /// Keeps a large source's visual tree bounded. The full sorted set stays in memory, while only the
+    /// next page becomes WPF containers when the enclosing scroll viewer approaches this group.
+    /// </summary>
+    public bool LoadNextPage()
+    {
+        if (_materializedItemCount >= DisplayCount)
+            return false;
+
+        _materializedItemCount += InitialMaterializedItemCount;
+        Rebuild();
+        return true;
+    }
 
     /// <summary>Takes a freshly loaded set in place of what this group was holding.</summary>
     /// <remarks>
@@ -119,10 +143,21 @@ public class QuickPanelGroupViewModel : ViewModelBase
     {
         _loaded.Clear();
         _loaded.AddRange(loaded);
+        _isLoading = false;
+        Rebuild(resetMaterialization: true);
+    }
+
+    /// <summary>
+    /// Adds a bounded arrival-order batch while enumeration is still running. The completed source is
+    /// sorted once through <see cref="Replace"/>, so an intermediate batch never claims final order.
+    /// </summary>
+    public void AppendLoading(List<(AppSearchResult Item, DateTime? Modified)> loaded)
+    {
+        _loaded.AddRange(loaded);
         Rebuild();
     }
 
-    public ObservableCollection<AppSearchResult> Items { get; } = new();
+    public ObservableRangeCollection<AppSearchResult> Items { get; } = new();
 
     private QuickPanelSortMode _sortMode = QuickPanelSortMode.ModifiedDescending;
 
@@ -142,7 +177,7 @@ public class QuickPanelGroupViewModel : ViewModelBase
         : QuickPanelSortMode.ModifiedDescending;
 
     public System.Windows.Input.ICommand ToggleSortCommand
-        => _toggleSortCommand ??= new Helpers.RelayCommand(ToggleSort);
+        => _toggleSortCommand ??= new RelayCommand(ToggleSort);
 
     private System.Windows.Input.ICommand? _toggleSortCommand;
 
@@ -164,7 +199,7 @@ public class QuickPanelGroupViewModel : ViewModelBase
     public void ToggleView() => IsThumbnailView = !IsThumbnailView;
 
     public System.Windows.Input.ICommand ToggleViewCommand
-        => _toggleViewCommand ??= new Helpers.RelayCommand(ToggleView);
+        => _toggleViewCommand ??= new RelayCommand(ToggleView);
 
     private System.Windows.Input.ICommand? _toggleViewCommand;
 
@@ -177,8 +212,11 @@ public class QuickPanelGroupViewModel : ViewModelBase
         set => SetProperty(ref _isExpanded, value);
     }
 
-    private void Rebuild()
+    private void Rebuild(bool resetMaterialization = false)
     {
+        if (resetMaterialization)
+            _materializedItemCount = InitialMaterializedItemCount;
+
         var matching = _filter.Length == 0
             ? _loaded
             : _loaded.Where(pair => FuzzyMatcher.IsMatch(_filter, pair.Item.Name)).ToList();
@@ -186,15 +224,20 @@ public class QuickPanelGroupViewModel : ViewModelBase
         // Ordered on the DateTime, not on the string the row shows: that string is formatted and
         // localised, so ordering by it would rank "3 days ago" against "10 minutes ago" alphabetically
         // and answer differently in every language. Items with no known time sort last either way.
-        var ordered = SortMode == QuickPanelSortMode.NameAscending
-            ? matching.OrderBy(pair => pair.Item.Name, StringComparer.CurrentCultureIgnoreCase)
-            : matching.OrderByDescending(pair => pair.Modified ?? DateTime.MinValue);
+        IEnumerable<(AppSearchResult Item, DateTime? Modified)> ordered = _isLoading
+            ? matching
+            : SortMode == QuickPanelSortMode.NameAscending
+                ? matching.OrderBy(pair => pair.Item.Name, StringComparer.CurrentCultureIgnoreCase)
+                : matching.OrderByDescending(pair => pair.Modified ?? DateTime.MinValue);
 
-        Items.Clear();
-        foreach (var (item, _) in ordered)
-            Items.Add(item);
+        _matchingCount = matching.Count;
+        var visible = ordered.Take(Math.Min(_materializedItemCount, DisplayCount)).Select(pair => pair.Item).ToList();
+        if (!Items.SequenceEqual(visible))
+            Items.ReplaceRange(visible);
 
         OnPropertyChanged(nameof(Count));
         OnPropertyChanged(nameof(HasMatches));
     }
+
+    private int DisplayCount => _maxItems > 0 ? Math.Min(_matchingCount, _maxItems) : _matchingCount;
 }

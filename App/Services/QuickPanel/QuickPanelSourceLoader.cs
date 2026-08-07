@@ -12,6 +12,23 @@ namespace Lertaro.App.Services.QuickPanel;
 public static class QuickPanelSourceLoader
 {
     public static async Task<List<SearchResult>> LoadAsync(QuickPanelFolderSource source, CancellationToken token = default)
+        => await LoadCoreAsync(source, progress: null, token).ConfigureAwait(false);
+
+    /// <summary>
+    /// Reads a source in bounded batches while still returning its complete, correctly ordered result.
+    /// The progress batches are intentionally arrival order only; callers use them for an early panel
+    /// paint, then replace them with the final user-selected sort once enumeration completes.
+    /// </summary>
+    public static async Task<List<SearchResult>> LoadProgressivelyAsync(
+        QuickPanelFolderSource source,
+        IProgress<IReadOnlyList<SearchResult>> progress,
+        CancellationToken token = default)
+        => await LoadCoreAsync(source, progress, token).ConfigureAwait(false);
+
+    private static async Task<List<SearchResult>> LoadCoreAsync(
+        QuickPanelFolderSource source,
+        IProgress<IReadOnlyList<SearchResult>>? progress,
+        CancellationToken token)
     {
         if (string.IsNullOrWhiteSpace(source.Path))
             return new List<SearchResult>();
@@ -23,23 +40,39 @@ public static class QuickPanelSourceLoader
             var recent = await new SearchService()
                 .GetRecentFilesAsync(new[] { source.Path }, source.MaxItems, EffectiveMaxAge(source), token)
                 .ConfigureAwait(false);
+            progress?.Report(recent);
             return recent;
         }
 
         var results = new List<SearchResult>();
+        var batch = new List<SearchResult>(64);
         await IndexedDirectoryEnumerator.EnumerateAsync(source.Path, source.Recursive, source.FilterPattern,
-            result => results.Add(result), limit: 0, token).ConfigureAwait(false);
+            result => AddResult(result, source.Kind, results, batch, progress), limit: 0, token).ConfigureAwait(false);
 
-        if (source.Kind == QuickPanelSourceKind.FoldersOnly)
-        {
-            results = results.Where(r => r.IsDir).ToList();
-        }
-        else if (source.Kind == QuickPanelSourceKind.FilesOnly)
-        {
-            results = results.Where(r => !r.IsDir).ToList();
-        }
+        if (batch.Count > 0)
+            progress?.Report(batch);
 
         return Order(results, source.Kind, source.SortByModified, source.MaxItems);
+    }
+
+    private static void AddResult(
+        SearchResult result,
+        QuickPanelSourceKind kind,
+        List<SearchResult> results,
+        List<SearchResult> batch,
+        IProgress<IReadOnlyList<SearchResult>>? progress)
+    {
+        if ((kind == QuickPanelSourceKind.FoldersOnly && !result.IsDir)
+            || (kind == QuickPanelSourceKind.FilesOnly && result.IsDir))
+            return;
+
+        results.Add(result);
+        batch.Add(result);
+        if (batch.Count < 64)
+            return;
+
+        progress?.Report(batch.ToList());
+        batch.Clear();
     }
 
     /// <summary>

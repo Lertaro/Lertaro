@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Lertaro.Core;
 using Lertaro.App.Services.QuickPanel;
+using Lertaro.App.ViewModels.QuickPanel.Loading;
 
 namespace Lertaro.App.ViewModels.QuickPanel;
 
@@ -18,7 +19,9 @@ public partial class QuickPanelViewModel : ViewModelBase
 {
     private readonly Func<QuickPanelSettings> _readSettings;
     private readonly Func<QuickPanelFolderSource, CancellationToken, Task<List<SearchResult>>> _load;
+    private readonly Func<QuickPanelFolderSource, IProgress<IReadOnlyList<SearchResult>>, CancellationToken, Task<List<SearchResult>>> _loadProgressively;
     private readonly Action _saveSettings;
+    private readonly QuickPanelGroupLoader _groupLoader;
 
     /// <summary>The tabs on screen: enabled, and with something behind them.</summary>
     /// <remarks>
@@ -39,7 +42,11 @@ public partial class QuickPanelViewModel : ViewModelBase
     {
         _readSettings = readSettings ?? (() => UserSettings.Load().QuickPanel);
         _load = load ?? QuickPanelSourceLoader.LoadAsync;
+        _loadProgressively = load == null
+            ? QuickPanelSourceLoader.LoadProgressivelyAsync
+            : async (source, _, token) => await _load(source, token).ConfigureAwait(true);
         _saveSettings = saveSettings ?? (() => UserSettings.Load().Save());
+        _groupLoader = new QuickPanelGroupLoader(_loadProgressively, mapOnBackground: load == null);
 
         // Dragging a tab reorders this collection in place (a remove and an insert, which is what
         // DragReorder does to any IList), so the strip is where a new order first exists and this is the
