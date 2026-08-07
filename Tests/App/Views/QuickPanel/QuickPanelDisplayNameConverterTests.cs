@@ -1,5 +1,4 @@
 using System.Globalization;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Lertaro.App.Views.QuickPanel;
 
 namespace Lertaro.App.Tests.Views.QuickPanel;

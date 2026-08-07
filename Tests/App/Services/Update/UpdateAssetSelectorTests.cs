@@ -36,10 +36,7 @@ public sealed class UpdateAssetSelectorTests
     }
 
     [TestMethod]
-    public void Arm64_UsesTheConventionalHyphenatedSuffix()
-    {
-        Assert.AreEqual("-arm64", UpdateAssetSelector.SuffixFor(Architecture.Arm64));
-    }
+    public void Arm64_UsesTheConventionalHyphenatedSuffix() => Assert.AreEqual("-arm64", UpdateAssetSelector.SuffixFor(Architecture.Arm64));
 
     [TestMethod]
     public void AReleaseFromBeforeArm64Existed_StillUpdatesOnX64()
