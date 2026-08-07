@@ -10,6 +10,7 @@ namespace Lertaro.Core.Services.Search;
 public class SearchService : IDisposable
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<List<SearchResult>>> _sessionDirectoryCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ScopeLiveSearchCache _scopeLiveSearchCache = new();
     private readonly CancellationTokenSource _cacheFillCts = new();
     private readonly SearchPipeClient _pipeClient = new();
     private int _disposed;
@@ -162,7 +163,8 @@ public class SearchService : IDisposable
                 liveScanFilter = resolved.FilterQuery;
             }
         }
-        else if (!string.IsNullOrEmpty(directoryFilter) && Directory.Exists(directoryFilter) && SearchServiceHelper.CheckNeedsLiveSearch(directoryFilter, exclusionRules))
+        else if (!string.IsNullOrEmpty(directoryFilter) && _scopeLiveSearchCache.GetOrAdd(directoryFilter,
+            dir => SearchServiceHelper.CheckNeedsLiveSearch(dir, exclusionRules) && Directory.Exists(dir)))
         {
             needsLiveSearch = true;
             liveScanDir = directoryFilter;

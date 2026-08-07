@@ -20,8 +20,9 @@ public static class LiveDirectorySearcher
         string? parentPath = null)
     {
         var results = new List<SearchResult>();
-        Logger.Log($"[LiveDirectorySearcher] ScanDirectory starting for '{directory}'. Exists: {Directory.Exists(directory)}", LogLevel.Debug);
-        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+        var exists = !string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory);
+        Logger.Log($"[LiveDirectorySearcher] ScanDirectory starting for '{directory}'. Exists: {exists}", LogLevel.Debug);
+        if (!exists)
             return results;
 
         FzfPattern? livePattern = null;
