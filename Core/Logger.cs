@@ -16,7 +16,8 @@ public static class Logger
 
     /// <summary>
     /// System-wide shared data directory: %ProgramData%\Lertaro for an installed copy, or Data\Machine
-    /// beside a portable copy. Used by the service for logs, index cache, etc.
+    /// beside a portable copy. A portable copy without Data reuses existing installed data for compatibility.
+    /// Used by the service for logs, index cache, etc.
     /// </summary>
     public static readonly string SharedDataDir = DataDirectoryResolver.ResolveShared(
         CurrentInstallationMode,
@@ -26,7 +27,7 @@ public static class Logger
     /// <summary>
     /// Per-user data directory. A verified portable copy keeps its data under Data\Users\&lt;SID hash&gt;
     /// so settings, history, certificates, and per-user caches travel with it without exposing the
-    /// account SID in a path. Installed copies retain %LocalAppData%\Lertaro.
+    /// account SID in a path. Without Data it reuses existing %LocalAppData%\Lertaro data for compatibility.
     /// </summary>
     public static readonly string UserDataDir = DataDirectoryResolver.ResolveUser(
         CurrentInstallationMode,
