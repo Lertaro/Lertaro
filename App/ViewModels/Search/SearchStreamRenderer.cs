@@ -32,6 +32,7 @@ internal sealed class SearchStreamRenderer
         CancellationToken token,
         Func<List<AppSearchResult>>? getLocalSnapshot = null,
         Func<int>? getLocalUpdateVersion = null,
+        Func<int>? getLocalMatchCount = null,
         Task? localSearchTask = null,
         Task? globalSearchStartGate = null,
         Action? onLocalServiceUnavailable = null,
@@ -87,6 +88,7 @@ internal sealed class SearchStreamRenderer
             // Local enumeration can produce its first matches before this pump starts. Begin at zero so
             // that already-arrived matches still trigger the first merged render, including its header.
             var renderedLocalVersion = 0;
+            long firstSmallLocalUpdateMs = -1;
             try
             {
                 while (true)
@@ -101,6 +103,29 @@ internal sealed class SearchStreamRenderer
                     var received = Volatile.Read(ref streamedCount);
                     var localChanged = (getLocalUpdateVersion?.Invoke() ?? renderedLocalVersion) != renderedLocalVersion;
                     var take = plan.NextRenderSize(received, sinceLastPaint.ElapsedMilliseconds);
+
+                    // A tiny Current Folder section followed immediately by its Global Search section makes
+                    // the inline card resize twice. Give the global phase a short chance to finish so the
+                    // common small-result case paints once; a slow global search still shows local matches
+                    // promptly after the bounded delay.
+                    if (take == 0 && localChanged && !finished && getLocalMatchCount != null)
+                    {
+                        if (firstSmallLocalUpdateMs < 0)
+                            firstSmallLocalUpdateMs = sinceLastPaint.ElapsedMilliseconds;
+
+                        var elapsed = sinceLastPaint.ElapsedMilliseconds - firstSmallLocalUpdateMs;
+                        if (InlineSmallResultRenderDelay.ShouldDelay(getLocalMatchCount(), elapsed))
+                        {
+                            interval = Math.Max(1, InlineSmallResultRenderDelay.SettleDelayMs - (int)elapsed);
+                            continue;
+                        }
+                    }
+
+                    // The final render below contains the latest local snapshot, so an under-threshold
+                    // completed stream never needs a visibly transient local-only paint first.
+                    if (finished && take == 0 && getLocalMatchCount != null && (localSearchTask?.IsCompleted ?? true))
+                        return;
+
                     if (take == 0 && !localChanged)
                     {
                         if (finished)
@@ -113,6 +138,7 @@ internal sealed class SearchStreamRenderer
                     var paintClock = System.Diagnostics.Stopwatch.StartNew();
                     await RenderSnapshotAsync(final: false, take).ConfigureAwait(false);
                     renderedLocalVersion = getLocalUpdateVersion?.Invoke() ?? renderedLocalVersion;
+                    firstSmallLocalUpdateMs = -1;
                     plan.PaintCompleted(paintClock.ElapsedMilliseconds);
                     sinceLastPaint.Restart();
                 }

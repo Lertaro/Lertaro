@@ -189,8 +189,14 @@ internal sealed class SearchExecutionEngine : IDisposable
             return ExplorerSearchHelper.CreatePrioritizedSnapshot(snapshot, query, contextDirectory);
         }
 
+        int GetLocalMatchCount()
+        {
+            lock (localMatches)
+                return localMatches.Count;
+        }
+
         await _streamRenderer.RenderAsync(query, null, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token,
-            GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), localSearchTask, globalSearchStartGate, onLocalServiceUnavailable, bypassExclusions).ConfigureAwait(false);
+            GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), GetLocalMatchCount, localSearchTask, globalSearchStartGate, onLocalServiceUnavailable, bypassExclusions).ConfigureAwait(false);
     }
 
     private void EmitInstantResults(
