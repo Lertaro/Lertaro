@@ -1,0 +1,18 @@
+{
+  "Translator_PluginName": "翻译插件",
+  "Translator_PluginDesc": "通过 Microsoft Translator 在搜索框中翻译文本。",
+  "Translator_ProviderName": "翻译",
+  "Translator_ProviderDesc": "翻译触发词后输入的文本。",
+  "Translator_PlaceholderTitle": "翻译文本",
+  "Translator_PlaceholderDesc": "在触发词后输入要翻译的文本。",
+  "Translator_LoadingTitle": "正在翻译…",
+  "Translator_LoadingDesc": "正在从 Microsoft Translator 获取翻译。",
+  "Translator_ResultDesc": "按回车或单击以复制翻译结果。",
+  "Translator_DetectedLanguage": "检测到的语言：{0}",
+  "Translator_FailedTitle": "无法翻译",
+  "Translator_FailedDesc": "Microsoft Translator 无法翻译此文本。",
+  "Translator_Config_TriggerLabel": "触发词",
+  "Translator_Config_TriggerDesc": "在要翻译的文本前输入此词。默认值：tr。",
+  "Plugin_Comp_Desc_TranslationInstantProvider": "使用 Microsoft Translator 以即时答案形式提供翻译。",
+  "Plugin_Comp_Desc_TranslatorTranslationProvider": "为翻译插件提供本地化资源。"
+}

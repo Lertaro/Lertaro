@@ -1,0 +1,18 @@
+{
+  "Translator_PluginName": "Complemento de traducción",
+  "Translator_PluginDesc": "Traduce texto desde el cuadro de búsqueda con Microsoft Translator.",
+  "Translator_ProviderName": "Traducción",
+  "Translator_ProviderDesc": "Traduce el texto escrito después de la palabra de activación.",
+  "Translator_PlaceholderTitle": "Traducir texto",
+  "Translator_PlaceholderDesc": "Escriba el texto que quiere traducir después de la palabra de activación.",
+  "Translator_LoadingTitle": "Traduciendo...",
+  "Translator_LoadingDesc": "Obteniendo una traducción de Microsoft Translator.",
+  "Translator_ResultDesc": "Presione Entrar o haga clic para copiar la traducción.",
+  "Translator_DetectedLanguage": "Idioma detectado: {0}",
+  "Translator_FailedTitle": "Traducción no disponible",
+  "Translator_FailedDesc": "Microsoft Translator no pudo traducir este texto.",
+  "Translator_Config_TriggerLabel": "Palabra de activación",
+  "Translator_Config_TriggerDesc": "Escriba esta palabra antes del texto que quiere traducir. Predeterminado: tr.",
+  "Plugin_Comp_Desc_TranslationInstantProvider": "Proporciona traducciones como respuestas instantáneas mediante Microsoft Translator.",
+  "Plugin_Comp_Desc_TranslatorTranslationProvider": "Proporciona recursos de localización para el complemento de traducción."
+}

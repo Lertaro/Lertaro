@@ -7,6 +7,7 @@
   <Project Path="Plugins/OneCommander/OneCommander.csproj" />
   <Project Path="Plugins/Files/Files.csproj" />
   <Project Path="Plugins/WebSearch/WebSearch.csproj" />
+  <Project Path="Plugins/Translator/Translator.csproj" />
   <Project Path="Plugins/AnimeThemes/AnimeThemes.csproj" />
   <Project Path="Plugins/CuratedThemes/CuratedThemes.csproj" />
   <Project Path="Plugins/FolderCascader/FolderCascader.csproj" />
