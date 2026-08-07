@@ -33,6 +33,7 @@ internal sealed class SearchStreamRenderer
         Func<List<AppSearchResult>>? getLocalSnapshot = null,
         Func<int>? getLocalUpdateVersion = null,
         Task? localSearchTask = null,
+        Task? globalSearchStartGate = null,
         Action? onLocalServiceUnavailable = null,
         bool bypassExclusions = false)
     {
@@ -123,6 +124,9 @@ internal sealed class SearchStreamRenderer
 
         try
         {
+            if (globalSearchStartGate != null)
+                await globalSearchStartGate.ConfigureAwait(false);
+
             await _searchService.SearchStreamingAsync(query, fileLimit, appLimit, searchScope, result =>
             {
                 token.ThrowIfCancellationRequested();

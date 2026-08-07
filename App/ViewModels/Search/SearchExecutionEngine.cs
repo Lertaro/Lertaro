@@ -177,6 +177,7 @@ internal sealed class SearchExecutionEngine : IDisposable
 
         var localSearchTask = ExplorerSearchHelper.SearchLocalMatchesAsync(
             _searchService, query, fileLimit, appLimit, contextDirectory, localMatches, token, OnLocalMatchesChanged, bypassExclusions: true);
+        var globalSearchStartGate = InlineGlobalSearchGate.WaitForLocalSearchAsync(localSearchTask, token);
 
         List<AppSearchResult> GetLocalSnapshot()
         {
@@ -189,7 +190,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         }
 
         await _streamRenderer.RenderAsync(query, null, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token,
-            GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), localSearchTask, onLocalServiceUnavailable, bypassExclusions).ConfigureAwait(false);
+            GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), localSearchTask, globalSearchStartGate, onLocalServiceUnavailable, bypassExclusions).ConfigureAwait(false);
     }
 
     private void EmitInstantResults(
