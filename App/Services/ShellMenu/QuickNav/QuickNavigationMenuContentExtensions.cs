@@ -15,6 +15,7 @@ using MouseButtonEventHandler = System.Windows.Input.MouseButtonEventHandler;
 
 using Lertaro.App.Services.ShellIcons;
 using Lertaro.App.Services.ShellMenu.QuickNav.RightClickActions;
+using Lertaro.App.Converters;
 namespace Lertaro.App.Services.ShellMenu.QuickNav;
 
 // Menu-item construction for QuickNavigationMenu, split out (composition, not a partial class) to keep
@@ -137,7 +138,7 @@ internal static class QuickNavigationMenuContentExtensions
         };
         Helpers.Visuals.MarqueeBehavior.SetEnableMarquee(textBlock, true);
 
-        return new System.Windows.Controls.ScrollViewer
+        var header = new System.Windows.Controls.ScrollViewer
         {
             HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Hidden,
             VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled,
@@ -145,6 +146,8 @@ internal static class QuickNavigationMenuContentExtensions
             MaxWidth = MaxItemTextWidth,
             Content = textBlock
         };
+        ScrollViewerHelper.SetBubbleMouseWheel(header, true);
+        return header;
     }
 
     internal static MenuItem CreateMenuItem(DynamicMenuItem item, ISearchResult result, IQuickNavigationProvider provider, ContextMenu contextMenu, QuickNavTriggerContext trigger, bool enableRightClick = true, bool isRootItem = false)

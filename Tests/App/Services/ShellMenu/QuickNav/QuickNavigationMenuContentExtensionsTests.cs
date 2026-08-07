@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using Lertaro.App.Converters;
 using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Services.ShellMenu.QuickNav;
 
@@ -64,5 +65,13 @@ public sealed class QuickNavigationMenuContentExtensionsTests
 
         var textBlock = (TextBlock)header.Content;
         Assert.IsTrue(MarqueeBehavior.GetEnableMarquee(textBlock));
+    }
+
+    [StaTestMethod]
+    public void CreateItemHeader_BubblesMouseWheelToTheMenuScroller()
+    {
+        var header = QuickNavigationMenuContentExtensions.CreateItemHeader("some text");
+
+        Assert.IsTrue(ScrollViewerHelper.GetBubbleMouseWheel(header));
     }
 }
