@@ -6,6 +6,8 @@ using ContextMenu = System.Windows.Controls.ContextMenu;
 using Application = System.Windows.Application;
 
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+using System.Windows.Controls;
+using System.Windows.Threading;
 namespace Lertaro.App.Services.ShellMenu.QuickNav;
 
 // Loads a quick-nav submenu's items in the background -- split out of QuickNavigationMenu purely to
@@ -37,13 +39,9 @@ internal static class QuickNavigationSubMenuLoader
                 if (!contextMenu.IsOpen) return;
 
                 menuItem.Tag = "loaded";
+                var continuation = subItems.LastOrDefault(subItem => subItem.IsContinuation);
                 menuItem.Items.Clear();
-                foreach (var subItem in subItems)
-                    // Root items already do this IsSeparator check (see QuickNavigationMenu.Show) --
-                    // missing here meant a separator nested inside any submenu rendered as a real
-                    // MenuItem with an empty Header instead of an actual divider line, showing up as a
-                    // blank row.
-                    menuItem.Items.Add(subItem.IsSeparator ? QuickNavigationMenu.CreateSeparator() : QuickNavigationMenu.CreateMenuItem(subItem, result, provider, contextMenu, trigger));
+                AddItems(menuItem, subItems.Where(subItem => !subItem.IsContinuation), result, provider, contextMenu, trigger);
 
                 // A provider can legitimately return nothing here -- e.g. its backing data (favorites, a
                 // plugin's own cache) hasn't finished loading yet this soon after app startup, not just
@@ -53,7 +51,57 @@ internal static class QuickNavigationSubMenuLoader
                 // normal-looking submenu.
                 if (menuItem.Items.Count == 0)
                     menuItem.Items.Add(new MenuItem { Header = TranslationService.Get("QuickNav_EmptySubmenu"), IsEnabled = false });
+
+                if (continuation != null)
+                    AttachContinuationLoader(menuItem, continuation, result, provider, contextMenu, trigger);
+
+                // The popup has already materialized the original Loading row. A layout pass refreshes
+                // it with the new items without toggling IsSubmenuOpen, which would visibly flash the
+                // entire cascading branch while it closes and reopens.
+                RefreshSubmenuLayout(menuItem);
             }));
         });
     }
+
+    private static void AddItems(MenuItem menuItem, IEnumerable<DynamicMenuItem> items, ISearchResult result, IQuickNavigationProvider provider, ContextMenu contextMenu, QuickNavTriggerContext trigger)
+    {
+        foreach (var subItem in items)
+            // Root items already do this IsSeparator check (see QuickNavigationMenu.Show) -- missing
+            // here meant a separator nested inside any submenu rendered as a real MenuItem with an
+            // empty Header instead of an actual divider line, showing up as a blank row.
+            menuItem.Items.Add(subItem.IsSeparator ? QuickNavigationMenu.CreateSeparator() : QuickNavigationMenu.CreateMenuItem(subItem, result, provider, contextMenu, trigger));
+    }
+
+    private static void AttachContinuationLoader(MenuItem menuItem, DynamicMenuItem initialContinuation, ISearchResult result, IQuickNavigationProvider provider, ContextMenu contextMenu, QuickNavTriggerContext trigger) => Application.Current.Dispatcher.BeginInvoke(() =>
+                                                                                                                                                                                                                                   {
+                                                                                                                                                                                                                                       if (menuItem.Template.FindName("SubMenuScrollViewer", menuItem) is not ScrollViewer scrollViewer) return;
+
+                                                                                                                                                                                                                                       var continuation = initialContinuation;
+                                                                                                                                                                                                                                       var isLoading = false;
+                                                                                                                                                                                                                                       scrollViewer.ScrollChanged += (_, _) =>
+                                                                                                                                                                                                                                       {
+                                                                                                                                                                                                                                           if (isLoading || continuation == null || scrollViewer.VerticalOffset + scrollViewer.ViewportHeight < scrollViewer.ExtentHeight - 96)
+                                                                                                                                                                                                                                               return;
+
+                                                                                                                                                                                                                                           var nextHandle = continuation.SubMenuHandle;
+                                                                                                                                                                                                                                           isLoading = true;
+                                                                                                                                                                                                                                           Task.Run(() => provider.GetMenuItems(result, nextHandle).ToList())
+                                                                                                                                                                                                                                               .ContinueWith(task => Application.Current.Dispatcher.BeginInvoke(() =>
+                                                                                                                                                                                                                                               {
+                                                                                                                                                                                                                                                   isLoading = false;
+                                                                                                                                                                                                                                                   if (!contextMenu.IsOpen || task.IsFaulted || task.IsCanceled) return;
+
+                                                                                                                                                                                                                                                   var nextItems = task.Result;
+                                                                                                                                                                                                                                                   continuation = nextItems.LastOrDefault(nextItem => nextItem.IsContinuation);
+                                                                                                                                                                                                                                                   AddItems(menuItem, nextItems.Where(nextItem => !nextItem.IsContinuation), result, provider, contextMenu, trigger);
+                                                                                                                                                                                                                                               }), TaskScheduler.Default);
+                                                                                                                                                                                                                                       };
+                                                                                                                                                                                                                                   }, DispatcherPriority.Loaded);
+
+    private static void RefreshSubmenuLayout(MenuItem menuItem) => Application.Current.Dispatcher.BeginInvoke(() =>
+                                                                        {
+                                                                            menuItem.InvalidateMeasure();
+                                                                            menuItem.InvalidateArrange();
+                                                                            menuItem.UpdateLayout();
+                                                                        }, DispatcherPriority.Loaded);
 }

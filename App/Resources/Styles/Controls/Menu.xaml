@@ -106,7 +106,10 @@
                                     Padding="4"
                                     SnapsToDevicePixels="True"
                                     Effect="{StaticResource Elevation1}">
-                                <ScrollViewer x:Name="SubMenuScrollViewer" Focusable="false">
+                                <ScrollViewer x:Name="SubMenuScrollViewer" Focusable="false"
+                                              VerticalScrollBarVisibility="Auto"
+                                              CanContentScroll="True"
+                                              MaxHeight="{x:Static SystemParameters.PrimaryScreenHeight}">
                                     <ItemsPresenter KeyboardNavigation.TabNavigation="Cycle"/>
                                 </ScrollViewer>
                             </Border>

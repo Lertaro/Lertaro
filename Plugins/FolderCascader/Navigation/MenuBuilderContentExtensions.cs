@@ -2,7 +2,6 @@ using System.IO;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Services;
-using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.Plugins.FolderCascader.Navigation;
 
@@ -200,80 +199,4 @@ internal static class MenuBuilderContentExtensions
         return items;
     }
 
-    internal static List<DynamicMenuItem> BuildFolderBrowseMenu(string path, Provider provider)
-    {
-        var items = new List<DynamicMenuItem>();
-        try
-        {
-            var scanPath = path;
-            if (scanPath.StartsWith("::") || scanPath.StartsWith("shell:"))
-            {
-                var resolved = ShellPathHelper.TryResolveVirtualPath(scanPath);
-                if (Directory.Exists(resolved))
-                {
-                    scanPath = resolved;
-                }
-            }
-
-            if (Directory.Exists(scanPath))
-            {
-                var subDirs = Directory.GetDirectories(scanPath)
-                    .Where(d =>
-                    {
-                        try { return (File.GetAttributes(d) & (FileAttributes.Hidden | FileAttributes.System)) == 0; }
-                        catch { return false; }
-                    })
-                    .OrderBy(d => d, StringComparer.OrdinalIgnoreCase).ToList();
-                var subFiles = Directory.GetFiles(scanPath)
-                    .Where(f =>
-                    {
-                        try { return (File.GetAttributes(f) & (FileAttributes.Hidden | FileAttributes.System)) == 0; }
-                        catch { return false; }
-                    })
-                    .OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList();
-
-                foreach (var dir in subDirs)
-                {
-                    items.Add(new DynamicMenuItem
-                    {
-                        Text = Path.GetFileName(dir),
-                        HasSubMenu = true,
-                        SubMenuHandle = provider.AllocateHandle(dir),
-                        HBitmapItem = IntPtr.Zero
-                    });
-                }
-                foreach (var file in subFiles)
-                {
-                    items.Add(new DynamicMenuItem
-                    {
-                        Text = Path.GetFileName(file),
-                        CommandId = provider.AllocateCommand(file),
-                        HBitmapItem = IntPtr.Zero
-                    });
-                }
-            }
-            else if (scanPath.StartsWith("::") || scanPath.StartsWith("shell:"))
-            {
-                ShellEnumerator.EnumerateShellFolder(scanPath, items, provider);
-            }
-
-            if (items.Count == 0)
-            {
-                items.Add(new DynamicMenuItem
-                {
-                    Text = TranslationService.Get("FolderCascader_EmptyFolder"),
-                    IsDisabled = true
-                });
-            }
-        }
-        catch
-        {
-            items.Add(new DynamicMenuItem
-            {
-                Text = TranslationService.Get("FolderCascader_EmptyFolder"),
-                IsDisabled = true
-            });
-        }
-        return items;
-    }
 }

@@ -15,6 +15,9 @@ public static class MenuBuilder
         if (hMenu == IntPtr.Zero)
             return MenuBuilderContentExtensions.BuildRootMenu(provider);
 
+        if (provider.TryGetFolderPage(hMenu, out var folderPage) && folderPage != null)
+            return FolderBrowseMenuBuilder.Build(folderPage.Path, folderPage.Offset, provider);
+
         if (!provider.TryGetPath(hMenu, out var path) || path == null)
             return Enumerable.Empty<DynamicMenuItem>();
 
@@ -27,7 +30,7 @@ public static class MenuBuilder
         if (TryDecodeCategoryPath(path, out var categoryPrefix))
             return MenuBuilderContentExtensions.BuildCategoryMenu(result, categoryPrefix, provider);
 
-        return MenuBuilderContentExtensions.BuildFolderBrowseMenu(path, provider);
+        return FolderBrowseMenuBuilder.Build(path, offset: 0, provider);
     }
 
     internal static string GetDisplayName(string path, string customName)

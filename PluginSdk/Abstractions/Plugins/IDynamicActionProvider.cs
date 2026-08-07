@@ -88,6 +88,12 @@ public class DynamicMenuItem
     public Action? OnExecute { get; set; }
     public string ShortcutHint { get; set; } = string.Empty;
     /// <summary>
+    /// Marks this as a non-rendered continuation cursor for a paged submenu. The quick-navigation
+    /// host fetches <see cref="SubMenuHandle"/> automatically as the user scrolls near the end of the
+    /// current page, rather than showing this item as a "load more" row.
+    /// </summary>
+    public bool IsContinuation { get; set; }
+    /// <summary>
     /// Renders as a non-clickable section header (like a Quick Navigation submenu's own group name)
     /// instead of a normal row. Text is the header label; if OnExecute is also set, a small button
     /// appears at the header's trailing edge invoking it (e.g. "add an entry to this category") --

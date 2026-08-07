@@ -22,6 +22,8 @@ namespace Lertaro.Plugins.FolderCascader.Navigation;
 public class Provider : IQuickNavigationProvider
 {
     private readonly ConcurrentDictionary<IntPtr, string> _nodeMap = new();
+    private readonly ConcurrentDictionary<IntPtr, FolderBrowsePage> _folderPages = new();
+    private readonly ConcurrentDictionary<string, Lazy<FolderBrowseSnapshot>> _folderSnapshots = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<uint, string> _commandMap = new();
     private int _nextId = 1;
     private int _nextCmdId = 1;
@@ -50,6 +52,8 @@ public class Provider : IQuickNavigationProvider
     public void ClearSession()
     {
         _nodeMap.Clear();
+        _folderPages.Clear();
+        _folderSnapshots.Clear();
         _commandMap.Clear();
         Interlocked.Exchange(ref _nextId, 1);
         Interlocked.Exchange(ref _nextCmdId, 1);
@@ -62,6 +66,13 @@ public class Provider : IQuickNavigationProvider
         return handle;
     }
 
+    internal IntPtr AllocateFolderPage(string path, int offset)
+    {
+        var handle = new IntPtr(Interlocked.Increment(ref _nextId));
+        _folderPages[handle] = new FolderBrowsePage(path, offset);
+        return handle;
+    }
+
     public uint AllocateCommand(string path)
     {
         var cmdId = (uint)Interlocked.Increment(ref _nextCmdId);
@@ -70,4 +81,10 @@ public class Provider : IQuickNavigationProvider
     }
 
     public bool TryGetPath(IntPtr handle, out string? path) => _nodeMap.TryGetValue(handle, out path);
+
+    internal bool TryGetFolderPage(IntPtr handle, out FolderBrowsePage? page) => _folderPages.TryGetValue(handle, out page);
+
+    internal FolderBrowseSnapshot GetFolderSnapshot(string path) =>
+        _folderSnapshots.GetOrAdd(path, static folderPath => new Lazy<FolderBrowseSnapshot>(
+            () => FolderBrowseSnapshot.Load(folderPath), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
 }
