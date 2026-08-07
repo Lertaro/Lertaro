@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Lertaro.PluginSdk</AssemblyName>
     <RootNamespace>Lertaro.PluginSdk</RootNamespace>
-    <Version>1.5.4</Version>
+    <Version>1.5.5</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
