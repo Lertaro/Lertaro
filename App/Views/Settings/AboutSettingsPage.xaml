@@ -58,7 +58,7 @@
                                Foreground="{DynamicResource TextSecondary2}"
                                TextWrapping="Wrap"
                                Margin="0,8,0,0"/>
-                    <WrapPanel Margin="0,14,0,0">
+                    <WrapPanel x:Name="RowHomepage" Margin="0,14,0,0">
                         <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_Homepage]}" Foreground="{DynamicResource TextSecondary2}"/>
                         <TextBlock>
                             <Hyperlink NavigateUri="https://lertaro.github.io/" RequestNavigate="Hyperlink_RequestNavigate">
@@ -66,7 +66,7 @@
                             </Hyperlink>
                         </TextBlock>
                     </WrapPanel>
-                    <WrapPanel Margin="0,4,0,0">
+                    <WrapPanel x:Name="RowUserGuide" Margin="0,4,0,0">
                         <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_UserGuide]}" Foreground="{DynamicResource TextSecondary2}"/>
                         <TextBlock>
                             <Hyperlink NavigateUri="{Binding UserGuideUri}" RequestNavigate="Hyperlink_RequestNavigate">
@@ -75,7 +75,7 @@
                         </TextBlock>
                     </WrapPanel>
                     <WrapPanel x:Name="RowUserConfigDir" Margin="0,4,0,0">
-                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_UserConfigDir]}" Foreground="{DynamicResource TextSecondary2}"/>
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_UserDataDir]}" Foreground="{DynamicResource TextSecondary2}"/>
                         <TextBlock>
                             <Hyperlink Click="OpenUserConfigDir_Click">
                                 <Run Text="{Binding UserConfigDirPath, Mode=OneWay}"/>
@@ -83,7 +83,7 @@
                         </TextBlock>
                     </WrapPanel>
                     <WrapPanel x:Name="RowSystemConfigDir" Margin="0,4,0,0">
-                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_SystemConfigDir]}" Foreground="{DynamicResource TextSecondary2}"/>
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_MachineDataDir]}" Foreground="{DynamicResource TextSecondary2}"/>
                         <TextBlock>
                             <Hyperlink Click="OpenSystemConfigDir_Click">
                                 <Run Text="{Binding SystemConfigDirPath, Mode=OneWay}"/>
