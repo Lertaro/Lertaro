@@ -12,14 +12,20 @@
         AllowsTransparency="True"
         WindowStyle="None"
         ResizeMode="CanResizeWithGrip"
-        StateChanged="Window_StateChanged">
+        StateChanged="Window_StateChanged"
+        SizeChanged="SettingsWindow_SizeChanged">
 
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
                 <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsSidebar.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="SettingsSidebarItemStyle" TargetType="ListBoxItem" BasedOn="{StaticResource SidebarItemStyle}">
+                <Setter Property="ToolTipService.IsEnabled"
+                        Value="{Binding IsSidebarCompact, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -141,7 +147,7 @@
 
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition x:Name="SidebarColumn" Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
@@ -152,20 +158,20 @@
                             <ListBox x:Name="LstSectionsBottom" DockPanel.Dock="Bottom" BorderThickness="0" Background="Transparent"
                                      Margin="0,0,0,14"
                                      FontSize="15"
-                                     ItemContainerStyle="{StaticResource SidebarItemStyle}"
+                                     ItemContainerStyle="{StaticResource SettingsSidebarItemStyle}"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                      ScrollViewer.VerticalScrollBarVisibility="Disabled"
                                      SelectionChanged="LstSectionsBottom_SelectionChanged">
-                                <ListBoxItem Tag="Appearance">
+                                <ListBoxItem Tag="Appearance" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Appearance]}">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE790;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
-                                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Appearance]}"/>
+                                        <TextBlock Text="&#xE790;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Appearance]}" Style="{StaticResource SidebarNavigationLabel}"/>
                                     </StackPanel>
                                 </ListBoxItem>
-                                <ListBoxItem Tag="About">
+                                <ListBoxItem Tag="About" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_About]}">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
-                                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_About]}"/>
+                                        <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_About]}" Style="{StaticResource SidebarNavigationLabel}"/>
                                     </StackPanel>
                                 </ListBoxItem>
                             </ListBox>
@@ -178,62 +184,62 @@
                                  what is actually there. -->
                             <ListBox x:Name="LstSections" BorderThickness="0" Background="Transparent" Margin="0,14"
                                  FontSize="15"
-                                 ItemContainerStyle="{StaticResource SidebarItemStyle}"
+                                 ItemContainerStyle="{StaticResource SettingsSidebarItemStyle}"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  ScrollViewer.CanContentScroll="False"
                                  SelectionChanged="LstSections_SelectionChanged">
-                            <ListBoxItem Tag="Service">
+                            <ListBoxItem Tag="Service" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Service]}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE9F5;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
-                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Service]}"/>
+                                    <TextBlock Text="&#xE9F5;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Service]}" Style="{StaticResource SidebarNavigationLabel}"/>
                                 </StackPanel>
                             </ListBoxItem>
-                            <ListBoxItem Tag="Index">
+                            <ListBoxItem Tag="Index" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Index]}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE8EF;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
-                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Index]}"/>
+                                    <TextBlock Text="&#xE8EF;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Index]}" Style="{StaticResource SidebarNavigationLabel}"/>
                                 </StackPanel>
                             </ListBoxItem>
-                            <ListBoxItem Tag="General">
+                            <ListBoxItem Tag="General" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_General]}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
-                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_General]}"/>
+                                    <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_General]}" Style="{StaticResource SidebarNavigationLabel}"/>
                                 </StackPanel>
                             </ListBoxItem>
-                            <ListBoxItem Tag="Hotkeys">
+                            <ListBoxItem Tag="Hotkeys" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Hotkeys]}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE765;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
-                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Hotkeys]}"/>
+                                    <TextBlock Text="&#xE765;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Hotkeys]}" Style="{StaticResource SidebarNavigationLabel}"/>
                                 </StackPanel>
                             </ListBoxItem>
-                            <ListBoxItem Tag="Plugins">
+                            <ListBoxItem Tag="Plugins" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Plugins]}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xECAA;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
-                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Plugins]}"/>
+                                    <TextBlock Text="&#xECAA;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Plugins]}" Style="{StaticResource SidebarNavigationLabel}"/>
                                 </StackPanel>
                             </ListBoxItem>
-                            <ListBoxItem Tag="Favorites">
+                            <ListBoxItem Tag="Favorites" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Favorites]}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE728;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
-                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Favorites]}"/>
+                                    <TextBlock Text="&#xE728;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Favorites]}" Style="{StaticResource SidebarNavigationLabel}"/>
                                 </StackPanel>
                             </ListBoxItem>
-                            <ListBoxItem Tag="History">
+                            <ListBoxItem Tag="History" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History]}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE81C;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
-                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History]}"/>
+                                    <TextBlock Text="&#xE81C;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History]}" Style="{StaticResource SidebarNavigationLabel}"/>
                                 </StackPanel>
                             </ListBoxItem>
-                            <ListBoxItem Tag="QuickPanel">
+                            <ListBoxItem Tag="QuickPanel" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_QuickPanel]}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE8A1;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
-                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_QuickPanel]}"/>
+                                    <TextBlock Text="&#xE8A1;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_QuickPanel]}" Style="{StaticResource SidebarNavigationLabel}"/>
                                 </StackPanel>
                             </ListBoxItem>
-                            <ListBoxItem Tag="LocalSend">
+                            <ListBoxItem Tag="LocalSend" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Title]}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE898;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0"/>
-                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Title]}"/>
+                                    <TextBlock Text="&#xE898;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Title]}" Style="{StaticResource SidebarNavigationLabel}"/>
                                 </StackPanel>
                             </ListBoxItem>
                         </ListBox>

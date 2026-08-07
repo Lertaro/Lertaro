@@ -1,0 +1,21 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Kept separate from SettingsWindow.xaml to keep that window below the repository's per-file line limit. -->
+    <Style x:Key="SidebarNavigationIcon" TargetType="TextBlock">
+        <Setter Property="Margin" Value="0,0,12,0"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsSidebarCompact, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Value="True">
+                <Setter Property="Margin" Value="0"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="SidebarNavigationLabel" TargetType="TextBlock">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsSidebarCompact, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Value="True">
+                <Setter Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+</ResourceDictionary>

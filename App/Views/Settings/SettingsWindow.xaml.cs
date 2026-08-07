@@ -20,6 +20,15 @@ public partial class SettingsWindow : Window
 {
     private int _validationErrorCount;
 
+    public static readonly DependencyProperty IsSidebarCompactProperty = DependencyProperty.Register(
+        nameof(IsSidebarCompact), typeof(bool), typeof(SettingsWindow));
+
+    public bool IsSidebarCompact
+    {
+        get => (bool)GetValue(IsSidebarCompactProperty);
+        private set => SetValue(IsSidebarCompactProperty, value);
+    }
+
     // Lazily constructed on first visit instead of all being built (and their full visual trees
     // realized) up front -- see issue #186: opening even a single cheap tab like About used to pay for
     // every other tab's construction too. AddPage parents each one into PagesHost (see SettingsWindow.xaml)
@@ -78,6 +87,7 @@ public partial class SettingsWindow : Window
         DataContext = vm;
         Loaded += (_, _) =>
         {
+            UpdateSidebarLayout(ActualWidth);
             if (LstSections.SelectedItem == null && LstSectionsBottom.SelectedItem == null) LstSections.SelectedIndex = 0;
             FocusSearchBox();
         };
@@ -108,6 +118,14 @@ public partial class SettingsWindow : Window
     }), System.Windows.Threading.DispatcherPriority.Background);
 
     private void TxtSettingsSearch_TextChanged(object sender, TextChangedEventArgs e) => this.OnSettingsSearchTextChanged();
+
+    private void SettingsWindow_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateSidebarLayout(e.NewSize.Width);
+
+    private void UpdateSidebarLayout(double windowWidth)
+    {
+        IsSidebarCompact = SettingsSidebarLayout.IsCompact(windowWidth);
+        SidebarColumn.Width = IsSidebarCompact ? new GridLength(SettingsSidebarLayout.CompactWidth) : GridLength.Auto;
+    }
 
     private void TxtSettingsSearch_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) => this.OnSettingsSearchKeyDown(e);
 
