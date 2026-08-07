@@ -4,6 +4,7 @@ using System.Diagnostics;
 namespace Lertaro.Core.Tests.IndexV2.Search;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class DirectoryScopeAllocationTests
 {
     public TestContext TestContext { get; set; } = null!;
@@ -13,11 +14,11 @@ public sealed class DirectoryScopeAllocationTests
     {
         using var fixture = BuildDrive(fileCount: 10_000);
 
-        Search(fixture, null); // Warm JIT and thread-static search scratch state.
-        var unscopedBytes = MeasureAllocatedBytes(() => Search(fixture, null));
-        var scopedBytes = MeasureAllocatedBytes(() => Search(fixture, @"C:\Scope"));
-        var unscopedTime = MeasureMedianElapsed(() => Search(fixture, null));
-        var scopedTime = MeasureMedianElapsed(() => Search(fixture, @"C:\Scope"));
+        Search(fixture, "item", null); // Warm JIT and thread-static search scratch state.
+        var unscopedBytes = MeasureAllocatedBytes(() => Search(fixture, "item", null));
+        var scopedBytes = MeasureAllocatedBytes(() => Search(fixture, "item", @"C:\Scope"));
+        var unscopedTime = MeasureMedianElapsed(() => Search(fixture, "item", null));
+        var scopedTime = MeasureMedianElapsed(() => Search(fixture, "item", @"C:\Scope"));
 
         TestContext.WriteLine($"Unscoped: {unscopedBytes:N0} B; scoped: {scopedBytes:N0} B; delta: {scopedBytes - unscopedBytes:N0} B.");
         TestContext.WriteLine($"Median unscoped: {unscopedTime.TotalMilliseconds:N2} ms; scoped: {scopedTime.TotalMilliseconds:N2} ms.");
@@ -25,7 +26,26 @@ public sealed class DirectoryScopeAllocationTests
         Assert.IsLessThanOrEqualTo(unscopedBytes + 100_000L, scopedBytes,
             "A resolved directory scope must not rebuild one full path per matched row.");
         // The scoped search must preserve the same visible result count as the unscoped fixture.
-        Assert.AreEqual(10, Search(fixture, @"C:\Scope"));
+        Assert.AreEqual(10, Search(fixture, "item", @"C:\Scope"));
+    }
+
+    [TestMethod]
+    public void SearchStreaming_PathModeScope_AvoidsPerResultPathAllocations()
+    {
+        using var fixture = BuildDrive(fileCount: 10_000);
+
+        Search(fixture, @"scope\ item", null);
+        var unscopedBytes = MeasureAllocatedBytes(() => Search(fixture, @"scope\ item", null));
+        var scopedBytes = MeasureAllocatedBytes(() => Search(fixture, @"scope\ item", @"C:\Scope"));
+        var unscopedTime = MeasureMedianElapsed(() => Search(fixture, @"scope\ item", null));
+        var scopedTime = MeasureMedianElapsed(() => Search(fixture, @"scope\ item", @"C:\Scope"));
+
+        TestContext.WriteLine($"Path mode unscoped: {unscopedBytes:N0} B; scoped: {scopedBytes:N0} B; delta: {scopedBytes - unscopedBytes:N0} B.");
+        TestContext.WriteLine($"Path mode median unscoped: {unscopedTime.TotalMilliseconds:N2} ms; scoped: {scopedTime.TotalMilliseconds:N2} ms.");
+
+        Assert.IsLessThanOrEqualTo(unscopedBytes + 100_000L, scopedBytes,
+            "A resolved path-mode scope must not rebuild one full path per matched row.");
+        Assert.AreEqual(10, Search(fixture, @"scope\ item", @"C:\Scope"));
     }
 
     private static long MeasureAllocatedBytes(Func<int> action)
@@ -38,10 +58,10 @@ public sealed class DirectoryScopeAllocationTests
         return GC.GetAllocatedBytesForCurrentThread() - before;
     }
 
-    private static int Search(LiveIndexFixture fixture, string? directoryFilter)
+    private static int Search(LiveIndexFixture fixture, string query, string? directoryFilter)
     {
         var count = 0;
-        IndexV2Searcher.SearchStreaming(fixture.Index, "item", 10, _ => count++, CancellationToken.None, directoryFilter);
+        IndexV2Searcher.SearchStreaming(fixture.Index, query, 10, _ => count++, CancellationToken.None, directoryFilter);
         return count;
     }
 

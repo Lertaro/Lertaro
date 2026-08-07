@@ -23,6 +23,10 @@ internal static class PathSearchFuzzy
     public static void SearchStreaming(Snapshot snapshot, DeltaOverlay delta, string pathQuery, int limit,
         Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower)
     {
+        var directoryContext = NameSearch.ResolveDirectoryContext(snapshot, delta, directoryFilterLower);
+        if (directoryContext.Excluded)
+            return;
+
         // See NameSearch: bounded by the index, and widened so a large limit cannot overflow.
         var keep = (int)Math.Min((long)Math.Max(limit, 8) * 8, snapshot.Count + delta.Added.Count);
         var scanKeep = Math.Min(keep * RefinementHeadroomFactor, RefinementScanCap);
@@ -47,10 +51,10 @@ internal static class PathSearchFuzzy
                 return;
             }
 
-            gate = SearchWithDirectory(snapshot, delta, dirQuery, filePattern, topN, scanKeep, token, directoryFilterLower);
+            gate = SearchWithDirectory(snapshot, delta, dirQuery, filePattern, topN, scanKeep, token, directoryContext);
         }
         else
-            filePattern = SearchFilenameOnly(snapshot, delta, pathQuery, topN, token, directoryFilterLower);
+            filePattern = SearchFilenameOnly(snapshot, delta, pathQuery, topN, token, directoryContext);
 
         var ranks = topN.Finish(scanKeep);
         if (filePattern is { IsEmpty: false } || gate != null)
@@ -112,7 +116,7 @@ internal static class PathSearchFuzzy
         => entryIndex >= snapshot.Count ? delta.Added[entryIndex - snapshot.Count].Name : delta.NameOf(entryIndex);
 
     private static PathGate SearchWithDirectory(Snapshot snapshot, DeltaOverlay delta, string dirQuery, FzfPattern? filePattern,
-        FzfTopN topN, int keep, CancellationToken token, string? directoryFilterLower)
+        FzfTopN topN, int keep, CancellationToken token, NameSearch.DirectoryContext directoryContext)
     {
         var gate = new PathGate(snapshot, delta, dirQuery);
         var matches = SearchMatcherPath.MatchUniquesForPath(snapshot, filePattern);
@@ -128,11 +132,11 @@ internal static class PathSearchFuzzy
             Parallel.For(
                 0,
                 chunkCount,
-                () => (Worker: SearchMatcher.RentWorker(), TopN: new FzfTopN(keep)),
+                () => (Worker: SearchMatcher.RentWorker(), TopN: new FzfTopN(keep), Membership: directoryContext.FilterLower != null ? new Dictionary<int, bool>() : null),
                 (chunk, _, state) =>
                 {
                     var start = chunk * FanoutChunk;
-                    FanoutRange(snapshot, delta, matches, start, Math.Min(start + FanoutChunk, matches.Count), gate, state.Worker, state.TopN, token, directoryFilterLower);
+                    FanoutRange(snapshot, delta, matches, start, Math.Min(start + FanoutChunk, matches.Count), gate, state.Worker, state.TopN, token, directoryContext, state.Membership);
                     return state;
                 },
                 state =>
@@ -147,16 +151,17 @@ internal static class PathSearchFuzzy
         else
         {
             var worker = SearchMatcher.RentWorker();
-            FanoutRange(snapshot, delta, matches, 0, matches.Count, gate, worker, topN, token, directoryFilterLower);
+            var membership = directoryContext.FilterLower != null ? new Dictionary<int, bool>() : null;
+            FanoutRange(snapshot, delta, matches, 0, matches.Count, gate, worker, topN, token, directoryContext, membership);
             SearchMatcher.ReturnWorker(worker);
         }
 
-        MatchDeltaRowsWithDirectory(snapshot, delta, gate, filePattern, topN, directoryFilterLower);
+        MatchDeltaRowsWithDirectory(snapshot, delta, gate, filePattern, topN, directoryContext.FilterLower);
         return gate;
     }
 
     private static void FanoutRange(Snapshot snapshot, DeltaOverlay delta, List<PathUniqueMatch> matches, int from, int to,
-        PathGate gate, SearchMatcher.Worker worker, FzfTopN topN, CancellationToken token, string? directoryFilterLower)
+        PathGate gate, SearchMatcher.Worker worker, FzfTopN topN, CancellationToken token, NameSearch.DirectoryContext directoryContext, Dictionary<int, bool>? membership)
     {
         var parentIndexes = snapshot.ParentIndexes;
         for (var i = from; i < to; i++)
@@ -176,7 +181,7 @@ internal static class PathSearchFuzzy
                 if (dirScore <= 0)
                     continue;
 
-                if (directoryFilterLower != null && !delta.GetFullPath(row).StartsWith(directoryFilterLower, StringComparison.OrdinalIgnoreCase))
+                if (membership != null && !NameSearch.RowMatchesFilter(snapshot, delta, row, directoryContext, membership))
                     continue;
 
                 var totalScore = m.Match.Score + dirScore;
@@ -229,9 +234,10 @@ internal static class PathSearchFuzzy
     }
 
     private static FzfPattern SearchFilenameOnly(Snapshot snapshot, DeltaOverlay delta, string pathQuery, FzfTopN topN,
-        CancellationToken token, string? directoryFilterLower)
+        CancellationToken token, NameSearch.DirectoryContext directoryContext)
     {
         var pattern = FzfPattern.ParseText(pathQuery);
+        var membership = directoryContext.FilterLower != null ? new Dictionary<int, bool>() : null;
 
         var hits = SearchMatcher.RentHitList();
         SearchMatcher.MatchUniques(snapshot, pattern, hits);
@@ -242,7 +248,7 @@ internal static class PathSearchFuzzy
             {
                 if (snapshot.IsDeleted(row) || delta.IsSuperseded(row))
                     continue;
-                if (directoryFilterLower != null && !delta.GetFullPath(row).StartsWith(directoryFilterLower, StringComparison.OrdinalIgnoreCase))
+                if (membership != null && !NameSearch.RowMatchesFilter(snapshot, delta, row, directoryContext, membership))
                     continue;
                 topN.Add(new FzfRank(row, m.Match.Score, m.SortKey));
             }
@@ -257,7 +263,7 @@ internal static class PathSearchFuzzy
                 continue;
             if (!SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, queryLen, slab, out var match))
                 continue;
-            if (directoryFilterLower != null && !delta.GetFullPath(record).StartsWith(directoryFilterLower, StringComparison.OrdinalIgnoreCase))
+            if (directoryContext.FilterLower != null && !delta.GetFullPath(record).StartsWith(directoryContext.FilterLower, StringComparison.OrdinalIgnoreCase))
                 continue;
             var entryIndex = EntryIndexOf(snapshot, delta, record);
             if (entryIndex < 0)

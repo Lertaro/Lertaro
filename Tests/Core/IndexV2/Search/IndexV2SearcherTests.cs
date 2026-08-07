@@ -181,4 +181,16 @@ public sealed class IndexV2SearcherTests
         Assert.HasCount(1, results);
         Assert.AreEqual("readme.txt", results[0].Name);
     }
+
+    [TestMethod]
+    public void SearchStreaming_PathModeDirectoryFilter_ExcludesAnotherDirectory()
+    {
+        using var fixture = BuildSampleDrive();
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"projects\ readme", 10, results.Add,
+            CancellationToken.None, directoryFilter: @"C:\Downloads");
+
+        Assert.IsEmpty(results);
+    }
 }
