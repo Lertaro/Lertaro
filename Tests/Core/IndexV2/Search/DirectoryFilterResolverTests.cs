@@ -127,4 +127,21 @@ public sealed class DirectoryFilterResolverTests
             return 0;
         });
     }
+
+    [TestMethod]
+    public void IsUnderCached_FileRowsAreNotMemoizedButTheirDirectoryIs()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Read((snapshot, _) =>
+        {
+            var fileRow = snapshot.FirstRowForId(5);
+            var directoryRow = snapshot.FirstRowForId(4);
+            var cache = new Dictionary<int, bool>();
+
+            Assert.IsTrue(DirectoryFilterResolver.IsUnderCached(snapshot, fileRow, snapshot.FirstRowForId(2), cache));
+            Assert.IsFalse(cache.ContainsKey(fileRow));
+            Assert.IsTrue(cache.TryGetValue(directoryRow, out var isUnder) && isUnder);
+            return 0;
+        });
+    }
 }

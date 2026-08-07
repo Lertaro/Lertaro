@@ -76,8 +76,13 @@ internal static class DirectoryFilterResolver
     // whose delta override moved it elsewhere is handled by its caller checking BaseOverrides first.
     public static bool IsUnderCached(Snapshot snapshot, int row, int ancestorRow, Dictionary<int, bool> cache)
     {
-        var stack = new List<int>();
-        var current = row;
+        if (row == ancestorRow)
+            return true;
+
+        // Files are leaves, so their cached membership would never be reused by another candidate.
+        // Start at their parent and memoize directories only; this keeps a broad scoped query from
+        // retaining one dictionary entry and one temporary collection per matched file.
+        var current = snapshot.IsDirectory(row) ? row : snapshot.ParentIndexes[row];
         var found = false;
         while (current >= 0)
         {
@@ -91,14 +96,22 @@ internal static class DirectoryFilterResolver
                 found = true;
                 break;
             }
-            stack.Add(current);
             var parent = snapshot.ParentIndexes[current];
             if (parent == current)
                 break;
             current = parent;
         }
-        foreach (var idx in stack)
-            cache[idx] = found;
+
+        // Walk the same short parent chain once more to cache only its reusable directory nodes.
+        // Stopping before `current` avoids overwriting an existing memoized answer on a cache hit.
+        for (var candidate = snapshot.IsDirectory(row) ? row : snapshot.ParentIndexes[row]; candidate >= 0 && candidate != current;)
+        {
+            cache[candidate] = found;
+            var parent = snapshot.ParentIndexes[candidate];
+            if (parent == candidate)
+                break;
+            candidate = parent;
+        }
         return found;
     }
 

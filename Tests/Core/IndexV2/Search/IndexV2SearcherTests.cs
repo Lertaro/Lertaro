@@ -68,6 +68,19 @@ public sealed class IndexV2SearcherTests
     }
 
     [TestMethod]
+    public void SearchStreaming_UnresolvedDirectoryFilter_DoesNotAdmitItsNearestAncestor()
+    {
+        using var fixture = BuildSampleDrive();
+        var results = new List<SearchResult>();
+
+        // The indexed ancestor resolves, but the final path segment does not. The fallback path-prefix
+        // check must keep results under Projects from leaking into the nonexistent child directory.
+        IndexV2Searcher.SearchStreaming(fixture.Index, "readme", 10, results.Add, CancellationToken.None, directoryFilter: @"C:\Projects\missing");
+
+        Assert.IsEmpty(results);
+    }
+
+    [TestMethod]
     public void SearchStreaming_ForeignDrivePrefix_ReturnsNothing()
     {
         using var fixture = BuildSampleDrive();

@@ -159,7 +159,7 @@ internal static class PathTermFallback
                 {
                     if (snapshot.IsDeleted(row) || delta.IsSuperseded(row))
                         continue;
-                    if (membership != null && !NameSearch.RowMatchesFilter(snapshot, delta, row, delta.GetFullPath(row), directoryContext, membership))
+                    if (membership != null && !NameSearch.RowMatchesFilter(snapshot, delta, row, directoryContext, membership))
                         continue;
 
                     var parent = snapshot.ParentIndexes[row];

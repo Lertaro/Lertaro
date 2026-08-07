@@ -165,7 +165,7 @@ internal static class NameSearch
     }
 
     // True when `row` (a base-snapshot row) satisfies the resolved directory filter.
-    internal static bool RowMatchesFilter(Snapshot snapshot, DeltaOverlay? delta, int row, string path, DirectoryContext ctx, Dictionary<int, bool> membership)
+    internal static bool RowMatchesFilter(Snapshot snapshot, DeltaOverlay delta, int row, DirectoryContext ctx, Dictionary<int, bool> membership)
     {
         if (ctx.FilterLower == null)
             return true;
@@ -173,7 +173,7 @@ internal static class NameSearch
             return DirectoryFilterResolver.IsUnderCached(snapshot, row, ctx.RootFilterRow, membership);
         if (ctx.AncestorRow >= 0 && !DirectoryFilterResolver.IsUnderCached(snapshot, row, ctx.AncestorRow, membership))
             return false;
-        return path.StartsWith(ctx.FilterLower, StringComparison.OrdinalIgnoreCase);
+        return delta.GetFullPath(row).StartsWith(ctx.FilterLower, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void CollectRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, CancellationToken token)
@@ -205,7 +205,7 @@ internal static class NameSearch
                 {
                     if ((flags[row] & deletedFlag) != 0 || (mayBeSuperseded && delta.IsSuperseded(row)))
                         continue;
-                    if (membership != null && !RowMatchesFilter(snapshot, delta, row, delta.GetFullPath(row), ctx, membership))
+                    if (membership != null && !RowMatchesFilter(snapshot, delta, row, ctx, membership))
                         continue;
                     topN.Add(new FzfRank(row, 0, sortKey));
                 }
@@ -222,7 +222,7 @@ internal static class NameSearch
                 {
                     if ((flags[row] & deletedFlag) != 0 || (mayBeSuperseded && delta.IsSuperseded(row)))
                         continue;
-                    if (membership != null && !RowMatchesFilter(snapshot, delta, row, delta.GetFullPath(row), ctx, membership))
+                    if (membership != null && !RowMatchesFilter(snapshot, delta, row, ctx, membership))
                         continue;
                     // The per-unique sort key applies verbatim to every row of that unique --
                     // EntryIndex isn't packed into the key, so nothing is recomputed per row.
