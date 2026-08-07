@@ -79,7 +79,7 @@ public class HotkeyPageSettings
     public string ActionsMenuHotkey { get; set; } = "Ctrl+O";
     public string CompleteFromSelectionHotkey { get; set; } = "Ctrl+Tab";
     public string QuickLookHotkey { get; set; } = "Alt+P";
-    public bool QuickNavTriggerOnDoubleClick { get; set; } = true;
+    public bool QuickNavTriggerOnDoubleClick { get; set; }
     public bool QuickNavTriggerOnMiddleClick { get; set; } = true;
 
     // Cycle back/forward through KeywordHistoryStore entries in the quick window's search box.
