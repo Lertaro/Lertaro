@@ -16,10 +16,10 @@ public static class AppSearchPipeClient
     // results, small enough to stay off the large object heap.
     private const int ResponseReadBufferSize = 64 * 1024;
 
-    // Must match AppSearchPipeService's own naming exactly (per-user suffix + ACL) -- see that file's
+    // Must match AppSearchPipeService's own naming exactly (per-user-session suffix + ACL) -- see that file's
     // comment for why: a search response can carry another account's own file paths/network-drive
     // contents, so this pipe deliberately isn't shared machine-wide the way the plain activation pipe is.
-    public static string PipeNameFor(string userName) => $"Lertaro_App_Search_Pipe_{userName}";
+    public static string PipeNameFor(string sessionHash) => $"Lertaro_App_Search_Pipe_{sessionHash}";
 
     // Verified reachable BEFORE the interactive UI ever opens a console handle: a script or pipeline that
     // invokes `lff` non-interactively (the whole point of the ffmpeg/`for /f` usage this was built for)

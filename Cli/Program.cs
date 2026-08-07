@@ -1,5 +1,6 @@
 using Lertaro.Cli.Search;
 using Lertaro.Cli.Ui;
+using Lertaro.Core.Services.Installation;
 
 // An fzf-style CLI: instead of replicating the App's own search initialization (plugin loading,
 // UserNetworkDriveSearch.Configure()), this connects to a pipe the App itself hosts
@@ -30,7 +31,7 @@ using Lertaro.Cli.Ui;
 // -- where this exe already sits alongside Lertaro.App.exe -- straight to the machine's PATH), not this
 // program's own -- there's no install/uninstall command here.
 
-var pipeName = AppSearchPipeClient.PipeNameFor(Environment.UserName);
+var pipeName = AppSearchPipeClient.PipeNameFor(CurrentUserIdentity.SessionHash);
 
 try
 {
