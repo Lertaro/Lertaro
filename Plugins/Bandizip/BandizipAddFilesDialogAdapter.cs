@@ -1,4 +1,5 @@
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.Bandizip.Win32;
 
 namespace Lertaro.Plugins.Bandizip;
@@ -13,7 +14,7 @@ namespace Lertaro.Plugins.Bandizip;
 /// </summary>
 public class BandizipAddFilesDialogAdapter : IFileDialogAdapter
 {
-    public string Name => "Bandizip";
+    public string Name => TranslationService.Get("Bandizip_AddFilesDialogAdapterName");
 
     // This dialog only ever navigates to a folder to browse within -- the user picks the actual file(s) to
     // add from its list themselves, same folder-only contract as BandizipExtractDialogAdapter.

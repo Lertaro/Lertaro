@@ -1,5 +1,7 @@
 {
   "Bandizip_PluginDesc": "Bandizip 集成插件。解压压缩包、或选择要添加的文件时，可以让 Lertaro 直接填写目标路径（比如通过快速导航菜单）。",
+  "Bandizip_ExtractDialogAdapterName": "Bandizip - 解压路径",
+  "Bandizip_AddFilesDialogAdapterName": "Bandizip - 添加文件",
   "Plugin_Comp_Desc_BandizipExtractDialogAdapter": "通过控件结构（而不是窗口标题，因为 Bandizip 有多语言版本）识别 Bandizip 的“选择解压路径”对话框，并让 Lertaro 填写其中的目标路径输入框。",
   "Plugin_Comp_Desc_BandizipAddFilesDialogAdapter": "通过控件结构（而不是窗口标题，因为 Bandizip 有多语言版本）识别 Bandizip 的“选择要添加的文件”对话框，并让 Lertaro 将其导航到目标文件夹。"
 }

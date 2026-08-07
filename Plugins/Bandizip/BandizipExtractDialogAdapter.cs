@@ -1,4 +1,5 @@
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.Bandizip.Win32;
 
 namespace Lertaro.Plugins.Bandizip;
@@ -20,7 +21,7 @@ public class BandizipExtractDialogAdapter : IFileDialogAdapter
     // actually appear before SuppressAutoComplete goes looking for it.
     private const int AutoCompletePopupDelayMs = 150;
 
-    public string Name => "Bandizip";
+    public string Name => TranslationService.Get("Bandizip_ExtractDialogAdapterName");
 
     // The destination-path field can only ever hold a folder -- never a specific file, unlike an Open/Save
     // dialog's filename box -- see IFileDialogAdapter.TargetIsFolderOnly for why callers use this.

@@ -1,5 +1,7 @@
 {
   "Bandizip_PluginDesc": "Bandizip 통합 플러그인입니다. Bandizip의 압축 풀기 대화 상자와 파일 추가 대화 상자(예: 빠른 탐색 메뉴에서)에서 Lertaro가 대상 경로를 입력할 수 있게 해줍니다.",
+  "Bandizip_ExtractDialogAdapterName": "Bandizip - 압축 풀기 경로",
+  "Bandizip_AddFilesDialogAdapterName": "Bandizip - 파일 추가",
   "Plugin_Comp_Desc_BandizipExtractDialogAdapter": "Bandizip의 \"압축 풀 경로 선택\" 대화 상자를 (Bandizip이 다국어로 제공되므로 창 제목이 아닌) 컨트롤 구조로 감지하여, Lertaro가 대상 경로 입력란을 채울 수 있게 합니다.",
   "Plugin_Comp_Desc_BandizipAddFilesDialogAdapter": "Bandizip의 \"추가할 파일 선택\" 대화 상자를 (Bandizip이 다국어로 제공되므로 창 제목이 아닌) 컨트롤 구조로 감지하여, Lertaro가 이를 대상 폴더로 이동시킬 수 있게 합니다."
 }

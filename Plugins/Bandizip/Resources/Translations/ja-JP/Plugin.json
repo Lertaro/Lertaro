@@ -1,5 +1,7 @@
 {
   "Bandizip_PluginDesc": "Bandizip 連携プラグイン。Bandizip の展開ダイアログやファイル追加ダイアログ（クイックナビゲーションメニューからなど）で、Lertaro が展開先パスを自動入力できるようにします。",
+  "Bandizip_ExtractDialogAdapterName": "Bandizip - 展開先",
+  "Bandizip_AddFilesDialogAdapterName": "Bandizip - ファイルを追加",
   "Plugin_Comp_Desc_BandizipExtractDialogAdapter": "コントロール構造（Bandizip は多言語対応のためウィンドウタイトルではなく）から Bandizip の「展開先の選択」ダイアログを検出し、Lertaro がその展開先パス欄に入力できるようにします。",
   "Plugin_Comp_Desc_BandizipAddFilesDialogAdapter": "コントロール構造（Bandizip は多言語対応のためウィンドウタイトルではなく）から Bandizip の「追加するファイルの選択」ダイアログを検出し、Lertaro が対象フォルダーへ移動できるようにします。"
 }
