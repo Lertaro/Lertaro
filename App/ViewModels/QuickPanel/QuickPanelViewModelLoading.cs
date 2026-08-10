@@ -8,15 +8,18 @@ namespace Lertaro.App.ViewModels.QuickPanel;
 // is part of.
 public partial class QuickPanelViewModel
 {
+    private static readonly TimeSpan PreferredTabExclusiveLoadWindow = TimeSpan.FromMilliseconds(200);
+    private int _refreshGeneration;
+
     /// <summary>
-    /// Starts loading every workspace and returns as soon as there is something worth opening for --
-    /// or when everything has finished and there is not.
+    /// Loads the preferred tab first and returns as soon as there is something worth opening for, then
+    /// fills the remaining tabs in the background.
     /// </summary>
     /// <remarks>
-    /// Nothing waits on anything else. Each source is its own task, each group appears the moment its own
-    /// source is ready, and the panel opens on the first one to arrive rather than the last. A source on
-    /// a disconnected share used to hold the whole summon open behind it; now it costs only its own
-    /// group, which turns up late or not at all.
+    /// The tab selected for this summon gets the loading resources to itself until its first group lands.
+    /// Only then are the other tabs started in the background, after yielding so the caller can construct
+    /// and paint the window first. A short grace period keeps a disconnected preferred source from
+    /// holding the whole panel closed indefinitely.
     ///
     /// The task returned is deliberately not "everything is loaded": the caller's question is only
     /// whether to open a window, and that is answered by the first entry. The rest lands afterwards,
@@ -28,6 +31,7 @@ public partial class QuickPanelViewModel
     /// </remarks>
     public async Task RefreshAsync(string? processName = null, CancellationToken token = default)
     {
+        var refreshGeneration = ++_refreshGeneration;
         // Each open starts unfiltered. The box is part of the window and every open builds a new one, so
         // it is empty on screen -- a query left on this view model would narrow the list by something
         // the user cannot see and did not type. Assigned to the field rather than the property: there is
@@ -53,17 +57,74 @@ public partial class QuickPanelViewModel
         RebuildTabs();
         ShowActiveTab();
 
-        // Completed by the first group to land. Nothing else awaits it, so a summon that turns up empty
-        // still finishes -- through the WhenAll below rather than through this.
+        // Completed by the first group to land. A summon that turns up empty still finishes through the
+        // preferred load or the combined fallback completion below rather than through this.
         var firstArrival = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _firstArrival = firstArrival;
 
-        var everything = Task.WhenAll(candidates.Select(tab =>
-            tab.LoadAsync((group, rank) => Place(tab, group, rank), token)));
+        var preferred = candidates.FirstOrDefault(tab =>
+            tab.Id.Equals(_wantedTabId, StringComparison.OrdinalIgnoreCase)) ?? candidates.FirstOrDefault();
+        if (preferred == null)
+        {
+            _firstArrival = null;
+            return;
+        }
+
+        Task Load(IQuickPanelTabSource tab)
+            => tab.LoadAsync((group, rank) =>
+            {
+                if (refreshGeneration == _refreshGeneration)
+                    Place(tab, group, rank);
+            }, token);
+
+        var preferredLoad = Load(preferred);
+        var remaining = candidates.Where(tab => !ReferenceEquals(tab, preferred)).ToList();
+        var grace = Task.Delay(PreferredTabExclusiveLoadWindow, token);
+        await Task.WhenAny(firstArrival.Task, preferredLoad, grace).ConfigureAwait(true);
+
+        if (firstArrival.Task.IsCompleted)
+        {
+            _ = FinishInBackgroundAsync(preferredLoad, remaining);
+            _firstArrival = null;
+            return;
+        }
+
+        // ponytail: 200 ms is a fixed responsiveness ceiling, not a latency model. If source telemetry
+        // is added later, replace it with an adaptive per-source threshold; until then it prevents a
+        // disconnected preferred folder from undoing the panel's existing non-blocking behavior.
+        var everything = Task.WhenAll(remaining.Select(Load).Prepend(preferredLoad));
 
         // Whichever comes first: something to show, or nothing left to wait for.
         await Task.WhenAny(firstArrival.Task, everything).ConfigureAwait(true);
+        _ = ObserveBackgroundCompletionAsync(everything);
         _firstArrival = null;
+
+        async Task FinishInBackgroundAsync(Task alreadyStarted, IEnumerable<IQuickPanelTabSource> later)
+        {
+            // Yield before even calling the remaining providers: some complete synchronously, and doing
+            // that work inline on the UI context would move it back in front of the first window paint.
+            // Without a context there is no pending frame to yield to, so starting inline preserves the
+            // useful synchronous-completion behavior for headless callers.
+            if (SynchronizationContext.Current != null)
+                await Task.Yield();
+            await ObserveBackgroundCompletionAsync(Task.WhenAll(later.Select(Load).Prepend(alreadyStarted)));
+        }
+    }
+
+    private static async Task ObserveBackgroundCompletionAsync(Task completion)
+    {
+        try
+        {
+            await completion.ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer refresh or caller cancellation makes the remaining tabs irrelevant.
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[QuickPanel] Background tab load failed: {ex.Message}", LogLevel.Error);
+        }
     }
 
     /// <summary>Tabs still loading, in configured order -- what a tab's own position is read from.</summary>

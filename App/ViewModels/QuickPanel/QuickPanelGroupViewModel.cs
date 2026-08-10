@@ -21,7 +21,10 @@ namespace Lertaro.App.ViewModels.QuickPanel;
 /// </remarks>
 public class QuickPanelGroupViewModel : ViewModelBase
 {
-    private const int InitialMaterializedItemCount = 128;
+    // Enough rows or tiles to cover the largest normal panel viewport plus a small scroll-ahead buffer.
+    // The outer ScrollViewer asks for another page as it approaches the end, so making this larger only
+    // creates hidden WPF containers and starts icon loads the user cannot see yet.
+    private const int InitialMaterializedItemCount = 32;
     private readonly List<(AppSearchResult Item, DateTime? Modified)> _loaded;
     private readonly int _maxItems;
     private int _matchingCount;
@@ -131,6 +134,14 @@ public class QuickPanelGroupViewModel : ViewModelBase
         _materializedItemCount += InitialMaterializedItemCount;
         Rebuild();
         return true;
+    }
+
+    /// <summary>Releases rows beyond the first viewport page while retaining the complete loaded set.</summary>
+    public void ResetMaterialization()
+    {
+        _materializedItemCount = InitialMaterializedItemCount;
+        if (Items.Count > InitialMaterializedItemCount)
+            Items.ReplaceRange(Items.Take(InitialMaterializedItemCount).ToList());
     }
 
     /// <summary>Takes a freshly loaded set in place of what this group was holding.</summary>

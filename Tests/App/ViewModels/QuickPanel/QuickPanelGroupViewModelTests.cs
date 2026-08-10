@@ -12,12 +12,29 @@ public sealed class QuickPanelGroupViewModelTests
         var group = Group(300);
 
         Assert.AreEqual(300, group.Count);
-        Assert.HasCount(128, group.Items);
-        Assert.IsTrue(group.LoadNextPage());
-        Assert.HasCount(256, group.Items);
-        Assert.IsTrue(group.LoadNextPage());
+        Assert.HasCount(32, group.Items);
+
+        var loadedPages = 0;
+        while (group.LoadNextPage())
+            loadedPages++;
+
+        Assert.AreEqual(9, loadedPages);
         Assert.HasCount(300, group.Items);
         Assert.IsFalse(group.LoadNextPage());
+    }
+
+    [TestMethod]
+    public void ResetMaterialization_PreviouslyScrolledGroup_ReturnsToFirstPage()
+    {
+        var group = Group(300);
+        group.LoadNextPage();
+        group.LoadNextPage();
+        Assert.HasCount(96, group.Items);
+
+        group.ResetMaterialization();
+
+        Assert.AreEqual(300, group.Count);
+        Assert.HasCount(32, group.Items);
     }
 
     [TestMethod]

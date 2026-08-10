@@ -153,9 +153,12 @@ public sealed class QuickPanelWorkspaceSelectionTests
 
         var vm = Build(settings);
         await vm.RefreshAsync();
+        var groupChanges = 0;
+        vm.Groups.CollectionChanged += (_, _) => groupChanges++;
         await vm.SelectTabAsync("w2");
 
         CollectionAssert.AreEqual(new[] { "s2" }, vm.Groups.Select(g => g.SourceId).ToList());
+        Assert.AreEqual(1, groupChanges, "a tab swap should rebuild the groups visual tree only once");
         Assert.IsTrue(vm.Tabs.Single(t => t.Id == "w2").IsSelected);
         Assert.IsFalse(vm.Tabs.Single(t => t.Id == "w1").IsSelected);
         Assert.IsTrue(vm.HasTabStrip);

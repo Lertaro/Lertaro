@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Lertaro.App.Helpers;
 using Lertaro.Core;
 using Lertaro.App.Services.QuickPanel;
 using Lertaro.App.ViewModels.QuickPanel.Loading;
@@ -58,7 +59,7 @@ public partial class QuickPanelViewModel : ViewModelBase
     public ObservableCollection<QuickPanelTabViewModel> Tabs { get; } = new();
 
     /// <summary>One entry per visible source of the workspace on screen, each in its own order.</summary>
-    public ObservableCollection<QuickPanelGroupViewModel> Groups { get; } = new();
+    public ObservableRangeCollection<QuickPanelGroupViewModel> Groups { get; } = new();
 
     /// <summary>The widest line number any group currently on screen needs.</summary>
     /// <remarks>Every group binds its panel-owned gutter here, so their rows start on one vertical line.</remarks>
@@ -178,14 +179,34 @@ public partial class QuickPanelViewModel : ViewModelBase
             ? SelectTabAsync(Tabs[oneBasedIndex - 1].Id, token)
             : Task.CompletedTask;
 
+    private string _shownTabId = string.Empty;
+
     /// <summary>Puts the active tab's groups on screen, keeping whatever is typed in the box.</summary>
     private void ShowActiveTab()
     {
-        Groups.Clear();
-        if (_content.TryGetValue(_activeTabId, out var groups))
+        var groups = _content.TryGetValue(_activeTabId, out var loaded)
+            ? loaded
+            : new List<QuickPanelGroupViewModel>();
+
+        if (_shownTabId.Equals(_activeTabId, StringComparison.OrdinalIgnoreCase))
         {
+            SyncVisibleGroups(groups);
+        }
+        else
+        {
+            var hidden = Groups.ToList();
             foreach (var group in groups)
-                Groups.Add(group);
+                group.ResetMaterialization();
+
+            // One Reset notification lets WPF build the new tab once. Clear followed by one Add per
+            // group repeatedly measured and laid out the same visual tree during every switch.
+            Groups.ReplaceRange(groups);
+            _shownTabId = _activeTabId;
+
+            // These groups are detached now, so trimming them is cheap and keeps a revisited tab from
+            // recreating every page the user happened to scroll through earlier.
+            foreach (var group in hidden)
+                group.ResetMaterialization();
         }
 
         // Switching workspace with something typed keeps the filter: the box is still on screen with
@@ -199,5 +220,30 @@ public partial class QuickPanelViewModel : ViewModelBase
         UpdateLineNumberSizing();
 
         RewatchIfWatching();
+    }
+
+    private void SyncVisibleGroups(IReadOnlyList<QuickPanelGroupViewModel> target)
+    {
+        for (var index = 0; index < target.Count; index++)
+        {
+            if (index < Groups.Count && ReferenceEquals(Groups[index], target[index]))
+                continue;
+
+            var existingIndex = -1;
+            for (var candidate = index + 1; candidate < Groups.Count; candidate++)
+            {
+                if (!ReferenceEquals(Groups[candidate], target[index])) continue;
+                existingIndex = candidate;
+                break;
+            }
+
+            if (existingIndex >= 0)
+                Groups.Move(existingIndex, index);
+            else
+                Groups.Insert(index, target[index]);
+        }
+
+        while (Groups.Count > target.Count)
+            Groups.RemoveAt(Groups.Count - 1);
     }
 }

@@ -21,12 +21,17 @@ public sealed class QuickPanelStreamingTests
     private sealed class Gates
     {
         private readonly Dictionary<string, TaskCompletionSource<List<SearchResult>>> _gates = new();
+        private readonly HashSet<string> _started = new(StringComparer.OrdinalIgnoreCase);
+        private readonly object _sync = new();
 
         public TaskCompletionSource<List<SearchResult>> For(string sourceId)
         {
-            if (!_gates.TryGetValue(sourceId, out var gate))
-                _gates[sourceId] = gate = new TaskCompletionSource<List<SearchResult>>(TaskCreationOptions.RunContinuationsAsynchronously);
-            return gate;
+            lock (_sync)
+            {
+                if (!_gates.TryGetValue(sourceId, out var gate))
+                    _gates[sourceId] = gate = new TaskCompletionSource<List<SearchResult>>(TaskCreationOptions.RunContinuationsAsynchronously);
+                return gate;
+            }
         }
 
         public void Deliver(string sourceId, string path, params string[] names)
@@ -34,7 +39,18 @@ public sealed class QuickPanelStreamingTests
 
         public void DeliverNothing(string sourceId) => For(sourceId).TrySetResult(new List<SearchResult>());
 
-        public Task<List<SearchResult>> Load(QuickPanelFolderSource source, CancellationToken _) => For(source.Id).Task;
+        public Task<List<SearchResult>> Load(QuickPanelFolderSource source, CancellationToken _)
+        {
+            lock (_sync)
+                _started.Add(source.Id);
+            return For(source.Id).Task;
+        }
+
+        public bool HasStarted(string sourceId)
+        {
+            lock (_sync)
+                return _started.Contains(sourceId);
+        }
     }
 
     private static QuickPanelFolderSource Folder(string id) => new() { Id = id, Path = @"C:\" + id };
@@ -50,6 +66,48 @@ public sealed class QuickPanelStreamingTests
     {
         var gates = new Gates();
         return (new QuickPanelViewModel(() => settings, gates.Load, saveSettings: () => { }), gates);
+    }
+
+    [TestMethod]
+    public async Task Refresh_StartsWantedWorkspaceBeforeBackgroundTabs()
+    {
+        var settings = new QuickPanelSettings
+        {
+            Tabs = new List<QuickPanelTab> { Workspace("w1", "s1"), Workspace("w2", "s2") },
+            ActiveTabId = "w2",
+        };
+        var (vm, gates) = Build(settings);
+
+        var refresh = vm.RefreshAsync();
+        Assert.IsTrue(gates.HasStarted("s2"));
+        Assert.IsFalse(gates.HasStarted("s1"));
+
+        gates.Deliver("s2", @"C:\s2", "shown.txt");
+        await refresh;
+        await Task.Delay(50);
+
+        Assert.IsTrue(gates.HasStarted("s1"));
+        gates.Deliver("s1", @"C:\s1", "background.txt");
+    }
+
+    [TestMethod]
+    public async Task Refresh_StalledWantedWorkspace_ReleasesBackgroundTabsAfterGrace()
+    {
+        var settings = new QuickPanelSettings
+        {
+            Tabs = new List<QuickPanelTab> { Workspace("w1", "s1"), Workspace("w2", "s2") },
+            ActiveTabId = "w2",
+        };
+        var (vm, gates) = Build(settings);
+
+        var refresh = vm.RefreshAsync();
+        for (var attempt = 0; attempt < 50 && !gates.HasStarted("s1"); attempt++)
+            await Task.Delay(20);
+
+        Assert.IsTrue(gates.HasStarted("s1"));
+        gates.Deliver("s1", @"C:\s1", "fallback.txt");
+        await refresh;
+        gates.DeliverNothing("s2");
     }
 
     // The whole point: the panel is ready to open while a source is still outstanding.
@@ -73,9 +131,13 @@ public sealed class QuickPanelStreamingTests
         CollectionAssert.AreEqual(new[] { "fast" }, vm.Groups.Select(g => g.SourceId).ToList());
 
         // And the slow one still lands, into a panel that is already up.
+        var groupChanges = new List<System.Collections.Specialized.NotifyCollectionChangedAction>();
+        vm.Groups.CollectionChanged += (_, e) => groupChanges.Add(e.Action);
         gates.Deliver("slow", @"C:\slow", "b.txt");
         await Task.Delay(50);
         CollectionAssert.AreEqual(new[] { "fast", "slow" }, vm.Groups.Select(g => g.SourceId).ToList());
+        CollectionAssert.AreEqual(new[] { System.Collections.Specialized.NotifyCollectionChangedAction.Add }, groupChanges,
+            "a late group should be inserted without rebuilding groups that are already visible");
     }
 
     // Arrival order is a race; the configured order is not. A late source takes the place the settings
