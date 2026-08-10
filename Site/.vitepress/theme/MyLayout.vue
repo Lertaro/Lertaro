@@ -43,9 +43,9 @@ const localePrefix = () => (lang.value === 'zh-CN' ? '/zh-CN' : '')
           <p>{{ frontmatter.securityWarning.details }}</p>
         </div>
         <div class="security-warning-links">
+          <a class="security-warning-primary" href="https://github.com/Lertaro/Lertaro/releases">GitHub Releases</a>
           <a href="https://github.com/Lertaro/Lertaro">github.com/Lertaro/Lertaro</a>
           <a href="https://lertaro.github.io/">lertaro.github.io</a>
-          <a href="https://github.com/Lertaro/Lertaro/releases">GitHub Releases</a>
         </div>
       </aside>
     </template>
@@ -142,10 +142,9 @@ const localePrefix = () => (lang.value === 'zh-CN' ? '/zh-CN' : '')
 
 .security-warning-links {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   gap: 6px;
-  max-width: 360px;
   font-size: 12px;
   font-weight: 600;
 }
@@ -157,12 +156,25 @@ const localePrefix = () => (lang.value === 'zh-CN' ? '/zh-CN' : '')
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
   text-decoration: none;
+  white-space: nowrap;
   transition: border-color 0.2s ease, color 0.2s ease;
 }
 
 .security-warning-links a:hover {
   border-color: var(--vp-c-brand-1);
   color: var(--vp-c-brand-1);
+}
+
+.security-warning-links .security-warning-primary {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-1);
+  color: var(--vp-c-bg);
+}
+
+.security-warning-links .security-warning-primary:hover {
+  border-color: var(--vp-c-brand-2);
+  background: var(--vp-c-brand-2);
+  color: var(--vp-c-bg);
 }
 
 @media (max-width: 959px) {
@@ -174,8 +186,8 @@ const localePrefix = () => (lang.value === 'zh-CN' ? '/zh-CN' : '')
 
   .security-warning-links {
     grid-column: 2;
+    flex-wrap: wrap;
     justify-content: flex-start;
-    max-width: none;
   }
 }
 
