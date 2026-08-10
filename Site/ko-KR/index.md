@@ -7,6 +7,9 @@ hero:
   image:
     src: /logo.png
     alt: Lertaro Logo
+securityWarning:
+  title: "보안 경고: 공식 배포처만 신뢰하세요"
+  details: "저장소 github.com/adelmagical742/Lertaro와 웹사이트 adelmagical742.github.io는 Lertaro를 사칭하며 악성 다운로드를 배포하고 있습니다. 해당 주소에서 어떤 파일도 다운로드하거나 실행하지 말고 아래 공식 링크만 이용하세요."
 features:
   - icon: 💡
     title: Listary의 대안

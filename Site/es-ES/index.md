@@ -7,6 +7,9 @@ hero:
   image:
     src: /logo.png
     alt: Lertaro Logo
+securityWarning:
+  title: "Aviso de seguridad: usa solo fuentes oficiales"
+  details: "El repositorio github.com/adelmagical742/Lertaro y el sitio web adelmagical742.github.io suplantan a Lertaro y distribuyen descargas maliciosas. No descargues ni ejecutes archivos procedentes de esas direcciones; utiliza únicamente los enlaces oficiales que aparecen a continuación."
 features:
   - icon: 💡
     title: Alternativa a Listary

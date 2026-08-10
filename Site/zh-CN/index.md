@@ -7,6 +7,9 @@ hero:
   image:
     src: /logo.png
     alt: Lertaro Logo
+securityWarning:
+  title: "安全警告：仅信任官方来源"
+  details: "仓库 github.com/adelmagical742/Lertaro 和网站 adelmagical742.github.io 正在冒充 Lertaro 并传播恶意下载。请勿下载或运行来自这些地址的任何文件，并仅使用下方官方链接。"
 features:
   - icon: 💡
     title: Listary 的开源替代

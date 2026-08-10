@@ -6,6 +6,9 @@
 
 [English](../README.md) | [简体中文](zh-CN.md) | [繁體中文（香港）](zh-HK.md) | [繁體中文（台灣）](zh-TW.md) | 日本語 | [한국어](ko-KR.md) | [Español](es-ES.md)
 
+> [!CAUTION]
+> **セキュリティ警告：Lertaro は必ず公式配布元からダウンロードしてください。** リポジトリ `github.com/adelmagical742/Lertaro` とウェブサイト `adelmagical742.github.io` は Lertaro を偽装し、悪意のあるダウンロードを配布しています。これらの場所からファイルをダウンロードしたり実行したりしないでください。唯一の公式リポジトリは [Lertaro/Lertaro](https://github.com/Lertaro/Lertaro)、唯一の公式ウェブサイトは [lertaro.github.io](https://lertaro.github.io/) であり、公式バイナリは [GitHub Releases](https://github.com/Lertaro/Lertaro/releases) からのみ配布されます。ファイル名や内容が変わっても、上記の偽装配布元は信頼しないでください。
+
 Lertaro は **.NET 10 (WPF)** で構築された、超軽量・高性能・拡張可能な Windows 向けグローバル検索/効率化ランチャーです。**Everything** や **Listary** に代わるモダンなオープンソースの選択肢で、NTFS の **USN Journal** と MFT を直接読み取ってローカルドライブをインデックス化し、瞬時かつ低リソースな検索を実現します。
 
 📖 **[ドキュメント全体・ユーザーマニュアル・開発者マニュアル](https://lertaro.github.io/ja-JP/)**
