@@ -17,8 +17,7 @@
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
-                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles/Windows/LocalSendWindow.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
@@ -110,6 +109,7 @@
                         <ListBox x:Name="LstFiles" Background="Transparent" BorderThickness="0" Margin="4"
                                  SelectionMode="Multiple" SelectionChanged="LstFiles_SelectionChanged"
                                  HorizontalContentAlignment="Stretch"
+                                 ItemTemplate="{StaticResource LocalSendProgressFileItemTemplate}"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                                  ScrollViewer.CanContentScroll="True"
@@ -146,59 +146,6 @@
                                     </Setter>
                                 </Style>
                             </ListBox.ItemContainerStyle>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="0,2">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <Grid Grid.Row="0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-
-                                            <!-- Normal File Name -->
-                                            <TextBlock Grid.Column="0" Text="{Binding DisplayName}" ToolTip="{Binding DisplayName}"
-                                                       FontSize="12" Foreground="{DynamicResource TextPrimary2}" TextTrimming="CharacterEllipsis"
-                                                       HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0"/>
-
-                                            <!-- Normal File Size/Status -->
-                                            <TextBlock Grid.Column="1" FontSize="11.5" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Text" Value="{Binding SizeText}"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding ShowProgress}" Value="True">
-                                                                <Setter Property="Text" Value="{Binding StatusText}"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Grid>
-
-                                        <!-- Row 1: Individual File Progress Bar -->
-                                        <ProgressBar Grid.Row="1" Value="{Binding ProgressPercentage, Mode=OneWay}"
-                                                     Minimum="0" Maximum="100" Height="3.5" Margin="0,5,0,1"
-                                                     Foreground="{DynamicResource AccentBlue}" Background="{DynamicResource ControlBorderBrush}"
-                                                     BorderThickness="0">
-                                            <ProgressBar.Style>
-                                                <Style TargetType="ProgressBar">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding ShowProgress}" Value="True">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </ProgressBar.Style>
-                                        </ProgressBar>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
                         </ListBox>
                     </Border>
 

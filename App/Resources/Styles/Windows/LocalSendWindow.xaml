@@ -76,6 +76,45 @@
         </Setter>
     </Style>
 
+    <Style x:Key="LocalSendProgressListBoxItemStyle" TargetType="ListBoxItem">
+        <Setter Property="IsHitTestVisible" Value="False"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Grid>
+                        <Rectangle Width="3" HorizontalAlignment="Left" RadiusX="1.5" RadiusY="1.5" Fill="Transparent" Margin="2,4"/>
+                        <Border Background="Transparent" CornerRadius="5" Padding="8,6" Margin="2,1">
+                            <ContentPresenter/>
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <DataTemplate x:Key="LocalSendProgressFileItemTemplate">
+        <Grid Margin="0,2">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding DisplayName}" ToolTip="{Binding DisplayName}" FontSize="12" Foreground="{DynamicResource TextPrimary2}" TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <TextBlock Grid.Column="1" FontSize="11.5" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="{Binding SizeText}"/>
+                            <Style.Triggers><DataTrigger Binding="{Binding ShowProgress}" Value="True"><Setter Property="Text" Value="{Binding StatusText}"/></DataTrigger></Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+            <ProgressBar Grid.Row="1" Value="{Binding ProgressPercentage}" Minimum="0" Maximum="100" Height="4" Margin="0,5,0,1" Foreground="{DynamicResource AccentBlue}" Background="{DynamicResource ControlBorderBrush}" BorderThickness="0">
+                <ProgressBar.Style><Style TargetType="ProgressBar"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding ShowProgress}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></ProgressBar.Style>
+            </ProgressBar>
+        </Grid>
+    </DataTemplate>
+
     <Style x:Key="SegmentRadioButtonStyle" TargetType="RadioButton">
         <Setter Property="Padding" Value="14,4"/>
         <Setter Property="FontSize" Value="12"/>

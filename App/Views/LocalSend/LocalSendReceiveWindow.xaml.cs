@@ -82,7 +82,7 @@ public partial class LocalSendReceiveWindow : Window
         }
     }
 
-    private void LstFiles_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => UpdateSummaryText();
+    private void LstFiles_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) { if (GridStep1Footer.Visibility == Visibility.Visible) UpdateSummaryText(); else LstFiles.UnselectAll(); }
 
     private void BtnToggleSelectAll_Click(object sender, RoutedEventArgs e)
     {
@@ -198,7 +198,7 @@ public partial class LocalSendReceiveWindow : Window
             return;
         }
         LstFiles.ItemsSource = selectedItems;
-        LstFiles.UnselectAll();
+        LstFiles.UnselectAll(); LstFiles.ItemContainerStyle = (Style)FindResource("LocalSendProgressListBoxItemStyle");
 
         BtnToggleSelectAll.Visibility = Visibility.Collapsed;
         GridStep1Footer.Visibility = Visibility.Collapsed;
