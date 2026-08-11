@@ -70,16 +70,16 @@ internal static class LocalSendPrepareUploadHandler
             return;
         }
 
-        if (response.SelectedFileIds is { Count: 0 })
+        var fileTokens = request.Files.Keys
+            .Where(id => response.SelectedFileIds == null || response.SelectedFileIds.Contains(id))
+            .ToDictionary(id => id, _ => Guid.NewGuid().ToString("N"));
+        if (fileTokens.Count == 0)
         {
             server.UnregisterSession(sessionId);
             await LocalSendServerHelper.WriteResponseAsync(stream, 204).ConfigureAwait(false);
             return;
         }
 
-        var fileTokens = request.Files.Keys
-            .Where(id => response.SelectedFileIds == null || response.SelectedFileIds.Contains(id))
-            .ToDictionary(id => id, _ => Guid.NewGuid().ToString("N"));
         if (!server.TryActivateSession(sessionId, clientIp, fileTokens, response.CustomDir, response.SelectedFileIds))
         {
             server.UnregisterSession(sessionId);

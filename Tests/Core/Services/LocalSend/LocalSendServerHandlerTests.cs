@@ -51,6 +51,20 @@ public sealed class LocalSendServerHandlerTests
     }
 
     [TestMethod]
+    public async Task ProcessAsync_PrepareUploadWithOnlyUnknownSelectedFiles_ReturnsNoContent()
+    {
+        const string body = "{\"info\":{\"alias\":\"Sender\"},\"files\":{\"file-1\":{\"id\":\"file-1\",\"fileName\":\"test.txt\",\"size\":0,\"fileType\":\"text/plain\"}}}";
+        var request = $"POST /api/localsend/v2/prepare-upload HTTP/1.1\r\nContent-Length: {Encoding.UTF8.GetByteCount(body)}\r\n\r\n{body}";
+        var server = new LocalSendServer();
+        server.UploadRequested += (_, args) => { args.SelectedFileIds = ["unknown"]; args.Respond(true); };
+
+        var response = await ProcessAsync(server, request);
+
+        StringAssert.Contains(response, "HTTP/1.1 204 No Content");
+        Assert.IsTrue(server.TryRegisterActiveSession("next", new PrepareUploadRequestDto()));
+    }
+
+    [TestMethod]
     public async Task ProcessAsync_BusyReceiverChecksPinBeforeReturningConflict()
     {
         const string body = "{\"info\":{\"alias\":\"Sender\"},\"files\":{\"file\":{\"id\":\"file\",\"fileName\":\"test.txt\",\"size\":0,\"fileType\":\"text/plain\"}}}";

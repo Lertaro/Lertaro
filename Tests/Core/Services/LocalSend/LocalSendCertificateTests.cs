@@ -10,6 +10,7 @@ public sealed class LocalSendCertificateTests
     {
         using var certificate = LocalSendCertificate.CreateEphemeral();
 
+        Assert.AreEqual(1975, certificate.NotBefore.ToUniversalTime().Year);
         Assert.IsGreaterThanOrEqualTo(certificate.NotAfter.ToUniversalTime().Year, 4095);
         Assert.IsFalse(LocalSendCertificate.NeedsRenewal(certificate, DateTimeOffset.UtcNow));
     }

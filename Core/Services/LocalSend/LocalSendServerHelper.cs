@@ -82,9 +82,17 @@ public static class LocalSendServerHelper
         };
 
         var plainNotFound = status == 404 && json == null;
-        var body = status == 204 ? Array.Empty<byte>() : Encoding.UTF8.GetBytes(plainNotFound ? "Not found" : json ?? "{}");
         var sb = new StringBuilder();
         sb.Append($"HTTP/1.1 {status} {statusText}\r\n");
+        if (status == 204)
+        {
+            sb.Append("\r\n");
+            await stream.WriteAsync(Encoding.UTF8.GetBytes(sb.ToString())).ConfigureAwait(false);
+            await stream.FlushAsync().ConfigureAwait(false);
+            return;
+        }
+
+        var body = Encoding.UTF8.GetBytes(plainNotFound ? "Not found" : json ?? "{}");
         sb.Append($"Content-Type: {(plainNotFound ? "text/plain" : "application/json")}; charset=utf-8\r\n");
         sb.Append($"Transfer-Encoding: chunked\r\n\r\n{body.Length:X}\r\n");
         var header = Encoding.UTF8.GetBytes(sb.ToString());

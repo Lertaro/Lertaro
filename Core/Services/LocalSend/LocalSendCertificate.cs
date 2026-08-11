@@ -9,6 +9,7 @@ internal static class LocalSendCertificate
     private const string CertificateFileName = "localsend.pfx";
     private const X509KeyStorageFlags LoadFlags = X509KeyStorageFlags.Exportable;
     private static readonly TimeSpan RenewalWindow = TimeSpan.FromDays(30);
+    private static readonly DateTimeOffset CertificateNotBefore = new(1975, 1, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset CertificateNotAfter = new(4095, 12, 31, 23, 59, 59, TimeSpan.Zero);
 
     internal static X509Certificate2 LoadOrCreate() => LoadOrCreate(Path.Combine(Logger.UserDataDir, CertificateFileName));
@@ -46,7 +47,7 @@ internal static class LocalSendCertificate
         request.CertificateExtensions.Add(new X509KeyUsageExtension(
             X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, false));
         request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
-        using var generated = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), CertificateNotAfter);
+        using var generated = request.CreateSelfSigned(CertificateNotBefore, CertificateNotAfter);
         return X509CertificateLoader.LoadPkcs12(
             generated.Export(X509ContentType.Pfx), password: null, LoadFlags);
     }

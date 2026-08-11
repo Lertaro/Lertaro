@@ -68,6 +68,16 @@ public class LocalSendServerHelperTests
     }
 
     [TestMethod]
+    public async Task WriteResponseAsync_NoContent_WritesNoHeadersOrBody()
+    {
+        using var ms = new MemoryStream();
+
+        await LocalSendServerHelper.WriteResponseAsync(ms, 204).ConfigureAwait(false);
+
+        Assert.AreEqual("HTTP/1.1 204 No Content\r\n\r\n", Encoding.UTF8.GetString(ms.ToArray()));
+    }
+
+    [TestMethod]
     public async Task WriteResponseAsync_UsesStandardUnauthorizedAndRateLimitPhrases()
     {
         await using var unauthorized = new MemoryStream();
