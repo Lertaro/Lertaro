@@ -200,8 +200,14 @@ public static class DeltaLinkOps
 
         for (var row = first; row < snapshot.Count && ids[row] == frn; row++)
         {
-            if (delta.IsSuperseded(row))
+            if (delta.DeletedBase.Contains(row) || delta.RenamedAway.ContainsKey(row))
                 continue;
+            if (delta.BaseOverrides.TryGetValue(row, out var overridden))
+            {
+                if (overridden.ParentFrn == parentFrn && string.Equals(overridden.Name, name, StringComparison.OrdinalIgnoreCase))
+                    return row;
+                continue;
+            }
             var parentIndex = snapshot.ParentIndexes[row];
             var rowParentFrn = parentIndex >= 0 ? ids[parentIndex] : default;
             if (rowParentFrn == parentFrn && string.Equals(snapshot.GetName(row), name, StringComparison.OrdinalIgnoreCase))

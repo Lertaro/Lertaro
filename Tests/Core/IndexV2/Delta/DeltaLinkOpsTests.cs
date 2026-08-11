@@ -175,4 +175,20 @@ public sealed class DeltaLinkOpsTests
             Assert.AreEqual((ushort)FileRecordFlags.System, delta.Added.Single(r => r.Id == 200).Flags);
         });
     }
+
+    [TestMethod]
+    public void RemoveLink_AttributeOverriddenBaseRow_TombstonesIt()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((snapshot, delta) =>
+        {
+            var baseRow = snapshot.FirstRowForId(3);
+            DeltaLinkOps.UpdateFlags(delta, 3, FileRecordFlags.Hidden);
+
+            DeltaLinkOps.RemoveLink(delta, 3, 2, "readme.txt");
+
+            Assert.IsTrue(delta.IsVisiblyDeleted(baseRow));
+            Assert.IsFalse(delta.BaseOverrides.ContainsKey(baseRow));
+        });
+    }
 }

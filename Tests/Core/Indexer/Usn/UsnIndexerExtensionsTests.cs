@@ -39,6 +39,44 @@ public sealed class UsnIndexerExtensionsTests
         });
     }
 
+    [TestMethod]
+    public void ApplyUsnRecords_AttributeChangeThenDelete_RemovesBaseRecord()
+    {
+        using var fixture = LiveIndexFixture.Build("C", new[]
+        {
+            LiveIndexFixture.Root(),
+            new FileRecord(2, 1, "Projects", FileRecordFlags.Directory),
+            new FileRecord(3, 2, "readme.txt", FileRecordFlags.None),
+        });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+
+        indexer.ApplyUsnRecords("C", new[]
+        {
+            new ParsedUsnRecord
+            {
+                FileReferenceNumber = 3,
+                ParentFileReferenceNumber = 2,
+                FileName = "readme.txt",
+                FileAttributes = (uint)FileAttributes.Hidden,
+                Reason = Win32Api.USN_REASON_BASIC_INFO_CHANGE,
+            },
+            new ParsedUsnRecord
+            {
+                FileReferenceNumber = 3,
+                ParentFileReferenceNumber = 2,
+                FileName = "readme.txt",
+                Reason = Win32Api.USN_REASON_FILE_DELETE,
+            },
+        });
+
+        fixture.Index.Read((snapshot, delta) =>
+        {
+            Assert.IsTrue(delta.IsVisiblyDeleted(snapshot.FirstRowForId(3)));
+            return 0;
+        });
+    }
+
     // Regression coverage for the local-drive counterpart of the network-drive rescan race: a
     // non-journaled drive's FolderDriveMonitor now stays alive for the whole rebuild (see
     // ApplyFolderChange's own comment on why), so a change landing mid-rebuild must be recorded as

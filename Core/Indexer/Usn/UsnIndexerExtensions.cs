@@ -3,7 +3,6 @@ using Lertaro.Core.IndexV2.Delta;
 using Lertaro.Core.DriveMonitoring;
 using Lertaro.Core.Indexer.NetworkDrive.Walk;
 namespace Lertaro.Core.Indexer.Usn;
-
 public static class UsnIndexerExtensions
 {
     // Reasons that mean the file's data/attributes changed in a way that can affect Size or the three
@@ -19,7 +18,7 @@ public static class UsnIndexerExtensions
     private const uint MetadataRefreshReasons = Win32Api.USN_REASON_FILE_CREATE | Win32Api.USN_REASON_RENAME_NEW_NAME
         | Win32Api.USN_REASON_DATA_EXTEND | Win32Api.USN_REASON_DATA_OVERWRITE | Win32Api.USN_REASON_DATA_TRUNCATION
         | Win32Api.USN_REASON_BASIC_INFO_CHANGE | Win32Api.USN_REASON_COMPRESSION_CHANGE | Win32Api.USN_REASON_ENCRYPTION_CHANGE;
-
+    private const uint AttributeRefreshReasons = Win32Api.USN_REASON_BASIC_INFO_CHANGE | Win32Api.USN_REASON_COMPRESSION_CHANGE | Win32Api.USN_REASON_ENCRYPTION_CHANGE;
     public static long CatchUpDrive(this UsnIndexer indexer, string drive, ulong journalId, long startUsn)
     {
         var changes = new List<ParsedUsnRecord>();
@@ -94,8 +93,9 @@ public static class UsnIndexerExtensions
                 if ((record.Reason & MetadataRefreshReasons) != 0 && (record.Reason & Win32Api.USN_REASON_FILE_DELETE) == 0)
                 {
                     pendingMetadataFrns.Add(frn);
-                    DeltaLinkOps.UpdateFlags(delta, frn, linkFlags);
                 }
+                if ((record.Reason & AttributeRefreshReasons) != 0 && (record.Reason & Win32Api.USN_REASON_FILE_DELETE) == 0)
+                    DeltaLinkOps.UpdateFlags(delta, frn, linkFlags);
             }
         });
 
