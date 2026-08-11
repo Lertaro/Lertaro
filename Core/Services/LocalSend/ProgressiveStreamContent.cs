@@ -26,6 +26,7 @@ public sealed class ProgressiveStreamContent : HttpContent
             totalRead += read;
             _onProgress(totalRead, _stream.Length);
         }
+        if (totalRead == 0) _onProgress(0, _stream.Length);
     }
 
     protected override bool TryComputeLength(out long length)

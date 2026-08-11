@@ -36,6 +36,8 @@
   "Settings_LocalSend_Device": "기기",
   "Settings_LocalSend_Receiving": "파일 수신 중...",
   "Settings_LocalSend_Sending": "전송 중...",
+  "Settings_LocalSend_CalculatingChecksum": "체크섬 계산 중...",
+  "Settings_LocalSend_VerifyingChecksum": "체크섬 확인 중...",
   "Settings_LocalSend_Waiting": "확인 대기 중...",
   "Settings_LocalSend_Completed": "전송 완료",
   "Settings_LocalSend_FileReceivedTitle": "파일 수신 완료",

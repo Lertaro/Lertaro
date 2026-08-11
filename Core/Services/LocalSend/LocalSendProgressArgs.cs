@@ -17,6 +17,8 @@ public sealed class LocalSendProgressArgs : EventArgs
     public int TotalFiles { get; }
     public bool IsFinished { get; }
     public bool IsAllDone { get; }
+    public bool IsFailed { get; }
+    public LocalSendTransferStage Stage { get; }
     public string? SavedPath { get; }
     public string? RootSavedPath { get; }
     public long SessionBytesTransferred { get; }
@@ -36,7 +38,9 @@ public sealed class LocalSendProgressArgs : EventArgs
         string? savedPath = null,
         string? rootSavedPath = null,
         long sessionBytesTransferred = 0,
-        long sessionTotalBytes = 0)
+        long sessionTotalBytes = 0,
+        bool isFailed = false,
+        LocalSendTransferStage stage = LocalSendTransferStage.Transferring)
     {
         SessionId = sessionId;
         SenderAlias = senderAlias;
@@ -48,6 +52,8 @@ public sealed class LocalSendProgressArgs : EventArgs
         TotalFiles = totalFiles;
         IsFinished = isFinished;
         IsAllDone = isAllDone;
+        IsFailed = isFailed;
+        Stage = stage;
         SavedPath = savedPath;
         RootSavedPath = rootSavedPath;
         SessionBytesTransferred = sessionBytesTransferred > 0 ? sessionBytesTransferred : bytesTransferred;

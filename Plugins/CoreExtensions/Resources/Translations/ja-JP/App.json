@@ -36,6 +36,8 @@
   "Settings_LocalSend_Device": "デバイス",
   "Settings_LocalSend_Receiving": "文件を受信中...",
   "Settings_LocalSend_Sending": "送信中...",
+  "Settings_LocalSend_CalculatingChecksum": "チェックサムを計算中...",
+  "Settings_LocalSend_VerifyingChecksum": "チェックサムを検証中...",
   "Settings_LocalSend_Waiting": "確認待ち...",
   "Settings_LocalSend_Completed": "転送完了",
   "Settings_LocalSend_FileReceivedTitle": "ファイル受信完了",

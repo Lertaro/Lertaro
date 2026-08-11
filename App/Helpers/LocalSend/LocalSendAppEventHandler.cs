@@ -40,7 +40,7 @@ public static class LocalSendAppEventHandler
     {
         _pendingProgressArgs = e;
 
-        if (e.IsAllDone || e.IsFinished || !_isProgressDispatchPending)
+        if (e.IsAllDone || e.IsFinished || e.IsFailed || !_isProgressDispatchPending)
         {
             _isProgressDispatchPending = true;
             Application.Current.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>

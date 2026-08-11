@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-
 namespace Lertaro.Core.Services.LocalSend;
 
 internal enum LocalSendFileSaveStatus
@@ -20,49 +18,51 @@ internal static class LocalSendIncomingFileWriter
     private const int BufferSize = 1024 * 1024;
 
     internal static async Task<LocalSendFileSaveResult> SaveAsync(Stream source, string targetPath,
-        long expectedSize, string? expectedSha256, Func<bool> isCanceled, Action<long>? onProgress = null)
+        long expectedSize, string? expectedSha256, Func<bool> isCanceled, Action<long>? onProgress = null,
+        Action<long>? onChecksumProgress = null)
     {
         if (expectedSize < 0)
             return new(LocalSendFileSaveStatus.SizeMismatch, 0, "Negative advertised size");
 
         try
         {
-            using var hash = string.IsNullOrWhiteSpace(expectedSha256)
-                ? null
-                : IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            await using var destination = new FileStream(targetPath, FileMode.Create, FileAccess.Write,
-                FileShare.None, BufferSize, useAsync: true);
-            var buffer = new byte[BufferSize];
             long written = 0;
-            int read;
-            while ((read = await source.ReadAsync(buffer).ConfigureAwait(false)) > 0)
+            await using (var destination = new FileStream(targetPath, FileMode.Create, FileAccess.Write,
+                FileShare.None, BufferSize, useAsync: true))
             {
-                if (isCanceled())
-                    return new(LocalSendFileSaveStatus.Canceled, written);
-                if (written + read > expectedSize)
-                    return new(LocalSendFileSaveStatus.SizeMismatch, written + read,
-                        $"Expected {expectedSize} bytes, received at least {written + read}");
+                var buffer = new byte[BufferSize];
+                int read;
+                while ((read = await source.ReadAsync(buffer).ConfigureAwait(false)) > 0)
+                {
+                    if (isCanceled())
+                        return new(LocalSendFileSaveStatus.Canceled, written);
+                    if (written + read > expectedSize)
+                        return new(LocalSendFileSaveStatus.SizeMismatch, written + read,
+                            $"Expected {expectedSize} bytes, received at least {written + read}");
 
-                await destination.WriteAsync(buffer.AsMemory(0, read)).ConfigureAwait(false);
-                hash?.AppendData(buffer, 0, read);
-                written += read;
-                onProgress?.Invoke(written);
+                    await destination.WriteAsync(buffer.AsMemory(0, read)).ConfigureAwait(false);
+                    written += read;
+                    onProgress?.Invoke(written);
+                }
+                await destination.FlushAsync().ConfigureAwait(false);
             }
-
-            await destination.FlushAsync().ConfigureAwait(false);
             if (written != expectedSize)
                 return new(LocalSendFileSaveStatus.SizeMismatch, written,
                     $"Expected {expectedSize} bytes, received {written}");
 
-            if (hash != null)
+            if (!string.IsNullOrWhiteSpace(expectedSha256))
             {
-                var actual = Convert.ToHexStringLower(hash.GetHashAndReset());
+                var actual = await LocalSendChecksum.ComputeFileAsync(targetPath, isCanceled, onChecksumProgress).ConfigureAwait(false);
                 if (!LocalSendChecksum.Matches(actual, expectedSha256!))
                     return new(LocalSendFileSaveStatus.ChecksumMismatch, written,
                         $"Checksum mismatch: expected {expectedSha256}, got {actual}");
             }
 
             return new(LocalSendFileSaveStatus.Success, written);
+        }
+        catch (OperationCanceledException) when (isCanceled())
+        {
+            return new(LocalSendFileSaveStatus.Canceled, 0);
         }
         catch (Exception ex)
         {

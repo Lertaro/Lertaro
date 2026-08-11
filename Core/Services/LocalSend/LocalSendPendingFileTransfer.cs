@@ -93,6 +93,8 @@ internal static class LocalSendFileTransferSender
             try
             {
                 using var file = File.OpenRead(pendingFile.Path);
+                onProgress?.Invoke(new LocalSendSendProgressArgs(pendingFile.File.FileName, 0, file.Length,
+                    fileIndex, totalFiles));
                 using var content = new ProgressiveStreamContent(file, (sent, total) => onProgress?.Invoke(
                     new LocalSendSendProgressArgs(pendingFile.File.FileName, sent, total, fileIndex, totalFiles)));
                 content.Headers.ContentType = new MediaTypeHeaderValue(LocalSendClientHelper.GetMimeTypeForFileName(pendingFile.File.FileName));

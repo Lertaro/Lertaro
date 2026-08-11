@@ -20,9 +20,9 @@ public partial class LocalSendReceiveWindow : Window
     private string? _currentSessionId;
     private string? _lastSavedPath;
     private string? _lastRootSavedPath;
+    private LocalSendTransferStage _transferStage = LocalSendTransferStage.Transferring;
     private List<LocalSendReceiveFileItem> _fileItems = new();
     private string _senderAlias = string.Empty;
-
     public LocalSendReceiveWindow(LocalSendUploadRequestArgs requestArgs)
     {
         InitializeComponent();
@@ -48,20 +48,15 @@ public partial class LocalSendReceiveWindow : Window
         }
         else
         {
-            BtnCloseProgress.Content = TranslationManager.Instance["Common_Close"];
-            if (_isCompleted)
-            {
-                TxtWindowTitle.Text = TranslationManager.Instance["Settings_LocalSend_Completed"];
-            }
-            else
-            {
-                TxtWindowTitle.Text = TranslationManager.Instance["Settings_LocalSend_Receiving"];
-            }
+            BtnCloseProgress.Content = TranslationManager.Instance[_isCompleted ? "Common_Close" : "Common_Cancel"];
+            var titleKey = _fileItems.Any(i => i.IsFailed) ? "Local_StateFailed" : _isCompleted
+                ? "Settings_LocalSend_Completed" : _transferStage == LocalSendTransferStage.VerifyingChecksum
+                    ? "Settings_LocalSend_VerifyingChecksum" : "Settings_LocalSend_Receiving";
+            TxtWindowTitle.Text = TranslationManager.Instance[titleKey];
         }
 
         LocalSendReceiveWindowHelper.UpdateItemLanguage(_fileItems);
     }
-
     private void PopulateRequestData(PrepareUploadRequestDto dto)
     {
         _senderAlias = dto.Info.Alias;
@@ -224,23 +219,28 @@ public partial class LocalSendReceiveWindow : Window
     }
 
     private int _maxCompletedCount;
-
     public void HandleProgressChanged(LocalSendProgressArgs args) => Dispatcher.BeginInvoke(new Action(() =>
     {
         if (_isCompleted && !args.IsAllDone) return;
 
         ResetInactivityTimer();
         _currentSessionId = args.SessionId;
+        _transferStage = args.Stage;
         var isAllDone = args.IsAllDone;
         if (isAllDone) { _isCompleted = true; _inactivityTimer?.Stop(); }
 
         UpdateFileItemsProgress(args);
+        var hasError = LstFiles.Items.OfType<LocalSendReceiveFileItem>().Any(i => i.IsFailed);
+        if (args.IsFailed) _inactivityTimer?.Stop();
 
         var realFinishedCount = isAllDone ? args.TotalFiles : LstFiles.Items.OfType<LocalSendReceiveFileItem>().Count(i => i.IsFinished);
         _maxCompletedCount = Math.Max(_maxCompletedCount, realFinishedCount);
 
         TxtSummary.Text = $"({_maxCompletedCount}/{args.TotalFiles})";
-        TxtWindowTitle.Text = $"{TranslationManager.Instance["Settings_LocalSend_Receiving"]} ({_maxCompletedCount}/{args.TotalFiles})";
+        var activeTitle = args.Stage == LocalSendTransferStage.VerifyingChecksum
+            ? TranslationManager.Instance["Settings_LocalSend_VerifyingChecksum"]
+            : $"{TranslationManager.Instance["Settings_LocalSend_Receiving"]} ({_maxCompletedCount}/{args.TotalFiles})";
+        TxtWindowTitle.Text = hasError ? TranslationManager.Instance["Local_StateFailed"] : activeTitle;
 
         var elapsedSec = _stopwatch.Elapsed.TotalSeconds;
         var curBytes = args.SessionBytesTransferred > 0 ? args.SessionBytesTransferred : args.BytesTransferred;
@@ -255,14 +255,13 @@ public partial class LocalSendReceiveWindow : Window
         if (isAllDone)
         {
             _inactivityTimer?.Stop();
-            TxtWindowTitle.Text = TranslationManager.Instance["Settings_LocalSend_Completed"];
+            TxtWindowTitle.Text = TranslationManager.Instance[hasError ? "Local_StateFailed" : "Settings_LocalSend_Completed"];
             _lastSavedPath = args.SavedPath;
             _lastRootSavedPath = args.RootSavedPath;
             BtnCloseProgress.Content = TranslationManager.Instance["Common_Close"];
             var target = LocalSendReceiveWindowHelper.ResolveFolderTarget(_lastRootSavedPath, _lastSavedPath);
             if (!string.IsNullOrEmpty(target)) BtnOpenFolder.Visibility = Visibility.Visible;
 
-            var hasError = LstFiles.Items.OfType<LocalSendReceiveFileItem>().Any(i => !i.IsFinished);
             if (!hasError && _requestArgs.IsAutoAccepted)
             {
                 var autoCloseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1200) };

@@ -33,40 +33,57 @@ public static class LocalSendReceiveWindowHelper
         var transferredSessionBytes = args.SessionBytesTransferred > 0 ? args.SessionBytesTransferred : args.BytesTransferred;
         var sessionPercentage = totalSessionBytes > 0 ? Math.Clamp((double)transferredSessionBytes / totalSessionBytes * 100.0, 0, 100) : 0;
 
-        foreach (LocalSendReceiveFileItem item in items)
+        UpdateItems(items.OfType<LocalSendReceiveFileItem>(), args,
+            TranslationManager.Instance["Settings_LocalSend_Completed"], TranslationManager.Instance["Local_StateFailed"]);
+        return sessionPercentage;
+    }
+
+    internal static void UpdateItems(IEnumerable<LocalSendReceiveFileItem> items, LocalSendProgressArgs args,
+        string completedText, string failedText)
+    {
+        foreach (var item in items)
         {
             item.ShowProgress = true;
-            if (args.IsAllDone || item.IsFinished)
+            if (item.FileId == args.FileId)
             {
-                item.IsFinished = true;
-                item.ProgressPercentage = 100.0;
-                item.StatusText = TranslationManager.Instance["Settings_LocalSend_Completed"];
-            }
-            else if (item.FileId == args.FileId)
-            {
+                item.IsCanceled = false;
+                item.IsFailed = args.IsFailed;
+                item.IsFinished = args.IsFinished;
                 var pct = args.TotalBytes > 0 ? (double)args.BytesTransferred / args.TotalBytes * 100.0 : 0;
                 item.ProgressPercentage = Math.Min(100.0, pct);
-                if (args.IsFinished)
+                if (args.IsFailed)
                 {
-                    item.IsFinished = true;
                     item.ProgressPercentage = 100.0;
-                    item.StatusText = TranslationManager.Instance["Settings_LocalSend_Completed"];
+                    item.StatusText = failedText;
+                }
+                else if (args.IsFinished)
+                {
+                    item.ProgressPercentage = 100.0;
+                    item.StatusText = completedText;
                 }
                 else
                 {
                     item.StatusText = $"{item.ProgressPercentage:F0}%";
                 }
             }
+            else if (item.IsFinished || (args.IsAllDone && !item.IsFailed))
+            {
+                item.IsFinished = true;
+                item.ProgressPercentage = 100.0;
+                item.StatusText = completedText;
+            }
         }
-
-        return sessionPercentage;
     }
 
     public static void UpdateItemLanguage(IEnumerable<LocalSendReceiveFileItem> items)
     {
         foreach (var item in items)
         {
-            if (item.IsFinished)
+            if (item.IsFailed)
+            {
+                item.StatusText = TranslationManager.Instance["Local_StateFailed"];
+            }
+            else if (item.IsFinished)
             {
                 item.StatusText = TranslationManager.Instance["Settings_LocalSend_Completed"];
             }

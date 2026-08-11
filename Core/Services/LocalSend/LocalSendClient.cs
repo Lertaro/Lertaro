@@ -133,7 +133,9 @@ public sealed class LocalSendClient : IDisposable
             string? sha256;
             try
             {
-                sha256 = legacy ? null : await LocalSendChecksum.ComputeFileAsync(path, token).ConfigureAwait(false);
+                sha256 = legacy ? null : await LocalSendChecksum.ComputeFileAsync(path, token,
+                    bytes => onProgress?.Invoke(new LocalSendSendProgressArgs(relPath, bytes, fi.Length, i + 1,
+                        expandedItems.Count, LocalSendTransferStage.CalculatingChecksum))).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -161,6 +163,8 @@ public sealed class LocalSendClient : IDisposable
             pathMap[id] = path;
         }
 
+        onProgress?.Invoke(new LocalSendSendProgressArgs(string.Empty, 0, 0, 0, expandedItems.Count,
+            LocalSendTransferStage.WaitingForConfirmation));
         var prepareDto = new LocalSendPrepareUploadRequestDto { Info = LocalSendProtocolMapper.CreateInfoRegister(senderInfo), Files = filesDict };
         var (prepResult, sessionId, tokens, usedHttps, prepErr) = await LocalSendClientHelper.PrepareUploadAsync(_httpClient, JsonOptions, targetIp, targetPort, https, prepareDto, pin, token, targetVersion).ConfigureAwait(false);
         if (prepResult != LocalSendSendResult.Success || tokens == null || (!LocalSendApiRoute.UsesV1(targetVersion) && string.IsNullOrEmpty(sessionId)))

@@ -38,6 +38,19 @@ public sealed class LocalSendSendProgressTrackerTests
     }
 
     [TestMethod]
+    public void UpdateProgress_ChecksumStageCanReachOneHundredPercent()
+    {
+        var tracker = new LocalSendSendProgressTracker();
+        tracker.PrepareText("hello", "Text");
+
+        tracker.UpdateProgress(new LocalSendSendProgressArgs("Text", 5, 5, 1, 1,
+            LocalSendTransferStage.CalculatingChecksum), "Waiting");
+
+        Assert.AreEqual(100d, tracker.Items[0].ProgressPercentage);
+        Assert.AreEqual("100%", tracker.Items[0].StatusText);
+    }
+
+    [TestMethod]
     public void PrepareFiles_DirectoryUsesPathsRelativeToItsParent()
     {
         var root = Path.Combine(Path.GetTempPath(), $"Lertaro.LocalSend.Tests.{Guid.NewGuid():N}");

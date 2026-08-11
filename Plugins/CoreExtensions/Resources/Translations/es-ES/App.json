@@ -36,6 +36,8 @@
   "Settings_LocalSend_Device": "Dispositivo",
   "Settings_LocalSend_Receiving": "Recibiendo archivos...",
   "Settings_LocalSend_Sending": "Enviando...",
+  "Settings_LocalSend_CalculatingChecksum": "Calculando sumas de comprobación...",
+  "Settings_LocalSend_VerifyingChecksum": "Verificando la suma de comprobación...",
   "Settings_LocalSend_Waiting": "Esperando confirmación...",
   "Settings_LocalSend_Completed": "Transferencia completada",
   "Settings_LocalSend_FileReceivedTitle": "Archivo recibido",

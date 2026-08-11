@@ -27,4 +27,16 @@ public sealed class ProgressiveStreamContentTests
         Assert.AreEqual(testData.Length, totalLength);
         Assert.AreEqual(Encoding.UTF8.GetString(testData), Encoding.UTF8.GetString(outMs.ToArray()));
     }
+
+    [TestMethod]
+    public async Task CopyToAsync_EmptyStream_ReportsCompletion()
+    {
+        using var source = new MemoryStream();
+        var reported = false;
+        using var content = new ProgressiveStreamContent(source, (read, total) => reported = read == 0 && total == 0);
+
+        await content.CopyToAsync(Stream.Null);
+
+        Assert.IsTrue(reported);
+    }
 }

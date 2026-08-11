@@ -1,4 +1,5 @@
 using Lertaro.App.Views.LocalSend;
+using Lertaro.Core.Services.LocalSend;
 
 namespace Lertaro.App.Tests.Views.LocalSend;
 
@@ -39,4 +40,39 @@ public sealed class LocalSendReceiveWindowHelperTests
         Assert.AreEqual("Canceled", pending.StatusText);
         Assert.IsFalse(pending.ShowProgress);
     }
+
+    [TestMethod]
+    public void UpdateItems_FinalFailure_PreservesFailedItemAndCompletesOtherItems()
+    {
+        var completed = CreateItem("completed");
+        var failed = CreateItem("failed");
+        var args = new LocalSendProgressArgs("session", "sender", "failed", "failed.txt", 2, 4, 2, 2,
+            isAllDone: true, isFailed: true);
+
+        LocalSendReceiveWindowHelper.UpdateItems([completed, failed], args, "Completed", "Failed");
+
+        Assert.IsTrue(completed.IsFinished);
+        Assert.IsFalse(failed.IsFinished);
+        Assert.IsTrue(failed.IsFailed);
+        Assert.AreEqual(100.0, failed.ProgressPercentage);
+        Assert.AreEqual("Failed", failed.StatusText);
+    }
+
+    [TestMethod]
+    public void UpdateItems_RetryProgress_ClearsPreviousFailure()
+    {
+        var item = CreateItem("file");
+        item.IsFailed = true;
+        var args = new LocalSendProgressArgs("session", "sender", "file", "file.txt", 2, 4, 1, 1);
+
+        LocalSendReceiveWindowHelper.UpdateItems([item], args, "Completed", "Failed");
+
+        Assert.IsFalse(item.IsFailed);
+        Assert.AreEqual("50%", item.StatusText);
+    }
+
+    private static LocalSendReceiveFileItem CreateItem(string id) => new()
+    {
+        FileId = id, FileName = $"{id}.txt", DisplayName = $"{id}.txt", Size = 4, SizeText = "4 B"
+    };
 }

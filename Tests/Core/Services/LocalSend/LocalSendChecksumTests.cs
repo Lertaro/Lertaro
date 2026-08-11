@@ -27,4 +27,30 @@ public sealed class LocalSendChecksumTests
             File.Delete(path);
         }
     }
+
+    [TestMethod]
+    public async Task ComputeFileAsync_ReportsProgressAndHonorsCancellation()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllBytesAsync(path, new byte[1024]);
+            var progress = new List<long>();
+            var canceled = false;
+
+            await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
+                LocalSendChecksum.ComputeFileAsync(path, () => canceled, bytes =>
+                {
+                    progress.Add(bytes);
+                    if (bytes > 0) canceled = true;
+                }));
+
+            Assert.AreEqual(0, progress[0]);
+            Assert.AreEqual(1024, progress[^1]);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

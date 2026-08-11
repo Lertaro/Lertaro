@@ -45,8 +45,10 @@ internal sealed class LocalSendSendProgressTracker
     {
         if (!TryGet(args.FileIndex, out var item)) return;
         item.ShowProgress = true;
-        item.ProgressPercentage = args.TotalBytes > 0 ? Math.Min(99, (double)args.BytesSent / args.TotalBytes * 100) : 0;
-        item.StatusText = item.ProgressPercentage >= 99 ? waitingText : $"{item.ProgressPercentage:F0}%";
+        var limit = args.Stage == LocalSendTransferStage.CalculatingChecksum ? 100 : 99;
+        item.ProgressPercentage = args.TotalBytes > 0 ? Math.Min(limit, (double)args.BytesSent / args.TotalBytes * 100) : 0;
+        item.StatusText = args.Stage != LocalSendTransferStage.CalculatingChecksum && item.ProgressPercentage >= 99
+            ? waitingText : $"{item.ProgressPercentage:F0}%";
     }
 
     internal void MarkConfirmed(LocalSendFileConfirmationArgs args, string completedText)

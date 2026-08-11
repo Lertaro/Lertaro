@@ -5,6 +5,7 @@ using Lertaro.App.Services;
 using Lertaro.App.Services.Theme;
 using Lertaro.App.ViewModels.LocalSend;
 using Lertaro.Core.Services.LocalSend;
+using Lertaro.Core.Services.LocalSend.Models;
 using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
 
 namespace Lertaro.App.Views.LocalSend;
@@ -39,6 +40,7 @@ public partial class LocalSendSendWindow : Window
     private void Vm_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(_vm.CurrentStep)) UpdateStepVisibility();
+        else if (e.PropertyName is nameof(_vm.IsSending) or nameof(_vm.TransferStage)) UpdateStep2UiState();
     }
 
     private void UpdateStepVisibility()
@@ -60,7 +62,12 @@ public partial class LocalSendSendWindow : Window
 
         if (_vm.IsSending)
         {
-            TxtWindowTitle.Text = TranslationManager.Instance["Settings_LocalSend_Sending"];
+            TxtWindowTitle.Text = TranslationManager.Instance[_vm.TransferStage switch
+            {
+                LocalSendTransferStage.CalculatingChecksum => "Settings_LocalSend_CalculatingChecksum",
+                LocalSendTransferStage.WaitingForConfirmation => "Settings_LocalSend_Waiting",
+                _ => "Settings_LocalSend_Sending"
+            }];
             return;
         }
 

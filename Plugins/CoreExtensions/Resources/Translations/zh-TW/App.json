@@ -36,6 +36,8 @@
   "Settings_LocalSend_Device": "裝置",
   "Settings_LocalSend_Receiving": "正在接收檔案...",
   "Settings_LocalSend_Sending": "正在傳送...",
+  "Settings_LocalSend_CalculatingChecksum": "正在計算校驗和...",
+  "Settings_LocalSend_VerifyingChecksum": "正在驗證校驗和...",
   "Settings_LocalSend_Waiting": "等待確認...",
   "Settings_LocalSend_Completed": "傳輸完成",
   "Settings_LocalSend_FileReceivedTitle": "檔案接收完成",

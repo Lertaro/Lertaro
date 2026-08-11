@@ -40,6 +40,8 @@ public sealed class LocalSendServerTests
                     ["file"] = new() { Id = "file", FileName = "destination", Size = 4 }
                 }
             };
+            LocalSendProgressArgs? failure = null;
+            server.ProgressChanged += (_, args) => { if (args.IsFailed) failure = args; };
             server.RegisterActiveSession("session", request);
             server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
 
@@ -48,6 +50,9 @@ public sealed class LocalSendServerTests
             await server.HandleUploadAsync(response, body, "session", "file", "token", "192.168.1.20", v2: true);
 
             StringAssert.Contains(System.Text.Encoding.UTF8.GetString(response.ToArray()), "HTTP/1.1 500");
+            Assert.IsNotNull(failure);
+            Assert.IsTrue(failure.IsAllDone);
+            Assert.IsFalse(failure.IsFinished);
             Assert.IsFalse(server.HasActiveSessions);
         }
         finally
@@ -74,6 +79,13 @@ public sealed class LocalSendServerTests
                     }
                 }
             };
+            LocalSendProgressArgs? failure = null;
+            var verificationReported = false;
+            server.ProgressChanged += (_, args) =>
+            {
+                if (args.IsFailed) failure = args;
+                verificationReported |= args.Stage == LocalSendTransferStage.VerifyingChecksum;
+            };
             server.RegisterActiveSession("session", request);
             server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
 
@@ -82,6 +94,9 @@ public sealed class LocalSendServerTests
             await server.HandleUploadAsync(response, body, "session", "file", "token", "192.168.1.20", v2: true);
 
             StringAssert.Contains(System.Text.Encoding.UTF8.GetString(response.ToArray()), "HTTP/1.1 422 Unprocessable Entity");
+            Assert.IsNotNull(failure);
+            Assert.IsFalse(failure.IsAllDone);
+            Assert.IsTrue(verificationReported);
             Assert.IsTrue(server.HasActiveSessions);
             Assert.IsFalse(File.Exists(Path.Combine(temporaryDirectory, "payload.bin")));
         }
@@ -99,6 +114,8 @@ public sealed class LocalSendServerTests
         try
         {
             var server = new LocalSendServer { DownloadDirectory = temporaryDirectory };
+            LocalSendProgressArgs? failure = null;
+            server.ProgressChanged += (_, args) => { if (args.IsFailed) failure = args; };
             server.RegisterActiveSession("session", new PrepareUploadRequestDto
             {
                 Files = new Dictionary<string, LocalSendFileDto>
@@ -116,11 +133,57 @@ public sealed class LocalSendServerTests
                 StringAssert.Contains(System.Text.Encoding.UTF8.GetString(response.ToArray()), "HTTP/1.1 422 Unprocessable Entity");
             }
 
+            Assert.IsNotNull(failure);
+            Assert.IsTrue(failure.IsAllDone);
             Assert.IsFalse(server.HasActiveSessions);
         }
         finally
         {
             Directory.Delete(temporaryDirectory, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public async Task HandleUploadAsync_WhenReceiverCancelsDuringWrite_DoesNotReportFailure()
+    {
+        var temporaryDirectory = Path.Combine(Path.GetTempPath(), $"Lertaro.LocalSend.Tests.{Guid.NewGuid():N}");
+        Directory.CreateDirectory(temporaryDirectory);
+        try
+        {
+            var server = new LocalSendServer { DownloadDirectory = temporaryDirectory };
+            server.RegisterActiveSession("session", new PrepareUploadRequestDto
+            {
+                Files = new Dictionary<string, LocalSendFileDto>
+                {
+                    ["file"] = new() { Id = "file", FileName = "payload.bin", Size = 4 }
+                }
+            });
+            server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
+            var failureReported = false;
+            server.ProgressChanged += (_, args) => failureReported |= args.IsFailed;
+
+            await using var response = new MemoryStream();
+            await using var body = new CancelingReadStream("data"u8.ToArray(), () => server.CancelSession("session"));
+            await server.HandleUploadAsync(response, body, "session", "file", "token", "192.168.1.20", v2: true);
+
+            Assert.IsFalse(failureReported);
+            Assert.IsFalse(server.HasActiveSessions);
+        }
+        finally
+        {
+            Directory.Delete(temporaryDirectory, recursive: true);
+        }
+    }
+
+    private sealed class CancelingReadStream(byte[] data, Action cancel) : MemoryStream(data)
+    {
+        private bool _canceled;
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            var read = await base.ReadAsync(buffer, cancellationToken);
+            if (!_canceled) { _canceled = true; cancel(); }
+            return read;
         }
     }
 }

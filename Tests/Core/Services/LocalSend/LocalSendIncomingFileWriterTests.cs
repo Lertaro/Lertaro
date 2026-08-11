@@ -60,4 +60,24 @@ public sealed class LocalSendIncomingFileWriterTests
             File.Delete(path);
         }
     }
+
+    [TestMethod]
+    public async Task SaveAsync_CanceledDuringChecksum_ReturnsCanceled()
+    {
+        var data = "payload"u8.ToArray();
+        var path = Path.GetTempFileName();
+        try
+        {
+            var canceled = false;
+            await using var source = new MemoryStream(data);
+            var result = await LocalSendIncomingFileWriter.SaveAsync(source, path, data.Length,
+                LocalSendChecksum.Compute(data), () => canceled, onChecksumProgress: bytes => canceled = bytes > 0);
+
+            Assert.AreEqual(LocalSendFileSaveStatus.Canceled, result.Status);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

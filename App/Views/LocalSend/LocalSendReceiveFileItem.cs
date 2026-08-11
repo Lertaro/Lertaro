@@ -12,6 +12,7 @@ public sealed class LocalSendReceiveFileItem : INotifyPropertyChanged
     private double _progressPercentage;
     private string _statusText = string.Empty;
     private bool _isFinished;
+    private bool _isFailed;
     private bool _showProgress;
 
     public required string FileId { get; init; }
@@ -36,6 +37,12 @@ public sealed class LocalSendReceiveFileItem : INotifyPropertyChanged
     {
         get => _isFinished;
         set { if (_isFinished != value) { _isFinished = value; OnPropertyChanged(); } }
+    }
+
+    public bool IsFailed
+    {
+        get => _isFailed;
+        set { if (_isFailed != value) { _isFailed = value; OnPropertyChanged(); } }
     }
 
     private bool _isCanceled;

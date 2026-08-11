@@ -130,6 +130,8 @@ public sealed class LocalSendSendViewModel : ViewModelBase, IDisposable
     public void ReturnToStep0() => CurrentStep = 0;
 
     public bool IsSending { get => _isSending; private set => SetProperty(ref _isSending, value); }
+    private LocalSendTransferStage _transferStage = LocalSendTransferStage.Transferring;
+    public LocalSendTransferStage TransferStage { get => _transferStage; private set => SetProperty(ref _transferStage, value); }
     private string _speedText = string.Empty;
     public string SpeedText { get => _speedText; private set => SetProperty(ref _speedText, value); }
 
@@ -138,6 +140,7 @@ public sealed class LocalSendSendViewModel : ViewModelBase, IDisposable
         if (selectedDevices == null || selectedDevices.Count == 0) return;
 
         IsSending = true;
+        TransferStage = LocalSendTransferStage.Transferring;
         _cts = new CancellationTokenSource();
 
         var allSuccess = true;
@@ -203,6 +206,7 @@ public sealed class LocalSendSendViewModel : ViewModelBase, IDisposable
                     item.Device, filesList, item.Pin,
                     args => System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                     {
+                        TransferStage = args.Stage;
                         var elapsedSec = stopwatch.Elapsed.TotalSeconds;
                         if (elapsedSec >= 0.3 || lastBytes == 0)
                         {

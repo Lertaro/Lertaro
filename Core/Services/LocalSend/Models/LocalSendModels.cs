@@ -149,6 +149,14 @@ public enum LocalSendSendResult
     Error
 }
 
+public enum LocalSendTransferStage
+{
+    Transferring,
+    CalculatingChecksum,
+    WaitingForConfirmation,
+    VerifyingChecksum
+}
+
 public sealed class LocalSendSendProgressArgs
 {
     public string FileName { get; }
@@ -156,13 +164,16 @@ public sealed class LocalSendSendProgressArgs
     public long TotalBytes { get; }
     public int FileIndex { get; }
     public int TotalFiles { get; }
+    public LocalSendTransferStage Stage { get; }
 
-    public LocalSendSendProgressArgs(string fileName, long bytesSent, long totalBytes, int fileIndex, int totalFiles)
+    public LocalSendSendProgressArgs(string fileName, long bytesSent, long totalBytes, int fileIndex, int totalFiles,
+        LocalSendTransferStage stage = LocalSendTransferStage.Transferring)
     {
         FileName = fileName;
         BytesSent = bytesSent;
         TotalBytes = totalBytes;
         FileIndex = fileIndex;
         TotalFiles = totalFiles;
+        Stage = stage;
     }
 }
