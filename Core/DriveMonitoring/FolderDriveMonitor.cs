@@ -31,7 +31,8 @@ internal sealed class FolderDriveMonitor : IDisposable
     {
         watcher.IncludeSubdirectories = true;
         watcher.InternalBufferSize = 64 * 1024;
-        watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size;
+        watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite |
+                               NotifyFilters.Size | NotifyFilters.Attributes | NotifyFilters.CreationTime;
         FileSystemEventHandler changed = (_, e) => Schedule(e.ChangeType, e.FullPath, null);
         RenamedEventHandler renamed = (_, e) => Schedule(WatcherChangeTypes.Renamed, e.FullPath, e.OldFullPath);
         watcher.Created += changed;

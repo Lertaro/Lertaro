@@ -9,6 +9,8 @@ namespace Lertaro.Core.IndexV2.Delta;
 // same eagerly via ReparentWaitingOrphans).
 public static class DeltaLinkOps
 {
+    private const FileRecordFlags IndexOnlyFlags = FileRecordFlags.SourceRoot | FileRecordFlags.Listed;
+
     public static void AddLink(DeltaOverlay delta, UInt128 frn, UInt128 parentFrn, string name, FileRecordFlags flags)
     {
         if (FindMatchingBaseRow(delta, frn, parentFrn, name) >= 0 || FindMatchingAdded(delta, frn, parentFrn, name) != null)
@@ -129,6 +131,59 @@ public static class DeltaLinkOps
             }
         }
     }
+
+    // USN basic-information records carry current file attributes but no sizes or timestamps. Keep
+    // those attributes in a full row override so every existing search path sees them immediately and
+    // the next compaction persists them. SourceRoot/Listed are index bookkeeping bits absent from the
+    // filesystem attributes, so they must survive the replacement.
+    public static void UpdateFlags(DeltaOverlay delta, UInt128 frn, FileRecordFlags observedFlags)
+    {
+        var snapshot = delta.Snapshot;
+        if (delta.TryFindBaseRow(frn, out var anyRow))
+        {
+            var ids = snapshot.Ids;
+            var first = anyRow;
+            while (first > 0 && ids[first - 1] == frn)
+                first--;
+
+            for (var row = first; row < snapshot.Count && ids[row] == frn; row++)
+            {
+                if (delta.DeletedBase.Contains(row) || delta.RenamedAway.ContainsKey(row))
+                    continue;
+                if (delta.BaseOverrides.TryGetValue(row, out var existing))
+                {
+                    existing.Flags = MergeFlags(existing.Flags, observedFlags);
+                    continue;
+                }
+
+                var name = snapshot.GetName(row);
+                var (size, creation, lastWrite, lastAccess) = delta.MetadataOf(row);
+                var record = new DeltaOverlay.DeltaRecord
+                {
+                    Id = frn,
+                    Name = name,
+                    Flags = MergeFlags(snapshot.Flags[row], observedFlags),
+                    Size = size,
+                    Creation = creation,
+                    LastWrite = lastWrite,
+                    LastAccess = lastAccess,
+                    ParentBaseRow = snapshot.ParentIndexes[row],
+                    ParentFrn = snapshot.GetParentId(row),
+                };
+                record.Aliases = AliasGeneration.Generate(name, out var providerIds);
+                record.ProviderIds = providerIds;
+                delta.MetadataOverrides.Remove(row);
+                delta.BaseOverrides[row] = record;
+            }
+        }
+
+        foreach (var record in delta.Added)
+            if (!record.Removed && record.Id == frn)
+                record.Flags = MergeFlags(record.Flags, observedFlags);
+    }
+
+    private static ushort MergeFlags(ushort currentFlags, FileRecordFlags observedFlags)
+        => (ushort)(observedFlags | ((FileRecordFlags)currentFlags & IndexOnlyFlags));
 
     // Base rows for an FRN sit adjacent (ids are sorted); match the exact link by parent FRN + name,
     // same comparison HardLinkDelta.Matches uses.

@@ -143,4 +143,36 @@ public sealed class DeltaLinkOpsTests
             Assert.AreEqual(1u, record.Creation);
         });
     }
+
+    [TestMethod]
+    public void UpdateFlags_ExistingBaseRow_OverridesAttributesAndPreservesMetadata()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((snapshot, delta) =>
+        {
+            var baseRow = snapshot.FirstRowForId(3);
+            DeltaLinkOps.UpdateMetadata(delta, 3, 555, 10, 20, 30);
+
+            DeltaLinkOps.UpdateFlags(delta, 3, FileRecordFlags.Hidden | FileRecordFlags.ReadOnly);
+
+            var record = delta.BaseOverrides[baseRow];
+            Assert.AreEqual((ushort)(FileRecordFlags.Hidden | FileRecordFlags.ReadOnly), record.Flags);
+            Assert.AreEqual(555, record.Size);
+            Assert.AreEqual(20u, record.LastWrite);
+        });
+    }
+
+    [TestMethod]
+    public void UpdateFlags_AddedRecord_PatchesItInPlace()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((_, delta) =>
+        {
+            DeltaLinkOps.AddLink(delta, 200, 2, "new.txt", FileRecordFlags.None);
+
+            DeltaLinkOps.UpdateFlags(delta, 200, FileRecordFlags.System);
+
+            Assert.AreEqual((ushort)FileRecordFlags.System, delta.Added.Single(r => r.Id == 200).Flags);
+        });
+    }
 }

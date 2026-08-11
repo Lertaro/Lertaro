@@ -75,6 +75,20 @@ public sealed class CompactionTests
     }
 
     [TestMethod]
+    public void BuildMergedStore_WithAttributeUpdate_PersistsCurrentFlags()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((snapshot, delta) =>
+        {
+            Core.IndexV2.Delta.DeltaLinkOps.UpdateFlags(delta, 3, FileRecordFlags.Hidden);
+
+            var store = Compaction.BuildMergedStore(snapshot, delta);
+
+            Assert.IsTrue(store.Records.Single(r => r.Name == "readme.txt").Flags.HasFlag(FileRecordFlags.Hidden));
+        });
+    }
+
+    [TestMethod]
     public void BuildMergedStore_RenamedAwayRowWithNoSuccessor_IsDropped()
     {
         using var fixture = BuildSampleDrive();

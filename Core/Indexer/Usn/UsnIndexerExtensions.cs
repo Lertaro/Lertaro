@@ -1,7 +1,5 @@
 using Lertaro.Core.IndexV2;
-
 using Lertaro.Core.IndexV2.Delta;
-
 using Lertaro.Core.DriveMonitoring;
 using Lertaro.Core.Indexer.NetworkDrive.Walk;
 namespace Lertaro.Core.Indexer.Usn;
@@ -94,7 +92,10 @@ public static class UsnIndexerExtensions
                 // needs an actual re-stat. Just collect which FRNs need it here; the actual I/O happens
                 // after this call returns.
                 if ((record.Reason & MetadataRefreshReasons) != 0 && (record.Reason & Win32Api.USN_REASON_FILE_DELETE) == 0)
+                {
                     pendingMetadataFrns.Add(frn);
+                    DeltaLinkOps.UpdateFlags(delta, frn, linkFlags);
+                }
             }
         });
 

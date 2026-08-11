@@ -60,6 +60,31 @@ public sealed class DeltaPathApplierTests
         Assert.IsTrue(removed);
     }
 
+    [TestMethod]
+    public void ApplyCreatedOrChanged_ExistingFile_RefreshesAttributes()
+    {
+        using var tempDir = new TempDirectory();
+        var idxPath = Path.Combine(tempDir.Path, "test.idx");
+        var store = new FileRecordStore
+        {
+            SourceKey = @"\\server\share",
+            SourceKind = FileRecordSourceKind.NetworkMappedDrive,
+            IdKind = FileRecordIdKind.SourceLocalId64,
+            RootId = 1
+        };
+        store.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot));
+        SnapshotWriter.Write(store, idxPath);
+        using var index = NetworkIndex.FromSnapshotFile(@"\\server\share", idxPath);
+        var filePath = Path.Combine(tempDir.Path, "hidden.txt");
+        File.WriteAllText(filePath, "test");
+        index.ApplyCreatedOrChanged(@"\\server\share", filePath);
+        File.SetAttributes(filePath, File.GetAttributes(filePath) | FileAttributes.Hidden);
+
+        index.ApplyCreatedOrChanged(@"\\server\share", filePath);
+
+        Assert.IsTrue(index.ToStore().Records.Single(r => r.Name == "hidden.txt").Flags.HasFlag(FileRecordFlags.Hidden));
+    }
+
     private sealed class TempDirectory : IDisposable
     {
         public string Path { get; } = Directory.CreateTempSubdirectory("lertaro-delta-test-").FullName;
