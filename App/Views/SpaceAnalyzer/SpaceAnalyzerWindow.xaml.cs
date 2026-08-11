@@ -6,6 +6,7 @@ using System.Windows.Input;
 using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Services;
 using Lertaro.App.Services.ShellMenu.ActionFlyout;
+using Lertaro.App.Services.ShellIcons;
 using Lertaro.App.Services.Theme;
 using Lertaro.App.ViewModels.SpaceAnalyzer;
 using Lertaro.Core.Services.Search;
@@ -211,6 +212,13 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         _searchService.Dispose();
         ThemeManager.Instance.ThemeChanged -= OnThemeChanged;
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
+        ItemsList.ItemsSource = null;
+        TreemapCanvas.Children.Clear();
+        _items = Array.Empty<SpaceDisplayItem>();
+        _history.Clear();
+        ShellIconHelper.ClearCache();
+        PathCacheMaintenance.ClearAllPathCaches();
+        Core.Win32Api.TrimWorkingSet();
     }
 
     private void ItemsList_SelectionChanged(object sender, SelectionChangedEventArgs e) => RenderTreemap();
