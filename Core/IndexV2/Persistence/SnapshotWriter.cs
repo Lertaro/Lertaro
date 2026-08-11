@@ -158,6 +158,8 @@ public static class SnapshotWriter
             if (parentIndexes[n] >= 0)
                 children[childCursor[parentIndexes[n]]++] = n;
 
+        var recursiveSizes = SnapshotWriterOps.BuildRecursiveSizes(ids, flags, sizes, parentIndexes, store.RootId);
+
         var asciiBits = new ulong[(uidByName.Count + 63) / 64];
         {
             var blob = nameBlob.GetBuffer();
@@ -238,6 +240,7 @@ public static class SnapshotWriter
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.NameBlob, nameBlob.GetBuffer().AsSpan(0, (int)nameBlob.Length));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.Ids, MemoryMarshal.AsBytes(ids));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.Sizes, MemoryMarshal.AsBytes(sizes));
+                SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.RecursiveSizes, MemoryMarshal.AsBytes(recursiveSizes));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.CreationTimes, MemoryMarshal.AsBytes(creation));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.LastWriteTimes, MemoryMarshal.AsBytes(lastWrite));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.LastAccessTimes, MemoryMarshal.AsBytes(lastAccess));

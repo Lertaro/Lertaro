@@ -6,6 +6,16 @@ namespace Lertaro.Plugins.CoreExtensions.Tests;
 public sealed class CoreExtensionsPluginTests
 {
     [TestMethod]
+    public void GetActions_RegistersCopyNameImmediatelyBeforeCopyPath()
+    {
+        var actions = new CoreExtensionsPlugin().GetActions().ToList();
+
+        var copyName = actions.FindIndex(action => action is CoreExtensions.Actions.CopyNameAction);
+        var copyPath = actions.FindIndex(action => action is CoreExtensions.Actions.CopyPathAction);
+        Assert.AreEqual(copyPath - 1, copyName);
+    }
+
+    [TestMethod]
     public void GetConfigSchema_ContainsInlineSearchGroupWithAlwaysOpenFieldEnabledByDefault()
     {
         var plugin = new CoreExtensionsPlugin();

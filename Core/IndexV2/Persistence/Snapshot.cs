@@ -83,6 +83,7 @@ public sealed unsafe class Snapshot : IDisposable
     // Cold sections -- paged in for result display, sorting, recency and USN maintenance.
     public ReadOnlySpan<UInt128> Ids => new(Section(SnapshotSection.Ids), Count);
     public ReadOnlySpan<long> Sizes => new(Section(SnapshotSection.Sizes), Count);
+    public ReadOnlySpan<long> RecursiveSizes => new(Section(SnapshotSection.RecursiveSizes), Count);
     public ReadOnlySpan<uint> CreationTimes => new(Section(SnapshotSection.CreationTimes), Count);
     public ReadOnlySpan<uint> LastWriteTimes => new(Section(SnapshotSection.LastWriteTimes), Count);
     public ReadOnlySpan<uint> LastAccessTimes => new(Section(SnapshotSection.LastAccessTimes), Count);
@@ -107,6 +108,7 @@ public sealed unsafe class Snapshot : IDisposable
 
     public bool IsDeleted(int row) => (Flags[row] & (ushort)FileRecordFlags.Deleted) != 0;
     public bool IsDirectory(int row) => (Flags[row] & (ushort)FileRecordFlags.Directory) != 0;
+    public bool IsHiddenOrSystem(int row) => (Flags[row] & (ushort)(FileRecordFlags.Hidden | FileRecordFlags.System)) != 0;
 
     public ReadOnlySpan<int> ChildrenOf(int row)
     {

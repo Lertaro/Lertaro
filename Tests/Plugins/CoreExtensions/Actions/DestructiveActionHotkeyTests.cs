@@ -26,6 +26,7 @@ public sealed class DestructiveActionHotkeyTests
     public void NonDestructiveActions_KeepTheirDefaults()
     {
         Assert.AreEqual("Ctrl+C", new CopyFileAction().Hotkey);
+        Assert.AreEqual("Shift+C", new CopyNameAction().Hotkey);
         Assert.AreEqual("Ctrl+Shift+C", new CopyPathAction().Hotkey);
         Assert.AreEqual("Ctrl+Enter", new LocateInExplorerAction().Hotkey);
     }

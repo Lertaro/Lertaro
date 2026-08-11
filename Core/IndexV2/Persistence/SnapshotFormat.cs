@@ -5,7 +5,7 @@ namespace Lertaro.Core.IndexV2.Persistence;
 internal enum SnapshotSection
 {
     NameIds, Flags, ParentIndexes, UniqueMasks, NameOffsets, NameBlob,
-    Ids, Sizes, CreationTimes, LastWriteTimes, LastAccessTimes,
+    Ids, Sizes, RecursiveSizes, CreationTimes, LastWriteTimes, LastAccessTimes,
     ChildStarts, Children, UidStarts, UidRows,
     AliasStarts, AliasEntryOffsets, AliasProviderIds, AliasBlob,
     OrphanRows, OrphanFrns,
@@ -22,8 +22,8 @@ internal enum SnapshotSection
 internal static class SnapshotFormat
 {
     public const ulong Magic = 0x0000005844494C53; // "SLIDX\0\0\0" little-endian
-    // Bumped 8 -> 9: Sector-aligned read for non-resident $ATTRIBUTE_LIST entries and full MFT extent scanning.
-    public const int Version = 9;
+    // Bumped 9 -> 10: recursive logical sizes support instant, index-only space analysis.
+    public const int Version = 10;
     public const int SectionAlignment = 16;
 
     internal sealed class Meta
@@ -157,6 +157,7 @@ internal static class SnapshotFormat
             meta.NameBlobLength,           // NameBlob
             16L * meta.RowCount,           // Ids
             8L * meta.RowCount,            // Sizes
+            8L * meta.RowCount,            // RecursiveSizes
             4L * meta.RowCount,            // CreationTimes
             4L * meta.RowCount,            // LastWriteTimes
             4L * meta.RowCount,            // LastAccessTimes

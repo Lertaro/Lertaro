@@ -6,6 +6,55 @@ namespace Lertaro.Core.IndexV2.Persistence;
 /// </summary>
 internal static class SnapshotWriterOps
 {
+    internal static long[] BuildRecursiveSizes(UInt128[] ids, ushort[] flags, long[] sizes, int[] parentIndexes, UInt128 rootId)
+    {
+        var totals = new long[ids.Length];
+        var remainingChildren = new int[ids.Length];
+        var root = FirstRowForId(ids, rootId);
+
+        for (var row = 0; row < ids.Length; row++)
+        {
+            var isDirectory = (flags[row] & (ushort)FileRecordFlags.Directory) != 0;
+            // Hard-link rows are adjacent because the snapshot is ID-sorted. Attribute the bytes to
+            // one indexed name so links cannot inflate the volume total.
+            if (!isDirectory && (row == 0 || ids[row - 1] != ids[row]))
+                totals[row] = Math.Max(0, sizes[row]);
+
+            var parent = EffectiveParent(row, parentIndexes, root);
+            if (parent >= 0)
+                remainingChildren[parent]++;
+        }
+
+        var queue = new Queue<int>();
+        for (var row = 0; row < ids.Length; row++)
+            if (remainingChildren[row] == 0)
+                queue.Enqueue(row);
+
+        while (queue.Count > 0)
+        {
+            var row = queue.Dequeue();
+            var parent = EffectiveParent(row, parentIndexes, root);
+            if (parent < 0)
+                continue;
+            totals[parent] = SaturatingAdd(totals[parent], totals[row]);
+            if (--remainingChildren[parent] == 0)
+                queue.Enqueue(parent);
+        }
+
+        return totals;
+    }
+
+    private static int EffectiveParent(int row, int[] parentIndexes, int root)
+    {
+        var parent = parentIndexes[row];
+        if (parent < 0 && row != root)
+            parent = root;
+        return (uint)parent < (uint)parentIndexes.Length && parent != row ? parent : -1;
+    }
+
+    private static long SaturatingAdd(long left, long right)
+        => left > long.MaxValue - right ? long.MaxValue : left + right;
+
     // First (lowest) row holding this id, or -1 -- hard-link duplicates sit adjacent after the sort.
     internal static int FirstRowForId(UInt128[] ids, UInt128 id)
     {
