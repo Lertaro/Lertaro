@@ -201,10 +201,13 @@ public sealed class LocalSendClient : IDisposable
         Action<LocalSendFileConfirmationArgs>? onFileConfirmed, CancellationToken token)
     {
         var transfer = _pendingFileTransfer!;
-        var attempt = await LocalSendFileTransferSender.UploadAsync(_httpClient, _server, transfer, onProgress, onFileConfirmed, token).ConfigureAwait(false);
+        var attempt = await LocalSendFileTransferSender.UploadWithSenderCancellationAsync(
+            uploadToken => LocalSendFileTransferSender.UploadAsync(
+                _httpClient, _server, transfer, onProgress, onFileConfirmed, uploadToken),
+            () => CancelSessionAsync(transfer.TargetIp, transfer.TargetPort, transfer.Https,
+                transfer.SessionId ?? string.Empty, CancellationToken.None, transfer.TargetVersion),
+            token).ConfigureAwait(false);
         LastError = attempt.Error;
-        if (attempt.Result == LocalSendSendResult.Canceled)
-            await CancelSessionAsync(transfer.TargetIp, transfer.TargetPort, transfer.Https, transfer.SessionId ?? string.Empty, CancellationToken.None, transfer.TargetVersion).ConfigureAwait(false);
         if (!attempt.CanRetry)
             _pendingFileTransfer = null;
         return attempt.Result;

@@ -36,6 +36,30 @@ internal static class LocalSendFileTransferSender
 {
     private const int MaxChecksumAttempts = 3;
 
+    internal static async Task<LocalSendFileTransferAttempt> UploadWithSenderCancellationAsync(
+        Func<CancellationToken, Task<LocalSendFileTransferAttempt>> upload,
+        Func<Task> notifyReceiver,
+        CancellationToken userToken)
+    {
+        if (!userToken.CanBeCanceled)
+            return await upload(userToken).ConfigureAwait(false);
+
+        using var uploadCancellation = new CancellationTokenSource();
+        var userCanceled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var registration = userToken.Register(userCanceled.SetResult);
+        var uploadTask = upload(uploadCancellation.Token);
+
+        await Task.WhenAny(uploadTask, userCanceled.Task).ConfigureAwait(false);
+        if (userCanceled.Task.IsCompleted)
+        {
+            // Notify the receiver before aborting the request body; otherwise it can report the truncated upload as an error.
+            await notifyReceiver().ConfigureAwait(false);
+            uploadCancellation.Cancel();
+        }
+
+        return await uploadTask.ConfigureAwait(false);
+    }
+
     internal static async Task<LocalSendFileTransferAttempt> UploadAsync(HttpClient client, LocalSendServer? server,
         LocalSendPendingFileTransfer transfer, Action<LocalSendSendProgressArgs>? onProgress,
         Action<LocalSendFileConfirmationArgs>? onFileConfirmed, CancellationToken token)
