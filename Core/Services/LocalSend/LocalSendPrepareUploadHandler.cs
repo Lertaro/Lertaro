@@ -11,12 +11,6 @@ internal static class LocalSendPrepareUploadHandler
         string body, EndPoint? remoteEndpoint, string? peerFingerprint, bool v2, CancellationToken token)
     {
         var clientIp = remoteEndpoint is IPEndPoint remoteIp ? LocalSendServerHelper.FormatIpAddress(remoteIp.Address) : string.Empty;
-        if (server.IsBusy)
-        {
-            await LocalSendServerHelper.WriteResponseAsync(stream, 409, "{\"message\":\"Blocked by another session\"}").ConfigureAwait(false);
-            return;
-        }
-
         query.TryGetValue("pin", out var requestPin);
         if (!server.CheckPin(clientIp, requestPin, out var pinStatus, out var pinError))
         {
@@ -45,7 +39,11 @@ internal static class LocalSendPrepareUploadHandler
             Files = request.Files
         };
         var sessionId = Guid.NewGuid().ToString();
-        server.RegisterActiveSession(sessionId, dto);
+        if (!server.TryRegisterActiveSession(sessionId, dto))
+        {
+            await LocalSendServerHelper.WriteResponseAsync(stream, 409, "{\"message\":\"Blocked by another session\"}").ConfigureAwait(false);
+            return;
+        }
 
         using var monitorCancellation = new CancellationTokenSource();
         using var serverStopRegistration = token.Register(() => server.CancelSession(sessionId, notifySender: false));
@@ -79,12 +77,15 @@ internal static class LocalSendPrepareUploadHandler
             return;
         }
 
-        server.RegisterCustomDirectory(sessionId, response.CustomDir);
-        server.RegisterSelectedFileIds(sessionId, response.SelectedFileIds);
         var fileTokens = request.Files.Keys
             .Where(id => response.SelectedFileIds == null || response.SelectedFileIds.Contains(id))
             .ToDictionary(id => id, _ => Guid.NewGuid().ToString("N"));
-        server.RegisterUploadAuthorization(sessionId, clientIp, fileTokens);
+        if (!server.TryActivateSession(sessionId, clientIp, fileTokens, response.CustomDir, response.SelectedFileIds))
+        {
+            server.UnregisterSession(sessionId);
+            await LocalSendServerHelper.WriteResponseAsync(stream, 403, "{\"message\":\"Cancelled by sender\"}").ConfigureAwait(false);
+            return;
+        }
 
         try
         {

@@ -54,10 +54,10 @@ public sealed class LocalSendUploadAuthorizationTests
     public void TryCancelFromSender_RequiresTheOriginalSender()
     {
         var server = new LocalSendServer();
-        server.RegisterActiveSession("session-1", new PrepareUploadRequestDto
+        Assert.IsTrue(server.TryRegisterActiveSession("session-1", new PrepareUploadRequestDto
         {
             Info = new LocalSendDeviceInfo { IpAddress = "192.168.1.20", Version = "2.1" }
-        });
+        }));
 
         Assert.IsFalse(LocalSendSessionAuthorization.TryCancel(server, "session-1", "192.168.1.21", v2: true));
         Assert.IsTrue(LocalSendSessionAuthorization.TryCancel(server, "session-1", "192.168.1.20", v2: true));
@@ -68,10 +68,10 @@ public sealed class LocalSendUploadAuthorizationTests
     public void TryCancelFromSender_WithoutSessionIdCancelsThePendingV2Session()
     {
         var server = new LocalSendServer();
-        server.RegisterActiveSession("session-1", new PrepareUploadRequestDto
+        Assert.IsTrue(server.TryRegisterActiveSession("session-1", new PrepareUploadRequestDto
         {
             Info = new LocalSendDeviceInfo { IpAddress = "192.168.1.20", Version = "2.1" }
-        });
+        }));
 
         var canceled = LocalSendSessionAuthorization.TryCancel(server, null, "192.168.1.20", v2: true);
 

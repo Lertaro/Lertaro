@@ -51,6 +51,20 @@ public sealed class LocalSendServerHandlerTests
     }
 
     [TestMethod]
+    public async Task ProcessAsync_BusyReceiverChecksPinBeforeReturningConflict()
+    {
+        const string body = "{\"info\":{\"alias\":\"Sender\"},\"files\":{\"file\":{\"id\":\"file\",\"fileName\":\"test.txt\",\"size\":0,\"fileType\":\"text/plain\"}}}";
+        var request = $"POST /api/localsend/v2/prepare-upload HTTP/1.1\r\nContent-Length: {Encoding.UTF8.GetByteCount(body)}\r\n\r\n{body}";
+        var server = new LocalSendServer { ReceivePin = "1234" };
+        Assert.IsTrue(server.TryRegisterActiveSession("existing", new PrepareUploadRequestDto()));
+
+        var response = await ProcessAsync(server, request);
+
+        StringAssert.Contains(response, "HTTP/1.1 401 Unauthorized");
+        Assert.IsFalse(response.Contains("409 Conflict", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public async Task ProcessAsync_MalformedRegistration_ReturnsBadRequest()
     {
         const string body = "not-json";
@@ -95,12 +109,35 @@ public sealed class LocalSendServerHandlerTests
     }
 
     [TestMethod]
+    public async Task ProcessAsync_UploadAfterReceiverCancellationReturnsForbidden()
+    {
+        var server = new LocalSendServer();
+        Assert.IsTrue(server.TryRegisterActiveSession("session", new PrepareUploadRequestDto
+        {
+            Info = new LocalSendDeviceInfo { IpAddress = "192.168.1.20" },
+            Files = new Dictionary<string, LocalSendFileDto>
+            {
+                ["file"] = new() { Id = "file", FileName = "test.txt", Size = 0 }
+            }
+        }));
+        server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
+        server.CancelSession("session");
+
+        const string request = "POST /api/localsend/v2/upload?sessionId=session&fileId=file&token=token HTTP/1.1\r\nContent-Length: 0\r\n\r\n";
+        var response = await ProcessAsync(server, request);
+
+        StringAssert.Contains(response, "HTTP/1.1 403 Forbidden");
+        StringAssert.Contains(response, "\"message\":\"Invalid token or IP address\"");
+        Assert.IsFalse(response.Contains("409 Conflict", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public async Task ProcessAsync_UploadWithSessionAndMissingParameters_ReturnsBadRequest()
     {
         const string body = "data";
         var request = $"POST /api/localsend/v2/upload HTTP/1.1\r\nContent-Length: {Encoding.UTF8.GetByteCount(body)}\r\n\r\n{body}";
         var server = new LocalSendServer();
-        server.RegisterActiveSession("session", new PrepareUploadRequestDto { Info = new LocalSendDeviceInfo { IpAddress = "192.168.1.20" } });
+        Assert.IsTrue(server.TryRegisterActiveSession("session", new PrepareUploadRequestDto { Info = new LocalSendDeviceInfo { IpAddress = "192.168.1.20" } }));
 
         var response = await ProcessAsync(server, request);
 

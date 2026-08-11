@@ -131,7 +131,6 @@ internal static class LocalSendFileTransferSender
 
     internal static LocalSendFileTransferAttempt ClassifyFailure(HttpStatusCode statusCode, string? reasonPhrase) => statusCode switch
     {
-        HttpStatusCode.Conflict => new(LocalSendSendResult.ReceiverCanceled, null, false),
         _ when (int)statusCode == 422 => new(LocalSendSendResult.Error, "HTTP 422 Checksum mismatch", false),
         _ when (int)statusCode >= 500 => new(LocalSendSendResult.RemoteError, $"HTTP {(int)statusCode} {reasonPhrase}", true),
         _ => new(LocalSendSendResult.Error, $"HTTP {(int)statusCode} {reasonPhrase}", true)

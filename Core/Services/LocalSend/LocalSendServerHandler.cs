@@ -146,28 +146,6 @@ internal static class LocalSendServerHandler
             return;
         }
 
-        if (!server.HasActiveSessions)
-        {
-            var status = v2 ? 403 : 409;
-            var message = v2 ? "Invalid token or IP address" : "No session";
-            await LocalSendServerHelper.WriteResponseAsync(stream, status, $"{{\"message\":\"{message}\"}}").ConfigureAwait(false);
-            return;
-        }
-
-        var activeSession = server.GetActiveSessions().Single();
-        if (!string.Equals(activeSession.Value.Info.IpAddress, senderIp, StringComparison.OrdinalIgnoreCase))
-        {
-            var message = v2 ? "Invalid token or IP address" : $"Invalid IP address: {senderIp}";
-            await LocalSendServerHelper.WriteResponseAsync(stream, 403, $"{{\"message\":\"{message}\"}}").ConfigureAwait(false);
-            return;
-        }
-
-        if (server.IsSessionCanceled(activeSession.Key))
-        {
-            await LocalSendServerHelper.WriteResponseAsync(stream, 409, "{\"message\":\"Recipient is in wrong state\"}").ConfigureAwait(false);
-            return;
-        }
-
         await server.HandleUploadAsync(stream, requestBody, sessionId ?? string.Empty, fileId ?? string.Empty, tok ?? string.Empty, senderIp, v2)
             .ConfigureAwait(false);
     }

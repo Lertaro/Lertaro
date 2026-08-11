@@ -15,8 +15,7 @@ public sealed class LocalSendServer : IDisposable
     private TcpListener? _listener;
     private CancellationTokenSource? _cts;
     private Task? _listenTask;
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, PrepareUploadRequestDto> _activeSessions = new();
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, LocalSendUploadAuthorization> _uploadAuthorizations = new();
+    private readonly LocalSendReceiveSessionStore _receiveSessions = new();
     private readonly LocalSendOutgoingSessionStore _outgoingSessions = new();
 
     public LocalSendDeviceInfo DeviceInfo { get; set; } = new()
@@ -45,7 +44,7 @@ public sealed class LocalSendServer : IDisposable
     public int ActualPort { get; private set; }
     public X509Certificate2? Certificate { get; set; }
     internal X509Certificate2? IdentityCertificate { get; set; }
-    public bool IsBusy => LocalSendServiceManager.Instance.IsWindowOpen || !_activeSessions.IsEmpty;
+    public bool IsBusy => LocalSendServiceManager.Instance.IsWindowOpen || _receiveSessions.HasSessions;
 
     public void Start(int port = 53317)
     {
@@ -101,29 +100,28 @@ public sealed class LocalSendServer : IDisposable
         }
     }
 
-    internal void RegisterActiveSession(string sessionId, PrepareUploadRequestDto dto) => _activeSessions[sessionId] = dto;
+    internal bool TryRegisterActiveSession(string sessionId, PrepareUploadRequestDto dto)
+        => _receiveSessions.TryRegister(sessionId, dto, LocalSendServiceManager.Instance.IsWindowOpen);
     public event EventHandler<LocalSendProgressArgs>? ProgressChanged;
     public event EventHandler<string>? SessionCanceled;
 
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _canceledSessions = new();
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<bool>> _cancellationNotifications = new();
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentDictionary<string, byte>> _sessionCompletedFiles = new();
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentDictionary<string, long>> _sessionTransferredBytes = new();
 
     public void CancelSession(string sessionId, bool notifySender = false)
     {
         if (string.IsNullOrEmpty(sessionId)) return;
-        if (notifySender && _activeSessions.TryGetValue(sessionId, out var prepareDto))
-            _cancellationNotifications[sessionId] = LocalSendServerHelper.NotifySenderCanceledAsync(prepareDto.Info, sessionId);
-        if (_canceledSessions.TryAdd(sessionId, 0))
-        {
-            SessionCanceled?.Invoke(this, sessionId);
-        }
+        var (canceled, prepareDto) = _receiveSessions.Cancel(sessionId);
+        if (!canceled || prepareDto == null)
+            return;
+        if (notifySender)
+            _ = LocalSendServerHelper.NotifySenderCanceledAsync(prepareDto.Info, sessionId);
+        SessionCanceled?.Invoke(this, sessionId);
     }
 
     public void CancelAllSessions()
     {
-        var activeIds = _activeSessions.Keys.ToList();
+        var activeIds = _receiveSessions.GetAll().Select(session => session.Key).ToList();
         if (activeIds.Count == 0)
         {
             SessionCanceled?.Invoke(this, string.Empty);
@@ -140,75 +138,47 @@ public sealed class LocalSendServer : IDisposable
     public void UnregisterSession(string sessionId)
     {
         if (string.IsNullOrEmpty(sessionId)) return;
-        _activeSessions.TryRemove(sessionId, out _);
-        _uploadAuthorizations.TryRemove(sessionId, out _);
-        _sessionCustomDirectories.TryRemove(sessionId, out _);
-        _sessionSelectedFileIds.TryRemove(sessionId, out _);
+        _receiveSessions.Unregister(sessionId);
         _sessionCompletedFiles.TryRemove(sessionId, out _);
         _sessionTransferredBytes.TryRemove(sessionId, out _);
-        _canceledSessions.TryRemove(sessionId, out _);
-        _cancellationNotifications.TryRemove(sessionId, out _);
     }
 
     public bool IsSessionCanceled(string sessionId) =>
-        !string.IsNullOrEmpty(sessionId) && _canceledSessions.ContainsKey(sessionId);
+        _receiveSessions.IsCanceled(sessionId);
 
-    internal bool HasActiveSessions => !_activeSessions.IsEmpty;
-    internal bool HasUploadAuthorization(string sessionId) => _uploadAuthorizations.ContainsKey(sessionId);
-    internal bool TryGetActiveSession(string sessionId, out PrepareUploadRequestDto? dto) => _activeSessions.TryGetValue(sessionId, out dto);
-    internal KeyValuePair<string, PrepareUploadRequestDto>[] GetActiveSessions() => _activeSessions.ToArray();
+    internal bool HasActiveSessions => _receiveSessions.HasSessions;
+    internal bool HasUploadAuthorization(string sessionId) => _receiveSessions.HasAuthorization(sessionId);
+    internal bool TryGetActiveSession(string sessionId, out PrepareUploadRequestDto? dto) => _receiveSessions.TryGet(sessionId, out dto);
+    internal KeyValuePair<string, PrepareUploadRequestDto>[] GetActiveSessions() => _receiveSessions.GetAll();
     internal LocalSendOutgoingSession StartOutgoingSession(string remoteIp, string? remoteSessionId, bool legacy) => _outgoingSessions.Start(remoteIp, remoteSessionId, legacy);
     internal bool TryCancelOutgoingSession(string? remoteSessionId, string senderIp, bool v2) => _outgoingSessions.TryCancel(remoteSessionId, senderIp, v2);
 
     internal async Task HandleUploadAsync(
         Stream stream, Stream requestBody, string sessionId, string fileId, string token, string senderIp, bool v2)
     {
-        if (!TryAuthorizeUpload(sessionId, fileId, token, senderIp, v2, out sessionId, out var authorizationError))
+        if (!v2 && !HasActiveSessions)
+        {
+            await LocalSendServerHelper.WriteResponseAsync(stream, 409, "{\"message\":\"No session\"}").ConfigureAwait(false);
+            return;
+        }
+        if (!TryStartUpload(sessionId, fileId, token, senderIp, v2, out var context, out var authorizationError))
         {
             await LocalSendServerHelper.WriteResponseAsync(stream, 403, $"{{\"message\":\"{authorizationError}\"}}").ConfigureAwait(false);
             return;
         }
-
-        if (IsSessionCanceled(sessionId))
-        {
-            await LocalSendServerHelper.WriteResponseAsync(stream, 409, "{\"message\":\"Recipient is in wrong state\"}").ConfigureAwait(false);
-            return;
-        }
-
-        if (v2 && !TryBeginUploadAttempt(sessionId, fileId))
-        {
-            await LocalSendServerHelper.WriteResponseAsync(stream, 403, "{\"message\":\"Invalid token\"}").ConfigureAwait(false);
-            return;
-        }
-
-        var fileName = $"{fileId}.bin";
-        var senderAlias = "LocalSend";
-        LocalSendFileMetadataDto? metadata = null;
-        string? expectedSha256 = null;
-        long totalBytes = 0;
-        var fileIndex = 1;
-        var totalFiles = 1;
-
-        if (_activeSessions.TryGetValue(sessionId, out var prepareDto))
-        {
-            senderAlias = prepareDto.Info.Alias;
-            totalFiles = prepareDto.Files.Count;
-            var keys = prepareDto.Files.Keys.ToList();
-            fileIndex = Math.Max(1, keys.IndexOf(fileId) + 1);
-
-            if (prepareDto.Files.TryGetValue(fileId, out var fileDto))
-            {
-                fileName = fileDto.FileName;
-                totalBytes = fileDto.Size;
-                metadata = fileDto.Metadata;
-                expectedSha256 = VerifyChecksums ? fileDto.Sha256 ?? fileDto.Hash : null;
-            }
-        }
-
-        var selectedIds = _sessionSelectedFileIds.TryGetValue(sessionId, out var sIds) ? sIds : null;
+        sessionId = context.SessionId;
+        var prepareDto = context.Request;
+        var fileName = context.File.FileName;
+        var senderAlias = prepareDto.Info.Alias;
+        var metadata = context.File.Metadata;
+        var expectedSha256 = VerifyChecksums ? context.File.Sha256 ?? context.File.Hash : null;
+        var totalBytes = context.File.Size;
+        var keys = prepareDto.Files.Keys.ToList();
+        var fileIndex = Math.Max(1, keys.IndexOf(fileId) + 1);
+        var totalFiles = prepareDto.Files.Count;
+        var selectedIds = context.SelectedFileIds;
         var expectedTotalFiles = selectedIds?.Count ?? totalFiles;
-        var baseDownloadDir = _sessionCustomDirectories.TryGetValue(sessionId, out var customDir) && !string.IsNullOrEmpty(customDir) ? customDir : DownloadDirectory;
-        var targetPath = LocalSendServerHelper.ResolveTargetPath(baseDownloadDir, fileName);
+        var targetPath = LocalSendServerHelper.ResolveTargetPath(context.DownloadDirectory, fileName);
         if (targetPath == null)
         {
             var sessionEnded = v2 && CompleteUploadAttempt(sessionId, fileId, LocalSendFileSaveStatus.Error);
@@ -222,8 +192,10 @@ public sealed class LocalSendServer : IDisposable
         long lastProgressTimeMs = 0;
         var progressStopwatch = System.Diagnostics.Stopwatch.StartNew();
         var saveResult = await LocalSendIncomingFileWriter.SaveAsync(
-            requestBody, targetPath, totalBytes, expectedSha256, () => IsSessionCanceled(sessionId), bytesReadTotal =>
+            requestBody, targetPath, totalBytes, expectedSha256, () => false, bytesReadTotal =>
             {
+                if (context.SessionCancellation.IsCancellationRequested)
+                    return;
                 if (progressStopwatch.ElapsedMilliseconds - lastProgressTimeMs >= 100 || bytesReadTotal - lastFlushedBytes >= 512 * 1024)
                 {
                     lastProgressTimeMs = progressStopwatch.ElapsedMilliseconds;
@@ -234,23 +206,25 @@ public sealed class LocalSendServer : IDisposable
                     var currentSessionTotal = prepareDto != null ? prepareDto.Files.Where(kv => selectedIds == null || selectedIds.Contains(kv.Key)).Sum(kv => kv.Value.Size) : totalBytes;
                     ProgressChanged?.Invoke(this, new LocalSendProgressArgs(sessionId, senderAlias, fileId, fileName, bytesReadTotal, totalBytes, fileIndex, totalFiles, isFinished: false, savedPath: targetPath, sessionBytesTransferred: currentSessionTransferred, sessionTotalBytes: currentSessionTotal));
                 }
-            }, checksumBytes => ProgressChanged?.Invoke(this, new LocalSendProgressArgs(sessionId, senderAlias, fileId,
-                fileName, checksumBytes, totalBytes, fileIndex, expectedTotalFiles, savedPath: targetPath,
-                stage: LocalSendTransferStage.VerifyingChecksum))).ConfigureAwait(false);
+            }, checksumBytes =>
+            {
+                if (!context.SessionCancellation.IsCancellationRequested)
+                    ProgressChanged?.Invoke(this, new LocalSendProgressArgs(sessionId, senderAlias, fileId,
+                        fileName, checksumBytes, totalBytes, fileIndex, expectedTotalFiles, savedPath: targetPath,
+                        stage: LocalSendTransferStage.VerifyingChecksum));
+            }).ConfigureAwait(false);
         var bytesReadTotal = saveResult.BytesWritten;
 
         if (saveResult.Status != LocalSendFileSaveStatus.Success)
         {
-            _cancellationNotifications.TryGetValue(sessionId, out var notification);
-            await LocalSendServerHelper.AwaitCancellationNotificationAsync(saveResult.Status, notification).ConfigureAwait(false);
-            var sessionEnded = v2 && CompleteUploadAttempt(sessionId, fileId, saveResult.Status);
+            var sessionEnded = !context.SessionCancellation.IsCancellationRequested && v2 && CompleteUploadAttempt(sessionId, fileId, saveResult.Status);
             LocalSendServerHelper.TryDeleteFile(targetPath);
             Logger.Log($"[LocalSendServer] Upload failed for {fileName}: {saveResult.Error ?? saveResult.Status.ToString()}", LogLevel.Warn);
-            if (saveResult.Status != LocalSendFileSaveStatus.Canceled)
+            if (!context.SessionCancellation.IsCancellationRequested && saveResult.Status != LocalSendFileSaveStatus.Canceled)
                 ProgressChanged?.Invoke(this, new LocalSendProgressArgs(sessionId, senderAlias, fileId, fileName, bytesReadTotal, totalBytes, fileIndex, expectedTotalFiles, isAllDone: sessionEnded, isFailed: true));
             var status = saveResult.Status == LocalSendFileSaveStatus.ChecksumMismatch ? 422 : 500;
             var message = status == 422 ? "Checksum mismatch" : "Could not save file. Check receiving device for more information.";
-            if (sessionEnded) UnregisterSession(sessionId);
+            if (sessionEnded || context.SessionCancellation.IsCancellationRequested) UnregisterSession(sessionId);
             await LocalSendServerHelper.WriteResponseAsync(stream, status, $"{{\"message\":\"{message}\"}}").ConfigureAwait(false);
             return;
         }
@@ -259,6 +233,14 @@ public sealed class LocalSendServer : IDisposable
         completedSet[fileId] = 0;
 
         var isAllDone = v2 ? CompleteUploadAttempt(sessionId, fileId, LocalSendFileSaveStatus.Success) : completedSet.Count >= expectedTotalFiles;
+        if (context.SessionCancellation.IsCancellationRequested)
+        {
+            LocalSendFileMetadataApplier.Apply(targetPath, metadata);
+            FileReceived?.Invoke(this, (fileId, targetPath));
+            UnregisterSession(sessionId);
+            await LocalSendServerHelper.WriteResponseAsync(stream, 200).ConfigureAwait(false);
+            return;
+        }
         var displayIndex = isAllDone ? expectedTotalFiles : Math.Max(fileIndex, completedSet.Count);
         var relPath = fileName.Replace('\\', '/').TrimStart('/');
         var rootSavedPath = Path.Combine(DownloadDirectory, relPath.Split('/')[0]);
@@ -274,15 +256,16 @@ public sealed class LocalSendServer : IDisposable
             UnregisterSession(sessionId);
         await LocalSendServerHelper.WriteResponseAsync(stream, 200).ConfigureAwait(false);
     }
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _sessionCustomDirectories = new();
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, HashSet<string>> _sessionSelectedFileIds = new();
-    internal void RegisterCustomDirectory(string sessionId, string? customDir) { if (!string.IsNullOrEmpty(customDir)) _sessionCustomDirectories[sessionId] = customDir; }
-    internal void RegisterSelectedFileIds(string sessionId, HashSet<string>? selectedIds) { if (selectedIds != null) _sessionSelectedFileIds[sessionId] = selectedIds; }
-    internal void RegisterUploadAuthorization(string sessionId, string senderIp, IReadOnlyDictionary<string, string> fileTokens) => _uploadAuthorizations[sessionId] = new LocalSendUploadAuthorization(senderIp, fileTokens);
-    private bool TryBeginUploadAttempt(string sessionId, string fileId) => _uploadAuthorizations.TryGetValue(sessionId, out var authorization) && authorization.TryBeginUpload(fileId);
-    private bool CompleteUploadAttempt(string sessionId, string fileId, LocalSendFileSaveStatus result) => _uploadAuthorizations.TryGetValue(sessionId, out var authorization) && authorization.CompleteUpload(fileId, result);
-    internal bool TryAuthorizeUpload(string sessionId, string fileId, string token, string senderIp, bool v2, out string resolvedSessionId, out string error) =>
-        LocalSendUploadAuthorizationChecker.TryAuthorize(_uploadAuthorizations, sessionId, fileId, token, senderIp, v2, out resolvedSessionId, out error);
+    internal bool TryActivateSession(string sessionId, string senderIp, IReadOnlyDictionary<string, string> fileTokens,
+        string? customDirectory, HashSet<string>? selectedFileIds) =>
+        _receiveSessions.TryActivate(sessionId, senderIp, fileTokens, customDirectory, selectedFileIds);
+    internal void RegisterUploadAuthorization(string sessionId, string senderIp, IReadOnlyDictionary<string, string> fileTokens) =>
+        _receiveSessions.RegisterAuthorization(sessionId, senderIp, fileTokens);
+    private bool TryStartUpload(string sessionId, string fileId, string token, string senderIp, bool v2,
+        out LocalSendUploadContext context, out string error) =>
+        _receiveSessions.TryStartUpload(sessionId, fileId, token, senderIp, v2, DownloadDirectory, out context, out error);
+    private bool CompleteUploadAttempt(string sessionId, string fileId, LocalSendFileSaveStatus result) =>
+        _receiveSessions.CompleteUpload(sessionId, fileId, result);
     internal Task<(bool Accepted, string? CustomDir, HashSet<string>? SelectedFileIds)> RequestUserAcceptanceAsync(string sessionId, PrepareUploadRequestDto dto, bool isAutoAccepted = false) => LocalSendServerSessionHelper.RequestAcceptanceAsync(this, sessionId, dto, isAutoAccepted);
     internal bool HasUploadRequestedHandler => UploadRequested != null;
     internal void InvokeUploadRequested(LocalSendUploadRequestArgs args) => UploadRequested?.Invoke(this, args);

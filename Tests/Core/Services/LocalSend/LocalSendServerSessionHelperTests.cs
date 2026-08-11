@@ -55,6 +55,7 @@ public sealed class LocalSendServerSessionHelperTests
             Info = new LocalSendDeviceInfo { Alias = "TestDevice" },
             Files = new Dictionary<string, LocalSendFileDto>()
         };
+        Assert.IsTrue(server.TryRegisterActiveSession("s1", dto));
 
         var pending = LocalSendServerSessionHelper.RequestAcceptanceAsync(server, "s1", dto);
         await requestReady.Task.WaitAsync(TimeSpan.FromSeconds(1));

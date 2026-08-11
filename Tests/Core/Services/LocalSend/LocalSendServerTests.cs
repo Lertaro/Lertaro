@@ -21,8 +21,24 @@ public sealed class LocalSendServerTests
 
         Assert.IsTrue(server.IsBusy);
         LocalSendServiceManager.Instance.WindowOpenCheck = () => false;
-        server.RegisterActiveSession("session", new PrepareUploadRequestDto());
+        Assert.IsTrue(server.TryRegisterActiveSession("session", new PrepareUploadRequestDto()));
         Assert.IsTrue(server.IsBusy);
+    }
+
+    [TestMethod]
+    public void TryRegisterActiveSession_ConcurrentClaimsAllowOnlyOneSession()
+    {
+        var server = new LocalSendServer();
+        var accepted = 0;
+
+        Parallel.For(0, 32, index =>
+        {
+            if (server.TryRegisterActiveSession($"session-{index}", new PrepareUploadRequestDto()))
+                Interlocked.Increment(ref accepted);
+        });
+
+        Assert.AreEqual(1, accepted);
+        Assert.HasCount(1, server.GetActiveSessions());
     }
 
     [TestMethod]
@@ -42,7 +58,7 @@ public sealed class LocalSendServerTests
             };
             LocalSendProgressArgs? failure = null;
             server.ProgressChanged += (_, args) => { if (args.IsFailed) failure = args; };
-            server.RegisterActiveSession("session", request);
+            Assert.IsTrue(server.TryRegisterActiveSession("session", request));
             server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
 
             await using var response = new MemoryStream();
@@ -86,7 +102,7 @@ public sealed class LocalSendServerTests
                 if (args.IsFailed) failure = args;
                 verificationReported |= args.Stage == LocalSendTransferStage.VerifyingChecksum;
             };
-            server.RegisterActiveSession("session", request);
+            Assert.IsTrue(server.TryRegisterActiveSession("session", request));
             server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
 
             await using var response = new MemoryStream();
@@ -116,13 +132,13 @@ public sealed class LocalSendServerTests
             var server = new LocalSendServer { DownloadDirectory = temporaryDirectory };
             LocalSendProgressArgs? failure = null;
             server.ProgressChanged += (_, args) => { if (args.IsFailed) failure = args; };
-            server.RegisterActiveSession("session", new PrepareUploadRequestDto
+            Assert.IsTrue(server.TryRegisterActiveSession("session", new PrepareUploadRequestDto
             {
                 Files = new Dictionary<string, LocalSendFileDto>
                 {
                     ["file"] = new() { Id = "file", FileName = "payload.bin", Size = 4, Sha256 = new string('0', 64) }
                 }
-            });
+            }));
             server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
 
             for (var attempt = 1; attempt <= 3; attempt++)
@@ -151,13 +167,13 @@ public sealed class LocalSendServerTests
         try
         {
             var server = new LocalSendServer { DownloadDirectory = temporaryDirectory, VerifyChecksums = false };
-            server.RegisterActiveSession("session", new PrepareUploadRequestDto
+            Assert.IsTrue(server.TryRegisterActiveSession("session", new PrepareUploadRequestDto
             {
                 Files = new Dictionary<string, LocalSendFileDto>
                 {
                     ["file"] = new() { Id = "file", FileName = "payload.bin", Size = 4, Sha256 = new string('0', 64) }
                 }
-            });
+            }));
             server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
 
             await using var response = new MemoryStream();
@@ -182,13 +198,13 @@ public sealed class LocalSendServerTests
         try
         {
             var server = new LocalSendServer { DownloadDirectory = temporaryDirectory };
-            server.RegisterActiveSession("session", new PrepareUploadRequestDto
+            Assert.IsTrue(server.TryRegisterActiveSession("session", new PrepareUploadRequestDto
             {
                 Files = new Dictionary<string, LocalSendFileDto>
                 {
                     ["file"] = new() { Id = "file", FileName = "payload.bin", Size = 4 }
                 }
-            });
+            }));
             server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
             var failureReported = false;
             server.ProgressChanged += (_, args) => failureReported |= args.IsFailed;
@@ -199,6 +215,8 @@ public sealed class LocalSendServerTests
 
             Assert.IsFalse(failureReported);
             Assert.IsFalse(server.HasActiveSessions);
+            StringAssert.Contains(System.Text.Encoding.UTF8.GetString(response.ToArray()), "HTTP/1.1 200 OK");
+            Assert.IsTrue(File.Exists(Path.Combine(temporaryDirectory, "payload.bin")));
         }
         finally
         {

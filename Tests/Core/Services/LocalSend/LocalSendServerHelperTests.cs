@@ -162,28 +162,6 @@ public class LocalSendServerHelperTests
     }
 
     [TestMethod]
-    public async Task AwaitCancellationNotificationAsync_CanceledUploadWaitsForCallback()
-    {
-        var callback = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        var wait = LocalSendServerHelper.AwaitCancellationNotificationAsync(LocalSendFileSaveStatus.Canceled, callback.Task);
-
-        Assert.IsFalse(wait.IsCompleted);
-        callback.SetResult(true);
-        await wait;
-    }
-
-    [TestMethod]
-    public void AwaitCancellationNotificationAsync_WriteErrorDoesNotWaitForCallback()
-    {
-        var callback = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        var wait = LocalSendServerHelper.AwaitCancellationNotificationAsync(LocalSendFileSaveStatus.Error, callback.Task);
-
-        Assert.IsTrue(wait.IsCompletedSuccessfully);
-    }
-
-    [TestMethod]
     public void FormatDeviceHashtag_UsesNetworkInterfaceAddressOrderAndDistinctSuffixes()
     {
         var hashtag = LocalSendServerHelper.FormatDeviceHashtag([

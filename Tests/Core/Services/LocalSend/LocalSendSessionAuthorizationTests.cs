@@ -10,7 +10,7 @@ public sealed class LocalSendSessionAuthorizationTests
     public void TryCancel_V2AcceptedSessionWithoutSessionId_IsRejected()
     {
         var server = new LocalSendServer();
-        server.RegisterActiveSession("session", new PrepareUploadRequestDto { Info = new LocalSendDeviceInfo { IpAddress = "192.168.1.20" } });
+        Assert.IsTrue(server.TryRegisterActiveSession("session", new PrepareUploadRequestDto { Info = new LocalSendDeviceInfo { IpAddress = "192.168.1.20" } }));
         server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
 
         var canceled = LocalSendSessionAuthorization.TryCancel(server, null, "192.168.1.20", v2: true);
@@ -22,7 +22,7 @@ public sealed class LocalSendSessionAuthorizationTests
     public void TryCancel_V2WaitingSessionWithoutSessionId_IsAccepted()
     {
         var server = new LocalSendServer();
-        server.RegisterActiveSession("session", new PrepareUploadRequestDto { Info = new LocalSendDeviceInfo { IpAddress = "192.168.1.20" } });
+        Assert.IsTrue(server.TryRegisterActiveSession("session", new PrepareUploadRequestDto { Info = new LocalSendDeviceInfo { IpAddress = "192.168.1.20" } }));
 
         var canceled = LocalSendSessionAuthorization.TryCancel(server, null, "192.168.1.20", v2: true);
 
@@ -33,7 +33,7 @@ public sealed class LocalSendSessionAuthorizationTests
     public void TryCancel_AlreadyCanceledReceiveSession_IsRejected()
     {
         var server = new LocalSendServer();
-        server.RegisterActiveSession("session", new PrepareUploadRequestDto { Info = new LocalSendDeviceInfo { IpAddress = "192.168.1.20" } });
+        Assert.IsTrue(server.TryRegisterActiveSession("session", new PrepareUploadRequestDto { Info = new LocalSendDeviceInfo { IpAddress = "192.168.1.20" } }));
         Assert.IsTrue(LocalSendSessionAuthorization.TryCancel(server, "session", "192.168.1.20", v2: true));
 
         var canceledAgain = LocalSendSessionAuthorization.TryCancel(server, "session", "192.168.1.20", v2: true);

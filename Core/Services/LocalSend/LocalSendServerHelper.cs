@@ -126,9 +126,6 @@ public static class LocalSendServerHelper
         return LocalSendApiRoute.UsesV1(senderInfo.Version) ? uri : $"{uri}?sessionId={Uri.EscapeDataString(sessionId)}";
     }
 
-    internal static Task AwaitCancellationNotificationAsync(LocalSendFileSaveStatus status, Task<bool>? notification) =>
-        status == LocalSendFileSaveStatus.Canceled && notification != null ? notification : Task.CompletedTask;
-
     internal static async Task HandleRegisterAsync(LocalSendServer server, Stream stream, string body, EndPoint? remoteEp,
         string? peerFingerprint)
     {

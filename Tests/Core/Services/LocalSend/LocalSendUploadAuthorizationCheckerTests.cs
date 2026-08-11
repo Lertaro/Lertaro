@@ -122,7 +122,7 @@ public sealed class LocalSendUploadAuthorizationCheckerTests
     }
 
     [TestMethod]
-    public async Task UploadAsync_ConflictReturnsReceiverCanceled()
+    public async Task UploadAsync_ConflictReturnsRetryableProtocolError()
     {
         var path = Path.GetTempFileName();
         try
@@ -131,8 +131,8 @@ public sealed class LocalSendUploadAuthorizationCheckerTests
             using var client = new HttpClient(new FixedStatusHandler(System.Net.HttpStatusCode.Conflict));
             var result = await LocalSendFileTransferSender.UploadAsync(client, null, CreateTransfer(path, path), null, null, CancellationToken.None);
 
-            Assert.AreEqual(LocalSendSendResult.ReceiverCanceled, result.Result);
-            Assert.IsFalse(result.CanRetry);
+            Assert.AreEqual(LocalSendSendResult.Error, result.Result);
+            Assert.IsTrue(result.CanRetry);
         }
         finally
         {
