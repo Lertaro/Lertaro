@@ -8,7 +8,7 @@ namespace Lertaro.Core.Services.LocalSend;
 internal static class LocalSendPrepareUploadHandler
 {
     internal static async Task HandleAsync(LocalSendServer server, Stream stream, Dictionary<string, string> query,
-        string body, EndPoint? remoteEndpoint, string? peerFingerprint, bool v2)
+        string body, EndPoint? remoteEndpoint, string? peerFingerprint, bool v2, CancellationToken token)
     {
         var clientIp = remoteEndpoint is IPEndPoint remoteIp ? LocalSendServerHelper.FormatIpAddress(remoteIp.Address) : string.Empty;
         if (server.IsBusy)
@@ -47,7 +47,24 @@ internal static class LocalSendPrepareUploadHandler
         var sessionId = Guid.NewGuid().ToString();
         server.RegisterActiveSession(sessionId, dto);
 
-        var response = await server.RequestUserAcceptanceAsync(sessionId, dto, server.QuickSave).ConfigureAwait(false);
+        using var monitorCancellation = new CancellationTokenSource();
+        using var serverStopRegistration = token.Register(() => server.CancelSession(sessionId, notifySender: false));
+        var acceptance = server.RequestUserAcceptanceAsync(sessionId, dto, server.QuickSave);
+        if (!acceptance.IsCompleted)
+        {
+            var disconnected = LocalSendPeerDisconnectMonitor.WaitAsync(stream, monitorCancellation.Token);
+            if (await Task.WhenAny(acceptance, disconnected).ConfigureAwait(false) == acceptance)
+                monitorCancellation.Cancel();
+            if (await disconnected.ConfigureAwait(false))
+            {
+                server.CancelSession(sessionId, notifySender: false);
+                await acceptance.ConfigureAwait(false);
+                server.UnregisterSession(sessionId);
+                return;
+            }
+        }
+
+        var response = await acceptance.ConfigureAwait(false);
         if (!server.QuickSave && !response.Accepted || server.IsSessionCanceled(sessionId))
         {
             server.UnregisterSession(sessionId);

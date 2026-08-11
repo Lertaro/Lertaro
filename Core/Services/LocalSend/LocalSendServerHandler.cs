@@ -91,13 +91,13 @@ internal static class LocalSendServerHandler
         if (contentLength > 0 || IsChunked(headers))
             bodyText = await ReadBodyAsync(requestBody, token).ConfigureAwait(false);
 
-        await RoutePostAsync(server, stream, path, query, bodyText, remoteEp, peerFingerprint).ConfigureAwait(false);
+        await RoutePostAsync(server, stream, path, query, bodyText, remoteEp, peerFingerprint, token).ConfigureAwait(false);
         return keepAlive;
     }
 
     private static async Task RoutePostAsync(
         LocalSendServer server, Stream stream, string path,
-        Dictionary<string, string> query, string body, EndPoint? remoteEp, string? peerFingerprint)
+        Dictionary<string, string> query, string body, EndPoint? remoteEp, string? peerFingerprint, CancellationToken token)
     {
         if (IsRegister(path))
         {
@@ -107,7 +107,7 @@ internal static class LocalSendServerHandler
         {
             await LocalSendPrepareUploadHandler.HandleAsync(
                 server, stream, query, body, remoteEp, peerFingerprint,
-                path.Contains("/v2/", StringComparison.OrdinalIgnoreCase)).ConfigureAwait(false);
+                path.Contains("/v2/", StringComparison.OrdinalIgnoreCase), token).ConfigureAwait(false);
         }
         else if (IsCancel(path))
         {

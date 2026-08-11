@@ -2,6 +2,7 @@ using Lertaro.Core.Services.LocalSend;
 using Lertaro.Core.Services.LocalSend.Models;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 
 namespace Lertaro.Core.Tests.Services.LocalSend;
 
@@ -67,6 +68,43 @@ public sealed class LocalSendHttpClientFactoryTests
 
         await Assert.ThrowsExactlyAsync<HttpRequestException>(
             () => client.GetAsync($"https://127.0.0.1:{port}/api/localsend/v2/info"));
+    }
+
+    [TestMethod]
+    public async Task PrepareUpload_ClientAbortsHttpsRequest_CancelsPendingSession()
+    {
+        using var serverCertificate = LocalSendCertificate.CreateEphemeral();
+        using var clientCertificate = LocalSendCertificate.CreateEphemeral();
+        var port = GetFreePort();
+        using var server = new LocalSendServer
+        {
+            Certificate = serverCertificate,
+            DeviceInfo = new LocalSendDeviceInfo
+            {
+                Alias = "Server", Protocol = "https",
+                Fingerprint = LocalSendCertificate.GetFingerprint(serverCertificate)
+            }
+        };
+        var requestShown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sessionCanceled = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        server.UploadRequested += (_, _) => requestShown.TrySetResult();
+        server.SessionCanceled += (_, sessionId) => sessionCanceled.TrySetResult(sessionId);
+        server.Start(port);
+        using var client = LocalSendHttpClientFactory.Create(
+            clientCertificate, LocalSendCertificate.GetFingerprint(serverCertificate), TimeSpan.FromSeconds(3));
+        using var cancellation = new CancellationTokenSource();
+        const string body = """
+            {"info":{"alias":"Sender","version":"2.2"},"files":{"file":{"id":"file","fileName":"test.txt","size":0,"fileType":"text/plain"}}}
+            """;
+
+        var sending = client.PostAsync($"https://127.0.0.1:{port}/api/localsend/v2/prepare-upload",
+            new StringContent(body, Encoding.UTF8, "application/json"), cancellation.Token);
+        await requestShown.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        cancellation.Cancel();
+
+        await Assert.ThrowsExactlyAsync<TaskCanceledException>(async () => await sending);
+        Assert.IsFalse(string.IsNullOrEmpty(await sessionCanceled.Task.WaitAsync(TimeSpan.FromSeconds(3))));
+        Assert.IsFalse(server.HasActiveSessions);
     }
 
     private static int GetFreePort()
