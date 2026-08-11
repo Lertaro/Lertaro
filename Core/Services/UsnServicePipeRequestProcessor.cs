@@ -81,6 +81,10 @@ internal static class UsnServicePipeRequestProcessor
                     var recentFiles = engine?.GetRecentFiles(directories, msg.Limit, msg.MaxAgeMinutes) ?? new List<SearchResult>();
                     return new PipeResponse { Kind = PipeResponseKind.RecentFiles, RecentFiles = recentFiles };
 
+                case SearchRequestId.GetSpaceEntries:
+                    var spaceEntries = engine?.GetSpaceEntries(msg.Drive) ?? new List<IndexV2.Space.SpaceIndexEntry>();
+                    return new PipeResponse { Kind = PipeResponseKind.SpaceEntries, SpaceEntries = spaceEntries };
+
                 case SearchRequestId.ClearServiceLog:
                     Logger.ClearCurrentLog();
                     return new PipeResponse { Kind = PipeResponseKind.Ok };

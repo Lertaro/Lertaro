@@ -204,6 +204,19 @@ public sealed class SearchRequestBinarySerializerTests
     }
 
     [TestMethod]
+    public async Task RoundTrip_GetSpaceEntries_PreservesDirectory()
+    {
+        var result = await RoundTripAsync(new SearchRequestMessage
+        {
+            Id = SearchRequestId.GetSpaceEntries,
+            Drive = @"C:\Projects"
+        });
+
+        Assert.AreEqual(SearchRequestId.GetSpaceEntries, result.Id);
+        Assert.AreEqual(@"C:\Projects", result.Drive);
+    }
+
+    [TestMethod]
     [DataRow(true)]
     [DataRow(false)]
     public async Task RoundTrip_LaunchHook_PreservesRequestElevation(bool requestElevation)

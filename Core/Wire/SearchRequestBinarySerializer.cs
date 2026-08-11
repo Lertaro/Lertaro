@@ -7,13 +7,13 @@ namespace Lertaro.Core.Wire;
 public static class SearchRequestBinarySerializer
 {
     private const int Magic = 0x51504C53; // SLPQ
-    // v5: Search/SearchDir gained the ExactMatch flag; v6: gained the EnumerateDir request.
+    // v5: Search/SearchDir gained ExactMatch; v6: EnumerateDir; v7: in-memory space entries.
     // Bumped for a new request id too, not only for a changed payload layout: the set of ids IS part of
     // this contract, and the version is what makes an App/Service pair that disagree about it fail
     // loudly and at once, in both directions, instead of one side quietly answering "Unknown command"
     // to a request the other believes is supported. App and Service always ship and restart together,
     // so a mismatch is an install-time transient, not a state worth degrading gracefully into.
-    private const int VersionSearchRequest = 6;
+    private const int VersionSearchRequest = 7;
 
     public static async Task WriteSearchRequestAsync(Stream stream, SearchRequestMessage msg, CancellationToken token = default)
     {
@@ -21,33 +21,34 @@ public static class SearchRequestBinarySerializer
         switch (msg.Id)
         {
             case SearchRequestId.SetMachineSettings:
-                payloadSize += CalculateSettingsSize(msg.MachineSettings ?? new MachineSettings());
+                payloadSize += SearchRequestValueCodec.CalculateSettingsSize(msg.MachineSettings ?? new MachineSettings());
                 break;
             case SearchRequestId.RebuildDrive:
             case SearchRequestId.DeleteDriveIndex:
             case SearchRequestId.CancelDriveIndex:
+            case SearchRequestId.GetSpaceEntries:
                 payloadSize += GetStringByteCount(msg.Drive) + 5;
                 break;
             case SearchRequestId.Search:
-                payloadSize += 8 + GetStringByteCount(msg.Query) + 5 + CalculateStringListSize(msg.DisabledAliasComponents) + 1;
+                payloadSize += 8 + GetStringByteCount(msg.Query) + 5 + SearchRequestValueCodec.CalculateStringListSize(msg.DisabledAliasComponents) + 1;
                 break;
             case SearchRequestId.SearchDir:
-                payloadSize += 8 + GetStringByteCount(msg.DirectoryFilter) + 5 + GetStringByteCount(msg.Query) + 5 + CalculateStringListSize(msg.DisabledAliasComponents) + 1;
+                payloadSize += 8 + GetStringByteCount(msg.DirectoryFilter) + 5 + GetStringByteCount(msg.Query) + 5 + SearchRequestValueCodec.CalculateStringListSize(msg.DisabledAliasComponents) + 1;
                 break;
             case SearchRequestId.EnumerateDir:
                 payloadSize += 4 + GetStringByteCount(msg.DirectoryFilter) + 5 + GetStringByteCount(msg.Query) + 5 + 1;
                 break;
             case SearchRequestId.GetFileMetadata:
-                payloadSize += CalculateStringListSize(msg.FilePaths);
+                payloadSize += SearchRequestValueCodec.CalculateStringListSize(msg.FilePaths);
                 break;
             case SearchRequestId.GetRecentFiles:
-                payloadSize += 8 + CalculateStringListSize(msg.Directories);
+                payloadSize += 8 + SearchRequestValueCodec.CalculateStringListSize(msg.Directories);
                 break;
             case SearchRequestId.LaunchHook:
                 payloadSize += 1;
                 break;
             case SearchRequestId.SubscribeDirectoryChanges:
-                payloadSize += CalculateStringListSize(msg.Directories);
+                payloadSize += SearchRequestValueCodec.CalculateStringListSize(msg.Directories);
                 break;
         }
 
@@ -62,11 +63,12 @@ public static class SearchRequestBinarySerializer
             switch (msg.Id)
             {
                 case SearchRequestId.SetMachineSettings:
-                    WriteMachineSettings(span, ref offset, msg.MachineSettings ?? new MachineSettings());
+                    SearchRequestValueCodec.WriteSettings(span, ref offset, msg.MachineSettings ?? new MachineSettings());
                     break;
                 case SearchRequestId.RebuildDrive:
                 case SearchRequestId.DeleteDriveIndex:
                 case SearchRequestId.CancelDriveIndex:
+                case SearchRequestId.GetSpaceEntries:
                     WriteString(span, ref offset, msg.Drive);
                     break;
                 case SearchRequestId.Search:
@@ -75,7 +77,7 @@ public static class SearchRequestBinarySerializer
                     BinaryPrimitives.WriteInt32LittleEndian(span.Slice(offset), msg.AppLimit);
                     offset += 4;
                     WriteString(span, ref offset, msg.Query);
-                    WriteStringList(span, ref offset, msg.DisabledAliasComponents);
+                    SearchRequestValueCodec.WriteStringList(span, ref offset, msg.DisabledAliasComponents);
                     span[offset++] = (byte)(msg.ExactMatch ? 1 : 0);
                     break;
                 case SearchRequestId.SearchDir:
@@ -85,7 +87,7 @@ public static class SearchRequestBinarySerializer
                     offset += 4;
                     WriteString(span, ref offset, msg.DirectoryFilter);
                     WriteString(span, ref offset, msg.Query);
-                    WriteStringList(span, ref offset, msg.DisabledAliasComponents);
+                    SearchRequestValueCodec.WriteStringList(span, ref offset, msg.DisabledAliasComponents);
                     span[offset++] = (byte)(msg.ExactMatch ? 1 : 0);
                     break;
                 case SearchRequestId.EnumerateDir:
@@ -96,20 +98,20 @@ public static class SearchRequestBinarySerializer
                     span[offset++] = (byte)(msg.Recursive ? 1 : 0);
                     break;
                 case SearchRequestId.GetFileMetadata:
-                    WriteStringList(span, ref offset, msg.FilePaths);
+                    SearchRequestValueCodec.WriteStringList(span, ref offset, msg.FilePaths);
                     break;
                 case SearchRequestId.GetRecentFiles:
                     BinaryPrimitives.WriteInt32LittleEndian(span.Slice(offset), msg.Limit);
                     offset += 4;
                     BinaryPrimitives.WriteInt32LittleEndian(span.Slice(offset), msg.MaxAgeMinutes);
                     offset += 4;
-                    WriteStringList(span, ref offset, msg.Directories);
+                    SearchRequestValueCodec.WriteStringList(span, ref offset, msg.Directories);
                     break;
                 case SearchRequestId.LaunchHook:
                     span[offset++] = (byte)(msg.RequestElevation ? 1 : 0);
                     break;
                 case SearchRequestId.SubscribeDirectoryChanges:
-                    WriteStringList(span, ref offset, msg.Directories);
+                    SearchRequestValueCodec.WriteStringList(span, ref offset, msg.Directories);
                     break;
             }
 
@@ -150,11 +152,12 @@ public static class SearchRequestBinarySerializer
         switch (id)
         {
             case SearchRequestId.SetMachineSettings:
-                msg.MachineSettings = ReadMachineSettings(payload, ref offset);
+                msg.MachineSettings = SearchRequestValueCodec.ReadSettings(payload, ref offset);
                 break;
             case SearchRequestId.RebuildDrive:
             case SearchRequestId.DeleteDriveIndex:
             case SearchRequestId.CancelDriveIndex:
+            case SearchRequestId.GetSpaceEntries:
                 msg.Drive = ReadString(payload, ref offset);
                 break;
             case SearchRequestId.Search:
@@ -163,7 +166,7 @@ public static class SearchRequestBinarySerializer
                 msg.AppLimit = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
                 offset += 4;
                 msg.Query = ReadString(payload, ref offset);
-                msg.DisabledAliasComponents = ReadStringList(payload, ref offset);
+                msg.DisabledAliasComponents = SearchRequestValueCodec.ReadStringList(payload, ref offset);
                 msg.ExactMatch = payload[offset++] != 0;
                 break;
             case SearchRequestId.SearchDir:
@@ -173,7 +176,7 @@ public static class SearchRequestBinarySerializer
                 offset += 4;
                 msg.DirectoryFilter = ReadString(payload, ref offset);
                 msg.Query = ReadString(payload, ref offset);
-                msg.DisabledAliasComponents = ReadStringList(payload, ref offset);
+                msg.DisabledAliasComponents = SearchRequestValueCodec.ReadStringList(payload, ref offset);
                 msg.ExactMatch = payload[offset++] != 0;
                 break;
             case SearchRequestId.EnumerateDir:
@@ -184,61 +187,35 @@ public static class SearchRequestBinarySerializer
                 msg.Recursive = payload[offset++] != 0;
                 break;
             case SearchRequestId.GetFileMetadata:
-                msg.FilePaths = ReadStringList(payload, ref offset);
+                msg.FilePaths = SearchRequestValueCodec.ReadStringList(payload, ref offset);
                 break;
             case SearchRequestId.GetRecentFiles:
                 msg.Limit = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
                 offset += 4;
                 msg.MaxAgeMinutes = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
                 offset += 4;
-                msg.Directories = ReadStringList(payload, ref offset);
+                msg.Directories = SearchRequestValueCodec.ReadStringList(payload, ref offset);
                 break;
             case SearchRequestId.LaunchHook:
                 msg.RequestElevation = payload[offset++] != 0;
                 break;
             case SearchRequestId.SubscribeDirectoryChanges:
-                msg.Directories = ReadStringList(payload, ref offset);
+                msg.Directories = SearchRequestValueCodec.ReadStringList(payload, ref offset);
                 break;
         }
 
         return msg;
     }
 
-    private static int GetStringByteCount(string? str) => Encoding.UTF8.GetByteCount(str ?? string.Empty);
+    internal static int GetStringByteCount(string? str) => Encoding.UTF8.GetByteCount(str ?? string.Empty);
 
-    private static int CalculateSettingsSize(MachineSettings settings)
-    {
-        var size = 4; // Count
-        foreach (var drive in settings.LocalDrives)
-            size += GetStringByteCount(drive) + 5;
-        return size;
-    }
-
-    private static void WriteString(Span<byte> buffer, ref int offset, string? str)
+    internal static void WriteString(Span<byte> buffer, ref int offset, string? str)
     {
         var s = str ?? string.Empty;
         var len = Encoding.UTF8.GetByteCount(s);
         Write7BitEncodedInt(buffer, ref offset, len);
         Encoding.UTF8.GetBytes(s, buffer.Slice(offset));
         offset += len;
-    }
-
-    private static void WriteMachineSettings(Span<byte> span, ref int offset, MachineSettings settings)
-    {
-        BinaryPrimitives.WriteInt32LittleEndian(span.Slice(offset), settings.LocalDrives.Count);
-        offset += 4;
-        foreach (var drive in settings.LocalDrives)
-            WriteString(span, ref offset, drive);
-    }
-
-    private static MachineSettings ReadMachineSettings(byte[] payload, ref int offset)
-    {
-        var count = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
-        offset += 4;
-        var settings = new MachineSettings();
-        for (var i = 0; i < count; i++)
-            settings.LocalDrives.Add(ReadString(payload, ref offset));
-        return settings;
     }
 
     private static void Write7BitEncodedInt(Span<byte> destination, ref int offset, int value)
@@ -267,7 +244,7 @@ public static class SearchRequestBinarySerializer
         throw new FormatException("Invalid 7-bit encoded integer.");
     }
 
-    private static string ReadString(byte[] buffer, ref int offset)
+    internal static string ReadString(byte[] buffer, ref int offset)
     {
         var length = Read7BitEncodedInt(buffer, ref offset);
         if (length == 0) return string.Empty;
@@ -296,38 +273,4 @@ public static class SearchRequestBinarySerializer
         return buffer;
     }
 
-    private static int CalculateStringListSize(List<string>? list)
-    {
-        var size = 4; // Count
-        if (list != null)
-        {
-            foreach (var s in list)
-                size += GetStringByteCount(s) + 5;
-        }
-        return size;
-    }
-
-    private static void WriteStringList(Span<byte> span, ref int offset, List<string>? list)
-    {
-        var count = list?.Count ?? 0;
-        BinaryPrimitives.WriteInt32LittleEndian(span.Slice(offset), count);
-        offset += 4;
-        if (list != null)
-        {
-            foreach (var s in list)
-                WriteString(span, ref offset, s);
-        }
-    }
-
-    private static List<string> ReadStringList(byte[] payload, ref int offset)
-    {
-        var count = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
-        offset += 4;
-        var list = new List<string>(count);
-        for (var i = 0; i < count; i++)
-        {
-            list.Add(ReadString(payload, ref offset));
-        }
-        return list;
-    }
 }

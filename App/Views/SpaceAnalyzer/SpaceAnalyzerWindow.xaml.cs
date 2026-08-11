@@ -8,7 +8,7 @@ using Lertaro.App.Services;
 using Lertaro.App.Services.ShellMenu.ActionFlyout;
 using Lertaro.App.Services.Theme;
 using Lertaro.App.ViewModels.SpaceAnalyzer;
-using Lertaro.Core.IndexV2.Space;
+using Lertaro.Core.Services.Search;
 using Lertaro.PluginSdk.Abstractions;
 using Button = System.Windows.Controls.Button;
 
@@ -17,8 +17,8 @@ namespace Lertaro.App.Views.SpaceAnalyzer;
 public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
 {
     private readonly List<Location> _history = [];
+    private readonly SearchService _searchService = new();
     private IReadOnlyList<SpaceDisplayItem> _items = Array.Empty<SpaceDisplayItem>();
-    private IndexedSpaceCatalog? _catalog;
     private CancellationTokenSource? _loadCts;
     private bool _isLoading;
     private bool _loadFailed;
@@ -32,7 +32,11 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         ThemedWindowIconHelper.Apply(TitleBarLogo, this);
         ThemeManager.Instance.ThemeChanged += OnThemeChanged;
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;
-        Loaded += async (_, _) => await ReloadAsync();
+        Loaded += async (_, _) =>
+        {
+            _history.Add(new Location(null, TranslationManager.Instance["Space_Home"]));
+            await ReloadAsync();
+        };
         Closed += OnClosed;
         StateChanged += Window_StateChanged;
     }
@@ -46,17 +50,11 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         _loadFailed = false;
         SetLoading(true);
 
-        IndexedSpaceCatalog? fresh = null;
         try
         {
-            fresh = await Task.Run(IndexedSpaceCatalog.OpenDefault, token);
+            var entries = await _searchService.GetSpaceEntriesAsync(_history[^1].Path, token);
             token.ThrowIfCancellationRequested();
-            var old = _catalog;
-            _catalog = fresh;
-            fresh = null;
-            old?.Dispose();
-            _history.Clear();
-            _history.Add(new Location(null, -1, TranslationManager.Instance["Space_Home"]));
+            _items = entries.Select(entry => new SpaceDisplayItem { Entry = entry }).ToList();
             ShowCurrentLocation();
         }
         catch (OperationCanceledException)
@@ -64,14 +62,13 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         }
         catch (Exception ex)
         {
-            Core.Logger.Log($"[SpaceAnalyzer] Failed to load index caches: {ex.Message}", Core.LogLevel.Error);
+            Core.Logger.Log($"[SpaceAnalyzer] Failed to query live indexes: {ex.Message}", Core.LogLevel.Error);
             _loadFailed = true;
             _items = Array.Empty<SpaceDisplayItem>();
             ItemsList.ItemsSource = _items;
         }
         finally
         {
-            fresh?.Dispose();
             if (!token.IsCancellationRequested)
                 SetLoading(false);
         }
@@ -79,13 +76,8 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
 
     private void ShowCurrentLocation()
     {
-        if (_catalog == null || _history.Count == 0)
+        if (_history.Count == 0)
             return;
-        var location = _history[^1];
-        _items = location.Source == null
-            ? _catalog.Sources.Select(source => new SpaceDisplayItem { Source = source, Entry = source.Root }).ToList()
-            : location.Source.GetChildren(location.Row)
-                .Select(entry => new SpaceDisplayItem { Source = location.Source, Entry = entry }).ToList();
         ItemsList.ItemsSource = _items;
         ItemsList.SelectedItem = null;
         BackButton.IsEnabled = _history.Count > 1;
@@ -95,20 +87,20 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         RenderTreemap();
     }
 
-    private void NavigateTo(SpaceDisplayItem item)
+    private async void NavigateTo(SpaceDisplayItem item)
     {
         if (!item.IsDirectory)
             return;
-        _history.Add(new Location(item.Source, item.Entry.Row, item.Name));
-        ShowCurrentLocation();
+        _history.Add(new Location(item.Path, item.Name));
+        await ReloadAsync();
     }
 
-    private void NavigateToHistory(int index)
+    private async void NavigateToHistory(int index)
     {
         if ((uint)index >= (uint)_history.Count)
             return;
         _history.RemoveRange(index + 1, _history.Count - index - 1);
-        ShowCurrentLocation();
+        await ReloadAsync();
     }
 
     private void RebuildBreadcrumbs()
@@ -148,7 +140,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
 
     private void ShowActions(SpaceDisplayItem item)
     {
-        var fullPath = item.Source.GetPath(item.Entry.Row);
+        var fullPath = item.Path;
         var result = new AppSearchResult
         {
             Name = item.Name,
@@ -173,7 +165,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
             EmptyText.Text = TranslationManager.Instance["Space_Loading"];
         else if (_loadFailed)
             EmptyText.Text = TranslationManager.Instance["Space_LoadFailed"];
-        else if (_catalog?.Sources.Count == 0)
+        else if (_history.Count == 1 && _items.Count == 0)
             EmptyText.Text = TranslationManager.Instance["Space_NoIndexes"];
         else if (_items.Count == 0)
             EmptyText.Text = TranslationManager.Instance["Space_Empty"];
@@ -189,6 +181,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
     {
         _isLoading = loading;
         BackButton.IsEnabled = !loading && _history.Count > 1;
+        RefreshButton.IsEnabled = !loading;
         ItemsList.IsEnabled = !loading;
         UpdateEmptyState();
     }
@@ -215,7 +208,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
     {
         _loadCts?.Cancel();
         _loadCts?.Dispose();
-        _catalog?.Dispose();
+        _searchService.Dispose();
         ThemeManager.Instance.ThemeChanged -= OnThemeChanged;
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
     }
@@ -265,5 +258,5 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         ClippingBorder.CornerRadius = maximized ? new CornerRadius(0) : new CornerRadius(12);
     }
 
-    private readonly record struct Location(IndexedSpaceSource? Source, int Row, string Name);
+    private readonly record struct Location(string? Path, string Name);
 }

@@ -1,4 +1,5 @@
 using Lertaro.Core.Indexer.NetworkDrive;
+using Lertaro.Core.IndexV2.Space;
 
 namespace Lertaro.Core.Services.Network;
 
@@ -47,4 +48,5 @@ public static class UserNetworkDriveSearch
         => NetworkIndexer.EnumerateDirectory(path, recursive, Plugin.DirectoryIndex.FilterPatternHelper.SplitOrNullIfMatchAll(filterPattern), limit, onResult, token);
 
     public static List<SearchResult> GetRecentFiles(IReadOnlyList<string> directories, int limit, int maxAgeMinutes) => NetworkIndexer.GetRecentFiles(directories, limit, maxAgeMinutes);
+    internal static List<SpaceIndexEntry> GetSpaceEntries(string? directory) => NetworkIndexer.GetSpaceEntries(directory);
 }

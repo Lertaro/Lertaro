@@ -32,7 +32,8 @@ public enum SearchRequestId : byte
     // changed directories out with every status and letting each client sift them -- costs a broadcast
     // per change and cannot even be made correct, since no history small enough to send covers the
     // window between two of them. A watch list is a handful of paths sent once; a hit is rare.
-    SubscribeDirectoryChanges = 18
+    SubscribeDirectoryChanges = 18,
+    GetSpaceEntries = 19
 }
 
 public struct SearchRequestMessage
@@ -42,6 +43,7 @@ public struct SearchRequestMessage
     public int AppLimit { get; set; }
     public string? Query { get; set; }
     public string? DirectoryFilter { get; set; }
+    // Drive maintenance: drive key. GetSpaceEntries: null/empty for roots, otherwise a directory path.
     public string? Drive { get; set; }
     public MachineSettings? MachineSettings { get; set; }
     public List<string>? DisabledAliasComponents { get; set; }

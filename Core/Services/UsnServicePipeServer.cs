@@ -222,6 +222,7 @@ public sealed class UsnServicePipeServer : IDisposable
         PipeResponseKind.FileMetadata => PipeResponseBinarySerializer.WriteFileMetadataAsync(stream, response.FileMetadata ?? new Dictionary<string, FileMetadataEntry>(), token),
         PipeResponseKind.RecentFiles => RecentFilesResponseCodec.WriteRecentFilesAsync(stream, response.RecentFiles ?? new List<SearchResult>(), token),
         PipeResponseKind.HookLaunched => PipeResponseBinarySerializer.WriteHookLaunchAsync(stream, response.Pid, token),
+        PipeResponseKind.SpaceEntries => PipeResponseBinarySerializer.WriteSpaceEntriesAsync(stream, response.SpaceEntries ?? Array.Empty<IndexV2.Space.SpaceIndexEntry>(), token),
         _ => PipeResponseBinarySerializer.WriteErrorAsync(stream, "Unknown response kind", token)
     };
 

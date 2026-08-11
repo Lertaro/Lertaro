@@ -3,6 +3,7 @@ using Lertaro.Core.Indexer.Usn;
 using Lertaro.Core.DriveMonitoring;
 
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
+using Lertaro.Core.IndexV2.Space;
 namespace Lertaro.Core;
 
 public class SearchEngine : IDisposable
@@ -65,6 +66,7 @@ public class SearchEngine : IDisposable
     public void ClearPathCaches() => _indexer.ClearAllPathCaches();
 
     public List<SearchResult> GetRecentFiles(IReadOnlyList<string> directories, int limit, int maxAgeMinutes) => _indexer.GetRecentFiles(directories, limit, maxAgeMinutes);
+    public List<SpaceIndexEntry> GetSpaceEntries(string? directory) => _indexer.GetSpaceEntries(directory);
 
     public UsnIndexer.IndexerStatus GetStatus()
     {

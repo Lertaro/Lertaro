@@ -1,28 +1,15 @@
 using Lertaro.Core.IndexV2;
-
 using Lertaro.Core.IndexV2.Alias;
-
 using Lertaro.Core.IndexV2.Delta;
-
 using Lertaro.Core.IndexV2.Search;
-
 using Lertaro.Core.IndexV2.Persistence;
+using Lertaro.Core.IndexV2.Space;
 using Lertaro.Core.Indexer.NetworkDrive.Walk;
 using Lertaro.Core.SearchIndex.Query;
 namespace Lertaro.Core.Indexer.NetworkDrive;
 
-// Wraps one network/WSL/folder-index drive's IndexV2 LiveIndex. IsComplete/ExclusionRulesFingerprint/
-// LastUpdated are plain mutable properties here (not read live from the snapshot) because callers
-// (DriveRefreshRunner) mutate them AFTER a scan/load finishes and before persisting -- Save()/ToStore()
-// stamp the current property values into the snapshot via CompactionStamp, mirroring how UsnIndexer
-// keeps JournalId/NextUsn external to the snapshot for the same reason.
-//
-// IDisposable now (holds a memory-mapped file via LiveIndex) unlike the old RuntimeIndex-based version,
-// which had nothing to release -- every place that REPLACES a drive's NetworkIndex (checkpoint publish,
-// refresh-finished, Configure's removal sweep, DeleteCache) must Dispose the outgoing instance. A search
-// already in flight against a just-disposed instance sees ObjectDisposedException from the read lock,
-// not memory corruption (LiveIndex.Dispose() takes the write lock first) -- callers on the search path
-// treat that as "this drive's index just got swapped out from under us" and skip it for that pass.
+// Wraps one network/WSL/folder LiveIndex. Its mutable scan metadata is stamped during Save/ToStore.
+// Replaced instances must be disposed; readers treat a concurrent disposal as a skipped stale source.
 internal sealed class NetworkIndex : IDisposable
 {
     private LiveIndex? _live;
@@ -51,8 +38,7 @@ internal sealed class NetworkIndex : IDisposable
         }
     }
 
-    // Writes `store` as this drive's cache and opens it -- the shared tail of every construction path
-    // (initial build, checkpoint) that starts from a fresh FileRecordStore.
+    // Shared tail of every construction path that starts from a fresh store.
     public static NetworkIndex FromStore(FileRecordStore store)
     {
         var index = new NetworkIndex(store.SourceKey)
@@ -81,8 +67,7 @@ internal sealed class NetworkIndex : IDisposable
         return index;
     }
 
-    // Opens an EXISTING V2 cache file directly -- the fast startup-load path once a drive has already
-    // been migrated (no rewrite, unlike FromStore).
+    // Fast startup path for an existing V2 cache.
     internal static NetworkIndex FromSnapshotFile(string drive, string path)
     {
         var snapshot = Snapshot.Open(path);
@@ -215,6 +200,20 @@ internal sealed class NetworkIndex : IDisposable
         }
     }
 
+    internal SpaceQueryResult GetSpaceEntries(string? directory)
+    {
+        if (_live == null)
+            return SpaceQueryResult.NotFound;
+        try
+        {
+            return LiveSpaceQuery.GetEntries(_live, directory);
+        }
+        catch (ObjectDisposedException)
+        {
+            return SpaceQueryResult.NotFound;
+        }
+    }
+
     public void ClearPathCache()
     {
         // IndexV2's Snapshot has no per-row path memo to clear -- see UsnIndexer.ClearAllPathCaches.
@@ -292,16 +291,6 @@ internal sealed class NetworkIndex : IDisposable
         }
     }
 
-    // Every _live-touching method above guards itself with `if (_live == null) return;` -- that guard
-    // only actually protects a disposed instance if Dispose() also clears the field, which it didn't
-    // (Dispose() used to just call _live?.Dispose(), leaving _live pointing at a torn-down LiveIndex).
-    // Live search results are only a symptom-free way to hit this on an old cached NetworkIndex a rescan
-    // just superseded; the newly widened WatcherManager publish-debounce made it a real, reachable crash:
-    // a watcher-detected change can now be scheduled up to a second before it's actually persisted, and
-    // if PublishCheckpoint's ReleaseCachedIndex disposes THIS SAME instance in that window (a rescan
-    // starting), the debounced save would call Compact() on a disposed LiveIndex's already-disposed
-    // ReaderWriterLockSlim, throwing ObjectDisposedException instead of silently no-op'ing like every
-    // other guard here assumes.
     public void Dispose()
     {
         _live?.Dispose();

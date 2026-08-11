@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Text;
 using Lertaro.Core.Indexer.Usn;
+using Lertaro.Core.IndexV2.Space;
 namespace Lertaro.Core.Wire;
 
 public enum PipeResponseKind : byte
@@ -16,7 +17,8 @@ public enum PipeResponseKind : byte
     // Pushed, unprompted, on a SubscribeDirectoryChanges connection: the watched directories that a
     // change just landed under. Carries only what the subscriber asked about, so it is a few paths on
     // the rare occasion one is touched, not a running commentary on the volume.
-    DirectoriesChanged = 8
+    DirectoriesChanged = 8,
+    SpaceEntries = 9
 }
 public readonly struct PipeResponse
 {
@@ -28,15 +30,15 @@ public readonly struct PipeResponse
     public MachineSettings? MachineSettings { get; init; }
     public Dictionary<string, FileMetadataEntry>? FileMetadata { get; init; }
     public List<SearchResult>? RecentFiles { get; init; }
+    public IReadOnlyList<SpaceIndexEntry>? SpaceEntries { get; init; }
     public int Pid { get; init; }
     public bool IsOk => Kind != PipeResponseKind.Error;
 }
 public static class PipeResponseBinarySerializer
 {
     private const int Magic = 0x52504C53; // SLPR
-    // v4: RecentFiles entries gained ModifiedUtc (originally CreatedUtc); v5: per-drive status gained
-    // Revision, the marker a subscriber diffs to learn that a drive's index actually moved.
-    private const int Version = 5;
+    // v4: RecentFiles gained ModifiedUtc; v5: drive revisions; v6: in-memory space entries.
+    private const int Version = 6;
 
     public static Task WriteOkAsync(Stream stream, CancellationToken token = default)
         => WriteAsync(stream, new PipeResponse { Kind = PipeResponseKind.Ok }, token);
@@ -52,6 +54,8 @@ public static class PipeResponseBinarySerializer
         => WriteAsync(stream, new PipeResponse { Kind = PipeResponseKind.FileMetadata, FileMetadata = metadata }, token);
     public static Task WriteHookLaunchAsync(Stream stream, int pid, CancellationToken token = default)
         => WriteAsync(stream, new PipeResponse { Kind = PipeResponseKind.HookLaunched, Pid = pid }, token);
+    public static Task WriteSpaceEntriesAsync(Stream stream, IReadOnlyList<SpaceIndexEntry> entries, CancellationToken token = default)
+        => WriteAsync(stream, new PipeResponse { Kind = PipeResponseKind.SpaceEntries, SpaceEntries = entries }, token);
     public static async Task<PipeResponse> ReadAsync(Stream stream, CancellationToken token = default)
     {
         var magic = await ReadInt32Async(stream, token).ConfigureAwait(false);
@@ -63,7 +67,7 @@ public static class PipeResponseBinarySerializer
             throw new InvalidDataException($"Unsupported pipe response binary version: {version}.");
 
         var length = await ReadInt32Async(stream, token).ConfigureAwait(false);
-        if (length < 0 || length > 10 * 1024 * 1024)
+        if (length < 0 || length > 64 * 1024 * 1024)
             throw new InvalidDataException($"Invalid response payload length: {length}");
         var payload = await ReadExactlyAsync(stream, length, token).ConfigureAwait(false);
 
@@ -76,10 +80,11 @@ public static class PipeResponseBinarySerializer
             PipeResponseKind.Error => new PipeResponse { Kind = kind, Message = ReadString(payload, ref offset) },
             PipeResponseKind.Status => new PipeResponse { Kind = kind, Status = PipeResponseStatusSerializer.Read(payload, ref offset) },
             PipeResponseKind.MachineSettings => new PipeResponse { Kind = kind, MachineSettings = ReadMachineSettings(payload, ref offset) },
-            PipeResponseKind.FileMetadata => new PipeResponse { Kind = kind, FileMetadata = ReadFileMetadata(payload, ref offset) },
+            PipeResponseKind.FileMetadata => new PipeResponse { Kind = kind, FileMetadata = FileMetadataResponseCodec.Read(payload, ref offset) },
             PipeResponseKind.RecentFiles => new PipeResponse { Kind = kind, RecentFiles = RecentFilesResponseCodec.ReadRecentFiles(payload, ref offset) },
             PipeResponseKind.HookLaunched => new PipeResponse { Kind = kind, Pid = ReadInt32(payload, ref offset) },
             PipeResponseKind.DirectoriesChanged => new PipeResponse { Kind = kind, ChangedDirectories = ReadDirectories(payload, ref offset) },
+            PipeResponseKind.SpaceEntries => new PipeResponse { Kind = kind, SpaceEntries = SpaceEntriesResponseCodec.Read(payload, ref offset) },
             _ => throw new InvalidDataException($"Unknown pipe response kind: {kind}.")
         };
     }
@@ -99,7 +104,7 @@ public static class PipeResponseBinarySerializer
                 payloadSize += CalculateSettingsSize(response.MachineSettings ?? new MachineSettings());
                 break;
             case PipeResponseKind.FileMetadata:
-                payloadSize += CalculateFileMetadataSize(response.FileMetadata ?? new Dictionary<string, FileMetadataEntry>());
+                payloadSize += FileMetadataResponseCodec.CalculateSize(response.FileMetadata ?? new Dictionary<string, FileMetadataEntry>());
                 break;
             case PipeResponseKind.RecentFiles:
                 payloadSize += RecentFilesResponseCodec.CalculateRecentFilesSize(response.RecentFiles ?? new List<SearchResult>());
@@ -111,6 +116,9 @@ public static class PipeResponseBinarySerializer
                 payloadSize += 4; // count
                 foreach (var directory in response.ChangedDirectories ?? new List<string>())
                     payloadSize += GetStringByteCount(directory) + 5;
+                break;
+            case PipeResponseKind.SpaceEntries:
+                payloadSize += SpaceEntriesResponseCodec.CalculateSize(response.SpaceEntries ?? Array.Empty<SpaceIndexEntry>());
                 break;
         }
         var totalSize = 12 + payloadSize; // Magic(4) + Version(4) + Length(4) + Payload
@@ -133,7 +141,7 @@ public static class PipeResponseBinarySerializer
                     WriteMachineSettings(span, ref offset, response.MachineSettings ?? new MachineSettings());
                     break;
                 case PipeResponseKind.FileMetadata:
-                    WriteFileMetadata(span, ref offset, response.FileMetadata ?? new Dictionary<string, FileMetadataEntry>());
+                    FileMetadataResponseCodec.Write(span, ref offset, response.FileMetadata ?? new Dictionary<string, FileMetadataEntry>());
                     break;
                 case PipeResponseKind.RecentFiles:
                     RecentFilesResponseCodec.WriteRecentFiles(span, ref offset, response.RecentFiles ?? new List<SearchResult>());
@@ -148,6 +156,9 @@ public static class PipeResponseBinarySerializer
                     offset += 4;
                     foreach (var directory in changed)
                         WriteString(span, ref offset, directory);
+                    break;
+                case PipeResponseKind.SpaceEntries:
+                    SpaceEntriesResponseCodec.Write(span, ref offset, response.SpaceEntries ?? Array.Empty<SpaceIndexEntry>());
                     break;
             }
 
@@ -184,15 +195,6 @@ public static class PipeResponseBinarySerializer
         return size;
     }
 
-    private static int CalculateFileMetadataSize(Dictionary<string, FileMetadataEntry> metadata)
-    {
-        var size = 4; // Count
-        foreach (var (path, entry) in metadata)
-            size += GetStringByteCount(path) + 5 + 20; // Size(8) + 3 timestamps(4 each)
-        return size;
-    }
-
-
     internal static void WriteString(Span<byte> buffer, ref int offset, string? str)
     {
         var s = str ?? string.Empty;
@@ -210,24 +212,6 @@ public static class PipeResponseBinarySerializer
             WriteString(span, ref offset, drive);
     }
 
-    private static void WriteFileMetadata(Span<byte> span, ref int offset, Dictionary<string, FileMetadataEntry> metadata)
-    {
-        BinaryPrimitives.WriteInt32LittleEndian(span.Slice(offset), metadata.Count);
-        offset += 4;
-        foreach (var (path, entry) in metadata)
-        {
-            WriteString(span, ref offset, path);
-            BinaryPrimitives.WriteInt64LittleEndian(span.Slice(offset), entry.Size);
-            offset += 8;
-            BinaryPrimitives.WriteUInt32LittleEndian(span.Slice(offset), entry.CreationTimeUnixSeconds);
-            offset += 4;
-            BinaryPrimitives.WriteUInt32LittleEndian(span.Slice(offset), entry.LastWriteTimeUnixSeconds);
-            offset += 4;
-            BinaryPrimitives.WriteUInt32LittleEndian(span.Slice(offset), entry.LastAccessTimeUnixSeconds);
-            offset += 4;
-        }
-    }
-
     private static MachineSettings ReadMachineSettings(byte[] payload, ref int offset)
     {
         var count = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
@@ -236,27 +220,6 @@ public static class PipeResponseBinarySerializer
         for (var i = 0; i < count; i++)
             settings.LocalDrives.Add(ReadString(payload, ref offset));
         return settings;
-    }
-
-    private static Dictionary<string, FileMetadataEntry> ReadFileMetadata(byte[] payload, ref int offset)
-    {
-        var count = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
-        offset += 4;
-        var metadata = new Dictionary<string, FileMetadataEntry>(count, StringComparer.OrdinalIgnoreCase);
-        for (var i = 0; i < count; i++)
-        {
-            var path = ReadString(payload, ref offset);
-            var size = BinaryPrimitives.ReadInt64LittleEndian(payload.AsSpan(offset));
-            offset += 8;
-            var created = BinaryPrimitives.ReadUInt32LittleEndian(payload.AsSpan(offset));
-            offset += 4;
-            var modified = BinaryPrimitives.ReadUInt32LittleEndian(payload.AsSpan(offset));
-            offset += 4;
-            var accessed = BinaryPrimitives.ReadUInt32LittleEndian(payload.AsSpan(offset));
-            offset += 4;
-            metadata[path] = new FileMetadataEntry(size, created, modified, accessed);
-        }
-        return metadata;
     }
 
     private static void Write7BitEncodedInt(Span<byte> destination, ref int offset, int value)

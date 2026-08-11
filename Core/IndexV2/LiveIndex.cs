@@ -21,6 +21,7 @@ public sealed class LiveIndex : IDisposable
     private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.NoRecursion);
     private Snapshot _snapshot;
     private DeltaOverlay _delta;
+    private long _revision;
 
     public LiveIndex(Snapshot snapshot)
     {
@@ -29,6 +30,7 @@ public sealed class LiveIndex : IDisposable
     }
 
     public string SourceKey => _snapshot.SourceKey;
+    public long Revision => Interlocked.Read(ref _revision);
 
     // The scan-completeness marker recorded when this snapshot was written. DeltaOverlay never changes
     // it, so this reads straight off the base snapshot rather than merging through ToStore().
@@ -57,6 +59,7 @@ public sealed class LiveIndex : IDisposable
         try
         {
             mutate(_snapshot, _delta);
+            Interlocked.Increment(ref _revision);
         }
         finally
         {
@@ -112,6 +115,7 @@ public sealed class LiveIndex : IDisposable
                 // _snapshot pointing at something already disposed above.
                 _snapshot = Snapshot.Open(path);
                 _delta = new DeltaOverlay(_snapshot);
+                Interlocked.Increment(ref _revision);
             }
             return true;
         }
@@ -144,6 +148,7 @@ public sealed class LiveIndex : IDisposable
         var old = _snapshot;
         _snapshot = newSnapshot;
         _delta = new DeltaOverlay(newSnapshot);
+        Interlocked.Increment(ref _revision);
         old.Dispose();
     }
 

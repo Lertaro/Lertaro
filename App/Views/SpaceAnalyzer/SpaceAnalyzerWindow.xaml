@@ -112,7 +112,7 @@
                         <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Space_IndexedOnly]}"
                                    Margin="0,5,0,0" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                     </StackPanel>
-                    <Button Grid.Column="1" Style="{StaticResource SettingsButton}" Click="Refresh_Click" Margin="12,0,0,0"
+                    <Button x:Name="RefreshButton" Grid.Column="1" Style="{StaticResource SettingsButton}" Click="Refresh_Click" Margin="12,0,0,0"
                             Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Space_Refresh]}"/>
                 </Grid>
 

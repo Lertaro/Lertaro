@@ -4,8 +4,8 @@ namespace Lertaro.App.ViewModels.SpaceAnalyzer;
 
 internal sealed class SpaceDisplayItem
 {
-    public required IndexedSpaceSource Source { get; init; }
-    public required IndexedSpaceEntry Entry { get; init; }
+    public required SpaceIndexEntry Entry { get; init; }
+    public string Path => Entry.Path;
     public string Name => Entry.Name;
     public long Size => Entry.Size;
     public bool IsDirectory => Entry.IsDirectory;

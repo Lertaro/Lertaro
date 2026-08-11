@@ -1,4 +1,5 @@
 using Lertaro.Core.Indexer.Usn;
+using Lertaro.Core.IndexV2.Space;
 using Lertaro.Core.Wire;
 using Lertaro.PluginSdk.Abstractions;
 
@@ -166,6 +167,22 @@ public sealed class PipeResponseBinarySerializerTests
         Assert.IsFalse(item.IsDir);
         Assert.AreEqual("C", item.Drive);
         Assert.AreEqual(modifiedUtc, item.Metadata.Modified.ToUniversalTime());
+    }
+
+    [TestMethod]
+    public async Task RoundTrip_SpaceEntries_PreservesEntryFields()
+    {
+        var entries = new[]
+        {
+            new SpaceIndexEntry(@"C:\Projects", "Projects", 4096, true, false),
+            new SpaceIndexEntry(@"C:\shared.bin", "shared.bin", 0, false, true)
+        };
+
+        var result = await RoundTripAsync(s => PipeResponseBinarySerializer.WriteSpaceEntriesAsync(s, entries));
+
+        Assert.HasCount(2, result.SpaceEntries!);
+        Assert.AreEqual(entries[0], result.SpaceEntries![0]);
+        Assert.AreEqual(entries[1], result.SpaceEntries[1]);
     }
 
     [TestMethod]
