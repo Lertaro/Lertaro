@@ -112,7 +112,7 @@ public class LocalSendAliasGeneratorTests
         Assert.IsFalse(ok);
         Assert.AreEqual(401, status);
         Assert.IsNotNull(errBody);
-        StringAssert.Contains(errBody, "Invalid pin");
+        StringAssert.Contains(errBody, "Invalid PIN");
     }
 
     [TestMethod]
@@ -123,11 +123,12 @@ public class LocalSendAliasGeneratorTests
 
         server.CheckPin("192.168.1.50", "0001", out _, out _);
         server.CheckPin("192.168.1.50", "0002", out _, out _);
-        var ok = server.CheckPin("192.168.1.50", "0003", out var status, out var errBody);
+        server.CheckPin("192.168.1.50", "0003", out _, out _);
+        var ok = server.CheckPin("192.168.1.50", "0004", out var status, out var errBody);
 
         Assert.IsFalse(ok);
         Assert.AreEqual(429, status);
         Assert.IsNotNull(errBody);
-        StringAssert.Contains(errBody, "Too many attempts");
+        StringAssert.Contains(errBody, "Too many requests");
     }
 }

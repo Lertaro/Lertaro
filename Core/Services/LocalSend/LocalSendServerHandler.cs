@@ -115,7 +115,8 @@ internal static class LocalSendServerHandler
             var senderIp = remoteEp is IPEndPoint ep ? LocalSendServerHelper.FormatIpAddress(ep.Address) : string.Empty;
             var v2 = path.Equals("/api/localsend/v2/cancel", StringComparison.OrdinalIgnoreCase);
             var canceled = LocalSendSessionAuthorization.TryCancel(server, sessionId, senderIp, v2);
-            await LocalSendServerHelper.WriteResponseAsync(stream, canceled ? 200 : 403, canceled ? null : "{\"message\":\"No permission\"}").ConfigureAwait(false);
+            var accepted = v2 || canceled;
+            await LocalSendServerHelper.WriteResponseAsync(stream, accepted ? 200 : 403, accepted ? null : "{\"message\":\"No permission\"}").ConfigureAwait(false);
         }
         else
         {
@@ -139,28 +140,31 @@ internal static class LocalSendServerHandler
         var senderIp = remoteEp is IPEndPoint ep ? LocalSendServerHelper.FormatIpAddress(ep.Address) : string.Empty;
         var v2 = path.Equals("/api/localsend/v2/upload", StringComparison.OrdinalIgnoreCase);
 
+        if (string.IsNullOrEmpty(fileId) || string.IsNullOrEmpty(tok) || (v2 && string.IsNullOrEmpty(sessionId)))
+        {
+            await LocalSendServerHelper.WriteResponseAsync(stream, 400, "{\"message\":\"Missing parameters\"}").ConfigureAwait(false);
+            return;
+        }
+
         if (!server.HasActiveSessions)
         {
-            await LocalSendServerHelper.WriteResponseAsync(stream, 409, "{\"message\":\"No session\"}").ConfigureAwait(false);
+            var status = v2 ? 403 : 409;
+            var message = v2 ? "Invalid token or IP address" : "No session";
+            await LocalSendServerHelper.WriteResponseAsync(stream, status, $"{{\"message\":\"{message}\"}}").ConfigureAwait(false);
             return;
         }
 
         var activeSession = server.GetActiveSessions().Single();
         if (!string.Equals(activeSession.Value.Info.IpAddress, senderIp, StringComparison.OrdinalIgnoreCase))
         {
-            await LocalSendServerHelper.WriteResponseAsync(stream, 403, $"{{\"message\":\"Invalid IP address: {senderIp}\"}}").ConfigureAwait(false);
+            var message = v2 ? "Invalid token or IP address" : $"Invalid IP address: {senderIp}";
+            await LocalSendServerHelper.WriteResponseAsync(stream, 403, $"{{\"message\":\"{message}\"}}").ConfigureAwait(false);
             return;
         }
 
         if (server.IsSessionCanceled(activeSession.Key))
         {
             await LocalSendServerHelper.WriteResponseAsync(stream, 409, "{\"message\":\"Recipient is in wrong state\"}").ConfigureAwait(false);
-            return;
-        }
-
-        if (string.IsNullOrEmpty(fileId) || string.IsNullOrEmpty(tok) || (v2 && string.IsNullOrEmpty(sessionId)))
-        {
-            await LocalSendServerHelper.WriteResponseAsync(stream, 400, "{\"message\":\"Missing parameters\"}").ConfigureAwait(false);
             return;
         }
 

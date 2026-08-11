@@ -141,8 +141,9 @@ public sealed class LocalSendDiscoveryService : IDisposable
 
     private async Task ConfirmAnnouncementAsync(LocalSendDeviceInfo device)
     {
-        if (await LocalSendAnnouncementResponder.RespondAsync(LocalInfo, device).ConfigureAwait(false))
-            AddDiscoveredDevice(device);
+        var confirmedDevice = await LocalSendAnnouncementResponder.RespondAsync(LocalInfo, device).ConfigureAwait(false);
+        if (confirmedDevice != null)
+            AddDiscoveredDevice(confirmedDevice);
     }
 
     public void AddDiscoveredDevice(LocalSendDeviceInfo device)

@@ -25,28 +25,23 @@ public static class LocalSendPinValidator
         if (attempts >= 3)
         {
             statusCode = 429;
-            jsonResponseBody = "{\"message\":\"Too many attempts.\"}";
+            jsonResponseBody = "{\"message\":\"Too many requests\"}";
             return false;
         }
 
         if (requestPin != configuredPin)
         {
             if (!string.IsNullOrEmpty(requestPin))
-            {
-                var newAttempts = pinAttempts.AddOrUpdate(clientIp, 1, (k, old) => old + 1);
-                if (newAttempts >= 3)
-                {
-                    statusCode = 429;
-                    jsonResponseBody = "{\"message\":\"Too many attempts.\"}";
-                    return false;
-                }
-            }
+                pinAttempts.AddOrUpdate(clientIp, 1, (_, old) => old + 1);
 
             statusCode = 401;
-            jsonResponseBody = "{\"message\":\"Invalid pin.\"}";
+            jsonResponseBody = string.IsNullOrEmpty(requestPin)
+                ? "{\"message\":\"PIN required\"}"
+                : "{\"message\":\"Invalid PIN\"}";
             return false;
         }
 
+        pinAttempts.TryRemove(clientIp, out _);
         return true;
     }
 }

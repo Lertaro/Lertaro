@@ -35,4 +35,33 @@ public sealed class LocalSendAnnouncementResponderTests
 
         Assert.AreEqual("http://192.168.1.20:53317/api/localsend/v1/register", uri.AbsoluteUri);
     }
+
+    [TestMethod]
+    public void CreateConfirmedDevice_HttpsKeepsThePinnedAnnouncementFingerprint()
+    {
+        var peer = new LocalSendDeviceInfo
+        {
+            IpAddress = "192.168.1.20", Port = 53317, Protocol = "https", Fingerprint = "certificate-fingerprint"
+        };
+        var info = new LocalSendInfoDto { Alias = "Confirmed alias", Fingerprint = "claimed-fingerprint" };
+
+        var confirmed = LocalSendAnnouncementResponder.CreateConfirmedDevice(peer, info);
+
+        Assert.AreEqual("Confirmed alias", confirmed.Alias);
+        Assert.AreEqual("certificate-fingerprint", confirmed.Fingerprint);
+    }
+
+    [TestMethod]
+    public void CreateConfirmedDevice_HttpKeepsTheAnnouncementFingerprint()
+    {
+        var peer = new LocalSendDeviceInfo
+        {
+            IpAddress = "192.168.1.20", Port = 53317, Protocol = "http", Fingerprint = "announcement-fingerprint"
+        };
+        var info = new LocalSendInfoDto { Alias = "Confirmed alias", Fingerprint = "response-fingerprint" };
+
+        var confirmed = LocalSendAnnouncementResponder.CreateConfirmedDevice(peer, info);
+
+        Assert.AreEqual("announcement-fingerprint", confirmed.Fingerprint);
+    }
 }

@@ -12,7 +12,7 @@ namespace Lertaro.Core.Services.LocalSend;
 /// </summary>
 internal static class LocalSendAnnouncementResponder
 {
-    public static async Task<bool> RespondAsync(LocalSendDeviceInfo localInfo, LocalSendDeviceInfo peer)
+    public static async Task<LocalSendDeviceInfo?> RespondAsync(LocalSendDeviceInfo localInfo, LocalSendDeviceInfo peer)
     {
         try
         {
@@ -24,13 +24,23 @@ internal static class LocalSendAnnouncementResponder
             using var response = await client.PostAsync(BuildRegistrationUri(peer), content).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
                 throw new HttpRequestException($"Registration returned {(int)response.StatusCode}.");
-            return true;
+            var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var info = JsonSerializer.Deserialize<LocalSendInfoDto>(responseJson)
+                ?? throw new JsonException("Registration response was empty.");
+            return CreateConfirmedDevice(peer, info);
         }
         catch
         {
             await SendMulticastResponseAsync(localInfo).ConfigureAwait(false);
-            return false;
+            return null;
         }
+    }
+
+    internal static LocalSendDeviceInfo CreateConfirmedDevice(LocalSendDeviceInfo peer, LocalSendInfoDto info)
+    {
+        var device = LocalSendProtocolMapper.ToDevice(info, peer.IpAddress, peer.Port, peer.Protocol);
+        device.Fingerprint = peer.Fingerprint;
+        return device;
     }
 
     private static async Task SendMulticastResponseAsync(LocalSendDeviceInfo localInfo)

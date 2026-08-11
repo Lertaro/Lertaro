@@ -23,8 +23,8 @@ internal static class LocalSendProtocolMapper
         Alias = device.Alias, Version = device.Version, DeviceModel = device.DeviceModel,
         DeviceType = device.DeviceType, Fingerprint = device.Fingerprint, Port = device.Port,
         Protocol = device.Protocol, Download = device.Download,
-        Announcement = announcement && IsV22OrNewer(device.Version) ? null : announcement,
-        Announce = announcement && IsV22OrNewer(device.Version) ? null : announcement
+        Announcement = IsV22OrNewer(device.Version) ? null : announcement,
+        Announce = announcement
     };
 
     internal static bool IsAnnouncement(LocalSendMulticastDto dto) =>

@@ -171,7 +171,7 @@ public sealed class LocalSendUploadAuthorizationCheckerTests
         var authorized = LocalSendUploadAuthorizationChecker.TryAuthorize(new ConcurrentDictionary<string, LocalSendUploadAuthorization>(), "missing", "file", "token", "192.168.1.20", v2: true, out _, out var error);
 
         Assert.IsFalse(authorized);
-        Assert.AreEqual("Invalid session id", error);
+        Assert.AreEqual("Invalid token or IP address", error);
     }
 
     [TestMethod]
@@ -183,7 +183,7 @@ public sealed class LocalSendUploadAuthorizationCheckerTests
         var authorized = LocalSendUploadAuthorizationChecker.TryAuthorize(authorizations, "session", "file", "token", "192.168.1.21", v2: true, out _, out var error);
 
         Assert.IsFalse(authorized);
-        Assert.AreEqual("Invalid IP address: 192.168.1.21", error);
+        Assert.AreEqual("Invalid token or IP address", error);
     }
 
     private static LocalSendPendingFileTransfer CreateTransfer(string firstPath, string secondPath) => new()

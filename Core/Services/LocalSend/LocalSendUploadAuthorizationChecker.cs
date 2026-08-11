@@ -13,17 +13,17 @@ internal static class LocalSendUploadAuthorizationChecker
             resolvedSessionId = authorizations.Keys.Single();
         if (!authorizations.TryGetValue(resolvedSessionId, out var authorization))
         {
-            error = v2 ? "Invalid session id" : "Invalid token";
+            error = v2 ? "Invalid token or IP address" : "Invalid token";
             return false;
         }
         if (!authorization.MatchesSender(senderIp))
         {
-            error = $"Invalid IP address: {LocalSendServerHelper.CleanIpAddress(senderIp)}";
+            error = v2 ? "Invalid token or IP address" : $"Invalid IP address: {LocalSendServerHelper.CleanIpAddress(senderIp)}";
             return false;
         }
         if (!authorization.AllowsToken(fileId, token))
         {
-            error = "Invalid token";
+            error = v2 ? "Invalid token or IP address" : "Invalid token";
             return false;
         }
         error = string.Empty;

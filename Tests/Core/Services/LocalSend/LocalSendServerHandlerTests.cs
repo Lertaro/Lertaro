@@ -62,15 +62,36 @@ public sealed class LocalSendServerHandlerTests
     }
 
     [TestMethod]
-    public async Task ProcessAsync_UploadWithoutSession_ReturnsNoSessionBeforeParameterValidation()
+    public async Task ProcessAsync_UploadWithoutParameters_ReturnsBadRequestBeforeSessionValidation()
     {
         const string body = "data";
         var request = $"POST /api/localsend/v2/upload HTTP/1.1\r\nContent-Length: {Encoding.UTF8.GetByteCount(body)}\r\n\r\n{body}";
 
         var response = await ProcessAsync(new LocalSendServer(), request);
 
-        StringAssert.Contains(response, "HTTP/1.1 409 Conflict");
-        StringAssert.Contains(response, "\"message\":\"No session\"");
+        StringAssert.Contains(response, "HTTP/1.1 400 Bad Request");
+        StringAssert.Contains(response, "\"message\":\"Missing parameters\"");
+    }
+
+    [TestMethod]
+    public async Task ProcessAsync_V2UploadWithoutSession_ReturnsGenericForbiddenResponse()
+    {
+        const string request = "POST /api/localsend/v2/upload?sessionId=missing&fileId=file&token=token HTTP/1.1\r\nContent-Length: 0\r\n\r\n";
+
+        var response = await ProcessAsync(new LocalSendServer(), request);
+
+        StringAssert.Contains(response, "HTTP/1.1 403 Forbidden");
+        StringAssert.Contains(response, "\"message\":\"Invalid token or IP address\"");
+    }
+
+    [TestMethod]
+    public async Task ProcessAsync_V2CancelUnknownSession_ReturnsSuccess()
+    {
+        const string request = "POST /api/localsend/v2/cancel?sessionId=missing HTTP/1.1\r\nContent-Length: 0\r\n\r\n";
+
+        var response = await ProcessAsync(new LocalSendServer(), request);
+
+        StringAssert.Contains(response, "HTTP/1.1 200 OK");
     }
 
     [TestMethod]

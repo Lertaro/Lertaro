@@ -14,15 +14,30 @@ public static class LocalSendServerSessionHelper
         if (!server.HasUploadRequestedHandler) return (isAutoAccepted, null, null);
 
         var tcs = new TaskCompletionSource<(bool, string?, HashSet<string>?)>(TaskCreationOptions.RunContinuationsAsynchronously);
-        LocalSendUploadRequestArgs? args = null;
-        args = new LocalSendUploadRequestArgs(sessionId, dto, accept => tcs.TrySetResult((accept, args?.CustomDownloadDirectory, args?.SelectedFileIds)), isAutoAccepted);
-
-        server.InvokeUploadRequested(args);
-        if (isAutoAccepted)
+        var canceled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void HandleCanceled(object? sender, string canceledSessionId)
         {
-            tcs.TrySetResult((true, null, null));
+            if (string.IsNullOrEmpty(canceledSessionId) || canceledSessionId == sessionId)
+                canceled.TrySetResult();
         }
 
-        return await tcs.Task.ConfigureAwait(false);
+        server.SessionCanceled += HandleCanceled;
+        LocalSendUploadRequestArgs? args = null;
+        args = new LocalSendUploadRequestArgs(sessionId, dto, accept => tcs.TrySetResult((accept, args?.CustomDownloadDirectory, args?.SelectedFileIds)), isAutoAccepted);
+        try
+        {
+            server.InvokeUploadRequested(args);
+            if (isAutoAccepted)
+                tcs.TrySetResult((true, null, null));
+            if (server.IsSessionCanceled(sessionId))
+                return (false, null, null);
+
+            var completed = await Task.WhenAny(tcs.Task, canceled.Task).ConfigureAwait(false);
+            return completed == tcs.Task ? await tcs.Task.ConfigureAwait(false) : (false, null, null);
+        }
+        finally
+        {
+            server.SessionCanceled -= HandleCanceled;
+        }
     }
 }

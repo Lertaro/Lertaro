@@ -24,14 +24,15 @@ public sealed class LocalSendProtocolMapperTests
     }
 
     [TestMethod]
-    public void CreateMulticast_V22AnnouncementOmitsLegacyFlags()
+    public void CreateMulticast_V22AnnouncementUsesAnnounceField()
     {
         var dto = LocalSendProtocolMapper.CreateMulticast(new LocalSendDeviceInfo(), announcement: true);
         var json = JsonSerializer.Serialize(dto);
 
         Assert.IsNull(dto.Announcement);
-        Assert.IsNull(dto.Announce);
-        Assert.IsFalse(json.Contains("announce", StringComparison.Ordinal));
+        Assert.IsTrue(dto.Announce);
+        StringAssert.Contains(json, "\"announce\":true");
+        Assert.IsFalse(json.Contains("announcement", StringComparison.Ordinal));
     }
 
     [TestMethod]

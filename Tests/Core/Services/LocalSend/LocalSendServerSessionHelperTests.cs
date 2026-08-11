@@ -43,4 +43,24 @@ public sealed class LocalSendServerSessionHelperTests
         var response = await pending;
         Assert.IsTrue(response.Accepted);
     }
+
+    [TestMethod]
+    public async Task RequestAcceptanceAsync_CancelUnblocksPendingRequest()
+    {
+        var server = new LocalSendServer();
+        var requestReady = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        server.UploadRequested += (_, _) => requestReady.TrySetResult();
+        var dto = new PrepareUploadRequestDto
+        {
+            Info = new LocalSendDeviceInfo { Alias = "TestDevice" },
+            Files = new Dictionary<string, LocalSendFileDto>()
+        };
+
+        var pending = LocalSendServerSessionHelper.RequestAcceptanceAsync(server, "s1", dto);
+        await requestReady.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        server.CancelSession("s1");
+
+        var response = await pending.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsFalse(response.Accepted);
+    }
 }
