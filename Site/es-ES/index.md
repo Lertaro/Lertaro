@@ -17,6 +17,9 @@ features:
   - icon: 🚀
     title: Indexación instantánea
     details: Aprovecha el USN Journal y la MFT de Windows para leer millones de archivos en segundos, de forma ligera y compartida en el sistema mediante un servicio en segundo plano.
+  - icon: 💾
+    title: Análisis de espacio instantáneo
+    details: Explora los archivos indexados en un mapa de árbol moderno sin volver a analizar los discos, con tamaños actualizados, navegación por carpetas y el menú de acciones completo.
   - icon: 🎯
     title: Coincidencia difusa y alias
     details: Coincidencia difusa mientras escribes, con operadores de prefijo/sufijo/exacto/exclusión, además de alias en pinyin para nombres de archivo en chino — descúbrelo todo en el Manual de Usuario.

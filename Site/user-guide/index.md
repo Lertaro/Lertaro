@@ -14,6 +14,7 @@ This manual covers everything a day-to-day user needs:
 - **[Hotkeys](./hotkeys)** — every configurable shortcut and hardcoded key, with default bindings.
 - **[Actions Menu & Preview](./actions-and-preview)** — the right-click-style actions list and the
   QuickLook preview pane.
+- **[Space Analyzer](./space-analyzer)** — a fast, index-only treemap for understanding how indexed files and folders use space.
 - **[Instant Answers & Keyword Shortcuts](./instant-answers)** — the calculator, environment
   variables, run-command shortcuts, and keyword-triggered plugins like Process Manager, Window
   Switcher, Browser Data, Settings Search, Web Search, and Translator.

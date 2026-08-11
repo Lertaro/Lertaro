@@ -15,6 +15,7 @@ Este manual cubre todo lo que un usuario habitual necesita:
   predeterminadas.
 - **[Menú de acciones y vista previa](./actions-and-preview)** — la lista de acciones al estilo del clic derecho y
   el panel de vista previa QuickLook.
+- **[Analizador de espacio](./space-analyzer)** — un mapa de árbol rápido que usa los índices existentes para mostrar el espacio relativo de archivos y carpetas.
 - **[Respuestas instantáneas y atajos de palabra clave](./instant-answers)** — la calculadora, las variables de
   entorno, los atajos de comandos y los plugins activados por palabra clave como Gestor de procesos, Cambio de
   ventana, Datos del navegador, Búsqueda de configuración, Búsqueda web y Traducción.

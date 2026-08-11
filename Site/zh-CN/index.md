@@ -17,6 +17,9 @@ features:
   - icon: 🚀
     title: 极速索引
     details: 基于 Windows USN 日志与 MFT 机制，秒级读取数百万磁盘文件，后台 Service 进程轻量共享。
+  - icon: 💾
+    title: 即时空间分析
+    details: 无需重新扫描磁盘，通过现代化矩形树查看已索引文件的实时大小、浏览文件夹并使用完整动作菜单。
   - icon: 🎯
     title: 模糊匹配与别名
     details: 支持前缀/后缀/精确/排除等搜索操作符，以及中文文件名拼音别名匹配——详见用户手册。

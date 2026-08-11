@@ -17,6 +17,9 @@ features:
   - icon: 🚀
     title: Instant Indexing
     details: Leverages the Windows USN Journal and MFT to read millions of files in seconds, lightweight and system-shared via a background service.
+  - icon: 💾
+    title: Instant Space Analysis
+    details: Explore indexed files in a modern treemap without rescanning disks, with live sizes, folder navigation, and the full actions menu.
   - icon: 🎯
     title: Fuzzy Matching & Aliases
     details: Type-ahead fuzzy matching with prefix/suffix/exact/exclude operators, plus pinyin aliasing for Chinese filenames — see it all in the User Manual.

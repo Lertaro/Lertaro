@@ -10,6 +10,7 @@ export const navSchema = [
       { id: 'ugSearchSyntax', slug: 'user-guide/search-syntax' },
       { id: 'ugHotkeys', slug: 'user-guide/hotkeys' },
       { id: 'ugActionsPreview', slug: 'user-guide/actions-and-preview' },
+      { id: 'ugSpaceAnalyzer', slug: 'user-guide/space-analyzer' },
       { id: 'ugInstantAnswers', slug: 'user-guide/instant-answers' },
       { id: 'ugCli', slug: 'user-guide/cli' },
       { id: 'ugUriProtocol', slug: 'user-guide/uri-protocol' },
