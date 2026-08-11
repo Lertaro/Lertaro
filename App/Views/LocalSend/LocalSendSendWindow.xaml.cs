@@ -4,7 +4,6 @@ using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Services;
 using Lertaro.App.Services.Theme;
 using Lertaro.App.ViewModels.LocalSend;
-using Lertaro.Core.Services.LocalSend;
 using Lertaro.Core.Services.LocalSend.Models;
 using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
 
@@ -56,9 +55,7 @@ public partial class LocalSendSendWindow : Window
         if (_vm.CurrentStep != 2) return;
         ProgressPanel.ActionText = _vm.IsSending
             ? TranslationManager.Instance["Common_Cancel"]
-            : LocalSendServiceManager.Instance.HasRetryableFileSend
-                ? TranslationManager.Instance["Settings_LocalSend_Send"]
-                : TranslationManager.Instance["Common_Close"];
+            : TranslationManager.Instance["Common_Close"];
 
         if (_vm.IsSending)
         {
@@ -110,22 +107,13 @@ public partial class LocalSendSendWindow : Window
         UpdateStep2UiState();
     }
 
-    private async void ProgressPanel_ActionRequested(object? sender, EventArgs e)
+    private void ProgressPanel_ActionRequested(object? sender, EventArgs e)
     {
         if (_vm.IsSending)
         {
             _cancelSource = CancelSource.Self;
             TxtWindowTitle.Text = TranslationManager.Instance["Settings_LocalSend_Canceled"];
             _vm.CancelCommand.Execute(null);
-            return;
-        }
-
-        if (LocalSendServiceManager.Instance.HasRetryableFileSend)
-        {
-            _cancelSource = CancelSource.None;
-            var (result, _) = await LocalSendServiceManager.Instance.RetryLastFailedFileAsync();
-            _vm.LastSendResult = result;
-            UpdateStep2UiState();
             return;
         }
 
