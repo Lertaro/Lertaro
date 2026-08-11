@@ -195,8 +195,8 @@ public sealed class LocalSendUploadAuthorizationCheckerTests
         TargetVersion = "2.1",
         Tokens = new Dictionary<string, string> { ["first"] = "token-1", ["second"] = "token-2" },
         Files = [
-            new LocalSendPendingFile("first", new LocalSendFileDto { Id = "first", FileName = "first.txt" }, firstPath),
-            new LocalSendPendingFile("second", new LocalSendFileDto { Id = "second", FileName = "second.txt" }, secondPath)
+            new LocalSendPendingFile("first", new LocalSendFileDto { Id = "first", FileName = "first.txt" }, () => File.OpenRead(firstPath)),
+            new LocalSendPendingFile("second", new LocalSendFileDto { Id = "second", FileName = "second.txt" }, () => File.OpenRead(secondPath))
         ]
     };
 

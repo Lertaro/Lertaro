@@ -24,7 +24,7 @@ internal static class LocalSendPrepareUploadRequestParser
                 if (entry.Value.ValueKind != JsonValueKind.Object ||
                     !HasString(entry.Value, "id") ||
                     !HasString(entry.Value, "fileName") ||
-                    !HasInt64(entry.Value, "size") ||
+                    !HasNonNegativeInt64(entry.Value, "size") ||
                     !HasString(entry.Value, "fileType"))
                     return false;
             }
@@ -44,6 +44,7 @@ internal static class LocalSendPrepareUploadRequestParser
     private static bool HasString(JsonElement parent, string name) =>
         parent.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String;
 
-    private static bool HasInt64(JsonElement parent, string name) =>
-        parent.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out _);
+    private static bool HasNonNegativeInt64(JsonElement parent, string name) =>
+        parent.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number &&
+        value.TryGetInt64(out var parsed) && parsed >= 0;
 }

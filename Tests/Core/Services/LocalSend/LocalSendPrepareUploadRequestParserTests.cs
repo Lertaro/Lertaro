@@ -31,4 +31,17 @@ public sealed class LocalSendPrepareUploadRequestParserTests
         Assert.IsNotNull(request);
         Assert.HasCount(1, request.Files);
     }
+
+    [TestMethod]
+    public void TryParse_NegativeFileSize_ReturnsFalse()
+    {
+        const string body = """
+        {"info":{"alias":"Sender"},"files":{"file":{"id":"file","fileName":"test.txt","size":-1,"fileType":"text"}}}
+        """;
+
+        var parsed = LocalSendPrepareUploadRequestParser.TryParse(body, out var request);
+
+        Assert.IsFalse(parsed);
+        Assert.IsNull(request);
+    }
 }

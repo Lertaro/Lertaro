@@ -51,6 +51,7 @@ public sealed class LocalSendClient : IDisposable
         string targetIp, int targetPort, bool https, LocalSendDeviceInfo senderInfo, string text, string? pin = null,
         CancellationToken token = default, string? targetVersion = null)
     {
+        _pendingFileTransfer = null;
         var rawGuid = Guid.NewGuid().ToString("D").ToLowerInvariant();
         var fileId = $"text_{rawGuid.Replace("-", string.Empty)}";
         var fileName = $"{rawGuid}.txt";
@@ -85,7 +86,27 @@ public sealed class LocalSendClient : IDisposable
             return prepResult;
         }
 
-        return LocalSendSendResult.Success;
+        if (tokens == null || (!legacy && string.IsNullOrEmpty(sessionId)))
+        {
+            LastError = prepErr ?? "Invalid prepare-upload response payload.";
+            return LocalSendSendResult.Error;
+        }
+
+        if (!tokens.ContainsKey(fileId))
+            return LocalSendSendResult.Success;
+
+        var cleanIp = LocalSendServerHelper.CleanIpAddress(targetIp);
+        _pendingFileTransfer = new LocalSendPendingFileTransfer
+        {
+            TargetIp = cleanIp,
+            TargetPort = targetPort,
+            Https = usedHttps,
+            SessionId = sessionId,
+            TargetVersion = targetVersion,
+            Tokens = tokens,
+            Files = [new LocalSendPendingFile(fileId, dto.Files[fileId], () => new MemoryStream(textBytes, writable: false))]
+        };
+        return await UploadPendingFilesAsync(null, null, token).ConfigureAwait(false);
     }
 
     public async Task<LocalSendSendResult> SendFilesAsync(
@@ -186,7 +207,8 @@ public sealed class LocalSendClient : IDisposable
             SessionId = sessionId,
             TargetVersion = targetVersion,
             Tokens = tokens,
-            Files = filesDict.Select(pair => new LocalSendPendingFile(pair.Key, pair.Value, pathMap[pair.Key])).ToArray()
+            Files = filesDict.Select(pair => new LocalSendPendingFile(
+                pair.Key, pair.Value, () => File.OpenRead(pathMap[pair.Key]))).ToArray()
         };
         return await UploadPendingFilesAsync(onProgress, onFileConfirmed, token).ConfigureAwait(false);
     }

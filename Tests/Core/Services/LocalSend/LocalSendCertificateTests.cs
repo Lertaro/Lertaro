@@ -6,6 +6,26 @@ namespace Lertaro.Core.Tests.Services.LocalSend;
 public sealed class LocalSendCertificateTests
 {
     [TestMethod]
+    public void CreateEphemeral_UsesPracticallyNonExpiringValidity()
+    {
+        using var certificate = LocalSendCertificate.CreateEphemeral();
+
+        Assert.IsGreaterThanOrEqualTo(certificate.NotAfter.ToUniversalTime().Year, 4095);
+        Assert.IsFalse(LocalSendCertificate.NeedsRenewal(certificate, DateTimeOffset.UtcNow));
+    }
+
+    [TestMethod]
+    public void NeedsRenewal_BeforeValidityOrNearExpiration_ReturnsTrue()
+    {
+        using var certificate = LocalSendCertificate.CreateEphemeral();
+        var notBefore = new DateTimeOffset(certificate.NotBefore.ToUniversalTime());
+        var nearExpiration = new DateTimeOffset(certificate.NotAfter.ToUniversalTime()).AddDays(-20);
+
+        Assert.IsTrue(LocalSendCertificate.NeedsRenewal(certificate, notBefore.AddSeconds(-1)));
+        Assert.IsTrue(LocalSendCertificate.NeedsRenewal(certificate, nearExpiration));
+    }
+
+    [TestMethod]
     public void LoadOrCreate_ReusesThePersistentCertificateFingerprint()
     {
         var directory = Path.Combine(Path.GetTempPath(), "Lertaro.LocalSend.Tests." + Guid.NewGuid().ToString("N"));

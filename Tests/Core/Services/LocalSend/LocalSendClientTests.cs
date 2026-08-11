@@ -1,5 +1,7 @@
 using Lertaro.Core.Services.LocalSend;
 using Lertaro.Core.Services.LocalSend.Models;
+using System.Net;
+using System.Net.Sockets;
 
 namespace Lertaro.Core.Tests.Services.LocalSend;
 
@@ -29,6 +31,35 @@ public class LocalSendClientTests
     }
 
     [TestMethod]
+    public async Task SendTextAsync_ReceiverAcceptsFile_UploadsTheTextBytes()
+    {
+        var downloadDirectory = Path.Combine(Path.GetTempPath(), $"lertaro-text-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(downloadDirectory);
+        using var receiver = new LocalSendServer { DownloadDirectory = downloadDirectory, QuickSave = true };
+        using var sender = new LocalSendServer { IdentityCertificate = LocalSendCertificate.CreateEphemeral() };
+        var port = GetFreePort();
+        var received = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        receiver.FileReceived += (_, file) => received.TrySetResult(file.Path);
+        receiver.Start(port);
+        try
+        {
+            using var client = new LocalSendClient(sender);
+            var senderInfo = new LocalSendDeviceInfo { Alias = "Sender", IpAddress = "127.0.0.1" };
+
+            var result = await client.SendTextAsync("127.0.0.1", port, false, senderInfo, "hello", targetVersion: "2.2");
+            var path = await received.Task.WaitAsync(TimeSpan.FromSeconds(3));
+
+            Assert.AreEqual(LocalSendSendResult.Success, result);
+            Assert.AreEqual("hello", await File.ReadAllTextAsync(path));
+        }
+        finally
+        {
+            receiver.Stop();
+            Directory.Delete(downloadDirectory, recursive: true);
+        }
+    }
+
+    [TestMethod]
     public void BuildCancellationUrl_PendingV2RequestOmitsUnknownSessionId()
     {
         var url = LocalSendClient.BuildCancellationUrl("192.168.1.20", 53317, false, string.Empty, "2.2");
@@ -42,5 +73,14 @@ public class LocalSendClientTests
         var url = LocalSendClient.BuildCancellationUrl("192.168.1.20", 53317, false, "session id", "2.2");
 
         Assert.AreEqual("http://192.168.1.20:53317/api/localsend/v2/cancel?sessionId=session%20id", url);
+    }
+
+    private static int GetFreePort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
     }
 }

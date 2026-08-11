@@ -25,7 +25,7 @@ internal sealed class LocalSendPendingFileTransfer
     internal void MarkFileFailed(string fileId) => _failedFileIds.TryAdd(fileId, 0);
 }
 
-internal sealed record LocalSendPendingFile(string Id, LocalSendFileDto File, string Path);
+internal sealed record LocalSendPendingFile(string Id, LocalSendFileDto File, Func<Stream> OpenContent);
 
 internal sealed record LocalSendFileTransferAttempt(LocalSendSendResult Result, string? Error, bool CanRetry);
 
@@ -116,7 +116,7 @@ internal static class LocalSendFileTransferSender
         {
             try
             {
-                using var file = File.OpenRead(pendingFile.Path);
+                using var file = pendingFile.OpenContent();
                 onProgress?.Invoke(new LocalSendSendProgressArgs(pendingFile.File.FileName, 0, file.Length,
                     fileIndex, totalFiles));
                 using var content = new ProgressiveStreamContent(file, (sent, total) => onProgress?.Invoke(
