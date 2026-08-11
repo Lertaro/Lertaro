@@ -122,13 +122,10 @@ public sealed class LocalSendDiscoveryService : IDisposable
                 if (device != null && !string.IsNullOrEmpty(device.Alias) && device.Fingerprint != LocalInfo.Fingerprint)
                 {
                     device.LastSeen = DateTime.UtcNow;
-
-                    AddDiscoveredDevice(device);
-
-                    if (multicast!.Announcement == true || multicast.Announce == true)
-                    {
-                        _ = LocalSendAnnouncementResponder.RespondAsync(LocalInfo, device);
-                    }
+                    if (LocalSendProtocolMapper.IsAnnouncement(multicast!))
+                        _ = ConfirmAnnouncementAsync(device);
+                    else
+                        AddDiscoveredDevice(device);
                 }
             }
             catch (OperationCanceledException)
@@ -140,6 +137,12 @@ public sealed class LocalSendDiscoveryService : IDisposable
                 await Task.Delay(1000, token).ConfigureAwait(false);
             }
         }
+    }
+
+    private async Task ConfirmAnnouncementAsync(LocalSendDeviceInfo device)
+    {
+        if (await LocalSendAnnouncementResponder.RespondAsync(LocalInfo, device).ConfigureAwait(false))
+            AddDiscoveredDevice(device);
     }
 
     public void AddDiscoveredDevice(LocalSendDeviceInfo device)
@@ -211,9 +214,9 @@ public sealed class LocalSendDiscoveryService : IDisposable
 
     private async Task<(string Key, bool Reachable)> ValidateDeviceAsync(KeyValuePair<string, LocalSendDeviceInfo> pair)
     {
-        using var client = new LocalSendClient();
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(Math.Min(DiscoveryTimeout, 1000)));
         var device = pair.Value;
+        using var client = new LocalSendClient(expectedFingerprint: device.Https ? device.Fingerprint : null);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(Math.Min(DiscoveryTimeout, 1000)));
         var response = await client.GetDeviceInfoAsync(
             device.IpAddress, device.Port, device.Https, timeout.Token, device.Version, LocalInfo.Fingerprint).ConfigureAwait(false);
         return (pair.Key, response != null && response.Fingerprint == device.Fingerprint);

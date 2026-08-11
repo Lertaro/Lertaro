@@ -22,8 +22,14 @@ internal static class LocalSendProtocolMapper
     {
         Alias = device.Alias, Version = device.Version, DeviceModel = device.DeviceModel,
         DeviceType = device.DeviceType, Fingerprint = device.Fingerprint, Port = device.Port,
-        Protocol = device.Protocol, Download = device.Download, Announcement = announcement, Announce = announcement
+        Protocol = device.Protocol, Download = device.Download,
+        Announcement = announcement && IsV22OrNewer(device.Version) ? null : announcement,
+        Announce = announcement && IsV22OrNewer(device.Version) ? null : announcement
     };
+
+    internal static bool IsAnnouncement(LocalSendMulticastDto dto) =>
+        dto.Announcement == true || dto.Announce == true ||
+        dto.Announcement == null && dto.Announce == null && IsV22OrNewer(dto.Version);
 
     internal static LocalSendInfoRegisterDto CreateInfoRegister(LocalSendDeviceInfo device) => new()
     {
@@ -67,4 +73,7 @@ internal static class LocalSendProtocolMapper
     private static string ResolveDeviceType(string? deviceType) => deviceType is "mobile" or "desktop" or "web" or "headless" or "server"
         ? deviceType
         : "desktop";
+
+    private static bool IsV22OrNewer(string? version) =>
+        Version.TryParse(version, out var parsed) && parsed >= new Version(2, 2);
 }

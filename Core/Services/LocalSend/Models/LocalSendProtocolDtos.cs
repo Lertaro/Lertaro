@@ -37,8 +37,8 @@ public sealed class LocalSendMulticastDto
     [JsonPropertyName("port")] public int? Port { get; set; }
     [JsonPropertyName("protocol")] public string? Protocol { get; set; }
     [JsonPropertyName("download")] public bool? Download { get; set; }
-    [JsonPropertyName("announcement")] public bool? Announcement { get; set; }
-    [JsonPropertyName("announce")] public bool? Announce { get; set; }
+    [JsonPropertyName("announcement"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? Announcement { get; set; }
+    [JsonPropertyName("announce"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? Announce { get; set; }
 }
 
 /// <summary>Sender identity embedded in a prepare-upload request.</summary>

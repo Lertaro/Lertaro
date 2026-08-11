@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Security.Cryptography.X509Certificates;
 using Lertaro.Core.Services.LocalSend.Models;
 
 namespace Lertaro.Core.Services.LocalSend;
@@ -7,6 +8,7 @@ namespace Lertaro.Core.Services.LocalSend;
 public sealed class LocalSendClient : IDisposable
 {
     private readonly HttpClient _httpClient;
+    private readonly X509Certificate2? _ownedIdentityCertificate;
     private readonly LocalSendServer? _server;
     private LocalSendPendingFileTransfer? _pendingFileTransfer;
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -16,15 +18,11 @@ public sealed class LocalSendClient : IDisposable
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     };
 
-    public LocalSendClient(LocalSendServer? server = null)
+    public LocalSendClient(LocalSendServer? server = null, string? expectedFingerprint = null)
     {
         _server = server;
-        var handler = new HttpClientHandler
-        {
-            ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
-            UseProxy = false
-        };
-        _httpClient = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+        var identity = (server?.IdentityCertificate ?? server?.Certificate) ?? (_ownedIdentityCertificate = LocalSendCertificate.LoadOrCreate());
+        _httpClient = LocalSendHttpClientFactory.Create(identity, expectedFingerprint);
     }
 
     public async Task<LocalSendDeviceInfo?> GetDeviceInfoAsync(string ip, int port = 53317, bool https = false, CancellationToken token = default, string? targetVersion = null, string? fingerprint = null)
@@ -35,10 +33,13 @@ public sealed class LocalSendClient : IDisposable
             var url = LocalSendApiRoute.BuildUri(cleanIp, port, https, "info", targetVersion).ToString();
             if (!string.IsNullOrEmpty(fingerprint))
                 url += $"?fingerprint={Uri.EscapeDataString(fingerprint)}";
-            var response = await _httpClient.GetAsync(url, token).ConfigureAwait(false);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            using var response = await _httpClient.SendAsync(request, token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode) return null;
             var json = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
             var info = JsonSerializer.Deserialize<LocalSendInfoDto>(json);
+            if (https && info != null && LocalSendHttpClientFactory.TryGetPeerFingerprint(request, out var peerFingerprint))
+                info.Fingerprint = peerFingerprint;
             return info == null ? null : LocalSendProtocolMapper.ToDevice(info, cleanIp, port, https ? "https" : "http");
         }
         catch { return null; }
@@ -51,6 +52,8 @@ public sealed class LocalSendClient : IDisposable
         var rawGuid = Guid.NewGuid().ToString("D").ToLowerInvariant();
         var fileId = $"text_{rawGuid.Replace("-", string.Empty)}";
         var fileName = $"{rawGuid}.txt";
+        var textBytes = Encoding.UTF8.GetBytes(text);
+        var legacy = LocalSendApiRoute.UsesV1(targetVersion);
 
         var dto = new LocalSendPrepareUploadRequestDto
         {
@@ -61,8 +64,9 @@ public sealed class LocalSendClient : IDisposable
                 {
                     Id = fileId,
                     FileName = fileName,
-                    Size = Encoding.UTF8.GetByteCount(text),
-                    FileType = LocalSendApiRoute.UsesV1(targetVersion) ? "text" : "text/plain",
+                    Size = textBytes.Length,
+                    FileType = legacy ? "text" : "text/plain",
+                    Sha256 = legacy ? null : LocalSendChecksum.Compute(textBytes),
                     Preview = text
                 }
             }
@@ -120,17 +124,34 @@ public sealed class LocalSendClient : IDisposable
 
         var filesDict = new Dictionary<string, LocalSendFileDto>();
         var pathMap = new Dictionary<string, string>();
+        var legacy = LocalSendApiRoute.UsesV1(targetVersion);
         for (var i = 0; i < expandedItems.Count; i++)
         {
             var (path, relPath) = expandedItems[i];
             var fi = new FileInfo(path);
             var id = $"file_{i}_{Guid.NewGuid():N}";
+            string? sha256;
+            try
+            {
+                sha256 = legacy ? null : await LocalSendChecksum.ComputeFileAsync(path, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                return LocalSendSendResult.Canceled;
+            }
+            catch (Exception ex)
+            {
+                LastError = ex.Message;
+                return LocalSendSendResult.Error;
+            }
+
             filesDict[id] = new LocalSendFileDto
             {
                 Id = id,
                 FileName = relPath,
                 Size = fi.Length,
-                FileType = LocalSendClientHelper.GetFileType(fi.Extension, LocalSendApiRoute.UsesV1(targetVersion)),
+                FileType = LocalSendClientHelper.GetFileType(fi.Extension, legacy),
+                Sha256 = sha256,
                 Metadata = new LocalSendFileMetadataDto
                 {
                     LastModified = fi.LastWriteTimeUtc,
@@ -188,9 +209,7 @@ public sealed class LocalSendClient : IDisposable
         try
         {
             var cleanIp = LocalSendServerHelper.CleanIpAddress(targetIp);
-            var url = LocalSendApiRoute.BuildUri(cleanIp, targetPort, https, "cancel", targetVersion).ToString();
-            if (!LocalSendApiRoute.UsesV1(targetVersion))
-                url += $"?sessionId={Uri.EscapeDataString(sessionId)}";
+            var url = BuildCancellationUrl(cleanIp, targetPort, https, sessionId, targetVersion);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
             timeout.CancelAfter(TimeSpan.FromSeconds(2));
             await _httpClient.PostAsync(url, content: null, timeout.Token).ConfigureAwait(false);
@@ -201,7 +220,20 @@ public sealed class LocalSendClient : IDisposable
         }
     }
 
+    internal static string BuildCancellationUrl(
+        string targetIp, int targetPort, bool https, string sessionId, string? targetVersion)
+    {
+        var url = LocalSendApiRoute.BuildUri(targetIp, targetPort, https, "cancel", targetVersion).ToString();
+        return LocalSendApiRoute.UsesV1(targetVersion) || string.IsNullOrEmpty(sessionId)
+            ? url
+            : $"{url}?sessionId={Uri.EscapeDataString(sessionId)}";
+    }
+
     public string? LastError { get; private set; }
 
-    public void Dispose() => _httpClient.Dispose();
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        _ownedIdentityCertificate?.Dispose();
+    }
 }

@@ -135,6 +135,23 @@ public class LocalSendServerHelperTests
     }
 
     [TestMethod]
+    public void ResolveTargetPath_IllegalDirectoryComponents_AreLegalized()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "LocalSendTest_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var targetPath = LocalSendServerHelper.ResolveTargetPath(tempDir, "bad?/CON/report.txt");
+
+            Assert.IsNotNull(targetPath);
+            StringAssert.EndsWith(targetPath, Path.Combine("bad_", "_CON", "report.txt"));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+        }
+    }
+
+    [TestMethod]
     public void BuildCancellationUri_UsesOnlyTheAdvertisedProtocolVersion()
     {
         var v1 = LocalSendServerHelper.BuildCancellationUri(new LocalSendDeviceInfo { IpAddress = "192.168.1.20", Port = 53317, Version = "1.0" }, "session");

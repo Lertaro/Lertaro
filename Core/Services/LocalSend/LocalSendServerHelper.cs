@@ -76,6 +76,7 @@ public static class LocalSendServerHelper
             404 => "Not Found",
             409 => "Conflict",
             412 => "Precondition Failed",
+            422 => "Unprocessable Entity",
             429 => "Too Many Requests",
             _ => "Internal Server Error"
         };
@@ -94,12 +95,6 @@ public static class LocalSendServerHelper
         await stream.FlushAsync().ConfigureAwait(false);
     }
 
-    private static readonly HttpClient SharedClient = new(new HttpClientHandler
-    {
-        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-    })
-    { Timeout = TimeSpan.FromSeconds(3) };
-
     /// <summary>
     /// Sends the cancel callback on the route selected by the sender's advertised LocalSend version.
     /// </summary>
@@ -111,7 +106,10 @@ public static class LocalSendServerHelper
         var url = BuildCancellationUri(senderInfo, sessionId);
         try
         {
-            var response = await SharedClient.PostAsync(url, null).ConfigureAwait(false);
+            using var identity = LocalSendCertificate.LoadOrCreate();
+            using var client = LocalSendHttpClientFactory.Create(
+                identity, senderInfo.Https ? senderInfo.Fingerprint : null, TimeSpan.FromSeconds(3));
+            using var response = await client.PostAsync(url, null).ConfigureAwait(false);
             Logger.Log($"[LocalSendServer] Notified sender cancellation: {url} -> {response.StatusCode}", LogLevel.Debug);
             return response.IsSuccessStatusCode;
         }
@@ -128,7 +126,8 @@ public static class LocalSendServerHelper
         return LocalSendApiRoute.UsesV1(senderInfo.Version) ? uri : $"{uri}?sessionId={Uri.EscapeDataString(sessionId)}";
     }
 
-    internal static async Task HandleRegisterAsync(LocalSendServer server, Stream stream, string body, EndPoint? remoteEp)
+    internal static async Task HandleRegisterAsync(LocalSendServer server, Stream stream, string body, EndPoint? remoteEp,
+        string? peerFingerprint)
     {
         Models.LocalSendRegisterDto? registration;
         try { registration = System.Text.Json.JsonSerializer.Deserialize<Models.LocalSendRegisterDto>(body); }
@@ -144,14 +143,12 @@ public static class LocalSendServerHelper
             return;
         }
 
-        if (registration.Fingerprint == server.DeviceInfo.Fingerprint)
+        var authenticatedFingerprint = peerFingerprint ?? registration.Fingerprint;
+        var fingerprintMatchesCertificate = peerFingerprint == null ||
+            string.Equals(registration.Fingerprint, peerFingerprint, StringComparison.OrdinalIgnoreCase);
+        if (fingerprintMatchesCertificate && remoteEp is IPEndPoint ep)
         {
-            await WriteResponseAsync(stream, 412, "{\"message\":\"Self-discovered\"}").ConfigureAwait(false);
-            return;
-        }
-
-        if (remoteEp is IPEndPoint ep)
-        {
+            registration.Fingerprint = authenticatedFingerprint;
             server.InvokeDeviceRegistered(LocalSendProtocolMapper.ToDevice(
                 registration, FormatIpAddress(ep.Address), server.DeviceInfo.Port, server.DeviceInfo.Protocol));
         }
@@ -216,43 +213,8 @@ public static class LocalSendServerHelper
         return $"{bytes / (1024.0 * 1024.0 * 1024.0):F1} GB";
     }
 
-    internal static string? ResolveTargetPath(string downloadDir, string rawFileName)
-    {
-        var fullDownloadDir = Path.GetFullPath(downloadDir);
-        if (!Directory.Exists(fullDownloadDir)) Directory.CreateDirectory(fullDownloadDir);
-        var normalizedRelativePath = rawFileName.Replace('\\', '/').TrimStart('/');
-        var fullPathCandidate = Path.GetFullPath(Path.Combine(fullDownloadDir, normalizedRelativePath));
-
-        var rootPrefix = Path.TrimEndingDirectorySeparator(fullDownloadDir) + Path.DirectorySeparatorChar;
-        if (!fullPathCandidate.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase)) return null;
-
-        var targetDir = Path.GetDirectoryName(fullPathCandidate) ?? fullDownloadDir;
-        if (!Directory.Exists(targetDir)) Directory.CreateDirectory(targetDir);
-
-        var safeFileName = LegalizeFileName(Path.GetFileName(fullPathCandidate));
-        if (string.IsNullOrEmpty(safeFileName)) return null;
-        var targetPath = Path.Combine(targetDir, safeFileName);
-        if (File.Exists(targetPath))
-        {
-            var nameWithoutExt = Path.GetFileNameWithoutExtension(safeFileName);
-            var ext = Path.GetExtension(safeFileName);
-            var counter = 1;
-            do
-            {
-                targetPath = Path.Combine(targetDir, $"{nameWithoutExt} ({counter}){ext}");
-                counter++;
-            } while (File.Exists(targetPath));
-        }
-
-        return targetPath;
-    }
-
-    private static string LegalizeFileName(string fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName)) return string.Empty;
-        var invalidChars = Path.GetInvalidFileNameChars();
-        return new string(fileName.Select(character => invalidChars.Contains(character) ? '_' : character).ToArray());
-    }
+    internal static string? ResolveTargetPath(string downloadDir, string rawFileName) =>
+        LocalSendPathSanitizer.Resolve(downloadDir, rawFileName);
 
     internal static bool CheckPin(
         string? configuredPin,

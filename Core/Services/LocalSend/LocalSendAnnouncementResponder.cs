@@ -12,28 +12,26 @@ namespace Lertaro.Core.Services.LocalSend;
 /// </summary>
 internal static class LocalSendAnnouncementResponder
 {
-    private static readonly HttpClient Client = new(new HttpClientHandler
-    {
-        UseProxy = false,
-        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-    })
-    { Timeout = TimeSpan.FromSeconds(3) };
-
-    public static Task RespondAsync(LocalSendDeviceInfo localInfo, LocalSendDeviceInfo peer) => Task.Run(async () =>
+    public static async Task<bool> RespondAsync(LocalSendDeviceInfo localInfo, LocalSendDeviceInfo peer)
     {
         try
         {
+            using var identity = LocalSendCertificate.LoadOrCreate();
+            using var client = LocalSendHttpClientFactory.Create(
+                identity, peer.Https ? peer.Fingerprint : null, TimeSpan.FromSeconds(3));
             var json = JsonSerializer.Serialize(LocalSendProtocolMapper.CreateRegister(localInfo));
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            using var response = await Client.PostAsync(BuildRegistrationUri(peer), content).ConfigureAwait(false);
+            using var response = await client.PostAsync(BuildRegistrationUri(peer), content).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
                 throw new HttpRequestException($"Registration returned {(int)response.StatusCode}.");
+            return true;
         }
         catch
         {
             await SendMulticastResponseAsync(localInfo).ConfigureAwait(false);
+            return false;
         }
-    });
+    }
 
     private static async Task SendMulticastResponseAsync(LocalSendDeviceInfo localInfo)
     {

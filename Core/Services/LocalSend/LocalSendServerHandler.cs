@@ -11,11 +11,11 @@ namespace Lertaro.Core.Services.LocalSend;
 internal static class LocalSendServerHandler
 {
     internal static Task ProcessAsync(
-        LocalSendServer server, Stream stream, EndPoint? remoteEp, CancellationToken token) =>
-        LocalSendHttpConnection.ProcessAsync(server, stream, remoteEp, token);
+        LocalSendServer server, Stream stream, EndPoint? remoteEp, string? peerFingerprint, CancellationToken token) =>
+        LocalSendHttpConnection.ProcessAsync(server, stream, remoteEp, peerFingerprint, token);
 
     internal static async Task<bool> ProcessRequestAsync(
-        LocalSendServer server, Stream stream, EndPoint? remoteEp, CancellationToken token)
+        LocalSendServer server, Stream stream, EndPoint? remoteEp, string? peerFingerprint, CancellationToken token)
     {
         // Read request line
         var requestLine = await ReadLineAsync(stream, token).ConfigureAwait(false);
@@ -91,22 +91,23 @@ internal static class LocalSendServerHandler
         if (contentLength > 0 || IsChunked(headers))
             bodyText = await ReadBodyAsync(requestBody, token).ConfigureAwait(false);
 
-        await RoutePostAsync(server, stream, path, query, bodyText, remoteEp).ConfigureAwait(false);
+        await RoutePostAsync(server, stream, path, query, bodyText, remoteEp, peerFingerprint).ConfigureAwait(false);
         return keepAlive;
     }
 
     private static async Task RoutePostAsync(
         LocalSendServer server, Stream stream, string path,
-        Dictionary<string, string> query, string body, EndPoint? remoteEp)
+        Dictionary<string, string> query, string body, EndPoint? remoteEp, string? peerFingerprint)
     {
         if (IsRegister(path))
         {
-            await LocalSendServerHelper.HandleRegisterAsync(server, stream, body, remoteEp).ConfigureAwait(false);
+            await LocalSendServerHelper.HandleRegisterAsync(server, stream, body, remoteEp, peerFingerprint).ConfigureAwait(false);
         }
         else if (IsPrepareUpload(path))
         {
             await LocalSendPrepareUploadHandler.HandleAsync(
-                server, stream, query, body, remoteEp, path.Contains("/v2/", StringComparison.OrdinalIgnoreCase)).ConfigureAwait(false);
+                server, stream, query, body, remoteEp, peerFingerprint,
+                path.Contains("/v2/", StringComparison.OrdinalIgnoreCase)).ConfigureAwait(false);
         }
         else if (IsCancel(path))
         {

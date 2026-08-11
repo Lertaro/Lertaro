@@ -34,6 +34,8 @@ internal sealed record LocalSendFileTransferAttempt(LocalSendSendResult Result, 
 /// </summary>
 internal static class LocalSendFileTransferSender
 {
+    private const int MaxChecksumAttempts = 3;
+
     internal static async Task<LocalSendFileTransferAttempt> UploadAsync(HttpClient client, LocalSendServer? server,
         LocalSendPendingFileTransfer transfer, Action<LocalSendSendProgressArgs>? onProgress,
         Action<LocalSendFileConfirmationArgs>? onFileConfirmed, CancellationToken token)
@@ -86,26 +88,40 @@ internal static class LocalSendFileTransferSender
         var sessionQuery = LocalSendApiRoute.UsesV1(transfer.TargetVersion) ? string.Empty : $"sessionId={Uri.EscapeDataString(transfer.SessionId!)}&";
         var url = LocalSendApiRoute.BuildUri(transfer.TargetIp, transfer.TargetPort, transfer.Https, "upload", transfer.TargetVersion) +
             $"?{sessionQuery}fileId={Uri.EscapeDataString(pendingFile.Id)}&token={Uri.EscapeDataString(fileToken)}";
-        try
+        for (var attemptNumber = 1; attemptNumber <= MaxChecksumAttempts; attemptNumber++)
         {
-            using var file = File.OpenRead(pendingFile.Path);
-            using var content = new ProgressiveStreamContent(file, (sent, total) => onProgress?.Invoke(
-                new LocalSendSendProgressArgs(pendingFile.File.FileName, sent, total, fileIndex, totalFiles)));
-            content.Headers.ContentType = new MediaTypeHeaderValue(LocalSendClientHelper.GetMimeTypeForFileName(pendingFile.File.FileName));
-            using var response = await client.PostAsync(url, content, token).ConfigureAwait(false);
-            if (response.IsSuccessStatusCode)
-                return new LocalSendFileTransferAttempt(LocalSendSendResult.Success, null, false);
-            var attempt = ClassifyFailure(response.StatusCode, response.ReasonPhrase);
-            Logger.Log($"[LocalSendClient] Upload failed for {pendingFile.File.FileName}: {attempt.Error}", LogLevel.Error);
-            return attempt;
+            try
+            {
+                using var file = File.OpenRead(pendingFile.Path);
+                using var content = new ProgressiveStreamContent(file, (sent, total) => onProgress?.Invoke(
+                    new LocalSendSendProgressArgs(pendingFile.File.FileName, sent, total, fileIndex, totalFiles)));
+                content.Headers.ContentType = new MediaTypeHeaderValue(LocalSendClientHelper.GetMimeTypeForFileName(pendingFile.File.FileName));
+                using var response = await client.PostAsync(url, content, token).ConfigureAwait(false);
+                if (response.IsSuccessStatusCode)
+                    return new LocalSendFileTransferAttempt(LocalSendSendResult.Success, null, false);
+                if ((int)response.StatusCode == 422 && attemptNumber < MaxChecksumAttempts)
+                    continue;
+
+                var attempt = ClassifyFailure(response.StatusCode, response.ReasonPhrase);
+                Logger.Log($"[LocalSendClient] Upload failed for {pendingFile.File.FileName}: {attempt.Error}", LogLevel.Error);
+                return attempt;
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                return new LocalSendFileTransferAttempt(GetCancellationResult(userToken), null, false);
+            }
+            catch (OperationCanceledException)
+            {
+                return new LocalSendFileTransferAttempt(LocalSendSendResult.ReceiverCanceled, null, false);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[LocalSendClient] Transfer interrupted for {pendingFile.File.FileName}: {ex.GetType().Name} - {ex.Message}", LogLevel.Warn);
+                return new LocalSendFileTransferAttempt(LocalSendSendResult.Error, ex.Message, true);
+            }
         }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { return new LocalSendFileTransferAttempt(GetCancellationResult(userToken), null, false); }
-        catch (OperationCanceledException) { return new LocalSendFileTransferAttempt(LocalSendSendResult.ReceiverCanceled, null, false); }
-        catch (Exception ex)
-        {
-            Logger.Log($"[LocalSendClient] Transfer interrupted for {pendingFile.File.FileName}: {ex.GetType().Name} - {ex.Message}", LogLevel.Warn);
-            return new LocalSendFileTransferAttempt(LocalSendSendResult.Error, ex.Message, true);
-        }
+
+        return new LocalSendFileTransferAttempt(LocalSendSendResult.Error, "Checksum mismatch", false);
     }
 
     internal static LocalSendSendResult GetCancellationResult(CancellationToken userToken) =>
@@ -114,6 +130,7 @@ internal static class LocalSendFileTransferSender
     internal static LocalSendFileTransferAttempt ClassifyFailure(HttpStatusCode statusCode, string? reasonPhrase) => statusCode switch
     {
         HttpStatusCode.Conflict => new(LocalSendSendResult.ReceiverCanceled, null, false),
+        _ when (int)statusCode == 422 => new(LocalSendSendResult.Error, "HTTP 422 Checksum mismatch", false),
         _ when (int)statusCode >= 500 => new(LocalSendSendResult.RemoteError, $"HTTP {(int)statusCode} {reasonPhrase}", true),
         _ => new(LocalSendSendResult.Error, $"HTTP {(int)statusCode} {reasonPhrase}", true)
     };

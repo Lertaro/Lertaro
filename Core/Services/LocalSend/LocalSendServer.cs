@@ -46,6 +46,7 @@ public sealed class LocalSendServer : IDisposable
 
     public int ActualPort { get; private set; }
     public X509Certificate2? Certificate { get; set; }
+    internal X509Certificate2? IdentityCertificate { get; set; }
     public bool IsBusy => LocalSendServiceManager.Instance.IsWindowOpen || !_activeSessions.IsEmpty;
 
     public void Start(int port = 53317)
@@ -90,8 +91,10 @@ public sealed class LocalSendServer : IDisposable
             try
             {
                 // ponytail: no receive timeout — transfers can be arbitrarily slow; cancellation is via _cts.
-                using var stream = await LocalSendTlsHelper.CreateServerStreamAsync(client, Certificate, token).ConfigureAwait(false);
-                await LocalSendServerHandler.ProcessAsync(this, stream, client.Client.RemoteEndPoint, token).ConfigureAwait(false);
+                var connection = await LocalSendTlsHelper.CreateServerStreamAsync(client, Certificate, token).ConfigureAwait(false);
+                using var stream = connection.Stream;
+                await LocalSendServerHandler.ProcessAsync(
+                    this, stream, client.Client.RemoteEndPoint, connection.PeerFingerprint, token).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -175,9 +178,16 @@ public sealed class LocalSendServer : IDisposable
             return;
         }
 
+        if (v2 && !TryBeginUploadAttempt(sessionId, fileId))
+        {
+            await LocalSendServerHelper.WriteResponseAsync(stream, 403, "{\"message\":\"Invalid token\"}").ConfigureAwait(false);
+            return;
+        }
+
         var fileName = $"{fileId}.bin";
         var senderAlias = "LocalSend";
         LocalSendFileMetadataDto? metadata = null;
+        string? expectedSha256 = null;
         long totalBytes = 0;
         var fileIndex = 1;
         var totalFiles = 1;
@@ -194,6 +204,7 @@ public sealed class LocalSendServer : IDisposable
                 fileName = fileDto.FileName;
                 totalBytes = fileDto.Size;
                 metadata = fileDto.Metadata;
+                expectedSha256 = fileDto.Sha256 ?? fileDto.Hash;
             }
         }
 
@@ -201,57 +212,42 @@ public sealed class LocalSendServer : IDisposable
         var targetPath = LocalSendServerHelper.ResolveTargetPath(baseDownloadDir, fileName);
         if (targetPath == null)
         {
+            var sessionEnded = v2 && CompleteUploadAttempt(sessionId, fileId, LocalSendFileSaveStatus.Error);
+            if (sessionEnded) UnregisterSession(sessionId);
             await LocalSendServerHelper.WriteResponseAsync(stream, 403).ConfigureAwait(false);
             return;
         }
 
-        var buffer = new byte[1024 * 1024];
-        long bytesReadTotal = 0;
         long lastFlushedBytes = 0;
         long lastProgressTimeMs = 0;
         var progressStopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var isSuccess = false;
         var selectedIds = _sessionSelectedFileIds.TryGetValue(sessionId, out var sIds) ? sIds : null;
 
-        try
-        {
-            using (var dest = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 1024 * 1024, useAsync: true))
+        var saveResult = await LocalSendIncomingFileWriter.SaveAsync(
+            requestBody, targetPath, totalBytes, expectedSha256, () => IsSessionCanceled(sessionId), bytesReadTotal =>
             {
-                int bytesRead;
-                while ((bytesRead = await requestBody.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) > 0)
+                if (progressStopwatch.ElapsedMilliseconds - lastProgressTimeMs >= 100 || bytesReadTotal - lastFlushedBytes >= 512 * 1024)
                 {
-                    if (IsSessionCanceled(sessionId)) break;
-                    await dest.WriteAsync(buffer.AsMemory(0, bytesRead)).ConfigureAwait(false);
-                    bytesReadTotal += bytesRead;
-                    if (progressStopwatch.ElapsedMilliseconds - lastProgressTimeMs >= 100 || bytesReadTotal - lastFlushedBytes >= 512 * 1024)
-                    {
-                        lastProgressTimeMs = progressStopwatch.ElapsedMilliseconds;
-                        lastFlushedBytes = bytesReadTotal;
-                        var sessionTransferred = _sessionTransferredBytes.GetOrAdd(sessionId, _ => new System.Collections.Concurrent.ConcurrentDictionary<string, long>());
-                        sessionTransferred[fileId] = bytesReadTotal;
-                        var currentSessionTransferred = sessionTransferred.Values.Sum();
-                        var currentSessionTotal = prepareDto != null ? prepareDto.Files.Where(kv => selectedIds == null || selectedIds.Contains(kv.Key)).Sum(kv => kv.Value.Size) : totalBytes;
-                        ProgressChanged?.Invoke(this, new LocalSendProgressArgs(sessionId, senderAlias, fileId, fileName, bytesReadTotal, totalBytes, fileIndex, totalFiles, isFinished: false, savedPath: targetPath, sessionBytesTransferred: currentSessionTransferred, sessionTotalBytes: currentSessionTotal));
-                    }
+                    lastProgressTimeMs = progressStopwatch.ElapsedMilliseconds;
+                    lastFlushedBytes = bytesReadTotal;
+                    var sessionTransferred = _sessionTransferredBytes.GetOrAdd(sessionId, _ => new System.Collections.Concurrent.ConcurrentDictionary<string, long>());
+                    sessionTransferred[fileId] = bytesReadTotal;
+                    var currentSessionTransferred = sessionTransferred.Values.Sum();
+                    var currentSessionTotal = prepareDto != null ? prepareDto.Files.Where(kv => selectedIds == null || selectedIds.Contains(kv.Key)).Sum(kv => kv.Value.Size) : totalBytes;
+                    ProgressChanged?.Invoke(this, new LocalSendProgressArgs(sessionId, senderAlias, fileId, fileName, bytesReadTotal, totalBytes, fileIndex, totalFiles, isFinished: false, savedPath: targetPath, sessionBytesTransferred: currentSessionTransferred, sessionTotalBytes: currentSessionTotal));
                 }
-            }
-            if (!IsSessionCanceled(sessionId))
-            {
-                isSuccess = true;
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.Log($"[LocalSendServer] Error writing upload stream for {fileName}: {ex.GetType().Name} - {ex.Message}", LogLevel.Error);
-        }
-        finally
-        {
-            if (!isSuccess) LocalSendServerHelper.TryDeleteFile(targetPath);
-        }
+            }).ConfigureAwait(false);
+        var bytesReadTotal = saveResult.BytesWritten;
 
-        if (!isSuccess)
+        if (saveResult.Status != LocalSendFileSaveStatus.Success)
         {
-            await LocalSendServerHelper.WriteResponseAsync(stream, 500, "{\"message\":\"Could not save file. Check receiving device for more information.\"}").ConfigureAwait(false);
+            var sessionEnded = v2 && CompleteUploadAttempt(sessionId, fileId, saveResult.Status);
+            LocalSendServerHelper.TryDeleteFile(targetPath);
+            Logger.Log($"[LocalSendServer] Upload failed for {fileName}: {saveResult.Error ?? saveResult.Status.ToString()}", LogLevel.Warn);
+            var status = saveResult.Status == LocalSendFileSaveStatus.ChecksumMismatch ? 422 : 500;
+            var message = status == 422 ? "Checksum mismatch" : "Could not save file. Check receiving device for more information.";
+            if (sessionEnded) UnregisterSession(sessionId);
+            await LocalSendServerHelper.WriteResponseAsync(stream, status, $"{{\"message\":\"{message}\"}}").ConfigureAwait(false);
             return;
         }
 
@@ -259,7 +255,7 @@ public sealed class LocalSendServer : IDisposable
         completedSet[fileId] = 0;
 
         var expectedTotalFiles = selectedIds != null ? selectedIds.Count : totalFiles;
-        var isAllDone = completedSet.Count >= expectedTotalFiles;
+        var isAllDone = v2 ? CompleteUploadAttempt(sessionId, fileId, LocalSendFileSaveStatus.Success) : completedSet.Count >= expectedTotalFiles;
         var displayIndex = isAllDone ? expectedTotalFiles : Math.Max(fileIndex, completedSet.Count);
         var relPath = fileName.Replace('\\', '/').TrimStart('/');
         var rootSavedPath = Path.Combine(DownloadDirectory, relPath.Split('/')[0]);
@@ -271,15 +267,17 @@ public sealed class LocalSendServer : IDisposable
         ProgressChanged?.Invoke(this, new LocalSendProgressArgs(sessionId, senderAlias, fileId, fileName, bytesReadTotal, totalBytes, displayIndex, expectedTotalFiles, isFinished: true, isAllDone: isAllDone, savedPath: targetPath, rootSavedPath: rootSavedPath, sessionBytesTransferred: finalSessionTransferred, sessionTotalBytes: finalSessionTotal));
         LocalSendFileMetadataApplier.Apply(targetPath, metadata);
         FileReceived?.Invoke(this, (fileId, targetPath));
-        await LocalSendServerHelper.WriteResponseAsync(stream, 200).ConfigureAwait(false);
         if (isAllDone)
             UnregisterSession(sessionId);
+        await LocalSendServerHelper.WriteResponseAsync(stream, 200).ConfigureAwait(false);
     }
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _sessionCustomDirectories = new();
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, HashSet<string>> _sessionSelectedFileIds = new();
     internal void RegisterCustomDirectory(string sessionId, string? customDir) { if (!string.IsNullOrEmpty(customDir)) _sessionCustomDirectories[sessionId] = customDir; }
     internal void RegisterSelectedFileIds(string sessionId, HashSet<string>? selectedIds) { if (selectedIds != null) _sessionSelectedFileIds[sessionId] = selectedIds; }
     internal void RegisterUploadAuthorization(string sessionId, string senderIp, IReadOnlyDictionary<string, string> fileTokens) => _uploadAuthorizations[sessionId] = new LocalSendUploadAuthorization(senderIp, fileTokens);
+    private bool TryBeginUploadAttempt(string sessionId, string fileId) => _uploadAuthorizations.TryGetValue(sessionId, out var authorization) && authorization.TryBeginUpload(fileId);
+    private bool CompleteUploadAttempt(string sessionId, string fileId, LocalSendFileSaveStatus result) => _uploadAuthorizations.TryGetValue(sessionId, out var authorization) && authorization.CompleteUpload(fileId, result);
     internal bool TryAuthorizeUpload(string sessionId, string fileId, string token, string senderIp, bool v2, out string resolvedSessionId, out string error) =>
         LocalSendUploadAuthorizationChecker.TryAuthorize(_uploadAuthorizations, sessionId, fileId, token, senderIp, v2, out resolvedSessionId, out error);
     internal Task<(bool Accepted, string? CustomDir, HashSet<string>? SelectedFileIds)> RequestUserAcceptanceAsync(string sessionId, PrepareUploadRequestDto dto, bool isAutoAccepted = false) => LocalSendServerSessionHelper.RequestAcceptanceAsync(this, sessionId, dto, isAutoAccepted);
@@ -288,5 +286,11 @@ public sealed class LocalSendServer : IDisposable
     internal void InvokeDeviceRegistered(LocalSendDeviceInfo dto) => DeviceRegistered?.Invoke(this, dto);
     internal void InvokeShowRequested(IReadOnlyList<string>? files) => ShowRequested?.Invoke(this, files);
     public void Stop() { _cts?.Cancel(); try { _listener?.Stop(); } catch { } _listener = null; }
-    public void Dispose() => Stop();
+    public void Dispose()
+    {
+        Stop();
+        IdentityCertificate?.Dispose();
+        IdentityCertificate = null;
+        Certificate = null;
+    }
 }

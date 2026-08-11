@@ -27,4 +27,20 @@ public class LocalSendClientTests
 
         Assert.IsNull(device);
     }
+
+    [TestMethod]
+    public void BuildCancellationUrl_PendingV2RequestOmitsUnknownSessionId()
+    {
+        var url = LocalSendClient.BuildCancellationUrl("192.168.1.20", 53317, false, string.Empty, "2.2");
+
+        Assert.AreEqual("http://192.168.1.20:53317/api/localsend/v2/cancel", url);
+    }
+
+    [TestMethod]
+    public void BuildCancellationUrl_ActiveV2RequestIncludesSessionId()
+    {
+        var url = LocalSendClient.BuildCancellationUrl("192.168.1.20", 53317, false, "session id", "2.2");
+
+        Assert.AreEqual("http://192.168.1.20:53317/api/localsend/v2/cancel?sessionId=session%20id", url);
+    }
 }

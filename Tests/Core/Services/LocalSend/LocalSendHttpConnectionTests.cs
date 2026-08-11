@@ -15,7 +15,8 @@ public sealed class LocalSendHttpConnectionTests
             "GET /api/localsend/v2/info HTTP/1.1\r\nHost: test\r\nConnection: close\r\n\r\n";
         using var stream = new DuplexTestStream(request);
 
-        await LocalSendServerHandler.ProcessAsync(new LocalSendServer(), stream, new IPEndPoint(IPAddress.Loopback, 53317), CancellationToken.None);
+        await LocalSendServerHandler.ProcessAsync(new LocalSendServer(), stream,
+            new IPEndPoint(IPAddress.Loopback, 53317), null, CancellationToken.None);
 
         Assert.HasCount(2, Regex.Matches(stream.GetWrittenText(), "HTTP/1.1 200 OK"));
         Assert.IsFalse(stream.GetWrittenText().Contains("Connection: close", StringComparison.OrdinalIgnoreCase));

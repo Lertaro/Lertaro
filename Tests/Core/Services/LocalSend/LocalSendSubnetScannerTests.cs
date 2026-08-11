@@ -36,12 +36,12 @@ public sealed class LocalSendSubnetScannerTests
     }
 
     [TestMethod]
-    public void BuildInfoUri_UsesTheConfiguredLocalProtocol()
+    public void BuildRegistrationUri_UsesV22AndTheConfiguredLocalProtocol()
     {
         var localInfo = new LocalSendDeviceInfo { Protocol = "https" };
 
-        var uri = LocalSendSubnetScanner.BuildInfoUri(localInfo, "192.168.42.20", 53317);
+        var uri = LocalSendSubnetScanner.BuildRegistrationUri(localInfo, "192.168.42.20", 53317);
 
-        Assert.AreEqual("https://192.168.42.20:53317/api/localsend/v1/info", uri.AbsoluteUri);
+        Assert.AreEqual("https://192.168.42.20:53317/api/localsend/v2/register", uri.AbsoluteUri);
     }
 }

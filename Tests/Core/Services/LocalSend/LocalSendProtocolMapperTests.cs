@@ -24,12 +24,31 @@ public sealed class LocalSendProtocolMapperTests
     }
 
     [TestMethod]
-    public void CreateMulticast_SetsBothAnnouncementFields()
+    public void CreateMulticast_V22AnnouncementOmitsLegacyFlags()
     {
         var dto = LocalSendProtocolMapper.CreateMulticast(new LocalSendDeviceInfo(), announcement: true);
+        var json = JsonSerializer.Serialize(dto);
+
+        Assert.IsNull(dto.Announcement);
+        Assert.IsNull(dto.Announce);
+        Assert.IsFalse(json.Contains("announce", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void CreateMulticast_LegacyAnnouncementKeepsBothFlags()
+    {
+        var dto = LocalSendProtocolMapper.CreateMulticast(
+            new LocalSendDeviceInfo { Version = "2.1" }, announcement: true);
 
         Assert.IsTrue(dto.Announcement);
         Assert.IsTrue(dto.Announce);
+    }
+
+    [TestMethod]
+    public void IsAnnouncement_RecognizesFlaglessV22Message()
+    {
+        Assert.IsTrue(LocalSendProtocolMapper.IsAnnouncement(new LocalSendMulticastDto { Version = "2.2" }));
+        Assert.IsFalse(LocalSendProtocolMapper.IsAnnouncement(new LocalSendMulticastDto { Version = "2.1" }));
     }
 
     [TestMethod]

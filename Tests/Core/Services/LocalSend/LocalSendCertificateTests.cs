@@ -22,4 +22,21 @@ public sealed class LocalSendCertificateTests
             if (Directory.Exists(directory)) Directory.Delete(directory, true);
         }
     }
+
+    [TestMethod]
+    public void LoadOrCreate_DifferentUserPathsCreateDifferentIdentities()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "Lertaro.LocalSend.Tests." + Guid.NewGuid().ToString("N"));
+        try
+        {
+            using var first = LocalSendCertificate.LoadOrCreate(Path.Combine(directory, "user-a", "localsend.pfx"));
+            using var second = LocalSendCertificate.LoadOrCreate(Path.Combine(directory, "user-b", "localsend.pfx"));
+
+            Assert.AreNotEqual(LocalSendCertificate.GetFingerprint(first), LocalSendCertificate.GetFingerprint(second));
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+    }
 }

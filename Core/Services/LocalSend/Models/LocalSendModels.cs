@@ -11,7 +11,7 @@ public sealed class LocalSendDeviceInfo
     public string Alias { get; set; } = string.Empty;
 
     [JsonPropertyName("version")]
-    public string Version { get; set; } = "2.1";
+    public string Version { get; set; } = "2.2";
 
     [JsonPropertyName("deviceModel")]
     public string? DeviceModel { get; set; } = "Windows";

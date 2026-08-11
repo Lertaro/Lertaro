@@ -26,7 +26,7 @@ public sealed class LocalSendServerTests
     }
 
     [TestMethod]
-    public async Task HandleUploadAsync_WhenFileCannotBeSaved_ReturnsErrorAndKeepsSessionForRetry()
+    public async Task HandleUploadAsync_WhenFileCannotBeSaved_ReturnsErrorAndEndsSession()
     {
         var temporaryDirectory = Path.Combine(Path.GetTempPath(), $"Lertaro.LocalSend.Tests.{Guid.NewGuid():N}");
         Directory.CreateDirectory(Path.Combine(temporaryDirectory, "destination"));
@@ -48,7 +48,75 @@ public sealed class LocalSendServerTests
             await server.HandleUploadAsync(response, body, "session", "file", "token", "192.168.1.20", v2: true);
 
             StringAssert.Contains(System.Text.Encoding.UTF8.GetString(response.ToArray()), "HTTP/1.1 500");
+            Assert.IsFalse(server.HasActiveSessions);
+        }
+        finally
+        {
+            Directory.Delete(temporaryDirectory, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public async Task HandleUploadAsync_ChecksumMismatch_Returns422AndKeepsSessionForRetry()
+    {
+        var temporaryDirectory = Path.Combine(Path.GetTempPath(), $"Lertaro.LocalSend.Tests.{Guid.NewGuid():N}");
+        Directory.CreateDirectory(temporaryDirectory);
+        try
+        {
+            var server = new LocalSendServer { DownloadDirectory = temporaryDirectory };
+            var request = new PrepareUploadRequestDto
+            {
+                Files = new Dictionary<string, LocalSendFileDto>
+                {
+                    ["file"] = new()
+                    {
+                        Id = "file", FileName = "payload.bin", Size = 4, Sha256 = new string('0', 64)
+                    }
+                }
+            };
+            server.RegisterActiveSession("session", request);
+            server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
+
+            await using var response = new MemoryStream();
+            await using var body = new MemoryStream("data"u8.ToArray());
+            await server.HandleUploadAsync(response, body, "session", "file", "token", "192.168.1.20", v2: true);
+
+            StringAssert.Contains(System.Text.Encoding.UTF8.GetString(response.ToArray()), "HTTP/1.1 422 Unprocessable Entity");
             Assert.IsTrue(server.HasActiveSessions);
+            Assert.IsFalse(File.Exists(Path.Combine(temporaryDirectory, "payload.bin")));
+        }
+        finally
+        {
+            Directory.Delete(temporaryDirectory, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public async Task HandleUploadAsync_ThirdChecksumMismatchEndsSession()
+    {
+        var temporaryDirectory = Path.Combine(Path.GetTempPath(), $"Lertaro.LocalSend.Tests.{Guid.NewGuid():N}");
+        Directory.CreateDirectory(temporaryDirectory);
+        try
+        {
+            var server = new LocalSendServer { DownloadDirectory = temporaryDirectory };
+            server.RegisterActiveSession("session", new PrepareUploadRequestDto
+            {
+                Files = new Dictionary<string, LocalSendFileDto>
+                {
+                    ["file"] = new() { Id = "file", FileName = "payload.bin", Size = 4, Sha256 = new string('0', 64) }
+                }
+            });
+            server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
+
+            for (var attempt = 1; attempt <= 3; attempt++)
+            {
+                await using var response = new MemoryStream();
+                await using var body = new MemoryStream("data"u8.ToArray());
+                await server.HandleUploadAsync(response, body, "session", "file", "token", "192.168.1.20", v2: true);
+                StringAssert.Contains(System.Text.Encoding.UTF8.GetString(response.ToArray()), "HTTP/1.1 422 Unprocessable Entity");
+            }
+
+            Assert.IsFalse(server.HasActiveSessions);
         }
         finally
         {

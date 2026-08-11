@@ -12,7 +12,7 @@ public class LocalSendDtoTests
         var device = new LocalSendDeviceInfo
         {
             Alias = "Test-Device",
-            Version = "2.1",
+            Version = "2.2",
             DeviceModel = "Windows",
             DeviceType = "desktop",
             Fingerprint = "test-hash",
@@ -24,7 +24,7 @@ public class LocalSendDtoTests
         var json = JsonSerializer.Serialize(device);
 
         StringAssert.Contains(json, "\"alias\":\"Test-Device\"");
-        StringAssert.Contains(json, "\"version\":\"2.1\"");
+        StringAssert.Contains(json, "\"version\":\"2.2\"");
         StringAssert.Contains(json, "\"deviceModel\":\"Windows\"");
         StringAssert.Contains(json, "\"deviceType\":\"desktop\"");
         StringAssert.Contains(json, "\"fingerprint\":\"test-hash\"");
@@ -40,7 +40,7 @@ public class LocalSendDtoTests
         {
           "info": {
             "alias": "Phone-App",
-            "version": "2.1",
+            "version": "2.2",
             "deviceModel": "Pixel",
             "deviceType": "mobile",
             "fingerprint": "abc",
@@ -73,5 +73,6 @@ public class LocalSendDtoTests
         Assert.AreEqual("test.png", file.FileName);
         Assert.AreEqual(2048L, file.Size);
         Assert.AreEqual("image", file.FileType);
+        Assert.AreEqual("hash123", file.Sha256);
     }
 }

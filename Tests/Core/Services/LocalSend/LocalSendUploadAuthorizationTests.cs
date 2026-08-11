@@ -26,6 +26,31 @@ public sealed class LocalSendUploadAuthorizationTests
     }
 
     [TestMethod]
+    public void UploadState_ChecksumMismatchAllowsThreeAttemptsThenEndsSession()
+    {
+        var authorization = new LocalSendUploadAuthorization(
+            "192.168.1.20", new Dictionary<string, string> { ["file-1"] = "token-1" });
+
+        Assert.IsTrue(authorization.TryBeginUpload("file-1"));
+        Assert.IsFalse(authorization.CompleteUpload("file-1", LocalSendFileSaveStatus.ChecksumMismatch));
+        Assert.IsTrue(authorization.TryBeginUpload("file-1"));
+        Assert.IsFalse(authorization.CompleteUpload("file-1", LocalSendFileSaveStatus.ChecksumMismatch));
+        Assert.IsTrue(authorization.TryBeginUpload("file-1"));
+        Assert.IsTrue(authorization.CompleteUpload("file-1", LocalSendFileSaveStatus.ChecksumMismatch));
+        Assert.IsFalse(authorization.TryBeginUpload("file-1"));
+    }
+
+    [TestMethod]
+    public void UploadState_RejectsConcurrentUploadOfTheSameFile()
+    {
+        var authorization = new LocalSendUploadAuthorization(
+            "192.168.1.20", new Dictionary<string, string> { ["file-1"] = "token-1" });
+
+        Assert.IsTrue(authorization.TryBeginUpload("file-1"));
+        Assert.IsFalse(authorization.TryBeginUpload("file-1"));
+    }
+
+    [TestMethod]
     public void TryCancelFromSender_RequiresTheOriginalSender()
     {
         var server = new LocalSendServer();

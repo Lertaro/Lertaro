@@ -119,6 +119,37 @@ public sealed class LocalSendServerHandlerTests
     }
 
     [TestMethod]
+    public async Task ProcessAsync_HttpsRegistrationWithMismatchedClaim_IsNotTrusted()
+    {
+        var server = new LocalSendServer();
+        LocalSendDeviceInfo? registered = null;
+        server.DeviceRegistered += (_, device) => registered = device;
+        const string body = "{\"alias\":\"Sender\",\"fingerprint\":\"claimed\"}";
+        var request = $"POST /api/localsend/v2/register HTTP/1.1\r\nContent-Length: {body.Length}\r\n\r\n{body}";
+
+        var response = await ProcessAsync(server, request, "certificate-fingerprint");
+
+        StringAssert.Contains(response, "HTTP/1.1 200 OK");
+        Assert.IsNull(registered);
+    }
+
+    [TestMethod]
+    public async Task ProcessAsync_HttpsSelfRegistrationStillReturnsDeviceInfo()
+    {
+        var server = new LocalSendServer
+        {
+            DeviceInfo = new LocalSendDeviceInfo { Alias = "Receiver", Fingerprint = "certificate-fingerprint" }
+        };
+        const string body = "{\"alias\":\"Receiver\",\"fingerprint\":\"certificate-fingerprint\"}";
+        var request = $"POST /api/localsend/v2/register HTTP/1.1\r\nContent-Length: {body.Length}\r\n\r\n{body}";
+
+        var response = await ProcessAsync(server, request, "certificate-fingerprint");
+
+        StringAssert.Contains(response, "HTTP/1.1 200 OK");
+        Assert.IsFalse(response.Contains("412 Precondition Failed", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public async Task ProcessAsync_LargeContentLength_UsesA64BitLength()
     {
         const string body = "{\"alias\":\"Sender\",\"fingerprint\":\"fingerprint\"}";
@@ -129,12 +160,13 @@ public sealed class LocalSendServerHandlerTests
         StringAssert.Contains(response, "HTTP/1.1 200 OK");
     }
 
-    private static async Task<string> ProcessAsync(LocalSendServer server, string request)
+    private static async Task<string> ProcessAsync(LocalSendServer server, string request, string? peerFingerprint = null)
     {
         await using var stream = new MemoryStream();
         await stream.WriteAsync(Encoding.UTF8.GetBytes(request));
         stream.Position = 0;
-        await LocalSendServerHandler.ProcessAsync(server, stream, new IPEndPoint(IPAddress.Parse("192.168.1.20"), 12345), CancellationToken.None);
+        await LocalSendServerHandler.ProcessAsync(server, stream,
+            new IPEndPoint(IPAddress.Parse("192.168.1.20"), 12345), peerFingerprint, CancellationToken.None);
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 }

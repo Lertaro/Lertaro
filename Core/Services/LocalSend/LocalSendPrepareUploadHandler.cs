@@ -8,7 +8,7 @@ namespace Lertaro.Core.Services.LocalSend;
 internal static class LocalSendPrepareUploadHandler
 {
     internal static async Task HandleAsync(LocalSendServer server, Stream stream, Dictionary<string, string> query,
-        string body, EndPoint? remoteEndpoint, bool v2)
+        string body, EndPoint? remoteEndpoint, string? peerFingerprint, bool v2)
     {
         var clientIp = remoteEndpoint is IPEndPoint remoteIp ? LocalSendServerHelper.FormatIpAddress(remoteIp.Address) : string.Empty;
         if (server.IsBusy)
@@ -35,6 +35,9 @@ internal static class LocalSendPrepareUploadHandler
             await LocalSendServerHelper.WriteResponseAsync(stream, 400, "{\"message\":\"Request must contain at least one file\"}").ConfigureAwait(false);
             return;
         }
+
+        if (peerFingerprint != null)
+            request.Info.Fingerprint = peerFingerprint;
 
         var dto = new PrepareUploadRequestDto
         {

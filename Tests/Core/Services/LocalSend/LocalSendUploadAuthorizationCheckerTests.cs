@@ -57,6 +57,16 @@ public sealed class LocalSendUploadAuthorizationCheckerTests
     }
 
     [TestMethod]
+    public void ClassifyFailure_ChecksumMismatchIsTerminal()
+    {
+        var attempt = LocalSendFileTransferSender.ClassifyFailure((System.Net.HttpStatusCode)422, "Unprocessable Entity");
+
+        Assert.AreEqual(LocalSendSendResult.Error, attempt.Result);
+        Assert.IsFalse(attempt.CanRetry);
+        StringAssert.Contains(attempt.Error, "Checksum mismatch");
+    }
+
+    [TestMethod]
     public void GetCancellationResult_DistinguishesReceiverCancellation()
     {
         using var userCancellation = new CancellationTokenSource();
@@ -81,6 +91,29 @@ public sealed class LocalSendUploadAuthorizationCheckerTests
 
             Assert.AreEqual(LocalSendSendResult.RemoteError, result.Result);
             Assert.IsTrue(result.CanRetry);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [TestMethod]
+    public async Task UploadAsync_ChecksumMismatchRetriesEachFileThreeTimes()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(path, "test");
+            using var handler = new CountingStatusHandler((System.Net.HttpStatusCode)422);
+            using var client = new HttpClient(handler);
+
+            var result = await LocalSendFileTransferSender.UploadAsync(
+                client, null, CreateTransfer(path, path), null, null, CancellationToken.None);
+
+            Assert.AreEqual(LocalSendSendResult.Error, result.Result);
+            Assert.IsFalse(result.CanRetry);
+            Assert.AreEqual(6, handler.RequestCount);
         }
         finally
         {
@@ -194,6 +227,19 @@ public sealed class LocalSendUploadAuthorizationCheckerTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             Task.FromResult(new HttpResponseMessage(statusCode));
+    }
+
+    private sealed class CountingStatusHandler(System.Net.HttpStatusCode statusCode) : HttpMessageHandler
+    {
+        private int _requestCount;
+
+        internal int RequestCount => _requestCount;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _requestCount);
+            return Task.FromResult(new HttpResponseMessage(statusCode));
+        }
     }
 
     private static class InterlockedExtensions
