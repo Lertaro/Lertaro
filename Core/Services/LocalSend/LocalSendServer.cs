@@ -109,6 +109,7 @@ public sealed class LocalSendServer : IDisposable
     public event EventHandler<string>? SessionCanceled;
 
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _canceledSessions = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<bool>> _cancellationNotifications = new();
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentDictionary<string, byte>> _sessionCompletedFiles = new();
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentDictionary<string, long>> _sessionTransferredBytes = new();
 
@@ -116,9 +117,7 @@ public sealed class LocalSendServer : IDisposable
     {
         if (string.IsNullOrEmpty(sessionId)) return;
         if (notifySender && _activeSessions.TryGetValue(sessionId, out var prepareDto))
-        {
-            _ = Task.Run(() => LocalSendServerHelper.NotifySenderCanceledAsync(prepareDto.Info, sessionId));
-        }
+            _cancellationNotifications[sessionId] = LocalSendServerHelper.NotifySenderCanceledAsync(prepareDto.Info, sessionId);
         if (_canceledSessions.TryAdd(sessionId, 0))
         {
             SessionCanceled?.Invoke(this, sessionId);
@@ -151,6 +150,7 @@ public sealed class LocalSendServer : IDisposable
         _sessionCompletedFiles.TryRemove(sessionId, out _);
         _sessionTransferredBytes.TryRemove(sessionId, out _);
         _canceledSessions.TryRemove(sessionId, out _);
+        _cancellationNotifications.TryRemove(sessionId, out _);
     }
 
     public bool IsSessionCanceled(string sessionId) =>
@@ -241,6 +241,8 @@ public sealed class LocalSendServer : IDisposable
 
         if (saveResult.Status != LocalSendFileSaveStatus.Success)
         {
+            _cancellationNotifications.TryGetValue(sessionId, out var notification);
+            await LocalSendServerHelper.AwaitCancellationNotificationAsync(saveResult.Status, notification).ConfigureAwait(false);
             var sessionEnded = v2 && CompleteUploadAttempt(sessionId, fileId, saveResult.Status);
             LocalSendServerHelper.TryDeleteFile(targetPath);
             Logger.Log($"[LocalSendServer] Upload failed for {fileName}: {saveResult.Error ?? saveResult.Status.ToString()}", LogLevel.Warn);
