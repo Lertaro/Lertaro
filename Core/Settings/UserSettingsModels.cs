@@ -42,7 +42,7 @@ public class LocalSendSettingsModel
     public bool QuickSave { get; set; } = false;
     public bool QuickSaveFromFavorites { get; set; } = true;
     public string DownloadDirectory { get; set; } = string.Empty;
-    public bool EnableHttps { get; set; } = false;
+    public bool EnableHttps { get; set; } = true;
     public bool CreateChecksums { get; set; } = true;
     public bool VerifyChecksums { get; set; } = true;
     public string? ReceivePin { get; set; }
