@@ -18,6 +18,8 @@ public sealed class LocalSendSettingsViewModel : ViewModelBase
     private bool _quickSave;
     private string _downloadDirectory;
     private bool _enableHttps;
+    private bool _createChecksums;
+    private bool _verifyChecksums;
     private string _receivePin = string.Empty;
 
     public LocalSendSettingsViewModel(UserSettings userSettings)
@@ -32,6 +34,8 @@ public sealed class LocalSendSettingsViewModel : ViewModelBase
             ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")
             : userSettings.LocalSend.DownloadDirectory;
         _enableHttps = userSettings.LocalSend.EnableHttps;
+        _createChecksums = userSettings.LocalSend.CreateChecksums;
+        _verifyChecksums = userSettings.LocalSend.VerifyChecksums;
         _receivePin = userSettings.LocalSend.ReceivePin ?? string.Empty;
 
         SelectDownloadDirectoryCommand = new RelayCommand(SelectDownloadDirectory);
@@ -77,6 +81,18 @@ public sealed class LocalSendSettingsViewModel : ViewModelBase
         set => SetProperty(ref _enableHttps, value);
     }
 
+    public bool CreateChecksums
+    {
+        get => _createChecksums;
+        set => SetProperty(ref _createChecksums, value);
+    }
+
+    public bool VerifyChecksums
+    {
+        get => _verifyChecksums;
+        set => SetProperty(ref _verifyChecksums, value);
+    }
+
     public string ReceivePin
     {
         get => _receivePin;
@@ -99,6 +115,8 @@ public sealed class LocalSendSettingsViewModel : ViewModelBase
         _userSettings.LocalSend.QuickSave = _quickSave;
         _userSettings.LocalSend.DownloadDirectory = _downloadDirectory;
         _userSettings.LocalSend.EnableHttps = _enableHttps;
+        _userSettings.LocalSend.CreateChecksums = _createChecksums;
+        _userSettings.LocalSend.VerifyChecksums = _verifyChecksums;
         _userSettings.LocalSend.ReceivePin = _receivePin;
 
         OnPropertyChanged(nameof(IsServiceRunning));

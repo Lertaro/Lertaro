@@ -222,6 +222,30 @@
 
                     <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,12"/>
 
+                    <DockPanel x:Name="RowLocalSendCreateChecksums" Margin="0,0,0,12">
+                        <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_CreateChecksums]}"
+                                       FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_CreateChecksumsDesc]}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <CheckBox DockPanel.Dock="Right" IsChecked="{Binding CreateChecksums}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                    </DockPanel>
+
+                    <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,12"/>
+
+                    <DockPanel x:Name="RowLocalSendVerifyChecksums" Margin="0,0,0,12">
+                        <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_VerifyChecksums]}"
+                                       FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_VerifyChecksumsDesc]}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <CheckBox DockPanel.Dock="Right" IsChecked="{Binding VerifyChecksums}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                    </DockPanel>
+
+                    <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,12"/>
+
                     <DockPanel x:Name="RowLocalSendQuickSave" Margin="0,0,0,12">
                         <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_QuickSave]}"

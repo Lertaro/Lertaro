@@ -43,6 +43,8 @@ public class LocalSendSettingsModel
     public bool QuickSaveFromFavorites { get; set; } = true;
     public string DownloadDirectory { get; set; } = string.Empty;
     public bool EnableHttps { get; set; } = false;
+    public bool CreateChecksums { get; set; } = true;
+    public bool VerifyChecksums { get; set; } = true;
     public string? ReceivePin { get; set; }
     public string ShowToken { get; set; } = string.Empty;
     public int DiscoveryTimeout { get; set; } = 500;

@@ -189,6 +189,8 @@ public static class SettingsSearchIndex
         new("Settings_LocalSend_DiscoveryTimeout", "LocalSend", TargetElementName: "RowLocalSendDiscoveryTimeout"),
         new("Settings_LocalSend_ReceivePin", "LocalSend", TargetElementName: "RowLocalSendReceivePin"),
         new("Settings_LocalSend_EnableHttps", "LocalSend", TargetElementName: "RowLocalSendEnableHttps"),
+        new("Settings_LocalSend_CreateChecksums", "LocalSend", TargetElementName: "RowLocalSendCreateChecksums"),
+        new("Settings_LocalSend_VerifyChecksums", "LocalSend", TargetElementName: "RowLocalSendVerifyChecksums"),
         new("Settings_LocalSend_QuickSave", "LocalSend", TargetElementName: "RowLocalSendQuickSave"),
         new("Settings_LocalSend_DownloadDir", "LocalSend", TargetElementName: "RowLocalSendDownloadDir"),
 

@@ -14,10 +14,14 @@ public class LocalSendSettingsViewModelTests
         var vm = new LocalSendSettingsViewModel(settings);
 
         Assert.IsFalse(vm.Enabled);
+        Assert.IsTrue(vm.CreateChecksums);
+        Assert.IsTrue(vm.VerifyChecksums);
         vm.Enabled = true;
         vm.DeviceAlias = "Custom-PC";
         vm.DiscoveryTimeout = 3000;
         vm.QuickSave = true;
+        vm.CreateChecksums = false;
+        vm.VerifyChecksums = false;
 
         // Before Apply, UserSettings retains original values
         Assert.IsFalse(settings.LocalSend.Enabled);
@@ -29,6 +33,8 @@ public class LocalSendSettingsViewModelTests
         Assert.AreEqual("Custom-PC", settings.LocalSend.DeviceAlias);
         Assert.AreEqual(3000, settings.LocalSend.DiscoveryTimeout);
         Assert.IsTrue(settings.LocalSend.QuickSave);
+        Assert.IsFalse(settings.LocalSend.CreateChecksums);
+        Assert.IsFalse(settings.LocalSend.VerifyChecksums);
 
         // If DeviceAlias is empty on Apply, it auto-generates a random alias
         vm.DeviceAlias = "  ";

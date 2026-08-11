@@ -10,6 +10,7 @@ public sealed class LocalSendClient : IDisposable
     private readonly HttpClient _httpClient;
     private readonly X509Certificate2? _ownedIdentityCertificate;
     private readonly LocalSendServer? _server;
+    private readonly bool _createChecksums;
     private LocalSendPendingFileTransfer? _pendingFileTransfer;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -18,9 +19,10 @@ public sealed class LocalSendClient : IDisposable
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     };
 
-    public LocalSendClient(LocalSendServer? server = null, string? expectedFingerprint = null)
+    public LocalSendClient(LocalSendServer? server = null, string? expectedFingerprint = null, bool createChecksums = true)
     {
         _server = server;
+        _createChecksums = createChecksums;
         var identity = (server?.IdentityCertificate ?? server?.Certificate) ?? (_ownedIdentityCertificate = LocalSendCertificate.LoadOrCreate());
         _httpClient = LocalSendHttpClientFactory.Create(identity, expectedFingerprint);
     }
@@ -66,7 +68,7 @@ public sealed class LocalSendClient : IDisposable
                     FileName = fileName,
                     Size = textBytes.Length,
                     FileType = legacy ? "text" : "text/plain",
-                    Sha256 = legacy ? null : LocalSendChecksum.Compute(textBytes),
+                    Sha256 = legacy || !_createChecksums ? null : LocalSendChecksum.Compute(textBytes),
                     Preview = text
                 }
             }
@@ -133,7 +135,7 @@ public sealed class LocalSendClient : IDisposable
             string? sha256;
             try
             {
-                sha256 = legacy ? null : await LocalSendChecksum.ComputeFileAsync(path, token,
+                sha256 = legacy || !_createChecksums ? null : await LocalSendChecksum.ComputeFileAsync(path, token,
                     bytes => onProgress?.Invoke(new LocalSendSendProgressArgs(relPath, bytes, fi.Length, i + 1,
                         expandedItems.Count, LocalSendTransferStage.CalculatingChecksum))).ConfigureAwait(false);
             }

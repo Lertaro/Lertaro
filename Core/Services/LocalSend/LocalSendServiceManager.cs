@@ -6,6 +6,7 @@ public sealed class LocalSendServiceManager : IDisposable
     private LocalSendDiscoveryService? _discoveryService;
     private LocalSendServer? _server;
     private LocalSendClient? _fileSendClient;
+    private bool _createChecksums = true;
 
     public static LocalSendServiceManager Instance { get; } = new();
 
@@ -61,6 +62,7 @@ public sealed class LocalSendServiceManager : IDisposable
     public void Start(LocalSendSettingsModel settings)
     {
         Stop();
+        _createChecksums = settings.CreateChecksums;
 
         var alias = string.IsNullOrWhiteSpace(settings.DeviceAlias) ? Environment.MachineName : settings.DeviceAlias;
         var downloadDir = string.IsNullOrWhiteSpace(settings.DownloadDirectory)
@@ -76,6 +78,7 @@ public sealed class LocalSendServiceManager : IDisposable
         _server.QuickSave = settings.QuickSave;
         _server.ReceivePin = settings.ReceivePin;
         _server.ShowToken = settings.ShowToken;
+        _server.VerifyChecksums = settings.VerifyChecksums;
         _server.Start(settings.Port > 0 ? settings.Port : 53317);
 
         _discoveryService = new LocalSendDiscoveryService { LocalInfo = deviceInfo };
@@ -113,7 +116,7 @@ public sealed class LocalSendServiceManager : IDisposable
         CancellationToken token = default)
     {
         _fileSendClient?.Dispose();
-        _fileSendClient = new LocalSendClient(_server, targetDevice.Https ? targetDevice.Fingerprint : null);
+        _fileSendClient = new LocalSendClient(_server, targetDevice.Https ? targetDevice.Fingerprint : null, _createChecksums);
         var senderInfo = _server?.DeviceInfo ?? new LocalSendDeviceInfo { Alias = Environment.MachineName };
         var res = await _fileSendClient.SendFilesAsync(targetDevice.IpAddress, targetDevice.Port, targetDevice.Https, senderInfo, filePaths, pin, onProgress, onFileConfirmed, token, targetDevice.Version).ConfigureAwait(false);
         return (res, _fileSendClient.LastError);
@@ -132,7 +135,7 @@ public sealed class LocalSendServiceManager : IDisposable
     public async Task<(LocalSendSendResult Result, string? ErrorDetails)> SendTextAsync(
         LocalSendDeviceInfo targetDevice, string text, string? pin = null, CancellationToken token = default)
     {
-        using var client = new LocalSendClient(_server, targetDevice.Https ? targetDevice.Fingerprint : null);
+        using var client = new LocalSendClient(_server, targetDevice.Https ? targetDevice.Fingerprint : null, _createChecksums);
         var senderInfo = _server?.DeviceInfo ?? new LocalSendDeviceInfo { Alias = Environment.MachineName };
         var res = await client.SendTextAsync(targetDevice.IpAddress, targetDevice.Port, targetDevice.Https, senderInfo, text, pin, token, targetDevice.Version).ConfigureAwait(false);
         return (res, client.LastError);

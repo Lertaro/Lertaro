@@ -30,10 +30,10 @@ public sealed class LocalSendServer : IDisposable
     public string DownloadDirectory { get; set; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
     public bool QuickSave { get; set; } = false;
+    public bool VerifyChecksums { get; set; } = true;
     public string? ReceivePin { get; set; }
     public string ShowToken { get; set; } = string.Empty;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _pinAttempts = new();
-
     internal bool CheckPin(string clientIp, string? requestPin, out int statusCode, out string? jsonBody)
         => LocalSendServerHelper.CheckPin(ReceivePin, _pinAttempts, clientIp, requestPin, out statusCode, out jsonBody);
 
@@ -201,7 +201,7 @@ public sealed class LocalSendServer : IDisposable
                 fileName = fileDto.FileName;
                 totalBytes = fileDto.Size;
                 metadata = fileDto.Metadata;
-                expectedSha256 = fileDto.Sha256 ?? fileDto.Hash;
+                expectedSha256 = VerifyChecksums ? fileDto.Sha256 ?? fileDto.Hash : null;
             }
         }
 

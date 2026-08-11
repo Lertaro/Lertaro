@@ -144,6 +144,37 @@ public sealed class LocalSendServerTests
     }
 
     [TestMethod]
+    public async Task HandleUploadAsync_VerificationDisabled_AcceptsChecksumMismatch()
+    {
+        var temporaryDirectory = Path.Combine(Path.GetTempPath(), $"Lertaro.LocalSend.Tests.{Guid.NewGuid():N}");
+        Directory.CreateDirectory(temporaryDirectory);
+        try
+        {
+            var server = new LocalSendServer { DownloadDirectory = temporaryDirectory, VerifyChecksums = false };
+            server.RegisterActiveSession("session", new PrepareUploadRequestDto
+            {
+                Files = new Dictionary<string, LocalSendFileDto>
+                {
+                    ["file"] = new() { Id = "file", FileName = "payload.bin", Size = 4, Sha256 = new string('0', 64) }
+                }
+            });
+            server.RegisterUploadAuthorization("session", "192.168.1.20", new Dictionary<string, string> { ["file"] = "token" });
+
+            await using var response = new MemoryStream();
+            await using var body = new MemoryStream("data"u8.ToArray());
+            await server.HandleUploadAsync(response, body, "session", "file", "token", "192.168.1.20", v2: true);
+
+            StringAssert.Contains(System.Text.Encoding.UTF8.GetString(response.ToArray()), "HTTP/1.1 200 OK");
+            Assert.IsTrue(File.Exists(Path.Combine(temporaryDirectory, "payload.bin")));
+            Assert.IsFalse(server.HasActiveSessions);
+        }
+        finally
+        {
+            Directory.Delete(temporaryDirectory, recursive: true);
+        }
+    }
+
+    [TestMethod]
     public async Task HandleUploadAsync_WhenReceiverCancelsDuringWrite_DoesNotReportFailure()
     {
         var temporaryDirectory = Path.Combine(Path.GetTempPath(), $"Lertaro.LocalSend.Tests.{Guid.NewGuid():N}");
