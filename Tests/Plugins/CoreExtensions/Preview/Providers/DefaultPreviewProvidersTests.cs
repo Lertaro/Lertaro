@@ -123,4 +123,15 @@ public sealed class FolderPreviewProviderTests
 
     [TestMethod]
     public void CanPreview_File_ReturnsFalse() => Assert.IsFalse(Provider.CanPreview(@"C:\file.txt", isDir: false));
+
+    [TestMethod]
+    [DataRow(FileAttributes.Normal, true)]
+    [DataRow(FileAttributes.Directory, true)]
+    [DataRow(FileAttributes.Hidden, false)]
+    [DataRow(FileAttributes.System, false)]
+    [DataRow(FileAttributes.Directory | FileAttributes.Hidden, false)]
+    [DataRow(FileAttributes.Directory | FileAttributes.System, false)]
+    [DataRow(FileAttributes.Hidden | FileAttributes.System, false)]
+    public void ShouldDisplay_FiltersHiddenAndSystemItems(FileAttributes attributes, bool expected) =>
+        Assert.AreEqual(expected, FolderPreviewProvider.ShouldDisplay(attributes));
 }

@@ -68,7 +68,10 @@ public class FolderPreviewProvider : IFilePreviewProvider
     private static (List<FolderRowData> Rows, int TruncatedCount) CollectRows(string path)
     {
         var dirInfo = new DirectoryInfo(path);
-        var items = dirInfo.EnumerateFileSystemInfos().Take(31).ToList();
+        var items = dirInfo.EnumerateFileSystemInfos()
+            .Where(static item => ShouldDisplay(item.Attributes))
+            .Take(31)
+            .ToList();
         var displayCount = Math.Min(items.Count, 30);
         var rows = new List<FolderRowData>(displayCount);
         for (var idx = 0; idx < displayCount; idx++)
@@ -80,6 +83,9 @@ public class FolderPreviewProvider : IFilePreviewProvider
         }
         return (rows, items.Count > 30 ? items.Count - 30 : 0);
     }
+
+    internal static bool ShouldDisplay(FileAttributes attributes) =>
+        (attributes & (FileAttributes.Hidden | FileAttributes.System)) == 0;
 
     // Builds one row with whatever icon CollectRows already had cached, and -- only if that was just a
     // placeholder -- fetches the real one in the background and swaps it in once ready. No staleness guard
