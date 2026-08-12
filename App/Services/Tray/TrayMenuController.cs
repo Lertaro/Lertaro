@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using Lertaro.Core;
+using Lertaro.App.Services.ShellMenu.QuickNav;
 using ContextMenu = System.Windows.Controls.ContextMenu;
 using MenuItem = System.Windows.Controls.MenuItem;
 using Brushes = System.Windows.Media.Brushes;
@@ -98,12 +99,12 @@ internal sealed class TrayMenuController : IDisposable
 
         _menu.Items.Add(_showWindow);
         _menu.Items.Add(_send);
-        _menu.Items.Add(CreateSeparator());
+        _menu.Items.Add(QuickNavigationMenu.CreateSeparator());
         _menu.Items.Add(_toggleHotkeys);
         _menu.Items.Add(_settings);
-        _menu.Items.Add(CreateSeparator());
+        _menu.Items.Add(QuickNavigationMenu.CreateSeparator());
         _menu.Items.Add(_about);
-        _menu.Items.Add(CreateSeparator());
+        _menu.Items.Add(QuickNavigationMenu.CreateSeparator());
         _menu.Items.Add(_cleanExit);
         _menu.Items.Add(_exit);
         UpdateTexts();
@@ -128,13 +129,6 @@ internal sealed class TrayMenuController : IDisposable
         };
         icon.SetResourceReference(TextBlock.ForegroundProperty, resourceKey);
         return icon;
-    }
-
-    private static Separator CreateSeparator()
-    {
-        var separator = new Separator();
-        separator.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "SeparatorBrush");
-        return separator;
     }
 
     private void ToggleHotkeys()

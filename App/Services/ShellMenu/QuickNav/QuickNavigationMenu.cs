@@ -155,7 +155,12 @@ public static class QuickNavigationMenu
     // project's 300-line limit -- see that file's own header comment for what moved and why). Kept here,
     // rather than having callers reach into the extensions class directly, because QuickNavigationSubMenuLoader
     // already calls these two by this exact name (QuickNavigationMenu.CreateSeparator / .CreateMenuItem).
-    internal static Separator CreateSeparator() => QuickNavigationMenuContentExtensions.CreateSeparator();
+    internal static Separator CreateSeparator()
+    {
+        var separator = QuickNavigationMenuContentExtensions.CreateSeparator();
+        separator.Loaded += (_, _) => separator.Height = 1 / System.Windows.Media.VisualTreeHelper.GetDpi(separator).DpiScaleY;
+        return separator;
+    }
 
     internal static MenuItem CreateGroupHeader(string groupName, Action? headerAction, string? headerActionTooltip, ContextMenu contextMenu) =>
         QuickNavigationMenuContentExtensions.CreateGroupHeader(groupName, headerAction, headerActionTooltip, contextMenu);
