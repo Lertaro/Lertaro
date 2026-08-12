@@ -8,6 +8,8 @@ Five tabs, in order: **Local Drives**, **Network Drives**, **WSL** (only shown o
 - One row per local drive: an **enable/disable checkbox**, drive name, file system (NTFS/ReFS/...), current status, indexed item count, and a per-row **Rebuild**/**Remove** action — plus a **Stop** action while a rebuild is running, for every drive except true NTFS (its scan has no safe point to interrupt).
 - NTFS and ReFS drives track changes continuously through the Windows USN Journal; other local file systems (FAT32, exFAT, ...) have no journal to read, so they're watched for changes directly instead. Either way, a manual rebuild is rarely needed, but is there if something looks out of sync — and if one gets interrupted (stopped, or the app/service restarts mid-scan), the next rebuild picks up from where it left off instead of starting over.
 
+The enabled-drive selection is authoritative: if you clear every checkbox, local-drive indexing remains disabled instead of silently selecting every drive again. Existing settings from versions where an empty selection meant “all drives” are migrated once so an upgrade does not unexpectedly disable indexing.
+
 Searching keeps working while a rebuild is running. The drive being rebuilt goes on answering from its previous index until the new one is ready, and the other drives are unaffected — a rebuild never leaves you with an empty result list.
 
 ## Network Drives

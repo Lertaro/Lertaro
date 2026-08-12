@@ -42,6 +42,8 @@ Press the **QuickLook** hotkey (`Alt+P` by default) on a selected result to open
 docked next to the search window — images, documents, and other previewable file types render
 without leaving Lertaro. Press it again (or move to a result QuickLook can't preview) to close it.
 
+Folder previews list up to 30 immediate children with their file or folder icons. Hidden and system items are omitted from this preview even if Windows Explorer is configured to show them.
+
 Audio and video files — whatever formats WPF's built-in media playback supports without extra
 codecs (MP4, WMV, AVI, MOV, MP3, WAV, WMA, and a few others) — play automatically as soon as the
 preview opens, with a small themed transport bar (play/pause, seek, current/total time, mute)

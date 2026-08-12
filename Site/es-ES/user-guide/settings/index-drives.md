@@ -8,6 +8,8 @@ Cinco pestañas, en orden: **Unidades locales**, **Unidades de red**, **WSL** (s
 - Una fila por unidad local: una **casilla de habilitar/deshabilitar**, nombre de la unidad, sistema de archivos (NTFS/ReFS/...), estado actual, número de elementos indexados, y una acción por fila de **Reconstruir**/**Eliminar** — más una acción **Detener** mientras hay una reconstrucción en curso, para toda unidad excepto las NTFS reales (su escaneo no tiene un punto seguro donde interrumpirse).
 - Las unidades NTFS y ReFS registran los cambios de forma continua a través del USN Journal de Windows; otros sistemas de archivos locales (FAT32, exFAT, ...) no tienen ningún journal que leer, así que se vigilan directamente en busca de cambios en su lugar. En cualquier caso, rara vez hace falta una reconstrucción manual, pero está ahí por si algo parece desincronizado — y si una se interrumpe (se detiene, o la app/servicio se reinicia a mitad de escaneo), la siguiente reconstrucción continúa desde donde se quedó en lugar de empezar de cero.
 
+La selección de unidades habilitadas se respeta literalmente: si desmarcas todas las casillas, la indexación de unidades locales permanece deshabilitada en vez de volver a seleccionar todas las unidades en silencio. Las configuraciones existentes de versiones donde una selección vacía significaba «todas las unidades» se migran una sola vez para que una actualización no deshabilite inesperadamente la indexación.
+
 La búsqueda sigue funcionando mientras se reconstruye un índice. La unidad que se está reconstruyendo continúa respondiendo con su índice anterior hasta que el nuevo esté listo, y las demás unidades no se ven afectadas: una reconstrucción nunca te deja con una lista de resultados vacía.
 
 ## Unidades de red

@@ -45,6 +45,8 @@ previa acoplado junto a la ventana de búsqueda — imágenes, documentos y otro
 renderizan sin salir de Lertaro. Púlsalo de nuevo (o muévete a un resultado que QuickLook no pueda previsualizar)
 para cerrarlo.
 
+Las vistas previas de carpetas muestran hasta 30 elementos secundarios directos con sus iconos de archivo o carpeta. Los elementos ocultos y del sistema se omiten en esta vista previa aunque el Explorador de Windows esté configurado para mostrarlos.
+
 Los archivos de audio y vídeo — cualquier formato que la reproducción multimedia integrada de WPF admita sin
 códecs adicionales (MP4, WMV, AVI, MOV, MP3, WAV, WMA, y algunos otros) — se reproducen automáticamente en cuanto
 se abre la vista previa, con una pequeña barra de transporte con el tema de la app (reproducir/pausar, buscar,
