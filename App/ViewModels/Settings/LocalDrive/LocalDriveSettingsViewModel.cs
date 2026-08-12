@@ -92,15 +92,12 @@ public class LocalDriveSettingsViewModel : ViewModelBase
 
     public void UpdateStatus(UsnIndexer.IndexerStatus status, MachineSettings settings)
     {
-        var enabled = settings.LocalDrives.Count == 0
-            ? null
-            : settings.LocalDrives.ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var drive in status.Drives.OrderBy(d => d.Drive))
         {
             var item = LocalDrives.FirstOrDefault(d => d.Drive.Equals(drive.Drive, StringComparison.OrdinalIgnoreCase));
             var isPresent = drive.State != "unavailable";
             var driveId = VolumeHelper.GetVolumeId(drive.Drive) ?? string.Empty;
-            var appliedEnabled = isPresent && (enabled == null ? drive.Enabled : enabled.Contains(driveId));
+            var appliedEnabled = isPresent && settings.IsLocalDriveEnabled(driveId);
             var isEnabled = item?.IsEnabled ?? appliedEnabled;
             if (item == null)
             {

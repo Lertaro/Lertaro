@@ -29,17 +29,16 @@ internal static class DriveMaintenanceHelper
         if (current.TryGetValue(drive, out var existing))
         {
             var wasEnabled = existing.Enabled;
-            var hasCache = LocalDriveCacheLocator.HasCache(indexCacheDir, drive);
             existing.Enabled = isPresent && isEnabled;
             existing.Kind = isPresent ? VolumeHelper.GetDisplayFileSystemType(drive) : "-";
-            existing.State = isPresent ? existing.State : "unavailable";
+            existing.State = ResolveExistingState(existing.State, isPresent, isEnabled);
             existing.CachePath = cachePath;
             if (!isPresent)
             {
                 existing.Files = 0;
                 existing.Dirs = 0;
             }
-            else if (!wasEnabled && isEnabled && !hasCache && existing.State is not "indexing" and not "pending")
+            else if (ShouldRestoreAfterEnable(wasEnabled, isEnabled, existing.State))
             {
                 existing.State = "pending";
                 drivesToBuild.Add(drive);
@@ -59,4 +58,10 @@ internal static class DriveMaintenanceHelper
             CachePath = cachePath
         };
     }
+
+    internal static string ResolveExistingState(string currentState, bool isPresent, bool isEnabled) =>
+        !isPresent ? "unavailable" : !isEnabled ? "disabled" : currentState;
+
+    internal static bool ShouldRestoreAfterEnable(bool wasEnabled, bool isEnabled, string state) =>
+        !wasEnabled && isEnabled && state is not "indexing" and not "pending";
 }

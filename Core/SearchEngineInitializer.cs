@@ -40,10 +40,9 @@ internal class SearchEngineInitializer
         {
             var machineSettings = MachineSettings.Load();
             var detectedDrives = VolumeHelper.DetectIndexableLocalDrives();
-            var enabledIds = new HashSet<string>(machineSettings.LocalDrives, StringComparer.OrdinalIgnoreCase);
-            var supportedDrives = enabledIds.Count == 0
-                ? detectedDrives
-                : detectedDrives.Where(d => enabledIds.Contains(VolumeHelper.GetVolumeId(d) ?? string.Empty)).ToList();
+            var supportedDrives = detectedDrives
+                .Where(d => machineSettings.IsLocalDriveEnabled(VolumeHelper.GetVolumeId(d)))
+                .ToList();
 
             EnsureDriveStatuses(detectedDrives, supportedDrives);
 

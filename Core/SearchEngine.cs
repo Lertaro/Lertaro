@@ -98,6 +98,7 @@ public class SearchEngine : IDisposable
 
         var drivesChanged = !oldDrives.OrderBy(d => d).SequenceEqual(newDrives.OrderBy(d => d), StringComparer.OrdinalIgnoreCase);
 
+        settings.LocalDriveSelectionConfigured = true;
         _machineSettings = settings;
         _machineSettings.Save();
 

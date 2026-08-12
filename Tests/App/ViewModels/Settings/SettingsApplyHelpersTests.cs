@@ -7,6 +7,23 @@ namespace Lertaro.App.Tests.ViewModels.Settings;
 public sealed class SettingsApplyHelpersTests
 {
     [TestMethod]
+    public void ShouldRebuildScanBasedLocalDrive_EmptySelectionReturnsFalse()
+    {
+        var drive = new LocalDriveSnapshot("C", "volume-c", IsEnabled: true);
+
+        Assert.IsFalse(SettingsApplyHelpers.ShouldRebuildScanBasedLocalDrive(drive, new HashSet<string>()));
+    }
+
+    [TestMethod]
+    public void ShouldRebuildScanBasedLocalDrive_ExplicitlyEnabledDriveReturnsTrue()
+    {
+        var drive = new LocalDriveSnapshot("C", "volume-c", IsEnabled: true);
+        var enabled = new HashSet<string>(["VOLUME-C"], StringComparer.OrdinalIgnoreCase);
+
+        Assert.IsTrue(SettingsApplyHelpers.ShouldRebuildScanBasedLocalDrive(drive, enabled));
+    }
+
+    [TestMethod]
     public void NetworkSettingsChanged_IdenticalLists_ReturnsFalse()
     {
         var oldList = new List<NetworkDriveSetting> { new() { Id = "Z", RefreshMode = "Manual" } };

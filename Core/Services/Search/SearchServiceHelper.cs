@@ -49,7 +49,10 @@ internal static class SearchServiceHelper
     //      at build time) -- only live-scan the part the index doesn't have: content that's excluded.
     //   3. Not indexed at all (network drive not configured, or a local drive not enabled for indexing)
     //      -- always live-scan, there's no index data to fall back on.
-    public static bool CheckNeedsLiveSearch(string dir, ExclusionRuleSet exclusionRules)
+    public static bool CheckNeedsLiveSearch(
+        string dir,
+        ExclusionRuleSet exclusionRules,
+        MachineSettings? machineSettings = null)
     {
         try
         {
@@ -69,13 +72,10 @@ internal static class SearchServiceHelper
             // Any local drive currently enabled for indexing gets a full, exhaustive walk regardless of
             // its own filesystem -- NTFS/ReFS via the USN journal/MFT, everything else (FAT32, exFAT, ...)
             // via the same walk pipeline network drives use -- so filesystem type alone is no longer a
-            // reliable "is this indexed" signal. An empty LocalDrives list means no drive has been
-            // explicitly restricted, matching every other LocalDrives consumer's own "empty = everything
-            // enabled" convention (see SearchEngineDriveMaintenance.RebuildDriveIndex/DeleteDriveIndex).
+            // reliable "is this indexed" signal. The explicit local-drive selection is authoritative;
+            // an empty selection means no local drive is indexed.
             var driveLetter = dir.Substring(0, 1);
-            var enabledLocalDriveIds = MachineSettings.Load().LocalDrives;
-            var isIndexed = enabledLocalDriveIds.Count == 0
-                || enabledLocalDriveIds.Contains(VolumeHelper.GetVolumeId(driveLetter) ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+            var isIndexed = (machineSettings ?? MachineSettings.Load()).IsLocalDriveEnabled(VolumeHelper.GetVolumeId(driveLetter));
 
             return !isIndexed;
         }

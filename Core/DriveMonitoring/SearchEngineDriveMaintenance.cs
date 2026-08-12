@@ -43,11 +43,10 @@ internal sealed class SearchEngineDriveMaintenance
             var cachedEntries = LocalDriveCacheLocator.ListCachedDrives(IndexCacheDir);
             var cachedPaths = cachedEntries.ToDictionary(e => e.Drive, e => e.Path, StringComparer.OrdinalIgnoreCase);
             var visible = detected.Concat(cachedEntries.Select(e => e.Drive)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(d => d).ToList();
-            var enabledIds = new HashSet<string>(_settings().LocalDrives, StringComparer.OrdinalIgnoreCase);
-            var supported = enabledIds.Count == 0
-                ? detected
-                : detected.Where(d => enabledIds.Contains(VolumeHelper.GetVolumeId(d) ?? string.Empty)).ToList();
+            var settings = _settings();
+            var supported = detected.Where(d => settings.IsLocalDriveEnabled(VolumeHelper.GetVolumeId(d))).ToList();
             var enabled = new HashSet<string>(supported, StringComparer.OrdinalIgnoreCase);
+            var disabled = visible.Where(d => !enabled.Contains(d)).ToList();
             var drivesToBuild = new List<string>();
 
             lock (_indexer.LockObj)
@@ -59,6 +58,11 @@ internal sealed class SearchEngineDriveMaintenance
                 _indexer.Status.Drives = next;
             }
 
+            foreach (var drive in disabled)
+            {
+                _indexer.RemoveDriveMonitor(drive);
+                _indexer.DropDriveFromRuntime(drive);
+            }
             foreach (var drive in drivesToBuild)
                 QueueDriveRebuild(drive);
         }
@@ -88,9 +92,8 @@ internal sealed class SearchEngineDriveMaintenance
         if (drive.Length == 0)
             return false;
 
-        var enabledIds = _settings().LocalDrives;
         var driveId = VolumeHelper.GetVolumeId(drive) ?? string.Empty;
-        if (enabledIds.Count > 0 && !enabledIds.Contains(driveId, StringComparer.OrdinalIgnoreCase))
+        if (!_settings().IsLocalDriveEnabled(driveId))
             return false;
 
         return QueueDriveRebuild(drive, forceRebuild: true);
@@ -106,9 +109,8 @@ internal sealed class SearchEngineDriveMaintenance
         _indexer.DropDriveFromRuntime(drive);
         var detected = VolumeHelper.DetectIndexableLocalDrives();
         var detectedSet = new HashSet<string>(detected, StringComparer.OrdinalIgnoreCase);
-        var enabledIds = new HashSet<string>(_settings().LocalDrives, StringComparer.OrdinalIgnoreCase);
         var isPresent = detectedSet.Contains(drive);
-        var isEnabled = enabledIds.Count == 0 ? isPresent : isPresent && enabledIds.Contains(VolumeHelper.GetVolumeId(drive) ?? string.Empty);
+        var isEnabled = isPresent && _settings().IsLocalDriveEnabled(VolumeHelper.GetVolumeId(drive));
         lock (_indexer.LockObj)
         {
             var status = _indexer.Status.Drives.FirstOrDefault(d => d.Drive.Equals(drive, StringComparison.OrdinalIgnoreCase));
@@ -226,6 +228,12 @@ internal sealed class SearchEngineDriveMaintenance
         {
             foreach (var drive in _indexer.Status.Drives)
             {
+                if (!drive.Enabled)
+                {
+                    drive.Files = 0;
+                    drive.Dirs = 0;
+                    continue;
+                }
                 if (drive.State == "indexing")
                 {
                     totalFiles += drive.Files;

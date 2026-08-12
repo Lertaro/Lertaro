@@ -13,7 +13,7 @@ internal static class SettingsApplyHelpers
     public static async Task RebuildScanBasedLocalDrivesAsync(SearchService searchService, IReadOnlyList<LocalDriveSnapshot> drives, IReadOnlyList<string> enabledLocalDriveIds)
     {
         var enabled = enabledLocalDriveIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var drive in drives.Where(d => d.IsEnabled && (enabled.Count == 0 || enabled.Contains(d.Id))))
+        foreach (var drive in drives.Where(d => ShouldRebuildScanBasedLocalDrive(d, enabled)))
         {
             var fs = VolumeHelper.GetFileSystemType(drive.Drive);
             if (!fs.Equals("NTFS", StringComparison.OrdinalIgnoreCase) &&
@@ -21,6 +21,9 @@ internal static class SettingsApplyHelpers
                 await WaitForLocalDriveRebuildAsync(searchService, drive.Drive);
         }
     }
+
+    internal static bool ShouldRebuildScanBasedLocalDrive(LocalDriveSnapshot drive, IReadOnlySet<string> enabledIds) =>
+        drive.IsEnabled && enabledIds.Contains(drive.Id);
 
     private static async Task WaitForLocalDriveRebuildAsync(SearchService searchService, string drive)
     {

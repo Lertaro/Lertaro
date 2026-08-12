@@ -66,4 +66,29 @@ public sealed class DriveMaintenanceHelperTests
         Assert.AreSame(existing, status);
         Assert.AreEqual(@"C:\cache\Z.idx", status.CachePath);
     }
+
+    [TestMethod]
+    [DataRow("ready", true, true, "ready")]
+    [DataRow("ready", true, false, "disabled")]
+    [DataRow("indexing", false, true, "unavailable")]
+    public void ResolveExistingState_UsesPresenceAndExplicitSelection(
+        string currentState,
+        bool isPresent,
+        bool isEnabled,
+        string expected) =>
+        Assert.AreEqual(expected, DriveMaintenanceHelper.ResolveExistingState(currentState, isPresent, isEnabled));
+
+    [TestMethod]
+    [DataRow(false, true, "disabled", true)]
+    [DataRow(false, true, "ready", true)]
+    [DataRow(false, true, "pending", false)]
+    [DataRow(false, true, "indexing", false)]
+    [DataRow(true, true, "ready", false)]
+    [DataRow(false, false, "disabled", false)]
+    public void ShouldRestoreAfterEnable_OnlyQueuesACompletedDisabledDrive(
+        bool wasEnabled,
+        bool isEnabled,
+        string state,
+        bool expected) =>
+        Assert.AreEqual(expected, DriveMaintenanceHelper.ShouldRestoreAfterEnable(wasEnabled, isEnabled, state));
 }

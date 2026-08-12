@@ -6,6 +6,13 @@ public class MachineSettings
 {
     public List<string> LocalDrives { get; set; } = new();
 
+    // Older settings files used an empty LocalDrives list to mean "all drives". This persisted marker
+    // distinguishes those files from a user explicitly clearing every checkbox under the new semantics.
+    public bool LocalDriveSelectionConfigured { get; set; }
+
+    public bool IsLocalDriveEnabled(string? volumeId) =>
+        !string.IsNullOrWhiteSpace(volumeId) && LocalDrives.Contains(volumeId, StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// How much the background service writes to service.log: Error, Warn, Info (the default) or Debug.
     /// </summary>
@@ -57,7 +64,7 @@ public class MachineSettings
         try
         {
             if (!File.Exists(SettingsPath))
-                return new MachineSettings();
+                return CreateDefault();
 
             var json = File.ReadAllText(SettingsPath);
             var settings = JsonSerializer.Deserialize<MachineSettings>(json) ?? new MachineSettings();
@@ -65,6 +72,7 @@ public class MachineSettings
                 .Where(id => !string.IsNullOrWhiteSpace(id))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            settings.MigrateLegacyLocalDriveSelection(DetectLocalDriveIds());
             return settings;
         }
         catch (Exception ex)
@@ -73,6 +81,28 @@ public class MachineSettings
             return new MachineSettings();
         }
     }
+
+    internal void MigrateLegacyLocalDriveSelection(IEnumerable<string> detectedVolumeIds)
+    {
+        if (LocalDriveSelectionConfigured)
+            return;
+
+        if (LocalDrives.Count == 0)
+            LocalDrives = detectedVolumeIds.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        LocalDriveSelectionConfigured = true;
+    }
+
+    private static MachineSettings CreateDefault()
+    {
+        var settings = new MachineSettings();
+        settings.MigrateLegacyLocalDriveSelection(DetectLocalDriveIds());
+        return settings;
+    }
+
+    private static IEnumerable<string> DetectLocalDriveIds() => VolumeHelper.DetectIndexableLocalDrives()
+        .Select(VolumeHelper.GetVolumeId)
+        .OfType<string>()
+        .Where(id => !string.IsNullOrWhiteSpace(id));
 
     public void Save()
     {
