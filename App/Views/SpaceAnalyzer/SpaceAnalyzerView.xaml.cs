@@ -12,10 +12,9 @@ using Lertaro.App.ViewModels.SpaceAnalyzer;
 using Lertaro.Core.Services.Search;
 using Lertaro.PluginSdk.Abstractions;
 using Button = System.Windows.Controls.Button;
-
+using UserControl = System.Windows.Controls.UserControl;
 namespace Lertaro.App.Views.SpaceAnalyzer;
-
-public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
+public partial class SpaceAnalyzerView : UserControl, IDisposable
 {
     private readonly List<Location> _history = [];
     private readonly SearchService _searchService = new();
@@ -24,29 +23,42 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
     private CancellationTokenSource? _loadCts;
     private bool _isLoading;
     private bool _loadFailed;
-
-    public SpaceAnalyzerWindow()
+    private bool _initialized;
+    private bool _disposed;
+    public SpaceAnalyzerView()
     {
         InitializeComponent();
         _refreshWatcher = new SpaceAnalyzerRefreshWatcher(Dispatcher, ReloadFromEventAsync);
-        SystemMenuBlocker.Attach(this, blockClose: false);
-        MaximizeBoundsHelper.Attach(this);
-        ThemedWindowIconHelper.Apply(this);
-        ThemedWindowIconHelper.Apply(TitleBarLogo, this);
         ThemeManager.Instance.ThemeChanged += OnThemeChanged;
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;
-        Loaded += async (_, _) =>
+        IsVisibleChanged += OnIsVisibleChanged;
+        Unloaded += (_, _) => Dispose();
+    }
+    private async void OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (_disposed)
+            return;
+        if (!IsVisible)
         {
+            _loadCts?.Cancel();
+            _refreshWatcher.Pause();
+            ActionFlyout.Close();
+            return;
+        }
+
+        if (!_initialized)
+        {
+            _initialized = true;
             _history.Add(new Location(null, TranslationManager.Instance["Space_Home"]));
             _refreshWatcher.Watch(null);
             await ReloadAsync();
-        };
-        Closed += OnClosed;
-        StateChanged += Window_StateChanged;
+            return;
+        }
+
+        _refreshWatcher.Watch(_history[^1].Path);
+        await ReloadAsync(background: true);
     }
-
-    private Task ReloadFromEventAsync() => _isLoading ? Task.CompletedTask : ReloadAsync(background: true);
-
+    private Task ReloadFromEventAsync() => _isLoading || !IsVisible ? Task.CompletedTask : ReloadAsync(background: true);
     private async Task ReloadAsync(bool background = false)
     {
         var selectedPath = background ? (ItemsList.SelectedItem as SpaceDisplayItem)?.Path : null;
@@ -106,7 +118,8 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         UpdateEmptyState();
         UpdateSummary();
         RenderTreemap();
-        _refreshWatcher.Watch(_history[^1].Path);
+        if (IsVisible)
+            _refreshWatcher.Watch(_history[^1].Path);
     }
 
     private async void ActivateItem(SpaceDisplayItem item)
@@ -136,17 +149,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         for (var index = 0; index < _history.Count; index++)
         {
             if (index > 0)
-            {
-                BreadcrumbPanel.Children.Add(new TextBlock
-                {
-                    Text = "\uE76C",
-                    FontFamily = new System.Windows.Media.FontFamily("Segoe MDL2 Assets"),
-                    FontSize = 9,
-                    Foreground = (System.Windows.Media.Brush)FindResource("TextSecondary"),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(1, 0, 1, 0)
-                });
-            }
+                BreadcrumbPanel.Children.Add(CreateBreadcrumbSeparator());
             var target = index;
             var isCurrent = index == _history.Count - 1;
             var button = new Button
@@ -160,6 +163,16 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
             BreadcrumbPanel.Children.Add(button);
         }
     }
+
+    private TextBlock CreateBreadcrumbSeparator() => new()
+    {
+        Text = "\uE76C",
+        FontFamily = new System.Windows.Media.FontFamily("Segoe MDL2 Assets"),
+        FontSize = 9,
+        Foreground = (System.Windows.Media.Brush)FindResource("TextSecondary"),
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(1, 0, 1, 0)
+    };
 
     private void RenderTreemap()
         => SpaceTreemapPresenter.Render(TreemapCanvas, _items, ItemsList.SelectedItem as SpaceDisplayItem,
@@ -180,6 +193,8 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
 
     private void ShowActions(SpaceDisplayItem item)
     {
+        if (Window.GetWindow(this) is not Window owner || owner is not IPluginSearchWindow view)
+            return;
         var fullPath = item.Path;
         var result = new AppSearchResult
         {
@@ -190,13 +205,8 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
             Drive = (System.IO.Path.GetPathRoot(fullPath) ?? string.Empty).TrimEnd('\\', '/'),
             ResultKind = "File"
         };
-        ActionFlyout.Show([result], this, this, TreemapCanvas, PlacementMode.MousePoint);
+        ActionFlyout.Show([result], view, owner, TreemapCanvas, PlacementMode.MousePoint);
     }
-
-    public void OpenFileOrFolderExternal(string path) => FileExecutor.OpenFileOrFolder(path);
-    public void OpenFileOrFolderAsAdminExternal(string path) => FileExecutor.OpenFileOrFolderAsAdmin(path);
-    public void LocateInExplorerExternal(string path) => FileExecutor.LocateInExplorer(path);
-    public void HideWindow() => Close();
 
     private void UpdateEmptyState()
     {
@@ -226,12 +236,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         UpdateEmptyState();
     }
 
-    private void OnThemeChanged()
-    {
-        ThemedWindowIconHelper.Apply(this);
-        ThemedWindowIconHelper.Apply(TitleBarLogo, this);
-        RenderTreemap();
-    }
+    private void OnThemeChanged() => RenderTreemap();
 
     private void OnLanguageChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -244,14 +249,18 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         RenderTreemap();
     }
 
-    private void OnClosed(object? sender, EventArgs e)
+    public void Dispose()
     {
+        if (_disposed)
+            return;
+        _disposed = true;
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         _refreshWatcher.Dispose();
         _searchService.Dispose();
         ThemeManager.Instance.ThemeChanged -= OnThemeChanged;
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
+        IsVisibleChanged -= OnIsVisibleChanged;
         ItemsList.ItemsSource = null;
         TreemapCanvas.Children.Clear();
         _items = Array.Empty<SpaceDisplayItem>();
@@ -264,9 +273,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
     private void ItemsList_SelectionChanged(object sender, SelectionChangedEventArgs e) => RenderTreemap();
     private void ItemsList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton != MouseButton.Left)
-            return;
-        if (ItemsList.SelectedItem is SpaceDisplayItem item)
+        if (e.ChangedButton == MouseButton.Left && ItemsList.SelectedItem is SpaceDisplayItem item)
             ActivateItem(item);
     }
     private void ItemsList_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
@@ -287,30 +294,6 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         e.Handled = true;
     }
     private void Back_Click(object sender, RoutedEventArgs e) => NavigateToHistory(_history.Count - 2);
-    private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-    private void Maximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-    private void Close_Click(object sender, RoutedEventArgs e) => Close();
-    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (e.ButtonState != MouseButtonState.Pressed)
-            return;
-        if (e.ClickCount == 2)
-        {
-            Maximize_Click(sender, e);
-            return;
-        }
-        WindowMaximizedDragHelper.DragMoveOrRestore(this, e);
-    }
-
-    private void Window_StateChanged(object? sender, EventArgs e)
-    {
-        var maximized = WindowState == WindowState.Maximized;
-        MaximizeButton.Content = maximized ? "\uE923" : "\uE922";
-        MainBorder.CornerRadius = maximized ? new CornerRadius(0) : new CornerRadius(12);
-        MainBorder.Margin = maximized ? new Thickness(0) : new Thickness(8);
-        MainBorder.BorderThickness = new Thickness(maximized ? 0 : 1);
-        ClippingBorder.CornerRadius = maximized ? new CornerRadius(0) : new CornerRadius(12);
-    }
 
     private readonly record struct Location(string? Path, string Name);
 }

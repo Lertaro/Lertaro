@@ -462,7 +462,6 @@
   "Tray_ToggleHotkeys": "ホットキーを無効化",
   "Tray_Settings": "設定",
   "Tray_SendToOtherDevices": "他のデバイスへ送信...",
-  "Tray_SpaceAnalyzer": "容量分析",
   "Space_Title": "ディスク容量分析",
   "Space_Subtitle": "インデックス済みコンテンツの概要",
   "Space_IndexedOnly": "Lertaro のインデックスに存在するファイルのみを使用し、ディスクは走査しません。",

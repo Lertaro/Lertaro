@@ -462,7 +462,6 @@
   "Tray_ToggleHotkeys": "Disable Hotkeys",
   "Tray_Settings": "Settings",
   "Tray_SendToOtherDevices": "Send to other devices...",
-  "Tray_SpaceAnalyzer": "Space Analyzer",
   "Space_Title": "Disk Space Analyzer",
   "Space_Subtitle": "Indexed content overview",
   "Space_IndexedOnly": "Uses only files already present in the Lertaro index. No disk scan is performed.",

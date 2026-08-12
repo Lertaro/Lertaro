@@ -462,7 +462,6 @@
   "Tray_ToggleHotkeys": "禁用快捷键",
   "Tray_Settings": "设置",
   "Tray_SendToOtherDevices": "发送到其他设备...",
-  "Tray_SpaceAnalyzer": "空间分析",
   "Space_Title": "磁盘空间分析",
   "Space_Subtitle": "已索引内容概览",
   "Space_IndexedOnly": "仅统计 Lertaro 索引中已有的文件，不会扫描磁盘。",

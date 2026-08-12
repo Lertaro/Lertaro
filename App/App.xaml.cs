@@ -283,7 +283,6 @@ public partial class App : Application
 
     public static void ShowSettingsWindow(string? targetSection = null) => AppWindowManager.ShowSettingsWindow(targetSection);
     public static void ShowSearchWindow() => AppWindowManager.ShowSearchWindow();
-    public static void ShowSpaceAnalyzerWindow() => AppWindowManager.ShowSpaceAnalyzerWindow();
     public static void CloseAllManagedWindows() => AppWindowManager.CloseAllManagedWindows();
 
     protected override void OnExit(ExitEventArgs e)

@@ -1,5 +1,4 @@
 using System.Windows;
-using Lertaro.App.Views.SpaceAnalyzer;
 
 namespace Lertaro.App.Services.AppWindow;
 
@@ -7,7 +6,6 @@ public static class AppWindowManager
 {
     private static SettingsWindow? _settingsWindow;
     private static SearchWindow? _searchWindow;
-    private static SpaceAnalyzerWindow? _spaceAnalyzerWindow;
 
     public static void ShowSettingsWindow(string? targetSection = null)
     {
@@ -102,25 +100,6 @@ public static class AppWindowManager
         });
     }
 
-    public static void ShowSpaceAnalyzerWindow()
-    {
-        if (System.Windows.Application.Current == null) return;
-
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
-        {
-            if (_spaceAnalyzerWindow == null)
-            {
-                _spaceAnalyzerWindow = new SpaceAnalyzerWindow();
-                _spaceAnalyzerWindow.Closed += (_, _) => _spaceAnalyzerWindow = null;
-            }
-            if (!_spaceAnalyzerWindow.IsVisible)
-                _spaceAnalyzerWindow.Show();
-            if (_spaceAnalyzerWindow.WindowState == WindowState.Minimized)
-                _spaceAnalyzerWindow.WindowState = WindowState.Normal;
-            _spaceAnalyzerWindow.Activate();
-        });
-    }
-
     public static void CloseAllManagedWindows()
     {
         if (System.Windows.Application.Current == null) return;
@@ -131,8 +110,6 @@ public static class AppWindowManager
             _settingsWindow = null;
             _searchWindow?.Close();
             _searchWindow = null;
-            _spaceAnalyzerWindow?.Close();
-            _spaceAnalyzerWindow = null;
         });
     }
 }

@@ -18,7 +18,6 @@ internal sealed class TrayMenuController : IDisposable
     private ContextMenu? _menu;
     private MenuItem? _showWindow;
     private MenuItem? _send;
-    private MenuItem? _spaceAnalyzer;
     private MenuItem? _toggleHotkeys;
     private MenuItem? _settings;
     private MenuItem? _about;
@@ -91,7 +90,6 @@ internal sealed class TrayMenuController : IDisposable
             if (action != null) action(); else App.ShowSearchWindow();
         });
         _send = Item("\uE709", ShowSendWindow);
-        _spaceAnalyzer = Item("\uE9D5", App.ShowSpaceAnalyzerWindow);
         _toggleHotkeys = Item(string.Empty, ToggleHotkeys);
         _settings = Item("\uE713", () => App.ShowSettingsWindow());
         _about = Item("\uE946", () => App.ShowSettingsWindow("About"));
@@ -100,7 +98,6 @@ internal sealed class TrayMenuController : IDisposable
 
         _menu.Items.Add(_showWindow);
         _menu.Items.Add(_send);
-        _menu.Items.Add(_spaceAnalyzer);
         _menu.Items.Add(CreateSeparator());
         _menu.Items.Add(_toggleHotkeys);
         _menu.Items.Add(_settings);
@@ -153,7 +150,6 @@ internal sealed class TrayMenuController : IDisposable
         if (_menu == null) return;
         _showWindow!.Header = TranslationManager.Instance["Tray_ShowWindow"];
         _send!.Header = TranslationManager.Instance["Tray_SendToOtherDevices"];
-        _spaceAnalyzer!.Header = TranslationManager.Instance["Tray_SpaceAnalyzer"];
         _settings!.Header = TranslationManager.Instance["Tray_Settings"];
         _about!.Header = TranslationManager.Instance["Tray_About"];
         _cleanExit!.Header = TranslationManager.Instance["Tray_CleanExit"];

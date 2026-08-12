@@ -5,6 +5,7 @@
         xmlns:converters="clr-namespace:Lertaro.App.Converters"
         xmlns:controls="clr-namespace:Lertaro.App.Views.Controls"
         xmlns:results="clr-namespace:Lertaro.App.Views.Controls.Results"
+        xmlns:space="clr-namespace:Lertaro.App.Views.SpaceAnalyzer"
         xmlns:services="clr-namespace:Lertaro.App.Services"
         xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
         Title="{Binding WindowTitle}" Height="600" Width="1024"
@@ -146,6 +147,28 @@
                 </Border>
                 <!-- ═══════════ 2. Main Content ═══════════ -->
                 <Grid Grid.Row="1">
+                    <space:SpaceAnalyzerView>
+                        <space:SpaceAnalyzerView.Style>
+                            <Style TargetType="space:SpaceAnalyzerView">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ShowWelcomeHint}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </space:SpaceAnalyzerView.Style>
+                    </space:SpaceAnalyzerView>
+                    <Grid x:Name="SearchContentLayout">
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ShowWelcomeHint}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
                     <Grid.ColumnDefinitions>
                         <!-- Sidebar -->
                         <ColumnDefinition Width="200" MinWidth="160" MaxWidth="280"/>
@@ -179,34 +202,6 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        <!-- Welcome View -->
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <StackPanel.Style>
-                                <Style TargetType="StackPanel">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ShowWelcomeHint}" Value="True">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </StackPanel.Style>
-                            <!-- Search Icon -->
-                            <TextBlock Text="&#xE11A;"
-                                       FontFamily="Segoe MDL2 Assets"
-                                       FontSize="48"
-                                       Foreground="{DynamicResource TextSecondary2}"
-                                       HorizontalAlignment="Center"
-                                       Opacity="0.5"
-                                       Margin="0,0,0,16"/>
-                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_WelcomeTitle]}"
-                                       FontSize="18"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimary}"
-                                       HorizontalAlignment="Center"
-                                       
-                                       Margin="0,0,0,0"/>
-                        </StackPanel>
                         <!-- Actions View (Self-drawn context actions menu, decoupled and shared) -->
                         <Grid x:Name="GridActions" Visibility="Collapsed">
                             <Grid.RowDefinitions>
@@ -238,6 +233,7 @@
                                      SelectionMode="Single"/>
                         </Grid>
                     </Grid>
+                    </Grid>
                 </Grid>
                 <!-- ═══════════ 3. Status Bar ═══════════ -->
                 <Border Grid.Row="2" Background="{DynamicResource StatusBarBg}"
@@ -248,6 +244,9 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding FilteredResults.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding ShowWelcomeHint}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
                             </Style.Triggers>

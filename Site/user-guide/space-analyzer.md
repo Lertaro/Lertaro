@@ -4,7 +4,7 @@ The Space Analyzer turns Lertaro's existing file indexes into a fast, SpaceSniff
 
 ## Open the analyzer
 
-Right-click the Lertaro tray icon and choose **Space Analyzer**. The first level shows every index currently loaded by Lertaro. Double-click a drive or folder with the left mouse button to enter it; use the up arrow or any breadcrumb to go back.
+Open Lertaro's full search window and leave the search box empty. Space Analyzer appears automatically as the window's home page and shows every index currently loaded by Lertaro. Typing a query switches to search results immediately; clearing the query returns to the analyzer at the same location. Double-click a drive or folder with the left mouse button to enter it; use the up arrow or any breadcrumb to go back.
 
 ## Read and use the view
 
@@ -19,4 +19,4 @@ Only entries already present in Lertaro's enabled indexes are included, and the 
 
 Sizes are logical file sizes rather than allocated disk usage. Directory totals include their indexed descendants, and hard-linked file data is counted only once, so totals can differ from Windows Explorer or a sector-level disk analyzer.
 
-The window automatically follows relevant in-memory index change events and coalesces bursts before updating the current view. The analyzer does not separately open or reload index cache files. Closing the window releases its rendered items and shared UI caches.
+While the analyzer page is visible, it follows relevant in-memory index change events and coalesces bursts before updating the current view. It never opens or reloads index cache files. Starting a search pauses analyzer updates; closing the full search window releases the rendered items and shared UI caches.

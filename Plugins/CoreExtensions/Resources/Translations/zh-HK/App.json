@@ -462,7 +462,6 @@
   "Tray_ToggleHotkeys": "停用快捷鍵",
   "Tray_Settings": "設定",
   "Tray_SendToOtherDevices": "傳送至其他裝置...",
-  "Tray_SpaceAnalyzer": "空間分析",
   "Space_Title": "磁碟空間分析",
   "Space_Subtitle": "已索引內容概覽",
   "Space_IndexedOnly": "僅統計 Lertaro 索引中已有的檔案，不會掃描磁碟。",

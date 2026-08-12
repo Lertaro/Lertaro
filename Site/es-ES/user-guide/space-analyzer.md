@@ -4,7 +4,7 @@ El Analizador de espacio convierte los índices de archivos existentes de Lertar
 
 ## Abrir el analizador
 
-Haz clic con el botón derecho en el icono de Lertaro de la bandeja y elige **Analizador de espacio**. El primer nivel muestra todos los índices cargados actualmente por Lertaro. Haz doble clic con el botón izquierdo en una unidad o carpeta para entrar; usa la flecha hacia arriba o cualquier elemento de la ruta de navegación para volver.
+Abre la ventana de búsqueda completa de Lertaro y deja vacío el cuadro de búsqueda. El Analizador de espacio aparece automáticamente como página de inicio y muestra todos los índices cargados actualmente por Lertaro. Al escribir una consulta se cambia de inmediato a los resultados de búsqueda; al borrarla se vuelve al analizador en la misma ubicación. Haz doble clic con el botón izquierdo en una unidad o carpeta para entrar; usa la flecha hacia arriba o cualquier elemento de la ruta de navegación para volver.
 
 ## Leer y usar la vista
 
@@ -19,4 +19,4 @@ Solo se incluyen los elementos que ya existen en los índices habilitados de Ler
 
 Los tamaños son tamaños lógicos de archivo, no espacio asignado en disco. Los totales de las carpetas incluyen sus descendientes indexados y los datos con vínculos físicos solo se cuentan una vez, por lo que los resultados pueden diferir del Explorador de Windows o de un analizador de disco a nivel de sectores.
 
-La ventana sigue automáticamente los eventos de cambio pertinentes de los índices en memoria y agrupa las ráfagas antes de actualizar la vista actual. El analizador no abre ni vuelve a cargar por separado los archivos de caché del índice. Al cerrar la ventana se liberan los elementos renderizados y las cachés de interfaz compartidas.
+Mientras la página del analizador está visible, sigue automáticamente los eventos de cambio pertinentes de los índices en memoria y agrupa las ráfagas antes de actualizar la vista actual. Nunca abre ni vuelve a cargar los archivos de caché del índice. Al iniciar una búsqueda se pausan sus actualizaciones; al cerrar la ventana de búsqueda completa se liberan los elementos renderizados y las cachés de interfaz compartidas.

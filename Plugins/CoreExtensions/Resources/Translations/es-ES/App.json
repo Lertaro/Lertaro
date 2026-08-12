@@ -462,7 +462,6 @@
   "Tray_ToggleHotkeys": "Desactivar Atajos de Teclado",
   "Tray_Settings": "Configuración",
   "Tray_SendToOtherDevices": "Enviar a otros dispositivos...",
-  "Tray_SpaceAnalyzer": "Analizador de espacio",
   "Space_Title": "Analizador de espacio en disco",
   "Space_Subtitle": "Resumen del contenido indexado",
   "Space_IndexedOnly": "Solo usa archivos ya presentes en el índice de Lertaro. No se analiza el disco.",
