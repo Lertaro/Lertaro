@@ -1,4 +1,5 @@
 using Lertaro.Core;
+using Lertaro.Core.Services.LocalSend;
 
 using Lertaro.App.Services.AppWindow;
 namespace Lertaro.App.Services.UrlProtocol;
@@ -17,7 +18,9 @@ public static class UriRouter
 
     public static void Route(string uriString)
     {
-        if (!Uri.TryCreate(uriString, UriKind.Absolute, out var uri) || !uri.Scheme.Equals("lertaro", StringComparison.OrdinalIgnoreCase))
+        if (uriString.Length > LocalSendUriParser.MaxUriLength
+            || !Uri.TryCreate(uriString, UriKind.Absolute, out var uri)
+            || !uri.Scheme.Equals("lertaro", StringComparison.OrdinalIgnoreCase))
         {
             Logger.Log($"[UriRouter] Ignoring malformed/non-lertaro URI: {uriString}", LogLevel.Warn);
             return;
@@ -46,11 +49,32 @@ public static class UriRouter
                     RouteSettings(arg, uriString);
                     break;
 
+                case "localsend":
+                    RouteLocalSend(uri, uriString);
+                    break;
+
                 default:
                     Logger.Log($"[UriRouter] Unknown route: {uriString}", LogLevel.Warn);
                     break;
             }
         }));
+    }
+
+    private static void RouteLocalSend(Uri uri, string uriString)
+    {
+        if (!LocalSendUriParser.TryParse(uri, out var request) || request == null)
+        {
+            Logger.Log($"[UriRouter] Invalid LocalSend route: {uriString}", LogLevel.Warn);
+            return;
+        }
+
+        if (!UserSettings.Load().LocalSend.Enabled)
+        {
+            AppWindowManager.ShowSettingsWindow("LocalSend");
+            return;
+        }
+
+        LocalSendServiceManager.Instance.OpenSendWindow(request.Files, request.Text);
     }
 
     // "page/<section>" switches to a top-level sidebar section (e.g. "page/Index"), matching the tag

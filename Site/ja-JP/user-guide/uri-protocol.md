@@ -13,6 +13,9 @@ Lertaro がまだ実行されていない場合、`lertaro://` リンクを開�
 | `lertaro://fullsearch/[keyword]` | `[keyword]` を入力済みの状態でフル検索ウィンドウを開きます。 |
 | `lertaro://settings/page/[section]` | 設定を指定したトップレベルのセクションで開きます。 |
 | `lertaro://settings/entry/[index]` | 設定を開き、指定した特定の設定項目までジャンプしてハイライトします。 |
+| `lertaro://localsend` | 空の LocalSend 送信ウィンドウを開きます。 |
+| `lertaro://localsend/items?path=[encoded-path]` | 1つ以上のファイルまたはフォルダーを LocalSend に追加します。複数の項目には `path` を繰り返します。 |
+| `lertaro://localsend/text?value=[encoded-text]` | テキストを LocalSend に追加します。 |
 
 ```
 lertaro://search/report
@@ -24,6 +27,17 @@ lertaro://settings/page/Appearance
 `[section]` はトップレベルのサイドバー項目のいずれかに一致します:`Service`、`Index`、`General`、`Appearance`、`Hotkeys`、`Plugins`、`Favorites`、`History`、`QuickPanel`、`About` — 大文字小文字は区別されません。
 
 `[index]` は手入力を想定したものではありません — [設定検索](./instant-answers)が、選択した設定に対して自動的に生成する番号であり、その検索結果の1つを選択すると、そのまま該当する行に直接戻ってこられる仕組みになっています。再起動をまたいでは安定しないため、特定の番号がそのまま維持されることを前提にしないでください。
+
+## LocalSend リンク
+
+各ファイルパスまたはテキスト値は URL エンコードする必要があります。複数のファイルやフォルダーを追加するには `path` パラメーターを繰り返します。すべてのパスは既に存在する絶対パスでなければなりません。例:
+
+```
+lertaro://localsend/items?path=C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt&path=D%3A%5CShared%5Cb.txt
+lertaro://localsend/text?value=Hello%20world
+```
+
+LocalSend リンクは送信ウィンドウに内容を入力するだけで、デバイスの選択や転送の開始を自動的に行うことはありません。LocalSend が無効の場合は、代わりに LocalSend の設定ページが開きます。無効なパラメーター、種類の混在、長すぎる値がある場合、リクエスト全体が無視されます。
 
 ## 認識されないリンク
 

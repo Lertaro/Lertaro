@@ -107,6 +107,15 @@ public sealed class LocalSendSendViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanGoNextStep));
     }
 
+    public void SetText(string text)
+    {
+        SelectedMode = 1;
+        TextToSend = text;
+        _isFromAction = true;
+        CurrentStep = 1;
+        OnPropertyChanged(nameof(IsFromAction));
+    }
+
     public void RemoveCollectedItem(LocalSendCollectedItem item)
     {
         CollectedItems.Remove(item);

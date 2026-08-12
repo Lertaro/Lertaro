@@ -14,6 +14,9 @@ Lertaro 会自动把自己注册为 `lertaro://` 链接的处理程序——不�
 | `lertaro://fullsearch/[关键词]` | 打开完整搜索窗口，并预填 `[关键词]`。 |
 | `lertaro://settings/page/[分区]` | 打开设置窗口，并切到指定的顶层分区。 |
 | `lertaro://settings/entry/[序号]` | 打开设置窗口，并直接跳转到某一项具体设置，并高亮显示。 |
+| `lertaro://localsend` | 打开空白的 LocalSend 发送窗口。 |
+| `lertaro://localsend/items?path=[编码后的路径]` | 向 LocalSend 添加一个或多个文件或文件夹；多个项目应重复使用 `path` 参数。 |
+| `lertaro://localsend/text?value=[编码后的文本]` | 向 LocalSend 添加文本。 |
 
 ```
 lertaro://search/report
@@ -26,6 +29,17 @@ lertaro://settings/page/Appearance
 `Plugins`、`Favorites`、`History`、`QuickPanel`、`About`——不区分大小写。
 
 `[序号]` 不是给人手动输入用的——它是[设置搜索](./instant-answers)在你选中某项设置结果时自己生成的一个数字，选中结果会自动带上这个序号，原样跳转回那一项设置。这个序号在重启之间并不稳定，不要指望某个具体数字每次都对应同一项设置。
+
+## LocalSend 链接
+
+每个文件路径或文本值都必须经过 URL 编码。添加多个文件或文件夹时，应重复使用 `path` 参数；所有路径都必须是已经存在的绝对路径。例如：
+
+```
+lertaro://localsend/items?path=C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt&path=D%3A%5CShared%5Cb.txt
+lertaro://localsend/text?value=Hello%20world
+```
+
+LocalSend 链接只会填充发送窗口，绝不会自动选择设备或开始传输。如果 LocalSend 尚未启用，Lertaro 会改为打开 LocalSend 设置页。参数无效、混用或过长时，整个请求都会被忽略。
 
 ## 无法识别的链接
 

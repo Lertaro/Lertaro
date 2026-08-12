@@ -18,6 +18,9 @@ second copy.
 | `lertaro://fullsearch/[keyword]` | Opens the full search window with `[keyword]` pre-filled. |
 | `lertaro://settings/page/[section]` | Opens Settings to a specific top-level section. |
 | `lertaro://settings/entry/[index]` | Opens Settings and jumps straight to one specific setting, highlighted. |
+| `lertaro://localsend` | Opens an empty LocalSend send window. |
+| `lertaro://localsend/items?path=[encoded-path]` | Adds one or more files or folders to LocalSend. Repeat `path` for multiple items. |
+| `lertaro://localsend/text?value=[encoded-text]` | Adds text to LocalSend. |
 
 ```
 lertaro://search/report
@@ -35,6 +38,17 @@ case-sensitive.
 generates itself for whatever setting you picked, so selecting one of its results round-trips
 straight back to that exact row. It isn't stable across restarts, so don't rely on a specific
 number staying the same.
+
+## LocalSend links
+
+Every file path or text value must be URL-encoded. To add multiple files or folders, repeat the `path` parameter; all paths must be absolute and must already exist. For example:
+
+```
+lertaro://localsend/items?path=C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt&path=D%3A%5CShared%5Cb.txt
+lertaro://localsend/text?value=Hello%20world
+```
+
+A LocalSend link only fills the send window. It never selects a device or starts a transfer automatically. If LocalSend is disabled, Lertaro opens its LocalSend settings page instead. Invalid, mixed, or oversized parameters are ignored as a whole.
 
 ## Unrecognized links
 

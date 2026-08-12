@@ -33,7 +33,17 @@ public partial class LocalSendSendWindow : Window
         UpdateStepVisibility();
     }
 
-    public void AddFiles(IEnumerable<string> files) => _vm.AddPaths(files);
+    public void AddFiles(IEnumerable<string> files)
+    {
+        if (_vm.IsSending) return;
+        _vm.AddPaths(files);
+        if (_vm.CollectedItems.Count > 0) _vm.ProceedToStep1();
+    }
+
+    public void SetText(string text)
+    {
+        if (!_vm.IsSending) _vm.SetText(text);
+    }
 
     private void OnLanguageChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => UpdateStep2UiState();
     private void Vm_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

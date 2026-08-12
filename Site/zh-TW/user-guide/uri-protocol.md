@@ -14,6 +14,9 @@ Lertaro 會自動把自己註冊為 `lertaro://` 連結的處理常式——不�
 | `lertaro://fullsearch/[關鍵字]` | 開啟完整搜尋視窗，並預先帶入 `[關鍵字]`。 |
 | `lertaro://settings/page/[分區]` | 開啟設定視窗，並切到指定的頂層分區。 |
 | `lertaro://settings/entry/[序號]` | 開啟設定視窗，並直接跳轉到某一項具體設定，並高亮顯示。 |
+| `lertaro://localsend` | 開啟空白的 LocalSend 傳送視窗。 |
+| `lertaro://localsend/items?path=[編碼後的路徑]` | 向 LocalSend 加入一個或多個檔案或資料夾；多個項目應重複使用 `path` 參數。 |
+| `lertaro://localsend/text?value=[編碼後的文字]` | 向 LocalSend 加入文字。 |
 
 ```
 lertaro://search/report
@@ -26,6 +29,17 @@ lertaro://settings/page/Appearance
 `Plugins`、`Favorites`、`History`、`QuickPanel`、`About`——不區分大小寫。
 
 `[序號]` 不是給人手動輸入用的——它是[設定搜尋](./instant-answers)在你選中某項設定結果時自己產生的一個數字，選中結果會自動帶上這個序號，原樣跳轉回那一項設定。這個序號在重新啟動之間並不穩定，不要指望某個具體數字每次都對應同一項設定。
+
+## LocalSend 連結
+
+每個檔案路徑或文字值都必須經過 URL 編碼。加入多個檔案或資料夾時，應重複使用 `path` 參數；所有路徑都必須是已經存在的絕對路徑。例如：
+
+```
+lertaro://localsend/items?path=C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt&path=D%3A%5CShared%5Cb.txt
+lertaro://localsend/text?value=Hello%20world
+```
+
+LocalSend 連結只會填入傳送視窗，絕不會自動選擇裝置或開始傳輸。如果 LocalSend 尚未啟用，Lertaro 會改為開啟 LocalSend 設定頁。參數無效、混用或過長時，整個要求都會被忽略。
 
 ## 無法識別的連結
 

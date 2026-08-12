@@ -78,6 +78,10 @@ public static class LocalSendAppEventHandler
             {
                 _activeSendWindow.AddFiles(files);
             }
+            else if (!string.IsNullOrEmpty(text))
+            {
+                _activeSendWindow.SetText(text);
+            }
             return;
         }
         _activeSendWindow = new LocalSendSendWindow(files, text);
