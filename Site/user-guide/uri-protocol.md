@@ -19,8 +19,8 @@ second copy.
 | `lertaro://settings/page/[section]` | Opens Settings to a specific top-level section. |
 | `lertaro://settings/entry/[index]` | Opens Settings and jumps straight to one specific setting, highlighted. |
 | `lertaro://localsend` | Opens an empty LocalSend send window. |
-| `lertaro://localsend/items?path=[encoded-path]` | Adds one or more files or folders to LocalSend. Repeat `path` for multiple items. |
-| `lertaro://localsend/text?value=[encoded-text]` | Adds text to LocalSend. |
+| `lertaro://localsend/items[/encoded-item...]` | Switches to file/folder mode and optionally adds one encoded path segment per item. |
+| `lertaro://localsend/text[/encoded-text]` | Switches to text mode and optionally fills in encoded text. |
 
 ```
 lertaro://search/report
@@ -41,14 +41,14 @@ number staying the same.
 
 ## LocalSend links
 
-Every file path or text value must be URL-encoded. To add multiple files or folders, repeat the `path` parameter; all paths must be absolute and must already exist. For example:
+Every file/folder path or text value must be URL-encoded as one complete path segment. To add multiple items, append one encoded segment per item; all paths must be absolute and must already exist. For example:
 
 ```
-lertaro://localsend/items?path=C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt&path=D%3A%5CShared%5Cb.txt
-lertaro://localsend/text?value=Hello%20world
+lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt/D%3A%5CShared
+lertaro://localsend/text/Hello%20world
 ```
 
-A LocalSend link only fills the send window. It never selects a device or starts a transfer automatically. If LocalSend is disabled, Lertaro opens its LocalSend settings page instead. Invalid, mixed, or oversized parameters are ignored as a whole.
+`lertaro://localsend/items` opens the collection page in file/folder mode, while `lertaro://localsend/text` opens it in text mode. A link containing content proceeds to device selection, but never selects a device or starts a transfer automatically. If a send window is already open, the link does nothing and never changes its current content or state. If LocalSend is disabled, Lertaro opens its LocalSend settings page instead. Invalid or oversized content is ignored as a whole.
 
 ## Unrecognized links
 

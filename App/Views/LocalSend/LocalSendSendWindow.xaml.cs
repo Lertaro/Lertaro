@@ -14,13 +14,16 @@ public partial class LocalSendSendWindow : Window
     private readonly LocalSendSendViewModel _vm;
     private CancelSource _cancelSource;
 
-    public LocalSendSendWindow(IEnumerable<string>? initialFiles = null, string? initialText = null)
+    public LocalSendSendWindow(
+        IEnumerable<string>? initialFiles = null,
+        string? initialText = null,
+        LocalSendSendMode? initialMode = null)
     {
         InitializeComponent();
         SystemMenuBlocker.Attach(this);
         ThemedWindowIconHelper.Apply(this);
         ThemedWindowIconHelper.Apply(TitleBarLogo, this);
-        _vm = new LocalSendSendViewModel(initialFiles, initialText);
+        _vm = new LocalSendSendViewModel(initialFiles, initialText, initialMode);
         DataContext = _vm;
         _vm.PropertyChanged += Vm_PropertyChanged;
         StateChanged += (_, _) => { if (WindowState == WindowState.Maximized) WindowState = WindowState.Normal; };
@@ -40,9 +43,18 @@ public partial class LocalSendSendWindow : Window
         if (_vm.CollectedItems.Count > 0) _vm.ProceedToStep1();
     }
 
-    public void SetText(string text)
+    public void ShowTextMode(string? text)
     {
-        if (!_vm.IsSending) _vm.SetText(text);
+        if (!_vm.IsSending) _vm.SetMode(LocalSendSendMode.Text, text, !string.IsNullOrWhiteSpace(text));
+    }
+
+    public void ShowItemsMode(IEnumerable<string>? files)
+    {
+        if (_vm.IsSending) return;
+        _vm.SetMode(LocalSendSendMode.Items);
+        if (files == null) return;
+        _vm.AddPaths(files);
+        if (_vm.CollectedItems.Count > 0) _vm.ProceedToStep1();
     }
 
     private void OnLanguageChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => UpdateStep2UiState();

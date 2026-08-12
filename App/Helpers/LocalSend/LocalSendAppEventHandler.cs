@@ -1,4 +1,5 @@
 using Lertaro.App.Views.LocalSend;
+using Lertaro.App.ViewModels.LocalSend;
 using Lertaro.Core;
 using Lertaro.Core.Services.LocalSend;
 using Lertaro.Core.Services.LocalSend.Models;
@@ -65,26 +66,39 @@ public static class LocalSendAppEventHandler
 
     private static void OnSendRequested(object? sender, (IReadOnlyList<string>? Files, string? Text) e) => OpenSendWindow(e.Files, e.Text);
 
-    public static void OpenSendWindow(IEnumerable<string>? files = null, string? text = null) => Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+    public static void OpenSendWindow(
+        IEnumerable<string>? files = null,
+        string? text = null,
+        LocalSendSendMode? mode = null,
+        bool ignoreIfOpen = false) => Application.Current.Dispatcher.BeginInvoke(new Action(() =>
     {
         if (_activeSendWindow != null && _activeSendWindow.IsLoaded)
         {
+            if (ignoreIfOpen) return;
             _activeSendWindow.Activate();
             if (_activeSendWindow.WindowState == System.Windows.WindowState.Minimized)
             {
                 _activeSendWindow.WindowState = System.Windows.WindowState.Normal;
             }
-            if (files != null)
+            if (mode == LocalSendSendMode.Text)
+            {
+                _activeSendWindow.ShowTextMode(text);
+            }
+            else if (mode == LocalSendSendMode.Items)
+            {
+                _activeSendWindow.ShowItemsMode(files);
+            }
+            else if (files != null)
             {
                 _activeSendWindow.AddFiles(files);
             }
             else if (!string.IsNullOrEmpty(text))
             {
-                _activeSendWindow.SetText(text);
+                _activeSendWindow.ShowTextMode(text);
             }
             return;
         }
-        _activeSendWindow = new LocalSendSendWindow(files, text);
+        _activeSendWindow = new LocalSendSendWindow(files, text, mode);
         _isSendWindowOpen = true;
         _activeSendWindow.Closed += (_, _) =>
         {

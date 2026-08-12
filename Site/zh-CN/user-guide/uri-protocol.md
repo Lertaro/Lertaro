@@ -15,8 +15,8 @@ Lertaro 会自动把自己注册为 `lertaro://` 链接的处理程序——不�
 | `lertaro://settings/page/[分区]` | 打开设置窗口，并切到指定的顶层分区。 |
 | `lertaro://settings/entry/[序号]` | 打开设置窗口，并直接跳转到某一项具体设置，并高亮显示。 |
 | `lertaro://localsend` | 打开空白的 LocalSend 发送窗口。 |
-| `lertaro://localsend/items?path=[编码后的路径]` | 向 LocalSend 添加一个或多个文件或文件夹；多个项目应重复使用 `path` 参数。 |
-| `lertaro://localsend/text?value=[编码后的文本]` | 向 LocalSend 添加文本。 |
+| `lertaro://localsend/items[/编码后的项目...]` | 切换到文件/文件夹模式，并可按路径段添加一个或多个项目。 |
+| `lertaro://localsend/text[/编码后的文本]` | 切换到文本模式，并可填入编码后的文本。 |
 
 ```
 lertaro://search/report
@@ -32,14 +32,14 @@ lertaro://settings/page/Appearance
 
 ## LocalSend 链接
 
-每个文件路径或文本值都必须经过 URL 编码。添加多个文件或文件夹时，应重复使用 `path` 参数；所有路径都必须是已经存在的绝对路径。例如：
+每个文件/文件夹路径或文本值都必须整体编码为一个 URL 路径段。添加多个项目时，为每个项目追加一个独立的编码路径段；所有路径都必须是已经存在的绝对路径。例如：
 
 ```
-lertaro://localsend/items?path=C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt&path=D%3A%5CShared%5Cb.txt
-lertaro://localsend/text?value=Hello%20world
+lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt/D%3A%5CShared
+lertaro://localsend/text/Hello%20world
 ```
 
-LocalSend 链接只会填充发送窗口，绝不会自动选择设备或开始传输。如果 LocalSend 尚未启用，Lertaro 会改为打开 LocalSend 设置页。参数无效、混用或过长时，整个请求都会被忽略。
+`lertaro://localsend/items` 会打开收集页并切到文件/文件夹模式，`lertaro://localsend/text` 则切到文本模式。带有内容的链接会继续进入设备选择，但绝不会自动选择设备或开始传输。如果发送窗口已经打开，这个链接不会执行任何操作，也不会改变窗口当前的内容或状态。如果 LocalSend 尚未启用，Lertaro 会改为打开 LocalSend 设置页。内容无效或过长时，整个请求都会被忽略。
 
 ## 无法识别的链接
 

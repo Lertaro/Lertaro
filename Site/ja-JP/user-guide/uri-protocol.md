@@ -14,8 +14,8 @@ Lertaro がまだ実行されていない場合、`lertaro://` リンクを開�
 | `lertaro://settings/page/[section]` | 設定を指定したトップレベルのセクションで開きます。 |
 | `lertaro://settings/entry/[index]` | 設定を開き、指定した特定の設定項目までジャンプしてハイライトします。 |
 | `lertaro://localsend` | 空の LocalSend 送信ウィンドウを開きます。 |
-| `lertaro://localsend/items?path=[encoded-path]` | 1つ以上のファイルまたはフォルダーを LocalSend に追加します。複数の項目には `path` を繰り返します。 |
-| `lertaro://localsend/text?value=[encoded-text]` | テキストを LocalSend に追加します。 |
+| `lertaro://localsend/items[/encoded-item...]` | ファイル/フォルダーモードに切り替え、必要に応じて項目ごとに1つのエンコード済みパスセグメントを追加します。 |
+| `lertaro://localsend/text[/encoded-text]` | テキストモードに切り替え、必要に応じてエンコード済みテキストを入力します。 |
 
 ```
 lertaro://search/report
@@ -30,14 +30,14 @@ lertaro://settings/page/Appearance
 
 ## LocalSend リンク
 
-各ファイルパスまたはテキスト値は URL エンコードする必要があります。複数のファイルやフォルダーを追加するには `path` パラメーターを繰り返します。すべてのパスは既に存在する絶対パスでなければなりません。例:
+各ファイル/フォルダーパスまたはテキスト値は、1つの完全な URL パスセグメントとしてエンコードする必要があります。複数の項目を追加するには、項目ごとに1つのエンコード済みセグメントを追加します。すべてのパスは既に存在する絶対パスでなければなりません。例:
 
 ```
-lertaro://localsend/items?path=C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt&path=D%3A%5CShared%5Cb.txt
-lertaro://localsend/text?value=Hello%20world
+lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt/D%3A%5CShared
+lertaro://localsend/text/Hello%20world
 ```
 
-LocalSend リンクは送信ウィンドウに内容を入力するだけで、デバイスの選択や転送の開始を自動的に行うことはありません。LocalSend が無効の場合は、代わりに LocalSend の設定ページが開きます。無効なパラメーター、種類の混在、長すぎる値がある場合、リクエスト全体が無視されます。
+`lertaro://localsend/items` は収集ページをファイル/フォルダーモードで開き、`lertaro://localsend/text` はテキストモードで開きます。内容を含むリンクはデバイス選択に進みますが、デバイスを自動選択したり転送を自動開始したりすることはありません。送信ウィンドウが既に開いている場合、リンクは何もせず、現在の内容や状態も変更しません。LocalSend が無効の場合は、代わりに LocalSend の設定ページが開きます。無効または長すぎる内容がある場合、リクエスト全体が無視されます。
 
 ## 認識されないリンク
 

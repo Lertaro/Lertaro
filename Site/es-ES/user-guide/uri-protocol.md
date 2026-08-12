@@ -18,8 +18,8 @@ en ejecución, la instancia en ejecución gestiona el enlace directamente — nu
 | `lertaro://settings/page/[section]` | Abre Configuración en una sección concreta de nivel superior. |
 | `lertaro://settings/entry/[index]` | Abre Configuración y salta directamente a un ajuste concreto, resaltado. |
 | `lertaro://localsend` | Abre una ventana de envío de LocalSend vacía. |
-| `lertaro://localsend/items?path=[encoded-path]` | Añade uno o más archivos o carpetas a LocalSend. Repite `path` para varios elementos. |
-| `lertaro://localsend/text?value=[encoded-text]` | Añade texto a LocalSend. |
+| `lertaro://localsend/items[/encoded-item...]` | Cambia al modo de archivos/carpetas y, opcionalmente, añade un segmento de ruta codificado por elemento. |
+| `lertaro://localsend/text[/encoded-text]` | Cambia al modo de texto y, opcionalmente, rellena el texto codificado. |
 
 ```
 lertaro://search/report
@@ -40,14 +40,14 @@ un número concreto se mantenga igual.
 
 ## Enlaces de LocalSend
 
-Cada ruta de archivo o valor de texto debe estar codificado para URL. Para añadir varios archivos o carpetas, repite el parámetro `path`; todas las rutas deben ser absolutas y existir previamente. Por ejemplo:
+Cada ruta de archivo/carpeta o valor de texto debe codificarse como un segmento de ruta URL completo. Para añadir varios elementos, agrega un segmento codificado por elemento; todas las rutas deben ser absolutas y existir previamente. Por ejemplo:
 
 ```
-lertaro://localsend/items?path=C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt&path=D%3A%5CShared%5Cb.txt
-lertaro://localsend/text?value=Hello%20world
+lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt/D%3A%5CShared
+lertaro://localsend/text/Hello%20world
 ```
 
-Un enlace de LocalSend solo rellena la ventana de envío. Nunca selecciona un dispositivo ni inicia una transferencia automáticamente. Si LocalSend está desactivado, Lertaro abre su página de configuración de LocalSend. Los parámetros no válidos, mezclados o demasiado largos hacen que se ignore toda la solicitud.
+`lertaro://localsend/items` abre la página de recopilación en modo de archivos/carpetas, mientras que `lertaro://localsend/text` la abre en modo de texto. Un enlace con contenido avanza a la selección de dispositivos, pero nunca selecciona un dispositivo ni inicia una transferencia automáticamente. Si ya hay una ventana de envío abierta, el enlace no hace nada ni cambia su contenido o estado actual. Si LocalSend está desactivado, Lertaro abre su página de configuración de LocalSend. El contenido no válido o demasiado largo hace que se ignore toda la solicitud.
 
 ## Enlaces no reconocidos
 

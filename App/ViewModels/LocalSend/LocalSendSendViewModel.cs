@@ -19,13 +19,16 @@ public sealed class LocalSendSendViewModel : ViewModelBase, IDisposable
 
     public event EventHandler? SendSuccessCompleted;
 
-    public LocalSendSendViewModel(IEnumerable<string>? initialFiles = null, string? initialText = null)
+    public LocalSendSendViewModel(
+        IEnumerable<string>? initialFiles = null,
+        string? initialText = null,
+        LocalSendSendMode? initialMode = null)
     {
         var hasFiles = initialFiles != null && initialFiles.Any();
         var hasText = !string.IsNullOrEmpty(initialText);
         _isFromAction = hasFiles || hasText;
         _currentStep = _isFromAction ? 1 : 0;
-        _selectedMode = hasText && !hasFiles ? 1 : 0;
+        _selectedMode = initialMode == LocalSendSendMode.Text || (initialMode == null && hasText && !hasFiles) ? 1 : 0;
 
         TargetFiles = new ObservableCollection<string>(initialFiles ?? Array.Empty<string>());
         _textToSend = initialText ?? string.Empty;
@@ -107,12 +110,12 @@ public sealed class LocalSendSendViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanGoNextStep));
     }
 
-    public void SetText(string text)
+    public void SetMode(LocalSendSendMode mode, string? text = null, bool proceed = false)
     {
-        SelectedMode = 1;
-        TextToSend = text;
-        _isFromAction = true;
-        CurrentStep = 1;
+        SelectedMode = mode == LocalSendSendMode.Text ? 1 : 0;
+        if (mode == LocalSendSendMode.Text) TextToSend = text ?? string.Empty;
+        _isFromAction = proceed;
+        CurrentStep = proceed ? 1 : 0;
         OnPropertyChanged(nameof(IsFromAction));
     }
 

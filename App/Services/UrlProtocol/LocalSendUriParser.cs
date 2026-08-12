@@ -1,12 +1,10 @@
 using System.IO;
-using System.Net;
-
 namespace Lertaro.App.Services.UrlProtocol;
 
 internal enum LocalSendUriRequestKind
 {
     Open,
-    Files,
+    Items,
     Text
 }
 
@@ -18,7 +16,7 @@ internal sealed record LocalSendUriRequest(
 internal static class LocalSendUriParser
 {
     internal const int MaxUriLength = 32767;
-    internal const int MaxPathCount = 100;
+    internal const int MaxItemCount = 100;
     internal const int MaxTextLength = 16384;
 
     public static bool TryParse(Uri uri, out LocalSendUriRequest? request)
@@ -31,41 +29,45 @@ internal static class LocalSendUriParser
             return false;
         }
 
-        var subRoute = uri.AbsolutePath.Trim('/');
-        if (subRoute.Length == 0)
+        if (uri.Query.Length != 0) return false;
+
+        var segments = uri.AbsolutePath.TrimStart('/').Split('/').ToList();
+        if (segments.Count > 1 && segments[^1].Length == 0) segments.RemoveAt(segments.Count - 1);
+        if (segments.Any(segment => segment.Length == 0))
         {
-            if (uri.Query.Length != 0) return false;
+            if (segments.Count != 1) return false;
+            segments.Clear();
+        }
+
+        if (segments.Count == 0)
+        {
             request = new LocalSendUriRequest(LocalSendUriRequestKind.Open);
             return true;
         }
 
-        if (!TryParseQuery(uri.Query, out var parameters)) return false;
-
+        var subRoute = segments[0];
+        var encodedValues = segments.Skip(1).ToArray();
         if (subRoute.Equals("items", StringComparison.OrdinalIgnoreCase))
-            return TryCreateFilesRequest(parameters, out request);
+            return TryCreateItemsRequest(encodedValues, out request);
 
         if (subRoute.Equals("text", StringComparison.OrdinalIgnoreCase))
-            return TryCreateTextRequest(parameters, out request);
+            return TryCreateTextRequest(encodedValues, out request);
 
         return false;
     }
 
-    private static bool TryCreateFilesRequest(
-        IReadOnlyList<KeyValuePair<string, string>> parameters,
+    private static bool TryCreateItemsRequest(
+        IReadOnlyList<string> encodedValues,
         out LocalSendUriRequest? request)
     {
         request = null;
-        if (parameters.Count is 0 or > MaxPathCount
-            || parameters.Any(p => !p.Key.Equals("path", StringComparison.OrdinalIgnoreCase)))
-        {
-            return false;
-        }
+        if (encodedValues.Count > MaxItemCount) return false;
 
-        var paths = new List<string>(parameters.Count);
+        var paths = new List<string>(encodedValues.Count);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var parameter in parameters)
+        foreach (var encodedValue in encodedValues)
         {
-            var path = parameter.Value;
+            if (!TryDecodeSegment(encodedValue, out var path)) return false;
             if (path.Length == 0 || path.IndexOf('\0') >= 0 || !Path.IsPathFullyQualified(path)) return false;
 
             try
@@ -81,48 +83,33 @@ internal static class LocalSendUriParser
             if (seen.Add(path)) paths.Add(path);
         }
 
-        if (paths.Count == 0) return false;
-        request = new LocalSendUriRequest(LocalSendUriRequestKind.Files, paths);
+        request = new LocalSendUriRequest(LocalSendUriRequestKind.Items, paths);
         return true;
     }
 
     private static bool TryCreateTextRequest(
-        IReadOnlyList<KeyValuePair<string, string>> parameters,
+        IReadOnlyList<string> encodedValues,
         out LocalSendUriRequest? request)
     {
         request = null;
-        if (parameters.Count != 1
-            || !parameters[0].Key.Equals("value", StringComparison.OrdinalIgnoreCase)
-            || string.IsNullOrWhiteSpace(parameters[0].Value)
-            || parameters[0].Value.Length > MaxTextLength)
+        if (encodedValues.Count == 0)
         {
-            return false;
+            request = new LocalSendUriRequest(LocalSendUriRequestKind.Text);
+            return true;
         }
 
-        request = new LocalSendUriRequest(LocalSendUriRequestKind.Text, Text: parameters[0].Value);
+        if (encodedValues.Count != 1 || !TryDecodeSegment(encodedValues[0], out var text)
+            || text.Length > MaxTextLength || text.IndexOf('\0') >= 0) return false;
+
+        request = new LocalSendUriRequest(LocalSendUriRequestKind.Text, Text: text);
         return true;
     }
 
-    private static bool TryParseQuery(string query, out List<KeyValuePair<string, string>> parameters)
+    private static bool TryDecodeSegment(string encodedValue, out string value)
     {
-        parameters = new List<KeyValuePair<string, string>>();
-        if (query.Length <= 1) return false;
-
-        foreach (var pair in query.AsSpan(1).ToString().Split('&'))
-        {
-            if (pair.Length == 0) return false;
-            var separator = pair.IndexOf('=');
-            if (separator <= 0) return false;
-
-            var encodedKey = pair[..separator];
-            var encodedValue = pair[(separator + 1)..];
-            if (!HasValidEscapes(encodedKey) || !HasValidEscapes(encodedValue)) return false;
-
-            parameters.Add(new KeyValuePair<string, string>(
-                WebUtility.UrlDecode(encodedKey),
-                WebUtility.UrlDecode(encodedValue)));
-        }
-
+        value = string.Empty;
+        if (encodedValue.Length == 0 || !HasValidEscapes(encodedValue)) return false;
+        value = Uri.UnescapeDataString(encodedValue);
         return true;
     }
 

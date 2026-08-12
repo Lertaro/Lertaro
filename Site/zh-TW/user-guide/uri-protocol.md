@@ -15,8 +15,8 @@ Lertaro 會自動把自己註冊為 `lertaro://` 連結的處理常式——不�
 | `lertaro://settings/page/[分區]` | 開啟設定視窗，並切到指定的頂層分區。 |
 | `lertaro://settings/entry/[序號]` | 開啟設定視窗，並直接跳轉到某一項具體設定，並高亮顯示。 |
 | `lertaro://localsend` | 開啟空白的 LocalSend 傳送視窗。 |
-| `lertaro://localsend/items?path=[編碼後的路徑]` | 向 LocalSend 加入一個或多個檔案或資料夾；多個項目應重複使用 `path` 參數。 |
-| `lertaro://localsend/text?value=[編碼後的文字]` | 向 LocalSend 加入文字。 |
+| `lertaro://localsend/items[/編碼後的項目...]` | 切換到檔案/資料夾模式，並可按路徑段加入一個或多個項目。 |
+| `lertaro://localsend/text[/編碼後的文字]` | 切換到文字模式，並可填入編碼後的文字。 |
 
 ```
 lertaro://search/report
@@ -32,14 +32,14 @@ lertaro://settings/page/Appearance
 
 ## LocalSend 連結
 
-每個檔案路徑或文字值都必須經過 URL 編碼。加入多個檔案或資料夾時，應重複使用 `path` 參數；所有路徑都必須是已經存在的絕對路徑。例如：
+每個檔案/資料夾路徑或文字值都必須整體編碼為一個 URL 路徑段。加入多個項目時，為每個項目附加一個獨立的編碼路徑段；所有路徑都必須是已經存在的絕對路徑。例如：
 
 ```
-lertaro://localsend/items?path=C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt&path=D%3A%5CShared%5Cb.txt
-lertaro://localsend/text?value=Hello%20world
+lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt/D%3A%5CShared
+lertaro://localsend/text/Hello%20world
 ```
 
-LocalSend 連結只會填入傳送視窗，絕不會自動選擇裝置或開始傳輸。如果 LocalSend 尚未啟用，Lertaro 會改為開啟 LocalSend 設定頁。參數無效、混用或過長時，整個要求都會被忽略。
+`lertaro://localsend/items` 會開啟收集頁並切到檔案/資料夾模式，`lertaro://localsend/text` 則切到文字模式。帶有內容的連結會繼續進入裝置選擇，但絕不會自動選擇裝置或開始傳輸。如果傳送視窗已經開啟，這個連結不會執行任何操作，也不會改變視窗目前的內容或狀態。如果 LocalSend 尚未啟用，Lertaro 會改為開啟 LocalSend 設定頁。內容無效或過長時，整個要求都會被忽略。
 
 ## 無法識別的連結
 

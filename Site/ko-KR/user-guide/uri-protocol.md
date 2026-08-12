@@ -18,8 +18,8 @@ Lertaro가 아직 실행 중이 아니라면, `lertaro://` 링크를 열면 앱�
 | `lertaro://settings/page/[section]` | 설정을 특정 최상위 섹션으로 엽니다. |
 | `lertaro://settings/entry/[index]` | 설정을 열고 강조 표시된 상태로 특정 설정 항목 하나로 바로 이동합니다. |
 | `lertaro://localsend` | 빈 LocalSend 보내기 창을 엽니다. |
-| `lertaro://localsend/items?path=[encoded-path]` | 하나 이상의 파일이나 폴더를 LocalSend에 추가합니다. 여러 항목은 `path`를 반복합니다. |
-| `lertaro://localsend/text?value=[encoded-text]` | 텍스트를 LocalSend에 추가합니다. |
+| `lertaro://localsend/items[/encoded-item...]` | 파일/폴더 모드로 전환하고 선택적으로 항목마다 인코딩된 경로 세그먼트 하나를 추가합니다. |
+| `lertaro://localsend/text[/encoded-text]` | 텍스트 모드로 전환하고 선택적으로 인코딩된 텍스트를 입력합니다. |
 
 ```
 lertaro://search/report
@@ -40,14 +40,14 @@ lertaro://settings/page/Appearance
 
 ## LocalSend 링크
 
-각 파일 경로나 텍스트 값은 URL 인코딩해야 합니다. 여러 파일이나 폴더를 추가하려면 `path` 매개변수를 반복합니다. 모든 경로는 이미 존재하는 절대 경로여야 합니다. 예:
+각 파일/폴더 경로나 텍스트 값은 하나의 완전한 URL 경로 세그먼트로 인코딩해야 합니다. 여러 항목을 추가하려면 항목마다 인코딩된 세그먼트 하나를 추가합니다. 모든 경로는 이미 존재하는 절대 경로여야 합니다. 예:
 
 ```
-lertaro://localsend/items?path=C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt&path=D%3A%5CShared%5Cb.txt
-lertaro://localsend/text?value=Hello%20world
+lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt/D%3A%5CShared
+lertaro://localsend/text/Hello%20world
 ```
 
-LocalSend 링크는 보내기 창에 내용만 채웁니다. 장치를 선택하거나 전송을 자동으로 시작하지 않습니다. LocalSend가 비활성화되어 있으면 대신 LocalSend 설정 페이지를 엽니다. 잘못되거나 혼합되거나 너무 긴 매개변수가 있으면 전체 요청을 무시합니다.
+`lertaro://localsend/items`는 수집 페이지를 파일/폴더 모드로 열고 `lertaro://localsend/text`는 텍스트 모드로 엽니다. 내용이 있는 링크는 장치 선택으로 진행하지만 장치를 자동 선택하거나 전송을 자동 시작하지 않습니다. 보내기 창이 이미 열려 있으면 링크는 아무 작업도 하지 않으며 현재 내용이나 상태도 변경하지 않습니다. LocalSend가 비활성화되어 있으면 대신 LocalSend 설정 페이지를 엽니다. 잘못되거나 너무 긴 내용이 있으면 전체 요청을 무시합니다.
 
 ## 인식되지 않는 링크
 

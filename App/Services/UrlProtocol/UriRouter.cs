@@ -1,7 +1,8 @@
 using Lertaro.Core;
-using Lertaro.Core.Services.LocalSend;
 
+using Lertaro.App.Helpers.LocalSend;
 using Lertaro.App.Services.AppWindow;
+using Lertaro.App.ViewModels.LocalSend;
 namespace Lertaro.App.Services.UrlProtocol;
 
 // Routes a "lertaro://" URI to the matching in-app action. Reached from two places (see App.xaml.cs):
@@ -74,7 +75,13 @@ public static class UriRouter
             return;
         }
 
-        LocalSendServiceManager.Instance.OpenSendWindow(request.Files, request.Text);
+        var mode = request.Kind switch
+        {
+            LocalSendUriRequestKind.Items => LocalSendSendMode.Items,
+            LocalSendUriRequestKind.Text => LocalSendSendMode.Text,
+            _ => (LocalSendSendMode?)null
+        };
+        LocalSendAppEventHandler.OpenSendWindow(request.Files, request.Text, mode, ignoreIfOpen: true);
     }
 
     // "page/<section>" switches to a top-level sidebar section (e.g. "page/Index"), matching the tag
