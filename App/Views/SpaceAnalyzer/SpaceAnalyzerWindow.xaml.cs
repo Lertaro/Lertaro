@@ -109,10 +109,13 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         _refreshWatcher.Watch(_history[^1].Path);
     }
 
-    private async void NavigateTo(SpaceDisplayItem item)
+    private async void ActivateItem(SpaceDisplayItem item)
     {
         if (!item.IsDirectory)
+        {
+            FileExecutor.LocateInExplorer(item.Path);
             return;
+        }
         ItemsList.SelectedItem = null;
         _history.Add(new Location(item.Path, item.Name));
         await ReloadAsync();
@@ -160,12 +163,19 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
 
     private void RenderTreemap()
         => SpaceTreemapPresenter.Render(TreemapCanvas, _items, ItemsList.SelectedItem as SpaceDisplayItem,
-            item => ItemsList.SelectedItem = item, NavigateFromTreemap, ShowActions);
+            SelectFromTreemap, NavigateFromTreemap, ShowActions);
+
+    private void SelectFromTreemap(SpaceDisplayItem item)
+    {
+        ItemsList.SelectedItem = item;
+        ItemsList.ScrollIntoView(item);
+    }
 
     private void NavigateFromTreemap(SpaceDisplayItem item)
     {
-        TreemapCanvas.CaptureMouse();
-        NavigateTo(item);
+        if (item.IsDirectory)
+            TreemapCanvas.CaptureMouse();
+        ActivateItem(item);
     }
 
     private void ShowActions(SpaceDisplayItem item)
@@ -257,7 +267,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         if (e.ChangedButton != MouseButton.Left)
             return;
         if (ItemsList.SelectedItem is SpaceDisplayItem item)
-            NavigateTo(item);
+            ActivateItem(item);
     }
     private void ItemsList_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {

@@ -4,6 +4,7 @@ using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Services;
 using Lertaro.App.ViewModels.SpaceAnalyzer;
 using Brush = System.Windows.Media.Brush;
+using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 using Colors = System.Windows.Media.Colors;
 using SolidColorBrush = System.Windows.Media.SolidColorBrush;
@@ -51,20 +52,30 @@ internal static class SpaceTreemapPresenter
         const double gap = 2;
         var color = TileColor(tile.Size, largestSize);
         var isDirectory = tile.Item?.IsDirectory == true;
-        var outline = (Application.Current.TryFindResource("TextPrimary") as SolidColorBrush)?.Color ?? Colors.White;
+        var isSelected = tile.Item != null && selected != null &&
+            string.Equals(tile.Item.Path, selected.Path, StringComparison.OrdinalIgnoreCase);
+        var typeBrush = isDirectory
+            ? DirectoryOutlineBrush()
+            : Application.Current.TryFindResource("FileIconColor") as Brush ?? ContrastBrush(color);
         var label = CreateLabel(tile, box.Width, box.Height, color);
+        var content = new Border
+        {
+            Background = new SolidColorBrush(color),
+            BorderBrush = typeBrush,
+            BorderThickness = new Thickness(isDirectory ? 2 : 1),
+            CornerRadius = new CornerRadius(isDirectory ? 8 : 3),
+            Child = label
+        };
         var border = new Border
         {
             Width = Math.Max(0, box.Width - gap),
             Height = Math.Max(0, box.Height - gap),
-            CornerRadius = new CornerRadius(Math.Min(10, Math.Max(2, Math.Min(box.Width, box.Height) / 8))),
-            Background = new SolidColorBrush(color),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(isDirectory ? (byte)150 : (byte)64, outline.R, outline.G, outline.B)),
-            BorderThickness = tile.Item != null && ReferenceEquals(tile.Item, selected)
-                ? new Thickness(3)
-                : new Thickness(isDirectory ? 2 : 1),
+            CornerRadius = new CornerRadius(isDirectory ? 11 : 6),
+            BorderBrush = isSelected ? ThemeOutlineBrush(0.76) : Brushes.Transparent,
+            BorderThickness = new Thickness(3),
+            Padding = new Thickness(1),
             Cursor = tile.Item == null ? Cursors.Arrow : Cursors.Hand,
-            Child = label
+            Child = content
         };
         TrimmedTextToolTip.SetText(border, $"{tile.Name}{Environment.NewLine}{SpaceSizeFormatter.Format(tile.Size)}");
         Canvas.SetLeft(border, box.X + gap / 2);
@@ -82,7 +93,7 @@ internal static class SpaceTreemapPresenter
             };
             border.MouseLeftButtonDown += (_, e) =>
             {
-                if (e.ClickCount == 2 && tile.Item.IsDirectory)
+                if (e.ClickCount == 2)
                 {
                     opening = true;
                     open(tile.Item);
@@ -133,12 +144,22 @@ internal static class SpaceTreemapPresenter
         return Blend(background, accent, CalculateAccentAmount(size, largestSize));
     }
 
+    private static Brush DirectoryOutlineBrush() => ThemeOutlineBrush(0.42);
+
+    private static Brush ThemeOutlineBrush(double contrastAmount)
+    {
+        var accent = (Application.Current.TryFindResource("AccentColor") as SolidColorBrush)?.Color ?? Colors.DodgerBlue;
+        var background = (Application.Current.TryFindResource("ContentBg") as SolidColorBrush)?.Color ?? Colors.White;
+        var contrast = IsLight(background) ? Colors.Black : Colors.White;
+        return new SolidColorBrush(Blend(accent, contrast, contrastAmount));
+    }
+
     // Normalize each visible item's share against the largest visible share. The square root keeps
     // small items distinguishable instead of compressing almost every tile into the darkest shade.
     internal static double CalculateAccentAmount(long size, long largestSize)
     {
-        const double minimum = 0.52;
-        const double range = 0.38;
+        const double minimum = 0.34;
+        const double range = 0.60;
         var ratio = largestSize > 0 ? Math.Clamp((double)size / largestSize, 0, 1) : 0;
         return minimum + Math.Sqrt(ratio) * range;
     }
@@ -149,7 +170,9 @@ internal static class SpaceTreemapPresenter
         (byte)(from.B + (to.B - from.B) * amount));
 
     private static Brush ContrastBrush(Color color)
-        => new SolidColorBrush((color.R * 299 + color.G * 587 + color.B * 114) / 1000 >= 150 ? Colors.Black : Colors.White);
+        => new SolidColorBrush(IsLight(color) ? Colors.Black : Colors.White);
+
+    private static bool IsLight(Color color) => (color.R * 299 + color.G * 587 + color.B * 114) / 1000 >= 150;
 
     private static long SaturatingAdd(long left, long right) => left > long.MaxValue - right ? long.MaxValue : left + right;
 
