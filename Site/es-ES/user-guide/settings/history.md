@@ -7,6 +7,8 @@ Dos pestañas, cada una independiente: **Historial de búsqueda** e **Historial 
 Registra los resultados que realmente has abierto, para que se puedan priorizar la próxima vez que busques algo
 similar.
 
+El Historial de búsqueda recuerda tanto la ruta abierta como la consulta que llevó hasta ella. Una coincidencia difusa posterior con esa consulta registrada puede recuperar y priorizar la ruta existente en las ventanas de búsqueda rápida, integrada y completa; por ejemplo, abrir `BCompare.exe` con `bcomp` permite que `bc` vuelva a mostrarlo cerca del principio. La búsqueda integrada conserva las coincidencias dentro de la carpeta activa en **Carpeta actual** y coloca las demás en **Búsqueda global**; las rutas que ya no existen se ignoran y cada ruta solo aparece una vez.
+
 - Casilla **Habilitar historial** — activa/desactiva el registro; las entradas existentes se conservan aunque lo
   desactives, simplemente dejan de añadirse nuevas.
 - **Cuadro de búsqueda** — filtra la lista de historial visible por palabra clave.

@@ -11,6 +11,7 @@ Abre la ventana de búsqueda completa de Lertaro y deja vacío el cuadro de bús
 - El mapa de árbol de la izquierda asigna más superficie a los elementos grandes. Los tonos claros y oscuros indican el tamaño relativo, mientras que los bordes distinguen las carpetas de los archivos.
 - La lista de la derecha muestra los mismos elementos ordenados por tamaño descendente. Una barra fina bajo cada fila indica su proporción respecto al total visible de la ubicación actual. Seleccionar un elemento en una vista también lo resalta en la otra.
 - Haz clic con el botón derecho en una tarjeta o fila para abrir el mismo menú de acciones de los resultados de búsqueda, con opciones para abrir, localizar, copiar y ejecutar las acciones de plugins aplicables.
+- Haz clic con el botón central en una tarjeta o fila para localizarla en el gestor de archivos configurado, con el mismo comportamiento que al hacer doble clic en un archivo.
 - Selecciona una tarjeta o fila y usa el atajo de vista previa configurado para abrir la vista previa de la ventana de búsqueda completa; una vista previa abierta seguirá las selecciones posteriores.
 - Los nombres que desbordan la lista de la derecha se desplazan mientras la fila está seleccionada o bajo el puntero, en lugar de mostrar información emergente.
 

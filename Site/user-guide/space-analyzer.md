@@ -11,6 +11,7 @@ Open Lertaro's full search window and leave the search box empty. Space Analyzer
 - The treemap on the left gives larger items more area. Light and dark shades indicate relative size, while different borders distinguish folders from files.
 - The list on the right shows the same items in descending size order. A thin bar under each row shows its share of the current location's visible total. Selecting an item in either view highlights it in both.
 - Right-click a card or list row to open the same actions menu used by search results, including opening, locating, copying, and any applicable plugin actions.
+- Middle-click a card or list row to locate it in the configured file manager, using the same behavior as double-clicking a file.
 - Select a card or list row and use the configured preview shortcut to open the full search window's preview; an open preview follows subsequent selections.
 - An overflowing name in the right-hand list scrolls while its row is selected or hovered, instead of showing a tooltip.
 
