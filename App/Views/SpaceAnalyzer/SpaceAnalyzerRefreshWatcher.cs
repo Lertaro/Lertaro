@@ -35,12 +35,12 @@ internal sealed class SpaceAnalyzerRefreshWatcher : IDisposable
         _timer.Tick += OnTimerTick;
     }
 
-    public void Watch(string? directory)
+    public void Watch(IReadOnlyList<string?> locations)
     {
         if (_disposed)
             return;
-        var atRoot = string.IsNullOrEmpty(directory);
-        var watched = atRoot ? LocalRoots : new[] { directory! };
+        var atRoot = locations.Count == 0 || string.IsNullOrEmpty(locations[^1]);
+        var watched = ResolveWatchedPaths(locations);
         var unchanged = _atRoot == atRoot && _watchedPaths.SequenceEqual(watched, StringComparer.OrdinalIgnoreCase);
         if (!_networkSubscribed)
         {
@@ -59,6 +59,11 @@ internal sealed class SpaceAnalyzerRefreshWatcher : IDisposable
         _directoryCts = subscription;
         _ = Task.Run(() => WatchLocalDirectoriesAsync(watched, subscription.Token));
     }
+
+    internal static string[] ResolveWatchedPaths(IReadOnlyList<string?> locations) =>
+        locations.Count == 0 || string.IsNullOrEmpty(locations[^1])
+            ? LocalRoots
+            : locations.OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
 
     private async Task WatchLocalDirectoriesAsync(IReadOnlyList<string> watched, CancellationToken token)
     {

@@ -105,6 +105,7 @@ public class SearchEngine : IDisposable
         if (drivesChanged)
         {
             RefreshDrivesInStatus();
+            _indexer.RaiseDirectoriesChanged(string.Empty, null);
         }
     }
 

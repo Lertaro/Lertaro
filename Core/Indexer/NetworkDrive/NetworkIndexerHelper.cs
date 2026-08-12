@@ -4,6 +4,13 @@ namespace Lertaro.Core.Indexer.NetworkDrive;
 
 internal static class NetworkIndexerHelper
 {
+    public static List<string> FindChangedRoots(IEnumerable<string> previous, IEnumerable<string> current)
+    {
+        var changed = previous.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        changed.SymmetricExceptWith(current);
+        return changed.OrderBy(root => root, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
     public static string ResolveDriveFromId(string id)
     {
         if (string.IsNullOrWhiteSpace(id))

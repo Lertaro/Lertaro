@@ -10,6 +10,16 @@ namespace Lertaro.Core.Tests.Indexer.NetworkDrive;
 public sealed class NetworkIndexerHelperTests
 {
     [TestMethod]
+    public void FindChangedRoots_ReturnsAddedAndRemovedRootsOnly()
+    {
+        var changed = NetworkIndexerHelper.FindChangedRoots(
+            [@"C:\Stable", @"C:\Indexed"],
+            [@"c:\stable", @"Z:\New"]);
+
+        CollectionAssert.AreEqual(new[] { @"C:\Indexed", @"Z:\New" }, changed);
+    }
+
+    [TestMethod]
     public void CreateStatus_NoIndexNoCurrent_UsesZeroDefaults()
     {
         var status = NetworkIndexerHelper.CreateStatus("Z", "Idle", 0, index: null, current: null);

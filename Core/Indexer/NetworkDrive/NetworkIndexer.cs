@@ -30,7 +30,7 @@ public sealed class NetworkIndexer : IDisposable
             GetStatuses,
             statuses => StatusesChanged?.Invoke(statuses),
             (drive, reason) => _scheduler?.QueueRefreshDrive(drive, reason),
-            (drive, changedDirectories) => DirectoriesChanged?.Invoke(drive, changedDirectories));
+            NotifyDirectoriesChanged);
 
         _watcherManager = new WatcherManager(
             (drive, reason) => _scheduler?.QueueRefreshDrive(drive, reason),
@@ -110,9 +110,11 @@ public sealed class NetworkIndexer : IDisposable
         var cachedDrives = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var lastUpdatedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
         var removedIndexes = new List<NetworkIndex>();
+        List<string> changedRoots;
 
         lock (_gate)
         {
+            changedRoots = NetworkIndexerHelper.FindChangedRoots(_refreshModes.Keys, enabledDrives);
             foreach (var removed in _indexes.Keys.Except(enabledDrives, StringComparer.OrdinalIgnoreCase).ToList())
             {
                 if (_indexes.Remove(removed, out var removedIndex))
@@ -163,6 +165,8 @@ public sealed class NetworkIndexer : IDisposable
 
         _scheduler?.StartRefresh(enabledDrives, refreshModes, forceRefresh ? null : cachedDrives, forceRefresh ? null : lastUpdatedTimes);
         _publisher.PublishStatusesChanged();
+        foreach (var root in changedRoots)
+            NotifyDirectoriesChanged(root, null);
     }
 
     public bool RefreshDrive(string drive)
@@ -223,6 +227,7 @@ public sealed class NetworkIndexer : IDisposable
         }
         removedIndex?.Dispose();
         _publisher.PublishStatusesChanged();
+        NotifyDirectoriesChanged(drive, null);
     }
 
     // Called whenever a search window closes/hides (mirrors ShellIconHelper.ClearCache()'s existing
@@ -240,6 +245,12 @@ public sealed class NetworkIndexer : IDisposable
             index.ClearPathCache();
             index.ClearCaches();
         }
+    }
+
+    private void NotifyDirectoriesChanged(string drive, IReadOnlyCollection<string>? changedDirectories)
+    {
+        try { DirectoriesChanged?.Invoke(drive, changedDirectories); }
+        catch (Exception ex) { Logger.Log($"[NetworkIndexer] A directory-change subscriber threw: {ex.Message}", LogLevel.Error); }
     }
 
     public void Dispose()

@@ -16,7 +16,7 @@ using UserControl = System.Windows.Controls.UserControl;
 namespace Lertaro.App.Views.SpaceAnalyzer;
 public partial class SpaceAnalyzerView : UserControl, IDisposable
 {
-    private readonly List<Location> _history = [];
+    private readonly List<SpaceAnalyzerLocation> _history = [];
     private readonly SearchService _searchService = new();
     private readonly SpaceAnalyzerRefreshWatcher _refreshWatcher;
     private readonly SpaceAnalyzerPreviewSupport _previewSupport;
@@ -51,15 +51,15 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
         if (!_initialized)
         {
             _initialized = true;
-            _history.Add(new Location(null, TranslationManager.Instance["Space_Home"]));
-            _refreshWatcher.Watch(null);
+            _history.Add(new SpaceAnalyzerLocation(null, TranslationManager.Instance["Space_Home"]));
+            _refreshWatcher.Watch(_history.Select(location => location.Path).ToList());
             await ReloadAsync();
             return;
         }
         ItemsList.SelectedItem = null;
         if (_history.Count > 1)
             _history.RemoveRange(1, _history.Count - 1);
-        _refreshWatcher.Watch(null);
+        _refreshWatcher.Watch(_history.Select(location => location.Path).ToList());
         _previewSupport.SetVisible(true);
         await ReloadAsync();
     }
@@ -79,6 +79,7 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
 
         try
         {
+            if (background) await SpaceAnalyzerLocationResolver.TrimUnavailableAsync(_history, _searchService.GetSpaceEntriesAsync, token);
             var entries = await _searchService.GetSpaceEntriesAsync(_history[^1].Path, token);
             token.ThrowIfCancellationRequested();
             var totalSize = entries.Aggregate(0L, static (sum, entry) => sum > long.MaxValue - entry.Size ? long.MaxValue : sum + entry.Size);
@@ -124,7 +125,7 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
         UpdateSummary();
         RenderTreemap();
         if (IsVisible)
-            _refreshWatcher.Watch(_history[^1].Path);
+            _refreshWatcher.Watch(_history.Select(location => location.Path).ToList());
     }
 
     private async void ActivateItem(SpaceDisplayItem item)
@@ -135,7 +136,7 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
             return;
         }
         ItemsList.SelectedItem = null;
-        _history.Add(new Location(item.Path, item.Name));
+        _history.Add(new SpaceAnalyzerLocation(item.Path, item.Name));
         await ReloadAsync();
     }
 
@@ -294,6 +295,4 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
         e.Handled = true;
     }
     private void Back_Click(object sender, RoutedEventArgs e) => NavigateToHistory(_history.Count - 2);
-
-    private readonly record struct Location(string? Path, string Name);
 }

@@ -124,6 +124,7 @@ internal sealed class SearchEngineDriveMaintenance
             }
         }
         Logger.Log($"[SearchEngine] Deleted cached index for drive {drive} by client request.");
+        _indexer.RaiseDirectoriesChanged(drive, null);
         return true;
     }
 
