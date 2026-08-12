@@ -4,14 +4,15 @@ The Space Analyzer turns Lertaro's existing file indexes into a fast, SpaceSniff
 
 ## Open the analyzer
 
-Open Lertaro's full search window and leave the search box empty. Space Analyzer appears automatically as the window's home page and shows every index currently loaded by Lertaro. Typing a query switches to search results immediately; clearing the query returns to the analyzer at the same location. Double-click a drive or folder with the left mouse button to enter it; use the up arrow or any breadcrumb to go back.
+Open Lertaro's full search window and leave the search box empty. Space Analyzer appears automatically as the window's home page and shows every index currently loaded by Lertaro. Typing a query switches to search results immediately; clearing the query returns to the analyzer at its root. Double-click a drive or folder with the left mouse button to enter it; use the up arrow or any breadcrumb to go back.
 
 ## Read and use the view
 
 - The treemap on the left gives larger items more area. Light and dark shades indicate relative size, while different borders distinguish folders from files.
 - The list on the right shows the same items in descending size order. A thin bar under each row shows its share of the current location's visible total. Selecting an item in either view highlights it in both.
 - Right-click a card or list row to open the same actions menu used by search results, including opening, locating, copying, and any applicable plugin actions.
-- Tooltips appear only when the name or size has been truncated.
+- Select a card or list row and use the configured preview shortcut to open the full search window's preview; an open preview follows subsequent selections.
+- An overflowing name in the right-hand list scrolls while its row is selected or hovered, instead of showing a tooltip.
 
 ## What is counted
 

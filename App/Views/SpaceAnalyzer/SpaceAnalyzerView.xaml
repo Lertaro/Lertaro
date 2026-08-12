@@ -137,7 +137,7 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Grid helpers:TrimmedTextToolTip.Text="{Binding ToolTipText}">
+                                <Grid>
                                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Grid.RowSpan="2" FontFamily="Segoe MDL2 Assets" FontSize="14"
@@ -153,7 +153,11 @@
                                             </Style>
                                         </TextBlock.Style>
                                     </TextBlock>
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" FontSize="12.5" VerticalAlignment="Center"/>
+                                    <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                                                  Focusable="False" Background="Transparent">
+                                        <TextBlock Text="{Binding Name}" FontSize="12.5" VerticalAlignment="Center"
+                                                   helpers:MarqueeBehavior.EnableMarquee="True"/>
+                                    </ScrollViewer>
                                     <TextBlock Grid.Column="2" Text="{Binding DisplaySize}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                Foreground="{DynamicResource TextSecondary}" FontSize="11.5" Margin="10,0,0,0"/>
                                     <ProgressBar Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Value="{Binding RelativePercentage}"

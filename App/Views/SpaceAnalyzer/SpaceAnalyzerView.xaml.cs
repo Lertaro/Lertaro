@@ -19,6 +19,7 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
     private readonly List<Location> _history = [];
     private readonly SearchService _searchService = new();
     private readonly SpaceAnalyzerRefreshWatcher _refreshWatcher;
+    private readonly SpaceAnalyzerPreviewSupport _previewSupport;
     private IReadOnlyList<SpaceDisplayItem> _items = Array.Empty<SpaceDisplayItem>();
     private CancellationTokenSource? _loadCts;
     private bool _isLoading;
@@ -29,6 +30,7 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
     {
         InitializeComponent();
         _refreshWatcher = new SpaceAnalyzerRefreshWatcher(Dispatcher, ReloadFromEventAsync);
+        _previewSupport = new SpaceAnalyzerPreviewSupport(this, () => (ItemsList.SelectedItem as SpaceDisplayItem)?.Path);
         ThemeManager.Instance.ThemeChanged += OnThemeChanged;
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;
         IsVisibleChanged += OnIsVisibleChanged;
@@ -42,10 +44,10 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
         {
             _loadCts?.Cancel();
             _refreshWatcher.Pause();
+            _previewSupport.SetVisible(false);
             ActionFlyout.Close();
             return;
         }
-
         if (!_initialized)
         {
             _initialized = true;
@@ -54,9 +56,12 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
             await ReloadAsync();
             return;
         }
-
-        _refreshWatcher.Watch(_history[^1].Path);
-        await ReloadAsync(background: true);
+        ItemsList.SelectedItem = null;
+        if (_history.Count > 1)
+            _history.RemoveRange(1, _history.Count - 1);
+        _refreshWatcher.Watch(null);
+        _previewSupport.SetVisible(true);
+        await ReloadAsync();
     }
     private Task ReloadFromEventAsync() => _isLoading || !IsVisible ? Task.CompletedTask : ReloadAsync(background: true);
     private async Task ReloadAsync(bool background = false)
@@ -149,7 +154,7 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
         for (var index = 0; index < _history.Count; index++)
         {
             if (index > 0)
-                BreadcrumbPanel.Children.Add(CreateBreadcrumbSeparator());
+                BreadcrumbPanel.Children.Add(SpaceAnalyzerBreadcrumbFactory.Create(this));
             var target = index;
             var isCurrent = index == _history.Count - 1;
             var button = new Button
@@ -163,16 +168,6 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
             BreadcrumbPanel.Children.Add(button);
         }
     }
-
-    private TextBlock CreateBreadcrumbSeparator() => new()
-    {
-        Text = "\uE76C",
-        FontFamily = new System.Windows.Media.FontFamily("Segoe MDL2 Assets"),
-        FontSize = 9,
-        Foreground = (System.Windows.Media.Brush)FindResource("TextSecondary"),
-        VerticalAlignment = VerticalAlignment.Center,
-        Margin = new Thickness(1, 0, 1, 0)
-    };
 
     private void RenderTreemap()
         => SpaceTreemapPresenter.Render(TreemapCanvas, _items, ItemsList.SelectedItem as SpaceDisplayItem,
@@ -257,6 +252,7 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         _refreshWatcher.Dispose();
+        _previewSupport.Dispose();
         _searchService.Dispose();
         ThemeManager.Instance.ThemeChanged -= OnThemeChanged;
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
@@ -270,7 +266,11 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
         Core.Win32Api.TrimWorkingSet();
     }
 
-    private void ItemsList_SelectionChanged(object sender, SelectionChangedEventArgs e) => RenderTreemap();
+    private void ItemsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        RenderTreemap();
+        _previewSupport.SelectionChanged((ItemsList.SelectedItem as SpaceDisplayItem)?.Path);
+    }
     private void ItemsList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton == MouseButton.Left && ItemsList.SelectedItem is SpaceDisplayItem item)
