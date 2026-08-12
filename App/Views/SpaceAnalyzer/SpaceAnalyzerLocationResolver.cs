@@ -9,19 +9,22 @@ internal readonly record struct SpaceAnalyzerLocation(string? Path, string Name)
 // when its files still exist on disk.
 internal static class SpaceAnalyzerLocationResolver
 {
-    public static async Task TrimUnavailableAsync(
+    public static async Task<bool> TrimUnavailableAsync(
         IList<SpaceAnalyzerLocation> history,
         Func<string?, CancellationToken, Task<IReadOnlyList<SpaceIndexEntry>>> loadEntries,
         CancellationToken token)
     {
+        var changed = false;
         while (history.Count > 1)
         {
             var current = history[^1].Path;
             var parentEntries = await loadEntries(history[^2].Path, token);
             if (parentEntries.Any(entry => entry.IsDirectory &&
                 string.Equals(entry.Path, current, StringComparison.OrdinalIgnoreCase)))
-                return;
+                return changed;
             history.RemoveAt(history.Count - 1);
+            changed = true;
         }
+        return changed;
     }
 }

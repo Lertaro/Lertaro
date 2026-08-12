@@ -15,6 +15,7 @@ internal sealed class SpaceAnalyzerRefreshWatcher : IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _timer;
     private readonly Func<Task> _reload;
+    private readonly Func<Task> _validateLocation;
     private CancellationTokenSource? _directoryCts;
     private volatile string[] _watchedPaths = Array.Empty<string>();
     private volatile bool _atRoot;
@@ -24,10 +25,11 @@ internal sealed class SpaceAnalyzerRefreshWatcher : IDisposable
     private volatile bool _disposed;
     private int _pending;
 
-    public SpaceAnalyzerRefreshWatcher(Dispatcher dispatcher, Func<Task> reload)
+    public SpaceAnalyzerRefreshWatcher(Dispatcher dispatcher, Func<Task> reload, Func<Task> validateLocation)
     {
         _dispatcher = dispatcher;
         _reload = reload;
+        _validateLocation = validateLocation;
         _timer = new DispatcherTimer(DispatcherPriority.Background, dispatcher)
         {
             Interval = TimeSpan.FromMilliseconds(750)
@@ -65,13 +67,26 @@ internal sealed class SpaceAnalyzerRefreshWatcher : IDisposable
             ? LocalRoots
             : locations.OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
 
+    internal static SpaceAnalyzerRefreshKind ResolveRefreshKind(
+        bool atRoot,
+        IReadOnlyList<string> watched,
+        IReadOnlyCollection<string> hits)
+    {
+        if (hits.Count == 0)
+            return SpaceAnalyzerRefreshKind.None;
+        if (atRoot || (watched.Count > 0 && hits.Contains(watched[^1], StringComparer.OrdinalIgnoreCase)))
+            return SpaceAnalyzerRefreshKind.Reload;
+        return SpaceAnalyzerRefreshKind.ValidateLocation;
+    }
+
     private async Task WatchLocalDirectoriesAsync(IReadOnlyList<string> watched, CancellationToken token)
     {
         while (!token.IsCancellationRequested)
         {
             try
             {
-                await DirectoryChangeStream.SubscribeAsync(watched, _ => ScheduleRefresh(), token).ConfigureAwait(false);
+                await DirectoryChangeStream.SubscribeAsync(watched,
+                    hits => ScheduleRefresh(ResolveRefreshKind(_atRoot, _watchedPaths, hits)), token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -95,16 +110,35 @@ internal sealed class SpaceAnalyzerRefreshWatcher : IDisposable
 
     private void OnNetworkDirectoriesChanged(string drive, IReadOnlyCollection<string>? changedDirectories)
     {
-        if (_atRoot ||
-            (changedDirectories == null && _watchedPaths.Any(path => WatchedDirectoryMatcher.Touches(path, drive))) ||
-            (changedDirectories != null && WatchedDirectoryMatcher.Match(_watchedPaths, changedDirectories).Count > 0))
-            ScheduleRefresh();
+        if (_atRoot)
+        {
+            ScheduleRefresh(SpaceAnalyzerRefreshKind.Reload);
+            return;
+        }
+        if (changedDirectories == null)
+        {
+            if (_watchedPaths.Any(path => WatchedDirectoryMatcher.Touches(path, drive)))
+                ScheduleRefresh(SpaceAnalyzerRefreshKind.Reload);
+            return;
+        }
+        ScheduleRefresh(ResolveRefreshKind(false, _watchedPaths,
+            WatchedDirectoryMatcher.Match(_watchedPaths, changedDirectories)));
     }
 
-    private void ScheduleRefresh()
+    private void ScheduleRefresh(SpaceAnalyzerRefreshKind kind)
     {
-        if (_disposed || !_active || Interlocked.Exchange(ref _pending, 1) != 0)
+        if (_disposed || !_active || kind == SpaceAnalyzerRefreshKind.None)
             return;
+
+        var requested = (int)kind;
+        while (true)
+        {
+            var pending = Volatile.Read(ref _pending);
+            if (pending >= requested)
+                return;
+            if (Interlocked.CompareExchange(ref _pending, requested, pending) == pending)
+                break;
+        }
 
         _ = _dispatcher.BeginInvoke(new Action(() =>
         {
@@ -115,7 +149,8 @@ internal sealed class SpaceAnalyzerRefreshWatcher : IDisposable
 
     private async void OnTimerTick(object? sender, EventArgs e)
     {
-        if (Interlocked.Exchange(ref _pending, 0) == 0)
+        var request = (SpaceAnalyzerRefreshKind)Interlocked.Exchange(ref _pending, 0);
+        if (request == SpaceAnalyzerRefreshKind.None)
         {
             if (!_isReloading)
                 _timer.Stop();
@@ -123,14 +158,14 @@ internal sealed class SpaceAnalyzerRefreshWatcher : IDisposable
         }
         if (_isReloading)
         {
-            Interlocked.Exchange(ref _pending, 1);
+            ScheduleRefresh(request);
             return;
         }
 
         _isReloading = true;
         try
         {
-            await _reload();
+            await (request == SpaceAnalyzerRefreshKind.Reload ? _reload() : _validateLocation());
         }
         finally
         {
@@ -161,4 +196,11 @@ internal sealed class SpaceAnalyzerRefreshWatcher : IDisposable
         _directoryCts?.Dispose();
         _directoryCts = null;
     }
+}
+
+internal enum SpaceAnalyzerRefreshKind
+{
+    None,
+    ValidateLocation,
+    Reload
 }

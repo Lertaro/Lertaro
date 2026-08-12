@@ -11,10 +11,11 @@ public sealed class SpaceAnalyzerLocationResolverTests
     {
         var history = History(@"C:\", @"C:\Projects");
 
-        await SpaceAnalyzerLocationResolver.TrimUnavailableAsync(history,
+        var changed = await SpaceAnalyzerLocationResolver.TrimUnavailableAsync(history,
             (path, _) => Task.FromResult<IReadOnlyList<SpaceIndexEntry>>(
                 path == @"C:\" ? [Directory(@"C:\Projects")] : []), CancellationToken.None);
 
+        Assert.IsFalse(changed);
         Assert.HasCount(3, history);
     }
 
@@ -23,7 +24,7 @@ public sealed class SpaceAnalyzerLocationResolverTests
     {
         var history = History(@"C:\", @"C:\Projects", @"C:\Projects\OldName");
 
-        await SpaceAnalyzerLocationResolver.TrimUnavailableAsync(history, (path, _) =>
+        var changed = await SpaceAnalyzerLocationResolver.TrimUnavailableAsync(history, (path, _) =>
             Task.FromResult<IReadOnlyList<SpaceIndexEntry>>(path switch
             {
                 @"C:\Projects" => [Directory(@"C:\Projects\NewName")],
@@ -31,6 +32,7 @@ public sealed class SpaceAnalyzerLocationResolverTests
                 _ => []
             }), CancellationToken.None);
 
+        Assert.IsTrue(changed);
         Assert.HasCount(3, history);
         Assert.AreEqual(@"C:\Projects", history[^1].Path);
     }
@@ -40,9 +42,10 @@ public sealed class SpaceAnalyzerLocationResolverTests
     {
         var history = History(@"C:\", @"C:\Projects");
 
-        await SpaceAnalyzerLocationResolver.TrimUnavailableAsync(history,
+        var changed = await SpaceAnalyzerLocationResolver.TrimUnavailableAsync(history,
             (_, _) => Task.FromResult<IReadOnlyList<SpaceIndexEntry>>([]), CancellationToken.None);
 
+        Assert.IsTrue(changed);
         Assert.HasCount(1, history);
         Assert.IsNull(history[0].Path);
     }
