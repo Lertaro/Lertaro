@@ -106,6 +106,14 @@ internal static class SpaceTreemapPresenter
                 showActions(tile.Item);
                 e.Handled = true;
             };
+            border.MouseDown += (_, e) =>
+            {
+                if (e.ChangedButton != System.Windows.Input.MouseButton.Middle)
+                    return;
+                select(tile.Item);
+                SpaceAnalyzerMiddleClick.Locate(tile.Item);
+                e.Handled = true;
+            };
         }
         return border;
     }

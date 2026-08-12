@@ -31,6 +31,7 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
         InitializeComponent();
         _refreshWatcher = new SpaceAnalyzerRefreshWatcher(Dispatcher, ReloadFromEventAsync, ValidateLocationFromEventAsync);
         _previewSupport = new SpaceAnalyzerPreviewSupport(this, () => (ItemsList.SelectedItem as SpaceDisplayItem)?.Path);
+        SpaceAnalyzerMiddleClick.Attach(ItemsList);
         ThemeManager.Instance.ThemeChanged += OnThemeChanged;
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;
         IsVisibleChanged += OnIsVisibleChanged;
@@ -140,7 +141,6 @@ public partial class SpaceAnalyzerView : UserControl, IDisposable
         _history.Add(new SpaceAnalyzerLocation(item.Path, item.Name));
         await ReloadAsync();
     }
-
     private async void NavigateToHistory(int index)
     {
         if ((uint)index >= (uint)_history.Count)
