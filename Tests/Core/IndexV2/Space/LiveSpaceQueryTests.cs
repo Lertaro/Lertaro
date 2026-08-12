@@ -92,20 +92,23 @@ public sealed class LiveSpaceQueryTests
     }
 
     [TestMethod]
-    public void GetEntries_HidesHiddenAndSystemEntries()
+    public void GetEntries_ShowsHiddenEntriesButHidesSystemEntries()
     {
         using var fixture = LiveIndexFixture.Build("C", new[]
         {
             LiveIndexFixture.Root(),
             new FileRecord(2, 1, "visible.txt", FileRecordFlags.None, 100),
             new FileRecord(3, 1, "hidden.txt", FileRecordFlags.Hidden, 200),
-            new FileRecord(4, 1, "system", FileRecordFlags.Directory | FileRecordFlags.System),
+            new FileRecord(4, 1, "hidden-folder", FileRecordFlags.Directory | FileRecordFlags.Hidden),
+            new FileRecord(5, 1, "system.txt", FileRecordFlags.System, 300),
+            new FileRecord(6, 1, "system-folder", FileRecordFlags.Directory | FileRecordFlags.System),
         });
 
         var children = LiveSpaceQuery.GetEntries(fixture.Index, @"C:\").Entries;
 
-        Assert.HasCount(1, children);
-        Assert.AreEqual("visible.txt", children[0].Name);
+        CollectionAssert.AreEquivalent(
+            new[] { "visible.txt", "hidden.txt", "hidden-folder" },
+            children.Select(entry => entry.Name).ToArray());
     }
 
     private static LiveIndexFixture BuildSample() => LiveIndexFixture.Build("C", new[]

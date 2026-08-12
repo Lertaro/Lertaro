@@ -10,6 +10,7 @@ internal sealed class SpaceDisplayItem
     public long Size => Entry.Size;
     public bool IsDirectory => Entry.IsDirectory;
     public bool IsHardLinkDuplicate => Entry.IsHardLinkDuplicate;
+    public double RelativePercentage { get; init; }
     public string DisplaySize => SpaceSizeFormatter.Format(Size);
     public string ToolTipText => $"{Name}{Environment.NewLine}{DisplaySize}";
 }
@@ -30,4 +31,7 @@ internal static class SpaceSizeFormatter
         }
         return unit == 0 ? $"{value} {Units[unit]}" : $"{scaled:0.##} {Units[unit]}";
     }
+
+    public static double RelativePercentage(long bytes, long totalBytes)
+        => totalBytes <= 0 ? 0 : Math.Clamp((double)Math.Max(0, bytes) / totalBytes * 100, 0, 100);
 }

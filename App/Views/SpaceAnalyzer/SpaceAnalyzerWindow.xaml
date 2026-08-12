@@ -49,11 +49,12 @@
                 <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
                             <Border x:Name="Background" Background="{TemplateBinding Background}" CornerRadius="6">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
@@ -105,15 +106,12 @@
                 </Border>
 
                 <Grid Grid.Row="1" Margin="20,18,20,12">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <StackPanel>
                         <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Space_Subtitle]}"
                                    FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                         <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Space_IndexedOnly]}"
                                    Margin="0,5,0,0" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                     </StackPanel>
-                    <Button x:Name="RefreshButton" Grid.Column="1" Style="{StaticResource SettingsButton}" Click="Refresh_Click" Margin="12,0,0,0"
-                            Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Space_Refresh]}"/>
                 </Grid>
 
                 <Grid Grid.Row="2" Margin="20,0,20,14">
@@ -135,7 +133,8 @@
                         <Border Grid.Column="0" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorderBrush}"
                                 BorderThickness="1" CornerRadius="12" Padding="8" Margin="0,0,12,0">
                             <Grid>
-                                <Canvas x:Name="TreemapCanvas" SizeChanged="TreemapCanvas_SizeChanged" ClipToBounds="True"/>
+                                <Canvas x:Name="TreemapCanvas" SizeChanged="TreemapCanvas_SizeChanged"
+                                        MouseLeftButtonUp="TreemapCanvas_MouseLeftButtonUp" ClipToBounds="True"/>
                                 <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <TextBlock x:Name="EmptyIcon" Text="&#xE9D5;" FontFamily="Segoe MDL2 Assets" FontSize="34"
                                                Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
@@ -148,7 +147,7 @@
                         <Border Grid.Column="1" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorderBrush}"
                                 BorderThickness="1" CornerRadius="12" Padding="8">
                             <Grid>
-                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                 <Grid Grid.Row="0" Margin="8,5,8,8">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Space_Name]}"
@@ -156,7 +155,17 @@
                                     <TextBlock Grid.Column="1" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Space_Size]}"
                                                FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
                                 </Grid>
-                                <ListBox x:Name="ItemsList" Grid.Row="1" Background="Transparent" BorderThickness="0"
+                                <Button x:Name="ParentListButton" Grid.Row="1" Height="34" Margin="0,0,0,3"
+                                        Style="{StaticResource SpaceBreadcrumbButton}" HorizontalContentAlignment="Left"
+                                        Visibility="Collapsed" Click="Back_Click">
+                                    <StackPanel Orientation="Horizontal" Margin="10,0">
+                                        <TextBlock Text="&#xE74A;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                                   VerticalAlignment="Center" Margin="0,0,9,0"/>
+                                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Space_Parent]}"
+                                                   FontSize="12.5" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <ListBox x:Name="ItemsList" Grid.Row="2" Background="Transparent" BorderThickness="0"
                                          ItemContainerStyle="{StaticResource SpaceListItem}"
                                          SelectionChanged="ItemsList_SelectionChanged" MouseDoubleClick="ItemsList_MouseDoubleClick"
                                          PreviewMouseRightButtonUp="ItemsList_PreviewMouseRightButtonUp"
@@ -164,8 +173,9 @@
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <Grid helpers:TrimmedTextToolTip.Text="{Binding ToolTipText}">
+                                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                                <TextBlock Grid.RowSpan="2" Grid.Column="0" FontFamily="Segoe MDL2 Assets" FontSize="14"
                                                            Foreground="{DynamicResource AccentBlue}" Margin="0,0,8,0">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
@@ -183,6 +193,10 @@
                                                 <TextBlock Grid.Column="2" Text="{Binding DisplaySize}" VerticalAlignment="Center"
                                                            TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextSecondary}"
                                                            FontSize="11.5" Margin="10,0,0,0"/>
+                                                <ProgressBar Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                                                             Value="{Binding RelativePercentage}" Minimum="0" Maximum="100"
+                                                             Height="3" Margin="0,6,0,0" BorderThickness="0"
+                                                             Background="{DynamicResource ControlBorderBrush}" IsHitTestVisible="False"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>

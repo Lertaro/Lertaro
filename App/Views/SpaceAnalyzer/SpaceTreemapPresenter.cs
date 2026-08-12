@@ -72,15 +72,19 @@ internal static class SpaceTreemapPresenter
 
         if (tile.Item != null)
         {
+            var opening = false;
             border.MouseLeftButtonUp += (_, e) =>
             {
-                select(tile.Item);
+                if (!opening)
+                    select(tile.Item);
+                opening = false;
                 e.Handled = true;
             };
             border.MouseLeftButtonDown += (_, e) =>
             {
                 if (e.ClickCount == 2 && tile.Item.IsDirectory)
                 {
+                    opening = true;
                     open(tile.Item);
                     e.Handled = true;
                 }

@@ -44,7 +44,7 @@ internal static class LiveSpaceQuery
         var entries = new List<SpaceIndexEntry>(children.Count);
         foreach (var child in children)
         {
-            if (IsHiddenOrSystem(snapshot, delta, child))
+            if (IsSystem(snapshot, delta, child))
                 continue;
             entries.Add(CreateEntry(snapshot, delta, lookup, affected, canonicalAddedLinks, child, GetName(snapshot, delta, child)));
         }
@@ -255,8 +255,8 @@ internal static class LiveSpaceQuery
     private static bool IsDirectory(Snapshot snapshot, DeltaOverlay delta, int entry)
         => (GetFlags(snapshot, delta, entry) & (ushort)FileRecordFlags.Directory) != 0;
 
-    private static bool IsHiddenOrSystem(Snapshot snapshot, DeltaOverlay delta, int entry)
-        => (GetFlags(snapshot, delta, entry) & (ushort)(FileRecordFlags.Hidden | FileRecordFlags.System)) != 0;
+    private static bool IsSystem(Snapshot snapshot, DeltaOverlay delta, int entry)
+        => (GetFlags(snapshot, delta, entry) & (ushort)FileRecordFlags.System) != 0;
 
     private static ushort GetFlags(Snapshot snapshot, DeltaOverlay delta, int entry)
         => entry >= snapshot.Count ? delta.Added[entry - snapshot.Count].Flags

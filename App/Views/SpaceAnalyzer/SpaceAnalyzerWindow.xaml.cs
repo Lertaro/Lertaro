@@ -19,6 +19,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
 {
     private readonly List<Location> _history = [];
     private readonly SearchService _searchService = new();
+    private readonly SpaceAnalyzerRefreshWatcher _refreshWatcher;
     private IReadOnlyList<SpaceDisplayItem> _items = Array.Empty<SpaceDisplayItem>();
     private CancellationTokenSource? _loadCts;
     private bool _isLoading;
@@ -27,6 +28,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
     public SpaceAnalyzerWindow()
     {
         InitializeComponent();
+        _refreshWatcher = new SpaceAnalyzerRefreshWatcher(Dispatcher, ReloadFromEventAsync);
         SystemMenuBlocker.Attach(this, blockClose: false);
         MaximizeBoundsHelper.Attach(this);
         ThemedWindowIconHelper.Apply(this);
@@ -36,27 +38,39 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         Loaded += async (_, _) =>
         {
             _history.Add(new Location(null, TranslationManager.Instance["Space_Home"]));
+            _refreshWatcher.Watch(null);
             await ReloadAsync();
         };
         Closed += OnClosed;
         StateChanged += Window_StateChanged;
     }
 
-    private async Task ReloadAsync()
+    private Task ReloadFromEventAsync() => _isLoading ? Task.CompletedTask : ReloadAsync(background: true);
+
+    private async Task ReloadAsync(bool background = false)
     {
+        var selectedPath = background ? (ItemsList.SelectedItem as SpaceDisplayItem)?.Path : null;
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         _loadCts = new CancellationTokenSource();
         var token = _loadCts.Token;
-        _loadFailed = false;
-        SetLoading(true);
+        if (!background)
+        {
+            _loadFailed = false;
+            SetLoading(true);
+        }
 
         try
         {
             var entries = await _searchService.GetSpaceEntriesAsync(_history[^1].Path, token);
             token.ThrowIfCancellationRequested();
-            _items = entries.Select(entry => new SpaceDisplayItem { Entry = entry }).ToList();
-            ShowCurrentLocation();
+            var totalSize = entries.Aggregate(0L, static (sum, entry) => sum > long.MaxValue - entry.Size ? long.MaxValue : sum + entry.Size);
+            _items = entries.Select(entry => new SpaceDisplayItem
+            {
+                Entry = entry,
+                RelativePercentage = SpaceSizeFormatter.RelativePercentage(entry.Size, totalSize)
+            }).ToList();
+            ShowCurrentLocation(selectedPath);
         }
         catch (OperationCanceledException)
         {
@@ -64,34 +78,42 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         catch (Exception ex)
         {
             Core.Logger.Log($"[SpaceAnalyzer] Failed to query live indexes: {ex.Message}", Core.LogLevel.Error);
+            if (background)
+                return;
             _loadFailed = true;
             _items = Array.Empty<SpaceDisplayItem>();
             ItemsList.ItemsSource = _items;
         }
         finally
         {
-            if (!token.IsCancellationRequested)
+            if (!background && !token.IsCancellationRequested)
                 SetLoading(false);
         }
     }
 
-    private void ShowCurrentLocation()
+    private void ShowCurrentLocation(string? selectedPath = null)
     {
         if (_history.Count == 0)
             return;
         ItemsList.ItemsSource = _items;
-        ItemsList.SelectedItem = null;
-        BackButton.IsEnabled = _history.Count > 1;
+        ItemsList.SelectedItem = selectedPath == null
+            ? null
+            : _items.FirstOrDefault(item => string.Equals(item.Path, selectedPath, StringComparison.OrdinalIgnoreCase));
+        var canGoBack = _history.Count > 1;
+        BackButton.IsEnabled = canGoBack;
+        ParentListButton.Visibility = canGoBack ? Visibility.Visible : Visibility.Collapsed;
         RebuildBreadcrumbs();
         UpdateEmptyState();
         UpdateSummary();
         RenderTreemap();
+        _refreshWatcher.Watch(_history[^1].Path);
     }
 
     private async void NavigateTo(SpaceDisplayItem item)
     {
         if (!item.IsDirectory)
             return;
+        ItemsList.SelectedItem = null;
         _history.Add(new Location(item.Path, item.Name));
         await ReloadAsync();
     }
@@ -100,6 +122,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
     {
         if ((uint)index >= (uint)_history.Count)
             return;
+        ItemsList.SelectedItem = null;
         _history.RemoveRange(index + 1, _history.Count - index - 1);
         await ReloadAsync();
     }
@@ -137,7 +160,13 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
 
     private void RenderTreemap()
         => SpaceTreemapPresenter.Render(TreemapCanvas, _items, ItemsList.SelectedItem as SpaceDisplayItem,
-            item => ItemsList.SelectedItem = item, NavigateTo, ShowActions);
+            item => ItemsList.SelectedItem = item, NavigateFromTreemap, ShowActions);
+
+    private void NavigateFromTreemap(SpaceDisplayItem item)
+    {
+        TreemapCanvas.CaptureMouse();
+        NavigateTo(item);
+    }
 
     private void ShowActions(SpaceDisplayItem item)
     {
@@ -182,7 +211,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
     {
         _isLoading = loading;
         BackButton.IsEnabled = !loading && _history.Count > 1;
-        RefreshButton.IsEnabled = !loading;
+        ParentListButton.IsEnabled = !loading && _history.Count > 1;
         ItemsList.IsEnabled = !loading;
         UpdateEmptyState();
     }
@@ -209,6 +238,7 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
     {
         _loadCts?.Cancel();
         _loadCts?.Dispose();
+        _refreshWatcher.Dispose();
         _searchService.Dispose();
         ThemeManager.Instance.ThemeChanged -= OnThemeChanged;
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
@@ -239,8 +269,14 @@ public partial class SpaceAnalyzerWindow : Window, IPluginSearchWindow
         e.Handled = true;
     }
     private void TreemapCanvas_SizeChanged(object sender, SizeChangedEventArgs e) => RenderTreemap();
+    private void TreemapCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!TreemapCanvas.IsMouseCaptured)
+            return;
+        TreemapCanvas.ReleaseMouseCapture();
+        e.Handled = true;
+    }
     private void Back_Click(object sender, RoutedEventArgs e) => NavigateToHistory(_history.Count - 2);
-    private async void Refresh_Click(object sender, RoutedEventArgs e) => await ReloadAsync();
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Maximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
