@@ -156,6 +156,27 @@ public sealed class StreamingResultAccumulatorTests
     }
 
     [TestMethod]
+    public void Absorb_SeededHistoryMatchAppearsAndIsNotDuplicatedByAnArrival()
+    {
+        var row = new AppSearchResult
+        {
+            Name = "BCompare.exe",
+            FullPath = @"D:\Apps\BCompare.exe",
+            ResultKind = "Application"
+        };
+        var seed = new SearchResultMapper.RankedCandidate(
+            row, true, -50, int.MaxValue, 1, @"D:\Apps\BCompare.exe");
+        var history = new Dictionary<string, int> { [@"D:\Apps\BCompare.exe"] = -50 };
+        var accumulator = new StreamingResultAccumulator("bc", history, new[] { seed });
+
+        var rows = accumulator.Absorb(Arrivals(@"D:\Apps\BCompare.exe", @"D:\bc.txt"));
+
+        CollectionAssert.AreEqual(new[] { @"D:\Apps\BCompare.exe", @"D:\bc.txt" }, Paths(rows));
+        Assert.AreSame(row, rows[0]);
+        Assert.AreEqual("Application", rows[0].ResultKind);
+    }
+
+    [TestMethod]
     public void Absorb_ManyChunks_KeepsTheListFullyOrdered()
     {
         var accumulator = new StreamingResultAccumulator("f", NoHistory);

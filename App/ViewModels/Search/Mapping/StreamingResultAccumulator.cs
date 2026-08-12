@@ -36,14 +36,41 @@ internal sealed class StreamingResultAccumulator
     // list on every paint just to hold the same rows in a slightly different order.
     private List<Entry> _spare = new();
     private readonly List<AppSearchResult> _rows = new();
+    private readonly HashSet<string> _seedPaths = new(StringComparer.OrdinalIgnoreCase);
 
-    public StreamingResultAccumulator(string query, IReadOnlyDictionary<string, int> historySnapshot)
+    public StreamingResultAccumulator(
+        string query,
+        IReadOnlyDictionary<string, int> historySnapshot,
+        IReadOnlyList<SearchResultMapper.RankedCandidate>? seedCandidates = null)
     {
         _query = query;
         _queriedDirectory = SearchResultMapper.GetQueriedDirectory(query);
         // Captured once for the whole query rather than re-read per paint: the ranking must not shift
         // underneath rows that are already on screen just because the user opened something mid-search.
         _rankComparer = new SearchResultRankComparer(historySnapshot);
+
+        if (seedCandidates == null)
+            return;
+
+        foreach (var candidate in seedCandidates)
+        {
+            if (!_seedPaths.Add(NormalizePath(candidate.Result.FullPath)))
+                continue;
+            var raw = new SearchResult
+            {
+                Name = candidate.Result.Name,
+                Path = candidate.Result.FullPath,
+                IsDir = candidate.Result.IsDir,
+                Drive = candidate.Result.Drive
+            };
+            _ranked.Add(new Entry(raw, candidate.Result));
+        }
+        _ranked.Sort(CompareEntries);
+        for (var index = 0; index < _ranked.Count; index++)
+        {
+            _ranked[index].Row.Index = index;
+            _rows.Add(_ranked[index].Row);
+        }
     }
 
     /// <summary>How many of the arrivals handed in so far have been mapped.</summary>
@@ -92,6 +119,8 @@ internal sealed class StreamingResultAccumulator
                 // index record is not one of its own results (see SearchResultMapper).
                 if (SearchResultMapper.IsQueriedDirectory(raw.Path, _queriedDirectory))
                     continue;
+                if (_seedPaths.Contains(NormalizePath(raw.Path)))
+                    continue;
                 chunk.Add(new Entry(raw, SearchResultMapper.CreateUiResult(raw, _query, 0, isApplication: false, scope: null)));
             }
 
@@ -117,6 +146,9 @@ internal sealed class StreamingResultAccumulator
     }
 
     private int CompareEntries(Entry left, Entry right) => _rankComparer.Compare(left.Raw, right.Raw);
+
+    private static string NormalizePath(string path) =>
+        path.Length > 3 && path[^1] == '\\' ? path.TrimEnd('\\') : path;
 
     private void Merge(List<Entry> chunk)
     {

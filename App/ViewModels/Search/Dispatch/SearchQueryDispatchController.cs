@@ -71,7 +71,9 @@ internal sealed class SearchQueryDispatchController
         // accumulator maps and ranks only what arrived since the previous paint and merges it into the
         // order already established, so the total cost of painting twenty times is the cost of painting
         // once. See StreamingResultAccumulator.
-        var accumulator = new StreamingResultAccumulator(cleanQuery, SearchHistoryStore.Snapshot());
+        // Created by the background render callback because validating remembered paths can touch slow
+        // network locations. The UI thread only schedules the search and never performs those checks.
+        StreamingResultAccumulator? accumulator = null;
 
         _searchEngine.QueueSearch(
             cleanQuery,
@@ -86,7 +88,12 @@ internal sealed class SearchQueryDispatchController
             // building rows; the accumulator does the same thing incrementally, merging each new arrival
             // into the ranking rather than redoing it.
             resultMapper: (fileResults, _) =>
-                fileResults == null ? new List<AppSearchResult>() : accumulator.Absorb(fileResults),
+            {
+                if (fileResults == null)
+                    return new List<AppSearchResult>();
+                accumulator ??= CreateAccumulator(cleanQuery);
+                return accumulator.Absorb(fileResults);
+            },
             searching => _setIsSearching(searching),
             (results, status, final) =>
             {
@@ -130,7 +137,7 @@ internal sealed class SearchQueryDispatchController
                 else
                 {
                     _setAllResults(filteredResults);
-                    _applyFiltersAndRender(extendsContent, accumulator.FirstChangedIndex);
+                    _applyFiltersAndRender(extendsContent, accumulator?.FirstChangedIndex ?? 0);
                 }
                 if (final)
                     _setIsSearching(false);
@@ -149,6 +156,13 @@ internal sealed class SearchQueryDispatchController
             shouldEmitInstantResults: () => false,
             bypassExclusions: bypassExclusions
         );
+    }
+
+    private static StreamingResultAccumulator CreateAccumulator(string query)
+    {
+        var learned = HistorySearchCandidateMapper.Collect(query, null);
+        var priorities = HistorySearchCandidateMapper.ApplyPriorities(SearchHistoryStore.Snapshot(), learned);
+        return new StreamingResultAccumulator(query, priorities, learned);
     }
 
     private async Task RefreshAfterTokenDispatchAsync(List<AppSearchResult> resultsSnapshot, IReadOnlyList<string> tokensSnapshot, bool extendsContent)

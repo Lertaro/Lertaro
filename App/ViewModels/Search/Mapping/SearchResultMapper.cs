@@ -7,7 +7,7 @@ namespace Lertaro.App.ViewModels.Search.Mapping;
 public static class SearchResultMapper
 {
     // skipDisplayCap: token mode (SearchDispatchController.ComposeAndApplyAsync) still applies its own
-    // final ~9-item cap AFTER filtering by the token, but needs the FULL ranked candidate set to filter
+    // final 50-item cap AFTER filtering by the token, but needs the FULL ranked candidate set to filter
     // over first -- capping to the usual ~50 here, before a "::xxx"/directory-segment token ever runs,
     // silently drops the token's real matches whenever they don't also happen to be in the top ~50 by
     // plain filename weight (e.g. a common substring like "1080" already fills that cap with unrelated
@@ -74,6 +74,13 @@ public static class SearchResultMapper
         // match-quality weight -- instead of every favorite always beating every app always beating
         // every file regardless of which one actually matched the query text better.
         var candidates = new List<RankedCandidate>();
+
+        // The history entry already remembers which query opened its path. Re-introduce existing paths
+        // whose learned keyword matches this query even when the index's bounded first page omitted them.
+        // Inline results enter Global Search here; its separately scoped Current Folder tier wins the
+        // downstream path dedupe. An explicit type trigger retains its strict result domain.
+        if (triggeredTypeId == null)
+            candidates.AddRange(HistorySearchCandidateMapper.Collect(query, scope));
 
         if (!string.IsNullOrWhiteSpace(query))
         {

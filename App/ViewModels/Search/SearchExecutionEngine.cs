@@ -172,7 +172,8 @@ internal sealed class SearchExecutionEngine : IDisposable
         bool bypassExclusions)
     {
         var localMatches = new List<AppSearchResult>();
-        var localUpdateVersion = 0;
+        var learnedLocalMatches = HistorySearchCandidateMapper.Collect(query, contextDirectory);
+        var localUpdateVersion = learnedLocalMatches.Count > 0 ? 1 : 0;
         void OnLocalMatchesChanged() => Interlocked.Increment(ref localUpdateVersion);
 
         var localSearchTask = ExplorerSearchHelper.SearchLocalMatchesAsync(
@@ -186,13 +187,14 @@ internal sealed class SearchExecutionEngine : IDisposable
             {
                 snapshot = new List<AppSearchResult>(localMatches);
             }
-            return ExplorerSearchHelper.CreatePrioritizedSnapshot(snapshot, query, contextDirectory);
+            var prioritized = ExplorerSearchHelper.CreatePrioritizedSnapshot(snapshot, query, contextDirectory);
+            return HistorySearchCandidateMapper.MergeRows(learnedLocalMatches, prioritized);
         }
 
         int GetLocalMatchCount()
         {
             lock (localMatches)
-                return localMatches.Count;
+                return Math.Min(50, learnedLocalMatches.Count + localMatches.Count);
         }
 
         await _streamRenderer.RenderAsync(query, null, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token,
