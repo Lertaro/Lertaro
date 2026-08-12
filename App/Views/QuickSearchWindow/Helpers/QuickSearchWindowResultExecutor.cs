@@ -19,7 +19,7 @@ public class QuickSearchWindowResultExecutor
     public void HandlePreviewMouseLeftButtonUp(MouseButtonEventArgs e)
     {
         var item = Lertaro.App.QuickSearchWindow.FindVisualParentExternal<ListBoxItem>(e.OriginalSource as DependencyObject);
-        if (item != null && item.Content is AppSearchResult result)
+        if (item != null && item.Content is AppSearchResult result && !result.IsEmptyResult && !result.IsSearchSectionHeader)
         {
             e.Handled = true;
             var asAdmin = Keyboard.Modifiers == ModifierKeys.Control;
@@ -30,7 +30,7 @@ public class QuickSearchWindowResultExecutor
     public void HandlePreviewMouseRightButtonUp(MouseButtonEventArgs e)
     {
         var item = Lertaro.App.QuickSearchWindow.FindVisualParentExternal<ListBoxItem>(e.OriginalSource as DependencyObject);
-        if (item != null && item.Content is AppSearchResult result)
+        if (item != null && item.Content is AppSearchResult result && !result.IsEmptyResult && !result.IsSearchSectionHeader)
         {
             e.Handled = true;
             _window.LstResults.SelectedItem = result;
@@ -40,7 +40,7 @@ public class QuickSearchWindowResultExecutor
 
     public void Execute(AppSearchResult result, bool asAdmin = false)
     {
-        if (result.IsSearchSectionHeader)
+        if (result.IsEmptyResult || result.IsSearchSectionHeader)
             return;
         if (!result.IsPluginSearchAction && !result.IsInstantResult)
         {

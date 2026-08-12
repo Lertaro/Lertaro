@@ -225,7 +225,7 @@ internal sealed class SearchDispatchController
     // etc.); applications, plugin actions, and section headers have nothing to do with what the token is
     // sorting/filtering and would just clutter a result set that's now specifically about files. Runs the
     // file/directory subset through QueryTokenDispatcher, then recomposes [instant results, token-processed
-    // file rows] and caps the combined count to 9 with a "N more" row. QueryTokenDispatcher only
+    // file rows] and caps the combined count like an ordinary quick search. QueryTokenDispatcher only
     // transforms a plain list -- deciding what any of this means for the rest of the UI (capping, "no
     // results", visibility) lives here.
     private async Task ComposeAndApplyAsync(string query, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final)
@@ -243,21 +243,7 @@ internal sealed class SearchDispatchController
         if (_getSearchQuery() != query || !ReferenceEquals(_queryTokens, tokensSnapshot))
             return; // superseded by a newer query/token set while the token chain was running
 
-        var composed = new List<AppSearchResult>(instantRows.Count + processedFileRows.Count + 1);
-        composed.AddRange(instantRows);
-
-        if (processedFileRows.Count + instantRows.Count > 9)
-        {
-            // Instant results are never trimmed -- only the file/directory portion gets capped, down to
-            // whatever's left of the 9-item budget after instant results claim their share.
-            var visibleFileCount = Math.Max(0, 9 - instantRows.Count);
-            composed.AddRange(processedFileRows.Take(visibleFileCount));
-            SearchResultHelper.AddShowMoreResult(composed, query);
-        }
-        else
-        {
-            composed.AddRange(processedFileRows);
-        }
+        var composed = QueryTokenResultComposer.Compose(instantRows, processedFileRows, query);
 
         // A filter token (or an unclaimed one) can legitimately drop every file/directory result -- this
         // window has no separate "no results" hint of its own (unlike the full search window), it

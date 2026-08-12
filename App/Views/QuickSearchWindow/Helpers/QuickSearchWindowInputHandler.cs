@@ -212,7 +212,7 @@ public class QuickSearchWindowInputHandler
     }
     private void ExecuteResult(AppSearchResult result, bool asAdmin = false)
     {
-        if (result.IsSearchSectionHeader)
+        if (result.IsEmptyResult || result.IsSearchSectionHeader)
             return;
         if (!result.IsPluginSearchAction && !result.IsInstantResult)
         {
