@@ -32,10 +32,8 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     // which carry their own values in Extras instead.
     private Core.SearchResult? _source;
     private AppSearchResultExtras? _extras;
-    private AppSearchResultDisplaySupport? _displaySupport;
 
     private AppSearchResultExtras Extras => _extras ??= new AppSearchResultExtras();
-    private AppSearchResultDisplaySupport DisplaySupport => _displaySupport ??= new(this);
     internal AppSearchResultExtras DisplayExtras => Extras;
     internal AppSearchResultExtras? ExistingExtras => _extras;
     internal void NotifyDisplayPropertyChanged(string propertyName) => OnPropertyChanged(propertyName);
@@ -221,12 +219,12 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
         set => Extras.SourceProvider = value;
     }
 
-    public bool[]? GetHighlightMask(string text, string query) => DisplaySupport.GetHighlightMask(text, query);
+    public bool[]? GetHighlightMask(string text, string query) => AppSearchResultDisplaySupport.GetHighlightMask(this, text, query);
 
     // Visual properties
 
-    public string IconData => DisplaySupport.IconData;
-    public System.Windows.Media.ImageSource? Icon => DisplaySupport.Icon;
+    public string IconData => AppSearchResultDisplaySupport.GetIconData(this);
+    public System.Windows.Media.ImageSource? Icon => AppSearchResultDisplaySupport.GetIcon(this);
 
     public string ShortcutHint
     {
@@ -275,7 +273,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
             var known = Metadata.Modified;
             if (known != DateTime.MinValue)
                 return (Extras.DateModified = known).Value;
-            return DisplaySupport.DateModified;
+            return AppSearchResultDisplaySupport.GetDateModified(this);
         }
     }
 
@@ -290,7 +288,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
 
     public string this[string columnId]
     {
-        get => DisplaySupport.GetColumnValue(columnId);
-        set => DisplaySupport.SetColumnValue(columnId, value);
+        get => AppSearchResultDisplaySupport.GetColumnValue(this, columnId);
+        set => AppSearchResultDisplaySupport.SetColumnValue(this, columnId, value);
     }
 }
