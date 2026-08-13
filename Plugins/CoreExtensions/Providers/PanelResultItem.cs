@@ -22,11 +22,16 @@ internal sealed class PanelResultItem : ISearchResult
     /// </summary>
     public FileMetadata Metadata { get; }
 
-    public PanelResultItem(string path, string? displayName = null, bool isApplication = false, DateTime modified = default)
+    public PanelResultItem(
+        string path,
+        string? displayName = null,
+        bool isApplication = false,
+        DateTime modified = default,
+        bool? isDirectory = null)
     {
         FullPath = path;
         IsApplication = isApplication;
-        IsDir = !isApplication && Directory.Exists(path);
+        IsDir = !isApplication && (isDirectory ?? Directory.Exists(path));
         Name = string.IsNullOrWhiteSpace(displayName) ? DeriveName(path, isApplication) : displayName!;
         ContextDirectory = IsDir ? path : (Path.GetDirectoryName(path) ?? path);
         Metadata = new FileMetadata(0, default, modified, default);

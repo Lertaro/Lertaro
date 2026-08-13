@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.Views.Controls.Results;
 
@@ -27,25 +28,9 @@ public static class ResultsDragDropHelper
     private static System.Windows.Controls.ListBox? _pendingList;
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern bool GetCursorPos(out POINT lpPoint);
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern System.IntPtr WindowFromPoint(POINT Point);
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern uint GetWindowThreadProcessId(System.IntPtr hWnd, out uint lpdwProcessId);
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int vKey);
 
     private const int VK_LBUTTON = 0x01;
-
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private struct POINT
-    {
-        public int X;
-        public int Y;
-    }
 
     public static void Register(System.Windows.Controls.ListBox listBox)
     {
@@ -127,7 +112,7 @@ public static class ResultsDragDropHelper
         {
             IsDragActive = false;
             if (!_dragEndedInside)
-                HideSearchWindows();
+                ResultsDragDropWindowHelper.HideSearchWindows();
         }
     }
 
@@ -183,10 +168,8 @@ public static class ResultsDragDropHelper
             {
                 try
                 {
-                    dynamic sr = obj;
-                    string? p = sr.FullPath;
-                    if (!string.IsNullOrEmpty(p) && (File.Exists(p) || Directory.Exists(p)))
-                        paths.Add(p);
+                    if (obj is ISearchResult result && PathExists(result))
+                        paths.Add(result.FullPath);
                 }
                 catch { }
             }
@@ -219,13 +202,11 @@ public static class ResultsDragDropHelper
                 {
                     try
                     {
-                        dynamic searchResult = data;
-                        string? fullPath = searchResult.FullPath;
-                        if (!string.IsNullOrEmpty(fullPath) && (File.Exists(fullPath) || Directory.Exists(fullPath)))
+                        if (data is ISearchResult searchResult && PathExists(searchResult))
                         {
                             // A drag is starting — StartDrag also clears the pending press so button-up
                             // doesn't collapse the selection this drag is carrying.
-                            StartDrag(item, CollectDragPaths(itemsControl, data, fullPath));
+                            StartDrag(item, CollectDragPaths(itemsControl, data, searchResult.FullPath));
                         }
                     }
                     catch { }
@@ -250,59 +231,18 @@ public static class ResultsDragDropHelper
 
         if (isDragEnding)
         {
-            _dragEndedInside = false;
-
-            if (System.Windows.Application.Current != null)
-            {
-                if (GetCursorPos(out var mousePos))
-                {
-                    var hwndUnderCursor = WindowFromPoint(mousePos);
-                    uint pid = 0;
-                    if (hwndUnderCursor != IntPtr.Zero)
-                    {
-                        GetWindowThreadProcessId(hwndUnderCursor, out pid);
-                    }
-
-                    var isInsideApp = (hwndUnderCursor != IntPtr.Zero && pid == (uint)Environment.ProcessId);
-
-                    if (isInsideApp)
-                    {
-                        _dragEndedInside = true;
-                    }
-                    else
-                    {
-                        // ponytail: hide the search window immediately via WPF HideWindow before OLE drop target blocks the thread
-                        HideSearchWindows();
-                        _dragEndedInside = true; // prevent finally block from doing it again
-                    }
-                }
-            }
+            _dragEndedInside = ResultsDragDropWindowHelper.HandleDragEnding();
         }
     }
 
-    private static void HideSearchWindows()
-    {
-        if (System.Windows.Application.Current != null)
-        {
-            var windows = new List<Window>();
-            foreach (Window w in System.Windows.Application.Current.Windows)
-            {
-                windows.Add(w);
-            }
+    private static bool PathExists(ISearchResult result) => PathExists(result, File.Exists, Directory.Exists);
 
-            foreach (var w in windows)
-            {
-                if (w is Lertaro.App.QuickSearchWindow qsw)
-                {
-                    qsw.HideWindow();
-                }
-                else if (w is Lertaro.App.InlineSearchWindow isw)
-                {
-                    Services.InlineSearchManager.Instance.CloseInlineSearch("DragDropCompleted");
-                }
-            }
-        }
-    }
+    internal static bool PathExists(
+        ISearchResult result,
+        Func<string, bool> fileExists,
+        Func<string, bool> directoryExists) =>
+        !string.IsNullOrEmpty(result.FullPath) &&
+        (result.IsDir ? directoryExists(result.FullPath) : fileExists(result.FullPath));
 
     private static DependencyObject? GetParent(DependencyObject dep)
     {

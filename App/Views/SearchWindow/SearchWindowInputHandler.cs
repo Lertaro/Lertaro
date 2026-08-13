@@ -4,8 +4,6 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using Lertaro.App.Services;
 using Lertaro.App.Helpers;
-using Lertaro.App.Helpers.Visuals;
-using Lertaro.App.Services.Plugin;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using ListViewItem = System.Windows.Controls.ListViewItem;
 using Lertaro.App.Services.ShellMenu.ActionFlyout;
@@ -14,8 +12,13 @@ namespace Lertaro.App.Views.SearchWindow;
 public class SearchWindowInputHandler
 {
     private readonly Lertaro.App.SearchWindow _window;
+    private readonly SearchWindowColumnActivation _columnActivation;
 
-    public SearchWindowInputHandler(Lertaro.App.SearchWindow window) => _window = window;
+    public SearchWindowInputHandler(Lertaro.App.SearchWindow window)
+    {
+        _window = window;
+        _columnActivation = new SearchWindowColumnActivation(window);
+    }
 
     public void HandleWindowPreviewKeyDown(KeyEventArgs e)
     {
@@ -120,20 +123,8 @@ public class SearchWindowInputHandler
         }
     }
 
-    private IReadOnlyList<AppSearchResult> GetSelectedResults()
-    {
-        var list = new List<AppSearchResult>();
-        foreach (var obj in _window.LstGridResultsControl.SelectedItems)
-            if (obj is AppSearchResult r) list.Add(r);
-        return list;
-    }
-
-    // Mouse events can originate from a non-Visual ContentElement (e.g. a highlight Run inside a result's
-    // name TextBlock); VisualTreeHelper.GetParent throws on those, so step to the content parent instead.
-    private static DependencyObject? VisualOrContentParent(DependencyObject dep)
-        => dep is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D
-            ? System.Windows.Media.VisualTreeHelper.GetParent(dep)
-            : (dep as FrameworkContentElement)?.Parent;
+    private IReadOnlyList<AppSearchResult> GetSelectedResults() =>
+        _window.LstGridResultsControl.SelectedItems.Cast<object>().OfType<AppSearchResult>().ToList();
 
     public void HandleLstGridResultsMouseDoubleClick(MouseButtonEventArgs e)
     {
@@ -151,82 +142,23 @@ public class SearchWindowInputHandler
                 return; // Ignore double clicks on column headers!
             }
 
-            depObj = VisualOrContentParent(depObj);
+            depObj = SearchWindowColumnActivation.VisualOrContentParent(depObj);
         }
 
         if (depObj is ListViewItem item && item.Content is AppSearchResult result)
         {
             e.Handled = true;
-            var isFileOrFolder = !result.IsSearchSectionHeader && !result.IsEmptyResult &&
-                (result.ResultKind == "File" || result.ResultKind == "Folder" || System.IO.File.Exists(result.FullPath) || System.IO.Directory.Exists(result.FullPath));
+            var isFileOrFolder = SearchWindowColumnActivation.IsFileOrFolder(result);
 
-            if (!TryHandleColumnDoubleClick(e, item, result, isFileOrFolder))
+            if (!_columnActivation.TryHandle(e, item, result, isFileOrFolder))
             {
                 FileExecutor.OpenFileOrFolder(result.FullPath);
             }
         }
     }
 
-    // A double-click on a specific column can behave differently than double-clicking the row
-    // generally -- e.g. the built-in Path column opens the containing folder instead of the result
-    // itself, mirroring Everything's own results grid.
-    private bool TryHandleColumnDoubleClick(MouseButtonEventArgs e, ListViewItem item, AppSearchResult result, bool isFileOrFolder)
-    {
-        var columnId = GetClickedColumnId(e, item);
-        if (string.IsNullOrEmpty(columnId))
-            return false;
-
-        foreach (var provider in PluginManager.Instance.ResultColumnProviders)
-        {
-            foreach (var column in provider.GetColumns())
-            {
-                if (column.ColumnId == columnId && column.OnDoubleClick != null)
-                {
-                    column.OnDoubleClick(result);
-                    return true;
-                }
-            }
-        }
-
-        if (columnId == "Path" && isFileOrFolder)
-        {
-            // This is just the Path column's own default action, same standing as double-clicking the
-            // Name column opening the file -- it doesn't close the window either.
-            FileExecutor.LocateInExplorer(result.FullPath);
-            return true;
-        }
-
-        return false;
-    }
-
-    // GridView has no built-in "which cell was clicked" API (unlike GridViewColumnHeader for header
-    // clicks) -- GridViewRowPresenter lays columns out left-to-right by ActualWidth, so the clicked
-    // column is whichever one the X position (relative to the row) falls into.
-    private string? GetClickedColumnId(MouseButtonEventArgs e, ListViewItem item)
-    {
-        if (_window.LstGridResultsControl.View is not GridView gridView)
-            return null;
-
-        var columns = gridView.Columns.Cast<GridViewColumn>()
-            .Select(c => (ColumnId: ColumnIdentity.GetId(c), c.ActualWidth));
-        return ResolveColumnIdAtX(e.GetPosition(item).X, columns);
-    }
-
-    // Pulled out of GetClickedColumnId as a pure function (no live GridView needed) so the actual
-    // hit-testing math is unit-testable -- GetClickedColumnId itself needs a real, laid-out GridView to
-    // construct a call to it at all.
-    internal static string? ResolveColumnIdAtX(double x, IEnumerable<(string ColumnId, double Width)> columns)
-    {
-        double cumulativeWidth = 0;
-        foreach (var (columnId, width) in columns)
-        {
-            cumulativeWidth += width;
-            if (x < cumulativeWidth)
-                return columnId;
-        }
-
-        return null; // clicked past the last column, in leftover row width
-    }
+    internal static string? ResolveColumnIdAtX(double x, IEnumerable<(string ColumnId, double Width)> columns) =>
+        SearchWindowColumnActivation.ResolveColumnIdAtX(x, columns);
 
     // Ctrl+Enter (locate in Explorer) and Ctrl+Shift+Enter (open as admin) are NOT handled here --
     // they're registered action hotkeys (LocateInExplorerAction/OpenResultAsAdminAction) dispatched by
@@ -298,7 +230,7 @@ public class SearchWindowInputHandler
         var element = e.OriginalSource as DependencyObject;
         while (element != null && element is not ListViewItem)
         {
-            element = VisualOrContentParent(element);
+            element = SearchWindowColumnActivation.VisualOrContentParent(element);
         }
 
         if (element is ListViewItem listViewItem && listViewItem.Content is AppSearchResult result)

@@ -27,11 +27,16 @@ public class HistoryTabProvider : IQuickPanelTabProvider
             () => Build(HistoryService.GetHistoryEntries(), MaxItems, Exists, cancellationToken),
             cancellationToken);
 
-    private static bool Exists(string path) => File.Exists(path) || Directory.Exists(path);
+    private static bool Exists(HistoryEntry entry) => entry.Kind switch
+    {
+        HistoryEntryKind.Application => true,
+        HistoryEntryKind.Folder => Directory.Exists(entry.Path),
+        _ => File.Exists(entry.Path)
+    };
 
     /// <summary>The list itself, with the entries and the existence check handed in so it can be tested.</summary>
     internal static List<ISearchResult> Build(
-        IEnumerable<HistoryEntry> history, int maxItems, Func<string, bool> exists, CancellationToken cancellationToken = default)
+        IEnumerable<HistoryEntry> history, int maxItems, Func<HistoryEntry, bool> exists, CancellationToken cancellationToken = default)
     {
         var entries = new List<ISearchResult>();
 
@@ -44,9 +49,13 @@ public class HistoryTabProvider : IQuickPanelTabProvider
             // disk to check for it. Everything else has to still be there: history outlives the files in
             // it, and a tile that opens nothing is worse than one fewer tile.
             var isApplication = entry.Kind == HistoryEntryKind.Application;
-            if (!isApplication && !exists(entry.Path)) continue;
+            if (!isApplication && !exists(entry)) continue;
 
-            entries.Add(new PanelResultItem(entry.Path, isApplication: isApplication, modified: OpenedAt(entry.Time)));
+            entries.Add(new PanelResultItem(
+                entry.Path,
+                isApplication: isApplication,
+                modified: OpenedAt(entry.Time),
+                isDirectory: entry.Kind == HistoryEntryKind.Folder));
         }
 
         return entries;

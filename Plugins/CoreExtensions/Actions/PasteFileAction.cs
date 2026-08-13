@@ -42,7 +42,7 @@ public class PasteFileAction : ISearchResultAction
     private static bool Exists(ISearchResult result)
     {
         if (result == null || string.IsNullOrEmpty(result.FullPath)) return false;
-        return PathExistenceCache.Exists(result.FullPath);
+        return PathExistenceCache.ExistsResult(result);
     }
 
     private static string? GetDestinationFolder(ISearchResult result) =>

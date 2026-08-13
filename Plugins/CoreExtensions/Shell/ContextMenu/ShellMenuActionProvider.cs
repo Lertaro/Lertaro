@@ -53,7 +53,7 @@ public class ShellMenuActionProvider : IDynamicActionProvider
         if (results.Count != 1) return false;
         var result = results[0];
         if (result == null || string.IsNullOrEmpty(result.FullPath)) return false;
-        return PluginSdk.Helpers.PathExistenceCache.Exists(result.FullPath);
+        return PluginSdk.Helpers.PathExistenceCache.ExistsResult(result);
     }
 
     public IEnumerable<DynamicMenuItem> GetMenuItems(IReadOnlyList<ISearchResult> results, IntPtr hMenu)

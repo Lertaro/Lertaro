@@ -27,7 +27,7 @@ public sealed class HistoryTabProviderTests
         var entries = HistoryTabProvider.Build(
             new[] { Entry(@"C:\gone"), Entry(@"C:\here") },
             maxItems: 10,
-            exists: path => path == @"C:\here");
+            exists: entry => entry.Path == @"C:\here");
 
         Assert.AreEqual(@"C:\here", entries.Single().FullPath);
     }
@@ -43,6 +43,25 @@ public sealed class HistoryTabProviderTests
 
         Assert.HasCount(1, entries);
         Assert.IsTrue(entries.Single().IsApplication);
+    }
+
+    [TestMethod]
+    public void Build_UsesTheRecordedFolderKindWithoutReprobingItAsAFile()
+    {
+        HistoryEntry? checkedEntry = null;
+
+        var entries = HistoryTabProvider.Build(
+            new[] { Entry(@"C:\folder", HistoryEntryKind.Folder) },
+            maxItems: 10,
+            exists: entry =>
+            {
+                checkedEntry = entry;
+                return true;
+            });
+
+        Assert.HasCount(1, entries);
+        Assert.AreEqual(HistoryEntryKind.Folder, checkedEntry!.Value.Kind);
+        Assert.IsTrue(entries[0].IsDir);
     }
 
     [TestMethod]

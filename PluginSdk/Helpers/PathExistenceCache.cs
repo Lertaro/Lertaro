@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.IO;
+using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.PluginSdk.Helpers;
 
@@ -7,10 +8,9 @@ namespace Lertaro.PluginSdk.Helpers;
 /// Remembers whether a path exists, for the duration of one action-menu build.
 /// </summary>
 /// <remarks>
-/// Almost every built-in action decides whether it applies with
-/// <c>results.All(r =&gt; File.Exists(r.FullPath) || Directory.Exists(r.FullPath))</c>. Eight of them do,
-/// over the same selection, so opening a menu asked the filesystem the same question about the same paths
-/// eight times over -- on the UI thread, since that is where the static half of the menu is built.
+/// Almost every built-in action checks whether every selected result still exists. Without this cache,
+/// opening a menu asks the filesystem the same question about the same paths once per action, on the UI
+/// thread where the static half of the menu is built.
 /// Measured at 5.4us a path that exists and 14.9us for one that doesn't, a selection of fifty thousand
 /// rows meant well over a second of the window being frozen before the menu appeared.
 ///
@@ -24,7 +24,7 @@ namespace Lertaro.PluginSdk.Helpers;
 /// </remarks>
 public static class PathExistenceCache
 {
-    private static ConcurrentDictionary<string, bool>? _current;
+    private static ConcurrentDictionary<ProbeKey, bool>? _current;
 
     /// <summary>
     /// Starts a scope in which repeated questions about a path are answered once. Dispose it when the
@@ -32,7 +32,7 @@ public static class PathExistenceCache
     /// </summary>
     public static IDisposable BeginScope()
     {
-        var cache = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var cache = new ConcurrentDictionary<ProbeKey, bool>();
         _current = cache;
         return new Scope(cache);
     }
@@ -50,7 +50,20 @@ public static class PathExistenceCache
         if (cache == null)
             return Probe(path);
 
-        return cache.GetOrAdd(path, static p => Probe(p));
+        return cache.GetOrAdd(new ProbeKey(path, null), static key => Probe(key.Path));
+    }
+
+    /// <summary>Checks only the filesystem kind already carried by a search result.</summary>
+    public static bool ExistsResult(ISearchResult? result)
+    {
+        if (result == null || string.IsNullOrWhiteSpace(result.FullPath))
+            return false;
+
+        var key = new ProbeKey(result.FullPath, result.IsDir);
+        var cache = _current;
+        return cache == null
+            ? Probe(key.Path, result.IsDir)
+            : cache.GetOrAdd(key, static candidate => Probe(candidate.Path, candidate.IsDirectory!.Value));
     }
 
     /// <summary>
@@ -78,6 +91,19 @@ public static class PathExistenceCache
         }
     }
 
+    /// <summary>Primes typed search results without probing the opposite filesystem kind.</summary>
+    public static void PrimeResults(IEnumerable<ISearchResult?> results)
+    {
+        if (_current == null)
+            return;
+
+        foreach (var result in results)
+        {
+            if (!ExistsResult(result))
+                return;
+        }
+    }
+
     private static bool Probe(string path)
     {
         try
@@ -90,11 +116,31 @@ public static class PathExistenceCache
         }
     }
 
+    private static bool Probe(string path, bool isDirectory)
+    {
+        try
+        {
+            return isDirectory ? Directory.Exists(path) : File.Exists(path);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private readonly record struct ProbeKey(string Path, bool? IsDirectory)
+    {
+        public bool Equals(ProbeKey other) =>
+            IsDirectory == other.IsDirectory && StringComparer.OrdinalIgnoreCase.Equals(Path, other.Path);
+
+        public override int GetHashCode() => HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(Path), IsDirectory);
+    }
+
     private sealed class Scope : IDisposable
     {
-        private readonly ConcurrentDictionary<string, bool> _owned;
+        private readonly ConcurrentDictionary<ProbeKey, bool> _owned;
 
-        public Scope(ConcurrentDictionary<string, bool> owned) => _owned = owned;
+        public Scope(ConcurrentDictionary<ProbeKey, bool> owned) => _owned = owned;
 
         public void Dispose() =>
             // Only clears the cache if it is still this scope's. A menu build that was superseded while

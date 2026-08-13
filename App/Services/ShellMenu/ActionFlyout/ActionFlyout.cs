@@ -61,7 +61,7 @@ public static class ActionFlyout
             // happens on this thread and not on the UI thread where BuildStatic runs. Prime stops at the
             // first missing path exactly as those All() gates do, so this is never more work than before.
             using var existence = PathExistenceCache.BeginScope();
-            PathExistenceCache.Prime(selection.Select(r => r.FullPath));
+            PathExistenceCache.PrimeResults(selection);
 
             List<ActionMenuItem>? dynamicItems = null;
             try

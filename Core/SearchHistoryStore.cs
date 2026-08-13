@@ -51,7 +51,7 @@ public static class SearchHistoryStore
     {
         var isApp = kind == HistoryEntryKind.Application;
         var normalizedPath = isApp ? path.Trim() : NormalizePath(path);
-        if (!isApp && !File.Exists(normalizedPath) && !Directory.Exists(normalizedPath))
+        if (!ExistsForKind(normalizedPath, kind, File.Exists, Directory.Exists))
             return;
 
         lock (Gate)
@@ -128,7 +128,7 @@ public static class SearchHistoryStore
             {
                 var isApp = entry.Kind == HistoryEntryKind.Application;
                 var normalizedPath = isApp ? entry.Path.Trim() : NormalizePath(entry.Path);
-                if (!isApp && !File.Exists(normalizedPath) && !Directory.Exists(normalizedPath))
+                if (!ExistsForKind(normalizedPath, entry.Kind, File.Exists, Directory.Exists))
                     continue;
 
                 validated.Add((entry.Keyword?.Trim() ?? string.Empty, new StoredEntry(normalizedPath, entry.Kind, entry.Time)));
@@ -150,6 +150,17 @@ public static class SearchHistoryStore
                 : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         }
     }
+
+    internal static bool ExistsForKind(
+        string path,
+        HistoryEntryKind kind,
+        Func<string, bool> fileExists,
+        Func<string, bool> directoryExists) => kind switch
+        {
+            HistoryEntryKind.Application => true,
+            HistoryEntryKind.Folder => directoryExists(path),
+            _ => fileExists(path)
+        };
 
     private static void EnsureCacheNoLock()
     {

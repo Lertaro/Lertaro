@@ -1,4 +1,5 @@
 using Lertaro.PluginSdk.Helpers;
+using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.Plugins.CoreExtensions.Tests.Helpers;
 
@@ -10,6 +11,15 @@ namespace Lertaro.Plugins.CoreExtensions.Tests.Helpers;
 [DoNotParallelize]
 public sealed class PathExistenceCacheTests
 {
+    private sealed class FakeResult : ISearchResult
+    {
+        public string Name { get; init; } = string.Empty;
+        public string FullPath { get; init; } = string.Empty;
+        public string ContextDirectory { get; init; } = string.Empty;
+        public bool IsDir { get; init; }
+        public bool IsApplication { get; init; }
+    }
+
     private string _dir = string.Empty;
 
     [TestInitialize]
@@ -39,6 +49,26 @@ public sealed class PathExistenceCacheTests
 
         Assert.IsTrue(PathExistenceCache.Exists(file));
         Assert.IsFalse(PathExistenceCache.Exists(file + ".gone"));
+    }
+
+    [TestMethod]
+    public void Exists_TypedResult_OnlyChecksItsDeclaredKind()
+    {
+        var file = NewFile();
+
+        Assert.IsFalse(PathExistenceCache.ExistsResult(new FakeResult { FullPath = _dir, IsDir = false }));
+        Assert.IsFalse(PathExistenceCache.ExistsResult(new FakeResult { FullPath = file, IsDir = true }));
+        Assert.IsTrue(PathExistenceCache.ExistsResult(new FakeResult { FullPath = _dir, IsDir = true }));
+        Assert.IsTrue(PathExistenceCache.ExistsResult(new FakeResult { FullPath = file, IsDir = false }));
+    }
+
+    [TestMethod]
+    public void Exists_TypedAndUntypedAnswers_DoNotShareTheWrongCachedVerdict()
+    {
+        using var scope = PathExistenceCache.BeginScope();
+
+        Assert.IsTrue(PathExistenceCache.Exists(_dir));
+        Assert.IsFalse(PathExistenceCache.ExistsResult(new FakeResult { FullPath = _dir, IsDir = false }));
     }
 
     [TestMethod]

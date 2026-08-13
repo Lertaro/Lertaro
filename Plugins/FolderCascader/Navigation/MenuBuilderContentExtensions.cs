@@ -101,7 +101,11 @@ internal static class MenuBuilderContentExtensions
                     HBitmapItem = IntPtr.Zero
                 });
             }
-            else if (Directory.Exists(rpath))
+            else if (!HistoryEntryExists(entry, File.Exists, Directory.Exists))
+            {
+                continue;
+            }
+            else if (entry.Kind == HistoryEntryKind.Folder)
             {
                 items.Add(new DynamicMenuItem
                 {
@@ -111,7 +115,7 @@ internal static class MenuBuilderContentExtensions
                     HBitmapItem = IntPtr.Zero
                 });
             }
-            else if (File.Exists(rpath))
+            else
             {
                 items.Add(new DynamicMenuItem
                 {
@@ -125,6 +129,17 @@ internal static class MenuBuilderContentExtensions
             items.Add(new DynamicMenuItem { Text = TranslationService.Get("FolderCascader_NoHistory"), IsDisabled = true });
         return items;
     }
+
+    internal static bool HistoryEntryExists(
+        HistoryEntry entry,
+        Func<string, bool> fileExists,
+        Func<string, bool> directoryExists) => entry.Kind switch
+        {
+            HistoryEntryKind.Application => true,
+            HistoryEntryKind.Folder => directoryExists(entry.Path),
+            HistoryEntryKind.File => fileExists(entry.Path),
+            _ => false
+        };
 
     internal static List<DynamicMenuItem> BuildFavoritesMenu(Provider provider)
     {

@@ -26,7 +26,7 @@ public class CopyFileAction : ISearchResultAction
     private static bool Exists(ISearchResult result)
     {
         if (result == null || string.IsNullOrEmpty(result.FullPath)) return false;
-        return PathExistenceCache.Exists(result.FullPath);
+        return PathExistenceCache.ExistsResult(result);
     }
 
     public void Execute(IReadOnlyList<ISearchResult> results, IPluginSearchWindow view)

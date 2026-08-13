@@ -25,14 +25,14 @@ public class LocalSendAction : ISearchResultAction
     private static bool Exists(ISearchResult result)
     {
         if (result == null || string.IsNullOrEmpty(result.FullPath)) return false;
-        return PathExistenceCache.Exists(result.FullPath);
+        return PathExistenceCache.ExistsResult(result);
     }
 
     public void Execute(IReadOnlyList<ISearchResult> results, IPluginSearchWindow view)
     {
         try
         {
-            var files = results.Select(r => r.FullPath).Where(p => !string.IsNullOrEmpty(p) && (System.IO.File.Exists(p) || System.IO.Directory.Exists(p))).ToList();
+            var files = results.Where(PathExistenceCache.ExistsResult).Select(r => r.FullPath).ToList();
             var text = files.Count == 0 ? string.Join(Environment.NewLine, results.Select(r => r.Name).Where(t => !string.IsNullOrEmpty(t))) : null;
 
             LocalSendTransferService.OpenSendWindow(files, text);

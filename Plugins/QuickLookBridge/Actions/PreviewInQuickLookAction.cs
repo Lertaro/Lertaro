@@ -25,7 +25,7 @@ public class PreviewInQuickLookAction : ISearchResultAction
     public bool CanExecute(IReadOnlyList<ISearchResult> results) =>
         results.Count == 1
         && !string.IsNullOrEmpty(results[0].FullPath)
-        && (File.Exists(results[0].FullPath) || Directory.Exists(results[0].FullPath))
+        && (results[0].IsDir ? Directory.Exists(results[0].FullPath) : File.Exists(results[0].FullPath))
         && QuickLookPipeClient.IsAvailable();
 
     public void Execute(IReadOnlyList<ISearchResult> results, IPluginSearchWindow view) =>

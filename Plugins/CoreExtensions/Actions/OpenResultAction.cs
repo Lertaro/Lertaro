@@ -30,7 +30,7 @@ public class OpenResultAction : ISearchResultAction
         // A packaged app's FullPath is a virtual shell:AppsFolder token rather than a real file, so this
         // naturally excludes those (same self-guard pattern as every other built-in action) while still
         // letting a real Start Menu .lnk shortcut open/open-as-admin like any other file.
-        return PathExistenceCache.Exists(result.FullPath);
+        return PathExistenceCache.ExistsResult(result);
     }
 }
 

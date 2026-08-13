@@ -69,7 +69,7 @@ public static class ShellIconHelper
         }
 
         var isVirtualItem = path.StartsWith("::") || path.StartsWith("shell:");
-        var isPhysicalPath = !isVirtualItem && (File.Exists(path) || Directory.Exists(path));
+        var isPhysicalPath = !isVirtualItem && (isDir ? Directory.Exists(path) : File.Exists(path));
         var hasThumbnailProvider = !isDir && PluginManager.Instance.ThumbnailProviders.Any(p => p.CanProvideThumbnail(path, isDir));
 
         // All real physical files on disk, virtual items, and thumbnail provider targets use full path as cache key
@@ -145,7 +145,7 @@ public static class ShellIconHelper
 
         var checkPath = path;
         var isVirtualItem = checkPath.StartsWith("::") || checkPath.StartsWith("shell:");
-        var isPhysicalPath = !isVirtualItem && (File.Exists(checkPath) || Directory.Exists(checkPath));
+        var isPhysicalPath = !isVirtualItem && (isDir ? Directory.Exists(checkPath) : File.Exists(checkPath));
         var hasThumbnailProvider = !isDir && PluginManager.Instance.ThumbnailProviders.Any(p => p.CanProvideThumbnail(path, isDir));
 
         var isUniqueIconType = isPhysicalPath || isVirtualItem || hasThumbnailProvider;
@@ -178,7 +178,7 @@ public static class ShellIconHelper
         {
             var shfi = new ShellIconNativeMethods.SHFILEINFOW();
 
-            if (!isDir && ext.Equals(".lnk", StringComparison.OrdinalIgnoreCase) && File.Exists(checkPath))
+            if (!isDir && ext.Equals(".lnk", StringComparison.OrdinalIgnoreCase) && isPhysicalPath)
             {
                 var shortcutIcon = ShellIconShortcutResolver.TryGetShortcutTargetIcon(checkPath);
                 if (shortcutIcon != null)
@@ -187,7 +187,7 @@ public static class ShellIconHelper
                 }
             }
 
-            if (!isDir && ext.Equals(".msc", StringComparison.OrdinalIgnoreCase) && File.Exists(checkPath))
+            if (!isDir && ext.Equals(".msc", StringComparison.OrdinalIgnoreCase) && isPhysicalPath)
             {
                 var mscIcon = ShellIconShortcutResolver.TryGetMscIcon(checkPath);
                 if (mscIcon != null)
@@ -196,7 +196,7 @@ public static class ShellIconHelper
                 }
             }
 
-            if (isVirtualItem || (isDir && Directory.Exists(checkPath)))
+            if (isVirtualItem || (isDir && isPhysicalPath))
             {
                 // Safely load system shell icon by path instead of dangerous PIDL extraction
                 var hiRes = ShellImageListInterop.TryGetIcon(checkPath, 0, 0);
@@ -206,7 +206,7 @@ public static class ShellIconHelper
                 }
             }
 
-            if (!isDir && (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) || ext.Equals(".ico", StringComparison.OrdinalIgnoreCase)) && File.Exists(checkPath))
+            if (!isDir && (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) || ext.Equals(".ico", StringComparison.OrdinalIgnoreCase)) && isPhysicalPath)
             {
                 var exeIcon = ShellImageListInterop.ExtractHiRes(checkPath, 0);
                 if (exeIcon != null)

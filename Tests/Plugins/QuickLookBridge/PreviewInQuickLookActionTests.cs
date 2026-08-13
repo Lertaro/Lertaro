@@ -44,6 +44,14 @@ public sealed class PreviewInQuickLookActionTests
     }
 
     [TestMethod]
+    public void CanExecute_DirectoryDeclaredAsFile_ReturnsFalseBeforeCheckingQuickLook()
+    {
+        var results = new ISearchResult[] { new FakeResult { FullPath = Path.GetTempPath(), IsDir = false } };
+
+        Assert.IsFalse(new PreviewInQuickLookAction().CanExecute(results));
+    }
+
+    [TestMethod]
     public void DisplayName_IsNotEmpty() =>
         Assert.IsFalse(string.IsNullOrWhiteSpace(new PreviewInQuickLookAction().DisplayName));
 
