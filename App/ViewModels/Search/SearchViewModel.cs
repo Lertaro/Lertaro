@@ -122,7 +122,6 @@ public class SearchViewModel : ViewModelBase, IDisposable
 
     public ObservableRangeCollection<AppSearchResult> FilteredResults { get; }
     public ObservableCollection<DynamicSidebarGroupViewModel> DynamicSidebarGroups { get; } = new();
-
     public string AdvancedQuery
     {
         get => _advancedQuery;
@@ -137,6 +136,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
                 }
                 else
                 {
+                    _searchEngine.CancelPendingSearch();
                     _dispatcher.OnAdvancedQueryChanged(value);
                 }
                 OnPropertyChanged(nameof(ShowWelcomeHint));
