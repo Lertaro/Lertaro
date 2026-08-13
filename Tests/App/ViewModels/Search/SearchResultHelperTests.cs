@@ -178,6 +178,14 @@ public sealed class SearchResultHelperTests
         Assert.AreEqual("", SearchResultHelper.FormatWslPath(""));
 
     [TestMethod]
+    public void NormalizePath_WslPathUsesLexicalNormalization()
+    {
+        var path = @"\\wsl$\Ubuntu/home/testuser/~cache/";
+
+        Assert.AreEqual(@"\\wsl$\Ubuntu\home\testuser\~cache", SearchResultHelper.NormalizePath(path));
+    }
+
+    [TestMethod]
     public void FormatRelativeParentPath_SubdirectoryOfScope_ReturnsRelativeSegment() =>
         Assert.AreEqual("sub\\deeper", SearchResultHelper.FormatRelativeParentPath(@"C:\root\sub\deeper", @"C:\root"));
 

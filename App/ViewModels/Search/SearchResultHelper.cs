@@ -115,7 +115,15 @@ internal static class SearchResultHelper
             : relativePath;
     }
 
-    public static string NormalizePath(string path) => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    public static string NormalizePath(string path)
+    {
+        // Indexed WSL paths are already absolute. Keep normalization lexical so displaying or comparing
+        // a result cannot ask Windows to expand a short-name-looking segment and wake the distro.
+        var normalized = WslPath.IsPath(path)
+            ? path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
+            : Path.GetFullPath(path);
+        return normalized.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
 
     public static bool IsPathInsideScope(string normalizedPath, string normalizedScope) => normalizedPath.StartsWith(normalizedScope + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
             || normalizedPath.StartsWith(normalizedScope + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);

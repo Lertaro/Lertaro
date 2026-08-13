@@ -123,6 +123,16 @@ public sealed class ExclusionRuleSetTests
     }
 
     [TestMethod]
+    public void IsExcludedPath_WslPathUsesLexicalNormalization()
+    {
+        var settings = EmptySettings();
+        settings.ExcludedPaths.Add(@"\\wsl$\Ubuntu\home\testuser\cache");
+        var rules = ExclusionRuleSet.From(settings);
+
+        Assert.IsTrue(rules.IsExcludedPath(@"\\wsl$\Ubuntu/home/testuser/cache/file.txt", isDirectory: false));
+    }
+
+    [TestMethod]
     public void InvalidateCache_DoesNotThrow() => ExclusionRuleSet.InvalidateCache();
 
     // Ancestor verdicts are memoised per directory (see AncestorIsIgnored) -- an ignored directory's

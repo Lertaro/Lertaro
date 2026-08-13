@@ -38,7 +38,7 @@ public static class IndexedDirectoryEnumerator
     {
         if (string.IsNullOrWhiteSpace(directoryPath))
             return;
-        var path = Path.GetFullPath(directoryPath);
+        var path = NormalizeDirectoryPath(directoryPath);
 
         // A local drive the service indexes: asked first and preferred over any in-process index that
         // also happens to cover the path (a folder index nested inside it), since the service's copy is
@@ -119,6 +119,10 @@ public static class IndexedDirectoryEnumerator
             return false;
         }
     }
+
+    internal static string NormalizeDirectoryPath(string path) => WslPath.IsPath(path)
+        ? path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
+        : Path.GetFullPath(path);
 
     // Matches the index-side walk's semantics on purpose (DirectoryEnumerator): directories are listed
     // alongside files but never matched against the file pattern, and recursion is never gated by it.

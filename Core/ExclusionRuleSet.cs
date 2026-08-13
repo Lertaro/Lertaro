@@ -270,7 +270,8 @@ public sealed class ExclusionRuleSet
 
         try
         {
-            normalized = Path.GetFullPath(normalized);
+            if (!WslPath.IsPath(normalized))
+                normalized = Path.GetFullPath(normalized);
         }
         catch
         {

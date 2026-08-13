@@ -37,4 +37,12 @@ public sealed class SearchHistoryStoreTests
         Assert.IsTrue(exists);
         Assert.IsFalse(probed);
     }
+
+    [TestMethod]
+    public void NormalizePath_WslPathUsesLexicalNormalization()
+    {
+        var path = @"\\wsl$\Ubuntu/home/testuser/~cache/";
+
+        Assert.AreEqual(@"\\wsl$\Ubuntu\home\testuser\~cache", SearchHistoryStore.NormalizePath(path));
+    }
 }

@@ -259,14 +259,15 @@ public static class SearchHistoryStore
         return priorities;
     }
 
-    private static string NormalizePath(string path)
+    internal static string NormalizePath(string path)
     {
         var normalized = path.Trim().Trim('"')
             .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
 
         try
         {
-            normalized = Path.GetFullPath(normalized);
+            if (!WslPath.IsPath(normalized))
+                normalized = Path.GetFullPath(normalized);
         }
         catch
         {

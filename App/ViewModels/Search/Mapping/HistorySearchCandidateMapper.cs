@@ -71,7 +71,10 @@ internal static class HistorySearchCandidateMapper
 
         try
         {
-            var path = Path.GetFullPath(entry.Path.Trim().Trim('"'));
+            var rawPath = entry.Path.Trim().Trim('"');
+            var path = WslPath.IsPath(rawPath)
+                ? rawPath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
+                : Path.GetFullPath(rawPath);
             var isDirectory = entry.Kind == HistoryEntryKind.Folder;
             if (!(isDirectory ? directoryExists(path) : fileExists(path)))
                 return false;

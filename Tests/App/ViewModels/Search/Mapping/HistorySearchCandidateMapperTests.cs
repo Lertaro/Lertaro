@@ -52,6 +52,23 @@ public sealed class HistorySearchCandidateMapperTests
     }
 
     [TestMethod]
+    public void Collect_WslHistoryUsesLexicalPathNormalization()
+    {
+        var probedPath = string.Empty;
+        var entries = new[] { Entry("cache", @"\\wsl$\Ubuntu/home/testuser/~cache/file.txt", HistoryEntryKind.File) };
+
+        var results = HistorySearchCandidateMapper.Collect("cache", null, entries, path =>
+        {
+            probedPath = path;
+            return true;
+        }, _ => false);
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual(@"\\wsl$\Ubuntu\home\testuser\~cache\file.txt", probedPath);
+        Assert.AreEqual(probedPath, results[0].Result.FullPath);
+    }
+
+    [TestMethod]
     public void Collect_PathOutsideScope_DoesNotAddPath()
     {
         var entries = new[] { Entry("bcomp", @"D:\Apps\BCompare.exe", HistoryEntryKind.File) };
