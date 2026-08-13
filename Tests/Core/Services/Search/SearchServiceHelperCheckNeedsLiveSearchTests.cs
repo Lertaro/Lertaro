@@ -5,6 +5,16 @@ namespace Lertaro.Core.Tests.Services.Search;
 [TestClass]
 public sealed class SearchServiceHelperCheckNeedsLiveSearchTests
 {
+    [TestMethod]
+    public void CheckNeedsLiveSearch_WslPath_IsAlwaysIndexOnly()
+    {
+        var result = SearchServiceHelper.CheckNeedsLiveSearch(
+            @"\\wsl$\Ubuntu\home\testuser",
+            ExclusionRuleSet.From(new UserSettings()));
+
+        Assert.IsFalse(result);
+    }
+
     private static UserSettings EmptySettings() => new()
     {
         ExcludedPaths = new List<string>(),

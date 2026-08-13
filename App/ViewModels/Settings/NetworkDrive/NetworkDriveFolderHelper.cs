@@ -62,7 +62,7 @@ internal static class NetworkDriveFolderHelper
             // distro root ("\\wsl$\Ubuntu") stays blocked (it already has its own tab), a subfolder
             // within it ("\\wsl$\Ubuntu\home\user\projects") is just as legitimate a target as a UNC
             // share subfolder.
-            if (trimmed.StartsWith(@"\\", StringComparison.Ordinal) && !NetworkDriveSettingsHelper.IsWslPath(trimmed))
+            if (trimmed.StartsWith(@"\\", StringComparison.Ordinal) && !WslPath.IsPath(trimmed))
                 return false;
 
             var root = Path.GetPathRoot(path);
@@ -90,7 +90,7 @@ internal static class NetworkDriveFolderHelper
         // -- a genuine UNC share key ("\\server\share", now indexable via the folder-index feature) is
         // NOT excluded here, only WSL is.
         var cachedPaths = searchService.GetCachedNetworkDrives()
-            .Where(d => d.Length > 1 && !NetworkDriveSettingsHelper.IsWslPath(d));
+            .Where(d => d.Length > 1 && !WslPath.IsPath(d));
         var livePaths = vm.FolderIndexes.Select(f => f.Path);
         return configuredPaths.Concat(cachedPaths).Concat(livePaths)
             .Distinct(StringComparer.OrdinalIgnoreCase)

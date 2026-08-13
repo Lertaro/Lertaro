@@ -147,6 +147,15 @@ public sealed class AppSearchResultTests
     }
 
     [TestMethod]
+    public void DateModified_WslWithoutIndexedValue_DoesNotStartFilesystemFallback()
+    {
+        var row = RowFor(Record(@"\\wsl$\Ubuntu\home\testuser\readme.md", "readme.md"));
+
+        Assert.AreEqual(DateTime.MinValue, row.DateModified);
+        Assert.IsFalse(HasExtras(row), "WSL display metadata must remain index-only");
+    }
+
+    [TestMethod]
     public void DefaultsAreReturnedWithoutAllocating()
     {
         var row = RowFor(Record(@"D:\Projects\app\readme.md", "readme.md"));

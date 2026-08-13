@@ -27,14 +27,6 @@ public sealed class PathHelpersTests
     public void BuildSourceRoot_FullPathWithTrailingSeparator_IsUnchanged() => Assert.AreEqual(@"Z:\Archive\", PathHelpers.BuildSourceRoot(@"Z:\Archive\"));
 
     [TestMethod]
-    [DataRow(@"\\wsl$\Ubuntu\home", true)]
-    [DataRow(@"\\wsl.localhost\Ubuntu\home", true)]
-    [DataRow(@"\\wslbackup\share", false)] // real UNC host that merely starts with "wsl"
-    [DataRow(@"\\server\share", false)]
-    [DataRow(@"c:\local", false)]
-    public void IsWslUncPath_DetectsOnlyRealWslPrefixes(string path, bool expected) => Assert.AreEqual(expected, PathHelpers.IsWslUncPath(path));
-
-    [TestMethod]
     public void HashPath_SamePathDifferentCase_ProducesSameHash()
     {
         var lower = PathHelpers.HashPath(@"c:\foo\bar");

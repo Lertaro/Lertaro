@@ -213,6 +213,15 @@ public sealed class LiveDirectorySearcherTests
     }
 
     [TestMethod]
+    public void ResolvePathModeSearch_WslPath_DoesNotProbeForLiveFallback()
+    {
+        var (dir, filter) = LiveDirectorySearcher.ResolvePathModeSearch(@"\\wsl$\Ubuntu\home\testuser\file.txt");
+
+        Assert.AreEqual(string.Empty, dir);
+        Assert.AreEqual(string.Empty, filter);
+    }
+
+    [TestMethod]
     public void ResolvePathModeSearch_ExistingDirectory_ReturnsItselfWithNoFilter()
     {
         using var tempDir = new TempDirectory();

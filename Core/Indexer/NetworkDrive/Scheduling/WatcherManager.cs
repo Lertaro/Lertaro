@@ -39,7 +39,7 @@ internal class WatcherManager : IDisposable
         // ERROR_INVALID_FUNCTION). Checked precisely (not every "\\wsl"-prefixed path) so a real UNC share
         // whose hostname happens to start with "wsl" (e.g. "\\wslbackup\share", indexable via the
         // folder-index feature) doesn't silently lose live change detection.
-        if (PathHelpers.IsWslUncPath(drive))
+        if (WslPath.IsPath(drive))
             return;
 
         lock (_watchers)

@@ -62,6 +62,11 @@ public static class IndexedDirectoryEnumerator
                 return;
         }
 
+        // Automatic WSL listings are index-only. A missing/building index must look empty instead of
+        // waking the distro with DirectoryInfo; explicit open/locate/preview actions do not use here.
+        if (WslPath.IsPath(path))
+            return;
+
         // Nothing has it: an unconfigured share, a drive indexing is off for, an index still building,
         // the service down, or a path that simply doesn't exist. Every one of those emitted nothing
         // above, so walking the disk here cannot duplicate what was already delivered.

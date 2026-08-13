@@ -108,7 +108,7 @@ internal static class SearchReachabilityGate
     {
         if (cacheKey.Length == 1)
             return resolvedDriveLetters.Contains(cacheKey);
-        if (NetworkDriveSettingsHelper.IsWslPath(cacheKey))
+        if (WslPath.IsPath(cacheKey))
         {
             var distroName = NetworkDriveSettingsHelper.GetWslDistroName(cacheKey);
             return wslDistros.Contains(distroName, StringComparer.OrdinalIgnoreCase);

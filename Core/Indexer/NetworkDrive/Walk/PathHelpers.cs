@@ -21,12 +21,8 @@ internal static class PathHelpers
         : sourceKey.EndsWith(Path.DirectorySeparatorChar) || sourceKey.EndsWith(Path.AltDirectorySeparatorChar) ? sourceKey
         : sourceKey + Path.DirectorySeparatorChar;
 
-    // "\\wsl$\..."/"\\wsl.localhost\..." specifically -- NOT every "\\wsl"-prefixed path, so a real UNC
-    // share whose hostname happens to start with "wsl" (e.g. "\\wslbackup\share") isn't misclassified as
-    // a WSL distro. Mirrors NetworkDriveSettingsHelper.IsWslPath in the App layer (which can't reference
-    // this internal Core type), kept as the single definition for Core-side callers.
-    public static readonly string[] WslUncPrefixes = { @"\\wsl$\", @"\\wsl.localhost\" };
-    public static bool IsWslUncPath(string path) => WslUncPrefixes.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+    // Both spellings are needed when resolving WSL paths stored under the alternate UNC prefix.
+    public static readonly string[] WslUncPrefixes = { WslPath.UncPrefix, WslPath.LocalhostPrefix };
 
     public static UInt128 HashPath(string path)
     {

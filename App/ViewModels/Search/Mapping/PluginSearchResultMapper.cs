@@ -73,8 +73,13 @@ public static class PluginSearchResultMapper
 
                     if (item.ActionType == "Execute" && !string.IsNullOrWhiteSpace(targetPath))
                     {
-                        if (File.Exists(targetPath)) isRealFile = true;
-                        else if (Directory.Exists(targetPath)) isRealDir = true;
+                        // WSL targets stay opaque until the user explicitly opens them; probing here
+                        // would wake the distro merely because a plugin result was displayed.
+                        if (!WslPath.IsPath(targetPath))
+                        {
+                            if (File.Exists(targetPath)) isRealFile = true;
+                            else if (Directory.Exists(targetPath)) isRealDir = true;
+                        }
                     }
 
                     System.Windows.Media.ImageSource? iconOverride = null;

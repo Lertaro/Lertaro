@@ -199,7 +199,7 @@ public static class LiveDirectorySearcher
 
     public static (string DirectoryToScan, string FilterQuery) ResolvePathModeSearch(string exactPathLower)
     {
-        if (string.IsNullOrEmpty(exactPathLower))
+        if (string.IsNullOrEmpty(exactPathLower) || WslPath.IsPath(exactPathLower))
             return (string.Empty, string.Empty);
 
         if (Directory.Exists(exactPathLower))

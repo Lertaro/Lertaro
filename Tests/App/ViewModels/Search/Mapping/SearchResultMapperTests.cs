@@ -239,6 +239,11 @@ public sealed class DirectorySelfExclusionTests
         Assert.IsTrue(SearchResultMapper.IsQueriedDirectoryItself(@"C:\", @"C:\"));
 
     [TestMethod]
+    public void IsQueriedDirectoryItself_WslDirectoryQuery_ReturnsTrue() =>
+        Assert.IsTrue(SearchResultMapper.IsQueriedDirectoryItself(
+            @"\\wsl$\Ubuntu\home\testuser", @"\\wsl$\Ubuntu\home\testuser\"));
+
+    [TestMethod]
     public void IsQueriedDirectoryItself_NonMatchingPath_ReturnsFalse() =>
         Assert.IsFalse(SearchResultMapper.IsQueriedDirectoryItself(@"C:\other.txt", @"C:\"));
 

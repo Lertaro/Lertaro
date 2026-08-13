@@ -54,6 +54,11 @@ internal static class SearchServiceHelper
         ExclusionRuleSet exclusionRules,
         MachineSettings? machineSettings = null)
     {
+        // WSL can take seconds to wake after an idle period. Its configured in-memory index is the
+        // sole automatic-search source; only explicit user actions may touch the distro filesystem.
+        if (WslPath.IsPath(dir))
+            return false;
+
         try
         {
             var driveInfo = new DriveInfo(dir);

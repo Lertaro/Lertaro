@@ -16,7 +16,7 @@ internal static class ExplorerJumpSuggestionHelper
         var lastPath = tracker.LastActiveExplorerPath;
         var isDialog = tracker.IsActiveWindowDialog;
         var dirExists = !string.IsNullOrEmpty(lastPath) &&
-                        (Directory.Exists(lastPath) ||
+                        (WslPath.IsPath(lastPath) || Directory.Exists(lastPath) ||
                          (lastPath.Length >= 3 && lastPath[1] == ':' && lastPath[2] == '\\' && char.IsLetter(lastPath[0])));
 
         var searchScopeTrimmed = searchScope?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

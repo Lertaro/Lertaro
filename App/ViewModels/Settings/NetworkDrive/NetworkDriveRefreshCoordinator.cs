@@ -64,7 +64,7 @@ internal static class NetworkDriveRefreshCoordinator
         // just for sharing the same leading "\\", which would show it as a fake WSL distro (and risk a
         // name collision if a real distro happens to share the share's leaf name).
         var cachedWslDrives = cachedDrives
-            .Where(NetworkDriveSettingsHelper.IsWslPath)
+            .Where(WslPath.IsPath)
             .Select(NetworkDriveSettingsHelper.GetWslDistroName)
             .ToList();
         var visibleWsl = wslDistros

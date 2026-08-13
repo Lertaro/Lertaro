@@ -48,22 +48,6 @@ public sealed class NetworkDriveSettingsHelperTests
         Assert.AreEqual("Manual", NetworkDriveSettingsHelper.NormalizeRefreshMode(null));
     }
 
-    [TestMethod]
-    public void IsWslPath_WslDollarPrefix_ReturnsTrue() =>
-        Assert.IsTrue(NetworkDriveSettingsHelper.IsWslPath(@"\\wsl$\Ubuntu\home"));
-
-    [TestMethod]
-    public void IsWslPath_WslLocalhostPrefix_ReturnsTrue() =>
-        Assert.IsTrue(NetworkDriveSettingsHelper.IsWslPath(@"\\wsl.localhost\Ubuntu\home"));
-
-    [TestMethod]
-    public void IsWslPath_RegularUncShare_ReturnsFalse() =>
-        Assert.IsFalse(NetworkDriveSettingsHelper.IsWslPath(@"\\server\share"));
-
-    [TestMethod]
-    public void IsWslPath_PrefixMatchIsCaseInsensitive() =>
-        Assert.IsTrue(NetworkDriveSettingsHelper.IsWslPath(@"\\WSL$\Ubuntu"));
-
     // Regression coverage: System.IO.Path.GetFileName(@"\\wsl$\Ubuntu") returns "" -- a bare two-segment
     // UNC path has no path component past its root by .NET's own rules (same as Path.GetFileName(@"C:\")
     // == "") -- which used to collapse every cached-but-no-longer-listed WSL distro into one blank row

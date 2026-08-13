@@ -1,7 +1,7 @@
 using System.IO;
 using Lertaro.Core;
-
 using Lertaro.Core.SearchIndex;
+
 namespace Lertaro.App.ViewModels.Search.Mapping;
 
 public static class SearchResultMapper
@@ -284,12 +284,12 @@ public static class SearchResultMapper
     {
         if (string.IsNullOrWhiteSpace(query))
             return null;
-
         try
         {
             var trimmed = query.Trim();
             var endsWithSeparator = trimmed.EndsWith("\\") || trimmed.EndsWith("/");
-            if (trimmed.EndsWith(":\\") || trimmed.EndsWith(":/") || (endsWithSeparator && Directory.Exists(trimmed)))
+            if (trimmed.EndsWith(":\\") || trimmed.EndsWith(":/") ||
+                (endsWithSeparator && (WslPath.IsPath(trimmed) || Directory.Exists(trimmed))))
                 return SearchResultHelper.NormalizePath(trimmed);
         }
         catch { }

@@ -1,8 +1,5 @@
 using System.Windows;
 using Lertaro.App.Services;
-
-using Lertaro.App.Services.Plugin;
-using Lertaro.App.Services.ShellIcons;
 using Lertaro.App.ViewModels.Search;
 namespace Lertaro.App;
 
@@ -35,8 +32,13 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     // which carry their own values in Extras instead.
     private Core.SearchResult? _source;
     private AppSearchResultExtras? _extras;
+    private AppSearchResultDisplaySupport? _displaySupport;
 
     private AppSearchResultExtras Extras => _extras ??= new AppSearchResultExtras();
+    private AppSearchResultDisplaySupport DisplaySupport => _displaySupport ??= new(this);
+    internal AppSearchResultExtras DisplayExtras => Extras;
+    internal AppSearchResultExtras? ExistingExtras => _extras;
+    internal void NotifyDisplayPropertyChanged(string propertyName) => OnPropertyChanged(propertyName);
 
     /// <summary>
     /// Builds a row backed by an index record, holding the record rather than copying values out of it.
@@ -219,70 +221,12 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
         set => Extras.SourceProvider = value;
     }
 
-    public bool[]? GetHighlightMask(string text, string query)
-    {
-        if (SourceProvider is PluginSdk.Abstractions.Plugins.IInstantResultProvider instantProvider)
-        {
-            return instantProvider.GetHighlightMask(text, query);
-        }
-        return null;
-    }
+    public bool[]? GetHighlightMask(string text, string query) => DisplaySupport.GetHighlightMask(text, query);
 
     // Visual properties
 
-    public string IconData => FullPath == "__SHOW_MORE__"
-        ? "M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"
-        : (IsDir
-            // Folder icon (filled folder shape)
-            ? "M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
-            // File icon (document shape)
-            : "M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z");
-
-    private static readonly SemaphoreSlim _iconSemaphore = new(4);
-    private static readonly SemaphoreSlim _dateModifiedSemaphore = new(8);
-
-    public System.Windows.Media.ImageSource? Icon
-    {
-        get
-        {
-            if (IsEmptyResult || IsListItem)
-                return null;
-            if (_extras?.IconOverride is { } over)
-                return over;
-
-            var extras = Extras;
-            if (extras.Icon == null)
-            {
-                extras.Icon = ShellIconHelper.GetIconFromCacheOnly(FullPath, IsDir, out var needsLoad);
-                if (needsLoad && !extras.IconLoadingStarted)
-                {
-                    extras.IconLoadingStarted = true;
-                    LoadIconAsync();
-                }
-            }
-            return extras.Icon;
-        }
-    }
-
-    private void LoadIconAsync()
-    {
-        var pathCopy = FullPath;
-        var isDirCopy = IsDir;
-
-        LazyBackgroundLoader.Start(_iconSemaphore, () =>
-        {
-            var realIcon = ShellIconHelper.GetIconForPath(pathCopy, isDirCopy);
-            if (realIcon != null)
-            {
-                LazyBackgroundLoader.ApplyOnUiThread(() =>
-                {
-                    Extras.Icon = realIcon;
-                    OnPropertyChanged(nameof(Icon));
-                });
-            }
-            return Task.CompletedTask;
-        });
-    }
+    public string IconData => DisplaySupport.IconData;
+    public System.Windows.Media.ImageSource? Icon => DisplaySupport.Icon;
 
     public string ShortcutHint
     {
@@ -318,61 +262,21 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
         set => Extras.Metadata = value;
     }
 
-    // Lazy-loaded File Date Modified
+    // Lazy-loaded file modification time when the index did not provide it.
     public DateTime DateModified
     {
         get
         {
-            if (_extras?.DateModified is { } cached) return cached;
+            if (_extras?.DateModified is { } cached)
+                return cached;
             // Deliberately ahead of any Extras allocation: the index knows the date for almost every
             // result, and the date column sorts by reading this on every row. A row that can answer
             // from its own record must not have to allocate to do it.
             var known = Metadata.Modified;
             if (known != DateTime.MinValue)
                 return (Extras.DateModified = known).Value;
-            var extras = Extras;
-            if (!extras.DateModifiedLoadingStarted)
-            {
-                extras.DateModifiedLoadingStarted = true;
-                LoadDateModifiedAsync();
-            }
-            return DateTime.MinValue;
+            return DisplaySupport.DateModified;
         }
-    }
-
-    private void LoadDateModifiedAsync()
-    {
-        var pathCopy = FullPath;
-        var isDirCopy = IsDir;
-        LazyBackgroundLoader.Start(_dateModifiedSemaphore, () =>
-        {
-            var dt = DateTime.MinValue;
-            try
-            {
-                if (isDirCopy)
-                {
-                    if (System.IO.Directory.Exists(pathCopy))
-                        dt = System.IO.Directory.GetLastWriteTime(pathCopy);
-                }
-                else
-                {
-                    if (System.IO.File.Exists(pathCopy))
-                        dt = System.IO.File.GetLastWriteTime(pathCopy);
-                }
-            }
-            catch
-            {
-                dt = DateTime.MinValue;
-            }
-
-            LazyBackgroundLoader.ApplyOnUiThread(() =>
-            {
-                Extras.DateModified = dt;
-                OnPropertyChanged(nameof(DateModified));
-                OnPropertyChanged(nameof(DateModifiedText));
-            });
-            return Task.CompletedTask;
-        });
     }
 
     public string DateModifiedText
@@ -386,38 +290,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
 
     public string this[string columnId]
     {
-        get
-        {
-            if (string.IsNullOrEmpty(columnId)) return string.Empty;
-
-            if (_extras?.ExtendedValues != null && _extras.ExtendedValues.TryGetValue(columnId, out var cachedVal))
-                return cachedVal;
-
-            foreach (var provider in PluginManager.Instance.ResultColumnProviders)
-            {
-                if (Enumerable.Any(provider.GetColumns(), c => c.ColumnId.Equals(columnId, StringComparison.OrdinalIgnoreCase)))
-                {
-                    try
-                    {
-                        var cellVal = provider.GetCellValue(this, columnId);
-                        var extras = Extras;
-                        (extras.ExtendedValues ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase))[columnId] = cellVal;
-                        return cellVal;
-                    }
-                    catch
-                    {
-                        return string.Empty;
-                    }
-                }
-            }
-
-            return string.Empty;
-        }
-        set
-        {
-            var extras = Extras;
-            (extras.ExtendedValues ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase))[columnId] = value;
-            OnPropertyChanged("Item[]");
-        }
+        get => DisplaySupport.GetColumnValue(columnId);
+        set => DisplaySupport.SetColumnValue(columnId, value);
     }
 }

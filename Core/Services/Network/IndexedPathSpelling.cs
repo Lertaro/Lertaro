@@ -14,9 +14,6 @@ namespace Lertaro.Core.Services.Network;
 /// </summary>
 public static class IndexedPathSpelling
 {
-    private const string WslUnc = @"\\wsl$\";
-    private const string WslLocalhost = @"\\wsl.localhost\";
-
     /// <summary>
     /// The spellings to try against the indexes, in order, starting with the path as given. Only worth
     /// calling for a UNC or mapped-network path: a local path has no second spelling, and finding out
@@ -36,10 +33,10 @@ public static class IndexedPathSpelling
             return null;
 
         // Two names for the same distro share, one an alias of the other -- no mapping table involved.
-        if (path.StartsWith(WslLocalhost, StringComparison.OrdinalIgnoreCase))
-            return WslUnc + path.Substring(WslLocalhost.Length);
-        if (path.StartsWith(WslUnc, StringComparison.OrdinalIgnoreCase))
-            return WslLocalhost + path.Substring(WslUnc.Length);
+        if (path.StartsWith(WslPath.LocalhostPrefix, StringComparison.OrdinalIgnoreCase))
+            return WslPath.UncPrefix + path.Substring(WslPath.LocalhostPrefix.Length);
+        if (path.StartsWith(WslPath.UncPrefix, StringComparison.OrdinalIgnoreCase))
+            return WslPath.LocalhostPrefix + path.Substring(WslPath.UncPrefix.Length);
 
         if (path.StartsWith(@"\\", StringComparison.Ordinal))
         {

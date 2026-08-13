@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 using Lertaro.App.Services.Plugin;
+using Lertaro.Core;
 namespace Lertaro.App.Services.ShellIcons;
 
 public static class ShellIconHelper
@@ -55,6 +56,11 @@ public static class ShellIconHelper
         EnforceCacheLimit();
         if (path == "__NO_RESULTS__") return null;
         if (path == "__SHOW_MORE__") return VectorIconFactory.ShowMore();
+
+        // Shell icon/thumbnail resolution can wake an idle WSL distro. Indexed WSL results always use
+        // the generic folder or extension icon; explicit open/locate/preview paths remain unaffected.
+        if (WslPath.IsPath(path))
+            return GetIconForPath(isDir ? "dummy_folder" : "dummy" + Path.GetExtension(path), isDir);
 
         var ext = isDir ? "::directory::" : Path.GetExtension(path);
         if (string.IsNullOrEmpty(ext))
@@ -128,6 +134,9 @@ public static class ShellIconHelper
             return VectorIconFactory.ShowMore();
         }
 
+        if (WslPath.IsPath(path))
+            return GetIconForPath(isDir ? "dummy_folder" : "dummy" + Path.GetExtension(path), isDir);
+
         var ext = isDir ? "::directory::" : Path.GetExtension(path);
         if (string.IsNullOrEmpty(ext))
         {
@@ -161,7 +170,7 @@ public static class ShellIconHelper
             }
             catch (Exception ex)
             {
-                Core.Logger.Log($"[ShellIconHelper] Thumbnail provider '{thumbnailProvider.Name}' failed: {ex.Message}", Core.LogLevel.Error);
+                Logger.Log($"[ShellIconHelper] Thumbnail provider '{thumbnailProvider.Name}' failed: {ex.Message}", LogLevel.Error);
             }
         }
 
@@ -259,7 +268,7 @@ public static class ShellIconHelper
         }
         catch (Exception ex)
         {
-            Core.Logger.Log($"[ShellIconHelper] Failed to get shell icon for {path}: {ex.Message}", Core.LogLevel.Warn);
+            Logger.Log($"[ShellIconHelper] Failed to get shell icon for {path}: {ex.Message}", LogLevel.Warn);
         }
 
         return null;
