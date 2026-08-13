@@ -104,7 +104,7 @@ internal sealed class SearchDispatchController
     // DispatchSearch (debounced) and PerformSearch (blocking) both resolve to the same set of
     // search parameters -- only which SearchExecutionEngine method runs them differs.
     private void RunEngineSearch(
-        Action<string, string?, bool, int, int, Func<List<SearchResult>?, string?, List<AppSearchResult>>, Action<bool>, Action<List<AppSearchResult>, string, bool>, Action?, Func<bool>?, bool> engineCall,
+        Action<string, string?, bool, int, int, Func<List<SearchResult>?, string?, List<AppSearchResult>>, Action<bool>, Action<List<AppSearchResult>, string, bool>, Action?, Func<bool>?, bool, bool, Action<int>?> engineCall,
         string originalValue,
         string cleanQuery)
     {
@@ -132,7 +132,9 @@ internal sealed class SearchDispatchController
             (results, status, final) => ApplySearchResults(originalValue, results, status, final),
             HandleLocalServiceUnavailable,
             () => _getResultsCount() == 0,
-            _bypassExclusions
+            _bypassExclusions,
+            false,
+            null
         );
     }
 

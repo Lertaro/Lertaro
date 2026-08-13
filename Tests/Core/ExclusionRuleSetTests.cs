@@ -103,6 +103,26 @@ public sealed class ExclusionRuleSetTests
     }
 
     [TestMethod]
+    public void IsExcluded_UsesCanonicalIndexedPathWithoutExpandingShortNames()
+    {
+        var settings = EmptySettings();
+        settings.IgnoredPathGlobs.Add("~*");
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+        var result = new SearchResult { Path = @"c:\packages\~cache\file.txt", IsDir = false };
+
+        Assert.IsTrue(rules.IsExcluded(result));
+        Assert.AreEqual(@"c:\packages\~cache\file.txt", ExclusionRuleSet.NormalizeIndexedPath(result.Path, result.IsDir));
+    }
+
+    [TestMethod]
+    public void NormalizeIndexedPath_AppendsOnlyMissingDirectorySeparator()
+    {
+        Assert.AreEqual(@"c:\data\", ExclusionRuleSet.NormalizeIndexedPath(@"c:\data", isDirectory: true));
+        Assert.AreEqual(@"c:\data\", ExclusionRuleSet.NormalizeIndexedPath(@"c:\data\", isDirectory: true));
+        Assert.AreEqual(@"c:\data.txt", ExclusionRuleSet.NormalizeIndexedPath(@"c:\data.txt", isDirectory: false));
+    }
+
+    [TestMethod]
     public void InvalidateCache_DoesNotThrow() => ExclusionRuleSet.InvalidateCache();
 
     // Ancestor verdicts are memoised per directory (see AncestorIsIgnored) -- an ignored directory's

@@ -7,7 +7,6 @@ namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 public sealed class StreamingResultAccumulatorTests
 {
     private static readonly Dictionary<string, int> NoHistory = new();
-
     // With no history and no rank key set, SearchResultRankComparer falls through to path LENGTH before
     // the path itself -- so paths of differing length give a ranked order that is deliberately not the
     // arrival order, which is what makes the ordering assertions below mean something.
@@ -20,10 +19,8 @@ public sealed class StreamingResultAccumulatorTests
     };
 
     private static List<SearchResult> Arrivals(params string[] paths) => paths.Select(Result).ToList();
-
     private static List<string> Paths(IEnumerable<AppSearchResult> rows) =>
         rows.Select(r => r.FullPath).ToList();
-
     [TestMethod]
     public void Absorb_RanksResultsRatherThanKeepingArrivalOrder()
     {
@@ -55,6 +52,17 @@ public sealed class StreamingResultAccumulatorTests
         }
 
         CollectionAssert.AreEqual(expected, actual);
+    }
+
+    [TestMethod]
+    public void AbsorbBatch_IndependentChunksMatchAbsorbingAGrowingPrefix()
+    {
+        var arrivals = Arrivals(@"D:\aaaa", @"D:\a", @"D:\aaa", @"D:\aa");
+        var expected = Paths(new StreamingResultAccumulator("a", NoHistory).Absorb(arrivals));
+        var batchAccumulator = new StreamingResultAccumulator("a", NoHistory);
+        batchAccumulator.AbsorbBatch(arrivals.GetRange(0, 2));
+        CollectionAssert.AreEqual(expected, Paths(batchAccumulator.AbsorbBatch(arrivals.GetRange(2, 2))));
+        Assert.AreEqual(4, batchAccumulator.Consumed);
     }
 
     [TestMethod]
@@ -103,7 +111,6 @@ public sealed class StreamingResultAccumulatorTests
     public void Absorb_StampsRowIndexesInRankOrder()
     {
         var accumulator = new StreamingResultAccumulator("a", NoHistory);
-
         var rows = accumulator.Absorb(Arrivals(@"D:\aaaaaa", @"D:\a", @"D:\aaa"));
 
         CollectionAssert.AreEqual(new[] { 0, 1, 2 }, rows.Select(r => r.Index).ToList());
@@ -126,7 +133,6 @@ public sealed class StreamingResultAccumulatorTests
     public void Absorb_NoArrivals_ReturnsAnEmptyList()
     {
         var accumulator = new StreamingResultAccumulator("a", NoHistory);
-
         Assert.IsEmpty(accumulator.Absorb(new List<SearchResult>()));
     }
 
@@ -138,7 +144,6 @@ public sealed class StreamingResultAccumulatorTests
         // snapshot, since the accumulator only ever sees each arrival once.
         var root = @"D:\";
         var accumulator = new StreamingResultAccumulator(root, NoHistory);
-
         var rows = accumulator.Absorb(Arrivals(root, @"D:\keep-me"));
 
         CollectionAssert.AreEqual(new[] { @"D:\keep-me" }, Paths(rows));

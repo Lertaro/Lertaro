@@ -19,8 +19,8 @@ namespace Lertaro.App.ViewModels.Search.Mapping;
 /// is. Sorting gets cheaper too (k sorts of n/k beats one sort of n), and the merges that replace it
 /// are linear passes over references, cheap enough next to construction to disappear into the noise.
 ///
-/// One accumulator serves one query. The caller hands it the SAME growing list every time, always a
-/// prefix-stable arrival-ordered snapshot, and it tracks how far into that list it has already read.
+/// One accumulator serves one query. A caller may hand <see cref="Absorb"/> the same growing,
+/// prefix-stable list, or hand <see cref="AbsorbBatch"/> only the new arrival-ordered batch.
 /// </remarks>
 internal sealed class StreamingResultAccumulator
 {
@@ -32,9 +32,6 @@ internal sealed class StreamingResultAccumulator
 
     private int _consumed;
     private List<Entry> _ranked = new();
-    // The merge writes into this and the two swap, so a search does not allocate a fresh full-size
-    // list on every paint just to hold the same rows in a slightly different order.
-    private List<Entry> _spare = new();
     private readonly List<AppSearchResult> _rows = new();
     private readonly HashSet<string> _seedPaths = new(StringComparer.OrdinalIgnoreCase);
 
@@ -107,12 +104,23 @@ internal sealed class StreamingResultAccumulator
     /// </remarks>
     public List<AppSearchResult> Absorb(IReadOnlyList<SearchResult> arrivals)
     {
+        var start = Math.Min(_consumed, arrivals.Count);
+        return AbsorbRange(arrivals, start, arrivals.Count - start);
+    }
+
+    /// <summary>Absorbs a batch containing only arrivals not supplied by an earlier call.</summary>
+    public List<AppSearchResult> AbsorbBatch(IReadOnlyList<SearchResult> arrivals) =>
+        AbsorbRange(arrivals, 0, arrivals.Count);
+
+    private List<AppSearchResult> AbsorbRange(IReadOnlyList<SearchResult> arrivals, int start, int count)
+    {
         FirstChangedIndex = _ranked.Count;
 
-        if (arrivals.Count > _consumed)
+        if (count > 0)
         {
-            var chunk = new List<Entry>(arrivals.Count - _consumed);
-            for (var i = _consumed; i < arrivals.Count; i++)
+            var chunk = new List<Entry>(count);
+            var end = start + count;
+            for (var i = start; i < end; i++)
             {
                 var raw = arrivals[i];
                 // Typing an exact directory path is a request to look INSIDE it, so the directory's own
@@ -124,25 +132,30 @@ internal sealed class StreamingResultAccumulator
                 chunk.Add(new Entry(raw, SearchResultMapper.CreateUiResult(raw, _query, 0, isApplication: false, scope: null)));
             }
 
-            _consumed = arrivals.Count;
+            _consumed += count;
             chunk.Sort(CompareEntries);
             Merge(chunk);
         }
 
-        // Only the disturbed suffix is rewritten. Index is restamped over the same range because a row
-        // inserted in the middle shifts every position after it.
+        RewriteRows(FirstChangedIndex);
+        return _rows;
+    }
+
+    // Only the disturbed suffix is rewritten. Index is restamped over the same range because a row
+    // inserted in the middle shifts every position after it.
+    private void RewriteRows(int from)
+    {
         while (_rows.Count < _ranked.Count)
             _rows.Add(null!);
         if (_rows.Count > _ranked.Count)
             _rows.RemoveRange(_ranked.Count, _rows.Count - _ranked.Count);
 
-        for (var i = FirstChangedIndex; i < _ranked.Count; i++)
+        for (var i = from; i < _ranked.Count; i++)
         {
             var row = _ranked[i].Row;
             row.Index = i;
             _rows[i] = row;
         }
-        return _rows;
     }
 
     private int CompareEntries(Entry left, Entry right) => _rankComparer.Compare(left.Raw, right.Raw);
@@ -162,37 +175,40 @@ internal sealed class StreamingResultAccumulator
             return;
         }
 
-        var target = _spare;
-        target.Clear();
-        var total = _ranked.Count + chunk.Count;
-        if (target.Capacity < total)
-            target.Capacity = total;
+        var oldCount = _ranked.Count;
+        var firstChanged = FindInsertionPoint(chunk[0]);
+        FirstChangedIndex = firstChanged;
 
-        int a = 0, b = 0;
-        while (a < _ranked.Count && b < chunk.Count)
+        // Merge backward into the existing buffer. The untouched prefix is neither compared nor
+        // copied, so a late batch that ranks near the end costs only its disturbed tail. AddRange is
+        // also the complete fast path when the batch follows every existing row.
+        _ranked.AddRange(chunk);
+        var oldIndex = oldCount - 1;
+        var chunkIndex = chunk.Count - 1;
+        var writeIndex = _ranked.Count - 1;
+        while (oldIndex >= firstChanged && chunkIndex >= 0)
         {
-            if (CompareEntries(chunk[b], _ranked[a]) < 0)
-            {
-                // The first time a new entry wins is the first position that differs from the old list.
-                if (target.Count < FirstChangedIndex)
-                    FirstChangedIndex = target.Count;
-                target.Add(chunk[b++]);
-            }
+            if (CompareEntries(chunk[chunkIndex], _ranked[oldIndex]) >= 0)
+                _ranked[writeIndex--] = chunk[chunkIndex--];
             else
-            {
-                target.Add(_ranked[a++]);
-            }
+                _ranked[writeIndex--] = _ranked[oldIndex--];
         }
-        while (a < _ranked.Count)
-            target.Add(_ranked[a++]);
-        while (b < chunk.Count)
-        {
-            if (target.Count < FirstChangedIndex)
-                FirstChangedIndex = target.Count;
-            target.Add(chunk[b++]);
-        }
+        while (chunkIndex >= 0)
+            _ranked[writeIndex--] = chunk[chunkIndex--];
+    }
 
-        _spare = _ranked;
-        _ranked = target;
+    private int FindInsertionPoint(Entry entry)
+    {
+        var low = 0;
+        var high = _ranked.Count;
+        while (low < high)
+        {
+            var middle = low + (high - low) / 2;
+            if (CompareEntries(entry, _ranked[middle]) < 0)
+                high = middle;
+            else
+                low = middle + 1;
+        }
+        return low;
     }
 }

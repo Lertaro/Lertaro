@@ -68,6 +68,11 @@ public class SearchViewModel : ViewModelBase, IDisposable
             setIsSearching: v => IsSearching = v,
             setLoadingPanelVisibility: v => LoadingPanelVisibility = v,
             setIsSearchBoxEnabled: v => IsSearchBoxEnabled = v,
+            setReceivedCount: count =>
+            {
+                if (DynamicSidebarGroups.All(group => group.CombinedPredicate == null))
+                    ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count);
+            },
             applyFiltersAndRender: ApplyFiltersAndRender);
 
         // Initialize dynamic plugin sidebar groups -- PluginManager.SidebarFilterProviders already
@@ -108,42 +113,10 @@ public class SearchViewModel : ViewModelBase, IDisposable
             // recomputed until the next search/filter/sort -- refresh it here too so it isn't stuck
             // showing a stale language until the user happens to trigger one of those.
             ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], FilteredResults.Count);
-            RefreshDynamicSidebarLabels();
+            DynamicSidebarTranslationHelper.Refresh(DynamicSidebarGroups);
         }
     }
 
-    // DynamicSidebarGroups/their Items were built once in the constructor from each provider's
-    // GetFilterGroups(), which resolves its translated Header/DisplayName text at that single call --
-    // stale after a language switch otherwise. SidebarFilterGroup has no stable ID (see
-    // PluginSdk\Abstractions\Plugins\ISidebarFilterProvider.cs), so this re-fetches the same providers in
-    // the same order and correlates purely by position; if a provider's group/item count changed since
-    // construction (a plugin was enabled/disabled mid-session), that group is skipped rather than risk
-    // relabeling the wrong entry -- rebuilding DynamicSidebarGroups from scratch would also reset the
-    // user's current filter selection, which a language switch shouldn't do.
-    private void RefreshDynamicSidebarLabels()
-    {
-        var freshGroups = PluginManager.Instance.SidebarFilterProviders
-            .SelectMany(p => p.GetFilterGroups())
-            .ToList();
-
-        if (freshGroups.Count != DynamicSidebarGroups.Count)
-            return;
-
-        for (var i = 0; i < DynamicSidebarGroups.Count; i++)
-        {
-            var vm = DynamicSidebarGroups[i];
-            var fresh = freshGroups[i];
-            vm.UpdateHeader(fresh.Header);
-
-            if (fresh.Items.Count != vm.Items.Count)
-                continue;
-
-            for (var j = 0; j < vm.Items.Count; j++)
-                vm.Items[j].UpdateDisplayName(fresh.Items[j].DisplayName);
-        }
-    }
-
-    // ==========================================
     // Properties
     // ==========================================
 

@@ -18,6 +18,7 @@ internal sealed class SearchQueryDispatchController
     private readonly Action<bool> _setIsSearching;
     private readonly Action<Visibility> _setLoadingPanelVisibility;
     private readonly Action<bool> _setIsSearchBoxEnabled;
+    private readonly Action<int> _setReceivedCount;
     // bool: whether this render extends what is already on screen (a later paint of a search still
     // streaming) rather than replacing it with a different result set.
     // int: index of the first row this render changed -- everything before it is already correct on
@@ -34,6 +35,7 @@ internal sealed class SearchQueryDispatchController
         Action<bool> setIsSearching,
         Action<Visibility> setLoadingPanelVisibility,
         Action<bool> setIsSearchBoxEnabled,
+        Action<int> setReceivedCount,
         Action<bool, int> applyFiltersAndRender)
     {
         _searchEngine = searchEngine;
@@ -43,6 +45,7 @@ internal sealed class SearchQueryDispatchController
         _setIsSearching = setIsSearching;
         _setLoadingPanelVisibility = setLoadingPanelVisibility;
         _setIsSearchBoxEnabled = setIsSearchBoxEnabled;
+        _setReceivedCount = setReceivedCount;
         _applyFiltersAndRender = applyFiltersAndRender;
     }
 
@@ -92,7 +95,7 @@ internal sealed class SearchQueryDispatchController
                 if (fileResults == null)
                     return new List<AppSearchResult>();
                 accumulator ??= CreateAccumulator(cleanQuery);
-                return accumulator.Absorb(fileResults);
+                return accumulator.AbsorbBatch(fileResults);
             },
             searching => _setIsSearching(searching),
             (results, status, final) =>
@@ -154,7 +157,13 @@ internal sealed class SearchQueryDispatchController
             // it). Suppressing the up-front emission here means instant results simply never appear in
             // this window, matching that the settled render never included them to begin with.
             shouldEmitInstantResults: () => false,
-            bypassExclusions: bypassExclusions
+            bypassExclusions: bypassExclusions,
+            resultMapperConsumesBatches: true,
+            onReceivedCountUpdated: count =>
+            {
+                if (_queryTokens.Count == 0)
+                    _setReceivedCount(count);
+            }
         );
     }
 

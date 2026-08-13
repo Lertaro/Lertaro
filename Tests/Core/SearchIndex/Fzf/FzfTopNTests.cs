@@ -230,4 +230,18 @@ public sealed class FzfTopNTests
         // merged started with {2:3}, worker drains in {0:5} and {1:1} -- best 2 of {3,5,1} are {1,3}.
         CollectionAssert.AreEqual(new[] { 1, 2 }, finished.ConvertAll(r => r.EntryIndex));
     }
+
+    [TestMethod]
+    public void LargeCapacity_GrowsToHoldActualMatchesWithoutTrimmingThem()
+    {
+        var topN = new FzfTopN(1_000_000);
+        for (var i = 0; i < 10_000; i++)
+            topN.Add(new FzfRank(i, 0, (ulong)(10_000 - i)));
+
+        var finished = topN.Finish(int.MaxValue);
+
+        Assert.HasCount(10_000, finished);
+        Assert.AreEqual(1UL, finished[0].SortKey);
+        Assert.AreEqual(10_000UL, finished[^1].SortKey);
+    }
 }

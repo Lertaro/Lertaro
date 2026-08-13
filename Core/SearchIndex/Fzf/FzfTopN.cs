@@ -2,10 +2,12 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 
 // Keeps the `capacity` best (smallest sort key) of an unbounded stream of ranks.
 //
-// Buffered rather than kept exactly at capacity: the buffer holds twice what is retained, and is
-// trimmed back down to the best half only when it fills. Between trims an incoming rank is one compare
-// against the threshold from the last trim, and a trim costs O(capacity) once per capacity accepted
-// ranks, so the amortised cost per rank is constant.
+// Buffered rather than kept exactly at capacity: the buffer grows with actual matches up to twice what
+// is retained, and is trimmed back down to the best half only when it fills. Between trims an incoming
+// rank is one compare against the threshold from the last trim, and a trim costs O(capacity) once per
+// capacity accepted ranks, so the amortised cost per rank is constant. Growing from a modest initial
+// buffer matters when an unbounded full-window query runs across several indexes concurrently: each
+// index used to reserve arrays for every row before knowing how many names actually matched.
 //
 // It used to hold exactly capacity entries and, whenever one was displaced, rescan all of them to find
 // the new worst -- O(capacity) per accepted rank rather than per capacity of them. A broad query
@@ -17,10 +19,13 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 // capacity many times the number of results they display, and Finish sorts by EntryIndex within a key.
 internal sealed class FzfTopN
 {
+    private const int InitialBufferedCapacity = 4_096;
+
     private readonly int _capacity;
-    private readonly ulong[] _sortKeys;
-    private readonly int[] _entryIndices;
-    private readonly int[] _scores;
+    private readonly int _maximumBufferedLength;
+    private ulong[] _sortKeys;
+    private int[] _entryIndices;
+    private int[] _scores;
     private int _count;
 
     // Only meaningful once the buffer has been trimmed at least once: the worst key then retained.
@@ -31,10 +36,11 @@ internal sealed class FzfTopN
     public FzfTopN(int capacity)
     {
         _capacity = Math.Max(capacity, 1);
-        var buffered = _capacity * 2;
-        _sortKeys = new ulong[buffered];
-        _entryIndices = new int[buffered];
-        _scores = new int[buffered];
+        _maximumBufferedLength = _capacity > int.MaxValue / 2 ? int.MaxValue : _capacity * 2;
+        var initialLength = Math.Min(_maximumBufferedLength, InitialBufferedCapacity);
+        _sortKeys = new ulong[initialLength];
+        _entryIndices = new int[initialLength];
+        _scores = new int[initialLength];
     }
 
     /// <summary>How many ranks would be retained if the set were finished now.</summary>
@@ -56,13 +62,29 @@ internal sealed class FzfTopN
         if (_trimmed && rank.SortKey >= _threshold)
             return;
 
+        if (_count == _sortKeys.Length)
+        {
+            if (_sortKeys.Length < _maximumBufferedLength)
+                Grow();
+            else
+                Trim();
+        }
+
         _sortKeys[_count] = rank.SortKey;
         _entryIndices[_count] = rank.EntryIndex;
         _scores[_count] = rank.Score;
         _count++;
 
-        if (_count == _sortKeys.Length)
+        if (_count == _maximumBufferedLength)
             Trim();
+    }
+
+    private void Grow()
+    {
+        var nextLength = (int)Math.Min(_maximumBufferedLength, (long)_sortKeys.Length * 2);
+        Array.Resize(ref _sortKeys, nextLength);
+        Array.Resize(ref _entryIndices, nextLength);
+        Array.Resize(ref _scores, nextLength);
     }
 
     // Merges this instance's retained entries into another -- lets parallel workers keep private,

@@ -63,15 +63,30 @@ public sealed class ExclusionRuleSet
         BuildIgnoredRegexes(settings.IgnoredPathRegexes),
         NormalizePath(root, isDirectory: true));
 
-    public bool IsExcluded(SearchResult result, string? exemptRoot = null) => IsExcludedPath(result.Path, result.IsDir, exemptRoot);
+    public bool IsExcluded(SearchResult result, string? exemptRoot = null)
+    {
+        if (string.IsNullOrWhiteSpace(result.Path))
+            return false;
+
+        // Indexed paths are already absolute and canonical. Path.GetFullPath can ask Windows to expand
+        // short names, turning the per-result exclusion check into filesystem I/O for large searches.
+        var normalized = NormalizeIndexedPath(result.Path, result.IsDir);
+        var normalizedExempt = !string.IsNullOrEmpty(exemptRoot) ? NormalizePath(exemptRoot, isDirectory: true) : null;
+        return IsExcludedNormalized(normalized, normalizedExempt);
+    }
 
     public bool IsExcludedPath(string path, bool isDirectory, string? exemptRoot = null)
     {
         if (string.IsNullOrWhiteSpace(path))
             return false;
 
-        var normalized = NormalizePath(path, isDirectory);
-        var normalizedExempt = !string.IsNullOrEmpty(exemptRoot) ? NormalizePath(exemptRoot, isDirectory: true) : null;
+        return IsExcludedNormalized(
+            NormalizePath(path, isDirectory),
+            !string.IsNullOrEmpty(exemptRoot) ? NormalizePath(exemptRoot, isDirectory: true) : null);
+    }
+
+    private bool IsExcludedNormalized(string normalized, string? normalizedExempt)
+    {
 
         // 1. Check excluded roots on the full normalized path
         foreach (var excludedRoot in _excludedRoots)
@@ -106,6 +121,14 @@ public sealed class ExclusionRuleSet
 
         var parentDirectory = Path.GetDirectoryName(leaf);
         return !string.IsNullOrEmpty(parentDirectory) && AncestorIsIgnored(parentDirectory);
+    }
+
+    internal static string NormalizeIndexedPath(string path, bool isDirectory)
+    {
+        var normalized = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+        return isDirectory && !Path.EndsInDirectorySeparator(normalized)
+            ? normalized + Path.DirectorySeparatorChar
+            : normalized;
     }
 
     /// <summary>

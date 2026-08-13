@@ -29,6 +29,12 @@ internal sealed class ProgressiveRenderPlan
     // next tick.
     internal const int FirstRenderCap = 2_000;
 
+    // Large backlogs are drained in bounded pieces. A single oversized append either raises thousands
+    // of WPF collection notifications or crosses the collection's Reset threshold and rebuilds every
+    // row already shown; both make the next visible update slower than several modest appends.
+    internal const int MaximumProgressiveGrowth = 500;
+    internal const int MaximumProgressiveRows = 20_000;
+
     // How much idle the UI thread is owed between paints, as a multiple of the last paint's own cost.
     // At 8 the thread spends at most about a ninth of its time painting, whatever that costs.
     internal const int IdleMultiplier = 8;
@@ -52,6 +58,9 @@ internal sealed class ProgressiveRenderPlan
         if (received <= _rendered)
             return 0;
 
+        if (_rendered >= MaximumProgressiveRows)
+            return 0;
+
         if (_rendered == 0)
         {
             if (received < MinimumFirstRender)
@@ -65,6 +74,6 @@ internal sealed class ProgressiveRenderPlan
         if (msSinceLastPaint / IdleMultiplier < _lastPaintMs)
             return 0;
 
-        return _rendered = received;
+        return _rendered = Math.Min(Math.Min(received, MaximumProgressiveRows), _rendered + MaximumProgressiveGrowth);
     }
 }

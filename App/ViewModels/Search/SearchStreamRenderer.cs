@@ -36,11 +36,16 @@ internal sealed class SearchStreamRenderer
         Task? localSearchTask = null,
         Task? globalSearchStartGate = null,
         Action? onLocalServiceUnavailable = null,
-        bool bypassExclusions = false)
+        bool bypassExclusions = false,
+        bool resultMapperConsumesBatches = false,
+        Action<int>? onReceivedCountUpdated = null)
     {
         var streamedResponse = new List<SearchResult>();
         object responseLock = new();
         var streamedCount = 0;
+        // Full-window ranking accepts independent batches, so it never needs the already-copied prefix.
+        // Quick and inline mappers still receive their complete snapshot on every render.
+        var copiedCount = 0;
         var streamDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         async Task RenderSnapshotAsync(bool final, int take)
@@ -53,9 +58,7 @@ internal sealed class SearchStreamRenderer
             lock (responseLock)
             {
                 received = streamedResponse.Count;
-                snapshot = take >= received
-                    ? new List<SearchResult>(streamedResponse)
-                    : streamedResponse.GetRange(0, take);
+                snapshot = CopySnapshot(streamedResponse, take, resultMapperConsumesBatches, ref copiedCount);
             }
 
             var uiResults = resultMapper(snapshot, contextDirectory);
@@ -75,6 +78,8 @@ internal sealed class SearchStreamRenderer
                 if (searchVersion != _getSearchVersion() || token.IsCancellationRequested)
                     return;
                 onResultsUpdated(uiResults, statusText, final);
+                if (!final)
+                    onReceivedCountUpdated?.Invoke(received);
             }).Task.ConfigureAwait(false);
         }
 
@@ -102,6 +107,13 @@ internal sealed class SearchStreamRenderer
                     var finished = streamDone.Task.IsCompleted;
                     var received = Volatile.Read(ref streamedCount);
                     var localChanged = (getLocalUpdateVersion?.Invoke() ?? renderedLocalVersion) != renderedLocalVersion;
+
+                    // The final render consumes every remaining batch and performs the full window's
+                    // one exact rank sort. Draining the backlog through intermediate UI paints first
+                    // only repeats work after the producer has already finished.
+                    if (finished && resultMapperConsumesBatches)
+                        return;
+
                     var take = plan.NextRenderSize(received, sinceLastPaint.ElapsedMilliseconds);
 
                     // A tiny Current Folder section followed immediately by its Global Search section makes
@@ -128,6 +140,14 @@ internal sealed class SearchStreamRenderer
 
                     if (take == 0 && !localChanged)
                     {
+                        if (!finished)
+                        {
+                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                            {
+                                if (searchVersion == _getSearchVersion() && !token.IsCancellationRequested)
+                                    onReceivedCountUpdated?.Invoke(received);
+                            }).Task.ConfigureAwait(false);
+                        }
                         if (finished)
                             return;
                         interval = ProgressiveRenderIntervalMs;
@@ -195,5 +215,23 @@ internal sealed class SearchStreamRenderer
         }
 
         await RenderSnapshotAsync(final: true, int.MaxValue).ConfigureAwait(false);
+    }
+
+    internal static List<SearchResult> CopySnapshot(
+        List<SearchResult> source,
+        int take,
+        bool onlyNew,
+        ref int copiedCount)
+    {
+        var end = Math.Min(take, source.Count);
+        if (!onlyNew)
+            return end >= source.Count ? new List<SearchResult>(source) : source.GetRange(0, end);
+
+        if (end <= copiedCount)
+            return [];
+
+        var start = copiedCount;
+        copiedCount = end;
+        return source.GetRange(start, end - start);
     }
 }

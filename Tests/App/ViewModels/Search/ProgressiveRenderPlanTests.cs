@@ -64,7 +64,7 @@ public sealed class ProgressiveRenderPlanTests
         plan.PaintCompleted(200);
 
         Assert.AreEqual(0, plan.NextRenderSize(500_000, 200 * ProgressiveRenderPlan.IdleMultiplier - 1));
-        Assert.AreEqual(500_000, plan.NextRenderSize(500_000, 200 * ProgressiveRenderPlan.IdleMultiplier));
+        Assert.AreEqual(2_500, plan.NextRenderSize(500_000, 200 * ProgressiveRenderPlan.IdleMultiplier));
     }
 
     [TestMethod]
@@ -80,18 +80,34 @@ public sealed class ProgressiveRenderPlanTests
         dear.PaintCompleted(100);
 
         var idle = 10 * ProgressiveRenderPlan.IdleMultiplier;
-        Assert.AreEqual(3_000, cheap.NextRenderSize(3_000, idle));
+        Assert.AreEqual(2_500, cheap.NextRenderSize(3_000, idle));
         Assert.AreEqual(0, dear.NextRenderSize(3_000, idle));
     }
 
     [TestMethod]
-    public void EachPaintShowsEverythingReceivedByThen()
+    public void AHugeBacklogIsDrainedInBoundedPieces()
     {
         var plan = new ProgressiveRenderPlan();
         plan.NextRenderSize(3_000, 0);
         plan.PaintCompleted(0);
 
-        Assert.AreEqual(50_000, plan.NextRenderSize(50_000, 0));
+        Assert.AreEqual(ProgressiveRenderPlan.FirstRenderCap + ProgressiveRenderPlan.MaximumProgressiveGrowth, plan.NextRenderSize(50_000, 0));
+    }
+
+    [TestMethod]
+    public void ProgressivePaintingStopsAfterAnInteractivePrefix()
+    {
+        var plan = new ProgressiveRenderPlan();
+        var painted = plan.NextRenderSize(1_000_000, 0);
+        plan.PaintCompleted(0);
+        while (painted < ProgressiveRenderPlan.MaximumProgressiveRows)
+        {
+            painted = plan.NextRenderSize(1_000_000, 0);
+            plan.PaintCompleted(0);
+        }
+
+        Assert.AreEqual(ProgressiveRenderPlan.MaximumProgressiveRows, painted);
+        Assert.AreEqual(0, plan.NextRenderSize(1_000_000, 10_000));
     }
 
     [TestMethod]
