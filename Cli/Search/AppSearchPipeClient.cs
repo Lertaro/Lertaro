@@ -54,14 +54,16 @@ public static class AppSearchPipeClient
     //
     // AppSearchPipeService forwards each result the instant it finds one, unsorted -- so this reads the
     // stream incrementally instead of waiting for ReadAsync to fully return before showing anything (that
-    // wait was the actual cause of feeling slower than the GUI). The intermediate-render gating below is a
-    // direct port of SearchExecutionEngine.PerformStreamingSearchAsync's own logic (App\ViewModels\Search\
-    // SearchExecutionEngine.cs) -- not a recurring poll: exactly ONE early callback fires, gated on both
-    // "at least 9 results have streamed in" AND "at least 40ms have passed since this search started"
-    // (whichever condition is met later), via Interlocked.CompareExchange so only one intermediate
-    // callback ever gets scheduled; then one final callback once the stream ends. The 40ms wait, when
-    // needed, is a single Task.Delay continuation tied to that specific already-streamed data, not an
-    // independent timer checking state on a schedule.
+    // wait was the actual cause of feeling slower than the GUI). The CLI paints once at the first useful
+    // result set and once more when its 50-row cap is full, then applies the final rank sort after the
+    // stream ends. A broad single-character query can take much longer to finish than to produce 50
+    // candidates, so waiting for only that final update left the terminal visibly stuck at nine rows.
+    private const int FirstProgressResultCount = 9;
+    private const int MaximumProgressResultCount = 50;
+
+    internal static bool ShouldRenderProgressSnapshot(int streamedCount) =>
+        streamedCount is FirstProgressResultCount or MaximumProgressResultCount;
+
     public static async Task<List<(SearchResult Result, int[] Highlights)>> SearchAsync(string pipeName, string query, Action<List<(SearchResult, int[])>> onProgress, CancellationToken token)
     {
         // No PipeOptions.CurrentUserOnly here either -- see ProbeAsync's own comment on why (the ACL on
@@ -84,8 +86,6 @@ public static class AppSearchPipeClient
         var fresh = new List<(SearchResult, int[])>();
         var responseLock = new object();
         var streamedCount = 0;
-        var renderState = 0; // 0 = not yet rendered, 1 = intermediate render scheduled/done, 2 = final
-        var startTime = Environment.TickCount;
 
         void RenderSnapshot()
         {
@@ -103,24 +103,8 @@ public static class AppSearchPipeClient
                 streamedCount++;
             }
 
-            if (Volatile.Read(ref renderState) == 0 && Volatile.Read(ref streamedCount) < 9)
-                return;
-            if (Interlocked.CompareExchange(ref renderState, 1, 0) != 0)
-                return;
-
-            var elapsed = Environment.TickCount - startTime;
-            if (elapsed < 40)
-            {
-                _ = Task.Delay(40 - elapsed, token).ContinueWith(t =>
-                {
-                    if (t.IsCanceled) return;
-                    RenderSnapshot();
-                }, token);
-            }
-            else
-            {
+            if (ShouldRenderProgressSnapshot(streamedCount))
                 RenderSnapshot();
-            }
         }, token);
 
         return fresh;
