@@ -133,6 +133,7 @@ public sealed class HookCommandHandler
                         if (Enum.TryParse<LogLevel>(newSettings.LogLevel, ignoreCase: true, out var newLogLevel))
                             Logger.MinimumLevel = newLogLevel;
                         _process.KeyboardHook?.ReloadSettings();
+                        _process.RefreshActiveWindowAdapters();
                     }
                     break;
                 case IpcMessageId.SetHotkeysDisabled:

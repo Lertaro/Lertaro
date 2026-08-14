@@ -34,23 +34,30 @@ public class ExplorerTracker : IDisposable
         set
         {
             _activeHwnd = value;
-            if (_activeHwnd != IntPtr.Zero)
-            {
-                var sbClass = new StringBuilder(256);
-                ExplorerNativeHooks.GetClassName(_activeHwnd, sbClass, sbClass.Capacity);
-                var className = sbClass.ToString();
-                var processName = GetProcessName(_activeHwnd);
-                ActiveAdapter = FileDialogAdapterRegistry.GetMatchingAdapter(_activeHwnd, className, processName);
-                _isActiveWindowDialog = ActiveAdapter != null;
-                ActiveInlineAdapter = InlineSearchAdapterRegistry.GetMatchingAdapter(_activeHwnd, className, processName);
-            }
-            else
-            {
-                ActiveAdapter = null;
-                _isActiveWindowDialog = false;
-                ActiveInlineAdapter = null;
-            }
+            RefreshActiveWindowAdapters();
         }
+    }
+
+    /// <summary>Re-evaluates the cached adapters after settings or component enablement changes.</summary>
+    public void RefreshActiveWindowAdapters()
+    {
+        if (_activeHwnd == IntPtr.Zero)
+        {
+            ActiveAdapter = null;
+            _isActiveWindowDialog = false;
+            ActiveInlineAdapter = null;
+            IsActiveWindowExplorer = false;
+            return;
+        }
+
+        var sbClass = new StringBuilder(256);
+        ExplorerNativeHooks.GetClassName(_activeHwnd, sbClass, sbClass.Capacity);
+        var className = sbClass.ToString();
+        var processName = GetProcessName(_activeHwnd);
+        ActiveAdapter = FileDialogAdapterRegistry.GetMatchingAdapter(_activeHwnd, className, processName);
+        _isActiveWindowDialog = ActiveAdapter != null;
+        ActiveInlineAdapter = InlineSearchAdapterRegistry.GetMatchingAdapter(_activeHwnd, className, processName);
+        IsActiveWindowExplorer = !IsDesktop && (ActiveInlineAdapter?.IsFileExplorer ?? false);
     }
     public void SetActiveInlineAdapterDirectly(IInlineSearchAdapter? adapter, IntPtr hwnd)
     {

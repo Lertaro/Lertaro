@@ -50,6 +50,11 @@ public class XyplorerInlineSearchAdapter : IInlineSearchAdapter
         if (!PluginSettingsService.GetSetting("Lertaro.Plugins.Xyplorer", "EnableInlineSearch", true))
             return false;
 
+        return CanRecognizeHost(hwnd, className, processName);
+    }
+
+    public bool CanRecognizeHost(IntPtr hwnd, string className, string processName)
+    {
         if (string.IsNullOrEmpty(className) || string.IsNullOrEmpty(processName))
             return false;
 

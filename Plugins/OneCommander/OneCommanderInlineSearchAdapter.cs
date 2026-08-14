@@ -26,6 +26,11 @@ public class OneCommanderInlineSearchAdapter : IInlineSearchAdapter
         if (!PluginSettingsService.GetSetting("Lertaro.Plugins.OneCommander", "EnableInlineSearch", true))
             return false;
 
+        return CanRecognizeHost(hwnd, className, processName);
+    }
+
+    public bool CanRecognizeHost(IntPtr hwnd, string className, string processName)
+    {
         if (string.IsNullOrEmpty(processName))
             return false;
 

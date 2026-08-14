@@ -1,4 +1,5 @@
 using Lertaro.App.Services.ShellMenu.QuickNav;
+using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 
 namespace Lertaro.App.Tests.Services.ShellMenu.QuickNav;
 
@@ -11,6 +12,40 @@ namespace Lertaro.App.Tests.Services.ShellMenu.QuickNav;
 [TestClass]
 public sealed class QuickNavigationTriggerGateTests
 {
+    private sealed class FakeAdapter(bool canHandle, bool canRecognizeHost, bool isFileExplorer) : IInlineSearchAdapter
+    {
+        public bool IsFileExplorer => isFileExplorer;
+        public bool CanHandle(IntPtr hwnd, string className, string processName) => canHandle;
+        public bool CanRecognizeHost(IntPtr hwnd, string className, string processName) => canRecognizeHost;
+        public bool CanTrigger(IntPtr focusedHwnd, string className) => false;
+        public string? GetSearchScope(IntPtr hwnd) => null;
+        public bool ExecuteItem(IntPtr hwnd, string path, string searchInput) => false;
+        public bool GetDockBounds(IntPtr hwnd, out AdapterRect rect) { rect = default; return false; }
+        public bool CanEnterActionsMode(IntPtr hwnd) => false;
+    }
+
+    [TestMethod]
+    public void FileManagerHostRecognitionDoesNotDependOnInlineSearchBeingEnabled()
+    {
+        // CanHandle deliberately represents the EnableInlineSearch setting, while Quick Navigation has
+        // its own setting and must still recognize the same host when inline search is off.
+        var adapter = new FakeAdapter(canHandle: false, canRecognizeHost: true, isFileExplorer: true);
+
+        var result = QuickNavigationTriggerGate.FindFileManagerAdapter([adapter], new IntPtr(1), "host", "manager");
+
+        Assert.AreSame(adapter, result);
+    }
+
+    [TestMethod]
+    public void NonFileManagerAdaptersAreNotUsedForQuickNavigation()
+    {
+        var adapter = new FakeAdapter(canHandle: false, canRecognizeHost: true, isFileExplorer: false);
+
+        var result = QuickNavigationTriggerGate.FindFileManagerAdapter([adapter], new IntPtr(1), "host", "manager");
+
+        Assert.IsNull(result);
+    }
+
     [TestMethod]
     public void TheWallpaperHostsCountAsDesktopBackground()
     {

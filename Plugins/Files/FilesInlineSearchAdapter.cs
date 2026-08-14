@@ -27,6 +27,11 @@ public class FilesInlineSearchAdapter : IInlineSearchAdapter
         if (!PluginSettingsService.GetSetting("Lertaro.Plugins.Files", "EnableInlineSearch", true))
             return false;
 
+        return CanRecognizeHost(hwnd, className, processName);
+    }
+
+    public bool CanRecognizeHost(IntPtr hwnd, string className, string processName)
+    {
         if (string.IsNullOrEmpty(processName))
             return false;
 

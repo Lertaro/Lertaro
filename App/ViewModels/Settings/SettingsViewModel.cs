@@ -170,6 +170,7 @@ public class SettingsViewModel : ViewModelBase
         Core.Services.LocalSend.LocalSendServiceManager.Instance.ApplySettings(_userSettings);
         App.HookClient?.SendMessage(new IpcMessage { Id = IpcMessageId.ReloadSettings });
         PluginManager.Instance.RefreshDisabledComponents();
+        InlineSearchManager.Instance.ExplorerTracker.RefreshActiveWindowAdapters();
         NetworkDrive.ResetPendingEdits();
         var exclusionsChanged = SettingsChangeSnapshot.ExclusionsChanged(previousExclusions, SettingsChangeSnapshot.CaptureExclusions(_userSettings));
         var newDisabledAliases = _userSettings.DisabledPluginComponents

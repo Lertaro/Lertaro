@@ -9,6 +9,13 @@ public interface IInlineSearchAdapter : IPluginComponent
     bool CanHandle(IntPtr hwnd, string className, string processName);
 
     /// <summary>
+    /// Checks whether this adapter recognizes the given window as its host, independently of whether
+    /// inline search is currently enabled. Quick Navigation uses this to keep its own opt-in separate
+    /// from the inline-search setting.
+    /// </summary>
+    bool CanRecognizeHost(IntPtr hwnd, string className, string processName) => CanHandle(hwnd, className, processName);
+
+    /// <summary>
     /// Check if the inline search window can be triggered when the specified control has focus.
     /// </summary>
     bool CanTrigger(IntPtr focusedHwnd, string className);

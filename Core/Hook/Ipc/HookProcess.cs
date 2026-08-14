@@ -32,6 +32,7 @@ public sealed class HookProcess : IDisposable
     private struct MSG { public IntPtr hwnd; public uint message; public IntPtr wParam; public IntPtr lParam; public uint time; public int ptX; public int ptY; }
 
     private const uint WM_QUIT = 0x0012;
+    private const uint WM_REFRESH_ACTIVE_ADAPTERS = 0x8001;
 
     private readonly HookIpcServer _ipcServer;
     private readonly HookCommandHandler _commandHandler;
@@ -49,6 +50,12 @@ public sealed class HookProcess : IDisposable
     internal KeyboardHookService? KeyboardHook => _keyboardHook;
     internal ExplorerTracker? ExplorerTracker => _explorerTracker;
     internal HookIpcServer IpcServer => _ipcServer;
+
+    internal void RefreshActiveWindowAdapters()
+    {
+        if (_trackerThreadId != 0)
+            PostThreadMessage(_trackerThreadId, WM_REFRESH_ACTIVE_ADAPTERS, IntPtr.Zero, IntPtr.Zero);
+    }
 
     internal uint AppProcessId
     {
@@ -124,6 +131,11 @@ public sealed class HookProcess : IDisposable
                     {
                         var result = GetMessage(out var msg, IntPtr.Zero, 0, 0);
                         if (result <= 0) break;
+                        if (msg.message == WM_REFRESH_ACTIVE_ADAPTERS)
+                        {
+                            _explorerTracker?.RefreshActiveWindowAdapters();
+                            continue;
+                        }
                         TranslateMessage(ref msg);
                         DispatchMessage(ref msg);
                     }

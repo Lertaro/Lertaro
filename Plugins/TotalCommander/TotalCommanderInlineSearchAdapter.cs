@@ -46,6 +46,11 @@ public class TotalCommanderInlineSearchAdapter : IInlineSearchAdapter
         if (!PluginSettingsService.GetSetting("Lertaro.Plugins.TotalCommander", "EnableInlineSearch", true))
             return false;
 
+        return CanRecognizeHost(hwnd, className, processName);
+    }
+
+    public bool CanRecognizeHost(IntPtr hwnd, string className, string processName)
+    {
         if (string.IsNullOrEmpty(className) || string.IsNullOrEmpty(processName))
             return false;
 

@@ -74,8 +74,8 @@ internal static class QuickNavigationTriggerGate
     {
         if (triggerType != MouseTriggerType.MiddleClick) return false;
 
-        var adapter = PluginSdk.Registries.InlineSearchAdapterRegistry.GetMatchingAdapter(activeHwnd, className, processName);
-        if (adapter == null || !adapter.IsFileExplorer) return false;
+        var adapter = FindFileManagerAdapter(PluginSdk.Registries.InlineSearchAdapterRegistry.GetAdapters(), activeHwnd, className, processName);
+        if (adapter == null) return false;
 
         var hwndUnderCursor = PointNative.WindowFromPoint(new PointNative.POINT { x = x, y = y });
         if (hwndUnderCursor == IntPtr.Zero) return false;
@@ -89,6 +89,19 @@ internal static class QuickNavigationTriggerGate
         var sbClass = new StringBuilder(256);
         Native.GetClassName(hwndUnderCursor, sbClass, sbClass.Capacity);
         return adapter.CanShowQuickNav(hwndUnderCursor, sbClass.ToString());
+    }
+
+    // An adapter component may still be disabled as a whole, but its EnableInlineSearch setting must not
+    // suppress the independent EnableQuickNav setting. Host recognition intentionally bypasses CanHandle,
+    // whose job is to honor the former setting for inline-search activation.
+    internal static IInlineSearchAdapter? FindFileManagerAdapter(IEnumerable<IInlineSearchAdapter> adapters, IntPtr hwnd, string className, string processName)
+    {
+        foreach (var adapter in adapters)
+        {
+            if (adapter.IsFileExplorer && adapter.CanRecognizeHost(hwnd, className, processName))
+                return adapter;
+        }
+        return null;
     }
 
     private const uint GA_ROOT = 2;

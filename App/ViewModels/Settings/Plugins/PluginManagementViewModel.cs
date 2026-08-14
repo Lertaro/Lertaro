@@ -84,6 +84,7 @@ public class PluginManagementViewModel : ViewModelBase
             field.Commit();
 
         plugin.ConfigFields[0].Settings.Save();
+        InlineSearchManager.Instance.ExplorerTracker.RefreshActiveWindowAdapters();
         App.HookClient?.SendMessage(new IpcMessage { Id = IpcMessageId.ReloadSettings });
     }
 
