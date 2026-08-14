@@ -74,8 +74,6 @@ internal sealed class SearchQueryDispatchController
         // accumulator maps and ranks only what arrived since the previous paint and merges it into the
         // order already established, so the total cost of painting twenty times is the cost of painting
         // once. See StreamingResultAccumulator.
-        // Created by the background render callback because validating remembered paths can touch slow
-        // network locations. The UI thread only schedules the search and never performs those checks.
         StreamingResultAccumulator? accumulator = null;
 
         _searchEngine.QueueSearch(
@@ -94,7 +92,9 @@ internal sealed class SearchQueryDispatchController
             {
                 if (fileResults == null)
                     return new List<AppSearchResult>();
-                accumulator ??= CreateAccumulator(cleanQuery);
+                // The full window is a file-browser-style view: only rank actual index matches here.
+                // Quick and inline search retain their separate history/favorite learning behavior.
+                accumulator ??= new StreamingResultAccumulator(cleanQuery, new Dictionary<string, int>());
                 return accumulator.AbsorbBatch(fileResults);
             },
             searching => _setIsSearching(searching),
@@ -165,13 +165,6 @@ internal sealed class SearchQueryDispatchController
                     _setReceivedCount(count);
             }
         );
-    }
-
-    private static StreamingResultAccumulator CreateAccumulator(string query)
-    {
-        var learned = HistorySearchCandidateMapper.Collect(query, null);
-        var priorities = HistorySearchCandidateMapper.ApplyPriorities(SearchHistoryStore.Snapshot(), learned);
-        return new StreamingResultAccumulator(query, priorities, learned);
     }
 
     private async Task RefreshAfterTokenDispatchAsync(List<AppSearchResult> resultsSnapshot, IReadOnlyList<string> tokensSnapshot, bool extendsContent)
