@@ -2,6 +2,7 @@ using System.IO;
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 using Lertaro.PluginSdk.Services;
+using Lertaro.App.Services;
 
 namespace Lertaro.App.ViewModels.Search.Mapping;
 
@@ -85,18 +86,29 @@ internal static class HistorySearchCandidateMapper
                  string.Equals(normalizedPath, normalizedScope, StringComparison.OrdinalIgnoreCase)))
                 return false;
 
+            if (entry.Kind == HistoryEntryKind.Application &&
+                SearchableItemMapper.TryCreateApplicationResult(path, query, out result))
+            {
+                return true;
+            }
+
             var parent = Path.GetDirectoryName(path) ?? string.Empty;
             var trimmedPath = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var name = Path.GetFileName(trimmedPath);
+            var isApplication = entry.Kind == HistoryEntryKind.Application;
             result = new AppSearchResult
             {
-                Name = string.IsNullOrEmpty(name) ? path : name,
+                // A removed/unloaded app no longer has a provider item to reuse above. Keep the same
+                // application presentation in that case, including the title-without-extension rule.
+                Name = string.IsNullOrEmpty(name) ? path : (isApplication ? Path.GetFileNameWithoutExtension(name) : name),
                 FullPath = path,
-                ParentDir = parent,
+                ParentDir = isApplication ? string.Empty : parent,
                 ContextDirectory = isDirectory ? path : parent,
                 IsDir = isDirectory,
                 Drive = Path.GetPathRoot(path)?.TrimEnd(Path.DirectorySeparatorChar).TrimEnd(':') ?? string.Empty,
-                ResultKind = entry.Kind == HistoryEntryKind.Application ? "Application" : "File",
+                ResultKind = isApplication ? "Application" : "File",
+                InstantResultOnExecute = isApplication ? () => FileExecutor.OpenFileOrFolder(path) : null,
+                InstantResultActionArgument = isApplication ? path : string.Empty,
                 SearchQuery = query
             };
             return true;

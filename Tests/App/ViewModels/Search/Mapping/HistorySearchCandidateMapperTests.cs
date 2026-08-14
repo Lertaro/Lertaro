@@ -52,6 +52,20 @@ public sealed class HistorySearchCandidateMapperTests
     }
 
     [TestMethod]
+    public void Collect_ApplicationHistoryUsesApplicationFallbackPresentation()
+    {
+        var entries = new[] { Entry("word", @"C:\Apps\Word.lnk", HistoryEntryKind.Application) };
+
+        var results = HistorySearchCandidateMapper.Collect("wo", null, entries, _ => true, _ => false);
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual("Word", results[0].Result.Name);
+        Assert.AreEqual("Application", results[0].Result.ResultKind);
+        Assert.AreEqual(string.Empty, results[0].Result.ParentDir);
+        Assert.IsNotNull(results[0].Result.InstantResultOnExecute);
+    }
+
+    [TestMethod]
     public void Collect_WslHistoryUsesLexicalPathNormalization()
     {
         var probedPath = string.Empty;

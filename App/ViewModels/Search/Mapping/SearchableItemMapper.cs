@@ -11,6 +11,31 @@ public static class SearchableItemMapper
 {
     public static void Preload() => SearchableItemCache.Preload();
 
+    // A learned Application history entry retains only its launched path. Reuse the cached provider
+    // entry when it is still available so history results keep the application's own title, icon, and
+    // execution delegate instead of reconstructing an almost-identical row from the shortcut path.
+    internal static bool TryCreateApplicationResult(string path, string query, out AppSearchResult result)
+    {
+        foreach (var provider in PluginManager.Instance.SearchableItemProviders)
+        {
+            SearchableItemCache.EnsureLoaded(provider);
+            if (!SearchableItemCache.TryGetEntries(provider.GetType().Name, out var entries))
+                continue;
+
+            var entry = entries.FirstOrDefault(entry =>
+                string.Equals(entry.Item.ResultKind, "Application", StringComparison.Ordinal) &&
+                string.Equals(entry.Item.ActionArgument?.Trim(), path.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (entry == null)
+                continue;
+
+            result = BuildCandidate(entry, provider, query, 0).Result;
+            return true;
+        }
+
+        result = null!;
+        return false;
+    }
+
     // Providers load on a background thread and a query issued before a given provider finishes is
     // silently missing its items (see AddSearchableItemResults' cache-miss "continue" below) -- there is
     // no synchronous "wait for everything" alternative without blocking the UI. Instead, a live search
