@@ -10,6 +10,18 @@ using Lertaro.Core;
 
 public static class SearchStreamPump
 {
+    // A CLI request adds an App-to-CLI pipe hop, so its consumer can be slower than an index scan.
+    // Keeping this bounded applies backpressure instead of retaining every matching result in Service.
+    internal const int ResultBufferCapacity = 1024;
+
+    internal static Channel<SearchResult> CreateResultChannel() => Channel.CreateBounded<SearchResult>(
+        new BoundedChannelOptions(ResultBufferCapacity)
+        {
+            SingleReader = true,
+            SingleWriter = true,
+            FullMode = BoundedChannelFullMode.Wait
+        });
+
     public static async Task RunAsync(SearchEngine? engine, SearchRequestMessage msg, Stream stream, CancellationToken token)
     {
         Logger.Log($"[SearchStreamPump] Starting query: '{msg.Query}', limit={msg.Limit}, appLimit={msg.AppLimit}, directoryFilter='{msg.DirectoryFilter}'", LogLevel.Debug);
@@ -47,8 +59,7 @@ public static class SearchStreamPump
             await SearchResponseBinarySerializer.WriteHeaderAsync(bufferedStream, queryToken).ConfigureAwait(false);
             await bufferedStream.FlushAsync(queryToken).ConfigureAwait(false);
 
-            var channel = Channel.CreateUnbounded<SearchResult>(
-                new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
+            var channel = CreateResultChannel();
 
             // Set by the enumeration branch below when no loaded drive index holds the requested path,
             // and reported to the client as its own frame after the results drain -- a stream of zero
@@ -65,7 +76,8 @@ public static class SearchStreamPump
                         // No engine at all counts as not indexed: the client should fall back, not
                         // conclude the directory is empty.
                         notIndexed = engine == null || !engine.EnumerateDirectory(msg.DirectoryFilter ?? string.Empty,
-                            msg.Recursive, msg.Query ?? "*", msg.Limit, result => channel.Writer.TryWrite(result), queryToken);
+                            msg.Recursive, msg.Query ?? "*", msg.Limit,
+                            result => channel.Writer.WriteAsync(result, queryToken).AsTask().GetAwaiter().GetResult(), queryToken);
                         channel.Writer.TryComplete();
                         return;
                     }
@@ -73,7 +85,7 @@ public static class SearchStreamPump
                     var directory = msg.Id == SearchRequestId.SearchDir ? msg.DirectoryFilter : null;
 
                     engine?.SearchStreaming(msg.Query ?? string.Empty, msg.Limit, msg.AppLimit, directory,
-                        result => channel.Writer.TryWrite(result), queryToken);
+                        result => channel.Writer.WriteAsync(result, queryToken).AsTask().GetAwaiter().GetResult(), queryToken);
                     channel.Writer.TryComplete();
                 }
                 catch (Exception ex)

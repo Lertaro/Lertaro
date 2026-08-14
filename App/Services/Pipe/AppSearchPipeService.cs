@@ -101,7 +101,19 @@ public static class AppSearchPipeService
                     if (request.Id != SearchRequestId.Search)
                         continue; // prototype: only the plain (non-directory-scoped) full-window search is wired up
 
-                    await RunFullWindowSearchAsync(request.Query ?? string.Empty, pipe);
+                    using var queryCts = new CancellationTokenSource();
+                    using var watchdogStopCts = new CancellationTokenSource();
+                    _ = PipeDisconnectWatcher.WatchAsync(pipe, queryCts, watchdogStopCts.Token);
+                    IdleWorkingSetTrimmer.BackgroundSearchStarted();
+                    try
+                    {
+                        await RunFullWindowSearchAsync(request.Query ?? string.Empty, pipe, queryCts.Token);
+                    }
+                    finally
+                    {
+                        watchdogStopCts.Cancel();
+                        IdleWorkingSetTrimmer.BackgroundSearchFinished();
+                    }
                 }
             }
             catch (Exception ex)
@@ -129,14 +141,14 @@ public static class AppSearchPipeService
     private const int FlushEveryResults = 50;
     private const int FlushEveryResultUntil = 10;
 
-    private static async Task RunFullWindowSearchAsync(string query, Stream pipe)
+    private static async Task RunFullWindowSearchAsync(string query, Stream pipe, CancellationToken token)
     {
         // Deliberately not disposed: disposing a BufferedStream closes what it wraps, and HandleClientAsync
         // reads the NEXT request off this same pipe when this returns. Everything written is flushed
         // explicitly below instead, so nothing is left in the buffer for a dispose to have to push out.
         var buffered = new BufferedStream(pipe, WriteBufferSize);
-        await SearchResultWithHighlightBinarySerializer.WriteHeaderAsync(buffered);
-        await buffered.FlushAsync();
+        await SearchResultWithHighlightBinarySerializer.WriteHeaderAsync(buffered, token);
+        await buffered.FlushAsync(token);
 
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -145,13 +157,13 @@ public static class AppSearchPipeService
             var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
 
             if (tokens.Count > 0)
-                await RunTokenizedSearchAsync(cleanQuery, tokens, bypassExclusions, buffered);
+                await RunTokenizedSearchAsync(cleanQuery, tokens, bypassExclusions, buffered, token);
             else
-                await RunStreamingSearchAsync(cleanQuery, bypassExclusions, buffered);
+                await RunStreamingSearchAsync(cleanQuery, bypassExclusions, buffered, token);
         }
 
-        await SearchResultWithHighlightBinarySerializer.WriteEndAsync(buffered);
-        await buffered.FlushAsync();
+        await SearchResultWithHighlightBinarySerializer.WriteEndAsync(buffered, token);
+        await buffered.FlushAsync(token);
     }
 
     // The plain (no token) path: forwards each result to the pipe the instant SearchStreamingAsync
@@ -161,7 +173,7 @@ public static class AppSearchPipeService
     // as results stream in). Ranking (SearchResultRankComparer) is left to the client for the same
     // reason: it needs to re-run repeatedly against a growing snapshot, which belongs wherever the
     // incremental rendering is happening.
-    private static async Task RunStreamingSearchAsync(string query, bool bypassExclusions, Stream pipe)
+    private static async Task RunStreamingSearchAsync(string query, bool bypassExclusions, Stream pipe, CancellationToken token)
     {
         // SearchStreamingAsync's onResult callback fires from whichever of its local/network tasks
         // produces a match, concurrently -- serialize pipe writes so two results' bytes never interleave
@@ -185,7 +197,7 @@ public static class AppSearchPipeService
                 writeLock.Wait();
                 try
                 {
-                    SearchResultWithHighlightBinarySerializer.WriteFileResultAsync(pipe, r, ranges).GetAwaiter().GetResult();
+                    SearchResultWithHighlightBinarySerializer.WriteFileResultAsync(pipe, r, ranges, token).GetAwaiter().GetResult();
 
                     // Inside the lock, because the buffer this flushes is the one the write above filled
                     // and BufferedStream is not safe to touch from two threads at once. The lock already
@@ -199,7 +211,7 @@ public static class AppSearchPipeService
                     writeLock.Release();
                 }
             },
-            default,
+            token,
             null,
             bypassExclusions);
     }
@@ -212,7 +224,7 @@ public static class AppSearchPipeService
     // RefreshAfterTokenDispatchAsync. PluginManager.QueryTokenProviders is only populated in a process
     // that's loaded plugins -- same reason AliasProviderRegistry needed this pipe in the first place --
     // so this dispatch has to run here, not on a bare CLI client.
-    private static async Task RunTokenizedSearchAsync(string query, IReadOnlyList<string> tokens, bool bypassExclusions, Stream pipe)
+    private static async Task RunTokenizedSearchAsync(string query, IReadOnlyList<string> tokens, bool bypassExclusions, Stream pipe, CancellationToken token)
     {
         var raw = new List<SearchResult>();
         await SharedSearchService.SearchStreamingAsync(
@@ -221,17 +233,19 @@ public static class AppSearchPipeService
             SearchViewModel.FullSearchAppLimit,
             null,
             r => raw.Add(r),
-            default,
+            token,
             null,
             bypassExclusions);
 
         SearchResultMapper.RemoveQueriedDirectoryItself(raw, query);
+        token.ThrowIfCancellationRequested();
         raw.Sort(new SearchResultRankComparer(SearchHistoryStore.Snapshot()));
 
         var byPath = new Dictionary<string, SearchResult>(StringComparer.OrdinalIgnoreCase);
         var appResults = new List<AppSearchResult>(raw.Count);
         for (var i = 0; i < raw.Count; i++)
         {
+            token.ThrowIfCancellationRequested();
             byPath[raw[i].Path] = raw[i];
             appResults.Add(SearchResultMapper.CreateUiResult(raw[i], query, i, isApplication: false, scope: null));
         }
@@ -245,16 +259,17 @@ public static class AppSearchPipeService
         var written = 0;
         foreach (var item in dispatched)
         {
+            token.ThrowIfCancellationRequested();
             if (!byPath.TryGetValue(item.FullPath, out var original))
                 continue;
             var ranges = SearchResultWithHighlightBinarySerializer.FlattenMask(FuzzyMatcher.ComputeHighlightMask(item.Name, item.SearchQuery));
-            await SearchResultWithHighlightBinarySerializer.WriteFileResultAsync(pipe, original, ranges);
+            await SearchResultWithHighlightBinarySerializer.WriteFileResultAsync(pipe, original, ranges, token);
 
             // This path already has the whole ranked set in hand, so the flushes are purely so a large
             // one reaches the client as it goes rather than in a single burst at the End frame.
             written++;
             if (written <= FlushEveryResultUntil || written % FlushEveryResults == 0)
-                await pipe.FlushAsync();
+                await pipe.FlushAsync(token);
         }
     }
 

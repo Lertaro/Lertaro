@@ -105,4 +105,40 @@ public sealed class IdleWorkingSetTrimGateTests
 
         Assert.IsTrue(gate.ShouldTrim(100_000 + IdleMs));
     }
+
+    [TestMethod]
+    public void BackgroundSearchFinished_ArmsATrimWhenNoWindowIsShowing()
+    {
+        var gate = Gate();
+        gate.BackgroundSearchStarted();
+        gate.BackgroundSearchFinished(100);
+
+        Assert.IsFalse(gate.ShouldTrim(100 + IdleMs - 1));
+        Assert.IsTrue(gate.ShouldTrim(100 + IdleMs));
+    }
+
+    [TestMethod]
+    public void BackgroundSearchFinished_DoesNotTrimWhileAWindowIsShowing()
+    {
+        var gate = Gate();
+        gate.BackgroundSearchStarted();
+        gate.WindowShowing();
+        gate.BackgroundSearchFinished(100);
+
+        Assert.IsFalse(gate.ShouldTrim(100 + IdleMs));
+    }
+
+    [TestMethod]
+    public void OverlappingBackgroundSearches_WaitForTheLastCompletion()
+    {
+        var gate = Gate();
+        gate.BackgroundSearchStarted();
+        gate.BackgroundSearchStarted();
+        gate.BackgroundSearchFinished(100);
+
+        Assert.IsFalse(gate.ShouldTrim(100 + IdleMs + 1));
+
+        gate.BackgroundSearchFinished(200);
+        Assert.IsTrue(gate.ShouldTrim(200 + IdleMs));
+    }
 }

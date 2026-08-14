@@ -25,6 +25,16 @@ internal static class IdleWorkingSetTrimmer
     /// <summary>Called at the very start of a summon, before anything touches the window.</summary>
     public static void WindowShowing() => Gate.WindowShowing();
 
+    /// <summary>Marks a CLI request routed through the App's search pipe as active.</summary>
+    public static void BackgroundSearchStarted()
+    {
+        Gate.BackgroundSearchStarted();
+        EnsureTimer();
+    }
+
+    /// <summary>Schedules a trim after the final CLI search completes and the App remains idle.</summary>
+    public static void BackgroundSearchFinished() => Gate.BackgroundSearchFinished(Environment.TickCount64);
+
     private static void EnsureTimer()
     {
         lock (StartLock)
