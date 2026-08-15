@@ -1,4 +1,5 @@
 using System.Windows;
+using Lertaro.Core;
 
 namespace Lertaro.App.Services.AppWindow;
 
@@ -83,21 +84,52 @@ public static class AppWindowManager
         {
             if (_searchWindow == null)
             {
-                _searchWindow = new SearchWindow();
+                _searchWindow = UserSettings.Load().MainWindow.SingleInstance
+                    ? System.Windows.Application.Current.Windows.OfType<SearchWindow>().FirstOrDefault()
+                    : null;
+                _searchWindow ??= new SearchWindow();
                 _searchWindow.Closed += (_, _) => _searchWindow = null;
             }
 
-            if (!_searchWindow.IsVisible)
-                _searchWindow.Show();
-
-            if (_searchWindow.WindowState == WindowState.Minimized)
-                _searchWindow.WindowState = WindowState.Normal;
-
-            _searchWindow.Activate();
-            // Session-start hook for the full window -- mirrors QuickSearchViewModel.
-            // EnsureServiceMonitoringActive, which is the same hook for the Quick/Inline windows.
-            ViewModels.Search.SearchReachabilityGate.BeginSession();
+            ShowAndActivateSearchWindow(_searchWindow);
         });
+    }
+
+    // "Show more" is the only route that normally creates additional full windows. When the user
+    // opts into one-instance mode, reuse any existing full window instead and carry its query forward.
+    public static void ShowSearchWindowFromQuick(string query, bool restorePreview)
+    {
+        if (System.Windows.Application.Current == null) return;
+
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            var current = System.Windows.Application.Current;
+            var existing = UserSettings.Load().MainWindow.SingleInstance
+                ? current.Windows.OfType<SearchWindow>().FirstOrDefault()
+                : null;
+            if (existing == null)
+            {
+                new SearchWindow(query, restorePreview).Show();
+                ViewModels.Search.SearchReachabilityGate.BeginSession();
+                return;
+            }
+
+            existing.SearchTextBox.Text = query;
+            existing.SearchTextBox.SelectionStart = query.Length;
+            ShowAndActivateSearchWindow(existing);
+        });
+    }
+
+    private static void ShowAndActivateSearchWindow(SearchWindow window)
+    {
+        if (!window.IsVisible)
+            window.Show();
+        if (window.WindowState == WindowState.Minimized)
+            window.WindowState = WindowState.Normal;
+        window.Activate();
+        window.FocusSearch();
+        // Session-start hook for the full window -- mirrors QuickSearchViewModel.
+        ViewModels.Search.SearchReachabilityGate.BeginSession();
     }
 
     public static void CloseAllManagedWindows()

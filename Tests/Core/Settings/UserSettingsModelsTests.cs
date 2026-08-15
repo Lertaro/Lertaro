@@ -10,4 +10,8 @@ public sealed class UserSettingsModelsTests
     [TestMethod]
     public void HotkeyPageSettings_DisablesDoubleClickQuickNavByDefault() =>
         Assert.IsFalse(new HotkeyPageSettings().QuickNavTriggerOnDoubleClick);
+
+    [TestMethod]
+    public void MainWindowSettings_AllowsMultipleInstancesByDefault() =>
+        Assert.IsFalse(new MainWindowSettings().SingleInstance);
 }

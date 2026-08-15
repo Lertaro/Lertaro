@@ -339,6 +339,8 @@
   "General_SearchWindowWidth": "視窗寬度 (像素)",
   "General_SearchWindowHeight": "視窗高度 (像素)",
   "General_SearchWindowReset": "重設搜尋視窗設定",
+  "General_SearchWindowSingleInstance": "僅允許一個完整搜尋視窗",
+  "General_SearchWindowSingleInstanceHint": "啟用後，再次開啟完整搜尋視窗會啟用現有視窗，而不會建立新視窗。",
   "General_SidebarGroupOrderTitle": "側邊欄篩選順序",
   "General_SidebarGroupOrderHint": "調整完整視窗側邊欄中篩選群組（類型、修改時間，以及外掛程式新增的群組）的顯示順序。",
   "General_ColumnOrderTitle": "結果表格欄位順序",

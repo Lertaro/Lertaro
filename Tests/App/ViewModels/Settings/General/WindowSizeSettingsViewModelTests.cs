@@ -8,16 +8,18 @@ namespace Lertaro.App.Tests.ViewModels.Settings.General;
 public sealed class MainWindowSettingsViewModelTests
 {
     [TestMethod]
-    public void Constructor_LoadsWidthAndHeightFromSettings()
+    public void Constructor_LoadsWindowSettingsFromSettings()
     {
         var settings = new UserSettings();
         settings.MainWindow.Width = 900;
         settings.MainWindow.Height = 600;
+        settings.MainWindow.SingleInstance = true;
 
         var vm = new MainWindowSettingsViewModel(settings);
 
         Assert.AreEqual(900, vm.Width);
         Assert.AreEqual(600, vm.Height);
+        Assert.IsTrue(vm.SingleInstance);
     }
 
     [TestMethod]
@@ -55,12 +57,13 @@ public sealed class MainWindowSettingsViewModelTests
     public void Save_WritesStagedValuesToUserSettings()
     {
         var settings = new UserSettings();
-        var vm = new MainWindowSettingsViewModel(settings) { Width = 950, Height = 650 };
+        var vm = new MainWindowSettingsViewModel(settings) { Width = 950, Height = 650, SingleInstance = true };
 
         vm.Save();
 
         Assert.AreEqual(950, settings.MainWindow.Width);
         Assert.AreEqual(650, settings.MainWindow.Height);
+        Assert.IsTrue(settings.MainWindow.SingleInstance);
     }
 }
 

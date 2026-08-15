@@ -229,6 +229,13 @@
                             Style="{StaticResource SettingsButton}"
                             Margin="0" HorizontalAlignment="Left"/>
                 </Grid>
+
+                <CheckBox x:Name="RowSearchWindowSingleInstance"
+                          Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SearchWindowSingleInstance]}"
+                          IsChecked="{Binding General.MainWindow.SingleInstance, Mode=TwoWay}"
+                          Margin="0,16,0,0"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SearchWindowSingleInstanceHint]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
             </StackPanel>
         </Border>
 

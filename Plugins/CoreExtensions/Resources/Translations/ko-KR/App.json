@@ -339,6 +339,8 @@
   "General_SearchWindowWidth": "창 너비 (px)",
   "General_SearchWindowHeight": "창 높이 (px)",
   "General_SearchWindowReset": "검색 창 설정 초기화",
+  "General_SearchWindowSingleInstance": "전체 검색 창을 하나만 허용",
+  "General_SearchWindowSingleInstanceHint": "활성화하면 전체 검색 창을 다시 열 때 새 창을 만들지 않고 기존 창을 활성화합니다.",
   "General_SidebarGroupOrderTitle": "사이드바 필터 순서",
   "General_SidebarGroupOrderHint": "전체 창의 사이드바에 표시되는 필터 그룹(유형, 수정한 날짜 및 플러그인이 추가한 그룹)의 순서를 재정렬합니다.",
   "General_ColumnOrderTitle": "결과 그리드 열 순서",

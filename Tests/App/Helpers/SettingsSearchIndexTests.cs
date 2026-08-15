@@ -69,6 +69,15 @@ public sealed class SettingsSearchIndexTests
     }
 
     [TestMethod]
+    public void TheFullWindowSingleInstanceSettingIsSearchable()
+    {
+        var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "General_SearchWindowSingleInstance");
+
+        Assert.IsNotNull(entry, "the full-window single-instance setting has no search index entry");
+        Assert.AreEqual("TabSearchWindow/RowSearchWindowSingleInstance", entry!.TargetElementName);
+    }
+
+    [TestMethod]
     public void TheStayOpenHotkeyIsSearchable()
     {
         var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "Hotkeys_StayOpen");

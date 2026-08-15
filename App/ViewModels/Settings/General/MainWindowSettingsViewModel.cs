@@ -14,12 +14,14 @@ public class MainWindowSettingsViewModel : ViewModelBase
     private readonly UserSettings _userSettings;
     private double _width;
     private double _height;
+    private bool _singleInstance;
 
     public MainWindowSettingsViewModel(UserSettings userSettings)
     {
         _userSettings = userSettings;
         _width = userSettings.MainWindow.Width;
         _height = userSettings.MainWindow.Height;
+        _singleInstance = userSettings.MainWindow.SingleInstance;
     }
 
     public double Width
@@ -50,6 +52,12 @@ public class MainWindowSettingsViewModel : ViewModelBase
         }
     }
 
+    public bool SingleInstance
+    {
+        get => _singleInstance;
+        set => SetProperty(ref _singleInstance, value);
+    }
+
     public ICommand ResetCommand => new RelayCommand(Reset);
 
     private void Reset()
@@ -62,6 +70,7 @@ public class MainWindowSettingsViewModel : ViewModelBase
     {
         _userSettings.MainWindow.Width = _width;
         _userSettings.MainWindow.Height = _height;
+        _userSettings.MainWindow.SingleInstance = _singleInstance;
         UiMetrics.ApplyScaleFromSettings();
     }
 }

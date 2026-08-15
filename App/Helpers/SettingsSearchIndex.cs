@@ -98,6 +98,7 @@ public static class SettingsSearchIndex
         new("General_SearchWindowWidth", "General", vm => vm.General.SelectedTab = "SearchWindow", "TabSearchWindow/RowSearchWindowWidth", "General_SearchWindowTitle"),
         new("General_SearchWindowHeight", "General", vm => vm.General.SelectedTab = "SearchWindow", "TabSearchWindow/RowSearchWindowHeight", "General_SearchWindowTitle"),
         new("General_SearchWindowReset", "General", vm => vm.General.SelectedTab = "SearchWindow", "TabSearchWindow/RowSearchWindowReset", "General_SearchWindowTitle"),
+        new("General_SearchWindowSingleInstance", "General", vm => vm.General.SelectedTab = "SearchWindow", "TabSearchWindow/RowSearchWindowSingleInstance", "General_SearchWindowTitle"),
         new("General_SidebarGroupOrderTitle", "General", vm => vm.General.SelectedTab = "SearchWindow", "TabSearchWindow/RowSidebarGroupOrderList", "General_SearchWindowTitle"),
         new("General_ColumnOrderTitle", "General", vm => vm.General.SelectedTab = "SearchWindow", "TabSearchWindow/RowColumnOrderList", "General_SearchWindowTitle"),
         new("General_ActionMenuGroupOrderTitle", "General", vm => vm.General.SelectedTab = "SearchWindow", "TabSearchWindow/RowActionMenuGroupOrderList", "General_SearchWindowTitle"),

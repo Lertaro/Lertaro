@@ -165,4 +165,5 @@ public class MainWindowSettings
 {
     public double Width { get; set; } = 854;
     public double Height { get; set; } = 480;
+    public bool SingleInstance { get; set; } = false;
 }

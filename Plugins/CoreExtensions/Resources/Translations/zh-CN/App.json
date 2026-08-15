@@ -339,6 +339,8 @@
   "General_SearchWindowWidth": "窗口宽度 (像素)",
   "General_SearchWindowHeight": "窗口高度 (像素)",
   "General_SearchWindowReset": "重置搜索窗口设置",
+  "General_SearchWindowSingleInstance": "仅允许一个完整搜索窗口",
+  "General_SearchWindowSingleInstanceHint": "启用后，再次打开完整搜索窗口会激活现有窗口，而不会创建新窗口。",
   "General_SidebarGroupOrderTitle": "侧边栏筛选顺序",
   "General_SidebarGroupOrderHint": "调整完整窗口侧边栏中筛选分组（类型、修改时间，以及插件新增的分组）的显示顺序。",
   "General_ColumnOrderTitle": "结果表格列顺序",

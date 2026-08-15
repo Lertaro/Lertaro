@@ -339,6 +339,8 @@
   "General_SearchWindowWidth": "Window Width (px)",
   "General_SearchWindowHeight": "Window Height (px)",
   "General_SearchWindowReset": "Reset Search Window Settings",
+  "General_SearchWindowSingleInstance": "Only allow one full search window",
+  "General_SearchWindowSingleInstanceHint": "When enabled, opening the full search window again activates the existing window instead of creating another one.",
   "General_SidebarGroupOrderTitle": "Sidebar Filter Order",
   "General_SidebarGroupOrderHint": "Reorder the filter groups (Type, Date Modified, and any plugin-added groups) shown in the full window's sidebar.",
   "General_ColumnOrderTitle": "Results Grid Column Order",

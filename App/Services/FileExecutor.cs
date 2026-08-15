@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using Lertaro.Core;
+using Lertaro.App.Services.AppWindow;
 using MessageBox = Lertaro.App.Views.Controls.Dialogs.CustomMessageBox;
 namespace Lertaro.App.Services;
 
@@ -23,8 +24,7 @@ public static class FileExecutor
             // constructing anything: the new window's own startup resets this, as does the quick window
             // hiding below. Every route from the quick window to the full one comes through here.
             var restorePreview = QuickLookManager.Instance.IsPreviewWanted;
-            var searchWin = new SearchWindow(currentSearchText, restorePreview);
-            searchWin.Show();
+            AppWindowManager.ShowSearchWindowFromQuick(currentSearchText, restorePreview);
             onHideWindow?.Invoke();
             return;
         }

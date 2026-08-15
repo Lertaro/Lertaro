@@ -339,6 +339,8 @@
   "General_SearchWindowWidth": "ウィンドウ幅（px）",
   "General_SearchWindowHeight": "ウィンドウ高さ（px）",
   "General_SearchWindowReset": "検索ウィンドウの設定をリセット",
+  "General_SearchWindowSingleInstance": "フル検索ウィンドウを 1 つだけ許可する",
+  "General_SearchWindowSingleInstanceHint": "有効にすると、フル検索ウィンドウを再度開いたとき、新しいウィンドウではなく既存のウィンドウをアクティブにします。",
   "General_SidebarGroupOrderTitle": "サイドバーのフィルター順序",
   "General_SidebarGroupOrderHint": "フルウィンドウのサイドバーに表示されるフィルターグループ（種類、更新日時、およびプラグインが追加したグループ）の表示順序を変更します。",
   "General_ColumnOrderTitle": "結果グリッドの列順序",

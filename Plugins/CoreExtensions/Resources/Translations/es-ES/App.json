@@ -339,6 +339,8 @@
   "General_SearchWindowWidth": "Ancho de la Ventana (px)",
   "General_SearchWindowHeight": "Alto de la Ventana (px)",
   "General_SearchWindowReset": "Restablecer Configuración de la Ventana de Búsqueda",
+  "General_SearchWindowSingleInstance": "Permitir solo una ventana de búsqueda completa",
+  "General_SearchWindowSingleInstanceHint": "Al activarlo, volver a abrir la ventana de búsqueda completa activará la ventana existente en lugar de crear otra.",
   "General_SidebarGroupOrderTitle": "Orden de Filtros de la Barra Lateral",
   "General_SidebarGroupOrderHint": "Reordena los grupos de filtro (Tipo, Fecha de Modificación y cualquier grupo añadido por complementos) que se muestran en la barra lateral de la ventana completa.",
   "General_ColumnOrderTitle": "Orden de Columnas de la Cuadrícula de Resultados",
