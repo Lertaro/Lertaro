@@ -14,4 +14,8 @@ public sealed class UserSettingsModelsTests
     [TestMethod]
     public void MainWindowSettings_AllowsMultipleInstancesByDefault() =>
         Assert.IsFalse(new MainWindowSettings().SingleInstance);
+
+    [TestMethod]
+    public void DefaultFileManagerSetting_DisablesExplorerTabsByDefault() =>
+        Assert.IsFalse(new DefaultFileManagerSetting().OpenFoldersInNewExplorerTabs);
 }

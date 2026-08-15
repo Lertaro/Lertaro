@@ -9,6 +9,10 @@ namespace Lertaro.App.Services;
 
 public static class FileExecutor
 {
+    // ponytail: Explorer has no stable API to associate simultaneous tab requests with their callers.
+    // Serialize folder opens while the experimental tab option is enabled; a public Explorer-tab API is the upgrade path.
+    private static readonly SemaphoreSlim FolderOpenGate = new(1, 1);
+
     public static void OpenFileOrFolder(string path, string currentSearchText = "", Action? onHideWindow = null) => OpenFileOrFolderCore(path, currentSearchText, onHideWindow, asAdmin: false);
 
     public static void OpenFileOrFolderAsAdmin(string path, string currentSearchText = "", Action? onHideWindow = null) => OpenFileOrFolderCore(path, currentSearchText, onHideWindow, asAdmin: true);
@@ -68,6 +72,15 @@ public static class FileExecutor
             if (isVirtual || File.Exists(path) || Directory.Exists(path))
             {
                 var isFile = !isVirtual && File.Exists(path);
+                var defaultFileManager = UserSettings.Load().DefaultFileManager;
+
+                // "Open" remains a normal shell launch for files, while native Explorer folders use the
+                // same new-tab route as "Locate". A configured file manager is intentionally allowed to
+                // keep its own folder-opening behavior.
+                if (!asAdmin && !isVirtual && !isFile && defaultFileManager.OpenFoldersInNewExplorerTabs &&
+                    (defaultFileManager is not { Enabled: true } || string.IsNullOrWhiteSpace(defaultFileManager.Path)) &&
+                    TryOpenFolderInNewExplorerTab(path, defaultFileManager))
+                    return;
 
                 // The "runas" verb applies to executables, not documents, so a non-executable file can't
                 // just be elevated directly -- BuildStartInfo below resolves the file's associated program
@@ -75,7 +88,7 @@ public static class FileExecutor
                 // uses the same handler as a normal open. Only resolved when that branch will actually be
                 // taken, since it's a real (if cheap) registry/shell lookup.
                 var associatedExe = (asAdmin && isFile && !IsElevatableExecutable(path)) ? TryGetAssociatedExecutable(path) : null;
-                var startInfo = BuildStartInfo(path, isFile, asAdmin, associatedExe, UserSettings.Load().DefaultFileManager);
+                var startInfo = BuildStartInfo(path, isFile, asAdmin, associatedExe, defaultFileManager);
 
                 if (isFile && !asAdmin)
                 {
@@ -113,6 +126,39 @@ public static class FileExecutor
             MessageBox.Show(string.Format(TranslationManager.Instance["Executor_OpenFailed"], ex.Message), TranslationManager.Instance["Service_Error"], MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
+
+    private static bool TryOpenFolderInNewExplorerTab(string path, DefaultFileManagerSetting defaultFileManager) => TryUseExplorerTabs(
+            () => ExplorerTabLocator.TryOpenFolderInNewTab(path),
+            () =>
+            {
+                // Keep the first folder on the documented shell route. Once its window is ready, later
+                // folders from the same multi-selection enter it as tabs instead of opening N windows.
+                Process.Start(BuildStartInfo(path, isFile: false, asAdmin: false, associatedExe: null, defaultFileManager));
+                return true;
+            });
+
+    // Both folder opening routes share this exact sequence. The location route supplies a first-window
+    // callback that uses SHOpenFolderAndSelectItems so Windows can select the requested item.
+    private static bool TryUseExplorerTabs(Func<bool> openNewTab, Func<bool>? openFirstWindow)
+    {
+        FolderOpenGate.Wait();
+        try
+        {
+            if (ExplorerTabLocator.HasAvailableExplorerWindow()) return openNewTab();
+            if (openFirstWindow == null || !openFirstWindow()) return false;
+            ExplorerTabLocator.WaitForAvailableExplorerWindow();
+            return true;
+        }
+        finally
+        {
+            FolderOpenGate.Release();
+        }
+    }
+
+    // Keep "open" and "open containing folder" on the same serialized Explorer-tab route. The
+    // location caller supplies the documented first-window operation so it can select the item.
+    internal static bool TryLocateInNewExplorerTab(string path, Func<bool>? openFirstWindow = null, IntPtr preferredExplorerWindow = default) =>
+        TryUseExplorerTabs(() => ExplorerTabLocator.TryLocateInNewTab(path, preferredExplorerWindow), openFirstWindow);
 
     // A "::{CLSID}"/"shell:..." token names a virtual shell namespace item (e.g. Control Panel, This PC)
     // rather than a real filesystem path -- File.Exists/Directory.Exists would just return false for it.

@@ -78,6 +78,15 @@ public sealed class SettingsSearchIndexTests
     }
 
     [TestMethod]
+    public void TheExplorerTabsSettingIsSearchable()
+    {
+        var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "General_OpenFoldersInNewExplorerTabs");
+
+        Assert.IsNotNull(entry, "the Explorer-tabs setting has no search index entry");
+        Assert.AreEqual("TabSystem/RowOpenFoldersInNewExplorerTabs", entry!.TargetElementName);
+    }
+
+    [TestMethod]
     public void TheStayOpenHotkeyIsSearchable()
     {
         var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "Hotkeys_StayOpen");

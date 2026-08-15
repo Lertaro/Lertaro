@@ -21,6 +21,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _enableHardwareAcceleration;
     private bool _enableFuzzyMatch;
     private bool _hideTrayIcon;
+    private bool _openFoldersInNewExplorerTabs;
     private bool _defaultFileManagerEnabled;
     private string _defaultFileManagerPath;
     private string _defaultFileManagerParameter;
@@ -57,6 +58,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _enableHardwareAcceleration = userSettings.EnableHardwareAcceleration;
         _enableFuzzyMatch = userSettings.EnableFuzzyMatch;
         _hideTrayIcon = userSettings.HideTrayIcon;
+        _openFoldersInNewExplorerTabs = userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs;
         _defaultFileManagerEnabled = userSettings.DefaultFileManager.Enabled;
         _defaultFileManagerPath = userSettings.DefaultFileManager.Path;
         _defaultFileManagerParameter = userSettings.DefaultFileManager.Parameter;
@@ -169,6 +171,12 @@ public class GeneralSettingsViewModel : ViewModelBase
         set => SetProperty(ref _hideTrayIcon, value);
     }
 
+    public bool OpenFoldersInNewExplorerTabs
+    {
+        get => _openFoldersInNewExplorerTabs;
+        set => SetProperty(ref _openFoldersInNewExplorerTabs, value);
+    }
+
     public string GlobalTokenPrefix
     {
         get => _globalTokenPrefix;
@@ -246,6 +254,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         // plugin catalog, favorites and highlighting immediately rather than only after a restart.
         SearchContext.DefaultFuzzyMatchEnabled = _enableFuzzyMatch;
         _userSettings.HideTrayIcon = _hideTrayIcon;
+        _userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs = _openFoldersInNewExplorerTabs;
         _userSettings.GlobalTokenPrefix = string.IsNullOrWhiteSpace(_globalTokenPrefix) ? ":" : _globalTokenPrefix;
         _userSettings.LogLevel = LogLevel;
         _userSettings.DefaultFileManager.Enabled = _defaultFileManagerEnabled;

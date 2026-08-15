@@ -296,6 +296,8 @@
   "General_EnableFuzzyMatchDesc": "끄면 검색어가 연속된 부분 문자열로 나타나야 합니다. \"abc\"는 더 이상 \"a-b-c\"에 매칭되지 않습니다. 단어 앞에 '를 붙이면 그 단어만 퍼지 매칭을 유지합니다.",
   "General_GlobalTokenPrefix": "쿼리 토큰 전체 접두사 문자",
   "General_GlobalTokenPrefixDesc": "검색창 끝의 토큰식을 분할하는 전체 접두사 문자 (기본값: :).",
+  "General_OpenFoldersInNewExplorerTabs": "새 파일 탐색기 탭에서 폴더 열기",
+  "General_OpenFoldersInNewExplorerTabsHint": "가능한 경우 기존 Windows 11 파일 탐색기 창을 재사용합니다. 타사 파일 관리자를 설정하면 이 실험적 통합은 적용되지 않습니다.",
   "General_DefaultFileManagerEnabled": "타사 파일 관리자로 폴더 열기",
   "General_DefaultFileManagerHint": "폴더 열기(\"폴더 위치 열기\" 포함)를 셸 자체 기본값 대신 아래 프로그램으로 리디렉션합니다.",
   "General_DefaultFileManagerPath": "경로(프로그램)",

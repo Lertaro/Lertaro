@@ -164,6 +164,16 @@
 
         <Border Style="{StaticResource SettingsCard}" Margin="0,12,0,0">
             <StackPanel>
+                <CheckBox x:Name="RowOpenFoldersInNewExplorerTabs" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_OpenFoldersInNewExplorerTabs]}"
+                           IsChecked="{Binding General.OpenFoldersInNewExplorerTabs, Mode=TwoWay}"
+                           Margin="0,4"/>
+                <TextBlock Style="{StaticResource SettingsHintText}" TextWrapping="Wrap"
+                            Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_OpenFoldersInNewExplorerTabsHint]}"/>
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource SettingsCard}" Margin="0,12,0,0">
+            <StackPanel>
                 <CheckBox x:Name="RowDefaultFileManagerEnabled" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerEnabled]}"
                            IsChecked="{Binding General.DefaultFileManagerEnabled, Mode=TwoWay}"
                            Margin="0,4"/>

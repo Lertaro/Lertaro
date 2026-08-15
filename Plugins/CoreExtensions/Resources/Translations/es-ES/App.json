@@ -296,6 +296,8 @@
   "General_EnableFuzzyMatchDesc": "Al desactivarla, un término debe aparecer como subcadena contigua: \"abc\" deja de coincidir con \"a-b-c\". Antepón ' a un término para seguir buscándolo de forma difusa.",
   "General_GlobalTokenPrefix": "Carácter de prefijo global de tokens",
   "General_GlobalTokenPrefixDesc": "Carácter de prefijo global para dividir expresiones de tokens al final del cuadro de búsqueda (predeterminado :).",
+  "General_OpenFoldersInNewExplorerTabs": "Abrir carpetas en nuevas pestañas del Explorador de archivos",
+  "General_OpenFoldersInNewExplorerTabsHint": "Cuando esté disponible, reutiliza una ventana existente del Explorador de archivos de Windows 11. Esta integración experimental se ignora si se configura un administrador de archivos de terceros.",
   "General_DefaultFileManagerEnabled": "Abrir carpetas con un administrador de archivos de terceros",
   "General_DefaultFileManagerHint": "Redirige la apertura de una carpeta (incluido \"Abrir Ubicación de la Carpeta\") al programa indicado a continuación en lugar de al predeterminado del propio shell.",
   "General_DefaultFileManagerPath": "Ruta (programa)",

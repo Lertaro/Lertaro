@@ -296,6 +296,8 @@
   "General_EnableFuzzyMatchDesc": "When off, a term must appear as a contiguous substring: \"abc\" no longer matches \"a-b-c\". Prefix a term with ' to keep matching it fuzzily.",
   "General_GlobalTokenPrefix": "Global Query Token Prefix",
   "General_GlobalTokenPrefixDesc": "Global lead prefix character for splitting trailing query token expressions in the search box (default :).",
+  "General_OpenFoldersInNewExplorerTabs": "Open folders in new File Explorer tabs",
+  "General_OpenFoldersInNewExplorerTabsHint": "Uses an existing Windows 11 File Explorer window when available. This experimental integration is ignored when a third-party file manager is configured.",
   "General_DefaultFileManagerEnabled": "Open folders with a third-party file manager",
   "General_DefaultFileManagerHint": "Redirects opening a folder (including \"Open Folder Location\") to the program below instead of the shell's own default.",
   "General_DefaultFileManagerPath": "Path (program)",

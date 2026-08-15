@@ -296,6 +296,8 @@
   "General_EnableFuzzyMatchDesc": "無効にすると、検索語は連続した部分文字列として現れる必要があります。\"abc\" は \"a-b-c\" に一致しなくなります。語の前に ' を付けると、その語だけあいまい一致のままになります。",
   "General_GlobalTokenPrefix": "クエリトークン全体プレフィックス文字",
   "General_GlobalTokenPrefixDesc": "検索ボックス末尾のトークン式を分割する全体プレフィックス文字（デフォルト: :）。",
+  "General_OpenFoldersInNewExplorerTabs": "新しいエクスプローラー タブでフォルダーを開く",
+  "General_OpenFoldersInNewExplorerTabsHint": "利用可能な場合は、既存の Windows 11 エクスプローラー ウィンドウを再利用します。サードパーティ製ファイルマネージャーを設定している場合、この実験的な連携は使用されません。",
   "General_DefaultFileManagerEnabled": "サードパーティ製ファイルマネージャーでフォルダーを開く",
   "General_DefaultFileManagerHint": "フォルダーを開く操作（「フォルダーの場所を開く」を含む）を、システム既定の代わりに以下のプログラムにリダイレクトします。",
   "General_DefaultFileManagerPath": "パス（プログラム）",

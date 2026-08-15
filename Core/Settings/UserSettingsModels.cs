@@ -29,6 +29,7 @@ public class FolderIndexSetting
 public class DefaultFileManagerSetting
 {
     public bool Enabled { get; set; }
+    public bool OpenFoldersInNewExplorerTabs { get; set; } = false;
     public string Path { get; set; } = string.Empty;
     public string Parameter { get; set; } = string.Empty;
 }

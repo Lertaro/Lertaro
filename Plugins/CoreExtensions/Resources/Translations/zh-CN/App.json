@@ -296,6 +296,8 @@
   "General_EnableFuzzyMatchDesc": "关闭后，查询词必须作为连续子串出现：\"abc\" 不再匹配 \"a-b-c\"。在词前加 ' 可让该词仍按模糊匹配。",
   "General_GlobalTokenPrefix": "查询标记总前导字符",
   "General_GlobalTokenPrefixDesc": "搜索框尾部切分标记表达式的总前导字符（默认为 :）。",
+  "General_OpenFoldersInNewExplorerTabs": "在文件资源管理器新标签页中打开文件夹",
+  "General_OpenFoldersInNewExplorerTabsHint": "可用时复用现有的 Windows 11 文件资源管理器窗口。此实验性集成在配置第三方文件管理器时不会生效。",
   "General_DefaultFileManagerEnabled": "使用第三方文件管理器打开文件夹",
   "General_DefaultFileManagerHint": "打开文件夹(包括\"打开所在文件夹\")时改用下面配置的程序，而不是系统默认关联。",
   "General_DefaultFileManagerPath": "路径(程序)",

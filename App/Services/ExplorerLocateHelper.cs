@@ -29,7 +29,8 @@ internal static class ExplorerLocateHelper
         // own "select this item" argument syntax. Accepted tradeoff: one generic open-folder method
         // reused everywhere, rather than each caller needing its own opinion about the setting.
         var folder = Directory.Exists(path) ? path : Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(folder) && FileExecutor.TryBuildDefaultFileManagerStartInfo(folder, UserSettings.Load().DefaultFileManager) is { } customStartInfo)
+        var fileManager = UserSettings.Load().DefaultFileManager;
+        if (!string.IsNullOrEmpty(folder) && FileExecutor.TryBuildDefaultFileManagerStartInfo(folder, fileManager) is { } customStartInfo)
         {
             try
             {
@@ -44,16 +45,10 @@ internal static class ExplorerLocateHelper
             }
         }
 
-        try
-        {
-            if (SHParseDisplayName(path, IntPtr.Zero, out var pidl, 0, out _) == 0)
-            {
-                SHOpenFolderAndSelectItems(pidl, 0, null, 0);
-                Marshal.FreeCoTaskMem(pidl);
-                return;
-            }
-        }
-        catch { }
+        if (fileManager.OpenFoldersInNewExplorerTabs && FileExecutor.TryLocateInNewExplorerTab(path, () => TryLocateWithShell(path)))
+            return;
+
+        if (TryLocateWithShell(path)) return;
 
         // Fallback
         try
@@ -76,10 +71,14 @@ internal static class ExplorerLocateHelper
     public static bool TryLocateInExistingExplorer(string path, IntPtr explorerHwnd)
     {
         if (explorerHwnd == IntPtr.Zero) return false;
-        // A configured default file manager should win over this "reuse the already-open Explorer
-        // window" shortcut -- refusing it here forces the caller to fall through to LocateInExplorer,
-        // where the actual custom-manager launch lives.
-        if (UserSettings.Load().DefaultFileManager is { Enabled: true }) return false;
+        // A configured default file manager should win over this Explorer shortcut -- refusing it here
+        // forces the caller to fall through to LocateInExplorer, where the actual custom-manager launch
+        // lives. When new-tab integration is enabled, use the tracked Explorer window as its target
+        // rather than navigating the current tab below.
+        var fileManager = UserSettings.Load().DefaultFileManager;
+        if (fileManager is { Enabled: true }) return false;
+        if (fileManager.OpenFoldersInNewExplorerTabs)
+            return FileExecutor.TryLocateInNewExplorerTab(path, preferredExplorerWindow: explorerHwnd);
         try
         {
             dynamic? window = FindExplorerWindow(explorerHwnd);
@@ -132,6 +131,22 @@ internal static class ExplorerLocateHelper
         }
 
         return null;
+    }
+
+    private static bool TryLocateWithShell(string path)
+    {
+        var pidl = IntPtr.Zero;
+        try
+        {
+            if (SHParseDisplayName(path, IntPtr.Zero, out pidl, 0, out _) != 0) return false;
+            SHOpenFolderAndSelectItems(pidl, 0, null, 0);
+            return true;
+        }
+        catch { return false; }
+        finally
+        {
+            if (pidl != IntPtr.Zero) Marshal.FreeCoTaskMem(pidl);
+        }
     }
 
     private static async void SelectItemInExplorerLater(string path, IntPtr explorerHwnd)
