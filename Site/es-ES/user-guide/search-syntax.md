@@ -156,7 +156,7 @@ Archivos — ocultando cualquier otro tipo:
 encuentra "Visual Studio" solo entre las Aplicaciones, si `;` es el activador configurado para ese tipo, sin
 importar qué otro tipo de resultado hubiera coincidido mejor con el texto. Escribir solo el carácter activador sin
 nada detrás todavía muestra un aviso que nombra el tipo, en lugar de "Sin resultados de búsqueda". Historial y
-Favoritos no se ven afectados en ningún caso — siempre aparecen primero, haya activador o no. No hay ningún
+Favoritos no se ven afectados en ningún caso — siempre aparecen primero, haya activador o no, en las ventanas rápida y en línea. La ventana completa no añade esas entradas recuperadas a sus resultados. No hay ningún
 activador configurado por defecto; ver [Configuración general](./settings/general#ventana-de-busqueda-rapida) para
 configurar uno.
 

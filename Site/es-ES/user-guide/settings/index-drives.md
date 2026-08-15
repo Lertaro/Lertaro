@@ -27,6 +27,8 @@ Los recursos de red no exponen un journal de cambios como sí lo hacen los volú
 
 Solo se muestra al detectarse al menos una distribución de WSL — la misma estructura que Unidades de red (tarjeta de estado, botón **Reconstruir índice**, y una fila por distribución con estado/número de elementos/**Modo de actualización**). Las distribuciones se detectan automáticamente; no hay ningún paso manual de "añadir".
 
+Los resultados de búsqueda de WSL siempre proceden del índice actual. Lertaro no sondea el sistema de archivos de WSL durante la búsqueda, por lo que el resultado refleja el estado indexado hasta la siguiente actualización o reconstrucción. Abrir o previsualizar un resultado sí puede acceder al archivo, ya que es una acción solicitada explícitamente por el usuario.
+
 ## Carpetas
 
 Indexa carpetas individuales arbitrarias en lugar de una unidad o recurso compartido entero — útil para indexar solo un subárbol sin arrastrar todo lo demás de ese volumen.

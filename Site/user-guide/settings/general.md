@@ -83,11 +83,14 @@ or Start Menu shortcut, as opposed to the quick popup — see
 - **Window Height (px)** — range 400–1400px, default 480px. The minimums match the window's own
   resize floor, so a configured value is never silently overridden by the window itself.
 - **Reset Search Window Settings** button.
+- **Only allow one full search window** — checkbox, off by default. When off, you can open several independent full windows. When on, opening the full window again activates an existing one instead of creating another; a query carried over from Quick window's **Show More** replaces that window's query.
 
 Dragging the window's edge to resize it manually is remembered automatically — the next time you
 open the window (or open a new one), it comes back at whatever size you last left it at, and this
 page's fields update to match. Resizing while maximized doesn't overwrite the remembered size; only
 resizing in the normal (non-maximized) state does.
+
+The full window does not prepend Favorites or History recall entries to its result list. Those personalized recall results remain in the Quick and inline windows; the full window keeps the normal relevance order from active search providers.
 
 **Results Grid Column Order** — the same reorder list used elsewhere in Settings (see
 [Favorites](./favorites)): move a results-grid column (Name, Path, Date Modified, or any

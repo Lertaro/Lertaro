@@ -27,6 +27,8 @@ Network shares don't expose a change journal the way local NTFS volumes do, whic
 
 Only shown once at least one WSL distribution is detected — same shape as Network Drives (status card, **Rebuild Index** button, and one row per distribution with status/item count/**Refresh Mode**). Distributions are detected automatically; there's no manual "add" step.
 
+WSL search results always come from the current index. Lertaro does not probe the WSL file system while searching, so a result reflects the indexed state until its next refresh or rebuild. Opening or previewing a result can still access the file because that is an explicit user action.
+
 ## Folders
 
 Index arbitrary individual folders instead of a whole drive or share — useful for indexing just one subtree without pulling in everything else on that volume.

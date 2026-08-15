@@ -152,7 +152,8 @@ Files — hiding every other type:
 finds "Visual Studio" among Applications only, if `;` is that type's configured trigger, regardless
 of which other type's results would otherwise have matched the text better. Typing just the trigger
 character with nothing after it yet shows a prompt naming the type instead of "No Search Results".
-History and Favorites are unaffected either way — they always come first, trigger or not. No trigger
+In Quick and inline windows, History and Favorites are unaffected either way — they always come first,
+trigger or not. The full window does not add those recall entries to its results. No trigger
 is configured by default; see [General settings](./settings/general#quick-search-window) to set one up.
 
 ## Chinese filenames: pinyin aliasing

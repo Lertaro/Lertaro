@@ -90,11 +90,14 @@ ver [Primeros pasos](../getting-started#las-tres-ventanas)):
   de redimensionado de la ventana, así que un valor configurado nunca es sobrescrito en silencio por la propia
   ventana.
 - Botón **Restablecer ajustes de la ventana de búsqueda**.
+- **Permitir solo una ventana de búsqueda completa** — casilla, desactivada por defecto. Al estar desactivada, puedes abrir varias ventanas completas independientes. Al activarla, volver a abrir la ventana completa activa una ya existente en vez de crear otra; una consulta transferida desde **Mostrar más** de la ventana rápida sustituye la consulta de esa ventana.
 
 Arrastrar el borde de la ventana para redimensionarla manualmente se recuerda automáticamente — la próxima vez que
 abras la ventana (o abras una nueva), vuelve con el tamaño que dejaste la última vez, y los campos de esta página
 se actualizan a juego. Redimensionar mientras está maximizada no sobrescribe el tamaño recordado; solo lo hace
 redimensionar en el estado normal (no maximizado).
+
+La lista de resultados de la ventana completa no antepone elementos recuperados de Favoritos ni del Historial. Esos resultados personalizados permanecen en las ventanas rápida y en línea; la ventana completa conserva el orden de relevancia normal de los proveedores de búsqueda activos.
 
 **Orden de columnas de la cuadrícula de resultados** — la misma lista de reordenación usada en otras partes de
 Configuración (ver [Favoritos](./favorites)): mueve una columna de la cuadrícula de resultados (Nombre, Ruta,
