@@ -42,4 +42,14 @@ public sealed class ResultsDragDropHelperTests
         Assert.IsTrue(exists);
         Assert.IsFalse(fileProbed);
     }
+
+    [TestMethod]
+    public void CurrentListDragSource_RequiresTheOriginatingListAndResult()
+    {
+        var list = new object();
+
+        Assert.IsTrue(ResultsDragDropHelper.IsCurrentListDragSource(list, list, new FakeResult()));
+        Assert.IsFalse(ResultsDragDropHelper.IsCurrentListDragSource(list, new object(), new FakeResult()));
+        Assert.IsFalse(ResultsDragDropHelper.IsCurrentListDragSource(list, list, null));
+    }
 }

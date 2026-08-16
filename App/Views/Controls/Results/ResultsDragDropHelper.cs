@@ -11,6 +11,9 @@ public static class ResultsDragDropHelper
 {
     private static System.Windows.Point _dragStartPoint;
     private static bool _dragEndedInside;
+    private static System.Windows.Controls.ListBox? _dragSourceList;
+    private static ISearchResult? _dragSourceResult;
+    private static bool _inputTrackingRegistered;
 
     // True for the entire duration of the synchronous DoDragDrop call below (its own nested OLE
     // message loop). Checked by InlineSearchManager.CloseInlineSearch: that method can run
@@ -34,6 +37,7 @@ public static class ResultsDragDropHelper
 
     public static void Register(System.Windows.Controls.ListBox listBox)
     {
+        EnsureInputTracking();
         listBox.PreviewMouseLeftButtonDown += List_PreviewMouseLeftButtonDown;
         listBox.PreviewMouseLeftButtonUp += List_PreviewMouseLeftButtonUp;
         listBox.PreviewMouseMove += List_PreviewMouseMove;
@@ -62,7 +66,11 @@ public static class ResultsDragDropHelper
     /// </remarks>
     public static void RegisterPathDragSource(FrameworkElement element, Func<string?> getPath)
     {
-        element.PreviewMouseLeftButtonDown += (s, e) => _dragStartPoint = e.GetPosition(null);
+        element.PreviewMouseLeftButtonDown += (s, e) =>
+        {
+            _dragStartPoint = e.GetPosition(null);
+            ClearDragSource();
+        };
         element.AddHandler(UIElement.QueryContinueDragEvent, new System.Windows.QueryContinueDragEventHandler(List_QueryContinueDrag), true);
         element.PreviewMouseMove += (s, e) =>
         {
@@ -100,6 +108,7 @@ public static class ResultsDragDropHelper
     {
         var dataObject = new System.Windows.DataObject(System.Windows.DataFormats.FileDrop, paths);
 
+        ClearDragSource();
         _pendingItem = null;
         _pendingList = null;
         _dragEndedInside = false;
@@ -121,6 +130,13 @@ public static class ResultsDragDropHelper
         _dragStartPoint = e.GetPosition(null);
         _pendingItem = null;
         _pendingList = null;
+        ClearDragSource();
+
+        if (sender is System.Windows.Controls.ListBox list && GetItemData(e.OriginalSource) is ISearchResult result)
+        {
+            _dragSourceList = list;
+            _dragSourceResult = result;
+        }
 
         // No modifier + pressing a member of an existing multi-selection: keep the selection so a
         // drag carries all of it. Resolved as a single-select click on button-up if no drag runs.
@@ -145,6 +161,8 @@ public static class ResultsDragDropHelper
             _pendingItem = null;
             _pendingList = null;
         }
+
+        ClearDragSource();
     }
 
     private static object? GetItemData(object originalSource)
@@ -186,35 +204,48 @@ public static class ResultsDragDropHelper
         // has its window destroyed (CloseInlineSearch) before the matching release reaches any
         // Lertaro-owned window, WPF's state never resyncs, and the next hover starts a real, phantom
         // DoDragDrop with no hand left to ever release it.
-        if (!ShouldStartDrag(e))
+        if (sender is not System.Windows.Controls.ListBox listBox
+            || !IsCurrentListDragSource(_dragSourceList, listBox, _dragSourceResult)
+            || !ShouldStartDrag(e))
             return;
 
-        if (sender is not ItemsControl itemsControl)
-            return;
-
-        var dep = (DependencyObject)e.OriginalSource;
-        while (dep != null && dep != itemsControl)
+        var result = _dragSourceResult!;
+        try
         {
-            if (dep is ListBoxItem item)
+            if (PathExists(result))
             {
-                var data = item.DataContext;
-                if (data != null)
-                {
-                    try
-                    {
-                        if (data is ISearchResult searchResult && PathExists(searchResult))
-                        {
-                            // A drag is starting — StartDrag also clears the pending press so button-up
-                            // doesn't collapse the selection this drag is carrying.
-                            StartDrag(item, CollectDragPaths(itemsControl, data, searchResult.FullPath));
-                        }
-                    }
-                    catch { }
-                }
-                break;
+                // A drag is starting — StartDrag also clears the pending press so button-up doesn't
+                // collapse the selection this drag is carrying.
+                StartDrag(listBox, CollectDragPaths(listBox, result, result.FullPath));
             }
-            dep = GetParent(dep);
         }
+        catch { }
+    }
+
+    internal static bool IsCurrentListDragSource(object? sourceList, object? currentList, object? sourceItem)
+        => sourceItem is ISearchResult && ReferenceEquals(sourceList, currentList);
+
+    private static void ClearDragSource()
+    {
+        _dragSourceList = null;
+        _dragSourceResult = null;
+    }
+
+    private static void EnsureInputTracking()
+    {
+        if (_inputTrackingRegistered)
+            return;
+
+        _inputTrackingRegistered = true;
+        InputManager.Current.PreProcessInput += (_, e) =>
+        {
+            if (e.StagingItem.Input is MouseButtonEventArgs
+                {
+                    ChangedButton: MouseButton.Left,
+                    ButtonState: MouseButtonState.Released,
+                })
+                ClearDragSource();
+        };
     }
 
     private static void List_QueryContinueDrag(object sender, System.Windows.QueryContinueDragEventArgs e)
