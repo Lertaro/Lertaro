@@ -36,7 +36,7 @@ public class XyplorerPathCollector : IActivePathCollector
 
         if (path.Length > 3 && path.EndsWith('\\'))
             path = path.TrimEnd('\\');
-        return Directory.Exists(path) ? path : null;
+        return path;
     }
 
     /// <summary>

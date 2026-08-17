@@ -61,7 +61,7 @@ public class FilesInlineSearchAdapter : IInlineSearchAdapter
         UiaPathAccessor.RefreshFocusAnchor(hwnd);
 
         var path = UiaPathAccessor.GetCurrentPath(hwnd);
-        return PathValidation.LooksLikeRootedPath(path) ? path : null;
+        return PathValidation.IsAccessibleDirectory(path) ? path : null;
     }
 
     public bool ExecuteItem(IntPtr hwnd, string path, string searchInput)

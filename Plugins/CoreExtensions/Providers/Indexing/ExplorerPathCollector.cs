@@ -30,7 +30,8 @@ public class ExplorerPathCollector : IActivePathCollector
         {
             try
             {
-                return Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                var path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                return IsFilesystemPath(path) ? path : null;
             }
             catch
             {
@@ -254,15 +255,8 @@ public class ExplorerPathCollector : IActivePathCollector
                         }
 
                         string path = window.Document.Folder.Self.Path;
-                        if (!string.IsNullOrEmpty(path))
-                        {
-                            if (path.StartsWith("::") || path.Contains("::{") ||
-                                path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
-                            {
-                                return null;
-                            }
+                        if (IsFilesystemPath(path))
                             return path;
-                        }
                     }
                 }
                 catch { }

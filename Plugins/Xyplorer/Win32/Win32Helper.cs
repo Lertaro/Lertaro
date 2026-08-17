@@ -37,7 +37,6 @@ public static class Win32Helper
         public IntPtr hwndCaret;
         public RECT rcCaret;
     }
-
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
@@ -210,7 +209,7 @@ public static class Win32Helper
         }
     }
     /// <summary>Gets the current folder path of XYplorer's active pane/tab.</summary>
-    public static string? QueryCurrentPath(IntPtr xyHwnd) => QueryExpression(xyHwnd, "\"<curpath>\"");
+    public static string? QueryCurrentPath(IntPtr xyHwnd) => FilterDirectoryPath(QueryExpression(xyHwnd, "\"<curpath>\""));
 
     /// <summary>
     /// Gets every open tab path from both XYplorer panes through its script API.
@@ -234,6 +233,7 @@ public static class Win32Helper
         }
     }
     private static bool IsWslPath(string path) => path.StartsWith(@"\\wsl$\", StringComparison.OrdinalIgnoreCase) || path.StartsWith(@"\\wsl.localhost\", StringComparison.OrdinalIgnoreCase);
+    private static string? FilterDirectoryPath(string? path) => !string.IsNullOrWhiteSpace(path) && (IsWslPath(path) || Directory.Exists(path)) ? path : null;
 
     /// <summary>
     /// Navigates XYplorer's active pane to <paramref name="path"/> via the <c>goto</c> script command

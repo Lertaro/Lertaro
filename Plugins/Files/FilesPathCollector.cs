@@ -38,7 +38,7 @@ public class FilesPathCollector : IActivePathCollector
         UiaPathAccessor.RefreshFocusAnchor(hwnd);
 
         var path = UiaPathAccessor.GetCurrentPath(hwnd);
-        return PathValidation.LooksLikeRootedPath(path) ? path : null;
+        return PathValidation.IsAccessibleDirectory(path) ? path : null;
     }
 
     /// <summary>
@@ -51,7 +51,7 @@ public class FilesPathCollector : IActivePathCollector
         {
             foreach (var path in UiaPathAccessor.GetCurrentPaths(window))
             {
-                if (PathValidation.LooksLikeRootedPath(path))
+                if (PathValidation.IsAccessibleDirectory(path))
                     folders.Add(new OpenedFolder(path, window));
             }
         }

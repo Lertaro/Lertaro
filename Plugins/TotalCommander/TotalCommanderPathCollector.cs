@@ -27,7 +27,7 @@ public class TotalCommanderPathCollector : IActivePathCollector
         var path = _scopeReader.GetSearchScope(main);
         if (string.IsNullOrEmpty(path)) return null;
 
-        return Directory.Exists(path) ? path : null;
+        return path;
     }
 
     /// <summary>
