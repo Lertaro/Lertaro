@@ -46,9 +46,17 @@ public static class QuickNavigationNavigator
             return;
         }
 
+        // A folder chosen from the menu is an "open" operation, not a request to alter whichever
+        // file-manager window happened to summon it. Reuse the search-result execution path so the
+        // configured default file manager and Explorer's optional new-tab route apply consistently.
+        if (isDir)
+        {
+            FileExecutor.OpenFileOrFolder(path);
+            return;
+        }
+
         // Delegate to whichever file-manager adapter matched the active host (Explorer, Directory Opus,
-        // Total Commander, ...) so a folder navigates that window and a file opens/selects there -- the
-        // same adapter inline search already uses to execute a result. Uses the captured trigger.ActiveHwnd/
+        // Total Commander, ...) so a file opens/selects there. Uses the captured trigger.ActiveHwnd/
         // ActiveAdapter/IsDesktop, not a live ExplorerTracker re-read, for the same staleness reason as
         // trigger.DialogHwnd above -- the Hook still re-resolves the adapter for trigger.ActiveHwnd itself
         // (see InlineAdapterCommandHandler.ResolveAdapter) if its own tracker has since moved on, so this
@@ -66,11 +74,11 @@ public static class QuickNavigationNavigator
             // InlineAdapterIpcCoordinator.RunAfterLateResultAsync -- also used by inline search's own
             // Enter-to-execute for the identical race -- for why waiting on the same in-flight call a bit
             // longer, off the UI thread, closes that window without blocking the caller.
-            _ = InlineAdapterIpcCoordinator.RunAfterLateResultAsync(lateResult, onSuccess: () => { }, onFallback: () => OpenDirectly(path, isDir, trigger.IsDesktop));
+            _ = InlineAdapterIpcCoordinator.RunAfterLateResultAsync(lateResult, onSuccess: () => { }, onFallback: () => OpenDirectly(path, trigger.IsDesktop));
             return;
         }
 
-        OpenDirectly(path, isDir, trigger.IsDesktop);
+        OpenDirectly(path, trigger.IsDesktop);
     }
 
     // This is a NAVIGATION menu -- picking a file should land on it (selected, in its folder) rather than
@@ -79,9 +87,9 @@ public static class QuickNavigationNavigator
     // the desktop -- mirrors ExplorerInlineSearchAdapter.ExecuteItem's own identical desktop branch, which
     // this fallback only runs alongside when no adapter/Hook connection is available to make that call in
     // the first place.
-    private static void OpenDirectly(string path, bool isDir, bool isDesktop)
+    private static void OpenDirectly(string path, bool isDesktop)
     {
-        if (!isDir && !isDesktop)
+        if (!isDesktop)
         {
             FileExecutor.LocateInExplorer(path);
             return;
