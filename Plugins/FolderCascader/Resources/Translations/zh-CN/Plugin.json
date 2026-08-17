@@ -2,6 +2,7 @@
   "Plugin_FolderCascaderGroup": "级联文件夹浏览器",
   "FolderCascader_Action": "级联浏览目录",
   "FolderCascader_History": "历史记录",
+  "FolderCascader_OpenedFolders": "当前打开的文件夹",
   "FolderCascader_EmptyFolder": "(空)",
   "FolderCascader_AddCurrentFolder": "添加当前目录",
   "FolderCascader_NoHistory": "(无历史记录)",

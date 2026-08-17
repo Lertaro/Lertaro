@@ -2,6 +2,7 @@
   "Plugin_FolderCascaderGroup": "Cascada de Carpetas",
   "FolderCascader_Action": "Explorar Directorio en Cascada",
   "FolderCascader_History": "Historial",
+  "FolderCascader_OpenedFolders": "Carpetas abiertas",
   "FolderCascader_EmptyFolder": "(Vacío)",
   "FolderCascader_AddCurrentFolder": "Añadir Carpeta Actual",
   "FolderCascader_NoHistory": "(Sin historial)",

@@ -11,6 +11,7 @@ public static class IconBitmapCache
     public static IntPtr FileHBitmap { get; private set; } = IntPtr.Zero;
     public static IntPtr FavoritesHBitmap { get; private set; } = IntPtr.Zero;
     public static IntPtr HistoryHBitmap { get; private set; } = IntPtr.Zero;
+    public static IntPtr OpenedFoldersHBitmap { get; private set; } = IntPtr.Zero;
     public static IntPtr CategoryHBitmap { get; private set; } = IntPtr.Zero;
     public static IntPtr AddHBitmap { get; private set; } = IntPtr.Zero;
 
@@ -53,6 +54,10 @@ public static class IconBitmapCache
                 {
                     DeleteObject(HistoryHBitmap);
                 }
+                if (OpenedFoldersHBitmap != IntPtr.Zero)
+                {
+                    DeleteObject(OpenedFoldersHBitmap);
+                }
                 if (CategoryHBitmap != IntPtr.Zero)
                 {
                     DeleteObject(CategoryHBitmap);
@@ -64,6 +69,7 @@ public static class IconBitmapCache
 
                 FavoritesHBitmap = CreateStarHBitmap();
                 HistoryHBitmap = CreateClockHBitmap();
+                OpenedFoldersHBitmap = CreateOpenedFoldersHBitmap();
                 CategoryHBitmap = CreateCategoryHBitmap();
                 AddHBitmap = CreateAddHBitmap();
             }
@@ -120,6 +126,16 @@ public static class IconBitmapCache
         var strokeBrush = accentBrush ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(33, 150, 243));
         var stroke = new System.Windows.Media.Pen(strokeBrush, 1.5);
         return CreateHBitmapFromWpfPath(path, null, stroke);
+    }
+
+    // A fixed themed glyph identifies the dynamic "Opened Folders" category without inheriting the
+    // user's shell-specific yellow folder icon. Individual folders inside its submenu still use shell icons.
+    private static IntPtr CreateOpenedFoldersHBitmap()
+    {
+        var path = "M3,6H10L12,8H21V19H3Z";
+        var accentBrush = System.Windows.Application.Current?.TryFindResource("AccentBlue") as System.Windows.Media.SolidColorBrush;
+        var fill = accentBrush ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(33, 150, 243));
+        return CreateHBitmapFromWpfPath(path, fill, null, scale: 64.0 / 24.0);
     }
 
     // Hamburger/menu glyph for a submenu category node (a grouping created by a folder's own SubMenu

@@ -2,6 +2,7 @@
   "Plugin_FolderCascaderGroup": "階層式資料夾瀏覽器",
   "FolderCascader_Action": "階層式瀏覽目錄",
   "FolderCascader_History": "瀏覽紀錄",
+  "FolderCascader_OpenedFolders": "目前開啟的資料夾",
   "FolderCascader_EmptyFolder": "（空）",
   "FolderCascader_AddCurrentFolder": "新增目前目錄",
   "FolderCascader_NoHistory": "（無瀏覽紀錄）",

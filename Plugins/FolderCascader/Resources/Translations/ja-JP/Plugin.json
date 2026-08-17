@@ -2,6 +2,7 @@
   "Plugin_FolderCascaderGroup": "カスケードフォルダーブラウザー",
   "FolderCascader_Action": "カスケードでディレクトリを参照",
   "FolderCascader_History": "履歴",
+  "FolderCascader_OpenedFolders": "開いているフォルダー",
   "FolderCascader_EmptyFolder": "（空）",
   "FolderCascader_AddCurrentFolder": "現在のフォルダーを追加",
   "FolderCascader_NoHistory": "（履歴なし）",

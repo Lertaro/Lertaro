@@ -1,6 +1,8 @@
 using System.IO;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+using Lertaro.PluginSdk.Registries;
 using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.FolderCascader.Navigation;
@@ -26,6 +28,21 @@ internal static class MenuBuilderContentExtensions
         if (folders != null)
         {
             MenuBuilder.AddFolderItems(items, folders, Array.Empty<string>(), provider);
+        }
+
+        if (GetUniqueOpenedFolderPaths(OpenedFolderCollectorRegistry.GetOpenedFolders()).Count > 0)
+        {
+            if (items.Count > 0 && !items.Last().IsSeparator)
+            {
+                items.Add(new DynamicMenuItem { IsSeparator = true });
+            }
+            items.Add(new DynamicMenuItem
+            {
+                Text = TranslationService.Get("FolderCascader_OpenedFolders"),
+                HasSubMenu = true,
+                SubMenuHandle = provider.AllocateHandle("foldercascader://opened-folders"),
+                HBitmapItem = IconBitmapCache.OpenedFoldersHBitmap
+            });
         }
 
         var showFavorites = PluginSettingsService.GetSetting(
@@ -128,6 +145,38 @@ internal static class MenuBuilderContentExtensions
         if (items.Count == 0)
             items.Add(new DynamicMenuItem { Text = TranslationService.Get("FolderCascader_NoHistory"), IsDisabled = true });
         return items;
+    }
+
+    internal static List<DynamicMenuItem> BuildOpenedFoldersMenu(IEnumerable<OpenedFolder> folders, Provider provider)
+    {
+        var items = new List<DynamicMenuItem>();
+        foreach (var path in GetUniqueOpenedFolderPaths(folders))
+        {
+            items.Add(new DynamicMenuItem
+            {
+                Text = MenuBuilder.GetDisplayName(path, ""),
+                HasSubMenu = true,
+                SubMenuHandle = provider.AllocateHandle(path),
+                HBitmapItem = IconBitmapCache.FolderHBitmap
+            });
+        }
+        return items;
+    }
+
+    // This list may combine multiple tabs, panes, and adapters. Collapse only lexical duplicates:
+    // probing the filesystem here would make merely opening the menu perform unexpected disk I/O.
+    internal static List<string> GetUniqueOpenedFolderPaths(IEnumerable<OpenedFolder> folders)
+    {
+        var paths = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var folder in folders)
+        {
+            if (string.IsNullOrWhiteSpace(folder.Path)) continue;
+
+            var path = Path.TrimEndingDirectorySeparator(folder.Path);
+            if (seen.Add(path)) paths.Add(path);
+        }
+        return paths;
     }
 
     internal static bool HistoryEntryExists(

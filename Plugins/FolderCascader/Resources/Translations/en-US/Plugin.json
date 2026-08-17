@@ -2,6 +2,7 @@
   "Plugin_FolderCascaderGroup": "Folder Cascader",
   "FolderCascader_Action": "Cascading Browse Directory",
   "FolderCascader_History": "History",
+  "FolderCascader_OpenedFolders": "Opened Folders",
   "FolderCascader_EmptyFolder": "(Empty)",
   "FolderCascader_AddCurrentFolder": "Add Current Folder",
   "FolderCascader_NoHistory": "(No history)",

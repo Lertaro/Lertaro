@@ -3,6 +3,7 @@ using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Services;
 using Lertaro.PluginSdk.Helpers;
+using Lertaro.PluginSdk.Registries;
 
 namespace Lertaro.Plugins.FolderCascader.Navigation;
 
@@ -26,6 +27,9 @@ public static class MenuBuilder
 
         if (path == "foldercascader://favorites")
             return MenuBuilderContentExtensions.BuildFavoritesMenu(provider);
+
+        if (path == "foldercascader://opened-folders")
+            return MenuBuilderContentExtensions.BuildOpenedFoldersMenu(OpenedFolderCollectorRegistry.GetOpenedFolders(), provider);
 
         if (TryDecodeCategoryPath(path, out var categoryPrefix))
             return MenuBuilderContentExtensions.BuildCategoryMenu(result, categoryPrefix, provider);

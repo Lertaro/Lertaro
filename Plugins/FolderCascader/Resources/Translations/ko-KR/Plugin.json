@@ -2,6 +2,7 @@
   "Plugin_FolderCascaderGroup": "폴더 캐스케이더",
   "FolderCascader_Action": "계단식으로 디렉터리 찾아보기",
   "FolderCascader_History": "기록",
+  "FolderCascader_OpenedFolders": "열려 있는 폴더",
   "FolderCascader_EmptyFolder": "(비어 있음)",
   "FolderCascader_AddCurrentFolder": "현재 폴더 추가",
   "FolderCascader_NoHistory": "(기록 없음)",
