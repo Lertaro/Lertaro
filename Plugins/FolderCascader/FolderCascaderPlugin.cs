@@ -31,6 +31,15 @@ public class FolderCascaderPlugin : IPlugin, IConfigurable
                 {
                     new PluginConfigField
                     {
+                        Key = "ShowOpenedFolders",
+                        LabelKey = "FolderCascader_Config_ShowOpenedFolders",
+                        DescriptionKey = "FolderCascader_Config_ShowOpenedFoldersDesc",
+                        FieldType = ConfigFieldType.Boolean,
+                        DefaultValue = true
+                    },
+
+                    new PluginConfigField
+                    {
                         Key = "ShowFavorites",
                         LabelKey = "FolderCascader_Config_ShowFavorites",
                         DescriptionKey = "FolderCascader_Config_ShowFavoritesDesc",

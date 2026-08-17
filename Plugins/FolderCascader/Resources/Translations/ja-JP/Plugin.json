@@ -15,6 +15,8 @@
   "FolderCascader_Config_SubMenuDesc": "このフォルダーをカスケードメニュー内のサブメニューにまとめます。\"/\" を使うと複数階層にネストできます。例: \"ツール/ネットワーク\" で2階層のサブメニューになります。空欄の場合はトップレベルに表示されます。",
   "FolderCascader_Config_ShowHistory": "履歴を表示",
   "FolderCascader_Config_ShowHistoryDesc": "有効にすると、最近アクセスしたファイルとフォルダーがカスケードメニューに表示されます",
+  "FolderCascader_Config_ShowOpenedFolders": "開いているフォルダーを表示",
+  "FolderCascader_Config_ShowOpenedFoldersDesc": "有効にすると、対応するファイルマネージャーで現在開いているフォルダーがカスケードメニューに表示されます",
   "FolderCascader_Config_ShowFavorites": "お気に入りを表示",
   "FolderCascader_Config_ShowFavoritesDesc": "有効にすると、お気に入りがカスケードメニューに表示されます",
   "FolderCascader_Config_Favorites": "お気に入り",

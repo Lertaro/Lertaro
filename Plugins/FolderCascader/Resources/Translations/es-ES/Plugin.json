@@ -15,6 +15,8 @@
   "FolderCascader_Config_SubMenuDesc": "Anida esta carpeta bajo un submenú en el menú en cascada. Usa \"/\" para anidar varios niveles, por ejemplo \"Herramientas/Red\" para un submenú de dos niveles. Déjalo vacío para mostrarlo en el nivel superior.",
   "FolderCascader_Config_ShowHistory": "Mostrar Historial",
   "FolderCascader_Config_ShowHistoryDesc": "Cuando está activado, las carpetas y archivos accedidos recientemente se mostrarán en el menú en cascada",
+  "FolderCascader_Config_ShowOpenedFolders": "Mostrar carpetas abiertas",
+  "FolderCascader_Config_ShowOpenedFoldersDesc": "Cuando está activado, las carpetas abiertas actualmente en administradores de archivos compatibles se mostrarán en el menú en cascada",
   "FolderCascader_Config_ShowFavorites": "Mostrar Favoritos",
   "FolderCascader_Config_ShowFavoritesDesc": "Cuando está activado, los favoritos se mostrarán en el menú en cascada",
   "FolderCascader_Config_Favorites": "Favoritos",

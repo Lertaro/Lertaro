@@ -15,6 +15,8 @@
   "FolderCascader_Config_SubMenuDesc": "Nests this folder under a submenu in the cascading menu. Use \"/\" to nest multiple levels deep, e.g. \"Tools/Network\" for a two-level submenu. Leave empty to show at the top level.",
   "FolderCascader_Config_ShowHistory": "Show History",
   "FolderCascader_Config_ShowHistoryDesc": "When enabled, recently accessed folders and files will be displayed in the cascading menu",
+  "FolderCascader_Config_ShowOpenedFolders": "Show Opened Folders",
+  "FolderCascader_Config_ShowOpenedFoldersDesc": "When enabled, folders currently open in supported file managers will be displayed in the cascading menu",
   "FolderCascader_Config_ShowFavorites": "Show Favorites",
   "FolderCascader_Config_ShowFavoritesDesc": "When enabled, favorites will be displayed in the cascading menu",
   "FolderCascader_Config_Favorites": "Favorites",

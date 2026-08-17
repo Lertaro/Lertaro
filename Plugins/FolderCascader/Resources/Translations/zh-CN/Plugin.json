@@ -15,6 +15,8 @@
   "FolderCascader_Config_SubMenuDesc": "把这个文件夹归到级联菜单里的某个子菜单下。用\"/\"可以嵌套多级，比如\"工具/网络\"代表两级子菜单。留空则直接显示在根层级。",
   "FolderCascader_Config_ShowHistory": "显示历史记录",
   "FolderCascader_Config_ShowHistoryDesc": "开启后，最近访问的文件和文件夹会显示在级联菜单中",
+  "FolderCascader_Config_ShowOpenedFolders": "显示当前打开的文件夹",
+  "FolderCascader_Config_ShowOpenedFoldersDesc": "开启后，受支持文件管理器中当前打开的文件夹会显示在级联菜单中",
   "FolderCascader_Config_ShowFavorites": "显示收藏夹",
   "FolderCascader_Config_ShowFavoritesDesc": "开启后，收藏的文件夹和文件会显示在级联菜单中",
   "FolderCascader_Config_Favorites": "收藏夹",

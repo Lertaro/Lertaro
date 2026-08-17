@@ -15,6 +15,8 @@
   "FolderCascader_Config_SubMenuDesc": "把這個資料夾歸到級聯選單裡的某個子選單下。用\"/\"可以巢狀多級，比如\"工具/網路\"代表兩級子選單。留空則直接顯示在根層級。",
   "FolderCascader_Config_ShowHistory": "顯示歷史記錄",
   "FolderCascader_Config_ShowHistoryDesc": "開啟後，最近存取的檔案和資料夾會顯示在級聯選單中",
+  "FolderCascader_Config_ShowOpenedFolders": "顯示目前開啟的資料夾",
+  "FolderCascader_Config_ShowOpenedFoldersDesc": "開啟後，受支援檔案管理員中目前開啟的資料夾會顯示在級聯選單中",
   "FolderCascader_Config_ShowFavorites": "顯示收藏夾",
   "FolderCascader_Config_ShowFavoritesDesc": "開啟後，收藏的資料夾和檔案會顯示在級聯選單中",
   "FolderCascader_Config_Favorites": "收藏夾",

@@ -30,7 +30,12 @@ internal static class MenuBuilderContentExtensions
             MenuBuilder.AddFolderItems(items, folders, Array.Empty<string>(), provider);
         }
 
-        if (GetUniqueOpenedFolderPaths(OpenedFolderCollectorRegistry.GetOpenedFolders()).Count > 0)
+        var showOpenedFolders = PluginSettingsService.GetSetting(
+            "Lertaro.Plugins.FolderCascader",
+            "ShowOpenedFolders",
+            true);
+
+        if (showOpenedFolders && GetUniqueOpenedFolderPaths(OpenedFolderCollectorRegistry.GetOpenedFolders()).Count > 0)
         {
             if (items.Count > 0 && !items.Last().IsSeparator)
             {
@@ -156,8 +161,7 @@ internal static class MenuBuilderContentExtensions
             {
                 Text = MenuBuilder.GetDisplayName(path, ""),
                 HasSubMenu = true,
-                SubMenuHandle = provider.AllocateHandle(path),
-                HBitmapItem = IconBitmapCache.FolderHBitmap
+                SubMenuHandle = provider.AllocateHandle(path)
             });
         }
         return items;
