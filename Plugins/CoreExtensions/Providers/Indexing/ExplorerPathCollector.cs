@@ -153,7 +153,12 @@ public class ExplorerPathCollector : IActivePathCollector
         !path.StartsWith("::", StringComparison.Ordinal) &&
         !path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) &&
         !path.Contains("::{", StringComparison.Ordinal) &&
-        Path.IsPathRooted(path);
+        Path.IsPathRooted(path) &&
+        (IsWslPath(path) || Directory.Exists(path));
+
+    private static bool IsWslPath(string path) =>
+        path.StartsWith(@"\\wsl$\", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith(@"\\wsl.localhost\", StringComparison.OrdinalIgnoreCase);
 
     // GetActiveExplorerPathCore talks to Explorer entirely via dynamic COM (Shell.Application,
     // IShellBrowser, Document.Folder.Self.Path) with no built-in timeout -- if Explorer's own thread is

@@ -189,19 +189,16 @@ public class DirectoryOpusPathCollector : IActivePathCollector
         {
             resolved += "\\";
         }
-        if (!string.IsNullOrEmpty(resolved))
-        {
-            if (Path.IsPathRooted(resolved) && (resolved.Contains(":\\") || resolved.StartsWith("\\\\")))
-            {
-                return resolved;
-            }
-            if (Directory.Exists(resolved))
-            {
-                return resolved;
-            }
-        }
+        if (!string.IsNullOrEmpty(resolved) &&
+            (IsWslPath(resolved) || Directory.Exists(resolved)))
+            return resolved;
+
         return null;
     }
+
+    private static bool IsWslPath(string path) =>
+        path.StartsWith(@"\\wsl$\", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith(@"\\wsl.localhost\", StringComparison.OrdinalIgnoreCase);
 
     private static void CleanUpDeadKeys()
     {
