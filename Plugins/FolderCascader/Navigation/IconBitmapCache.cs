@@ -92,8 +92,8 @@ public static class IconBitmapCache
     private static IntPtr CreateStarHBitmap()
     {
         var path = "M 8,1.5 L 10.2,6 L 15,6.5 L 11.3,9.7 L 12.5,14.5 L 8,12 L 3.5,14.5 L 4.7,9.7 L 1,6.5 L 5.8,6 Z";
-        var warningBrush = System.Windows.Application.Current?.TryFindResource("WarningBrush") as System.Windows.Media.SolidColorBrush;
-        var fill = warningBrush ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 193, 7));
+        var accentBrush = System.Windows.Application.Current?.TryFindResource("AccentBlue") as System.Windows.Media.SolidColorBrush;
+        var fill = accentBrush ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(33, 150, 243));
         var stroke = new System.Windows.Media.Pen(fill, 1.0);
         return CreateHBitmapFromWpfPath(path, fill, stroke);
     }

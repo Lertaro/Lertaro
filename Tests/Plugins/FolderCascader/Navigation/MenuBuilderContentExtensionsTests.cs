@@ -1,4 +1,4 @@
-using Lertaro.PluginSdk.Services;
+using Lertaro.PluginSdk.Models;
 using Lertaro.Plugins.FolderCascader.Navigation;
 
 namespace Lertaro.Plugins.FolderCascader.Tests.Navigation;
@@ -7,26 +7,39 @@ namespace Lertaro.Plugins.FolderCascader.Tests.Navigation;
 public sealed class MenuBuilderContentExtensionsTests
 {
     [TestMethod]
-    public void HistoryEntryExists_File_OnlyUsesFileProbe()
+    public void HasAvailableFavorites_IgnoresUnavailablePaths()
     {
-        var directoryProbed = false;
-        var entry = new HistoryEntry(string.Empty, "item", HistoryEntryKind.File, 0);
+        var favorites = new[]
+        {
+            new FavoriteItem { Path = @"C:\Missing" },
+            new FavoriteItem { Path = "" }
+        };
 
-        var exists = MenuBuilderContentExtensions.HistoryEntryExists(entry, _ => true, _ => directoryProbed = true);
+        var available = MenuBuilderContentExtensions.HasAvailableFavorites(favorites, _ => false, _ => false);
 
-        Assert.IsTrue(exists);
-        Assert.IsFalse(directoryProbed);
+        Assert.IsFalse(available);
     }
 
     [TestMethod]
-    public void HistoryEntryExists_Folder_OnlyUsesDirectoryProbe()
+    public void HasAvailableFavorites_AcceptsVirtualFolderWithoutProbingTheFileSystem()
     {
-        var fileProbed = false;
-        var entry = new HistoryEntry(string.Empty, "item", HistoryEntryKind.Folder, 0);
+        var favorites = new[] { new FavoriteItem { Path = "shell:AppsFolder" } };
 
-        var exists = MenuBuilderContentExtensions.HistoryEntryExists(entry, _ => fileProbed = true, _ => true);
+        var available = MenuBuilderContentExtensions.HasAvailableFavorites(
+            favorites,
+            _ => throw new AssertFailedException("A virtual folder must not be probed."),
+            _ => throw new AssertFailedException("A virtual folder must not be probed."));
 
-        Assert.IsTrue(exists);
-        Assert.IsFalse(fileProbed);
+        Assert.IsTrue(available);
+    }
+
+    [TestMethod]
+    public void HasAvailableFavorites_AcceptsExistingFolder()
+    {
+        var favorites = new[] { new FavoriteItem { Path = @"C:\Existing" } };
+
+        var available = MenuBuilderContentExtensions.HasAvailableFavorites(favorites, _ => false, path => path == @"C:\Existing");
+
+        Assert.IsTrue(available);
     }
 }

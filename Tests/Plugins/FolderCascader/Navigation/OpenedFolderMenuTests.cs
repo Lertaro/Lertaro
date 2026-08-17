@@ -19,6 +19,20 @@ public sealed class OpenedFolderMenuTests
 
         var paths = MenuBuilderContentExtensions.GetUniqueOpenedFolderPaths(folders);
 
-        CollectionAssert.AreEqual(new[] { @"C:\Projects", @"D:\" }, paths);
+        CollectionAssert.AreEqual(new[] { @"D:\", @"C:\Projects" }, paths);
+    }
+
+    [TestMethod]
+    public void GetUniqueOpenedFolderPaths_SortsByDisplayName()
+    {
+        var folders = new[]
+        {
+            new OpenedFolder(@"D:\Work\Zebra", new IntPtr(1)),
+            new OpenedFolder(@"C:\Work\alpha", new IntPtr(2))
+        };
+
+        var paths = MenuBuilderContentExtensions.GetUniqueOpenedFolderPaths(folders);
+
+        CollectionAssert.AreEqual(new[] { @"C:\Work\alpha", @"D:\Work\Zebra" }, paths);
     }
 }

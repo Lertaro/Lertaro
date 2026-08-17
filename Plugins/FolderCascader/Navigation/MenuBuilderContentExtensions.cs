@@ -2,6 +2,7 @@ using System.IO;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+using Lertaro.PluginSdk.Models;
 using Lertaro.PluginSdk.Registries;
 using Lertaro.PluginSdk.Services;
 
@@ -30,6 +31,8 @@ internal static class MenuBuilderContentExtensions
             MenuBuilder.AddFolderItems(items, folders, Array.Empty<string>(), provider);
         }
 
+        var hasSupplementalMenu = false;
+
         var showOpenedFolders = PluginSettingsService.GetSetting(
             "Lertaro.Plugins.FolderCascader",
             "ShowOpenedFolders",
@@ -37,7 +40,7 @@ internal static class MenuBuilderContentExtensions
 
         if (showOpenedFolders && GetUniqueOpenedFolderPaths(OpenedFolderCollectorRegistry.GetOpenedFolders()).Count > 0)
         {
-            if (items.Count > 0 && !items.Last().IsSeparator)
+            if (!hasSupplementalMenu && items.Count > 0 && !items.Last().IsSeparator)
             {
                 items.Add(new DynamicMenuItem { IsSeparator = true });
             }
@@ -48,6 +51,7 @@ internal static class MenuBuilderContentExtensions
                 SubMenuHandle = provider.AllocateHandle("foldercascader://opened-folders"),
                 HBitmapItem = IconBitmapCache.OpenedFoldersHBitmap
             });
+            hasSupplementalMenu = true;
         }
 
         var showFavorites = PluginSettingsService.GetSetting(
@@ -60,13 +64,9 @@ internal static class MenuBuilderContentExtensions
             "ShowHistory",
             true);
 
-        var favoritesList = FavoritesService.GetFavorites()
-             .Where(p => !string.IsNullOrEmpty(p.Path))
-             .ToList();
-
-        if (showFavorites && favoritesList.Count > 0)
+        if (showFavorites && HasAvailableFavorites(FavoritesService.GetFavorites(), File.Exists, Directory.Exists))
         {
-            if (items.Count > 0 && !items.Last().IsSeparator)
+            if (!hasSupplementalMenu && items.Count > 0 && !items.Last().IsSeparator)
             {
                 items.Add(new DynamicMenuItem { IsSeparator = true });
             }
@@ -77,11 +77,12 @@ internal static class MenuBuilderContentExtensions
                 SubMenuHandle = provider.AllocateHandle("foldercascader://favorites"),
                 HBitmapItem = IconBitmapCache.FavoritesHBitmap
             });
+            hasSupplementalMenu = true;
         }
 
         if (showHistory && HistoryService.GetHistoryEntries().Take(30).ToList().Count > 0)
         {
-            if (items.Count > 0 && !items.Last().IsSeparator)
+            if (!hasSupplementalMenu && items.Count > 0 && !items.Last().IsSeparator)
             {
                 items.Add(new DynamicMenuItem { IsSeparator = true });
             }
@@ -180,7 +181,9 @@ internal static class MenuBuilderContentExtensions
             var path = Path.TrimEndingDirectorySeparator(folder.Path);
             if (seen.Add(path)) paths.Add(path);
         }
-        return paths;
+        return paths
+            .OrderBy(path => MenuBuilder.GetDisplayName(path, ""), StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
     }
 
     internal static bool HistoryEntryExists(
@@ -194,6 +197,17 @@ internal static class MenuBuilderContentExtensions
             _ => false
         };
 
+    internal static bool HasAvailableFavorites(
+        IEnumerable<FavoriteItem> favorites,
+        Func<string, bool> fileExists,
+        Func<string, bool> directoryExists) => favorites.Any(favorite =>
+            !string.IsNullOrWhiteSpace(favorite.Path) &&
+            (favorite.Path.StartsWith("::") ||
+             favorite.Path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) ||
+             MenuBuilder.IsWebUrl(favorite.Path) ||
+             directoryExists(favorite.Path) ||
+             fileExists(favorite.Path)));
+
     internal static List<DynamicMenuItem> BuildFavoritesMenu(Provider provider)
     {
         var items = new List<DynamicMenuItem>();
@@ -204,7 +218,7 @@ internal static class MenuBuilderContentExtensions
         foreach (var favItem in favoritesList)
         {
             var favPath = favItem.Path;
-            var isVirtual = favPath.StartsWith("::") || favPath.StartsWith("shell:");
+            var isVirtual = favPath.StartsWith("::") || favPath.StartsWith("shell:", StringComparison.OrdinalIgnoreCase);
             if (isVirtual || Directory.Exists(favPath))
             {
                 items.Add(new DynamicMenuItem
