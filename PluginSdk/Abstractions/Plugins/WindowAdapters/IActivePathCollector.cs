@@ -1,9 +1,28 @@
 namespace Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 
 /// <summary>
+/// A folder currently exposed by a file-manager window, tab, or pane.
+/// </summary>
+/// <param name="Path">The filesystem path reported by the file manager.</param>
+/// <param name="WindowHandle">The top-level window that exposes the folder.</param>
+public readonly record struct OpenedFolder(string Path, IntPtr WindowHandle);
+
+/// <summary>
+/// Contract for enumerating filesystem folders currently open in a file manager.
+/// </summary>
+public interface IOpenedFolderCollector : IPluginComponent
+{
+    /// <summary>
+    /// Gets a point-in-time snapshot of the folders currently exposed by the file manager.
+    /// Implementations must not scan the filesystem or validate paths with file I/O.
+    /// </summary>
+    IReadOnlyList<OpenedFolder> GetOpenedFolders() => Array.Empty<OpenedFolder>();
+}
+
+/// <summary>
 /// Contract for collecting the active directory/file path from a specific window class.
 /// </summary>
-public interface IActivePathCollector : IPluginComponent
+public interface IActivePathCollector : IOpenedFolderCollector
 {
 
     /// <summary>

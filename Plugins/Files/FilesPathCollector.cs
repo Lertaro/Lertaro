@@ -1,6 +1,7 @@
 using Lertaro.Plugins.Files.Automation;
 
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+using Lertaro.PluginSdk.Helpers;
 namespace Lertaro.Plugins.Files;
 
 /// <summary>
@@ -39,4 +40,24 @@ public class FilesPathCollector : IActivePathCollector
         var path = UiaPathAccessor.GetCurrentPath(hwnd);
         return PathValidation.LooksLikeRootedPath(path) ? path : null;
     }
+
+    /// <summary>
+    /// Returns every Files pane/tab currently exposed through UI Automation in each open Files window.
+    /// </summary>
+    public IReadOnlyList<OpenedFolder> GetOpenedFolders()
+    {
+        var folders = new List<OpenedFolder>();
+        foreach (var window in OpenFolderWindowEnumerator.FindVisibleWindows(IsFilesWindow))
+        {
+            foreach (var path in UiaPathAccessor.GetCurrentPaths(window))
+            {
+                if (PathValidation.LooksLikeRootedPath(path))
+                    folders.Add(new OpenedFolder(path, window));
+            }
+        }
+        return folders;
+    }
+
+    private static bool IsFilesWindow(IntPtr window) =>
+        OpenFolderWindowEnumerator.GetProcessName(window).Equals("Files", StringComparison.OrdinalIgnoreCase);
 }

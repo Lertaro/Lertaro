@@ -163,7 +163,14 @@ public static class Win32Helper
     /// TC replies with a WM_COPYDATA back to a throwaway message-only window we create for this call; because
     /// we are blocked inside SendMessage the reply is delivered synchronously (nested) before it returns.
     /// </summary>
-    public static string? QuerySourcePanelPath(IntPtr tcHwnd)
+    public static string? QuerySourcePanelPath(IntPtr tcHwnd) => QueryPanelPath(tcHwnd, "SP");
+
+    /// <summary>
+    /// Asks Total Commander for the current directory of its target panel via WM_COPYDATA.
+    /// </summary>
+    public static string? QueryTargetPanelPath(IntPtr tcHwnd) => QueryPanelPath(tcHwnd, "TP");
+
+    private static string? QueryPanelPath(IntPtr tcHwnd, string command)
     {
         if (tcHwnd == IntPtr.Zero) return null;
         EnsureClassRegistered();
@@ -178,9 +185,9 @@ public static class Win32Helper
         try
         {
             _capturedPath = null;
-            // The command string is ALWAYS ANSI ("SP" = Source panel Path); the 'W' in GET_REQUEST_W only
+            // The command string is ALWAYS ANSI ("SP"/"TP" = Source/target panel path); the 'W' in GET_REQUEST_W only
             // asks TC to return the answer as UTF-16. Sending the command itself as UTF-16 yields no reply.
-            var cmd = Encoding.ASCII.GetBytes("SP\0");
+            var cmd = Encoding.ASCII.GetBytes(command + "\0");
             var pin = GCHandle.Alloc(cmd, GCHandleType.Pinned);
             try
             {

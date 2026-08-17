@@ -149,6 +149,24 @@ public class DirectoryOpusPathCollector : IActivePathCollector
         return null;
     }
 
+    /// <summary>
+    /// Returns every visible file-display pane in every open Directory Opus lister.
+    /// </summary>
+    public IReadOnlyList<OpenedFolder> GetOpenedFolders()
+    {
+        var folders = new List<OpenedFolder>();
+        foreach (var lister in OpenFolderWindowEnumerator.FindVisibleWindows(IsListerWindow))
+        {
+            foreach (var container in Win32Helper.GetVisibleContainers(lister))
+            {
+                var path = ExtractPathFromContainer(container);
+                if (!string.IsNullOrEmpty(path))
+                    folders.Add(new OpenedFolder(path, lister));
+            }
+        }
+        return folders;
+    }
+
     private string? ExtractPathFromContainer(IntPtr containerHwnd)
     {
         var locationBar = Win32Helper.FindWindowExRecursively(containerHwnd, IntPtr.Zero, "dopus.ctl.treepath", null);
@@ -159,6 +177,9 @@ public class DirectoryOpusPathCollector : IActivePathCollector
         }
         return null;
     }
+
+    private static bool IsListerWindow(IntPtr window) =>
+        Win32Helper.GetClassName(window).Equals("dopus.lister", StringComparison.OrdinalIgnoreCase);
 
     private string? ResolveAndVerify(string path)
     {

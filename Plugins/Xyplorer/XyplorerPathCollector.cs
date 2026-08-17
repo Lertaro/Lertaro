@@ -1,4 +1,5 @@
 using System.IO;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.Plugins.Xyplorer.Win32;
 
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
@@ -37,4 +38,25 @@ public class XyplorerPathCollector : IActivePathCollector
             path = path.TrimEnd('\\');
         return Directory.Exists(path) ? path : null;
     }
+
+    /// <summary>
+    /// Returns every open tab from both panes in each XYplorer window through its documented script API.
+    /// </summary>
+    public IReadOnlyList<OpenedFolder> GetOpenedFolders()
+    {
+        var folders = new List<OpenedFolder>();
+        foreach (var window in OpenFolderWindowEnumerator.FindVisibleWindows(IsXyplorerWindow))
+        {
+            foreach (var path in Win32Helper.QueryOpenTabPaths(window))
+            {
+                if (Path.IsPathRooted(path))
+                    folders.Add(new OpenedFolder(path, window));
+            }
+        }
+        return folders;
+    }
+
+    private static bool IsXyplorerWindow(IntPtr window) =>
+        Win32Helper.GetClassName(window).Equals("ThunderRT6FormDC", StringComparison.OrdinalIgnoreCase) &&
+        OpenFolderWindowEnumerator.GetProcessName(window).StartsWith("xyplorer", StringComparison.OrdinalIgnoreCase);
 }

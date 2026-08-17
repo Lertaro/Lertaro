@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Lertaro.PluginSdk.Services;
@@ -44,6 +45,56 @@ public class ExplorerPathCollector : IActivePathCollector
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Enumerates every filesystem location currently represented by ShellWindows. On current Windows
+    /// versions ShellWindows exposes one entry per Explorer tab; classic Explorer simply contributes one
+    /// entry per window.
+    /// </summary>
+    public IReadOnlyList<OpenedFolder> GetOpenedFolders()
+    {
+        var folders = new List<OpenedFolder>();
+        try
+        {
+            var shellWindowsType = Type.GetTypeFromCLSID(new Guid("9BA05972-F6A8-11CF-A442-00A0C90A8F39"));
+            if (shellWindowsType == null || Activator.CreateInstance(shellWindowsType) is not object shellWindows)
+                return folders;
+
+            try
+            {
+                dynamic windows = shellWindows;
+                var count = (int)windows.Count;
+                for (var i = 0; i < count; i++)
+                {
+                    object? window = null;
+                    try
+                    {
+                        window = windows.Item(i);
+                        if (window == null) continue;
+
+                        dynamic explorer = window;
+                        var path = explorer.Document.Folder.Self.Path as string;
+                        if (IsFilesystemPath(path))
+                            folders.Add(new OpenedFolder(path!, (IntPtr)explorer.HWND));
+                    }
+                    catch { }
+                    finally
+                    {
+                        if (window != null && Marshal.IsComObject(window))
+                            Marshal.ReleaseComObject(window);
+                    }
+                }
+            }
+            finally
+            {
+                if (Marshal.IsComObject(shellWindows))
+                    Marshal.ReleaseComObject(shellWindows);
+            }
+        }
+        catch { }
+
+        return folders;
     }
 
     #region Win32 API and COM Helper
@@ -96,6 +147,13 @@ public class ExplorerPathCollector : IActivePathCollector
 
         return false;
     }
+
+    private static bool IsFilesystemPath(string? path) =>
+        !string.IsNullOrWhiteSpace(path) &&
+        !path.StartsWith("::", StringComparison.Ordinal) &&
+        !path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) &&
+        !path.Contains("::{", StringComparison.Ordinal) &&
+        Path.IsPathRooted(path);
 
     // GetActiveExplorerPathCore talks to Explorer entirely via dynamic COM (Shell.Application,
     // IShellBrowser, Document.Folder.Self.Path) with no built-in timeout -- if Explorer's own thread is

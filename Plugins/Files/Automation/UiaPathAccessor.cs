@@ -68,6 +68,33 @@ internal static class UiaPathAccessor
         }
     }
 
+    /// <summary>
+    /// Gets every currently materialized Files pane/tab path in a window. Inactive virtualized tabs are
+    /// intentionally absent because Files does not expose their paths to UI Automation.
+    /// </summary>
+    public static IReadOnlyList<string> GetCurrentPaths(IntPtr hwnd)
+    {
+        var paths = new List<string>();
+        try
+        {
+            var root = AutomationElement.FromHandle(hwnd);
+            var condition = new PropertyCondition(AutomationElement.AutomationIdProperty, "CurrentPathGet");
+            var elements = root.FindAll(TreeScope.Descendants, condition);
+            foreach (AutomationElement element in elements)
+            {
+                if (!element.TryGetCurrentPattern(ValuePattern.Pattern, out var patternObj)) continue;
+                var path = ((ValuePattern)patternObj).Current.Value;
+                if (!string.IsNullOrWhiteSpace(path))
+                    paths.Add(path);
+            }
+        }
+        catch
+        {
+            // UI Automation is best-effort; a closed or busy window contributes no paths.
+        }
+        return paths;
+    }
+
     public static bool SetCurrentPath(IntPtr hwnd, string path)
     {
         var element = FindNearestPaneElement(hwnd, "CurrentPathSet");

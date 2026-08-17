@@ -1,6 +1,7 @@
 using Lertaro.Plugins.OneCommander.Automation;
 
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+using Lertaro.PluginSdk.Helpers;
 namespace Lertaro.Plugins.OneCommander;
 
 /// <summary>
@@ -40,4 +41,24 @@ public class OneCommanderPathCollector : IActivePathCollector
         var path = UiaPathAccessor.GetCurrentPath(hwnd);
         return PathValidation.LooksLikeRootedPath(path) ? path : null;
     }
+
+    /// <summary>
+    /// Returns every OneCommander pane/tab currently exposed through UI Automation in each open window.
+    /// </summary>
+    public IReadOnlyList<OpenedFolder> GetOpenedFolders()
+    {
+        var folders = new List<OpenedFolder>();
+        foreach (var window in OpenFolderWindowEnumerator.FindVisibleWindows(IsOneCommanderWindow))
+        {
+            foreach (var path in UiaPathAccessor.GetCurrentPaths(window))
+            {
+                if (PathValidation.LooksLikeRootedPath(path))
+                    folders.Add(new OpenedFolder(path, window));
+            }
+        }
+        return folders;
+    }
+
+    private static bool IsOneCommanderWindow(IntPtr window) =>
+        OpenFolderWindowEnumerator.GetProcessName(window).Equals("OneCommander", StringComparison.OrdinalIgnoreCase);
 }

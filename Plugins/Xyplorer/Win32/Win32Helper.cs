@@ -214,6 +214,24 @@ public static class Win32Helper
     public static string? QueryCurrentPath(IntPtr xyHwnd) => QueryExpression(xyHwnd, "\"<curpath>\"");
 
     /// <summary>
+    /// Gets every open tab path from both XYplorer panes through its script API.
+    /// </summary>
+    public static IReadOnlyList<string> QueryOpenTabPaths(IntPtr xyHwnd)
+    {
+        var paths = new List<string>();
+        AddPaths(paths, QueryExpression(xyHwnd, "get(\"tabs\", <crlf>, \"a\")"));
+        AddPaths(paths, QueryExpression(xyHwnd, "get(\"tabs\", <crlf>, \"i\")"));
+        return paths;
+    }
+
+    private static void AddPaths(List<string> paths, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        foreach (var path in value.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.RemoveEmptyEntries))
+            paths.Add(path.Trim());
+    }
+
+    /// <summary>
     /// Navigates XYplorer's active pane to <paramref name="path"/> via the <c>goto</c> script command
     /// (fire-and-forget -- no reply is needed, so no receiver window is created). For a file path, XYplorer's
     /// own <c>goto</c> opens the containing folder and selects the item, matching Total Commander adapter's
