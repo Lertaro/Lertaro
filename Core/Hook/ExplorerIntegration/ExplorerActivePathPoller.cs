@@ -63,7 +63,10 @@ internal sealed class ExplorerActivePathPoller : IDisposable
         }
         if (tracker.IsActiveWindowDialog && tracker.ActiveHwnd != IntPtr.Zero && tracker.ActiveAdapter != null)
         {
-            var activePath = tracker.ActiveAdapter.GetCurrentPath(tracker.ActiveHwnd);
+            var dialogHwnd = tracker.ActiveHwnd;
+            var dialogAdapter = tracker.ActiveAdapter;
+            var activePath = dialogAdapter.GetCurrentPath(dialogHwnd);
+            if (!IsObservedWindowStillActive(dialogHwnd, tracker.ActiveHwnd)) return;
             if (!string.IsNullOrEmpty(activePath) && activePath != tracker.LastPath)
             {
                 tracker.UpdatePath(activePath, false);
@@ -73,20 +76,21 @@ internal sealed class ExplorerActivePathPoller : IDisposable
         var polledByCollector = false;
         if (tracker.ActiveHwnd != IntPtr.Zero && tracker.ActiveInlineAdapter == null)
         {
+            var collectorHwnd = tracker.ActiveHwnd;
             var sbClass = new StringBuilder(256);
-            ExplorerNativeHooks.GetClassName(tracker.ActiveHwnd, sbClass, sbClass.Capacity);
+            ExplorerNativeHooks.GetClassName(collectorHwnd, sbClass, sbClass.Capacity);
             var activeClass = sbClass.ToString();
             var collectors = ActivePathCollectorRegistry.GetCollectors();
             foreach (var collector in collectors)
             {
-                if (collector.CanHandle(tracker.ActiveHwnd, activeClass, tracker.GetProcessName(tracker.ActiveHwnd)))
+                if (collector.CanHandle(collectorHwnd, activeClass, tracker.GetProcessName(collectorHwnd)))
                 {
                     polledByCollector = true;
                     var focused = IntPtr.Zero;
                     var activeClassName = string.Empty;
                     try
                     {
-                        var threadId = KeyboardNativeMethods.GetWindowThreadProcessId(tracker.ActiveHwnd, out _);
+                        var threadId = KeyboardNativeMethods.GetWindowThreadProcessId(collectorHwnd, out _);
                         var guiInfo = new KeyboardNativeMethods.GUITHREADINFO();
                         guiInfo.cbSize = System.Runtime.InteropServices.Marshal.SizeOf(guiInfo);
                         if (KeyboardNativeMethods.GetGUIThreadInfo(threadId, ref guiInfo) && guiInfo.hwndFocus != IntPtr.Zero)
@@ -99,9 +103,10 @@ internal sealed class ExplorerActivePathPoller : IDisposable
                     }
                     catch { }
 
-                    if (focused == IntPtr.Zero) focused = tracker.ActiveHwnd;
+                    if (focused == IntPtr.Zero) focused = collectorHwnd;
 
-                    var activePath = collector.TryGetPath(focused, activeClassName, tracker.ActiveHwnd, activeClass, tracker.GetProcessName(tracker.ActiveHwnd));
+                    var activePath = collector.TryGetPath(focused, activeClassName, collectorHwnd, activeClass, tracker.GetProcessName(collectorHwnd));
+                    if (!IsObservedWindowStillActive(collectorHwnd, tracker.ActiveHwnd)) return;
                     if (!string.IsNullOrEmpty(activePath))
                     {
                         if (activePath != tracker.LastPath)
@@ -120,7 +125,10 @@ internal sealed class ExplorerActivePathPoller : IDisposable
 
         if (!polledByCollector && tracker.ActiveInlineAdapter != null && tracker.ActiveHwnd != IntPtr.Zero)
         {
-            var activePath = tracker.ActiveInlineAdapter.GetSearchScope(tracker.ActiveHwnd);
+            var inlineHwnd = tracker.ActiveHwnd;
+            var inlineAdapter = tracker.ActiveInlineAdapter;
+            var activePath = inlineAdapter.GetSearchScope(inlineHwnd);
+            if (!IsObservedWindowStillActive(inlineHwnd, tracker.ActiveHwnd)) return;
             if (!string.IsNullOrEmpty(activePath))
             {
                 if (activePath != tracker.LastPath)
@@ -134,4 +142,7 @@ internal sealed class ExplorerActivePathPoller : IDisposable
             }
         }
     }
+
+    internal static bool IsObservedWindowStillActive(IntPtr observedHwnd, IntPtr activeHwnd) =>
+        observedHwnd != IntPtr.Zero && observedHwnd == activeHwnd;
 }

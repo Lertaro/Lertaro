@@ -1,4 +1,3 @@
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -204,18 +203,13 @@ public static class Win32Helper
             {
                 pin.Free();
             }
-            return !string.IsNullOrEmpty(_capturedPath) &&
-                   (IsWslPath(_capturedPath) || Directory.Exists(_capturedPath)) ? _capturedPath : null;
+            return string.IsNullOrEmpty(_capturedPath) ? null : _capturedPath;
         }
         finally
         {
             DestroyWindow(receiver);
         }
     }
-
-    private static bool IsWslPath(string path) =>
-        path.StartsWith(@"\\wsl$\", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith(@"\\wsl.localhost\", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Navigates Total Commander's source (active) panel via the CD WM_COPYDATA command. The 'S' flag makes

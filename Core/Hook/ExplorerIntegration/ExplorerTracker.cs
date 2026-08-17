@@ -16,6 +16,7 @@ public class ExplorerTracker : IDisposable
     private readonly ExplorerActivePathPoller _pathPoller;
     // Internal state exposed to ExplorerWindowClassifier
     public string? LastPath { get; set; }
+    public Func<string, string?>? PathNormalizer { get; set; }
     public IntPtr LastActiveHwnd { get; set; }
     public string? LastActiveExplorerPath => _dialogTracker.LastActiveExplorerPath;
     public string? LastActiveExplorerClassName { get; set; }
@@ -133,6 +134,8 @@ public class ExplorerTracker : IDisposable
     public void ReclassifyActiveWindow(IntPtr hwnd) => _classifier.CheckActiveWindow(hwnd);
     public void UpdatePath(string path, bool isDesktop)
     {
+        if (PathNormalizer != null)
+            path = PathNormalizer(path) ?? string.Empty;
         LastPath = path;
         Logger.Log($"[ExplorerTracker] UpdatePath captured path: {path} (isDesktop={isDesktop})", LogLevel.Debug);
         if (!IsActiveWindowDialog) _dialogTracker.SetLastActiveExplorerPath(path);

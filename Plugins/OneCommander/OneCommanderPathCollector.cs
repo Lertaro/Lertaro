@@ -39,7 +39,7 @@ public class OneCommanderPathCollector : IActivePathCollector
         UiaPathAccessor.RefreshFocusAnchor(hwnd);
 
         var path = UiaPathAccessor.GetCurrentPath(hwnd);
-        return PathValidation.IsAccessibleDirectory(path) ? path : null;
+        return string.IsNullOrWhiteSpace(path) ? null : path;
     }
 
     /// <summary>
@@ -52,7 +52,7 @@ public class OneCommanderPathCollector : IActivePathCollector
         {
             foreach (var path in UiaPathAccessor.GetCurrentPaths(window))
             {
-                if (PathValidation.IsAccessibleDirectory(path))
+                if (!string.IsNullOrWhiteSpace(path))
                     folders.Add(new OpenedFolder(path, window));
             }
         }

@@ -138,6 +138,13 @@ public static class PipeRequestBinarySerializer
                 writer.Write(msg.IntVal);
                 writer.Write(msg.BoolVal);
                 break;
+
+            case IpcMessageId.OpenedFoldersCaptured:
+                var paths = msg.StringList ?? Array.Empty<string>();
+                writer.Write(paths.Count);
+                foreach (var path in paths)
+                    writer.Write(path);
+                break;
         }
     }
 
@@ -238,6 +245,16 @@ public static class PipeRequestBinarySerializer
             case IpcMessageId.ExecuteInlineItemResponse:
                 msg.IntVal = reader.ReadInt32();
                 msg.BoolVal = reader.ReadBoolean();
+                break;
+
+            case IpcMessageId.OpenedFoldersCaptured:
+                var count = reader.ReadInt32();
+                if (count < 0 || count > 10_000)
+                    throw new InvalidDataException("Opened-folder snapshot exceeds the IPC limit.");
+                var paths = new string[count];
+                for (var index = 0; index < count; index++)
+                    paths[index] = reader.ReadString();
+                msg.StringList = paths;
                 break;
         }
 

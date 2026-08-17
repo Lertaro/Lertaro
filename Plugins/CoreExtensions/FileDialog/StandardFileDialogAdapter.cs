@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Lertaro.PluginSdk.Services;
 using Lertaro.PluginSdk.Helpers;
-
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 namespace Lertaro.Plugins.CoreExtensions.FileDialog;
 
@@ -73,8 +72,7 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
                     if (!string.IsNullOrEmpty(potentialPath))
                     {
                         var resolved = ShellPathHelper.ResolveSpecialFolder(potentialPath);
-                        var isValid = Directory.Exists(resolved) ||
-                                      (resolved.Length >= 3 && resolved[1] == ':' && resolved[2] == '\\' && char.IsLetter(resolved[0]));
+                        var isValid = Path.IsPathRooted(resolved);
 
                         if (isValid) return resolved;
                     }

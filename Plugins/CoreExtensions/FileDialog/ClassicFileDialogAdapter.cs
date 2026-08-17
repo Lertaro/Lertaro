@@ -62,7 +62,7 @@ public class ClassicFileDialogAdapter : IFileDialogAdapter
                 return null;
 
             var path = Encoding.Unicode.GetString(localBuffer).TrimEnd('\0');
-            return !string.IsNullOrEmpty(path) && Directory.Exists(path) ? path : null;
+            return string.IsNullOrEmpty(path) ? null : path;
         }
         catch { return null; }
         finally

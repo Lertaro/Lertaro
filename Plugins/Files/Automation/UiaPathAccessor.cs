@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.IO;
 using System.Windows.Automation;
 
 namespace Lertaro.Plugins.Files.Automation;
@@ -85,7 +84,7 @@ internal static class UiaPathAccessor
             {
                 if (!element.TryGetCurrentPattern(ValuePattern.Pattern, out var patternObj)) continue;
                 var path = ((ValuePattern)patternObj).Current.Value;
-                if (!string.IsNullOrWhiteSpace(path) && (IsWslPath(path) || Directory.Exists(path)))
+                if (!string.IsNullOrWhiteSpace(path))
                     paths.Add(path);
             }
         }
@@ -95,10 +94,6 @@ internal static class UiaPathAccessor
         }
         return paths;
     }
-
-    private static bool IsWslPath(string path) =>
-        path.StartsWith(@"\\wsl$\", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith(@"\\wsl.localhost\", StringComparison.OrdinalIgnoreCase);
 
     public static bool SetCurrentPath(IntPtr hwnd, string path)
     {

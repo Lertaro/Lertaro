@@ -36,6 +36,7 @@ public sealed class HookProcess : IDisposable
 
     private readonly HookIpcServer _ipcServer;
     private readonly HookCommandHandler _commandHandler;
+    private readonly OpenedFolderSnapshotPublisher _openedFolderSnapshots;
     private ExplorerTracker? _explorerTracker;
     private KeyboardHookService? _keyboardHook;
     private MouseHookService? _mouseHook;
@@ -73,13 +74,18 @@ public sealed class HookProcess : IDisposable
     {
         _ipcServer = ipcServer;
         _commandHandler = new HookCommandHandler(this);
+        _openedFolderSnapshots = new OpenedFolderSnapshotPublisher(_ipcServer);
 
         _ipcServer.OnStopRequested += () => Stop();
         _ipcServer.OnCommandReceived += _commandHandler.HandleAppCommand;
         // See ExplorerTracker.PublishCurrentState's own comment: Start()'s one-time startup activation
         // check almost always loses the race against the App actually connecting over the pipe, and
         // that lost snapshot was the App's only chance to learn the true initial state otherwise.
-        _ipcServer.OnConnected += () => _explorerTracker?.PublishCurrentState();
+        _ipcServer.OnConnected += () =>
+        {
+            _explorerTracker?.PublishCurrentState();
+            _openedFolderSnapshots.Publish();
+        };
     }
 
     public void RunMessageLoop()
@@ -197,12 +203,14 @@ public sealed class HookProcess : IDisposable
             {
                 if (ShouldSuppressQuickNavTrigger()) return;
                 Logger.Log($"[HookProcess] OnMouseDoubleClick at ({x}, {y}). ActiveHwnd={_explorerTracker?.ActiveHwnd}, IsExplorerOrDesktopActive={_explorerTracker?.IsExplorerOrDesktopActive}", LogLevel.Debug);
+                _openedFolderSnapshots.Publish();
                 _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.MouseDoubleClick, MouseX = x, MouseY = y });
             };
             _mouseHook.OnMouseMiddleClick += (x, y) =>
             {
                 if (ShouldSuppressQuickNavTrigger()) return;
                 Logger.Log($"[HookProcess] OnMouseMiddleClick at ({x}, {y}). ActiveHwnd={_explorerTracker?.ActiveHwnd}, IsExplorerOrDesktopActive={_explorerTracker?.IsExplorerOrDesktopActive}", LogLevel.Debug);
+                _openedFolderSnapshots.Publish();
                 _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.MouseMiddleClick, MouseX = x, MouseY = y });
             };
             _mouseHook.Start();

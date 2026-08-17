@@ -1,4 +1,3 @@
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 namespace Lertaro.Plugins.Xyplorer.Win32;
@@ -209,7 +208,7 @@ public static class Win32Helper
         }
     }
     /// <summary>Gets the current folder path of XYplorer's active pane/tab.</summary>
-    public static string? QueryCurrentPath(IntPtr xyHwnd) => FilterDirectoryPath(QueryExpression(xyHwnd, "\"<curpath>\""));
+    public static string? QueryCurrentPath(IntPtr xyHwnd) => QueryExpression(xyHwnd, "\"<curpath>\"")?.Trim();
 
     /// <summary>
     /// Gets every open tab path from both XYplorer panes through its script API.
@@ -228,12 +227,10 @@ public static class Win32Helper
         foreach (var rawPath in value.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.RemoveEmptyEntries))
         {
             var path = rawPath.Trim();
-            if (IsWslPath(path) || Directory.Exists(path))
+            if (!string.IsNullOrWhiteSpace(path))
                 paths.Add(path);
         }
     }
-    private static bool IsWslPath(string path) => path.StartsWith(@"\\wsl$\", StringComparison.OrdinalIgnoreCase) || path.StartsWith(@"\\wsl.localhost\", StringComparison.OrdinalIgnoreCase);
-    private static string? FilterDirectoryPath(string? path) => !string.IsNullOrWhiteSpace(path) && (IsWslPath(path) || Directory.Exists(path)) ? path : null;
 
     /// <summary>
     /// Navigates XYplorer's active pane to <paramref name="path"/> via the <c>goto</c> script command

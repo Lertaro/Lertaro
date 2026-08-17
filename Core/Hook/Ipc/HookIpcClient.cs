@@ -3,7 +3,6 @@ using System.IO.Pipes;
 using Lertaro.Core.Wire;
 using Lertaro.Core.Hook.Commands;
 namespace Lertaro.Core.Hook.Ipc;
-
 public sealed class HookIpcClient : IDisposable
 {
     private Process? _hookProcess;
@@ -15,9 +14,7 @@ public sealed class HookIpcClient : IDisposable
     private readonly SemaphoreSlim _writeGate = new(1, 1);
 
     public int ServiceProcessId { get; private set; }
-    // False for the whole cold-start window before the hook process/pipes are up (or if it's down for any
-    // other reason) -- lets IPC-bound calls like InlineAdapterIpcCoordinator.ExecuteItem fail fast instead
-    // of blocking their caller for a full timeout waiting on a reply that can never arrive.
+    // False during cold-start or hook downtime, so IPC-bound calls fail fast instead of waiting for an unreachable reply.
     public bool IsConnected => _cmdPipe != null && _cmdPipe.IsConnected;
     private bool _isHotkeysDisabled;
 
@@ -50,8 +47,6 @@ public sealed class HookIpcClient : IDisposable
         catch (ObjectDisposedException) { }
     }
 
-    // Hook and Tracker Events fired to App
-
     public event Action? OnActivated;
     public event Action? OnQuickPanelHotkey;
     public event Action<char>? OnCharacterTyped;
@@ -69,12 +64,11 @@ public sealed class HookIpcClient : IDisposable
     public event Action<IntPtr, string, string, bool>? OnExplorerActivated;
     public event Action? OnExplorerDeactivated;
     public event Action<string, bool>? OnPathCaptured;
+    public event Action<IReadOnlyList<string>>? OnOpenedFoldersCaptured;
     public event Action? OnActiveWindowMoved;
     public event Action<string>? OnError;
 
-    public HookIpcClient()
-    {
-    }
+    public HookIpcClient() { }
 
     public void Start()
     {
@@ -159,13 +153,10 @@ public sealed class HookIpcClient : IDisposable
                 ).ConfigureAwait(false);
                 Logger.Log("[HookIpcClient] Connected to hook pipes.", LogLevel.Debug);
 
-                // Send initial process ID of the App so the Service can ignore it
-
+                // Send initial process ID of the App so the Service can ignore it.
                 SendMessage(new IpcMessage { Id = IpcMessageId.SetAppProcessId, ProcessId = (uint)Environment.ProcessId });
                 SendMessage(new IpcMessage { Id = IpcMessageId.SetHotkeysDisabled, BoolVal = _isHotkeysDisabled });
-
-                // Listen for events from Hook Service
-
+                // Listen for events from Hook Service.
                 while (!token.IsCancellationRequested && eventPipe.IsConnected && !_hookProcess.HasExited)
                 {
                     var msg = await PipeRequestBinarySerializer.ReadMessageAsync(eventPipe, token).ConfigureAwait(false);
@@ -270,6 +261,10 @@ public sealed class HookIpcClient : IDisposable
 
                 case IpcMessageId.PathCaptured:
                     OnPathCaptured?.Invoke(msg.StringVal1 ?? string.Empty, msg.IsDesktop);
+                    break;
+
+                case IpcMessageId.OpenedFoldersCaptured:
+                    OnOpenedFoldersCaptured?.Invoke(msg.StringList ?? Array.Empty<string>());
                     break;
 
                 case IpcMessageId.Error:

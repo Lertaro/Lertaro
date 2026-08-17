@@ -1,9 +1,7 @@
 using System.IO;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
-using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 using Lertaro.PluginSdk.Models;
-using Lertaro.PluginSdk.Registries;
 using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.FolderCascader.Navigation;
@@ -38,7 +36,7 @@ internal static class MenuBuilderContentExtensions
             "ShowOpenedFolders",
             true);
 
-        if (showOpenedFolders && GetUniqueOpenedFolderPaths(OpenedFolderCollectorRegistry.GetOpenedFolders()).Count > 0)
+        if (showOpenedFolders && ExplorerPathService.GetOpenedFolderPaths().Count > 0)
         {
             if (!hasSupplementalMenu && items.Count > 0 && !items.Last().IsSeparator)
             {
@@ -153,10 +151,10 @@ internal static class MenuBuilderContentExtensions
         return items;
     }
 
-    internal static List<DynamicMenuItem> BuildOpenedFoldersMenu(IEnumerable<OpenedFolder> folders, Provider provider)
+    internal static List<DynamicMenuItem> BuildOpenedFoldersMenu(IEnumerable<string> paths, Provider provider)
     {
         var items = new List<DynamicMenuItem>();
-        foreach (var path in GetUniqueOpenedFolderPaths(folders))
+        foreach (var path in paths.OrderBy(path => MenuBuilder.GetDisplayName(path, ""), StringComparer.CurrentCultureIgnoreCase))
         {
             items.Add(new DynamicMenuItem
             {
@@ -168,23 +166,6 @@ internal static class MenuBuilderContentExtensions
         return items;
     }
 
-    // This list may combine multiple tabs, panes, and adapters. Collapse only lexical duplicates:
-    // probing the filesystem here would make merely opening the menu perform unexpected disk I/O.
-    internal static List<string> GetUniqueOpenedFolderPaths(IEnumerable<OpenedFolder> folders)
-    {
-        var paths = new List<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var folder in folders)
-        {
-            if (string.IsNullOrWhiteSpace(folder.Path)) continue;
-
-            var path = Path.TrimEndingDirectorySeparator(folder.Path);
-            if (seen.Add(path)) paths.Add(path);
-        }
-        return paths
-            .OrderBy(path => MenuBuilder.GetDisplayName(path, ""), StringComparer.CurrentCultureIgnoreCase)
-            .ToList();
-    }
 
     internal static bool HistoryEntryExists(
         HistoryEntry entry,

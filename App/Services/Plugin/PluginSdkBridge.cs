@@ -11,6 +11,13 @@ namespace Lertaro.App.Services.Plugin;
 /// </summary>
 internal static class PluginSdkBridge
 {
+    private static readonly OpenedFolderSnapshotStore OpenedFolderSnapshots = new();
+
+    internal static void ConfigureExplorerPathTracking() =>
+        InlineSearchManager.Instance.ExplorerTracker.PathNormalizer = ExplorerPathValidator.NormalizeDirectory;
+
+    internal static void UpdateOpenedFolders(IReadOnlyList<string> paths) => OpenedFolderSnapshots.Update(paths);
+
     public static void Initialize(PluginManager manager)
     {
         // Wire up the settings delegate for plugins using the in-memory UserSettings cache.
@@ -28,6 +35,7 @@ internal static class PluginSdkBridge
         // process's live state, so this is a field read rather than a round trip.
         PluginSdk.Services.ExplorerPathService.GetLastActivePathFunc =
             () => InlineSearchManager.Instance.ExplorerTracker.LastActiveExplorerPath;
+        PluginSdk.Services.ExplorerPathService.GetOpenedFolderPathsFunc = OpenedFolderSnapshots.GetPaths;
 
         // Wire up the favorites service delegate for plugins using Core UserSettings
         PluginSdk.Services.FavoritesService.GetFavoritesFunc = () =>

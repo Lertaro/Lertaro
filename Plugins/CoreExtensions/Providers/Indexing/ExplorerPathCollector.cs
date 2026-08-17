@@ -31,7 +31,7 @@ public class ExplorerPathCollector : IActivePathCollector
             try
             {
                 var path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                return IsFilesystemPath(path) ? path : null;
+                return IsReportedFilesystemPath(path) ? path : null;
             }
             catch
             {
@@ -55,6 +55,25 @@ public class ExplorerPathCollector : IActivePathCollector
     /// </summary>
     public IReadOnlyList<OpenedFolder> GetOpenedFolders()
     {
+        IReadOnlyList<OpenedFolder> folders = Array.Empty<OpenedFolder>();
+        using var done = new ManualResetEventSlim(false);
+        var worker = new Thread(() =>
+        {
+            try { folders = GetOpenedFoldersCore(); }
+            finally { done.Set(); }
+        })
+        {
+            IsBackground = true,
+            Name = "ExplorerOpenedFoldersSta"
+        };
+        worker.SetApartmentState(ApartmentState.STA);
+        worker.Start();
+
+        return done.Wait(2000) ? folders : Array.Empty<OpenedFolder>();
+    }
+
+    private static IReadOnlyList<OpenedFolder> GetOpenedFoldersCore()
+    {
         var folders = new List<OpenedFolder>();
         try
         {
@@ -76,7 +95,7 @@ public class ExplorerPathCollector : IActivePathCollector
 
                         dynamic explorer = window;
                         var path = explorer.Document.Folder.Self.Path as string;
-                        if (IsFilesystemPath(path))
+                        if (IsReportedFilesystemPath(path))
                             folders.Add(new OpenedFolder(path!, (IntPtr)explorer.HWND));
                     }
                     catch { }
@@ -149,17 +168,12 @@ public class ExplorerPathCollector : IActivePathCollector
         return false;
     }
 
-    private static bool IsFilesystemPath(string? path) =>
+    private static bool IsReportedFilesystemPath(string? path) =>
         !string.IsNullOrWhiteSpace(path) &&
         !path.StartsWith("::", StringComparison.Ordinal) &&
         !path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) &&
         !path.Contains("::{", StringComparison.Ordinal) &&
-        Path.IsPathRooted(path) &&
-        (IsWslPath(path) || Directory.Exists(path));
-
-    private static bool IsWslPath(string path) =>
-        path.StartsWith(@"\\wsl$\", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith(@"\\wsl.localhost\", StringComparison.OrdinalIgnoreCase);
+        Path.IsPathRooted(path);
 
     // GetActiveExplorerPathCore talks to Explorer entirely via dynamic COM (Shell.Application,
     // IShellBrowser, Document.Folder.Self.Path) with no built-in timeout -- if Explorer's own thread is
@@ -255,7 +269,7 @@ public class ExplorerPathCollector : IActivePathCollector
                         }
 
                         string path = window.Document.Folder.Self.Path;
-                        if (IsFilesystemPath(path))
+                        if (IsReportedFilesystemPath(path))
                             return path;
                     }
                 }

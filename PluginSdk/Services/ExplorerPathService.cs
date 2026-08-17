@@ -15,10 +15,15 @@ public static class ExplorerPathService
 {
     /// <summary>Set by the host at startup.</summary>
     public static Func<string?>? GetLastActivePathFunc { get; set; }
+    public static Func<IReadOnlyList<string>>? GetOpenedFolderPathsFunc { get; set; }
 
     /// <summary>
     /// The last folder browsed to, or null when nothing has been yet. Not guaranteed to still exist:
     /// it is a record of where the user went, and the folder can have been deleted or unplugged since.
     /// </summary>
     public static string? GetLastActivePath() => GetLastActivePathFunc?.Invoke();
+
+    /// <summary>Current filesystem folders reported by the Hook from supported file managers.</summary>
+    public static IReadOnlyList<string> GetOpenedFolderPaths() =>
+        GetOpenedFolderPathsFunc?.Invoke() ?? Array.Empty<string>();
 }

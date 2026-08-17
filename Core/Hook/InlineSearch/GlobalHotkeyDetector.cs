@@ -137,9 +137,7 @@ public sealed class GlobalHotkeyDetector
         if (_explorerTracker.IsActiveWindowDialog && triggered && _explorerTracker.ActiveAdapter != null)
         {
             var lastExplorerPath = _explorerTracker.LastActiveExplorerPath;
-            var isValid = !string.IsNullOrEmpty(lastExplorerPath) &&
-                          (Directory.Exists(lastExplorerPath) ||
-                           (lastExplorerPath.Length >= 3 && lastExplorerPath[1] == ':' && lastExplorerPath[2] == '\\' && char.IsLetter(lastExplorerPath[0])));
+            var isValid = !string.IsNullOrEmpty(lastExplorerPath) && Path.IsPathRooted(lastExplorerPath);
 
             if (isValid)
             {

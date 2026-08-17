@@ -106,6 +106,8 @@ public partial class App : Application
         }
 
         HookClient = new HookIpcClient();
+        PluginSdkBridge.ConfigureExplorerPathTracking();
+        HookClient.OnOpenedFoldersCaptured += PluginSdkBridge.UpdateOpenedFolders;
 
         HookClient.OnMouseDoubleClick += (x, y) =>
         {

@@ -130,6 +130,22 @@ public sealed class PipeRequestBinarySerializerTests
     }
 
     [TestMethod]
+    public async Task WriteMessageAsync_OpenedFolders_RoundTripsPaths()
+    {
+        using var stream = new MemoryStream();
+        await PipeRequestBinarySerializer.WriteMessageAsync(stream, new IpcMessage
+        {
+            Id = IpcMessageId.OpenedFoldersCaptured,
+            StringList = new[] { @"D:\Projects", @"C:\Work" }
+        });
+        stream.Position = 0;
+
+        var result = await PipeRequestBinarySerializer.ReadMessageAsync(stream);
+
+        CollectionAssert.AreEqual(new[] { @"D:\Projects", @"C:\Work" }, result.StringList!.ToArray());
+    }
+
+    [TestMethod]
     public void EveryMessageId_IsNamedByBothSerializerSwitches()
     {
         // The real guard, and the one that would have caught a forgotten arm: a payload-carrying id

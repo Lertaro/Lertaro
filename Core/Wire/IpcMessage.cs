@@ -44,7 +44,8 @@ public enum IpcMessageId : byte
     // foreground window itself, which has to be the one in front at that moment rather than whatever
     // the hook happened to see.
     QuickPanelHotkey = 36,
-    ExecuteInlineItemResponse = 40
+    ExecuteInlineItemResponse = 40,
+    OpenedFoldersCaptured = 41
 }
 
 public struct IpcMessage
@@ -59,5 +60,6 @@ public struct IpcMessage
     public long Hwnd { get; set; }
     public string? StringVal1 { get; set; }
     public string? StringVal2 { get; set; }
+    public IReadOnlyList<string>? StringList { get; set; }
     public bool IsDesktop { get; set; }
 }

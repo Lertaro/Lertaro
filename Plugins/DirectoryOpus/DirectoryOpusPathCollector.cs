@@ -173,7 +173,7 @@ public class DirectoryOpusPathCollector : IActivePathCollector
         if (locationBar != IntPtr.Zero)
         {
             var path = Win32Helper.GetWindowText(locationBar);
-            return ResolveAndVerify(path);
+            return ResolveReportedPath(path);
         }
         return null;
     }
@@ -181,7 +181,7 @@ public class DirectoryOpusPathCollector : IActivePathCollector
     private static bool IsListerWindow(IntPtr window) =>
         Win32Helper.GetClassName(window).Equals("dopus.lister", StringComparison.OrdinalIgnoreCase);
 
-    private string? ResolveAndVerify(string path)
+    private string? ResolveReportedPath(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
         var resolved = ShellPathHelper.ResolveSpecialFolder(path);
@@ -189,16 +189,8 @@ public class DirectoryOpusPathCollector : IActivePathCollector
         {
             resolved += "\\";
         }
-        if (!string.IsNullOrEmpty(resolved) &&
-            (IsWslPath(resolved) || Directory.Exists(resolved)))
-            return resolved;
-
-        return null;
+        return string.IsNullOrWhiteSpace(resolved) ? null : resolved;
     }
-
-    private static bool IsWslPath(string path) =>
-        path.StartsWith(@"\\wsl$\", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith(@"\\wsl.localhost\", StringComparison.OrdinalIgnoreCase);
 
     private static void CleanUpDeadKeys()
     {

@@ -62,7 +62,7 @@ public class OneCommanderInlineSearchAdapter : IInlineSearchAdapter
         UiaPathAccessor.RefreshFocusAnchor(hwnd);
 
         var path = UiaPathAccessor.GetCurrentPath(hwnd);
-        return PathValidation.IsAccessibleDirectory(path) ? path : null;
+        return string.IsNullOrWhiteSpace(path) ? null : path;
     }
 
     public bool ExecuteItem(IntPtr hwnd, string path, string searchInput)
