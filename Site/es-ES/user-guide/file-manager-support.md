@@ -15,6 +15,10 @@ momento. Según el destino, esa integración puede significar hasta tres cosas:
 
 No todas las integraciones ofrecen las tres — ver la tabla de abajo.
 
+## Carpetas abiertas en Navegación rápida
+
+Con **Mostrar carpetas abiertas** habilitado en el plugin Folder Cascader (activado de forma predeterminada), Navegación rápida añade un grupo de **Carpetas abiertas** antes de Favoritos e Historial. Reúne las carpetas reales del sistema de archivos que están abiertas en todos los gestores compatibles y elimina automáticamente las rutas duplicadas. Las ubicaciones virtuales y las carpetas que ya no existen se omiten, de modo que cada elemento de la lista sigue siendo un destino de navegación válido.
+
 ## Integrado (sin instalación adicional)
 
 Estos vienen incluidos con el plugin de extensiones básicas de Lertaro — nada que habilitar por separado.

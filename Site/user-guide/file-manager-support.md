@@ -14,6 +14,10 @@ currently using. Depending on the target, that integration can mean up to three 
 
 Not every integration provides all three — see the table below.
 
+## Open folders in Quick Navigation
+
+With **Show opened folders** enabled in the Folder Cascader plugin (on by default), Quick Navigation adds an **Opened folders** group above Favorites and History. It combines the filesystem folders currently open in every supported file manager, then removes duplicate paths. Virtual locations and folders that no longer exist are omitted, so every listed entry remains a valid navigation target.
+
 ## Built in (no extra install)
 
 These come bundled with Lertaro's core extensions plugin — nothing to enable separately.
