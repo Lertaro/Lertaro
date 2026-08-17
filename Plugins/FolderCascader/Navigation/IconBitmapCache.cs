@@ -2,13 +2,11 @@ using Lertaro.PluginSdk;
 
 namespace Lertaro.Plugins.FolderCascader.Navigation;
 
-// Renders and caches the small set of GDI HBITMAPs the cascader menu draws (folder/file/favorites/
-// history icons). Kept separate from history lookups and Explorer-window enumeration -- icon rendering
+// Renders and caches the small set of GDI HBITMAPs the cascader menu draws (favorites/history/category
+// icons). Kept separate from history lookups and Explorer-window enumeration -- icon rendering
 // changes for theming reasons, not for either of those.
 public static class IconBitmapCache
 {
-    public static IntPtr FolderHBitmap { get; private set; } = IntPtr.Zero;
-    public static IntPtr FileHBitmap { get; private set; } = IntPtr.Zero;
     public static IntPtr FavoritesHBitmap { get; private set; } = IntPtr.Zero;
     public static IntPtr HistoryHBitmap { get; private set; } = IntPtr.Zero;
     public static IntPtr OpenedFoldersHBitmap { get; private set; } = IntPtr.Zero;
@@ -23,25 +21,6 @@ public static class IconBitmapCache
 
     public static void EnsureIcons()
     {
-        if (FolderHBitmap == IntPtr.Zero)
-        {
-            lock (_iconLock)
-            {
-                if (FolderHBitmap == IntPtr.Zero)
-                {
-                    try
-                    {
-                        FolderHBitmap = ShellIconLoader.GetIconHBitmap("dummy_folder", isDir: true);
-                        FileHBitmap = ShellIconLoader.GetIconHBitmap("dummy_file.txt", isDir: false);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Log($"[FolderCascader] Failed to create cached shell HBITMAP icons: {ex.Message}", LogLevel.Warn);
-                    }
-                }
-            }
-        }
-
         lock (_iconLock)
         {
             try
