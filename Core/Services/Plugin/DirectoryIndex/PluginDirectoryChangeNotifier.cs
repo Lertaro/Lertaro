@@ -49,8 +49,9 @@ internal sealed class PluginDirectoryChangeNotifier : IDisposable
     /// than from the constructor: with nothing registered there is nobody to notify, and the local half
     /// holds a pipe subscription open for as long as it runs.
     /// </summary>
-    public void EnsureIndexSubscriptions()
+    public bool EnsureIndexSubscriptions()
     {
+        var startedLocalSubscription = false;
         lock (_gate)
         {
             if (!_subscribedToNetwork)
@@ -62,9 +63,30 @@ internal sealed class PluginDirectoryChangeNotifier : IDisposable
             }
             if (_localStatusCts == null)
             {
-                _localStatusCts = new CancellationTokenSource();
-                _ = Task.Run(() => WatchLocalIndexAsync(_localStatusCts.Token));
+                var subscription = new CancellationTokenSource();
+                _localStatusCts = subscription;
+                var token = subscription.Token;
+                _ = Task.Run(() => WatchLocalIndexAsync(token));
+                startedLocalSubscription = true;
             }
+        }
+        return startedLocalSubscription;
+    }
+
+    /// <summary>Reconnects the local pipe with the current registration set as its watch list.</summary>
+    public void RefreshLocalIndexSubscription()
+    {
+        lock (_gate)
+        {
+            if (_localStatusCts == null)
+                return;
+
+            _localStatusCts.Cancel();
+            _localStatusCts.Dispose();
+            var subscription = new CancellationTokenSource();
+            _localStatusCts = subscription;
+            var token = subscription.Token;
+            _ = Task.Run(() => WatchLocalIndexAsync(token));
         }
     }
 
@@ -95,8 +117,8 @@ internal sealed class PluginDirectoryChangeNotifier : IDisposable
     }
 
     // Holds the subscription open, re-establishing it whenever the service goes away (an upgrade, a
-    // manual restart). The watch list is sent with the subscribe, so this re-reads the registrations
-    // each time round rather than capturing them once.
+    // manual restart). The watch list is sent with the subscribe, so registration changes explicitly
+    // replace this loop through RefreshLocalIndexSubscription instead of leaving the pipe stale.
     private async Task WatchLocalIndexAsync(CancellationToken token)
     {
         while (!token.IsCancellationRequested)

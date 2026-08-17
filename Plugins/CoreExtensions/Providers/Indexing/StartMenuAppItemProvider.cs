@@ -26,21 +26,7 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
         // whose registration a change fell under and calls the one that owns it.
         _directoryWatch = DirectoryIndexerService.WatchDirectories(RegistrationId, () => ItemsChanged?.Invoke());
         PluginSettingsService.SettingChanged += OnSettingChanged;
-        try
-        {
-            foreach (var root in StartMenuShortcutResolver.GetStartMenuRoots())
-            {
-                if (!Directory.Exists(root))
-                    continue;
-
-                // Register directory to the host system indexer for global monitoring and search
-                DirectoryIndexerService.RegisterDirectory(RegistrationId, root, recursive: true, filterPattern: "*.lnk");
-            }
-        }
-        catch (Exception ex)
-        {
-            PluginSdk.Logger.Log($"[StartMenuAppItemProvider] Failed to register directories to indexer: {ex.Message}", PluginSdk.LogLevel.Warn);
-        }
+        RefreshDirectoryRegistrations();
     }
 
     private void OnSettingChanged(string pluginId, string key)
@@ -48,6 +34,7 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
         if (string.Equals(pluginId, "Lertaro.Plugins.CoreExtensions", StringComparison.OrdinalIgnoreCase)
             && string.Equals(key, "CustomFolders", StringComparison.OrdinalIgnoreCase))
         {
+            RefreshDirectoryRegistrations();
             ItemsChanged?.Invoke();
         }
     }
@@ -70,25 +57,9 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
         var indexedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var entriesByName = new Dictionary<string, List<(string Name, string Path)>>(StringComparer.OrdinalIgnoreCase);
 
-        // 1. Collect scan roots: built-in Start Menu/Desktop + user-configured custom folders
-        var roots = StartMenuShortcutResolver.GetStartMenuRoots().ToList();
-        try
-        {
-            var customFolders = PluginSettingsService.GetSetting<List<string>>("Lertaro.Plugins.CoreExtensions", "CustomFolders", null!);
-            if (customFolders != null)
-            {
-                foreach (var p in customFolders)
-                {
-                    if (string.IsNullOrWhiteSpace(p)) continue;
-                    var expanded = Environment.ExpandEnvironmentVariables(p.Trim());
-                    if (Directory.Exists(expanded)) roots.Add(expanded);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            PluginSdk.Logger.Log($"[StartMenuAppItemProvider] Failed to load custom folders config: {ex.Message}", PluginSdk.LogLevel.Warn);
-        }
+        // 1. Collect scan roots. This is exactly the same list the watcher registers below: a folder
+        // that contributes an application result must also be able to invalidate that result later.
+        var roots = GetRoots();
 
         // 2. Gather all unique shortcut files from all roots
         foreach (var root in roots)
@@ -176,6 +147,39 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
         AppendAppsFolderApps(list, entriesByName.Keys);
 
         return list;
+    }
+
+    private void RefreshDirectoryRegistrations()
+    {
+        try
+        {
+            // Replacing the complete set is required when a setting removed a folder as well as when
+            // it added one. The provider's cache is invalidated separately by the settings event.
+            DirectoryIndexerService.UnregisterDirectories(RegistrationId);
+            foreach (var root in GetRoots())
+                DirectoryIndexerService.RegisterDirectory(RegistrationId, root, recursive: true, filterPattern: StartMenuShortcutResolver.AppFilePattern);
+        }
+        catch (Exception ex)
+        {
+            PluginSdk.Logger.Log($"[StartMenuAppItemProvider] Failed to register directories to indexer: {ex.Message}", PluginSdk.LogLevel.Warn);
+        }
+    }
+
+    private static IReadOnlyList<string> GetRoots()
+        => StartMenuAppFolderRoots.Merge(StartMenuShortcutResolver.GetStartMenuRoots(), GetCustomFolders(), Directory.Exists);
+
+    private static IEnumerable<string> GetCustomFolders()
+    {
+        try
+        {
+            var customFolders = PluginSettingsService.GetSetting<List<string>>("Lertaro.Plugins.CoreExtensions", "CustomFolders", null!);
+            return customFolders ?? Enumerable.Empty<string>();
+        }
+        catch (Exception ex)
+        {
+            PluginSdk.Logger.Log($"[StartMenuAppItemProvider] Failed to load custom folders config: {ex.Message}", PluginSdk.LogLevel.Warn);
+            return Array.Empty<string>();
+        }
     }
 
     /// <summary>Every app file under <paramref name="root"/>, from the host's index where it has one.</summary>

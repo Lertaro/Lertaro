@@ -30,6 +30,16 @@ internal static class FilterPatternHelper
         return patterns.Any(IsMatchAll) ? null : patterns;
     }
 
+    /// <summary>Combines registrations for one directory without losing either caller's file scope.</summary>
+    public static string Combine(string existing, string incoming)
+    {
+        var patterns = Split(existing)
+            .Concat(Split(incoming))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return patterns.Any(IsMatchAll) ? "*" : string.Join(';', patterns);
+    }
+
     public static bool Matches(string name, string[] patterns)
     {
         foreach (var pattern in patterns)
@@ -84,26 +94,37 @@ internal sealed class PluginDirectoryWatchRegistry
     public void RegisterDirectory(string pluginId, string directoryPath, bool recursive, string filterPattern)
     {
         if (string.IsNullOrWhiteSpace(directoryPath)) return;
-        var fullPath = Path.GetFullPath(directoryPath);
+        var fullPath = NormalizeDirectoryPath(directoryPath);
 
         var list = _registrations.GetOrAdd(pluginId, _ => new List<MonitoredDir>());
         lock (list)
         {
-            if (!list.Any(d => string.Equals(d.Path, fullPath, StringComparison.OrdinalIgnoreCase)))
+            var existing = list.FirstOrDefault(d => string.Equals(d.Path, fullPath, StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
             {
-                list.Add(new MonitoredDir
+                var includeSubdirectories = existing.Recursive || recursive;
+                existing.FilterPattern = FilterPatternHelper.Combine(existing.FilterPattern, filterPattern);
+                if (includeSubdirectories != existing.Recursive)
                 {
-                    Path = fullPath,
-                    Recursive = recursive,
-                    FilterPattern = filterPattern
-                });
-                Logger.Log($"[IndexManager] Plugin '{pluginId}' registered directory: '{fullPath}' (Recursive={recursive}, Filter={filterPattern})");
-
-                // Set up FileSystemWatcher for monitoring changes and alerting the plugin via SDK event
-                CreateWatcher(pluginId, fullPath, recursive, filterPattern);
-                // Only worth listening to the indexes once somebody has a directory in them.
-                _notifier.EnsureIndexSubscriptions();
+                    existing.Recursive = true;
+                    UpdateWatcherRecursion(pluginId, fullPath, recursive: true);
+                }
+                return;
             }
+
+            list.Add(new MonitoredDir
+            {
+                Path = fullPath,
+                Recursive = recursive,
+                FilterPattern = filterPattern
+            });
+            Logger.Log($"[IndexManager] Plugin '{pluginId}' registered directory: '{fullPath}' (Recursive={recursive}, Filter={filterPattern})");
+
+            // Set up FileSystemWatcher for monitoring changes and alerting the plugin via SDK event
+            CreateWatcher(pluginId, fullPath, recursive, filterPattern);
+            // Only worth listening to the indexes once somebody has a directory in them.
+            if (!_notifier.EnsureIndexSubscriptions())
+                _notifier.RefreshLocalIndexSubscription();
         }
     }
 
@@ -124,6 +145,8 @@ internal sealed class PluginDirectoryWatchRegistry
             Logger.Log($"[IndexManager] Unregistered all directories for plugin '{pluginId}'.");
             if (_registrations.IsEmpty)
                 _notifier.StopIndexSubscriptions();
+            else
+                _notifier.RefreshLocalIndexSubscription();
         }
     }
 
@@ -136,6 +159,17 @@ internal sealed class PluginDirectoryWatchRegistry
         {
             return new List<MonitoredDir>(dirs);
         }
+    }
+
+    // All registrations pass through here, so syntactic variants of one directory never allocate two
+    // watchers. Providers supply configured paths; the registry owns the key it stores and compares.
+    internal static string NormalizeDirectoryPath(string directoryPath)
+    {
+        var fullPath = Path.GetFullPath(directoryPath);
+        var root = Path.GetPathRoot(fullPath);
+        return string.Equals(fullPath, root, StringComparison.OrdinalIgnoreCase)
+            ? fullPath
+            : Path.TrimEndingDirectorySeparator(fullPath);
     }
 
     private void CreateWatcher(string pluginId, string fullPath, bool recursive, string filterPattern)
@@ -152,21 +186,22 @@ internal sealed class PluginDirectoryWatchRegistry
             var watcher = new FileSystemWatcher(fullPath)
             {
                 IncludeSubdirectories = recursive,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite,
                 EnableRaisingEvents = true
             };
-            // filterPattern can list several patterns separated by ';' or ',' (e.g. "*.exe;*.lnk") --
-            // the singular Filter property only ever accepts one, so each split pattern is added to the
-            // plural Filters collection instead (supported since .NET Core 3.0 for exactly this case).
-            foreach (var pattern in FilterPatternHelper.Split(filterPattern))
-            {
-                watcher.Filters.Add(pattern);
-            }
+            // Watch every name, then decide in the event handler whether a LastWrite fits the file
+            // patterns. A watcher filter cannot express "all directories plus only matching files":
+            // filtering it to *.mkv would silently miss creation, deletion and renaming of directories.
+            watcher.Filters.Add("*");
 
             // Reported, not notified: a single file write raises several events on its own, and a bulk
             // copy raises thousands -- each of which used to invalidate the plugin's item cache and buy
             // a full re-listing of every directory it registered.
-            FileSystemEventHandler handler = (s, e) => _notifier.Report(pluginId);
+            FileSystemEventHandler handler = (s, e) =>
+            {
+                if (ShouldReportChange(pluginId, fullPath, e))
+                    _notifier.Report(pluginId);
+            };
             RenamedEventHandler renamedHandler = (s, e) => _notifier.Report(pluginId);
 
             watcher.Created += handler;
@@ -204,6 +239,34 @@ internal sealed class PluginDirectoryWatchRegistry
             {
                 watcherList.Remove(watcher);
             }
+        }
+    }
+
+    private void UpdateWatcherRecursion(string pluginId, string fullPath, bool recursive)
+    {
+        if (!_watchers.TryGetValue(pluginId, out var watcherList))
+            return;
+
+        lock (watcherList)
+        {
+            foreach (var watcher in watcherList.Where(w => string.Equals(w.Path, fullPath, StringComparison.OrdinalIgnoreCase)))
+                watcher.IncludeSubdirectories = recursive;
+        }
+    }
+
+    private bool ShouldReportChange(string pluginId, string fullPath, FileSystemEventArgs change)
+    {
+        if (change.ChangeType != WatcherChangeTypes.Changed || string.IsNullOrEmpty(change.Name))
+            return true;
+
+        if (!_registrations.TryGetValue(pluginId, out var registrations))
+            return true;
+
+        lock (registrations)
+        {
+            var filterPattern = registrations.FirstOrDefault(d => string.Equals(d.Path, fullPath, StringComparison.OrdinalIgnoreCase))?.FilterPattern;
+            var patterns = FilterPatternHelper.SplitOrNullIfMatchAll(filterPattern);
+            return patterns == null || FilterPatternHelper.Matches(Path.GetFileName(change.Name), patterns);
         }
     }
 

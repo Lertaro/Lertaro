@@ -35,6 +35,13 @@ public sealed class FilterPatternHelperTests
     public void SplitOrNullIfMatchAll_RealPatterns_ReturnThem() => CollectionAssert.AreEqual(new[] { "*.exe", "*.lnk" }, FilterPatternHelper.SplitOrNullIfMatchAll("*.exe;*.lnk"));
 
     [TestMethod]
+    public void Combine_MergesDistinctPatternsAndKeepsMatchAllDominant()
+    {
+        Assert.AreEqual("*.exe;*.lnk", FilterPatternHelper.Combine("*.exe", "*.lnk;*.EXE"));
+        Assert.AreEqual("*", FilterPatternHelper.Combine("*.exe", "*"));
+    }
+
+    [TestMethod]
     public void Matches_ExtensionPattern_IsCaseInsensitiveAndAnchoredToTheExtension()
     {
         var patterns = new[] { "*.exe" };

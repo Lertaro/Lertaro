@@ -44,10 +44,8 @@ public static class WatchedDirectoryMatcher
     /// <paramref name="watched"/>.
     /// </summary>
     /// <remarks>
-    /// Either nesting direction counts. The change being inside the watched directory is the obvious
-    /// one; the watched directory being inside the change matters because a directory is reported by
-    /// its own path when it is itself created, renamed or removed, and somebody watching what was in it
-    /// needs to hear that.
+    /// Only a change in the watched directory or one of its descendants counts. A change to a parent
+    /// directory does not refresh every registered child: it carries no proof that this subtree changed.
     ///
     /// Compared with a trailing separator on both sides, so "D:\Foo" never matches a sibling "D:\FooBar".
     /// </remarks>
