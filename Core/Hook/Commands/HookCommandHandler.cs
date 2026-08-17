@@ -53,6 +53,9 @@ public sealed class HookCommandHandler
                 case IpcMessageId.SetInlineWindowOnScreen:
                     _process.KeyboardHook?.IsInlineWindowOnScreen = msg.BoolVal;
                     break;
+                case IpcMessageId.RequestOpenedFolders:
+                    _process.PublishOpenedFolders();
+                    break;
                 case IpcMessageId.SetAppProcessId:
                     _process.AppProcessId = msg.ProcessId;
                     _process.KeyboardHook?.AppProcessId = msg.ProcessId;

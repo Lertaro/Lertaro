@@ -130,6 +130,19 @@ public sealed class PipeRequestBinarySerializerTests
     }
 
     [TestMethod]
+    public async Task WriteMessageAsync_RequestOpenedFolders_RoundTripsId()
+    {
+        using var stream = new MemoryStream();
+        await PipeRequestBinarySerializer.WriteMessageAsync(
+            stream, new IpcMessage { Id = IpcMessageId.RequestOpenedFolders });
+        stream.Position = 0;
+
+        var result = await PipeRequestBinarySerializer.ReadMessageAsync(stream);
+
+        Assert.AreEqual(IpcMessageId.RequestOpenedFolders, result.Id);
+    }
+
+    [TestMethod]
     public async Task WriteMessageAsync_OpenedFolders_RoundTripsPaths()
     {
         using var stream = new MemoryStream();

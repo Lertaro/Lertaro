@@ -20,6 +20,7 @@ public enum IpcMessageId : byte
     // moment the inline window takes focus for itself. This one means the window is simply on screen,
     // which stays true either way, and is what a suppression that has to outlive that handover needs.
     SetInlineWindowOnScreen = 18,
+    RequestOpenedFolders = 19,
 
     // Hook -> App
     Activate = 20,

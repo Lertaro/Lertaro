@@ -49,6 +49,7 @@ public static class PipeRequestBinarySerializer
         {
             case IpcMessageId.Stop:
             case IpcMessageId.ReloadSettings:
+            case IpcMessageId.RequestOpenedFolders:
             case IpcMessageId.Activate:
             case IpcMessageId.ExplorerDeactivated:
             case IpcMessageId.ActiveWindowMoved:
@@ -155,6 +156,7 @@ public static class PipeRequestBinarySerializer
         {
             case IpcMessageId.Stop:
             case IpcMessageId.ReloadSettings:
+            case IpcMessageId.RequestOpenedFolders:
             case IpcMessageId.Activate:
             case IpcMessageId.ExplorerDeactivated:
             case IpcMessageId.ActiveWindowMoved:

@@ -58,6 +58,8 @@ public sealed class HookProcess : IDisposable
             PostThreadMessage(_trackerThreadId, WM_REFRESH_ACTIVE_ADAPTERS, IntPtr.Zero, IntPtr.Zero);
     }
 
+    internal void PublishOpenedFolders() => _openedFolderSnapshots.Publish();
+
     internal uint AppProcessId
     {
         get => _appProcessId;
@@ -203,14 +205,12 @@ public sealed class HookProcess : IDisposable
             {
                 if (ShouldSuppressQuickNavTrigger()) return;
                 Logger.Log($"[HookProcess] OnMouseDoubleClick at ({x}, {y}). ActiveHwnd={_explorerTracker?.ActiveHwnd}, IsExplorerOrDesktopActive={_explorerTracker?.IsExplorerOrDesktopActive}", LogLevel.Debug);
-                _openedFolderSnapshots.Publish();
                 _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.MouseDoubleClick, MouseX = x, MouseY = y });
             };
             _mouseHook.OnMouseMiddleClick += (x, y) =>
             {
                 if (ShouldSuppressQuickNavTrigger()) return;
                 Logger.Log($"[HookProcess] OnMouseMiddleClick at ({x}, {y}). ActiveHwnd={_explorerTracker?.ActiveHwnd}, IsExplorerOrDesktopActive={_explorerTracker?.IsExplorerOrDesktopActive}", LogLevel.Debug);
-                _openedFolderSnapshots.Publish();
                 _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.MouseMiddleClick, MouseX = x, MouseY = y });
             };
             _mouseHook.Start();

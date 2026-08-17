@@ -43,6 +43,34 @@ public static class QuickNavigationMenu
         if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
             path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
+        _ = ShowAsync(mouseX, mouseY, generation, trigger, path);
+    }
+
+    private static async Task ShowAsync(int mouseX, int mouseY, int generation, QuickNavTriggerContext trigger, string path)
+    {
+        var hookClient = App.HookClient;
+        if (hookClient?.IsConnected == true)
+        {
+            var snapshotArrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Action<IReadOnlyList<string>> snapshotHandler = _ => snapshotArrived.TrySetResult();
+            hookClient.OnOpenedFoldersCaptured += snapshotHandler;
+
+            // The Explorer collector itself has a two-second COM safety cap. Waiting slightly longer
+            // keeps every menu entry point consistent while still falling back if its response is lost.
+            try
+            {
+                hookClient.SendMessage(new Core.Wire.IpcMessage { Id = Core.Wire.IpcMessageId.RequestOpenedFolders });
+                await Task.WhenAny(snapshotArrived.Task, Task.Delay(2100));
+            }
+            finally
+            {
+                hookClient.OnOpenedFoldersCaptured -= snapshotHandler;
+            }
+        }
+
+        if (generation != _sessionGeneration)
+            return;
+
         var dummyResult = new AppSearchResult { FullPath = path, Name = Path.GetFileName(path), IsDir = true };
         var contextMenu = new ContextMenu();
         contextMenu.PreviewKeyDown += (s, e) => { if (e.Key == System.Windows.Input.Key.Escape) { contextMenu.IsOpen = false; e.Handled = true; } };
