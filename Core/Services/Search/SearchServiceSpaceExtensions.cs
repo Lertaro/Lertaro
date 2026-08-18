@@ -10,7 +10,7 @@ public static class SearchServiceSpaceExtensions
     public static async Task<IReadOnlyList<SpaceIndexEntry>> GetSpaceEntriesAsync(
         this SearchService service, string? directory, CancellationToken token = default)
     {
-        var networkTask = Task.Run(() => UserNetworkDriveSearch.GetSpaceEntries(directory), token);
+        var networkTask = Task.Run(() => GetNetworkSpaceEntries(directory), token);
         var response = await service.SendPipeCommandAsync(new SearchRequestMessage
         {
             Id = SearchRequestId.GetSpaceEntries,
@@ -28,6 +28,21 @@ public static class SearchServiceSpaceExtensions
             .OrderByDescending(entry => entry.Size)
             .ThenByDescending(entry => entry.IsDirectory)
             .ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+    }
+
+    private static IReadOnlyList<SpaceIndexEntry> GetNetworkSpaceEntries(string? directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory))
+            return UserNetworkDriveSearch.GetSpaceEntries(directory);
+
+        // Directory Opus can report a mapped share as either its drive-letter spelling or its UNC
+        // spelling. Network indexes retain the spelling used when they were configured, so try both
+        // forms against the in-memory indexes before declaring the directory empty.
+        return IndexedPathSpelling.IndexSpellings(directory)
+            .SelectMany(UserNetworkDriveSearch.GetSpaceEntries)
+            .GroupBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
             .ToList();
     }
 }
