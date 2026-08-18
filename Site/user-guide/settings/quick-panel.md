@@ -12,6 +12,8 @@ else for the current summon.
 
 The key that summons it is on the [Hotkeys](./hotkeys-page) page (`Ctrl+F2` by default).
 
+The panel cannot be resized below 280 × 200 pixels, so its tabs, filter box, and content remain usable. When a Lertaro window is already in front, the summon hotkey is intentionally ignored instead of opening a panel over another Lertaro window; if the panel is already open, the same hotkey still closes it.
+
 The page below that switch splits in two: **Workspaces**, the sets of folders you assemble yourself,
 and **Plugin tabs**, the ones your plugins contribute. Both end up in the same tab strip.
 

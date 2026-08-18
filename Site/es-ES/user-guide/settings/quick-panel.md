@@ -11,6 +11,8 @@ trabajando. Arrastra su borde superior para moverlo a otro sitio durante la invo
 
 La tecla que lo invoca está en la página de [Atajos](./hotkeys-page) (`Ctrl+F2` por defecto).
 
+El panel no puede reducirse por debajo de 280 × 200 píxeles, para que sus pestañas, el cuadro de filtro y el contenido sigan siendo utilizables. Si una ventana de Lertaro ya está en primer plano, la tecla de invocación se ignora deliberadamente en lugar de abrir otro panel sobre Lertaro; si el panel ya está abierto, la misma tecla todavía lo cierra.
+
 La página bajo ese interruptor se divide en dos: **Espacios de trabajo**, los conjuntos de carpetas que reúnes tú, y
 **Pestañas de plugin**, las que aportan tus plugins. Ambas acaban en la misma franja de pestañas.
 
