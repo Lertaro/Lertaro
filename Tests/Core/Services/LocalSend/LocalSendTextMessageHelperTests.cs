@@ -29,6 +29,17 @@ public sealed class LocalSendTextMessageHelperTests
         Assert.IsFalse(LocalSendTextMessageHelper.TryGetMessage(multiple, out _));
     }
 
+    [TestMethod]
+    public void TryGetHttpUrl_RecognizesOnlyAbsoluteHttpUrls()
+    {
+        Assert.IsTrue(LocalSendTextMessageHelper.TryGetHttpUrl("https://example.test/path", out var https));
+        Assert.AreEqual("https", https!.Scheme);
+        Assert.IsTrue(LocalSendTextMessageHelper.TryGetHttpUrl(" http://example.test ", out var http));
+        Assert.AreEqual("http", http!.Scheme);
+        Assert.IsFalse(LocalSendTextMessageHelper.TryGetHttpUrl("www.example.test", out _));
+        Assert.IsFalse(LocalSendTextMessageHelper.TryGetHttpUrl("file://example.test", out _));
+    }
+
     private static PrepareUploadRequestDto CreateTextRequest(string fileType, string? preview) => new()
     {
         Files = new Dictionary<string, LocalSendFileDto>

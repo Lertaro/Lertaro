@@ -17,6 +17,18 @@ public static class LocalSendTextMessageHelper
         return true;
     }
 
+    public static bool TryGetHttpUrl(string text, out Uri? url)
+    {
+        url = null;
+        var candidate = text.Trim();
+        if (!candidate.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !candidate.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) return false;
+        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var parsed) ||
+            (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps)) return false;
+        url = parsed;
+        return true;
+    }
+
     private static bool IsTextType(string? fileType) =>
         string.Equals(fileType, "text", StringComparison.OrdinalIgnoreCase) ||
         (!string.IsNullOrEmpty(fileType) && fileType.StartsWith("text/", StringComparison.OrdinalIgnoreCase));

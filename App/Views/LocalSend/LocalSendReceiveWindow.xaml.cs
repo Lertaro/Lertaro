@@ -24,6 +24,7 @@ public partial class LocalSendReceiveWindow : Window
     private List<LocalSendReceiveFileItem> _fileItems = new();
     private string _senderAlias = string.Empty;
     private bool _isTextMessage;
+    private bool _isTextUrl;
     public LocalSendReceiveWindow(LocalSendUploadRequestArgs requestArgs)
     {
         InitializeComponent();
@@ -44,6 +45,7 @@ public partial class LocalSendReceiveWindow : Window
         if (_isTextMessage)
         {
             TxtWindowTitle.Text = TranslationManager.Instance["Settings_LocalSend_TextReceivedTitle"];
+            BtnCopyText.Content = TranslationManager.Instance[_isTextUrl ? "Settings_LocalSend_OpenInBrowser" : "Settings_LocalSend_Copy"];
             return;
         }
         if (GridStep1Footer.Visibility == Visibility.Visible)
@@ -70,8 +72,10 @@ public partial class LocalSendReceiveWindow : Window
         if (LocalSendTextMessageHelper.TryGetMessage(dto, out var textMessage))
         {
             _isTextMessage = true;
+            _isTextUrl = LocalSendTextMessageHelper.TryGetHttpUrl(textMessage, out _);
             TxtWindowTitle.Text = TranslationManager.Instance["Settings_LocalSend_TextReceivedTitle"];
             TxtTextMessage.Text = textMessage;
+            BtnCopyText.Content = TranslationManager.Instance[_isTextUrl ? "Settings_LocalSend_OpenInBrowser" : "Settings_LocalSend_Copy"];
             FileListBorder.Visibility = Visibility.Collapsed;
             TextMessageBorder.Visibility = Visibility.Visible;
             GridStep1Footer.Visibility = Visibility.Collapsed;
@@ -284,5 +288,6 @@ public partial class LocalSendReceiveWindow : Window
         Close();
     }
 
-    private void BtnCopyText_Click(object sender, RoutedEventArgs e) => System.Windows.Clipboard.SetText(TxtTextMessage.Text);
+    private void BtnCopyText_Click(object sender, RoutedEventArgs e)
+    { if (_isTextUrl) { try { Process.Start(new ProcessStartInfo(TxtTextMessage.Text.Trim()) { UseShellExecute = true }); } catch { } } else System.Windows.Clipboard.SetText(TxtTextMessage.Text); Close(); }
 }
