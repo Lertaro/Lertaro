@@ -8,5 +8,7 @@
   "Plugin_Comp_Desc_DirectoryOpusInlineSearchAdapter": "为 Directory Opus 双栏文件管理器的主面板提供内嵌式的拼音首字母过滤与快速定位服务。",
   "Plugins_DirectoryOpus_Favorites_RootLabel": "收藏夹",
   "Plugins_DirectoryOpus_Favorites_Empty": "(空)",
-  "Plugin_Comp_Desc_FavoritesProvider": "读取 Directory Opus 配置文件中的收藏夹菜单，供快速导航级联菜单调用。"
+  "Plugin_Comp_Desc_FavoritesProvider": "读取 Directory Opus 配置文件中的收藏夹菜单，供快速导航级联菜单调用。",
+  "Plugins_DirectoryOpus_SizeColumn_Label": "Lertaro 大小",
+  "Plugins_DirectoryOpus_SizeColumn_ScriptDescription": "添加 Lertaro 大小列，使用当前内存中的 Lertaro 索引显示文件夹大小。"
 }

@@ -8,5 +8,7 @@
   "Plugin_Comp_Desc_DirectoryOpusInlineSearchAdapter": "為 Directory Opus 雙欄檔案總管的主面板提供內嵌式的拼音首字母篩選與快速定位服務。",
   "Plugins_DirectoryOpus_Favorites_RootLabel": "我的最愛",
   "Plugins_DirectoryOpus_Favorites_Empty": "(空)",
-  "Plugin_Comp_Desc_FavoritesProvider": "讀取 Directory Opus 設定檔中的我的最愛選單，供快速導航級聯選單調用。"
+  "Plugin_Comp_Desc_FavoritesProvider": "讀取 Directory Opus 設定檔中的我的最愛選單，供快速導航級聯選單調用。",
+  "Plugins_DirectoryOpus_SizeColumn_Label": "Lertaro 大小",
+  "Plugins_DirectoryOpus_SizeColumn_ScriptDescription": "加入 Lertaro 大小欄，使用目前記憶體中的 Lertaro 索引顯示資料夾大小。"
 }

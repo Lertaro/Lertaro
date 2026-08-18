@@ -1,6 +1,7 @@
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Services;
+using Lertaro.Plugins.DirectoryOpus.Scripts;
 
 namespace Lertaro.Plugins.DirectoryOpus;
 
@@ -18,13 +19,16 @@ public class DirectoryOpusPlugin : IPlugin, IConfigurable, ITranslationProvider
     {
         lock (LockObj)
         {
-            if (Cache.TryGetValue(cultureName, out var cached))
+            if (!Cache.TryGetValue(cultureName, out var translations))
             {
-                return cached;
+                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                translations = TranslationService.LoadEmbeddedTranslations(assembly, cultureName, "Plugin");
+                Cache[cultureName] = translations;
             }
 
-            var translations = TranslationService.LoadEmbeddedTranslations(System.Reflection.Assembly.GetExecutingAssembly(), cultureName, "Plugin");
-            Cache[cultureName] = translations;
+            if (cultureName.Equals(TranslationService.GetCurrentCulture(), StringComparison.OrdinalIgnoreCase))
+                DirectoryOpusSizeColumnInstaller.EnsureInstalled(System.Reflection.Assembly.GetExecutingAssembly(), translations);
+
             return translations;
         }
     }

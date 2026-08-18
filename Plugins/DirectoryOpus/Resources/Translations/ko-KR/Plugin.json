@@ -8,5 +8,7 @@
   "Plugin_Comp_Desc_DirectoryOpusInlineSearchAdapter": "Directory Opus의 메인 리스터 창에 인라인 병음/글자 필터링과 빠른 탐색을 제공합니다.",
   "Plugins_DirectoryOpus_Favorites_RootLabel": "즐겨찾기",
   "Plugins_DirectoryOpus_Favorites_Empty": "(비어 있음)",
-  "Plugin_Comp_Desc_FavoritesProvider": "Directory Opus의 설정 파일에서 즐겨찾기 메뉴를 읽어 빠른 탐색 계층 메뉴로 제공합니다."
+  "Plugin_Comp_Desc_FavoritesProvider": "Directory Opus의 설정 파일에서 즐겨찾기 메뉴를 읽어 빠른 탐색 계층 메뉴로 제공합니다.",
+  "Plugins_DirectoryOpus_SizeColumn_Label": "Lertaro 크기",
+  "Plugins_DirectoryOpus_SizeColumn_ScriptDescription": "현재 메모리에 있는 Lertaro 인덱스를 사용해 폴더 크기를 표시하는 Lertaro 크기 열을 추가합니다."
 }

@@ -1,6 +1,8 @@
 using Lertaro.Cli.Search;
+using Lertaro.Cli.Space;
 using Lertaro.Cli.Ui;
 using Lertaro.Core.Services.Installation;
+using System.Text;
 
 // An fzf-style CLI: instead of replicating the App's own search initialization (plugin loading,
 // UserNetworkDriveSearch.Configure()), this connects to a pipe the App itself hosts
@@ -30,6 +32,30 @@ using Lertaro.Core.Services.Installation;
 // Getting onto PATH at all is the installer's job (Installer\installer.iss's "addtopath" task adds {app}
 // -- where this exe already sits alongside Lertaro.App.exe -- straight to the machine's PATH), not this
 // program's own -- there's no install/uninstall command here.
+
+if (SpaceEntriesCommand.IsRequested(args))
+{
+    if (!SpaceEntriesCommand.TryGetDirectory(args, out var directory))
+    {
+        Console.Error.WriteLine("Usage: lff --space-entries <directory>");
+        Environment.ExitCode = 1;
+        return;
+    }
+
+    var spacePipeName = AppSearchPipeClient.PipeNameFor(CurrentUserIdentity.SessionHash);
+    try
+    {
+        var entries = await AppSearchPipeClient.GetSpaceEntriesAsync(spacePipeName, directory);
+        Console.OutputEncoding = new UTF8Encoding(false);
+        await Console.Out.WriteAsync(SpaceEntriesJsonFormatter.Serialize(entries));
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"[error] Could not read indexed space entries ({ex.GetType().Name}: {ex.Message}) -- is the Lertaro App running?");
+        Environment.ExitCode = 1;
+    }
+    return;
+}
 
 var pipeName = AppSearchPipeClient.PipeNameFor(CurrentUserIdentity.SessionHash);
 

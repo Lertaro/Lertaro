@@ -8,5 +8,7 @@
   "Plugin_Comp_Desc_DirectoryOpusInlineSearchAdapter": "Provides inline pinyin/letter filtering and quick navigation for the main lister window of Directory Opus.",
   "Plugins_DirectoryOpus_Favorites_RootLabel": "Favorites",
   "Plugins_DirectoryOpus_Favorites_Empty": "(empty)",
-  "Plugin_Comp_Desc_FavoritesProvider": "Reads Directory Opus's own Favorites menu from its configuration file and offers it as a Quick Navigation cascade."
+  "Plugin_Comp_Desc_FavoritesProvider": "Reads Directory Opus's own Favorites menu from its configuration file and offers it as a Quick Navigation cascade.",
+  "Plugins_DirectoryOpus_SizeColumn_Label": "Lertaro Size",
+  "Plugins_DirectoryOpus_SizeColumn_ScriptDescription": "Adds the Lertaro Size column, using the current in-memory Lertaro index for folder sizes."
 }

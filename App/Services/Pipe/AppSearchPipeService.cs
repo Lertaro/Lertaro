@@ -98,8 +98,17 @@ public static class AppSearchPipeService
                 while (pipe.IsConnected)
                 {
                     var request = await SearchRequestBinarySerializer.ReadSearchRequestAsync(pipe);
+                    if (request.Id == SearchRequestId.GetSpaceEntries)
+                    {
+                        await AppSearchPipeSpaceEntries.WriteAsync(SharedSearchService, request.Drive, pipe);
+                        continue;
+                    }
+
                     if (request.Id != SearchRequestId.Search)
-                        continue; // prototype: only the plain (non-directory-scoped) full-window search is wired up
+                    {
+                        await PipeResponseBinarySerializer.WriteErrorAsync(pipe, "Unsupported App search pipe request.");
+                        continue;
+                    }
 
                     using var queryCts = new CancellationTokenSource();
                     using var watchdogStopCts = new CancellationTokenSource();

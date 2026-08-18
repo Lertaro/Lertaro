@@ -1,6 +1,6 @@
 using System.IO.Pipes;
 using Lertaro.Core;
-
+using Lertaro.Core.IndexV2.Space;
 using Lertaro.Core.Wire;
 namespace Lertaro.Cli.Search;
 
@@ -46,6 +46,26 @@ public static class AppSearchPipeClient
         using var probePipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
         using var probeCts = new CancellationTokenSource(ConnectTimeoutMs);
         await probePipe.ConnectAsync(ConnectTimeoutMs, probeCts.Token);
+    }
+
+    public static async Task<IReadOnlyList<SpaceIndexEntry>> GetSpaceEntriesAsync(string pipeName, string directory, CancellationToken token = default)
+    {
+        using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await pipe.ConnectAsync(ConnectTimeoutMs, token);
+
+        await SearchRequestBinarySerializer.WriteSearchRequestAsync(pipe, new SearchRequestMessage
+        {
+            Id = SearchRequestId.GetSpaceEntries,
+            Drive = directory
+        }, token);
+
+        var response = await PipeResponseBinarySerializer.ReadAsync(pipe, token);
+        if (response.Kind == PipeResponseKind.SpaceEntries)
+            return response.SpaceEntries ?? Array.Empty<SpaceIndexEntry>();
+
+        throw new InvalidDataException(response.Message.Length == 0
+            ? "The Lertaro App returned an unexpected response."
+            : response.Message);
     }
 
     // One fresh connection per search (mirrors SearchService.SendSearchPipeCommandAsync's own pattern for
