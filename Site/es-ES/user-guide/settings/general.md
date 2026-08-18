@@ -108,6 +108,8 @@ diseño de resultados en cuadrícula/tabla — no hay columnas que reordenar en 
 **Orden de filtros de la barra lateral** — el mismo mecanismo, para el orden en que aparecen los grupos de filtro
 de la barra lateral (Tipo, Fecha de modificación, y cualquier grupo añadido por un plugin).
 
+Mientras se ejecuta una búsqueda completa, cada filtro de la barra lateral muestra en tiempo real cuántos resultados coinciden con la consulta actual. El recuento se actualiza a medida que llegan resultados y se reinicia al cambiar la consulta; no depende del filtro de la barra lateral seleccionado. El ancho de la barra lateral se ajusta al nombre y recuento más largos para que los nombres se muestren completos sin saltos de línea.
+
 **Orden de secciones del menú de acciones** — el mismo mecanismo, para el orden en que aparecen las secciones del
 [menú de acciones](../actions-and-preview#menu-de-acciones): el grupo de acciones integradas, más una sección por
 cada plugin que contribuya acciones ahí (por ejemplo, Acciones personalizadas, o el menú contextual del shell de

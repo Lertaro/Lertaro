@@ -101,6 +101,8 @@ columns to reorder in the compact list layout.
 **Sidebar Filter Order** — same mechanic, for the order the sidebar's filter groups (Type, Date
 Modified, and any plugin-added groups) appear in.
 
+While a full search is running, each sidebar filter shows a live count of matches in the current query. Counts update as results stream in and reset when the query changes; they are not affected by which sidebar filter is currently selected. The sidebar width follows its widest filter label and count, so labels remain visible without wrapping.
+
 **Actions Menu Section Order** — same mechanic, for the order the sections of the
 [actions menu](../actions-and-preview#actions-menu) appear in: the built-in actions group, plus one
 section per plugin that contributes actions there (e.g. Custom Actions, or the Windows shell
