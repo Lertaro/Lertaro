@@ -30,23 +30,30 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
         if (string.IsNullOrEmpty(query) || !query.StartsWith(trigger, StringComparison.OrdinalIgnoreCase))
             yield break;
 
-        var text = query[trigger.Length..].Trim();
+        var parsed = TranslationQueryParser.Parse(query[trigger.Length..], TranslationService.GetCurrentCulture());
+        var text = parsed.Text;
         if (text.Length == 0)
         {
             yield return CreateItem(TranslationService.Get("Translator_PlaceholderTitle"), TranslationService.Get("Translator_PlaceholderDesc"), "None");
             yield break;
         }
 
-        var targetLanguage = TranslationService.GetCurrentCulture();
+        var targetLanguage = parsed.TargetLanguage;
         var key = targetLanguage + "\n" + text;
         _latestRequestKey = key;
         if (TryGetCached(key, out var cached))
         {
             if (cached.Translation is { } translation)
             {
-                var description = string.IsNullOrWhiteSpace(translation.DetectedLanguage)
-                    ? TranslationService.Get("Translator_ResultDesc")
-                    : TranslationService.Format("Translator_DetectedLanguage", translation.DetectedLanguage);
+                var detectedLanguage = string.IsNullOrWhiteSpace(translation.DetectedLanguage)
+                    ? TranslationService.Get("Translator_UnknownLanguage")
+                    : translation.DetectedLanguage;
+                var translatedTo = string.IsNullOrWhiteSpace(translation.TargetLanguage)
+                    ? TranslationService.Get("Translator_UnknownLanguage")
+                    : translation.TargetLanguage;
+                var description = TranslationService.Format("Translator_DetectedLanguage", detectedLanguage)
+                                  + " · "
+                                  + TranslationService.Format("Translator_TargetLanguage", translatedTo);
                 yield return CreateItem(translation.Text, description, "Copy", translation.Text);
             }
             else
@@ -56,7 +63,7 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
             yield break;
         }
 
-        EnsureFetchStarted(key, text, targetLanguage, trigger);
+        EnsureFetchStarted(key, text, targetLanguage, trigger, query);
         yield return CreateItem(TranslationService.Get("Translator_LoadingTitle"), TranslationService.Get("Translator_LoadingDesc"), "None");
     }
 
@@ -82,7 +89,7 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
             return Cache.TryGetValue(key, out entry);
     }
 
-    private static void EnsureFetchStarted(string key, string text, string targetLanguage, string trigger)
+    private static void EnsureFetchStarted(string key, string text, string targetLanguage, string trigger, string requestQuery)
     {
         lock (PendingRequests)
         {
@@ -119,7 +126,7 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
 
             SearchRefreshService.RefreshIfMatches(currentQuery =>
                 currentQuery.StartsWith(trigger, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(currentQuery[trigger.Length..].Trim(), text, StringComparison.Ordinal));
+                string.Equals(currentQuery, requestQuery, StringComparison.Ordinal));
         });
     }
 

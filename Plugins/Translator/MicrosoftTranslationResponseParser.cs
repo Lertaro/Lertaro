@@ -20,13 +20,17 @@ internal static class MicrosoftTranslationResponseParser
         if (string.IsNullOrWhiteSpace(text))
             return false;
 
+        var targetLanguage = translations[0].TryGetProperty("to", out var targetLanguageElement)
+            ? targetLanguageElement.GetString() ?? string.Empty
+            : string.Empty;
+
         var language = item.TryGetProperty("detectedLanguage", out var detectedLanguage) &&
                        detectedLanguage.TryGetProperty("language", out var languageElement)
             ? languageElement.GetString() ?? string.Empty
             : string.Empty;
-        response = new TranslationResponse(text, language);
+        response = new TranslationResponse(text, language, targetLanguage);
         return true;
     }
 }
 
-internal readonly record struct TranslationResponse(string Text, string DetectedLanguage);
+internal readonly record struct TranslationResponse(string Text, string DetectedLanguage, string TargetLanguage);
