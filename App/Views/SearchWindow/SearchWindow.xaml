@@ -171,7 +171,7 @@
                         </Grid.Style>
                     <Grid.ColumnDefinitions>
                         <!-- Sidebar -->
-                        <ColumnDefinition Width="200" MinWidth="160" MaxWidth="280"/>
+                        <ColumnDefinition Width="Auto" MinWidth="200"/>
                         <!-- Content Area -->
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>

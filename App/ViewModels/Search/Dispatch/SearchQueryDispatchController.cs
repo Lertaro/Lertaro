@@ -19,6 +19,7 @@ internal sealed class SearchQueryDispatchController
     private readonly Action<Visibility> _setLoadingPanelVisibility;
     private readonly Action<bool> _setIsSearchBoxEnabled;
     private readonly Action<int> _setReceivedCount;
+    private readonly Action<IReadOnlyList<AppSearchResult>, bool> _updateSidebarCounts;
     // bool: whether this render extends what is already on screen (a later paint of a search still
     // streaming) rather than replacing it with a different result set.
     // int: index of the first row this render changed -- everything before it is already correct on
@@ -36,6 +37,7 @@ internal sealed class SearchQueryDispatchController
         Action<Visibility> setLoadingPanelVisibility,
         Action<bool> setIsSearchBoxEnabled,
         Action<int> setReceivedCount,
+        Action<IReadOnlyList<AppSearchResult>, bool> updateSidebarCounts,
         Action<bool, int> applyFiltersAndRender)
     {
         _searchEngine = searchEngine;
@@ -46,6 +48,7 @@ internal sealed class SearchQueryDispatchController
         _setLoadingPanelVisibility = setLoadingPanelVisibility;
         _setIsSearchBoxEnabled = setIsSearchBoxEnabled;
         _setReceivedCount = setReceivedCount;
+        _updateSidebarCounts = updateSidebarCounts;
         _applyFiltersAndRender = applyFiltersAndRender;
     }
 
@@ -115,6 +118,7 @@ internal sealed class SearchQueryDispatchController
                     ? results.FindAll(r => !r.IsEmptyResult)
                     : results;
                 var extendsContent = rendersSoFar++ > 0;
+                _updateSidebarCounts(accumulator?.LastBatchRows ?? Array.Empty<AppSearchResult>(), final);
                 // Token providers (e.g. the built-in ":[SCMA]"/".ext"/"::expr" sort+filter+match
                 // plugin) render via a follow-up ApplyFiltersAndRender inside
                 // RefreshAfterTokenDispatchAsync instead of the call below -- a provider with no

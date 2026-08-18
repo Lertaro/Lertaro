@@ -54,20 +54,11 @@ public class DynamicSidebarGroupViewModel : ViewModelBase
             if (selected.Count == 0)
                 return null;
             if (selected.Count == 1)
-                return selected[0].FilterPredicate;
+                return results => Task.FromResult<IReadOnlyList<ISearchResult>>(
+                    results.Where(selected[0].MatchPredicate).ToList());
 
-            return async results =>
-            {
-                var matchedSets = new List<HashSet<ISearchResult>>(selected.Count);
-                foreach (var item in selected)
-                {
-                    var subset = item.FilterPredicate != null ? await item.FilterPredicate(results) : results;
-                    matchedSets.Add(new HashSet<ISearchResult>(subset));
-                }
-                // Filter the ORIGINAL list once (rather than concatenating each subset) so the union
-                // comes back in the same relative order results already had.
-                return results.Where(r => matchedSets.Any(s => s.Contains(r))).ToList();
-            };
+            return results => Task.FromResult<IReadOnlyList<ISearchResult>>(
+                results.Where(result => selected.Any(item => item.MatchPredicate(result))).ToList());
         }
     }
 
@@ -133,7 +124,37 @@ public class DynamicSidebarItemViewModel : ViewModelBase
     public string IconString => !string.IsNullOrEmpty(_item.IconKey) ? _item.IconKey : "◆";
     public string? IconData => _item.IconData;
     public bool HasIconData => !string.IsNullOrEmpty(_item.IconData);
-    public Func<IReadOnlyList<ISearchResult>, Task<IReadOnlyList<ISearchResult>>>? FilterPredicate => _item.FilterPredicate;
+    internal Func<ISearchResult, bool> MatchPredicate => _item.MatchPredicate;
+
+    private int _count;
+    public int Count
+    {
+        get => _count;
+        private set => SetProperty(ref _count, value);
+    }
+
+    private bool _hasCount;
+    public string CountText => _hasCount ? _count.ToString("N0") : string.Empty;
+
+    internal void SetCount(int count)
+    {
+        var changed = SetProperty(ref _count, count, nameof(Count));
+        if (!_hasCount)
+        {
+            _hasCount = true;
+            changed = true;
+        }
+        if (changed)
+            OnPropertyChanged(nameof(CountText));
+    }
+
+    internal void ClearCount()
+    {
+        if (!_hasCount)
+            return;
+        _hasCount = false;
+        OnPropertyChanged(nameof(CountText));
+    }
 
     private bool _isSelected;
     public bool IsSelected

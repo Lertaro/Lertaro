@@ -69,9 +69,14 @@
                                                         <Path x:Name="PathIcon" Data="{Binding IconData}" Stretch="Uniform" Visibility="Collapsed"
                                                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
                                                     </Grid>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding CountText}"
+                                                               Margin="10,0,0,0" FontSize="11"
+                                                               Foreground="{DynamicResource TextSecondary}"
+                                                               VerticalAlignment="Center"/>
                                                     <TextBlock Text="{Binding DisplayName}"  FontSize="13"
                                                                VerticalAlignment="Center"
-                                                               TextWrapping="Wrap"/>
+                                                               TextWrapping="NoWrap"
+                                                               TextTrimming="CharacterEllipsis"/>
                                                 </DockPanel>
                                             </ToggleButton>
                                             <DataTemplate.Triggers>

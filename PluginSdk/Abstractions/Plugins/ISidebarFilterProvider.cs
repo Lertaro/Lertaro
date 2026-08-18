@@ -26,7 +26,7 @@ public class SidebarFilterGroup
 
     /// <summary>
     /// Whether more than one item in this group can be selected at once, combined with OR (a result
-    /// matching ANY selected item's <see cref="SidebarFilterItem.FilterPredicate"/> is kept). Leave
+    /// matching ANY selected item's <see cref="SidebarFilterItem.MatchPredicate"/> is kept). Leave
     /// false for items whose meaning only makes sense one at a time (e.g. overlapping/cumulative date
     /// ranges) -- the host still lets the user clear the group's selection entirely regardless.
     /// </summary>
@@ -52,9 +52,9 @@ public class SidebarFilterItem
     public string? IconKey { get; set; }
 
     /// <summary>
-    /// Batch predicate to narrow a result set down to what matches this filter. Takes the full
-    /// list at once (not one item at a time) so an implementation that needs metadata (size,
-    /// dates) can fetch it for every item in a single batched call instead of one lookup per item.
+    /// Returns whether one result belongs to this filter. The host uses this same predicate both
+    /// while counting the streamed search results and when applying the selected filter, so counts
+    /// cannot drift from the rows that a filter actually keeps.
     /// </summary>
-    public Func<IReadOnlyList<ISearchResult>, Task<IReadOnlyList<ISearchResult>>>? FilterPredicate { get; set; }
+    public Func<ISearchResult, bool> MatchPredicate { get; set; } = _ => false;
 }

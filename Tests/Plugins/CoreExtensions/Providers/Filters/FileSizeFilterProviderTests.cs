@@ -16,63 +16,36 @@ public sealed class FileSizeFilterProviderTests
         public FileMetadata Metadata { get; init; }
     }
 
-    private static Func<IReadOnlyList<ISearchResult>, Task<IReadOnlyList<ISearchResult>>> GetPredicate(string id)
+    private static Func<ISearchResult, bool> GetPredicate(string id)
     {
         var provider = new FileSizeFilterProvider();
         var group = provider.GetFilterGroups().Single();
-        return group.Items.Single(i => i.Id == id).FilterPredicate!;
+        return group.Items.Single(i => i.Id == id).MatchPredicate;
     }
 
     private static FakeResult WithSize(long size, bool isDir = false) =>
         new() { IsDir = isDir, Metadata = new FileMetadata(size, default, DateTime.Now, default) };
 
     [TestMethod]
-    public async Task Small_FileUnderOneMb_IsIncluded()
-    {
-        var filtered = await GetPredicate("Size_Small")(new ISearchResult[] { WithSize(500_000) });
-
-        Assert.HasCount(1, filtered);
-    }
+    public void Small_FileUnderOneMb_IsIncluded() => Assert.IsTrue(GetPredicate("Size_Small")(WithSize(500_000)));
 
     [TestMethod]
-    public async Task Small_FileOverOneMb_IsExcluded()
-    {
-        var filtered = await GetPredicate("Size_Small")(new ISearchResult[] { WithSize(2 * 1024 * 1024) });
-
-        Assert.IsEmpty(filtered);
-    }
+    public void Small_FileOverOneMb_IsExcluded() => Assert.IsFalse(GetPredicate("Size_Small")(WithSize(2 * 1024 * 1024)));
 
     [TestMethod]
-    public async Task Medium_FileBetweenOneAndHundredMb_IsIncluded()
-    {
-        var filtered = await GetPredicate("Size_Medium")(new ISearchResult[] { WithSize(50 * 1024 * 1024) });
-
-        Assert.HasCount(1, filtered);
-    }
+    public void Medium_FileBetweenOneAndHundredMb_IsIncluded() => Assert.IsTrue(GetPredicate("Size_Medium")(WithSize(50 * 1024 * 1024)));
 
     [TestMethod]
-    public async Task Large_FileOverHundredMb_IsIncluded()
-    {
-        var filtered = await GetPredicate("Size_Large")(new ISearchResult[] { WithSize(200 * 1024 * 1024) });
-
-        Assert.HasCount(1, filtered);
-    }
+    public void Large_FileOverHundredMb_IsIncluded() => Assert.IsTrue(GetPredicate("Size_Large")(WithSize(200 * 1024 * 1024)));
 
     [TestMethod]
-    public async Task Large_Directory_IsExcludedEvenIfMetadataPresent()
-    {
-        var filtered = await GetPredicate("Size_Large")(new ISearchResult[] { WithSize(200 * 1024 * 1024, isDir: true) });
-
-        Assert.IsEmpty(filtered);
-    }
+    public void Large_Directory_IsExcludedEvenIfMetadataPresent() => Assert.IsFalse(GetPredicate("Size_Large")(WithSize(200 * 1024 * 1024, isDir: true)));
 
     [TestMethod]
-    public async Task Small_UnknownMetadata_IsExcluded()
+    public void Small_UnknownMetadata_IsExcluded()
     {
         var result = new FakeResult { Metadata = new FileMetadata(500, default, DateTime.MinValue, default) };
 
-        var filtered = await GetPredicate("Size_Small")(new ISearchResult[] { result });
-
-        Assert.IsEmpty(filtered);
+        Assert.IsFalse(GetPredicate("Size_Small")(result));
     }
 }

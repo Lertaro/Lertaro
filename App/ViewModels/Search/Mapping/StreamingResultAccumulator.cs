@@ -33,6 +33,7 @@ internal sealed class StreamingResultAccumulator
     private int _consumed;
     private List<Entry> _ranked = new();
     private readonly List<AppSearchResult> _rows = new();
+    private readonly List<AppSearchResult> _lastBatchRows = new();
     private readonly HashSet<string> _seedPaths = new(StringComparer.OrdinalIgnoreCase);
 
     public StreamingResultAccumulator(
@@ -76,6 +77,9 @@ internal sealed class StreamingResultAccumulator
     /// <summary>Rows currently held, in rank order.</summary>
     public int Count => _ranked.Count;
 
+    /// <summary>Rows created by the most recent arrival batch, before it was merged into rank order.</summary>
+    public IReadOnlyList<AppSearchResult> LastBatchRows => _lastBatchRows;
+
     /// <summary>
     /// Index of the first row the most recent <see cref="Absorb"/> changed. Everything before it is
     /// untouched, which is what lets the view update only the tail instead of rebuilding.
@@ -115,6 +119,7 @@ internal sealed class StreamingResultAccumulator
     private List<AppSearchResult> AbsorbRange(IReadOnlyList<SearchResult> arrivals, int start, int count)
     {
         FirstChangedIndex = _ranked.Count;
+        _lastBatchRows.Clear();
 
         if (count > 0)
         {
@@ -129,7 +134,9 @@ internal sealed class StreamingResultAccumulator
                     continue;
                 if (_seedPaths.Contains(NormalizePath(raw.Path)))
                     continue;
-                chunk.Add(new Entry(raw, SearchResultMapper.CreateUiResult(raw, _query, 0, isApplication: false, scope: null)));
+                var row = SearchResultMapper.CreateUiResult(raw, _query, 0, isApplication: false, scope: null);
+                _lastBatchRows.Add(row);
+                chunk.Add(new Entry(raw, row));
             }
 
             _consumed += count;

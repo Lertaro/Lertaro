@@ -37,6 +37,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
     private string _resultCountText = "";
     private bool _isSearching;
     private bool _isResultsListEnabled = true;
+    private SearchSidebarCountHelper? _sidebarCountHelper;
     // Deliberately does not toggle IsResultsListEnabled while searching -- that used to disable the
     // list mid-search, which caused a Win32 disabled-theme flash and blocked immediate navigation.
     public bool IsSearching
@@ -44,13 +45,11 @@ public class SearchViewModel : ViewModelBase, IDisposable
         get => _isSearching;
         private set => SetProperty(ref _isSearching, value);
     }
-
     public bool IsResultsListEnabled
     {
         get => _isResultsListEnabled;
         private set => SetProperty(ref _isResultsListEnabled, value);
     }
-
     public SearchViewModel(string initialQuery = "")
     {
         _searchService = new SearchService();
@@ -73,6 +72,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
                 if (DynamicSidebarGroups.All(group => group.CombinedPredicate == null))
                     ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count);
             },
+            updateSidebarCounts: (batch, final) => _sidebarCountHelper?.Update(batch, final),
             applyFiltersAndRender: ApplyFiltersAndRender);
 
         // Initialize dynamic plugin sidebar groups -- PluginManager.SidebarFilterProviders already
@@ -91,6 +91,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
         {
             DynamicSidebarGroups[0].IsFirst = true;
         }
+        _sidebarCountHelper = new SearchSidebarCountHelper(DynamicSidebarGroups.SelectMany(group => group.Items).ToList());
 
         // Seeds the results grid's sort state from whatever was last clicked THIS app run (see
         // SearchResultSortMemory's own comment) so reopening the full window keeps showing the same
@@ -103,7 +104,6 @@ public class SearchViewModel : ViewModelBase, IDisposable
 
         TranslationManager.Instance.PropertyChanged += OnTranslationsChanged;
     }
-
     private void OnTranslationsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (string.IsNullOrEmpty(e.PropertyName) || e.PropertyName == "Item[]")
@@ -129,6 +129,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _advancedQuery, value))
             {
+                _sidebarCountHelper?.Reset();
                 if (string.IsNullOrWhiteSpace(value))
                 {
                     _searchEngine.CancelPendingSearch();
@@ -209,7 +210,6 @@ public class SearchViewModel : ViewModelBase, IDisposable
     }
 
     public void OnDynamicFilterChanged() => ApplyFiltersAndRender(extendsContent: false, unchangedPrefix: 0);
-
     private readonly DynamicFilterCoordinator _dynamicFilterCoordinator = new();
 
     // DynamicFilterCoordinator renders through an Action<List<AppSearchResult>> and can do so twice

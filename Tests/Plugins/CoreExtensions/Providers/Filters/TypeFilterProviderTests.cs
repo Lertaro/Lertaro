@@ -15,76 +15,36 @@ public sealed class TypeFilterProviderTests
         public bool IsApplication { get; init; }
     }
 
-    private static Func<IReadOnlyList<ISearchResult>, Task<IReadOnlyList<ISearchResult>>> GetPredicate(string id)
+    private static Func<ISearchResult, bool> GetPredicate(string id)
     {
         var provider = new TypeFilterProvider();
         var group = provider.GetFilterGroups().Single();
-        return group.Items.Single(i => i.Id == id).FilterPredicate!;
+        return group.Items.Single(i => i.Id == id).MatchPredicate;
     }
 
     [TestMethod]
-    public async Task TypeFolder_Directory_IsIncluded()
-    {
-        var filtered = await GetPredicate("Type_Folder")(new ISearchResult[] { new FakeResult { IsDir = true } });
-
-        Assert.HasCount(1, filtered);
-    }
+    public void TypeFolder_Directory_IsIncluded() => Assert.IsTrue(GetPredicate("Type_Folder")(new FakeResult { IsDir = true }));
 
     [TestMethod]
-    public async Task TypeFolder_ApplicationFlaggedDirectory_IsExcluded()
-    {
-        var filtered = await GetPredicate("Type_Folder")(new ISearchResult[] { new FakeResult { IsDir = true, IsApplication = true } });
-
-        Assert.IsEmpty(filtered);
-    }
+    public void TypeFolder_ApplicationFlaggedDirectory_IsExcluded() => Assert.IsFalse(GetPredicate("Type_Folder")(new FakeResult { IsDir = true, IsApplication = true }));
 
     [TestMethod]
-    public async Task TypeFile_RegularFile_IsIncluded()
-    {
-        var filtered = await GetPredicate("Type_File")(new ISearchResult[] { new FakeResult { IsDir = false } });
-
-        Assert.HasCount(1, filtered);
-    }
+    public void TypeFile_RegularFile_IsIncluded() => Assert.IsTrue(GetPredicate("Type_File")(new FakeResult { IsDir = false }));
 
     [TestMethod]
-    public async Task TypeDoc_TxtExtension_IsIncluded()
-    {
-        var filtered = await GetPredicate("Type_Doc")(new ISearchResult[] { new FakeResult { FullPath = @"C:\a.txt" } });
-
-        Assert.HasCount(1, filtered);
-    }
+    public void TypeDoc_TxtExtension_IsIncluded() => Assert.IsTrue(GetPredicate("Type_Doc")(new FakeResult { FullPath = @"C:\a.txt" }));
 
     [TestMethod]
-    public async Task TypeDoc_ExtensionMatchIsCaseInsensitive()
-    {
-        var filtered = await GetPredicate("Type_Doc")(new ISearchResult[] { new FakeResult { FullPath = @"C:\a.TXT" } });
-
-        Assert.HasCount(1, filtered);
-    }
+    public void TypeDoc_ExtensionMatchIsCaseInsensitive() => Assert.IsTrue(GetPredicate("Type_Doc")(new FakeResult { FullPath = @"C:\a.TXT" }));
 
     [TestMethod]
-    public async Task TypeImage_JpgExtension_IsIncluded()
-    {
-        var filtered = await GetPredicate("Type_Image")(new ISearchResult[] { new FakeResult { FullPath = @"C:\photo.jpg" } });
-
-        Assert.HasCount(1, filtered);
-    }
+    public void TypeImage_JpgExtension_IsIncluded() => Assert.IsTrue(GetPredicate("Type_Image")(new FakeResult { FullPath = @"C:\photo.jpg" }));
 
     [TestMethod]
-    public async Task TypeImage_TxtExtension_IsExcluded()
-    {
-        var filtered = await GetPredicate("Type_Image")(new ISearchResult[] { new FakeResult { FullPath = @"C:\a.txt" } });
-
-        Assert.IsEmpty(filtered);
-    }
+    public void TypeImage_TxtExtension_IsExcluded() => Assert.IsFalse(GetPredicate("Type_Image")(new FakeResult { FullPath = @"C:\a.txt" }));
 
     [TestMethod]
-    public async Task TypeVideo_Mp4Extension_IsIncluded()
-    {
-        var filtered = await GetPredicate("Type_Video")(new ISearchResult[] { new FakeResult { FullPath = @"C:\clip.mp4" } });
-
-        Assert.HasCount(1, filtered);
-    }
+    public void TypeVideo_Mp4Extension_IsIncluded() => Assert.IsTrue(GetPredicate("Type_Video")(new FakeResult { FullPath = @"C:\clip.mp4" }));
 
     [TestMethod]
     public void GetFilterGroups_ReturnsAllFiveTypeCategories()

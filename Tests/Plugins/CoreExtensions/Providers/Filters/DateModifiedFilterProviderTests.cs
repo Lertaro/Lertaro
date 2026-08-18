@@ -16,58 +16,43 @@ public sealed class DateModifiedFilterProviderTests
         public FileMetadata Metadata { get; init; }
     }
 
-    private static Func<IReadOnlyList<ISearchResult>, Task<IReadOnlyList<ISearchResult>>> GetPredicate(string id)
+    private static Func<ISearchResult, bool> GetPredicate(string id)
     {
         var provider = new DateModifiedFilterProvider();
         var group = provider.GetFilterGroups().Single();
-        return group.Items.Single(i => i.Id == id).FilterPredicate!;
+        return group.Items.Single(i => i.Id == id).MatchPredicate;
     }
 
     private static FakeResult WithModified(DateTime modified) => new() { Metadata = new FileMetadata(0, default, modified, default) };
 
     [TestMethod]
-    public async Task Date1_RecentFile_IsIncluded()
+    public void Date1_RecentFile_IsIncluded()
     {
         var predicate = GetPredicate("Date_1");
-        var results = new ISearchResult[] { WithModified(DateTime.Now) };
-
-        var filtered = await predicate(results);
-
-        Assert.HasCount(1, filtered);
+        Assert.IsTrue(predicate(WithModified(DateTime.Now)));
     }
 
     [TestMethod]
-    public async Task Date1_FileOlderThanOneDay_IsExcluded()
+    public void Date1_FileOlderThanOneDay_IsExcluded()
     {
         var predicate = GetPredicate("Date_1");
-        var results = new ISearchResult[] { WithModified(DateTime.Now.AddDays(-2)) };
-
-        var filtered = await predicate(results);
-
-        Assert.IsEmpty(filtered);
+        Assert.IsFalse(predicate(WithModified(DateTime.Now.AddDays(-2))));
     }
 
     [TestMethod]
-    public async Task Date7_FileFourDaysOld_IsIncludedButExcludedFromDate1()
+    public void Date7_FileFourDaysOld_IsIncludedButExcludedFromDate1()
     {
         var result = WithModified(DateTime.Now.AddDays(-4));
 
-        var withinWeek = await GetPredicate("Date_7")(new[] { result });
-        var withinDay = await GetPredicate("Date_1")(new[] { result });
-
-        Assert.HasCount(1, withinWeek);
-        Assert.IsEmpty(withinDay);
+        Assert.IsTrue(GetPredicate("Date_7")(result));
+        Assert.IsFalse(GetPredicate("Date_1")(result));
     }
 
     [TestMethod]
-    public async Task Date365_UnknownMetadata_IsExcluded()
+    public void Date365_UnknownMetadata_IsExcluded()
     {
         var predicate = GetPredicate("Date_365");
-        var results = new ISearchResult[] { WithModified(DateTime.MinValue) };
-
-        var filtered = await predicate(results);
-
-        Assert.IsEmpty(filtered);
+        Assert.IsFalse(predicate(WithModified(DateTime.MinValue)));
     }
 
     [TestMethod]
