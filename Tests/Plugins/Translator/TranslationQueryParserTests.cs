@@ -26,8 +26,29 @@ public sealed class TranslationQueryParserTests
     {
         var result = TranslationQueryParser.Parse("zh_CN hello", "en");
 
-        Assert.AreEqual("zh-CN", result.TargetLanguage);
+        Assert.AreEqual("zh-hans", result.TargetLanguage);
         Assert.AreEqual("hello", result.Text);
+    }
+
+    [TestMethod]
+    public void Parse_UnsupportedCultureRemainsTranslationText()
+    {
+        var result = TranslationQueryParser.Parse("an apple", "en");
+
+        Assert.AreEqual("en", result.TargetLanguage);
+        Assert.AreEqual("an apple", result.Text);
+    }
+
+    [TestMethod]
+    public void Parse_RecognizesOfficialTargetLanguages()
+    {
+        var slovak = TranslationQueryParser.Parse("sk hello", "en");
+        var slovenian = TranslationQueryParser.Parse("sl hello", "en");
+
+        Assert.AreEqual("sk", slovak.TargetLanguage);
+        Assert.AreEqual("hello", slovak.Text);
+        Assert.AreEqual("sl", slovenian.TargetLanguage);
+        Assert.AreEqual("hello", slovenian.Text);
     }
 
     [TestMethod]

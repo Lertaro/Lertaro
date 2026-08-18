@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace Lertaro.Plugins.Translator;
 
 internal readonly record struct TranslationQuery(string TargetLanguage, string Text);
@@ -30,21 +28,5 @@ internal static class TranslationQueryParser
         return -1;
     }
 
-    private static bool TryNormalizeLanguage(string value, out string language)
-    {
-        language = string.Empty;
-        var normalized = value.Replace('_', '-');
-        if (normalized.Length is < 2 or > 15 || normalized.Any(char.IsWhiteSpace))
-            return false;
-
-        try
-        {
-            language = CultureInfo.GetCultureInfo(normalized).Name;
-            return language.Length > 0;
-        }
-        catch (CultureNotFoundException)
-        {
-            return false;
-        }
-    }
+    private static bool TryNormalizeLanguage(string value, out string language) => MicrosoftTranslationLanguages.TryNormalize(value, out language);
 }
