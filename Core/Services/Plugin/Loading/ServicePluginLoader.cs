@@ -104,10 +104,13 @@ public static class ServicePluginLoader
                 }
             }
 
+            // Translation providers may read plugin settings while loading; bind the reader before
+            // asking them for translations so configuration-gated startup work observes persisted values.
+            ServicePluginServiceWiring.WirePluginSettings();
+
             // Initialize TranslationService LookupFunc in the service process using the loaded translation providers
             var cultureName = System.Globalization.CultureInfo.CurrentUICulture.Name;
             ServicePluginServiceWiring.WireTranslations(translationProviders, cultureName);
-            ServicePluginServiceWiring.WirePluginSettings();
 
             if (loadHookPlugins)
             {
