@@ -3,6 +3,8 @@
   "Plugins_DirectoryOpus_EnableInlineSearchDesc": "Permite hacer doble clic o pulsar atajos de teclado en Directory Opus para invocar la búsqueda en línea",
   "Plugins_DirectoryOpus_EnableQuickNav": "Activar Menú de Navegación Rápida",
   "Plugins_DirectoryOpus_EnableQuickNavDesc": "Permite hacer clic central en la lista de archivos de Directory Opus para invocar el menú de Navegación Rápida",
+  "Plugins_DirectoryOpus_EnableSizeColumn": "Activar columna Tamaño de Lertaro",
+  "Plugins_DirectoryOpus_EnableSizeColumnDesc": "Instala y actualiza la columna de script Tamaño de Lertaro en Directory Opus",
   "DirectoryOpus_PluginDesc": "Complemento de integración con Directory Opus. Lee las rutas activas y ofrece servicios de localización rápida de archivos en Directory Opus.",
   "Plugin_Comp_Desc_DirectoryOpusPathCollector": "Lee y recopila las rutas de directorio de carpetas activas desde los paneles del administrador de archivos Directory Opus.",
   "Plugin_Comp_Desc_DirectoryOpusInlineSearchAdapter": "Ofrece filtrado en línea por pinyin/letras y navegación rápida dentro de la ventana principal (lister) de Directory Opus.",

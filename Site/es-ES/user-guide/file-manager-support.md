@@ -54,7 +54,7 @@ remoto.
 
 ## Tamaños de carpetas indexadas en Directory Opus
 
-Cuando el plugin de Directory Opus está habilitado, Lertaro instala en Directory Opus una columna de script llamada **Lertaro Size**. Muestra el tamaño recursivo de cada carpeta indexada desde el índice actual que Lertaro mantiene en memoria; no analiza los discos. Las filas de archivos continúan usando la columna de tamaño nativa de Directory Opus. Una carpeta que Lertaro no indexa no muestra ningún valor en esta columna.
+Cuando está habilitada la opción **Activar columna Tamaño de Lertaro** del plugin de Directory Opus (lo está de forma predeterminada), Lertaro instala en Directory Opus una columna de script llamada **Lertaro Size**. Muestra el tamaño recursivo de cada carpeta indexada desde el índice actual que Lertaro mantiene en memoria; no analiza los discos. Las filas de archivos continúan usando la columna de tamaño nativa de Directory Opus. Una carpeta que Lertaro no indexa no muestra ningún valor en esta columna. Al desactivar la opción, Lertaro deja de escribir o actualizar el script; el script ya instalado se conserva intencionalmente.
 
 Agrega **Lertaro Size** desde el selector de columnas de Directory Opus. Para conservar la columna al cambiar de carpeta y después de reiniciar Directory Opus, usa **Folder → Folder Format → Save → Save format for all folders**. Un Folder Format más específico, como uno para unidades locales o de red, tiene prioridad sobre el valor predeterminado del usuario; agrega también la columna a ese formato cuando sea necesario.
 

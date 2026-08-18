@@ -3,6 +3,8 @@
   "Plugins_DirectoryOpus_EnableInlineSearchDesc": "Directory Opus에서 더블클릭하거나 단축키를 눌러 인라인 검색을 호출할 수 있게 합니다",
   "Plugins_DirectoryOpus_EnableQuickNav": "빠른 탐색 메뉴 사용",
   "Plugins_DirectoryOpus_EnableQuickNavDesc": "Directory Opus의 파일 목록에서 가운데 버튼을 클릭하여 빠른 탐색 메뉴를 호출할 수 있게 합니다",
+  "Plugins_DirectoryOpus_EnableSizeColumn": "Lertaro 크기 열 사용",
+  "Plugins_DirectoryOpus_EnableSizeColumnDesc": "Directory Opus에 Lertaro 크기 스크립트 열을 설치하고 업데이트합니다",
   "DirectoryOpus_PluginDesc": "Directory Opus 통합 플러그인입니다. 활성 경로를 읽고 Directory Opus에서 빠른 파일 위치 찾기 서비스를 제공합니다.",
   "Plugin_Comp_Desc_DirectoryOpusPathCollector": "Directory Opus 파일 관리자 패널에서 활성 폴더 디렉터리 경로를 읽고 수집합니다.",
   "Plugin_Comp_Desc_DirectoryOpusInlineSearchAdapter": "Directory Opus의 메인 리스터 창에 인라인 병음/글자 필터링과 빠른 탐색을 제공합니다.",

@@ -41,7 +41,7 @@ Folder Cascader プラグインで**開いているフォルダーを表示**を
 
 ## Directory Opus のインデックス済みフォルダーサイズ
 
-Directory Opus プラグインを有効にすると、Lertaro は Directory Opus に **Lertaro Size** スクリプト列を追加します。この列には、Lertaro が現在メモリ上に保持しているインデックスから、インデックス済みフォルダーの再帰的なサイズを表示します。ディスクをスキャンすることはありません。ファイル行では引き続き Directory Opus 標準のサイズ列を使用し、Lertaro がインデックスしていないフォルダーではこの列は空欄になります。
+Directory Opus プラグインの **Lertaro サイズ列を有効化** オプションを有効にすると (既定で有効)、Lertaro は Directory Opus に **Lertaro Size** スクリプト列を追加します。この列には、Lertaro が現在メモリ上に保持しているインデックスから、インデックス済みフォルダーの再帰的なサイズを表示します。ディスクをスキャンすることはありません。ファイル行では引き続き Directory Opus 標準のサイズ列を使用し、Lertaro がインデックスしていないフォルダーではこの列は空欄になります。このオプションを無効にすると、Lertaro はスクリプトを書き込んだり更新したりしなくなります。すでにインストール済みのスクリプトは意図的に残されます。
 
 Directory Opus の列選択画面で **Lertaro Size** を追加してください。フォルダーを切り替えた後や Directory Opus の再起動後にも表示し続けるには、**Folder → Folder Format → Save → Save format for all folders** を使用します。ローカルドライブやネットワークドライブ用など、より具体的な Folder Format はユーザー既定の形式より優先されるため、その形式にも列を追加してください。
 

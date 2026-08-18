@@ -42,7 +42,7 @@ Lertaro 不只是能搜索——它还可以和你正在使用的文件管理器
 
 ## Directory Opus 的索引文件夹大小
 
-启用 Directory Opus 插件后，Lertaro 会在 Directory Opus 中安装**Lertaro 大小**脚本列。它从 Lertaro 当前内存中的索引显示每个已索引文件夹的递归大小，不会扫描磁盘。文件行仍使用 Directory Opus 原生的大小列；Lertaro 没有索引的文件夹在此列中不会显示值。
+启用 Directory Opus 插件中的**启用 Lertaro 大小列**选项后(默认开启)，Lertaro 会在 Directory Opus 中安装**Lertaro 大小**脚本列。它从 Lertaro 当前内存中的索引显示每个已索引文件夹的递归大小，不会扫描磁盘。文件行仍使用 Directory Opus 原生的大小列；Lertaro 没有索引的文件夹在此列中不会显示值。关闭该选项后，Lertaro 不会再写入或更新脚本；已经安装的脚本会被刻意保留。
 
 在 Directory Opus 的列选择器中添加**Lertaro 大小**。要让它在切换目录和重启 Directory Opus 后持续显示，请依次选择**文件夹 → 文件夹格式 → 保存 → 将格式保存给所有文件夹**。本地磁盘、网络驱动器等更具体的文件夹格式优先于用户默认格式；如有这类格式，也需要把该列加入对应格式。
 

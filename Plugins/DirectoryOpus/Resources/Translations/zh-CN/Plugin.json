@@ -3,6 +3,8 @@
   "Plugins_DirectoryOpus_EnableInlineSearchDesc": "允许在 Directory Opus 窗口中双击或按快捷键弹出内置搜索栏",
   "Plugins_DirectoryOpus_EnableQuickNav": "启用快速导航菜单",
   "Plugins_DirectoryOpus_EnableQuickNavDesc": "允许在 Directory Opus 的文件列表中中键点击弹出快速导航菜单",
+  "Plugins_DirectoryOpus_EnableSizeColumn": "启用 Lertaro 大小列",
+  "Plugins_DirectoryOpus_EnableSizeColumnDesc": "在 Directory Opus 中安装并更新 Lertaro 大小脚本列",
   "DirectoryOpus_PluginDesc": "Directory Opus 增强集成插件。读取 Directory Opus 的活动路径及提供快速文件定位服务。",
   "Plugin_Comp_Desc_DirectoryOpusPathCollector": "读取并提取当前处于活动状态的 Directory Opus 双栏或标签页的文件目录路径。",
   "Plugin_Comp_Desc_DirectoryOpusInlineSearchAdapter": "为 Directory Opus 双栏文件管理器的主面板提供内嵌式的拼音首字母过滤与快速定位服务。",

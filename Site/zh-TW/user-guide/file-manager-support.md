@@ -42,7 +42,7 @@ Lertaro 不只是能搜尋——它還可以和你正在使用的檔案管理員
 
 ## Directory Opus 的索引資料夾大小
 
-啟用 Directory Opus 外掛後，Lertaro 會在 Directory Opus 中安裝**Lertaro 大小**指令碼欄。它從 Lertaro 目前記憶體中的索引顯示每個已索引資料夾的遞迴大小，不會掃描磁碟。檔案列仍使用 Directory Opus 原生的大小欄；Lertaro 沒有索引的資料夾在此欄中不會顯示值。
+啟用 Directory Opus 外掛中的**啟用 Lertaro 大小欄**選項後(預設啟用)，Lertaro 會在 Directory Opus 中安裝**Lertaro 大小**指令碼欄。它從 Lertaro 目前記憶體中的索引顯示每個已索引資料夾的遞迴大小，不會掃描磁碟。檔案列仍使用 Directory Opus 原生的大小欄；Lertaro 沒有索引的資料夾在此欄中不會顯示值。關閉該選項後，Lertaro 不會再寫入或更新指令碼；已經安裝的指令碼會被刻意保留。
 
 在 Directory Opus 的欄選擇器中新增**Lertaro 大小**。要讓它在切換目錄和重新啟動 Directory Opus 後持續顯示，請依序選擇**資料夾 → 資料夾格式 → 儲存 → 將格式儲存給所有資料夾**。本機磁碟、網路磁碟機等更具體的資料夾格式優先於使用者預設格式；如有這類格式，也需要把該欄加入對應格式。
 

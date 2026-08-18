@@ -51,7 +51,7 @@ Commander는 원격 제어 프로토콜을 노출하지 않으므로 대신 UI �
 
 ## Directory Opus의 인덱싱된 폴더 크기
 
-Directory Opus 플러그인을 활성화하면 Lertaro가 Directory Opus에 **Lertaro Size** 스크립트 열을 설치합니다. 이 열은 Lertaro가 현재 메모리에 보유한 인덱스에서 각 인덱싱된 폴더의 재귀 크기를 표시하며, 디스크를 검사하지 않습니다. 파일 행은 계속 Directory Opus의 기본 크기 열을 사용하고, Lertaro가 인덱싱하지 않은 폴더에는 이 열의 값이 비어 있습니다.
+Directory Opus 플러그인의 **Lertaro 크기 열 사용** 옵션을 켜면(기본값: 켜짐) Lertaro가 Directory Opus에 **Lertaro Size** 스크립트 열을 설치합니다. 이 열은 Lertaro가 현재 메모리에 보유한 인덱스에서 각 인덱싱된 폴더의 재귀 크기를 표시하며, 디스크를 검사하지 않습니다. 파일 행은 계속 Directory Opus의 기본 크기 열을 사용하고, Lertaro가 인덱싱하지 않은 폴더에는 이 열의 값이 비어 있습니다. 이 옵션을 끄면 Lertaro는 스크립트를 더 이상 쓰거나 업데이트하지 않으며, 이미 설치된 스크립트는 의도적으로 남겨 둡니다.
 
 Directory Opus의 열 선택기에서 **Lertaro Size**를 추가하세요. 폴더 전환이나 Directory Opus 재시작 뒤에도 열을 유지하려면 **Folder → Folder Format → Save → Save format for all folders**를 사용하세요. 로컬 드라이브나 네트워크 드라이브용처럼 더 구체적인 Folder Format은 사용자 기본 형식보다 우선하므로, 필요한 경우 해당 형식에도 이 열을 추가해야 합니다.
 

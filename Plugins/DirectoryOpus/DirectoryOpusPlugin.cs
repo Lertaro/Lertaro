@@ -7,6 +7,9 @@ namespace Lertaro.Plugins.DirectoryOpus;
 
 public class DirectoryOpusPlugin : IPlugin, IConfigurable, ITranslationProvider
 {
+    private const string PluginId = "Lertaro.Plugins.DirectoryOpus";
+    private const string EnableSizeColumnKey = "EnableSizeColumn";
+
     public string Name => "Directory Opus";
     public string Description => TranslationService.Get("DirectoryOpus_PluginDesc");
 
@@ -26,7 +29,8 @@ public class DirectoryOpusPlugin : IPlugin, IConfigurable, ITranslationProvider
                 Cache[cultureName] = translations;
             }
 
-            if (cultureName.Equals(TranslationService.GetCurrentCulture(), StringComparison.OrdinalIgnoreCase))
+            if (cultureName.Equals(TranslationService.GetCurrentCulture(), StringComparison.OrdinalIgnoreCase) &&
+                PluginSettingsService.GetSetting(PluginId, EnableSizeColumnKey, true))
                 DirectoryOpusSizeColumnInstaller.EnsureInstalled(System.Reflection.Assembly.GetExecutingAssembly(), translations);
 
             return translations;
@@ -50,6 +54,14 @@ public class DirectoryOpusPlugin : IPlugin, IConfigurable, ITranslationProvider
                 Key = "EnableQuickNav",
                 LabelKey = "Plugins_DirectoryOpus_EnableQuickNav",
                 DescriptionKey = "Plugins_DirectoryOpus_EnableQuickNavDesc",
+                FieldType = ConfigFieldType.Boolean,
+                DefaultValue = true
+            },
+            new PluginConfigField
+            {
+                Key = EnableSizeColumnKey,
+                LabelKey = "Plugins_DirectoryOpus_EnableSizeColumn",
+                DescriptionKey = "Plugins_DirectoryOpus_EnableSizeColumnDesc",
                 FieldType = ConfigFieldType.Boolean,
                 DefaultValue = true
             }

@@ -53,7 +53,7 @@ remote-control protocol.
 
 ## Directory Opus indexed folder sizes
 
-When the Directory Opus plugin is enabled, Lertaro installs a **Lertaro Size** script column in Directory Opus. It displays each indexed folder's recursive size from Lertaro's current in-memory index; it does not scan your disks. File rows continue to use Directory Opus's native size column. A folder that Lertaro does not index has no value in this column.
+When the Directory Opus plugin's **Enable Lertaro Size Column** option is enabled (the default), Lertaro installs a **Lertaro Size** script column in Directory Opus. It displays each indexed folder's recursive size from Lertaro's current in-memory index; it does not scan your disks. File rows continue to use Directory Opus's native size column. A folder that Lertaro does not index has no value in this column. Disabling the option stops Lertaro from writing or updating the script; it intentionally leaves an already installed script in place.
 
 Add **Lertaro Size** in Directory Opus's column chooser. To keep it visible when changing folders and after restarting Directory Opus, use **Folder → Folder Format → Save → Save format for all folders**. A more specific Folder Format, such as one for local drives or network drives, takes precedence over the user default; add the column to that format as well when needed.
 
