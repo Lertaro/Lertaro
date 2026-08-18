@@ -94,5 +94,30 @@ function NormalizePath(path) {
 }
 
 function QuoteArgument(value) {
-    return "\"" + String(value).replace(/\"/g, "\"\"") + "\"";
+    var source = String(value);
+    var quoted = "\"";
+    var slashCount = 0;
+    for (var index = 0; index < source.length; index++) {
+        var character = source.charAt(index);
+        if (character == "\\") {
+            slashCount++;
+            continue;
+        }
+        if (character == "\"") {
+            quoted = AppendBackslashes(quoted, slashCount * 2 + 1);
+            quoted += character;
+        }
+        else {
+            quoted = AppendBackslashes(quoted, slashCount);
+            quoted += character;
+        }
+        slashCount = 0;
+    }
+    return AppendBackslashes(quoted, slashCount * 2) + "\"";
+}
+
+function AppendBackslashes(value, count) {
+    while (count-- > 0)
+        value += "\\";
+    return value;
 }

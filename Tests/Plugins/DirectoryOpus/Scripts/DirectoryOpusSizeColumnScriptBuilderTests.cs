@@ -31,12 +31,13 @@ public sealed class DirectoryOpusSizeColumnScriptBuilderTests
         StringAssert.Contains(script, "function ReadRunError(result) {");
         StringAssert.Contains(script, "var result = DOpus.FSUtil.Run(QuoteArgument(LertaroCliPath) + \" --space-entries \" + QuoteArgument(directory), 0, \"r\");");
         StringAssert.Contains(script, "var entries = JSON.parse(result.stdout);");
-        Assert.DoesNotContain("ActiveXObject", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("WScript.Shell", script, StringComparison.Ordinal);
         Assert.DoesNotContain("%TEMP%", script, StringComparison.Ordinal);
         StringAssert.Contains(script, "var itemPath = NormalizePath(String(item.realpath));");
         StringAssert.Contains(script, "var parentPath = NormalizePath(String(item.path));");
         Assert.DoesNotContain("delete LertaroSizeCache[\"\"];", script, StringComparison.Ordinal);
         StringAssert.Contains(script, "if (/^[a-z]:$/i.test(normalized))");
+        StringAssert.Contains(script, "return AppendBackslashes(quoted, slashCount * 2) + \"\\\"\";");
         StringAssert.Contains(script, "var LertaroCliPath = \"C:\\\\Tools\\\\lff.exe\";");
     }
 }
