@@ -51,6 +51,12 @@ Commander, by talking to their documented remote-control interface over `WM_COPY
 scraping the UI); Files and One Commander instead use UI Automation, since neither exposes a
 remote-control protocol.
 
+## Directory Opus indexed folder sizes
+
+When the Directory Opus plugin is enabled, Lertaro installs a **Lertaro Size** script column in Directory Opus. It displays each indexed folder's recursive size from Lertaro's current in-memory index; it does not scan your disks. File rows continue to use Directory Opus's native size column. A folder that Lertaro does not index has no value in this column.
+
+Add **Lertaro Size** in Directory Opus's column chooser. To keep it visible when changing folders and after restarting Directory Opus, use **Folder → Folder Format → Save → Save format for all folders**. A more specific Folder Format, such as one for local drives or network drives, takes precedence over the user default; add the column to that format as well when needed.
+
 ## Application dialogs (optional plugins)
 
 These target one specific dialog inside a third-party application — not the whole application —
