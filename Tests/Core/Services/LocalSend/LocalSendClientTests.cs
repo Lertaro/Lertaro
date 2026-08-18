@@ -31,15 +31,13 @@ public class LocalSendClientTests
     }
 
     [TestMethod]
-    public async Task SendTextAsync_ReceiverAcceptsFile_UploadsTheTextBytes()
+    public async Task SendTextAsync_ReceiverAcceptsMessage_ReturnsSuccessWithoutWritingFile()
     {
         var downloadDirectory = Path.Combine(Path.GetTempPath(), $"lertaro-text-{Guid.NewGuid():N}");
         Directory.CreateDirectory(downloadDirectory);
         using var receiver = new LocalSendServer { DownloadDirectory = downloadDirectory, QuickSave = true };
         using var sender = new LocalSendServer { IdentityCertificate = LocalSendCertificate.CreateEphemeral() };
         var port = GetFreePort();
-        var received = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        receiver.FileReceived += (_, file) => received.TrySetResult(file.Path);
         receiver.Start(port);
         try
         {
@@ -47,10 +45,9 @@ public class LocalSendClientTests
             var senderInfo = new LocalSendDeviceInfo { Alias = "Sender", IpAddress = "127.0.0.1" };
 
             var result = await client.SendTextAsync("127.0.0.1", port, false, senderInfo, "hello", targetVersion: "2.2");
-            var path = await received.Task.WaitAsync(TimeSpan.FromSeconds(3));
 
             Assert.AreEqual(LocalSendSendResult.Success, result);
-            Assert.AreEqual("hello", await File.ReadAllTextAsync(path));
+            Assert.IsFalse(Directory.EnumerateFiles(downloadDirectory).Any());
         }
         finally
         {

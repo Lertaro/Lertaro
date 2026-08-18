@@ -11,6 +11,9 @@ public sealed class LocalSendPrepareUploadHandlerTests
     private const string RequestBody = """
         {"info":{"alias":"Sender","version":"2.2"},"files":{"file":{"id":"file","fileName":"test.txt","size":0,"fileType":"text/plain"}}}
         """;
+    private const string TextRequestBody = """
+        {"info":{"alias":"Sender","version":"2.2"},"files":{"text":{"id":"text","fileName":"message.txt","size":5,"fileType":"text/plain","preview":"hello"}}}
+        """;
 
     [TestMethod]
     public async Task HandleAsync_SenderDisconnectsWhileWaiting_CancelsSession()
@@ -49,8 +52,21 @@ public sealed class LocalSendPrepareUploadHandlerTests
         StringAssert.Contains(stream.GetWrittenText(), "HTTP/1.1 200 OK");
     }
 
-    private static Task HandleAsync(LocalSendServer server, Stream stream) => LocalSendPrepareUploadHandler.HandleAsync(
-        server, stream, [], RequestBody, new IPEndPoint(IPAddress.Loopback, 12345), null, v2: true, CancellationToken.None);
+    [TestMethod]
+    public async Task HandleAsync_TextMessageAutomaticallyReturnsNoContent()
+    {
+        using var server = new LocalSendServer();
+        await using var stream = new PendingDisconnectStream();
+        server.UploadRequested += (_, _) => { };
+
+        await HandleAsync(server, stream, TextRequestBody);
+
+        StringAssert.Contains(stream.GetWrittenText(), "HTTP/1.1 204 No Content");
+        Assert.IsFalse(server.HasActiveSessions);
+    }
+
+    private static Task HandleAsync(LocalSendServer server, Stream stream, string body = RequestBody) => LocalSendPrepareUploadHandler.HandleAsync(
+        server, stream, [], body, new IPEndPoint(IPAddress.Loopback, 12345), null, v2: true, CancellationToken.None);
 
     private sealed class PendingDisconnectStream : Stream
     {

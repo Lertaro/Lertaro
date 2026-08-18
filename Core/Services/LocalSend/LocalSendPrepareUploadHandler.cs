@@ -38,6 +38,7 @@ internal static class LocalSendPrepareUploadHandler
             Info = LocalSendProtocolMapper.ToDevice(request.Info, clientIp, server.DeviceInfo.Port, server.DeviceInfo.Protocol),
             Files = request.Files
         };
+        var isTextMessage = LocalSendTextMessageHelper.TryGetMessage(dto, out _);
         var sessionId = Guid.NewGuid().ToString();
         if (!server.TryRegisterActiveSession(sessionId, dto))
         {
@@ -47,7 +48,7 @@ internal static class LocalSendPrepareUploadHandler
 
         using var monitorCancellation = new CancellationTokenSource();
         using var serverStopRegistration = token.Register(() => server.CancelSession(sessionId, notifySender: false));
-        var acceptance = server.RequestUserAcceptanceAsync(sessionId, dto, server.QuickSave);
+        var acceptance = server.RequestUserAcceptanceAsync(sessionId, dto, server.QuickSave || isTextMessage);
         if (!acceptance.IsCompleted)
         {
             var disconnected = LocalSendPeerDisconnectMonitor.WaitAsync(stream, monitorCancellation.Token);
@@ -67,6 +68,13 @@ internal static class LocalSendPrepareUploadHandler
         {
             server.UnregisterSession(sessionId);
             await LocalSendServerHelper.WriteResponseAsync(stream, 403, "{\"message\":\"File request declined by recipient\"}").ConfigureAwait(false);
+            return;
+        }
+
+        if (isTextMessage)
+        {
+            server.UnregisterSession(sessionId);
+            await LocalSendServerHelper.WriteResponseAsync(stream, 204).ConfigureAwait(false);
             return;
         }
 

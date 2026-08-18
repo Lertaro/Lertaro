@@ -104,7 +104,7 @@
                     </Grid>
 
                     <!-- Shared ListBox with Per-File Individual Progress Bars -->
-                    <Border Grid.Row="1" Margin="16,0,16,8" MaxHeight="220" Background="{DynamicResource FieldBackground}"
+                    <Border x:Name="FileListBorder" Grid.Row="1" Margin="16,0,16,8" MaxHeight="220" Background="{DynamicResource FieldBackground}"
                             BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="8">
                         <ListBox x:Name="LstFiles" Background="Transparent" BorderThickness="0" Margin="4"
                                  SelectionMode="Multiple" SelectionChanged="LstFiles_SelectionChanged"
@@ -149,6 +149,13 @@
                         </ListBox>
                     </Border>
 
+                    <Border x:Name="TextMessageBorder" Grid.Row="1" Margin="16,0,16,8" MaxHeight="220" Background="{DynamicResource FieldBackground}"
+                            BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="8" Visibility="Collapsed">
+                        <TextBox x:Name="TxtTextMessage" Margin="4" Style="{StaticResource MultiLineTextBoxStyle}"
+                                 IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"/>
+                    </Border>
+
                     <!-- Overall Session Progress Bar -->
                     <ProgressBar x:Name="PbTransfer" Grid.Row="2" Height="4" Margin="16,0,16,8"
                                  Minimum="0" Maximum="100" Visibility="Collapsed"
@@ -191,6 +198,17 @@
                                 <Button x:Name="BtnCloseProgress" Height="30" Padding="16,0" Width="80"
                                         Style="{StaticResource SettingsButton}"
                                         Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Cancel]}"
+                                        Click="BtnCloseProgress_Click"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="PanelTextFooter" Visibility="Collapsed" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <Button x:Name="BtnCopyText" Height="30" Padding="16,0" Margin="0,0,8,0"
+                                        Style="{StaticResource PrimarySettingsButton}"
+                                        Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Copy]}"
+                                        Click="BtnCopyText_Click"/>
+                                <Button x:Name="BtnCloseText" Height="30" Padding="16,0" Width="80"
+                                        Style="{StaticResource SettingsButton}"
+                                        Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Close]}"
                                         Click="BtnCloseProgress_Click"/>
                             </StackPanel>
                         </Grid>
