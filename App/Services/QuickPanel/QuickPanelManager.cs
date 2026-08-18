@@ -59,6 +59,11 @@ public sealed partial class QuickPanelManager : IDisposable
             return;
         }
 
+        // The panel is a companion for other applications. When a Lertaro window is already in front,
+        // opening another Lertaro surface only obscures the window the user is working in. Keep the
+        // visible-panel toggle above this check so the same hotkey can still close an open panel.
+        if (IsCurrentProcessWindow(host)) return;
+
         var settings = Core.UserSettings.Load();
         if (!settings.QuickPanel.Enabled) return;
 
@@ -72,6 +77,24 @@ public sealed partial class QuickPanelManager : IDisposable
         }
 
         Show(host, process);
+    }
+
+    internal static bool IsCurrentProcess(uint foregroundProcessId, uint currentProcessId) =>
+        foregroundProcessId != 0 && foregroundProcessId == currentProcessId;
+
+    private static bool IsCurrentProcessWindow(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero) return false;
+
+        try
+        {
+            Core.Hook.ExplorerNativeHooks.GetWindowThreadProcessId(hwnd, out var processId);
+            return IsCurrentProcess(processId, (uint)Environment.ProcessId);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>The foreground window's process name, which is what the workspace rules match on.</summary>

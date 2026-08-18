@@ -7,7 +7,7 @@
         xmlns:local="clr-namespace:Lertaro.App.Views.QuickPanel"
         xmlns:app="clr-namespace:Lertaro.App"
         Title="Lertaro Quick Panel"
-        Width="330" Height="300" SizeToContent="Manual"
+        Width="330" Height="300" MinWidth="280" MinHeight="200" SizeToContent="Manual"
         WindowStyle="None"
         ResizeMode="CanResizeWithGrip"
         AllowsTransparency="True"
