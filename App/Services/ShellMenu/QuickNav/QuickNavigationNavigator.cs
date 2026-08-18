@@ -1,6 +1,8 @@
 using System.IO;
 using System.Diagnostics;
 
+using Lertaro.App.Views.InlineSearchWindow.Helpers;
+using Lertaro.Core;
 using Lertaro.Core.Wire;
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 using Lertaro.Core.Hook.Commands;
@@ -46,22 +48,20 @@ public static class QuickNavigationNavigator
             return;
         }
 
-        // A folder chosen from the menu is an "open" operation, not a request to alter whichever
-        // file-manager window happened to summon it. Reuse the search-result execution path so the
-        // configured default file manager and Explorer's optional new-tab route apply consistently.
-        if (isDir)
-        {
-            FileExecutor.OpenFileOrFolder(path);
-            return;
-        }
+        // The desktop has no folder pane to navigate. A configured default file manager must therefore
+        // handle its folders, just as it does for inline search, rather than Explorer opening them.
+        var openFolderThroughDefaultManager = isDir && InlineSearchNavigator.OpeningAFolderBelongsToTheFileManager(
+            trigger.IsDesktop,
+            isDir,
+            UserSettings.Load().DefaultFileManager);
 
         // Delegate to whichever file-manager adapter matched the active host (Explorer, Directory Opus,
-        // Total Commander, ...) so a file opens/selects there. Uses the captured trigger.ActiveHwnd/
+        // Total Commander, ...) so folders navigate in place and files open/select there. Uses the captured trigger.ActiveHwnd/
         // ActiveAdapter/IsDesktop, not a live ExplorerTracker re-read, for the same staleness reason as
         // trigger.DialogHwnd above -- the Hook still re-resolves the adapter for trigger.ActiveHwnd itself
         // (see InlineAdapterCommandHandler.ResolveAdapter) if its own tracker has since moved on, so this
         // stays correct even though the hwnd was captured a while ago.
-        if (trigger.ActiveAdapter != null && trigger.ActiveHwnd != IntPtr.Zero && App.HookClient?.IsConnected == true)
+        if (!openFolderThroughDefaultManager && trigger.ActiveAdapter != null && trigger.ActiveHwnd != IntPtr.Zero && App.HookClient?.IsConnected == true)
         {
             if (InlineAdapterIpcCoordinator.ExecuteItem(trigger.ActiveHwnd, path, isDir, string.Empty, App.HookClient.SendMessage, out var lateResult))
                 return;
@@ -75,6 +75,14 @@ public static class QuickNavigationNavigator
             // Enter-to-execute for the identical race -- for why waiting on the same in-flight call a bit
             // longer, off the UI thread, closes that window without blocking the caller.
             _ = InlineAdapterIpcCoordinator.RunAfterLateResultAsync(lateResult, onSuccess: () => { }, onFallback: () => OpenDirectly(path, trigger.IsDesktop));
+            return;
+        }
+
+        // Without a file-manager target to navigate, a folder remains a normal open operation. This
+        // preserves the configured default file manager and Explorer's optional new-tab route.
+        if (isDir)
+        {
+            FileExecutor.OpenFileOrFolder(path);
             return;
         }
 
