@@ -29,10 +29,15 @@ public sealed class DirectoryOpusSizeColumnScriptBuilderTests
         StringAssert.Contains(script, "initData.name = LertaroSizeLabel;");
         StringAssert.Contains(script, "function ReportError(error) {");
         StringAssert.Contains(script, "function ReadRunError(result) {");
-        StringAssert.Contains(script, "var result = DOpus.FSUtil.Run(QuoteArgument(LertaroCliPath) + \" --space-entries \" + QuoteArgument(directory), 0, \"r\");");
+        StringAssert.Contains(script, "function RunLertaroCli(commandLine) {");
+        StringAssert.Contains(script, "if (DOpus.version.major >= 13)");
+        StringAssert.Contains(script, "return DOpus.FSUtil.Run(commandLine, 0, \"r\");");
+        StringAssert.Contains(script, "var shell = new ActiveXObject(\"WScript.Shell\");");
+        StringAssert.Contains(script, "var tempDirectory = shell.ExpandEnvironmentStrings(\"%TEMP%\");");
+        StringAssert.Contains(script, "var stream = new ActiveXObject(\"ADODB.Stream\");");
         StringAssert.Contains(script, "var entries = JSON.parse(result.stdout);");
-        Assert.DoesNotContain("WScript.Shell", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("%TEMP%", script, StringComparison.Ordinal);
+        StringAssert.Contains(script, "DeleteFile(stdoutPath, fileSystem);");
+        StringAssert.Contains(script, "DeleteFile(stderrPath, fileSystem);");
         StringAssert.Contains(script, "var itemPath = NormalizePath(String(item.realpath));");
         StringAssert.Contains(script, "var parentPath = NormalizePath(String(item.path));");
         Assert.DoesNotContain("delete LertaroSizeCache[\"\"];", script, StringComparison.Ordinal);
