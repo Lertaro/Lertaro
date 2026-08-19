@@ -58,6 +58,8 @@ Cuando está habilitada la opción **Activar columna Tamaño de Lertaro** del pl
 
 Agrega **Lertaro Size** desde el selector de columnas de Directory Opus. Para conservar la columna al cambiar de carpeta y después de reiniciar Directory Opus, usa **Folder → Folder Format → Save → Save format for all folders**. Un Folder Format más específico, como uno para unidades locales o de red, tiene prioridad sobre el valor predeterminado del usuario; agrega también la columna a ese formato cuando sea necesario.
 
+El script de tamaños generado es compatible con Directory Opus 11, 12 y 13 o posteriores; las versiones antiguas usan un ejecutor de compatibilidad oculto y eliminan la salida temporal inmediatamente después de cada consulta.
+
 ## Diálogos propios de aplicaciones (plugins opcionales)
 
 Estos apuntan a un diálogo concreto dentro de una aplicación de terceros — no a la aplicación

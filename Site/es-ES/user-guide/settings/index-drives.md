@@ -33,7 +33,7 @@ Los resultados de búsqueda de WSL siempre proceden del índice actual. Lertaro 
 
 Indexa carpetas individuales arbitrarias en lugar de una unidad o recurso compartido entero — útil para indexar solo un subárbol sin arrastrar todo lo demás de ese volumen.
 
-- Un botón **Añadir carpeta** abre un selector de carpetas; un botón **Reconstruir índice** vuelve a escanear cada carpeta de la lista.
+- Un botón **Añadir carpeta** abre un selector de carpetas con selección múltiple; mantén pulsada Ctrl o Shift para añadir varias carpetas de una vez. Las selecciones duplicadas se ignoran. Un botón **Reconstruir índice** vuelve a escanear cada carpeta de la lista.
 - Una fila por carpeta añadida: casilla de habilitar, ruta, estado, número de elementos, y el mismo desplegable **Modo de actualización** (Manual / Cada 15 minutos / Cada hora / Diario) que las unidades de red — las carpetas se escanean según una programación en lugar de vigilarse de forma continua, igual que los recursos de red.
 - El selector de carpetas también acepta una **ruta de recurso compartido de red UNC** (por ejemplo, `\\servidor\recurso`, o una subcarpeta dentro de ella) navegando a través de *Red* en el selector — útil para indexar un único recurso compartido o subárbol sin añadir el servidor entero como una unidad de red asignada.
 

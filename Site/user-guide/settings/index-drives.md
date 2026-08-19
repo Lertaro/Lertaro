@@ -33,7 +33,7 @@ WSL search results always come from the current index. Lertaro does not probe th
 
 Index arbitrary individual folders instead of a whole drive or share — useful for indexing just one subtree without pulling in everything else on that volume.
 
-- An **Add Folder** button opens a folder picker; a **Rebuild Index** button re-scans every folder in the list.
+- An **Add Folder** button opens a multi-select folder picker; hold Ctrl or Shift to add several folders in one step. Duplicate selections are ignored. A **Rebuild Index** button re-scans every folder in the list.
 - One row per added folder: enable checkbox, path, status, item count, and the same **Refresh Mode** dropdown (Manual / Every 15 minutes / Every hour / Daily) as network drives — folders are scanned on a schedule rather than tracked continuously, the same way network shares are.
 - The folder picker also accepts a **UNC network share path** (e.g. `\\server\share`, or a subfolder inside it) browsed to via *Network* in the picker — useful for indexing a single share or subtree without adding the whole server as a mapped network drive.
 

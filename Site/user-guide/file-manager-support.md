@@ -57,6 +57,8 @@ When the Directory Opus plugin's **Enable Lertaro Size Column** option is enable
 
 Add **Lertaro Size** in Directory Opus's column chooser. To keep it visible when changing folders and after restarting Directory Opus, use **Folder → Folder Format → Save → Save format for all folders**. A more specific Folder Format, such as one for local drives or network drives, takes precedence over the user default; add the column to that format as well when needed.
 
+The generated size script works with Directory Opus 11 and 12 as well as 13 and later; older versions use a hidden compatibility runner and remove its temporary output immediately after each query.
+
 ## Application dialogs (optional plugins)
 
 These target one specific dialog inside a third-party application — not the whole application —

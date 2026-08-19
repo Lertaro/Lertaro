@@ -55,6 +55,8 @@ Directory Opus 플러그인의 **Lertaro 크기 열 사용** 옵션을 켜면(�
 
 Directory Opus의 열 선택기에서 **Lertaro Size**를 추가하세요. 폴더 전환이나 Directory Opus 재시작 뒤에도 열을 유지하려면 **Folder → Folder Format → Save → Save format for all folders**를 사용하세요. 로컬 드라이브나 네트워크 드라이브용처럼 더 구체적인 Folder Format은 사용자 기본 형식보다 우선하므로, 필요한 경우 해당 형식에도 이 열을 추가해야 합니다.
 
+생성되는 크기 스크립트는 Directory Opus 11, 12 및 13 이상을 지원합니다. 이전 버전에서는 숨겨진 호환 실행기를 사용하며 각 쿼리 직후 임시 출력을 삭제합니다.
+
 ## 애플리케이션 자체 대화상자 (선택적 플러그인)
 
 이들은 애플리케이션 전체가 아니라, 타사 애플리케이션 안의 특정 대화상자 하나를 대상으로 합니다 — 위의 내장
