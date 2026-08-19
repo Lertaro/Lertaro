@@ -165,6 +165,19 @@ internal class ScientificMathParser
             return Convert.ToInt64(binStr[2..], 2);
         }
 
+        var integerStart = _pos;
+        while (_pos < _expr.Length && char.IsDigit(_expr[_pos]))
+            _pos++;
+
+        if (_pos - integerStart is >= 1 and <= 3)
+        {
+            while (HasThousandsSeparator())
+            {
+                _pos++;
+                _pos += 3;
+            }
+        }
+
         while (_pos < _expr.Length && (char.IsDigit(_expr[_pos]) || _expr[_pos] == '.' || _expr[_pos] == 'e' || _expr[_pos] == 'E'))
         {
             // Handle scientific notation e.g. 1e+5, 2e-3
@@ -179,12 +192,31 @@ internal class ScientificMathParser
             }
             _pos++;
         }
-        var numStr = _expr[start.._pos];
+        var numStr = _expr[start.._pos].Replace(",", string.Empty, StringComparison.Ordinal);
         if (double.TryParse(numStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var val))
         {
             return val;
         }
         throw new Exception("Invalid number format: " + numStr);
+    }
+
+    private bool HasThousandsSeparator()
+    {
+        if (_pos >= _expr.Length || _expr[_pos] != ',')
+            return false;
+
+        var groupStart = _pos + 1;
+        var groupEnd = groupStart + 3;
+        if (groupEnd > _expr.Length)
+            return false;
+
+        for (var index = groupStart; index < groupEnd; index++)
+        {
+            if (!char.IsDigit(_expr[index]))
+                return false;
+        }
+
+        return groupEnd == _expr.Length || !char.IsDigit(_expr[groupEnd]);
     }
 
     private double ParseIdentifier()

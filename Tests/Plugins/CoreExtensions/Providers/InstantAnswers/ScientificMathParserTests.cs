@@ -45,6 +45,9 @@ public sealed class ScientificMathParserTests
     public void Parse_ScientificNotation_ParsesCorrectly() => Assert.AreEqual(150.0, Parse("1.5e2"), 1e-9);
 
     [TestMethod]
+    public void Parse_ThousandsSeparators_ParsesGroupedNumbers() => Assert.AreEqual(3000.0, Parse("1,000 + 2,000"), 1e-9);
+
+    [TestMethod]
     public void Parse_PiConstant_ReturnsMathPi() => Assert.AreEqual(Math.PI, Parse("pi"), 1e-9);
 
     [TestMethod]
@@ -69,6 +72,12 @@ public sealed class ScientificMathParserTests
 
     [TestMethod]
     public void Parse_MaxTwoArgFunction_ReturnsLarger() => Assert.AreEqual(7.0, Parse("max(3,7)"), 1e-9);
+
+    [TestMethod]
+    public void Parse_ThousandsSeparator_DoesNotConsumeFunctionArgumentSeparator() => Assert.AreEqual(2.0, Parse("min(1,000,2)"), 1e-9);
+
+    [TestMethod]
+    public void Parse_InvalidThousandsGrouping_Throws() => Assert.ThrowsExactly<Exception>(() => Parse("1234,567"));
 
     [TestMethod]
     public void Parse_MinTwoArgFunction_ReturnsSmaller() => Assert.AreEqual(3.0, Parse("min(3,7)"), 1e-9);

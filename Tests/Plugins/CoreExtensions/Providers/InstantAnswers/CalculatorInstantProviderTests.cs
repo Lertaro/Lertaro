@@ -21,6 +21,15 @@ public sealed class CalculatorInstantProviderTests
     }
 
     [TestMethod]
+    public void GetInstantResults_ThousandsSeparators_ReturnsComputedValue()
+    {
+        var result = Provider.GetInstantResults("1,000 + 2,000").Single();
+
+        Assert.AreEqual("1,000 + 2,000 = 3000", result.Title);
+        Assert.AreEqual("3000", result.ActionArgument);
+    }
+
+    [TestMethod]
     public void GetInstantResults_PureAlphabeticNonConstantText_ReturnsNothing() => Assert.IsEmpty(Provider.GetInstantResults("excel"));
 
     [TestMethod]
