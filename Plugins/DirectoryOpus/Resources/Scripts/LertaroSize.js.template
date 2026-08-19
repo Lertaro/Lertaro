@@ -53,7 +53,7 @@ function GetFolderSizes(directory) {
 
     var sizes = {};
     try {
-        var result = DOpus.FSUtil.Run(QuoteArgument(LertaroCliPath) + " --space-entries " + QuoteArgument(directory), 0, "r");
+        var result = RunLertaroCli(QuoteArgument(LertaroCliPath) + " --space-entries " + QuoteArgument(directory));
         if (result && result.exitcode == 0) {
             var entries = JSON.parse(result.stdout);
             for (var i = 0; i < entries.length; i++)
@@ -67,6 +67,55 @@ function GetFolderSizes(directory) {
 
     LertaroSizeCache[key] = { sizes: sizes, expires: new Date().getTime() + LertaroSizeCacheLifetimeMs };
     return sizes;
+}
+
+// Directory Opus 13 added FSUtil.Run. Older versions use a hidden cmd process and short-lived output files.
+function RunLertaroCli(commandLine) {
+    if (DOpus.version.major >= 13)
+        return DOpus.FSUtil.Run(commandLine, 0, "r");
+
+    var shell = new ActiveXObject("WScript.Shell");
+    var fileSystem = new ActiveXObject("Scripting.FileSystemObject");
+    var tempDirectory = shell.ExpandEnvironmentStrings("%TEMP%");
+    var stdoutPath = fileSystem.BuildPath(tempDirectory, fileSystem.GetTempName());
+    var stderrPath = stdoutPath + ".err";
+    var shellCommand = "%ComSpec% /d /s /c \"" + commandLine + " 1>" + QuoteArgument(stdoutPath) + " 2>" + QuoteArgument(stderrPath) + "\"";
+    var exitCode = -1;
+    try {
+        exitCode = shell.Run(shellCommand, 0, true);
+        return {
+            stdout: ReadUtf8File(stdoutPath, fileSystem),
+            stderr: ReadUtf8File(stderrPath, fileSystem),
+            exitcode: exitCode
+        };
+    }
+    finally {
+        DeleteFile(stdoutPath, fileSystem);
+        DeleteFile(stderrPath, fileSystem);
+    }
+}
+
+function ReadUtf8File(path, fileSystem) {
+    if (!fileSystem.FileExists(path))
+        return "";
+
+    var stream = new ActiveXObject("ADODB.Stream");
+    try {
+        stream.Type = 2;
+        stream.Charset = "utf-8";
+        stream.Open();
+        stream.LoadFromFile(path);
+        return stream.ReadText(-1);
+    }
+    finally { stream.Close(); }
+}
+
+function DeleteFile(path, fileSystem) {
+    try {
+        if (fileSystem.FileExists(path))
+            fileSystem.DeleteFile(path, true);
+    }
+    catch (error) { }
 }
 
 function ReportError(error) {
