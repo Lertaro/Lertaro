@@ -18,36 +18,54 @@ internal static class NetworkDriveFolderHelper
 {
     public static void AddFolder(NetworkDriveSettingsViewModel vm, SearchService searchService, Action onTriggerFastRefresh, HashSet<string> pendingRowRebuilds, HashSet<string> observedRowRebuilds)
     {
-        var dialog = new Microsoft.Win32.OpenFolderDialog();
-        if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.FolderName))
+        var dialog = new Microsoft.Win32.OpenFolderDialog { Multiselect = true };
+        if (dialog.ShowDialog() != true)
             return;
 
-        // A local drive root or WSL distro root belongs on the Network Drives/Local Drives/WSL tabs
-        // (whole-volume indexing), not here. A UNC share root ("\\server\share") is let through, though
-        // -- unlike a local drive, there's no drive-letter tab that can index an unmapped share at all,
-        // so the share root is the finest-grained indexable unit available for it.
-        if (IsDriveRoot(dialog.FolderName))
+        var rejectedRoot = false;
+        var added = false;
+        foreach (var selectedFolder in dialog.FolderNames)
+        {
+            if (string.IsNullOrWhiteSpace(selectedFolder))
+                continue;
+
+            // A local drive root or WSL distro root belongs on the Network Drives/Local Drives/WSL tabs
+            // (whole-volume indexing), not here. A UNC share root ("\\server\share") is let through, though
+            // -- unlike a local drive, there's no drive-letter tab that can index an unmapped share at all,
+            // so the share root is the finest-grained indexable unit available for it.
+            if (IsDriveRoot(selectedFolder))
+            {
+                rejectedRoot = true;
+                continue;
+            }
+
+            var path = selectedFolder.TrimEnd('\\');
+            if (vm.FolderIndexes.Any(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            var item = new FolderIndexSettingsItem { Path = path, IsEnabled = true, IsPresent = true };
+            item.RowActionCommand = new RelayCommand(
+                () => NetworkDriveViewModelHelper.RunFolderIndexAction(item, vm, searchService, onTriggerFastRefresh, pendingRowRebuilds, observedRowRebuilds),
+                () => item.CanRunRowAction);
+            item.PropertyChanged += vm.OnFolderItemChanged;
+            vm.FolderIndexes.Add(item);
+            added = true;
+        }
+
+        if (rejectedRoot)
         {
             CustomMessageBox.Show(
                 TranslationManager.Instance["Folder_RootNotAllowed"],
                 TranslationManager.Instance["Executor_PromptTitle"],
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Warning);
-            return;
         }
 
-        var path = dialog.FolderName.TrimEnd('\\');
-        if (vm.FolderIndexes.Any(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase)))
-            return;
-
-        var item = new FolderIndexSettingsItem { Path = path, IsEnabled = true, IsPresent = true };
-        item.RowActionCommand = new RelayCommand(
-            () => NetworkDriveViewModelHelper.RunFolderIndexAction(item, vm, searchService, onTriggerFastRefresh, pendingRowRebuilds, observedRowRebuilds),
-            () => item.CanRunRowAction);
-        item.PropertyChanged += vm.OnFolderItemChanged;
-        vm.FolderIndexes.Add(item);
-        vm.HasPendingEdits = true;
-        vm.NotifyFolderIndexesEmptyChanged();
+        if (added)
+        {
+            vm.HasPendingEdits = true;
+            vm.NotifyFolderIndexesEmptyChanged();
+        }
     }
 
     private static bool IsDriveRoot(string path)
