@@ -9,6 +9,7 @@
   <Project Path="Plugins/Translator/Translator.csproj" />
   <Project Path="Plugins/FolderCascader/FolderCascader.csproj" />
   <Project Path="Plugins/CoreExtensions/CoreExtensions.csproj" />
+  <Project Path="Plugins/AutoCAD/AutoCAD.csproj" />
   <Project Path="Plugins/Files/Files.csproj" />
   <Project Path="Plugins/OneCommander/OneCommander.csproj" />
   <Project Path="Plugins/FileFilters/FileFilters.csproj" />

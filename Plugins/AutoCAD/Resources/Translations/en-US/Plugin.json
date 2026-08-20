@@ -1,0 +1,4 @@
+{
+  "AutoCAD_PluginDescription": "AutoCAD file dialog integration. Adds inline search and quick navigation to AutoCAD's native open and save dialogs.",
+  "AutoCAD_FileDialogAdapterName": "AutoCAD File Dialog"
+}

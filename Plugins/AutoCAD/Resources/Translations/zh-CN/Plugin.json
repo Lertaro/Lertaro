@@ -1,0 +1,4 @@
+{
+  "AutoCAD_PluginDescription": "AutoCAD 文件对话框集成，为 AutoCAD 原生打开和保存对话框提供内联搜索与快速导航。",
+  "AutoCAD_FileDialogAdapterName": "AutoCAD 文件对话框"
+}

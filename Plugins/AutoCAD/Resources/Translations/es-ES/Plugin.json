@@ -1,0 +1,4 @@
+{
+  "AutoCAD_PluginDescription": "Integración con los diálogos de archivos de AutoCAD. Añade búsqueda en línea y navegación rápida a los diálogos nativos de abrir y guardar.",
+  "AutoCAD_FileDialogAdapterName": "Diálogo de archivos de AutoCAD"
+}

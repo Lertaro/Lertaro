@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="Plugins/CoreExtensions/CoreExtensions.csproj" />
+  <Project Path="Plugins/AutoCAD/AutoCAD.csproj" />
   <Project Path="Plugins/PinyinAlias/PinyinAlias.csproj" />
   <Project Path="Plugins/DirectoryOpus/DirectoryOpus.csproj" />
   <Project Path="Plugins/TotalCommander/TotalCommander.csproj" />

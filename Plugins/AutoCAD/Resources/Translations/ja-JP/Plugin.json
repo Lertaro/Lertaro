@@ -1,0 +1,4 @@
+{
+  "AutoCAD_PluginDescription": "AutoCAD のファイル ダイアログ統合。ネイティブの開くダイアログと保存ダイアログにインライン検索とクイック ナビゲーションを追加します。",
+  "AutoCAD_FileDialogAdapterName": "AutoCAD ファイル ダイアログ"
+}
