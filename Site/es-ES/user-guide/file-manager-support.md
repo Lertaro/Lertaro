@@ -73,13 +73,16 @@ de encendido/apagado ahí (sin diálogo Configurar independiente, ya que solo ha
 | Diálogo Extraer de WinRAR | Sí | Clic central, o clic izquierdo en el propio logotipo de la ventana en línea | — |
 | Diálogo Extraer de Bandizip | Sí | Clic central, o clic izquierdo en el propio logotipo de la ventana en línea | — |
 | Diálogo Añadir archivos de Bandizip | Sí | Clic central, o clic izquierdo en el propio logotipo de la ventana en línea | — |
+| Diálogo Abrir/Guardar de AutoCAD | Sí | Clic central, o clic izquierdo en el propio logotipo de la ventana en línea | — |
 
 Se detectan por estructura de controles, no por título de ventana, así que esto funciona en todos los paquetes de
 idioma que distribuye cada aplicación. La entrada de WPS cubre Writer, Hojas de cálculo, Presentación y el lector
 de PDF, que comparten el mismo diálogo: WPS usa el suyo propio en lugar del de Windows, y por eso necesita un
-plugin, mientras que la mayoría de aplicaciones quedan cubiertas por los diálogos integrados de arriba. Igual que
-con ellos, la detección de ruta activa no se aplica — Lertaro ya está acoplado dentro del propio diálogo, sin
-ninguna otra ventana contra la que restringir una búsqueda.
+plugin, mientras que la mayoría de aplicaciones quedan cubiertas por los diálogos integrados de arriba. La entrada
+de AutoCAD cubre sus diálogos nativos de abrir y guardar; usan la clase estándar de diálogo común de Windows, pero
+una estructura de controles distinta, por lo que requieren un plugin específico. Igual que con ellos, la detección
+de ruta activa no se aplica — Lertaro ya está acoplado dentro del propio diálogo, sin ninguna otra ventana contra la
+que restringir una búsqueda.
 
 ---
 

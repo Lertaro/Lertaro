@@ -72,13 +72,15 @@ separate Configure dialog, since there's only one thing to toggle).
 | WinRAR's Extract dialog | Yes | Middle-click, or left-click the inline window's own logo | — |
 | Bandizip's Extract dialog | Yes | Middle-click, or left-click the inline window's own logo | — |
 | Bandizip's Add Files dialog | Yes | Middle-click, or left-click the inline window's own logo | — |
+| AutoCAD's Open/Save dialog | Yes | Middle-click, or left-click the inline window's own logo | — |
 
 Detected by control structure, not window title, so this works across every language pack each
 application ships. The WPS entry covers Writer, Spreadsheets, Presentation and the PDF reader, which
 all share the one dialog — WPS uses its own rather than the Windows one, which is why it needs a
-plugin at all where most applications are covered by the built-in dialogs above. As with those,
-active path detection doesn't apply — Lertaro is already docked inside the dialog itself, with no
-other window to scope a search against.
+plugin at all where most applications are covered by the built-in dialogs above. The AutoCAD entry
+covers its native Open and Save dialogs, which use the standard Windows common-dialog class but a
+distinct control layout. As with those, active path detection doesn't apply — Lertaro is already
+docked inside the dialog itself, with no other window to scope a search against.
 
 ---
 
