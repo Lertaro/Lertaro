@@ -38,10 +38,6 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
     {
         var normalizedPath = NormalizeDirectory(folderPath);
         var spaceEntries = await _searchService.GetSpaceEntriesAsync(normalizedPath, token).ConfigureAwait(false);
-        if (spaceEntries.Count == 0)
-        {
-            return new EverythingQueryResult(Array.Empty<EverythingResultItem>(), 0, 0, 0);
-        }
 
         var totalFolderSize = 0L;
         foreach (var entry in spaceEntries)
@@ -54,23 +50,12 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
             folderName = normalizedPath;
         var parentDir = Path.GetDirectoryName(normalizedPath.TrimEnd('\\')) ?? normalizedPath;
 
-        DateTime? lastModified = null;
-        try
-        {
-            if (Directory.Exists(normalizedPath))
-                lastModified = Directory.GetLastWriteTime(normalizedPath);
-        }
-        catch
-        {
-            // Ignore I/O timestamp failure
-        }
-
         var singleItem = new EverythingResultItem(
             Path: parentDir,
             FileName: folderName,
             Size: Math.Max(0, totalFolderSize),
             IsDirectory: false,
-            DateModified: lastModified,
+            DateModified: null,
             Attributes: (uint)FileAttributes.Directory);
 
         return new EverythingQueryResult(new[] { singleItem }, 1, 0, 1);
@@ -163,8 +148,8 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
         }
 
         var limit = request.MaxResults == EverythingIpcConstants.AllResults
-            ? 1000
-            : (int)Math.Min(request.MaxResults + request.Offset, 2000);
+            ? int.MaxValue
+            : (int)Math.Min(request.MaxResults + request.Offset, 100000);
 
         var results = new List<SearchResult>();
         await _searchService.SearchStreamingAsync(

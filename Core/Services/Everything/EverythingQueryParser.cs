@@ -256,19 +256,15 @@ public static class EverythingQueryParser
         }
 
         var isFolderSubtree = false;
-        // If parent wasn't specified via parent: but query is an exact existing directory path
+        // If parent wasn't specified via parent: but query starts with a drive path
         if (string.IsNullOrEmpty(parentDir) && !rootOnly && !string.IsNullOrEmpty(query))
         {
             var candidate = query.Trim('"', '<', '>');
             if (candidate.Length >= 2 && candidate[1] == ':' && (candidate.Length == 2 || candidate[2] == '\\' || candidate[2] == '/'))
             {
-                var normalized = candidate.Length == 2 ? candidate + "\\" : candidate;
-                if (Directory.Exists(normalized))
-                {
-                    parentDir = normalized;
-                    isFolderSubtree = query.Trim().EndsWith('\\') || query.Trim().EndsWith("\\\"") || query.Trim().EndsWith("/>");
-                    query = string.Empty;
-                }
+                parentDir = candidate.Length == 2 ? candidate + "\\" : candidate;
+                isFolderSubtree = query.Trim().EndsWith('\\') || query.Trim().EndsWith("\\\"") || query.Trim().EndsWith("/>") || candidate.EndsWith('\\') || candidate.EndsWith('/');
+                query = string.Empty;
             }
         }
 
