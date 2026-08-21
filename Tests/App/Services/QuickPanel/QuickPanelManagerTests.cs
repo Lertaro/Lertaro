@@ -6,10 +6,7 @@ namespace Lertaro.App.Tests.Services.QuickPanel;
 public sealed class QuickPanelManagerTests
 {
     [TestMethod]
-    public void IsCurrentProcess_MatchesTheForegroundApp()
-    {
-        Assert.IsTrue(QuickPanelManager.IsCurrentProcess(42, 42));
-    }
+    public void IsCurrentProcess_MatchesTheForegroundApp() => Assert.IsTrue(QuickPanelManager.IsCurrentProcess(42, 42));
 
     [TestMethod]
     public void IsCurrentProcess_RejectsOtherAndZeroProcesses()

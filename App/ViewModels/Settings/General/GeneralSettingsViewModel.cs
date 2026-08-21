@@ -2,8 +2,6 @@ using System.Windows.Input;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.Core;
-
-using Lertaro.Core.Wire;
 namespace Lertaro.App.ViewModels.Settings.General;
 
 public class GeneralSettingsViewModel : ViewModelBase
@@ -20,6 +18,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _autoSilentUpdate;
     private bool _enableHardwareAcceleration;
     private bool _enableFuzzyMatch;
+    private bool _enableEverythingIpc;
     private bool _hideTrayIcon;
     private bool _openFoldersInNewExplorerTabs;
     private bool _defaultFileManagerEnabled;
@@ -57,6 +56,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _autoSilentUpdate = userSettings.AutoSilentUpdate;
         _enableHardwareAcceleration = userSettings.EnableHardwareAcceleration;
         _enableFuzzyMatch = userSettings.EnableFuzzyMatch;
+        _enableEverythingIpc = userSettings.EnableEverythingIpc;
         _hideTrayIcon = userSettings.HideTrayIcon;
         _openFoldersInNewExplorerTabs = userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs;
         _defaultFileManagerEnabled = userSettings.DefaultFileManager.Enabled;
@@ -165,6 +165,12 @@ public class GeneralSettingsViewModel : ViewModelBase
         set => SetProperty(ref _enableFuzzyMatch, value);
     }
 
+    public bool EnableEverythingIpc
+    {
+        get => _enableEverythingIpc;
+        set => SetProperty(ref _enableEverythingIpc, value);
+    }
+
     public bool HideTrayIcon
     {
         get => _hideTrayIcon;
@@ -240,49 +246,22 @@ public class GeneralSettingsViewModel : ViewModelBase
         }
     }
 
-    public void Apply()
-    {
-        var logLevelChanged = _userSettings.LogLevel != LogLevel;
-
-        _userSettings.StartWithWindows = _startWithWindows;
-        _userSettings.AutoCheckUpdates = _autoCheckUpdates;
-        if (IsUserAdmin)
-            _userSettings.AutoSilentUpdate = _autoSilentUpdate;
-        _userSettings.EnableHardwareAcceleration = _enableHardwareAcceleration;
-        _userSettings.EnableFuzzyMatch = _enableFuzzyMatch;
-        // Push it straight into the process-wide default too, so toggling this takes effect for the
-        // plugin catalog, favorites and highlighting immediately rather than only after a restart.
-        SearchContext.DefaultFuzzyMatchEnabled = _enableFuzzyMatch;
-        _userSettings.HideTrayIcon = _hideTrayIcon;
-        _userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs = _openFoldersInNewExplorerTabs;
-        _userSettings.GlobalTokenPrefix = string.IsNullOrWhiteSpace(_globalTokenPrefix) ? ":" : _globalTokenPrefix;
-        _userSettings.LogLevel = LogLevel;
-        _userSettings.DefaultFileManager.Enabled = _defaultFileManagerEnabled;
-        _userSettings.DefaultFileManager.Path = _defaultFileManagerPath;
-        _userSettings.DefaultFileManager.Parameter = _defaultFileManagerParameter;
-
-        StartupManager.SetEnabled(StartWithWindows);
-        (System.Windows.Application.Current.MainWindow as QuickSearchWindow)?.ApplyTrayIconVisibility(_hideTrayIcon);
-        Logger.MinimumLevel = SettingsOptionGenerator.ParseLogLevel(LogLevel);
-        if (logLevelChanged)
-        {
-            // Propagate to hook process so hook.log also respects the new level
-            App.HookClient?.SendMessage(new IpcMessage { Id = IpcMessageId.ReloadSettings });
-        }
-
-        Layout.Save();
-        PreviewWindow.Save();
-        MainWindow.Save();
-        QuickNavigationOrder.Save();
-        ResultTypeOrder.Save();
-        SidebarGroupOrder.Save();
-        ColumnOrder.Save();
-        ActionMenuGroupOrder.Save();
-        FilePreviewProviderOrder.Save();
-        ThumbnailProviderOrder.Save();
-
-        _userSettings.Save();
-    }
+    public void Apply() => GeneralSettingsApplier.Apply(
+        this,
+        _userSettings,
+        _startWithWindows,
+        _autoCheckUpdates,
+        _autoSilentUpdate,
+        _enableHardwareAcceleration,
+        _enableFuzzyMatch,
+        _enableEverythingIpc,
+        _hideTrayIcon,
+        _openFoldersInNewExplorerTabs,
+        _globalTokenPrefix,
+        LogLevel,
+        _defaultFileManagerEnabled,
+        _defaultFileManagerPath,
+        _defaultFileManagerParameter);
 
     public SearchBarLayoutSettingsViewModel Layout { get; }
     public PreviewWindowSettingsViewModel PreviewWindow { get; }

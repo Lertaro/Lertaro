@@ -292,6 +292,8 @@
   "General_AutoSilentUpdate": "自動サイレントアップデート（新しいバージョンを検出した場合）",
   "General_HardwareAcceleration": "ハードウェアアクセラレーションを有効化（再起動が必要）",
   "General_HideTrayIcon": "トレイアイコンを非表示",
+  "General_EnableEverythingIpc": "Everything IPC エミュレーションを有効化",
+  "General_EnableEverythingIpcDesc": "Directory Opus、Total Commander、Flow Launcher など Everything に依存するサードパーティ製ツールが、Lertaro を使用して検索やフォルダサイズ計算を行えるようにします。",
   "General_EnableFuzzyMatch": "あいまい一致を有効化",
   "General_EnableFuzzyMatchDesc": "無効にすると、検索語は連続した部分文字列として現れる必要があります。\"abc\" は \"a-b-c\" に一致しなくなります。語の前に ' を付けると、その語だけあいまい一致のままになります。",
   "General_GlobalTokenPrefix": "クエリトークン全体プレフィックス文字",

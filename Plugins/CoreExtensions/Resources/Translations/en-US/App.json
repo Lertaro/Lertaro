@@ -292,6 +292,8 @@
   "General_AutoSilentUpdate": "Auto silent update (when new version is detected)",
   "General_HardwareAcceleration": "Enable hardware acceleration (requires restart)",
   "General_HideTrayIcon": "Hide tray icon",
+  "General_EnableEverythingIpc": "Enable Everything IPC emulation",
+  "General_EnableEverythingIpcDesc": "Allows third-party tools that depend on Everything (e.g. Directory Opus, Total Commander, Flow Launcher) to use Lertaro for search and folder size calculation.",
   "General_EnableFuzzyMatch": "Enable fuzzy matching",
   "General_EnableFuzzyMatchDesc": "When off, a term must appear as a contiguous substring: \"abc\" no longer matches \"a-b-c\". Prefix a term with ' to keep matching it fuzzily.",
   "General_GlobalTokenPrefix": "Global Query Token Prefix",

@@ -7,7 +7,11 @@ internal static class AppStartupServiceBootstrapper
 {
     public static void EnsureServiceStarted()
     {
-        Everything.EverythingServiceBootstrapper.Start(new SearchService());
+        var settings = UserSettings.Load();
+        if (settings.EnableEverythingIpc)
+        {
+            Everything.EverythingServiceBootstrapper.Start(new SearchService());
+        }
         _ = Task.Run(async () =>
                                                       {
                                                           using var searchService = new SearchService();

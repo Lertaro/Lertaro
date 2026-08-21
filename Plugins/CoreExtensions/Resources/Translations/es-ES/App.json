@@ -292,6 +292,8 @@
   "General_AutoSilentUpdate": "Actualización silenciosa automática (al detectar una nueva versión)",
   "General_HardwareAcceleration": "Activar aceleración por hardware (requiere reiniciar)",
   "General_HideTrayIcon": "Ocultar icono de la bandeja del sistema",
+  "General_EnableEverythingIpc": "Habilitar emulación Everything IPC",
+  "General_EnableEverythingIpcDesc": "Permite que herramientas de terceros dependientes de Everything (como Directory Opus, Total Commander o Flow Launcher) usen Lertaro para búsquedas y cálculo del tamaño de carpetas.",
   "General_EnableFuzzyMatch": "Activar coincidencia difusa",
   "General_EnableFuzzyMatchDesc": "Al desactivarla, un término debe aparecer como subcadena contigua: \"abc\" deja de coincidir con \"a-b-c\". Antepón ' a un término para seguir buscándolo de forma difusa.",
   "General_GlobalTokenPrefix": "Carácter de prefijo global de tokens",

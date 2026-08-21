@@ -110,6 +110,12 @@
                            IsChecked="{Binding General.HideTrayIcon, Mode=TwoWay}"
                            Margin="0,4"/>
 
+                <CheckBox x:Name="RowEnableEverythingIpc" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_EnableEverythingIpc]}"
+                           IsChecked="{Binding General.EnableEverythingIpc, Mode=TwoWay}"
+                           Margin="0,4"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_EnableEverythingIpcDesc]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap"/>
+
                 <CheckBox x:Name="RowEnableFuzzyMatch" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_EnableFuzzyMatch]}"
                            IsChecked="{Binding General.EnableFuzzyMatch, Mode=TwoWay}"
                            Margin="0,4"/>

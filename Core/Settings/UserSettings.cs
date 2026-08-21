@@ -45,6 +45,7 @@ public class UserSettings
     // entry point for Settings/Exit/etc., so hiding the tray icon never strands the user -- see
     // QuickSearchWindow's BtnTrayMenu and TrayIconService.ShowMenuAt.
     public bool HideTrayIcon { get; set; } = false;
+    public bool EnableEverythingIpc { get; set; } = false;
     public string GlobalTokenPrefix { get; set; } = ":";
     public string LogLevel { get; set; } = "Info";
     public string PreferredLanguage { get; set; } = GetDefaultSystemLanguage();

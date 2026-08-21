@@ -292,6 +292,8 @@
   "General_AutoSilentUpdate": "自動靜默更新 (偵測到新版本時)",
   "General_HardwareAcceleration": "啟用硬件加速 (需重新啟動程式)",
   "General_HideTrayIcon": "隱藏工作列圖示",
+  "General_EnableEverythingIpc": "啟用 Everything 兼容服務 (IPC)",
+  "General_EnableEverythingIpcDesc": "允許 Directory Opus、Total Commander、Flow Launcher 等依賴 Everything 的第三方工具直接使用 Lertaro 進行搜尋和資料夾大小計算。",
   "General_EnableFuzzyMatch": "啟用模糊匹配",
   "General_EnableFuzzyMatchDesc": "關閉後，查詢詞必須作為連續子串出現：\"abc\" 不再匹配 \"a-b-c\"。在詞前加 ' 可讓該詞仍按模糊匹配。",
   "General_GlobalTokenPrefix": "查詢標記總前導字元",
