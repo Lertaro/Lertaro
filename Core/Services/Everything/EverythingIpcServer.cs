@@ -194,15 +194,12 @@ public sealed class EverythingIpcServer : IDisposable
         UnregisterClass(className, hInstance);
     }
 
-    private IntPtr CustomWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+    private IntPtr CustomWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam) => msg switch
     {
-        return msg switch
-        {
-            EverythingIpcConstants.EverythingWmIpc => _dispatcher.HandleIpcCommand((int)wParam.ToInt64(), lParam),
-            EverythingIpcConstants.WM_COPYDATA => _dispatcher.HandleCopyData(wParam, lParam, hWnd),
-            _ => DefWindowProc(hWnd, msg, wParam, lParam),
-        };
-    }
+        EverythingIpcConstants.EverythingWmIpc => _dispatcher.HandleIpcCommand((int)wParam.ToInt64(), lParam),
+        EverythingIpcConstants.WM_COPYDATA => _dispatcher.HandleCopyData(wParam, lParam, hWnd),
+        _ => DefWindowProc(hWnd, msg, wParam, lParam),
+    };
 
     public void Stop()
     {
