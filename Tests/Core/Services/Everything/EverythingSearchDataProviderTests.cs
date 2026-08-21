@@ -22,4 +22,28 @@ public class EverythingSearchDataProviderTests
         Assert.AreEqual(6u, next);
         Assert.AreEqual(6u, provider.GetRunCount(file));
     }
+
+    [TestMethod]
+    public async Task QueryFolderSubtree_UnindexedOrEmptyFolder_ReturnsEmptyResult()
+    {
+        using var searchService = new SearchService();
+        var provider = new EverythingSearchDataProvider(searchService);
+
+        var request = new EverythingQueryRequest(
+            ReplyHwnd: IntPtr.Zero,
+            ReplyCopyDataMessage: 0,
+            SearchFlags: 0,
+            Offset: 0,
+            MaxResults: 100,
+            RequestFlags: 0x110,
+            SortType: 0,
+            SearchString: @"""Z:\NonExistentDirectoryXYZ\""",
+            IsUnicode: true,
+            IsQuery2: true);
+
+        var result = await provider.ExecuteQueryAsync(request);
+
+        Assert.AreEqual(0u, result.TotalItems);
+        Assert.IsEmpty(result.Items);
+    }
 }
