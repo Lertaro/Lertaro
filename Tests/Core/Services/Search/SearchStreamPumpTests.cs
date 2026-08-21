@@ -1,4 +1,3 @@
-using Lertaro.Core;
 using Lertaro.Core.Services.Search;
 
 namespace Lertaro.Core.Tests.Services.Search;

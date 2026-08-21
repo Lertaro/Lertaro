@@ -5,7 +5,10 @@ namespace Lertaro.App.Services;
 
 internal static class AppStartupServiceBootstrapper
 {
-    public static void EnsureServiceStarted() => _ = Task.Run(async () =>
+    public static void EnsureServiceStarted()
+    {
+        Everything.EverythingServiceBootstrapper.Start(new SearchService());
+        _ = Task.Run(async () =>
                                                       {
                                                           using var searchService = new SearchService();
                                                           try
@@ -32,4 +35,5 @@ internal static class AppStartupServiceBootstrapper
                                                           Logger.Log("[AppStartupServiceBootstrapper] Service unavailable on app startup. Attempting silent install/start.");
                                                           ServiceInstallManager.SilentInstall(() => Logger.Log("[AppStartupServiceBootstrapper] Silent install/start attempt completed."));
                                                       });
+    }
 }

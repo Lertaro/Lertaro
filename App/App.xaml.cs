@@ -291,7 +291,7 @@ public partial class App : Application
     {
         Core.Services.LocalSend.LocalSendServiceManager.Instance.Stop();
         HookClient?.Stop(); HookClient?.Dispose(); HookClient = null;
-        AppPipeService.StopServer(); AppSearchPipeService.StopServer(); InlineSearchManager.Instance.Dispose(); CloseAllManagedWindows();
+        AppPipeService.StopServer(); AppSearchPipeService.StopServer(); Services.Everything.EverythingServiceBootstrapper.Stop(); InlineSearchManager.Instance.Dispose(); CloseAllManagedWindows();
         if (_appMutex != null) { try { _appMutex.ReleaseMutex(); } catch { } _appMutex.Dispose(); }
         base.OnExit(e);
     }
