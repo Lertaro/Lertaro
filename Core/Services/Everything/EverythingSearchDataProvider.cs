@@ -38,6 +38,10 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
     {
         var normalizedPath = NormalizeDirectory(folderPath);
         var spaceEntries = await _searchService.GetSpaceEntriesAsync(normalizedPath, token).ConfigureAwait(false);
+        if (spaceEntries.Count == 0)
+        {
+            return new EverythingQueryResult(Array.Empty<EverythingResultItem>(), 0, 0, 0);
+        }
 
         var totalFolderSize = 0L;
         foreach (var entry in spaceEntries)

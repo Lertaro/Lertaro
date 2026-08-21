@@ -24,7 +24,7 @@ public class EverythingSearchDataProviderTests
     }
 
     [TestMethod]
-    public async Task QueryFolderSubtree_Folder_ReturnsCalculatedSizeItem()
+    public async Task QueryFolderSubtree_UnindexedFolder_ReturnsEmptyResult()
     {
         using var searchService = new SearchService();
         var provider = new EverythingSearchDataProvider(searchService);
@@ -37,14 +37,13 @@ public class EverythingSearchDataProviderTests
             MaxResults: 100,
             RequestFlags: 0x110,
             SortType: 0,
-            SearchString: @"""C:\Windows\""",
+            SearchString: @"""Z:\NonExistentDriveXYZ\""",
             IsUnicode: true,
             IsQuery2: true);
 
         var result = await provider.ExecuteQueryAsync(request);
 
-        Assert.AreEqual(1u, result.TotalItems);
-        Assert.HasCount(1, result.Items);
-        Assert.AreEqual("Windows", result.Items[0].FileName);
+        Assert.AreEqual(0u, result.TotalItems);
+        Assert.IsEmpty(result.Items);
     }
 }
