@@ -51,7 +51,7 @@ public class CustomCommandsQuickNavProvider : IQuickNavigationProvider
                 yield return new DynamicMenuItem
                 {
                     Text = !string.IsNullOrEmpty(cmd.Title) ? cmd.Title : cmd.Keyword,
-                    HBitmapItem = QuickNavIcon.GetCommandHBitmap(),
+                    HBitmapItem = QuickNavIcon.GetCommandHBitmap(cmd.Icon),
                     OnExecute = () => CommandRunner.Run(capturedCmd)
                 };
                 continue;

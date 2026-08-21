@@ -14,8 +14,8 @@ namespace Lertaro.Plugins.CustomCommands;
 // Icons for the quick-navigation menu manifestation of custom commands, which only carries an HBITMAP
 // handle (DynamicMenuItem), not a live WPF element -- same "vector Geometry rasterized to HBITMAP"
 // technique Plugins/TotalCommander/DirMenu/DirMenuIcon.cs and Plugins/FolderCascader/Navigation/Helper.cs
-// already use for their own synthetic (non-filesystem) entries. Per-command icons (CommandItem.Icon) are
-// NOT rendered here -- every quick-nav command shares this one default icon for now.
+// already use for their own synthetic (non-filesystem) entries. Custom command icons use the same
+// configured SVG path data as the search result surface, with the default terminal glyph as fallback.
 //
 // Unlike DirMenuIcon's own "delete the previous handle, render a fresh one" pattern -- which is safe
 // there because each of its icons (the root entry, a static ini group) only needs ONE live consumer at a
@@ -40,18 +40,41 @@ internal static class QuickNavIcon
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DeleteObject(IntPtr hObject);
 
-    private static IntPtr _commandCached = IntPtr.Zero;
+    private static readonly object Sync = new();
+    private static readonly Dictionary<string, IntPtr> CommandCache = new(StringComparer.Ordinal);
     private static IntPtr _categoryCached = IntPtr.Zero;
 
-    public static IntPtr GetCommandHBitmap()
+    public static IntPtr GetCommandHBitmap(string? pathData)
     {
-        if (_commandCached == IntPtr.Zero) _commandCached = Render(CommandPath, viewBoxSize: 24);
-        return _commandCached;
+        var normalized = string.IsNullOrWhiteSpace(pathData) ? CommandPath : pathData.Trim();
+        lock (Sync)
+        {
+            if (CommandCache.TryGetValue(normalized, out var cached)) return cached;
+
+            IntPtr rendered;
+            try
+            {
+                rendered = RenderOnUiThread(normalized, viewBoxSize: 24);
+            }
+            catch
+            {
+                rendered = RenderOnUiThread(CommandPath, viewBoxSize: 24);
+                normalized = CommandPath;
+                if (CommandCache.TryGetValue(normalized, out cached))
+                {
+                    DeleteObject(rendered);
+                    return cached;
+                }
+            }
+
+            CommandCache[normalized] = rendered;
+            return rendered;
+        }
     }
 
     public static IntPtr GetCategoryHBitmap()
     {
-        if (_categoryCached == IntPtr.Zero) _categoryCached = Render(CategoryPath, viewBoxSize: 24);
+        if (_categoryCached == IntPtr.Zero) _categoryCached = RenderOnUiThread(CategoryPath, viewBoxSize: 24);
         return _categoryCached;
     }
 
@@ -60,13 +83,25 @@ internal static class QuickNavIcon
     // handle -- safe to free and force a fresh render next time either getter is called.
     public static void Invalidate()
     {
-        if (_commandCached != IntPtr.Zero) { DeleteObject(_commandCached); _commandCached = IntPtr.Zero; }
-        if (_categoryCached != IntPtr.Zero) { DeleteObject(_categoryCached); _categoryCached = IntPtr.Zero; }
+        lock (Sync)
+        {
+            foreach (var handle in CommandCache.Values) DeleteObject(handle);
+            CommandCache.Clear();
+            if (_categoryCached != IntPtr.Zero) { DeleteObject(_categoryCached); _categoryCached = IntPtr.Zero; }
+        }
     }
 
     private static Brush AccentBrush() =>
         (Application.Current?.TryFindResource("AccentBlue") as SolidColorBrush)
         ?? new SolidColorBrush(Color.FromRgb(33, 150, 243));
+
+    private static IntPtr RenderOnUiThread(string pathData, double viewBoxSize)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        return dispatcher == null || dispatcher.CheckAccess()
+            ? Render(pathData, viewBoxSize)
+            : dispatcher.Invoke(() => Render(pathData, viewBoxSize));
+    }
 
     private static IntPtr Render(string pathData, double viewBoxSize)
     {
