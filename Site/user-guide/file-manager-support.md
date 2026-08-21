@@ -59,6 +59,10 @@ Add **Lertaro Size** in Directory Opus's column chooser. To keep it visible when
 
 The generated size script works with Directory Opus 11 and 12 as well as 13 and later; older versions use a hidden compatibility runner and remove its temporary output immediately after each query.
 
+## Everything IPC emulation
+
+When **Enable Everything IPC emulation** is turned on in [Settings → General → System](./settings/general#system), Lertaro emulates the standard Everything Win32 IPC server interface. This allows Directory Opus, Total Commander, and other third-party tools to use Lertaro directly as their native Everything backend for instant global search and zero-I/O folder size calculation without requiring Everything to be running.
+
 ## Application dialogs (optional plugins)
 
 These target one specific dialog inside a third-party application — not the whole application —

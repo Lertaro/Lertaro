@@ -17,7 +17,7 @@ Navigation**, and **Preview & Thumbnails**.
   menu the tray icon's right-click shows is always available from the
   [Quick window's own logo](../hotkeys#search-box-logo-icon) regardless of this setting, so hiding
   the tray icon never strands you without a way back into Settings or Exit.
-- **Open folders in new File Explorer tabs** — checkbox, off by default. On Windows 11, **Open** and **Open Containing Folder** use a new tab in an existing native File Explorer window; the latter also selects the requested item. If no File Explorer window exists, Windows opens the first folder in a normal window, then later folders use tabs. This experimental integration is ignored when a third-party file manager is configured.
+- **Enable Everything IPC emulation** — checkbox, off by default. Allows third-party tools that integrate with or depend on Everything (such as Directory Opus, Total Commander, and Flow Launcher) to seamlessly perform searches and calculate folder sizes using Lertaro's in-memory index.
 - **Enable fuzzy matching** — checkbox, on by default. With fuzzy matching on, a bare search term
   matches as long as its characters occur in order anywhere in the name; turning this off requires
   a bare term to appear as a contiguous substring instead (`abc` no longer matches `a-b-c`) — see

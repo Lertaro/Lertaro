@@ -60,6 +60,10 @@ Agrega **Lertaro Size** desde el selector de columnas de Directory Opus. Para co
 
 El script de tamaños generado es compatible con Directory Opus 11, 12 y 13 o posteriores; las versiones antiguas usan un ejecutor de compatibilidad oculto y eliminan la salida temporal inmediatamente después de cada consulta.
 
+## Emulación de Everything IPC
+
+Al activar **Habilitar emulación Everything IPC** en [Configuración → General → Sistema](./settings/general#sistema), Lertaro emula la interfaz estándar del servidor Win32 IPC de Everything. Esto permite que herramientas como Directory Opus y Total Commander utilicen directamente Lertaro como su motor de Everything nativo para búsquedas globales instantáneas y cálculo de tamaños de carpeta sin I/O de disco.
+
 ## Diálogos propios de aplicaciones (plugins opcionales)
 
 Estos apuntan a un diálogo concreto dentro de una aplicación de terceros — no a la aplicación

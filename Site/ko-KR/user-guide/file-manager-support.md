@@ -57,6 +57,10 @@ Directory Opus의 열 선택기에서 **Lertaro Size**를 추가하세요. 폴�
 
 생성되는 크기 스크립트는 Directory Opus 11, 12 및 13 이상을 지원합니다. 이전 버전에서는 숨겨진 호환 실행기를 사용하며 각 쿼리 직후 임시 출력을 삭제합니다.
 
+## Everything IPC 에뮬레이션
+
+[설정 → 일반 → 시스템](./settings/general#시스템)에서 **Everything IPC 에뮬레이션 사용**을 켜면 Lertaro는 표준 Everything Win32 IPC 서버 인터페이스를 에뮬레이트합니다. 이를 통해 Directory Opus, Total Commander 등 타사 도구가 Everything을 별도로 실행하지 않고도 Lertaro를 네이티브 백엔드로 직접 사용하여 빠른 전체 검색과 제로 I/O 폴더 크기 계산을 수행할 수 있습니다.
+
 ## 애플리케이션 자체 대화상자 (선택적 플러그인)
 
 이들은 애플리케이션 전체가 아니라, 타사 애플리케이션 안의 특정 대화상자 하나를 대상으로 합니다 — 위의 내장

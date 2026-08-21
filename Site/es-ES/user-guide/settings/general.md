@@ -17,7 +17,7 @@ Seis pestañas: **Sistema**, **Ventana de búsqueda rápida**, **Ventana de bús
   reiniciar. El mismo menú que muestra el clic derecho del icono de la bandeja siempre está disponible desde el
   [propio logotipo de la ventana rápida](../hotkeys#icono-del-logotipo-en-el-cuadro-de-busqueda) sin importar este
   ajuste, así que ocultar el icono de la bandeja nunca te deja sin forma de volver a Configuración o a Salir.
-- **Abrir carpetas en nuevas pestañas del Explorador de archivos** — casilla, desactivada por defecto. En Windows 11, cuando ya hay una ventana nativa del Explorador de archivos, **Abrir** y **Abrir carpeta contenedora** usan una pestaña nueva; la segunda opción también selecciona el elemento solicitado. Si no hay ninguna ventana del Explorador, Windows abre el primer elemento en una ventana normal y los siguientes usan pestañas. Esta integración experimental se ignora cuando se configura un administrador de archivos de terceros.
+- **Habilitar emulación Everything IPC** — casilla, desactivada por defecto. Permite que herramientas de terceros dependientes de Everything (como Directory Opus, Total Commander y Flow Launcher) utilicen de forma transparente el índice en memoria de Lertaro para búsquedas y cálculo de tamaño de carpetas.
 - **Activar coincidencia difusa** — casilla, activada por defecto. Con ella activada, un término de búsqueda
   normal coincide con que sus caracteres aparezcan en orden en cualquier parte del nombre; al desactivarla, un
   término normal debe aparecer como subcadena contigua en su lugar (`abc` deja de coincidir con `a-b-c`) — ver

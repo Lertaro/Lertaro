@@ -48,6 +48,10 @@ Lertaro 不只是能搜尋——它還可以和你正在使用的檔案管理員
 
 產生的大小指令碼相容於 Directory Opus 11、12 以及 13 或更新版本；較舊版本會使用隱藏的相容執行器，並在每次查詢後立即刪除暫存輸出。
 
+## Everything 相容服務 (IPC)
+
+在[設定 → 通用 → 系統](./settings/general#系統)中開啟**啟用 Everything 相容服務 (IPC)**後，Lertaro 會模擬標準 Everything Win32 IPC 服務介面。Directory Opus、Total Commander 等工具無需額外執行 Everything，即可直接調用 Lertaro 進行全域搜尋與零 I/O 資料夾大小計算。
+
 ## 應用程式自帶的對話方塊(可選外掛)
 
 這幾項針對的是第三方應用程式裡的某一個特定對話方塊——而不是整個應用程式，跟上面內建的那幾個對話方塊是同一個思路。在[設定 → 外掛](./settings/plugins)裡安裝/啟用，每個外掛只有一個元件，直接在那裡開關即可(沒有單獨的設定對話方塊，因為也沒有別的東西需要切換)。
