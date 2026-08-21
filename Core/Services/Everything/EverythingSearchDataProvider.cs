@@ -25,7 +25,7 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
             return await QueryFolderSubtreeSizeAsync(criteria.ParentDirectoryFilter, request, token).ConfigureAwait(false);
         }
 
-        if (!string.IsNullOrEmpty(criteria.ParentDirectoryFilter))
+        if (!string.IsNullOrEmpty(criteria.ParentDirectoryFilter) && string.IsNullOrEmpty(criteria.KeywordQuery) && string.IsNullOrEmpty(criteria.ExtensionFilter))
         {
             return await QueryDirectoryEntriesAsync(criteria, request, token).ConfigureAwait(false);
         }
@@ -148,19 +148,23 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
         var keyword = string.IsNullOrWhiteSpace(criteria.KeywordQuery) ? criteria.RawQuery : criteria.KeywordQuery;
         if (string.IsNullOrWhiteSpace(keyword))
         {
-            return new EverythingQueryResult(Array.Empty<EverythingResultItem>(), 0, 0, 0);
+            keyword = "*";
         }
 
         var limit = request.MaxResults == EverythingIpcConstants.AllResults
             ? int.MaxValue
             : (int)Math.Min(request.MaxResults + request.Offset, 100000);
 
+        var directoryFilter = !string.IsNullOrEmpty(criteria.ParentDirectoryFilter) && !criteria.ParentDirectoryFilter.StartsWith("?:", StringComparison.OrdinalIgnoreCase)
+            ? NormalizeDirectory(criteria.ParentDirectoryFilter)
+            : null;
+
         var results = new List<SearchResult>();
         await _searchService.SearchStreamingAsync(
             query: keyword,
             maxResults: limit,
             maxAppResults: 0,
-            directoryFilter: null,
+            directoryFilter: directoryFilter,
             onResult: res =>
             {
                 if (criteria.MatchFoldersOnly && !res.IsDir) return;

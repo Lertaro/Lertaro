@@ -60,6 +60,65 @@ public class EverythingQueryParserTests
     }
 
     [TestMethod]
+    public void ParseSearchCriteria_TotalCommanderDriveProbe_ExtractsMatchRootsOnly()
+    {
+        var criteria = EverythingQueryParser.ParseSearchCriteria("?:");
+
+        Assert.IsTrue(criteria.MatchRootsOnly);
+        Assert.AreEqual(string.Empty, criteria.KeywordQuery);
+    }
+
+    [TestMethod]
+    public void ParseSearchCriteria_TotalCommanderAllDrivesQuery_ExtractsKeywordOnly()
+    {
+        var criteria = EverythingQueryParser.ParseSearchCriteria("?: *.png");
+
+        Assert.IsFalse(criteria.MatchRootsOnly);
+        Assert.IsNull(criteria.ParentDirectoryFilter);
+        Assert.AreEqual("*.png", criteria.KeywordQuery);
+    }
+
+    [TestMethod]
+    public void ParseSearchCriteria_TotalCommanderDriveRootQuery_ExtractsDriveAndKeyword()
+    {
+        var criteria = EverythingQueryParser.ParseSearchCriteria(@"C:\ *.txt");
+
+        Assert.AreEqual(@"C:\", criteria.ParentDirectoryFilter);
+        Assert.AreEqual("*.txt", criteria.KeywordQuery);
+        Assert.IsFalse(criteria.IsFolderSubtreeQuery);
+    }
+
+    [TestMethod]
+    public void ParseSearchCriteria_TotalCommanderFolderQuery_ExtractsFolderAndKeyword()
+    {
+        var criteria = EverythingQueryParser.ParseSearchCriteria(@"D:\Projects\ test");
+
+        Assert.AreEqual(@"D:\Projects\", criteria.ParentDirectoryFilter);
+        Assert.AreEqual("test", criteria.KeywordQuery);
+        Assert.IsFalse(criteria.IsFolderSubtreeQuery);
+    }
+
+    [TestMethod]
+    public void ParseSearchCriteria_QuotedFolderWithKeyword_ExtractsFolderAndKeyword()
+    {
+        var criteria = EverythingQueryParser.ParseSearchCriteria(@"""C:\Program Files\"" *.exe");
+
+        Assert.AreEqual(@"C:\Program Files\", criteria.ParentDirectoryFilter);
+        Assert.AreEqual("*.exe", criteria.KeywordQuery);
+        Assert.IsFalse(criteria.IsFolderSubtreeQuery);
+    }
+
+    [TestMethod]
+    public void ParseSearchCriteria_TotalCommanderNopathQuery_ExtractsDirectoryAndCleanKeyword()
+    {
+        var criteria = EverythingQueryParser.ParseSearchCriteria(@"path:c:\ nopath:<samplefile>");
+
+        Assert.AreEqual(@"c:\", criteria.ParentDirectoryFilter);
+        Assert.AreEqual("samplefile", criteria.KeywordQuery);
+        Assert.IsFalse(criteria.IsFolderSubtreeQuery);
+    }
+
+    [TestMethod]
     public void TryParseCopyDataQuery_V2UnicodeBuffer_ParsesSuccessfully()
     {
         // Layout: reply_hwnd(4), reply_id(4), search_flags(4), offset(4), max_results(4), request_flags(4), sort_type(4), string

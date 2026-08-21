@@ -31,10 +31,10 @@ public static class EverythingQueryParser
 
             return actionCode switch
             {
-                EverythingIpcConstants.CopyDataQueryA => TryParseV1(cds.lpData, cds.cbData, isUnicode: false, out request),
-                EverythingIpcConstants.CopyDataQueryW => TryParseV1(cds.lpData, cds.cbData, isUnicode: true, out request),
-                EverythingIpcConstants.CopyDataQuery2A => TryParseV2(cds.lpData, cds.cbData, isUnicode: false, out request),
-                EverythingIpcConstants.CopyDataQuery2W => TryParseV2(cds.lpData, cds.cbData, isUnicode: true, out request),
+                EverythingIpcConstants.CopyDataQueryA => TryParseQuery(cds.lpData, cds.cbData, isUnicode: false, isV2: false, out request),
+                EverythingIpcConstants.CopyDataQueryW => TryParseQuery(cds.lpData, cds.cbData, isUnicode: true, isV2: false, out request),
+                EverythingIpcConstants.CopyDataQuery2A => TryParseQuery(cds.lpData, cds.cbData, isUnicode: false, isV2: true, out request),
+                EverythingIpcConstants.CopyDataQuery2W => TryParseQuery(cds.lpData, cds.cbData, isUnicode: true, isV2: true, out request),
                 _ => false
             };
         }
@@ -115,61 +115,25 @@ public static class EverythingQueryParser
         }
     }
 
-    private static bool TryParseV1(IntPtr ptr, int size, bool isUnicode, out EverythingQueryRequest? request)
+    private static bool TryParseQuery(IntPtr ptr, int size, bool isUnicode, bool isV2, out EverythingQueryRequest? request)
     {
         request = null;
-        if (size < QueryV1HeaderSize) return false;
+        var headerSize = isV2 ? QueryV2HeaderSize : QueryV1HeaderSize;
+        if (size < headerSize) return false;
 
         var replyHwnd = (IntPtr)Marshal.ReadInt32(ptr, 0);
         var replyCopyDataMessage = (uint)Marshal.ReadInt32(ptr, 4);
         var searchFlags = (uint)Marshal.ReadInt32(ptr, 8);
         var offset = (uint)Marshal.ReadInt32(ptr, 12);
         var maxResults = (uint)Marshal.ReadInt32(ptr, 16);
+        var requestFlags = isV2 ? (uint)Marshal.ReadInt32(ptr, 20) : EverythingIpcConstants.RequestFileName | EverythingIpcConstants.RequestPath;
+        var sortType = isV2 ? (uint)Marshal.ReadInt32(ptr, 24) : EverythingIpcConstants.SortNameAscending;
 
         var encoding = isUnicode ? Encoding.Unicode : Encoding.Default;
-        var searchString = ReadNullTerminatedString(ptr, QueryV1HeaderSize, size - QueryV1HeaderSize, encoding);
+        var searchString = ReadNullTerminatedString(ptr, headerSize, size - headerSize, encoding);
 
         request = new EverythingQueryRequest(
-            ReplyHwnd: replyHwnd,
-            ReplyCopyDataMessage: replyCopyDataMessage,
-            SearchFlags: searchFlags,
-            Offset: offset,
-            MaxResults: maxResults,
-            RequestFlags: EverythingIpcConstants.RequestFileName | EverythingIpcConstants.RequestPath,
-            SortType: EverythingIpcConstants.SortNameAscending,
-            SearchString: searchString,
-            IsUnicode: isUnicode,
-            IsQuery2: false);
-        return true;
-    }
-
-    private static bool TryParseV2(IntPtr ptr, int size, bool isUnicode, out EverythingQueryRequest? request)
-    {
-        request = null;
-        if (size < QueryV2HeaderSize) return false;
-
-        var replyHwnd = (IntPtr)Marshal.ReadInt32(ptr, 0);
-        var replyCopyDataMessage = (uint)Marshal.ReadInt32(ptr, 4);
-        var searchFlags = (uint)Marshal.ReadInt32(ptr, 8);
-        var offset = (uint)Marshal.ReadInt32(ptr, 12);
-        var maxResults = (uint)Marshal.ReadInt32(ptr, 16);
-        var requestFlags = (uint)Marshal.ReadInt32(ptr, 20);
-        var sortType = (uint)Marshal.ReadInt32(ptr, 24);
-
-        var encoding = isUnicode ? Encoding.Unicode : Encoding.Default;
-        var searchString = ReadNullTerminatedString(ptr, QueryV2HeaderSize, size - QueryV2HeaderSize, encoding);
-
-        request = new EverythingQueryRequest(
-            ReplyHwnd: replyHwnd,
-            ReplyCopyDataMessage: replyCopyDataMessage,
-            SearchFlags: searchFlags,
-            Offset: offset,
-            MaxResults: maxResults,
-            RequestFlags: requestFlags,
-            SortType: sortType,
-            SearchString: searchString,
-            IsUnicode: isUnicode,
-            IsQuery2: true);
+            replyHwnd, replyCopyDataMessage, searchFlags, offset, maxResults, requestFlags, sortType, searchString, isUnicode, isV2);
         return true;
     }
 
@@ -206,12 +170,16 @@ public static class EverythingQueryParser
             return new EverythingSearchCriteria(string.Empty, null, null, false, false, false, false, string.Empty);
 
         var query = searchString.Trim();
+        if (IsRootDriveWildcard(query))
+        {
+            return new EverythingSearchCriteria(searchString, null, null, false, false, true, false, string.Empty);
+        }
+
         string? parentDir = null;
         string? ext = null;
         var folderOnly = false;
         var fileOnly = false;
 
-        // Extract parent:"<path>" or path:"<path>"
         var parentMatch = Regex.Match(query, @"\b(?:parent|path):""([^""]+)""", RegexOptions.IgnoreCase);
         if (parentMatch.Success)
         {
@@ -220,15 +188,14 @@ public static class EverythingQueryParser
         }
         else
         {
-            var bareParentMatch = Regex.Match(query, @"\b(?:parent|path):([^\s]+)", RegexOptions.IgnoreCase);
-            if (bareParentMatch.Success)
+            var bareMatch = Regex.Match(query, @"\b(?:parent|path):([^\s]+)", RegexOptions.IgnoreCase);
+            if (bareMatch.Success)
             {
-                parentDir = bareParentMatch.Groups[1].Value.Trim();
-                query = query.Remove(bareParentMatch.Index, bareParentMatch.Length).Trim();
+                parentDir = bareMatch.Groups[1].Value.Trim();
+                query = query.Remove(bareMatch.Index, bareMatch.Length).Trim();
             }
         }
 
-        // Extract ext:<ext>
         var extMatch = Regex.Match(query, @"\bext:([a-zA-Z0-9_,;]+)", RegexOptions.IgnoreCase);
         if (extMatch.Success)
         {
@@ -236,7 +203,6 @@ public static class EverythingQueryParser
             query = query.Remove(extMatch.Index, extMatch.Length).Trim();
         }
 
-        // Check folder: / file:
         if (Regex.IsMatch(query, @"\bfolder:\s*", RegexOptions.IgnoreCase))
         {
             folderOnly = true;
@@ -255,27 +221,63 @@ public static class EverythingQueryParser
             query = Regex.Replace(query, @"\b(?:root|drive):\s*", string.Empty, RegexOptions.IgnoreCase).Trim();
         }
 
+        if (query.StartsWith("?:*", StringComparison.OrdinalIgnoreCase) ||
+            query.StartsWith("?:/", StringComparison.OrdinalIgnoreCase) ||
+            query.StartsWith("?:\\", StringComparison.OrdinalIgnoreCase) ||
+            query.StartsWith("?: ", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Length > 3 ? query.Substring(3).Trim() : string.Empty;
+        }
+
+        query = Regex.Replace(query, @"\b(?:nopath|name|exact):<([^>]+)>", "$1", RegexOptions.IgnoreCase);
+        query = Regex.Replace(query, @"\b(?:nopath|name|exact):([^\s]+)", "$1", RegexOptions.IgnoreCase);
+        query = Regex.Replace(query, @"<([^>]+)>", "$1");
+        query = Regex.Replace(query, @"\b(?:nocase|nowholeword|noregex|case|wholeword|regex):\s*", string.Empty, RegexOptions.IgnoreCase).Trim();
+
         var isFolderSubtree = false;
-        // If parent wasn't specified via parent: but query starts with a drive path
         if (string.IsNullOrEmpty(parentDir) && !rootOnly && !string.IsNullOrEmpty(query))
         {
-            var candidate = query.Trim('"', '<', '>');
-            if (candidate.Length >= 2 && candidate[1] == ':' && (candidate.Length == 2 || candidate[2] == '\\' || candidate[2] == '/'))
-            {
-                parentDir = candidate.Length == 2 ? candidate + "\\" : candidate;
-                isFolderSubtree = query.Trim().EndsWith('\\') || query.Trim().EndsWith("\\\"") || query.Trim().EndsWith("/>") || candidate.EndsWith('\\') || candidate.EndsWith('/');
-                query = string.Empty;
-            }
+            (parentDir, query, isFolderSubtree) = ExtractLeadingPath(query);
         }
 
         return new EverythingSearchCriteria(
-            RawQuery: searchString,
-            ParentDirectoryFilter: parentDir,
-            ExtensionFilter: ext,
-            MatchFoldersOnly: folderOnly,
-            MatchFilesOnly: fileOnly,
-            MatchRootsOnly: rootOnly,
-            IsFolderSubtreeQuery: isFolderSubtree,
-            KeywordQuery: query);
+            searchString, parentDir, ext, folderOnly, fileOnly, rootOnly, isFolderSubtree, query);
+    }
+
+    private static bool IsRootDriveWildcard(string q) =>
+        q.Equals("?:", StringComparison.OrdinalIgnoreCase) ||
+        q.Equals("?:/", StringComparison.OrdinalIgnoreCase) ||
+        q.Equals("?:\\", StringComparison.OrdinalIgnoreCase) ||
+        q.Equals("?:*", StringComparison.OrdinalIgnoreCase);
+
+    private static (string? parentDir, string remainingQuery, bool isFolderSubtree) ExtractLeadingPath(string query)
+    {
+        if (query.StartsWith('"'))
+        {
+            var closingQuote = query.IndexOf('"', 1);
+            if (closingQuote > 1)
+            {
+                var quotedPath = query.Substring(1, closingQuote - 1).Trim();
+                if (quotedPath.Length >= 2 && quotedPath[1] == ':')
+                {
+                    var rest = query.Substring(closingQuote + 1).Trim();
+                    return (quotedPath, rest, string.IsNullOrEmpty(rest) && (quotedPath.EndsWith('\\') || quotedPath.EndsWith('/')));
+                }
+            }
+        }
+        else
+        {
+            var firstSpace = query.IndexOf(' ');
+            var pathToken = firstSpace > 0 ? query.Substring(0, firstSpace).Trim() : query;
+            if (pathToken.Length >= 2 && char.IsLetter(pathToken[0]) && pathToken[1] == ':')
+            {
+                var cleanPath = pathToken.TrimEnd('*');
+                if (cleanPath.Length == 2) cleanPath += "\\";
+                var rest = firstSpace > 0 ? query.Substring(firstSpace + 1).Trim() : string.Empty;
+                var isSubtree = string.IsNullOrEmpty(rest) && (query.EndsWith('\\') || query.EndsWith('/'));
+                return (cleanPath, rest, isSubtree);
+            }
+        }
+        return (null, query, false);
     }
 }
