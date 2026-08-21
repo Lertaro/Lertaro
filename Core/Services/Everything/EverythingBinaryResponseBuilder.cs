@@ -161,7 +161,7 @@ public static class EverythingBinaryResponseBuilder
 
         if ((requestFlags & EverythingIpcConstants.RequestHighlightedFullPathAndFileName) != 0)
         {
-            var fullPath = Path.Combine(item.Path, item.FileName);
+            var fullPath = item.Path.EndsWith('\\') ? item.Path + item.FileName : item.Path + "\\" + item.FileName;
             WriteLengthPrefixedString(writer, fullPath, encoding);
         }
     }

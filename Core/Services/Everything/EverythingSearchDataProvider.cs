@@ -176,6 +176,11 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
             {
                 if (criteria.MatchFoldersOnly && !res.IsDir) return;
                 if (criteria.MatchFilesOnly && res.IsDir) return;
+                if (!string.IsNullOrEmpty(criteria.ExtensionFilter) && !res.IsDir)
+                {
+                    var ext = Path.GetExtension(res.Path).TrimStart('.');
+                    if (!criteria.ExtensionFilter.Equals(ext, StringComparison.OrdinalIgnoreCase)) return;
+                }
                 lock (results)
                 {
                     results.Add(res);
