@@ -55,7 +55,7 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
             FileName: folderName,
             Size: Math.Max(0, totalFolderSize),
             IsDirectory: false,
-            DateModified: null,
+            DateModified: DateTime.UtcNow,
             Attributes: (uint)FileAttributes.Directory);
 
         return new EverythingQueryResult(new[] { singleItem }, 1, 0, 1);
