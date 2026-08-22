@@ -3,7 +3,6 @@ using Application = System.Windows.Application;
 using Brush = System.Windows.Media.Brush;
 using Geometry = System.Windows.Media.Geometry;
 using DrawingVisual = System.Windows.Media.DrawingVisual;
-using ScaleTransform = System.Windows.Media.ScaleTransform;
 using SolidColorBrush = System.Windows.Media.SolidColorBrush;
 using Color = System.Windows.Media.Color;
 using RenderTargetBitmap = System.Windows.Media.Imaging.RenderTargetBitmap;
@@ -54,11 +53,11 @@ internal static class QuickNavIcon
             IntPtr rendered;
             try
             {
-                rendered = RenderOnUiThread(normalized, viewBoxSize: 24);
+                rendered = RenderOnUiThread(normalized);
             }
             catch
             {
-                rendered = RenderOnUiThread(CommandPath, viewBoxSize: 24);
+                rendered = RenderOnUiThread(CommandPath);
                 normalized = CommandPath;
                 if (CommandCache.TryGetValue(normalized, out cached))
                 {
@@ -74,7 +73,7 @@ internal static class QuickNavIcon
 
     public static IntPtr GetCategoryHBitmap()
     {
-        if (_categoryCached == IntPtr.Zero) _categoryCached = RenderOnUiThread(CategoryPath, viewBoxSize: 24);
+        if (_categoryCached == IntPtr.Zero) _categoryCached = RenderOnUiThread(CategoryPath);
         return _categoryCached;
     }
 
@@ -95,23 +94,35 @@ internal static class QuickNavIcon
         (Application.Current?.TryFindResource("AccentBlue") as SolidColorBrush)
         ?? new SolidColorBrush(Color.FromRgb(33, 150, 243));
 
-    private static IntPtr RenderOnUiThread(string pathData, double viewBoxSize)
+    private static IntPtr RenderOnUiThread(string pathData)
     {
         var dispatcher = Application.Current?.Dispatcher;
         return dispatcher == null || dispatcher.CheckAccess()
-            ? Render(pathData, viewBoxSize)
-            : dispatcher.Invoke(() => Render(pathData, viewBoxSize));
+            ? Render(pathData)
+            : dispatcher.Invoke(() => Render(pathData));
     }
 
-    private static IntPtr Render(string pathData, double viewBoxSize)
+    private static IntPtr Render(string pathData)
     {
         var geometry = Geometry.Parse(pathData);
-        var scale = 64.0 / viewBoxSize;
+        var bounds = geometry.Bounds;
+        if (bounds.IsEmpty || bounds.Width <= 0 || bounds.Height <= 0)
+            throw new InvalidOperationException("The SVG path has no renderable bounds.");
+
+        // Search results let WPF arrange the geometry into the Image control's bounds. The native
+        // menu receives only a bitmap, so a fixed 24-unit scale clipped paths authored with another
+        // viewBox (or with negative coordinates). Normalize by the actual geometry bounds to match
+        // the search-result appearance regardless of the path's source coordinate system.
+        var targetSize = 48.0;
+        var scale = Math.Min(targetSize / bounds.Width, targetSize / bounds.Height);
+        var offsetX = (64.0 - bounds.Width * scale) / 2.0 - bounds.X * scale;
+        var offsetY = (64.0 - bounds.Height * scale) / 2.0 - bounds.Y * scale;
+        var transform = new System.Windows.Media.MatrixTransform(scale, 0, 0, scale, offsetX, offsetY);
 
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
         {
-            dc.PushTransform(new ScaleTransform(scale, scale));
+            dc.PushTransform(transform);
             dc.DrawGeometry(AccentBrush(), null, geometry);
             dc.Pop();
         }
