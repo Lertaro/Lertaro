@@ -143,7 +143,10 @@ internal static class ShellImageListInterop
         {
             var bmp = Imaging.CreateBitmapSourceFromHBitmap(hbmp, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
             bmp.Freeze();
-            return bmp;
+            // Shell namespace items can return a small icon centered in a much larger transparent
+            // canvas through IShellItemImageFactory. Apply the same padding trim used by the image-list
+            // path so virtual-folder icons do not appear tiny in menus and search results.
+            return TrimCenteredPadding(bmp);
         }
         finally { DeleteObject(hbmp); }
     }
