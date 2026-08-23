@@ -122,8 +122,10 @@ public static class PluginSearchResultMapper
                         catch { }
                     }
 
+                    var isVirtualPreview = targetPath.StartsWith("flow-preview:", StringComparison.OrdinalIgnoreCase)
+                        || targetPath.StartsWith("__FLOW_PREVIEW__:", StringComparison.OrdinalIgnoreCase);
                     var resultKind = isRealFile ? "File" : (isRealDir ? "Directory" : "InstantResult");
-                    var fullPath = (isRealFile || isRealDir) ? targetPath : (!string.IsNullOrEmpty(iconPath) ? iconPath : $"__INSTANT_RESULT__:{provider.Name}:{item.Title}");
+                    var fullPath = (isRealFile || isRealDir || isVirtualPreview) ? targetPath : (!string.IsNullOrEmpty(iconPath) ? iconPath : $"__INSTANT_RESULT__:{provider.Name}:{item.Title}");
                     var parentDir = !string.IsNullOrWhiteSpace(item.Description)
                         ? item.Description
                         : ((isRealFile || isRealDir) ? Path.GetDirectoryName(targetPath) ?? string.Empty : string.Empty);

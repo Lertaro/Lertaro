@@ -1,8 +1,5 @@
-using System.Windows;
-using System.Windows.Controls;
 using Flow.Launcher.Plugin;
 using Lertaro.Plugins.FlowLauncherBridge.Engine;
-using Lertaro.Plugins.FlowLauncherBridge.Engine.SettingsTemplate;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Tests.Engine;
 

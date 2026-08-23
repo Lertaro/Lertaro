@@ -100,6 +100,7 @@
   "QuickLook_ShellPreviewProviderName": "系統預覽器",
   "QuickLook_MediaProviderName": "媒體預覽器",
   "QuickLook_MediaPlaybackFailed": "無法播放此檔案",
+  "QuickLook_PluginPreview": "外掛程式預覽",
   "Action_Open_Desc": "使用預設關聯的應用程式開啟選取的檔案或資料夾。",
   "Action_OpenAdmin_Desc": "以系統管理員身分/提升的權限開啟選取的可執行檔。",
   "Action_LocateFolder_Desc": "在 Windows 檔案總管中顯示選取檔案所在資料夾並反白該檔案。",

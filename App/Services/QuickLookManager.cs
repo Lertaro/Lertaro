@@ -3,8 +3,6 @@ using System.Windows;
 using Lertaro.PluginSdk.Services;
 
 using Lertaro.App.Services.AppWindow;
-using Lertaro.App.Services.Plugin;
-using Lertaro.PluginSdk.Abstractions.Plugins.Preview;
 namespace Lertaro.App.Services;
 
 public partial class QuickLookManager
@@ -201,9 +199,16 @@ public partial class QuickLookManager
             return;
         }
 
-        if (_userWantsPreview)
+        var isPluginCustomPreview = path.StartsWith("flow-preview:", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("__FLOW_PREVIEW__:", StringComparison.OrdinalIgnoreCase);
+
+        if (_userWantsPreview || isPluginCustomPreview)
         {
             ShowOrUpdate(owner, path);
+        }
+        else if (IsVisible && !_userWantsPreview)
+        {
+            Hide();
         }
     }
 
@@ -277,121 +282,5 @@ public partial class QuickLookManager
         }
 
         PositionWindow(animate: isFirstShow);
-    }
-
-    private void AttachOwnerLocationTracking(Window owner)
-    {
-        if (_ownerTrackingAttached) return;
-        owner.LocationChanged += Owner_LocationChanged;
-        owner.SizeChanged += Owner_SizeChanged;
-        _ownerTrackingAttached = true;
-    }
-
-    private void AttachOwnerDeactivateTracking(Window owner)
-    {
-        if (_ownerDeactivateAttached) return;
-        owner.Deactivated += Owner_Deactivated;
-        _ownerDeactivateAttached = true;
-    }
-
-    private void DetachOwnerDeactivateTracking()
-    {
-        if (!_ownerDeactivateAttached || _owner == null) return;
-        _owner.Deactivated -= Owner_Deactivated;
-        _ownerDeactivateAttached = false;
-    }
-
-    private void DetachOwner()
-    {
-        if (_owner != null)
-        {
-            if (_ownerTrackingAttached)
-            {
-                _owner.LocationChanged -= Owner_LocationChanged;
-                _owner.SizeChanged -= Owner_SizeChanged;
-                _ownerTrackingAttached = false;
-            }
-            DetachOwnerDeactivateTracking();
-            _owner = null;
-        }
-    }
-
-    // Branches on the current mode: external-dock re-asserts QuickLook's window position, the normal
-    // path repositions our own _window -- both are hooked to the same owner LocationChanged/SizeChanged
-    // events (see AttachOwnerLocationTracking), just handled differently depending on which is active.
-    private void RepositionForCurrentMode()
-    {
-        if (_window == null || _owner == null) return;
-        if (_window.IsShowingExternalPreview) NotifyExternalBounds(_owner);
-        else PositionWindow();
-    }
-
-    private void Owner_LocationChanged(object? sender, EventArgs e) => RepositionForCurrentMode();
-    private void Owner_SizeChanged(object? sender, SizeChangedEventArgs e) => RepositionForCurrentMode();
-
-    private void Owner_Deactivated(object? sender, EventArgs e)
-    {
-        // A real (HwndHost) preview -- e.g. a native document/media preview handler -- needs actual focus
-        // to be interactive (scrolling, playback controls), so clicking into it deactivates the owner for
-        // real. Without this check, that click would immediately hide the very preview the user just
-        // clicked into. Only hide when something outside this process took the foreground.
-        if (IsForegroundWindowInThisProcess())
-            return;
-
-        // Dragging the preview's header out to another application makes that application the foreground
-        // window, which lands here. Hiding now would pull this window out from under the DoDragDrop still
-        // running on its own header -- the same hazard the inline window's own teardown guards against
-        // with this flag. The drag's own completion hides the search windows anyway (see
-        // ResultsDragDropHelper.HideSearchWindows).
-        if (Views.Controls.Results.ResultsDragDropHelper.IsDragActive)
-            return;
-
-        Hide();
-    }
-
-    /// <summary>Raised when the preview itself loses the foreground to another application.</summary>
-    /// <remarks>
-    /// For an owner that dismisses itself on losing focus and had to stand down while the preview held it
-    /// (see <see cref="IsPreviewForeground"/>): its own Deactivated already fired on the click that
-    /// reached the preview and will not fire again, so without this the click that leaves for good
-    /// reaches nobody and the owner stays on screen.
-    ///
-    /// Only an announcement: nothing is hidden here, because the windows that do not dismiss themselves
-    /// on focus loss are not meant to start.
-    /// </remarks>
-    public event Action? PreviewFocusLost;
-
-    private void OnPreviewDeactivated(object? sender, EventArgs e)
-    {
-        // Clicking back into the owner, or onto any other window of this app's, is not leaving.
-        if (IsForegroundWindowInThisProcess()) return;
-
-        // A drag out of the preview's own header makes the drop target's application the foreground, the
-        // same hazard Owner_Deactivated guards against for the same reason.
-        if (Views.Controls.Results.ResultsDragDropHelper.IsDragActive) return;
-
-        PreviewFocusLost?.Invoke();
-    }
-
-    private static bool IsForegroundWindowInThisProcess()
-    {
-        var fg = GetForegroundWindow();
-        if (fg == IntPtr.Zero)
-            return false;
-        GetWindowThreadProcessId(fg, out var pid);
-        return pid == (uint)Environment.ProcessId;
-    }
-
-    private void OnSessionOwnerClosed(object? sender, EventArgs e)
-    {
-        if (sender is Window w)
-        {
-            w.Closed -= OnSessionOwnerClosed;
-            _sessionOwners.Remove(w);
-        }
-        // The owner is already deactivated → QuickLook hidden → any visible host parked its handler back
-        // in the pool, so releasing now can't blank a live preview.
-        foreach (var provider in PluginManager.Instance.FilePreviewProviders)
-            (provider as IPreviewSessionAware)?.EndPreviewSession();
     }
 }

@@ -9,17 +9,27 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 /// </summary>
 public static class FlowResultMapper
 {
-    public static List<InstantResultItem> MapToInstantResults(IEnumerable<Result> flowResults, string? providerName = null) => flowResults.Select(r => MapToInstantResult(r)).ToList();
+    public static List<InstantResultItem> MapToInstantResults(IEnumerable<Result> flowResults, FlowPluginHost? host = null) =>
+        flowResults.Select(r => MapToInstantResult(r, host)).ToList();
 
-    public static InstantResultItem MapToInstantResult(Result flowResult)
+    public static InstantResultItem MapToInstantResult(Result flowResult, FlowPluginHost? host = null)
     {
         var title = flowResult.Title ?? string.Empty;
+        var description = flowResult.SubTitle ?? string.Empty;
+
+        var actionArg = !string.IsNullOrEmpty(flowResult.CopyText) ? flowResult.CopyText : title;
+        if (flowResult.PreviewPanel != null)
+        {
+            var pluginName = host?.GetAllPlugins().FirstOrDefault(p => p.Metadata.ID == flowResult.PluginID)?.Metadata.Name ?? "Flow Launcher Plugin";
+            actionArg = PluginSdk.Services.PluginPreviewCache.Register(title, pluginName, flowResult.PreviewPanel);
+        }
+
         var item = new InstantResultItem
         {
             Title = title,
-            Description = flowResult.SubTitle ?? string.Empty,
+            Description = description,
             TabCompletion = !string.IsNullOrEmpty(flowResult.AutoCompleteText) ? flowResult.AutoCompleteText : title,
-            ActionArgument = !string.IsNullOrEmpty(flowResult.CopyText) ? flowResult.CopyText : title,
+            ActionArgument = actionArg,
             ActionType = "Execute"
         };
 

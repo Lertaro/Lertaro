@@ -161,7 +161,7 @@ public class FlowInstantResultProvider : IInstantResultProvider
             if (results == null || results.Count == 0)
                 return [];
 
-            return FlowResultMapper.MapToInstantResults(results);
+            return FlowResultMapper.MapToInstantResults(results, _host);
         }
         catch
         {

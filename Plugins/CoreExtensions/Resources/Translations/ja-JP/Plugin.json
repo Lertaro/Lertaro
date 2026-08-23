@@ -100,6 +100,7 @@
   "QuickLook_ShellPreviewProviderName": "システムプレビューハンドラー",
   "QuickLook_MediaProviderName": "メディアプレビュープロバイダー",
   "QuickLook_MediaPlaybackFailed": "このファイルを再生できません",
+  "QuickLook_PluginPreview": "プラグインプレビュー",
   "Action_Open_Desc": "既定の関連付けアプリケーションで選択したファイルまたはフォルダーを開きます。",
   "Action_OpenAdmin_Desc": "選択した実行ファイルを管理者権限/昇格した権限で実行します。",
   "Action_LocateFolder_Desc": "選択した項目の親フォルダーを Windows エクスプローラーで開き、その項目をハイライト表示します。",

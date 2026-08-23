@@ -100,6 +100,7 @@
   "QuickLook_ShellPreviewProviderName": "시스템 미리 보기 핸들러",
   "QuickLook_MediaProviderName": "미디어 미리 보기 제공자",
   "QuickLook_MediaPlaybackFailed": "이 파일을 재생할 수 없습니다",
+  "QuickLook_PluginPreview": "플러그인 미리 보기",
   "Action_Open_Desc": "선택한 파일 또는 폴더를 기본 연결 프로그램으로 엽니다.",
   "Action_OpenAdmin_Desc": "선택한 실행 파일을 관리자/상승된 권한으로 실행합니다.",
   "Action_LocateFolder_Desc": "Windows 파일 탐색기에서 상위 폴더를 열고 선택한 항목을 강조 표시합니다.",

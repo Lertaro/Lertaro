@@ -150,7 +150,7 @@ public class DefaultMetadataPreviewProvider : IFilePreviewProvider
 {
     public string Name => TranslationService.Get("QuickLook_MetadataProviderName");
     public int Priority => 1;
-    public bool CanPreview(string path, bool isDir) => true;
+    public bool CanPreview(string path, bool isDir) => isDir || File.Exists(path);
     public UIElement CreatePreview(string path, bool isDir)
     {
         // Filename and size/date already live in the QuickLook header and footer, so this fallback shows

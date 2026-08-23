@@ -100,6 +100,7 @@
   "QuickLook_ShellPreviewProviderName": "系统预览器",
   "QuickLook_MediaProviderName": "媒体预览器",
   "QuickLook_MediaPlaybackFailed": "无法播放此文件",
+  "QuickLook_PluginPreview": "插件预览",
   "Action_Open_Desc": "使用默认关联的应用程序打开选中的文件或文件夹。",
   "Action_OpenAdmin_Desc": "以管理员身份/提升的权限打开选中的可执行文件。",
   "Action_LocateFolder_Desc": "在 Windows 资源管理器中显示选中文件所在文件夹并高亮该文件。",

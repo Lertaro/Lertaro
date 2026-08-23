@@ -224,7 +224,7 @@ public class FlowPublicApi : IPublicAPI
     public long StopwatchLogInfo(string className, string message, Action action, [CallerMemberName] string methodName = "") => StopwatchLogDebug(className, message, action, methodName);
     public Task<long> StopwatchLogInfoAsync(string className, string message, Func<Task> action, [CallerMemberName] string methodName = "") => StopwatchLogDebugAsync(className, message, action, methodName);
 
-    public bool IsApplicationDarkTheme() => false;
+    public bool IsApplicationDarkTheme() => PluginSdk.Services.ThemeService.IsDarkTheme;
     public string GetDataDirectory() => _storage.GetPluginSettingsDirectory(PluginSettingKey);
     public string GetLogDirectory() => Path.Combine(GetDataDirectory(), "Logs");
 }

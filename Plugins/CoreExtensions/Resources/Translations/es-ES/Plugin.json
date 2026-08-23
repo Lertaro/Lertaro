@@ -100,6 +100,7 @@
   "QuickLook_ShellPreviewProviderName": "Controlador de Vista Previa del Sistema",
   "QuickLook_MediaProviderName": "Proveedor de Vista Previa Multimedia",
   "QuickLook_MediaPlaybackFailed": "No se puede reproducir este archivo",
+  "QuickLook_PluginPreview": "Vista previa del complemento",
   "Action_Open_Desc": "Abre el archivo o carpeta seleccionados con la aplicación asociada predeterminada.",
   "Action_OpenAdmin_Desc": "Ejecuta el archivo ejecutable seleccionado con privilegios administrativos/elevados.",
   "Action_LocateFolder_Desc": "Abre la carpeta principal en el Explorador de Archivos de Windows y resalta el elemento seleccionado.",

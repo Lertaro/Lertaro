@@ -20,9 +20,7 @@ public class ThemeManager
 
     public event Action? ThemeChanged;
 
-    private ThemeManager()
-    {
-    }
+    private ThemeManager() => PluginSdk.Services.ThemeService.IsDarkThemeFunc = () => _activeTheme?.IsDark ?? false;
 
     public IEnumerable<PluginSdk.Abstractions.ITheme> GetAvailableThemes() => PluginManager.Instance.ThemeProviders
             .SelectMany(p => p.GetThemes())

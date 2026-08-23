@@ -137,7 +137,9 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     // Genuine on-disk file/folder and application results get the preview window — excludes
     // calculator/URL/env instant results, plugin actions, jump-to-path, list items, headers, empties,
     // and the "show more" row.
-    public bool CanPreview => (ResultKind == "File" || ResultKind == "Application") && FullPath != "__SHOW_MORE__";
+    public bool CanPreview => ((ResultKind == "File" || ResultKind == "Application") && FullPath != "__SHOW_MORE__")
+        || FullPath.StartsWith("flow-preview:", StringComparison.OrdinalIgnoreCase)
+        || FullPath.StartsWith("__FLOW_PREVIEW__:", StringComparison.OrdinalIgnoreCase);
     // Mirrors the exact conditions DataTemplates.xaml's path-subtitle row collapses under (applications,
     // a blank ParentDir, or the "no results" placeholder) -- single source of truth for both that
     // visibility and the name-line font size below, so they can never drift out of sync with each other.

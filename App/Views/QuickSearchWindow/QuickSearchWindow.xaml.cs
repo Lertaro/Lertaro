@@ -33,6 +33,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private readonly QuickSearchWindowLayoutManager _layoutManager;
     private readonly QuickSearchWindowResultExecutor _resultExecutor;
     private readonly QuickSearchWindowLifecycle _lifecycle;
+    private readonly QuickSearchWindowDragSupport _dragSupport;
     internal QuickSearchKeywordHistoryController KeywordHistoryController { get; private set; } = null!;
 
     // Must match QuickSearchWindow.xaml's root Border Margin ("24,40,24,24").
@@ -53,15 +54,9 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         _layoutManager = new QuickSearchWindowLayoutManager(this);
         _resultExecutor = new QuickSearchWindowResultExecutor(this);
         _lifecycle = new QuickSearchWindowLifecycle(this, () => _trayService?.HandleTaskbarCreated());
-        _borderDragTracker = new WindowDragTracker(this);
+        _dragSupport = new QuickSearchWindowDragSupport(this);
         InitializeChildControls();
     }
-
-    // ==========================================
-
-    // Decoupled Property Exposures
-
-    // ==========================================
 
     public ShellMenuPresenter? MenuPresenter => _menuPresenter;
     public QuickSearchViewModel ViewModel => _viewModel;
@@ -76,12 +71,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
             _viewModel.Search.IsActionsMode = value;
         }
     }
-
-    // ==========================================
-
-    // Child Control Properties
-
-    // ==========================================
 
     public TextBox TxtSearch => SearchBox.SearchTextBox;
     public TextBox SearchTextBox => SearchBox.SearchTextBox;
@@ -173,7 +162,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
             {
                 QuickLookManager.Instance.UpdateOrShow(this, result.FullPath);
             }
-            else
+            else if (LstResults.Items.Count == 0 || LstResults.SelectedItem != null)
             {
                 QuickLookManager.Instance.HideFrom(this);
             }
@@ -192,12 +181,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private void Window_SourceInitialized(object? sender, EventArgs e) => _lifecycle.HandleSourceInitialized();
 
     private void Window_Loaded(object sender, RoutedEventArgs e) => _lifecycle.HandleLoaded();
-
-    // ==========================================
-
-    // Window Actions delegation
-
-    // ==========================================
 
     // Called by GeneralSettingsViewModel.Apply() when the "hide tray icon" setting changes, so the
     // real NotifyIcon updates live without needing a restart. The search box logo's own menu (see
@@ -263,52 +246,14 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         timer.Start();
     }
 
-    // Manual drag instead of DragMove(): DragMove()'s native move loop is a blocking modal call with no
-    // way to query or constrain it mid-drag, but pressing/releasing Ctrl during the drag needs to take
-    // effect immediately (constrain to vertical-only movement while held) -- see WindowDragTracker.
-    private readonly WindowDragTracker _borderDragTracker;
-
-    // Pulled out of the handler so the gate can be unit tested without a live window, the same reason
-    // DetermineToggleAction exists next door.
-    //
-    // Gating the press rather than the move is what makes the lock complete: without a Start there is no
-    // drag for MouseMove to continue and no position for MouseLeftButtonUp to save, so one check covers
-    // all three handlers. Nothing else moves this window, so there is no second path to close.
     internal static bool ShouldStartDrag(MouseButton changedButton, bool lockPosition)
-        => changedButton == MouseButton.Left && !lockPosition;
+        => QuickSearchWindowDragSupport.ShouldStartDrag(changedButton, lockPosition);
 
-    /// <summary>
-    /// The same answer for the window's other drag handle, the search box logo, whose handler lives in
-    /// SearchBoxControl and is gated by its IsIconDraggable property.
-    /// </summary>
-    internal static bool ShouldAllowIconDrag(bool lockPosition) => !lockPosition;
+    internal static bool ShouldAllowIconDrag(bool lockPosition) => QuickSearchWindowDragSupport.ShouldAllowIconDrag(lockPosition);
 
-    private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        // Read per press rather than cached in a field: the setting can change in the Settings window
-        // while this window exists, and UserSettings.Load() is served from memory after the first call.
-        if (!ShouldStartDrag(e.ChangedButton, UserSettings.Load().SearchWindow.LockPosition)) return;
-
-        if (sender is IInputElement el) el.CaptureMouse();
-        _borderDragTracker.Start(PointToScreen(e.GetPosition(this)));
-    }
-
-    private void Border_MouseMove(object sender, MouseEventArgs e)
-    {
-        if (!_borderDragTracker.IsDragging || e.LeftButton != MouseButtonState.Pressed)
-            return;
-
-        _borderDragTracker.Update(PointToScreen(e.GetPosition(this)));
-    }
-
-    private void Border_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (!_borderDragTracker.IsDragging) return;
-
-        _borderDragTracker.End();
-        if (sender is IInputElement el) el.ReleaseMouseCapture();
-        SaveWindowPosition();
-    }
+    private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _dragSupport.OnMouseLeftButtonDown(sender, e);
+    private void Border_MouseMove(object sender, MouseEventArgs e) => _dragSupport.OnMouseMove(sender, e);
+    private void Border_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => _dragSupport.OnMouseLeftButtonUp(sender, e);
 
     private void SaveWindowPosition() => _controller.SaveWindowPosition();
 

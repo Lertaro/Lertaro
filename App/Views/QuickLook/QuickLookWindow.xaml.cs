@@ -190,6 +190,18 @@ public partial class QuickLookWindow : Window
 
     private void UpdateHeader(string path, bool isDir)
     {
+        if (path.StartsWith("flow-preview:", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("__FLOW_PREVIEW__:", StringComparison.OrdinalIgnoreCase))
+        {
+            var entry = PluginPreviewCache.GetEntry(path);
+            TxtFileName.Text = entry?.Title ?? Path.GetFileName(path);
+            TxtFilePath.Text = !string.IsNullOrEmpty(entry?.PluginName) ? entry.PluginName : TranslationService.Get("QuickLook_PluginPreview");
+            ImgFileIcon.Source = null;
+            TxtFooterSize.Text = string.Empty;
+            TxtFooterDate.Text = string.Empty;
+            return;
+        }
+
         TxtFileName.Text = Path.GetFileName(path);
         if (string.IsNullOrEmpty(TxtFileName.Text) && isDir) TxtFileName.Text = path;
 
