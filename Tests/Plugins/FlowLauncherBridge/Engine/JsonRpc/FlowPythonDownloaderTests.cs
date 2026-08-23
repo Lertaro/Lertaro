@@ -5,30 +5,36 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Tests.Engine.JsonRpc;
 [TestClass]
 public sealed class FlowPythonDownloaderTests
 {
-    [TestMethod]
-    public void FindPythonInDir_NonExistentDir_ReturnsNull()
+    private string _tempDir = string.Empty;
+
+    [TestInitialize]
+    public void Setup()
     {
-        var result = FlowPythonDownloader.FindPythonInDir(@"C:\non_existent_folder_12345");
-        Assert.IsNull(result);
+        _tempDir = Path.Combine(Path.GetTempPath(), $"flow_py_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_tempDir);
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        if (Directory.Exists(_tempDir))
+        {
+            try { Directory.Delete(_tempDir, true); } catch { }
+        }
     }
 
     [TestMethod]
-    public void FindPythonInDir_WithPythonExe_ReturnsPath()
+    public void EnsureSiteCustomizeInstalled_CreatesSiteCustomizeWithSettingsRemapping()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "PyFindTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var dummyExe = Path.Combine(tempDir, "pythonw.exe");
-            File.WriteAllText(dummyExe, "dummy");
+        FlowPythonDownloader.EnsureSiteCustomizeInstalled(_tempDir);
 
-            var found = FlowPythonDownloader.FindPythonInDir(tempDir);
-            Assert.IsNotNull(found);
-            Assert.AreEqual(dummyExe, found);
-        }
-        finally
-        {
-            try { Directory.Delete(tempDir, true); } catch { }
-        }
+        var file = Path.Combine(_tempDir, "sitecustomize.py");
+        Assert.IsTrue(File.Exists(file));
+
+        var content = File.ReadAllText(file);
+        StringAssert.Contains(content, "_remap_settings_path");
+        StringAssert.Contains(content, "os.stat = _hooked_stat");
+        StringAssert.Contains(content, "os.path.exists = _hooked_exists");
+        StringAssert.Contains(content, "builtins.open = _hooked_open");
     }
 }

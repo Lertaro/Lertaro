@@ -15,10 +15,13 @@ public static class FlowEnvironmentLocator
 
     public static string? FindPythonExecutable()
     {
-        if (_cachedPythonPath != null && File.Exists(_cachedPythonPath))
-            return _cachedPythonPath;
-
         var sharedDir = GetEmbeddedPythonDirectory();
+        if (_cachedPythonPath != null && File.Exists(_cachedPythonPath))
+        {
+            FlowPythonDownloader.EnsureSiteCustomizeInstalled(sharedDir);
+            return _cachedPythonPath;
+        }
+
         var exe = FlowPythonDownloader.FindPythonInDir(sharedDir);
         if (exe != null)
         {
