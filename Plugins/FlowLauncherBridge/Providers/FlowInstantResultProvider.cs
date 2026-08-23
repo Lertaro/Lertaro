@@ -46,7 +46,14 @@ public class FlowInstantResultProvider : IInstantResultProvider
             foreach (var pair in plugins)
             {
                 var hasSettings = pair.Plugin is Flow.Launcher.Plugin.ISettingProvider;
-                var kwList = pair.Metadata.ActionKeywords.Count > 0 ? pair.Metadata.ActionKeywords : [pair.Metadata.ActionKeyword];
+                var kwSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (!string.IsNullOrWhiteSpace(pair.Metadata.ActionKeyword)) kwSet.Add(pair.Metadata.ActionKeyword);
+                if (pair.Metadata.ActionKeywords != null)
+                {
+                    foreach (var kw in pair.Metadata.ActionKeywords)
+                        if (!string.IsNullOrWhiteSpace(kw)) kwSet.Add(kw);
+                }
+                var kwList = kwSet.Count > 0 ? kwSet : [pair.Metadata.ActionKeyword];
                 items.Add(new InstantResultItem
                 {
                     Title = $"{pair.Metadata.Name} v{pair.Metadata.Version}",

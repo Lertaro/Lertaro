@@ -123,6 +123,10 @@ public class FlowPluginHost : IAsyncDisposable
             return;
 
         metadata.PluginDirectory = pluginDir;
+        if (!string.IsNullOrWhiteSpace(metadata.ActionKeyword) && !metadata.ActionKeywords.Contains(metadata.ActionKeyword, StringComparer.OrdinalIgnoreCase))
+        {
+            metadata.ActionKeywords.Insert(0, metadata.ActionKeyword);
+        }
 
         if (AllowedLanguage.IsDotNet(metadata.Language) && !string.IsNullOrEmpty(metadata.ExecuteFilePath) && File.Exists(metadata.ExecuteFilePath))
         {
