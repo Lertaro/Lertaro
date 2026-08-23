@@ -54,4 +54,72 @@ public sealed class FlowInstantResultProviderTests
         Assert.AreEqual("Flow Result Title", results[0].Title);
         Assert.AreEqual("Flow Result SubTitle", results[0].Description);
     }
+
+    [TestMethod]
+    public void GetInstantResults_WhenTriggerKeywordTyped_ReturnsPluginList()
+    {
+        var storage = new FlowSettingsStorage(Path.GetTempPath());
+        var host = new FlowPluginHost(storage, []);
+        var pair = new PluginPair
+        {
+            Metadata = new PluginMetadata { ID = "yt", Name = "YouTube", ActionKeyword = "yt" },
+            Plugin = new FakeFlowPlugin()
+        };
+        host.RegisterPlugin(pair);
+
+        var dispatcher = new FlowQueryDispatcher(host);
+        var provider = new FlowInstantResultProvider(dispatcher, host);
+
+        var results = provider.GetInstantResults("flow").ToList();
+
+        Assert.HasCount(1, results);
+        Assert.Contains("YouTube", results[0].Title);
+    }
+
+    [TestMethod]
+    public void GetInstantResults_WhenTriggerKeywordWithFilterMatchingPlugin_ReturnsFiltered()
+    {
+        var storage = new FlowSettingsStorage(Path.GetTempPath());
+        var host = new FlowPluginHost(storage, []);
+        var pair1 = new PluginPair
+        {
+            Metadata = new PluginMetadata { ID = "yt", Name = "YouTube", ActionKeyword = "yt" },
+            Plugin = new FakeFlowPlugin()
+        };
+        var pair2 = new PluginPair
+        {
+            Metadata = new PluginMetadata { ID = "todo", Name = "QuickTodo", ActionKeyword = "todo" },
+            Plugin = new FakeFlowPlugin()
+        };
+        host.RegisterPlugin(pair1);
+        host.RegisterPlugin(pair2);
+
+        var dispatcher = new FlowQueryDispatcher(host);
+        var provider = new FlowInstantResultProvider(dispatcher, host);
+
+        var results = provider.GetInstantResults("flow yt").ToList();
+
+        Assert.HasCount(1, results);
+        Assert.Contains("YouTube", results[0].Title);
+    }
+
+    [TestMethod]
+    public void GetInstantResults_WhenTriggerKeywordWithFilterNotMatching_ReturnsEmpty()
+    {
+        var storage = new FlowSettingsStorage(Path.GetTempPath());
+        var host = new FlowPluginHost(storage, []);
+        var pair = new PluginPair
+        {
+            Metadata = new PluginMetadata { ID = "yt", Name = "YouTube", ActionKeyword = "yt" },
+            Plugin = new FakeFlowPlugin()
+        };
+        host.RegisterPlugin(pair);
+
+        var dispatcher = new FlowQueryDispatcher(host);
+        var provider = new FlowInstantResultProvider(dispatcher, host);
+
+        var results = provider.GetInstantResults("flow nomatchhere").ToList();
+
+        Assert.IsEmpty(results);
+    }
 }

@@ -87,25 +87,13 @@ public class FlowSettingsStorage
 
     public void SaveSetting<T>(string pluginId) where T : new()
     {
+        // Defer disk write until SaveAll is called by the host upon clicking Save Settings
         lock (_lock)
         {
             var cacheKey = $"{pluginId}_{typeof(T).FullName}";
-            if (!_loadedSettings.TryGetValue(cacheKey, out var instance))
+            if (!_loadedSettings.ContainsKey(cacheKey))
             {
-                return;
-            }
-
-            var dir = GetPluginSettingsDirectory(pluginId);
-            var filePath = Path.Combine(dir, $"{typeof(T).Name}.json");
-
-            try
-            {
-                var json = JsonSerializer.Serialize(instance, JsonOptions);
-                File.WriteAllText(filePath, json);
-            }
-            catch
-            {
-                // Ignore transient write errors
+                _loadedSettings[cacheKey] = new T();
             }
         }
     }
@@ -132,6 +120,43 @@ public class FlowSettingsStorage
                 catch
                 {
                     // Ignore transient write errors
+                }
+            }
+        }
+    }
+
+    public void ReloadAll()
+    {
+        lock (_lock)
+        {
+            foreach (var (key, instance) in _loadedSettings)
+            {
+                var separatorIndex = key.IndexOf('_');
+                if (separatorIndex <= 0) continue;
+
+                var pluginId = key[..separatorIndex];
+                var typeName = instance.GetType().Name;
+                var filePath = Path.Combine(GetPluginSettingsDirectory(pluginId), $"{typeName}.json");
+
+                if (File.Exists(filePath))
+                {
+                    try
+                    {
+                        var json = File.ReadAllText(filePath);
+                        var diskObj = JsonSerializer.Deserialize(json, instance.GetType(), JsonOptions);
+                        if (diskObj != null)
+                        {
+                            foreach (var prop in instance.GetType().GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                            {
+                                if (prop.CanRead && prop.CanWrite && prop.GetIndexParameters().Length == 0)
+                                {
+                                    var val = prop.GetValue(diskObj);
+                                    prop.SetValue(instance, val);
+                                }
+                            }
+                        }
+                    }
+                    catch { }
                 }
             }
         }

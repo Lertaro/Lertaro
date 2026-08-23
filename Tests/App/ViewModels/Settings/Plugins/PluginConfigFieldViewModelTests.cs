@@ -15,11 +15,11 @@ public sealed class PluginConfigFieldViewModelTests
     };
 
     [TestMethod]
-    public void Label_LabelKeySet_ReturnsTranslatedFallback()
+    public void Label_LabelKeySet_ReturnsLiteralOrTranslatedText()
     {
         var vm = new PluginConfigFieldViewModel("plugin", new PluginConfigField { LabelKey = "MyLabel", FieldType = ConfigFieldType.Text, DefaultValue = "" }, new UserSettings(), () => { });
 
-        Assert.AreEqual("[MyLabel]", vm.Label);
+        Assert.AreEqual("MyLabel", vm.Label);
     }
 
     [TestMethod]

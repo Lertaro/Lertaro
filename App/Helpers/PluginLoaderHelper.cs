@@ -57,7 +57,7 @@ public static class PluginLoaderHelper
             }
 
             var configFields = new List<PluginConfigFieldViewModel>();
-            TryLoadConfigFields(assembly, dllName, pluginInstance, userSettings, configFields);
+            var schema = TryLoadConfigFields(assembly, dllName, pluginInstance, userSettings, configFields);
 
             // Skip assemblies that registered nothing at all -- a plugin's own bundled dependency DLL
             // (e.g. Microsoft.Data.Sqlite.dll, SQLitePCLRaw.core.dll) now sits alongside it in its own
@@ -68,7 +68,7 @@ public static class PluginLoaderHelper
                 continue;
 
             var description = pluginInstance != null ? PluginComponentBuilder.GetDescriptionWithFallback(pluginInstance) : string.Empty;
-            result.Add(new PluginInfoViewModel(pluginName, pluginVersion, dllName, sdkVersion, components, configFields, description));
+            result.Add(new PluginInfoViewModel(pluginName, pluginVersion, dllName, sdkVersion, components, configFields, description, schema?.OnSave, schema?.OnRollback));
         }
 
         // Sorted here rather than at the one list that displays it, so the settings search index, which
@@ -121,7 +121,7 @@ public static class PluginLoaderHelper
         return defaultName;
     }
 
-    private static void TryLoadConfigFields(Assembly assembly, string dllName, IPlugin? pluginInstance, UserSettings userSettings, List<PluginConfigFieldViewModel> configFields)
+    private static PluginConfigSchema? TryLoadConfigFields(Assembly assembly, string dllName, IPlugin? pluginInstance, UserSettings userSettings, List<PluginConfigFieldViewModel> configFields)
     {
         try
         {
@@ -136,10 +136,12 @@ public static class PluginLoaderHelper
                     {
                         configFields.Add(new PluginConfigFieldViewModel(pluginId, field, userSettings));
                     }
+                    return schema;
                 }
             }
         }
         catch { }
+        return null;
     }
 
     /// <summary>Finds this assembly's IConfigurable component (at most one is currently supported per

@@ -41,13 +41,22 @@ public class FlowPluginHost : IAsyncDisposable
     public IReadOnlyDictionary<string, List<PluginPair>> KeywordPlugins => _keywordPlugins;
     public IReadOnlyDictionary<string, (PluginMetadata Metadata, string Reason)> FailedPlugins => _failedPlugins;
     public List<PluginPair> GetAllPlugins() => _loadedPlugins.Values.ToList();
+    public void RegisterPlugin(PluginPair pair) => _loadedPlugins[pair.Metadata.ID] = pair;
 
     public bool OpenPluginSettings(string pluginId)
     {
-        if (!_loadedPlugins.TryGetValue(pluginId, out var pair))
+        if (!_loadedPlugins.TryGetValue(pluginId, out _))
             return false;
 
-        return FlowPluginSettingsHostWindow.ShowOrActivate(pair, _storage);
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("lertaro://settings/page/Plugins") { UseShellExecute = true });
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public void AddActionKeyword(string pluginId, string newActionKeyword)
@@ -232,7 +241,7 @@ public class FlowPluginHost : IAsyncDisposable
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public void SaveAll()
     {
         _storage.SaveAll();
 
@@ -242,7 +251,17 @@ public class FlowPluginHost : IAsyncDisposable
             {
                 try { savable.Save(); } catch { }
             }
+        }
+    }
 
+    public void RollbackAll() => _storage.ReloadAll();
+
+    public async ValueTask DisposeAsync()
+    {
+        SaveAll();
+
+        foreach (var pair in _loadedPlugins.Values)
+        {
             if (pair.Plugin is IAsyncDisposable asyncDisposable)
             {
                 try { await asyncDisposable.DisposeAsync(); } catch { }

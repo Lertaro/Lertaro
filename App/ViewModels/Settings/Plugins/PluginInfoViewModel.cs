@@ -86,7 +86,9 @@ public class PluginInfoViewModel : ViewModelBase
         string sdkVersion,
         List<PluginComponentViewModel> components,
         List<PluginConfigFieldViewModel> configFields,
-        string description = "")
+        string description = "",
+        Action? onSave = null,
+        Action? onRollback = null)
     {
         Name = name;
         Version = version;
@@ -95,6 +97,8 @@ public class PluginInfoViewModel : ViewModelBase
         RawComponents = components;
         ConfigFields = new ObservableCollection<PluginConfigFieldViewModel>(configFields);
         Description = description;
+        OnSave = onSave;
+        OnRollback = onRollback;
         ToggleAllComponentsCommand = new RelayCommand(ToggleAllComponents);
 
         // Group components by type
@@ -170,10 +174,14 @@ public class PluginInfoViewModel : ViewModelBase
         }
     }
 
+    public Action? OnSave { get; }
+    public Action? OnRollback { get; }
+
     public void RollbackConfig()
     {
         foreach (var field in ConfigFields)
             field.Reload();
+        OnRollback?.Invoke();
     }
 
     private ICommand? _showDetailsCommand;

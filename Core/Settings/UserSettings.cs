@@ -160,48 +160,11 @@ public class UserSettings
 
     public Dictionary<string, Dictionary<string, object>> PluginSettings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public T GetPluginSetting<T>(string pluginId, string key, T defaultValue)
-    {
-        if (PluginSettings.TryGetValue(pluginId, out var settingsDict) && settingsDict.TryGetValue(key, out var val))
-        {
-            try
-            {
-                if (val is T typedVal)
-                {
-                    return typedVal;
-                }
-                if (val is JsonElement element)
-                {
-                    return JsonSerializer.Deserialize<T>(element.GetRawText())!;
-                }
-                return (T)Convert.ChangeType(val, typeof(T));
-            }
-            catch
-            {
-                return defaultValue;
-            }
-        }
-        return defaultValue;
-    }
+    public T GetPluginSetting<T>(string pluginId, string key, T defaultValue) =>
+        UserSettingsPluginSupport.GetPluginSetting(this, pluginId, key, defaultValue);
 
-    public void SetPluginSetting(string pluginId, string key, object? value)
-    {
-        if (!PluginSettings.TryGetValue(pluginId, out var settingsDict))
-        {
-            settingsDict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-            PluginSettings[pluginId] = settingsDict;
-        }
-        if (value == null)
-        {
-            settingsDict.Remove(key);
-        }
-        else
-        {
-            settingsDict[key] = value;
-        }
-
-        PluginSdk.Services.PluginSettingsService.NotifySettingChanged(pluginId, key);
-    }
+    public void SetPluginSetting(string pluginId, string key, object? value) =>
+        UserSettingsPluginSupport.SetPluginSetting(this, pluginId, key, value);
 
     private static readonly Lazy<string> UserDataDirectory = new(() =>
     {

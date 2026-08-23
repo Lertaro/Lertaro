@@ -1,6 +1,6 @@
+using Flow.Launcher.Plugin;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.Plugins.FlowLauncherBridge.Engine;
-using Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Providers;
 
@@ -10,14 +10,28 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Providers;
 public class FlowInstantResultProvider : IInstantResultProvider
 {
     private readonly FlowQueryDispatcher _dispatcher;
+    private readonly FlowPluginHost _host;
 
-    public FlowInstantResultProvider() : this(FlowLauncherBridgePlugin.Dispatcher)
+    public FlowInstantResultProvider() : this(FlowLauncherBridgePlugin.Dispatcher, FlowLauncherBridgePlugin.Host)
     {
     }
 
-    public FlowInstantResultProvider(FlowQueryDispatcher dispatcher) => _dispatcher = dispatcher;
+    public FlowInstantResultProvider(FlowQueryDispatcher dispatcher) : this(dispatcher, FlowLauncherBridgePlugin.Host)
+    {
+    }
+
+    public FlowInstantResultProvider(FlowQueryDispatcher dispatcher, FlowPluginHost host)
+    {
+        _dispatcher = dispatcher;
+        _host = host;
+    }
 
     public string Name => PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginName");
+
+    private static string GetTriggerKeyword() => PluginSdk.Services.PluginSettingsService.GetSetting(
+            "Lertaro.Plugins.FlowLauncherBridge",
+            "TriggerKeyword",
+            "flow");
 
     public IEnumerable<InstantResultItem> GetInstantResults(string query)
     {
@@ -25,10 +39,18 @@ public class FlowInstantResultProvider : IInstantResultProvider
             return [];
 
         var trimmed = query.Trim();
-        if (trimmed.Equals("flow", StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith("flow ", StringComparison.OrdinalIgnoreCase))
+        var keyword = GetTriggerKeyword();
+        if (string.IsNullOrWhiteSpace(keyword))
+            keyword = "flow";
+
+        if (trimmed.Equals(keyword, StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith(keyword + " ", StringComparison.OrdinalIgnoreCase))
         {
-            var plugins = FlowLauncherBridgePlugin.Host.GetAllPlugins();
-            if (plugins.Count == 0)
+            var filter = trimmed.StartsWith(keyword + " ", StringComparison.OrdinalIgnoreCase)
+                ? trimmed[(keyword.Length + 1)..].Trim()
+                : string.Empty;
+
+            var allPlugins = _host.GetAllPlugins();
+            if (allPlugins.Count == 0 && string.IsNullOrEmpty(filter))
             {
                 return
                 [
@@ -41,14 +63,17 @@ public class FlowInstantResultProvider : IInstantResultProvider
                 ];
             }
 
+            var plugins = string.IsNullOrEmpty(filter)
+                ? allPlugins
+                : allPlugins.Where(p => MatchesPlugin(p, filter)).ToList();
+
+            if (plugins.Count == 0)
+                return [];
+
             var items = new List<InstantResultItem>();
             var kwPrefix = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_KeywordPrefix");
-            var openSettingsHint = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_OpenSettingsHint");
             foreach (var pair in plugins)
             {
-                var hasSettings = pair.Plugin is FlowJsonRpcPlugin
-                    ? FlowJsonRpcPlugin.HasSettingsTemplate(pair.Metadata.PluginDirectory)
-                    : pair.Plugin is Flow.Launcher.Plugin.ISettingProvider;
                 var kwSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 if (!string.IsNullOrWhiteSpace(pair.Metadata.ActionKeyword)) kwSet.Add(pair.Metadata.ActionKeyword);
                 if (pair.Metadata.ActionKeywords != null)
@@ -60,17 +85,52 @@ public class FlowInstantResultProvider : IInstantResultProvider
                 items.Add(new InstantResultItem
                 {
                     Title = $"{pair.Metadata.Name} v{pair.Metadata.Version}",
-                    Description = $"[{kwPrefix}: {string.Join(", ", kwList)}] {pair.Metadata.Description}" + (hasSettings ? $" · {openSettingsHint}" : ""),
-                    ActionType = "Execute",
-                    OnExecute = hasSettings ? () => FlowLauncherBridgePlugin.Host.OpenPluginSettings(pair.Metadata.ID) : null
+                    Description = $"[{kwPrefix}: {string.Join(", ", kwList)}] {pair.Metadata.Description}",
+                    ActionType = "None"
                 });
             }
             return items;
         }
 
+        return ExecuteDispatch(query);
+    }
+
+    private static bool MatchesPlugin(PluginPair pair, string filter)
+    {
+        if (string.IsNullOrEmpty(filter))
+            return true;
+
+        if (IsMatch(filter, pair.Metadata.Name))
+            return true;
+
+        if (IsMatch(filter, pair.Metadata.Description))
+            return true;
+
+        if (IsMatch(filter, pair.Metadata.ActionKeyword))
+            return true;
+
+        if (pair.Metadata.ActionKeywords != null && pair.Metadata.ActionKeywords.Any(kw => IsMatch(filter, kw)))
+            return true;
+
+        return false;
+    }
+
+    private static bool IsMatch(string pattern, string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return false;
+
+        if (PluginSdk.Services.FuzzyMatchService.IsMatchFunc != null)
+            return PluginSdk.Services.FuzzyMatchService.IsMatch(pattern, text);
+
+        return text.Contains(pattern, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private IEnumerable<InstantResultItem> ExecuteDispatch(string q)
+    {
         try
         {
-            var results = _dispatcher.DispatchQueryAsync(query).GetAwaiter().GetResult();
+            var results = _dispatcher.DispatchQueryAsync(q).GetAwaiter().GetResult();
             if (results == null || results.Count == 0)
                 return [];
 

@@ -64,8 +64,12 @@ public class PluginManagementViewModel : ViewModelBase
 
             // Setting this back rolls the config fields back with it (see IsConfigTab), so a plugin
             // left mid-edit does not keep those edits staged while out of view.
-            if (_selectedPlugin is { IsConfigTab: true } previous)
-                previous.IsConfigTab = false;
+            if (_selectedPlugin != null)
+            {
+                _selectedPlugin.RollbackConfig();
+                if (_selectedPlugin.IsConfigTab)
+                    _selectedPlugin.IsConfigTab = false;
+            }
 
             SetProperty(ref _selectedPlugin, value);
         }
@@ -84,6 +88,7 @@ public class PluginManagementViewModel : ViewModelBase
             field.Commit();
 
         plugin.ConfigFields[0].Settings.Save();
+        plugin.OnSave?.Invoke();
         InlineSearchManager.Instance.ExplorerTracker.RefreshActiveWindowAdapters();
         App.HookClient?.SendMessage(new IpcMessage { Id = IpcMessageId.ReloadSettings });
     }

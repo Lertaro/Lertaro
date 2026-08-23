@@ -17,12 +17,20 @@ public class PluginConfigFieldViewModel : ViewModelBase
     public PluginConfigField SchemaField { get; }
     public UserSettings Settings { get; }
 
-    public string Label => string.IsNullOrEmpty(SchemaField.LabelKey) ? string.Empty : TranslationService.Get(SchemaField.LabelKey);
-    public string Description => string.IsNullOrEmpty(SchemaField.DescriptionKey) ? string.Empty : TranslationService.Get(SchemaField.DescriptionKey);
+    private static string ResolveText(string? keyOrText)
+    {
+        if (string.IsNullOrEmpty(keyOrText)) return string.Empty;
+        if (TranslationService.TryGet(keyOrText, out var translated))
+            return translated;
+        return keyOrText;
+    }
+
+    public string Label => ResolveText(SchemaField.LabelKey);
+    public string Description => ResolveText(SchemaField.DescriptionKey);
     public string GroupKey => SchemaField.GroupKey;
-    public string GroupName => string.IsNullOrEmpty(GroupKey) ? string.Empty : TranslationService.Get(GroupKey);
+    public string GroupName => ResolveText(GroupKey);
     public ConfigFieldType FieldType => SchemaField.FieldType;
-    public List<string>? Choices => SchemaField.Choices?.Select(c => TranslationService.Get(c)).ToList();
+    public List<string>? Choices => SchemaField.Choices?.Select(ResolveText).ToList();
     public int MaxLength => SchemaField.MaxLength > 0 ? SchemaField.MaxLength : int.MaxValue;
     public bool IsSingleChar => SchemaField.MaxLength == 1;
     public double EditorWidth => IsSingleChar ? 48 : 180;
@@ -52,9 +60,11 @@ public class PluginConfigFieldViewModel : ViewModelBase
     public bool IsHotkey => FieldType == ConfigFieldType.Hotkey;
     public bool IsFilePath => FieldType == ConfigFieldType.FilePath;
     public bool IsFolderPath => FieldType == ConfigFieldType.FolderPath;
+    public bool IsCustomControl => FieldType == ConfigFieldType.CustomControl;
+    public object? CustomControl => SchemaField.CustomControl;
     public bool HotkeyRequireModifier => SchemaField.RequireModifier;
     public bool IsIconField => SchemaField.Key.Equals("Icon", StringComparison.OrdinalIgnoreCase);
-    public bool IsSimpleField => IsBoolean || IsText || IsInteger || IsChoice || IsStringList || IsHotkey || IsFilePath || IsFolderPath;
+    public bool IsSimpleField => (IsBoolean || IsText || IsInteger || IsChoice || IsStringList || IsHotkey || IsFilePath || IsFolderPath) && !IsCustomControl;
 
     public ObservableCollection<PluginConfigFieldViewModel> Children { get; } = new();
     public ObservableCollection<PluginConfigArrayItemViewModel> ArrayItems { get; } = new();
@@ -78,13 +88,17 @@ public class PluginConfigFieldViewModel : ViewModelBase
         {
             if (_localValueStore == null)
             {
-                if (IsGroup)
+                if (IsGroup || IsCustomControl)
                 {
                     _localValueStore = null;
                 }
                 else if (_onValueChanged != null)
                 {
                     _localValueStore = SchemaField.DefaultValue;
+                }
+                else if (SchemaField.GetValue != null)
+                {
+                    _localValueStore = ConfigValueHelper.UnpackValue(SchemaField.GetValue() ?? SchemaField.DefaultValue);
                 }
                 else
                 {
@@ -146,6 +160,7 @@ public class PluginConfigFieldViewModel : ViewModelBase
 
     public void Commit()
     {
+        if (IsCustomControl) return;
         if (IsGroup)
         {
             foreach (var child in Children)
@@ -176,7 +191,11 @@ public class PluginConfigFieldViewModel : ViewModelBase
 
         if (_onValueChanged == null)
         {
-            if (IsStringList && LocalValueStore is System.Collections.IEnumerable en && !(LocalValueStore is string))
+            if (SchemaField.SetValue != null)
+            {
+                SchemaField.SetValue(LocalValueStore);
+            }
+            else if (IsStringList && LocalValueStore is System.Collections.IEnumerable en && !(LocalValueStore is string))
             {
                 var cleaned = new List<string>();
                 foreach (var item in en) { var s = item?.ToString()?.Trim(); if (!string.IsNullOrEmpty(s)) cleaned.Add(s); }

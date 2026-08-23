@@ -165,9 +165,9 @@ public partial class App : Application
         try
         {
             PluginSdk.Services.TranslationService.LookupFunc = key => TranslationManager.Instance[key];
+            PluginSdk.Services.TranslationService.TryLookupFunc = key => TranslationManager.Instance.TryGet(key, out var val) ? val : null;
             PluginSdk.Services.TranslationService.CurrentCultureFunc = () => TranslationManager.Instance.CurrentCulture;
-            PluginSdk.Services.LocalSendTransferService.OpenSendWindowFunc = (files, text) =>
-                Core.Services.LocalSend.LocalSendServiceManager.Instance.OpenSendWindow(files, text);
+            PluginSdk.Services.LocalSendTransferService.OpenSendWindowFunc = (files, text) => Core.Services.LocalSend.LocalSendServiceManager.Instance.OpenSendWindow(files, text);
             PluginSdk.Services.SearchRefreshService.RefreshMatchingFunc = queryMatches =>
                 // Callers may invoke this from a background thread (e.g. after an async fetch
                 // completes), so marshal onto the UI thread here rather than requiring every caller

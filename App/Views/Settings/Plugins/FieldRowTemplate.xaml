@@ -6,6 +6,7 @@
                     xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals">
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="Templates.xaml"/>
+        <ResourceDictionary Source="CustomControlStyles.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
     <!-- Implicit DataTemplate for recursive/nested plugin config fields rendering -->
@@ -38,6 +39,11 @@
                     <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" HorizontalAlignment="Left" Visibility="{Binding Label, Converter={StaticResource StringToVis}}"/>
                     <TextBlock Text="{Binding Description}" FontSize="10" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" HorizontalAlignment="Left" Margin="0,2,0,0" Visibility="{Binding Description, Converter={StaticResource StringToVis}}"/>
                 </StackPanel>
+
+                <!-- Custom Control layout for embedded plugin host panels -->
+                <ContentControl Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0"
+                                Content="{Binding CustomControl}" HorizontalAlignment="Stretch" Margin="0,4"
+                                Visibility="{Binding IsCustomControl, Converter={StaticResource BoolToVis}}"/>
 
                 <!-- Field Controls for simple inputs -->
                 <ContentControl Content="{Binding}" Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" Focusable="False"

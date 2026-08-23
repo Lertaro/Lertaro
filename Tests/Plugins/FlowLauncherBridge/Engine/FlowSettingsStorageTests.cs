@@ -49,6 +49,7 @@ public sealed class FlowSettingsStorageTests
         config.TimeoutSeconds = 60;
 
         storage.SaveSetting<SampleConfig>("test-plugin-id");
+        storage.SaveAll();
 
         var newStorage = new FlowSettingsStorage(_tempDir);
         var reloaded = newStorage.LoadSetting<SampleConfig>("test-plugin-id");

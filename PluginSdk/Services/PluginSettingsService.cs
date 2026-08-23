@@ -27,9 +27,19 @@ public static class PluginSettingsService
     public static event Action<string, string>? SettingChanged;
 
     /// <summary>
+    /// Event raised when a plugin setting is updated with its new value.
+    /// Parameters: (pluginId, key, value)
+    /// </summary>
+    public static event Action<string, string, object?>? SettingChangedWithValue;
+
+    /// <summary>
     /// Notifies listeners that a specific plugin setting has changed.
     /// </summary>
-    public static void NotifySettingChanged(string pluginId, string key) => SettingChanged?.Invoke(pluginId, key);
+    public static void NotifySettingChanged(string pluginId, string key, object? value = null)
+    {
+        SettingChanged?.Invoke(pluginId, key);
+        SettingChangedWithValue?.Invoke(pluginId, key, value);
+    }
 
     /// <summary>
     /// Retrieves a setting value for a specific plugin.

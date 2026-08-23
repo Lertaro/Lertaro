@@ -36,7 +36,7 @@ public sealed class SettingsWindowSearchExtensionsTests
         settingsVm.Plugins.Plugins.Add(pluginVm);
 
         var results = SettingsWindowSearchExtensions.BuildAllEntries(vm: settingsVm);
-        var targetItem = results.FirstOrDefault(r => r.Label == "[Settings_TestLabelKey]");
+        var targetItem = results.FirstOrDefault(r => r.Label == "Settings_TestLabelKey");
 
         Assert.IsNotNull(targetItem, "Expected plugin config field label to be indexed.");
         Assert.AreEqual("Plugins", targetItem.Section);
@@ -71,7 +71,7 @@ public sealed class SettingsWindowSearchExtensionsTests
         settingsVm.Plugins.Plugins.Add(pluginVm);
 
         var results = SettingsWindowSearchExtensions.BuildAllEntries(vm: settingsVm);
-        var sub2Item = results.FirstOrDefault(r => r.Label == "[Sub2Key]");
+        var sub2Item = results.FirstOrDefault(r => r.Label == "Sub2Key");
 
         Assert.IsNotNull(sub2Item);
         sub2Item.Activate?.Invoke(settingsVm);

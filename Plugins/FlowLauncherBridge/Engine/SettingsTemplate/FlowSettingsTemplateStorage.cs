@@ -78,4 +78,58 @@ public static class FlowSettingsTemplateStorage
         }
         catch { }
     }
+
+    public static void SaveSettingValue(string path, string key, object? value)
+    {
+        try
+        {
+            var settings = LoadSettings(path);
+            if (value == null)
+            {
+                settings.Remove(key);
+            }
+            else if (value is bool b)
+            {
+                settings[key] = b;
+            }
+            else if (value is int i)
+            {
+                settings[key] = i;
+            }
+            else if (value is JsonElement el)
+            {
+                if (el.ValueKind == JsonValueKind.True) settings[key] = true;
+                else if (el.ValueKind == JsonValueKind.False) settings[key] = false;
+                else if (el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var num)) settings[key] = num;
+                else settings[key] = el.GetString();
+            }
+            else if (bool.TryParse(value.ToString(), out var parsedBool))
+            {
+                settings[key] = parsedBool;
+            }
+            else
+            {
+                settings[key] = value.ToString();
+            }
+            SaveSettings(path, settings);
+        }
+        catch { }
+    }
+
+    public static object? GetSettingValue(string path, string key)
+    {
+        try
+        {
+            var settings = LoadSettings(path);
+            if (settings.TryGetPropertyValue(key, out var node) && node != null)
+            {
+                if (node.GetValueKind() == JsonValueKind.True) return true;
+                if (node.GetValueKind() == JsonValueKind.False) return false;
+                if (node.GetValueKind() == JsonValueKind.Number && int.TryParse(node.ToString(), out var num)) return num;
+                return node.ToString();
+            }
+        }
+        catch { }
+        return null;
+    }
 }

@@ -98,11 +98,25 @@ public class SettingsViewModel : ViewModelBase
     public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
     public bool IsServiceReady { get => _isServiceReady; set => SetProperty(ref _isServiceReady, value); }
 
+    private bool _isSaved;
+
     public void Cleanup()
     {
         _statusMonitor.Dispose();
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
         Log.Dispose();
+
+        if (!_isSaved)
+        {
+            UserSettings.ForceReload();
+            if (_plugins != null)
+            {
+                foreach (var plugin in _plugins.Plugins)
+                {
+                    plugin.RollbackConfig();
+                }
+            }
+        }
     }
 
     public void Refresh() => RefreshLists();
@@ -113,6 +127,8 @@ public class SettingsViewModel : ViewModelBase
     {
         if (!CanApply)
             return;
+
+        _isSaved = true;
 
         var previousNetworkDrives = _userSettings.NetworkDrives
             .Select(d => new NetworkDriveSetting { Id = d.Id, RefreshMode = d.RefreshMode })

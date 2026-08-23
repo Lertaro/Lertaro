@@ -74,6 +74,19 @@ public class TranslationManager : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Attempts to retrieve a translation. Returns true if key was found in loaded dictionaries.
+    /// </summary>
+    public bool TryGet(string key, out string value)
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            value = string.Empty;
+            return false;
+        }
+        return _translations.TryGetValue(key, out value!);
+    }
+
+    /// <summary>
     /// Refreshes all active translations by querying loaded translation plugins.
     /// </summary>
     public void ReloadTranslations()

@@ -132,7 +132,15 @@ public class FlowPublicApi : IPublicAPI
         if (pair == null)
             return false;
 
-        return FlowPluginSettingsHostWindow.ShowOrActivate(pair, _storage);
+        try
+        {
+            Process.Start(new ProcessStartInfo("lertaro://settings/page/Plugins") { UseShellExecute = true });
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
     public string GetTranslation(string key) => key;
     public List<PluginPair> GetAllPlugins() => _getPluginsFunc();

@@ -12,7 +12,8 @@ public enum ConfigFieldType
     StringList,
     Hotkey,
     FilePath,
-    FolderPath
+    FolderPath,
+    CustomControl
 }
 
 public class PluginConfigField
@@ -33,11 +34,19 @@ public class PluginConfigField
     public bool RequireNonEmpty { get; set; }
     /// <summary>For Text fields: maximum character length (0 or unset means no length restriction).</summary>
     public int MaxLength { get; set; }
+    /// <summary>For CustomControl fields: custom UI element/control hosted directly by the application.</summary>
+    public object? CustomControl { get; set; }
+    /// <summary>Custom getter delegate for external plugin settings.</summary>
+    public Func<object?>? GetValue { get; set; }
+    /// <summary>Custom setter delegate for external plugin settings.</summary>
+    public Action<object?>? SetValue { get; set; }
 }
 
 public class PluginConfigSchema
 {
     public List<PluginConfigField> Fields { get; set; } = new();
+    public Action? OnSave { get; set; }
+    public Action? OnRollback { get; set; }
 }
 
 public interface IConfigurable

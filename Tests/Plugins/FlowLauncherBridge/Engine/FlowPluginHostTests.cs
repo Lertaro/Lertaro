@@ -1,4 +1,3 @@
-using System.Windows.Controls;
 using Flow.Launcher.Plugin;
 using Lertaro.Plugins.FlowLauncherBridge.Engine;
 
@@ -8,39 +7,34 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Tests.Engine;
 public sealed class FlowPluginHostTests
 {
     [TestMethod]
-    public void ConstructFlowPluginSettingsHostWindow_DoesNotThrow()
+    public void FlowPluginHost_TracksLoadedPluginsAndKeywords()
     {
-        Exception? error = null;
-        var thread = new Thread(() =>
+        var tempDir = Path.Combine(Path.GetTempPath(), $"flow_host_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        try
         {
-            try
+            var storage = new FlowSettingsStorage(tempDir);
+            var host = new FlowPluginHost(storage, [tempDir]);
+
+            var metadata = new PluginMetadata
             {
-                var metadata = new PluginMetadata
-                {
-                    ID = "TEST_ID",
-                    Name = "TestPlugin"
-                };
-                var pair = new PluginPair { Metadata = metadata };
-                var storage = new FlowSettingsStorage(Path.GetTempPath());
-                var panel = new UserControl();
+                ID = "TEST_PLUGIN_ID",
+                Name = "TestPlugin",
+                ActionKeyword = "tp",
+                ActionKeywords = ["tp", "testp"]
+            };
 
-                var win = new FlowPluginSettingsHostWindow(pair, storage, panel);
-                Assert.IsNotNull(win);
-            }
-            catch (Exception ex)
-            {
-                error = ex;
-            }
-        });
+            var pair = new PluginPair { Metadata = metadata };
+            host.AddActionKeyword(metadata.ID, "tp");
+            host.AddActionKeyword(metadata.ID, "testp");
 
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
-
-        if (error != null)
+            Assert.IsNotNull(host.KeywordPlugins);
+            Assert.IsNotNull(host.GetAllPlugins());
+        }
+        finally
         {
-            Console.WriteLine($"ERROR: {error}");
-            throw error;
+            try { Directory.Delete(tempDir, true); } catch { }
         }
     }
 }
