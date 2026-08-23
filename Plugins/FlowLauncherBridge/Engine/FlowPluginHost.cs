@@ -132,10 +132,10 @@ public class FlowPluginHost : IAsyncDisposable
             }
             else if (AllowedLanguage.IsNodeJs(metadata.Language))
             {
-                var nodePath = FlowEnvironmentLocator.FindNodeExecutable();
-                if (string.IsNullOrEmpty(nodePath))
+                var nodePath = await FlowEnvironmentLocator.EnsureNodeExecutableAsync().ConfigureAwait(false);
+                if (string.IsNullOrEmpty(nodePath) || !File.Exists(nodePath))
                 {
-                    _failedPlugins[metadata.ID] = (metadata, "Node.js runtime not found in PATH or standard installation directories.");
+                    _failedPlugins[metadata.ID] = (metadata, "Node.js runtime not found in NodeEmbeded, and download failed.");
                     return;
                 }
                 var runner = new FlowProcessRunner(metadata, nodePath, metadata.ExecuteFilePath);

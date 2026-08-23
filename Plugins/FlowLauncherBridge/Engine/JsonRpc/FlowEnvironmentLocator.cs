@@ -5,18 +5,16 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 /// <summary>
 /// Discovers and provisions runtime interpreters for external Flow plugins (Python, Node.js).
-/// Strictly isolates Python to UserDataDirectory\FlowData\PythonEmbeded-{arch} and resolves Node.js via system PATH.
+/// Strictly and exclusively isolates runtimes into UserDataDirectory\FlowData\PythonEmbeded-{arch} and NodeEmbeded-{arch}.
 /// </summary>
 public static class FlowEnvironmentLocator
 {
     private static string? _cachedPythonPath;
     private static string? _cachedNodePath;
-    private static bool _pythonSearched;
-    private static bool _nodeSearched;
 
     public static string? FindPythonExecutable()
     {
-        if (_pythonSearched && _cachedPythonPath != null && File.Exists(_cachedPythonPath))
+        if (_cachedPythonPath != null && File.Exists(_cachedPythonPath))
             return _cachedPythonPath;
 
         var embedDir = GetEmbeddedPythonDirectory();
@@ -25,30 +23,10 @@ public static class FlowEnvironmentLocator
         {
             FlowPythonDownloader.EnsureSiteCustomizeInstalled(embedDir);
             _cachedPythonPath = exe;
-            _pythonSearched = true;
-            return _cachedPythonPath;
-        }
-
-        var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-        var archSuffix = RuntimeInformation.ProcessArchitecture switch
-        {
-            Architecture.Arm64 => "arm64",
-            Architecture.X86 => "x86",
-            _ => "x64"
-        };
-        var legacyDir = Path.Combine(baseDir, $"PythonEmbeded-{archSuffix}");
-        exe = FlowPythonDownloader.FindPythonInDir(legacyDir);
-        if (exe != null)
-        {
-            FlowPythonDownloader.EnsureSiteCustomizeInstalled(legacyDir);
-            _cachedPythonPath = exe;
-            _pythonSearched = true;
             return _cachedPythonPath;
         }
 
         _cachedPythonPath = null;
-        _pythonSearched = true;
         return null;
     }
 
@@ -63,7 +41,6 @@ public static class FlowEnvironmentLocator
         if (downloaded != null)
         {
             _cachedPythonPath = downloaded;
-            _pythonSearched = true;
             return _cachedPythonPath;
         }
 
@@ -72,41 +49,49 @@ public static class FlowEnvironmentLocator
 
     public static string? FindNodeExecutable()
     {
-        if (_nodeSearched && _cachedNodePath != null && File.Exists(_cachedNodePath))
+        if (_cachedNodePath != null && File.Exists(_cachedNodePath))
             return _cachedNodePath;
 
-        _cachedNodePath = ProbePath("node.exe");
-        _nodeSearched = true;
-        return _cachedNodePath;
+        var embedDir = GetEmbeddedNodeDirectory();
+        var exe = FlowNodeDownloader.FindNodeInDir(embedDir);
+        if (exe != null)
+        {
+            _cachedNodePath = exe;
+            return _cachedNodePath;
+        }
+
+        _cachedNodePath = null;
+        return null;
     }
 
-    public static string GetEmbeddedPythonDirectory()
+    public static async Task<string?> EnsureNodeExecutableAsync()
     {
-        var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-        var archSuffix = RuntimeInformation.ProcessArchitecture switch
+        var existing = FindNodeExecutable();
+        if (existing != null)
+            return existing;
+
+        var targetDir = GetEmbeddedNodeDirectory();
+        var downloaded = await FlowNodeDownloader.DownloadAndSetupEmbeddedNodeAsync(targetDir).ConfigureAwait(false);
+        if (downloaded != null)
         {
-            Architecture.Arm64 => "arm64",
-            Architecture.X86 => "x86",
-            _ => "x64"
-        };
-
-        return Path.Combine(baseDir, "FlowData", $"PythonEmbeded-{archSuffix}");
-    }
-
-    private static string? ProbePath(string binaryName)
-    {
-        var pathEnv = Environment.GetEnvironmentVariable("PATH");
-        if (string.IsNullOrEmpty(pathEnv))
-            return null;
-
-        foreach (var dir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
-            var fullPath = Path.Combine(dir.Trim(), binaryName);
-            if (File.Exists(fullPath))
-                return fullPath;
+            _cachedNodePath = downloaded;
+            return _cachedNodePath;
         }
 
         return null;
     }
+
+    public static string GetEmbeddedPythonDirectory() => Path.Combine(GetUserDataRoot(), "FlowData", $"PythonEmbeded-{GetArchSuffix()}");
+
+    public static string GetEmbeddedNodeDirectory() => Path.Combine(GetUserDataRoot(), "FlowData", $"NodeEmbeded-{GetArchSuffix()}");
+
+    private static string GetUserDataRoot() => PluginSdk.Services.UserDataService.GetUserDataDirectory()
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
+
+    private static string GetArchSuffix() => RuntimeInformation.ProcessArchitecture switch
+    {
+        Architecture.Arm64 => "arm64",
+        Architecture.X86 => "x86",
+        _ => "x64"
+    };
 }
