@@ -12,22 +12,8 @@ public static class FlowSettingsTemplateStorage
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
-    public static string GetSettingsPath(string baseDir, string pluginName)
-    {
-        var primaryPath = Path.Combine(baseDir, "FlowData", "Settings", "Plugins", pluginName, "Settings.json");
-        var legacyPath = Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
-        if (File.Exists(legacyPath) && !File.Exists(primaryPath))
-        {
-            try
-            {
-                var dir = Path.GetDirectoryName(primaryPath);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                File.Copy(legacyPath, primaryPath, true);
-            }
-            catch { }
-        }
-        return primaryPath;
-    }
+    public static string GetSettingsPath(string baseDir, string pluginName) =>
+        Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
 
     public static JsonObject LoadSettings(string path)
     {
@@ -54,16 +40,6 @@ public static class FlowSettingsTemplateStorage
 
             var json = obj.ToJsonString(JsonOptions);
             File.WriteAllText(path, json);
-
-            // Also mirror to legacy path if in standard path
-            if (path.Contains(Path.Combine("Settings", "Plugins")))
-            {
-                var legacyPath = path.Replace(Path.Combine("Settings", "Plugins"), "Settings");
-                var legacyDir = Path.GetDirectoryName(legacyPath);
-                if (!string.IsNullOrEmpty(legacyDir) && !Directory.Exists(legacyDir))
-                    Directory.CreateDirectory(legacyDir);
-                File.WriteAllText(legacyPath, json);
-            }
         }
         catch { }
     }

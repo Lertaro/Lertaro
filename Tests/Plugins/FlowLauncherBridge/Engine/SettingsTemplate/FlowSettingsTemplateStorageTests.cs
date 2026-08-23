@@ -87,34 +87,10 @@ public sealed class FlowSettingsTemplateStorageTests
     }
 
     [TestMethod]
-    public void GetSettingsPath_ReturnsStandardPluginsPath_AndCopiesFromLegacyIfPresent()
+    public void GetSettingsPath_ReturnsFlatSettingsPath()
     {
-        var legacyPath = Path.Combine(_tempDir, "FlowData", "Settings", "AudFlow", "Settings.json");
-        var legacyDir = Path.GetDirectoryName(legacyPath)!;
-        Directory.CreateDirectory(legacyDir);
-        File.WriteAllText(legacyPath, "{\"execute_key\": \"|\"}");
-
         var path = FlowSettingsTemplateStorage.GetSettingsPath(_tempDir, "AudFlow");
-        var expectedPath = Path.Combine(_tempDir, "FlowData", "Settings", "Plugins", "AudFlow", "Settings.json");
-
+        var expectedPath = Path.Combine(_tempDir, "FlowData", "Settings", "AudFlow", "Settings.json");
         Assert.AreEqual(expectedPath, path);
-        Assert.IsTrue(File.Exists(expectedPath));
-        var loaded = FlowSettingsTemplateStorage.LoadSettings(path);
-        Assert.AreEqual("|", loaded["execute_key"]?.ToString());
-    }
-
-    [TestMethod]
-    public void SaveSettings_StandardPluginsPath_MirrorsToLegacyPath()
-    {
-        var standardPath = Path.Combine(_tempDir, "FlowData", "Settings", "Plugins", "TestPlugin", "Settings.json");
-        var legacyPath = Path.Combine(_tempDir, "FlowData", "Settings", "TestPlugin", "Settings.json");
-
-        var obj = new System.Text.Json.Nodes.JsonObject { ["testKey"] = "testVal" };
-        FlowSettingsTemplateStorage.SaveSettings(standardPath, obj);
-
-        Assert.IsTrue(File.Exists(standardPath));
-        Assert.IsTrue(File.Exists(legacyPath));
-        var legacyLoaded = FlowSettingsTemplateStorage.LoadSettings(legacyPath);
-        Assert.AreEqual("testVal", legacyLoaded["testKey"]?.ToString());
     }
 }
