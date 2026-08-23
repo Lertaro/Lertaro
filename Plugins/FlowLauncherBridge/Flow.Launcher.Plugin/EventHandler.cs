@@ -32,11 +32,11 @@ public class ActualApplicationThemeChangedEventArgs : EventArgs
     public bool IsDark { get; set; }
 }
 
-public delegate void ResultUpdatedEventHandler(IAsyncPlugin sender, ResultUpdatedEventArgs e);
+public delegate void ResultUpdatedEventHandler(IResultUpdated sender, ResultUpdatedEventArgs e);
 
 public class ResultUpdatedEventArgs : EventArgs
 {
     public List<Result> Results = [];
     public Query Query = null!;
-    public CancellationToken Token { get; set; } = CancellationToken.None;
+    public CancellationToken Token { get; init; } = CancellationToken.None;
 }
