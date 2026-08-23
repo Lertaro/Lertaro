@@ -56,10 +56,7 @@ public static class FlowPluginInstaller
 
             var targetPluginDir = Path.Combine(pluginsBaseDir, plugin.Name);
             await host.UnloadPluginAsync(plugin.ID).ConfigureAwait(false);
-            if (Directory.Exists(targetPluginDir))
-            {
-                try { Directory.Delete(targetPluginDir, true); } catch { }
-            }
+            SafeDeleteDirectory(targetPluginDir);
 
             CopyDirectory(pluginFolder, targetPluginDir);
 
@@ -74,7 +71,7 @@ public static class FlowPluginInstaller
         {
             InstallingPlugins.TryRemove(plugin.ID, out _);
             try { if (File.Exists(tempZipPath)) File.Delete(tempZipPath); } catch { }
-            try { if (Directory.Exists(tempExtractDir)) Directory.Delete(tempExtractDir, true); } catch { }
+            SafeDeleteDirectory(tempExtractDir);
             SearchRefreshService.RefreshIfMatches(q => true);
         }
     }
@@ -117,10 +114,16 @@ public static class FlowPluginInstaller
         try
         {
             await host.UnloadPluginAsync(metadata.ID).ConfigureAwait(false);
-            if (!string.IsNullOrEmpty(metadata.PluginDirectory) && Directory.Exists(metadata.PluginDirectory))
-            {
-                try { Directory.Delete(metadata.PluginDirectory, true); } catch { }
-            }
+
+            var userDataDir = UserDataService.GetUserDataDirectory()
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
+            var pluginsBaseDir = Path.Combine(userDataDir, "FlowData", "Plugins");
+
+            var targetDir = !string.IsNullOrEmpty(metadata.PluginDirectory) && Directory.Exists(metadata.PluginDirectory)
+                ? metadata.PluginDirectory
+                : Path.Combine(pluginsBaseDir, metadata.Name);
+
+            SafeDeleteDirectory(targetDir);
             SearchRefreshService.RefreshIfMatches(q => true);
             return true;
         }
@@ -128,5 +131,25 @@ public static class FlowPluginInstaller
         {
             return false;
         }
+    }
+
+    public static void SafeDeleteDirectory(string directory)
+    {
+        if (!Directory.Exists(directory)) return;
+
+        try
+        {
+            foreach (var file in Directory.GetFiles(directory, "*", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    File.SetAttributes(file, FileAttributes.Normal);
+                    File.Delete(file);
+                }
+                catch { }
+            }
+            Directory.Delete(directory, true);
+        }
+        catch { }
     }
 }

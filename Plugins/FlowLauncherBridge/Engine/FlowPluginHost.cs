@@ -123,7 +123,7 @@ public class FlowPluginHost : IAsyncDisposable
             {
                 var loader = new FlowAssemblyLoader(pluginDir);
                 _loaders[metadata.ID] = loader;
-                var assembly = loader.LoadFromAssemblyPath(metadata.ExecuteFilePath);
+                var assembly = loader.LoadAssemblyFromBytes(metadata.ExecuteFilePath);
                 pluginInstance = CreatePluginInstance(assembly);
                 if (pluginInstance == null)
                 {
