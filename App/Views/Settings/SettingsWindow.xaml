@@ -23,8 +23,15 @@
                 <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsSidebar.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <Style x:Key="SettingsSidebarItemStyle" TargetType="ListBoxItem" BasedOn="{StaticResource SidebarItemStyle}">
+                <Setter Property="Padding" Value="14,8"/>
                 <Setter Property="ToolTipService.IsEnabled"
                         Value="{Binding IsSidebarCompact, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsSidebarCompact, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Value="True">
+                        <Setter Property="Padding" Value="0,8"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                    </DataTrigger>
+                </Style.Triggers>
             </Style>
         </ResourceDictionary>
     </Window.Resources>
@@ -156,7 +163,7 @@
                             <!-- Docked Bottom so "About" always sits at the sidebar's bottom edge regardless
                                  of window height, instead of just trailing the last item in the main list. -->
                             <ListBox x:Name="LstSectionsBottom" DockPanel.Dock="Bottom" BorderThickness="0" Background="Transparent"
-                                     Margin="0,0,0,14"
+                                     Margin="0,0,0,8"
                                      FontSize="15"
                                      ItemContainerStyle="{StaticResource SettingsSidebarItemStyle}"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -175,17 +182,18 @@
                                     </StackPanel>
                                 </ListBoxItem>
                             </ListBox>
-                            <Border DockPanel.Dock="Bottom" Height="1" Background="{DynamicResource BorderColor}" Margin="12,4"/>
+                            <Border DockPanel.Dock="Bottom" Height="1" Background="{DynamicResource BorderColor}" Margin="8,4"/>
                             <!-- CanContentScroll="False": a ListBox scrolls by ITEM by default, so its
                                  viewport is rounded down to a whole number of rows. Every row that
                                  fits by a fraction is one the viewport does not count, which showed a
                                  scrollbar with all nine sections already visible and then scrolled a
                                  full row past the last one into blank space. Pixel scrolling measures
                                  what is actually there. -->
-                            <ListBox x:Name="LstSections" BorderThickness="0" Background="Transparent" Margin="0,14"
+                            <ListBox x:Name="LstSections" BorderThickness="0" Background="Transparent" Margin="0,8"
                                  FontSize="15"
                                  ItemContainerStyle="{StaticResource SettingsSidebarItemStyle}"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
                                  ScrollViewer.CanContentScroll="False"
                                  SelectionChanged="LstSections_SelectionChanged">
                             <ListBoxItem Tag="Service" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Service]}">
