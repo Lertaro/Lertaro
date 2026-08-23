@@ -54,6 +54,7 @@ public static class FlowPluginInstaller
             Directory.CreateDirectory(pluginsBaseDir);
 
             var targetPluginDir = Path.Combine(pluginsBaseDir, plugin.Name);
+            await host.UnloadPluginAsync(plugin.ID).ConfigureAwait(false);
             if (Directory.Exists(targetPluginDir))
             {
                 try { Directory.Delete(targetPluginDir, true); } catch { }

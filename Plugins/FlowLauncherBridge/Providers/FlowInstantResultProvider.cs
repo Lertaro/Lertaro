@@ -49,13 +49,22 @@ public class FlowInstantResultProvider : IInstantResultProvider
                 ? trimmed[(keyword.Length + 1)..].Trim()
                 : string.Empty;
 
-            if (filter.Equals("list", StringComparison.OrdinalIgnoreCase) || filter.StartsWith("list ", StringComparison.OrdinalIgnoreCase))
+            if (filter.Equals("install", StringComparison.OrdinalIgnoreCase) || filter.StartsWith("install ", StringComparison.OrdinalIgnoreCase))
             {
-                var listFilter = filter.StartsWith("list ", StringComparison.OrdinalIgnoreCase)
-                    ? filter[5..].Trim()
+                var listFilter = filter.StartsWith("install ", StringComparison.OrdinalIgnoreCase)
+                    ? filter[8..].Trim()
                     : string.Empty;
 
                 return FlowCommunityListHelper.QueryCommunityPlugins(_host, keyword, listFilter, trimmed);
+            }
+
+            if (filter.Equals("update", StringComparison.OrdinalIgnoreCase) || filter.StartsWith("update ", StringComparison.OrdinalIgnoreCase))
+            {
+                var updateFilter = filter.StartsWith("update ", StringComparison.OrdinalIgnoreCase)
+                    ? filter[7..].Trim()
+                    : string.Empty;
+
+                return FlowCommunityUpdateHelper.QueryPluginUpdates(_host, keyword, updateFilter, trimmed);
             }
 
             var allPlugins = _host.GetAllPlugins();

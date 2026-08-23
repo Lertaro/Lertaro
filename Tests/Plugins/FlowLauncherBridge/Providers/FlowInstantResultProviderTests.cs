@@ -41,9 +41,7 @@ public sealed class FlowInstantResultProviderTests
             Plugin = new FakeFlowPlugin()
         };
 
-        typeof(FlowPluginHost)
-            .GetMethod("RegisterPluginKeywords", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .Invoke(host, [pair]);
+        host.RegisterPlugin(pair);
 
         var dispatcher = new FlowQueryDispatcher(host);
         var provider = new FlowInstantResultProvider(dispatcher);
@@ -124,14 +122,27 @@ public sealed class FlowInstantResultProviderTests
     }
 
     [TestMethod]
-    public void GetInstantResults_WhenTriggerKeywordWithList_RoutesToCommunityList()
+    public void GetInstantResults_WhenTriggerKeywordWithInstall_RoutesToCommunityList()
     {
         var storage = new FlowSettingsStorage(Path.GetTempPath());
         var host = new FlowPluginHost(storage, []);
         var dispatcher = new FlowQueryDispatcher(host);
         var provider = new FlowInstantResultProvider(dispatcher, host);
 
-        var results = provider.GetInstantResults("flow list").ToList();
+        var results = provider.GetInstantResults("flow install").ToList();
+
+        Assert.IsNotEmpty(results);
+    }
+
+    [TestMethod]
+    public void GetInstantResults_WhenTriggerKeywordWithUpdate_RoutesToUpdateList()
+    {
+        var storage = new FlowSettingsStorage(Path.GetTempPath());
+        var host = new FlowPluginHost(storage, []);
+        var dispatcher = new FlowQueryDispatcher(host);
+        var provider = new FlowInstantResultProvider(dispatcher, host);
+
+        var results = provider.GetInstantResults("flow update").ToList();
 
         Assert.IsNotEmpty(results);
     }

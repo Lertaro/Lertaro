@@ -71,10 +71,7 @@ public sealed class FlowQueryDispatcherTests
         };
 
         var pair = new PluginPair { Metadata = metadata, Plugin = fakePlugin };
-        // Access internal or register pair
-        typeof(FlowPluginHost)
-            .GetMethod("RegisterPluginKeywords", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .Invoke(host, [pair]);
+        host.RegisterPlugin(pair);
 
         var dispatcher = new FlowQueryDispatcher(host);
         var results = await dispatcher.DispatchQueryAsync("calc 1+1");

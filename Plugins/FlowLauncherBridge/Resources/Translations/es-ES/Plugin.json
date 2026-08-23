@@ -15,6 +15,10 @@
   "FlowLauncherBridge_Installing": "Instalando...",
   "FlowLauncherBridge_InstallSuccess": "Instalado con éxito",
   "FlowLauncherBridge_InstallFailed": "Error de instalación",
+  "FlowLauncherBridge_NoUpdatesTitle": "Todos los complementos de Flow están actualizados",
+  "FlowLauncherBridge_NoUpdatesDesc": "No se encontraron actualizaciones disponibles en el repositorio de la comunidad.",
+  "FlowLauncherBridge_Updating": "Actualizando...",
+  "FlowLauncherBridge_UpdateSuccess": "Actualizado con éxito",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "Envía consultas de palabras clave a los complementos de Flow.Launcher cargados y proporciona resultados de búsqueda instantánea y gestión de configuración.",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Proporciona traducción de interfaz y asignación de localización para el complemento Puente Flow.Launcher."
 }

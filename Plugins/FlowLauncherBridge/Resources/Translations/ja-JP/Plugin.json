@@ -15,6 +15,10 @@
   "FlowLauncherBridge_Installing": "インストール中...",
   "FlowLauncherBridge_InstallSuccess": "インストール完了",
   "FlowLauncherBridge_InstallFailed": "インストール失敗",
+  "FlowLauncherBridge_NoUpdatesTitle": "すべての Flow プラグインは最新です",
+  "FlowLauncherBridge_NoUpdatesDesc": "コミュニティリポジトリに利用可能な更新はありません。",
+  "FlowLauncherBridge_Updating": "更新中...",
+  "FlowLauncherBridge_UpdateSuccess": "更新完了",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "キーワードクエリを読み込まれた Flow.Launcher プラグインにディスパッチし、即時検索結果と設定管理を提供します。",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Flow.Launcher ブリッジプラグインに UI 翻訳とローカライズマッピングを提供します。"
 }

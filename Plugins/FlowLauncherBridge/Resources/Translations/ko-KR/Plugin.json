@@ -15,6 +15,10 @@
   "FlowLauncherBridge_Installing": "설치 중...",
   "FlowLauncherBridge_InstallSuccess": "설치 완료",
   "FlowLauncherBridge_InstallFailed": "설치 실패",
+  "FlowLauncherBridge_NoUpdatesTitle": "모든 Flow 플러그인이 최신 상태입니다",
+  "FlowLauncherBridge_NoUpdatesDesc": "커뮤니티 저장소에서 사용 가능한 업데이트를 찾을 수 없습니다.",
+  "FlowLauncherBridge_Updating": "업데이트 중...",
+  "FlowLauncherBridge_UpdateSuccess": "업데이트 완료",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "키워드 쿼리를 로드된 Flow.Launcher 플러그인으로 전달하고 인스턴트 검색 결과 및 설정 관리를 제공합니다.",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Flow.Launcher 브리지 플러그인의 UI 번역 및 현지화 매핑을 제공합니다."
 }

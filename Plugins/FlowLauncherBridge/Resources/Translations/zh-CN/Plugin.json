@@ -15,6 +15,10 @@
   "FlowLauncherBridge_Installing": "正在安装...",
   "FlowLauncherBridge_InstallSuccess": "安装成功",
   "FlowLauncherBridge_InstallFailed": "安装失败",
+  "FlowLauncherBridge_NoUpdatesTitle": "所有 Flow 插件均已是最新版本",
+  "FlowLauncherBridge_NoUpdatesDesc": "社区仓库中未检测到可用更新",
+  "FlowLauncherBridge_Updating": "正在更新...",
+  "FlowLauncherBridge_UpdateSuccess": "更新成功",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "负责分发关键词查询至已加载的 Flow.Launcher 插件并提供即时搜索结果与配置管理。",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "为 Flow.Launcher 桥接插件提供多语言翻译和本地化映射。"
 }
