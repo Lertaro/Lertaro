@@ -77,46 +77,48 @@
     </Style>
 
     <!-- ═══════════ Modern Fluent CheckBox Style ═══════════ -->
-    <Style TargetType="CheckBox">
+    <Style x:Key="ThemedCheckBox" TargetType="{x:Type CheckBox}">
         <Style.Resources>
             <Style TargetType="TextBlock">
                 <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}"/>
             </Style>
         </Style.Resources>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-        
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="Padding" Value="8,0,0,0"/>
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="CheckBox">
-                    <BulletDecorator Background="Transparent">
-                        <BulletDecorator.Bullet>
-                            <Grid Width="16" Height="16">
-                                <Border x:Name="Border" 
-                                        Width="16" Height="16"
-                                        CornerRadius="4" 
-                                        Background="{DynamicResource ControlBackground}" 
-                                        BorderBrush="{DynamicResource ControlBorderBrush}" 
-                                        BorderThickness="1"/>
-                                <TextBlock x:Name="CheckMark"
-                                           Text="&#xE73E;"
-                                           FontFamily="Segoe MDL2 Assets"
-                                           FontSize="10"
-                                           FontWeight="Bold"
-                                           Foreground="{DynamicResource PrimaryButtonText}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
-                                           Visibility="Collapsed"/>
-                            </Grid>
-                        </BulletDecorator.Bullet>
-                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                <ControlTemplate TargetType="{x:Type CheckBox}">
+                    <Grid Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center">
+                            <Border x:Name="Border" 
+                                    Width="16" Height="16"
+                                    CornerRadius="3" 
+                                    Background="{DynamicResource ControlBackground}" 
+                                    BorderBrush="{DynamicResource ControlBorderBrush}" 
+                                    BorderThickness="1"/>
+                            <TextBlock x:Name="CheckMark"
+                                       Text="&#xE73E;"
+                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryButtonText}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                        <ContentPresenter Grid.Column="1"
+                                          Margin="{TemplateBinding Padding}"
                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                           HorizontalAlignment="{TemplateBinding HorizontalAlignment}"
                                           RecognizesAccessKey="True"/>
-                    </BulletDecorator>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentBlue}"/>
@@ -137,6 +139,71 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource ThemedCheckBox}"/>
+
+    <!-- ═══════════ Modern Fluent RadioButton Style ═══════════ -->
+    <Style x:Key="ThemedRadioButton" TargetType="{x:Type RadioButton}">
+        <Style.Resources>
+            <Style TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+            </Style>
+        </Style.Resources>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Padding" Value="8,0,0,0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type RadioButton}">
+                    <Grid Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center">
+                            <Border x:Name="OuterBorder" 
+                                    Width="16" Height="16"
+                                    CornerRadius="8" 
+                                    Background="{DynamicResource ControlBackground}" 
+                                    BorderBrush="{DynamicResource ControlBorderBrush}" 
+                                    BorderThickness="1"/>
+                            <Ellipse x:Name="CheckDot"
+                                     Width="8" Height="8"
+                                     Fill="{DynamicResource PrimaryButtonText}"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"
+                                     Visibility="Collapsed"/>
+                        </Grid>
+                        <ContentPresenter Grid.Column="1"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalAlignment}"
+                                          RecognizesAccessKey="True"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="OuterBorder" Property="Background" Value="{DynamicResource AccentBlue}"/>
+                            <Setter TargetName="OuterBorder" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                            <Setter TargetName="CheckDot" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="OuterBorder" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="OuterBorder" Property="Background" Value="{DynamicResource ControlDisabledBackground}"/>
+                            <Setter TargetName="OuterBorder" Property="BorderBrush" Value="{DynamicResource ControlDisabledBorderBrush}"/>
+                            <Setter TargetName="CheckDot" Property="Fill" Value="{DynamicResource ControlDisabledForeground}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource ControlDisabledForeground}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type RadioButton}" BasedOn="{StaticResource ThemedRadioButton}"/>
 
     <!-- ═══════════ Themed ToolTip ═══════════ -->
     <Style TargetType="{x:Type ToolTip}">

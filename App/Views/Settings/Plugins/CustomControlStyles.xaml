@@ -73,13 +73,13 @@
     </Style>
 
     <!-- Implicit CheckBox -->
-    <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource {x:Type CheckBox}}">
-        <Setter Property="Margin" Value="0,4"/>
+    <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource ThemedCheckBox}">
+        <Setter Property="Margin" Value="0,6"/>
     </Style>
 
     <!-- Implicit RadioButton -->
-    <Style TargetType="{x:Type RadioButton}" BasedOn="{StaticResource {x:Type RadioButton}}">
-        <Setter Property="Margin" Value="0,4"/>
+    <Style TargetType="{x:Type RadioButton}" BasedOn="{StaticResource ThemedRadioButton}">
+        <Setter Property="Margin" Value="0,6"/>
     </Style>
 
 </ResourceDictionary>
