@@ -136,4 +136,53 @@ public class FlowSettingsStorage
             }
         }
     }
+
+    public Dictionary<string, string> TakeSnapshot(string pluginId)
+    {
+        lock (_lock)
+        {
+            var snapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (key, instance) in _loadedSettings)
+            {
+                if (key.StartsWith($"{pluginId}_", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        snapshot[key] = JsonSerializer.Serialize(instance, instance.GetType(), JsonOptions);
+                    }
+                    catch { }
+                }
+            }
+            return snapshot;
+        }
+    }
+
+    public void RestoreSnapshot(string pluginId, Dictionary<string, string> snapshot)
+    {
+        lock (_lock)
+        {
+            foreach (var (key, json) in snapshot)
+            {
+                if (_loadedSettings.TryGetValue(key, out var instance) && instance != null)
+                {
+                    try
+                    {
+                        var restored = JsonSerializer.Deserialize(json, instance.GetType(), JsonOptions);
+                        if (restored != null)
+                        {
+                            foreach (var prop in instance.GetType().GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                            {
+                                if (prop.CanRead && prop.CanWrite && prop.GetIndexParameters().Length == 0)
+                                {
+                                    var val = prop.GetValue(restored);
+                                    prop.SetValue(instance, val);
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+        }
+    }
 }

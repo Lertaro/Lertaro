@@ -56,4 +56,25 @@ public sealed class FlowSettingsStorageTests
         Assert.AreEqual("custom_token_123", reloaded.ApiKey);
         Assert.AreEqual(60, reloaded.TimeoutSeconds);
     }
+
+    [TestMethod]
+    public void TakeSnapshot_And_RestoreSnapshot_RollsBackInMemoryChanges()
+    {
+        var storage = new FlowSettingsStorage(_tempDir);
+        var config = storage.LoadSetting<SampleConfig>("test-plugin-id");
+        config.ApiKey = "initial_key";
+        config.TimeoutSeconds = 45;
+
+        var snapshot = storage.TakeSnapshot("test-plugin-id");
+
+        // User edits settings in memory
+        config.ApiKey = "modified_key";
+        config.TimeoutSeconds = 999;
+
+        // User closes window without confirming -> restore snapshot
+        storage.RestoreSnapshot("test-plugin-id", snapshot);
+
+        Assert.AreEqual("initial_key", config.ApiKey);
+        Assert.AreEqual(45, config.TimeoutSeconds);
+    }
 }
