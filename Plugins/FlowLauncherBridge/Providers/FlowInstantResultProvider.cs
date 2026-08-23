@@ -67,6 +67,15 @@ public class FlowInstantResultProvider : IInstantResultProvider
                 return FlowCommunityUpdateHelper.QueryPluginUpdates(_host, keyword, updateFilter, trimmed);
             }
 
+            if (filter.Equals("uninstall", StringComparison.OrdinalIgnoreCase) || filter.StartsWith("uninstall ", StringComparison.OrdinalIgnoreCase))
+            {
+                var uninstallFilter = filter.StartsWith("uninstall ", StringComparison.OrdinalIgnoreCase)
+                    ? filter[10..].Trim()
+                    : string.Empty;
+
+                return FlowCommunityUninstallHelper.QueryInstalledPluginsForUninstall(_host, uninstallFilter);
+            }
+
             var allPlugins = _host.GetAllPlugins();
             if (allPlugins.Count == 0 && string.IsNullOrEmpty(filter))
             {
@@ -159,4 +168,7 @@ public class FlowInstantResultProvider : IInstantResultProvider
             return [];
         }
     }
+
+    public bool[]? GetHighlightMask(string text, string query) =>
+        FlowHighlightHelper.GetHighlightMask(_host, GetTriggerKeyword(), text, query);
 }

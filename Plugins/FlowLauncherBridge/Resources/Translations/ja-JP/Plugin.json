@@ -19,6 +19,9 @@
   "FlowLauncherBridge_NoUpdatesDesc": "コミュニティリポジトリに利用可能な更新はありません。",
   "FlowLauncherBridge_Updating": "更新中...",
   "FlowLauncherBridge_UpdateSuccess": "更新完了",
+  "FlowLauncherBridge_Uninstall": "アンインストール",
+  "FlowLauncherBridge_NoInstalledPluginsTitle": "インストール済みの Flow プラグインが見つかりません",
+  "FlowLauncherBridge_NoInstalledPluginsDesc": "現在インストールされている Flow プラグインはありません。",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "キーワードクエリを読み込まれた Flow.Launcher プラグインにディスパッチし、即時検索結果と設定管理を提供します。",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Flow.Launcher ブリッジプラグインに UI 翻訳とローカライズマッピングを提供します。"
 }

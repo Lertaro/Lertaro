@@ -146,4 +146,17 @@ public sealed class FlowInstantResultProviderTests
 
         Assert.IsNotEmpty(results);
     }
+
+    [TestMethod]
+    public void GetInstantResults_WhenTriggerKeywordWithUninstall_RoutesToUninstallList()
+    {
+        var storage = new FlowSettingsStorage(Path.GetTempPath());
+        var host = new FlowPluginHost(storage, []);
+        var dispatcher = new FlowQueryDispatcher(host);
+        var provider = new FlowInstantResultProvider(dispatcher, host);
+
+        var results = provider.GetInstantResults("flow uninstall").ToList();
+
+        Assert.IsNotEmpty(results);
+    }
 }

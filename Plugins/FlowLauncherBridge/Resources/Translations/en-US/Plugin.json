@@ -19,6 +19,9 @@
   "FlowLauncherBridge_NoUpdatesDesc": "No available updates found in the community repository.",
   "FlowLauncherBridge_Updating": "Updating...",
   "FlowLauncherBridge_UpdateSuccess": "Updated successfully",
+  "FlowLauncherBridge_Uninstall": "Uninstall",
+  "FlowLauncherBridge_NoInstalledPluginsTitle": "No installed Flow plugins",
+  "FlowLauncherBridge_NoInstalledPluginsDesc": "There are currently no Flow plugins installed.",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "Dispatches keyword queries to loaded Flow.Launcher plugins and provides instant search results and settings management.",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Provides UI translation and localization mapping for the Flow.Launcher Bridge plugin."
 }

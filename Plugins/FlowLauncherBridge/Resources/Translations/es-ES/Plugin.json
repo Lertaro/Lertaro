@@ -19,6 +19,9 @@
   "FlowLauncherBridge_NoUpdatesDesc": "No se encontraron actualizaciones disponibles en el repositorio de la comunidad.",
   "FlowLauncherBridge_Updating": "Actualizando...",
   "FlowLauncherBridge_UpdateSuccess": "Actualizado con éxito",
+  "FlowLauncherBridge_Uninstall": "Desinstalar",
+  "FlowLauncherBridge_NoInstalledPluginsTitle": "No se encontraron complementos de Flow instalados",
+  "FlowLauncherBridge_NoInstalledPluginsDesc": "Actualmente no hay complementos de Flow instalados.",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "Envía consultas de palabras clave a los complementos de Flow.Launcher cargados y proporciona resultados de búsqueda instantánea y gestión de configuración.",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Proporciona traducción de interfaz y asignación de localización para el complemento Puente Flow.Launcher."
 }

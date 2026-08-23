@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
+using Flow.Launcher.Plugin;
 using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine.Community;
@@ -108,6 +109,24 @@ public static class FlowPluginInstaller
         {
             var destSub = Path.Combine(destination, Path.GetFileName(dir));
             CopyDirectory(dir, destSub);
+        }
+    }
+
+    public static async Task<bool> UninstallPluginAsync(PluginMetadata metadata, FlowPluginHost host)
+    {
+        try
+        {
+            await host.UnloadPluginAsync(metadata.ID).ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(metadata.PluginDirectory) && Directory.Exists(metadata.PluginDirectory))
+            {
+                try { Directory.Delete(metadata.PluginDirectory, true); } catch { }
+            }
+            SearchRefreshService.RefreshIfMatches(q => true);
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 }
