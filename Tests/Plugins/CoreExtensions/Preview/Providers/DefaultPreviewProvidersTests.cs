@@ -107,7 +107,10 @@ public sealed class DefaultMetadataPreviewProviderTests
     private static readonly DefaultMetadataPreviewProvider Provider = new();
 
     [TestMethod]
-    public void CanPreview_AnyFile_ReturnsTrue() => Assert.IsTrue(Provider.CanPreview(@"C:\anything.whatever", isDir: false));
+    public void CanPreview_ExistingFile_ReturnsTrue() => Assert.IsTrue(Provider.CanPreview(typeof(DefaultMetadataPreviewProviderTests).Assembly.Location, isDir: false));
+
+    [TestMethod]
+    public void CanPreview_NonExistingFile_ReturnsFalse() => Assert.IsFalse(Provider.CanPreview(@"C:\non_existing_file_99999.whatever", isDir: false));
 
     [TestMethod]
     public void CanPreview_Directory_ReturnsTrue() => Assert.IsTrue(Provider.CanPreview(@"C:\somedir", isDir: true));
