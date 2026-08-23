@@ -145,10 +145,10 @@ public class FlowPluginHost : IAsyncDisposable
             }
             else if (AllowedLanguage.IsPython(metadata.Language))
             {
-                var pythonPath = FlowEnvironmentLocator.FindPythonExecutable();
+                var pythonPath = await FlowEnvironmentLocator.EnsurePythonExecutableAsync().ConfigureAwait(false);
                 if (string.IsNullOrEmpty(pythonPath))
                 {
-                    _failedPlugins[metadata.ID] = (metadata, "Python runtime not found in PATH or standard installation directories.");
+                    _failedPlugins[metadata.ID] = (metadata, "Python runtime not found in PATH, PythonEmbeded, or download failed.");
                     return;
                 }
                 var runner = new FlowProcessRunner(metadata, pythonPath, metadata.ExecuteFilePath);

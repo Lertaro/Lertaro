@@ -3,7 +3,8 @@ using System.IO;
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 /// <summary>
-/// Discovers runtime interpreters for external Flow plugins (Python, Node.js).
+/// Discovers and provisions runtime interpreters for external Flow plugins (Python, Node.js).
+/// Strictly isolates Python to UserDataDirectory\PythonEmbeded and resolves Node.js via system PATH.
 /// </summary>
 public static class FlowEnvironmentLocator
 {
@@ -14,99 +15,71 @@ public static class FlowEnvironmentLocator
 
     public static string? FindPythonExecutable()
     {
-        if (_pythonSearched)
+        if (_pythonSearched && _cachedPythonPath != null && File.Exists(_cachedPythonPath))
             return _cachedPythonPath;
 
-        _cachedPythonPath = ProbeExecutable(["python.exe", "python3.exe", "py.exe"], GetPythonProbingDirectories());
-        _pythonSearched = true;
-        return _cachedPythonPath;
-    }
-
-    public static string? FindNodeExecutable()
-    {
-        if (_nodeSearched)
-            return _cachedNodePath;
-
-        _cachedNodePath = ProbeExecutable(["node.exe"], GetNodeProbingDirectories());
-        _nodeSearched = true;
-        return _cachedNodePath;
-    }
-
-    private static string? ProbeExecutable(string[] binaryNames, IEnumerable<string> searchDirs)
-    {
-        // 1. Search PATH environment variable
-        var pathEnv = Environment.GetEnvironmentVariable("PATH");
-        if (!string.IsNullOrEmpty(pathEnv))
+        var embedDir = GetEmbeddedPythonDirectory();
+        var exe = FlowPythonDownloader.FindPythonInDir(embedDir);
+        if (exe != null)
         {
-            foreach (var dir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-            {
-                foreach (var binary in binaryNames)
-                {
-                    var fullPath = Path.Combine(dir.Trim(), binary);
-                    if (File.Exists(fullPath))
-                        return fullPath;
-                }
-            }
+            _cachedPythonPath = exe;
+            _pythonSearched = true;
+            return _cachedPythonPath;
         }
 
-        // 2. Search well-known directory locations
-        foreach (var dir in searchDirs)
-        {
-            if (!Directory.Exists(dir))
-                continue;
+        _cachedPythonPath = null;
+        _pythonSearched = true;
+        return null;
+    }
 
-            foreach (var binary in binaryNames)
-            {
-                var fullPath = Path.Combine(dir, binary);
-                if (File.Exists(fullPath))
-                    return fullPath;
-            }
+    public static async Task<string?> EnsurePythonExecutableAsync()
+    {
+        var existing = FindPythonExecutable();
+        if (existing != null)
+            return existing;
+
+        var targetDir = GetEmbeddedPythonDirectory();
+        var downloaded = await FlowPythonDownloader.DownloadAndSetupEmbeddedPythonAsync(targetDir).ConfigureAwait(false);
+        if (downloaded != null)
+        {
+            _cachedPythonPath = downloaded;
+            _pythonSearched = true;
+            return _cachedPythonPath;
         }
 
         return null;
     }
 
-    private static IEnumerable<string> GetPythonProbingDirectories()
+    public static string? FindNodeExecutable()
     {
-        var dirs = new List<string>();
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        if (_nodeSearched && _cachedNodePath != null && File.Exists(_cachedNodePath))
+            return _cachedNodePath;
 
-        var pythonBase = Path.Combine(localAppData, "Programs", "Python");
-        if (Directory.Exists(pythonBase))
-        {
-            try { dirs.AddRange(Directory.GetDirectories(pythonBase)); } catch { }
-        }
-
-        if (Directory.Exists(progFiles))
-        {
-            try
-            {
-                dirs.AddRange(Directory.GetDirectories(progFiles, "Python*"));
-            }
-            catch { }
-        }
-
-        return dirs;
+        _cachedNodePath = ProbePath("node.exe");
+        _nodeSearched = true;
+        return _cachedNodePath;
     }
 
-    private static IEnumerable<string> GetNodeProbingDirectories()
+    public static string GetEmbeddedPythonDirectory()
     {
-        var dirs = new List<string>();
-        var progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        var nodeDir = Path.Combine(progFiles, "nodejs");
-        if (Directory.Exists(nodeDir))
-            dirs.Add(nodeDir);
+        var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
+        return Path.Combine(baseDir, "PythonEmbeded");
+    }
 
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var fnmDir = Path.Combine(localAppData, "fnm_multishells");
-        if (Directory.Exists(fnmDir))
-            dirs.Add(fnmDir);
+    private static string? ProbePath(string binaryName)
+    {
+        var pathEnv = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrEmpty(pathEnv))
+            return null;
 
-        var nvmDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "nvm");
-        if (Directory.Exists(nvmDir))
-            dirs.Add(nvmDir);
+        foreach (var dir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var fullPath = Path.Combine(dir.Trim(), binaryName);
+            if (File.Exists(fullPath))
+                return fullPath;
+        }
 
-        return dirs;
+        return null;
     }
 }
