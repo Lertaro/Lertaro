@@ -138,6 +138,7 @@ public class FlowPluginHost : IAsyncDisposable
                     _failedPlugins[metadata.ID] = (metadata, "Node.js runtime not found in NodeEmbeded, and download failed.");
                     return;
                 }
+                FlowNpmManager.EnsureNpmAndPackagesBackground(nodePath, pluginDir);
                 var runner = new FlowProcessRunner(metadata, nodePath, metadata.ExecuteFilePath);
                 pluginInstance = new FlowJsonRpcPlugin(runner, metadata);
             }
