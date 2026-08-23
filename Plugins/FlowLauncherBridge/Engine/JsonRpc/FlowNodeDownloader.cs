@@ -60,12 +60,14 @@ public static class FlowNodeDownloader
         }
     }
 
-    public static string GetDownloadUrl() => RuntimeInformation.ProcessArchitecture switch
+    public static string GetDownloadUrl()
     {
-        Architecture.Arm64 => "https://nodejs.org/dist/v20.18.0/node-v20.18.0-win-arm64.zip",
-        Architecture.X86 => "https://nodejs.org/dist/v16.18.0/node-v16.18.0-win-x86.zip",
-        _ => "https://nodejs.org/dist/v16.18.0/node-v16.18.0-win-x64.zip"
-    };
+        var archSuffix = RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+            ? "win-arm64"
+            : "win-x64";
+
+        return $"https://nodejs.org/dist/v20.18.0/node-v20.18.0-{archSuffix}.zip";
+    }
 
     public static string? FindNodeInDir(string dir)
     {

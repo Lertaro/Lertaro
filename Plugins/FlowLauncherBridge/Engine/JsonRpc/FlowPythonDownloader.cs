@@ -139,14 +139,11 @@ except Exception:
 
     private static string GetDownloadUrl()
     {
-        var archSuffix = RuntimeInformation.ProcessArchitecture switch
-        {
-            Architecture.Arm64 => "embed-arm64",
-            Architecture.X86 => "embed-win32",
-            _ => "embed-amd64"
-        };
+        var archSuffix = RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+            ? "embed-arm64"
+            : "embed-amd64";
 
-        return $"https://www.python.org/ftp/python/3.11.9/python-3.11.9-{archSuffix}.zip";
+        return $"https://www.python.org/ftp/python/3.12.7/python-3.12.7-{archSuffix}.zip";
     }
 
     private static void EnableImportSiteInPthFiles(string targetDir)

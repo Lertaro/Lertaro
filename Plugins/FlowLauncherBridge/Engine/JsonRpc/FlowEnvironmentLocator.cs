@@ -88,10 +88,7 @@ public static class FlowEnvironmentLocator
     private static string GetUserDataRoot() => PluginSdk.Services.UserDataService.GetUserDataDirectory()
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
 
-    private static string GetArchSuffix() => RuntimeInformation.ProcessArchitecture switch
-    {
-        Architecture.Arm64 => "arm64",
-        Architecture.X86 => "x86",
-        _ => "x64"
-    };
+    private static string GetArchSuffix() => RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+        ? "arm64"
+        : "x64";
 }
