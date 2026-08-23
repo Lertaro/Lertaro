@@ -22,17 +22,6 @@
                 <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
                 <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsSidebar.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-            <Style x:Key="SettingsSidebarItemStyle" TargetType="ListBoxItem" BasedOn="{StaticResource SidebarItemStyle}">
-                <Setter Property="Padding" Value="14,8"/>
-                <Setter Property="ToolTipService.IsEnabled"
-                        Value="{Binding IsSidebarCompact, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding IsSidebarCompact, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Value="True">
-                        <Setter Property="Padding" Value="0,8"/>
-                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                    </DataTrigger>
-                </Style.Triggers>
-            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
