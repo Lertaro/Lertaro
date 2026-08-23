@@ -43,6 +43,7 @@
                 <!-- Custom Control layout for embedded plugin host panels -->
                 <ContentControl Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0"
                                 Content="{Binding CustomControl}" HorizontalAlignment="Stretch" Margin="0,4"
+                                TextElement.Foreground="{DynamicResource TextPrimary}"
                                 Visibility="{Binding IsCustomControl, Converter={StaticResource BoolToVis}}"/>
 
                 <!-- Field Controls for simple inputs -->

@@ -7,7 +7,7 @@ namespace Flow.Launcher.Plugin;
 /// <summary>
 /// Information for font-based glyph icons.
 /// </summary>
-public record struct GlyphInfo(string FontFamily, string Glyph);
+public record GlyphInfo(string FontFamily, string Glyph);
 
 /// <summary>
 /// Enumeration of key events for global keyboard hooks.

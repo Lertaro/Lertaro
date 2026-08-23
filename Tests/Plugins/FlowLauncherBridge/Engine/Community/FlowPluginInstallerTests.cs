@@ -1,3 +1,4 @@
+using Flow.Launcher.Plugin;
 using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.FlowLauncherBridge.Engine;
 using Lertaro.Plugins.FlowLauncherBridge.Engine.Community;
@@ -41,5 +42,21 @@ public sealed class FlowPluginInstallerTests
         var result = await FlowPluginInstaller.DownloadAndInstallPluginAsync(plugin, host);
 
         Assert.IsFalse(result);
+    }
+
+    [TestMethod]
+    public void GlyphInfo_WhenInstantiated_IsReferenceTypeAndPreservesProperties()
+    {
+        var glyph = new GlyphInfo("/Resources/#Segoe Fluent Icons", "\ue790");
+        Assert.IsFalse(typeof(GlyphInfo).IsValueType, "GlyphInfo must be a reference type (record class) matching Flow.Launcher SDK");
+        Assert.AreEqual("/Resources/#Segoe Fluent Icons", glyph.FontFamily);
+        Assert.AreEqual("\ue790", glyph.Glyph);
+
+        var result = new Result
+        {
+            Title = "Weather Beijing",
+            Glyph = glyph
+        };
+        Assert.AreEqual(glyph, result.Glyph);
     }
 }

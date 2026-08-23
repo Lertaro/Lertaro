@@ -83,7 +83,7 @@ public class Result
     [JsonIgnore]
     public IconDelegate? BadgeIcon;
 
-    public GlyphInfo Glyph { get; set; }
+    public GlyphInfo? Glyph { get; init; }
 
     [JsonIgnore]
     public Func<ActionContext, bool>? Action { get; set; }

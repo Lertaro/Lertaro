@@ -180,6 +180,14 @@ public static class FlowConfigSchemaBuilder
         {
             var panel = settingProvider.CreateSettingPanel();
             if (panel == null || (panel is UserControl uc && uc.Content == null)) return null;
+
+            try
+            {
+                var uri = new Uri("pack://application:,,,/Lertaro.App;component/Views/Settings/Plugins/CustomControlStyles.xaml", UriKind.Absolute);
+                panel.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = uri });
+            }
+            catch { }
+
             return panel;
         }
         catch

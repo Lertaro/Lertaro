@@ -4,6 +4,7 @@
         <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
         <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
         <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+        <ResourceDictionary Source="../../../Resources/Styles/Controls/Controls.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
     <!-- ═══════════ Direct App-Theme Control Reuse for Hosted Panels ═══════════ -->
@@ -69,6 +70,16 @@
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Padding" Value="0,0,0,4"/>
+    </Style>
+
+    <!-- Implicit CheckBox -->
+    <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource {x:Type CheckBox}}">
+        <Setter Property="Margin" Value="0,4"/>
+    </Style>
+
+    <!-- Implicit RadioButton -->
+    <Style TargetType="{x:Type RadioButton}" BasedOn="{StaticResource {x:Type RadioButton}}">
+        <Setter Property="Margin" Value="0,4"/>
     </Style>
 
 </ResourceDictionary>
