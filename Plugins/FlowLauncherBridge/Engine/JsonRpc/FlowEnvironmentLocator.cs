@@ -5,7 +5,8 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 /// <summary>
 /// Discovers and provisions runtime interpreters for external Flow plugins (Python, Node.js).
-/// Strictly and exclusively isolates runtimes into UserDataDirectory\FlowData\PythonEmbeded-{arch} and NodeEmbeded-{arch}.
+/// Strictly isolates runtimes into SharedDataDirectory\FlowData\PythonEmbeded-{arch} and NodeEmbeded-{arch}
+/// for machine-wide multi-user sharing.
 /// </summary>
 public static class FlowEnvironmentLocator
 {
@@ -17,11 +18,11 @@ public static class FlowEnvironmentLocator
         if (_cachedPythonPath != null && File.Exists(_cachedPythonPath))
             return _cachedPythonPath;
 
-        var embedDir = GetEmbeddedPythonDirectory();
-        var exe = FlowPythonDownloader.FindPythonInDir(embedDir);
+        var sharedDir = GetEmbeddedPythonDirectory();
+        var exe = FlowPythonDownloader.FindPythonInDir(sharedDir);
         if (exe != null)
         {
-            FlowPythonDownloader.EnsureSiteCustomizeInstalled(embedDir);
+            FlowPythonDownloader.EnsureSiteCustomizeInstalled(sharedDir);
             _cachedPythonPath = exe;
             return _cachedPythonPath;
         }
@@ -52,8 +53,8 @@ public static class FlowEnvironmentLocator
         if (_cachedNodePath != null && File.Exists(_cachedNodePath))
             return _cachedNodePath;
 
-        var embedDir = GetEmbeddedNodeDirectory();
-        var exe = FlowNodeDownloader.FindNodeInDir(embedDir);
+        var sharedDir = GetEmbeddedNodeDirectory();
+        var exe = FlowNodeDownloader.FindNodeInDir(sharedDir);
         if (exe != null)
         {
             _cachedNodePath = exe;
@@ -81,12 +82,12 @@ public static class FlowEnvironmentLocator
         return null;
     }
 
-    public static string GetEmbeddedPythonDirectory() => Path.Combine(GetUserDataRoot(), "FlowData", $"PythonEmbeded-{GetArchSuffix()}");
+    public static string GetEmbeddedPythonDirectory() => Path.Combine(GetSharedDataRoot(), "FlowData", $"PythonEmbeded-{GetArchSuffix()}");
 
-    public static string GetEmbeddedNodeDirectory() => Path.Combine(GetUserDataRoot(), "FlowData", $"NodeEmbeded-{GetArchSuffix()}");
+    public static string GetEmbeddedNodeDirectory() => Path.Combine(GetSharedDataRoot(), "FlowData", $"NodeEmbeded-{GetArchSuffix()}");
 
-    private static string GetUserDataRoot() => PluginSdk.Services.UserDataService.GetUserDataDirectory()
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
+    private static string GetSharedDataRoot() => PluginSdk.Services.UserDataService.GetSharedDataDirectory()
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Lertaro");
 
     private static string GetArchSuffix() => RuntimeInformation.ProcessArchitecture == Architecture.Arm64
         ? "arm64"
