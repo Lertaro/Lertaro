@@ -142,7 +142,7 @@ public class FlowPublicApi : IPublicAPI
             return false;
         }
     }
-    public string GetTranslation(string key) => key;
+    public string GetTranslation(string key) => FlowPluginLanguageHelper.GetTranslation(key);
     public List<PluginPair> GetAllPlugins() => _getPluginsFunc();
     public List<PluginPair> GetAllInitializedPlugins(bool includeFailed) => _getPluginsFunc();
 

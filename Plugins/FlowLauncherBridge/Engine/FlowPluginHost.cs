@@ -183,6 +183,7 @@ public class FlowPluginHost : IAsyncDisposable
 
             if (pluginInstance != null)
             {
+                FlowPluginLanguageHelper.LoadPluginLanguage(pluginDir);
                 var pair = new PluginPair { Metadata = metadata, Plugin = pluginInstance };
                 _loadedPlugins[metadata.ID] = pair;
                 if (!isDisabled)
@@ -194,6 +195,12 @@ public class FlowPluginHost : IAsyncDisposable
                 var initContext = new PluginInitContext(metadata, api);
 
                 await pluginInstance.InitAsync(initContext);
+
+                if (pluginInstance is IPluginI18n pluginI18n)
+                {
+                    try { pluginI18n.OnCultureInfoChanged(System.Globalization.CultureInfo.CurrentUICulture); } catch { }
+                }
+
                 return true;
             }
             return false;

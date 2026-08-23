@@ -41,18 +41,12 @@ public static class FlowConfigSchemaBuilder
             {
                 new PluginConfigField
                 {
-                    Key = $"{pluginName}.Enabled",
-                    GroupKey = pluginName,
+                    Key = $"{pluginName}.Enabled", GroupKey = pluginName,
                     LabelKey = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginEnabledLabel"),
                     DescriptionKey = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginEnabledDesc"),
-                    FieldType = ConfigFieldType.Boolean,
-                    DefaultValue = !pair.Metadata.Disabled,
+                    FieldType = ConfigFieldType.Boolean, DefaultValue = !pair.Metadata.Disabled,
                     GetValue = () => host.IsPluginEnabled(capturedName),
-                    SetValue = val =>
-                    {
-                        if (val is bool b) host.SetPluginEnabled(capturedName, b);
-                        else if (bool.TryParse(val?.ToString(), out var parsed)) host.SetPluginEnabled(capturedName, parsed);
-                    }
+                    SetValue = val => host.SetPluginEnabled(capturedName, val is bool b ? b : bool.TryParse(val?.ToString(), out var p) && p)
                 }
             };
 
@@ -60,25 +54,13 @@ public static class FlowConfigSchemaBuilder
             {
                 pluginFields.Add(new PluginConfigField
                 {
-                    Key = $"{pluginName}.ActionKeyword",
-                    GroupKey = pluginName,
+                    Key = $"{pluginName}.ActionKeyword", GroupKey = pluginName,
                     LabelKey = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginActionKeywordLabel"),
-                    DescriptionKey = string.Format(
-                        PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginActionKeywordDesc"),
-                        pair.Metadata.ActionKeyword),
-                    FieldType = ConfigFieldType.Text,
-                    DefaultValue = pair.Metadata.ActionKeyword ?? string.Empty,
-                    RequireNonEmpty = true,
-                    MaxLength = 16,
+                    DescriptionKey = string.Format(PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginActionKeywordDesc"), pair.Metadata.ActionKeyword),
+                    FieldType = ConfigFieldType.Text, DefaultValue = pair.Metadata.ActionKeyword ?? string.Empty,
+                    RequireNonEmpty = true, MaxLength = 16,
                     GetValue = () => host.GetPluginActionKeyword(capturedName),
-                    SetValue = val =>
-                    {
-                        var newKw = val?.ToString()?.Trim();
-                        if (!string.IsNullOrEmpty(newKw))
-                        {
-                            host.UpdatePluginActionKeyword(capturedName, newKw);
-                        }
-                    }
+                    SetValue = val => { var kw = val?.ToString()?.Trim(); if (!string.IsNullOrEmpty(kw)) host.UpdatePluginActionKeyword(capturedName, kw); }
                 });
             }
 
@@ -105,9 +87,9 @@ public static class FlowConfigSchemaBuilder
                     }
                 }
             }
-            else if (pair.Plugin is ISettingProvider settingProvider)
+            else if (pair.Plugin is ISettingProvider)
             {
-                var panel = CreatePanelSafe(settingProvider);
+                var panel = CreatePanelSafe(pair);
                 if (panel != null)
                 {
                     pluginFields.Add(new PluginConfigField
@@ -179,6 +161,15 @@ public static class FlowConfigSchemaBuilder
                 FieldType = ConfigFieldType.StringList,
                 DefaultValue = elem.DefaultValue ?? string.Empty
             },
+            "number" or "integer" or "numeric" => new PluginConfigField
+            {
+                Key = key,
+                GroupKey = groupName,
+                LabelKey = label,
+                DescriptionKey = elem.Description,
+                FieldType = ConfigFieldType.Integer,
+                DefaultValue = int.TryParse(elem.DefaultValue, out var n) ? n : 0
+            },
             "select" or "dropdown" => new PluginConfigField
             {
                 Key = key,
@@ -188,15 +179,6 @@ public static class FlowConfigSchemaBuilder
                 FieldType = ConfigFieldType.Choice,
                 Choices = elem.Options,
                 DefaultValue = !string.IsNullOrEmpty(elem.DefaultValue) ? elem.DefaultValue : (elem.Options.FirstOrDefault() ?? string.Empty)
-            },
-            "number" or "integer" or "numeric" => new PluginConfigField
-            {
-                Key = key,
-                GroupKey = groupName,
-                LabelKey = label,
-                DescriptionKey = elem.Description,
-                FieldType = ConfigFieldType.Integer,
-                DefaultValue = int.TryParse(elem.DefaultValue, out var n) ? n : 0
             },
             "keybind" or "hotkey" => new PluginConfigField
             {
@@ -248,15 +230,23 @@ public static class FlowConfigSchemaBuilder
         return field;
     }
 
-    private static Control? CreatePanelSafe(ISettingProvider settingProvider)
+    private static Control? CreatePanelSafe(PluginPair pair)
     {
+        if (pair.Plugin is not ISettingProvider settingProvider) return null;
+
         if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
         {
-            return Application.Current.Dispatcher.Invoke(() => CreatePanelSafe(settingProvider));
+            return Application.Current.Dispatcher.Invoke(() => CreatePanelSafe(pair));
         }
 
         try
         {
+            EnsureAppResourcesLoaded();
+            if (Application.Current != null)
+            {
+                FlowPluginLanguageHelper.LoadPluginLanguage(pair.Metadata.PluginDirectory, Application.Current.Resources);
+            }
+
             var panel = settingProvider.CreateSettingPanel();
             if (panel == null || (panel is UserControl uc && uc.Content == null)) return null;
 
@@ -264,6 +254,7 @@ public static class FlowConfigSchemaBuilder
             {
                 var uri = new Uri("pack://application:,,,/Lertaro.App;component/Views/Settings/Plugins/CustomControlStyles.xaml", UriKind.Absolute);
                 panel.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = uri });
+                FlowPluginLanguageHelper.LoadPluginLanguage(pair.Metadata.PluginDirectory, panel.Resources);
             }
             catch { }
 
@@ -272,6 +263,29 @@ public static class FlowConfigSchemaBuilder
         catch
         {
             return null;
+        }
+    }
+
+    private static void EnsureAppResourcesLoaded()
+    {
+        if (Application.Current == null || Application.Current.Resources.Contains("SettingPanelMargin")) return;
+        try
+        {
+            var uri = new Uri("pack://application:,,,/Lertaro.App;component/Views/Settings/Plugins/CustomControlStyles.xaml", UriKind.Absolute);
+            Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = uri });
+        }
+        catch { }
+
+        if (!Application.Current.Resources.Contains("SettingPanelMargin"))
+        {
+            Application.Current.Resources["SettingPanelMargin"] = new Thickness(0, 4, 0, 4);
+            Application.Current.Resources["SettingPanelItemLeftMargin"] = new Thickness(9, 0, 0, 0);
+            Application.Current.Resources["SettingPanelItemRightMargin"] = new Thickness(0, 0, 9, 0);
+            Application.Current.Resources["SettingPanelItemTopBottomMargin"] = new Thickness(0, 4.5, 0, 4.5);
+            Application.Current.Resources["SettingPanelItemLeftTopBottomMargin"] = new Thickness(9, 4.5, 0, 4.5);
+            Application.Current.Resources["SettingPanelItemRightTopBottomMargin"] = new Thickness(0, 4.5, 9, 4.5);
+            Application.Current.Resources["SettingPanelSeparatorStyle"] = new Style(typeof(Separator));
+            Application.Current.Resources["SettingPanelTextBlockDescriptionStyle"] = new Style(typeof(TextBlock));
         }
     }
 }

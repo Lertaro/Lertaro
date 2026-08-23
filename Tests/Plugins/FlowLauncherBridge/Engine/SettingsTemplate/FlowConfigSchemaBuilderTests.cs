@@ -154,4 +154,60 @@ public sealed class FlowConfigSchemaBuilderTests
             try { Directory.Delete(tempDir, true); } catch { }
         }
     }
+
+    [TestMethod]
+    public void BuildSchema_WithSettingProviderPlugin_AddsCustomControlField()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"flow_test_sp_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var metadata = new PluginMetadata
+            {
+                ID = "MDICT_PLUGIN",
+                Name = "MDict",
+                ActionKeyword = "md",
+                ActionKeywords = ["md"],
+                PluginDirectory = tempDir
+            };
+
+            var storage = new FlowSettingsStorage(tempDir);
+            var host = new FlowPluginHost(storage, [tempDir]);
+
+            var fakePlugin = new FakeSettingProviderPlugin();
+            var pair = new PluginPair { Metadata = metadata, Plugin = fakePlugin };
+            host.RegisterPlugin(pair);
+
+            var t = new Thread(() =>
+            {
+                var schema = FlowConfigSchemaBuilder.BuildSchema(host);
+
+                Assert.IsNotNull(schema);
+                var groupField = schema.Fields.FirstOrDefault(f => f.Key == "MDictGroup");
+                Assert.IsNotNull(groupField);
+                Assert.IsNotNull(groupField.SubFields);
+                Assert.HasCount(3, groupField.SubFields);
+
+                var customControlField = groupField.SubFields.FirstOrDefault(f => f.Key == "MDict.CustomPanel");
+                Assert.IsNotNull(customControlField);
+                Assert.AreEqual(ConfigFieldType.CustomControl, customControlField.FieldType);
+                Assert.IsNotNull(customControlField.CustomControl);
+            });
+            t.SetApartmentState(ApartmentState.STA);
+            t.Start();
+            t.Join();
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, true); } catch { }
+        }
+    }
+
+    private sealed class FakeSettingProviderPlugin : IPlugin, ISettingProvider
+    {
+        public void Init(PluginInitContext context) { }
+        public List<Result> Query(Query query) => [];
+        public System.Windows.Controls.Control CreateSettingPanel() => new System.Windows.Controls.UserControl { Content = new System.Windows.Controls.TextBlock { Text = "Settings" } };
+    }
 }

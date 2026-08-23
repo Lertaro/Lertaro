@@ -77,9 +77,62 @@
         <Setter Property="Margin" Value="0,6"/>
     </Style>
 
-    <!-- Implicit RadioButton -->
-    <Style TargetType="{x:Type RadioButton}" BasedOn="{StaticResource ThemedRadioButton}">
-        <Setter Property="Margin" Value="0,6"/>
+    <!-- ═══════════ Flow.Launcher Settings Panel Compatibility Resources ═══════════ -->
+    <Thickness x:Key="SettingPanelMargin">0,4,0,4</Thickness>
+    <Thickness x:Key="SettingPanelItemLeftMargin">9,0,0,0</Thickness>
+    <Thickness x:Key="SettingPanelItemRightMargin">0,0,9,0</Thickness>
+    <Thickness x:Key="SettingPanelItemTopBottomMargin">0,4.5,0,4.5</Thickness>
+    <Thickness x:Key="SettingPanelItemLeftTopBottomMargin">9,4.5,0,4.5</Thickness>
+    <Thickness x:Key="SettingPanelItemRightTopBottomMargin">0,4.5,9,4.5</Thickness>
+
+    <Style x:Key="SettingPanelSeparatorStyle" TargetType="{x:Type Separator}">
+        <Setter Property="Margin" Value="0,8,0,8" />
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
     </Style>
 
+    <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="SettingPanelTextBoxMinWidth">180</sys:Double>
+    <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="SettingPanelPathTextBoxWidth">240</sys:Double>
+    <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="SettingPanelAreaTextBoxMinHeight">150</sys:Double>
+
+    <Style x:Key="SettingPanelTextBlockDescriptionStyle" TargetType="{x:Type TextBlock}">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Margin" Value="0,2,0,0" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    </Style>
+
+    <!-- Color brushes commonly referenced by Flow plugins -->
+    <SolidColorBrush x:Key="Color00B" Color="#2b2b2b" />
+    <SolidColorBrush x:Key="Color01B" Color="#202020" />
+    <SolidColorBrush x:Key="Color02B" Color="#2b2b2b" />
+    <SolidColorBrush x:Key="Color03B" Color="#1d1d1d" />
+    <SolidColorBrush x:Key="Color04B" Color="#cfcfcf" />
+    <SolidColorBrush x:Key="Color05B" Color="#ffffff" />
+    <SolidColorBrush x:Key="Color06B" Color="#2d2d2d" />
+    <SolidColorBrush x:Key="Color07B" Color="#363636" />
+    <SolidColorBrush x:Key="Color08B" Color="#878787" />
+    <SolidColorBrush x:Key="Color09B" Color="#292929" />
+    <SolidColorBrush x:Key="Color10B" Color="#c42b1c" />
+    <SolidColorBrush x:Key="Color11B" Color="#c83c31" />
+    <SolidColorBrush x:Key="Color12B" Color="#373737" />
+    <SolidColorBrush x:Key="Color13B" Color="#3f3f3f" />
+    <SolidColorBrush x:Key="Color14B" Color="#3f3f3f" />
+    <SolidColorBrush x:Key="Color15B" Color="#5d5d5d" />
+    <SolidColorBrush x:Key="Color16B" Color="#434343" />
+    <SolidColorBrush x:Key="Color17B" Color="#cccccc" />
+    <SolidColorBrush x:Key="Color18B" Color="#999999" />
+    <SolidColorBrush x:Key="Color19B" Color="#2a2a2a" />
+    <SolidColorBrush x:Key="Color20B" Color="#303030" />
+    <SolidColorBrush x:Key="Color21B" Color="#464646" />
+    <SolidColorBrush x:Key="Color22B" Color="#3c3c3c" />
+    <SolidColorBrush x:Key="Color23B" Color="#272727" />
+    <SolidColorBrush x:Key="Color24B" Color="#9a9a9a" />
+    <SolidColorBrush x:Key="Color25B" Color="#323232" />
+
+    <SolidColorBrush x:Key="PopupBGColor" Color="#202020" />
+    <SolidColorBrush x:Key="PopupTextColor" Color="#cfcfcf" />
+    <SolidColorBrush x:Key="PopupButtonAreaBGColor" Color="#2b2b2b" />
+    <SolidColorBrush x:Key="PopupButtonAreaBorderColor" Color="#3f3f3f" />
+    <SolidColorBrush x:Key="SystemThemeBorder" Color="#3f3f3f" />
+    <Style x:Key="AccentButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource PrimarySettingsButton}" />
 </ResourceDictionary>

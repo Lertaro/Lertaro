@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
@@ -10,7 +11,11 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 /// </summary>
 public static class FlowPluginStateStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     public static string GetFilePath()
     {
@@ -40,8 +45,8 @@ public static class FlowPluginStateStore
                         else if (valNode is JsonObject stateObj)
                         {
                             var state = new FlowPluginCustomState();
-                            if (stateObj.TryGetPropertyValue("ActionKeyword", out var kwNode) && kwNode != null)
-                                state.ActionKeyword = kwNode.ToString();
+                            if (stateObj.TryGetPropertyValue("ActionKeyword", out var kwNode) && kwNode != null && kwNode.GetValueKind() == JsonValueKind.String)
+                                state.ActionKeyword = kwNode.GetValue<string?>();
                             if (stateObj.TryGetPropertyValue("Disabled", out var disNode) && disNode != null && bool.TryParse(disNode.ToString(), out var dis))
                                 state.Disabled = dis;
                             result[key] = state;
