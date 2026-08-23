@@ -67,7 +67,7 @@ interface IConfigurable
 `Key`, optional `GroupKey`/`LabelKey`/`DescriptionKey` (translation keys, resolved through your own
 `ITranslationProvider` if you have one), a `FieldType`, a `DefaultValue`, and — depending on the
 type — `Choices`, nested `SubFields`, or `RequireModifier` (`Hotkey` fields only, rejects an
-unmodified single key).
+unmodified single key). Fields also support custom `GetValue`/`SetValue` delegates for external storage.
 
 Set `RequireNonEmpty` on a field (typically a `Text` trigger keyword) to fall back to
 `DefaultValue` instead of persisting an empty/whitespace value on save — otherwise a user clearing
@@ -75,7 +75,9 @@ a keyword field would silently make whatever depends on it unreachable rather th
 sane default.
 
 `ConfigFieldType` covers: `Boolean`, `Text`, `Integer`, `Choice`, `Array`, `Object`, `Group`,
-`StringList`, `Hotkey`, `FilePath`, `FolderPath`. See
+`StringList`, `Hotkey`, `FilePath`, `FolderPath`, `CustomControl`. When `CustomControl` is used,
+a custom WPF control instance can be attached directly via the `CustomControl` property; `PluginConfigSchema`
+also provides `OnSave` and `OnRollback` lifecycle callbacks for custom persistence and resets. See
 [CoreExtensions](../examples#coreextensions-actions-and-the-shell-context-menu) for a real schema
 using nested groups and `StringList`.
 

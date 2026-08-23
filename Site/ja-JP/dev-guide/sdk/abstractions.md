@@ -56,16 +56,11 @@ interface IConfigurable
 }
 ```
 
-`PluginConfigSchema` はフラットな `Fields: List<PluginConfigField>` です。各 `PluginConfigField`
-は `Key`、任意の `GroupKey`/`LabelKey`/`DescriptionKey`(翻訳キーで、自前の `ITranslationProvider`
-があればそれを通じて解決されます)、`FieldType`、`DefaultValue` を持ち、さらにタイプに応じて
-`Choices`、ネストされた `SubFields`、または `RequireModifier`(`Hotkey` フィールドのみで使用され、修飾キーなしの単独キーを拒否します)を持ちます。
+`PluginConfigSchema` はフラットな `Fields: List<PluginConfigField>` です。各 `PluginConfigField` は `Key`、任意の `GroupKey`/`LabelKey`/`DescriptionKey`（翻訳キーで、自前の `ITranslationProvider` があればそれを通じて解決されます）、`FieldType`、`DefaultValue` を持ち、さらにタイプに応じて `Choices`、ネストされた `SubFields`、または `RequireModifier`（`Hotkey` フィールドのみで使用され、修飾キーなしの単独キーを拒否します）を持ちます。フィールドは外部ストレージ連携のためのカスタム `GetValue`/`SetValue` デリゲートもサポートします。
 
-フィールド(典型的にはトリガーとなるキーワードの `Text` フィールド)に `RequireNonEmpty` を設定すると、保存時に空/空白のみの値を永続化する代わりに `DefaultValue` にフォールバックします——これがないと、ユーザーがキーワードフィールドを空にした場合、それに依存する機能が正常なデフォルトに戻るのではなく、静かに到達不能になってしまいます。
+フィールド（典型的にはトリガーとなるキーワードの `Text` フィールド）に `RequireNonEmpty` を設定すると、保存時に空/空白のみの値を永続化する代わりに `DefaultValue` にフォールバックします——これがないと、ユーザーがキーワードフィールドを空にした場合、それに依存する機能が正常なデフォルトに戻るのではなく、静かに到達不能になってしまいます。
 
-`ConfigFieldType` は次をカバーします:`Boolean`、`Text`、`Integer`、`Choice`、`Array`、`Object`、
-`Group`、`StringList`、`Hotkey`、`FilePath`、`FolderPath`。ネストされたグループと `StringList` を使った実際のスキーマについては、[CoreExtensions](../examples#coreextensions-—-アクションとシェルのコンテキストメニュー)
-を参照してください。
+`ConfigFieldType` は次をカバーします：`Boolean`、`Text`、`Integer`、`Choice`、`Array`、`Object`、`Group`、`StringList`、`Hotkey`、`FilePath`、`FolderPath`、`CustomControl`。`CustomControl` を使用する場合、`CustomControl` プロパティを通じてカスタム WPF コントロールインスタンスを直接アタッチできます。`PluginConfigSchema` はカスタムの永続化とリセットを処理する `OnSave` と `OnRollback` ライフサイクルコールバックも提供します。ネストされたグループと `StringList` を使った実際のスキーマについては、[CoreExtensions](../examples#coreextensions-—-アクションとシェルのコンテキストメニュー) を参照してください。
 
 ## レジストリ
 

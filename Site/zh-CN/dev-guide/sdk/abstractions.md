@@ -55,17 +55,11 @@ interface IConfigurable
 }
 ```
 
-`PluginConfigSchema` 是一份扁平的 `Fields: List<PluginConfigField>`。每个 `PluginConfigField`
-有一个 `Key`，可选的 `GroupKey`/`LabelKey`/`DescriptionKey`(翻译 key，如果你有自己的
-`ITranslationProvider` 就通过它解析)，一个 `FieldType`，一个 `DefaultValue`，以及——取决于类型
-——`Choices`、嵌套的 `SubFields`，或者 `RequireModifier`(仅 `Hotkey` 字段,拒绝没有修饰键的单个按键)。
+`PluginConfigSchema` 是一份扁平的 `Fields: List<PluginConfigField>`。每个 `PluginConfigField` 有一个 `Key`，可选的 `GroupKey`/`LabelKey`/`DescriptionKey`（翻译 key，如果你有自己的 `ITranslationProvider` 就通过它解析），一个 `FieldType`，一个 `DefaultValue`，以及——取决于类型——`Choices`、嵌套的 `SubFields`，或者 `RequireModifier`（仅 `Hotkey` 字段，拒绝没有修饰键的单个按键）。字段还支持自定义 `GetValue`/`SetValue` 委托以对接第三方存储。
 
-给字段(通常是触发关键词这类 `Text` 字段)设置 `RequireNonEmpty`，保存时如果值为空/纯空白就会回退到 `DefaultValue`，而不是把空值持久化下去——否则用户把关键词字段清空后，依赖它的功能会悄无声息地变得不可触发，而不是回退到一个正常的默认值。
+给字段（通常是触发关键词这类 `Text` 字段）设置 `RequireNonEmpty`，保存时如果值为空/纯空白就会回退到 `DefaultValue`，而不是把空值持久化下去——否则用户把关键词字段清空后，依赖它的功能会悄无声息地变得不可触发，而不是回退到一个正常的默认值。
 
-`ConfigFieldType` 涵盖:`Boolean`、`Text`、`Integer`、`Choice`、`Array`、`Object`、`Group`、
-`StringList`、`Hotkey`、`FilePath`、`FolderPath`。参见
-[CoreExtensions](../examples#coreextensions-——-动作与-shell-右键菜单) 里一个用到嵌套分组和
-`StringList` 的真实配置模式。
+`ConfigFieldType` 涵盖：`Boolean`、`Text`、`Integer`、`Choice`、`Array`、`Object`、`Group`、`StringList`、`Hotkey`、`FilePath`、`FolderPath`、`CustomControl`。若字段类型为 `CustomControl`，可直接通过 `CustomControl` 属性挂载自定义 WPF 控件实例；`PluginConfigSchema` 亦支持 `OnSave` 与 `OnRollback` 生命周期回调以处理自定义写盘与重置。参见 [CoreExtensions](../examples#coreextensions-——-动作与-shell-右键菜单) 里一个用到嵌套分组和 `StringList` 的真实配置模式。
 
 ## 注册表
 

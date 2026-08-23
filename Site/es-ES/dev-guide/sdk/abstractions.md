@@ -66,7 +66,7 @@ interface IConfigurable
 `PluginConfigSchema` es un `Fields: List<PluginConfigField>` plano. Cada `PluginConfigField` tiene una
 `Key`, opcionalmente `GroupKey`/`LabelKey`/`DescriptionKey` (claves de traducción, resueltas a través de tu propio
 `ITranslationProvider` si tienes uno), un `FieldType`, un `DefaultValue` y — según el tipo —
-`Choices`, `SubFields` anidados, o `RequireModifier` (solo campos `Hotkey`, rechaza una tecla suelta sin modificador).
+`Choices`, `SubFields` anidados, o `RequireModifier` (solo campos `Hotkey`, rechaza una tecla suelta sin modificador). Los campos también admiten delegados personalizados `GetValue`/`SetValue` para almacenamiento externo.
 
 Define `RequireNonEmpty` en un campo (normalmente una palabra clave de activación de tipo `Text`) para volver a
 `DefaultValue` en lugar de guardar un valor vacío/en blanco al persistir — de lo contrario, un usuario que borre
@@ -74,7 +74,9 @@ un campo de palabra clave dejaría en silencio inalcanzable lo que dependa de é
 predeterminado razonable.
 
 `ConfigFieldType` cubre: `Boolean`, `Text`, `Integer`, `Choice`, `Array`, `Object`, `Group`,
-`StringList`, `Hotkey`, `FilePath`, `FolderPath`. Ver
+`StringList`, `Hotkey`, `FilePath`, `FolderPath`, `CustomControl`. Cuando se utiliza `CustomControl`,
+se puede adjuntar directamente una instancia de control WPF personalizada a través de la propiedad `CustomControl`;
+`PluginConfigSchema` también proporciona devoluciones de llamada de ciclo de vida `OnSave` y `OnRollback` para gestionar persistencias y reinicios personalizados. Ver
 [CoreExtensions](../examples#coreextensions-—-acciones-y-el-menu-contextual-del-shell) para ver un esquema real
 que usa grupos anidados y `StringList`.
 

@@ -53,7 +53,7 @@ algo que escribas a menudo.
 | `win` | Cambio de ventana | Las ventanas actualmente abiertas y activables — el mismo conjunto que muestra Alt+Tab — por título, nombre de proceso o PID. Selecciona una para traerla al primer plano. |
 | `bm` | Datos del navegador | Marcadores e historial de los perfiles de navegador de la familia Chrome/Chromium y de la familia Firefox que hayas añadido en la propia configuración de ese plugin. |
 | `set` | Core Extensions | Cada ajuste de la aplicación, con coincidencia difusa por nombre — elige uno para saltar directamente a él en Configuración, resaltado. Escribe `set` sin nada detrás para listar todos los ajustes. |
-| `flow` | Puente Flow Launcher | Lista todos los plugins de Flow.Launcher cargados y sus palabras clave de activación — selecciona uno y pulsa Enter para abrir su ventana de configuración. |
+| `flow` | Puente Flow Launcher | Lista todos los plugins de Flow.Launcher cargados y sus palabras clave de activación (opcionalmente seguido de un filtro). La configuración de los plugins se gestiona directamente en **Configuración → Complementos**. |
 
 Cambio de ventana muestra por defecto una miniatura en vivo del contenido real de cada ventana como su icono,
 capturada en segundo plano para que nunca ralentice la escritura — un icono de aplicación normal aparece de

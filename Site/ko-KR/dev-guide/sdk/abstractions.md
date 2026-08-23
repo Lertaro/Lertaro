@@ -66,14 +66,16 @@ interface IConfigurable
 `PluginConfigSchema`는 평면적인 `Fields: List<PluginConfigField>`입니다. 각 `PluginConfigField`는
 `Key`, 선택적인 `GroupKey`/`LabelKey`/`DescriptionKey`(자신만의 `ITranslationProvider`가 있다면 이를
 통해 해석되는 번역 키), `FieldType`, `DefaultValue`를 가지며, 타입에 따라 `Choices`, 중첩된 `SubFields`,
-또는 `RequireModifier`(`Hotkey` 필드 전용, 수정자가 없는 단일 키를 거부)를 가질 수 있습니다.
+또는 `RequireModifier`(`Hotkey` 필드 전용, 수정자가 없는 단일 키를 거부)를 가질 수 있습니다. 필드는 외부 저장소 연동을 위한 커스텀 `GetValue`/`SetValue` 델리게이트도 지원합니다.
 
 필드(주로 `Text` 트리거 키워드)에 `RequireNonEmpty`를 설정하면, 저장 시 비어 있거나 공백뿐인 값을
 그대로 유지하는 대신 `DefaultValue`로 되돌립니다 — 그렇지 않으면 사용자가 키워드 필드를 비웠을 때, 그
 필드에 의존하는 무언가가 합리적인 기본값으로 돌아가는 대신 조용히 도달 불가능해질 수 있습니다.
 
 `ConfigFieldType`은 다음을 다룹니다: `Boolean`, `Text`, `Integer`, `Choice`, `Array`, `Object`,
-`Group`, `StringList`, `Hotkey`, `FilePath`, `FolderPath`. 중첩 그룹과 `StringList`를 사용하는 실제
+`Group`, `StringList`, `Hotkey`, `FilePath`, `FolderPath`, `CustomControl`. `CustomControl`을 사용할 경우,
+`CustomControl` 속성을 통해 커스텀 WPF 컨트롤 인스턴스를 직접 연결할 수 있습니다. `PluginConfigSchema`는
+커스텀 영속화 및 초기화를 처리하기 위한 `OnSave` 및 `OnRollback` 수명 주기 콜백도 제공합니다. 중첩 그룹과 `StringList`를 사용하는 실제
 스키마는 [CoreExtensions](../examples#coreextensions-—-동작과-셸-컨텍스트-메뉴)를
 참고하세요.
 
