@@ -78,4 +78,14 @@ public sealed class FlowSettingsStorageTests
         Assert.AreEqual("initial_key", config.ApiKey);
         Assert.AreEqual(45, config.TimeoutSeconds);
     }
+
+    [TestMethod]
+    public void GetPluginSettingsDirectory_DefaultConstructor_ResolvesUnderSettingsFolder()
+    {
+        var storage = new FlowSettingsStorage();
+        var dir = storage.GetPluginSettingsDirectory("my-plugin");
+
+        Assert.IsTrue(dir.Contains(Path.Combine("FlowData", "Settings", "my-plugin"), StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(dir.Contains(Path.Combine("FlowData", "Settings", "Plugins"), StringComparison.OrdinalIgnoreCase));
+    }
 }

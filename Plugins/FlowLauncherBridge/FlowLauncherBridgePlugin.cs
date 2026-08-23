@@ -41,10 +41,8 @@ public class FlowLauncherBridgePlugin : IPlugin, IConfigurable
             var settingKey = key[(dotIndex + 1)..];
             var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
                 ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-            var floxPath = System.IO.Path.Combine(baseDir, "FlowData", "Settings", "Plugins", pluginName, "Settings.json");
-            var rootPath = System.IO.Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
-            FlowSettingsTemplateStorage.SaveSettingValue(floxPath, settingKey, val);
-            FlowSettingsTemplateStorage.SaveSettingValue(rootPath, settingKey, val);
+            var settingsPath = System.IO.Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
+            FlowSettingsTemplateStorage.SaveSettingValue(settingsPath, settingKey, val);
         }
 
         SharedHost.SaveAll();

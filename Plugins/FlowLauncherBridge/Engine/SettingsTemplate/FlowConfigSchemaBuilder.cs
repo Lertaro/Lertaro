@@ -42,13 +42,12 @@ public static class FlowConfigSchemaBuilder
             {
                 var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
                     ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-                var floxPath = Path.Combine(baseDir, "FlowData", "Settings", "Plugins", pluginName, "Settings.json");
-                var rootPath = Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
+                var settingsPath = Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
 
                 var doc = FlowSettingsTemplateParser.ParseFile(templatePath);
                 foreach (var elem in doc.Elements)
                 {
-                    var field = ConvertElementToField(pluginName, elem, floxPath, rootPath);
+                    var field = ConvertElementToField(pluginName, elem, settingsPath);
                     if (field != null)
                     {
                         pluginFields.Add(field);
@@ -93,8 +92,7 @@ public static class FlowConfigSchemaBuilder
     private static PluginConfigField? ConvertElementToField(
         string groupName,
         FlowSettingsTemplateElement elem,
-        string floxPath,
-        string rootPath)
+        string settingsPath)
     {
         var type = elem.Type.ToLowerInvariant();
         var key = $"{groupName}.{elem.Name}";
@@ -163,14 +161,9 @@ public static class FlowConfigSchemaBuilder
         if (field != null)
         {
             var elemName = elem.Name;
-            field.GetValue = () => FlowSettingsTemplateStorage.GetSettingValue(floxPath, elemName)
-                                ?? FlowSettingsTemplateStorage.GetSettingValue(rootPath, elemName)
+            field.GetValue = () => FlowSettingsTemplateStorage.GetSettingValue(settingsPath, elemName)
                                 ?? field.DefaultValue;
-            field.SetValue = val =>
-            {
-                FlowSettingsTemplateStorage.SaveSettingValue(floxPath, elemName, val);
-                FlowSettingsTemplateStorage.SaveSettingValue(rootPath, elemName, val);
-            };
+            field.SetValue = val => FlowSettingsTemplateStorage.SaveSettingValue(settingsPath, elemName, val);
         }
 
         return field;

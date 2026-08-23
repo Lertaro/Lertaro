@@ -107,6 +107,8 @@ class _FloxLoader(importlib.abc.Loader):
                 ""def app_settings(self):\n        try:\n            with open(os.path.join(self.appdata, 'Settings', 'Settings.json'), 'r', encoding='utf-8') as f:\n                return json.load(f)\n        except Exception:\n            return {'PluginSettings': {'Plugins': {}, 'PythonDirectory': sys.prefix}, 'QuerySearchPrecision': 'Regular'}"",
                 code_str
             )
+            code_str = code_str.replace(""'Settings', 'Plugins'"", ""'Settings'"")
+            code_str = code_str.replace('""Settings"", ""Plugins""', '""Settings""')
             code_str = code_str.replace('os.mkdir(os.path.dirname(self.settings_path))', 'os.makedirs(os.path.dirname(self.settings_path), exist_ok=True)')
 
             compiled = compile(code_str, module.__file__, 'exec')
