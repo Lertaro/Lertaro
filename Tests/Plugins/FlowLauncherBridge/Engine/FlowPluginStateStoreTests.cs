@@ -20,15 +20,16 @@ public sealed class FlowPluginStateStoreTests
             FlowPluginStateStore.SaveCustomKeyword(testPluginId, testPluginName, "mykw");
             FlowPluginStateStore.SetPluginDisabled(testPluginId, testPluginName, true);
 
-            var kwById = FlowPluginStateStore.GetCustomKeyword(testPluginId);
-            var kwByName = FlowPluginStateStore.GetCustomKeyword("unknown", testPluginName);
-            var disabledById = FlowPluginStateStore.IsPluginDisabled(testPluginId);
-            var disabledByName = FlowPluginStateStore.IsPluginDisabled("unknown", testPluginName);
+            var kwByName = FlowPluginStateStore.GetCustomKeyword(testPluginId, testPluginName);
+            var disabledByName = FlowPluginStateStore.IsPluginDisabled(testPluginId, testPluginName);
 
-            Assert.AreEqual("mykw", kwById);
             Assert.AreEqual("mykw", kwByName);
-            Assert.IsTrue(disabledById);
             Assert.IsTrue(disabledByName);
+
+            // Verify that Plugins.json only contains the unified Name key, not the ID
+            var all = FlowPluginStateStore.LoadAll();
+            Assert.IsTrue(all.ContainsKey(testPluginName));
+            Assert.IsFalse(all.ContainsKey(testPluginId));
         }
         finally
         {
