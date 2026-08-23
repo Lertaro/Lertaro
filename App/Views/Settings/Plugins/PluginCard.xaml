@@ -42,52 +42,28 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Plugin icon (fallback glyph shown when a plugin has no icon of its
-                     own). BadgeBackground/BadgeText is a neutral gray meant for small
-                     text pills (see the SDK version badge above); reusing it as a
-                     36x36 tile fill made the icon read as flat/washed-out next to this
-                     page's still-colorful checkboxes and buttons, so the tile itself
-                     stays neutral (HoverBackground) while the glyph keeps the accent
-                     color, matching the common "neutral tile, colored icon" pattern. -->
-                <!-- Top, not centred: this row's height follows the description, which runs to however
-                     many lines the plugin's own summary needs, so a centred tile drifts further down
-                     the taller that gets and stops lining up with the name it belongs to. -->
+                <!-- Plugin icon -->
                 <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" VerticalAlignment="Top"
                         Background="{DynamicResource HoverBackground}" Margin="0,0,12,0">
-                    <TextBlock Text="&#xEA86;" FontFamily="Segoe MDL2 Assets"
-                               FontSize="16" Foreground="{DynamicResource AccentBlue}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <TextBlock Text="&#xEA86;" FontFamily="Segoe MDL2 Assets" FontSize="16"
+                               Foreground="{DynamicResource AccentBlue}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
 
                 <!-- Name + meta -->
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Name}"
-                               FontSize="14" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimary}"/>
-                    <!-- The description, which used to be a tooltip behind a small (!) badge. There is
-                         room for it here now that the pane shows one plugin at a time, and a plugin's
-                         own summary is the thing most worth reading before deciding anything about it.
-                         The version and DLL name that used to sit on this line are gone: the version is
-                         already on this plugin's row in the list to the left, and the file name is
-                         detail nobody needs while choosing what to enable. -->
-                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,4,0,0"
-                               Foreground="{DynamicResource TextSecondary2}" FontSize="12">
+                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource TextSecondary2}" FontSize="12">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Visible"/>
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Description}" Value="">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding Description}" Value="{x:Null}">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Description}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding Description}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
                 </StackPanel>
-
             </Grid>
 
             <!-- Details / Config tabs header row. The Save Configuration button sits on the far right of this row

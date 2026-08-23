@@ -37,4 +37,41 @@ public sealed class FlowPluginHostTests
             try { Directory.Delete(tempDir, true); } catch { }
         }
     }
+
+    [TestMethod]
+    public void FlowPluginHost_UpdatePluginActionKeyword_ReplacesKeywordMapping()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"flow_host_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var storage = new FlowSettingsStorage(tempDir);
+            var host = new FlowPluginHost(storage, [tempDir]);
+
+            var metadata = new PluginMetadata
+            {
+                ID = "TEST_PLUGIN_ID",
+                Name = "MultiTranslate",
+                ActionKeyword = "tr",
+                ActionKeywords = ["tr"]
+            };
+
+            var pair = new PluginPair { Metadata = metadata };
+            host.RegisterPlugin(pair);
+
+            Assert.IsTrue(host.ActionKeywordAssigned("tr"));
+            Assert.IsFalse(host.ActionKeywordAssigned("tra"));
+
+            host.UpdatePluginActionKeyword("MultiTranslate", "tra");
+
+            Assert.IsFalse(host.ActionKeywordAssigned("tr"));
+            Assert.IsTrue(host.ActionKeywordAssigned("tra"));
+            Assert.AreEqual("tra", pair.Metadata.ActionKeyword);
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, true); } catch { }
+        }
+    }
 }

@@ -51,9 +51,16 @@ public sealed class FlowPluginKeywordManager
     public void UnregisterPluginKeywords(PluginPair pair)
     {
         lock (_globalPlugins) { _globalPlugins.Remove(pair); }
-        foreach (var list in _keywordPlugins.Values)
+        foreach (var (key, list) in _keywordPlugins)
         {
-            lock (list) { list.Remove(pair); }
+            lock (list)
+            {
+                list.RemoveAll(p => string.Equals(p.Metadata.ID, pair.Metadata.ID, StringComparison.OrdinalIgnoreCase));
+                if (list.Count == 0)
+                {
+                    _keywordPlugins.TryRemove(key, out _);
+                }
+            }
         }
     }
 
@@ -75,12 +82,31 @@ public sealed class FlowPluginKeywordManager
         pair.Metadata.ActionKeywords.RemoveAll(k => string.Equals(k, oldActionKeyword, StringComparison.OrdinalIgnoreCase));
         if (_keywordPlugins.TryGetValue(oldActionKeyword, out var list))
         {
-            lock (list) { list.RemoveAll(p => string.Equals(p.Metadata.ID, pair.Metadata.ID, StringComparison.OrdinalIgnoreCase)); }
+            lock (list)
+            {
+                list.RemoveAll(p => string.Equals(p.Metadata.ID, pair.Metadata.ID, StringComparison.OrdinalIgnoreCase));
+                if (list.Count == 0)
+                {
+                    _keywordPlugins.TryRemove(oldActionKeyword, out _);
+                }
+            }
         }
     }
 
     public bool ActionKeywordAssigned(string actionKeyword) =>
-        !string.IsNullOrWhiteSpace(actionKeyword) && _keywordPlugins.ContainsKey(actionKeyword);
+        !string.IsNullOrWhiteSpace(actionKeyword) &&
+        _keywordPlugins.TryGetValue(actionKeyword, out var list) &&
+        list.Count > 0;
+
+    public void UpdateActionKeyword(PluginPair pair, string newActionKeyword)
+    {
+        if (string.IsNullOrWhiteSpace(newActionKeyword)) return;
+        UnregisterPluginKeywords(pair);
+        pair.Metadata.ActionKeyword = newActionKeyword;
+        pair.Metadata.ActionKeywords.Clear();
+        pair.Metadata.ActionKeywords.Add(newActionKeyword);
+        RegisterPluginKeywords(pair);
+    }
 
     public void Clear()
     {

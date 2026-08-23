@@ -3,7 +3,7 @@ using System.IO;
 using System.Reflection;
 using System.Text.Json;
 using Flow.Launcher.Plugin;
-using Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
+using Lertaro.Plugins.FlowLauncherBridge.Engine.SettingsTemplate;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
@@ -64,6 +64,15 @@ public class FlowPluginHost : IAsyncDisposable
         }
     }
 
+    public void UpdatePluginActionKeyword(string pluginNameOrId, string newActionKeyword)
+    {
+        var pair = _loadedPlugins.Values.FirstOrDefault(p =>
+            string.Equals(p.Metadata.ID, pluginNameOrId, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(p.Metadata.Name, pluginNameOrId, StringComparison.OrdinalIgnoreCase));
+        if (pair != null)
+            _keywordManager.UpdateActionKeyword(pair, newActionKeyword);
+    }
+
     public void AddActionKeyword(string pluginId, string newActionKeyword)
     {
         if (_loadedPlugins.TryGetValue(pluginId, out var pair))
@@ -110,6 +119,15 @@ public class FlowPluginHost : IAsyncDisposable
             return false;
 
         metadata.PluginDirectory = pluginDir;
+        var pName = !string.IsNullOrEmpty(metadata.Name) ? metadata.Name : metadata.ID;
+        var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
+        var sPath = Path.Combine(baseDir, "FlowData", "Settings", pName, "Settings.json");
+        var customKeyword = FlowSettingsTemplateStorage.GetSettingValue(sPath, "triggerKeyword")?.ToString()
+                         ?? FlowSettingsTemplateStorage.GetSettingValue(sPath, "ActionKeyword")?.ToString();
+        if (!string.IsNullOrWhiteSpace(customKeyword))
+            metadata.ActionKeyword = customKeyword;
+
         if (!string.IsNullOrWhiteSpace(metadata.ActionKeyword) && !metadata.ActionKeywords.Contains(metadata.ActionKeyword, StringComparer.OrdinalIgnoreCase))
         {
             metadata.ActionKeywords.Insert(0, metadata.ActionKeyword);
@@ -117,56 +135,8 @@ public class FlowPluginHost : IAsyncDisposable
 
         try
         {
-            IAsyncPlugin? pluginInstance = null;
-
-            if (AllowedLanguage.IsDotNet(metadata.Language) && !string.IsNullOrEmpty(metadata.ExecuteFilePath) && File.Exists(metadata.ExecuteFilePath))
-            {
-                var loader = new FlowAssemblyLoader(pluginDir);
-                _loaders[metadata.ID] = loader;
-                var assembly = loader.LoadAssemblyFromBytes(metadata.ExecuteFilePath);
-                pluginInstance = CreatePluginInstance(assembly);
-                if (pluginInstance == null)
-                {
-                    _loaders.TryRemove(metadata.ID, out _);
-                    try { loader.Unload(); } catch { }
-                    _failedPlugins[metadata.ID] = (metadata, "No implementation of IPlugin or IAsyncPlugin found.");
-                    return false;
-                }
-            }
-            else if (AllowedLanguage.IsPython(metadata.Language))
-            {
-                var pythonPath = await FlowEnvironmentLocator.EnsurePythonExecutableAsync().ConfigureAwait(false);
-                if (string.IsNullOrEmpty(pythonPath))
-                {
-                    _failedPlugins[metadata.ID] = (metadata, "Python runtime not found in PythonEmbeded, or download failed.");
-                    return false;
-                }
-                FlowPipManager.EnsurePipAndRequirementsBackground(pythonPath, pluginDir);
-                var runner = new FlowProcessRunner(metadata, pythonPath, metadata.ExecuteFilePath);
-                pluginInstance = new FlowJsonRpcPlugin(runner, metadata);
-            }
-            else if (AllowedLanguage.IsNodeJs(metadata.Language))
-            {
-                var nodePath = await FlowEnvironmentLocator.EnsureNodeExecutableAsync().ConfigureAwait(false);
-                if (string.IsNullOrEmpty(nodePath) || !File.Exists(nodePath))
-                {
-                    _failedPlugins[metadata.ID] = (metadata, "Node.js runtime not found in NodeEmbeded, and download failed.");
-                    return false;
-                }
-                FlowNpmManager.EnsureNpmAndPackagesBackground(nodePath, pluginDir);
-                var runner = new FlowProcessRunner(metadata, nodePath, metadata.ExecuteFilePath);
-                pluginInstance = new FlowJsonRpcPlugin(runner, metadata);
-            }
-            else if (AllowedLanguage.IsExecutable(metadata.Language))
-            {
-                if (string.IsNullOrEmpty(metadata.ExecuteFilePath) || !File.Exists(metadata.ExecuteFilePath))
-                {
-                    _failedPlugins[metadata.ID] = (metadata, $"Executable file not found: {metadata.ExecuteFilePath}");
-                    return false;
-                }
-                var runner = new FlowProcessRunner(metadata, metadata.ExecuteFilePath);
-                pluginInstance = new FlowJsonRpcPlugin(runner, metadata);
-            }
+            var pluginInstance = await FlowPluginLoaderHelper.CreatePluginInstanceAsync(
+                metadata, pluginDir, _loaders, _failedPlugins).ConfigureAwait(false);
 
             if (pluginInstance != null)
             {
@@ -226,29 +196,6 @@ public class FlowPluginHost : IAsyncDisposable
         }
 
         return true;
-    }
-
-    private static IAsyncPlugin? CreatePluginInstance(Assembly assembly)
-    {
-        foreach (var type in assembly.GetTypes())
-        {
-            if (type.IsInterface || type.IsAbstract)
-                continue;
-
-            if (typeof(IAsyncPlugin).IsAssignableFrom(type))
-            {
-                return Activator.CreateInstance(type) as IAsyncPlugin;
-            }
-
-            if (typeof(IPlugin).IsAssignableFrom(type))
-            {
-                if (Activator.CreateInstance(type) is IPlugin syncPlugin)
-                {
-                    return new FlowSyncPluginAdapter(syncPlugin);
-                }
-            }
-        }
-        return null;
     }
 
     public void SaveAll()

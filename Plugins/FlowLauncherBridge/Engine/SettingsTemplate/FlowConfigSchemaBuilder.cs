@@ -47,7 +47,7 @@ public static class FlowConfigSchemaBuilder
                 var doc = FlowSettingsTemplateParser.ParseFile(templatePath);
                 foreach (var elem in doc.Elements)
                 {
-                    var field = ConvertElementToField(pluginName, elem, settingsPath);
+                    var field = ConvertElementToField(pluginName, elem, settingsPath, host);
                     if (field != null)
                     {
                         pluginFields.Add(field);
@@ -92,7 +92,8 @@ public static class FlowConfigSchemaBuilder
     private static PluginConfigField? ConvertElementToField(
         string groupName,
         FlowSettingsTemplateElement elem,
-        string settingsPath)
+        string settingsPath,
+        FlowPluginHost host)
     {
         var type = elem.Type.ToLowerInvariant();
         var key = $"{groupName}.{elem.Name}";
@@ -163,7 +164,19 @@ public static class FlowConfigSchemaBuilder
             var elemName = elem.Name;
             field.GetValue = () => FlowSettingsTemplateStorage.GetSettingValue(settingsPath, elemName)
                                 ?? field.DefaultValue;
-            field.SetValue = val => FlowSettingsTemplateStorage.SaveSettingValue(settingsPath, elemName, val);
+            field.SetValue = val =>
+            {
+                FlowSettingsTemplateStorage.SaveSettingValue(settingsPath, elemName, val);
+                if (string.Equals(elemName, "triggerKeyword", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(elemName, "ActionKeyword", StringComparison.OrdinalIgnoreCase))
+                {
+                    var newKw = val?.ToString()?.Trim();
+                    if (!string.IsNullOrEmpty(newKw))
+                    {
+                        host.UpdatePluginActionKeyword(groupName, newKw);
+                    }
+                }
+            };
         }
 
         return field;

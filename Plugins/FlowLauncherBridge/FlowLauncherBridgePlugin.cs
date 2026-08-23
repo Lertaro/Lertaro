@@ -43,6 +43,16 @@ public class FlowLauncherBridgePlugin : IPlugin, IConfigurable
                 ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
             var settingsPath = System.IO.Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
             FlowSettingsTemplateStorage.SaveSettingValue(settingsPath, settingKey, val);
+
+            if (string.Equals(settingKey, "triggerKeyword", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(settingKey, "ActionKeyword", StringComparison.OrdinalIgnoreCase))
+            {
+                var newKw = val?.ToString()?.Trim();
+                if (!string.IsNullOrEmpty(newKw))
+                {
+                    SharedHost.UpdatePluginActionKeyword(pluginName, newKw);
+                }
+            }
         }
 
         SharedHost.SaveAll();
