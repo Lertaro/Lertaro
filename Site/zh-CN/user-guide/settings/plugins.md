@@ -37,7 +37,7 @@
 除了基于 `Lertaro.PluginSdk` 构建的原生 C# 插件之外，Lertaro 还通过内置的 Flow Launcher Bridge 提供了对庞大 Flow Launcher 社区插件生态的原生级兼容支持。
 
 - **支持的插件类型**：兼容 **C# (.NET)**、**Python 3.12**（支持根据 `requirements.txt` 自动在后台安装 `pip` 依赖）、**Node.js v20 LTS**（支持根据 `package.json` 自动在后台安装 `npm` 依赖）以及独立**可执行程序**（`.exe`）编写的 Flow Launcher 插件。
-- **安装方式**：直接将第三方 Flow Launcher 插件文件夹放入 `<用户数据目录>\FlowData\Plugins\`，Lertaro 会自动识别、加载并注册其搜索触发词与动作。
+- **在线社区市场安装与包管理 (`flow install` / `flow update` / `flow uninstall`)**：在搜索框中输入 `flow install` 或 `flow install <插件名/关键词>` 即可检索 Flow.Launcher 官方在线社区插件库，回车即可全自动下载、解压并部署到 `FlowData\Plugins\`，并在后台静默安装所需的 Python/Node.js 运行环境与依赖包；输入 `flow update` 可检测并一键更新已安装的 Flow 插件；输入 `flow uninstall <插件名>` 可快速卸载插件并清理对应目录。亦可直接将第三方插件文件夹放入 `<用户数据目录>\FlowData\Plugins\` 完成本地安装。
 - **纯净隔离运行环境**：Python（`FlowData\PythonEmbeded-{arch}`）与 Node.js（`FlowData\NodeEmbeded-{arch}`）运行时完全隔离在 Lertaro 的数据目录中按需自动下载部署，不依赖也不污染系统的全局环境变量与 PATH。
 - **集中管理与独立开关**：在**设置 → 插件 → Flow Launcher Bridge** 的**配置**标签页中，统一列出所有已加载的 Flow 插件子分组；每个插件顶部均设有专属的**启用此插件**开关，可单独开启或关闭该插件功能。
 - **自定义触发词与状态隔离**：支持自定义修改每个 Flow 插件的专属**触发词（ActionKeyword）**，配置与启用状态集中存储于 `FlowData\Settings\Plugins.json`，不会污染插件内部配置，插件更新与重启后始终保持有效。

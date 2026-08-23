@@ -52,7 +52,7 @@
 `Lertaro.PluginSdk` 기반의 기본 C# 플러그인 외에도, Lertaro는 내장된 Flow Launcher Bridge를 통해 방대한 Flow Launcher 커뮤니티 플러그인 생태계와의 호환성을 제공합니다.
 
 - **지원되는 플러그인 유형**: **C# (.NET)**, **Python 3.12**(`requirements.txt`에 따른 백그라운드 `pip` 종속성 자동 설치 지원), **Node.js v20 LTS**(`package.json`에 따른 백그라운드 `npm` 종속성 자동 설치 지원), 독립 실행형 **실행 파일**(`.exe`)로 작성된 Flow Launcher 플러그인을 지원합니다.
-- **설치 방법**: 타사 Flow Launcher 플러그인 폴더를 `<사용자 데이터 디렉터리>\FlowData\Plugins\`에 넣으면 Lertaro가 자동으로 감지, 로드 및 검색 트리거 키워드와 동작을 등록합니다.
+- **온라인 커뮤니티 스토어 설치 및 패키지 관리 (`flow install` / `flow update` / `flow uninstall`)**: 검색창에 `flow install` 또는 `flow install <플러그인 이름/키워드>`를 입력하면 Flow.Launcher 공식 온라인 커뮤니티 플러그인 저장소를 직접 검색할 수 있습니다. Enter 키를 누르면 자동으로 다운로드, 검증, 압축 해제되어 `FlowData\Plugins\`에 배치되며, 필요한 Python/Node.js 런타임 종속성이 백그라운드에서 자동으로 설치됩니다. `flow update`를 통해 설치된 플러그인을 최신 버전으로 간편하게 업데이트할 수 있으며, `flow uninstall <플러그인 이름>`으로 플러그인을 신속하게 제거하고 디렉터리를 정리할 수 있습니다. 타사 플러그인 폴더를 `<사용자 데이터 디렉터리>\FlowData\Plugins\`에 직접 복사하여 수동으로 설치할 수도 있습니다.
 - **격리된 런타임 환경**: Python(`FlowData\PythonEmbeded-{arch}`) 및 Node.js(`FlowData\NodeEmbeded-{arch}`) 런타임은 Lertaro의 사용자 데이터 디렉터리 내에 완전히 독립적으로 온디맨드 자동 다운로드 및 배포되며, 시스템 PATH를 변경하거나 오염시키지 않습니다.
 - **통합 관리 및 개별 스위치**: **설정 → 플러그인 → Flow Launcher Bridge**의 **구성** 탭에서 로드된 모든 Flow 플러그인이 하위 탭으로 표시됩니다. 각 플러그인 상단에는 전용 **이 플러그인 활성화** 스위치가 있어 필요에 따라 개별적으로 켜거나 끌 수 있습니다.
 - **사용자 지정 트리거 키워드 및 상태 격리**: 각 Flow 플러그인의 **트리거 키워드(ActionKeyword)**를 직접 설정할 수 있습니다. 키워드 및 비활성화 상태는 `FlowData\Settings\Plugins.json`에 집중 저장되므로 플러그인 자체 설정을 오염시키지 않으며, 플러그인 업데이트 및 재시작 후에도 안정적으로 유지됩니다.

@@ -37,7 +37,7 @@
 除了基於 `Lertaro.PluginSdk` 構建的原生 C# 插件之外，Lertaro 還透過內建的 Flow Launcher Bridge 提供了對龐大 Flow Launcher 社區插件生態的原生級兼容支援。
 
 - **支援的插件類型**：兼容 **C# (.NET)**、**Python 3.12**（支援根據 `requirements.txt` 自動在後台安裝 `pip` 依賴）、**Node.js v20 LTS**（支援根據 `package.json` 自動在後台安裝 `npm` 依賴）以及獨立**可執行程式**（`.exe`）編寫的 Flow Launcher 插件。
-- **安裝方式**：直接將第三方 Flow Launcher 插件資料夾放入 `<用戶數據目錄>\FlowData\Plugins\`，Lertaro 會自動識別、加載並註冊其搜尋觸發詞與動作。
+- **在線社區市場安裝與套件管理 (`flow install` / `flow update` / `flow uninstall`)**：在搜尋框中輸入 `flow install` 或 `flow install <插件名/關鍵詞>` 即可檢索 Flow.Launcher 官方在線社區插件庫，按下 Enter 即可全自动下載、解壓並部署到 `FlowData\Plugins\`，並在後台靜默安裝所需的 Python/Node.js 運行環境與依賴套件；輸入 `flow update` 可檢測並一鍵更新已安裝的 Flow 插件；輸入 `flow uninstall <插件名>` 可快速解除安裝插件並清理對應目錄。亦可直接將第三方插件資料夾放入 `<用戶數據目錄>\FlowData\Plugins\` 完成本地安裝。
 - **純淨隔離運行環境**：Python（`FlowData\PythonEmbeded-{arch}`）與 Node.js（`FlowData\NodeEmbeded-{arch}`）運行時完全隔離在 Lertaro 的數據目錄中按需自動下載部署，不依賴亦不污染系統的全局環境變數與 PATH。
 - **集中管理與獨立開關**：在**設定 → 插件 → Flow Launcher Bridge** 的**配置**標籤頁中，統一列出所有已加載的 Flow 插件子分組；每個插件頂部均設有專屬的**啓用此插件**開關，可單獨開啟或關閉該插件功能。
 - **自訂觸發詞與狀態隔離**：支援自訂修改每個 Flow 插件的專屬**觸發詞（ActionKeyword）**，配置與啓用狀態集中存儲於 `FlowData\Settings\Plugins.json`，不會污染插件內部配置，插件更新與重啟後始終保持有效。
