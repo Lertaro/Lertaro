@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using System.Text.Json;
 using Flow.Launcher.Plugin;
+using Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
@@ -129,17 +130,54 @@ public class FlowPluginHost : IAsyncDisposable
 
         try
         {
+            IAsyncPlugin? pluginInstance = null;
+
             if (AllowedLanguage.IsDotNet(metadata.Language) && !string.IsNullOrEmpty(metadata.ExecuteFilePath) && File.Exists(metadata.ExecuteFilePath))
             {
                 var loader = new FlowAssemblyLoader(pluginDir);
                 var assembly = loader.LoadFromAssemblyPath(metadata.ExecuteFilePath);
-                var pluginInstance = CreatePluginInstance(assembly);
+                pluginInstance = CreatePluginInstance(assembly);
                 if (pluginInstance == null)
                 {
                     _failedPlugins[metadata.ID] = (metadata, "No implementation of IPlugin or IAsyncPlugin found.");
                     return;
                 }
+            }
+            else if (AllowedLanguage.IsPython(metadata.Language))
+            {
+                var pythonPath = FlowEnvironmentLocator.FindPythonExecutable();
+                if (string.IsNullOrEmpty(pythonPath))
+                {
+                    _failedPlugins[metadata.ID] = (metadata, "Python runtime not found in PATH or standard installation directories.");
+                    return;
+                }
+                var runner = new FlowProcessRunner(metadata, pythonPath, metadata.ExecuteFilePath);
+                pluginInstance = new FlowJsonRpcPlugin(runner);
+            }
+            else if (AllowedLanguage.IsNodeJs(metadata.Language))
+            {
+                var nodePath = FlowEnvironmentLocator.FindNodeExecutable();
+                if (string.IsNullOrEmpty(nodePath))
+                {
+                    _failedPlugins[metadata.ID] = (metadata, "Node.js runtime not found in PATH or standard installation directories.");
+                    return;
+                }
+                var runner = new FlowProcessRunner(metadata, nodePath, metadata.ExecuteFilePath);
+                pluginInstance = new FlowJsonRpcPlugin(runner);
+            }
+            else if (AllowedLanguage.IsExecutable(metadata.Language))
+            {
+                if (string.IsNullOrEmpty(metadata.ExecuteFilePath) || !File.Exists(metadata.ExecuteFilePath))
+                {
+                    _failedPlugins[metadata.ID] = (metadata, $"Executable file not found: {metadata.ExecuteFilePath}");
+                    return;
+                }
+                var runner = new FlowProcessRunner(metadata, metadata.ExecuteFilePath);
+                pluginInstance = new FlowJsonRpcPlugin(runner);
+            }
 
+            if (pluginInstance != null)
+            {
                 var pair = new PluginPair { Metadata = metadata, Plugin = pluginInstance };
                 _loadedPlugins[metadata.ID] = pair;
                 RegisterPluginKeywords(pair);
