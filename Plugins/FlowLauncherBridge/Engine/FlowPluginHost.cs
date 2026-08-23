@@ -16,6 +16,7 @@ public class FlowPluginHost : IAsyncDisposable
     private readonly ConcurrentDictionary<string, PluginPair> _loadedPlugins = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, List<PluginPair>> _keywordPlugins = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<PluginPair> _globalPlugins = [];
+    private readonly ConcurrentDictionary<string, (PluginMetadata Metadata, string Reason)> _failedPlugins = new(StringComparer.OrdinalIgnoreCase);
     private readonly Action<string, bool>? _changeQueryAction;
 
     public FlowPluginHost(FlowSettingsStorage storage, IEnumerable<string>? pluginDirectories = null, Action<string, bool>? changeQueryAction = null)
@@ -38,6 +39,7 @@ public class FlowPluginHost : IAsyncDisposable
 
     public IReadOnlyList<PluginPair> GlobalPlugins => _globalPlugins;
     public IReadOnlyDictionary<string, List<PluginPair>> KeywordPlugins => _keywordPlugins;
+    public IReadOnlyDictionary<string, (PluginMetadata Metadata, string Reason)> FailedPlugins => _failedPlugins;
     public List<PluginPair> GetAllPlugins() => _loadedPlugins.Values.ToList();
 
     public bool OpenPluginSettings(string pluginId)
@@ -107,10 +109,7 @@ public class FlowPluginHost : IAsyncDisposable
                 {
                     await LoadPluginFromDirectoryAsync(pluginDir, manifestPath);
                 }
-                catch
-                {
-                    // Ignore corrupted or incompatible individual plugins
-                }
+                catch { }
             }
         }
     }
@@ -128,22 +127,41 @@ public class FlowPluginHost : IAsyncDisposable
             metadata.ActionKeywords.Insert(0, metadata.ActionKeyword);
         }
 
-        if (AllowedLanguage.IsDotNet(metadata.Language) && !string.IsNullOrEmpty(metadata.ExecuteFilePath) && File.Exists(metadata.ExecuteFilePath))
+        try
         {
-            var loader = new FlowAssemblyLoader(pluginDir);
-            var assembly = loader.LoadFromAssemblyPath(metadata.ExecuteFilePath);
-            var pluginInstance = CreatePluginInstance(assembly);
-            if (pluginInstance == null)
-                return;
+            if (AllowedLanguage.IsDotNet(metadata.Language) && !string.IsNullOrEmpty(metadata.ExecuteFilePath) && File.Exists(metadata.ExecuteFilePath))
+            {
+                var loader = new FlowAssemblyLoader(pluginDir);
+                var assembly = loader.LoadFromAssemblyPath(metadata.ExecuteFilePath);
+                var pluginInstance = CreatePluginInstance(assembly);
+                if (pluginInstance == null)
+                {
+                    _failedPlugins[metadata.ID] = (metadata, "No implementation of IPlugin or IAsyncPlugin found.");
+                    return;
+                }
 
-            var pair = new PluginPair { Metadata = metadata, Plugin = pluginInstance };
-            _loadedPlugins[metadata.ID] = pair;
-            RegisterPluginKeywords(pair);
+                var pair = new PluginPair { Metadata = metadata, Plugin = pluginInstance };
+                _loadedPlugins[metadata.ID] = pair;
+                RegisterPluginKeywords(pair);
 
-            var api = new FlowPublicApi(metadata, _storage, GetAllPlugins, _changeQueryAction, AddActionKeyword, RemoveActionKeyword, ActionKeywordAssigned);
-            var initContext = new PluginInitContext(metadata, api);
+                var api = new FlowPublicApi(metadata, _storage, GetAllPlugins, _changeQueryAction, AddActionKeyword, RemoveActionKeyword, ActionKeywordAssigned);
+                var initContext = new PluginInitContext(metadata, api);
 
-            await pluginInstance.InitAsync(initContext);
+                await pluginInstance.InitAsync(initContext);
+            }
+        }
+        catch (BadImageFormatException ex)
+        {
+            _failedPlugins[metadata.ID] = (metadata, $"Architecture incompatible ({System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}): {ex.Message}");
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            var details = string.Join("; ", ex.LoaderExceptions.Where(e => e != null).Select(e => e!.Message));
+            _failedPlugins[metadata.ID] = (metadata, $"Type load failed: {details}");
+        }
+        catch (Exception ex)
+        {
+            _failedPlugins[metadata.ID] = (metadata, ex.Message);
         }
     }
 

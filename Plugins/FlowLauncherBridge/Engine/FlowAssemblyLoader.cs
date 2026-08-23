@@ -6,7 +6,7 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
 /// <summary>
 /// Isolated assembly load context for third-party Flow.Launcher .NET plugins.
-/// Resolves local dependency assemblies located within the plugin's folder.
+/// Resolves local managed and unmanaged dependencies located within the plugin's folder.
 /// </summary>
 public class FlowAssemblyLoader : AssemblyLoadContext
 {
@@ -18,7 +18,6 @@ public class FlowAssemblyLoader : AssemblyLoadContext
     {
         if (string.Equals(assemblyName.Name, "Flow.Launcher.Plugin", StringComparison.OrdinalIgnoreCase))
         {
-            // Always bind to host's loaded Flow.Launcher.Plugin assembly
             return typeof(Flow.Launcher.Plugin.IPlugin).Assembly;
         }
 
@@ -29,5 +28,17 @@ public class FlowAssemblyLoader : AssemblyLoadContext
         }
 
         return null;
+    }
+
+    protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
+    {
+        var fileName = unmanagedDllName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ? unmanagedDllName : $"{unmanagedDllName}.dll";
+        var dllPath = Path.Combine(_pluginDirectory, fileName);
+        if (File.Exists(dllPath))
+        {
+            return LoadUnmanagedDllFromPath(dllPath);
+        }
+
+        return base.LoadUnmanagedDll(unmanagedDllName);
     }
 }
