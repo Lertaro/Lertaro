@@ -41,7 +41,13 @@ public static class FlowPythonDownloader
             // Flow.Launcher requirement: enable 'import site' in ._pth file to allow package loading
             EnableImportSiteInPthFiles(targetDir);
 
-            return FindPythonInDir(targetDir);
+            var pyExe = FindPythonInDir(targetDir);
+            if (pyExe != null)
+            {
+                await FlowPipManager.EnsurePipInstalledAsync(pyExe).ConfigureAwait(false);
+            }
+
+            return pyExe;
         }
         catch
         {

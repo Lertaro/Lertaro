@@ -76,7 +76,7 @@ public static class FlowPipManager
         catch { }
     }
 
-    private static async Task EnsurePipInstalledAsync(string pythonExe)
+    public static async Task EnsurePipInstalledAsync(string pythonExe)
     {
         lock (Lock)
         {
