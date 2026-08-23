@@ -39,4 +39,4 @@
 - **支援的外掛類型**：相容 **C# (.NET)**、**Python 3.12**（支援根據 `requirements.txt` 自動在背景安裝 `pip` 相依套件）、**Node.js v20 LTS**（支援根據 `package.json` 自動在背景安裝 `npm` 相依套件）以及獨立**可執行檔**（`.exe`）編寫的 Flow Launcher 外掛。
 - **安裝方式**：直接將第三方 Flow Launcher 外掛資料夾放入 `<使用者資料目錄>\FlowData\Plugins\`，Lertaro 會自動辨識、載入並註冊其搜尋觸發詞與動作。
 - **純淨隔離執行環境**：Python（`FlowData\PythonEmbeded-{arch}`）與 Node.js（`FlowData\NodeEmbeded-{arch}`）執行階段完全隔離在 Lertaro 的資料目錄中視需要自動下載部署，不依賴也不污染系統的全域環境變數與 PATH。
-- **設定與動作關鍵字**：Flow 外掛的原生設定面板與觸發關鍵字已無縫接入 Lertaro 的設定介面中，享有相同的確定儲存與取消復原保護機制。
+- **外掛管理與設定**：在搜尋方塊中直接輸入 `flow` 關鍵字即可列出所有已載入的 Flow 外掛清單、查看其觸發詞與狀態；選中支援自訂設定的外掛按 **Enter** 即可喚起專屬設定視窗，享有確定儲存與取消復原保護機制。

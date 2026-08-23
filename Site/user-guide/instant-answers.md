@@ -52,6 +52,7 @@ type often.
 | `win` | Window Switcher | Currently open, switchable windows — the same set Alt+Tab shows — by title, process name, or PID. Select one to bring it to the foreground. |
 | `bm` | Browser Data | Bookmarks and history from Chrome/Chromium-family and Firefox-family browser profiles you've added under that plugin's own settings. |
 | `set` | Core Extensions | Every setting in the app, fuzzy-matched by name — pick one to jump straight to it in Settings, highlighted. Type `set` with nothing after it to list every setting. |
+| `flow` | Flow Launcher Bridge | Lists all loaded Flow.Launcher plugins and their action keywords — select one and press Enter to open its settings window. |
 
 Window Switcher shows a live thumbnail of each window's actual content as its icon by default,
 captured in the background so it never slows down typing — a plain app icon shows immediately, and
