@@ -69,7 +69,10 @@ public class FlowPluginHost : IAsyncDisposable
         var pair = _loadedPlugins.Values.FirstOrDefault(p =>
             string.Equals(p.Metadata.ID, pluginNameOrId, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(p.Metadata.Name, pluginNameOrId, StringComparison.OrdinalIgnoreCase));
-        return pair?.Metadata.ActionKeyword ?? string.Empty;
+        if (pair != null && !string.IsNullOrEmpty(pair.Metadata.ActionKeyword))
+            return pair.Metadata.ActionKeyword;
+
+        return FlowPluginKeywordStore.GetCustomKeyword(pluginNameOrId, pluginNameOrId) ?? pair?.Metadata.ActionKeyword ?? string.Empty;
     }
 
     public void UpdatePluginActionKeyword(string pluginNameOrId, string newActionKeyword)
@@ -81,6 +84,7 @@ public class FlowPluginHost : IAsyncDisposable
         if (pair != null)
         {
             _keywordManager.UpdateActionKeyword(pair, newActionKeyword);
+            FlowPluginKeywordStore.SaveCustomKeyword(pair.Metadata.ID, pair.Metadata.Name, newActionKeyword);
 
             var pName = !string.IsNullOrEmpty(pair.Metadata.Name) ? pair.Metadata.Name : pair.Metadata.ID;
             var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
@@ -141,12 +145,18 @@ public class FlowPluginHost : IAsyncDisposable
         var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
         var sPath = Path.Combine(baseDir, "FlowData", "Settings", pName, "Settings.json");
-        var customKeyword = FlowSettingsTemplateStorage.GetSettingValue(sPath, "triggerKeyword")?.ToString()
-                         ?? FlowSettingsTemplateStorage.GetSettingValue(sPath, "ActionKeyword")?.ToString();
-        if (!string.IsNullOrWhiteSpace(customKeyword))
-            metadata.ActionKeyword = customKeyword;
 
-        if (!string.IsNullOrWhiteSpace(metadata.ActionKeyword) && !metadata.ActionKeywords.Contains(metadata.ActionKeyword, StringComparer.OrdinalIgnoreCase))
+        var customKeyword = FlowPluginKeywordStore.GetCustomKeyword(metadata.ID, metadata.Name)
+                         ?? FlowSettingsTemplateStorage.GetSettingValue(sPath, "ActionKeyword")?.ToString()
+                         ?? FlowSettingsTemplateStorage.GetSettingValue(sPath, "triggerKeyword")?.ToString();
+
+        if (!string.IsNullOrWhiteSpace(customKeyword))
+        {
+            metadata.ActionKeyword = customKeyword;
+            metadata.ActionKeywords.Clear();
+            metadata.ActionKeywords.Add(customKeyword);
+        }
+        else if (!string.IsNullOrWhiteSpace(metadata.ActionKeyword) && !metadata.ActionKeywords.Contains(metadata.ActionKeyword, StringComparer.OrdinalIgnoreCase))
         {
             metadata.ActionKeywords.Insert(0, metadata.ActionKeyword);
         }
