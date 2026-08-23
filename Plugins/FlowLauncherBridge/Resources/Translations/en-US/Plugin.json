@@ -1,0 +1,12 @@
+{
+  "FlowLauncherBridge_PluginName": "Flow.Launcher Plugin Bridge",
+  "FlowLauncherBridge_PluginDesc": "Host and run Flow.Launcher community plugins and extensions inside Lertaro.",
+  "FlowLauncherBridge_NoPluginsTitle": "Flow Plugins (0 loaded)",
+  "FlowLauncherBridge_NoPluginsDesc": "No third-party Flow plugins found in %LOCALAPPDATA%\\Lertaro\\FlowPlugins\\",
+  "FlowLauncherBridge_KeywordPrefix": "Action Keywords",
+  "FlowLauncherBridge_OpenSettingsHint": "Enter to open settings",
+  "FlowLauncherBridge_SettingsSuffix": "Settings",
+  "FlowLauncherBridge_Confirm": "OK",
+  "Plugin_Comp_Desc_FlowInstantResultProvider": "Dispatches keyword queries to loaded Flow.Launcher plugins and provides instant search results and settings management.",
+  "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Provides UI translation and localization mapping for the Flow.Launcher Bridge plugin."
+}

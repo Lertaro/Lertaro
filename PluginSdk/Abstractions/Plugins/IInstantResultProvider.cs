@@ -54,4 +54,9 @@ public class InstantResultItem
     /// free this handle yourself after handing it over. Mirrors SearchableItem.HBitmapIcon.
     /// </summary>
     public IntPtr HBitmapIcon { get; set; }
+
+    /// <summary>
+    /// Optional direct execution callback invoked when this result is selected.
+    /// </summary>
+    public Action? OnExecute { get; set; }
 }

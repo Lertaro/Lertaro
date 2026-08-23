@@ -1,0 +1,12 @@
+{
+  "FlowLauncherBridge_PluginName": "Puente de complementos Flow.Launcher",
+  "FlowLauncherBridge_PluginDesc": "Aloja y ejecuta complementos y extensiones de la comunidad de Flow.Launcher dentro de Lertaro.",
+  "FlowLauncherBridge_NoPluginsTitle": "Complementos de Flow (0 cargados)",
+  "FlowLauncherBridge_NoPluginsDesc": "No se encontraron complementos de Flow en %LOCALAPPDATA%\\Lertaro\\FlowPlugins\\",
+  "FlowLauncherBridge_KeywordPrefix": "Palabras clave",
+  "FlowLauncherBridge_OpenSettingsHint": "Enter para abrir la configuración",
+  "FlowLauncherBridge_SettingsSuffix": "Configuración",
+  "FlowLauncherBridge_Confirm": "Aceptar",
+  "Plugin_Comp_Desc_FlowInstantResultProvider": "Envía consultas de palabras clave a los complementos de Flow.Launcher cargados y proporciona resultados de búsqueda instantánea y gestión de configuración.",
+  "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Proporciona traducción de interfaz y asignación de localización para el complemento Puente Flow.Launcher."
+}

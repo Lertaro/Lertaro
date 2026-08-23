@@ -1,0 +1,12 @@
+{
+  "FlowLauncherBridge_PluginName": "Flow.Launcher 플러그인 브리지",
+  "FlowLauncherBridge_PluginDesc": "Lertaro 내에서 Flow.Launcher 커뮤니티 플러그인 및 확장 기능을 로드하고 실행합니다.",
+  "FlowLauncherBridge_NoPluginsTitle": "Flow 플러그인 (0개 로드됨)",
+  "FlowLauncherBridge_NoPluginsDesc": "%LOCALAPPDATA%\\Lertaro\\FlowPlugins\\ 디렉터리에서 Flow 플러그인을 찾을 수 없습니다",
+  "FlowLauncherBridge_KeywordPrefix": "트리거 키워드",
+  "FlowLauncherBridge_OpenSettingsHint": "Enter 키를 눌러 설정 열기",
+  "FlowLauncherBridge_SettingsSuffix": "설정",
+  "FlowLauncherBridge_Confirm": "확인",
+  "Plugin_Comp_Desc_FlowInstantResultProvider": "키워드 쿼리를 로드된 Flow.Launcher 플러그인으로 전달하고 인스턴트 검색 결과 및 설정 관리를 제공합니다.",
+  "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Flow.Launcher 브리지 플러그인의 UI 번역 및 현지화 매핑을 제공합니다."
+}

@@ -24,4 +24,6 @@
   <Project Path="Plugins/Bandizip/Bandizip.csproj" />
   <Project Path="Plugins/WPS/WPS.csproj" />
   <Project Path="Plugins/SpanishAlias/SpanishAlias.csproj" />
+  <Project Path="Plugins/FlowLauncherBridge/Flow.Launcher.Plugin/Flow.Launcher.Plugin.csproj" />
+  <Project Path="Plugins/FlowLauncherBridge/FlowLauncherBridge.csproj" />
 </Solution>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Flow.Launcher.Plugin</AssemblyName>
+    <RootNamespace>Flow.Launcher.Plugin</RootNamespace>
+    <Version>5.3.1</Version>
+    <PackageVersion>5.3.1</PackageVersion>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="FlowLauncherBridge" />
+    <InternalsVisibleTo Include="Lertaro.Plugins.FlowLauncherBridge" />
+    <InternalsVisibleTo Include="Lertaro.Plugins.FlowLauncherBridge.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -144,9 +144,10 @@ public static class PluginSearchResultMapper
                         ResultKind = resultKind,
                         Index = uiResults.Count,
                         SearchQuery = effectiveHighlightQuery,
-                        IconOverride = !string.IsNullOrEmpty(iconPath) ? null : iconOverride,
+                        IconOverride = iconOverride,
                         InstantResultActionType = item.ActionType ?? "Copy",
                         InstantResultActionArgument = targetPath,
+                        InstantResultOnExecute = item.OnExecute,
                         TabCompletion = item.TabCompletion,
                         SourceProvider = provider
                     });

@@ -1,0 +1,12 @@
+{
+  "FlowLauncherBridge_PluginName": "Flow.Launcher 外掛程式橋接",
+  "FlowLauncherBridge_PluginDesc": "在 Lertaro 中載入並執行 Flow.Launcher 社群外掛程式與擴充套件。",
+  "FlowLauncherBridge_NoPluginsTitle": "Flow 外掛程式 (已載入 0 個)",
+  "FlowLauncherBridge_NoPluginsDesc": "未在 %LOCALAPPDATA%\\Lertaro\\FlowPlugins\\ 目錄下找到 Flow 外掛程式",
+  "FlowLauncherBridge_KeywordPrefix": "觸發詞",
+  "FlowLauncherBridge_OpenSettingsHint": "Enter 開啟設定",
+  "FlowLauncherBridge_SettingsSuffix": "設定",
+  "FlowLauncherBridge_Confirm": "確定",
+  "Plugin_Comp_Desc_FlowInstantResultProvider": "負責分發關鍵字查詢至已載入的 Flow.Launcher 外掛程式並提供即時搜尋結果與設定管理。",
+  "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "為 Flow.Launcher 橋接外掛程式提供多語言翻譯和本地化對應。"
+}
