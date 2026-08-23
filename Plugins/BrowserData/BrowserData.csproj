@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Lertaro.Plugins.BrowserData</AssemblyName>
-    <Version>1.0.9</Version>
+    <Version>1.1.0</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <!-- Microsoft.Data.Sqlite ships a native e_sqlite3.dll. A plain framework-dependent build with no
          RuntimeIdentifier never selects/copies it (that normally only happens on `dotnet publish`).
