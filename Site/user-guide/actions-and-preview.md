@@ -68,6 +68,12 @@ The preview window's header is itself a drag source for the file being previewed
 Explorer, an editor, or any other drop target and it behaves exactly like dragging the result row
 out of the search window.
 
+### Plugin and interactive previews
+
+In addition to local files and folders, QuickLook supports interactive custom preview panels provided by plugins (such as Flow Launcher plugins like MDict dictionary definitions, weather cards, API inspectors, or web previews).
+
+When selecting a search result that provides an instant preview, QuickLook automatically activates the preview pane and smoothly updates the content as you navigate through results, without repeated pop-in animations. For WebView2/HTML-based previews, Lertaro automatically applies theme adaptation, high-contrast dark/light typography, and slim translucent scrollbars.
+
 Opening the full window from the quick one carries the preview's open state across, so a preview you
 already had open stays open.
 

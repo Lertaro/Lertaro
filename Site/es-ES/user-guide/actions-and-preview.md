@@ -72,6 +72,12 @@ El encabezado de la ventana de vista previa es en sí mismo un origen de arrastr
 previsualizando: arrástralo al Explorador, a un editor o a cualquier otro destino y se comporta igual que si
 arrastraras la fila del resultado desde la ventana de búsqueda.
 
+### Vista previa interactiva de plugins
+
+Además de archivos y carpetas locales, QuickLook admite paneles de vista previa interactivos personalizados proporcionados por plugins (como definiciones de diccionarios MDict, tarjetas meteorológicas, inspectores de API o vistas previas web de Flow Launcher).
+
+Al seleccionar el resultado de un plugin que proporciona vista previa instantánea, QuickLook activa automáticamente el panel de vista previa y actualiza el contenido de forma fluida al cambiar de selección, sin repetir animaciones de deslizamiento. Para vistas previas basadas en WebView2/HTML, Lertaro aplica automáticamente adaptación de temas, tipografía de alto contraste (claro/oscuro) y barras de desplazamiento translúcidas finas.
+
 Al abrir la ventana completa desde la rápida, el estado de la vista previa se traslada, así que una vista previa
 que ya tuvieras abierta permanece abierta.
 
