@@ -62,75 +62,51 @@ public static class FlowPluginStateStore
         return result;
     }
 
-    public static string? GetCustomKeyword(string? pluginId, string? pluginName = null)
+    public static string? GetCustomKeyword(string pluginName)
     {
+        if (string.IsNullOrWhiteSpace(pluginName)) return null;
         var dict = LoadAll();
-        if (!string.IsNullOrEmpty(pluginName) && dict.TryGetValue(pluginName, out var stateName) && !string.IsNullOrWhiteSpace(stateName.ActionKeyword))
-            return stateName.ActionKeyword;
-        if (!string.IsNullOrEmpty(pluginId) && dict.TryGetValue(pluginId, out var stateId) && !string.IsNullOrWhiteSpace(stateId.ActionKeyword))
-            return stateId.ActionKeyword;
-        return null;
+        return dict.TryGetValue(pluginName, out var state) && !string.IsNullOrWhiteSpace(state.ActionKeyword)
+            ? state.ActionKeyword
+            : null;
     }
 
-    public static bool IsPluginDisabled(string? pluginId, string? pluginName = null)
+    public static bool IsPluginDisabled(string pluginName)
     {
+        if (string.IsNullOrWhiteSpace(pluginName)) return false;
         var dict = LoadAll();
-        if (!string.IsNullOrEmpty(pluginName) && dict.TryGetValue(pluginName, out var stateName))
-            return stateName.Disabled;
-        if (!string.IsNullOrEmpty(pluginId) && dict.TryGetValue(pluginId, out var stateId))
-            return stateId.Disabled;
-        return false;
+        return dict.TryGetValue(pluginName, out var state) && state.Disabled;
     }
 
-    public static void SaveCustomKeyword(string? pluginId, string? pluginName, string newKeyword)
+    public static void SaveCustomKeyword(string pluginName, string newKeyword)
     {
+        if (string.IsNullOrWhiteSpace(pluginName)) return;
         try
         {
             var dict = LoadAll();
-            var primaryKey = !string.IsNullOrWhiteSpace(pluginName) ? pluginName : pluginId;
-            if (string.IsNullOrEmpty(primaryKey)) return;
-
-            if (!dict.TryGetValue(primaryKey, out var state))
+            if (!dict.TryGetValue(pluginName, out var state))
             {
                 state = new FlowPluginCustomState();
-                dict[primaryKey] = state;
+                dict[pluginName] = state;
             }
             state.ActionKeyword = newKeyword;
-
-            // Remove legacy ID entry if name is available to keep Plugins.json clean and unified
-            if (!string.IsNullOrEmpty(pluginName) && !string.IsNullOrEmpty(pluginId) &&
-                !string.Equals(pluginName, pluginId, StringComparison.OrdinalIgnoreCase))
-            {
-                dict.Remove(pluginId);
-            }
-
             SaveAll(dict);
         }
         catch { }
     }
 
-    public static void SetPluginDisabled(string? pluginId, string? pluginName, bool disabled)
+    public static void SetPluginDisabled(string pluginName, bool disabled)
     {
+        if (string.IsNullOrWhiteSpace(pluginName)) return;
         try
         {
             var dict = LoadAll();
-            var primaryKey = !string.IsNullOrWhiteSpace(pluginName) ? pluginName : pluginId;
-            if (string.IsNullOrEmpty(primaryKey)) return;
-
-            if (!dict.TryGetValue(primaryKey, out var state))
+            if (!dict.TryGetValue(pluginName, out var state))
             {
                 state = new FlowPluginCustomState();
-                dict[primaryKey] = state;
+                dict[pluginName] = state;
             }
             state.Disabled = disabled;
-
-            // Remove legacy ID entry if name is available to keep Plugins.json clean and unified
-            if (!string.IsNullOrEmpty(pluginName) && !string.IsNullOrEmpty(pluginId) &&
-                !string.Equals(pluginName, pluginId, StringComparison.OrdinalIgnoreCase))
-            {
-                dict.Remove(pluginId);
-            }
-
             SaveAll(dict);
         }
         catch { }

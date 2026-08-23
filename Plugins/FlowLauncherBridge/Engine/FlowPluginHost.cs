@@ -71,7 +71,8 @@ public class FlowPluginHost : IAsyncDisposable
         if (pair != null)
             return !pair.Metadata.Disabled;
 
-        return !FlowPluginStateStore.IsPluginDisabled(pluginNameOrId, pluginNameOrId);
+        var targetName = pair?.Metadata.Name ?? pluginNameOrId;
+        return !FlowPluginStateStore.IsPluginDisabled(targetName);
     }
 
     public void SetPluginEnabled(string pluginNameOrId, bool enabled)
@@ -82,7 +83,7 @@ public class FlowPluginHost : IAsyncDisposable
         if (pair != null)
         {
             pair.Metadata.Disabled = !enabled;
-            FlowPluginStateStore.SetPluginDisabled(pair.Metadata.ID, pair.Metadata.Name, !enabled);
+            FlowPluginStateStore.SetPluginDisabled(pair.Metadata.Name, !enabled);
 
             if (enabled)
                 _keywordManager.RegisterPluginKeywords(pair);
@@ -99,7 +100,8 @@ public class FlowPluginHost : IAsyncDisposable
         if (pair != null && !string.IsNullOrEmpty(pair.Metadata.ActionKeyword))
             return pair.Metadata.ActionKeyword;
 
-        return FlowPluginStateStore.GetCustomKeyword(pluginNameOrId, pluginNameOrId) ?? pair?.Metadata.ActionKeyword ?? string.Empty;
+        var targetName = pair?.Metadata.Name ?? pluginNameOrId;
+        return FlowPluginStateStore.GetCustomKeyword(targetName) ?? pair?.Metadata.ActionKeyword ?? string.Empty;
     }
 
     public void UpdatePluginActionKeyword(string pluginNameOrId, string newActionKeyword)
@@ -111,7 +113,7 @@ public class FlowPluginHost : IAsyncDisposable
         if (pair != null)
         {
             _keywordManager.UpdateActionKeyword(pair, newActionKeyword);
-            FlowPluginStateStore.SaveCustomKeyword(pair.Metadata.ID, pair.Metadata.Name, newActionKeyword);
+            FlowPluginStateStore.SaveCustomKeyword(pair.Metadata.Name, newActionKeyword);
         }
     }
 
@@ -161,8 +163,8 @@ public class FlowPluginHost : IAsyncDisposable
             return false;
 
         metadata.PluginDirectory = pluginDir;
-        var customKeyword = FlowPluginStateStore.GetCustomKeyword(metadata.ID, metadata.Name);
-        var isDisabled = metadata.Disabled || FlowPluginStateStore.IsPluginDisabled(metadata.ID, metadata.Name);
+        var customKeyword = FlowPluginStateStore.GetCustomKeyword(metadata.Name);
+        var isDisabled = metadata.Disabled || FlowPluginStateStore.IsPluginDisabled(metadata.Name);
         metadata.Disabled = isDisabled;
 
         if (!string.IsNullOrWhiteSpace(customKeyword))
