@@ -74,6 +74,13 @@ public sealed class FlowPluginSettingsHostWindow : Window
 
         PreviewKeyDown += (s, e) =>
         {
+            if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                Close();
+                return;
+            }
+
             // Block Alt+F4 and Alt+Space keyboard shortcuts (matching PluginFieldPromptWindow)
             if ((e.Key == Key.System && (e.SystemKey == Key.F4 || e.SystemKey == Key.Space))
                 || (e.Key == Key.F4 && (Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt)
@@ -86,15 +93,6 @@ public sealed class FlowPluginSettingsHostWindow : Window
         MergeAppThemeDictionaries();
         RegisterImplicitControlStyles();
         Content = BuildWindowLayout(pair, settingPanel, settingsSuffix);
-
-        Closed += (_, _) =>
-        {
-            if (_pair.Plugin is ISavable savable)
-            {
-                try { savable.Save(); } catch { }
-            }
-            _storage.SaveAll();
-        };
     }
 
     private void AttachSystemMenuBlocker() => SourceInitialized += (_, _) =>
@@ -118,11 +116,8 @@ public sealed class FlowPluginSettingsHostWindow : Window
     {
         try
         {
-            Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml", UriKind.Absolute) });
-            Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/Lertaro.App;component/Resources/Styles/Controls/Menu.xaml", UriKind.Absolute) });
-            Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/Lertaro.App;component/Resources/Styles/Windows/SearchWindow.xaml", UriKind.Absolute) });
-            Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/Lertaro.App;component/Resources/Styles/Windows/SettingsWindow.xaml", UriKind.Absolute) });
-            Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/Lertaro.App;component/Resources/Styles/Windows/SettingsComboBox.xaml", UriKind.Absolute) });
+            var uris = new[] { "Styles.xaml", "Styles/Controls/Menu.xaml", "Styles/Windows/SearchWindow.xaml", "Styles/Windows/SettingsWindow.xaml", "Styles/Windows/SettingsComboBox.xaml" };
+            foreach (var u in uris) Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri($"pack://application:,,,/Lertaro.App;component/Resources/{u}", UriKind.Absolute) });
         }
         catch { }
 
@@ -276,7 +271,19 @@ public sealed class FlowPluginSettingsHostWindow : Window
         var okText = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_Confirm");
         var okButton = new Button { Content = okText, Width = 80, Height = 28, IsDefault = true, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
         if (TryFindResource("PrimarySettingsButton") is Style primaryStyle) okButton.Style = primaryStyle;
-        okButton.Click += (_, _) => Close();
+        okButton.Click += (_, _) =>
+        {
+            if (settingPanel.Tag is Action saveAction)
+            {
+                try { saveAction(); } catch { }
+            }
+            if (_pair.Plugin is ISavable savable)
+            {
+                try { savable.Save(); } catch { }
+            }
+            _storage.SaveAll();
+            Close();
+        };
         footerGrid.Children.Add(okButton);
         footerBar.Child = footerGrid;
         Grid.SetRow(footerBar, 2);

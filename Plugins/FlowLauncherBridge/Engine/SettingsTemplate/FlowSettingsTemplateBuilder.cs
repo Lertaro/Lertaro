@@ -8,12 +8,11 @@ using System.Windows.Documents;
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine.SettingsTemplate;
 
 /// <summary>
-/// Dynamically constructs WPF settings panel from Flow.Launcher SettingsTemplate.yaml/json and binds to Settings.json.
+/// Dynamically constructs WPF settings panel from Flow.Launcher SettingsTemplate.yaml/json.
+/// Buffers edits in memory and exposes commit action via panel.Tag for the host dialog.
 /// </summary>
 public static class FlowSettingsTemplateBuilder
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-
     public static Control BuildSettingsPanel(string templateFilePath, string settingsJsonPath)
     {
         var doc = FlowSettingsTemplateParser.ParseFile(templateFilePath);
@@ -26,7 +25,7 @@ public static class FlowSettingsTemplateBuilder
 
         foreach (var elem in doc.Elements)
         {
-            var control = CreateControlForElement(elem, settings, settingsJsonPath);
+            var control = CreateControlForElement(elem, settings);
             if (control != null)
             {
                 rootPanel.Children.Add(control);
@@ -37,22 +36,22 @@ public static class FlowSettingsTemplateBuilder
         {
             Content = rootPanel,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Tag = new Action(() => FlowSettingsTemplateStorage.SaveSettings(settingsJsonPath, settings))
         };
     }
 
     private static FrameworkElement? CreateControlForElement(
         FlowSettingsTemplateElement elem,
-        JsonObject settings,
-        string settingsJsonPath)
+        JsonObject settings)
     {
         var type = elem.Type.ToLowerInvariant();
         return type switch
         {
             "textblock" => BuildTextBlock(elem),
-            "checkbox" => BuildCheckBox(elem, settings, settingsJsonPath),
-            "input" or "txtbox" or "textbox" => BuildTextBox(elem, settings, settingsJsonPath),
-            "select" or "dropdown" => BuildDropdown(elem, settings, settingsJsonPath),
+            "checkbox" => BuildCheckBox(elem, settings),
+            "input" or "txtbox" or "textbox" => BuildTextBox(elem, settings),
+            "select" or "dropdown" => BuildDropdown(elem, settings),
             "hyperlink" => BuildHyperlink(elem),
             _ => null
         };
@@ -75,8 +74,7 @@ public static class FlowSettingsTemplateBuilder
 
     private static FrameworkElement BuildCheckBox(
         FlowSettingsTemplateElement elem,
-        JsonObject settings,
-        string settingsJsonPath)
+        JsonObject settings)
     {
         var container = new StackPanel { Margin = new Thickness(0, 4, 0, 10) };
         var key = elem.Name;
@@ -101,16 +99,8 @@ public static class FlowSettingsTemplateBuilder
             VerticalContentAlignment = VerticalAlignment.Center
         };
 
-        cb.Checked += (_, _) =>
-        {
-            settings[key] = true;
-            FlowSettingsTemplateStorage.SaveSettings(settingsJsonPath, settings);
-        };
-        cb.Unchecked += (_, _) =>
-        {
-            settings[key] = false;
-            FlowSettingsTemplateStorage.SaveSettings(settingsJsonPath, settings);
-        };
+        cb.Checked += (_, _) => settings[key] = true;
+        cb.Unchecked += (_, _) => settings[key] = false;
 
         container.Children.Add(cb);
 
@@ -132,8 +122,7 @@ public static class FlowSettingsTemplateBuilder
 
     private static FrameworkElement BuildTextBox(
         FlowSettingsTemplateElement elem,
-        JsonObject settings,
-        string settingsJsonPath)
+        JsonObject settings)
     {
         var container = new StackPanel { Margin = new Thickness(0, 4, 0, 10) };
         var key = elem.Name;
@@ -150,13 +139,9 @@ public static class FlowSettingsTemplateBuilder
 
         var currentVal = string.Empty;
         if (settings.TryGetPropertyValue(key, out var node) && node != null)
-        {
             currentVal = node.ToString();
-        }
         else
-        {
             currentVal = elem.DefaultValue;
-        }
 
         var tb = new TextBox
         {
@@ -166,11 +151,7 @@ public static class FlowSettingsTemplateBuilder
             VerticalContentAlignment = VerticalAlignment.Center
         };
 
-        tb.TextChanged += (_, _) =>
-        {
-            settings[key] = tb.Text;
-            FlowSettingsTemplateStorage.SaveSettings(settingsJsonPath, settings);
-        };
+        tb.TextChanged += (_, _) => settings[key] = tb.Text;
 
         container.Children.Add(tb);
 
@@ -191,8 +172,7 @@ public static class FlowSettingsTemplateBuilder
 
     private static FrameworkElement BuildDropdown(
         FlowSettingsTemplateElement elem,
-        JsonObject settings,
-        string settingsJsonPath)
+        JsonObject settings)
     {
         var container = new StackPanel { Margin = new Thickness(0, 4, 0, 10) };
         var key = elem.Name;
@@ -228,7 +208,6 @@ public static class FlowSettingsTemplateBuilder
             if (cb.SelectedItem != null)
             {
                 settings[key] = cb.SelectedItem.ToString();
-                FlowSettingsTemplateStorage.SaveSettings(settingsJsonPath, settings);
             }
         };
 
