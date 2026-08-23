@@ -23,8 +23,6 @@ public static class FlowPipManager
 
     public static async Task EnsurePipAndRequirementsAsync(string pythonExe, string pluginDir)
     {
-        EnsureFlowEnvironmentStubs();
-
         var reqFile = Path.Combine(pluginDir, "requirements.txt");
         var markerFile = Path.Combine(pluginDir, ".requirements_installed");
 
@@ -33,28 +31,6 @@ public static class FlowPipManager
 
         await EnsurePipInstalledAsync(pythonExe).ConfigureAwait(false);
         await InstallRequirementsAsync(pythonExe, pluginDir, reqFile, markerFile).ConfigureAwait(false);
-    }
-
-    public static void EnsureFlowEnvironmentStubs()
-    {
-        try
-        {
-            var flowPluginsDir = GetFlowPluginsDirectory();
-
-            var imagesDir = Path.Combine(flowPluginsDir, "Images");
-            Directory.CreateDirectory(imagesDir);
-
-            var settingsDir = Path.Combine(flowPluginsDir, "Settings");
-            var pluginsSettingsDir = Path.Combine(settingsDir, "Plugins");
-            Directory.CreateDirectory(pluginsSettingsDir);
-
-            var settingsJson = Path.Combine(settingsDir, "Settings.json");
-            if (!File.Exists(settingsJson) || !File.ReadAllText(settingsJson).Trim().StartsWith('{'))
-            {
-                File.WriteAllText(settingsJson, "{\"PluginSettings\":{\"Plugins\":{}}}");
-            }
-        }
-        catch { }
     }
 
     public static async Task EnsurePipInstalledAsync(string pythonExe)
