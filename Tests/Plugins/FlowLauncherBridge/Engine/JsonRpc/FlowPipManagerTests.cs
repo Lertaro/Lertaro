@@ -6,16 +6,16 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Tests.Engine.JsonRpc;
 public sealed class FlowPipManagerTests
 {
     [TestMethod]
-    public void EnsureFlowEnvironmentStubs_CreatesSettingsAndImagesDirectory()
+    public void EnsureFlowEnvironmentStubs_CreatesFlowPluginsDirectoryLayout()
     {
         FlowPipManager.EnsureFlowEnvironmentStubs();
 
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var settingsJson = Path.Combine(appData, "FlowLauncher", "Settings", "Settings.json");
+        var flowPluginsDir = FlowPipManager.GetFlowPluginsDirectory();
+
+        var settingsJson = Path.Combine(flowPluginsDir, "Settings", "Settings.json");
         Assert.IsTrue(File.Exists(settingsJson));
 
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var imagesDir = Path.Combine(localAppData, "FlowLauncher", "Images");
+        var imagesDir = Path.Combine(flowPluginsDir, "Images");
         Assert.IsTrue(Directory.Exists(imagesDir));
     }
 }

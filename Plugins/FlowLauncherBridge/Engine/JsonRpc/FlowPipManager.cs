@@ -6,13 +6,20 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 /// <summary>
 /// Manages pip installation, automated requirements.txt dependency resolution,
-/// and Flow.Launcher runtime environment bridging for external Python plugins.
+/// and FlowPlugins environment stubs. All data is 100% self-contained in FlowPlugins.
 /// </summary>
 public static class FlowPipManager
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(3) };
     private static bool _pipChecked;
     private static readonly object Lock = new();
+
+    public static string GetFlowPluginsDirectory()
+    {
+        var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
+        return Path.Combine(baseDir, "FlowPlugins");
+    }
 
     public static async Task EnsurePipAndRequirementsAsync(string pythonExe, string pluginDir)
     {
@@ -28,38 +35,16 @@ public static class FlowPipManager
         await InstallRequirementsAsync(pythonExe, pluginDir, reqFile, markerFile).ConfigureAwait(false);
     }
 
-    public static string GetEffectivePythonPluginDirectory(string pluginDir)
-    {
-        EnsureFlowEnvironmentStubs();
-
-        try
-        {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var flPluginsDir = Path.Combine(appData, "FlowLauncher", "Plugins");
-            Directory.CreateDirectory(flPluginsDir);
-
-            var folderName = Path.GetFileName(pluginDir);
-            var bridgeDir = Path.Combine(flPluginsDir, folderName);
-
-            if (!Directory.Exists(bridgeDir))
-            {
-                Directory.CreateSymbolicLink(bridgeDir, pluginDir);
-            }
-
-            if (Directory.Exists(bridgeDir))
-                return bridgeDir;
-        }
-        catch { }
-
-        return pluginDir;
-    }
-
     public static void EnsureFlowEnvironmentStubs()
     {
         try
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var settingsDir = Path.Combine(appData, "FlowLauncher", "Settings");
+            var flowPluginsDir = GetFlowPluginsDirectory();
+
+            var imagesDir = Path.Combine(flowPluginsDir, "Images");
+            Directory.CreateDirectory(imagesDir);
+
+            var settingsDir = Path.Combine(flowPluginsDir, "Settings");
             var pluginsSettingsDir = Path.Combine(settingsDir, "Plugins");
             Directory.CreateDirectory(pluginsSettingsDir);
 
@@ -68,10 +53,6 @@ public static class FlowPipManager
             {
                 File.WriteAllText(settingsJson, "{\"PluginSettings\":{\"Plugins\":{}}}");
             }
-
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var imagesDir = Path.Combine(localAppData, "FlowLauncher", "Images");
-            Directory.CreateDirectory(imagesDir);
         }
         catch { }
     }

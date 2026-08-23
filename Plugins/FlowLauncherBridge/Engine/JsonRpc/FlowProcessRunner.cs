@@ -68,18 +68,10 @@ public class FlowProcessRunner
 
     private async Task<string> RunProcessAsync(string inputJson, string? cliQuery, CancellationToken cancellationToken)
     {
-        var workingDir = !string.IsNullOrEmpty(_scriptPath)
-            ? FlowPipManager.GetEffectivePythonPluginDirectory(_metadata.PluginDirectory)
-            : _metadata.PluginDirectory;
-
-        var scriptFile = !string.IsNullOrEmpty(_scriptPath)
-            ? Path.Combine(workingDir, Path.GetFileName(_scriptPath))
-            : _scriptPath;
-
         var psi = new ProcessStartInfo
         {
             FileName = _executable,
-            WorkingDirectory = workingDir,
+            WorkingDirectory = _metadata.PluginDirectory,
             UseShellExecute = false,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
@@ -89,9 +81,9 @@ public class FlowProcessRunner
             StandardErrorEncoding = Encoding.UTF8
         };
 
-        if (!string.IsNullOrEmpty(scriptFile))
+        if (!string.IsNullOrEmpty(_scriptPath))
         {
-            psi.ArgumentList.Add(scriptFile);
+            psi.ArgumentList.Add(_scriptPath);
         }
 
         if (!string.IsNullOrEmpty(inputJson))
@@ -100,7 +92,7 @@ public class FlowProcessRunner
         }
 
         psi.Environment["PYTHONIOENCODING"] = "utf-8";
-        psi.Environment["FLOW_LAUNCHER_SETTINGS_PATH"] = workingDir;
+        psi.Environment["FLOW_LAUNCHER_SETTINGS_PATH"] = _metadata.PluginDirectory;
 
         using var process = new Process { StartInfo = psi };
         try
