@@ -21,6 +21,21 @@ public static class FlowPipManager
         return Path.Combine(baseDir, "FlowPlugins");
     }
 
+    public static void EnsurePipAndRequirementsBackground(string pythonExe, string pluginDir)
+    {
+        var reqFile = Path.Combine(pluginDir, "requirements.txt");
+        var markerFile = Path.Combine(pluginDir, ".requirements_installed");
+
+        if (!File.Exists(reqFile) || File.Exists(markerFile))
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            await EnsurePipInstalledAsync(pythonExe).ConfigureAwait(false);
+            await InstallRequirementsAsync(pythonExe, pluginDir, reqFile, markerFile).ConfigureAwait(false);
+        });
+    }
+
     public static async Task EnsurePipAndRequirementsAsync(string pythonExe, string pluginDir)
     {
         var reqFile = Path.Combine(pluginDir, "requirements.txt");

@@ -148,10 +148,10 @@ public class FlowPluginHost : IAsyncDisposable
                 var pythonPath = await FlowEnvironmentLocator.EnsurePythonExecutableAsync().ConfigureAwait(false);
                 if (string.IsNullOrEmpty(pythonPath))
                 {
-                    _failedPlugins[metadata.ID] = (metadata, "Python runtime not found in PATH, PythonEmbeded, or download failed.");
+                    _failedPlugins[metadata.ID] = (metadata, "Python runtime not found in PythonEmbeded, or download failed.");
                     return;
                 }
-                await FlowPipManager.EnsurePipAndRequirementsAsync(pythonPath, pluginDir).ConfigureAwait(false);
+                FlowPipManager.EnsurePipAndRequirementsBackground(pythonPath, pluginDir);
                 var runner = new FlowProcessRunner(metadata, pythonPath, metadata.ExecuteFilePath);
                 pluginInstance = new FlowJsonRpcPlugin(runner);
             }

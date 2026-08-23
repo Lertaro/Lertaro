@@ -48,7 +48,7 @@ public static class FlowPythonDownloader
             var pyExe = FindPythonInDir(targetDir);
             if (pyExe != null)
             {
-                await FlowPipManager.EnsurePipInstalledAsync(pyExe).ConfigureAwait(false);
+                _ = Task.Run(() => FlowPipManager.EnsurePipInstalledAsync(pyExe));
             }
 
             return pyExe;

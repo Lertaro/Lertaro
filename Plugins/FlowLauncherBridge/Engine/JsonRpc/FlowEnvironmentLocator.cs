@@ -5,7 +5,7 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 /// <summary>
 /// Discovers and provisions runtime interpreters for external Flow plugins (Python, Node.js).
-/// Strictly isolates Python to FL Portable UserData directory and resolves Node.js via system PATH.
+/// Strictly isolates Python to UserDataDirectory\PythonEmbeded-{arch} and resolves Node.js via system PATH.
 /// </summary>
 public static class FlowEnvironmentLocator
 {
@@ -24,24 +24,6 @@ public static class FlowEnvironmentLocator
         if (exe != null)
         {
             FlowPythonDownloader.EnsureSiteCustomizeInstalled(embedDir);
-            _cachedPythonPath = exe;
-            _pythonSearched = true;
-            return _cachedPythonPath;
-        }
-
-        var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-        var archSuffix = RuntimeInformation.ProcessArchitecture switch
-        {
-            Architecture.Arm64 => "arm64",
-            Architecture.X86 => "x86",
-            _ => "x64"
-        };
-        var directDir = Path.Combine(baseDir, $"PythonEmbeded-{archSuffix}");
-        exe = FlowPythonDownloader.FindPythonInDir(directDir);
-        if (exe != null)
-        {
-            FlowPythonDownloader.EnsureSiteCustomizeInstalled(directDir);
             _cachedPythonPath = exe;
             _pythonSearched = true;
             return _cachedPythonPath;
@@ -91,13 +73,7 @@ public static class FlowEnvironmentLocator
             _ => "x64"
         };
 
-        var portableDir = Path.Combine(baseDir, "FlowLauncher", "UserData", $"PythonEmbeded-{archSuffix}");
-        var directDir = Path.Combine(baseDir, $"PythonEmbeded-{archSuffix}");
-
-        if (Directory.Exists(directDir) && !Directory.Exists(portableDir))
-            return directDir;
-
-        return portableDir;
+        return Path.Combine(baseDir, $"PythonEmbeded-{archSuffix}");
     }
 
     private static string? ProbePath(string binaryName)
