@@ -39,4 +39,8 @@
 - **支援的外掛類型**：相容 **C# (.NET)**、**Python 3.12**（支援根據 `requirements.txt` 自動在背景安裝 `pip` 相依套件）、**Node.js v20 LTS**（支援根據 `package.json` 自動在背景安裝 `npm` 相依套件）以及獨立**可執行檔**（`.exe`）編寫的 Flow Launcher 外掛。
 - **安裝方式**：直接將第三方 Flow Launcher 外掛資料夾放入 `<使用者資料目錄>\FlowData\Plugins\`，Lertaro 會自動辨識、載入並註冊其搜尋觸發詞與動作。
 - **純淨隔離執行環境**：Python（`FlowData\PythonEmbeded-{arch}`）與 Node.js（`FlowData\NodeEmbeded-{arch}`）執行階段完全隔離在 Lertaro 的資料目錄中視需要自動下載部署，不依賴也不污染系統的全域環境變數與 PATH。
-- **外掛管理與設定**：在搜尋方塊中直接輸入 `flow` 關鍵字即可列出所有已載入的 Flow 外掛清單、查看其觸發詞與狀態；選中支援自訂設定的外掛按 **Enter** 即可喚起專屬設定視窗，享有確定儲存與取消復原保護機制。
+- **集中管理與獨立開關**：在**設定 → 外掛 → Flow Launcher Bridge** 的**設定**索引標籤中，統一列出所有已載入的 Flow 外掛子分組；每個外掛頂部均設有專屬的**啟用此外掛**開關，可單獨開啟或關閉該外掛功能。
+- **自訂觸發詞與狀態隔離**：支援自訂修改每個 Flow 外掛的專屬**觸發詞（ActionKeyword）**，設定與啟用狀態集中儲存於 `FlowData\Settings\Plugins.json`，不會污染外掛內部設定，外掛更新與重啟後始終保持有效。
+- **原生內嵌設定與多語言**：無縫支援基於 YAML/JSON 範本表單（`SettingsTemplate.yaml`/`.json`）及 C# WPF 自訂設定面板（`ISettingProvider`）的外掛設定介面，自動融合應用程式主題並完整支援多語言 i18n 在地化。
+- **快捷搜尋與調用**：在搜尋方塊中輸入 `flow` 全域關鍵字即可列出已載入的全部 Flow 外掛及其觸發詞與執行狀態；直接輸入此外掛的觸發詞（如 `md`、`tr` 等）即可即時檢索。
+

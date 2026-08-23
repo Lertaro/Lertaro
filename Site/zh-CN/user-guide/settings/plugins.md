@@ -39,4 +39,8 @@
 - **支持的插件类型**：兼容 **C# (.NET)**、**Python 3.12**（支持根据 `requirements.txt` 自动在后台安装 `pip` 依赖）、**Node.js v20 LTS**（支持根据 `package.json` 自动在后台安装 `npm` 依赖）以及独立**可执行程序**（`.exe`）编写的 Flow Launcher 插件。
 - **安装方式**：直接将第三方 Flow Launcher 插件文件夹放入 `<用户数据目录>\FlowData\Plugins\`，Lertaro 会自动识别、加载并注册其搜索触发词与动作。
 - **纯净隔离运行环境**：Python（`FlowData\PythonEmbeded-{arch}`）与 Node.js（`FlowData\NodeEmbeded-{arch}`）运行时完全隔离在 Lertaro 的数据目录中按需自动下载部署，不依赖也不污染系统的全局环境变量与 PATH。
-- **插件管理与配置**：在搜索框中直接输入 `flow` 关键词即可列出所有已加载的 Flow 插件清单、查看其触发词与状态；选中支持自定义配置的插件按 **Enter** 即可唤起专属设置窗口，享有确定保存与取消回滚保护机制。
+- **集中管理与独立开关**：在**设置 → 插件 → Flow Launcher Bridge** 的**配置**标签页中，统一列出所有已加载的 Flow 插件子分组；每个插件顶部均设有专属的**启用此插件**开关，可单独开启或关闭该插件功能。
+- **自定义触发词与状态隔离**：支持自定义修改每个 Flow 插件的专属**触发词（ActionKeyword）**，配置与启用状态集中存储于 `FlowData\Settings\Plugins.json`，不会污染插件内部配置，插件更新与重启后始终保持有效。
+- **原生内嵌配置与多语言**：无缝支持基于 YAML/JSON 模板表单（`SettingsTemplate.yaml`/`.json`）及 C# WPF 自定义设置面板（`ISettingProvider`）的插件配置界面，自动融合应用主题并完整支持多语言 i18n 本地化。
+- **快捷搜索与调用**：在搜索框中输入 `flow` 全局关键词即可列出已加载的全部 Flow 插件及其触发词与运行状态；直接输入各插件的触发词（如 `md`、`tr` 等）即可即时检索。
+
