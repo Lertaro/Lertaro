@@ -1,10 +1,11 @@
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 /// <summary>
 /// Discovers and provisions runtime interpreters for external Flow plugins (Python, Node.js).
-/// Strictly isolates Python to UserDataDirectory\PythonEmbeded and resolves Node.js via system PATH.
+/// Strictly isolates Python to UserDataDirectory\PythonEmbeded-{arch} and resolves Node.js via system PATH.
 /// </summary>
 public static class FlowEnvironmentLocator
 {
@@ -64,7 +65,13 @@ public static class FlowEnvironmentLocator
     {
         var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-        return Path.Combine(baseDir, "PythonEmbeded");
+        var archSuffix = RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.Arm64 => "arm64",
+            Architecture.X86 => "x86",
+            _ => "x64"
+        };
+        return Path.Combine(baseDir, $"PythonEmbeded-{archSuffix}");
     }
 
     private static string? ProbePath(string binaryName)
