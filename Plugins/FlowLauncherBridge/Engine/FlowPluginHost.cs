@@ -157,7 +157,7 @@ public class FlowPluginHost : IAsyncDisposable
                 }
                 FlowPipManager.EnsurePipAndRequirementsBackground(pythonPath, pluginDir);
                 var runner = new FlowProcessRunner(metadata, pythonPath, metadata.ExecuteFilePath);
-                pluginInstance = new FlowJsonRpcPlugin(runner);
+                pluginInstance = new FlowJsonRpcPlugin(runner, metadata);
             }
             else if (AllowedLanguage.IsNodeJs(metadata.Language))
             {
@@ -168,7 +168,7 @@ public class FlowPluginHost : IAsyncDisposable
                     return;
                 }
                 var runner = new FlowProcessRunner(metadata, nodePath, metadata.ExecuteFilePath);
-                pluginInstance = new FlowJsonRpcPlugin(runner);
+                pluginInstance = new FlowJsonRpcPlugin(runner, metadata);
             }
             else if (AllowedLanguage.IsExecutable(metadata.Language))
             {
@@ -178,7 +178,7 @@ public class FlowPluginHost : IAsyncDisposable
                     return;
                 }
                 var runner = new FlowProcessRunner(metadata, metadata.ExecuteFilePath);
-                pluginInstance = new FlowJsonRpcPlugin(runner);
+                pluginInstance = new FlowJsonRpcPlugin(runner, metadata);
             }
 
             if (pluginInstance != null)

@@ -27,7 +27,7 @@ public sealed class FlowProcessRunnerTests
     {
         var meta = new PluginMetadata { ID = "TEST_RPC", Name = "RpcPlugin" };
         var runner = new FlowProcessRunner(meta, "non_existent_binary.exe");
-        var plugin = new FlowJsonRpcPlugin(runner);
+        var plugin = new FlowJsonRpcPlugin(runner, meta);
         Assert.IsNotNull(plugin);
     }
 }
