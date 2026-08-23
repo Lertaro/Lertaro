@@ -5,7 +5,7 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
 /// <summary>
 /// Manages per-user JSON settings storage for Flow.Launcher plugins.
-/// Stores configuration files in %APPDATA%\Lertaro\FlowPlugins\Settings\{pluginId}\
+/// Stores configuration files in the host-resolved user data directory under FlowPlugins\Settings\{pluginId}\.
 /// to ensure complete multi-user session isolation.
 /// </summary>
 public class FlowSettingsStorage
@@ -28,8 +28,10 @@ public class FlowSettingsStorage
         }
         else
         {
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            _baseSettingsDirectory = Path.Combine(localAppData, "Lertaro", "FlowPlugins", "Settings");
+            _baseSettingsDirectory = Path.Combine(
+                PluginSdk.Services.UserDataService.GetUserDataDirectory() ?? AppDomain.CurrentDomain.BaseDirectory,
+                "FlowPlugins",
+                "Settings");
         }
 
         if (!Directory.Exists(_baseSettingsDirectory))

@@ -23,6 +23,7 @@ internal static class PluginSdkBridge
         // Wire up the settings delegate for plugins using the in-memory UserSettings cache.
         PluginSdk.Services.PluginSettingsService.GetSettingFunc = manager.GetPluginSetting;
         PluginSdk.Services.PluginSettingsService.SetSettingFunc = manager.SetPluginSetting;
+        PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = () => Logger.UserDataDir;
 
         // Wire up the runtime field-prompt delegate, reusing the Settings UI's own field rendering.
         PluginSdk.Services.PluginPromptService.PromptFunc = Views.Controls.Dialogs.PluginFieldPromptWindow.ShowPrompt;

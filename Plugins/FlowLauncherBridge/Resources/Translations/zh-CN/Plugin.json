@@ -2,7 +2,7 @@
   "FlowLauncherBridge_PluginName": "Flow.Launcher 插件桥接",
   "FlowLauncherBridge_PluginDesc": "在 Lertaro 中加载并运行 Flow.Launcher 社区插件与扩展。",
   "FlowLauncherBridge_NoPluginsTitle": "Flow 插件 (已加载 0 个)",
-  "FlowLauncherBridge_NoPluginsDesc": "未在 %LOCALAPPDATA%\\Lertaro\\FlowPlugins\\ 目录下找到 Flow 插件",
+  "FlowLauncherBridge_NoPluginsDesc": "在 Lertaro 配置的用户数据目录中未找到第三方 Flow 插件",
   "FlowLauncherBridge_KeywordPrefix": "触发词",
   "FlowLauncherBridge_OpenSettingsHint": "Enter 打开配置",
   "FlowLauncherBridge_SettingsSuffix": "设置",

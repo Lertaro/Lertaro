@@ -2,7 +2,7 @@
   "FlowLauncherBridge_PluginName": "Flow.Launcher プラグインブリッジ",
   "FlowLauncherBridge_PluginDesc": "Lertaro 内で Flow.Launcher コミュニティプラグインと拡張機能を読み込んで実行します。",
   "FlowLauncherBridge_NoPluginsTitle": "Flow プラグイン (0 個読み込み済み)",
-  "FlowLauncherBridge_NoPluginsDesc": "%LOCALAPPDATA%\\Lertaro\\FlowPlugins\\ ディレクトリに Flow プラグインが見つかりません",
+  "FlowLauncherBridge_NoPluginsDesc": "Lertaro の設定済みユーザーデータディレクトリにサードパーティ製 Flow プラグインが見つかりません",
   "FlowLauncherBridge_KeywordPrefix": "トリガーキーワード",
   "FlowLauncherBridge_OpenSettingsHint": "Enter で設定を開く",
   "FlowLauncherBridge_SettingsSuffix": "設定",

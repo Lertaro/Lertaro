@@ -29,10 +29,9 @@ public class FlowPluginHost : IAsyncDisposable
         }
         else
         {
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var roamingAppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            _pluginDirectories.Add(Path.Combine(localAppData, "Lertaro", "FlowPlugins"));
-            _pluginDirectories.Add(Path.Combine(roamingAppData, "Lertaro", "FlowPlugins"));
+            var userDataDirectory = PluginSdk.Services.UserDataService.GetUserDataDirectory();
+            if (!string.IsNullOrWhiteSpace(userDataDirectory))
+                _pluginDirectories.Add(Path.Combine(userDataDirectory, "FlowPlugins"));
             _pluginDirectories.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FlowPlugins"));
         }
     }

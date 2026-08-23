@@ -2,7 +2,7 @@
   "FlowLauncherBridge_PluginName": "Flow.Launcher 外掛程式橋接",
   "FlowLauncherBridge_PluginDesc": "在 Lertaro 中載入並執行 Flow.Launcher 社群外掛程式與擴充套件。",
   "FlowLauncherBridge_NoPluginsTitle": "Flow 外掛程式 (已載入 0 個)",
-  "FlowLauncherBridge_NoPluginsDesc": "未在 %LOCALAPPDATA%\\Lertaro\\FlowPlugins\\ 目錄下找到 Flow 外掛程式",
+  "FlowLauncherBridge_NoPluginsDesc": "在 Lertaro 設定的使用者資料目錄中找不到第三方 Flow 外掛程式",
   "FlowLauncherBridge_KeywordPrefix": "觸發詞",
   "FlowLauncherBridge_OpenSettingsHint": "Enter 開啟設定",
   "FlowLauncherBridge_SettingsSuffix": "設定",
