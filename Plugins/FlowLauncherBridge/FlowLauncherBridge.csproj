@@ -33,12 +33,14 @@
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <ItemGroup>
       <FlowBridgeOutput Include="$(TargetDir)$(TargetName).dll" Condition="Exists('$(TargetDir)$(TargetName).dll')" />
+      <FlowBridgeOutput Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
       <FlowBridgeOutput Include="$(TargetDir)Flow.Launcher.Plugin.dll" Condition="Exists('$(TargetDir)Flow.Launcher.Plugin.dll')" />
+      <FlowBridgeOutput Include="$(TargetDir)Flow.Launcher.Plugin.pdb" Condition="Exists('$(TargetDir)Flow.Launcher.Plugin.pdb')" />
     </ItemGroup>
     <Copy SourceFiles="@(FlowBridgeOutput)" DestinationFolder="$(TargetDir)$(AssemblyName)\" SkipUnchangedFiles="true" />
     <Delete Files="@(FlowBridgeOutput)" Condition="$([System.IO.Path]::IsPathRooted('$(OutputPath)'))" />
     <ItemGroup>
-      <FlowBridgeNested Include="$(TargetDir)$(AssemblyName)\*.dll" />
+      <FlowBridgeNested Include="$(TargetDir)$(AssemblyName)\*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(FlowBridgeNested)" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\$(AssemblyName)\" SkipUnchangedFiles="true" />
   </Target>
@@ -46,7 +48,9 @@
   <Target Name="PostPublish" AfterTargets="Publish">
     <ItemGroup>
       <FlowBridgePublishOutput Include="$(PublishDir)$(TargetName).dll" Condition="Exists('$(PublishDir)$(TargetName).dll')" />
+      <FlowBridgePublishOutput Include="$(PublishDir)$(TargetName).pdb" Condition="Exists('$(PublishDir)$(TargetName).pdb')" />
       <FlowBridgePublishOutput Include="$(PublishDir)Flow.Launcher.Plugin.dll" Condition="Exists('$(PublishDir)Flow.Launcher.Plugin.dll')" />
+      <FlowBridgePublishOutput Include="$(PublishDir)Flow.Launcher.Plugin.pdb" Condition="Exists('$(PublishDir)Flow.Launcher.Plugin.pdb')" />
     </ItemGroup>
     <Copy SourceFiles="@(FlowBridgePublishOutput)" DestinationFolder="$(PublishDir)$(AssemblyName)\" SkipUnchangedFiles="true" />
     <Delete Files="@(FlowBridgePublishOutput)" Condition="$([System.IO.Path]::IsPathRooted('$(PublishDir)'))" />

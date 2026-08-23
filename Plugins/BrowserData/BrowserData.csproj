@@ -71,6 +71,7 @@
          necessarily present in every build (e.g. a Release build without PDBs). -->
     <ItemGroup>
       <BrowserDataOutput Include="$(TargetDir)$(TargetName).dll" Condition="Exists('$(TargetDir)$(TargetName).dll')" />
+      <BrowserDataOutput Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
       <BrowserDataOutput Include="$(TargetDir)Microsoft.Data.Sqlite.dll" Condition="Exists('$(TargetDir)Microsoft.Data.Sqlite.dll')" />
       <BrowserDataOutput Include="$(TargetDir)SQLitePCLRaw.batteries_v2.dll" Condition="Exists('$(TargetDir)SQLitePCLRaw.batteries_v2.dll')" />
       <BrowserDataOutput Include="$(TargetDir)SQLitePCLRaw.core.dll" Condition="Exists('$(TargetDir)SQLitePCLRaw.core.dll')" />
@@ -81,7 +82,7 @@
     <Delete Files="@(BrowserDataOutput)" />
 
     <ItemGroup>
-      <BrowserDataNested Include="$(TargetDir)$(AssemblyName)\*.dll" />
+      <BrowserDataNested Include="$(TargetDir)$(AssemblyName)\*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(BrowserDataNested)" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\$(AssemblyName)\" SkipUnchangedFiles="true" />
   </Target>
@@ -95,6 +96,7 @@
   <Target Name="PostPublish" AfterTargets="Publish">
     <ItemGroup>
       <BrowserDataPublishOutput Include="$(PublishDir)$(TargetName).dll" Condition="Exists('$(PublishDir)$(TargetName).dll')" />
+      <BrowserDataPublishOutput Include="$(PublishDir)$(TargetName).pdb" Condition="Exists('$(PublishDir)$(TargetName).pdb')" />
       <BrowserDataPublishOutput Include="$(PublishDir)Microsoft.Data.Sqlite.dll" Condition="Exists('$(PublishDir)Microsoft.Data.Sqlite.dll')" />
       <BrowserDataPublishOutput Include="$(PublishDir)SQLitePCLRaw.batteries_v2.dll" Condition="Exists('$(PublishDir)SQLitePCLRaw.batteries_v2.dll')" />
       <BrowserDataPublishOutput Include="$(PublishDir)SQLitePCLRaw.core.dll" Condition="Exists('$(PublishDir)SQLitePCLRaw.core.dll')" />

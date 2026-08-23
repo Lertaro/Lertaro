@@ -31,12 +31,9 @@ public class FlowPluginHost : IAsyncDisposable
         }
         else
         {
-            var userDataDirectory = PluginSdk.Services.UserDataService.GetUserDataDirectory();
-            if (!string.IsNullOrWhiteSpace(userDataDirectory))
-            {
-                _pluginDirectories.Add(Path.Combine(userDataDirectory, "FlowData", "Plugins"));
-            }
-            _pluginDirectories.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FlowData", "Plugins"));
+            var userDataDirectory = PluginSdk.Services.UserDataService.GetUserDataDirectory()
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
+            _pluginDirectories.Add(Path.Combine(userDataDirectory, "FlowData", "Plugins"));
         }
     }
 
@@ -55,40 +52,16 @@ public class FlowPluginHost : IAsyncDisposable
 
     public void AddActionKeyword(string pluginId, string newActionKeyword)
     {
-        if (string.IsNullOrWhiteSpace(newActionKeyword))
-            return;
-
-        if (!_loadedPlugins.TryGetValue(pluginId, out var pair))
-            return;
-
-        if (!pair.Metadata.ActionKeywords.Contains(newActionKeyword, StringComparer.OrdinalIgnoreCase))
-        {
-            pair.Metadata.ActionKeywords.Add(newActionKeyword);
-        }
-
-        _keywordPlugins.AddOrUpdate(
-            newActionKeyword,
-            _ => [pair],
-            (_, list) => { lock (list) { if (!list.Contains(pair)) list.Add(pair); } return list; });
+        if (string.IsNullOrWhiteSpace(newActionKeyword) || !_loadedPlugins.TryGetValue(pluginId, out var pair)) return;
+        if (!pair.Metadata.ActionKeywords.Contains(newActionKeyword, StringComparer.OrdinalIgnoreCase)) pair.Metadata.ActionKeywords.Add(newActionKeyword);
+        _keywordPlugins.AddOrUpdate(newActionKeyword, _ => [pair], (_, list) => { lock (list) { if (!list.Contains(pair)) list.Add(pair); } return list; });
     }
 
     public void RemoveActionKeyword(string pluginId, string oldActionKeyword)
     {
-        if (string.IsNullOrWhiteSpace(oldActionKeyword))
-            return;
-
-        if (_loadedPlugins.TryGetValue(pluginId, out var pair))
-        {
-            pair.Metadata.ActionKeywords.RemoveAll(k => string.Equals(k, oldActionKeyword, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (_keywordPlugins.TryGetValue(oldActionKeyword, out var list))
-        {
-            lock (list)
-            {
-                list.RemoveAll(p => string.Equals(p.Metadata.ID, pluginId, StringComparison.OrdinalIgnoreCase));
-            }
-        }
+        if (string.IsNullOrWhiteSpace(oldActionKeyword)) return;
+        if (_loadedPlugins.TryGetValue(pluginId, out var pair)) pair.Metadata.ActionKeywords.RemoveAll(k => string.Equals(k, oldActionKeyword, StringComparison.OrdinalIgnoreCase));
+        if (_keywordPlugins.TryGetValue(oldActionKeyword, out var list)) lock (list) { list.RemoveAll(p => string.Equals(p.Metadata.ID, pluginId, StringComparison.OrdinalIgnoreCase)); }
     }
 
     public bool ActionKeywordAssigned(string actionKeyword) => !string.IsNullOrWhiteSpace(actionKeyword) && _keywordPlugins.ContainsKey(actionKeyword);
