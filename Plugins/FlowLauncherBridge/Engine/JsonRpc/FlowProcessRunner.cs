@@ -77,6 +77,7 @@ public class FlowProcessRunner
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8
         };

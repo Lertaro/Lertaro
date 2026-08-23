@@ -30,7 +30,7 @@ public class FlowSettingsStorage
         {
             _baseSettingsDirectory = Path.Combine(
                 PluginSdk.Services.UserDataService.GetUserDataDirectory() ?? AppDomain.CurrentDomain.BaseDirectory,
-                "FlowPlugins",
+                "FlowData",
                 "Settings");
         }
 

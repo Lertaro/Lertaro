@@ -14,12 +14,14 @@ public static class FlowPipManager
     private static bool _pipChecked;
     private static readonly object Lock = new();
 
-    public static string GetFlowPluginsDirectory()
+    public static string GetFlowDataDirectory()
     {
         var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-        return Path.Combine(baseDir, "FlowPlugins");
+        return Path.Combine(baseDir, "FlowData");
     }
+
+    public static string GetFlowPluginsDirectory() => Path.Combine(GetFlowDataDirectory(), "Plugins");
 
     public static void EnsurePipAndRequirementsBackground(string pythonExe, string pluginDir)
     {
@@ -107,6 +109,8 @@ public static class FlowPipManager
             WorkingDirectory = workingDir ?? Path.GetDirectoryName(exe) ?? string.Empty,
             UseShellExecute = false,
             CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden,
+            RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
@@ -115,6 +119,7 @@ public static class FlowPipManager
         try
         {
             process.Start();
+            process.StandardInput.Close();
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
             await process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
             return process.ExitCode == 0;

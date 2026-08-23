@@ -93,7 +93,7 @@ class _FloxLoader(importlib.abc.Loader):
             code_str = code_bytes.decode('utf-8').replace('\r\n', '\n')
             
             old_block = ""if SCOOP_FLOW_LAUNCHER_DIR_NAME.lower() in str(path).lower():\n    launcher_name = SCOOP_FLOW_LAUNCHER_DIR_NAME\n    API = FLOW_API\nelif FLOW_LAUNCHER_DIR_NAME.lower() in str(path).lower():\n    launcher_name = FLOW_LAUNCHER_DIR_NAME\n    API = FLOW_API\nelif WOX_DIR_NAME.lower() in str(path).lower():\n    launcher_name = WOX_DIR_NAME\n    API = WOX_API\nelse:\n    raise FileNotFoundError(LAUNCHER_NOT_FOUND_MSG)\n\nwhile True:\n    if len(path.parts) == 1:\n        raise FileNotFoundError(LAUNCHER_NOT_FOUND_MSG)\n    if path.joinpath('Settings').exists():\n        USER_DIR = path\n        if USER_DIR.name == 'UserData':\n            APP_DIR = USER_DIR.parent\n        elif str(CURRENT_WORKING_DIR).startswith(str(APPDATA)):\n            APP_DIR = LOCALAPPDATA.joinpath(launcher_name)\n        else:\n            raise FileNotFoundError(LAUNCHER_NOT_FOUND_MSG)\n        break\n\n    path = path.parent""
-            new_block = ""launcher_name = 'FlowLauncher'\nAPI = FLOW_API\nUSER_DIR = Path().cwd().parent\nAPP_DIR = USER_DIR""
+            new_block = ""launcher_name = 'FlowLauncher'\nAPI = FLOW_API\np = Path().cwd().parent\nUSER_DIR = p.parent if p.name.lower() == 'plugins' else p\nAPP_DIR = USER_DIR""
             
             if (old_block in code_str):
                 code_str = code_str.replace(old_block, new_block)
@@ -101,7 +101,7 @@ class _FloxLoader(importlib.abc.Loader):
                 code_str = code_str.replace('raise FileNotFoundError(LAUNCHER_NOT_FOUND_MSG)', 'pass')
                 
             old_appdata = 'return os.path.dirname(os.path.dirname(self.plugindir))'
-            new_appdata = 'p1 = os.path.dirname(self.plugindir)\n        return p1 if os.path.exists(os.path.join(p1, \'Settings\')) else os.path.dirname(p1)'
+            new_appdata = 'p1 = os.path.dirname(self.plugindir)\n        p2 = os.path.dirname(p1)\n        return p2 if os.path.basename(p1).lower() == \'plugins\' else (p1 if os.path.exists(os.path.join(p1, \'Settings\')) else p2)'
             code_str = code_str.replace(old_appdata, new_appdata)
 
             old_settings = ""with open(os.path.join(self.appdata, 'Settings', 'Settings.json'), 'r', encoding='utf-8') as f:\n            return json.load(f)""
