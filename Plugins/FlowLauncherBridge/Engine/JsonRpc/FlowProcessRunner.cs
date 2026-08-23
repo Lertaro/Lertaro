@@ -28,6 +28,7 @@ public class FlowProcessRunner
         {
             Method = "query",
             Parameters = [query.Search],
+            Settings = LoadPluginSettings(),
             Id = 1
         };
 
@@ -59,11 +60,30 @@ public class FlowProcessRunner
         {
             Method = action.Method,
             Parameters = action.Parameters,
+            Settings = LoadPluginSettings(),
             Id = 2
         };
 
         var json = JsonSerializer.Serialize(request);
         _ = await RunProcessAsync(json, null, CancellationToken.None).ConfigureAwait(false);
+    }
+
+    private IReadOnlyDictionary<string, object>? LoadPluginSettings()
+    {
+        try
+        {
+            var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
+            var pluginName = !string.IsNullOrEmpty(_metadata.Name) ? _metadata.Name : _metadata.ID;
+            var settingsPath = Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
+            if (File.Exists(settingsPath))
+            {
+                var json = File.ReadAllText(settingsPath);
+                return JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+            }
+        }
+        catch { }
+        return null;
     }
 
     private async Task<string> RunProcessAsync(string inputJson, string? cliQuery, CancellationToken cancellationToken)

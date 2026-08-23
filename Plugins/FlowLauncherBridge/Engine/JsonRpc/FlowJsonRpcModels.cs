@@ -13,6 +13,10 @@ public sealed class JsonRpcRequest
     [JsonPropertyName("parameters")]
     public object[] Parameters { get; set; } = [];
 
+    [JsonPropertyName("settings")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, object>? Settings { get; set; }
+
     [JsonPropertyName("id")]
     public int Id { get; set; } = 1;
 }

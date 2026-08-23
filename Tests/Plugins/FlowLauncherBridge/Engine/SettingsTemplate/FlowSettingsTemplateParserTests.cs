@@ -67,4 +67,21 @@ public sealed class FlowSettingsTemplateParserTests
         Assert.AreEqual("API Key", elem.Label);
         Assert.AreEqual("secret", elem.DefaultValue);
     }
+
+    [TestMethod]
+    public void ParseYaml_DoubleQuotedWithEscapedNewlines_UnescapesCorrectly()
+    {
+        const string yaml = @"body:
+  - type: textarea
+    attributes:
+      name: services
+      defaultValue: ""youdao\ndeepl\ngoogle\nbing""
+";
+
+        var doc = FlowSettingsTemplateParser.ParseContent(yaml, isJson: false);
+
+        Assert.IsNotNull(doc);
+        Assert.HasCount(1, doc.Elements);
+        Assert.AreEqual("youdao\ndeepl\ngoogle\nbing", doc.Elements[0].DefaultValue);
+    }
 }

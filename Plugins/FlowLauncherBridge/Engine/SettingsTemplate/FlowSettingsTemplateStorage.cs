@@ -52,22 +52,28 @@ public static class FlowSettingsTemplateStorage
 
             foreach (var elem in doc.Elements)
             {
-                if (string.IsNullOrEmpty(elem.Name) || string.IsNullOrEmpty(elem.DefaultValue))
+                if (string.IsNullOrEmpty(elem.Name))
                     continue;
 
                 if (!settings.ContainsKey(elem.Name))
                 {
+                    var defVal = elem.DefaultValue ?? string.Empty;
                     var type = elem.Type.ToLowerInvariant();
-                    if (type == "checkbox" && bool.TryParse(elem.DefaultValue, out var b))
+                    if (type == "checkbox" && bool.TryParse(defVal, out var b))
                     {
                         settings[elem.Name] = b;
                         changed = true;
                     }
                     else
                     {
-                        settings[elem.Name] = elem.DefaultValue;
+                        settings[elem.Name] = defVal;
                         changed = true;
                     }
+                }
+                else if (settings[elem.Name] is JsonValue val && val.TryGetValue<string>(out var strVal) && strVal.Contains("\\n"))
+                {
+                    settings[elem.Name] = strVal.Replace("\\n", "\n").Replace("\\r", "\r");
+                    changed = true;
                 }
             }
 

@@ -156,7 +156,15 @@ public static class FlowSettingsTemplateParser
     private static string CleanQuotes(string str)
     {
         if (string.IsNullOrEmpty(str)) return string.Empty;
-        if ((str.StartsWith('"') && str.EndsWith('"')) || (str.StartsWith('\'') && str.EndsWith('\'')))
+        if (str.StartsWith('"') && str.EndsWith('"'))
+        {
+            if (str.Length >= 2)
+            {
+                var unquoted = str[1..^1];
+                return unquoted.Replace("\\n", "\n").Replace("\\r", "\r").Replace("\\t", "\t").Replace("\\\"", "\"");
+            }
+        }
+        if (str.StartsWith('\'') && str.EndsWith('\''))
         {
             if (str.Length >= 2) return str[1..^1];
         }
