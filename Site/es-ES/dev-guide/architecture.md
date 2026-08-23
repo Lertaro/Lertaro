@@ -41,10 +41,11 @@ Lertaro se ejecuta como tres procesos independientes, deliberadamente aislados p
 ## Dónde encajan los plugins
 
 Los plugins son ensamblados `.dll` que referencian `PluginSdk` y son cargados por el proceso de la App (ver
-[Primeros pasos](./getting-started) y [Empaquetado y despliegue](./packaging)). Dos plugins se distribuyen
-con el propio Lertaro como ejemplos de referencia — `Lertaro.Plugins.CoreExtensions` (acciones de archivo integradas
-y la integración con el menú contextual del shell) y `Lertaro.Plugins.PinyinAlias` (alias en pinyin
-para nombres de archivo en chino) — ver [Plugins de ejemplo](./examples) para un recorrido por ambos.
+[Primeros pasos](./getting-started) y [Empaquetado y despliegue](./packaging)). Lertaro incluye
+plugins integrados como ejemplos de referencia — `Lertaro.Plugins.CoreExtensions` (acciones de archivo integradas
+y la integración con el menú contextual del shell), `Lertaro.Plugins.PinyinAlias` (alias en pinyin
+para nombres de archivo en chino) y `Lertaro.Plugins.FlowLauncherBridge` (que conecta plugins de Flow Launcher
+de terceros en formatos C#, Python 3.12, Node.js v20 LTS y ejecutables con entornos aislados) — ver [Plugins de ejemplo](./examples) para un recorrido por los plugins nativos.
 
 Los plugins nunca se comunican directamente con el Servicio; interactúan con la App a través de las interfaces
 documentadas en la Referencia del SDK de Plugins, y con el índice en disco (cuando necesitan directorios indexados

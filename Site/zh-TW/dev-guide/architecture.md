@@ -23,9 +23,7 @@ Lertaro 執行為三個獨立處理程序，按權限層級和生命週期有意
 
 ## 外掛在架構中的位置
 
-外掛是參照 `PluginSdk` 的 `.dll` 組件，由 App 處理程序載入(見[快速上手](./getting-started)和[封裝與發布](./packaging))。Lertaro 自帶兩個外掛作為一等公民範例——
-`Lertaro.Plugins.CoreExtensions`(內建檔案動作與 Shell 右鍵選單整合)和
-`Lertaro.Plugins.PinyinAlias`(中文檔名拼音別名)——參見[外掛範例](./examples)了解這兩個外掛的詳細走讀。
+外掛是參考 `PluginSdk` 的 `.dll` 組件，由 App 處理程序載入(見[快速上手](./getting-started)和[封裝與發佈](./packaging))。Lertaro 自帶內建外掛作為一等公民範例——`Lertaro.Plugins.CoreExtensions`(內建檔案動作與 Shell 快顯功能表整合)、`Lertaro.Plugins.PinyinAlias`(中文檔案名稱拼音別名)以及 `Lertaro.Plugins.FlowLauncherBridge`(橋接 C#、Python 3.12、Node.js v20 LTS 及可執行檔格式的第三方 Flow Launcher 外掛並提供純淨隔離執行環境)——請參閱[外掛範例](./examples)瞭解原生外掛的詳細逐步說明。
 
 外掛從不直接和 Service 通訊;它們透過外掛 SDK 參考裡記錄的介面和 App 互動，如果需要索引自訂目錄，則透過 `DirectoryIndexerService` 代為向 Service 轉發請求。
 

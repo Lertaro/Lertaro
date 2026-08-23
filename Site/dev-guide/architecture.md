@@ -41,10 +41,11 @@ Lertaro runs as three separate processes, deliberately isolated by privilege lev
 ## Where plugins fit
 
 Plugins are `.dll` assemblies referencing `PluginSdk` and are loaded by the App process (see
-[Getting Started](./getting-started) and [Packaging & Deployment](./packaging)). Two plugins ship
-with Lertaro itself as first-class examples — `Lertaro.Plugins.CoreExtensions` (built-in file
-actions and the shell context-menu integration) and `Lertaro.Plugins.PinyinAlias` (pinyin
-aliasing for Chinese filenames) — see [Example Plugins](./examples) for a walkthrough of both.
+[Getting Started](./getting-started) and [Packaging & Deployment](./packaging)). Lertaro ships
+built-in plugins as first-class examples — `Lertaro.Plugins.CoreExtensions` (built-in file
+actions and shell context-menu integration), `Lertaro.Plugins.PinyinAlias` (pinyin
+aliasing for Chinese filenames), and `Lertaro.Plugins.FlowLauncherBridge` (bridging third-party
+Flow Launcher plugins in C#, Python 3.12, Node.js v20 LTS, and Executable formats with isolated runtimes) — see [Example Plugins](./examples) for a walkthrough of native plugins.
 
 Plugins never talk to the Service directly; they interact with the App through the interfaces
 documented in the Plugin SDK Reference, and with the disk index (when they need custom indexed

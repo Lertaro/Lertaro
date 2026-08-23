@@ -31,3 +31,12 @@
 按下**確定**之前，什麼都不會寫入。離開這個索引標籤——切回詳細資料，或者選擇另一個外掛——會把這些欄位回復到已儲存的值，這樣你放棄掉的修改就不會在之後被誤送出。
 
 想看外掛設定實際長什麼樣、能改什麼(比如改一個觸發關鍵字)，可以參考[即時答案與關鍵字功能](../instant-answers)。
+
+## Flow Launcher 外掛生態支援
+
+除了基於 `Lertaro.PluginSdk` 構建的原生 C# 外掛之外，Lertaro 還透過內建的 Flow Launcher Bridge 提供了對龐大 Flow Launcher 社群外掛生態的原生級相容支援。
+
+- **支援的外掛類型**：相容 **C# (.NET)**、**Python 3.12**（支援根據 `requirements.txt` 自動在背景安裝 `pip` 相依套件）、**Node.js v20 LTS**（支援根據 `package.json` 自動在背景安裝 `npm` 相依套件）以及獨立**可執行檔**（`.exe`）編寫的 Flow Launcher 外掛。
+- **安裝方式**：直接將第三方 Flow Launcher 外掛資料夾放入 `<使用者資料目錄>\FlowData\Plugins\`，Lertaro 會自動辨識、載入並註冊其搜尋觸發詞與動作。
+- **純淨隔離執行環境**：Python（`FlowData\PythonEmbeded-{arch}`）與 Node.js（`FlowData\NodeEmbeded-{arch}`）執行階段完全隔離在 Lertaro 的資料目錄中視需要自動下載部署，不依賴也不污染系統的全域環境變數與 PATH。
+- **設定與動作關鍵字**：Flow 外掛的原生設定面板與觸發關鍵字已無縫接入 Lertaro 的設定介面中，享有相同的確定儲存與取消復原保護機制。

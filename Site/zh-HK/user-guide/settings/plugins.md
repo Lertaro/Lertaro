@@ -31,3 +31,12 @@
 按下**確定**之前，什麼都不會寫入。離開這個標籤頁——切回詳情，或者選擇另一個插件——會把這些欄位回滾到已保存的值，這樣你放棄掉的修改就不會在之後被誤提交。
 
 想看插件配置實際長什麼樣、能改什麼(比如改一個觸發關鍵詞)，可以參考[即時答案與關鍵詞功能](../instant-answers)。
+
+## Flow Launcher 插件生態支援
+
+除了基於 `Lertaro.PluginSdk` 構建的原生 C# 插件之外，Lertaro 還透過內建的 Flow Launcher Bridge 提供了對龐大 Flow Launcher 社區插件生態的原生級兼容支援。
+
+- **支援的插件類型**：兼容 **C# (.NET)**、**Python 3.12**（支援根據 `requirements.txt` 自動在後台安裝 `pip` 依賴）、**Node.js v20 LTS**（支援根據 `package.json` 自動在後台安裝 `npm` 依賴）以及獨立**可執行程式**（`.exe`）編寫的 Flow Launcher 插件。
+- **安裝方式**：直接將第三方 Flow Launcher 插件資料夾放入 `<用戶數據目錄>\FlowData\Plugins\`，Lertaro 會自動識別、加載並註冊其搜尋觸發詞與動作。
+- **純淨隔離運行環境**：Python（`FlowData\PythonEmbeded-{arch}`）與 Node.js（`FlowData\NodeEmbeded-{arch}`）運行時完全隔離在 Lertaro 的數據目錄中按需自動下載部署，不依賴亦不污染系統的全局環境變數與 PATH。
+- **配置與動作關鍵詞**：Flow 插件的原生配置面板與觸發關鍵詞已無縫接入 Lertaro 的設定介面中，享有相同的確定保存與取消回滾保護機制。

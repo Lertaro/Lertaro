@@ -26,8 +26,7 @@ Lertaro は、権限レベルとライフタイムに応じて意図的に分離
 
 ## プラグインの位置づけ
 
-プラグインは `PluginSdk` を参照する `.dll` アセンブリであり、App プロセスによって読み込まれます
-([はじめに](./getting-started)と[パッケージングと配布](./packaging)を参照)。Lertaro 自身にも、第一級のサンプルとして2つのプラグインが同梱されています——`Lertaro.Plugins.CoreExtensions`(組み込みのファイル操作とシェルのコンテキストメニュー統合)と `Lertaro.Plugins.PinyinAlias`(中国語ファイル名向けのピンインエイリアス)です。両者の詳しい解説は[サンプルプラグイン](./examples)を参照してください。
+プラグインは `PluginSdk` を参照する `.dll` アセンブリで、App プロセスによって読み込まれます([クイックスタート](./getting-started)および[パッケージ化と配布](./packaging)を参照)。Lertaro には、ファーストクラスの例として組み込みプラグインが付属しています——`Lertaro.Plugins.CoreExtensions`(組み込みファイルアクションとシェル右クリックメニュー統合)、`Lertaro.Plugins.PinyinAlias`(中国語ファイル名のピンインエイリアス)、および `Lertaro.Plugins.FlowLauncherBridge`(C#、Python 3.12、Node.js v20 LTS、および実行可能ファイル形式のサードパーティ Flow Launcher プラグインを分離されたランタイムでブリッジ)——ネイティブプラグインの詳細な解説については、[プラグインの例](./examples)を参照してください。
 
 プラグインが Service と直接やり取りすることはありません。プラグインはプラグイン SDK リファレンスに記載されているインターフェースを通じて App とやり取りし、(カスタムのインデックス対象ディレクトリが必要な場合の)ディスクインデックスとのやり取りは、代わりに Service へプロキシする
 `DirectoryIndexerService` を通じて行います。

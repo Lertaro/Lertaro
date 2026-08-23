@@ -48,3 +48,12 @@ can't be committed later by accident.
 
 For a concrete example of what a plugin's configuration looks like in practice (e.g. changing a
 trigger keyword), see [Instant Answers & Keyword Shortcuts](../instant-answers).
+
+## Flow Launcher Plugin Support
+
+In addition to native C# plugins built with `Lertaro.PluginSdk`, Lertaro includes built-in compatibility with the extensive Flow Launcher plugin ecosystem via the Flow Launcher Bridge.
+
+- **Supported Plugin Types**: Flow Launcher plugins written in **C# (.NET)**, **Python 3.12** (with automated background `pip` dependency resolution from `requirements.txt`), **Node.js v20 LTS** (with automated background `npm` dependency resolution from `package.json`), or standalone **Executables** (`.exe`).
+- **Installation**: Drop third-party Flow Launcher plugin folders into `<User Data Directory>\FlowData\Plugins\`. Lertaro automatically discovers, initializes, and integrates their query triggers and action keywords.
+- **Isolated Runtimes**: Python (`FlowData\PythonEmbeded-{arch}`) and Node.js (`FlowData\NodeEmbeded-{arch}`) runtimes are completely self-contained within Lertaro's user data directory, downloaded on-demand and provisioned without polluting or modifying your system PATH.
+- **Configuration & Action Keywords**: Flow Launcher plugin settings and keyword triggers are edited seamlessly within Lertaro's settings interface, preserving all rollback and validation guarantees.

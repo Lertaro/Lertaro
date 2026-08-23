@@ -38,9 +38,9 @@ Lertaro는 권한 수준과 생명 주기에 따라 의도적으로 격리된 �
 ## 플러그인이 관여하는 지점
 
 플러그인은 `PluginSdk`를 참조하는 `.dll` 어셈블리이며 App 프로세스에 의해 로드됩니다(자세한 내용은
-[시작하기](./getting-started)와 [패키징 및 배포](./packaging) 참고). Lertaro 자체에도 대표 예시로 두
-개의 플러그인이 함께 제공됩니다 — `Lertaro.Plugins.CoreExtensions`(내장 파일 동작과 셸 컨텍스트 메뉴 통합)와
-`Lertaro.Plugins.PinyinAlias`(중국어 파일명을 위한 병음 별칭) — 두 플러그인을 둘러본 내용은
+[시작하기](./getting-started)와 [패키징 및 배포](./packaging) 참고). Lertaro 자체에도 대표 예시로
+내장 플러그인이 함께 제공됩니다 — `Lertaro.Plugins.CoreExtensions`(내장 파일 동작과 셸 컨텍스트 메뉴 통합),
+`Lertaro.Plugins.PinyinAlias`(중국어 파일명을 위한 병음 별칭), 그리고 `Lertaro.Plugins.FlowLauncherBridge`(C#, Python 3.12, Node.js v20 LTS, 실행 파일 형식의 타사 Flow Launcher 플러그인을 격리된 런타임으로 브리지) — 기본 플러그인을 둘러본 내용은
 [예제 플러그인](./examples)을 참고하세요.
 
 플러그인은 Service와 직접 통신하지 않습니다. 대신 Plugin SDK 참조 문서에 정리된 인터페이스를 통해 App과

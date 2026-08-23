@@ -48,3 +48,12 @@ confirmarse más tarde por descuido.
 
 Para ver un ejemplo concreto de cómo es en la práctica la configuración de un plugin (por ejemplo, cambiar una
 palabra clave de activación), ver [Respuestas instantáneas y atajos de palabra clave](../instant-answers).
+
+## Soporte para el ecosistema de plugins de Flow Launcher
+
+Además de los plugins nativos en C# construidos con `Lertaro.PluginSdk`, Lertaro incluye compatibilidad integrada con el extenso ecosistema de plugins de Flow Launcher a través del Flow Launcher Bridge.
+
+- **Tipos de plugins compatibles**: Plugins de Flow Launcher escritos en **C# (.NET)**, **Python 3.12** (con resolución e instalación automática de dependencias `pip` en segundo plano desde `requirements.txt`), **Node.js v20 LTS** (con resolución e instalación automática de dependencias `npm` en segundo plano desde `package.json`) y **ejecutables** independientes (`.exe`).
+- **Instalación**: Coloca las carpetas de plugins de Flow Launcher de terceros en `<Directorio de datos de usuario>\FlowData\Plugins\`. Lertaro descubrirá, inicializará y registrará automáticamente sus palabras clave de activación y acciones de búsqueda.
+- **Entornos de ejecución aislados**: Los entornos de Python (`FlowData\PythonEmbeded-{arch}`) y Node.js (`FlowData\NodeEmbeded-{arch}`) están totalmente aislados dentro del directorio de datos de usuario de Lertaro, descargándose e instalándose bajo demanda sin modificar ni contaminar el PATH del sistema.
+- **Configuración y palabras clave de acción**: Los paneles de configuración y las palabras clave de activación de los plugins de Flow se integran de forma transparente en la interfaz de ajustes de Lertaro, manteniendo las mismas garantías de guardado por confirmación y reversión al cancelar.

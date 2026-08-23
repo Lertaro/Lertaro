@@ -23,9 +23,7 @@ Lertaro 運行為三個獨立處理程序，按權限級別和生命週期有意
 
 ## 插件在架構中的位置
 
-插件是引用 `PluginSdk` 的 `.dll` 程式集，由 App 處理程序加載(見[快速上手](./getting-started)和[打包與發佈](./packaging))。Lertaro 自帶兩個插件作為一等公民示例——
-`Lertaro.Plugins.CoreExtensions`(內置檔案動作與 Shell 右鍵選單集成)和
-`Lertaro.Plugins.PinyinAlias`(中文檔案名拼音別名)——參見[插件示例](./examples)瞭解這兩個插件的詳細走讀。
+插件是引用 `PluginSdk` 的 `.dll` 程式集，由 App 進程加載(見[快速上手](./getting-started)和[打包與發布](./packaging))。Lertaro 自帶內建插件作為一等公民示例——`Lertaro.Plugins.CoreExtensions`(內建檔案動作與 Shell 右鍵選單集成)、`Lertaro.Plugins.PinyinAlias`(中文檔案名拼音別名)以及 `Lertaro.Plugins.FlowLauncherBridge`(橋接 C#、Python 3.12、Node.js v20 LTS 及可執行檔案格式的第三方 Flow Launcher 插件並提供純淨隔離運行環境)——參見[插件示例](./examples)了解原生插件的詳細走讀。
 
 插件從不直接和 Service 通信;它們通過插件 SDK 參考裏記錄的接口和 App 交互，如果需要索引自訂目錄，則通過 `DirectoryIndexerService` 代為向 Service 轉發請求。
 

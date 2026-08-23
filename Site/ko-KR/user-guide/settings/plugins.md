@@ -46,3 +46,12 @@
 
 플러그인 구성이 실제로 어떤 모습인지에 대한 구체적인 예시(예: 트리거 키워드 변경)는
 [즉시 답변 및 키워드 단축 명령](../instant-answers)을 참고하세요.
+
+## Flow Launcher 플러그인 생태계 지원
+
+`Lertaro.PluginSdk` 기반의 기본 C# 플러그인 외에도, Lertaro는 내장된 Flow Launcher Bridge를 통해 방대한 Flow Launcher 커뮤니티 플러그인 생태계와의 호환성을 제공합니다.
+
+- **지원되는 플러그인 유형**: **C# (.NET)**, **Python 3.12**(`requirements.txt`에 따른 백그라운드 `pip` 종속성 자동 설치 지원), **Node.js v20 LTS**(`package.json`에 따른 백그라운드 `npm` 종속성 자동 설치 지원), 독립 실행형 **실행 파일**(`.exe`)로 작성된 Flow Launcher 플러그인을 지원합니다.
+- **설치 방법**: 타사 Flow Launcher 플러그인 폴더를 `<사용자 데이터 디렉터리>\FlowData\Plugins\`에 넣으면 Lertaro가 자동으로 감지, 로드 및 검색 트리거 키워드와 동작을 등록합니다.
+- **격리된 런타임 환경**: Python(`FlowData\PythonEmbeded-{arch}`) 및 Node.js(`FlowData\NodeEmbeded-{arch}`) 런타임은 Lertaro의 사용자 데이터 디렉터리 내에 완전히 독립적으로 온디맨드 자동 다운로드 및 배포되며, 시스템 PATH를 변경하거나 오염시키지 않습니다.
+- **설정 및 동작 키워드**: Flow 플러그인의 기본 설정 패널과 트리거 키워드는 Lertaro의 설정 인터페이스에 원활하게 통합되며, 동일한 확인 저장 및 취소 롤백 보호를 받습니다.
