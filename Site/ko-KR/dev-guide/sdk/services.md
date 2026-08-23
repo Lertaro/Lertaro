@@ -19,6 +19,7 @@
 | `SearchRefreshService` | `RefreshIfMatches(queryMatches)` — 데이터가 비동기로 도착하는 `IInstantResultProvider`용입니다([`IInstantResultProvider`](./core-search-actions#iinstantresultprovider) 참고). 백그라운드 조회가 끝나고 결과를 캐시한 뒤, 검색의 현재 쿼리 텍스트에 대한 서술자와 함께 이를 호출하면, 호스트가 그 서술자에 일치하는 모든 활성 검색을 다시 실행하여 사용자가 다시 입력할 필요 없이 이제 캐시된 결과가 실제로 나타나게 합니다. |
 | `Logger` | `Log(message, level = LogLevel.Info)` — App의 로그 파일에 기록하며, **설정 → 서비스 상태 → App**에서 호스트 자체 로그 라인과 완전히 동일하게 보입니다. |
 | `PluginPromptService` | `Prompt(title, fields, initialValues?)` — 주어진 [`PluginConfigField`](./abstractions#iconfigurable) 값을 묻는 작은 모달을 표시합니다(`IConfigurable`의 구성 대화상자가 사용하는 것과 동일한 필드 스키마/렌더링). `initialValues`(`Key`로 매칭)나 각 필드 자체의 `DefaultValue`로 미리 채워집니다. 입력된 값을 필드 `Key`로 키가 매겨진 형태로 반환하며, 사용자가 취소했다면 `null`을 반환합니다 — 이 값들은 플러그인의 실제 영속화된 설정에서 읽거나 쓰이는 일이 전혀 없으므로, 실제 설정을 건드리지 않으면서 설정 필드의 스키마를 순전히 일회성 입력(예: "추가하기 전에 이름을 지어주세요")에 재사용해도 안전합니다. |
+| `UserDataService` | `GetUserDataDirectory()` — 현재 사용자의 전용 데이터 디렉터리(예: 설치 모드의 `%LOCALAPPDATA%\Lertaro` 또는 포터블 모드의 `Data\Users\<hash>`)를 반환하여 사용자 전용 설정 및 플러그인 데이터를 저장합니다. `GetSharedDataDirectory()` — 시스템 전체 공유 데이터 디렉터리(예: 설치 모드의 `%PROGRAMDATA%\Lertaro` 또는 포터블 모드의 `Data\Machine`)를 반환하여 여러 사용자 간에 공유되는 런타임(Python / Node.js 임베디드 패키지 등) 및 전역 공용 캐시를 저장합니다. |
 
 `LogLevel`은 `Error` / `Warn` / `Info` / `Debug`로,
 [서비스 상태 로그 뷰어](../../user-guide/settings/service-status)의 레벨 필터와 일치합니다.

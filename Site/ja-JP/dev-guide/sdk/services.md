@@ -17,6 +17,7 @@
 | `SearchRefreshService` | `RefreshIfMatches(queryMatches)` — データが非同期に届く `IInstantResultProvider`([`IInstantResultProvider`](./core-search-actions#iinstantresultprovider)を参照)向けです。バックグラウンドの取得処理が完了し結果をキャッシュしたら、現在のクエリ文字列に対する述語を指定してこれを呼び出してください。ホストはその述語に一致するアクティブな検索をすべて再実行するため、ユーザーが何も入力し直さなくても、キャッシュ済みの結果がそのまま表示されるようになります。 |
 | `Logger` | `Log(message, level = LogLevel.Info)` — App のログファイルに書き込み、ホスト自身のログ行とまったく同じように **設定 → サービスの状態 → App** に表示されます。 |
 | `PluginPromptService` | `Prompt(title, fields, initialValues?)` — 指定された [`PluginConfigField`](./abstractions#iconfigurable) の値をユーザーに尋ねる小さなモーダルを表示します(`IConfigurable` の設定ダイアログが使っているのと同じフィールドスキーマ/描画ロジックです)。`Key` で一致する `initialValues` があればそれで、なければ各フィールド自身の `DefaultValue` で事前入力されます。入力された値をフィールドの `Key` をキーとして返し、ユーザーがキャンセルした場合は `null` を返します——これらの値はプラグインの実際の永続化済み設定から読み取られたり、そこに書き込まれたりすることは一切ないため、実際の設定項目に触れることなく、設定フィールドのスキーマを一度限りの入力(例:「追加する前に名前を付ける」)のためだけに安心して再利用できます。 |
+| `UserDataService` | `GetUserDataDirectory()` — 現在のユーザー専用のデータディレクトリ（インストール版の `%LOCALAPPDATA%\Lertaro` やポータブル版の `Data\Users\<hash>` など）を返し、ユーザー固有の設定やプラグインデータを保存します。`GetSharedDataDirectory()` — マシン全体の共有データディレクトリ（インストール版の `%PROGRAMDATA%\Lertaro` やポータブル版の `Data\Machine` など）を返し、複数ユーザー間で共有されるランタイム（Python / Node.js 埋め込み環境など）やグローバルキャッシュを保存します。 |
 
 `LogLevel` は `Error` / `Warn` / `Info` / `Debug` で、[サービスの状態のログビューアー](../../user-guide/settings/service-status)のレベルフィルターと一致します。
 

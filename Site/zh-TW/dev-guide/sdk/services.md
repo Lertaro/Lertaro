@@ -17,6 +17,7 @@
 | `SearchRefreshService` | `RefreshIfMatches(queryMatches)` —— 給資料是非同步到達的 `IInstantResultProvider` 用的(參見 [`IInstantResultProvider`](./core-search-actions#iinstantresultprovider)):等你的背景要求完成、結果也快取好之後，呼叫這個方法並傳入一個基於目前查詢文字的判斷函式，宿主會把所有符合這個判斷的、正在進行的搜尋重新跑一遍，這樣剛快取好的結果就能直接顯示出來，不需要使用者重新輸入。 |
 | `Logger` | `Log(message, level = LogLevel.Info)` —— 寫入 App 的記錄檔，和宿主自己的記錄行一樣，顯示在**設定 → 執行狀態 → App** 裡。 |
 | `PluginPromptService` | `Prompt(title, fields, initialValues?)` —— 彈出一個小的強制回應視窗，向使用者詢問給定[`PluginConfigField`](./abstractions#iconfigurable)欄位的值(用的正是 `IConfigurable` 的設定對話方塊那套欄位 schema/繪製邏輯)，按 `Key` 比對從 `initialValues` 預先填入，沒有就用各欄位自己的 `DefaultValue`。回傳按欄位 `Key` 索引的填寫結果，使用者取消則回傳 `null`——這些值不會讀取或寫入外掛真正持久化的設定，所以可以放心重複使用某個設定欄位的 schema 單純做一次性輸入(比如「新增前先給它取個名字」)，不會碰到背後真實的那個設定項目。 |
+| `UserDataService` | `GetUserDataDirectory()` —— 回傳目前使用者的專屬資料目錄（如安裝版的 `%LOCALAPPDATA%\Lertaro` 或便攜版的 `Data\Users\<hash>`），用於存放使用者私有設定與外掛資料；`GetSharedDataDirectory()` —— 回傳機器級全域共享資料目錄（如安裝版的 `%PROGRAMDATA%\Lertaro` 或便攜版的 `Data\Machine`），用於跨多使用者共享執行階段（如 Python / Node.js 嵌入環境）與全域公共快取。 |
 
 `LogLevel` 是 `Error` / `Warn` / `Info` / `Debug`，與[執行狀態記錄檢視器](../../user-guide/settings/service-status)裡的層級篩選器一致。
 
