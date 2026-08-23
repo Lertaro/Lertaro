@@ -18,7 +18,7 @@ public class PluginMetadata : BaseModel
     public bool Disabled { get; set; }
     public bool HomeDisabled { get; set; }
     public string ExecuteFileName { get; set; } = string.Empty;
-    public string ExecuteFilePath { get; private set; } = string.Empty;
+    public string ExecuteFilePath => string.IsNullOrEmpty(ExecuteFileName) || string.IsNullOrEmpty(PluginDirectory) ? string.Empty : Path.Combine(PluginDirectory, ExecuteFileName);
 
     [JsonIgnore]
     public string? AssemblyName { get; internal set; }
@@ -30,7 +30,6 @@ public class PluginMetadata : BaseModel
         internal set
         {
             _pluginDirectory = value;
-            ExecuteFilePath = string.IsNullOrEmpty(ExecuteFileName) ? string.Empty : Path.Combine(value, ExecuteFileName);
             if (!string.IsNullOrEmpty(IcoPath) && !Path.IsPathRooted(IcoPath))
             {
                 IcoPath = Path.Combine(value, IcoPath);

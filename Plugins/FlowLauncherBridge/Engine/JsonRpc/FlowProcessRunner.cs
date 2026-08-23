@@ -68,10 +68,18 @@ public class FlowProcessRunner
 
     private async Task<string> RunProcessAsync(string inputJson, string? cliQuery, CancellationToken cancellationToken)
     {
+        var workingDir = !string.IsNullOrEmpty(_scriptPath)
+            ? FlowPipManager.GetEffectivePythonPluginDirectory(_metadata.PluginDirectory)
+            : _metadata.PluginDirectory;
+
+        var scriptFile = !string.IsNullOrEmpty(_scriptPath)
+            ? Path.Combine(workingDir, Path.GetFileName(_scriptPath))
+            : _scriptPath;
+
         var psi = new ProcessStartInfo
         {
             FileName = _executable,
-            WorkingDirectory = _metadata.PluginDirectory,
+            WorkingDirectory = workingDir,
             UseShellExecute = false,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
@@ -81,18 +89,18 @@ public class FlowProcessRunner
             StandardErrorEncoding = Encoding.UTF8
         };
 
-        if (!string.IsNullOrEmpty(_scriptPath))
+        if (!string.IsNullOrEmpty(scriptFile))
         {
-            psi.ArgumentList.Add(_scriptPath);
+            psi.ArgumentList.Add(scriptFile);
         }
 
-        if (!string.IsNullOrEmpty(cliQuery))
+        if (!string.IsNullOrEmpty(inputJson))
         {
-            psi.ArgumentList.Add(cliQuery);
+            psi.ArgumentList.Add(inputJson);
         }
 
         psi.Environment["PYTHONIOENCODING"] = "utf-8";
-        psi.Environment["FLOW_LAUNCHER_SETTINGS_PATH"] = _metadata.PluginDirectory;
+        psi.Environment["FLOW_LAUNCHER_SETTINGS_PATH"] = workingDir;
 
         using var process = new Process { StartInfo = psi };
         try
@@ -111,6 +119,7 @@ public class FlowProcessRunner
                 await process.StandardInput.WriteLineAsync(inputJson).ConfigureAwait(false);
                 await process.StandardInput.FlushAsync().ConfigureAwait(false);
             }
+            process.StandardInput.Close();
         }
         catch { }
 
@@ -120,6 +129,7 @@ public class FlowProcessRunner
         try
         {
             var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
             var completedTask = await Task.WhenAny(outputTask, Task.Delay(5000, cts.Token)).ConfigureAwait(false);
             if (completedTask == outputTask)
             {

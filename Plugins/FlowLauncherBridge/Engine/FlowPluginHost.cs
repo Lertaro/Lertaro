@@ -151,6 +151,7 @@ public class FlowPluginHost : IAsyncDisposable
                     _failedPlugins[metadata.ID] = (metadata, "Python runtime not found in PATH, PythonEmbeded, or download failed.");
                     return;
                 }
+                await FlowPipManager.EnsurePipAndRequirementsAsync(pythonPath, pluginDir).ConfigureAwait(false);
                 var runner = new FlowProcessRunner(metadata, pythonPath, metadata.ExecuteFilePath);
                 pluginInstance = new FlowJsonRpcPlugin(runner);
             }
