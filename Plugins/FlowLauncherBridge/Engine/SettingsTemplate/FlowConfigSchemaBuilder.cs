@@ -68,7 +68,7 @@ public static class FlowConfigSchemaBuilder
             {
                 var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
                     ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-                var settingsPath = Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
+                var settingsPath = FlowSettingsTemplateStorage.GetSettingsPath(baseDir, pluginName);
 
                 var doc = FlowSettingsTemplateParser.ParseFile(templatePath);
                 foreach (var elem in doc.Elements)

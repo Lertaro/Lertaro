@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using Flow.Launcher.Plugin;
+using Lertaro.Plugins.FlowLauncherBridge.Engine.SettingsTemplate;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
@@ -75,7 +76,7 @@ public class FlowProcessRunner
             var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
                 ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
             var pluginName = !string.IsNullOrEmpty(_metadata.Name) ? _metadata.Name : _metadata.ID;
-            var settingsPath = Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
+            var settingsPath = FlowSettingsTemplateStorage.GetSettingsPath(baseDir, pluginName);
             if (File.Exists(settingsPath))
             {
                 var json = File.ReadAllText(settingsPath);
