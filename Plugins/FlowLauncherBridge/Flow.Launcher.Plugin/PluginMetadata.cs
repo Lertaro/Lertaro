@@ -39,10 +39,16 @@ public class PluginMetadata : BaseModel
 
     public string ActionKeyword { get; set; } = string.Empty;
     public List<string> ActionKeywords { get; set; } = [];
+    public bool HideActionKeywordPanel { get; set; }
+    public int? SearchDelayTime { get; set; }
     public string IcoPath { get; set; } = string.Empty;
+    [JsonIgnore]
+    public int Priority { get; set; }
     public long InitTime { get; set; }
     public long AvgQueryTime { get; set; }
     public int QueryCount { get; set; }
+    public string PluginSettingsDirectoryPath { get; internal set; } = string.Empty;
+    public string PluginCacheDirectoryPath { get; internal set; } = string.Empty;
 
     public override string ToString() => Name;
 }
@@ -53,9 +59,13 @@ public class PluginPair
     public PluginMetadata Metadata { get; set; } = null!;
 
     public override string ToString() => Metadata?.Name ?? base.ToString() ?? string.Empty;
+
+    public override bool Equals(object? obj) => obj is PluginPair other && string.Equals(Metadata?.ID, other.Metadata?.ID, StringComparison.OrdinalIgnoreCase);
+
+    public override int GetHashCode() => Metadata?.ID?.GetHashCode() ?? 0;
 }
 
-public class UserPlugin
+public record UserPlugin
 {
     public string ID { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
@@ -66,5 +76,10 @@ public class UserPlugin
     public string Website { get; set; } = string.Empty;
     public string UrlDownload { get; set; } = string.Empty;
     public string UrlSourceCode { get; set; } = string.Empty;
+    public string LocalInstallPath { get; set; } = string.Empty;
     public string IcoPath { get; set; } = string.Empty;
+    public DateTime? LatestReleaseDate { get; set; }
+    public DateTime? DateAdded { get; set; }
+    public bool IsFromLocalInstallPath => !string.IsNullOrEmpty(LocalInstallPath);
+    public string MinimumAppVersion { get; set; } = string.Empty;
 }

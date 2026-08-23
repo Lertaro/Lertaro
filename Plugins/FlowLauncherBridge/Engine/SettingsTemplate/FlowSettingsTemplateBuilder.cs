@@ -161,8 +161,8 @@ public static class FlowSettingsTemplateBuilder
         var tb = new TextBox
         {
             Text = currentVal,
-            FontSize = 13,
-            Height = 30,
+            FontSize = 12,
+            MinHeight = 28,
             VerticalContentAlignment = VerticalAlignment.Center
         };
 
@@ -209,8 +209,6 @@ public static class FlowSettingsTemplateBuilder
 
         var cb = new ComboBox
         {
-            Height = 30,
-            FontSize = 13,
             ItemsSource = elem.Options
         };
 

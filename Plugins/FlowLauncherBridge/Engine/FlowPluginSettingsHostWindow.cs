@@ -122,6 +122,7 @@ public sealed class FlowPluginSettingsHostWindow : Window
             Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/Lertaro.App;component/Resources/Styles/Controls/Menu.xaml", UriKind.Absolute) });
             Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/Lertaro.App;component/Resources/Styles/Windows/SearchWindow.xaml", UriKind.Absolute) });
             Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/Lertaro.App;component/Resources/Styles/Windows/SettingsWindow.xaml", UriKind.Absolute) });
+            Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/Lertaro.App;component/Resources/Styles/Windows/SettingsComboBox.xaml", UriKind.Absolute) });
         }
         catch { }
 
@@ -212,6 +213,16 @@ public sealed class FlowPluginSettingsHostWindow : Window
         tbkStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new DynamicResourceExtension("TextPrimary")));
         tbkStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 12.0));
         Resources[typeof(TextBlock)] = tbkStyle;
+
+        // 6. Implicit ComboBox & ComboBoxItem Styles
+        if (TryFindResource("SettingsComboBox") is Style cbStyle)
+        {
+            Resources[typeof(ComboBox)] = new Style(typeof(ComboBox), cbStyle);
+        }
+        if (TryFindResource("SettingsComboBoxItem") is Style cbiStyle)
+        {
+            Resources[typeof(ComboBoxItem)] = new Style(typeof(ComboBoxItem), cbiStyle);
+        }
     }
 
     private UIElement BuildWindowLayout(PluginPair pair, Control settingPanel, string settingsSuffix)

@@ -68,12 +68,12 @@ public static class FlowPythonDownloader
         try
         {
             var siteCustomizePath = Path.Combine(targetDir, "sitecustomize.py");
-            const string code = @"import sys, os, importlib.abc, importlib.machinery
+            const string code = @"import sys, os, importlib.abc, importlib.machinery, re, json
 from pathlib import Path
 
 class _FloxMetaFinder(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname == 'flox':
+        if fullname in ('flox', 'flox.__init__'):
             spec = importlib.machinery.PathFinder.find_spec(fullname, path)
             if spec and spec.loader:
                 spec.loader = _FloxLoader(spec.loader)
@@ -91,25 +91,23 @@ class _FloxLoader(importlib.abc.Loader):
         try:
             code_bytes = self.orig_loader.get_data(module.__file__)
             code_str = code_bytes.decode('utf-8').replace('\r\n', '\n')
-            
-            old_block = ""if SCOOP_FLOW_LAUNCHER_DIR_NAME.lower() in str(path).lower():\n    launcher_name = SCOOP_FLOW_LAUNCHER_DIR_NAME\n    API = FLOW_API\nelif FLOW_LAUNCHER_DIR_NAME.lower() in str(path).lower():\n    launcher_name = FLOW_LAUNCHER_DIR_NAME\n    API = FLOW_API\nelif WOX_DIR_NAME.lower() in str(path).lower():\n    launcher_name = WOX_DIR_NAME\n    API = WOX_API\nelse:\n    raise FileNotFoundError(LAUNCHER_NOT_FOUND_MSG)\n\nwhile True:\n    if len(path.parts) == 1:\n        raise FileNotFoundError(LAUNCHER_NOT_FOUND_MSG)\n    if path.joinpath('Settings').exists():\n        USER_DIR = path\n        if USER_DIR.name == 'UserData':\n            APP_DIR = USER_DIR.parent\n        elif str(CURRENT_WORKING_DIR).startswith(str(APPDATA)):\n            APP_DIR = LOCALAPPDATA.joinpath(launcher_name)\n        else:\n            raise FileNotFoundError(LAUNCHER_NOT_FOUND_MSG)\n        break\n\n    path = path.parent""
-            new_block = ""launcher_name = 'FlowLauncher'\nAPI = FLOW_API\np = Path().cwd().parent\nUSER_DIR = p.parent if p.name.lower() == 'plugins' else p\nAPP_DIR = USER_DIR""
-            
-            if (old_block in code_str):
-                code_str = code_str.replace(old_block, new_block)
-            else:
-                code_str = code_str.replace('raise FileNotFoundError(LAUNCHER_NOT_FOUND_MSG)', 'pass')
-                
-            old_appdata = 'return os.path.dirname(os.path.dirname(self.plugindir))'
-            new_appdata = 'p1 = os.path.dirname(self.plugindir)\n        p2 = os.path.dirname(p1)\n        return p2 if os.path.basename(p1).lower() == \'plugins\' else (p1 if os.path.exists(os.path.join(p1, \'Settings\')) else p2)'
-            code_str = code_str.replace(old_appdata, new_appdata)
 
-            old_settings = ""with open(os.path.join(self.appdata, 'Settings', 'Settings.json'), 'r', encoding='utf-8') as f:\n            return json.load(f)""
-            new_settings = ""try:\n            with open(os.path.join(self.appdata, 'Settings', 'Settings.json'), 'r', encoding='utf-8') as f:\n                return json.load(f)\n        except Exception:\n            return {'PluginSettings': {'Plugins': {}}, 'QuerySearchPrecision': 'Regular'}""
-            code_str = code_str.replace(old_settings, new_settings)
+            code_str = re.sub(
+                r'launcher_dir\s*=\s*None\s+path\s*=\s*CURRENT_WORKING_DIR[\s\S]*?path\s*=\s*path\.parent',
+                ""launcher_name = 'FlowLauncher'\nAPI = FLOW_API\n_curr = Path().cwd()\n_p = _curr.parent\nUSER_DIR = _p.parent if _p.name.lower() == 'plugins' else _p\nAPP_DIR = USER_DIR"",
+                code_str
+            )
+            code_str = re.sub(r'raise FileNotFoundError\(.*Launcher directory.*\)', 'pass', code_str)
+            code_str = code_str.replace(
+                'return os.path.dirname(os.path.dirname(self.plugindir))',
+                'p1 = os.path.dirname(self.plugindir)\n        p2 = os.path.dirname(p1)\n        return p2 if os.path.basename(p1).lower() == ""plugins"" else p1'
+            )
+            code_str = re.sub(
+                r'def app_settings\(self\):[\s\S]*?return json\.load\(f\)',
+                ""def app_settings(self):\n        try:\n            with open(os.path.join(self.appdata, 'Settings', 'Settings.json'), 'r', encoding='utf-8') as f:\n                return json.load(f)\n        except Exception:\n            return {'PluginSettings': {'Plugins': {}, 'PythonDirectory': sys.prefix}, 'QuerySearchPrecision': 'Regular'}"",
+                code_str
+            )
             code_str = code_str.replace('os.mkdir(os.path.dirname(self.settings_path))', 'os.makedirs(os.path.dirname(self.settings_path), exist_ok=True)')
-            code_str = code_str.replace(""os.path.join(self.appdata, 'Settings', 'Plugins',"", ""os.path.join(self.appdata, 'Settings',"")
-            code_str = code_str.replace(""os.path.join(self.appdata, 'Settings', 'Plugins')"", ""os.path.join(self.appdata, 'Settings')"")
 
             compiled = compile(code_str, module.__file__, 'exec')
             exec(compiled, module.__dict__)
@@ -177,7 +175,7 @@ except Exception:
         if (!Directory.Exists(dir))
             return null;
 
-        var candidates = new[] { "pythonw.exe", "python.exe" };
+        var candidates = new[] { "python.exe", "pythonw.exe" };
         foreach (var name in candidates)
         {
             var full = Path.Combine(dir, name);

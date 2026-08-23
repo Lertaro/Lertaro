@@ -41,4 +41,6 @@ public static class AllowedLanguage
         return language.Equals(Executable, StringComparison.OrdinalIgnoreCase)
             || language.Equals(ExecutableV2, StringComparison.OrdinalIgnoreCase);
     }
+
+    public static bool IsAllowed(string language) => IsDotNet(language) || IsPython(language) || IsNodeJs(language) || IsExecutable(language);
 }

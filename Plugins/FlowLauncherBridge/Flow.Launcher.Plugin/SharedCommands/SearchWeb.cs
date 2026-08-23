@@ -2,31 +2,33 @@ using System.Diagnostics;
 
 namespace Flow.Launcher.Plugin.SharedCommands;
 
-/// <summary>
-/// Web search helpers for opening search URLs.
-/// </summary>
 public static class SearchWeb
 {
-    public static void OpenUrlInBrowser(string url, string? browserPath = null, bool inPrivate = false)
+    public static void OpenInBrowserWindow(this string url, string browserPath = "", bool inPrivate = false, string privateArg = "")
     {
-        if (string.IsNullOrWhiteSpace(url))
-            return;
+        OpenInBrowser(url, browserPath, inPrivate, privateArg);
+    }
 
+    public static void OpenInBrowserTab(this string url, string browserPath = "", bool inPrivate = false, string privateArg = "")
+    {
+        OpenInBrowser(url, browserPath, inPrivate, privateArg);
+    }
+
+    public static void OpenInBrowser(this string url, string browserPath = "", bool inPrivate = false, string privateArg = "")
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
         try
         {
-            if (string.IsNullOrEmpty(browserPath))
+            if (string.IsNullOrWhiteSpace(browserPath))
             {
                 Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
             }
             else
             {
-                var args = inPrivate ? $"--incognito \"{url}\"" : $"\"{url}\"";
-                Process.Start(new ProcessStartInfo(browserPath, args) { UseShellExecute = false });
+                var args = string.IsNullOrWhiteSpace(privateArg) ? url : $"{privateArg} {url}";
+                Process.Start(new ProcessStartInfo(browserPath, args) { UseShellExecute = true });
             }
         }
-        catch
-        {
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-        }
+        catch { }
     }
 }

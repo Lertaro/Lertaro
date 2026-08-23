@@ -40,6 +40,12 @@ public class Query
     public string ThirdToEndSearch => SearchTerms.Length > 2 ? string.Join(' ', SearchTerms[2..]) : string.Empty;
 
     [JsonIgnore]
+    public string SecondSearch => SplitSearch(1);
+
+    [JsonIgnore]
+    public string ThirdSearch => SplitSearch(2);
+
+    [JsonIgnore]
     public string FourthToEndSearch => SearchTerms.Length > 3 ? string.Join(' ', SearchTerms[3..]) : string.Empty;
 
     public string SplitSearch(int index)

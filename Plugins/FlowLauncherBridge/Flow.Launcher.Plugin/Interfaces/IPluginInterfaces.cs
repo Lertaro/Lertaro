@@ -54,6 +54,7 @@ public interface IPluginI18n : IFeatures
 {
     string GetTranslatedPluginTitle();
     string GetTranslatedPluginDescription();
+    void OnCultureInfoChanged(System.Globalization.CultureInfo newCulture) { }
 }
 
 public interface IResultUpdated : IFeatures

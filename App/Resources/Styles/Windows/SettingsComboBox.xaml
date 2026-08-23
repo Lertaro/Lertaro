@@ -72,7 +72,9 @@
                                             <ContentPresenter Margin="{Binding Padding, RelativeSource={RelativeSource AncestorType=ComboBox}}"
                                                               VerticalAlignment="Center"
                                                               HorizontalAlignment="Left"
-                                                              Content="{Binding SelectedItem.Label, RelativeSource={RelativeSource AncestorType=ComboBox}}"/>
+                                                              Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                              ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                              ContentStringFormat="{Binding SelectionBoxItemStringFormat, RelativeSource={RelativeSource AncestorType=ComboBox}}"/>
                                             <TextBlock Grid.Column="1"
                                                        Text="&#xE70D;"
                                                        FontFamily="Segoe MDL2 Assets"

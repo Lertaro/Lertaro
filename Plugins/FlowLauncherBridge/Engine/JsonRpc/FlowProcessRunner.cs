@@ -41,18 +41,18 @@ public class FlowProcessRunner
 
     public async Task ExecuteActionAsync(JsonRpcActionModel action, IPublicAPI api)
     {
-        if (string.Equals(action.Method, "flow_open_url", StringComparison.OrdinalIgnoreCase) && action.Parameters.Length > 0)
+        if ((string.Equals(action.Method, "flow_open_url", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(action.Method, "browser_open", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(action.Method, "open_url", StringComparison.OrdinalIgnoreCase)) && action.Parameters.Length > 0)
         {
             var url = action.Parameters[0]?.ToString();
-            if (!string.IsNullOrEmpty(url)) api.OpenUrl(url);
-            return;
+            if (!string.IsNullOrEmpty(url)) { api.OpenUrl(url); return; }
         }
 
         if (string.Equals(action.Method, "flow_run_command", StringComparison.OrdinalIgnoreCase) && action.Parameters.Length > 0)
         {
             var cmd = action.Parameters[0]?.ToString();
-            if (!string.IsNullOrEmpty(cmd)) api.ShellRun(cmd);
-            return;
+            if (!string.IsNullOrEmpty(cmd)) { api.ShellRun(cmd); return; }
         }
 
         var request = new JsonRpcRequest
@@ -93,6 +93,10 @@ public class FlowProcessRunner
         }
 
         psi.Environment["PYTHONIOENCODING"] = "utf-8";
+        psi.Environment["PYTHONDONTWRITEBYTECODE"] = "1";
+        psi.Environment["FLOW_VERSION"] = "1.19.0";
+        psi.Environment["FLOW_PROGRAM_DIRECTORY"] = _metadata.PluginDirectory;
+        psi.Environment["FLOW_APPLICATION_DIRECTORY"] = _metadata.PluginDirectory;
         psi.Environment["FLOW_LAUNCHER_SETTINGS_PATH"] = _metadata.PluginDirectory;
 
         using var process = new Process { StartInfo = psi };
@@ -117,13 +121,13 @@ public class FlowProcessRunner
         catch { }
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(5));
+        cts.CancelAfter(TimeSpan.FromSeconds(15));
 
         try
         {
             var outputTask = process.StandardOutput.ReadToEndAsync();
             var errorTask = process.StandardError.ReadToEndAsync();
-            var completedTask = await Task.WhenAny(outputTask, Task.Delay(5000, cts.Token)).ConfigureAwait(false);
+            var completedTask = await Task.WhenAny(outputTask, Task.Delay(15000, cts.Token)).ConfigureAwait(false);
             if (completedTask == outputTask)
             {
                 return await outputTask.ConfigureAwait(false);

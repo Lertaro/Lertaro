@@ -1,5 +1,3 @@
-using System.Windows.Controls;
-
 namespace Flow.Launcher.Plugin;
 
 public interface IAsyncDialogJump : IFeatures
@@ -29,6 +27,9 @@ public interface IDialogJumpDialogWindowTab : IDisposable
     IntPtr Handle { get; }
     string GetCurrentFolder();
     string GetCurrentFile();
+    bool JumpFolder(string path, bool auto);
+    bool JumpFile(string path);
+    bool Open();
 }
 
 public interface IDialogJumpExplorer : IFeatures, IDisposable
@@ -39,7 +40,7 @@ public interface IDialogJumpExplorer : IFeatures, IDisposable
 public interface IDialogJumpExplorerWindow : IDisposable
 {
     IntPtr Handle { get; }
-    IDialogJumpExplorerWindowTab GetCurrentTab();
+    string? GetExplorerPath();
 }
 
 public interface IDialogJumpExplorerWindowTab : IDisposable
@@ -50,5 +51,8 @@ public interface IDialogJumpExplorerWindowTab : IDisposable
 
 public interface IAsyncExternalPreview : IFeatures
 {
-    Task<Control?> GetExternalPreviewAsync(Result result, CancellationToken token);
+    Task OpenPreviewAsync(string path, bool sendFailToast = true);
+    Task ClosePreviewAsync();
+    Task SwitchPreviewAsync(string path, bool sendFailToast = true);
+    bool AllowAlwaysPreview();
 }

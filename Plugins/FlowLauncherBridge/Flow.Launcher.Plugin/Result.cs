@@ -179,7 +179,7 @@ public class Result
         public string? Description { get; set; }
 
         [JsonIgnore]
-        public IconDelegate? PreviewDelegate;
+        public IconDelegate? PreviewDelegate { get; set; }
 
         public string? FilePath { get; set; }
 
