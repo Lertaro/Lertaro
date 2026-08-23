@@ -3,7 +3,6 @@ using System.IO;
 using System.Reflection;
 using System.Text.Json;
 using Flow.Launcher.Plugin;
-using Lertaro.Plugins.FlowLauncherBridge.Engine.SettingsTemplate;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
@@ -85,13 +84,6 @@ public class FlowPluginHost : IAsyncDisposable
         {
             _keywordManager.UpdateActionKeyword(pair, newActionKeyword);
             FlowPluginKeywordStore.SaveCustomKeyword(pair.Metadata.ID, pair.Metadata.Name, newActionKeyword);
-
-            var pName = !string.IsNullOrEmpty(pair.Metadata.Name) ? pair.Metadata.Name : pair.Metadata.ID;
-            var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
-                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-            var sPath = Path.Combine(baseDir, "FlowData", "Settings", pName, "Settings.json");
-            FlowSettingsTemplateStorage.SaveSettingValue(sPath, "ActionKeyword", newActionKeyword);
-            FlowSettingsTemplateStorage.SaveSettingValue(sPath, "triggerKeyword", newActionKeyword);
         }
     }
 
@@ -141,14 +133,7 @@ public class FlowPluginHost : IAsyncDisposable
             return false;
 
         metadata.PluginDirectory = pluginDir;
-        var pName = !string.IsNullOrEmpty(metadata.Name) ? metadata.Name : metadata.ID;
-        var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-        var sPath = Path.Combine(baseDir, "FlowData", "Settings", pName, "Settings.json");
-
-        var customKeyword = FlowPluginKeywordStore.GetCustomKeyword(metadata.ID, metadata.Name)
-                         ?? FlowSettingsTemplateStorage.GetSettingValue(sPath, "ActionKeyword")?.ToString()
-                         ?? FlowSettingsTemplateStorage.GetSettingValue(sPath, "triggerKeyword")?.ToString();
+        var customKeyword = FlowPluginKeywordStore.GetCustomKeyword(metadata.ID, metadata.Name);
 
         if (!string.IsNullOrWhiteSpace(customKeyword))
         {

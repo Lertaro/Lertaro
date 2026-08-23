@@ -225,19 +225,7 @@ public static class FlowConfigSchemaBuilder
             var elemName = elem.Name;
             field.GetValue = () => FlowSettingsTemplateStorage.GetSettingValue(settingsPath, elemName)
                                 ?? field.DefaultValue;
-            field.SetValue = val =>
-            {
-                FlowSettingsTemplateStorage.SaveSettingValue(settingsPath, elemName, val);
-                if (string.Equals(elemName, "triggerKeyword", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(elemName, "ActionKeyword", StringComparison.OrdinalIgnoreCase))
-                {
-                    var newKw = val?.ToString()?.Trim();
-                    if (!string.IsNullOrEmpty(newKw))
-                    {
-                        host.UpdatePluginActionKeyword(groupName, newKw);
-                    }
-                }
-            };
+            field.SetValue = val => FlowSettingsTemplateStorage.SaveSettingValue(settingsPath, elemName, val);
         }
 
         return field;
