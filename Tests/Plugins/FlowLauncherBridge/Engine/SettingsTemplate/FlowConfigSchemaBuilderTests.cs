@@ -71,7 +71,12 @@ public sealed class FlowConfigSchemaBuilderTests
             Assert.AreEqual(ConfigFieldType.Group, groupField.FieldType);
             Assert.AreEqual("TestYamlPlugin", groupField.LabelKey);
             Assert.IsNotNull(groupField.SubFields);
-            Assert.HasCount(5, groupField.SubFields);
+            Assert.HasCount(6, groupField.SubFields);
+
+            var enabledField = groupField.SubFields.FirstOrDefault(f => f.Key == "TestYamlPlugin.Enabled");
+            Assert.IsNotNull(enabledField);
+            Assert.AreEqual(ConfigFieldType.Boolean, enabledField.FieldType);
+            Assert.IsTrue((bool)enabledField.DefaultValue);
 
             var kwField = groupField.SubFields.FirstOrDefault(f => f.Key == "TestYamlPlugin.ActionKeyword");
             Assert.IsNotNull(kwField);
@@ -133,9 +138,13 @@ public sealed class FlowConfigSchemaBuilderTests
             var groupField = schema.Fields.FirstOrDefault(f => f.Key == "WeatherGroup");
             Assert.IsNotNull(groupField);
             Assert.IsNotNull(groupField.SubFields);
-            Assert.HasCount(1, groupField.SubFields);
+            Assert.HasCount(2, groupField.SubFields);
 
-            var kwField = groupField.SubFields[0];
+            var enabledField = groupField.SubFields[0];
+            Assert.AreEqual("Weather.Enabled", enabledField.Key);
+            Assert.AreEqual(ConfigFieldType.Boolean, enabledField.FieldType);
+
+            var kwField = groupField.SubFields[1];
             Assert.AreEqual("Weather.ActionKeyword", kwField.Key);
             Assert.AreEqual(ConfigFieldType.Text, kwField.FieldType);
             Assert.AreEqual("w", kwField.DefaultValue);

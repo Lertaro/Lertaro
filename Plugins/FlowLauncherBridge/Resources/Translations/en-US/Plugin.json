@@ -22,6 +22,8 @@
   "FlowLauncherBridge_Uninstall": "Uninstall",
   "FlowLauncherBridge_NoInstalledPluginsTitle": "No installed Flow plugins",
   "FlowLauncherBridge_NoInstalledPluginsDesc": "There are currently no Flow plugins installed.",
+  "FlowLauncherBridge_PluginEnabledLabel": "Enable Plugin",
+  "FlowLauncherBridge_PluginEnabledDesc": "Enable or disable instant search and features for this plugin.",
   "FlowLauncherBridge_PluginActionKeywordLabel": "Action Keyword",
   "FlowLauncherBridge_PluginActionKeywordDesc": "Custom trigger keyword for this plugin (e.g. default \"{0}\").",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "Dispatches keyword queries to loaded Flow.Launcher plugins and manages instant results and settings.",

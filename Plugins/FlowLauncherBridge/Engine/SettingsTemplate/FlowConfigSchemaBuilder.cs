@@ -32,15 +32,32 @@ public static class FlowConfigSchemaBuilder
         foreach (var pair in host.GetAllPlugins())
         {
             var pluginName = !string.IsNullOrEmpty(pair.Metadata.Name) ? pair.Metadata.Name : (pair.Metadata.ID ?? string.Empty);
+            var capturedName = pluginName;
             var yamlPath = Path.Combine(pair.Metadata.PluginDirectory, "SettingsTemplate.yaml");
             var jsonPath = Path.Combine(pair.Metadata.PluginDirectory, "SettingsTemplate.json");
             var templatePath = File.Exists(yamlPath) ? yamlPath : (File.Exists(jsonPath) ? jsonPath : null);
 
-            var pluginFields = new List<PluginConfigField>();
+            var pluginFields = new List<PluginConfigField>
+            {
+                new PluginConfigField
+                {
+                    Key = $"{pluginName}.Enabled",
+                    GroupKey = pluginName,
+                    LabelKey = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginEnabledLabel"),
+                    DescriptionKey = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginEnabledDesc"),
+                    FieldType = ConfigFieldType.Boolean,
+                    DefaultValue = !pair.Metadata.Disabled,
+                    GetValue = () => host.IsPluginEnabled(capturedName),
+                    SetValue = val =>
+                    {
+                        if (val is bool b) host.SetPluginEnabled(capturedName, b);
+                        else if (bool.TryParse(val?.ToString(), out var parsed)) host.SetPluginEnabled(capturedName, parsed);
+                    }
+                }
+            };
 
             if (!pair.Metadata.HideActionKeywordPanel && pair.Metadata.ActionKeyword != "*")
             {
-                var capturedName = pluginName;
                 pluginFields.Add(new PluginConfigField
                 {
                     Key = $"{pluginName}.ActionKeyword",

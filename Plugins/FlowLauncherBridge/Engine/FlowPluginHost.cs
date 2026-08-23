@@ -63,6 +63,34 @@ public class FlowPluginHost : IAsyncDisposable
         }
     }
 
+    public bool IsPluginEnabled(string pluginNameOrId)
+    {
+        var pair = _loadedPlugins.Values.FirstOrDefault(p =>
+            string.Equals(p.Metadata.ID, pluginNameOrId, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(p.Metadata.Name, pluginNameOrId, StringComparison.OrdinalIgnoreCase));
+        if (pair != null)
+            return !pair.Metadata.Disabled;
+
+        return !FlowPluginStateStore.IsPluginDisabled(pluginNameOrId, pluginNameOrId);
+    }
+
+    public void SetPluginEnabled(string pluginNameOrId, bool enabled)
+    {
+        var pair = _loadedPlugins.Values.FirstOrDefault(p =>
+            string.Equals(p.Metadata.ID, pluginNameOrId, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(p.Metadata.Name, pluginNameOrId, StringComparison.OrdinalIgnoreCase));
+        if (pair != null)
+        {
+            pair.Metadata.Disabled = !enabled;
+            FlowPluginStateStore.SetPluginDisabled(pair.Metadata.ID, pair.Metadata.Name, !enabled);
+
+            if (enabled)
+                _keywordManager.RegisterPluginKeywords(pair);
+            else
+                _keywordManager.UnregisterPluginKeywords(pair);
+        }
+    }
+
     public string GetPluginActionKeyword(string pluginNameOrId)
     {
         var pair = _loadedPlugins.Values.FirstOrDefault(p =>
@@ -71,7 +99,7 @@ public class FlowPluginHost : IAsyncDisposable
         if (pair != null && !string.IsNullOrEmpty(pair.Metadata.ActionKeyword))
             return pair.Metadata.ActionKeyword;
 
-        return FlowPluginKeywordStore.GetCustomKeyword(pluginNameOrId, pluginNameOrId) ?? pair?.Metadata.ActionKeyword ?? string.Empty;
+        return FlowPluginStateStore.GetCustomKeyword(pluginNameOrId, pluginNameOrId) ?? pair?.Metadata.ActionKeyword ?? string.Empty;
     }
 
     public void UpdatePluginActionKeyword(string pluginNameOrId, string newActionKeyword)
@@ -83,7 +111,7 @@ public class FlowPluginHost : IAsyncDisposable
         if (pair != null)
         {
             _keywordManager.UpdateActionKeyword(pair, newActionKeyword);
-            FlowPluginKeywordStore.SaveCustomKeyword(pair.Metadata.ID, pair.Metadata.Name, newActionKeyword);
+            FlowPluginStateStore.SaveCustomKeyword(pair.Metadata.ID, pair.Metadata.Name, newActionKeyword);
         }
     }
 
@@ -129,11 +157,13 @@ public class FlowPluginHost : IAsyncDisposable
     {
         var json = await File.ReadAllTextAsync(manifestPath);
         var metadata = JsonSerializer.Deserialize<PluginMetadata>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        if (metadata == null || metadata.Disabled || string.IsNullOrEmpty(metadata.ID))
+        if (metadata == null || string.IsNullOrEmpty(metadata.ID))
             return false;
 
         metadata.PluginDirectory = pluginDir;
-        var customKeyword = FlowPluginKeywordStore.GetCustomKeyword(metadata.ID, metadata.Name);
+        var customKeyword = FlowPluginStateStore.GetCustomKeyword(metadata.ID, metadata.Name);
+        var isDisabled = metadata.Disabled || FlowPluginStateStore.IsPluginDisabled(metadata.ID, metadata.Name);
+        metadata.Disabled = isDisabled;
 
         if (!string.IsNullOrWhiteSpace(customKeyword))
         {
@@ -155,7 +185,10 @@ public class FlowPluginHost : IAsyncDisposable
             {
                 var pair = new PluginPair { Metadata = metadata, Plugin = pluginInstance };
                 _loadedPlugins[metadata.ID] = pair;
-                _keywordManager.RegisterPluginKeywords(pair);
+                if (!isDisabled)
+                {
+                    _keywordManager.RegisterPluginKeywords(pair);
+                }
 
                 var api = new FlowPublicApi(metadata, _storage, GetAllPlugins, _changeQueryAction, AddActionKeyword, RemoveActionKeyword, ActionKeywordAssigned);
                 var initContext = new PluginInitContext(metadata, api);
