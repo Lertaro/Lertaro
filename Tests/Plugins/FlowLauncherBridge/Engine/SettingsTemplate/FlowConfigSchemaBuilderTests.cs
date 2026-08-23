@@ -71,7 +71,11 @@ public sealed class FlowConfigSchemaBuilderTests
             Assert.AreEqual(ConfigFieldType.Group, groupField.FieldType);
             Assert.AreEqual("TestYamlPlugin", groupField.LabelKey);
             Assert.IsNotNull(groupField.SubFields);
-            Assert.HasCount(4, groupField.SubFields);
+            Assert.HasCount(5, groupField.SubFields);
+
+            var kwField = groupField.SubFields.FirstOrDefault(f => f.Key == "TestYamlPlugin.ActionKeyword");
+            Assert.IsNotNull(kwField);
+            Assert.AreEqual(ConfigFieldType.Text, kwField.FieldType);
 
             var descField = groupField.SubFields.FirstOrDefault(f => f.Key == "TestYamlPlugin.description");
             Assert.IsNotNull(descField);
@@ -93,6 +97,48 @@ public sealed class FlowConfigSchemaBuilderTests
             Assert.AreEqual(ConfigFieldType.Choice, selectField.FieldType);
             Assert.IsNotNull(selectField.Choices);
             Assert.HasCount(3, selectField.Choices);
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, true); } catch { }
+        }
+    }
+
+    [TestMethod]
+    public void BuildSchema_PluginWithoutSettingsTemplate_GetsActionKeywordField()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"flow_test_kw_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var metadata = new PluginMetadata
+            {
+                ID = "WEATHER_PLUGIN",
+                Name = "Weather",
+                ActionKeyword = "w",
+                ActionKeywords = ["w"],
+                PluginDirectory = tempDir
+            };
+
+            var storage = new FlowSettingsStorage(tempDir);
+            var host = new FlowPluginHost(storage, [tempDir]);
+
+            var pair = new PluginPair { Metadata = metadata };
+            host.RegisterPlugin(pair);
+
+            var schema = FlowConfigSchemaBuilder.BuildSchema(host);
+
+            Assert.IsNotNull(schema);
+            var groupField = schema.Fields.FirstOrDefault(f => f.Key == "WeatherGroup");
+            Assert.IsNotNull(groupField);
+            Assert.IsNotNull(groupField.SubFields);
+            Assert.HasCount(1, groupField.SubFields);
+
+            var kwField = groupField.SubFields[0];
+            Assert.AreEqual("Weather.ActionKeyword", kwField.Key);
+            Assert.AreEqual(ConfigFieldType.Text, kwField.FieldType);
+            Assert.AreEqual("w", kwField.DefaultValue);
         }
         finally
         {

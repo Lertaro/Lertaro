@@ -22,6 +22,8 @@
   "FlowLauncherBridge_Uninstall": "アンインストール",
   "FlowLauncherBridge_NoInstalledPluginsTitle": "インストール済みの Flow プラグインが見つかりません",
   "FlowLauncherBridge_NoInstalledPluginsDesc": "現在インストールされている Flow プラグインはありません。",
-  "Plugin_Comp_Desc_FlowInstantResultProvider": "キーワードクエリを読み込まれた Flow.Launcher プラグインにディスパッチし、即時検索結果と設定管理を提供します。",
-  "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Flow.Launcher ブリッジプラグインに UI 翻訳とローカライズマッピングを提供します。"
+  "FlowLauncherBridge_PluginActionKeywordLabel": "トリガーキーワード",
+  "FlowLauncherBridge_PluginActionKeywordDesc": "このプラグインを起動するキーワードをカスタマイズします（デフォルト: \"{0}\"）。",
+  "Plugin_Comp_Desc_FlowInstantResultProvider": "読み込まれた Flow.Launcher プラグインにキーワード クエリをディスパッチし、即時検索結果と設定管理を提供します。",
+  "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Flow.Launcher ブリッジ プラグインの多言語翻訳とローカリゼーション マッピングを提供します。"
 }

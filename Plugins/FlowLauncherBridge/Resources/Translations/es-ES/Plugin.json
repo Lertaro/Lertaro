@@ -22,6 +22,8 @@
   "FlowLauncherBridge_Uninstall": "Desinstalar",
   "FlowLauncherBridge_NoInstalledPluginsTitle": "No se encontraron complementos de Flow instalados",
   "FlowLauncherBridge_NoInstalledPluginsDesc": "Actualmente no hay complementos de Flow instalados.",
-  "Plugin_Comp_Desc_FlowInstantResultProvider": "Envía consultas de palabras clave a los complementos de Flow.Launcher cargados y proporciona resultados de búsqueda instantánea y gestión de configuración.",
-  "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Proporciona traducción de interfaz y asignación de localización para el complemento Puente Flow.Launcher."
+  "FlowLauncherBridge_PluginActionKeywordLabel": "Palabra clave de activación",
+  "FlowLauncherBridge_PluginActionKeywordDesc": "Palabra clave personalizada para activar este complemento (predeterminado: \"{0}\").",
+  "Plugin_Comp_Desc_FlowInstantResultProvider": "Envía consultas de palabras clave a los complementos cargados de Flow.Launcher y administra los resultados instantáneos y la configuración.",
+  "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Proporciona traducciones multilingües y asignaciones de localización para los complementos del puente Flow.Launcher."
 }

@@ -38,6 +38,33 @@ public static class FlowConfigSchemaBuilder
 
             var pluginFields = new List<PluginConfigField>();
 
+            if (!pair.Metadata.HideActionKeywordPanel && pair.Metadata.ActionKeyword != "*")
+            {
+                var capturedName = pluginName;
+                pluginFields.Add(new PluginConfigField
+                {
+                    Key = $"{pluginName}.ActionKeyword",
+                    GroupKey = pluginName,
+                    LabelKey = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginActionKeywordLabel"),
+                    DescriptionKey = string.Format(
+                        PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginActionKeywordDesc"),
+                        pair.Metadata.ActionKeyword),
+                    FieldType = ConfigFieldType.Text,
+                    DefaultValue = pair.Metadata.ActionKeyword ?? string.Empty,
+                    RequireNonEmpty = true,
+                    MaxLength = 16,
+                    GetValue = () => host.GetPluginActionKeyword(capturedName),
+                    SetValue = val =>
+                    {
+                        var newKw = val?.ToString()?.Trim();
+                        if (!string.IsNullOrEmpty(newKw))
+                        {
+                            host.UpdatePluginActionKeyword(capturedName, newKw);
+                        }
+                    }
+                });
+            }
+
             if (templatePath != null)
             {
                 var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
@@ -47,6 +74,13 @@ public static class FlowConfigSchemaBuilder
                 var doc = FlowSettingsTemplateParser.ParseFile(templatePath);
                 foreach (var elem in doc.Elements)
                 {
+                    if (string.Equals(elem.Name, "triggerKeyword", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(elem.Name, "ActionKeyword", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!pair.Metadata.HideActionKeywordPanel && pair.Metadata.ActionKeyword != "*")
+                            continue;
+                    }
+
                     var field = ConvertElementToField(pluginName, elem, settingsPath, host);
                     if (field != null)
                     {

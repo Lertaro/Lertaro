@@ -64,13 +64,31 @@ public class FlowPluginHost : IAsyncDisposable
         }
     }
 
-    public void UpdatePluginActionKeyword(string pluginNameOrId, string newActionKeyword)
+    public string GetPluginActionKeyword(string pluginNameOrId)
     {
         var pair = _loadedPlugins.Values.FirstOrDefault(p =>
             string.Equals(p.Metadata.ID, pluginNameOrId, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(p.Metadata.Name, pluginNameOrId, StringComparison.OrdinalIgnoreCase));
+        return pair?.Metadata.ActionKeyword ?? string.Empty;
+    }
+
+    public void UpdatePluginActionKeyword(string pluginNameOrId, string newActionKeyword)
+    {
+        if (string.IsNullOrWhiteSpace(newActionKeyword)) return;
+        var pair = _loadedPlugins.Values.FirstOrDefault(p =>
+            string.Equals(p.Metadata.ID, pluginNameOrId, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(p.Metadata.Name, pluginNameOrId, StringComparison.OrdinalIgnoreCase));
         if (pair != null)
+        {
             _keywordManager.UpdateActionKeyword(pair, newActionKeyword);
+
+            var pName = !string.IsNullOrEmpty(pair.Metadata.Name) ? pair.Metadata.Name : pair.Metadata.ID;
+            var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
+            var sPath = Path.Combine(baseDir, "FlowData", "Settings", pName, "Settings.json");
+            FlowSettingsTemplateStorage.SaveSettingValue(sPath, "ActionKeyword", newActionKeyword);
+            FlowSettingsTemplateStorage.SaveSettingValue(sPath, "triggerKeyword", newActionKeyword);
+        }
     }
 
     public void AddActionKeyword(string pluginId, string newActionKeyword)

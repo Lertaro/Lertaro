@@ -22,6 +22,8 @@
   "FlowLauncherBridge_Uninstall": "卸载",
   "FlowLauncherBridge_NoInstalledPluginsTitle": "未找到已安装的 Flow 插件",
   "FlowLauncherBridge_NoInstalledPluginsDesc": "当前没有已安装的 Flow 插件",
+  "FlowLauncherBridge_PluginActionKeywordLabel": "触发词",
+  "FlowLauncherBridge_PluginActionKeywordDesc": "自定义触发该插件的关键字（例如默认的 \"{0}\"）。",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "负责分发关键词查询至已加载的 Flow.Launcher 插件并提供即时搜索结果与配置管理。",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "为 Flow.Launcher 桥接插件提供多语言翻译和本地化映射。"
 }
