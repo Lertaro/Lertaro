@@ -76,6 +76,8 @@ public static class FlowSettingsTemplateParser
         FlowSettingsTemplateElement? currentElem = null;
         string? multilineKey = null;
         var multilineBuffer = new System.Text.StringBuilder();
+        var multilineIndent = 0;
+        var isLiteralScalar = false;
 
         void FlushMultiline()
         {
@@ -90,24 +92,33 @@ public static class FlowSettingsTemplateParser
         foreach (var rawLine in lines)
         {
             var trimmed = rawLine.Trim();
-            if (trimmed.StartsWith('#') || string.IsNullOrEmpty(trimmed))
-            {
-                if (multilineKey != null) multilineBuffer.AppendLine();
+            if (trimmed.StartsWith('#'))
                 continue;
-            }
 
             var indent = rawLine.Length - rawLine.TrimStart().Length;
 
             if (multilineKey != null)
             {
-                if (indent >= 4 && !trimmed.StartsWith('-') && !trimmed.Contains(':'))
+                if (string.IsNullOrEmpty(trimmed))
                 {
-                    if (multilineBuffer.Length > 0) multilineBuffer.Append(' ');
+                    multilineBuffer.AppendLine();
+                    continue;
+                }
+
+                if (indent > multilineIndent)
+                {
+                    if (multilineBuffer.Length > 0 && !multilineBuffer.ToString().EndsWith('\n'))
+                        multilineBuffer.Append(isLiteralScalar ? '\n' : ' ');
+
                     multilineBuffer.Append(trimmed);
                     continue;
                 }
+
                 FlushMultiline();
             }
+
+            if (string.IsNullOrEmpty(trimmed))
+                continue;
 
             if (trimmed.StartsWith("- type:") || (trimmed.StartsWith("type:") && indent <= 4))
             {
@@ -141,6 +152,8 @@ public static class FlowSettingsTemplateParser
                 if (val == ">" || val == "|")
                 {
                     multilineKey = key;
+                    multilineIndent = indent;
+                    isLiteralScalar = (val == "|");
                     multilineBuffer.Clear();
                     continue;
                 }

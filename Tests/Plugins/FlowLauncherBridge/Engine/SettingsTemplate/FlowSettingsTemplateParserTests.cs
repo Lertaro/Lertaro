@@ -84,4 +84,83 @@ public sealed class FlowSettingsTemplateParserTests
         Assert.HasCount(1, doc.Elements);
         Assert.AreEqual("youdao\ndeepl\ngoogle\nbing", doc.Elements[0].DefaultValue);
     }
+
+    [TestMethod]
+    public void ParseYaml_MultiTranslateYaml_ParsesAllFieldsAndDescriptions()
+    {
+        const string yaml = @"body:
+  - type: dropdown
+    attributes:
+      name: interfaceLanguage
+      label: Interface Language
+      options:
+        - English
+        - Türkçe
+        - 简体中文
+      defaultValue: English
+
+  - type: textarea
+    attributes:
+      name: services
+      label: Translate Services
+      description: >
+        Translation services, one per line.
+
+        Supported services:
+
+        Without configuration:
+
+        Youdao, Google, Baidu, Bing, DeepL
+      defaultValue: ""youdao\ndeepl\ngoogle\nbing""
+
+  - type: textarea
+    attributes:
+      name: serviceConfigs
+      label: Service Configs
+      description: >
+        Config services that require configuration
+
+        e.g. DeepLX, MTranServer, OpenAI
+
+        DeepLX:
+
+        DEEPLX_URL=xxxx
+      defaultValue: ''
+
+  - type: input
+    attributes:
+      name: triggerKeyword
+      label: Trigger Keyword
+      defaultValue: tr
+";
+
+        var doc = FlowSettingsTemplateParser.ParseContent(yaml, isJson: false);
+
+        Assert.IsNotNull(doc);
+        Assert.HasCount(4, doc.Elements);
+
+        var lang = doc.Elements[0];
+        Assert.AreEqual("dropdown", lang.Type);
+        Assert.AreEqual("interfaceLanguage", lang.Name);
+        Assert.HasCount(3, lang.Options);
+        Assert.AreEqual("English", lang.DefaultValue);
+
+        var services = doc.Elements[1];
+        Assert.AreEqual("textarea", services.Type);
+        Assert.AreEqual("services", services.Name);
+        StringAssert.Contains(services.Description, "Translation services, one per line.");
+        StringAssert.Contains(services.Description, "Supported services:");
+        StringAssert.Contains(services.Description, "Youdao, Google, Baidu, Bing, DeepL");
+        Assert.AreEqual("youdao\ndeepl\ngoogle\nbing", services.DefaultValue);
+
+        var configs = doc.Elements[2];
+        Assert.AreEqual("textarea", configs.Type);
+        Assert.AreEqual("serviceConfigs", configs.Name);
+        StringAssert.Contains(configs.Description, "DEEPLX_URL=xxxx");
+
+        var kw = doc.Elements[3];
+        Assert.AreEqual("input", kw.Type);
+        Assert.AreEqual("triggerKeyword", kw.Name);
+        Assert.AreEqual("tr", kw.DefaultValue);
+    }
 }

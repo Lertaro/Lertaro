@@ -64,6 +64,11 @@ public static class FlowSettingsTemplateStorage
                         settings[elem.Name] = b;
                         changed = true;
                     }
+                    else if ((type == "number" || type == "integer" || type == "numeric") && int.TryParse(defVal, out var num))
+                    {
+                        settings[elem.Name] = num;
+                        changed = true;
+                    }
                     else
                     {
                         settings[elem.Name] = defVal;
@@ -102,16 +107,21 @@ public static class FlowSettingsTemplateStorage
             {
                 settings[key] = i;
             }
+            else if (value is System.Collections.IEnumerable en && !(value is string))
+            {
+                var items = new List<string>();
+                foreach (var item in en)
+                {
+                    if (item != null) items.Add(item.ToString() ?? string.Empty);
+                }
+                settings[key] = string.Join("\n", items);
+            }
             else if (value is JsonElement el)
             {
                 if (el.ValueKind == JsonValueKind.True) settings[key] = true;
                 else if (el.ValueKind == JsonValueKind.False) settings[key] = false;
                 else if (el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var num)) settings[key] = num;
                 else settings[key] = el.GetString();
-            }
-            else if (bool.TryParse(value.ToString(), out var parsedBool))
-            {
-                settings[key] = parsedBool;
             }
             else
             {

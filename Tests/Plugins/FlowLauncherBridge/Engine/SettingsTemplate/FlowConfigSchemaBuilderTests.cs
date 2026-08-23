@@ -71,7 +71,11 @@ public sealed class FlowConfigSchemaBuilderTests
             Assert.AreEqual(ConfigFieldType.Group, groupField.FieldType);
             Assert.AreEqual("TestYamlPlugin", groupField.LabelKey);
             Assert.IsNotNull(groupField.SubFields);
-            Assert.HasCount(3, groupField.SubFields);
+            Assert.HasCount(4, groupField.SubFields);
+
+            var descField = groupField.SubFields.FirstOrDefault(f => f.Key == "TestYamlPlugin.description");
+            Assert.IsNotNull(descField);
+            Assert.AreEqual("Sample Plugin Description", descField.DescriptionKey);
 
             var checkboxField = groupField.SubFields.FirstOrDefault(f => f.Key == "TestYamlPlugin.enable_feature");
             Assert.IsNotNull(checkboxField);

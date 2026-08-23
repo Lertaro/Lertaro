@@ -53,4 +53,36 @@ public sealed class FlowSettingsTemplateStorageTests
         Assert.AreEqual("", settings["proxyUrl"]?.ToString());
         Assert.IsTrue(settings["enabled"]?.GetValue<bool>());
     }
+
+    [TestMethod]
+    public void SaveSettingValue_CollectionValue_JoinsWithNewline()
+    {
+        var settingsPath = Path.Combine(_tempDir, "Settings.json");
+        var list = new List<string> { "youdao", "deepl", "google" };
+
+        FlowSettingsTemplateStorage.SaveSettingValue(settingsPath, "services", list);
+
+        var val = FlowSettingsTemplateStorage.GetSettingValue(settingsPath, "services");
+        Assert.AreEqual("youdao\ndeepl\ngoogle", val?.ToString());
+    }
+
+    [TestMethod]
+    public void EnsureDefaultSettings_NumericField_SetsInteger()
+    {
+        var templatePath = Path.Combine(_tempDir, "SettingsTemplate.yaml");
+        var settingsPath = Path.Combine(_tempDir, "Settings.json");
+
+        const string yaml = @"body:
+  - type: number
+    attributes:
+      name: timeout
+      defaultValue: ""5000""
+";
+        File.WriteAllText(templatePath, yaml);
+
+        FlowSettingsTemplateStorage.EnsureDefaultSettings(templatePath, settingsPath);
+
+        var settings = FlowSettingsTemplateStorage.LoadSettings(settingsPath);
+        Assert.AreEqual(5000, settings["timeout"]?.GetValue<int>());
+    }
 }

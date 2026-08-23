@@ -119,6 +119,15 @@ public static class FlowConfigSchemaBuilder
                 FieldType = ConfigFieldType.Text,
                 DefaultValue = elem.DefaultValue ?? string.Empty
             },
+            "textarea" => new PluginConfigField
+            {
+                Key = key,
+                GroupKey = groupName,
+                LabelKey = label,
+                DescriptionKey = elem.Description,
+                FieldType = ConfigFieldType.StringList,
+                DefaultValue = elem.DefaultValue ?? string.Empty
+            },
             "select" or "dropdown" => new PluginConfigField
             {
                 Key = key,
@@ -128,6 +137,15 @@ public static class FlowConfigSchemaBuilder
                 FieldType = ConfigFieldType.Choice,
                 Choices = elem.Options,
                 DefaultValue = !string.IsNullOrEmpty(elem.DefaultValue) ? elem.DefaultValue : (elem.Options.FirstOrDefault() ?? string.Empty)
+            },
+            "number" or "integer" or "numeric" => new PluginConfigField
+            {
+                Key = key,
+                GroupKey = groupName,
+                LabelKey = label,
+                DescriptionKey = elem.Description,
+                FieldType = ConfigFieldType.Integer,
+                DefaultValue = int.TryParse(elem.DefaultValue, out var n) ? n : 0
             },
             "keybind" or "hotkey" => new PluginConfigField
             {
@@ -155,6 +173,15 @@ public static class FlowConfigSchemaBuilder
                 DescriptionKey = elem.Description,
                 FieldType = ConfigFieldType.FilePath,
                 DefaultValue = elem.DefaultValue ?? string.Empty
+            },
+            "textblock" or "text" or "label" or "separator" or "hyperlink" or "link" or "url" => new PluginConfigField
+            {
+                Key = key,
+                GroupKey = groupName,
+                LabelKey = label,
+                DescriptionKey = !string.IsNullOrEmpty(elem.Url) ? elem.Url : elem.Description,
+                FieldType = ConfigFieldType.Text,
+                DefaultValue = string.Empty
             },
             _ => null
         };
