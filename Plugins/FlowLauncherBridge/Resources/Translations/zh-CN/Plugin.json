@@ -8,6 +8,13 @@
   "FlowLauncherBridge_Config_TriggerKeywordDesc": "输入此关键字（后跟一个空格可过滤插件）来查看与管理已加载的 Flow 插件，例如默认的 \"flow\"。",
   "FlowLauncherBridge_SettingsSuffix": "设置",
   "FlowLauncherBridge_Confirm": "确定",
+  "FlowLauncherBridge_CommunityLoadingTitle": "正在获取 Flow 社区插件列表...",
+  "FlowLauncherBridge_CommunityLoadingDesc": "正在连接插件仓库，请稍候",
+  "FlowLauncherBridge_CommunityInstalled": "已安装",
+  "FlowLauncherBridge_NoCommunityPlugins": "未找到匹配的在线 Flow 插件",
+  "FlowLauncherBridge_Installing": "正在安装...",
+  "FlowLauncherBridge_InstallSuccess": "安装成功",
+  "FlowLauncherBridge_InstallFailed": "安装失败",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "负责分发关键词查询至已加载的 Flow.Launcher 插件并提供即时搜索结果与配置管理。",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "为 Flow.Launcher 桥接插件提供多语言翻译和本地化映射。"
 }

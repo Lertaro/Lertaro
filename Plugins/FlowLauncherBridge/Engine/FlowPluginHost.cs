@@ -99,12 +99,12 @@ public class FlowPluginHost : IAsyncDisposable
         }
     }
 
-    private async Task LoadPluginFromDirectoryAsync(string pluginDir, string manifestPath)
+    public async Task<bool> LoadPluginFromDirectoryAsync(string pluginDir, string manifestPath)
     {
         var json = await File.ReadAllTextAsync(manifestPath);
         var metadata = JsonSerializer.Deserialize<PluginMetadata>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         if (metadata == null || metadata.Disabled || string.IsNullOrEmpty(metadata.ID))
-            return;
+            return false;
 
         metadata.PluginDirectory = pluginDir;
         if (!string.IsNullOrWhiteSpace(metadata.ActionKeyword) && !metadata.ActionKeywords.Contains(metadata.ActionKeyword, StringComparer.OrdinalIgnoreCase))
@@ -124,7 +124,7 @@ public class FlowPluginHost : IAsyncDisposable
                 if (pluginInstance == null)
                 {
                     _failedPlugins[metadata.ID] = (metadata, "No implementation of IPlugin or IAsyncPlugin found.");
-                    return;
+                    return false;
                 }
             }
             else if (AllowedLanguage.IsPython(metadata.Language))
@@ -133,7 +133,7 @@ public class FlowPluginHost : IAsyncDisposable
                 if (string.IsNullOrEmpty(pythonPath))
                 {
                     _failedPlugins[metadata.ID] = (metadata, "Python runtime not found in PythonEmbeded, or download failed.");
-                    return;
+                    return false;
                 }
                 FlowPipManager.EnsurePipAndRequirementsBackground(pythonPath, pluginDir);
                 var runner = new FlowProcessRunner(metadata, pythonPath, metadata.ExecuteFilePath);
@@ -145,7 +145,7 @@ public class FlowPluginHost : IAsyncDisposable
                 if (string.IsNullOrEmpty(nodePath) || !File.Exists(nodePath))
                 {
                     _failedPlugins[metadata.ID] = (metadata, "Node.js runtime not found in NodeEmbeded, and download failed.");
-                    return;
+                    return false;
                 }
                 FlowNpmManager.EnsureNpmAndPackagesBackground(nodePath, pluginDir);
                 var runner = new FlowProcessRunner(metadata, nodePath, metadata.ExecuteFilePath);
@@ -156,7 +156,7 @@ public class FlowPluginHost : IAsyncDisposable
                 if (string.IsNullOrEmpty(metadata.ExecuteFilePath) || !File.Exists(metadata.ExecuteFilePath))
                 {
                     _failedPlugins[metadata.ID] = (metadata, $"Executable file not found: {metadata.ExecuteFilePath}");
-                    return;
+                    return false;
                 }
                 var runner = new FlowProcessRunner(metadata, metadata.ExecuteFilePath);
                 pluginInstance = new FlowJsonRpcPlugin(runner, metadata);
@@ -172,20 +172,25 @@ public class FlowPluginHost : IAsyncDisposable
                 var initContext = new PluginInitContext(metadata, api);
 
                 await pluginInstance.InitAsync(initContext);
+                return true;
             }
+            return false;
         }
         catch (BadImageFormatException ex)
         {
             _failedPlugins[metadata.ID] = (metadata, $"Architecture incompatible ({System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}): {ex.Message}");
+            return false;
         }
         catch (ReflectionTypeLoadException ex)
         {
             var details = string.Join("; ", ex.LoaderExceptions.Where(e => e != null).Select(e => e!.Message));
             _failedPlugins[metadata.ID] = (metadata, $"Type load failed: {details}");
+            return false;
         }
         catch (Exception ex)
         {
             _failedPlugins[metadata.ID] = (metadata, ex.Message);
+            return false;
         }
     }
 

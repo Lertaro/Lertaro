@@ -49,6 +49,15 @@ public class FlowInstantResultProvider : IInstantResultProvider
                 ? trimmed[(keyword.Length + 1)..].Trim()
                 : string.Empty;
 
+            if (filter.Equals("list", StringComparison.OrdinalIgnoreCase) || filter.StartsWith("list ", StringComparison.OrdinalIgnoreCase))
+            {
+                var listFilter = filter.StartsWith("list ", StringComparison.OrdinalIgnoreCase)
+                    ? filter[5..].Trim()
+                    : string.Empty;
+
+                return FlowCommunityListHelper.QueryCommunityPlugins(_host, keyword, listFilter, trimmed);
+            }
+
             var allPlugins = _host.GetAllPlugins();
             if (allPlugins.Count == 0 && string.IsNullOrEmpty(filter))
             {

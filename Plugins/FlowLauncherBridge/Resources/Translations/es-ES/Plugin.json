@@ -8,6 +8,13 @@
   "FlowLauncherBridge_Config_TriggerKeywordDesc": "Escribe esta palabra clave (opcionalmente seguida de un filtro) para ver y gestionar los complementos Flow cargados, por ejemplo, la predeterminada \"flow\".",
   "FlowLauncherBridge_SettingsSuffix": "Configuración",
   "FlowLauncherBridge_Confirm": "Aceptar",
+  "FlowLauncherBridge_CommunityLoadingTitle": "Obteniendo la lista de complementos de la comunidad Flow...",
+  "FlowLauncherBridge_CommunityLoadingDesc": "Conectando al repositorio de complementos, por favor espera",
+  "FlowLauncherBridge_CommunityInstalled": "Instalado",
+  "FlowLauncherBridge_NoCommunityPlugins": "No se encontraron complementos de Flow en línea coincidentes",
+  "FlowLauncherBridge_Installing": "Instalando...",
+  "FlowLauncherBridge_InstallSuccess": "Instalado con éxito",
+  "FlowLauncherBridge_InstallFailed": "Error de instalación",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "Envía consultas de palabras clave a los complementos de Flow.Launcher cargados y proporciona resultados de búsqueda instantánea y gestión de configuración.",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Proporciona traducción de interfaz y asignación de localización para el complemento Puente Flow.Launcher."
 }

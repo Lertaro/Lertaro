@@ -122,4 +122,17 @@ public sealed class FlowInstantResultProviderTests
 
         Assert.IsEmpty(results);
     }
+
+    [TestMethod]
+    public void GetInstantResults_WhenTriggerKeywordWithList_RoutesToCommunityList()
+    {
+        var storage = new FlowSettingsStorage(Path.GetTempPath());
+        var host = new FlowPluginHost(storage, []);
+        var dispatcher = new FlowQueryDispatcher(host);
+        var provider = new FlowInstantResultProvider(dispatcher, host);
+
+        var results = provider.GetInstantResults("flow list").ToList();
+
+        Assert.IsNotEmpty(results);
+    }
 }

@@ -8,6 +8,13 @@
   "FlowLauncherBridge_Config_TriggerKeywordDesc": "Type this keyword (optionally followed by a filter) to view and manage loaded Flow plugins, e.g. the default \"flow\".",
   "FlowLauncherBridge_SettingsSuffix": "Settings",
   "FlowLauncherBridge_Confirm": "OK",
+  "FlowLauncherBridge_CommunityLoadingTitle": "Fetching Flow community plugin list...",
+  "FlowLauncherBridge_CommunityLoadingDesc": "Connecting to the plugin manifest repository, please wait",
+  "FlowLauncherBridge_CommunityInstalled": "Installed",
+  "FlowLauncherBridge_NoCommunityPlugins": "No matching online Flow plugins found",
+  "FlowLauncherBridge_Installing": "Installing...",
+  "FlowLauncherBridge_InstallSuccess": "Installed successfully",
+  "FlowLauncherBridge_InstallFailed": "Installation failed",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "Dispatches keyword queries to loaded Flow.Launcher plugins and provides instant search results and settings management.",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Provides UI translation and localization mapping for the Flow.Launcher Bridge plugin."
 }
