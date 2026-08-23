@@ -7,25 +7,25 @@ namespace Flow.Launcher.Plugin;
 /// </summary>
 public class Query
 {
-    public string OriginalQuery { get; internal init; } = string.Empty;
+    public string OriginalQuery { get; set; } = string.Empty;
 
     public string RawQuery
     {
         get => TrimmedQuery;
-        internal init => TrimmedQuery = value;
+        set => TrimmedQuery = value;
     }
 
-    public string TrimmedQuery { get; internal init; } = string.Empty;
-    public bool IsReQuery { get; internal set; }
-    public bool IsHomeQuery { get; internal init; }
-    public string Search { get; internal init; } = string.Empty;
-    public string[] SearchTerms { get; init; } = [];
+    public string TrimmedQuery { get; set; } = string.Empty;
+    public bool IsReQuery { get; set; }
+    public bool IsHomeQuery { get; set; }
+    public string Search { get; set; } = string.Empty;
+    public string[] SearchTerms { get; set; } = [];
 
     public const string TermSeparator = " ";
     public const string ActionKeywordSeparator = TermSeparator;
     public const string GlobalPluginWildcardSign = "*";
 
-    public string ActionKeyword { get; init; } = string.Empty;
+    public string ActionKeyword { get; set; } = string.Empty;
 
     [JsonIgnore]
     public string FirstSearch => SplitSearch(0);

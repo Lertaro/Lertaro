@@ -24,6 +24,7 @@ public class FlowJsonRpcPlugin : IAsyncPlugin, ISettingProvider
     public Task InitAsync(PluginInitContext context)
     {
         _api = context.API;
+        TryEnsureDefaultSettings();
         return Task.CompletedTask;
     }
 
@@ -35,32 +36,44 @@ public class FlowJsonRpcPlugin : IAsyncPlugin, ISettingProvider
         return _runner.ExecuteQueryAsync(query, _api, token);
     }
 
-    public Control CreateSettingPanel()
-    {
-        if (string.IsNullOrEmpty(_metadata.PluginDirectory))
-            return new UserControl();
+    public static bool HasSettingsTemplate(string? pluginDirectory) => GetSettingsTemplatePath(pluginDirectory) != null;
 
+    public static string? GetSettingsTemplatePath(string? pluginDirectory)
+    {
+        if (string.IsNullOrEmpty(pluginDirectory)) return null;
         var candidates = new[] { "SettingsTemplate.yaml", "SettingsTemplate.yml", "SettingsTemplate.json" };
-        string? templatePath = null;
         foreach (var name in candidates)
         {
-            var p = Path.Combine(_metadata.PluginDirectory, name);
-            if (File.Exists(p))
-            {
-                templatePath = p;
-                break;
-            }
+            var p = Path.Combine(pluginDirectory, name);
+            if (File.Exists(p)) return p;
         }
+        return null;
+    }
 
-        if (templatePath == null)
-            return new UserControl();
-
+    private string GetSettingsJsonPath()
+    {
         var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-
         var pluginName = !string.IsNullOrEmpty(_metadata.Name) ? _metadata.Name : _metadata.ID;
-        var settingsPath = Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
-
-        return FlowSettingsTemplateBuilder.BuildSettingsPanel(templatePath, settingsPath);
+        return Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
     }
+
+    private void TryEnsureDefaultSettings()
+    {
+        var templatePath = GetSettingsTemplatePath(_metadata.PluginDirectory);
+        if (templatePath != null)
+        {
+            FlowSettingsTemplateStorage.EnsureDefaultSettings(templatePath, GetSettingsJsonPath());
+        }
+    }
+
+    public Control? CreateSettingPanel()
+    {
+        var templatePath = GetSettingsTemplatePath(_metadata.PluginDirectory);
+        if (templatePath == null) return null;
+
+        return FlowSettingsTemplateBuilder.BuildSettingsPanel(templatePath, GetSettingsJsonPath());
+    }
+
+    Control ISettingProvider.CreateSettingPanel() => CreateSettingPanel()!;
 }

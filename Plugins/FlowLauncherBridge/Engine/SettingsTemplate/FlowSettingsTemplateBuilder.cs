@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows;
@@ -18,7 +17,7 @@ public static class FlowSettingsTemplateBuilder
     public static Control BuildSettingsPanel(string templateFilePath, string settingsJsonPath)
     {
         var doc = FlowSettingsTemplateParser.ParseFile(templateFilePath);
-        var settings = LoadSettings(settingsJsonPath);
+        var settings = FlowSettingsTemplateStorage.LoadSettings(settingsJsonPath);
 
         var rootPanel = new StackPanel
         {
@@ -105,12 +104,12 @@ public static class FlowSettingsTemplateBuilder
         cb.Checked += (_, _) =>
         {
             settings[key] = true;
-            SaveSettings(settingsJsonPath, settings);
+            FlowSettingsTemplateStorage.SaveSettings(settingsJsonPath, settings);
         };
         cb.Unchecked += (_, _) =>
         {
             settings[key] = false;
-            SaveSettings(settingsJsonPath, settings);
+            FlowSettingsTemplateStorage.SaveSettings(settingsJsonPath, settings);
         };
 
         container.Children.Add(cb);
@@ -170,7 +169,7 @@ public static class FlowSettingsTemplateBuilder
         tb.TextChanged += (_, _) =>
         {
             settings[key] = tb.Text;
-            SaveSettings(settingsJsonPath, settings);
+            FlowSettingsTemplateStorage.SaveSettings(settingsJsonPath, settings);
         };
 
         container.Children.Add(tb);
@@ -231,7 +230,7 @@ public static class FlowSettingsTemplateBuilder
             if (cb.SelectedItem != null)
             {
                 settings[key] = cb.SelectedItem.ToString();
-                SaveSettings(settingsJsonPath, settings);
+                FlowSettingsTemplateStorage.SaveSettings(settingsJsonPath, settings);
             }
         };
 
@@ -255,34 +254,5 @@ public static class FlowSettingsTemplateBuilder
         };
         tb.Inlines.Add(link);
         return tb;
-    }
-
-    private static JsonObject LoadSettings(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                var text = File.ReadAllText(path);
-                var node = JsonNode.Parse(text);
-                if (node is JsonObject obj) return obj;
-            }
-        }
-        catch { }
-        return new JsonObject();
-    }
-
-    private static void SaveSettings(string path, JsonObject obj)
-    {
-        try
-        {
-            var dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-
-            var json = obj.ToJsonString(JsonOptions);
-            File.WriteAllText(path, json);
-        }
-        catch { }
     }
 }

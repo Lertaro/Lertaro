@@ -1,3 +1,5 @@
+using System.Threading;
+
 namespace Flow.Launcher.Plugin;
 
 /// <summary>
@@ -34,6 +36,7 @@ public delegate void ResultUpdatedEventHandler(IAsyncPlugin sender, ResultUpdate
 
 public class ResultUpdatedEventArgs : EventArgs
 {
-    public List<Result> Results { get; set; } = [];
-    public Query Query { get; set; } = null!;
+    public List<Result> Results = [];
+    public Query Query = null!;
+    public CancellationToken Token { get; set; } = CancellationToken.None;
 }

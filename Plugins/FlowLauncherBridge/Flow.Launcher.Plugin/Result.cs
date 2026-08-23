@@ -83,7 +83,7 @@ public class Result
     [JsonIgnore]
     public IconDelegate? BadgeIcon;
 
-    public GlyphInfo Glyph { get; init; }
+    public GlyphInfo Glyph { get; set; }
 
     [JsonIgnore]
     public Func<ActionContext, bool>? Action { get; set; }
@@ -98,7 +98,7 @@ public class Result
     [JsonIgnore]
     public object? ContextData { get; set; }
 
-    public string PluginID { get; internal set; } = string.Empty;
+    public string PluginID { get; set; } = string.Empty;
     public string? TitleToolTip { get; set; }
     public string? SubTitleToolTip { get; set; }
 

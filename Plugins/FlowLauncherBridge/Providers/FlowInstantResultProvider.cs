@@ -1,5 +1,6 @@
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.Plugins.FlowLauncherBridge.Engine;
+using Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Providers;
 
@@ -45,7 +46,9 @@ public class FlowInstantResultProvider : IInstantResultProvider
             var openSettingsHint = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_OpenSettingsHint");
             foreach (var pair in plugins)
             {
-                var hasSettings = pair.Plugin is Flow.Launcher.Plugin.ISettingProvider;
+                var hasSettings = pair.Plugin is FlowJsonRpcPlugin
+                    ? FlowJsonRpcPlugin.HasSettingsTemplate(pair.Metadata.PluginDirectory)
+                    : pair.Plugin is Flow.Launcher.Plugin.ISettingProvider;
                 var kwSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 if (!string.IsNullOrWhiteSpace(pair.Metadata.ActionKeyword)) kwSet.Add(pair.Metadata.ActionKeyword);
                 if (pair.Metadata.ActionKeywords != null)

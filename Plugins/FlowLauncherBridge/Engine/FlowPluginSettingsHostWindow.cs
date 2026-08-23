@@ -39,7 +39,7 @@ public sealed class FlowPluginSettingsHostWindow : Window
 
         if (pair.Plugin is not ISettingProvider settingProvider) return false;
         var panel = settingProvider.CreateSettingPanel();
-        if (panel == null) return false;
+        if (panel == null || (panel is UserControl uc && uc.Content == null)) return false;
 
         var win = new FlowPluginSettingsHostWindow(pair, storage, panel);
         _activeWindows[id] = win;
