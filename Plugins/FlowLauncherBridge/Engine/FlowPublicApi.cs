@@ -116,8 +116,10 @@ public class FlowPublicApi : IPublicAPI
     public void StartLoadingBar() { }
     public void StopLoadingBar() { }
 
-    public T LoadSettingJsonStorage<T>() where T : new() => _storage.LoadSetting<T>(_metadata.ID);
-    public void SaveSettingJsonStorage<T>() where T : new() => _storage.SaveSetting<T>(_metadata.ID);
+    private string PluginSettingKey => !string.IsNullOrEmpty(_metadata.Name) ? _metadata.Name : _metadata.ID;
+
+    public T LoadSettingJsonStorage<T>() where T : new() => _storage.LoadSetting<T>(PluginSettingKey);
+    public void SaveSettingJsonStorage<T>() where T : new() => _storage.SaveSetting<T>(PluginSettingKey);
     public void SavePluginCaches() { }
     public Task<T> LoadCacheBinaryStorageAsync<T>(string cacheName, string cacheDirectory, T defaultData) where T : new() => Task.FromResult(defaultData);
     public Task SaveCacheBinaryStorageAsync<T>(string cacheName, string cacheDirectory) where T : new() => Task.CompletedTask;
@@ -215,6 +217,6 @@ public class FlowPublicApi : IPublicAPI
     public Task<long> StopwatchLogInfoAsync(string className, string message, Func<Task> action, [CallerMemberName] string methodName = "") => StopwatchLogDebugAsync(className, message, action, methodName);
 
     public bool IsApplicationDarkTheme() => false;
-    public string GetDataDirectory() => _storage.GetPluginSettingsDirectory(_metadata.ID);
+    public string GetDataDirectory() => _storage.GetPluginSettingsDirectory(PluginSettingKey);
     public string GetLogDirectory() => Path.Combine(GetDataDirectory(), "Logs");
 }

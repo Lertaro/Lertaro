@@ -59,7 +59,7 @@ public class FlowJsonRpcPlugin : IAsyncPlugin, ISettingProvider
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
 
         var pluginName = !string.IsNullOrEmpty(_metadata.Name) ? _metadata.Name : _metadata.ID;
-        var settingsPath = Path.Combine(baseDir, "FlowData", "Settings", "Plugins", pluginName, "Settings.json");
+        var settingsPath = Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
 
         return FlowSettingsTemplateBuilder.BuildSettingsPanel(templatePath, settingsPath);
     }

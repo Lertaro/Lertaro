@@ -7,7 +7,7 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 /// <summary>
 /// Downloads and extracts the official embeddable Python package for Flow plugins.
-/// Configures import site and sitecustomize.py hook for seamless execution in FlowPlugins.
+/// Configures import site and sitecustomize.py hook for seamless execution in FlowData.
 /// </summary>
 public static class FlowPythonDownloader
 {
@@ -108,6 +108,8 @@ class _FloxLoader(importlib.abc.Loader):
             new_settings = ""try:\n            with open(os.path.join(self.appdata, 'Settings', 'Settings.json'), 'r', encoding='utf-8') as f:\n                return json.load(f)\n        except Exception:\n            return {'PluginSettings': {'Plugins': {}}, 'QuerySearchPrecision': 'Regular'}""
             code_str = code_str.replace(old_settings, new_settings)
             code_str = code_str.replace('os.mkdir(os.path.dirname(self.settings_path))', 'os.makedirs(os.path.dirname(self.settings_path), exist_ok=True)')
+            code_str = code_str.replace(""os.path.join(self.appdata, 'Settings', 'Plugins',"", ""os.path.join(self.appdata, 'Settings',"")
+            code_str = code_str.replace(""os.path.join(self.appdata, 'Settings', 'Plugins')"", ""os.path.join(self.appdata, 'Settings')"")
 
             compiled = compile(code_str, module.__file__, 'exec')
             exec(compiled, module.__dict__)

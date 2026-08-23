@@ -34,11 +34,13 @@
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SidebarHover}"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SidebarHover}"/>
                             <Setter TargetName="AccentBar" Property="Fill" Value="{DynamicResource AccentBarColor}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource SidebarTextActive}"/>
+                            <Setter Property="TextElement.Foreground" Value="{DynamicResource SidebarTextActive}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -95,95 +97,38 @@
         <Style.Triggers>
             <!-- Boolean fields -->
             <DataTrigger Binding="{Binding IsBoolean}" Value="True">
-                <Setter Property="ContentTemplate">
-                    <Setter.Value>
-                        <DataTemplate>
-                            <CheckBox IsChecked="{Binding Value, Mode=TwoWay}" Margin="0"/>
-                        </DataTemplate>
-                    </Setter.Value>
-                </Setter>
+                <Setter Property="ContentTemplate"><Setter.Value><DataTemplate><CheckBox IsChecked="{Binding Value, Mode=TwoWay}" Margin="0"/></DataTemplate></Setter.Value></Setter>
             </DataTrigger>
-
             <!-- Text fields -->
             <DataTrigger Binding="{Binding IsText}" Value="True">
                 <Setter Property="ContentTemplate">
                     <Setter.Value>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
-                                         MaxLength="{Binding MaxLength}"
-                                         Width="{Binding EditorWidth}"
-                                         TextAlignment="{Binding TextAlignment}"
-                                         Height="26"/>
-                                <!-- Spacer for non-icon fields to align them with the icon field preview -->
-                                <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4"
-                                        Background="Transparent" BorderBrush="Transparent" BorderThickness="1"
-                                        Visibility="{Binding IsIconField, Converter={StaticResource InvertBoolToVis}}"
-                                        VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                <!-- Preview Icon if it's the Icon field -->
-                                <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4"
-                                        Background="{DynamicResource ControlBackground}"
-                                        BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                        Visibility="{Binding IsIconField, Converter={StaticResource BoolToVis}}"
-                                        VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <Path Data="{Binding Value}" Fill="{DynamicResource DefaultPluginIconColor}"
-                                          Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="{Binding EditorWidth}" TextAlignment="{Binding TextAlignment}" Height="26"/>
+                                <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" Visibility="{Binding IsIconField, Converter={StaticResource InvertBoolToVis}}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Visibility="{Binding IsIconField, Converter={StaticResource BoolToVis}}" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <Path Data="{Binding Value}" Fill="{DynamicResource DefaultPluginIconColor}" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </Border>
                             </StackPanel>
                         </DataTemplate>
                     </Setter.Value>
                 </Setter>
             </DataTrigger>
-
             <!-- StringList fields -->
             <DataTrigger Binding="{Binding IsStringList}" Value="True">
-                <Setter Property="ContentTemplate">
-                    <Setter.Value>
-                        <DataTemplate>
-                            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}"
-                                     Width="260" Height="80" AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
-                                     HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
-                                     VerticalContentAlignment="Top" Padding="6,4" FontFamily="Cascadia Mono, Consolas"/>
-                        </DataTemplate>
-                    </Setter.Value>
-                </Setter>
+                <Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="260" Height="80" AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" Padding="6,4" FontFamily="Cascadia Mono, Consolas"/></DataTemplate></Setter.Value></Setter>
             </DataTrigger>
-
             <!-- Integer fields -->
             <DataTrigger Binding="{Binding IsInteger}" Value="True">
-                <Setter Property="ContentTemplate">
-                    <Setter.Value>
-                        <DataTemplate>
-                            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" Width="80" Height="26"/>
-                        </DataTemplate>
-                    </Setter.Value>
-                </Setter>
+                <Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" Width="80" Height="26"/></DataTemplate></Setter.Value></Setter>
             </DataTrigger>
-
-            <!-- Hotkey fields -->
-            <DataTrigger Binding="{Binding IsHotkey}" Value="True">
-                <Setter Property="ContentTemplate" Value="{StaticResource HotkeyFieldTemplate}"/>
-            </DataTrigger>
-
-            <!-- FilePath fields -->
-            <DataTrigger Binding="{Binding IsFilePath}" Value="True">
-                <Setter Property="ContentTemplate" Value="{StaticResource FilePathFieldTemplate}"/>
-            </DataTrigger>
-
-            <!-- FolderPath fields -->
-            <DataTrigger Binding="{Binding IsFolderPath}" Value="True">
-                <Setter Property="ContentTemplate" Value="{StaticResource FolderPathFieldTemplate}"/>
-            </DataTrigger>
-
-            <!-- Choice fields -->
+            <!-- Hotkey / Path / Choice fields -->
+            <DataTrigger Binding="{Binding IsHotkey}" Value="True"><Setter Property="ContentTemplate" Value="{StaticResource HotkeyFieldTemplate}"/></DataTrigger>
+            <DataTrigger Binding="{Binding IsFilePath}" Value="True"><Setter Property="ContentTemplate" Value="{StaticResource FilePathFieldTemplate}"/></DataTrigger>
+            <DataTrigger Binding="{Binding IsFolderPath}" Value="True"><Setter Property="ContentTemplate" Value="{StaticResource FolderPathFieldTemplate}"/></DataTrigger>
             <DataTrigger Binding="{Binding IsChoice}" Value="True">
-                <Setter Property="ContentTemplate">
-                    <Setter.Value>
-                        <DataTemplate>
-                            <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Value, Mode=TwoWay}" MinWidth="180"/>
-                        </DataTemplate>
-                    </Setter.Value>
-                </Setter>
+                <Setter Property="ContentTemplate"><Setter.Value><DataTemplate><ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Value, Mode=TwoWay}" MinWidth="180"/></DataTemplate></Setter.Value></Setter>
             </DataTrigger>
         </Style.Triggers>
     </Style>

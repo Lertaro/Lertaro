@@ -6,7 +6,7 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 /// <summary>
 /// Manages pip installation, automated requirements.txt dependency resolution,
-/// and FlowPlugins environment stubs. All data is 100% self-contained in FlowPlugins.
+/// and FlowData environment stubs. All data is 100% self-contained in FlowData.
 /// </summary>
 public static class FlowPipManager
 {

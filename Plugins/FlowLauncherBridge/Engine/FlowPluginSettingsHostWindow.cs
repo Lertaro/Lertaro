@@ -184,9 +184,9 @@ public sealed class FlowPluginSettingsHostWindow : Window
 
         // 3. Implicit ListBox Style
         var listBoxStyle = new Style(typeof(ListBox));
-        listBoxStyle.Setters.Add(new Setter(BackgroundProperty, new DynamicResourceExtension("ControlBackground")));
+        listBoxStyle.Setters.Add(new Setter(BackgroundProperty, new DynamicResourceExtension("SidebarBg")));
         listBoxStyle.Setters.Add(new Setter(ForegroundProperty, new DynamicResourceExtension("TextPrimary")));
-        listBoxStyle.Setters.Add(new Setter(BorderBrushProperty, new DynamicResourceExtension("ControlBorderBrush")));
+        listBoxStyle.Setters.Add(new Setter(BorderBrushProperty, new DynamicResourceExtension("BorderColor")));
         listBoxStyle.Setters.Add(new Setter(BorderThicknessProperty, new Thickness(1)));
         listBoxStyle.Setters.Add(new Setter(PaddingProperty, new Thickness(4)));
 
@@ -194,7 +194,7 @@ public sealed class FlowPluginSettingsHostWindow : Window
         listBoxStyle.Setters.Add(new Setter(TemplateProperty, (ControlTemplate)XamlReader.Parse(lbXaml)));
         Resources[typeof(ListBox)] = listBoxStyle;
 
-        // 4. Implicit ListBoxItem Style with ItemSelected background, AccentBar, and hover feedback
+        // 4. Implicit ListBoxItem Style with SidebarHover background, AccentBar, and hover feedback
         var lbiStyle = new Style(typeof(ListBoxItem));
         lbiStyle.Setters.Add(new Setter(ForegroundProperty, new DynamicResourceExtension("TextPrimary")));
         lbiStyle.Setters.Add(new Setter(PaddingProperty, new Thickness(8, 6, 8, 6)));
@@ -203,7 +203,7 @@ public sealed class FlowPluginSettingsHostWindow : Window
         lbiStyle.Setters.Add(new Setter(HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
         lbiStyle.Setters.Add(new Setter(CursorProperty, Cursors.Hand));
 
-        const string lbiXaml = "<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='ListBoxItem'><Grid Margin='0,1'><Rectangle x:Name='AccentBar' Width='3' HorizontalAlignment='Left' RadiusX='1.5' RadiusY='1.5' Fill='Transparent' Margin='0,3'/><Border x:Name='ItemBorder' CornerRadius='6' Background='Transparent' Padding='{TemplateBinding Padding}' Margin='6,1,6,1'><ContentPresenter HorizontalAlignment='Stretch' VerticalAlignment='Center'/></Border></Grid><ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='ItemBorder' Property='Background' Value='{DynamicResource ControlHoverBackground}'/></Trigger><Trigger Property='IsSelected' Value='True'><Setter TargetName='ItemBorder' Property='Background' Value='{DynamicResource ItemSelected}'/><Setter TargetName='AccentBar' Property='Fill' Value='{DynamicResource AccentBarColor}'/><Setter Property='Foreground' Value='{DynamicResource SidebarTextActive}'/><Setter Property='TextElement.Foreground' Value='{DynamicResource SidebarTextActive}'/></Trigger></ControlTemplate.Triggers></ControlTemplate>";
+        const string lbiXaml = "<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='ListBoxItem'><Grid Margin='0,1'><Rectangle x:Name='AccentBar' Width='3' HorizontalAlignment='Left' RadiusX='1.5' RadiusY='1.5' Fill='Transparent' Margin='0,3'/><Border x:Name='ItemBorder' CornerRadius='6' Background='Transparent' Padding='{TemplateBinding Padding}' Margin='6,1,6,1'><ContentPresenter HorizontalAlignment='Stretch' VerticalAlignment='Center'/></Border></Grid><ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='ItemBorder' Property='Background' Value='{DynamicResource SidebarHover}'/></Trigger><Trigger Property='IsSelected' Value='True'><Setter TargetName='ItemBorder' Property='Background' Value='{DynamicResource SidebarHover}'/><Setter TargetName='AccentBar' Property='Fill' Value='{DynamicResource AccentBarColor}'/><Setter Property='Foreground' Value='{DynamicResource SidebarTextActive}'/><Setter Property='TextElement.Foreground' Value='{DynamicResource SidebarTextActive}'/></Trigger></ControlTemplate.Triggers></ControlTemplate>";
         lbiStyle.Setters.Add(new Setter(TemplateProperty, (ControlTemplate)XamlReader.Parse(lbiXaml)));
         Resources[typeof(ListBoxItem)] = lbiStyle;
 

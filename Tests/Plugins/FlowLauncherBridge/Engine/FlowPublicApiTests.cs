@@ -59,4 +59,15 @@ public sealed class FlowPublicApiTests
         var noMatch = api.FuzzySearch("xyz", "Calculator Application");
         Assert.IsFalse(noMatch.Success);
     }
+
+    [TestMethod]
+    public void GetDataDirectory_UsesPluginName_WhenNameIsAvailable()
+    {
+        var metadata = new PluginMetadata { ID = "guid-1234", Name = "MyCoolPlugin" };
+        var storage = new FlowSettingsStorage(_tempDir);
+        var api = new FlowPublicApi(metadata, storage, () => []);
+
+        var dataDir = api.GetDataDirectory();
+        Assert.AreEqual(Path.Combine(_tempDir, "MyCoolPlugin"), dataDir);
+    }
 }

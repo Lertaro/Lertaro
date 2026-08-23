@@ -35,10 +35,8 @@ public class FlowPluginHost : IAsyncDisposable
             if (!string.IsNullOrWhiteSpace(userDataDirectory))
             {
                 _pluginDirectories.Add(Path.Combine(userDataDirectory, "FlowData", "Plugins"));
-                _pluginDirectories.Add(Path.Combine(userDataDirectory, "FlowPlugins"));
             }
             _pluginDirectories.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FlowData", "Plugins"));
-            _pluginDirectories.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FlowPlugins"));
         }
     }
 
