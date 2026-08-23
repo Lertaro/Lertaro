@@ -269,23 +269,18 @@ public static class FlowConfigSchemaBuilder
     private static void EnsureAppResourcesLoaded()
     {
         if (Application.Current == null || Application.Current.Resources.Contains("SettingPanelMargin")) return;
-        try
-        {
-            var uri = new Uri("pack://application:,,,/Lertaro.App;component/Views/Settings/Plugins/CustomControlStyles.xaml", UriKind.Absolute);
-            Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = uri });
-        }
-        catch { }
 
-        if (!Application.Current.Resources.Contains("SettingPanelMargin"))
-        {
-            Application.Current.Resources["SettingPanelMargin"] = new Thickness(0, 4, 0, 4);
-            Application.Current.Resources["SettingPanelItemLeftMargin"] = new Thickness(9, 0, 0, 0);
-            Application.Current.Resources["SettingPanelItemRightMargin"] = new Thickness(0, 0, 9, 0);
-            Application.Current.Resources["SettingPanelItemTopBottomMargin"] = new Thickness(0, 4.5, 0, 4.5);
-            Application.Current.Resources["SettingPanelItemLeftTopBottomMargin"] = new Thickness(9, 4.5, 0, 4.5);
-            Application.Current.Resources["SettingPanelItemRightTopBottomMargin"] = new Thickness(0, 4.5, 9, 4.5);
-            Application.Current.Resources["SettingPanelSeparatorStyle"] = new Style(typeof(Separator));
-            Application.Current.Resources["SettingPanelTextBlockDescriptionStyle"] = new Style(typeof(TextBlock));
-        }
+        var res = Application.Current.Resources;
+        res["SettingPanelMargin"] = new Thickness(0, 4, 0, 4);
+        res["SettingPanelItemLeftMargin"] = new Thickness(9, 0, 0, 0);
+        res["SettingPanelItemRightMargin"] = new Thickness(0, 0, 9, 0);
+        res["SettingPanelItemTopBottomMargin"] = new Thickness(0, 4.5, 0, 4.5);
+        res["SettingPanelItemLeftTopBottomMargin"] = new Thickness(9, 4.5, 0, 4.5);
+        res["SettingPanelItemRightTopBottomMargin"] = new Thickness(0, 4.5, 9, 4.5);
+        res["SettingPanelTextBoxMinWidth"] = 180.0;
+        res["SettingPanelPathTextBoxWidth"] = 240.0;
+        res["SettingPanelAreaTextBoxMinHeight"] = 150.0;
+        res["SettingPanelSeparatorStyle"] = new Style(typeof(Separator));
+        res["SettingPanelTextBlockDescriptionStyle"] = new Style(typeof(TextBlock));
     }
 }

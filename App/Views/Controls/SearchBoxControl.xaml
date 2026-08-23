@@ -10,14 +10,10 @@
     
     <Grid>
             <Grid.ColumnDefinitions>
-                <!-- Left Icon Column -->
-                <ColumnDefinition Width="Auto"/>
-                <!-- Actions Label Column -->
-                <ColumnDefinition Width="Auto"/>
-                <!-- TextBox Column -->
-                <ColumnDefinition Width="*"/>
-                <!-- Right Icon Column -->
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/><!-- Left Icon Column -->
+                <ColumnDefinition Width="Auto"/><!-- Actions Label Column -->
+                <ColumnDefinition Width="*"/><!-- TextBox Column -->
+                <ColumnDefinition Width="Auto"/><!-- Right Icon Column -->
             </Grid.ColumnDefinitions>
 
             <!-- Left Icon Grid (Visible only when IsIconOnLeft is True) -->
@@ -42,10 +38,7 @@
                         </Style.Triggers>
                     </Style>
                 </Grid.Style>
-                <!-- Monochrome logo icon: the ONE element, at all times: while a search is in flight it
-                     just breathes its own opacity (accent-colored) in place, rather than a separate
-                     spinner/glow shape popping in over it (see issue #132: the old hard Collapsed/Visible
-                     swap between the logo and a detached spinner flickered on nearly every keystroke). -->
+                <!-- Monochrome logo icon: breathes opacity in place while searching (issue #132). -->
                 <Border Width="{Binding LeftIconSize, ElementName=root}" Height="{Binding LeftIconSize, ElementName=root}" SnapsToDevicePixels="True" UseLayoutRounding="True" RenderOptions.BitmapScalingMode="HighQuality">
                     <Border.Style>
                         <Style TargetType="Border">
@@ -60,12 +53,8 @@
                                     <DataTrigger.EnterActions>
                                         <BeginStoryboard x:Name="LeftLogoBreathe">
                                             <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                                 From="0.25" To="1" Duration="0:0:0.6"
-                                                                 AutoReverse="True" RepeatBehavior="Forever">
-                                                    <DoubleAnimation.EasingFunction>
-                                                        <SineEase EasingMode="EaseInOut"/>
-                                                    </DoubleAnimation.EasingFunction>
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.25" To="1" Duration="0:0:0.6" AutoReverse="True" RepeatBehavior="Forever">
+                                                    <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut"/></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
                                             </Storyboard>
                                         </BeginStoryboard>
@@ -74,18 +63,11 @@
                                         <StopStoryboard BeginStoryboardName="LeftLogoBreathe"/>
                                         <BeginStoryboard>
                                             <Storyboard>
-                                                <!-- FillBehavior="Stop": the default (HoldEnd) would keep this animation
-                                                     locking Opacity at 0.5 forever once it finishes, permanently masking
-                                                     the hover-highlight trigger below (Setter-based values never win over
-                                                     a still-holding animation) even after the mouse is back over the icon. -->
                                                 <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0.5" Duration="0:0:0.2" FillBehavior="Stop"/>
                                             </Storyboard>
                                         </BeginStoryboard>
                                     </DataTrigger.ExitActions>
                                 </DataTrigger>
-                                <!-- Hover highlight: only when this window has actually wired up
-                                     IconLeftClicked (IsIconClickable): otherwise hovering would light
-                                     up an icon that does nothing when clicked. -->
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
                                         <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True"/>
@@ -97,8 +79,7 @@
                         </Style>
                     </Border.Style>
                     <Border.OpacityMask>
-                        <ImageBrush ImageSource="pack://application:,,,/Lertaro.App;component/tray.png"
-                                    RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <ImageBrush ImageSource="pack://application:,,,/Lertaro.App;component/tray.png" RenderOptions.BitmapScalingMode="HighQuality"/>
                     </Border.OpacityMask>
                 </Border>
             </Grid>
@@ -116,26 +97,30 @@
                     </Style>
                 </StackPanel.Style>
                 <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_ActionsTitle]}"
-                           Foreground="{DynamicResource AccentBlue}" FontSize="{Binding FontSize, ElementName=root}"
-                           VerticalAlignment="Center"/>
-                <!-- Vertical divider line: height tracks RightIconSize (already derived from the search
-                     box's own real height when IsDynamicScalingEnabled: see SearchBoxControl.xaml.cs)
-                     instead of a separate hardcoded number, so it keeps scaling with the search bar
-                     rather than drifting out of proportion on windows with a different configured height. -->
+                           Foreground="{DynamicResource AccentBlue}" FontSize="{Binding FontSize, ElementName=root}" VerticalAlignment="Center"/>
                 <Border Width="1" Height="{Binding RightIconSize, ElementName=root}" Margin="11,0,0,0" Background="{DynamicResource SeparatorBrush}" SnapsToDevicePixels="True"/>
             </StackPanel>
 
             <!-- TextBox -->
-            <TextBox x:Name="TxtSearch"
-                     Grid.Column="2"
+            <TextBox x:Name="TxtSearch" Grid.Column="2" Padding="0" Background="Transparent" BorderThickness="0" VerticalAlignment="Center"
                      Text="{Binding SearchText, ElementName=root, UpdateSourceTrigger=PropertyChanged}"
-                     FontSize="{Binding FontSize, ElementName=root}"
-                     
-                     Foreground="{DynamicResource TextPrimary}"
-                     Background="Transparent"
-                     BorderThickness="0"
-                     VerticalAlignment="Center"
-                     CaretBrush="{DynamicResource TextPrimary}"/>
+                     FontSize="{Binding FontSize, ElementName=root}" Foreground="{DynamicResource TextPrimary}" CaretBrush="{DynamicResource TextPrimary}">
+                <TextBox.Style>
+                    <Style TargetType="TextBox">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="TextBox">
+                                    <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </TextBox.Style>
+            </TextBox>
 
             <!-- Placeholder -->
             <TextBlock x:Name="TxtPlaceholder"

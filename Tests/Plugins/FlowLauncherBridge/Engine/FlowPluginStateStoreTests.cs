@@ -3,25 +3,37 @@ using Lertaro.Plugins.FlowLauncherBridge.Engine;
 namespace Lertaro.Plugins.FlowLauncherBridge.Tests.Engine;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class FlowPluginStateStoreTests
 {
     [TestMethod]
     public void FlowPluginStateStore_SaveAndLoad_RoundtripsKeywordAndDisabled()
     {
-        var testPluginId = "TEST_ID_" + Guid.NewGuid().ToString("N");
-        var testPluginName = "TestPlugin_" + Guid.NewGuid().ToString("N");
+        var tempFile = Path.Combine(Path.GetTempPath(), $"flow_state_test_{Guid.NewGuid():N}.json");
+        FlowPluginStateStore.CustomFilePath = tempFile;
 
-        FlowPluginStateStore.SaveCustomKeyword(testPluginId, testPluginName, "mykw");
-        FlowPluginStateStore.SetPluginDisabled(testPluginId, testPluginName, true);
+        try
+        {
+            var testPluginId = "TEST_ID_" + Guid.NewGuid().ToString("N");
+            var testPluginName = "TestPlugin_" + Guid.NewGuid().ToString("N");
 
-        var kwById = FlowPluginStateStore.GetCustomKeyword(testPluginId);
-        var kwByName = FlowPluginStateStore.GetCustomKeyword("unknown", testPluginName);
-        var disabledById = FlowPluginStateStore.IsPluginDisabled(testPluginId);
-        var disabledByName = FlowPluginStateStore.IsPluginDisabled("unknown", testPluginName);
+            FlowPluginStateStore.SaveCustomKeyword(testPluginId, testPluginName, "mykw");
+            FlowPluginStateStore.SetPluginDisabled(testPluginId, testPluginName, true);
 
-        Assert.AreEqual("mykw", kwById);
-        Assert.AreEqual("mykw", kwByName);
-        Assert.IsTrue(disabledById);
-        Assert.IsTrue(disabledByName);
+            var kwById = FlowPluginStateStore.GetCustomKeyword(testPluginId);
+            var kwByName = FlowPluginStateStore.GetCustomKeyword("unknown", testPluginName);
+            var disabledById = FlowPluginStateStore.IsPluginDisabled(testPluginId);
+            var disabledByName = FlowPluginStateStore.IsPluginDisabled("unknown", testPluginName);
+
+            Assert.AreEqual("mykw", kwById);
+            Assert.AreEqual("mykw", kwByName);
+            Assert.IsTrue(disabledById);
+            Assert.IsTrue(disabledByName);
+        }
+        finally
+        {
+            FlowPluginStateStore.CustomFilePath = null;
+            try { if (File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+        }
     }
 }

@@ -17,8 +17,11 @@ public static class FlowPluginStateStore
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    public static string? CustomFilePath { get; set; }
+
     public static string GetFilePath()
     {
+        if (!string.IsNullOrEmpty(CustomFilePath)) return CustomFilePath;
         var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
         return Path.Combine(baseDir, "FlowData", "Settings", "Plugins.json");
@@ -45,10 +48,10 @@ public static class FlowPluginStateStore
                         else if (valNode is JsonObject stateObj)
                         {
                             var state = new FlowPluginCustomState();
-                            if (stateObj.TryGetPropertyValue("ActionKeyword", out var kwNode) && kwNode != null && kwNode.GetValueKind() == JsonValueKind.String)
-                                state.ActionKeyword = kwNode.GetValue<string?>();
-                            if (stateObj.TryGetPropertyValue("Disabled", out var disNode) && disNode != null && bool.TryParse(disNode.ToString(), out var dis))
-                                state.Disabled = dis;
+                            if (stateObj.TryGetPropertyValue("ActionKeyword", out var kwNode) && kwNode is JsonValue kwVal && kwVal.TryGetValue<string>(out var kwStr))
+                                state.ActionKeyword = kwStr;
+                            if (stateObj.TryGetPropertyValue("Disabled", out var disNode) && disNode is JsonValue disVal && disVal.TryGetValue<bool>(out var disBool))
+                                state.Disabled = disBool;
                             result[key] = state;
                         }
                     }
