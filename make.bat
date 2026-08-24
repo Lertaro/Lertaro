@@ -144,9 +144,9 @@ copy "%ROOT%install-dotnet-runtime.bat" "%OUT%\" >nul
 if errorlevel 1 (
     echo [Warning] Failed to copy install-dotnet-runtime.bat.
 )
-copy "%ROOT%portable-cleanup-registry.reg" "%OUT%\" >nul
+copy "%ROOT%portable-cleanup.bat" "%OUT%\" >nul
 if errorlevel 1 (
-    echo [Warning] Failed to copy portable-cleanup-registry.reg.
+    echo [Warning] Failed to copy portable-cleanup.bat.
 )
 del /s /q "%OUT%\*.pdb" >nul 2>&1
 
