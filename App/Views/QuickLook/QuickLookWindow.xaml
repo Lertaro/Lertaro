@@ -11,6 +11,7 @@
         ShowActivated="False"
         Focusable="False"
         ResizeMode="CanResizeWithGrip"
+        TextElement.Foreground="{DynamicResource TextPrimary}"
         BorderThickness="0">
     <Window.Resources>
         <ResourceDictionary>

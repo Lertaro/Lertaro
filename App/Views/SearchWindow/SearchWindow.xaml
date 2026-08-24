@@ -14,6 +14,7 @@
         Background="Transparent"
         AllowsTransparency="True"
         WindowStyle="None"
+        TextElement.Foreground="{DynamicResource TextPrimary}"
         ResizeMode="CanResizeWithGrip">
     <Window.Resources>
         <ResourceDictionary>

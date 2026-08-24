@@ -6,7 +6,8 @@
         xmlns:local="clr-namespace:Lertaro.App.Views.LocalSend"
         Title="LocalSend" Height="400" Width="480" MinWidth="420" MinHeight="320"
         WindowStartupLocation="CenterScreen" Background="Transparent" AllowsTransparency="True"
-        WindowStyle="None" ResizeMode="CanResizeWithGrip" ShowInTaskbar="True" Topmost="True">
+        WindowStyle="None" ResizeMode="CanResizeWithGrip" ShowInTaskbar="True" Topmost="True"
+        TextElement.Foreground="{DynamicResource TextPrimary}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>

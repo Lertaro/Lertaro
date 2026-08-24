@@ -12,6 +12,7 @@
         AllowsTransparency="True"
         WindowStyle="None"
         ResizeMode="CanResizeWithGrip"
+        TextElement.Foreground="{DynamicResource TextPrimary}"
         StateChanged="Window_StateChanged"
         SizeChanged="SettingsWindow_SizeChanged">
 

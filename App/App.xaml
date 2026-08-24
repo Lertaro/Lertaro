@@ -9,20 +9,6 @@
                 <ResourceDictionary Source="Resources/DataTemplates.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             
-            <!-- Global font family and default text color -->
-            <Style TargetType="Window">
-                
-                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimary}"/>
-            </Style>
-
-            <Style TargetType="UserControl">
-                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimary}"/>
-            </Style>
-
-            <!-- Global implicit TextBlock style -->
-            <Style TargetType="TextBlock">
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
