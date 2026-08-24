@@ -11,11 +11,11 @@ cada versión:
   más adelante el servicio en segundo plano desde **Configuración → Estado del Servicio**. Si tu equipo todavía no
   tiene el .NET Desktop Runtime que necesita Lertaro, ejecuta una vez el `install-dotnet-runtime.bat` incluido —
   el instalador gestiona este paso automáticamente, pero la versión portable no puede. Cuando termines con una
-  instalación portable, no hay ningún desinstalador que limpie después de ti: haz doble clic en el
-  `portable-cleanup-registry.reg` incluido (confirma el aviso) antes de borrar la carpeta, para eliminar las dos
-  entradas del registro por usuario que Lertaro crea por sí mismo — el registro del protocolo URI `lertaro://`
-  y su entrada de "iniciar con Windows". Ambas son solo por usuario (HKCU), así que no hace falta ningún aviso de
-  administrador.
+  instalación portable, no hay ningún desinstalador que limpie después de ti: ejecuta el `portable-cleanup.bat`
+  incluido antes de borrar la carpeta. Si el servicio está instalado, detiene y elimina el servicio de segundo plano
+  de Lertaro, y también elimina el registro del protocolo URI `lertaro://` y la entrada de "iniciar con Windows"
+  del usuario actual. La eliminación del servicio puede solicitar permisos de administrador; el resto de la limpieza
+  se realiza para el usuario actual.
 
 Cada una de ellas se publica para **x64** y para **ARM64**. Los nombres de arriba son las versiones x64, que
 funcionan en cualquier PC reciente — incluido Windows on ARM, donde se ejecutan emuladas. En un equipo ARM es

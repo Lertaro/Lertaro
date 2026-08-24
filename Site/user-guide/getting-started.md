@@ -11,11 +11,11 @@ published for every release:
   the background service later from **Settings → Service Status**. If your machine doesn't already
   have the .NET Desktop Runtime Lertaro needs, run the included `install-dotnet-runtime.bat` once
   — the Installer handles this step automatically, but the portable build can't. When you're done
-  with a portable install, there's no uninstaller to clean up after you: double-click the included
-  `portable-cleanup-registry.reg` (confirm the prompt) before deleting the folder to remove the two
-  per-user registry entries Lertaro creates on its own — the `lertaro://` URI protocol
-  registration and its "start with Windows" entry. Both are per-user (HKCU) only, so no
-  administrator prompt is needed.
+  with a portable install, there's no uninstaller to clean up after you: run the included
+  `portable-cleanup.bat` before deleting the folder. It stops and removes Lertaro's background
+  service when present, and removes the per-user `lertaro://` URI protocol and "start with Windows"
+  registrations. Removing the service may request administrator approval; the cleanup is otherwise
+  performed for the current user.
 
 Each of those is published for **x64** and for **ARM64**. The names above are the x64 builds, which
 run on any recent PC — including Windows on ARM, where they run emulated. On an ARM machine prefer
