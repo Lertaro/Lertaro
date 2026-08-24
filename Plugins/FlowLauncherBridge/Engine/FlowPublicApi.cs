@@ -48,11 +48,40 @@ public class FlowPublicApi : IPublicAPI
 
     public void ChangeQuery(string query, bool requery = false)
     {
+        var normalized = NormalizeQueryWithKeyword(query);
         if (_changeQueryAction != null)
-            _changeQueryAction(query, requery);
+            _changeQueryAction(normalized, requery);
         else
-            PluginSdk.Services.SearchQueryService.ChangeQuery(query, requery);
+            PluginSdk.Services.SearchQueryService.ChangeQuery(normalized, requery);
     }
+
+    public string NormalizeQueryWithKeyword(string query)
+    {
+        var activeKeyword = _metadata.ActionKeyword;
+        if (string.IsNullOrWhiteSpace(activeKeyword) || activeKeyword == "*")
+            return query;
+
+        if (string.IsNullOrWhiteSpace(query))
+            return activeKeyword + " ";
+
+        var trimmed = query.TrimStart();
+        var firstSpace = trimmed.IndexOf(' ');
+        var firstWord = firstSpace > 0 ? trimmed[..firstSpace] : trimmed;
+        var rest = firstSpace > 0 ? trimmed[(firstSpace + 1)..] : string.Empty;
+
+        // If query explicitly switches to another registered plugin's keyword (e.g. "pm install ..."), preserve it
+        if (!firstWord.Equals(activeKeyword, StringComparison.OrdinalIgnoreCase) &&
+            _actionKeywordAssignedFunc != null &&
+            _actionKeywordAssignedFunc(firstWord))
+        {
+            return query;
+        }
+
+        return firstSpace > 0
+            ? activeKeyword + " " + rest
+            : activeKeyword;
+    }
+
     public void ReQuery(bool reselect = true) => ChangeQuery(string.Empty, true);
     public void BackToQueryResults() { }
 

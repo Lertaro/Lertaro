@@ -99,4 +99,57 @@ public sealed class FlowPublicApiTests
             PluginSdk.Services.SearchWindowService.FocusQueryTextBoxFunc = null;
         }
     }
+
+    [TestMethod]
+    public void ChangeQuery_CustomKeyword_NormalizesDefaultKeyword()
+    {
+        var metadata = new PluginMetadata
+        {
+            ID = "audio-cowboy",
+            Name = "AudioCowboy",
+            ActionKeyword = "audio",
+            ActionKeywords = ["audio"]
+        };
+        var storage = new FlowSettingsStorage(_tempDir);
+        string? changedQuery = null;
+        var api = new FlowPublicApi(metadata, storage, () => [], (q, _) => changedQuery = q);
+
+        // Plugin sends "ac o " (hardcoded in plugin script) -> normalized to "audio o "
+        api.ChangeQuery("ac o ", true);
+        Assert.AreEqual("audio o ", changedQuery);
+
+        // Plugin sends "ac" -> normalized to "audio"
+        api.ChangeQuery("ac", true);
+        Assert.AreEqual("audio", changedQuery);
+
+        // Plugin sends "ac i " -> normalized to "audio i "
+        api.ChangeQuery("ac i ", true);
+        Assert.AreEqual("audio i ", changedQuery);
+
+        // Plugin sends multi-level sub-menu "ac r MyProfile → " -> normalized to "audio r MyProfile → "
+        api.ChangeQuery("ac r MyProfile → ", true);
+        Assert.AreEqual("audio r MyProfile → ", changedQuery);
+
+        // Plugin sends "" -> normalized to "audio "
+        api.ChangeQuery(string.Empty, true);
+        Assert.AreEqual("audio ", changedQuery);
+    }
+
+    [TestMethod]
+    public void NormalizeQueryWithKeyword_RespectsOtherPluginKeywords()
+    {
+        var metadata = new PluginMetadata
+        {
+            ID = "audio-cowboy",
+            Name = "AudioCowboy",
+            ActionKeyword = "audio",
+            ActionKeywords = ["audio"]
+        };
+        var storage = new FlowSettingsStorage(_tempDir);
+        var api = new FlowPublicApi(metadata, storage, () => [], null, null, null, kw => kw.Equals("pm", StringComparison.OrdinalIgnoreCase));
+
+        // When query matches another plugin's keyword "pm", it should not prepend "audio"
+        var query = api.NormalizeQueryWithKeyword("pm install SomePlugin");
+        Assert.AreEqual("pm install SomePlugin", query);
+    }
 }

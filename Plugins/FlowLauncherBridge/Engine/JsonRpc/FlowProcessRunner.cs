@@ -265,12 +265,16 @@ public class FlowProcessRunner
             icoPath = Path.Combine(_metadata.PluginDirectory, icoPath);
         }
 
+        var autoText = item.AutoCompleteText ?? string.Empty;
+        if (!string.IsNullOrEmpty(autoText) && api is FlowPublicApi flowApi)
+            autoText = flowApi.NormalizeQueryWithKeyword(autoText);
+
         return new Result
         {
             Title = item.Title ?? string.Empty,
             SubTitle = item.SubTitle ?? string.Empty,
             IcoPath = icoPath ?? string.Empty,
-            AutoCompleteText = item.AutoCompleteText ?? string.Empty,
+            AutoCompleteText = autoText,
             AsyncAction = async _ =>
             {
                 if (item.JsonRPCAction != null)
