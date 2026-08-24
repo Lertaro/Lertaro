@@ -15,6 +15,9 @@ public static class PluginActionExecutor
             // Dismiss the window before executing. An admin launch blocks on the UAC prompt, so
             // deferring the close (as the callers do on success) would leave the search window up
             // until the app actually starts. Closing up front makes it disappear immediately.
+            // Suppress restoring focus to the prior background window so any popup window or launched
+            // app opened by InstantResultOnExecute/Execute doesn't immediately get deactivated and closed.
+            (view as QuickSearchWindow)?.SuppressNextForegroundRestore();
             view?.HideWindow();
             try
             {
