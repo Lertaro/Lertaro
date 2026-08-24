@@ -248,6 +248,7 @@ public class FlowPluginHost : IAsyncDisposable
             try { loader.Unload(); } catch { }
             GC.Collect();
             GC.WaitForPendingFinalizers();
+            try { if (Directory.Exists(loader.ShadowDirectory)) Directory.Delete(loader.ShadowDirectory, true); } catch { }
         }
 
         return true;
