@@ -115,6 +115,7 @@ public class FlowProcessRunner
 
     private IReadOnlyDictionary<string, object>? LoadPluginSettings()
     {
+        var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         try
         {
             var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
@@ -124,11 +125,25 @@ public class FlowProcessRunner
             if (File.Exists(settingsPath))
             {
                 var json = File.ReadAllText(settingsPath);
-                return JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                var loaded = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                if (loaded != null)
+                {
+                    foreach (var kv in loaded)
+                        dict[kv.Key] = kv.Value;
+                }
             }
         }
         catch { }
-        return null;
+
+        var activeKeyword = FlowPluginStateStore.GetCustomKeyword(_metadata.Name)
+            ?? (!string.IsNullOrWhiteSpace(_metadata.ActionKeyword) ? _metadata.ActionKeyword : string.Empty);
+        if (!string.IsNullOrEmpty(activeKeyword))
+        {
+            dict["triggerKeyword"] = activeKeyword;
+            dict["ActionKeyword"] = activeKeyword;
+        }
+
+        return dict.Count > 0 ? dict : null;
     }
 
     private async Task<string> RunProcessAsync(string inputJson, string? cliQuery, CancellationToken cancellationToken)

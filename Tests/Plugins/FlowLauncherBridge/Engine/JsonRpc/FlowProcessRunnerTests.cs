@@ -33,6 +33,20 @@ public sealed class FlowProcessRunnerTests
     }
 
     [TestMethod]
+    public void FlowProcessRunner_InjectsTriggerKeyword_IntoSettings()
+    {
+        var meta = new PluginMetadata { ID = "TEST_RPC", Name = "RpcPlugin", ActionKeyword = "tra" };
+        var runner = new FlowProcessRunner(meta, "non_existent_binary.exe");
+
+        var method = typeof(FlowProcessRunner).GetMethod("LoadPluginSettings", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var settings = method?.Invoke(runner, null) as IReadOnlyDictionary<string, object>;
+
+        Assert.IsNotNull(settings);
+        Assert.AreEqual("tra", settings["triggerKeyword"]?.ToString());
+        Assert.AreEqual("tra", settings["ActionKeyword"]?.ToString());
+    }
+
+    [TestMethod]
     public async Task FlowProcessRunner_ExecuteActionAsync_ChangeQuery_InvokesApi()
     {
         var meta = new PluginMetadata { ID = "TEST_RPC", Name = "RpcPlugin" };
