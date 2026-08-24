@@ -101,6 +101,7 @@
                      ItemContainerStyle="{StaticResource PluginListItemStyle}"
                      SelectionChanged="PluginsList_SelectionChanged"
                      BorderThickness="0" Background="Transparent" Margin="0,0,8,0"
+                     ScrollViewer.CanContentScroll="False"
                      ScrollViewer.VerticalScrollBarVisibility="Auto"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemTemplate>

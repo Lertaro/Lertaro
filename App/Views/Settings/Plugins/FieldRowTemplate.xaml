@@ -140,6 +140,8 @@
                                  the item template was written for. -->
                             <ListBox Grid.Row="1" ItemsSource="{Binding ArrayItems}" SelectedItem="{Binding SelectedArrayItem, Mode=TwoWay}"
                                      BorderThickness="0" Background="Transparent"
+                                     ScrollViewer.CanContentScroll="False"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                      ItemContainerStyle="{StaticResource ArrayMasterListItemStyle}"
                                      SelectionChanged="ArrayMasterList_SelectionChanged"
