@@ -1,191 +1,263 @@
 # Sintaxis de búsqueda
 
-El cuadro de consulta de Lertaro admite más que escribir texto sin más. Cada operador de abajo se puede combinar
-con términos difusos normales en la misma consulta.
+La barra de búsqueda de Lertaro admite mucho más que una simple búsqueda de texto plano. Equipada con un algoritmo de coincidencia ultrarrápido, admite coincidencia difusa con salto de caracteres, operadores lógicos, modificadores de límite de palabra, delimitación por unidad y ruta, fichas de consulta (Query Tokens) para filtrado secundario y alias multilingües inteligentes. Todas las sintaxis se pueden combinar libremente en la misma consulta.
 
-## Coincidencia difusa (predeterminada)
+## 1. Modos de coincidencia básica y distinción entre mayúsculas y minúsculas
 
-Escribe cualquier parte de un nombre y Lertaro lo encuentra siempre que los caracteres aparezcan en orden, en
-cualquier parte del nombre del archivo/carpeta — no necesitas escribir una subcadena contigua:
+### Coincidencia difusa (predeterminada)
 
-| Escribes | Coincide con |
-|---|---|
-| `swlst` | `Lertaro.exe` |
-| `report` | `Q3-report-final.docx` |
+Lertaro activa la coincidencia difusa (Fuzzy Matching) de forma predeterminada. Simplemente escribe cualquier parte de las palabras y coincidirá siempre que los caracteres aparezcan en orden en el nombre del archivo o carpeta, incluso si no son continuos:
 
-Desactiva esto en **Configuración → General → Sistema → Activar coincidencia difusa** y un término normal (sin
-operador) tendrá que aparecer como subcadena contigua en su lugar — `abc` deja de coincidir con `a-b-c`. Todos
-los operadores de la tabla de abajo siguen funcionando exactamente igual en cualquier caso; el ajuste solo
-cambia lo que exige un término normal. El operador `'` invierte la exactitud de un solo término
-independientemente del ajuste, así que puedes meter una palabra difusa en una consulta por lo demás exacta, o
-una palabra exacta en una por lo demás difusa, sin tocar el ajuste en sí.
+| Ejemplo de entrada | Resultado de coincidencia | Descripción |
+| :--- | :--- | :--- |
+| `ltro` | `Lertaro.exe` | Los caracteres coinciden en orden: `l` → `t` → `r` → `o` (**L**er**t**a**ro**.exe) |
+| `vsc` | `Visual Studio Code.lnk` | Coincide con las iniciales de cada palabra (**V**isual **S**tudio **C**ode) |
+| `rep` | `Q3-report-final.docx` | Coincide con la subcadena continua (Q3-**rep**ort-final.docx) |
 
-## Varias palabras
+Desactiva esta opción en **Configuración → General → Sistema → Habilitar coincidencia difusa** y los términos de búsqueda simples (sin operadores) requerirán una subcadena continua — `abc` solo coincidirá con nombres que contengan `abc` continuo, ya no con `a-b-c`. Esta opción solo afecta a los términos simples; todos los operadores descritos a continuación mantienen su comportamiento exacto.
 
-Separa las palabras con un espacio. Cada palabra reduce aún más el conjunto de resultados — **no** exige que las
-palabras aparezcan en el mismo orden en que las escribiste:
+### Distinción inteligente de mayúsculas y minúsculas (Smart Case)
 
+- **Consultas en minúsculas**: No distinguen entre mayúsculas y minúsculas por defecto. Por ejemplo, `myfile` coincide con `myfile`, `MyFile`, `MYFILE`, etc.
+- **Consultas con letras mayúsculas**: Una vez que un término contiene cualquier letra mayúscula, se vuelve automáticamente **sensible a las mayúsculas**. Por ejemplo, `MyFile` solo coincide con `MyFile`, y no con `myfile` en minúsculas.
+
+## 2. Varios términos y operadores lógicos
+
+### Espacio: AND (Y)
+
+Separa varios términos de búsqueda con espacios para exigir que se cumplan todas las condiciones. El orden en el que aparecen los términos en el nombre del archivo **no importa**:
+
+```text
+report final 2024
 ```
-report final
+
+La consulta anterior coincide tanto con `2024-Q3-report-final.docx` como con `final_report_2024.pdf`.
+
+### Barra vertical `|`: OR (O)
+
+Usa el símbolo de barra vertical `|` para separar términos cuando baste con que coincida cualquiera de las alternativas:
+
+```text
+png | jpg | gif
 ```
 
-coincide igual de bien con `final-Q3-report.docx` que con `Q3-report-final.docx`.
+Puedes combinar libremente la lógica AND y OR:
 
-## Sensibilidad a mayúsculas
-
-- Una consulta **totalmente en minúsculas** no distingue mayúsculas de minúsculas: `myfile` coincide con
-  `MyFile`, `MYFILE`, etc.
-- Una consulta con **alguna letra mayúscula** pasa a distinguir mayúsculas de minúsculas para ese término:
-  `MyFile` solo coincide con `MyFile`, no con `myfile`.
-
-## Operadores
-
-| Prefijo/Sufijo | Ejemplo | Efecto |
-|---|---|---|
-| *(ninguno)* | `report` | Coincidencia difusa en cualquier parte del nombre (predeterminado). |
-| `!` | `!temp` | **Excluir** resultados cuyo nombre contenga la subcadena exacta `temp` (esta no es difusa). |
-| `'` | `'report` | **Invierte la exactitud** de este término — coincidencia de subcadena exacta en lugar de difusa mientras la coincidencia difusa está activada (por defecto); vuelve a ser difusa para este término mientras la coincidencia difusa está desactivada en Configuración. |
-| `'...'` | `'final report'` | Coincidencia exacta anclada a límites de palabra (no coincidirá dentro de una palabra más larga). |
-| `^` | `^IMG` | Coincidencia de **prefijo** — el nombre debe empezar por `IMG`. |
-| `$` | `.pdf$` | Coincidencia de **sufijo** — el nombre debe terminar en `.pdf`. |
-| `^...$` | `^readme.md$` | **Igualdad** — el nombre debe ser exactamente `readme.md`. Solo cuando ambos envuelven la *misma* palabra; en palabras distintas siguen siendo filtros independientes de prefijo y sufijo. |
-| `\|` | `report \| summary` | **OR** — coincide con cualquiera de los dos lados de la barra vertical. |
-
-Puedes combinar estos libremente, por ejemplo `^IMG !.png$ 2024` encuentra archivos que empiecen por `IMG`, de
-2024, que *no* sean PNG.
-
-En una consulta OR, todo término que realmente coincida con un resultado dado se resalta en su nombre — no solo el
-que coincidió primero — así que `report | summary` resalta ambas palabras en un resultado cuyo nombre las
-contenga a las dos.
-
-## Pegar varias líneas
-
-Pega texto que contenga varias líneas — por ejemplo, nombres de archivo copiados uno por línea desde una hoja de
-cálculo o un archivo de texto — y Lertaro los convierte automáticamente en una consulta OR en lugar de pegarlos
-tal cual:
-
+```text
+report | summary 2024
 ```
+
+Esto busca archivos que contengan `report` o `summary`, y que además contengan `2024`. En las consultas OR, todos los términos que coincidan se resaltarán simultáneamente en el nombre del resultado.
+
+### Espacios en términos y frases entre comillas
+
+Para buscar una frase que contenga espacios dentro de un solo término, escapa el espacio con una barra invertida `\ `, o encierra la frase entre comillas simples `'...'` o dobles `"..."`:
+
+```text
+final\ report
+'final report'
+```
+
+Ambas formas tratan `final report` como una frase única con espacio, en lugar de dividirla en dos términos AND independientes.
+
+### Pegar texto de varias líneas doblado en OR
+
+Al copiar texto de varias líneas (por ejemplo, nombres de archivo de una hoja de cálculo, archivo de texto o registro) y pegarlo directamente en el cuadro de búsqueda, Lertaro dobla automáticamente las líneas en una única consulta OR separada por `|` (las líneas en blanco se omiten automáticamente):
+
+```text
 123
 456
 678
 ```
 
-se pega como `123 | 456 | 678`, coincidiendo con cualquiera de los tres. Las líneas en blanco se omiten. Un
-pegado normal de una sola línea no se ve afectado.
+Se pega automáticamente como:
 
-## Segmentar por unidad
-
-Empieza la consulta con una letra de unidad seguida de dos puntos para restringir los resultados a esa unidad, y
-luego sigue escribiendo tu búsqueda con normalidad:
-
+```text
+123 | 456 | 678
 ```
+
+## 3. Tabla resumen de operadores de búsqueda
+
+### Tabla de operadores
+
+| Operador / Sintaxis | Tipo | Descripción | Ejemplo de entrada | Ejemplo de coincidencia |
+| :--- | :--- | :--- | :--- | :--- |
+| *(ninguno)* | Difuso predeterminado | Los caracteres aparecen en orden en cualquier parte del nombre | `report` | `Q3-report-final.docx` |
+| `!` | Excluir | Excluye todos los resultados cuyo nombre contenga esta subcadena exacta | `!temp` | Filtra archivos que contengan `temp` |
+| `'` | Invertir exactitud | Subcadena exacta si el modo difuso está activo; difuso si está apagado | `'report` | Debe contener la subcadena continua `report` |
+| `'...'` | Límite de palabra | Subcadena exacta en límites de palabra (no dentro de palabras más largas) | `'app'` | Coincide con `app.exe`, `my-app.log`; no con `whatsapp.exe` |
+| `^` | Coincidencia de prefijo | El nombre debe comenzar con este texto | `^IMG` | `IMG_20240101.jpg` (no coincide con `MY_IMG.jpg`) |
+| `$` | Coincidencia de sufijo | El nombre debe terminar con este texto | `.pdf$` | `document.pdf` (no coincide con `document.pdf.bak`) |
+| `^...$` | Coincidencia exacta | El nombre debe ser exactamente igual a este texto | `^readme.md$` | Coincide únicamente con `readme.md` |
+| `\|` | Lógica OR | Coincide con cualquiera de los lados de la barra | `doc \| pdf` | Coincide con nombres que contengan `doc` o `pdf` |
+
+### Comportamiento detallado de operadores y combinaciones
+
+1. **Exclusión `!`**: `!term` descarta directamente los resultados que contengan `term` como subcadena exacta. Los términos excluidos no se expanden con pinyin ni alias para evitar exclusiones accidentales.
+2. **Inversión de exactitud `'`**: Cuando la coincidencia difusa global está activada, anteponer `'` fuerza a un término específico a coincidir como subcadena continua exacta. Por ejemplo, `lertaro 'v1.2` busca `lertaro` de forma difusa mientras que exige `v1.2` de forma continua y exacta.
+3. **Límite de palabra `'...'`**: Encerrar una palabra entre comillas (por ejemplo, `'app'`) verifica los límites anteriores y posteriores (espacios, signos de puntuación, guiones, guiones bajos o extremos de cadena), evitando falsos positivos dentro de palabras largas.
+4. **Coincidencia exacta `^...$`**: Solo se aplica cuando `^` y `$` envuelven la **misma palabra**. Si se escriben en palabras separadas (por ejemplo, `^src md$`), siguen actuando como filtros independientes de prefijo y sufijo.
+
+**Ejemplos de combinación de operadores**:
+
+- `^IMG !.png$ 2024`: Busca archivos que comiencen por `IMG`, contengan `2024` y **no** terminen en `.png`.
+- `'data | 'backup ^2024 .zip$`: Busca archivos comprimidos que comiencen por `2024`, terminen en `.zip` y contengan la subcadena exacta `data` o `backup`.
+
+## 4. Modo de ruta y delimitación por unidad
+
+### Especificar una unidad
+
+Comienza la consulta con una letra de unidad seguida de dos puntos para limitar los resultados estrictamente a esa unidad:
+
+```text
 d: report
 ```
 
-busca solo en la unidad `D:`.
+El espacio es opcional: `d:report` y `d: report` son equivalentes.
 
-El espacio es opcional: `d:report` significa lo mismo que `d: report`.
+### Modo de ruta completa
 
-## Modo de ruta
+Cuando la consulta contiene separadores de ruta (`\` o `/`), Lertaro cambia automáticamente al modo de coincidencia de ruta completa:
 
-Si tu consulta contiene un separador de ruta (`\` o `/`), Lertaro cambia al modo de ruta y compara contra rutas
-completas en lugar de solo nombres — útil para saltar directamente a una carpeta conocida:
-
-```
+```text
 D:\Projects\Lertaro
 ```
 
-Un separador final (`D:\Projects\`) busca en el *contenido* de esa carpeta exacta.
+Si termina con un separador de ruta (por ejemplo, `D:\Projects\`), busca el contenido directo **dentro** de esa carpeta.
 
-## Filtrar por nombre de carpeta y comodines (Query Tokens)
+### Coincidencia alternativa en carpetas superiores (Folder Matching)
 
-Lertaro admite encadenar tokens de consulta después de sus palabras clave principales (con el prefijo `:` de forma predeterminada o mediante prefijos de token dedicados) para realizar un filtrado secundario:
+Cuando la búsqueda solo por nombre de archivo no llena la capacidad de resultados, Lertaro utiliza automáticamente los términos no coincidentes para buscar coincidencias en las carpetas superiores sin necesidad de sintaxis especial:
 
-- **Filtro comodín secundario (`:?<expresión-comodín>` o `?<expresión-comodín>`)**: Utiliza la sintaxis comodín estándar de Windows (`?` para cualquier carácter individual, `*` para cero o más caracteres) para filtrar los resultados de la búsqueda principal. Por ejemplo, `mp4 :?(2026???????????)` o `mp4 ?(2026???????????)` filtra archivos con la etiqueta 2026 y una marca de tiempo de 11 dígitos. Utilice `|` o `;` para especificar múltiples condiciones comodín OR (ej. `?(2026*)|*.png`).
-- **Coincidencia de ruta (`::<expresión-ruta>`)**: Requiere que el nombre del resultado o la carpeta antecesora coincida con el texto especificado (ej. `1080 ::wallpapers` o `report ::2024`).
-- **Filtros de categoría personalizados (`:@<palabra-clave>`)**: Aplica reglas de extensión de archivo o categoría preconfiguradas (ej. `:@doc` o `:@video`).
-
-## Cuando un término describe la carpeta, no el archivo
-
-Si la coincidencia por nombre de archivo/carpeta no llega a llenar los resultados, Lertaro los completa
-automáticamente permitiendo además que los términos coincidan con carpetas antecesoras — sin necesidad de
-ninguna sintaxis especial:
-
-```
+```text
 d01j dcj
 ```
 
-encuentra un archivo llamado `d01j` que vive en una carpeta llamada (o con alias) `dcj`, aunque `dcj` nunca
-aparezca en el propio nombre del archivo. Esto solo rellena el resto de una consulta a partir de las carpetas
-por encima de un archivo — al menos un término todavía tiene que coincidir con el propio nombre del archivo, y
-solo entra en acción cuando una búsqueda normal por nombre no ha llenado la página. Lo que encuentra se añade
-después de esos resultados en lugar de mezclarse con ellos, así que nunca puede desplazar ni reordenar un
-resultado que una búsqueda normal ya habría encontrado. Las carpetas
-antecesoras se comparan de la misma forma que los nombres de archivo, así que el pinyin llega aquí también a
-un nombre de carpeta en chino.
+Incluso si `dcj` nunca aparece en el propio nombre del archivo, Lertaro encuentra `d01j.txt` ubicado dentro de una carpeta llamada (o con alias) `dcj`.
 
-## Saltarse las reglas de exclusión para una búsqueda
+> [!NOTE]
+> Esto requiere que al menos un término coincida con el nombre del archivo, y solo se activa cuando las coincidencias directas no llenan los resultados. Los resultados de respaldo siempre se ordenan después de las coincidencias directas.
 
-Empieza una consulta con `*` para buscar más allá de tus propias [reglas de
-exclusión](./settings/index-drives#reglas-de-exclusion) — `ExcludedPaths`, globs ignorados y expresiones regulares
-ignoradas — solo para esa búsqueda, sin cambiar tu configuración:
+## 5. Fichas de consulta y filtrado secundario (Query Tokens)
 
-```
+Lertaro permite añadir **fichas de consulta (Query Tokens)** encabezadas por dos puntos `:` (personalizable en **Configuración → General → Sistema → Carácter de prefijo global de token de consulta**) al final de la búsqueda para realizar filtrados y ordenaciones secundarias en cadena.
+
+Puedes combinar varias fichas tras un solo prefijo `:` separándolas por comas `,`, como en `report :@doc,M-,:-F`.
+
+### Filtros de categoría de archivo (`:@<categoría>`)
+
+Aplica rápidamente reglas preestablecidas de extensión de archivo, admitiendo combinaciones con `|`:
+
+- `:@doc`: Documentos (`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps`)
+- `:@img`: Imágenes (`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai`)
+- `:@video`: Vídeos (`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts`)
+- `:@audio`: Audio (`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape`)
+- `:@zip`: Archivos comprimidos (`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso`)
+
+**Ejemplos**:
+
+- `financiero :@doc`: Busca "financiero" entre documentos.
+- `wallpaper :@img`: Busca "wallpaper" entre imágenes.
+- `clip :@video|audio`: Busca "clip" entre vídeos o archivos de audio.
+
+Puedes personalizar reglas o añadir nuevas categorías en **Configuración → Plugins → CoreExtensions**.
+
+### Filtros por extensión específica (`:.ext` o `:.ext1.ext2`)
+
+Usa un punto para especificar una o varias extensiones (excluye carpetas automáticamente):
+
+- `report :.pdf`: Conserva únicamente archivos `.pdf`.
+- `data :.csv.xlsx`: Conserva únicamente archivos de hoja de cálculo `.csv` o `.xlsx`.
+
+### Ordenación y filtros de archivo/carpeta (`:[SCMAF]`)
+
+Usa letras individuales para especificar atributos: `S` (Tamaño/Size), `C` (Creación/Created), `M` (Modificación/Modified), `A` (Acceso/Accessed), `F` (Carpeta/Folder).
+
+La letra sin signo indica **orden ascendente** (menor tamaño / más antiguo primero); añadir un signo menos `-` (como prefijo o sufijo, por ejemplo, `M-` o `:-M`) indica **orden descendente** (mayor tamaño / más reciente primero) o filtrado inverso:
+
+| Sintaxis | Efecto | Escenario típico |
+| :--- | :--- | :--- |
+| `:S` | Ordenar por tamaño ascendente (más pequeños primero) | Localizar archivos vacíos o diminutos |
+| `:S-` o `:-S` | Ordenar por tamaño descendente (más grandes primero) | `log :S-` (revisar archivos de registro enormes) |
+| `:M` | Ordenar por fecha de modificación ascendente (más antiguos) | Revisar archivos sin actualizar hace mucho |
+| `:M-` o `:-M` | Ordenar por fecha de modificación descendente (más recientes) | `report :M-` (encontrar documentos editados recientemente) |
+| `:C` / `:C-` | Ordenar por fecha de creación ascendente / descendente | `build :C-` (encontrar las compilaciones más recientes) |
+| `:A` / `:A-` | Ordenar por fecha de acceso ascendente / descendente | `project :A-` (encontrar proyectos abiertos recientemente) |
+| `:F` | **Solo carpetas** (excluye archivos normales) | `config :F` (buscar solo directorios llamados config) |
+| `:-F` o `:F-` | **Solo archivos** (excluye carpetas/directorios) | `config :-F` (buscar solo archivos llamados config) |
+
+### Filtros secundarios con comodines (`:?<expresión>` o `?<expresión>`)
+
+Usa comodines estándar de Windows (`?` para un carácter, `*` para cero o más caracteres) para una coincidencia precisa, admitiendo `|` o `;` para varias condiciones OR:
+
+- `mp4 :?(2026???????????)`: Coincide con archivos de vídeo con `2026` y una marca de tiempo de 11 dígitos.
+- `photo :?IMG_????.jpg|DSC_????.jpg`: Coincide con números de foto específicos entre dos formatos de cámara.
+
+### Filtros secundarios por segmento de ruta (`::<expresión>`)
+
+Requiere que los nombres de las carpetas superiores o el propio archivo coincidan con la palabra clave difusa:
+
+- `report ::2024`: Exige que la ruta contenga `2024`.
+- `main ::"src\core"`: Limita la búsqueda a archivos ubicados dentro de `src\core` y sus subdirectorios.
+
+### Ejemplos de fichas encadenadas
+
+Las fichas se pueden combinar juntas tras un único prefijo `:`:
+
+- `informe :@doc,M-`: Busca "informe", filtra por documentos y ordena por fecha de modificación descendente (más recientes primero).
+- `backup :.zip,S-,:-F`: Busca "backup", filtra por archivos `.zip`, ordena por tamaño de mayor a menor y muestra solo archivos.
+- `icon ::assets,?*128*`: Busca "icon", ubicado bajo rutas `assets` y con indicador de tamaño `128` en el nombre.
+
+## 6. Funciones especiales de búsqueda
+
+### Omitir reglas de exclusión en una sola búsqueda
+
+Escribe `*` al principio de la consulta para ignorar temporalmente las rutas excluidas, globs y expresiones regulares configuradas en [**Reglas de exclusión**](./settings/index-drives#reglas-de-exclusion) para esa búsqueda puntual, sin modificar la configuración:
+
+```text
 *node_modules
 ```
 
-El propio `*` se elimina antes de comparar, así que nunca se trata como parte del texto de búsqueda. Esto solo
-revela resultados que ya estén indexados; una carpeta que *nunca* se indexó desde un principio (una carpeta
-excluida en una unidad de red o WSL) seguirá sin aparecer. Los archivos ocultos/de sistema se siguen filtrando de
-todos modos — esto solo afecta a tu propia configuración de reglas de exclusión. Escribir solo `*` sin nada detrás
-todavía muestra un aviso de "sigue escribiendo para buscar" en lugar de "Sin resultados de búsqueda", ya que aún no
-se ha ejecutado ninguna búsqueda de verdad.
+El `*` inicial se elimina automáticamente antes de la búsqueda. Solo recupera elementos que ya hayan sido indexados (las carpetas nunca indexadas en unidades de red o WSL no aparecerán); los filtros de archivos ocultos y del sistema permanecen activos.
 
-## Activador de tipo de resultado
+### Activador de tipo de resultado
 
-Opcional, y desactivado por defecto — tú mismo asignas el carácter. Si has asignado un carácter activador a un
-tipo de resultado en **Configuración → General → Ventana de búsqueda rápida → Prioridad de tipo de resultado**,
-escribir ese carácter como lo primero de todo en la ventana rápida muestra solo los resultados de ese tipo —
-Aplicaciones, Configuración, un Filtro de archivos concreto, los propios elementos de un plugin, o simplemente
-Archivos — ocultando cualquier otro tipo:
+En **Configuración → General → Ventana de búsqueda rápida → Prioridad de tipo de resultado**, puedes asignar un **activador** de un solo carácter a tipos de resultado específicos (Aplicaciones, Configuración, Categorías de archivo, Elementos de plugins, Archivos, etc.).
 
-```
+Escribir el activador como el primer carácter en la ventana de búsqueda rápida muestra únicamente los resultados de ese tipo, ocultando todos los demás:
+
+```text
 ;vs
 ```
 
-encuentra "Visual Studio" solo entre las Aplicaciones, si `;` es el activador configurado para ese tipo, sin
-importar qué otro tipo de resultado hubiera coincidido mejor con el texto. Escribir solo el carácter activador sin
-nada detrás todavía muestra un aviso que nombra el tipo, en lugar de "Sin resultados de búsqueda". Historial y
-Favoritos no se ven afectados en ningún caso — siempre aparecen primero, haya activador o no, en las ventanas rápida y en línea. La ventana completa no añade esas entradas recuperadas a sus resultados. No hay ningún
-activador configurado por defecto; ver [Configuración general](./settings/general#ventana-de-busqueda-rapida) para
-configurar uno.
+Si `;` está asignado a "Aplicaciones", la consulta anterior buscará Visual Studio exclusivamente entre aplicaciones. En las ventanas rápida e incrustada, el Historial y los Favoritos permanecen fijados en la parte superior independientemente de los activadores.
 
-## Nombres de archivo en chino: alias en pinyin
+## 7. Alias multilingües
 
-Los nombres de archivo que contienen caracteres chinos se pueden buscar automáticamente por pinyin, sin necesidad
-de ninguna configuración:
+### Nombres de archivo en chino: alias en pinyin
 
-- **Pinyin completo**: escribir `chongqing` coincide con un archivo llamado `重庆`.
-- **Iniciales**: escribir `cq` también coincide con `重庆` (primera letra de cada sílaba).
-- Los **caracteres polifónicos** (caracteres con más de una pronunciación válida) generan alias para cada lectura
-  habitual, así que cualquiera que sea la pronunciación en la que pienses es probable que coincida.
+Gracias al plugin integrado `PinyinAlias`, los nombres de archivo en chino se pueden buscar mediante pinyin sin necesidad de configuración:
 
-Esto lo gestiona un plugin de alias incluido — ver **Configuración → Plugins** si alguna vez quieres comprobar que
-está habilitado.
+- **Pinyin completo**: Escribir `chongqing` coincide con `重庆.docx`.
+- **Iniciales de pinyin**: Escribir `cq` también coincide con `重庆.docx`; escribir `wzry` coincide con `王者荣耀.exe`.
+- **Caracteres polifónicos**: Las pronunciaciones habituales se indexan automáticamente (por ejemplo, `重庆` coincide con `chongqing` y `zhongqing`).
 
-## Nombres de archivo en español: alias de acentos
+Puedes verificar que `PinyinAlias` esté activo en **Configuración → Plugins**.
 
-Los nombres de archivo que contienen caracteres con acentos o signos diacríticos en español (`á`, `é`, `í`, `ó`, `ú`, `ü`, `ñ`) se pueden buscar automáticamente utilizando letras ASCII simples, sin necesidad de configuración:
+### Nombres de archivo en español: alias de acentos
 
-- **ASCII sin acentos**: al escribir `cancion` se busca `Canción.mp3`, `nino` busca `Niño.txt` y `ciguena` busca `Cigüeña.png`.
-- **Resaltado completo**: los caracteres que coinciden (incluidos los caracteres con acento en el nombre original) se resaltan con precisión.
+Con el plugin integrado `SpanishAlias`, los nombres de archivo que contienen caracteres con acento o tilde en español (`á`, `é`, `í`, `ó`, `ú`, `ü`, `ñ`) se pueden buscar directamente usando letras ASCII normales sin acentos:
 
-Esto es gestionado por el complemento integrado `SpanishAlias`; consulte **Configuración → Complementos** para verificar que esté activado.
+- Escribir `cancion` coincide con `Canción.mp3`.
+- Escribir `nino` coincide con `Niño.txt`.
+- Escribir `ciguena` coincide con `Cigüeña.png`.
 
-## Favoritos, no alias personalizados
+Los caracteres coincidentes (incluidas las vocales acentuadas en el nombre original) se resaltan con precisión. Gestiona el plugin en **Configuración → Plugins**.
 
-Lertaro no tiene un sistema genérico de "define tu propio alias/macro". Lo más parecido es
-[Favoritos](./settings/favorites): fija una carpeta, archivo o URL bajo un nombre para mostrar personalizado, y se
-vuelve buscable por ese nombre (mostrado con una marca ★ en los resultados). Si lo que realmente quieres es una
-palabra clave personalizada que lance un programa, consulta en su lugar [Comandos
-personalizados](./instant-answers#comandos-personalizados).
+## 8. Preguntas frecuentes y Favoritos
+
+### Favoritos, no alias personalizados
+
+Lertaro no dispone de un sistema genérico de "alias/macros de búsqueda personalizados". La solución nativa más cercana es [**Favoritos**](./settings/favorites): fija cualquier archivo, carpeta o URL con un nombre de visualización personalizado y podrás buscarlo directamente por ese título (marcado con un icono ★ en los resultados).
+
+Si deseas ejecutar programas o scripts mediante palabras clave personalizadas, consulta [**Comandos personalizados**](./instant-answers#comandos-personalizados).

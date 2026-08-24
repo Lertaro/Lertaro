@@ -1,187 +1,263 @@
 # Search Syntax
 
-Lertaro's query box supports more than plain typing. Every operator below can be combined with
-plain fuzzy terms in the same query.
+Lertaro's search bar supports far more than simple plain-text search. Equipped with a blazing-fast matching algorithm, it supports fuzzy jump matching, boolean logic, word boundary operators, drive and path scoping, secondary filtering query tokens, and multilingual aliases. All syntaxes can be freely mixed within the same query.
 
-## Fuzzy matching (default)
+## 1. Basic Matching & Case Sensitivity
 
-Type any part of a name and Lertaro finds it as long as the characters occur in order, anywhere
-in the file/folder name — you don't need to type a contiguous substring:
+### Fuzzy matching (default)
 
-| You type | Matches |
-|---|---|
-| `swlst` | `Lertaro.exe` |
-| `report` | `Q3-report-final.docx` |
+Lertaro enables Fuzzy Matching by default. Simply enter any characters in order, and it will match even if the characters are scattered across the file or folder name:
 
-Turn this off under **Settings → General → System → Enable fuzzy matching** and a bare term
-(no operator) instead has to appear as a contiguous substring — `abc` no longer matches `a-b-c`.
-Every operator in the table below keeps working exactly the same either way; the setting only
-changes what a bare term requires. The `'` operator flips exactness for one term regardless of the
-setting, so you can drop a fuzzy word into an otherwise exact query, or an exact word into an
-otherwise fuzzy one, without changing the setting itself.
+| Input Example | Matching Result | Description |
+| :--- | :--- | :--- |
+| `ltro` | `Lertaro.exe` | Characters match sequentially: `l` → `t` → `r` → `o` (**L**er**t**a**ro**.exe) |
+| `vsc` | `Visual Studio Code.lnk` | Matches initial letters of each word (**V**isual **S**tudio **C**ode) |
+| `rep` | `Q3-report-final.docx` | Matches contiguous substring (Q3-**rep**ort-final.docx) |
 
-## Multiple words
+Turn this off under **Settings → General → System → Enable fuzzy matching** and plain search terms (without operators) will require a contiguous substring — `abc` will only match names containing contiguous `abc`, no longer matching `a-b-c`. This toggle only affects bare terms; all operators described below maintain their exact behaviors either way.
 
-Separate words with a space. Each word narrows the result set further — it does **not** require
-the words to appear in the same order you typed them:
+### Smart Case Sensitivity
 
+- **All-lowercase queries**: Case-insensitive by default. For example, `myfile` matches `myfile`, `MyFile`, `MYFILE`, etc.
+- **Queries with uppercase letters**: Once a term contains any uppercase letter, it automatically becomes **case-sensitive**. For example, `MyFile` matches `MyFile`, but not lowercase `myfile`.
+
+## 2. Multiple Terms & Boolean Logic
+
+### Space: AND
+
+Separate multiple search terms with spaces to require all conditions to be met. The order in which terms appear in the filename **does not matter**:
+
+```text
+report final 2024
 ```
-report final
+
+The above query matches both `2024-Q3-report-final.docx` and `final_report_2024.pdf`.
+
+### Pipe `|`: OR
+
+Use a pipe symbol `|` to separate terms where matching any single alternative is sufficient:
+
+```text
+png | jpg | gif
 ```
 
-matches `final-Q3-report.docx` just as well as `Q3-report-final.docx`.
+You can freely combine AND and OR logic:
 
-## Case sensitivity
-
-- An **all-lowercase** query is case-insensitive: `myfile` matches `MyFile`, `MYFILE`, etc.
-- A query with **any uppercase letter** becomes case-sensitive for that term: `MyFile` only
-  matches `MyFile`, not `myfile`.
-
-## Operators
-
-| Prefix/Suffix | Example | Effect |
-|---|---|---|
-| *(none)* | `report` | Fuzzy match anywhere in the name (default). |
-| `!` | `!temp` | **Exclude** results whose name contains the exact substring `temp` (this one is not fuzzy). |
-| `'` | `'report` | **Flips exactness** for this one term — exact substring instead of fuzzy while fuzzy matching is on (the default); back to fuzzy for this term while fuzzy matching is turned off in Settings. |
-| `'...'` | `'final report'` | Exact match anchored to word boundaries (won't match inside a larger word). |
-| `^` | `^IMG` | **Prefix** match — the name must start with `IMG`. |
-| `$` | `.pdf$` | **Suffix** match — the name must end with `.pdf`. |
-| `^...$` | `^readme.md$` | **Equals** — the whole name must be exactly `readme.md`. Only when both wrap the *same* word; on separate words they stay independent prefix and suffix filters. |
-| `\|` | `report \| summary` | **OR** — match either side of the pipe. |
-
-You can mix these freely, e.g. `^IMG !.png$ 2024` finds files starting with `IMG`, from 2024,
-that are *not* PNGs.
-
-For an OR query, every term that actually matches a given result is highlighted in its name — not
-just whichever term happened to match first — so `report | summary` highlights both words in a
-result whose name contains them both.
-
-## Pasting multiple lines
-
-Paste text containing several lines — e.g. filenames copied one per line from a spreadsheet or text
-file — and Lertaro automatically folds them into an OR query instead of pasting them as-is:
-
+```text
+report | summary 2024
 ```
+
+This finds files matching either `report` or `summary`, and also containing `2024`. In OR queries, all matched terms across hit branches are highlighted simultaneously in the result name.
+
+### Escaping Spaces & Quoted Phrases
+
+To search for a phrase containing spaces within a single term, escape the space with a backslash `\ `, or enclose the phrase in single quotes `'...'` or double quotes `"..."`:
+
+```text
+final\ report
+'final report'
+```
+
+Both examples treat `final report` as a single phrase with space, rather than splitting it into two independent AND terms.
+
+### Pasting Multiple Lines Folded into OR
+
+When copying multi-line text (such as filenames from a spreadsheet, text file, or log) and pasting it directly into the search bar, Lertaro automatically folds the lines into a single OR query separated by `|` (blank lines are automatically skipped):
+
+```text
 123
 456
 678
 ```
 
-pastes as `123 | 456 | 678`, matching any of the three. Blank lines are skipped. A normal single-line
-paste is unaffected.
+Pastes automatically as:
 
-## Targeting a drive
-
-Start the query with a drive letter followed by a colon to restrict results to that drive, then
-continue typing your search as normal:
-
+```text
+123 | 456 | 678
 ```
+
+## 3. Search Operators Cheat Sheet
+
+### Operators Table
+
+| Operator / Syntax | Type | Description | Input Example | Matching Result Example |
+| :--- | :--- | :--- | :--- | :--- |
+| *(none)* | Default Fuzzy | Characters appear in order anywhere in name (when fuzzy is on) | `report` | `Q3-report-final.docx` |
+| `!` | Exclude | Excludes all results whose name contains this exact substring | `!temp` | Filters out files containing `temp` |
+| `'` | Flip Exactness | Exact substring when fuzzy is on; fuzzy when fuzzy is off | `'report` | Must contain contiguous substring `report` |
+| `'...'` | Word Boundary | Exact substring matched on word boundaries (not inside larger word) | `'app'` | Matches `app.exe`, `my-app.log`; does not match `whatsapp.exe` |
+| `^` | Prefix Match | Name must start with this text | `^IMG` | `IMG_20240101.jpg` (does not match `MY_IMG.jpg`) |
+| `$` | Suffix Match | Name must end with this text | `.pdf$` | `document.pdf` (does not match `document.pdf.bak`) |
+| `^...$` | Exact Match | Name must equal this text exactly | `^readme.md$` | Matches only `readme.md` |
+| `\|` | OR Logic | Matches either side of the pipe | `doc \| pdf` | Matches names containing `doc` or `pdf` |
+
+### Detailed Operator Behaviors & Combinations
+
+1. **Exclusion `!`**: `!term` directly excludes results containing `term` as an exact substring. Excluded terms do not undergo pinyin/alias expansion to avoid over-exclusion.
+2. **Exactness Flip `'`**: When global fuzzy matching is enabled, prefixing `'` forces a specific term to match as an exact substring. For example, `lertaro 'v1.2` performs a fuzzy search for `lertaro` while requiring `v1.2` as an exact contiguous substring.
+3. **Word Boundary Exact Match `'...'`**: Enclosing a single word in quotes (e.g. `'app'`) checks for word boundaries (spaces, punctuation, hyphens, underscores, or string boundaries), preventing false positives inside larger words.
+4. **Exact Match `^...$`**: Only applies when `^` and `$` wrap the **same word**. When used on separate words (e.g. `^src md$`), they remain separate prefix and suffix filters.
+
+**Operator Combination Examples**:
+
+- `^IMG !.png$ 2024`: Finds files starting with `IMG`, containing `2024`, and **not** ending in `.png`.
+- `'data | 'backup ^2024 .zip$`: Finds archives starting with `2024`, ending in `.zip`, and containing the exact substring `data` or `backup`.
+
+## 4. Path Mode & Drive Scoping
+
+### Targeting a Drive
+
+Start your query with a drive letter followed by a colon to restrict results strictly to that drive:
+
+```text
 d: report
 ```
 
-searches only on the `D:` drive.
+The space is optional: `d:report` and `d: report` are identical.
 
-The space is optional: `d:report` means the same thing as `d: report`.
+### Full Path Mode
 
-## Path mode
+When your search query contains path separators (`\` or `/`), Lertaro automatically switches to full path matching mode:
 
-If your query contains a path separator (`\` or `/`), Lertaro switches to path mode and matches
-against full paths instead of just names — useful for jumping straight to a known folder:
-
-```
+```text
 D:\Projects\Lertaro
 ```
 
-A trailing separator (`D:\Projects\`) searches the *contents* of that exact folder.
+Ending with a path separator (e.g. `D:\Projects\`) searches the direct contents **inside** that folder.
 
-## Filtering by folder name and wildcards (Query Tokens)
+### Folder Matching Fallback
 
-Lertaro supports chaining query tokens after your primary search keywords (prefixed by `:` by default or by dedicated token prefixes) to perform secondary filtering on primary search results:
+When searching by filename alone does not fill the result capacity, Lertaro automatically uses query terms not matched in the filename to match ancestor folder names without requiring special syntax:
 
-- **Wildcard Secondary Filter (`:?<wildcard-expression>` or `?<wildcard-expression>`)**: Uses standard Windows wildcard syntax (`?` for any single character, `*` for zero or more characters) to filter primary search results. For example, `mp4 :?(2026???????????)` or `mp4 ?(2026???????????)` filters files with 2026 and 11-digit timestamp tags. Use `|` or `;` to specify multiple OR wildcard conditions (e.g., `?(2026*)|*.png`).
-- **Path Match (`::<path-expression>`)**: Requires result name or ancestor folder to match the specified text (e.g. `1080 ::wallpapers` or `report ::2024`).
-- **Custom Filter Categories (`:@<keyword>`)**: Applies pre-configured file extension or category rules (e.g. `:@doc` or `:@video`).
-
-## When a term describes the folder, not the file
-
-If matching by file and folder names alone doesn't fill the results, Lertaro tops them up by
-additionally letting terms match ancestor folders — no special syntax needed:
-
-```
+```text
 d01j dcj
 ```
 
-finds a file named `d01j` that lives in a folder named (or aliased to) `dcj`, even though `dcj`
-never appears in the file's own name. This only fills in the rest of a query from the folders above
-a file — at least one term still has to match the file name itself, and it only runs when an
-ordinary name-only search has not filled the page. What it finds is appended after those results
-rather than mixed into them, so it can never displace or reorder a result an ordinary search would
-already have found. Ancestor folders are matched the same way file names are, so pinyin reaches a
-Chinese folder name here too.
+Even if `dcj` never appears in the file's own name, Lertaro finds `d01j.txt` located in a folder named (or aliased to) `dcj`.
 
-## Bypassing exclusion rules for one search
+> [!NOTE]
+> This requires at least one term to match the filename itself, and only triggers when name-only matches have not filled the results. Fallback results are always ranked after direct filename matches.
 
-Start a query with `*` to search past your own [exclusion rules](./settings/index-drives#exclusion-rules) —
-`ExcludedPaths`, ignored globs, and ignored regexes — just for that search, without changing your
-settings:
+## 5. Query Tokens & Secondary Filtering
 
-```
+Lertaro supports appending **Query Tokens** guided by a colon prefix `:` (customizable in **Settings → General → System → Query Token Global Prefix Character**) to perform chained secondary filtering and sorting on primary results.
+
+Multiple tokens can be combined in a single `:` suffix separated by commas `,`, such as `report :@doc,M-,:-F`.
+
+### Category Filters (`:@<category>`)
+
+Quickly apply preset file extension category rules, supporting `|` combinations:
+
+- `:@doc`: Documents (`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps`)
+- `:@img`: Images (`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai`)
+- `:@video`: Videos (`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts`)
+- `:@audio`: Audio (`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape`)
+- `:@zip`: Archives (`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso`)
+
+**Examples**:
+
+- `financial :@doc`: Search for "financial" among documents.
+- `wallpaper :@img`: Search for "wallpaper" among images.
+- `clip :@video|audio`: Search for "clip" among videos or audio files.
+
+You can customize rules or add new categories under **Settings → Plugins → CoreExtensions**.
+
+### Specific Extension Filters (`:.ext` or `:.ext1.ext2`)
+
+Use a dot prefix to specify one or more file extensions (automatically excludes folders):
+
+- `report :.pdf`: Retains only `.pdf` files.
+- `data :.csv.xlsx`: Retains only `.csv` or `.xlsx` spreadsheet files.
+
+### Result Sorting & File/Folder Filters (`:[SCMAF]`)
+
+Use single letters to specify sorting attributes: `S` (Size), `C` (Created time), `M` (Modified time), `A` (Accessed time), `F` (Folder/File filter).
+
+The bare letter indicates **ascending order** (smallest / oldest first); adding a minus `-` (as a prefix or suffix, e.g. `M-` or `:-M`) indicates **descending order** (largest / newest first) or inverted filtering:
+
+| Token Syntax | Effect | Typical Use Case |
+| :--- | :--- | :--- |
+| `:S` | Sort by file size ascending (smallest first) | Locate empty or tiny files |
+| `:S-` or `:-S` | Sort by file size descending (largest first) | `log :S-` (troubleshoot massive log files) |
+| `:M` | Sort by modified time ascending (oldest first) | Find stale, unmaintained files |
+| `:M-` or `:-M` | Sort by modified time descending (newest first) | `report :M-` (find recently edited documents) |
+| `:C` / `:C-` | Sort by creation time ascending / descending | `build :C-` (find latest build outputs) |
+| `:A` / `:A-` | Sort by access time ascending / descending | `project :A-` (find recently opened projects) |
+| `:F` | **Folders only** (filters out regular files) | `config :F` (find only directories named config) |
+| `:-F` or `:F-` | **Files only** (filters out folders/directories) | `config :-F` (find only files named config) |
+
+### Wildcard Secondary Filters (`:?<expression>` or `?<expression>`)
+
+Use standard Windows wildcards (`?` for single character, `*` for zero or more characters) for precise matching, supporting `|` or `;` for multiple OR conditions:
+
+- `mp4 :?(2026???????????)`: Matches video files containing `2026` followed by an 11-digit timestamp.
+- `photo :?IMG_????.jpg|DSC_????.jpg`: Matches specific photo numbers across two camera formats.
+
+### Path Segment Filters (`::<path-expression>`)
+
+Requires ancestor directory names or the filename itself to match the specified fuzzy keyword:
+
+- `report ::2024`: Requires the parent folder hierarchy to contain `2024`.
+- `main ::"src\core"`: Requires files to be located under `src\core` and its subdirectories.
+
+### Chained Query Token Examples
+
+Tokens can be combined together after a single `:` prefix:
+
+- `report :@doc,M-`: Searches "report", filters to documents, sorted by modified time descending (newest first).
+- `backup :.zip,S-,:-F`: Searches "backup", filters to `.zip` archives, sorted by size descending, files only.
+- `icon ::assets,?*128*`: Searches "icon", located under `assets` paths, with `128` size tags in the name.
+
+## 6. Special Search Features
+
+### Bypassing Exclusion Rules for One Search
+
+Prefix a query with `*` to temporarily bypass user-configured path exclusions, globs, and regular expressions in [**Exclusion Rules**](./settings/index-drives#exclusion-rules) for this single search, without modifying settings:
+
+```text
 *node_modules
 ```
 
-The `*` itself is stripped before matching, so it's never treated as part of the search text. This
-only reveals results that are already indexed; a folder that was *never* indexed in the first place
-(an excluded folder on a network or WSL drive) still won't appear. Hidden/system files stay filtered
-either way — this only affects your own exclusion-rule configuration. Typing just `*` with nothing
-after it yet shows a "keep typing to search" prompt rather than "No Search Results", since no search
-has actually run yet.
+The leading `*` is stripped before matching. This only recalls already indexed files (excluded paths on network/WSL drives that were never indexed will not appear); system/hidden file filters remain active.
 
-## Result type trigger
+### Result Type Trigger
 
-Optional, and off by default — you assign the character yourself. If you've assigned a trigger
-character to a result type under **Settings → General → Quick Search Window → Result Type
-Priority**, typing that character as the very first thing in the quick window shows only that
-type's results — Applications, Settings, one specific File Filter, a plugin's own items, or plain
-Files — hiding every other type:
+Under **Settings → General → Quick Search Window → Result Type Priority**, you can configure a single-character **trigger** for specific result types (Applications, Settings, File Categories, Plugins, Files, etc.).
 
-```
+Typing the trigger as the very first character in the quick search window displays only that result type, hiding all others:
+
+```text
 ;vs
 ```
 
-finds "Visual Studio" among Applications only, if `;` is that type's configured trigger, regardless
-of which other type's results would otherwise have matched the text better. Typing just the trigger
-character with nothing after it yet shows a prompt naming the type instead of "No Search Results".
-In Quick and inline windows, History and Favorites are unaffected either way — they always come first,
-trigger or not. The full window does not add those recall entries to its results. No trigger
-is configured by default; see [General settings](./settings/general#quick-search-window) to set one up.
+If `;` is assigned to "Applications", the above query searches Visual Studio exclusively among applications. In Quick and Inline search windows, History and Favorites remain pinned at the top regardless of triggers.
 
-## Chinese filenames: pinyin aliasing
+## 7. Multilingual Aliases
 
-Filenames containing Chinese characters are automatically searchable by pinyin, with no setup
-required:
+### Chinese filenames: pinyin aliasing
 
-- **Full pinyin**: typing `chongqing` matches a file named `重庆`.
-- **Initials**: typing `cq` also matches `重庆` (first letter of each syllable).
-- **Polyphonic characters** (characters with more than one valid pronunciation) generate aliases
-  for each common reading, so whichever pronunciation you think of is likely to match.
+Bundled with the `PinyinAlias` plugin, Chinese filenames are searchable via pinyin out of the box with zero configuration:
 
-This is handled by a bundled alias plugin — see **Settings → Plugins** if you ever want to check
-it's enabled.
+- **Full Pinyin**: Typing `chongqing` matches `重庆.docx`.
+- **Pinyin Initials**: Typing `cq` also matches `重庆.docx`; typing `wzry` matches `王者荣耀.exe`.
+- **Polyphonic Characters**: Common pronunciations are automatically indexed (e.g. `重庆` matches both `chongqing` and `zhongqing`).
 
-## Spanish filenames: accent aliasing
+You can verify that `PinyinAlias` is active under **Settings → Plugins**.
 
-Filenames containing Spanish accented characters (`á`, `é`, `í`, `ó`, `ú`, `ü`, `ñ`) are automatically searchable using plain ASCII letters, with no setup required:
+### Spanish filenames: accent aliasing
 
-- **Unaccented ASCII**: typing `cancion` matches `Canción.mp3`, `nino` matches `Niño.txt`, and `ciguena` matches `Cigüeña.png`.
-- **Full highlighting**: matching characters (including accented characters in the original name) are highlighted accurately.
+Bundled with the `SpanishAlias` plugin, filenames containing Spanish accented characters (`á`, `é`, `í`, `ó`, `ú`, `ü`, `ñ`) can be searched seamlessly using unaccented ASCII letters:
 
-This is handled by the bundled `SpanishAlias` plugin — see **Settings → Plugins** if you want to verify it is enabled.
+- Typing `cancion` matches `Canción.mp3`.
+- Typing `nino` matches `Niño.txt`.
+- Typing `ciguena` matches `Cigüeña.png`.
 
-## Favorites, not custom aliases
+Matched characters (including accented vowels in the original name) are accurately highlighted. Manage the plugin under **Settings → Plugins**.
 
-Lertaro does not have a general-purpose "define your own alias/macro" system. The closest
-equivalent is [Favorites](./settings/favorites): pin a folder, file, or URL under a custom display
-name, and it becomes searchable by that name (shown with a ★ marker in results). If what you
-actually want is a custom keyword that launches a program, see
-[Custom Commands](./instant-answers#custom-commands) instead.
+## 8. FAQ & Favorites
+
+### Favorites, not custom aliases
+
+Lertaro does not provide a generic "custom search alias/macro" mechanism. The closest native solution is [**Favorites**](./settings/favorites): pin any file, folder, or URL under a custom display name, making it searchable by that custom title (marked with a ★ icon in results).
+
+If you want to trigger custom scripts or launch programs using custom keywords, see [**Custom Commands**](./instant-answers#custom-commands).
