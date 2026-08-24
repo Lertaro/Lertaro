@@ -12,18 +12,8 @@
 
     <!-- ═══════════ Search Result Item Template ═══════════ -->
     <DataTemplate x:Key="SearchResultTemplate" DataType="{x:Type app:AppSearchResult}">
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <!-- Icon -->
-                <ColumnDefinition Width="Auto"/>
-                <!-- Name + Path -->
-                <ColumnDefinition Width="*"/>
-                <!-- Shortcut badge -->
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-
-            <TextBlock Grid.ColumnSpan="3"
-                       FontSize="12"
+        <DockPanel LastChildFill="True">
+            <TextBlock FontSize="12"
                        Foreground="{DynamicResource AccentBlue}"
                        VerticalAlignment="Center"
                        Text="{Binding Name}">
@@ -40,7 +30,7 @@
             </TextBlock>
 
             <!-- File/Folder icon -->
-            <Image Grid.Column="0" Source="{Binding Icon}" Margin="0,0,14,0" VerticalAlignment="Center"
+            <Image DockPanel.Dock="Left" Source="{Binding Icon}" Margin="0,0,14,0" VerticalAlignment="Center"
                    RenderOptions.BitmapScalingMode="HighQuality">
                 <Image.Style>
                     <Style TargetType="Image">
@@ -67,25 +57,27 @@
                 </Image.Style>
             </Image>
 
+            <!-- Shared badge markup: see ShortcutHintBadge.xaml's own comment for the full design
+                 history. FontSize is set here (not inside the shared template) so this window's own
+                 11pt badge text stays exactly what it was before the badge was shared with the
+                 inline search window's 12pt version. Docked to the Right so long title text in the
+                 center never compresses or clips the badge. -->
+            <ContentPresenter DockPanel.Dock="Right"
+                               TextElement.FontSize="11"
+                               Content="{Binding}"
+                               ContentTemplate="{StaticResource ShortcutHintBadgeTemplate}"/>
+
             <!-- Name + directory path -->
             <StackPanel VerticalAlignment="Center">
                 <StackPanel.Style>
                     <Style TargetType="StackPanel">
-                        <Setter Property="Grid.Column" Value="1"/>
-                        <Setter Property="Grid.ColumnSpan" Value="1"/>
                         <Setter Property="HorizontalAlignment" Value="Stretch"/>
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsEmptyResult}" Value="True">
-                                <Setter Property="Grid.Column" Value="0"/>
-                                <Setter Property="Grid.ColumnSpan" Value="3"/>
                                 <Setter Property="HorizontalAlignment" Value="Center"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsSearchSectionHeader}" Value="True">
                                 <Setter Property="Visibility" Value="Collapsed"/>
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding IsListItem}" Value="True">
-                                <Setter Property="Grid.Column" Value="0"/>
-                                <Setter Property="Grid.ColumnSpan" Value="2"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -158,16 +150,7 @@
                     </TextBlock>
                 </ScrollViewer>
             </StackPanel>
-
-            <!-- Shared badge markup: see ShortcutHintBadge.xaml's own comment for the full design
-                 history. FontSize is set here (not inside the shared template) so this window's own
-                 11pt badge text stays exactly what it was before the badge was shared with the
-                 inline search window's 12pt version. -->
-            <ContentPresenter Grid.Column="2"
-                               TextElement.FontSize="11"
-                               Content="{Binding}"
-                               ContentTemplate="{StaticResource ShortcutHintBadgeTemplate}"/>
-        </Grid>
+        </DockPanel>
     </DataTemplate>
 
 </ResourceDictionary>
