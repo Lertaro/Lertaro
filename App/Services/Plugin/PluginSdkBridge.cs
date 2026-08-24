@@ -63,6 +63,72 @@ internal static class PluginSdkBridge
                 }
             });
 
+        // Wire up the search window lifecycle and visibility delegates for plugins
+        PluginSdk.Services.SearchWindowService.IsWindowVisibleFunc = () =>
+        {
+            if (System.Windows.Application.Current == null) return false;
+            return System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (System.Windows.Application.Current.MainWindow is QuickSearchWindow quickWindow && quickWindow.IsVisible)
+                    return true;
+                if (System.Windows.Application.Current.Windows.OfType<SearchWindow>().Any(w => w.IsVisible))
+                    return true;
+                return InlineSearchManager.Instance.IsInlineSearchActive;
+            });
+        };
+
+        PluginSdk.Services.SearchWindowService.HideWindowFunc = () =>
+        {
+            if (System.Windows.Application.Current == null) return;
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (System.Windows.Application.Current.MainWindow is QuickSearchWindow quickWindow && quickWindow.IsVisible)
+                {
+                    quickWindow.HideWindow();
+                }
+                foreach (var sw in System.Windows.Application.Current.Windows.OfType<SearchWindow>().Where(w => w.IsVisible))
+                {
+                    sw.Hide();
+                }
+                App.HideInlineSearch();
+            });
+        };
+
+        PluginSdk.Services.SearchWindowService.ShowWindowFunc = (query) =>
+        {
+            if (System.Windows.Application.Current == null) return;
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (System.Windows.Application.Current.MainWindow is QuickSearchWindow quickWindow)
+                {
+                    quickWindow.ShowWindow(query);
+                }
+            });
+        };
+
+        PluginSdk.Services.SearchWindowService.FocusQueryTextBoxFunc = () =>
+        {
+            if (System.Windows.Application.Current == null) return;
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (System.Windows.Application.Current.MainWindow is QuickSearchWindow quickWindow && quickWindow.IsVisible)
+                {
+                    quickWindow.FocusSearch();
+                    return;
+                }
+                var fullWindow = System.Windows.Application.Current.Windows.OfType<SearchWindow>().FirstOrDefault(w => w.IsVisible);
+                if (fullWindow != null)
+                {
+                    fullWindow.SearchTextBox.Focus();
+                    return;
+                }
+                if (InlineSearchManager.Instance.IsInlineSearchActive)
+                {
+                    InlineSearchManager.Instance.FocusSearchBox();
+                }
+            });
+        };
+
         // Where the user was last browsing, from the same tracker the search context reads. Reached
         // through InlineSearchManager because that is what owns the tracker; it mirrors the Hook
         // process's live state, so this is a field read rather than a round trip.

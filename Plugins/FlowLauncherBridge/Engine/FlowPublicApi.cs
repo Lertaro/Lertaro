@@ -98,10 +98,10 @@ public class FlowPublicApi : IPublicAPI
 
     public void ShowMsgError(string title, string subTitle = "") => ShowMsg(title, subTitle, string.Empty);
     public void ShowMsgErrorWithButton(string title, string buttonText, Action buttonAction, string subTitle = "") => ShowMsg(title, subTitle, string.Empty);
-    public void ShowMainWindow() { }
-    public void FocusQueryTextBox() { }
-    public void HideMainWindow() { }
-    public bool IsMainWindowVisible() => true;
+    public void ShowMainWindow() => PluginSdk.Services.SearchWindowService.ShowWindow();
+    public void FocusQueryTextBox() => PluginSdk.Services.SearchWindowService.FocusQueryTextBox();
+    public void HideMainWindow() => PluginSdk.Services.SearchWindowService.HideWindow();
+    public bool IsMainWindowVisible() => PluginSdk.Services.SearchWindowService.IsWindowVisible();
 
     public void ToggleGameMode() { }
     public void SetGameMode(bool value) { }
@@ -179,7 +179,8 @@ public class FlowPublicApi : IPublicAPI
         if (string.IsNullOrEmpty(query) || string.IsNullOrEmpty(stringToCompare))
             return new MatchResult(false, SearchPrecisionScore.Regular);
 
-        var match = stringToCompare.Contains(query, StringComparison.OrdinalIgnoreCase);
+        var match = stringToCompare.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || PluginSdk.Services.FuzzyMatchService.IsMatch(query, stringToCompare);
         return new MatchResult(match, SearchPrecisionScore.Regular, [], match ? 50 : 0);
     }
 

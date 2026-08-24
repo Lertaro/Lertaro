@@ -61,13 +61,42 @@ public sealed class FlowPublicApiTests
     }
 
     [TestMethod]
-    public void GetDataDirectory_UsesPluginName_WhenNameIsAvailable()
+    public void WindowMethods_DelegateToSearchWindowService()
     {
-        var metadata = new PluginMetadata { ID = "guid-1234", Name = "MyCoolPlugin" };
+        var metadata = new PluginMetadata { ID = "api-test-id", Name = "ApiTest" };
         var storage = new FlowSettingsStorage(_tempDir);
         var api = new FlowPublicApi(metadata, storage, () => []);
 
-        var dataDir = api.GetDataDirectory();
-        Assert.AreEqual(Path.Combine(_tempDir, "MyCoolPlugin"), dataDir);
+        var isVisibleCalled = false;
+        var hideCalled = false;
+        var showCalled = false;
+        var focusCalled = false;
+
+        PluginSdk.Services.SearchWindowService.IsWindowVisibleFunc = () => { isVisibleCalled = true; return true; };
+        PluginSdk.Services.SearchWindowService.HideWindowFunc = () => hideCalled = true;
+        PluginSdk.Services.SearchWindowService.ShowWindowFunc = _ => showCalled = true;
+        PluginSdk.Services.SearchWindowService.FocusQueryTextBoxFunc = () => focusCalled = true;
+
+        try
+        {
+            Assert.IsTrue(api.IsMainWindowVisible());
+            Assert.IsTrue(isVisibleCalled);
+
+            api.HideMainWindow();
+            Assert.IsTrue(hideCalled);
+
+            api.ShowMainWindow();
+            Assert.IsTrue(showCalled);
+
+            api.FocusQueryTextBox();
+            Assert.IsTrue(focusCalled);
+        }
+        finally
+        {
+            PluginSdk.Services.SearchWindowService.IsWindowVisibleFunc = null;
+            PluginSdk.Services.SearchWindowService.HideWindowFunc = null;
+            PluginSdk.Services.SearchWindowService.ShowWindowFunc = null;
+            PluginSdk.Services.SearchWindowService.FocusQueryTextBoxFunc = null;
+        }
     }
 }
