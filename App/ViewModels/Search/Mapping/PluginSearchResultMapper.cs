@@ -138,9 +138,9 @@ public static class PluginSearchResultMapper
 
                     uiResults.Add(new AppSearchResult
                     {
-                        Name = item.Title,
+                        Name = SanitizeSingleLine(item.Title),
                         FullPath = fullPath,
-                        ParentDir = parentDir,
+                        ParentDir = SanitizeSingleLine(parentDir),
                         IsDir = isRealDir,
                         Drive = string.Empty,
                         ResultKind = resultKind,
@@ -151,7 +151,7 @@ public static class PluginSearchResultMapper
                         InstantResultActionArgument = targetPath,
                         InstantResultOnExecute = item.OnExecute,
                         InstantResultOnExecuteFunc = item.OnExecuteFunc,
-                        TabCompletion = item.TabCompletion,
+                        TabCompletion = SanitizeSingleLine(item.TabCompletion),
                         SourceProvider = provider
                     });
                 }
@@ -206,5 +206,21 @@ public static class PluginSearchResultMapper
             return string.Format(TranslationManager.Instance["Search_KeywordOnly"], keyword);
 
         return string.Format(TranslationManager.Instance["Search_KeywordParams"], keyword, string.Join(" ", parameters));
+    }
+
+    private static readonly char[] NewlineChars = ['\r', '\n'];
+
+    internal static string SanitizeSingleLine(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return string.Empty;
+
+        if (text.IndexOfAny(NewlineChars) < 0)
+            return text;
+
+        return text
+            .Replace("\r\n", " ")
+            .Replace('\r', ' ')
+            .Replace('\n', ' ');
     }
 }
