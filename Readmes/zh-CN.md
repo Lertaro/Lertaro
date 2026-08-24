@@ -9,18 +9,19 @@
 > [!CAUTION]
 > **安全警告：请仅从官方来源下载 Lertaro。** 仓库 `github.com/adelmagical742/Lertaro` 和网站 `adelmagical742.github.io` 正在冒充 Lertaro 并传播恶意下载。请勿下载或运行来自这些地址的任何文件。唯一官方仓库是 [Lertaro/Lertaro](https://github.com/Lertaro/Lertaro)，唯一官方网站是 [lertaro.github.io](https://lertaro.github.io/)，官方程序仅通过 [GitHub Releases](https://github.com/Lertaro/Lertaro/releases) 发布。即使文件名或内容发生变化，也请始终将上述假冒来源视为不可信。
 
-Lertaro 是一款基于 **.NET 10 (WPF)** 打造的超轻量、极速、高度可扩展的 Windows 全局搜索与效率启动工具，是 **Everything** 和 **Listary** 的现代化开源替代——通过读取 NTFS **USN 日志** 与 MFT 直接索引本地磁盘，实现毫秒级、低资源占用的检索体验。
+Lertaro 是一款基于 **.NET 10 (WPF)** 打造的超轻量、极速、高度可扩展的 Windows 全局搜索与效率启动工具，是 **Listary** 和 **Everything** 的现代化开源替代——通过读取 NTFS **USN 日志** 与 $MFT 直接索引本地磁盘，实现毫秒级、低资源占用的检索体验。
 
-📖 [完整文档、用户手册与开发手册](https://lertaro.github.io/zh-CN/)
+📖 **[完整文档、用户手册与开发手册](https://lertaro.github.io/zh-CN/)**
 
 ## 核心特性
 
-- **毫秒级索引** —— 直接读取 NTFS USN 日志/MFT，而不是递归扫描目录；低占用后台服务实时保持索引同步。
-- **FZF 风格模糊搜索** —— 支持多关键词模糊匹配及前缀/后缀/精确/排除操作符，中文文件名支持拼音别名匹配。
-- **三种搜索方式** —— 快速弹窗、完整主窗口，以及直接贴靠嵌入文件资源管理器/原生文件对话框的内联搜索栏。
-- **QuickLook 预览**、类右键菜单的动作菜单，热键全部可自定义重新绑定。
-- **开放插件 SDK** —— 可扩展搜索源、别名、右键菜单动作、结果列、文件预览与主题。
-- **进程隔离** —— SYSTEM 级后台索引服务与用户态界面进程彻底分离。
+- ⚡ **USN 与 MFT 底层索引** —— 直接读取 NTFS / ReFS 磁盘底层 USN Journal 与 $MFT，秒级建立全盘索引，支持 FAT32 / exFAT 变动监听与网络共享缓存。
+- 🎯 **fzf 模糊匹配与拼音别名** —— 支持字符跳跃模糊命中、路径定向操作符与中文拼音首字母/全拼极速检索。
+- 📂 **三大搜索形态与深度挂载** —— 居中快速浮窗、完整主窗口，并自动挂载于 Windows 原生 Open/Save 对话框与主流文件管理器（Explorer、Total Commander、Directory Opus、OneCommander）。
+- 🎬 **动作菜单与 QuickLook 预览** —— `Ctrl+O` 呼出动作菜单与原生 Shell 右键，`Alt+P` 触发 QuickLook 即时预览文档与影音。
+- 📊 **即时磁盘空间透视分析** —— 基于已有内存索引直接生成矩形树（Treemap）空间占用图，免去漫长的磁盘重扫过程。
+- 🧩 **开放插件 SDK 与生态兼容** —— 基于 .NET 10 的官方强类型 C# SDK，并兼容运行 Flow Launcher 社区插件与自定义工作流。
+- 🛡️ **三进程架构与离线隐私** —— SYSTEM 索引服务（`Lertaro.Service`）、用户态 App（`Lertaro.App`）与独立 Hook 进程（`Lertaro.Service --hook`）安全隔离；纯本地离线运行，零云端遥测。
 
 搜索语法、每一个热键、每一项设置详见[用户手册](https://lertaro.github.io/zh-CN/user-guide/)；架构设计与插件 SDK 参考详见[开发手册](https://lertaro.github.io/zh-CN/dev-guide/)。
 

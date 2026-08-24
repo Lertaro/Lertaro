@@ -9,18 +9,19 @@ English | [简体中文](Readmes/zh-CN.md) | [繁體中文（香港）](Readmes/
 > [!CAUTION]
 > **Security notice: download Lertaro only from official sources.** The repository `github.com/adelmagical742/Lertaro` and website `adelmagical742.github.io` impersonate Lertaro and distribute malicious downloads. Do not download or run any file from them. The only official repository is [Lertaro/Lertaro](https://github.com/Lertaro/Lertaro), the only official website is [lertaro.github.io](https://lertaro.github.io/), and official binaries are published only through [GitHub Releases](https://github.com/Lertaro/Lertaro/releases). Treat these impersonating sources as untrusted even if their filenames or content change.
 
-Lertaro is an ultra-lightweight, high-performance, extensible global search and productivity launcher for Windows, built on **.NET 10 (WPF)**. It's a modern, open-source alternative to **Everything** and **Listary** — indexing local drives via the NTFS **USN Journal** and MFT for near-instant, low-resource search.
+Lertaro is an ultra-lightweight, high-performance, extensible global search and productivity launcher for Windows, built on **.NET 10 (WPF)**. It's a modern, open-source alternative to **Listary** and **Everything** — indexing local drives via the NTFS **USN Journal** and $MFT for near-instant, low-resource search.
 
-📖 **[Full documentation, User Manual & Developer Manual](https://lertaro.github.io/)**
+📖 **[Full Documentation, User Manual & Developer Manual](https://lertaro.github.io/)**
 
 ## Highlights
 
-- **Millisecond indexing** — reads the NTFS USN Journal/MFT directly instead of walking directories; a low-footprint background service keeps the index in sync in real time.
-- **FZF-style fuzzy search** — multi-keyword fuzzy matching with prefix/suffix/exact/exclude operators, plus pinyin aliasing for Chinese filenames.
-- **Three ways to search** — a quick popup window, a full main window, and an inline bar that docks directly into File Explorer or native file dialogs.
-- **QuickLook preview**, a right-click-style actions menu, and hotkeys that are all rebindable.
-- **Open plugin SDK** — extend search providers, aliases, context-menu actions, result columns, previews, and themes.
-- **Process isolation** — a SYSTEM-level indexing service kept separate from the per-user app UI.
+- ⚡ **USN & MFT Low-Level Indexing** — reads the NTFS/ReFS USN Change Journal and $MFT directly instead of walking directories; a lightweight background service keeps the index in sync in real time with FAT32/exFAT monitoring and network share caching.
+- 🎯 **fzf-Style Fuzzy Search & Aliases** — multi-keyword jump matching with directory path tokens and prefix/suffix/exact/exclude operators, plus non-ASCII pinyin alias transliteration.
+- 📂 **Three Window Modes & Deep Docking** — a quick popup window, a full main window, and an inline bar that automatically docks into native Open/Save file dialogs and major file managers (File Explorer, Total Commander, Directory Opus, OneCommander).
+- 🎬 **Actions Menu & QuickLook Preview** — press `Ctrl+O` for the actions menu with native Shell right-click integration, or press `Alt+P` for seamless QuickLook file previews.
+- 📊 **Instant Disk Space Treemap** — explore indexed disk usage visually in a real-time Treemap without rescanning disks, drill down into oversized folders, and execute cleanup actions.
+- 🧩 **Open Plugin SDK & Ecosystem Bridge** — clean .NET 10 C# SDK contracts for custom search providers, aliases, actions, columns, and previews, plus compatibility with Flow Launcher community plugins.
+- 🛡️ **3-Process Isolation & Offline Privacy** — SYSTEM background service (`Lertaro.Service`), user-mode WPF UI (`Lertaro.App`), and UIPI-bypassing hook helper (`Lertaro.Service --hook`) are strictly isolated. 100% local with zero telemetry.
 
 See the **[User Manual](https://lertaro.github.io/user-guide/)** for search syntax, every hotkey, and every settings option; the **[Developer Manual](https://lertaro.github.io/dev-guide/)** for architecture and the plugin SDK reference.
 
