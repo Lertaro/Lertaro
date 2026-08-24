@@ -33,10 +33,6 @@ internal static class PluginSdkBridge
             if (!System.IO.Directory.Exists(webView2Dir))
                 System.IO.Directory.CreateDirectory(webView2Dir);
             Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webView2Dir);
-
-            var legacyDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Lertaro.App.exe.WebView2");
-            if (System.IO.Directory.Exists(legacyDir))
-                System.IO.Directory.Delete(legacyDir, true);
         }
         catch { }
 
