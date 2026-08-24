@@ -150,6 +150,7 @@ public static class PluginSearchResultMapper
                         InstantResultActionType = item.ActionType ?? "Copy",
                         InstantResultActionArgument = targetPath,
                         InstantResultOnExecute = item.OnExecute,
+                        InstantResultOnExecuteFunc = item.OnExecuteFunc,
                         TabCompletion = item.TabCompletion,
                         SourceProvider = provider
                     });

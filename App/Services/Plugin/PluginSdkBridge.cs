@@ -42,6 +42,27 @@ internal static class PluginSdkBridge
         // Wire up the history service delegate for plugins using Core SearchHistoryStore
         PluginSdk.Services.HistoryService.GetHistoryEntriesFunc = SearchHistoryStore.GetEntries;
 
+        // Wire up the search query modification delegate for plugins
+        PluginSdk.Services.SearchQueryService.ChangeQueryFunc = (query, requery) => System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            {
+                var quickWindow = System.Windows.Application.Current.Windows.OfType<QuickSearchWindow>().FirstOrDefault(w => w.IsVisible);
+                if (quickWindow != null)
+                {
+                    quickWindow.TxtSearch.Text = query;
+                    quickWindow.TxtSearch.CaretIndex = query.Length;
+                    quickWindow.TxtSearch.Focus();
+                    return;
+                }
+
+                var fullWindow = System.Windows.Application.Current.Windows.OfType<SearchWindow>().FirstOrDefault(w => w.IsVisible);
+                if (fullWindow != null)
+                {
+                    fullWindow.SearchTextBox.Text = query;
+                    fullWindow.SearchTextBox.CaretIndex = query.Length;
+                    fullWindow.SearchTextBox.Focus();
+                }
+            });
+
         // Where the user was last browsing, from the same tracker the search context reads. Reached
         // through InlineSearchManager because that is what owns the tracker; it mirrors the Hook
         // process's live state, so this is a field read rather than a round trip.

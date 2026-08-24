@@ -64,6 +64,11 @@ public class SearchableItem
     public Action? OnExecute { get; set; }
 
     /// <summary>
+    /// Optional execution callback returning whether the search window should hide (true) or stay open (false).
+    /// </summary>
+    public Func<bool>? OnExecuteFunc { get; set; }
+
+    /// <summary>
     /// Optional custom ResultKind override (e.g. "Application", "File", "InstantResult").
     /// Defaults to "InstantResult".
     /// </summary>

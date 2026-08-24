@@ -43,18 +43,62 @@ public class FlowProcessRunner
 
     public async Task ExecuteActionAsync(JsonRpcActionModel action, IPublicAPI api)
     {
-        if ((string.Equals(action.Method, "flow_open_url", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(action.Method, "browser_open", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(action.Method, "open_url", StringComparison.OrdinalIgnoreCase)) && action.Parameters.Length > 0)
+        var method = action.Method;
+        if (method.StartsWith("Flow.Launcher.", StringComparison.OrdinalIgnoreCase))
+            method = method["Flow.Launcher.".Length..];
+
+        if (string.Equals(method, "ChangeQuery", StringComparison.OrdinalIgnoreCase) && action.Parameters.Length > 0)
+        {
+            var query = action.Parameters[0]?.ToString() ?? string.Empty;
+            var requery = action.Parameters.Length > 1 && (action.Parameters[1] is bool b ? b : (bool.TryParse(action.Parameters[1]?.ToString(), out var pb) && pb));
+            api.ChangeQuery(query, requery);
+            return;
+        }
+
+        if (string.Equals(method, "RestartApp", StringComparison.OrdinalIgnoreCase))
+        {
+            api.RestartApp();
+            return;
+        }
+
+        if (string.Equals(method, "CopyToClipboard", StringComparison.OrdinalIgnoreCase) && action.Parameters.Length > 0)
+        {
+            var text = action.Parameters[0]?.ToString() ?? string.Empty;
+            api.CopyToClipboard(text);
+            return;
+        }
+
+        if ((string.Equals(method, "flow_open_url", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(method, "browser_open", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(method, "open_url", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(method, "OpenUrl", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(method, "OpenWebUrl", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(method, "OpenAppUri", StringComparison.OrdinalIgnoreCase)) && action.Parameters.Length > 0)
         {
             var url = action.Parameters[0]?.ToString();
             if (!string.IsNullOrEmpty(url)) { api.OpenUrl(url); return; }
         }
 
-        if (string.Equals(action.Method, "flow_run_command", StringComparison.OrdinalIgnoreCase) && action.Parameters.Length > 0)
+        if ((string.Equals(method, "flow_run_command", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(method, "ShellRun", StringComparison.OrdinalIgnoreCase)) && action.Parameters.Length > 0)
         {
             var cmd = action.Parameters[0]?.ToString();
-            if (!string.IsNullOrEmpty(cmd)) { api.ShellRun(cmd); return; }
+            var filename = action.Parameters.Length > 1 ? action.Parameters[1]?.ToString() ?? "cmd.exe" : "cmd.exe";
+            if (!string.IsNullOrEmpty(cmd)) { api.ShellRun(cmd, filename); return; }
+        }
+
+        if (string.Equals(method, "OpenDirectory", StringComparison.OrdinalIgnoreCase) && action.Parameters.Length > 0)
+        {
+            var dir = action.Parameters[0]?.ToString() ?? string.Empty;
+            var file = action.Parameters.Length > 1 ? action.Parameters[1]?.ToString() : null;
+            api.OpenDirectory(dir, file);
+            return;
+        }
+
+        if (string.Equals(method, "OpenSettingDialog", StringComparison.OrdinalIgnoreCase))
+        {
+            api.OpenSettingDialog();
+            return;
         }
 
         var request = new JsonRpcRequest

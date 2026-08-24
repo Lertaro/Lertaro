@@ -46,7 +46,13 @@ public class FlowPublicApi : IPublicAPI
     public event ActualApplicationThemeChangedEventHandler? ActualApplicationThemeChanged { add { } remove { } }
     public event EventHandler? StringMatcherBehaviorChanged { add { } remove { } }
 
-    public void ChangeQuery(string query, bool requery = false) => _changeQueryAction?.Invoke(query, requery);
+    public void ChangeQuery(string query, bool requery = false)
+    {
+        if (_changeQueryAction != null)
+            _changeQueryAction(query, requery);
+        else
+            PluginSdk.Services.SearchQueryService.ChangeQuery(query, requery);
+    }
     public void ReQuery(bool reselect = true) => ChangeQuery(string.Empty, true);
     public void BackToQueryResults() { }
 

@@ -203,23 +203,10 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
         set => Extras.InstantResultActionArgument = value;
     }
 
-    public Action? InstantResultOnExecute
-    {
-        get => _extras?.InstantResultOnExecute;
-        set => Extras.InstantResultOnExecute = value;
-    }
-
-    public string? TabCompletion
-    {
-        get => _extras?.TabCompletion;
-        set => Extras.TabCompletion = value;
-    }
-
-    public object? SourceProvider
-    {
-        get => _extras?.SourceProvider;
-        set => Extras.SourceProvider = value;
-    }
+    public Action? InstantResultOnExecute { get => _extras?.InstantResultOnExecute; set => Extras.InstantResultOnExecute = value; }
+    public Func<bool>? InstantResultOnExecuteFunc { get => _extras?.InstantResultOnExecuteFunc; set => Extras.InstantResultOnExecuteFunc = value; }
+    public string? TabCompletion { get => _extras?.TabCompletion; set => Extras.TabCompletion = value; }
+    public object? SourceProvider { get => _extras?.SourceProvider; set => Extras.SourceProvider = value; }
 
     public bool[]? GetHighlightMask(string text, string query) => AppSearchResultDisplaySupport.GetHighlightMask(this, text, query);
 

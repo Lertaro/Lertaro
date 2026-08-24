@@ -44,6 +44,7 @@ internal sealed class AppSearchResultExtras
     public string InstantResultActionType = "Copy";
     public string InstantResultActionArgument = string.Empty;
     public Action? InstantResultOnExecute;
+    public Func<bool>? InstantResultOnExecuteFunc;
     public string? TabCompletion;
     public object? SourceProvider;
 

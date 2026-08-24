@@ -220,15 +220,11 @@ public class QuickSearchWindowInputHandler
         }
         if (result.IsPluginSearchAction)
         {
-            _window.HideWindow();
-            if (PluginManager.Instance.TryExecuteSearchAction(result, _window, asAdmin))
-            {
-            }
+            PluginManager.Instance.TryExecuteSearchAction(result, _window, asAdmin);
             return;
         }
         if (PluginManager.Instance.TryExecuteSearchAction(result, _window, asAdmin))
         {
-            _window.HideWindow();
             return;
         }
         var currentQuery = _window.TxtSearch.Text;

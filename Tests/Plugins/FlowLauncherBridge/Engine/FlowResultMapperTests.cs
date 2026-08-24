@@ -47,4 +47,66 @@ public sealed class FlowResultMapperTests
 
         Assert.IsTrue(actionExecuted);
     }
+
+    [TestMethod]
+    public void MapToInstantResult_ActionReturningFalse_ReturnsFalse()
+    {
+        var result = new Result
+        {
+            Title = "Stay Open Action",
+            Action = _ => false
+        };
+
+        var mapped = FlowResultMapper.MapToInstantResult(result);
+        var shouldHide = mapped.OnExecuteFunc?.Invoke();
+
+        Assert.IsFalse(shouldHide);
+    }
+
+    [TestMethod]
+    public void MapToInstantResult_AutoCompleteTextOnly_ChangesQueryAndReturnsFalse()
+    {
+        string? changedQuery = null;
+        bool? requeryFlag = null;
+        PluginSdk.Services.SearchQueryService.ChangeQueryFunc = (q, r) =>
+        {
+            changedQuery = q;
+            requeryFlag = r;
+        };
+
+        try
+        {
+            var result = new Result
+            {
+                Title = "AutoComplete Prompt",
+                AutoCompleteText = "qr mytext"
+            };
+
+            var mapped = FlowResultMapper.MapToInstantResult(result);
+            var shouldHide = mapped.OnExecuteFunc?.Invoke();
+
+            Assert.IsFalse(shouldHide);
+            Assert.AreEqual("qr mytext", changedQuery);
+            Assert.IsTrue(requeryFlag);
+        }
+        finally
+        {
+            PluginSdk.Services.SearchQueryService.ChangeQueryFunc = null;
+        }
+    }
+
+    [TestMethod]
+    public void MapToInstantResult_AsyncActionReturningFalse_ReturnsFalse()
+    {
+        var result = new Result
+        {
+            Title = "Async Stay Open Action",
+            AsyncAction = _ => ValueTask.FromResult(false)
+        };
+
+        var mapped = FlowResultMapper.MapToInstantResult(result);
+        var shouldHide = mapped.OnExecuteFunc?.Invoke();
+
+        Assert.IsFalse(shouldHide);
+    }
 }

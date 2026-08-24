@@ -59,4 +59,9 @@ public class InstantResultItem
     /// Optional direct execution callback invoked when this result is selected.
     /// </summary>
     public Action? OnExecute { get; set; }
+
+    /// <summary>
+    /// Optional execution callback returning whether the search window should hide (true) or stay open (false).
+    /// </summary>
+    public Func<bool>? OnExecuteFunc { get; set; }
 }

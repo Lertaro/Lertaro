@@ -245,6 +245,7 @@ public static class SearchableItemMapper
             InstantResultActionType = item.ActionType ?? "Copy",
             InstantResultActionArgument = item.ActionArgument ?? string.Empty,
             InstantResultOnExecute = item.OnExecute,
+            InstantResultOnExecuteFunc = item.OnExecuteFunc,
             TabCompletion = item.TabCompletion,
             SourceProvider = provider
         }, weight);

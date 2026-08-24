@@ -49,14 +49,12 @@ public class QuickSearchWindowResultExecutor
 
         if (result.IsPluginSearchAction)
         {
-            _window.HideWindow();
             PluginManager.Instance.TryExecuteSearchAction(result, _window, asAdmin);
             return;
         }
 
         if (PluginManager.Instance.TryExecuteSearchAction(result, _window, asAdmin))
         {
-            _window.HideWindow();
             return;
         }
 

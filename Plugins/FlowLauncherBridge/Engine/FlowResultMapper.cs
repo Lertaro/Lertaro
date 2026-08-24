@@ -109,29 +109,38 @@ public static class FlowResultMapper
         }
 
         // Map execution action
-        item.OnExecute = () =>
+        item.OnExecuteFunc = () =>
         {
             try
             {
                 var context = new ActionContext();
                 if (flowResult.Action != null)
                 {
-                    flowResult.Action(context);
+                    return flowResult.Action(context);
                 }
-                else if (flowResult.AsyncAction != null)
+                if (flowResult.AsyncAction != null)
                 {
-                    _ = flowResult.AsyncAction(context);
+                    var vt = flowResult.AsyncAction(context);
+                    return vt.IsCompletedSuccessfully ? vt.Result : vt.AsTask().GetAwaiter().GetResult();
                 }
-                else if (!string.IsNullOrEmpty(flowResult.CopyText))
+                if (!string.IsNullOrEmpty(flowResult.AutoCompleteText))
+                {
+                    PluginSdk.Services.SearchQueryService.ChangeQuery(flowResult.AutoCompleteText, requery: true);
+                    return false;
+                }
+                if (!string.IsNullOrEmpty(flowResult.CopyText))
                 {
                     System.Windows.Clipboard.SetText(flowResult.CopyText);
+                    return true;
                 }
             }
             catch
             {
                 // Suppress action callback errors
             }
+            return true;
         };
+        item.OnExecute = () => item.OnExecuteFunc?.Invoke();
 
         return item;
     }
