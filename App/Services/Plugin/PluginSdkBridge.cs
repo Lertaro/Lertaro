@@ -26,13 +26,13 @@ internal static class PluginSdkBridge
         PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = () => Logger.UserDataDir;
         PluginSdk.Services.UserDataService.GetSharedDataDirectoryFunc = () => Logger.SharedDataDir;
 
-        // Isolate WebView2 runtime data in <UserDataDir>\FlowData\WebView instead of executable directory
+        // Isolate WebView2 runtime data in <UserDataDir>\FlowData (WebView2 creates FlowData\EBWebView)
         try
         {
-            var webViewDir = System.IO.Path.Combine(Logger.UserDataDir, "FlowData", "WebView");
-            if (!System.IO.Directory.Exists(webViewDir))
-                System.IO.Directory.CreateDirectory(webViewDir);
-            Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webViewDir);
+            var flowDataDir = System.IO.Path.Combine(Logger.UserDataDir, "FlowData");
+            if (!System.IO.Directory.Exists(flowDataDir))
+                System.IO.Directory.CreateDirectory(flowDataDir);
+            Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", flowDataDir);
         }
         catch { }
 

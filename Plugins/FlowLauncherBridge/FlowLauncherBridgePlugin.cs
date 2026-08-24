@@ -32,10 +32,10 @@ public class FlowLauncherBridgePlugin : IPlugin, IConfigurable
         {
             var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
                 ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-            var webViewDir = System.IO.Path.Combine(baseDir, "FlowData", "WebView");
-            if (!System.IO.Directory.Exists(webViewDir))
-                System.IO.Directory.CreateDirectory(webViewDir);
-            Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webViewDir);
+            var flowDataDir = System.IO.Path.Combine(baseDir, "FlowData");
+            if (!System.IO.Directory.Exists(flowDataDir))
+                System.IO.Directory.CreateDirectory(flowDataDir);
+            Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", flowDataDir);
         }
         catch { }
     }

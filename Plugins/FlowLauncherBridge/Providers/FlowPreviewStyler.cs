@@ -72,11 +72,11 @@ public static class FlowPreviewStyler
         {
             var baseDir = UserDataService.GetUserDataDirectory()
                 ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-            var webViewDir = System.IO.Path.Combine(baseDir, "FlowData", "WebView");
-            if (!System.IO.Directory.Exists(webViewDir))
-                System.IO.Directory.CreateDirectory(webViewDir);
+            var flowDataDir = System.IO.Path.Combine(baseDir, "FlowData");
+            if (!System.IO.Directory.Exists(flowDataDir))
+                System.IO.Directory.CreateDirectory(flowDataDir);
 
-            Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webViewDir);
+            Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", flowDataDir);
 
             var prop = webView.GetType().GetProperty("CreationProperties");
             if (prop != null && prop.GetValue(webView) == null)
@@ -84,7 +84,7 @@ public static class FlowPreviewStyler
                 var creationProps = Activator.CreateInstance(prop.PropertyType);
                 if (creationProps != null)
                 {
-                    prop.PropertyType.GetProperty("UserDataFolder")?.SetValue(creationProps, webViewDir);
+                    prop.PropertyType.GetProperty("UserDataFolder")?.SetValue(creationProps, flowDataDir);
                     prop.SetValue(webView, creationProps);
                 }
             }
