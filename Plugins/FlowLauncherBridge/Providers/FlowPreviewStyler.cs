@@ -54,6 +54,7 @@ public static class FlowPreviewStyler
 
     private static void SetupWebView(FrameworkElement webView)
     {
+        EnsureWebView2UserDataFolder(webView);
         HookEvent(webView, "NavigationCompleted", () => InjectCss(webView));
         HookEvent(webView, "CoreWebView2InitializationCompleted", () =>
         {
@@ -63,6 +64,32 @@ public static class FlowPreviewStyler
 
         RegisterDocumentScript(webView);
         InjectCss(webView);
+    }
+
+    private static void EnsureWebView2UserDataFolder(FrameworkElement webView)
+    {
+        try
+        {
+            var baseDir = UserDataService.GetUserDataDirectory()
+                ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
+            var webView2Dir = System.IO.Path.Combine(baseDir, "FlowData", "WebView2");
+            if (!System.IO.Directory.Exists(webView2Dir))
+                System.IO.Directory.CreateDirectory(webView2Dir);
+
+            Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webView2Dir);
+
+            var prop = webView.GetType().GetProperty("CreationProperties");
+            if (prop != null && prop.GetValue(webView) == null)
+            {
+                var creationProps = Activator.CreateInstance(prop.PropertyType);
+                if (creationProps != null)
+                {
+                    prop.PropertyType.GetProperty("UserDataFolder")?.SetValue(creationProps, webView2Dir);
+                    prop.SetValue(webView, creationProps);
+                }
+            }
+        }
+        catch { }
     }
 
     private static void HookEvent(object target, string eventName, Action callback)

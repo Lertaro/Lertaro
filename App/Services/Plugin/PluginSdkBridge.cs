@@ -26,6 +26,20 @@ internal static class PluginSdkBridge
         PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = () => Logger.UserDataDir;
         PluginSdk.Services.UserDataService.GetSharedDataDirectoryFunc = () => Logger.SharedDataDir;
 
+        // Isolate WebView2 runtime data in <UserDataDir>\FlowData\WebView2 instead of executable directory
+        try
+        {
+            var webView2Dir = System.IO.Path.Combine(Logger.UserDataDir, "FlowData", "WebView2");
+            if (!System.IO.Directory.Exists(webView2Dir))
+                System.IO.Directory.CreateDirectory(webView2Dir);
+            Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webView2Dir);
+
+            var legacyDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Lertaro.App.exe.WebView2");
+            if (System.IO.Directory.Exists(legacyDir))
+                System.IO.Directory.Delete(legacyDir, true);
+        }
+        catch { }
+
         // Wire up the runtime field-prompt delegate, reusing the Settings UI's own field rendering.
         PluginSdk.Services.PluginPromptService.PromptFunc = Views.Controls.Dialogs.PluginFieldPromptWindow.ShowPrompt;
 

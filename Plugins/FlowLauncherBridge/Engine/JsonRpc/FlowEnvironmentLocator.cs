@@ -13,6 +13,12 @@ public static class FlowEnvironmentLocator
     private static string? _cachedPythonPath;
     private static string? _cachedNodePath;
 
+    internal static void ResetCache()
+    {
+        _cachedPythonPath = null;
+        _cachedNodePath = null;
+    }
+
     public static string? FindPythonExecutable()
     {
         var sharedDir = GetEmbeddedPythonDirectory();

@@ -29,4 +29,13 @@ public sealed class FlowPreviewProviderTests
         Assert.IsNotNull(element);
         Assert.IsInstanceOfType<UserControl>(element);
     }
+
+    [TestMethod]
+    public void FlowPreview_ConfiguresWebView2UserDataFolderEnvironment()
+    {
+        _ = new FlowLauncherBridgePlugin();
+        var envVar = Environment.GetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER");
+        Assert.IsNotNull(envVar);
+        Assert.IsTrue(envVar.EndsWith(Path.Combine("FlowData", "WebView2"), StringComparison.OrdinalIgnoreCase));
+    }
 }

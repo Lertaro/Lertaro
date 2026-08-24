@@ -12,6 +12,7 @@ public sealed class FlowEnvironmentLocatorTests
     [TestInitialize]
     public void Setup()
     {
+        FlowEnvironmentLocator.ResetCache();
         _tempShared = Path.Combine(Path.GetTempPath(), "LertaroTestShared_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempShared);
 
@@ -21,6 +22,7 @@ public sealed class FlowEnvironmentLocatorTests
     [TestCleanup]
     public void Cleanup()
     {
+        FlowEnvironmentLocator.ResetCache();
         UserDataService.GetSharedDataDirectoryFunc = null;
 
         try { if (_tempShared != null && Directory.Exists(_tempShared)) Directory.Delete(_tempShared, true); } catch { }
