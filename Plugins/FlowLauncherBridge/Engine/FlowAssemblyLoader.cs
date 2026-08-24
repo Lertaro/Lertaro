@@ -11,20 +11,19 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 public class FlowAssemblyLoader : AssemblyLoadContext
 {
     private readonly string _pluginDirectory;
+    private readonly AssemblyDependencyResolver? _resolver;
 
-    public FlowAssemblyLoader(string pluginDirectory) : base(isCollectible: true) => _pluginDirectory = pluginDirectory;
-
-    public Assembly LoadAssemblyFromBytes(string dllPath)
+    public FlowAssemblyLoader(string pluginDirectory, string? mainDllPath = null) : base(isCollectible: true)
     {
-        using var dllStream = new MemoryStream(File.ReadAllBytes(dllPath));
-        var pdbPath = Path.ChangeExtension(dllPath, ".pdb");
-        if (File.Exists(pdbPath))
+        _pluginDirectory = pluginDirectory;
+        var targetPath = !string.IsNullOrEmpty(mainDllPath) ? mainDllPath : Directory.GetFiles(pluginDirectory, "*.dll").FirstOrDefault();
+        if (!string.IsNullOrEmpty(targetPath) && File.Exists(targetPath))
         {
-            using var pdbStream = new MemoryStream(File.ReadAllBytes(pdbPath));
-            return LoadFromStream(dllStream, pdbStream);
+            _resolver = new AssemblyDependencyResolver(targetPath);
         }
-        return LoadFromStream(dllStream);
     }
+
+    public Assembly LoadAssemblyFromBytes(string dllPath) => LoadFromAssemblyPath(dllPath);
 
     protected override Assembly? Load(AssemblyName assemblyName)
     {
@@ -33,10 +32,16 @@ public class FlowAssemblyLoader : AssemblyLoadContext
             return typeof(Flow.Launcher.Plugin.IPlugin).Assembly;
         }
 
+        var resolvedPath = _resolver?.ResolveAssemblyToPath(assemblyName);
+        if (!string.IsNullOrEmpty(resolvedPath) && File.Exists(resolvedPath))
+        {
+            return LoadFromAssemblyPath(resolvedPath);
+        }
+
         var dllPath = Path.Combine(_pluginDirectory, $"{assemblyName.Name}.dll");
         if (File.Exists(dllPath))
         {
-            return LoadAssemblyFromBytes(dllPath);
+            return LoadFromAssemblyPath(dllPath);
         }
 
         return null;
@@ -44,6 +49,12 @@ public class FlowAssemblyLoader : AssemblyLoadContext
 
     protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
     {
+        var resolvedPath = _resolver?.ResolveUnmanagedDllToPath(unmanagedDllName);
+        if (!string.IsNullOrEmpty(resolvedPath) && File.Exists(resolvedPath))
+        {
+            return LoadUnmanagedDllFromPath(resolvedPath);
+        }
+
         var fileName = unmanagedDllName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ? unmanagedDllName : $"{unmanagedDllName}.dll";
         var dllPath = Path.Combine(_pluginDirectory, fileName);
         if (File.Exists(dllPath))

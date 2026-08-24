@@ -20,7 +20,7 @@ public static class FlowPluginLoaderHelper
     {
         if (AllowedLanguage.IsDotNet(metadata.Language) && !string.IsNullOrEmpty(metadata.ExecuteFilePath) && File.Exists(metadata.ExecuteFilePath))
         {
-            var loader = new FlowAssemblyLoader(pluginDir);
+            var loader = new FlowAssemblyLoader(pluginDir, metadata.ExecuteFilePath);
             loaders[metadata.ID] = loader;
             var assembly = loader.LoadAssemblyFromBytes(metadata.ExecuteFilePath);
             var instance = CreateDotNetPluginInstance(assembly);
