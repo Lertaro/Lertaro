@@ -49,57 +49,39 @@ public class FlowPluginHost : IAsyncDisposable
 
     public bool OpenPluginSettings(string pluginId)
     {
-        if (!_loadedPlugins.TryGetValue(pluginId, out _))
-            return false;
-
+        if (!_loadedPlugins.TryGetValue(pluginId, out _)) return false;
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("lertaro://settings/page/Plugins") { UseShellExecute = true });
             return true;
         }
-        catch
-        {
-            return false;
-        }
+        catch { return false; }
     }
+
+    private PluginPair? FindPluginPair(string nameOrId) => _loadedPlugins.Values.FirstOrDefault(p =>
+        string.Equals(p.Metadata.ID, nameOrId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(p.Metadata.Name, nameOrId, StringComparison.OrdinalIgnoreCase));
 
     public bool IsPluginEnabled(string pluginNameOrId)
     {
-        var pair = _loadedPlugins.Values.FirstOrDefault(p =>
-            string.Equals(p.Metadata.ID, pluginNameOrId, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(p.Metadata.Name, pluginNameOrId, StringComparison.OrdinalIgnoreCase));
-        if (pair != null)
-            return !pair.Metadata.Disabled;
-
-        var targetName = pair?.Metadata.Name ?? pluginNameOrId;
-        return !FlowPluginStateStore.IsPluginDisabled(targetName);
+        var pair = FindPluginPair(pluginNameOrId);
+        return pair != null ? !pair.Metadata.Disabled : !FlowPluginStateStore.IsPluginDisabled(pluginNameOrId);
     }
 
     public void SetPluginEnabled(string pluginNameOrId, bool enabled)
     {
-        var pair = _loadedPlugins.Values.FirstOrDefault(p =>
-            string.Equals(p.Metadata.ID, pluginNameOrId, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(p.Metadata.Name, pluginNameOrId, StringComparison.OrdinalIgnoreCase));
-        if (pair != null)
-        {
-            pair.Metadata.Disabled = !enabled;
-            FlowPluginStateStore.SetPluginDisabled(pair.Metadata.Name, !enabled);
-
-            if (enabled)
-                _keywordManager.RegisterPluginKeywords(pair);
-            else
-                _keywordManager.UnregisterPluginKeywords(pair);
-        }
+        var pair = FindPluginPair(pluginNameOrId);
+        if (pair == null) return;
+        pair.Metadata.Disabled = !enabled;
+        FlowPluginStateStore.SetPluginDisabled(pair.Metadata.Name, !enabled);
+        if (enabled) _keywordManager.RegisterPluginKeywords(pair);
+        else _keywordManager.UnregisterPluginKeywords(pair);
     }
 
     public string GetPluginActionKeyword(string pluginNameOrId)
     {
-        var pair = _loadedPlugins.Values.FirstOrDefault(p =>
-            string.Equals(p.Metadata.ID, pluginNameOrId, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(p.Metadata.Name, pluginNameOrId, StringComparison.OrdinalIgnoreCase));
-        if (pair != null && !string.IsNullOrEmpty(pair.Metadata.ActionKeyword))
-            return pair.Metadata.ActionKeyword;
-
+        var pair = FindPluginPair(pluginNameOrId);
+        if (pair != null && !string.IsNullOrEmpty(pair.Metadata.ActionKeyword)) return pair.Metadata.ActionKeyword;
         var targetName = pair?.Metadata.Name ?? pluginNameOrId;
         return FlowPluginStateStore.GetCustomKeyword(targetName) ?? pair?.Metadata.ActionKeyword ?? string.Empty;
     }
@@ -107,14 +89,10 @@ public class FlowPluginHost : IAsyncDisposable
     public void UpdatePluginActionKeyword(string pluginNameOrId, string newActionKeyword)
     {
         if (string.IsNullOrWhiteSpace(newActionKeyword)) return;
-        var pair = _loadedPlugins.Values.FirstOrDefault(p =>
-            string.Equals(p.Metadata.ID, pluginNameOrId, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(p.Metadata.Name, pluginNameOrId, StringComparison.OrdinalIgnoreCase));
-        if (pair != null)
-        {
-            _keywordManager.UpdateActionKeyword(pair, newActionKeyword);
-            FlowPluginStateStore.SaveCustomKeyword(pair.Metadata.Name, newActionKeyword);
-        }
+        var pair = FindPluginPair(pluginNameOrId);
+        if (pair == null) return;
+        _keywordManager.UpdateActionKeyword(pair, newActionKeyword);
+        FlowPluginStateStore.SaveCustomKeyword(pair.Metadata.Name, newActionKeyword);
     }
 
     public void AddActionKeyword(string pluginId, string newActionKeyword)
@@ -142,14 +120,33 @@ public class FlowPluginHost : IAsyncDisposable
 
             foreach (var pluginDir in Directory.GetDirectories(baseDir))
             {
+                if (File.Exists(Path.Combine(pluginDir, ".deleted")) || File.Exists(Path.Combine(pluginDir, "plugin.delete")))
+                {
+                    try { Directory.Delete(pluginDir, true); } catch { }
+                }
+            }
+
+            foreach (var pluginDir in Directory.GetDirectories(baseDir))
+            {
+                var dirName = Path.GetFileName(pluginDir);
+                var dashIndex = dirName.LastIndexOf('-');
+                if (dashIndex > 0 && dashIndex == dirName.Length - 9)
+                {
+                    var standardDir = Path.Combine(baseDir, dirName[..dashIndex]);
+                    if (!Directory.Exists(standardDir))
+                    {
+                        try { Directory.Move(pluginDir, standardDir); } catch { }
+                    }
+                }
+            }
+
+            foreach (var pluginDir in Directory.GetDirectories(baseDir))
+            {
                 var manifestPath = Path.Combine(pluginDir, "plugin.json");
-                if (!File.Exists(manifestPath))
+                if (!File.Exists(manifestPath) || File.Exists(Path.Combine(pluginDir, ".deleted")))
                     continue;
 
-                try
-                {
-                    await LoadPluginFromDirectoryAsync(pluginDir, manifestPath);
-                }
+                try { await LoadPluginFromDirectoryAsync(pluginDir, manifestPath); }
                 catch { }
             }
         }
@@ -248,7 +245,6 @@ public class FlowPluginHost : IAsyncDisposable
             try { loader.Unload(); } catch { }
             GC.Collect();
             GC.WaitForPendingFinalizers();
-            try { if (Directory.Exists(loader.ShadowDirectory)) Directory.Delete(loader.ShadowDirectory, true); } catch { }
         }
 
         return true;
@@ -272,7 +268,6 @@ public class FlowPluginHost : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         SaveAll();
-
         foreach (var pair in _loadedPlugins.Values)
         {
             if (pair.Plugin is IAsyncDisposable asyncDisposable)

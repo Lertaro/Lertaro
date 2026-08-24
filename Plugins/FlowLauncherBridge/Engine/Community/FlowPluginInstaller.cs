@@ -54,9 +54,26 @@ public static class FlowPluginInstaller
             var pluginsBaseDir = Path.Combine(userDataDir, "FlowData", "Plugins");
             Directory.CreateDirectory(pluginsBaseDir);
 
-            var targetPluginDir = Path.Combine(pluginsBaseDir, plugin.Name);
+            var standardDir = Path.Combine(pluginsBaseDir, plugin.Name);
+            var existingPlugin = host.GetAllPlugins().FirstOrDefault(p => string.Equals(p.Metadata.ID, plugin.ID, StringComparison.OrdinalIgnoreCase));
+            var existingDir = existingPlugin?.Metadata.PluginDirectory;
+
             await host.UnloadPluginAsync(plugin.ID).ConfigureAwait(false);
-            SafeDeleteDirectory(targetPluginDir);
+
+            if (!string.IsNullOrEmpty(existingDir) && Directory.Exists(existingDir))
+            {
+                SafeDeleteDirectory(existingDir);
+            }
+            SafeDeleteDirectory(standardDir);
+
+            foreach (var oldDir in Directory.GetDirectories(pluginsBaseDir, $"{plugin.Name}-*"))
+            {
+                SafeDeleteDirectory(oldDir);
+            }
+
+            var targetPluginDir = Directory.Exists(standardDir)
+                ? Path.Combine(pluginsBaseDir, $"{plugin.Name}-{Guid.NewGuid():N[..8]}")
+                : standardDir;
 
             CopyDirectory(pluginFolder, targetPluginDir);
 
@@ -124,6 +141,15 @@ public static class FlowPluginInstaller
                 : Path.Combine(pluginsBaseDir, metadata.Name);
 
             SafeDeleteDirectory(targetDir);
+
+            if (Directory.Exists(pluginsBaseDir))
+            {
+                foreach (var oldDir in Directory.GetDirectories(pluginsBaseDir, $"{metadata.Name}-*"))
+                {
+                    SafeDeleteDirectory(oldDir);
+                }
+            }
+
             SearchRefreshService.RefreshIfMatches(q => true);
             return true;
         }
@@ -150,6 +176,17 @@ public static class FlowPluginInstaller
             }
             Directory.Delete(directory, true);
         }
-        catch { }
+        catch
+        {
+            try
+            {
+                var marker = Path.Combine(directory, ".deleted");
+                if (!File.Exists(marker))
+                {
+                    File.WriteAllText(marker, DateTime.UtcNow.ToString("o"));
+                }
+            }
+            catch { }
+        }
     }
 }

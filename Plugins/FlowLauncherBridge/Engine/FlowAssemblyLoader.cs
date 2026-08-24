@@ -10,28 +10,20 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 /// </summary>
 public class FlowAssemblyLoader : AssemblyLoadContext
 {
-    private readonly string _shadowDirectory;
+    private readonly string _pluginDirectory;
     private readonly AssemblyDependencyResolver? _resolver;
-
-    public string ShadowDirectory => _shadowDirectory;
 
     public FlowAssemblyLoader(string pluginDirectory, string? mainDllPath = null) : base(isCollectible: true)
     {
-        _shadowDirectory = CreateShadowCopy(pluginDirectory);
-        var mainDllName = !string.IsNullOrEmpty(mainDllPath) ? Path.GetFileName(mainDllPath) : Directory.GetFiles(_shadowDirectory, "*.dll").Select(Path.GetFileName).FirstOrDefault();
-        var shadowMainDll = !string.IsNullOrEmpty(mainDllName) ? Path.Combine(_shadowDirectory, mainDllName) : null;
-        if (!string.IsNullOrEmpty(shadowMainDll) && File.Exists(shadowMainDll))
+        _pluginDirectory = pluginDirectory;
+        var targetPath = !string.IsNullOrEmpty(mainDllPath) ? mainDllPath : Directory.GetFiles(pluginDirectory, "*.dll").FirstOrDefault();
+        if (!string.IsNullOrEmpty(targetPath) && File.Exists(targetPath))
         {
-            _resolver = new AssemblyDependencyResolver(shadowMainDll);
+            _resolver = new AssemblyDependencyResolver(targetPath);
         }
     }
 
-    public Assembly LoadAssemblyFromBytes(string originalDllPath)
-    {
-        var dllName = Path.GetFileName(originalDllPath);
-        var shadowDll = Path.Combine(_shadowDirectory, dllName);
-        return LoadFromAssemblyPath(File.Exists(shadowDll) ? shadowDll : originalDllPath);
-    }
+    public Assembly LoadAssemblyFromBytes(string dllPath) => LoadFromAssemblyPath(dllPath);
 
     protected override Assembly? Load(AssemblyName assemblyName)
     {
@@ -46,7 +38,7 @@ public class FlowAssemblyLoader : AssemblyLoadContext
             return LoadFromAssemblyPath(resolvedPath);
         }
 
-        var dllPath = Path.Combine(_shadowDirectory, $"{assemblyName.Name}.dll");
+        var dllPath = Path.Combine(_pluginDirectory, $"{assemblyName.Name}.dll");
         if (File.Exists(dllPath))
         {
             return LoadFromAssemblyPath(dllPath);
@@ -64,34 +56,12 @@ public class FlowAssemblyLoader : AssemblyLoadContext
         }
 
         var fileName = unmanagedDllName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ? unmanagedDllName : $"{unmanagedDllName}.dll";
-        var dllPath = Path.Combine(_shadowDirectory, fileName);
+        var dllPath = Path.Combine(_pluginDirectory, fileName);
         if (File.Exists(dllPath))
         {
             return LoadUnmanagedDllFromPath(dllPath);
         }
 
         return base.LoadUnmanagedDll(unmanagedDllName);
-    }
-
-    private static string CreateShadowCopy(string sourceDir)
-    {
-        var shadowDir = Path.Combine(Path.GetTempPath(), "LertaroFlowShadow", Guid.NewGuid().ToString("N"));
-        if (!Directory.Exists(sourceDir)) return shadowDir;
-
-        try
-        {
-            Directory.CreateDirectory(shadowDir);
-            foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
-            {
-                var relative = Path.GetRelativePath(sourceDir, file);
-                var dest = Path.Combine(shadowDir, relative);
-                var destParent = Path.GetDirectoryName(dest);
-                if (!string.IsNullOrEmpty(destParent)) Directory.CreateDirectory(destParent);
-                File.Copy(file, dest, true);
-            }
-        }
-        catch { }
-
-        return shadowDir;
     }
 }
