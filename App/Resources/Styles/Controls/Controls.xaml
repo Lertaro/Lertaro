@@ -239,6 +239,8 @@
                     <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.Cut"/>
                     <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.Copy"/>
                     <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.Paste"/>
+                    <Separator Style="{DynamicResource {x:Type Separator}}"/>
+                    <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.SelectAll"/>
                 </ContextMenu>
             </Setter.Value>
         </Setter>

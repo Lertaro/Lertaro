@@ -13,6 +13,7 @@
             </VisualBrush.Visual>
         </VisualBrush>
         <Style x:Key="RecorderBoxStyle" TargetType="TextBox">
+            <Setter Property="ContextMenu" Value="{x:Null}"/>
             <Setter Property="Padding" Value="6,2,20,2"/>
             <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
@@ -88,6 +89,7 @@
         <TextBox x:Name="HotkeyBox"
                  Style="{StaticResource RecorderBoxStyle}"
                  IsReadOnly="True"
+                 ContextMenu="{x:Null}"
                  PreviewKeyDown="HotkeyBox_PreviewKeyDown"
                  PreviewKeyUp="HotkeyBox_PreviewKeyUp"/>
         <Button Style="{StaticResource ClearButtonStyle}"

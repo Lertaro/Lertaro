@@ -106,7 +106,7 @@
                      Text="{Binding SearchText, ElementName=root, UpdateSourceTrigger=PropertyChanged}"
                      FontSize="{Binding FontSize, ElementName=root}" Foreground="{DynamicResource TextPrimary}" CaretBrush="{DynamicResource TextPrimary}">
                 <TextBox.Style>
-                    <Style TargetType="TextBox">
+                    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="BorderThickness" Value="0"/>
                         <Setter Property="Padding" Value="0"/>
