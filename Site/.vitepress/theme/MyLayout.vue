@@ -2,16 +2,33 @@
 import { useData } from 'vitepress'
 import DefaultTheme from 'vitepress/theme'
 import DownloadDropdown from './DownloadDropdown.vue'
+import HomePracticalSections from './HomePracticalSections.vue'
 import { dictionary } from '../i18n/dictionary.js'
 
 const { Layout } = DefaultTheme
 const { lang, frontmatter } = useData()
-const t = (key) => (dictionary[lang.value] ?? dictionary['en-US'])[key]
-const localePrefix = () => (lang.value === 'zh-CN' ? '/zh-CN' : '')
+const t = (key) => (dictionary[lang.value] ?? dictionary['en-US'])[key] || key
+const localePrefix = () => (lang.value === 'en-US' ? '' : `/${lang.value}`)
 </script>
 
 <template>
   <Layout>
+    <!-- Top Security Warning Banner -->
+    <template #home-hero-before>
+      <aside v-if="frontmatter.securityWarning" class="security-warning" role="alert">
+        <span class="security-warning-icon" aria-hidden="true">!</span>
+        <div class="security-warning-copy">
+          <strong>{{ frontmatter.securityWarning.title }}</strong>
+          <p>{{ frontmatter.securityWarning.details }}</p>
+        </div>
+        <div class="security-warning-links">
+          <a href="https://github.com/Lertaro/Lertaro">github.com/Lertaro/Lertaro</a>
+          <a href="https://lertaro.github.io/">lertaro.github.io</a>
+        </div>
+      </aside>
+    </template>
+
+    <!-- Action Buttons below Hero Tagline -->
     <template #home-hero-actions-after>
       <div class="custom-actions-container">
         <!-- 1. Download Dropdown Button -->
@@ -35,18 +52,9 @@ const localePrefix = () => (lang.value === 'zh-CN' ? '/zh-CN' : '')
       </div>
     </template>
 
-    <template #home-hero-before>
-      <aside v-if="frontmatter.securityWarning" class="security-warning" role="alert">
-        <span class="security-warning-icon" aria-hidden="true">!</span>
-        <div class="security-warning-copy">
-          <strong>{{ frontmatter.securityWarning.title }}</strong>
-          <p>{{ frontmatter.securityWarning.details }}</p>
-        </div>
-        <div class="security-warning-links">
-          <a href="https://github.com/Lertaro/Lertaro">github.com/Lertaro/Lertaro</a>
-          <a href="https://lertaro.github.io/">lertaro.github.io</a>
-        </div>
-      </aside>
+    <!-- Factual, Practical Sections below Feature Cards -->
+    <template #home-features-after>
+      <HomePracticalSections />
     </template>
   </Layout>
 </template>
@@ -61,7 +69,6 @@ const localePrefix = () => (lang.value === 'zh-CN' ? '/zh-CN' : '')
   margin-top: 24px;
 }
 
-/* Align to left on larger screens, matching VitePress default layout */
 @media (min-width: 960px) {
   .custom-actions-container {
     justify-content: flex-start;
@@ -78,8 +85,12 @@ const localePrefix = () => (lang.value === 'zh-CN' ? '/zh-CN' : '')
   font-size: 14px;
   font-weight: 600;
   text-decoration: none !important;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.custom-action-btn:hover {
+  transform: translateY(-1px);
 }
 
 .alt-btn {
@@ -90,8 +101,8 @@ const localePrefix = () => (lang.value === 'zh-CN' ? '/zh-CN' : '')
 
 .alt-btn:hover {
   background-color: var(--vp-button-alt-hover-bg, var(--vp-c-bg-soft, #e2e8f0));
-  color: var(--vp-button-alt-hover-text, var(--vp-c-brand-1, #3eaf7c)) !important;
-  border-color: var(--vp-button-alt-hover-border, var(--vp-c-brand-1, #3eaf7c));
+  color: var(--vp-button-alt-hover-text, var(--vp-c-brand-1, #1868b7)) !important;
+  border-color: var(--vp-button-alt-hover-border, var(--vp-c-brand-1, #1868b7));
 }
 
 .security-warning {

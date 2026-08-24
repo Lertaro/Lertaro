@@ -2,34 +2,37 @@
 layout: home
 hero:
   name: Lertaro
-  text: Windows용 고성능 확장형 검색 도구
-  tagline: 수백만 개의 로컬 파일을 몇 초 만에 인덱싱합니다. 가볍고 매우 빠르며, 강력한 별칭 및 플러그인 생태계를 갖추고 있습니다.
+  text: 고성능 확장형 Windows 로컬 검색 시스템
+  tagline: USN 저널과 컬럼형 인메모리 인덱스를 기반으로 수백만 개의 파일을 즉시 검색하고 실행하며, 네이티브 파일 대화상자 도킹과 플러그인을 지원합니다.
   image:
     src: /logo.png
     alt: Lertaro Logo
 securityWarning:
-  title: "보안 경고: 공식 배포처만 신뢰하세요"
-  details: "저장소 github.com/adelmagical742/Lertaro와 웹사이트 adelmagical742.github.io는 Lertaro를 사칭하며 악성 다운로드를 배포하고 있습니다. 해당 주소에서 어떤 파일도 다운로드하거나 실행하지 말고 아래 공식 링크만 이용하세요."
+  title: "보안 경고: 공식 소스만 신뢰하세요"
+  details: "저장소 github.com/adelmagical742/Lertaro 및 사이트 adelmagical742.github.io 는 Lertaro를 사칭한 비공식 사이트입니다. 해당 주소에서 파일을 다운로드하지 마시고 아래 공식 링크만 이용해 주시기 바랍니다."
 features:
   - icon: 💡
-    title: Listary의 대안
-    details: 상용 파일 검색 런처를 대체하는, 현대적이고 아름다우며 뛰어난 확장성을 갖춘 오픈소스 대안입니다.
-  - icon: 🚀
-    title: 즉시 인덱싱
-    details: Windows USN 저널과 MFT를 활용하여 수백만 개의 파일을 몇 초 만에 읽어들이며, 백그라운드 서비스를 통해 가볍고 시스템 전체에서 공유됩니다.
-  - icon: 💾
-    title: 즉시 공간 분석
-    details: 디스크를 다시 스캔하지 않고 현대적인 트리맵에서 인덱싱된 파일의 최신 크기를 확인하고, 폴더를 탐색하며 전체 동작 메뉴를 사용할 수 있습니다.
+    title: Listary의 오픈소스 대안
+    details: 모던하고 아름다운 디자인과 높은 확장성을 갖춘 Windows용 오픈소스 파일 검색 및 런처 도구입니다.
+  - icon: ⚡
+    title: USN & MFT 저수준 인덱싱
+    details: NTFS / ReFS 의 USN 저널과 $MFT 를 직접 읽어 초고속 인덱스를 구성하며, FAT32 / exFAT 변경 감지 및 네트워크 공유 캐시를 지원합니다.
   - icon: 🎯
-    title: 퍼지 매칭과 별칭
-    details: 접두사/접미사/정확히 일치/제외 연산자를 지원하는 타이핑 중 퍼지 매칭에, 중국어 파일명을 위한 병음 별칭까지 지원합니다 — 자세한 내용은 사용자 매뉴얼을 참고하세요.
-  - icon: ⌨️
-    title: 완전히 커스터마이즈 가능한 단축키
-    details: 창 전환, 다음/이전 항목, 동작 메뉴, QuickLook 미리보기 등 모든 단축키를 원하는 작업 흐름에 맞게 다시 바인딩할 수 있습니다.
-  - icon: 🔌
-    title: 확장 가능한 플러그인
-    details: 개방형 SDK 아키텍처를 통해 커스텀 검색 제공자, 별칭, 컨텍스트 메뉴 동작, UI 확장을 손쉽게 만들 수 있습니다.
+    title: fzf 퍼지 매칭 및 별칭
+    details: 문자 점프 퍼지 일치와 경로 지정 연산자를 지원하며, 비 ASCII 별칭 변환 엔진을 통해 다국어 파일을 손쉽게 검색합니다.
+  - icon: 🖱️
+    title: 네이티브 파일 대화상자 도킹
+    details: Windows 표준 "열기 / 다른 이름으로 저장" 창 및 탐색기, Total Commander에 자동 임베드되어 양방향 선택과 경로를 동기화합니다.
+  - icon: 🎬
+    title: 액션 메뉴 & QuickLook 미리보기
+    details: 항목 선택 후 Ctrl+O로 액션 메뉴와 Shell 우클릭 메뉴를 호출하며, Alt+P로 QuickLook 즉시 미리보기를 실행합니다.
+  - icon: 📊
+    title: 실시간 디스크 공간 분석
+    details: 기존 메모리 인덱스를 활용해 트리맵을 즉시 생성하여 디스크 재스캔 없이 대용량 파일을 빠르게 찾아 정리할 수 있습니다.
+  - icon: 🧩
+    title: 개방형 플러그인 SDK 및 생태계
+    details: .NET 10 기반의 공식 C# 플러그인 개발 인터페이스를 제공하며, Flow Launcher 커뮤니티 플러그인 호환 브리지를 내장합니다.
   - icon: 🛡️
-    title: 프로세스 격리
-    details: SYSTEM 수준의 백그라운드 인덱싱 서비스는 세션 수준의 사용자 App UI와 분리되어 있어, 최대한의 보안과 성능을 보장합니다.
+    title: 3 프로세스 격리 및 오프라인 프라이버시
+    details: SYSTEM 인덱싱 서비스, 사용자 WPF UI, 독립 Hook 프로세스로 분리되며, 외부 원격 측정을 일체 전송하지 않습니다.
 ---

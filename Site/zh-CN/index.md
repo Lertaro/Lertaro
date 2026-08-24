@@ -2,8 +2,8 @@
 layout: home
 hero:
   name: Lertaro
-  text: 高性能、可扩展的 Windows 检索系统
-  tagline: 秒级检索数百万本地文件，极速轻量，支持强大的别名与插件生态。
+  text: 高性能、可扩展的 Windows 本地检索系统
+  tagline: 基于 USN 日志与列式内存索引，毫秒级快速定位文件与启动应用，兼具深度对话框挂载与开放插件生态。
   image:
     src: /logo.png
     alt: Lertaro Logo
@@ -13,23 +13,26 @@ securityWarning:
 features:
   - icon: 💡
     title: Listary 的开源替代
-    details: 现代化高颜值界面，支持深度扩展定制，全面替代并超越商业级文件检索启动器。
-  - icon: 🚀
-    title: 极速索引
-    details: 基于 Windows USN 日志与 MFT 机制，秒级读取数百万磁盘文件，后台 Service 进程轻量共享。
-  - icon: 💾
-    title: 即时空间分析
-    details: 无需重新扫描磁盘，通过现代化矩形树查看已索引文件的实时大小、浏览文件夹并使用完整动作菜单。
+    details: 现代化高颜值且高度可扩展的开源文件检索与启动工具，完美替代并拓展传统商业级桌面检索工作流。
+  - icon: ⚡
+    title: USN 与 MFT 底层索引
+    details: 基于 Windows NTFS / ReFS 底层 USN Journal 与 $MFT 机制快速构建索引，支持 FAT32 / exFAT 变动监听与网络驱动器缓存。
   - icon: 🎯
-    title: 模糊匹配与别名
-    details: 支持前缀/后缀/精确/排除等搜索操作符，以及中文文件名拼音别名匹配——详见用户手册。
-  - icon: ⌨️
-    title: 热键全面可自定义
-    details: 呼出窗口、上/下一项、动作菜单、QuickLook 预览……每一个热键都可以按自己的习惯重新绑定。
-  - icon: 🔌
-    title: 插件生态
-    details: 开放的 SDK 架构，轻松编写自定义搜索源、别名、右键菜单动作与界面扩展插件。
+    title: fzf 模糊匹配与拼音别名
+    details: 支持字符跳跃模糊命中与路径定向操作符，内置拼音别名引擎，支持中文文件名首字母与全拼极速检索。
+  - icon: 🖱️
+    title: 原生文件对话框深度挂载
+    details: 自动挂载于 Windows 原生“打开 / 另存为”对话框及 Explorer、Total Commander，双向同步选中状态与当前工作路径。
+  - icon: 🎬
+    title: 动作菜单与 QuickLook 预览
+    details: 选中条目按 Ctrl+O 呼出完整动作菜单与原生 Shell 右键，按下 Alt+P 即可通过 QuickLook 即时预览文档与影音。
+  - icon: 📊
+    title: 即时磁盘空间透视分析
+    details: 基于已有内存索引直接生成矩形树（Treemap）空间占用图，免去漫长重新扫描磁盘的过程，支持快速定位大文件。
+  - icon: 🧩
+    title: 开放插件 SDK 与生态兼容
+    details: 提供基于 .NET 10 的官方 C# 插件开发接口，并支持桥接运行 Flow Launcher 社区插件与自定义工作流。
   - icon: 🛡️
-    title: 资源隔离
-    details: SYSTEM 服务级后台索引与 Session 级用户 App 界面彻底分离，安全且高效。
+    title: 三进程架构与离线隐私
+    details: SYSTEM 索引服务、用户态 App 与独立 Hook 进程安全隔离；纯本地运行，不收集任何用户隐私数据。
 ---
