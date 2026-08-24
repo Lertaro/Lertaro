@@ -46,4 +46,29 @@ public class EverythingSearchDataProviderTests
         Assert.AreEqual(0u, result.TotalItems);
         Assert.IsEmpty(result.Items);
     }
+
+    [TestMethod]
+    public async Task ExecuteQueryAsync_RootDrivesQuery_ReturnsDrivesList()
+    {
+        using var searchService = new SearchService();
+        var provider = new EverythingSearchDataProvider(searchService);
+
+        var request = new EverythingQueryRequest(
+            ReplyHwnd: IntPtr.Zero,
+            ReplyCopyDataMessage: 0,
+            SearchFlags: 0,
+            Offset: 0,
+            MaxResults: 100,
+            RequestFlags: EverythingIpcConstants.RequestFileName | EverythingIpcConstants.RequestPath,
+            SortType: 0,
+            SearchString: "root:",
+            IsUnicode: true,
+            IsQuery2: true);
+
+        var result = await provider.ExecuteQueryAsync(request);
+
+        Assert.IsNotNull(result);
+        Assert.IsGreaterThanOrEqualTo(1u, result.TotalItems);
+        Assert.IsTrue(result.Items.Any(i => i.IsDrive));
+    }
 }

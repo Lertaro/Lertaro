@@ -90,7 +90,7 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
             }
         }
 
-        SortResults(items, request.SortType);
+        SortItems(items, request.SortType);
         var totalItems = (uint)items.Count;
         var pagedItems = ApplyPagination(items, request.Offset, request.MaxResults);
         return new EverythingQueryResult(pagedItems, totalItems, totalItems, 0);
@@ -132,7 +132,7 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
                 RunCount: GetRunCount(entry.Path)));
         }
 
-        SortResults(items, request.SortType);
+        SortItems(items, request.SortType);
 
         var totalItems = (uint)items.Count;
         var totalFolders = (uint)items.Count(i => i.IsDirectory);
@@ -151,18 +151,18 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
             keyword = "*";
         }
 
-        var limit = request.MaxResults == EverythingIpcConstants.AllResults
-            ? int.MaxValue
-            : (int)Math.Min(request.MaxResults + request.Offset, 100000);
-
         var directoryFilter = !string.IsNullOrEmpty(criteria.ParentDirectoryFilter) && !criteria.ParentDirectoryFilter.StartsWith("?:", StringComparison.OrdinalIgnoreCase)
             ? NormalizeDirectory(criteria.ParentDirectoryFilter)
             : null;
 
+        var needed = request.MaxResults == EverythingIpcConstants.AllResults
+            ? int.MaxValue
+            : (int)Math.Min((long)request.MaxResults + request.Offset, 100000);
+
         var results = new List<SearchResult>();
         await _searchService.SearchStreamingAsync(
             query: keyword,
-            maxResults: limit,
+            maxResults: needed,
             maxAppResults: 0,
             directoryFilter: directoryFilter,
             onResult: res =>
@@ -182,8 +182,20 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
             token: token,
             bypassExclusions: false).ConfigureAwait(false);
 
-        var items = new List<EverythingResultItem>(results.Count);
-        foreach (var res in results)
+        results.Sort(SearchResultRankComparer.Instance);
+
+        if (request.SortType is > EverythingIpcConstants.SortNameAscending)
+        {
+            SortSearchResults(results, request.SortType);
+        }
+
+        var totalItems = (uint)results.Count;
+        var totalFolders = (uint)results.Count(i => i.IsDir);
+        var totalFiles = totalItems - totalFolders;
+
+        var pagedResults = ApplyPagination(results, request.Offset, request.MaxResults);
+        var pagedItems = new List<EverythingResultItem>(pagedResults.Count);
+        foreach (var res in pagedResults)
         {
             var dir = Path.GetDirectoryName(res.Path) ?? string.Empty;
             var fileName = Path.GetFileName(res.Path);
@@ -194,7 +206,7 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
             var created = res.Metadata.Created != DateTime.MinValue ? res.Metadata.Created : (DateTime?)null;
             var accessed = res.Metadata.Accessed != DateTime.MinValue ? res.Metadata.Accessed : (DateTime?)null;
 
-            items.Add(new EverythingResultItem(
+            pagedItems.Add(new EverythingResultItem(
                 Path: dir,
                 FileName: fileName,
                 Size: res.Metadata.Size,
@@ -206,54 +218,60 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
                 RunCount: GetRunCount(res.Path)));
         }
 
-        SortResults(items, request.SortType);
-
-        var totalItems = (uint)items.Count;
-        var totalFolders = (uint)items.Count(i => i.IsDirectory);
-        var totalFiles = totalItems - totalFolders;
-
-        var pagedItems = ApplyPagination(items, request.Offset, request.MaxResults);
         return new EverythingQueryResult(pagedItems, totalItems, totalFolders, totalFiles);
     }
 
-    private static void SortResults(List<EverythingResultItem> items, uint sortType)
+    private static void SortSearchResults(List<SearchResult> items, uint sortType)
     {
-        switch (sortType)
+        Comparison<SearchResult>? comparison = sortType switch
         {
-            case EverythingIpcConstants.SortNameAscending:
-                items.Sort((a, b) => string.Compare(a.FileName, b.FileName, StringComparison.OrdinalIgnoreCase));
-                break;
-            case EverythingIpcConstants.SortNameDescending:
-                items.Sort((a, b) => string.Compare(b.FileName, a.FileName, StringComparison.OrdinalIgnoreCase));
-                break;
-            case EverythingIpcConstants.SortPathAscending:
-                items.Sort((a, b) => string.Compare(a.Path, b.Path, StringComparison.OrdinalIgnoreCase));
-                break;
-            case EverythingIpcConstants.SortPathDescending:
-                items.Sort((a, b) => string.Compare(b.Path, a.Path, StringComparison.OrdinalIgnoreCase));
-                break;
-            case EverythingIpcConstants.SortSizeAscending:
-                items.Sort((a, b) => a.Size.CompareTo(b.Size));
-                break;
-            case EverythingIpcConstants.SortSizeDescending:
-                items.Sort((a, b) => b.Size.CompareTo(a.Size));
-                break;
-            case EverythingIpcConstants.SortDateModifiedAscending:
-                items.Sort((a, b) => Nullable.Compare(a.DateModified, b.DateModified));
-                break;
-            case EverythingIpcConstants.SortDateModifiedDescending:
-                items.Sort((a, b) => Nullable.Compare(b.DateModified, a.DateModified));
-                break;
-        }
+            EverythingIpcConstants.SortNameDescending => (a, b) => SearchResultRankComparer.Instance.Compare(b, a),
+            EverythingIpcConstants.SortPathAscending => (a, b) => string.Compare(a.Path, b.Path, StringComparison.OrdinalIgnoreCase),
+            EverythingIpcConstants.SortPathDescending => (a, b) => string.Compare(b.Path, a.Path, StringComparison.OrdinalIgnoreCase),
+            EverythingIpcConstants.SortSizeAscending => (a, b) => a.Metadata.Size.CompareTo(b.Metadata.Size),
+            EverythingIpcConstants.SortSizeDescending => (a, b) => b.Metadata.Size.CompareTo(a.Metadata.Size),
+            EverythingIpcConstants.SortDateCreatedAscending => (a, b) => a.Metadata.Created.CompareTo(b.Metadata.Created),
+            EverythingIpcConstants.SortDateCreatedDescending => (a, b) => b.Metadata.Created.CompareTo(a.Metadata.Created),
+            EverythingIpcConstants.SortDateModifiedAscending => (a, b) => a.Metadata.Modified.CompareTo(b.Metadata.Modified),
+            EverythingIpcConstants.SortDateModifiedDescending => (a, b) => b.Metadata.Modified.CompareTo(a.Metadata.Modified),
+            EverythingIpcConstants.SortAttributesAscending => (a, b) => a.Attributes.CompareTo(b.Attributes),
+            EverythingIpcConstants.SortAttributesDescending => (a, b) => b.Attributes.CompareTo(a.Attributes),
+            _ => null
+        };
+
+        if (comparison != null)
+            items.Sort(comparison);
     }
 
-    private static IReadOnlyList<EverythingResultItem> ApplyPagination(List<EverythingResultItem> items, uint offset, uint maxResults)
+    private static void SortItems(List<EverythingResultItem> items, uint sortType)
     {
-        if (offset >= items.Count) return Array.Empty<EverythingResultItem>();
+        Comparison<EverythingResultItem>? comparison = sortType switch
+        {
+            EverythingIpcConstants.SortNameDescending => (a, b) => string.Compare(b.FileName, a.FileName, StringComparison.OrdinalIgnoreCase),
+            EverythingIpcConstants.SortPathAscending => (a, b) => string.Compare(a.Path, b.Path, StringComparison.OrdinalIgnoreCase),
+            EverythingIpcConstants.SortPathDescending => (a, b) => string.Compare(b.Path, a.Path, StringComparison.OrdinalIgnoreCase),
+            EverythingIpcConstants.SortSizeAscending => (a, b) => a.Size.CompareTo(b.Size),
+            EverythingIpcConstants.SortSizeDescending => (a, b) => b.Size.CompareTo(a.Size),
+            EverythingIpcConstants.SortDateCreatedAscending => (a, b) => Nullable.Compare(a.DateCreated, b.DateCreated),
+            EverythingIpcConstants.SortDateCreatedDescending => (a, b) => Nullable.Compare(b.DateCreated, a.DateCreated),
+            EverythingIpcConstants.SortDateModifiedAscending => (a, b) => Nullable.Compare(a.DateModified, b.DateModified),
+            EverythingIpcConstants.SortDateModifiedDescending => (a, b) => Nullable.Compare(b.DateModified, a.DateModified),
+            EverythingIpcConstants.SortAttributesAscending => (a, b) => a.Attributes.CompareTo(b.Attributes),
+            EverythingIpcConstants.SortAttributesDescending => (a, b) => b.Attributes.CompareTo(a.Attributes),
+            _ => (a, b) => string.Compare(a.FileName, b.FileName, StringComparison.OrdinalIgnoreCase)
+        };
+
+        if (comparison != null)
+            items.Sort(comparison);
+    }
+
+    private static IReadOnlyList<T> ApplyPagination<T>(List<T> items, uint offset, uint maxResults)
+    {
+        if (offset >= items.Count) return Array.Empty<T>();
         var count = maxResults == EverythingIpcConstants.AllResults
             ? items.Count - (int)offset
             : Math.Min((int)maxResults, items.Count - (int)offset);
-        return count <= 0 ? Array.Empty<EverythingResultItem>() : items.GetRange((int)offset, count);
+        return count <= 0 ? Array.Empty<T>() : items.GetRange((int)offset, count);
     }
 
     public uint GetRunCount(string fileName) =>

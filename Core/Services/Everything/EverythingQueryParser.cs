@@ -127,7 +127,7 @@ public static class EverythingQueryParser
         var offset = (uint)Marshal.ReadInt32(ptr, 12);
         var maxResults = (uint)Marshal.ReadInt32(ptr, 16);
         var requestFlags = isV2 ? (uint)Marshal.ReadInt32(ptr, 20) : EverythingIpcConstants.RequestFileName | EverythingIpcConstants.RequestPath;
-        var sortType = isV2 ? (uint)Marshal.ReadInt32(ptr, 24) : EverythingIpcConstants.SortNameAscending;
+        var sortType = isV2 ? (uint)Marshal.ReadInt32(ptr, 24) : 0u;
 
         var encoding = isUnicode ? Encoding.Unicode : Encoding.Default;
         var searchString = ReadNullTerminatedString(ptr, headerSize, size - headerSize, encoding);
