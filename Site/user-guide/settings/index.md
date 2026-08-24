@@ -1,38 +1,29 @@
 # Settings Reference
 
-The Settings window resizes and maximizes like any other: drag its edges, use the maximize button in
-the title bar, or double-click the title bar. Worth doing on the Plugins page in particular, which
-puts a plugin list and that plugin's settings side by side and has real use for the width.
+Lertaro provides a comprehensive and granular suite of customization options. Whether you want to fine-tune search bar pixel dimensions, customize global hotkeys, adjust drive indexing schedules, or manage third-party plugins and workspaces, everything can be configured in the Settings Center.
 
-A search box sits in the Settings window's title bar. It matches fuzzily (the same fzf-style
-matching the main search window uses, with pinyin alias support), not just plain substrings, across
-every section — including the per-plugin entries under Plugins and Hotkeys' Plugin Actions tab. Each
-result shows a breadcrumb (e.g. "Index > Network Drives")
-so same-named settings under different tabs stay distinguishable. Selecting a result (click, or
-Up/Down to highlight and Enter) switches to the right section and tab, scrolls the exact control
-into view, and briefly flashes a highlight border around it.
+## 1. Window Features & Navigation
 
-Several sections (General, Hotkeys, Index, History, Quick Panel, Service Status) further split into
-their own row of sub-tabs at the top of the page. If the tab labels don't all fit — most often in
-English, since translated labels usually run longer than their Chinese originals — left/right arrow
-buttons appear at the ends of the row so the rest stay reachable by scrolling, instead of just being
-cut off.
+- **Resizable & Maximize Support**: The Settings window supports smooth border resizing, titlebar double-click maximizing, and persistent size memory across sessions.
+- **Global Settings Search**: A search bar sits in the upper right corner of the Settings titlebar. Powered by Lertaro's fzf fuzzy matching engine, it searches across all sections (including plugin settings and actions). Selecting a result jumps straight to that setting item and highlights it with a temporary flashing border.
+- **Scrollable Tab Bars**: In sections containing multiple nested sub-tabs (such as General, Hotkeys, Indexing), overflow navigation arrows appear on either side to ensure all tabs remain accessible across all UI languages.
 
-The Settings window has ten sections in its left sidebar:
+## 2. Settings Sections Overview
 
-| Section | Covers |
-|---|---|
-| [Service Status](./service-status) | Background service install, and the App/Hook/Service log viewer. |
-| [Index](./index-drives) | Local drives, network drives, WSL distributions (once detected), folder indexes, and exclusion rules. |
-| [General](./general) | Startup behavior, updates, language, search bar layout, and preview window size. |
-| [Hotkeys](./hotkeys-page) | Global hotkeys, per-plugin action hotkeys, and the process blacklist. |
-| [Plugins](./plugins) | Installed plugins and per-component enable/disable toggles. |
-| [LocalSend](./localsend) | Cross-device LAN file, folder, and plain text transfer settings (compatible with official LocalSend clients). |
-| [Favorites](./favorites) | Custom-named shortcuts to folders, files, and URLs. |
-| [History](./history) | Search history and quick-window keyword history. |
-| [Quick Panel](./quick-panel) | The floating panel docked over the window in front: its workspaces, their sources, the tabs plugins contribute, and which apps each workspace belongs to. |
-| [Appearance](./appearance) | Theme picker (with a preview card per theme) and "follow system light/dark" mode. Pinned above About. |
-| [About](./about) | Version info and update checking. |
+The sidebar contains the following core sections:
 
-Each page below documents every option on that section, in order, with its default value and any
-valid range.
+| Section | Core Capabilities |
+| :--- | :--- |
+| **[Service Status](./service-status)** | Windows background service state, health diagnostics, and live log viewers for Service / App / Hook processes. |
+| **[Indexing Management](./index-drives)** | Local drives (NTFS / ReFS / FAT32), network shares (SMB / NAS), WSL distributions, custom folders, and three exclusion rule types. |
+| **[General Settings](./general)** | Autostart, hardware acceleration, IPC compatibility, search bar dimensions, Full Window column ordering, and preview parameters. |
+| **[Hotkeys](./hotkeys-page)** | Global search hotkeys, navigation keys, plugin action shortcuts, process blacklist, and fullscreen bypass rules. |
+| **[Plugins](./plugins)** | Installed plugins list, component toggles, custom configuration forms, and Flow Launcher community bridge. |
+| **[LocalSend](./localsend)** | Wireless local network transfer protocol configuration (device name, port, PIN code, and auto-save options). |
+| **[Favorites](./favorites)** | Starred folders, files, and URLs with drag-and-drop ordering and quick alias recall. |
+| **[History](./history)** | Search result recall history, keyword query history, and cleanup tools. |
+| **[Quick Panel](./quick-panel)** | Floating docked workspaces, folder source aggregations, drag-and-drop file ingestion, and plugin dynamic tabs. |
+| **[Appearance & Themes](./appearance)** | Light / Dark / Follow System mode toggle and real-time visual thumbnail cards for built-in and curated themes. |
+| **[About & Updates](./about)** | Component version breakdown, user/machine data directory paths, backup rotation mechanisms, and in-place silent updates. |
+
+The following chapters provide a complete walkthrough of all settings, parameter ranges, and default behaviors for each section.

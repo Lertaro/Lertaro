@@ -1,51 +1,44 @@
-# Packaging & Deployment
+# Packaging & Distribution
 
-## How plugins are discovered
+This chapter details directory conventions for plugin assemblies, bundling third-party dependencies, embedding i18n JSON resources, and automated build deployment.
 
-The App loads every `.dll` it finds in its own `Plugins/` folder (next to `Lertaro.App.exe`) at
-startup, looking for types implementing `IPlugin`. There's no separate manifest file — the
-assembly itself, plus whichever SDK interfaces its types implement, is the full contract.
+## 1. Plugin Assembly Directory Structure
 
-## Shipping your own dependencies
+Lertaro recursively scans the `Plugins\` folder located in the application root directory. To maintain clean isolation and avoid dependency conflicts across different plugins, place each plugin into its own dedicated subfolder:
 
-If your plugin needs managed or native dependency DLLs of its own (a database driver, a native
-interop library, ...), put them in their own subdirectory under the App's `Plugins/` folder —
-e.g. `Plugins/YourPlugin/YourPlugin.dll` plus its dependencies right alongside it — instead of
-flat in `Plugins/` itself. The loader scans `Plugins/` recursively, and `Assembly.LoadFrom`'s own
-same-directory dependency probing then resolves your dependencies automatically, without spilling
-them into every other plugin's load directory.
+```text
+Lertaro/
+├── Lertaro.App.exe
+├── Lertaro.PluginSdk.dll
+└── Plugins/
+    └── MyCustomPlugin/
+        ├── MyCustomPlugin.dll           (Main Plugin Assembly)
+        ├── ThirdParty.Managed.dll       (Managed Third-Party Dependency)
+        └── x64/
+            └── NativeLibrary.dll        (Native C/C++ Dynamic Link Library)
+```
 
-A non-.NET file the scanner encounters along the way (a native DLL like `e_sqlite3.dll`) is
-expected and logged at `Debug`, not `Error` — only a real managed assembly that genuinely fails to
-load logs at `Error`.
+- **Automatic Dependency Probing**: When Lertaro loads the primary DLL via `Assembly.LoadFrom`, the .NET runtime automatically probes the plugin's folder for adjacent dependencies without cross-contaminating other plugins.
+- **Native File Toleration**: When non-.NET native binaries (e.g. `e_sqlite3.dll`) are encountered, the loader safely logs them at `Debug` level without throwing false positive `Error` alerts.
 
-See the `BrowserData` plugin's `.csproj` for a complete, real example: it bundles
-`Microsoft.Data.Sqlite` and its native `SQLitePCLRaw`/`e_sqlite3.dll` dependencies this way, with
-post-build/post-publish targets that nest them into its own subfolder regardless of which build
-mechanism produced them.
+## 2. Automated PostBuild Copy Configuration
 
-## Automating the copy during development
-
-The plugins shipped with Lertaro itself (`CoreExtensions`, `PinyinAlias`) automate deployment
-with a post-build target in their `.csproj`, copying the freshly-built DLL straight into the App's
-own output `Plugins/` folder so a rebuild is immediately picked up on the next launch:
+Add a `PostBuild` MSBuild target to your plugin's `.csproj` to automatically deploy output files into the Lertaro App debugging directory upon every successful build:
 
 ```xml
 <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-  <Copy SourceFiles="$(TargetDir)$(TargetName).dll"
-        DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\"
+  <ItemGroup>
+    <PluginOutputFiles Include="$(TargetDir)**\*.*" />
+  </ItemGroup>
+  <Copy SourceFiles="@(PluginOutputFiles)"
+        DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\$(TargetName)\%(RecursiveDir)"
         SkipUnchangedFiles="true" />
 </Target>
 ```
 
-Adapt the destination path to wherever your own build output and the Lertaro App installation
-actually live.
+## 3. Embedding Localization Resources
 
-## Embedded translations
-
-If your plugin implements `ITranslationProvider` (see
-[UI & Preview Extensions](./sdk/ui-extensions)), ship its translation JSON files as embedded
-resources rather than loose files, so they travel with the DLL:
+If your plugin implements the [`ITranslationProvider`](./sdk/ui-extensions#itranslationprovider) interface, embed your translation JSON files directly as **Embedded Resources** to prevent missing language files:
 
 ```xml
 <ItemGroup>
@@ -53,11 +46,19 @@ resources rather than loose files, so they travel with the DLL:
 </ItemGroup>
 ```
 
-`TranslationService.LoadEmbeddedTranslations` (see [Host Services](./sdk/services)) reads them back
-out of the assembly at runtime by culture name.
+Organize files using the `Resources/Translations/{CultureName}/{TypeName}.json` hierarchy (e.g. `zh-CN/MyCustomPlugin.json`, `en-US/MyCustomPlugin.json`). Calling `TranslationService.LoadEmbeddedTranslations` parses the appropriate file dynamically based on the active UI language.
 
-## Versioning
+## 4. Versioning & Metadata
 
-Give your plugin's `.csproj` a `<Version>`; it's shown to users on its card under
-**Settings → Plugins**, alongside the `PluginSdk` version your plugin was built against — useful
-for confirming compatibility when the SDK surface changes.
+Define assembly version numbers and descriptions inside your `.csproj`:
+
+```xml
+<PropertyGroup>
+  <Version>1.2.0</Version>
+  <AssemblyVersion>1.2.0.0</AssemblyVersion>
+  <FileVersion>1.2.0.0</FileVersion>
+  <Description>High-performance search source and context action extension plugin.</Description>
+</PropertyGroup>
+```
+
+This version and description string will be presented automatically inside the **Settings → Plugins** card.

@@ -1,52 +1,44 @@
-# Empaquetado y despliegue
+# Empaquetado y distribución
 
-## Cómo se detectan los plugins
+Este capítulo detalla las convenciones de carpetas para los ensamblados de plugins, la inclusión de librerías dependientes, el empaquetado de recursos de traducción JSON y el flujo de despliegue automatizado.
 
-La App carga todas las `.dll` que encuentra en su propia carpeta `Plugins/` (junto a
-`Lertaro.App.exe`) al iniciarse, buscando tipos que implementen `IPlugin`. No existe un archivo de manifiesto
-independiente — el propio ensamblado, junto con las interfaces del SDK que implementen sus tipos, constituye el
-contrato completo.
+## 1. Estructura de carpetas de plugins
 
-## Distribuir tus propias dependencias
+Lertaro escanea recursivamente la carpeta `Plugins\` ubicada en la raíz de la aplicación. Para evitar conflictos entre dependencias de distintos plugins, se recomienda aislar cada plugin en su propia subcarpeta:
 
-Si tu plugin necesita DLL de dependencias propias, administradas o nativas (un controlador de base de datos, una
-biblioteca de interoperabilidad nativa, ...), colócalas en su propio subdirectorio dentro de la carpeta `Plugins/` de la
-App — por ejemplo, `Plugins/YourPlugin/YourPlugin.dll` junto con sus dependencias justo al lado — en lugar de
-ponerlas directamente en `Plugins/`. El cargador escanea `Plugins/` de forma recursiva, y la propia búsqueda de
-dependencias en el mismo directorio de `Assembly.LoadFrom` resuelve entonces tus dependencias automáticamente, sin
-propagarlas al directorio de carga de ningún otro plugin.
+```text
+Lertaro/
+├── Lertaro.App.exe
+├── Lertaro.PluginSdk.dll
+└── Plugins/
+    └── MyCustomPlugin/
+        ├── MyCustomPlugin.dll           (Ensamblado principal)
+        ├── ThirdParty.Managed.dll       (Dependencia administrada)
+        └── x64/
+            └── NativeLibrary.dll        (DLL nativa en C/C++)
+```
 
-Un archivo que no sea de .NET que el escáner encuentre por el camino (una DLL nativa como `e_sqlite3.dll`) es
-algo esperado y se registra en nivel `Debug`, no `Error` — solo un ensamblado administrado real que realmente falle al
-cargarse se registra en nivel `Error`.
+- **Resolución automática de dependencias**: Al cargar la DLL principal mediante `Assembly.LoadFrom`, el entorno de .NET resuelve automáticamente las dependencias adyacentes sin interferir con otros plugins.
+- **Tolerancia a archivos nativos**: Si se encuentran librerías nativas (p. ej. `e_sqlite3.dll`), el cargador las registra como `Debug` y continúa con seguridad sin registrar errores falsos.
 
-Consulta el `.csproj` del plugin `BrowserData` para ver un ejemplo completo y real: incluye
-`Microsoft.Data.Sqlite` y sus dependencias nativas `SQLitePCLRaw`/`e_sqlite3.dll` de esta manera, con
-targets post-build/post-publish que las anidan en su propia subcarpeta independientemente de qué mecanismo de compilación
-las haya generado.
+## 2. Configuración de copia automática PostBuild
 
-## Automatizar la copia durante el desarrollo
-
-Los plugins distribuidos con el propio Lertaro (`CoreExtensions`, `PinyinAlias`) automatizan el despliegue
-con un target post-build en su `.csproj`, copiando la DLL recién compilada directamente en la carpeta `Plugins/` de
-salida de la propia App, de modo que una recompilación se detecta de inmediato en el siguiente arranque:
+Añade un destino `PostBuild` en el archivo `.csproj` del plugin para desplegar los archivos automáticamente tras cada compilación exitosa:
 
 ```xml
 <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-  <Copy SourceFiles="$(TargetDir)$(TargetName).dll"
-        DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\"
+  <ItemGroup>
+    <PluginOutputFiles Include="$(TargetDir)**\*.*" />
+  </ItemGroup>
+  <Copy SourceFiles="@(PluginOutputFiles)"
+        DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\$(TargetName)\%(RecursiveDir)"
         SkipUnchangedFiles="true" />
 </Target>
 ```
 
-Adapta la ruta de destino a donde realmente residan la salida de tu propia compilación y la instalación de la
-App de Lertaro.
+## 3. Recursos de localización incrustados
 
-## Traducciones incrustadas
-
-Si tu plugin implementa `ITranslationProvider` (ver
-[Extensiones de interfaz y vista previa](./sdk/ui-extensions)), distribuye sus archivos JSON de traducción como recursos
-incrustados en lugar de archivos sueltos, para que viajen junto con la DLL:
+Si el plugin implementa la interfaz [`ITranslationProvider`](./sdk/ui-extensions#itranslationprovider), se recomienda empaquetar los archivos JSON como **Recursos incrustados**:
 
 ```xml
 <ItemGroup>
@@ -54,11 +46,19 @@ incrustados en lugar de archivos sueltos, para que viajen junto con la DLL:
 </ItemGroup>
 ```
 
-`TranslationService.LoadEmbeddedTranslations` (ver [Servicios del host](./sdk/services)) los recupera
-del ensamblado en tiempo de ejecución por nombre de cultura.
+Se sugiere estructurar los archivos según el esquema `Resources/Translations/{CultureName}/{TypeName}.json` (p. ej. `es-ES/MyCustomPlugin.json`, `en-US/MyCustomPlugin.json`). `TranslationService.LoadEmbeddedTranslations` los cargará dinámicamente según el idioma activo.
 
-## Versionado
+## 4. Definición de versión y metadatos
 
-Asigna un `<Version>` al `.csproj` de tu plugin; se muestra a los usuarios en su tarjeta bajo
-**Configuración → Plugins**, junto con la versión de `PluginSdk` contra la que se compiló tu plugin — útil
-para confirmar la compatibilidad cuando cambia la superficie del SDK.
+Especifica la versión y la descripción en el `.csproj`:
+
+```xml
+<PropertyGroup>
+  <Version>1.2.0</Version>
+  <AssemblyVersion>1.2.0.0</AssemblyVersion>
+  <FileVersion>1.2.0.0</FileVersion>
+  <Description>Plugin de extensión para fuentes de búsqueda y acciones contextuales.</Description>
+</PropertyGroup>
+```
+
+Esta información se presentará de forma automática en la tarjeta de **Configuración → Plugins**.

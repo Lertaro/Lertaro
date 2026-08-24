@@ -1,39 +1,34 @@
-# Apariencia
+# Apariencia y temas
 
-Fijada encima de [Acerca de](./about) al final de la barra lateral. Dos grupos: **Modo de tema** y el propio
-selector de temas.
+Lertaro cuenta con un moderno y cuidado sistema de diseño visual con controles de modo de tema precisos y ricas paletas de color. La página de Apariencia se encuentra en la parte inferior de la barra lateral izquierda (justo encima de "Acerca de").
 
-## Modo de tema
+## 1. Modos de tema
 
-Tres tarjetas, haz clic para cambiar:
+En la parte superior se presentan tres tarjetas de selección:
 
-- **Claro** — un único tema fijo, filtrado a los de tipo claro en la cuadrícula de abajo.
-- **Oscuro** — igual, filtrado a los de tipo oscuro.
-- **Seguir el sistema** (vista previa dividida claro/oscuro) — Lertaro alterna entre dos temas que eliges tú —
-  uno para cuando Windows está en modo claro, otro para el oscuro — en lugar de usar un único tema fijo, y se
-  actualiza de inmediato cada vez que cambias el propio ajuste de Windows (sin necesidad de reiniciar).
+- **Modo Claro**: Fija la interfaz en una estética luminosa; la cuadrícula inferior muestra únicamente los temas de estilo claro.
+- **Modo Oscuro**: Fija la interfaz en una estética oscura; la cuadrícula inferior muestra únicamente los temas de estilo oscuro.
+- **Seguir al sistema**: Alterna automáticamente entre dos temas seleccionados según el modo claro u oscuro de Windows. En este modo, la cuadrícula se divide en **Tema claro** y **Tema oscuro**, permitiéndote elegir esquemas distintos para el día y la noche sin reiniciar la aplicación.
 
-Cambiar entre **Claro** y **Oscuro** salta al tema de ese tipo que hubieras seleccionado la última vez (la misma
-elección recordada que usa **Seguir el sistema** para su propio par claro/oscuro), así que ir y volver no pierde tu
-elección en ninguno de los dos lados.
+> [!NOTE]
+> Lertaro recuerda de forma independiente tus temas elegidos para el estilo claro y oscuro, preservando tu selección al alternar modos.
 
-## Tema de interfaz
+## 2. Tarjetas de selección de tema
 
-Con **Claro** u **Oscuro** seleccionado arriba, una única cuadrícula de tarjetas lista solo los temas de ese tipo.
-Con **Seguir el sistema** seleccionado, la cuadrícula se divide en dos: **Tema claro** y **Tema oscuro** — cada
-una usa por defecto el tema del tipo correspondiente que resulte instalado primero, ya que qué temas existen en
-absoluto depende por completo de qué plugins de tema estén instalados.
+Los temas se presentan en una cuadrícula interactiva. Cada tarjeta renderiza una miniatura fiel con la barra de búsqueda, sombras, jerarquía tipográfica y fila resaltada. El tema activo incluye un distintivo de verificación.
 
-Cada tema se muestra como una tarjeta, no solo un nombre: una pequeña maqueta de la ventana de búsqueda rápida
-(cuadro de búsqueda más un par de filas de resultado, una de ellas mostrada como seleccionada) renderizada con los
-propios colores de ese tema, para que puedas ver cómo se ve realmente un tema antes de cambiar a él. La tarjeta del
-tema activo muestra una insignia de marca de verificación.
+### Temas integrados y paquetes incluidos
 
-Plugins de tema integrados e incluidos:
+- **Temas centrales integrados (CoreExtensions)**:
+  - **Claro (Light)** / **Oscuro (Dark)**: Diseños minimalistas y limpios integrados con la estética nativa de Windows.
+  - **Azul nórdico (Nordic Blue)**: Estilo elegante en tonos fríos con detalles azul hielo sobre fondo azul marino.
+  - **Rosa sakura (Sakura Pink)**: Paleta suave y fresca en tonos pastel blanco y rosa.
+  - **Ciberpunk (Cyberpunk)**: Alto contraste entre amarillo neón y púrpura medianoche de estética futurista.
+- **Temas Anime (AnimeThemes, incluidos)**:
+  - **Evangelion**, **Sakura Blossom** y **Weathering with You**.
+- **Parejas de temas seleccionados (Curated Themes, incluidos)**:
+  - 10 combinaciones emparejadas claro/oscuro: **Azul glaciar (Glacier Blue)**, **Terracota (Terracotta)**, **Verde bosque (Forest Green)**, **Amatista (Amethyst)**, **Carmesí (Crimson)**, **Grafito (Graphite)**, **Noche índigo (Indigo Night)**, **Cian menta (Mint Cyan)**, **Oro champán (Champagne Gold)** y **Oro ámbar (Amber Gold)**.
 
-- **CoreExtensions** (integrado) — Light, Dark, Nord, Sakura, Cyberpunk.
-- **AnimeThemes** (incluido, si está instalado y habilitado) — Neon Genesis, Sakura Bloom, Weathering Blue.
-- **Curated Themes** (incluido, si está instalado y habilitado) — diez pares claro/oscuro: Glacier, Terracotta,
-  Forest, Amethyst, Crimson, Graphite, Indigo, Mint, Champagne y Amber.
+### Extensibilidad de temas mediante plugins
 
-Cualquier otro plugin de tema puede añadir más tarjetas a la cuadrícula de la misma forma.
+Todos los temas cumplen las especificaciones estándar de `Lertaro.PluginSdk`. Los desarrolladores pueden crear y distribuir plugins de temas propios para añadir nuevas paletas a esta cuadrícula.

@@ -1,66 +1,81 @@
 # 共享抽象契约
 
-其他 SDK 文档页面里用到的模型和支持性契约。
+本章节汇总了 `Lertaro.PluginSdk` 中跨多个接口复用的基础数据模型、只读契约与配置驱动抽象。
 
-## `ISearchResult`
+## 1. 检索结果模型 `ISearchResult`
 
-每一个插件接口操作的都是这份结果的只读视图——插件永远拿不到可变的结果对象，只有这个:
+在 Lertaro 的架构中，插件对搜索结果的观察始终基于只读契约 `ISearchResult`，禁止直接篡改宿主底层的核心索引数据结构：
 
 ```csharp
-interface ISearchResult
+namespace Lertaro.PluginSdk;
+
+public interface ISearchResult
 {
-    string Name { get; }
-    string FullPath { get; }
-    string ContextDirectory { get; }
-    bool IsDir { get; }
-    bool IsApplication { get; }
-    FileMetadata Metadata { get; }
-    bool[]? GetHighlightMask(string text, string query);
+    string Name { get; }                  // 文件或条目的显示名称（如 "Lertaro.exe"）
+    string FullPath { get; }              // 绝对物理路径（如 "C:\Program Files\Lertaro\Lertaro.exe"）
+    string ContextDirectory { get; }      // 所在父级目录路径（如 "C:\Program Files\Lertaro"）
+    bool IsDir { get; }                   // 是否为目录/文件夹
+    bool IsApplication { get; }           // 是否为可执行程序或快捷方式
+    FileMetadata Metadata { get; }        // 高性能文件元数据（大小、修改时间等）
+    bool[]? GetHighlightMask(string text, string query); // 字符级高亮掩码计算
 }
 ```
 
-`Metadata` 携带了宿主自己的文件索引为每个结果生成的 Size/Created/Modified/Accessed——读取它是免费的(不涉及磁盘 I/O 或 IPC),不像 `FileMetadataService.GetMetadataAsync`(参见[宿主服务](./services))
-那样,只有在查询**不属于**你当前结果集的路径时才值得调用。
+> [!NOTE]
+> `ISearchResult.Metadata` 包含的数据由宿主底层的 USN / MFT 内存索引直接注入，**读取该属性完全不产生任何磁盘 I/O 或 IPC 调用**。仅当你需要查询不属于当前结果集的外部路径时，才需要调用 `FileMetadataService.GetMetadataAsync`。
 
-## `FileMetadata`
+## 2. 文件元数据结构 `FileMetadata`
 
 ```csharp
-readonly record struct FileMetadata(long Size, DateTime Created, DateTime Modified, DateTime Accessed);
+public readonly record struct FileMetadata(
+    long Size,
+    DateTime Created,
+    DateTime Modified,
+    DateTime Accessed
+);
 ```
 
-本地时间。`default`(每个字段都是零/`DateTime.MinValue`)表示"不可用"——这种结果不是由文件索引生成的(比如来自另一个插件)。用 `Metadata.Modified != default` 来区分这种"确实不知道"的情况和一个真实的、合法的零字节文件——后者 `Size` 确实是 `0`,但时间戳仍然是真实的。
+- 时间戳均为**本地时间（Local Time）**。
+- 若 `Metadata == default`（即各字段均为 0 或 `DateTime.MinValue`），表示该结果并非由物理文件索引生成（例如由某个即时计算插件动态生成）。
+- 可通过 `Metadata.Modified != default` 准确区分“元数据不可用”与“大小恰好为 0 字节的合法真实文件”。
 
-## `IPluginSearchWindow`
+## 3. 宿主安全控制接口 `IPluginSearchWindow`
 
-传给 `ISearchResultAction.Execute` 等回调的最小窗口控制接口——刻意保持精简;插件应该通过它来操作结果，而不是持有真实窗口的引用:
+当动作执行回调（如 `ISearchResultAction.Execute`）被触发时，宿主会传入 `IPluginSearchWindow` 实例，供插件安全调度宿主窗口：
 
 ```csharp
-interface IPluginSearchWindow
+public interface IPluginSearchWindow
 {
-    void LocateInExplorerExternal(string path);
-    void OpenFileOrFolderExternal(string path);
-    void OpenFileOrFolderAsAdminExternal(string path);
-    void HideWindow();
+    void LocateInExplorerExternal(string path);       // 在资源管理器或配置的文件管理器中高亮定位
+    void OpenFileOrFolderExternal(string path);       // 使用关联程序普通启动
+    void OpenFileOrFolderAsAdminExternal(string path);// 提权以管理员身份启动
+    void HideWindow();                                // 隐藏当前搜索窗口
 }
 ```
 
-## `IConfigurable`
+## 4. 模式驱动的配置体系 `IConfigurable`
 
-和 `IPlugin` 一起实现这个接口，就能在**设置 → 插件 → 配置**里自动获得一个配置界面——简单场景下不需要自己写 WPF。
+如果你的插件需要提供个性化设置项，只需在插件类上实现 `IConfigurable` 接口，宿主便会在**设置 → 插件 → 配置**中自动根据 Schema 渲染出原生美观的表单界面，无需手写任何 XAML：
 
 ```csharp
-interface IConfigurable
+public interface IConfigurable
 {
     PluginConfigSchema GetConfigSchema();
 }
 ```
 
-`PluginConfigSchema` 是一份扁平的 `Fields: List<PluginConfigField>`。每个 `PluginConfigField` 有一个 `Key`，可选的 `GroupKey`/`LabelKey`/`DescriptionKey`（翻译 key，如果你有自己的 `ITranslationProvider` 就通过它解析），一个 `FieldType`，一个 `DefaultValue`，以及——取决于类型——`Choices`、嵌套的 `SubFields`，或者 `RequireModifier`（仅 `Hotkey` 字段，拒绝没有修饰键的单个按键）。字段还支持自定义 `GetValue`/`SetValue` 委托以对接第三方存储。
+### 核心字段类型 `ConfigFieldType`
 
-给字段（通常是触发关键词这类 `Text` 字段）设置 `RequireNonEmpty`，保存时如果值为空/纯空白就会回退到 `DefaultValue`，而不是把空值持久化下去——否则用户把关键词字段清空后，依赖它的功能会悄无声息地变得不可触发，而不是回退到一个正常的默认值。
+| 字段类型 | 渲染控件与说明 |
+| :--- | :--- |
+| **`Boolean`** | 切换开关（Toggle Switch）或复选框。 |
+| **`Text`** | 文本输入框。支持配置 `RequireNonEmpty`，为空时自动回退为 `DefaultValue`。 |
+| **`Integer`** | 数字微调输入框。支持配置最小值与最大值范围。 |
+| **`Choice`** | 下拉选择框。通过 `Choices` 列表指定可选条目。 |
+| **`Hotkey`** | 专属按键录制框。可配置 `RequireModifier = true` 强制要求必须包含修饰键。 |
+| **`FilePath` / `FolderPath`** | 附带“浏览...”文件/文件夹原生选择器按钮的路径输入框。 |
+| **`StringList`** | 支持多行编辑与条目增删排序的多行列表框。 |
+| **`Group`** | 包含子字段列表（`SubFields`）的可折叠卡片分组。 |
+| **`CustomControl`** | 允许插件直接挂载一个自定义的 WPF `UIElement` 控件实例。 |
 
-`ConfigFieldType` 涵盖：`Boolean`、`Text`、`Integer`、`Choice`、`Array`、`Object`、`Group`、`StringList`、`Hotkey`、`FilePath`、`FolderPath`、`CustomControl`。若字段类型为 `CustomControl`，可直接通过 `CustomControl` 属性挂载自定义 WPF 控件实例；`PluginConfigSchema` 亦支持 `OnSave` 与 `OnRollback` 生命周期回调以处理自定义写盘与重置。参见 [CoreExtensions](../examples#coreextensions-——-动作与-shell-右键菜单) 里一个用到嵌套分组和 `StringList` 的真实配置模式。
-
-## 注册表
-
-`ActivePathCollectorRegistry`、`FileDialogAdapterRegistry`、`InlineSearchAdapterRegistry` 是宿主把所有已加载的对应[系统适配接口](./system-adapters)实现汇总到一处的方式。插件作者通常不需要直接和这些注册表打交道——只要实现对应接口，宿主就会自动发现并注册你的插件。
+`PluginConfigSchema` 亦支持配置 `OnSave` 与 `OnRollback` 生命周期委托，在用户点击确认提交或离开页面放弃修改时执行自定义持久化或状态复原。

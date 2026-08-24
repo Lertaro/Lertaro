@@ -1,57 +1,84 @@
 # Protocolo URI (lertaro://)
 
-Lertaro se registra a sí mismo como el gestor de un enlace `lertaro://` — sin ningún paso de instalación
-aparte, se configura automáticamente la primera vez que se ejecuta la aplicación. Esto permite que cualquier cosa
-capaz de abrir un enlace (un navegador, un acceso directo, otra aplicación, un script) salte directamente a una
-parte concreta de Lertaro, en lugar de ser accesible solo mediante un atajo de teclado.
+En su primera ejecución, Lertaro registra automáticamente el protocolo personalizado **`lertaro://`** en Windows. Enlaces web, accesos directos de escritorio, scripts de automatización y herramientas de terceros pueden utilizar este protocolo para invocar búsquedas, acceder a secciones de configuración o iniciar transferencias inalámbricas.
 
-Si Lertaro aún no está en ejecución, abrir un enlace `lertaro://` lo inicia y luego sigue el enlace. Si ya está
-en ejecución, la instancia en ejecución gestiona el enlace directamente — nunca inicia una segunda copia.
+## 1. Funcionamiento y enrutamiento a instancia única
 
-## Rutas
+- **Listo para usar**: No requiere configuración manual en el registro de Windows; Lertaro comprueba y mantiene su registro al iniciarse.
+- **Enrutamiento a instancia única**: Si Lertaro ya se está ejecutando en segundo plano, abrir un enlace `lertaro://` redirige la orden a la instancia activa en primer plano sin duplicar procesos. Si no está ejecutándose, Windows inicia la aplicación y ejecuta la acción solicitada.
 
-| Enlace | Qué hace |
-|---|---|
-| `lertaro://` | Activa la ventana de búsqueda rápida — lo mismo que invocarla con su atajo. |
-| `lertaro://search/[keyword]` | Activa la ventana de búsqueda rápida con `[keyword]` ya escrito. |
-| `lertaro://fullsearch/[keyword]` | Abre la ventana de búsqueda completa con `[keyword]` ya escrito. |
-| `lertaro://settings/page/[section]` | Abre Configuración en una sección concreta de nivel superior. |
-| `lertaro://settings/entry/[index]` | Abre Configuración y salta directamente a un ajuste concreto, resaltado. |
-| `lertaro://localsend` | Abre una ventana de envío de LocalSend vacía. |
-| `lertaro://localsend/items[/encoded-item...]` | Cambia al modo de archivos/carpetas y, opcionalmente, añade un segmento de ruta codificado por elemento. |
-| `lertaro://localsend/text[/encoded-text]` | Cambia al modo de texto y, opcionalmente, rellena el texto codificado. |
+## 2. Tabla de comandos URI admitidos
 
-```
-lertaro://search/report
-lertaro://settings/page/Appearance
-```
+| Formato de comando URI | Descripción y resultado visual |
+| :--- | :--- |
+| `lertaro://` | Activa y muestra la Ventana rápida (equivalente a doble pulsación de `Ctrl`). |
+| `lertaro://search/[palabra_clave]` | Abre la Ventana rápida con la `[palabra_clave]` precargada y filtrada. |
+| `lertaro://fullsearch/[palabra_clave]` | Abre la Ventana principal con la `[palabra_clave]` precargada. |
+| `lertaro://settings/page/[sección]` | Abre Configuración y cambia directamente a la pestaña de nivel superior indicada. |
+| `lertaro://settings/entry/[id]` | Abre Configuración y salta a una opción específica resaltándola. |
+| `lertaro://localsend` | Abre la ventana vacía de transferencia inalámbrica de LocalSend. |
+| `lertaro://localsend/items/[ruta_codificada...]` | Abre LocalSend en modo archivo con una o varias rutas precargadas. |
+| `lertaro://localsend/text/[texto_codificado]` | Abre LocalSend en modo texto con el contenido listo para enviar. |
 
-El primero activa la ventana de búsqueda rápida ya filtrada a "report"; el segundo abre Configuración
-directamente en la página Apariencia.
+### Secciones de configuración `[sección]`
 
-`[section]` coincide con una de las entradas de nivel superior de la barra lateral: `Service`, `Index`, `General`,
-`Appearance`, `Hotkeys`, `Plugins`, `Favorites`, `History`, `QuickPanel`, `About` — sin distinguir mayúsculas de
-minúsculas.
+Los nombres de sección no distinguen mayúsculas y coinciden con la barra lateral de Configuración:
 
-`[index]` no está pensado para escribirse a mano — es un número que la propia [Búsqueda de
-configuración](./instant-answers) genera para el ajuste que hayas elegido, de modo que seleccionar uno de sus
-resultados te devuelve directamente a esa fila exacta. No es estable entre reinicios, así que no cuentes con que
-un número concreto se mantenga igual.
-
-## Enlaces de LocalSend
-
-Cada ruta de archivo/carpeta o valor de texto debe codificarse como un segmento de ruta URL completo. Para añadir varios elementos, agrega un segmento codificado por elemento; todas las rutas deben ser absolutas y existir previamente. Por ejemplo:
-
-```
-lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt/D%3A%5CShared
-lertaro://localsend/text/Hello%20world
+```text
+Service      - Estado del servicio
+Index        - Configuración de indexación
+General      - Configuración general
+Appearance   - Apariencia y temas
+Hotkeys      - Atajos de teclado
+Plugins      - Gestión de plugins
+Favorites    - Favoritos
+History      - Historial de búsqueda
+QuickPanel   - Panel rápido
+About        - Acerca de y actualizaciones
 ```
 
-`lertaro://localsend/items` abre la página de recopilación en modo de archivos/carpetas, mientras que `lertaro://localsend/text` la abre en modo de texto. Un enlace con contenido avanza a la selección de dispositivos, pero nunca selecciona un dispositivo ni inicia una transferencia automáticamente. Si ya hay una ventana de envío abierta, el enlace no hace nada ni cambia su contenido o estado actual. Si LocalSend está desactivado, Lertaro abre su página de configuración de LocalSend. El contenido no válido o demasiado largo hace que se ignore toda la solicitud.
+> [!NOTE]
+> El número en `lertaro://settings/entry/[id]` se genera dinámicamente mediante el plugin interno de [**Búsqueda en Configuración**](./instant-answers#2-extensiones-activadas-por-palabra-clave-plugins-integrados). Dado que los identificadores pueden variar entre versiones, se recomienda usar `lertaro://settings/page/[sección]` en scripts y enlaces externos.
 
-## Enlaces no reconocidos
+## 3. Parámetros de LocalSend y codificación
 
-Cualquier cosa que no coincida con una ruta conocida — una errata, una sección no admitida, basura después de
-`lertaro://` — se ignora en silencio. Dado que cualquier sitio web o aplicación puede invocar este protocolo sin
-pedirte permiso antes, un enlace erróneo o inesperado nunca debería hacer nada sorprendente; se registra para tu
-propia solución de problemas, pero no ocurre nada más.
+Al invocar LocalSend mediante URI, cada ruta de archivo o fragmento de texto debe codificarse en formato URL estándar (p. ej. `:` como `%3A`, `\` como `%5C` y espacios como `%20`):
+
+```text
+# Precargar varias rutas de archivo
+lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Cdoc.pdf/D%3A%5CShared%5Cphotos
+
+# Precargar texto para enviar
+lertaro://localsend/text/Hello%20from%20Lertaro%21
+```
+
+- **Requisitos de seguridad**: Todas las rutas deben corresponder a rutas absolutas existentes en el equipo local. Los enlaces con datos precargados únicamente abren la selección de dispositivos; nunca inician la transferencia de forma automática.
+
+## 4. Ejemplos de integración externa
+
+### Enlaces en Markdown y bases de conocimiento
+
+Inserta enlaces directos en Obsidian, Notion o documentos Markdown:
+
+```markdown
+Abrir [Configuración de apariencia de Lertaro](lertaro://settings/page/Appearance)
+Buscar [Estados financieros](lertaro://search/informe%20financiero%202026)
+```
+
+### Accesos directos y scripts de Windows
+
+Crea un acceso directo en el escritorio y escribe en la ubicación del destino:
+
+```cmd
+lertaro://fullsearch/D:\Projects\
+```
+
+Invocación desde PowerShell:
+
+```powershell
+Start-Process "lertaro://settings/page/General"
+```
+
+## 5. Seguridad y tolerancia ante rutas desconocidas
+
+- **Gestión segura y silenciosa**: Dado que cualquier página web o aplicación puede invocar el protocolo, Lertaro valida de forma estricta todas las solicitudes URI. Las rutas con formato incorrecto o inexistentes se ignoran de forma segura y se registran en los registros de depuración sin generar fallos ni comportamientos inesperados.

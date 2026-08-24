@@ -1,24 +1,46 @@
 # Space Analyzer
 
-The Space Analyzer turns Lertaro's existing file indexes into a fast, SpaceSniffer-style overview. It does not scan your disks, so it can open quickly even when several drives contain millions of entries.
+Lertaro includes a blazing-fast disk and directory **Space Analyzer**. Unlike traditional disk analyzers that require lengthy physical drive scans, it leverages Lertaro's existing in-memory index tree to render storage breakdowns instantly in sub-seconds — even on drives hosting millions of files.
 
-## Open the analyzer
+## 1. Accessing Space Analyzer
 
-Open Lertaro's full search window and leave the search box empty. Space Analyzer appears automatically as the window's home page and shows every index currently loaded by Lertaro. Typing a query switches to search results immediately; clearing the query returns to the analyzer at its root. Double-click a drive or folder with the left mouse button to enter it; use the up arrow or any breadcrumb to go back.
+- **Automatic Presentation**: Open the Full Search Window (`Ctrl+F`) with an **empty search box**; Space Analyzer appears automatically as the default home view.
+- **Seamless Transition**: Typing any character in the search box instantly switches to the search results list; clearing the search box returns immediately to the Space Analyzer view.
 
-## Read and use the view
+## 2. Layout & Visual Overview
 
-- The treemap on the left gives larger items more area. Light and dark shades indicate relative size, while different borders distinguish folders from files.
-- The list on the right shows the same items in descending size order. A thin bar under each row shows its share of the current location's visible total. Selecting an item in either view highlights it in both.
-- Right-click a card or list row to open the same actions menu used by search results, including opening, locating, copying, and any applicable plugin actions.
-- Middle-click a card or list row to locate it in the configured file manager, using the same behavior as double-clicking a file.
-- Select a card or list row and use the configured preview shortcut to open the full search window's preview; an open preview follows subsequent selections.
-- An overflowing name in the right-hand list scrolls while its row is selected or hovered, instead of showing a tooltip.
+Space Analyzer uses a dual-pane layout designed to provide immediate clarity on storage usage:
 
-## What is counted
+### Left Pane: Treemap Visualization
 
-Only entries already present in Lertaro's enabled indexes are included, and the analyzer never fills gaps by walking the filesystem. Excluded and unindexed content is absent. Hidden entries are shown, while system entries are not shown individually, although their size can still contribute to a visible ancestor folder's total.
+- **Proportional Area**: Larger rectangles correspond to folders or files occupying more storage.
+- **Color & Shade Depth**: Shading reflects relative size weight within the current parent directory, with distinct borders differentiating folders from individual files.
 
-Sizes are logical file sizes rather than allocated disk usage. Directory totals include their indexed descendants, and hard-linked file data is counted only once, so totals can differ from Windows Explorer or a sector-level disk analyzer.
+### Right Pane: Sorted Size Breakdown
 
-While the analyzer page is visible, it follows relevant in-memory index change events and coalesces bursts before updating. The root view reacts when a local or folder index is enabled, disabled, or removed. Inside a directory, only changes to that directory or its descendants rebuild the view; changes to an ancestor merely validate the current path. If the current directory or one of its ancestors is renamed, deleted, or disappears from the enabled indexes, the analyzer automatically returns to the nearest available ancestor. It never opens or reloads index cache files. Starting a search pauses analyzer updates; closing the full search window releases the rendered items and shared UI caches.
+- **Descending Order**: Lists child items sorted by size from largest to smallest, making storage hogs immediately identifiable.
+- **Percentage Progress Bar**: Each row features a subtle proportion bar indicating its share of total visible storage.
+- **Bidirectional Highlighting**: Selecting an item in the Treemap or the right-hand list synchronizes focus across both panes.
+- **Smooth Name Scrolling**: Truncated long names scroll smoothly on hover or selection, replacing disruptive tooltip popups.
+
+## 3. Navigation & Context Operations
+
+- **Drill Down & Navigate**:
+  - **Enter Subdirectory**: Double-left-click any Treemap card or list item to drill down into that directory.
+  - **Navigate Up**: Click the "Up" arrow in the top navigation bar, or click any parent segment in the breadcrumb path.
+- **Context Action Menu**: Right-click any card or row to open the standard **Action Menu** (Open, Copy Full Path, Reveal in Explorer, Recycle, or Permanent Delete).
+- **Reveal with Middle-click**: Middle-click any item to reveal and locate it directly in your configured file manager.
+- **Live Preview Sync**: Press `Alt+P` to open the QuickLook preview panel; the preview dynamically updates as you navigate across items.
+
+## 4. Metrics Scope & Real-Time Sync
+
+### Scope & Size Calculations
+
+- **Index-Backed Breakdown**: Summarizes items already indexed by Lertaro without initiating disk I/O crawls. Excluded files do not count toward totals.
+- **Logical File Sizes**: Shows actual logical file sizes; hard-linked data is counted once to prevent inflated sizes.
+- **Hidden & System Items**: Hidden items are included normally; system files are merged into their parent folder's total size.
+
+### Real-Time Change Tracking & Self-Healing
+
+- **Live Change Updates**: Receives filesystem change notifications from the background index service, debouncing updates smoothly.
+- **Self-Healing Path Fallback**: If the active directory is renamed, deleted, or removed from indexing, Space Analyzer intelligently steps back to the nearest valid parent folder without crashing.

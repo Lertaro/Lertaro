@@ -1,30 +1,26 @@
 # Favoritos
 
-Fija carpetas, archivos o URL de uso frecuente para que siempre estén a una pulsación de distancia.
+Favoritos te permite fijar carpetas, archivos, scripts o URLs web de uso frecuente con nombres personalizados y la máxima prioridad de búsqueda. La página se encuentra en **Configuración → Favoritos**.
 
-## Añadir un favorito
+## 1. Añadir elementos a Favoritos
 
-- **Nombre para mostrar** — opcional; si se deja en blanco y el destino es una ruta local, se rellena
-  automáticamente a partir del nombre de archivo de la ruta.
-- **Ruta de destino** — una ruta local, o una URL `http://`/`https://`.
-- Los botones **Examinar carpeta** / **Examinar archivo** abren un selector nativo en lugar de escribir la ruta.
-- Botón **Añadir** — se habilita en cuanto se introduce una ruta.
+En el formulario superior:
 
-## Gestionar la lista
+- **Nombre para mostrar**: Alias personalizado opcional. Si se deja en blanco y el destino es local, Lertaro utiliza automáticamente el nombre del archivo o carpeta.
+- **Ruta de destino**: Admite rutas absolutas locales o URLs completas que comiencen por `http://` / `https://`.
+- **Examinar**: Pulsa **Examinar carpeta** o **Examinar archivo** para abrir el selector nativo de Windows.
+- **Añadir**: Pulsa **Añadir** una vez introducida una ruta válida para guardarla.
 
-Cada favorito de la lista muestra su nombre y ruta de destino, con acciones por fila:
+## 2. Gestión de la lista y ordenación por arrastre
 
-- **Subir** / **Bajar** — reordena la lista, lo que también afecta a cómo se clasifican los favoritos frente a
-  otros resultados de búsqueda. Cada fila también se puede arrastrar directamente por el asa de seis puntos de su
-  borde izquierdo — la misma asa de arrastrar-para-reordenar que usa cualquier otra lista reordenable de
-  Configuración (Prioridad de tipo de resultado, Orden de Navegación rápida, Orden de filtros de la barra lateral,
-  y Orden de columnas de la cuadrícula de resultados).
-- **Editar** — vuelve a cargar el elemento en los campos de arriba para modificarlo.
-- **Eliminar** — lo borra.
+La lista inferior muestra todos los favoritos guardados con opciones de gestión:
 
-## Cómo aparecen los favoritos en la búsqueda
+- **Control de arrastre de seis puntos**: Cada fila dispone de un tirador de seis puntos a la izquierda para reordenar elementos arrastrándolos. También puedes usar los botones **Mover arriba** / **Mover abajo**. El orden aquí define su posición en los resultados de búsqueda y en el menú de Navegación rápida.
+- **Editar elemento**: Carga los datos del elemento en el formulario superior para modificarlos.
+- **Eliminar elemento**: Elimina la entrada de Favoritos de forma segura.
 
-Un favorito que coincida aparece en los resultados con una marca **★** junto a su etiqueta de carpeta/ruta, y se
-puede buscar por su nombre para mostrar — incluido en pinyin, si el nombre contiene caracteres chinos, igual que
-cualquier otro resultado. Este es el equivalente más cercano de Lertaro a un alias de búsqueda personalizado; ver
-[Sintaxis de búsqueda](../search-syntax#favoritos-no-alias-personalizados).
+## 3. Aparición en búsquedas y aspectos visuales
+
+- **Distintivo de estrella (★)**: Los elementos favoritos coincidentes muestran un icono **★** destacado junto a su ruta en los resultados.
+- **Búsqueda por alias personalizado**: Asigna nombres fáciles de recordar a rutas complejas (p. ej., nombrar `D:\Workspace\2026\Q1\Financial\Summary.xlsx` como `Finanzas Q1`). Al buscar el alias, el archivo se recupera al instante.
+- **Sincronización multidispositivo**: Los favoritos se sincronizan automáticamente con el menú de [**Navegación rápida**](../hotkeys#3-navegacion-rapida-activadores-de-raton) y la pestaña Favoritos del [**Panel rápido**](./quick-panel#4-pestañas-de-plugins-plugin-tabs).

@@ -1,62 +1,60 @@
 # Primeros pasos
 
-## Instalación
+¡Te damos la bienvenida a Lertaro! Lertaro es un lanzador de búsqueda de archivos ultrarrápido y una herramienta de productividad diseñada a medida para Windows. Esta guía te explica las opciones de instalación, la arquitectura principal, las tres modalidades de ventana y las operaciones de búsqueda esenciales.
 
-Consigue la última versión desde el [botón de descarga](../) de la página de inicio — se publican dos variantes en
-cada versión:
+## 1. Descarga e instalación
 
-- **Instalador** (`Lertaro-Setup.exe`) — recomendado. Registra el servicio de indexación en segundo plano y
-  puede iniciar Lertaro junto con Windows.
-- **Portable** (`Lertaro-Portable.zip`) — descomprímelo y ejecútalo, sin instalación. Aun así, puedes instalar
-  más adelante el servicio en segundo plano desde **Configuración → Estado del Servicio**. Si tu equipo todavía no
-  tiene el .NET Desktop Runtime que necesita Lertaro, ejecuta una vez el `install-dotnet-runtime.bat` incluido —
-  el instalador gestiona este paso automáticamente, pero la versión portable no puede. Cuando termines con una
-  instalación portable, no hay ningún desinstalador que limpie después de ti: ejecuta el `portable-cleanup.bat`
-  incluido antes de borrar la carpeta. Si el servicio está instalado, detiene y elimina el servicio de segundo plano
-  de Lertaro, y también elimina el registro del protocolo URI `lertaro://` y la entrada de "iniciar con Windows"
-  del usuario actual. La eliminación del servicio puede solicitar permisos de administrador; el resto de la limpieza
-  se realiza para el usuario actual.
+Puedes obtener la última versión en la página principal oficial. Cada versión publicada se distribuye en dos formatos ejecutables, compilados de forma nativa tanto para **x64** como para **ARM64**:
 
-Cada una de ellas se publica para **x64** y para **ARM64**. Los nombres de arriba son las versiones x64, que
-funcionan en cualquier PC reciente — incluido Windows on ARM, donde se ejecutan emuladas. En un equipo ARM es
-preferible `Lertaro-Setup-arm64.exe` o `Lertaro-Portable-arm64.zip`, que son nativas. Las actualizaciones
-automáticas mantienen la arquitectura que instalaste, así que pasar de una a otra implica descargar la otra
-versión tú mismo.
+### Paquete de instalación (`Lertaro-Setup.exe`, recomendado)
 
-## Datos portátiles
+- **Configuración automatizada**: El asistente registra automáticamente el servicio de indexación en segundo plano (`Lertaro.Service`), configura el inicio automático y detecta e instala el entorno de ejecución de escritorio de .NET necesario.
+- **Actualizaciones sencillas**: Admite comprobación automática de actualizaciones e instalación directa con un solo clic.
 
-Una copia portátil guarda los datos del equipo en `Data\Machine` y los datos privados de cada usuario en `Data\Users\<SID hash>`, junto a la aplicación. Si todavía no existe su carpeta `Data`, reutiliza los datos existentes de `%ProgramData%\Lertaro` y `%LocalAppData%\Lertaro` por compatibilidad; crea `Data` cuando quieras que la copia portátil tenga prioridad y sea autosuficiente.
+### Edición portátil (`Lertaro-Portable.zip`)
 
-En el primer arranque, Lertaro instala e inicia un servicio de Windows (`Lertaro.Service`) que se encarga de
-la indexación de archivos. Esta división existe a propósito — ver [Arquitectura](../dev-guide/architecture) si
-tienes curiosidad por saber por qué — pero, como usuario, lo único que necesitas saber es: **Configuración →
-Estado del Servicio** te dice si el servicio está instalado y en ejecución, y te permite instalarlo si no lo está.
+- **Descomprimir y usar**: Descomprime en cualquier carpeta y ejecútalo inmediatamente sin necesidad de instalación formal.
+- **Dependencias de entorno**: Si tu sistema no cuenta con el entorno de ejecución de escritorio de .NET, ejecuta el script `install-dotnet-runtime.bat` incluido en el directorio descomprimido.
+- **Aislamiento de datos**: La versión portátil guarda los datos globales del equipo en `Data\Machine` junto al ejecutable, y las configuraciones de usuario en `Data\Users\<SID hash>`. Si el directorio `Data` aún no existe, leerá `%ProgramData%\Lertaro` y `%LocalAppData%\Lertaro` por compatibilidad; una vez creado, priorizará los datos locales como un entorno completamente autónomo.
+- **Desinstalación limpia**: Antes de eliminar la carpeta portátil, ejecuta el script `portable-cleanup.bat`. Este detiene y desinstala el servicio en segundo plano, y elimina los registros URI `lertaro://` y las entradas de inicio del usuario actual.
 
-## Las tres ventanas
+> [!TIP]
+> Si utilizas un dispositivo Windows on ARM (como Surface Pro X o portátiles con Snapdragon), descarga la versión nativa `Lertaro-Setup-arm64.exe` o `Lertaro-Portable-arm64.zip` para obtener el mejor rendimiento y eficiencia energética.
 
-Lertaro no tiene una sola ventana de búsqueda — se adapta a cómo la estés usando:
+## 2. Descripción de la arquitectura
 
-- **Ventana principal** — la ventana completa que obtienes desde la barra de tareas o el acceso directo del menú
-  Inicio, con la lista de resultados más grande y un panel de Acciones dentro de la propia ventana.
-- **Ventana rápida** — la ventana emergente compacta, siempre visible, que invocas con el atajo global de
-  mostrar/ocultar (doble pulsación de `Ctrl` por defecto). Pensada para la memoria muscular de "pulsar atajo →
-  escribir → Intro".
-- **Ventana en línea** — incrusta una barra de búsqueda de Lertaro directamente en un diálogo de archivos nativo
-  compatible o en una ventana del Explorador de archivos, de modo que puedas buscar sin salir del diálogo en el
-  que ya estás.
+Al ejecutar Lertaro por primera vez, se instala e inicia un servicio de Windows en segundo plano (`Lertaro.Service`). Comprender este diseño te ayudará a aprovechar al máximo la herramienta:
 
-Las tres comparten el mismo motor de búsqueda, el mismo sistema de atajos y el mismo menú de Acciones — la
-diferencia está puramente en dónde y cómo aparecen.
+- **Aplicación en primer plano (UI e interacción)**: Renderiza las ventanas de búsqueda, paneles flotantes, menús de acción, interceptores de teclado y previsualizaciones instantáneas. Mantiene un uso mínimo de memoria y respuesta instantánea en milisegundos.
+- **Servicio en segundo plano (Indexación y datos)**: Se ejecuta con privilegios de servicio en segundo plano, monitorizando los diarios de cambios USN de NTFS / ReFS, escuchando eventos en tiempo real de otros sistemas de archivos, gestionando recursos de red y manteniendo un árbol de índices ultrarrápido en memoria.
+- **Ventajas arquitectónicas**: Reiniciar o actualizar la interfaz nunca borra el índice ni fuerza un reescaneo del disco. Las tareas pesadas de indexación nunca ralentizan tu escritura. Puedes comprobar el estado del servicio en cualquier momento en [**Configuración → Estado del servicio**](./settings/service-status).
 
-## Búsqueda básica
+## 3. Tres modalidades de ventana
 
-Los archivos recientes, los favoritos y el historial están al alcance sin escribir nada — son pestañas del
-[Panel Rápido](./settings/quick-panel), que se abre sobre la ventana que tengas delante en lugar de dentro de la
-ventana de búsqueda.
+Lertaro no se limita a una única ventana fija, sino que se adapta a tus flujos de trabajo con tres modalidades de ventana diseñadas a medida:
 
-Simplemente empieza a escribir. Los resultados se actualizan a medida que escribes, ordenados por relevancia (ver
-[Sintaxis de búsqueda](./search-syntax) para saber cómo funcionan la coincidencia y la clasificación). Usa los
-[atajos configurables de elemento siguiente/anterior](./hotkeys) (teclas de flecha por defecto) para mover la
-selección, e Intro para abrir el resultado resaltado.
+| Modalidad de ventana | Activador predeterminado | Características clave y diseño | Escenario ideal |
+| :--- | :--- | :--- | :--- |
+| **Ventana rápida (Quick Window)** | Doble pulsación de `Ctrl` (personalizable) | Barra flotante centrada en pantalla, optimizada para memoria muscular, atajos numéricos y control total con teclado | Inicio frecuente de apps, búsqueda rápida de archivos, cálculos y traducciones |
+| **Ventana principal (Full Window)** | Barra de tareas/Menú Inicio, o `Ctrl+F` | Ventana completa con vista de tabla para grandes volúmenes de resultados, filtros laterales, ordenación y Analizador de espacio | Exploración profunda de archivos, gestión masiva, limpieza de disco y filtrado avanzado |
+| **Ventana incrustada (Inline Window)** | Se incrusta automáticamente en diálogos o Explorador | Integrada perfectamente en diálogos de Windows y exploradores de archivos compatibles sin cambiar de contexto | Localización rápida de destinos al "Abrir" o "Guardar como" en software externo |
 
-A continuación: [Sintaxis de búsqueda](./search-syntax) para sacarle el máximo partido al cuadro de consulta.
+Las tres modalidades comparten exactamente el mismo motor de búsqueda, combinaciones de teclas, reglas de filtrado y menús de acción.
+
+## 4. Primera búsqueda y navegación básica
+
+### Escribe para buscar
+
+Abre la ventana de búsqueda y empieza a escribir. Los resultados aparecen en tiempo real con latencia de milisegundos. La búsqueda utiliza coincidencia difusa por defecto: los caracteres no necesitan ser consecutivos. Para consultar operadores y modificadores avanzados, consulta [**Sintaxis de búsqueda**](./search-syntax).
+
+### Navegación y apertura de resultados
+
+- **Mover selección**: Usa las flechas `↑` / `↓` (o las teclas de navegación configuradas `Ctrl+P` / `Ctrl+N`) para desplazarte por la lista.
+- **Abrir directamente**: Pulsa `Enter` para abrir el archivo o iniciar la aplicación seleccionada.
+- **Mostrar en Explorador**: Pulsa `Ctrl+Enter` para ubicar y seleccionar el elemento en el Explorador de archivos de Windows.
+- **Ejecutar como administrador**: Pulsa `Ctrl+Shift+Enter` para ejecutar la aplicación con privilegios elevados.
+- **Salto numérico directo**: En la Ventana rápida, pulsa `Ctrl` + `1`–`9` para abrir directamente cualquiera de los primeros 9 resultados.
+
+### Menú de acciones y operaciones avanzadas
+
+Pulsa `Ctrl+O` o la flecha derecha `→` en un elemento seleccionado para desplegar el **Menú de acciones**, que permite copiar rutas, ver propiedades, manipular archivos o invocar extensiones de plugins. Consulta [**Acciones y vista previa**](./actions-and-preview) y [**Atajos de teclado**](./hotkeys) para más detalles.

@@ -1,88 +1,88 @@
 # Búsqueda por línea de comandos (lff)
 
-Lertaro también incluye un pequeño complemento de línea de comandos, **`lff`** — un buscador difuso al estilo
-fzf que busca en el mismo índice que ya mantiene la propia App, en lugar de duplicar nada de esa configuración. Es
-para cualquiera que viva en una terminal y quiera tener también ahí disponible la búsqueda de Lertaro
-(coincidencia difusa, alias en pinyin, unidades de red, todo), no solo en las ventanas de búsqueda.
+Lertaro incluye una herramienta complementaria de consola ligera y eficiente denominada **`lff`** (Lertaro Fuzzy Finder), un buscador difuso interactivo diseñado para usuarios avanzados de terminal y scripts. Se comunica mediante canalizaciones con nombre locales con Lertaro App para reutilizar el árbol de índices en memoria sin reescanear las unidades.
 
-`lff` necesita que la App de Lertaro ya esté en ejecución — se comunica con la App a través de una pipe local,
-por usuario, en lugar de volver a escanear nada por sí mismo. Si la App no está en ejecución, `lff` falla de
-inmediato con un error en stderr en lugar de quedarse colgado.
+## 1. Por qué elegir lff
 
-## Configurarlo
+- **Índice compartido, latencia de E/S cero**: A diferencia de `fzf` o `find` que recorren los sectores del disco desde cero en cada ejecución, `lff` consulta el índice en memoria de millones de elementos de Lertaro en submilisegundos.
+- **Sintaxis de búsqueda idéntica**: Hereda la coincidencia difusa con saltos, los alias de pinyin y los operadores de modificación de Lertaro (ver [**Sintaxis de búsqueda**](./search-syntax)).
+- **Cierre seguro inmediato**: Detecta automáticamente si Lertaro App está en ejecución. Si no es así, muestra un mensaje de error claro en `stderr` y sale de inmediato sin bloquear la terminal.
 
-`lff.exe` se instala junto con la App. Marca **Añadir la herramienta de búsqueda por línea de comandos lff al
-PATH** en la página de selección de tareas del instalador para poder ejecutarlo como `lff` desde cualquier
-terminal — esto añade la carpeta de instalación de Lertaro a tu PATH del sistema. Abre una nueva ventana de
-terminal después; una que ya estuviera abierta cuando instalaste no detectará el cambio.
+## 2. Instalación y configuración de PATH
 
-Si te saltaste esa opción, aún puedes ejecutarlo directamente desde donde esté instalado Lertaro.
+`lff.exe` se distribuye incluido en el paquete de Lertaro:
 
-## Uso básico
+- **Instalador**: Marca **Añadir herramienta de búsqueda lff a PATH** en el asistente para ejecutar `lff` desde cualquier terminal.
+- **Edición portátil**: Añade manualmente la ruta de la carpeta descomprimida a la variable de entorno `PATH` del usuario o del sistema.
 
-```
+> [!NOTE]
+> Tras actualizar la variable PATH, abre una nueva ventana de terminal para aplicar los cambios; las sesiones abiertas no reflejarán la modificación automáticamente.
+
+## 3. Interfaz interactiva y combinaciones de teclas
+
+Ejecuta `lff` en cualquier terminal para abrir la interfaz interactiva a pantalla completa:
+
+```bash
 lff
 ```
 
-abre un selector interactivo: escribe para filtrar de forma difusa, exactamente igual que la propia búsqueda de la
-App — incluida la coincidencia de alias en pinyin para nombres de archivo en chino (ver [Sintaxis de
-búsqueda](./search-syntax)).
+### Tabla de combinaciones de teclas
 
-| Tecla | Acción |
-|---|---|
-| Escribir | Filtrar resultados |
-| ↑ / ↓ | Mover el resaltado |
-| Re Pág / Av Pág | Saltar una página cada vez |
-| ← / → | Mover el cursor de texto dentro de la consulta |
-| Tab | Marcar/desmarcar el resultado resaltado (las filas marcadas muestran `*`) |
-| Intro | Imprimir la(s) ruta(s) seleccionada(s) — o solo la resaltada, si no hay ninguna marcada — y salir |
-| Esc / Ctrl+C | Salir sin imprimir nada |
+| Tecla | Descripción |
+| :--- | :--- |
+| **Escribir caracteres** | Filtra los resultados en tiempo real con coincidencia difusa. |
+| `↑` / `↓` | Mueve el resaltado hacia arriba / abajo. |
+| `Page Up` / `Page Down` | Desplaza la vista por páginas completas. |
+| `←` / `→` | Mueve el cursor horizontalmente dentro del campo de búsqueda. |
+| `Tab` | Alterna la selección/marca en la fila resaltada (los elementos marcados muestran un `*`). |
+| `Enter` | Envía todas las rutas marcadas (o la ruta resaltada si no hay marcas) a `stdout` y sale. |
+| `Esc` o `Ctrl+C` | Sale limpiamente sin emitir ninguna salida. |
 
-## Rellenar la consulta de antemano
+## 4. Búsquedas predefinidas y entrada por tubería
 
-```
+Puedes proporcionar un término de búsqueda inicial mediante argumentos de línea de comandos o por la entrada estándar:
+
+```bash
+# Mediante argumento
 lff report
-```
 
-y
-
-```
+# Mediante tubería de entrada estándar
 echo report | lff
 ```
 
-ambos se abren ya filtrados a `report`. En cualquier caso, esto solo rellena de antemano el cuadro de consulta y
-empieza la misma búsqueda que escribirlo produciría — nunca selecciona ni imprime automáticamente un resultado por
-sí mismo, así que sigues teniendo que navegar y pulsar Intro/Tab tú mismo.
+Ambos métodos abren la interfaz interactiva con `report` precargado como filtro inicial, permitiéndote ajustar la búsqueda o pulsar `Enter` directamente.
 
-## Seleccionar varios resultados
+## 5. Selección múltiple y salida por lotes
 
-Tab marca o desmarca la fila resaltada. Las filas marcadas persisten incluso después de cambiar la consulta — así
-que puedes buscar un archivo, marcarlo, buscar otra cosa, marcarla también, y así sucesivamente. La línea de
-estado muestra cuántos hay marcados en ese momento. Pulsar Intro mientras algo está marcado imprime todas las
-rutas marcadas, una por línea, sin importar qué esté resaltado en ese momento.
+Pulsa `Tab` para marcar elementos. **Las selecciones marcadas se mantienen incluso si cambias el término de búsqueda**.
 
-## Usar el resultado en otro comando
+Puedes buscar `doc` para marcar varios documentos de Word, borrar la búsqueda, buscar `pdf` para marcar informes y pulsar `Enter`: `lff` enviará todas las rutas marcadas a la salida estándar, una por línea.
 
-El selector interactivo de `lff` se dibuja directamente en la consola, nunca a través de los flujos normales de
-entrada/salida — lo único que llega a stdout es la(s) ruta(s) finalmente seleccionada(s), una por línea, impresas
-al pulsar Intro. Eso es lo que permite que su salida se combine con las técnicas habituales de la shell para
-capturar el resultado de otro comando.
+## 6. Integración en scripts de consola
 
-PowerShell:
+La interfaz de `lff` se dibuja directamente en el búfer de la consola sin interferir con el flujo de salida estándar. Solo las cadenas de rutas confirmadas se escriben en `stdout`, facilitando su combinación con otras herramientas:
+
+### Flujos de trabajo en PowerShell
 
 ```powershell
+# Abrir el archivo seleccionado en VS Code
 code (lff)
-$path = lff; code $path
+
+# Asignar la carpeta seleccionada a una variable y navegar a ella
+$target = lff; cd $target
+
+# Enviar los resultados como objetos FileInfo por la tubería
+lff | Get-Item | Select-Object Name, Length, LastWriteTime
 ```
 
-cmd.exe (sin sustitución de comandos integrada — usa `for /f`):
+### Flujos de trabajo en CMD / Batch
 
 ```cmd
+:: Procesar las rutas seleccionadas línea a línea en un bucle for
 for /f "delims=" %i in ('lff') do code "%i"
 ```
 
-## Limitaciones
+## 7. Límites y decisiones de diseño
 
-- Sin panel de vista previa — deliberadamente fuera de alcance, ya que el propio [Menú de acciones y vista
-  previa](./actions-and-preview) de la App ya cubre eso.
-- Requiere que la App de Lertaro esté en ejecución; `lff` no indexa nada por sí mismo.
+- **Requiere la aplicación en primer plano**: `lff` depende de la instancia activa de Lertaro App; no realiza indexación autónoma.
+- **Sin vista previa gráfica**: Optimizado exclusivamente para operaciones rápidas en consola. Para vistas previas interactivas y multimedia, utiliza la interfaz gráfica en [**Acciones y vista previa**](./actions-and-preview).

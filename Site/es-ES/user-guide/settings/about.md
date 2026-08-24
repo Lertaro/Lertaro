@@ -1,32 +1,40 @@
-# Acerca de
+# Acerca de y actualizaciones
 
-Muestra los números de versión de los componentes App, Core, Service y CLI (con color según si el servicio está
-sano en ese momento), una breve descripción de Lertaro, y enlaces a la página de inicio del proyecto y a la guía
-de usuario en línea.
+La página Acerca de muestra las versiones de los componentes, ofrece acceso directo a las carpetas de datos de usuario y sistema, y permite buscar actualizaciones y aplicar actualizaciones silenciosas. La página se encuentra en **Configuración → Acerca de**.
 
-## Carpetas de datos
+## 1. Versiones de componentes e información
 
-Dos enlaces más, justo debajo de esos, abren las carpetas desde las que Lertaro lee y en las que escribe su
-propia configuración — cada uno muestra la ruta real como texto del enlace pulsable, creando primero la carpeta si
-aún no existe:
+La parte superior detalla las versiones independientes de los cuatro componentes principales de Lertaro:
 
-- **Carpeta de datos de usuario** — la carpeta por usuario que contiene `user-settings.json`. Cada vez que se guarda la configuración, el archivo anterior se rota a `user-settings.json.bak.1` (desplazando hacia abajo cualquier copia de seguridad más antigua, hasta `.bak.5`) antes de escribir el nuevo, de modo que una edición defectuosa o un fallo a mitad de guardado siempre deja una copia reciente desde la que restaurar. También contiene el historial, certificados y cachés específicos del usuario.
-- **Carpeta de datos del equipo** — la carpeta de todo el equipo usada por el servicio en segundo plano (`machine-settings.json`, cachés del índice de unidades locales y registros del servicio).
+- **Versión de App**: Interfaz de usuario WPF en primer plano.
+- **Versión de Core**: Librería central de búsqueda e indexación.
+- **Versión de Service**: Servicio de indexación de Windows en segundo plano (el color refleja el estado de conexión del servicio).
+- **Versión de CLI**: Utilidad interactiva de línea de comandos `lff`.
 
-La versión instalada usa `%LocalAppData%\Lertaro` y `%ProgramData%\Lertaro`. La versión portátil usa `Data\Users\<SID hash>` y `Data\Machine` junto a la aplicación; si la carpeta portátil `Data` aún no se ha creado, reutiliza los datos existentes de la instalación por compatibilidad. Consulta [Datos portátiles](../getting-started#datos-portátiles) para conocer la prioridad.
+Más abajo se incluyen enlaces al sitio web oficial, al repositorio de GitHub y a la documentación en línea.
 
-## Buscar actualizaciones
+## 2. Directorios de datos y rotación de 5 copias de seguridad
 
-- Botón **Buscar actualización** — consulta si hay una versión más reciente; la propia etiqueta del botón refleja
-  el progreso ("Comprobando...", y luego "actualizado" o el número de la nueva versión encontrada).
-- Si una cuenta sin privilegios de administrador no puede detener el servicio en segundo plano para instalar una
-  actualización en el sitio, un banner de aviso lo explica y te remite en su lugar a la página de descarga manual.
-- Una vez encontrada una nueva versión:
-  - **Actualización automática silenciosa** — descarga e instala en segundo plano, mostrando una barra de
-    progreso, y luego reinicia Lertaro automáticamente.
-  - **Ir a la página de descarga** — abre la página de la versión en GitHub en tu navegador para una instalación
-    manual.
+Enlaces interactivos para abrir los directorios de almacenamiento en el Explorador (las carpetas se crean automáticamente si no existen):
 
-Esto es un reflejo de las casillas **Buscar actualizaciones automáticamente** / **Actualización silenciosa
-automática** en [General → Sistema](./general#sistema) — esas controlan si esta comprobación ocurre
-automáticamente al iniciar; esta página te permite dispararla manualmente en cualquier momento.
+### Directorio de datos de usuario
+
+- **Contenido**: Configuración personal (`user-settings.json`), historial de búsqueda y palabras clave, cachés y certificados de seguridad.
+- **Rotación de 5 copias de seguridad**: Cada vez que se guarda la configuración, Lertaro crea automáticamente una copia de respaldo `user-settings.json.bak.1`, conservando hasta `.bak.5`. Ante cualquier fallo o corte de energía, se puede restaurar cualquiera de las últimas 5 copias.
+
+### Directorio de datos de equipo (Machine)
+
+- **Contenido**: Ajustes del servicio (`machine-settings.json`), caché persistente del índice de disco y registros del servicio.
+
+### Estructura de rutas de almacenamiento
+
+- **Versión instalable**: Los datos de usuario se guardan en `%LocalAppData%\Lertaro` y los de máquina en `%ProgramData%\Lertaro`.
+- **Versión portátil**: Los datos se guardan en `Data\Users\<SID hash>` y `Data\Machine` junto al ejecutable (ver [**Aislamiento de datos en versión portátil**](../getting-started#arquitectura-de-aislamiento-de-datos-en-version-portatil)).
+
+## 3. Comprobación y aplicación de actualizaciones
+
+- **Buscar actualizaciones**: Consulta en línea nuevas versiones con información dinámica en el propio botón ("Buscando actualizaciones..." → "Ya tienes la última versión" o detalles de la nueva versión).
+- **Vías de actualización**:
+  - **Actualización silenciosa** —— Descarga e instala en segundo plano, reiniciando Lertaro de forma transparente.
+  - **Ir a la página de descargas** —— Abre la página de lanzamientos de GitHub en el navegador predeterminado para su descarga manual.
+- **Avisos de permisos**: Si se ejecuta con una cuenta sin permisos de administrador para reiniciar el servicio, un aviso guiará hacia la página de descarga manual.

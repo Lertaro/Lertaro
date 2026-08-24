@@ -1,60 +1,38 @@
-# Plugins de ejemplo
+# Ejemplos de plugins
 
-Dos plugins se distribuyen con el propio Lertaro y son referencias útiles del mundo real — ambos residen en la
-carpeta `Plugins/` del repositorio de Lertaro.
+Para ayudar a los desarrolladores a comprender cómo interactúan las interfaces de `Lertaro.PluginSdk`, este capítulo analiza tres plugins representativos incluidos en el repositorio de Lertaro.
 
-## CoreExtensions — acciones y el menú contextual del shell
+## 1. CoreExtensions —— Acciones, menús Shell y Panel rápido
 
-`CoreExtensionsPlugin` implementa tres interfaces a la vez: `IPlugin`, `IActionProvider` e
-`IConfigurable`.
+El plugin `CoreExtensions` constituye el paquete de extensiones principal de Lertaro e implementa `IPlugin`, `IActionProvider`, `IConfigurable` y varios proveedores secundarios.
 
-- **`IActionProvider.GetActions()`** devuelve diez `ISearchResultAction` integradas — abrir, localizar en
-  el Explorador, copiar ruta, copiar/cortar el propio archivo, abrir un símbolo del sistema en su ubicación, crear archivo/carpeta,
-  y variantes elevadas (ejecutar como administrador) de abrir y símbolo del sistema.
-- **`IActionProvider.GetDynamicActionProviders()`** devuelve un único `IDynamicActionProvider` —
-  `ShellMenuActionProvider` — que es lo que hace que el menú contextual real de Windows (incluidos
-  submenús en cascada anidados como "Enviar a") aparezca dentro del propio menú de Acciones de Lertaro. Este es el
-  patrón que hay que copiar si quieres mostrar *cualquier* menú externo generado dinámicamente dentro de Lertaro
-  en lugar de una lista fija de acciones.
-- **`IConfigurable.GetConfigSchema()`** muestra un esquema de configuración con grupos de campos anidados y un
-  tipo de campo `StringList` — merece la pena leerlo si tu propio plugin necesita algo más que una lista plana de
-  booleanos en su cuadro de configuración de Configuración → Plugins.
-- Cinco proveedores implementan
-  [`IQuickPanelTabProvider`](./sdk/ui-extensions#iquickpaneltabprovider), y entre ellos cubren ambos
-  extremos de esa interfaz. `FavoritesTabProvider` y `HistoryTabProvider` devuelven tal cual una lista que
-  ya está en memoria — la referencia mínima, ya que ninguno lleva estado propio. `WindowsRecentTabProvider`
-  es el otro extremo: lee un directorio y resuelve accesos directos del shell por COM en una tarea en
-  segundo plano, recorta el conjunto *antes* de hacer la parte cara, y rellena el `Metadata.Modified` de
-  cada entrada para que el orden por lo más nuevo de la pestaña signifique algo.
-- `LastDirectoryTabProvider` y `RecentFilesTabProvider` merecen leerse por otro motivo: ninguno tiene datos
-  propios. Se los piden al anfitrión a través de [`ExplorerPathService`](./sdk/services) y
-  `RecentFilesService`, que es el patrón a copiar siempre que lo que tu plugin quiere mostrar sea algo que
-  Lertaro ya sabe.
+### Puntos clave de implementación
 
-## PinyinAlias — alias en pinyin para nombres de archivo en chino
+- **Acciones estáticas (`IActionProvider.GetActions()`)**: Registra 10 acciones esenciales sobre archivos (Abrir, Ubicar en Explorador, Copiar ruta, Copiar/Cortar archivos, Abrir consola y Ejecutar como Administrador).
+- **Integración con menús Shell de Windows (`IDynamicActionProvider`)**: Se comunica con las interfaces COM del Shell mediante `ShellMenuActionProvider`, renderizando menús contextuales completos (con submenús como "Enviar a", 7-Zip, VS Code) dentro del menú `Ctrl+O`.
+- **Formularios de configuración por esquemas (`IConfigurable`)**: Define esquemas con grupos anidados (`Group`), listas de cadenas (`StringList`) y asignación de atajos (`Hotkey`), generando formularios nativos en Configuración sin escribir XAML.
+- **Pestañas para el Panel rápido (`IQuickPanelTabProvider`)**:
+  - `FavoritesTabProvider` / `HistoryTabProvider`: Devuelve colecciones en memoria con cero coste de E/S.
+  - `WindowsRecentTabProvider`: Recorre la carpeta `Recent` en segundo plano, resuelve accesos directos COM y añade `Metadata.Modified` para su ordenación.
+  - `LastDirectoryTabProvider` / `RecentFilesTabProvider`: Consulta directamente [`ExplorerPathService`](./sdk/services) y `RecentFilesService` del anfitrión.
 
-`PinyinAliasProvider` implementa tanto `IAliasProvider` como `ITranslationProvider` — un plugin puede
-combinar libremente roles del SDK cuando están relacionados, y este es un buen modelo para ello:
+## 2. PinyinAlias —— Motor de transliteración para caracteres no ASCII
 
-- **`IAliasProvider.InputRanges`/`OutputRanges`** declaran sus dos alfabetos directamente a partir de
-  los límites de la propia tabla de `PinyinEngine` (`InputRanges`: el bloque CJK; `OutputRanges`: `a`-`z`) en lugar de
-  duplicar números mágicos — el host usa ambos juntos para admitir consultas mixtas de literal+pinyin como `大cj`
-  contra `大长今`.
-- **`IAliasProvider.CanHandle(text)`** busca cualquier carácter chino antes de hacer trabajo real,
-  de modo que los nombres de archivo que no son chinos se saltan por completo la generación de alias.
-- **`IAliasProvider.GetAliases(text)`** construye una tabla de sílabas por carácter (cada carácter
-  chino se asocia a sus posibles lecturas en pinyin) y luego genera tanto un alias en pinyin completo como un
-  alias solo de iniciales. Para nombres de archivo con caracteres polifónicos (más de una lectura válida), genera
-  alias para cada combinación habitual — limitado a 32 combinaciones para evitar una explosión
-  combinatoria con entradas patológicas — uniendo las alternativas con `|` para que el motor de búsqueda
-  trate cada una como candidata en lugar de exigir que todas coincidan simultáneamente.
-- **`ITranslationProvider`** se implementa en la *misma* clase, únicamente para proporcionar las cadenas de interfaz
-  propias de este plugin (por ejemplo, su nombre visible) mediante `TranslationService.LoadEmbeddedTranslations` — las dos
-  interfaces no están relacionadas en propósito, pero coinciden aquí en un mismo tipo por tratarse de un plugin
-  pequeño, de un solo archivo.
-- Una caché `Dictionary<string, Dictionary<string, string>>` protegida por un `lock` evita volver a analizar
-  el JSON de traducción incrustado en cada llamada — el patrón habitual para cualquier plugin que realice
-  trabajo no trivial en `GetTranslations`.
+`PinyinAlias` proporciona búsqueda por pinyin completo y siglas para nombres de archivos en chino, implementando `IAliasProvider` e `ITranslationProvider`.
 
-Leer ambos plugins uno junto al otro es la forma más rápida de ver cómo encajan en la práctica las piezas de la
-[Referencia del SDK de Plugins](./sdk/core-search-actions).
+### Puntos clave de implementación
+
+- **Límites de alfabetos (`InputRanges` / `OutputRanges`)**: Declara los bloques ideográficos CJK como entrada y `a`–`z` en minúsculas como salida, permitiendo dividir consultas mixtas en segmentos literales y de alias.
+- **Comprobación previa rápida (`CanHandle(text)`)**: Detecta si el texto contiene caracteres chinos antes de generar alias, devolviendo `false` inmediatamente para cadenas en inglés.
+- **Combinaciones polifónicas (`GetAliases(text)`)**: Construye un mapa silábico y genera combinaciones unidas por `|` (hasta un máximo de 32 para evitar saturación), permitiendo búsquedas paralelas.
+- **Localización incrustada y caché segura**: Traduce el nombre del plugin mediante `ITranslationProvider` y almacena los JSON analizados en un diccionario protegido con `lock`.
+
+## 3. FlowLauncherBridge —— Compatibilidad entre ecosistemas y entornos aislados
+
+El plugin `FlowLauncherBridge` demuestra la creación de un sistema de puente a gran escala para integrar plugins de la comunidad Flow Launcher.
+
+### Puntos clave de implementación
+
+- **Puente multiproceso y multilenguaje**: Ejecuta plugins escritos en C# (.NET), Python 3.12, Node.js v20 LTS y binarios `.exe`.
+- **Entornos autónomos aislados**: Despliega entornos de Python y Node.js en la carpeta de datos de Lertaro y se comunica mediante tuberías con nombre usando JSON-RPC sin modificar la variable PATH.
+- **Formularios dinámicos y vistas previas en WebView2**: Asigna formularios `SettingsTemplate.yaml`/`.json` a `PluginConfigSchema` y renderiza tarjetas interactivas (diccionarios, tiempo, etc.) dentro de QuickLook.

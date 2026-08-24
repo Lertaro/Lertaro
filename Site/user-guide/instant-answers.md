@@ -1,130 +1,93 @@
-# Instant Answers & Keyword Shortcuts
+# Instant Answers & Keyword Features
 
-Some results appear instantly as you type, without waiting for a file search — either always on,
-or gated behind a short keyword you type before your actual query (so a large feature like browser
-history search doesn't compete for attention on every unrelated keystroke). Most keyword-gated
-ones have their keyword configured in **Settings → Plugins → Configure**.
+Beyond local file search, Lertaro includes a powerful suite of instant calculations, system tools, and keyword-triggered plugin extensions. Answers appear instantly without waiting for file search results.
 
-## Always on
+## 1. Always Active Instant Answers
 
-These need no keyword — they activate as soon as what you type matches their pattern.
+These features do not require any trigger prefix; they activate automatically whenever the input matches their patterns:
 
-### Calculator
+### Calculator & Base Conversion
 
-Type a math expression directly and the result appears live, with **Enter** copying it to the
-clipboard:
+Type any arithmetic expression directly into the search bar. Results appear in real time. Press `Enter` to copy the evaluated result to the clipboard:
 
-```
+```text
 12 * (4 + 3)
+100 * (1 - 0.15)
 ```
 
-Explicit base conversion is also supported:
+Common number base conversions are supported out of the box:
 
-```
+```text
 255 to hex
 0xFF to dec
+101010 to bin
 ```
 
-### Environment variables
+### Environment Variable Expansion & Inspection
 
-- `%NAME%` expands a specific variable (including multi-path variables like `%PATH%`, split into
-  one entry per path).
-- `%partial` fuzzy-lists every variable whose name matches `partial`.
+- **Expand Variables**: Type `%NAME%` (e.g. `%PATH%`, `%APPDATA%`) to inspect its evaluated value. Multi-path variables such as `PATH` are split into clear line-by-line lists for inspection.
+- **Fuzzy Search Variables**: Type `%` followed by a keyword (e.g. `%temp`) to fuzzy-search across all system and user environment variables.
 
-### Run a command
+### Quick Command Execution
 
-- `#<command>` opens a Command Prompt window and runs `<command>` **as Administrator**.
-- `$<command>` opens a Command Prompt window and runs `<command>` normally.
+Run commands directly without launching a terminal window first:
 
-### Bare URLs
+- `#<command>`: Opens a command prompt and executes the command **with Administrator privileges** (e.g. `#sfc /scannow` or `#net start Lertaro.Service`).
+- `$<command>`: Opens a command prompt and executes the command with **standard user permissions** (e.g. `$ping 1.1.1.1` or `$ipconfig /all`).
 
-Type or paste a `http://`/`https://` address and Lertaro offers to open it directly.
+### Direct URL Navigation
 
-## Keyword-triggered (built-in, configurable prefix)
+Type or paste any URL beginning with `http://` or `https://` and press `Enter` to open it immediately in your default browser.
 
-Type the keyword, a space, then your query. Each keyword defaults to a short prefix but can be
-changed independently in that plugin's own **Configure** dialog if it collides with something you
-type often.
+## 2. Keyword-Triggered Plugin Extensions
 
-| Keyword (default) | Plugin | What it searches |
-|---|---|---|
-| `ps` | Process Manager | Running processes by name, PID, or window title (fuzzy/pinyin matches too) — select one to kill it. |
-| `win` | Window Switcher | Currently open, switchable windows — the same set Alt+Tab shows — by title, process name, or PID. Select one to bring it to the foreground. |
-| `bm` | Browser Data | Bookmarks and history from Chrome/Chromium-family and Firefox-family browser profiles you've added under that plugin's own settings. |
-| `set` | Core Extensions | Every setting in the app, fuzzy-matched by name — pick one to jump straight to it in Settings, highlighted. Type `set` with nothing after it to list every setting. |
-| `flow` | Flow Launcher Bridge | Lists all loaded Flow.Launcher plugins and their action keywords (optionally followed by a filter). Plugin settings are managed directly under **Settings → Plugins**. |
+By typing a short **trigger keyword + space** followed by your query, you can invoke dedicated plugin capabilities. All keywords can be customized under [**Settings → Plugins**](./settings/plugins).
 
-Window Switcher shows a live thumbnail of each window's actual content as its icon by default,
-captured in the background so it never slows down typing — a plain app icon shows immediately, and
-the thumbnail fades in once it's ready. Turn off **Show Window Content as Icon** in
-**Settings → Plugins → Window Switcher → Configure** to skip that capture entirely and always use
-the app icon. A window running as true exclusive fullscreen (most games default to borderless
-windowed instead, which this handles fine) can't be captured this way and always falls back to its
-app icon.
+| Default Keyword | Plugin Name | Description & Use Case | Example Usage |
+| :--- | :--- | :--- | :--- |
+| `ps` | **Process Manager** | Search running processes by name, PID, or window title (supports pinyin). Press Enter to terminate. | `ps chrome` or `ps 1234` |
+| `win` | **Window Switcher** | Search and jump to active application windows with live background thumbnail snapshots. | `win code` or `win browser` |
+| `bm` | **Browser Data** | Search bookmarks and history from Chrome, Edge, and Firefox profiles (history and bookmarks toggleable independently). | `bm github` |
+| `set` | **Settings Search** | Fuzzy-search Lertaro's internal settings. Selecting an item jumps directly to that setting page and highlights it. | `set hotkey` or `set fuzzy` |
+| `flow` | **Flow Launcher Bridge** | Lists loaded Flow.Launcher plugins and their action keywords, connecting with the Flow community ecosystem. | `flow` |
 
-Browser Data indexes bookmarks and history independently — **Index Bookmarks** and **Index History**
-are separate toggles in **Settings → Plugins → Browser Data → Configure**, so you can turn history
-off (it tends to grow far larger than bookmarks) while still searching bookmarks, or vice versa.
+## 3. Web Search Engines
 
-## Web search
+The Web Search plugin provides built-in shortcuts for major search engines. Type the prefix followed by your query to search in your default browser:
 
-Web Search ships with default keywords for several engines/sites — `bd` (Baidu), `g` (Google),
-`bing` (Bing), `gh` (GitHub), `wiki` (Wikipedia), `yt` (YouTube) — and lets you add, edit, or
-remove entries entirely, each with its own name, keyword, icon, and URL template, from
-**Settings → Plugins → Web Search → Configure**.
+| Shortcut | Search Engine | Example | Description |
+| :--- | :--- | :--- | :--- |
+| `bd` | Baidu | `bd deep learning` | Search via Baidu |
+| `g` | Google | `g lertaro github` | Search via Google |
+| `bing` | Bing | `bing microsoft docs` | Search via Bing |
+| `gh` | GitHub | `gh Lertaro` | Search directly across GitHub repositories |
+| `wiki` | Wikipedia | `wiki quantum computing` | Look up Wikipedia entries |
+| `yt` | YouTube | `yt lofi hip hop` | Search YouTube videos |
 
-```
-g lertaro github
-```
+You can add, edit, or remove search engines and custom URL templates under **Settings → Plugins → Web Search → Configure**.
 
-opens a Google search for "lertaro github" in your browser.
+## 4. Instant Translation
 
-## Translation
+Type the default trigger `tr` followed by text to translate it automatically into the language currently selected in Lertaro's interface:
 
-Translator's default keyword is `tr`. Type text after it to translate into the language currently
-selected for Lertaro's interface:
-
-```
-tr hello
+```text
+tr Hello, how are you today?
 ```
 
-The result appears asynchronously; press **Enter** or click it to copy it. The text to translate is
-sent to Microsoft Translator, so this feature requires an Internet connection. Its target language
-is the App's current language setting. Change the keyword under **Settings → Plugins → Translator →
-Configure**.
+- Results appear asynchronously as you type; press `Enter` to copy the translation.
+- Customize the trigger keyword under **Settings → Plugins → Translator → Configure**.
 
-## File Filters
+## 5. File Filters
 
-Index specific folders under their own rule, configured entirely under **Settings → Plugins →
-File Filters → Configure**. Each rule has its own **Target Folders** list (scanned recursively),
-an **Extensions / Pattern** field (e.g. `*.exe;*.lnk` — several patterns separated by `;` or `,`
-are all matched; the default `*` matches every file), and an optional **Filter Name** shown in the
-result description. Subfolders are always included regardless of the pattern — only files are
-filtered by it.
+Under **Settings → Plugins → File Filters → Configure**, you can create isolated search scopes for specific folders and extensions:
 
-Add a **Shortcut Keyword** to gate a rule's matches behind a prefix, the same as the built-in
-keywords above, instead of always mixing them into the general index.
+- **Monitored Folders**: Recursively scan specific working directories (e.g. `D:\Engineering\Drawings`).
+- **Matching Rules**: Specify patterns such as `*.dwg;*.dxf` or `*.pdf;*.docx`.
+- **Trigger Keyword**: Assign an exclusive keyword (e.g. `cad`), allowing you to isolate searches (e.g. `cad bracket_assembly`).
 
-## Fully custom (you define the keyword)
+## 6. Custom Commands
 
-### Custom Commands
+Under **Settings → Plugins → Custom Commands → Configure**, wrap complex scripts, tools, or applications into concise commands:
 
-Define your own `<keyword> <args>` commands that launch an external program, configured entirely
-under **Settings → Plugins → Custom Commands → Configure**. The command's parameter template
-supports positional placeholders (`%s1`, `%s2`, ... for each space-separated argument) and a
-whole-remainder placeholder (`%s` for everything typed after the keyword).
-
-Each command also has a **Show in Quick Navigation** checkbox (off by default) — turn it on to also
-list that command as its own entry at the root of the [Quick Navigation](./hotkeys#quick-navigation-mouse)
-menu, clickable without typing its keyword at all. The **Quick Navigation Submenu** field nests it
-under a named submenu instead of the root — use `/` to nest multiple levels deep (e.g. `Tools/Network`
-for a two-level submenu); leave it empty to keep the command at the top level. A command shown this
-way runs with its configured parameters as-is, since there's no typed argument text to substitute
-into `%s1`/`%s` here.
-
----
-
-None of the plugins on this page are required — each can be disabled independently under
-[Settings → Plugins](./settings/plugins) if you don't want it competing for keyboard space, and
-[Search Syntax](./search-syntax) covers the separate, always-active fuzzy query language used for
-everything else (files, folders, applications).
+- **Parameter Placeholders**: Supports positional placeholders `%s1`, `%s2`... and full query capture `%s`.
+- **Quick Navigation Integration**: Check "Show in Quick Navigation" to pin the command directly into the [**Quick Navigation**](./hotkeys#3-quick-navigation-mouse-triggers) menu, with optional `/` submenu paths (e.g. `DevTools/RestartService`).

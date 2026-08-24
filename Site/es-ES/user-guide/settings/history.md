@@ -1,24 +1,22 @@
 # Historial
 
-Dos pestañas, cada una independiente: **Historial de búsqueda** e **Historial de palabras clave**.
+La página de Historial gestiona los registros de uso y las prioridades de reapertura adaptativa. Contiene dos pestañas: **Historial de búsqueda** e **Historial de palabras clave**.
 
-## Historial de búsqueda
+## 1. Historial de búsqueda
 
-Registra los resultados que realmente has abierto, para que se puedan priorizar la próxima vez que busques algo
-similar.
+Registra los resultados ejecutados asociando el término de búsqueda con la ruta física del elemento:
 
-El Historial de búsqueda recuerda tanto la ruta abierta como la consulta que llevó hasta ella. Una coincidencia difusa posterior con esa consulta registrada puede recuperar y priorizar la ruta existente en las ventanas de búsqueda rápida, integrada y completa; por ejemplo, abrir `BCompare.exe` con `bcomp` permite que `bc` vuelva a mostrarlo cerca del principio. La búsqueda integrada conserva las coincidencias dentro de la carpeta activa en **Carpeta actual** y coloca las demás en **Búsqueda global**; las rutas que ya no existen se ignoran y cada ruta solo aparece una vez.
+- **Reapertura adaptativa priorizada**: Al escribir caracteres similares a consultas anteriores, Lertaro prioriza los elementos abiertos previamente en la parte superior. Por ejemplo, si abriste `BCompare.exe` buscando `bcomp`, una búsqueda futura de `bc` lo destacará al inicio.
+- **Agrupación en la Ventana incrustada**: En los diálogos de archivos, las coincidencias del historial dentro de la carpeta activa se clasifican en "Carpeta actual" y las demás en "Búsqueda global".
+- **Filtrado de rutas inexistentes**: Si un archivo ha sido eliminado o movido externamente, se omite de forma automática, evitando enlaces rotos y resultados duplicados.
+- **Opciones de gestión**:
+  - **Habilitar historial**: Interruptor general; al desactivarlo se conservan los registros existentes pero no se añaden nuevos.
+  - **Filtro de búsqueda**: Permite filtrar las entradas visibles.
+  - **Eliminación individual y borrado total**: Elimina filas individuales o pulsa **Borrar todo el historial**.
 
-- Casilla **Habilitar historial** — activa/desactiva el registro; las entradas existentes se conservan aunque lo
-  desactives, simplemente dejan de añadirse nuevas.
-- **Cuadro de búsqueda** — filtra la lista de historial visible por palabra clave.
-- Cada entrada se puede eliminar individualmente, o todas a la vez con **Borrar todo el historial**.
+## 2. Historial de palabras clave
 
-## Historial de palabras clave
+Memoriza las **cadenas de búsqueda originales** tecleadas en la Ventana rápida:
 
-Registra el texto en bruto que has escrito en el cuadro de búsqueda de la ventana rápida (no lo que abriste), para
-que puedas recorrer hacia atrás tus consultas recientes con los [atajos del historial de palabras
-clave](../hotkeys#atajos-globales) (`Alt+Arriba` / `Alt+Abajo` por defecto).
-
-- El mismo interruptor **Habilitar historial**, filtro de búsqueda, eliminación por entrada, y botón **Borrar todo
-  el historial**, pero centrado en palabras clave en lugar de en resultados abiertos.
+- **Navegación por atajos**: En la Ventana rápida, pulsa **`Alt+Up`** / **`Alt+Down`** para retroceder o avanzar entre consultas recientes. Pulsa **`Ctrl+Delete`** para borrar el término activo.
+- **Gestión independiente**: Dispone de su propio interruptor de activación, filtro, eliminación individual y botón de **Borrar todo el historial**.

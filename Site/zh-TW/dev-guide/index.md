@@ -1,17 +1,23 @@
-# 開發手冊
+# 開發者手冊
 
-Lertaro 提供了一套開放的外掛 SDK(`Lertaro.PluginSdk`)，第三方組件可以參照它來擴充搜尋行為、新增右鍵選單動作、與其他視窗整合，以及自訂介面。本手冊記錄了這套 SDK 的全部內容。
+歡迎查閱 Lertaro 開發者參考手冊。Lertaro 採用先進的解耦架構與開放的外掛模組化生態體系，提供了官方 SDK 組件 `Lertaro.PluginSdk`。開發者可以透過引用該 SDK，為 Lertaro 貢獻自訂搜尋來源、擴充快顯動作、深度適配第三方檔案管理器與原生對話方塊，或者自訂美化主題與檔案預覽元件。
 
-- **[架構設計](./architecture)** —— App、背景 Service 與外掛之間是如何配合的。
-- **[快速上手](./getting-started)** —— 搭建一個外掛專案並載入它。
-- **外掛 SDK 參考**:
-  - **[核心搜尋與動作](./sdk/core-search-actions)** —— 貢獻搜尋結果與結果動作。
-  - **[系統與對話方塊轉接](./sdk/system-adapters)** —— 與檔案總管、原生檔案對話方塊及其他前景視窗整合。
-  - **[介面與預覽擴充](./sdk/ui-extensions)** —— 側欄篩選器、結果欄、檔案預覽、縮圖、佈景主題與語言包。
-  - **[共用抽象契約](./sdk/abstractions)** —— 外掛收到的唯讀模型(`ISearchResult`、
-    `IPluginSearchWindow`)以及設定結構(`IConfigurable`)。
-  - **[宿主服務](./sdk/services)** —— 宿主公開給外掛的靜態服務(圖示、我的最愛、歷史記錄、檔案中繼資料、目錄索引、外掛專屬設定、記錄)。
-- **[外掛範例](./examples)** —— 兩個真實隨附外掛的案例分析。
-- **[封裝與發布](./packaging)** —— 編譯好的外掛 DLL 是如何被發現並載入的。
+## 1. 架構與開發流程
 
-本手冊裡的每一個介面簽章都直接對照目前 `PluginSdk` 原始碼核實過——如果發現和文件有出入，以程式碼為準。
+- **[系統架構設計](./architecture)** —— 詳解 SYSTEM 級 Windows 索引服務、使用者態 WPF 互動處理程序與獨立鍵盤攔截處理程序的三處理程序隔離模型與具名管道 IPC 通訊機制。
+- **[快速上手指南](./getting-started)** —— 從零建立外掛模組類別庫專案、引用 SDK、實作 `IPlugin` 入口以及本機偵錯的最佳實踐。
+- **[封裝與分發](./packaging)** —— 外掛模組組件目錄結構規範、第三方託管/原生相依庫打包、多語言 JSON 資源內嵌與 PostBuild 自動部署。
+- **[官方外掛模組範例](./examples)** —— 深度剖析隨包開源的 `CoreExtensions`、`PinyinAlias` 與 `FlowLauncherBridge` 等真實外掛模組的最佳實踐程式碼。
+
+## 2. 外掛模組 SDK 介面參考
+
+| SDK 模組分類 | 核心介面與服務 | 關鍵功能說明 |
+| :--- | :--- | :--- |
+| **[核心檢索與動作](./sdk/core-search-actions)** | `ISearchableItemProvider`<br>`IInstantResultProvider`<br>`IAliasProvider`<br>`IQueryTokenProvider`<br>`ISearchResultAction`<br>`IDynamicActionProvider` | 貢獻靜態索引來源、高頻即時計算答案、非 ASCII 別名轉寫引擎、尾部 Token 後綴處理器以及靜態/動態快顯動作功能表。 |
+| **[系統與對話方塊適配](./sdk/system-adapters)** | `IActivePathCollector`<br>`IFileDialogAdapter`<br>`IInlineSearchAdapter`<br>`IQuickNavigationProvider` | 探測前景管理器活動目錄、掛載原生檔案對話方塊、內嵌搜尋列並雙向同步選取狀態、貢獻滑鼠快速導覽階層式功能表。 |
+| **[介面與預覽擴充](./sdk/ui-extensions)** | `ISidebarFilterProvider`<br>`IResultColumnProvider`<br>`IQuickPanelTabProvider`<br>`IFilePreviewProvider`<br>`IThumbnailProvider`<br>`IThemeProvider`<br>`ITranslationProvider` | 擴充側邊欄篩選分類、表格檢視自訂欄、快速面板動態工作區索引標籤、QuickLook 自訂轉譯器與縮圖擷取、WPF 資源字典主題包與多語言 i18n。 |
+| **[共用抽象契約](./sdk/abstractions)** | `ISearchResult`<br>`FileMetadata`<br>`IPluginSearchWindow`<br>`IConfigurable` | 檢索結果唯讀資料契約、奈秒級檔案時間戳記與大小中繼資料、宿主視窗安全控制控制代碼與基於結構描述驅動的原生設定表單。 |
+| **[宿主開放服務](./sdk/services)** | `FuzzyMatchService`<br>`TranslationService`<br>`IconService`<br>`FavoritesService`<br>`HistoryService`<br>`FileMetadataService`<br>`DirectoryIndexerService`<br>`RecentFilesService`<br>`ExplorerPathService`<br>`PluginSettingsService`<br>`SearchRefreshService`<br>`UserDataService`<br>`Logger` | 宿主暴露的高效能基礎設施：fzf 模糊比對與反白遮罩、多語言剖析、帶快取圖示擷取、收藏與歷程讀取、背景目錄索引代理、使用者資料目錄隔離及 Shell 原生檔案操作。 |
+
+> [!NOTE]
+> 本手冊所有介面簽章、方法參數與行為契約均直接對照 `Lertaro.PluginSdk` 原始碼嚴格編寫並校驗。

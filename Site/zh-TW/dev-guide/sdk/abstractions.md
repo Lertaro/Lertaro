@@ -1,66 +1,81 @@
 # 共用抽象契約
 
-其他 SDK 文件頁面裡用到的模型和支援性契約。
+本章節彙總了 `Lertaro.PluginSdk` 中跨多個介面複用的基礎資料模型、唯讀契約與設定驅動抽象。
 
-## `ISearchResult`
+## 1. 檢索結果模型 `ISearchResult`
 
-每一個外掛介面操作的都是這份結果的唯讀檢視——外掛永遠拿不到可變動的結果物件，只有這個:
+在 Lertaro 的架構中，外掛模組對搜尋結果的觀察始終基於唯讀契約 `ISearchResult`，禁止直接篡改宿主底層的核心索引資料結構：
 
 ```csharp
-interface ISearchResult
+namespace Lertaro.PluginSdk;
+
+public interface ISearchResult
 {
-    string Name { get; }
-    string FullPath { get; }
-    string ContextDirectory { get; }
-    bool IsDir { get; }
-    bool IsApplication { get; }
-    FileMetadata Metadata { get; }
-    bool[]? GetHighlightMask(string text, string query);
+    string Name { get; }                  // 檔案或項目的顯示名稱（如 "Lertaro.exe"）
+    string FullPath { get; }              // 絕對實體路徑（如 "C:\Program Files\Lertaro\Lertaro.exe"）
+    string ContextDirectory { get; }      // 所在父級目錄路徑（如 "C:\Program Files\Lertaro"）
+    bool IsDir { get; }                   // 是否為目錄/資料夾
+    bool IsApplication { get; }           // 是否為可執行程式或捷徑
+    FileMetadata Metadata { get; }        // 高效能檔案中繼資料（大小、修改時間等）
+    bool[]? GetHighlightMask(string text, string query); // 字元級反白遮罩計算
 }
 ```
 
-`Metadata` 攜帶了宿主自己的檔案索引為每個結果產生的 Size/Created/Modified/Accessed——讀取它是免費的(不涉及磁碟 I/O 或 IPC),不像 `FileMetadataService.GetMetadataAsync`(參見[宿主服務](./services))
-那樣,只有在查詢**不屬於**你目前結果集的路徑時才值得呼叫。
+> [!NOTE]
+> `ISearchResult.Metadata` 包含的資料由宿主底層的 USN / MFT 記憶體索引直接注入，**讀取該屬性完全不產生任何磁碟 I/O 或 IPC 呼叫**。僅當你需要查詢不屬於目前結果集的外部路徑時，才需要呼叫 `FileMetadataService.GetMetadataAsync`。
 
-## `FileMetadata`
+## 2. 檔案中繼資料結構 `FileMetadata`
 
 ```csharp
-readonly record struct FileMetadata(long Size, DateTime Created, DateTime Modified, DateTime Accessed);
+public readonly record struct FileMetadata(
+    long Size,
+    DateTime Created,
+    DateTime Modified,
+    DateTime Accessed
+);
 ```
 
-本機時間。`default`(每個欄位都是零/`DateTime.MinValue`)表示「不可用」——這種結果不是由檔案索引產生的(比如來自另一個外掛)。用 `Metadata.Modified != default` 來區分這種「確實不知道」的情況和一個真實的、合法的零位元組檔案——後者 `Size` 確實是 `0`,但時間戳記仍然是真實的。
+- 時間戳記均為**本機時間（Local Time）**。
+- 若 `Metadata == default`（即各欄位均為 0 或 `DateTime.MinValue`），表示該結果並非由實體檔案索引產生（例如由某個即時計算外掛模組動態產生）。
+- 可透過 `Metadata.Modified != default` 準確區分「中繼資料不可用」與「大小恰好為 0 位元組的合法真實檔案」。
 
-## `IPluginSearchWindow`
+## 3. 宿主安全控制介面 `IPluginSearchWindow`
 
-傳給 `ISearchResultAction.Execute` 等回呼的最小視窗控制介面——刻意保持精簡;外掛應該透過它來操作結果，而不是持有真實視窗的參照:
+當動作執行回呼（如 `ISearchResultAction.Execute`）被觸發時，宿主會傳入 `IPluginSearchWindow` 執行個體，供外掛模組安全調度宿主視窗：
 
 ```csharp
-interface IPluginSearchWindow
+public interface IPluginSearchWindow
 {
-    void LocateInExplorerExternal(string path);
-    void OpenFileOrFolderExternal(string path);
-    void OpenFileOrFolderAsAdminExternal(string path);
-    void HideWindow();
+    void LocateInExplorerExternal(string path);       // 在檔案總管或設定的檔案管理器中反白定位
+    void OpenFileOrFolderExternal(string path);       // 使用關聯程式普通啟動
+    void OpenFileOrFolderAsAdminExternal(string path);// 提權以管理員身分啟動
+    void HideWindow();                                // 隱藏目前搜尋視窗
 }
 ```
 
-## `IConfigurable`
+## 4. 結構描述驅動的設定體系 `IConfigurable`
 
-和 `IPlugin` 一起實作這個介面，就能在**設定 → 外掛 → 設定**裡自動取得一個設定介面——簡單情境下不需要自己寫 WPF。
+如果你的外掛模組需要提供個人化設定項目，只需在外掛模組類別上實作 `IConfigurable` 介面，宿主便會在**設定 → 外掛模組 → 設定**中自動根據 Schema 轉譯出原生美觀的表單介面，無需手寫任何 XAML：
 
 ```csharp
-interface IConfigurable
+public interface IConfigurable
 {
     PluginConfigSchema GetConfigSchema();
 }
 ```
 
-`PluginConfigSchema` 是一份平坦的 `Fields: List<PluginConfigField>`。每個 `PluginConfigField` 有一個 `Key`，可選的 `GroupKey`/`LabelKey`/`DescriptionKey`（翻譯 key，如果你有自己的 `ITranslationProvider` 就透過它解析），一個 `FieldType`，一個 `DefaultValue`，以及——取決於型別——`Choices`、巢狀的 `SubFields`，或者 `RequireModifier`（僅 `Hotkey` 欄位，拒絕沒有輔助鍵的單一按鍵）。欄位亦支援自訂 `GetValue`/`SetValue` 委派以對接第三方儲存。
+### 核心欄位類型 `ConfigFieldType`
 
-給欄位（通常是觸發關鍵字這類 `Text` 欄位）設定 `RequireNonEmpty`，儲存時如果值為空/純空白就會回退到 `DefaultValue`，而不是把空值持久化下去——否則使用者把關鍵字欄位清空後，依賴它的功能會悄無聲息地變得無法觸發，而不是回退到一個正常的預設值。
+| 欄位類型 | 轉譯控制項與說明 |
+| :--- | :--- |
+| **`Boolean`** | 切換開關（Toggle Switch）或核取方塊。 |
+| **`Text`** | 文字輸入框。支援設定 `RequireNonEmpty`，為空時自動回復為 `DefaultValue`。 |
+| **`Integer`** | 數字微調輸入框。支援設定最小值與最大值範圍。 |
+| **`Choice`** | 下拉式選單。透過 `Choices` 清單指定可選項目。 |
+| **`Hotkey`** | 專屬按鍵錄製框。可設定 `RequireModifier = true` 強制要求必須包含修飾鍵。 |
+| **`FilePath` / `FolderPath`** | 附帶「瀏覽...」檔案/資料夾原生選取器按鈕的路徑輸入框。 |
+| **`StringList`** | 支援多行編輯與項目增刪排序的多行清單方塊。 |
+| **`Group`** | 包含子欄位清單（`SubFields`）的可折疊卡片分組。 |
+| **`CustomControl`** | 允許外掛模組直接掛載一個自訂的 WPF `UIElement` 控制項執行個體。 |
 
-`ConfigFieldType` 涵蓋：`Boolean`、`Text`、`Integer`、`Choice`、`Array`、`Object`、`Group`、`StringList`、`Hotkey`、`FilePath`、`FolderPath`、`CustomControl`。若欄位型別為 `CustomControl`，可直接透過 `CustomControl` 屬性掛載自訂 WPF 控制項實例；`PluginConfigSchema` 亦支援 `OnSave` 與 `OnRollback` 生命週期回呼以處理自訂寫盤與重設。參見 [CoreExtensions](../examples#coreextensions-——-動作與-shell-右鍵選單) 裡一個用到巢狀分組和 `StringList` 的真實設定結構。
-
-## 註冊表
-
-`ActivePathCollectorRegistry`、`FileDialogAdapterRegistry`、`InlineSearchAdapterRegistry` 是宿主把所有已載入的對應[系統轉接介面](./system-adapters)實作彙總到一處的方式。外掛作者通常不需要直接和這些註冊表打交道——只要實作對應介面，宿主就會自動發現並註冊你的外掛。
+`PluginConfigSchema` 亦支援設定 `OnSave` 與 `OnRollback` 生命週期委派，在使用者按一下確認提交或離開頁面放棄修改時執行自訂持久化或狀態復原。

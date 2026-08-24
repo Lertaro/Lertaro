@@ -1,19 +1,16 @@
-# 🎁 Donation & Support
+# 🎁 Donate & Support
 
-If you find Lertaro extremely useful, feel it improves your daily workflow, and would like to
-support its ongoing development and maintenance, thank you very much for your generous support and
-sponsorship!
+If you find Lertaro immensely helpful, boosting your productivity and daily workflow, and would like to support ongoing development and maintenance, your generous donations are warmly welcomed and deeply appreciated!
 
 ## Donation Channels
 
-Currently, we only support Tether USDT crypto donations:
+Currently, we accept cryptocurrency contributions via Tether USDT:
 
-- **USDT (TRC20)** Address:
+- **USDT (TRC20)** Deposit Address:
   ```text
   TNDh3husX1trDW2ZPm4ZZYdoCoCRCZQXn5
   ```
 
 ---
 
-*Thank you very much for your kindness! Every contribution inspires us to keep improving and
-updating Lertaro.*
+*Thank you sincerely for your generosity. Every bit of support drives the continuous improvement and evolution of Lertaro!*

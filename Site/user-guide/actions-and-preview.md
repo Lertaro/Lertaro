@@ -1,101 +1,67 @@
-# Actions Menu & Preview
+# Actions & Instant Preview
 
-## Actions menu
+Lertaro does more than find files at blazing speeds — it integrates a comprehensive context action system and a rich instant preview panel, letting you inspect, manage, and dispatch files without switching to File Explorer.
 
-Every result — file, folder, or app — has a set of actions beyond "just open it": locate in
-Explorer, copy path, run as administrator, cut/copy/paste the file itself, delete it (to the
-Recycle Bin) or permanently delete it, and anything a plugin adds (for example, the full Windows
-shell right-click menu, cascading submenus included).
+## 1. Action Menu Deep Dive
 
-Open it with the **Open actions menu** hotkey (`Ctrl+O` by default) or the literal Right arrow on a
-selected result. Inside the menu:
+Press `Ctrl+O` or `→` on any search result (file, folder, application, or plugin entry) to expand the contextual action menu.
 
-- **Next/Previous item** — the arrow keys, or your own configured
-  [next/previous-item hotkey](./hotkeys), move the highlight up and down the actions list. A
-  custom binding (even something like a bare `Tab` key) is honored here exactly the same way it is
-  in the main result list.
-- **Right arrow / Enter** on an item with a submenu (e.g. a shell cascade menu like "Send to")
-  drills into it; **Left arrow** or **Backspace** (with an empty search box) backs out one level.
-- **Escape** exits the actions menu, or clears the search box first if you'd typed something to
-  filter the action list.
-- Type to filter the visible actions by name, the same way you'd filter search results.
+### Built-in Core Actions Cheat Sheet
 
-## Full window results grid
+| Action | Default Hotkey | Description |
+| :--- | :--- | :--- |
+| **Open** | `Enter` | Opens the selected item or launches the application with the system default program. |
+| **Reveal in Explorer** | `Ctrl+Enter` | Opens the parent directory and highlights the item in Windows File Explorer. |
+| **Run as Administrator** | `Ctrl+Shift+Enter` | Launches the selected application or script with elevated administrative permissions. |
+| **Copy Full Path** | `Ctrl+Shift+C` | Copies the absolute path (e.g. `D:\Projects\app.exe`) to the clipboard. |
+| **Cut / Copy File** | `Ctrl+X` / `Ctrl+C` | Places the file itself on the clipboard, ready to paste into Explorer or any folder. |
+| **Paste into Folder** | `Ctrl+V` | When a folder is highlighted, pastes clipboard files directly into that directory. |
+| **Delete (Recycle Bin)** | `Delete` | Safely moves the selected file or directory to the Windows Recycle Bin. |
+| **Permanent Delete** | `Shift+Delete` | Permanently deletes the selected item (prompts for confirmation; cannot be recovered). |
+| **Windows Context Menu** | — | Expands the full native Windows Explorer context menu with third-party extensions and "Send to". |
 
-Double-clicking a result normally opens it, same as pressing Enter — with one exception: double-
-clicking the **Path** column instead opens the result's containing folder in Explorer, the same
-thing `Ctrl`+Enter does anywhere else on the row. A plugin's own custom column can define this same
-kind of double-click override for itself.
+### Action Menu Interaction & Filtering
 
-The grid holds every match rather than a capped page of them, and fills in as the results arrive
-instead of appearing all at once when the search finishes — a broad query on a large drive can run
-for several seconds, and the rows are usable throughout. Arrow-key navigation wraps at both ends:
-pressing Up on the first row moves to the last, and Down on the last row moves back to the first.
+- **Type to Filter**: Once the action menu opens, type immediately to filter actions by name (e.g., typing `copy` narrows the list to copy-related actions).
+- **Hierarchical Navigation**: On items with submenus (such as "Send to"), press `→` or `Enter` to enter; press `←` or `Backspace` (when filter text is empty) to return to the parent level.
+- **Exit Menu**: Press `Escape` to close the action menu and return to the main search result list.
 
-The window has no title bar, so its header is the drag area: press anywhere in it that isn't the
-search box or a window button and drag to move the window. While the pointer is over the header a
-grip fades in across the top of it, marking where to grab.
+## 2. Full Window Results List Features
 
-## QuickLook preview
+The Full Search Window (`Ctrl+F`) is designed for high-density file management and exploration:
 
-Press the **QuickLook** hotkey (`Alt+P` by default) on a selected result to open a preview pane
-docked next to the search window — images, documents, and other previewable file types render
-without leaving Lertaro. Press it again (or move to a result QuickLook can't preview) to close it.
+- **Double-click Path Column**: Double-clicking the **Name** column opens the file; double-clicking the **Path** column opens the containing parent folder directly.
+- **Infinite Streaming Results**: When scanning millions of items, results stream into the view incrementally without waiting for the full index scan to conclude. You can interact with rows immediately as they arrive.
+- **Wrap-around Navigation**: Pressing `↑` on the top row wraps around to the last item; pressing `↓` on the bottom row wraps back to the first.
+- **Window Dragging & Size Memory**: Drag the non-interactive top area of the window to reposition it; manually resized dimensions are automatically remembered across sessions.
 
-Folder previews list up to 30 immediate children with their file or folder icons. Hidden and system items are omitted from this preview even if Windows Explorer is configured to show them.
+## 3. Built-in QuickLook Instant Preview
 
-Audio and video files — whatever formats WPF's built-in media playback supports without extra
-codecs (MP4, WMV, AVI, MOV, MP3, WAV, WMA, and a few others) — play automatically as soon as the
-preview opens, with a small themed transport bar (play/pause, seek, current/total time, mute)
-instead of a static thumbnail. Moving to a different result or closing the preview stops playback
-immediately. A file whose specific codec can't be decoded falls back to a static thumbnail instead.
+Press `Alt+P` on any result to summon the docked preview panel alongside the search window:
 
-The preview window's size is fixed and user-configurable — see
-[Settings → General → Preview](./settings/general#preview) — and independent of how many results
-are currently showing. Whatever size you set, Lertaro automatically keeps the preview window
-fully on-screen: if it doesn't fit beside the search window on your monitor, it docks to whichever
-side has room, and if the configured size is larger than your monitor's usable area, the window is
-scaled down to fit rather than running off the edge.
+### Supported Formats & Rich Capabilities
 
-If the file being previewed needs its own native handler to show a popup of its own — most
-commonly Word or Excel asking for a password on an encrypted document — both the quick window and
-the preview pane hide themselves for as long as that popup is open, since it would otherwise sit
-unreachable behind them. This isn't Lertaro closing or crashing: resolve the popup (enter the
-password, dismiss it, whatever it's asking) and both windows come back exactly as you left them,
-search text and selection included.
+- **Images & Vector Graphics**: Crisp rendering and scaling for JPG, PNG, GIF (animated playback), BMP, WebP, ICO, SVG, and more.
+- **Documents & Code Syntax**: Highlighting and formatting for TXT, Markdown, JSON, XML, YAML, C#, Python, JS, HTML, etc.
+- **Audio & Video Playback**: Media files (MP4, MKV, AVI, MOV, WMV, MP3, WAV, FLAC, WMA) **auto-play immediately** with a theme-aware mini playback bar (play/pause, progress scrubbing, duration, mute). Playback stops instantly when switching items.
+- **Folder Structural Inspection**: Shows up to 30 direct child items with file icons and sizes, automatically filtering system and hidden files.
 
-The preview window's header is itself a drag source for the file being previewed — drag it into
-Explorer, an editor, or any other drop target and it behaves exactly like dragging the result row
-out of the search window.
+### Adaptive Layout & Pop-up Handling
 
-### Plugin and interactive previews
+- **Adaptive Screen Bounds**: Preview dimensions can be customized under [**Settings → General → Preview**](./settings/general#preview); Lertaro guarantees the panel remains within the visible monitor bounds.
+- **Native Dialog Avoidance**: When previewing password-protected Office documents, Lertaro temporarily hides both windows so the native password dialog can be interacted with, restoring seamlessly afterwards.
+- **Drag Source**: The top area of the preview panel acts as a drag source — drag the previewed file directly into editors, browsers, or chat applications.
 
-In addition to local files and folders, QuickLook supports interactive custom preview panels provided by plugins (such as Flow Launcher plugins like MDict dictionary definitions, weather cards, API inspectors, or web previews).
+## 4. Plugin Interactive & Rich Text Previews
 
-When selecting a search result that provides an instant preview, QuickLook automatically activates the preview pane and smoothly updates the content as you navigate through results, without repeated pop-in animations. For WebView2/HTML-based previews, Lertaro automatically applies theme adaptation, high-contrast dark/light typography, and slim translucent scrollbars.
+QuickLook supports custom interactive preview cards provided by plugins:
 
-Opening the full window from the quick one carries the preview's open state across, so a preview you
-already had open stays open.
+- **Theme-Adaptive Rich Text**: Rendered via modern WebView2 and native controls, automatically matching dark/light system themes with high-contrast typography and subtle translucent scrollbars.
+- **Interactive Plugin Cards**: MDict dictionary lookups, live weather forecasts, instant webpage snapshots, and API debugging payloads.
 
-### External preview via QuickLook (optional)
+## 5. Third-party QuickLook Bridge (Optional)
 
-This is a different thing from the built-in preview pane above, despite the shared name: a
-separate, third-party application also called **QuickLook** ([QL-Win/QuickLook on
-GitHub](https://github.com/QL-Win/QuickLook), GPL-licensed) that you install yourself — Lertaro
-doesn't bundle it.
+If you have installed the standalone open-source tool **QuickLook** ([QL-Win/QuickLook on GitHub](https://github.com/QL-Win/QuickLook)), enable the **QuickLook Bridge** plugin under [**Settings → Plugins**](./settings/plugins).
 
-If it's installed and running, the bundled (experimental) **QuickLook Bridge** plugin — visible
-and toggleable like any other plugin under [Settings → Plugins](./settings/plugins) — reaches it
-over its own named pipe and takes over previewing for everything, ahead of every built-in preview
-type described above. Lertaro's own preview pane hides itself while this is active, and
-QuickLook's own floating window is moved into the exact spot that pane would have occupied instead
-— visually it reads as "the preview pane became QuickLook," though technically QuickLook's window
-stays a completely separate top-level window that Lertaro repositions to follow along.
-
-An action menu entry, **Preview in QuickLook**, lets you send a result to QuickLook manually even
-when some other preview type would otherwise win for it.
-
-Since this depends entirely on QuickLook's own (undocumented, private) inter-process protocol
-rather than any published integration API, a future QuickLook release could change that protocol
-and silently break this. Uninstalling or closing QuickLook has no effect on anything else — Lertaro
-simply falls back to its own built-in preview types.
+- **External Preview Takeover**: Connects via local named pipes to host external QuickLook preview windows anchored directly beside Lertaro.
+- **Seamless Fallback**: If the external QuickLook process is not running, Lertaro smoothly falls back to its built-in preview engine.

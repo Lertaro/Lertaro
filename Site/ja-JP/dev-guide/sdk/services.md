@@ -1,34 +1,57 @@
-# ホストサービス
+# ホストが提供する各種サービス
 
-`PluginSdk.Services` にある静的サービスで、ホストアプリの機能をプラグインに公開します——それぞれがホスト起動時に配線されるデリゲートを薄くラップした静的クラスなので、実際に裏で何が動いていてもプラグイン側の呼び出し方は変わりません。
+`Lertaro.PluginSdk.Services` 名前空間では、ホスト内部のアルゴリズム、キャッシュ、プラットフォーム機能をプラグインから直接利用できる高性能な静的サービス群を提供しています。
 
-| サービス | 用途 |
-|---|---|
-| `FuzzyMatchService` | `IsMatch(pattern, text)` — `text`(またはそのエイリアスのいずれか)が fzf 構文の `pattern` に一致するかどうかを、ホスト自身の検索が使っているのとまったく同じマッチングロジックで判定します。`GetHighlightMask(text, query)` — その組み合わせに対する文字単位のハイライトマスクを、ホスト自身の結果と同じリテラル/あいまい/エイリアスの多段フォールバック(中国語ピンインを含む)で計算します。これにより、プラグインの結果のハイライトも単純なリテラル部分一致だけでなく一貫した見た目になります。 |
-| `TranslationService` | `Get(key)` / `Format(key, args)` — 現在の言語に対してランタイムで文字列を取得します。`LoadEmbeddedTranslations(assembly, cultureKey, typeName)` — プラグイン自身が埋め込んだ JSON 翻訳を読み込みます。`GetSupportedCultures(assembly)`。`GetCurrentCulture()` — アプリで現在選択されている UI 言語(例:`"zh-CN"`)で、OS のシステムロケールとは独立したユーザー設定です。生のカルチャコードそのものが必要な場合(HTTP の `Accept-Language` ヘッダーに入れる、翻訳 API のターゲット言語を選ぶ、など)にのみこれを使ってください——`CultureInfo.CurrentUICulture` は OS のロケールを反映するもので、この設定とは別物であり、ユーザーの Windows の言語とアプリ内言語が異なる場合には静かに食い違います。 |
-| `IconService` | `GetIcon(path, isDir)` と `GetThumbnail(path, size)` — キャッシュ付きのシェルアイコン/サムネイル抽出で、プラグインが自分で Windows のアイコン API を呼び出す必要がありません。 |
-| `FavoritesService` | `GetFavorites()` — ユーザーの[お気に入り](../../user-guide/settings/favorites)一覧への読み取り専用アクセス(`FavoriteItem`:Name、Path)。 |
-| `HistoryService` | `GetHistoryEntries()` — 記録済みの[履歴](../../user-guide/settings/history)エントリを、最近開いた順に `HistoryEntry { Keyword, Path, Kind, Time }` として返します(`Kind` は `HistoryEntryKind`:`File` / `Folder` / `Application`。`Keyword` はそこに至った検索テキストで、クエリを何も入力せず — 例えばクイックパネルのタブから — 直接開いた場合は空文字列です。`Time` は Unix 秒です)。各パスは最大1回だけ現れ、そのパスに最後にたどり着いたキーワードの下に紐付けられます。 |
-| `FileMetadataService` | `GetMetadataAsync(paths)` — 現在の結果に**まだ含まれていない**パスに対する、バッチでの Size/Created/Modified/Accessed 取得([`FileMetadata`](./abstractions#filemetadata))です。すべての `ISearchResult` はすでに自身の `Metadata` プロパティを通じてこれを無料で保持しているため([共有抽象化](./abstractions#isearchresult)を参照)、このサービスを使う価値があるのは、何か別の方法で得たパス(例えば自分の設定由来のもの)に対してだけです。 |
-| `DirectoryIndexerService` | `RegisterDirectory(pluginId, path, recursive, filterPattern)` / `UnregisterDirectories(pluginId)` / `SearchDirectoriesAsync(pluginId, query, token)` — その仕組みを自前で再実装することなく、プラグインが自身のディレクトリをバックグラウンドインデックス作成や USN 監視の対象として登録できるようにします。`WatchDirectories(pluginId, onChanged)` は、**あなたが登録した**ディレクトリがディスク上で変化したときにコールバックし、購読をやめるための `IDisposable` を返します。ブロードキャストではなく登録者ごとなので、比べるべき id はなく、他人の変化に反応してしまうこともありません — その変化が誰の登録に属するかは、ホストがすでに知っていることです。バックグラウンドスレッドで、しかもデバウンス済みで呼ばれます(大量コピーはディレクトリが落ち着いたあとの1回であって、ファイルごとに1回ではありません)。通知されるのはホストがあなたのディレクトリに確かに帰属させられた変化だけで、帰属させられない場合(ツリー全体を置き換える再スキャンなど)は黙っているより呼ぶほうを選びます。`EnumerateDirectoryAsync(path, recursive, filterPattern, limit, token)` は、ファイルシステムではなくその同じインデックスからディレクトリの中身を列挙します — ホストがインデックスしているドライブならディスク I/O はまったく発生せず、そうでないディレクトリは自動的に実走査に切り替わるので、呼び出し側がどちらかを判断する必要はありません。ストリーミングで返り、`filterPattern` が絞るのは**ファイル**です(ディレクトリは常に返るので、不要なら `IsDir` で落としてください)。隠しファイルとシステム項目は決して返りません。再帰列挙では `limit` を設定する価値があります — `EnumerateDirectoryAsync(@"C:\", recursive: true)` は、ボリューム上の全項目を要求どおりきっちり返します。 |
-| `RecentFilesService` | `GetRecentFilesAsync(directories, limit, maxAgeMinutes, token)` — 一連のディレクトリ配下で最も新しい項目を、新しい順に返します。ディスクではなくホストのメモリ上のインデックスが答えます。ディレクトリごとではなく、全体を**1つ**にマージした一覧です。ファイルのみ:フォルダー自身の更新日時は、中に何かが追加・削除されるたびに変わるため、「何を作業したか」を見せるはずの一覧の先頭に「作業中のフォルダー」が並んでしまいます。`limit` に 0 で件数無制限、`maxAgeMinutes` に 0 で期間無制限ですが、どちらも設定しないと、単に新しいものがないという理由だけで、放置されたフォルダーが1か月前のファイルを出し続けます。ホストがインデックスしていないディレクトリはその場で走査されず、単に何も寄与しません — ここで欲しいのは速い答えか、さもなくば無しです。遅いほうは `DirectoryIndexerService.EnumerateDirectoryAsync` があります。 |
-| `ExplorerPathService` | `GetLastActivePath()` — エクスプローラーのウィンドウやファイルダイアログが最後に表示していたフォルダー。一度もなければ `null`。ホスト自身のウィンドウ追跡が埋めており、Lertaro 自身の UI だけでなく**あらゆる**アプリケーションのファイルダイアログを見ているため、「ユーザーが最後に実際に見ていたフォルダー」を意味します — プラグインが自力で割り出せるものではありません。[`IActivePathCollector`](./core-search-actions) とは逆方向です:あちらはサードパーティのファイルマネージャーが何を表示しているかをプラグインがホストに**伝える**もの、こちらは尋ねるものです。まだ存在する保証はありません:記録しているのはユーザーが行った先であり、そのフォルダーはすでに削除されたり取り外されたりしているかもしれません。 |
-| `PluginSettingsService` | `GetSetting<T>(pluginId, key, defaultValue)` — ホストの設定ストアから、プラグイン自身の永続化済み設定への読み取り専用アクセスです。3段階でフォールバックします。ユーザーが一度でも保存していればその永続化された値、何も保存されていなければあなたの `IConfigurable` スキーマにおけるそのフィールド自身の `DefaultValue`、それもなければ最後の手段としてあなたが渡した `defaultValue` 引数、という順です。したがって、スキーマで宣言されたデフォルト値が唯一の信頼できる情報源となり、呼び出し側のコードに同じデフォルト値をもう一度ハードコードする必要がありません。設定を毎回読み直すのではなくキャッシュする場合は、`SettingChanged(pluginId, key)` イベントを購読し、自分のプラグインに対して発火したタイミングでキャッシュを破棄してください——ホストは設定ページでの保存の直後にこれを発火させます。これがキャッシュを無効化できる唯一の信頼できるタイミングです(キー入力ごとのチェックやポーリングでは、たまたま何かがトリガーされるまで変化に気づけないか、あるいは永久に気づけません)。 |
-| `SearchRefreshService` | `RefreshIfMatches(queryMatches)` — データが非同期に届く `IInstantResultProvider`([`IInstantResultProvider`](./core-search-actions#iinstantresultprovider)を参照)向けです。バックグラウンドの取得処理が完了し結果をキャッシュしたら、現在のクエリ文字列に対する述語を指定してこれを呼び出してください。ホストはその述語に一致するアクティブな検索をすべて再実行するため、ユーザーが何も入力し直さなくても、キャッシュ済みの結果がそのまま表示されるようになります。 |
-| `Logger` | `Log(message, level = LogLevel.Info)` — App のログファイルに書き込み、ホスト自身のログ行とまったく同じように **設定 → サービスの状態 → App** に表示されます。 |
-| `PluginPromptService` | `Prompt(title, fields, initialValues?)` — 指定された [`PluginConfigField`](./abstractions#iconfigurable) の値をユーザーに尋ねる小さなモーダルを表示します(`IConfigurable` の設定ダイアログが使っているのと同じフィールドスキーマ/描画ロジックです)。`Key` で一致する `initialValues` があればそれで、なければ各フィールド自身の `DefaultValue` で事前入力されます。入力された値をフィールドの `Key` をキーとして返し、ユーザーがキャンセルした場合は `null` を返します——これらの値はプラグインの実際の永続化済み設定から読み取られたり、そこに書き込まれたりすることは一切ないため、実際の設定項目に触れることなく、設定フィールドのスキーマを一度限りの入力(例:「追加する前に名前を付ける」)のためだけに安心して再利用できます。 |
-| `UserDataService` | `GetUserDataDirectory()` — 現在のユーザー専用のデータディレクトリ（インストール版の `%LOCALAPPDATA%\Lertaro` やポータブル版の `Data\Users\<hash>` など）を返し、ユーザー固有の設定やプラグインデータを保存します。`GetSharedDataDirectory()` — マシン全体の共有データディレクトリ（インストール版の `%PROGRAMDATA%\Lertaro` やポータブル版の `Data\Machine` など）を返し、複数ユーザー間で共有されるランタイム（Python / Node.js 埋め込み環境など）やグローバルキャッシュを保存します。 |
+## 1. 主要な静的サービス一覧
 
-`LogLevel` は `Error` / `Warn` / `Info` / `Debug` で、[サービスの状態のログビューアー](../../user-guide/settings/service-status)のレベルフィルターと一致します。
+| サービス名 | 主要メソッドとシグネチャ | 機能説明 |
+| :--- | :--- | :--- |
+| **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)` | ホストと同一の fzf あいまい一致エンジンを実行し、文字単位のハイライトマスク（ピンイン多階層フォールバック対応）を計算。 |
+| **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()` | 多言語動的解決。`GetCurrentCulture()` は OS の言語ではなく設定画面で明示的に選択されている言語コード（例: `"ja-JP"`）を返却。 |
+| **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | メモリおよびディスクキャッシュ付きの Windows Shell ファイルアイコン・サムネイル抽出。 |
+| **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()` | ユーザーが設定画面で登録したお気に入り項目一覧の読み取り。 |
+| **`HistoryService`** | `IReadOnlyList<HistoryEntry> GetHistoryEntries()` | 最近のアクセス順に並んだ履歴項目（検索キーワード、ファイル種別を含む）の読み取り。 |
+| **`FileMetadataService`** | `Task<IReadOnlyDictionary<string, FileMetadata>> GetMetadataAsync(IEnumerable<string> paths)` | 検索結果セットに含まれない外部パスのファイルサイズやタイムスタンプを一括取得。 |
+| **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | バックグラウンドサービスにカスタムディレクトリを登録して自動インデックス・監視；I/O なしのストリーム列挙を提供。 |
+| **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | インメモリインデックスから指定フォルダー群の最新更新ファイルをミリ秒単位で集約抽出。 |
+| **`ExplorerPathService`** | `string? GetLastActivePath()` | エクスプローラーや各アプリのファイルダイアログで最後に開かれた作業ディレクトリパスを取得。 |
+| **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | プラグイン設定の読み取り（ユーザー値 > スキーマ既定値 > フォールバック値の優先順位）。 |
+| **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | 非同期処理の完了後に、一致するアクティブな検索結果の再評価とビューの即時更新をホストへ通知。 |
+| **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | ユーザー専用データフォルダー（個別設定用）およびマシン共通データフォルダー（Python/Node ランタイム等）を取得。 |
+| **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | `app.log` にログを出力し、設定画面のログビューアーにリアルタイム同期。 |
+| **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | スキーマに基づいて自動生成される軽量なモーダル入力ダイアログを表示。 |
 
-## シェルのファイル操作
+## 2. Windows Shell ファイル操作ヘルパー
 
-`Lertaro.PluginSdk.Shell.FileOperations` — Windows シェル自身の `IFileOperation` への薄いラッパーです。プラグインがファイルを動かしたとき、エクスプローラーと同じ進行状況ダイアログ、同じ「ファイルは既に存在します」の確認、同じ元に戻す項目が出ます。微妙に違う挙動をする `System.IO` 呼び出しにはなりません。
+`Lertaro.PluginSdk.Shell.FileOperations` は Windows Shell の `IFileOperation` COM インターフェイスをラップしており、進捗ダイアログ、上書き確認、`Ctrl+Z` 元に戻す操作をネイティブにサポートします。
 
-| ヘルパー | 用途 |
-|---|---|
-| `ShellPasteHelper` | `PasteAsync(sourcePaths, destinationFolder, move, onCompleted?)` — 任意の数のパスを1つのフォルダーへコピー(または移動)します。**1回**のシェル操作にまとめるので、ドライブをまたぐ複数選択でもダイアログは1つだけで、ファイルごとには出ません。投げっぱなしで即座に戻ります:ユーザーが開いたまま放置しうるネイティブダイアログを待ってブロックすれば、呼び出し元が固まるだけだからです。`onCompleted` は操作が終わった時点で発火します — すべてコピーされたかユーザーが取り消したかを問いません。コピー先を表示しているビューにとって、どちらの答えも「もう一度見に行く」で同じだからです。 |
-| `ShellDeleteHelper` | `DeleteAsync(paths, permanent)` — ごみ箱へ、または完全に削除します。これも1回の操作・1回の確認にまとめられ、同じく投げっぱなしです。 |
-| `VirtualFileExtractor` | `HasVirtualFiles(dataObject)` / `Extract(dataObject, targetFolder)` — ドラッグが運んでいる、まだディスク上に存在しないファイルを書き出します:ブラウザーからドラッグした画像、メールクライアントからドラッグした添付、zip のプレビューからドラッグしたファイルなど。どれもパスではないので `IDataObject.GetData(DataFormats.FileDrop)` では何も取れません。実際に届くのは、名前を並べたディスクリプターと、インデックス指定で1つずつ渡されるバイト列で、これはそれを解きほぐします。意図的に種類で絞り込みません:ドラッグ側が渡す気でいるものを拒むには拡張子を信じるかバイトを覗くしかなく、どちらもこのヘルパーの仕事ではないからです。`ResolveDestination(folder, name)` は「上書きせずに (2) を付ける」という同じ命名規則で、自分でファイルを書き出す呼び出し側のために公開しています。 |
+```csharp
+namespace Lertaro.PluginSdk.Shell.FileOperations;
 
-非同期の2つは SDK 自身の STA ワーカースレッド(`ShellOperationStaWorker`、ホストが起動します)で走ります — シェルの COM インターフェイスは STA を要求するので、共有することでプラグインが自前のアパートメントを立てずに済みます。
+// 複数ファイルの一括貼り付け・移動
+public static class ShellPasteHelper
+{
+    public static void PasteAsync(
+        IEnumerable<string> sourcePaths,
+        string destinationFolder,
+        bool move = false,
+        Action? onCompleted = null);
+}
+
+// ごみ箱への安全な削除または完全削除
+public static class ShellDeleteHelper
+{
+    public static void DeleteAsync(IEnumerable<string> paths, bool permanent = false);
+}
+
+// ドラッグ＆ドロップされた仮想ファイルストリームの抽出
+public static class VirtualFileExtractor
+{
+    public static bool HasVirtualFiles(IDataObject dataObject);
+    public static Task<IReadOnlyList<string>> Extract(IDataObject dataObject, string targetFolder);
+    public static string ResolveDestination(string folder, string name); // 重複時の (2) 自動付与
+}
+```
+
+> [!TIP]
+> 上記の Shell ヘルパーは SDK 内部の専用 STA スレッド（`ShellOperationStaWorker`）で非同期実行されるため、呼び出し元で COM アパートメントスレッドを意識する必要はありません。

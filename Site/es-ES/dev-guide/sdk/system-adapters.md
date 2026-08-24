@@ -1,18 +1,21 @@
-# Adaptadores de sistema y de diálogo
+# Adaptadores de sistema y diálogo
 
-Estas interfaces permiten que un plugin integre Lertaro con *otras* ventanas — el Explorador de archivos, diálogos
-nativos de selección de archivos, gestores de archivos de terceros — en lugar de solo sus propias ventanas de búsqueda.
+Este capítulo describe las interfaces de `Lertaro.PluginSdk` para acoplarse profundamente con ventanas externas (Explorador de Windows, cuadros de diálogo nativos y exploradores de archivos de terceros).
 
-## `IActivePathCollector`
+> [!NOTE]
+> Las implementaciones de `IActivePathCollector`, `IFileDialogAdapter` e `IInlineSearchAdapter` se cargan en el **proceso auxiliar Hook con privilegios elevados** para sortear el aislamiento UIPI al interactuar con ventanas administradas.
 
-Extrae el "directorio actual" de cualquier ventana en primer plano que esté activa, de modo que Lertaro sepa
-a qué ámbito restringir una búsqueda (o contra qué resolver una acción relativa).
+## 1. Colector de ruta activa `IActivePathCollector`
+
+Extrae el directorio de trabajo activo de la ventana en primer plano para acotar búsquedas incrustadas o resolver rutas relativas:
 
 ```csharp
-interface IActivePathCollector
+namespace Lertaro.PluginSdk;
+
+public interface IActivePathCollector
 {
     string Name { get; }
-    string TargetName { get; }   // localized name of the app/manager this targets
+    string TargetName { get; }   // Nombre del explorador (p. ej. "Directory Opus", "Total Commander")
     bool CanHandle(string className);
     string? TryGetPath(
         IntPtr activeHwnd, string activeClassName,
@@ -21,96 +24,67 @@ interface IActivePathCollector
 }
 ```
 
-Tanto el elemento activo (con el foco) como su ventana contenedora se pasan por separado, ya que muchos gestores
-de archivos colocan la ruta real en un control hijo (una barra de direcciones, una selección en un árbol) que no
-es la propia ventana de nivel superior.
+- Pasa el control con foco (`activeHwnd`) y la ventana principal (`windowHwnd`) por separado para extraer rutas en barras de direcciones o árboles anidados.
 
-## `IFileDialogAdapter`
+## 2. Adaptador de diálogos nativos `IFileDialogAdapter`
 
-Lee y controla los diálogos nativos de Abrir/Guardar de Windows, de modo que Lertaro pueda incrustarse en ellos
-(ver [`IInlineSearchAdapter`](#iinlinesearchadapter) más abajo) y mantenerlos sincronizados.
+Inspecciona y controla cuadros de diálogo nativos de Windows para abrir/guardar archivos:
 
 ```csharp
-interface IFileDialogAdapter
+public interface IFileDialogAdapter
 {
     string Name { get; }
     bool CanHandle(IntPtr hwnd, string className, string processName);
     string? GetCurrentPath(IntPtr hwnd);
     bool NavigateTo(IntPtr hwnd, string targetPath);
-    bool TargetIsFolderOnly { get; } // default: false
-    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor); // default: true
+    bool TargetIsFolderOnly => false;  // Indica si solo admite carpetas (p. ej. extracción)
+    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => true;
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
     bool RestoreFocus(IntPtr hwnd);
 }
 ```
 
-`TargetIsFolderOnly` es `true` para un diálogo cuyo campo de destino solo puede contener una carpeta — el
-destino "extraer a" de una herramienta de archivado comprimido, por ejemplo — nunca un archivo concreto, a
-diferencia del cuadro de nombre de archivo de un diálogo Abrir/Guardar. El host lo usa para decidir si un resultado
-de búsqueda elegido que es un archivo necesita resolverse a su carpeta contenedora antes de llegar siquiera a
-`NavigateTo`, en lugar de dejar eso a la propia `NavigateTo`: esa llamada se ejecuta en el proceso Hook elevado,
-donde `File.Exists`/`Directory.Exists` no son fiables para una unidad que el usuario interactivo haya asignado sin
-elevación. Déjalo en su valor por defecto `false` para cualquier diálogo con un cuadro de nombre de archivo real.
+- **`TargetIsFolderOnly`**: Si es `true`, al seleccionar un archivo en los resultados, el anfitrión lo resuelve automáticamente a su carpeta contenedora antes de llamar a `NavigateTo`.
+- **`AdapterRect`**: Contiene límites en píxeles `{ Left, Top, Right, Bottom }`.
 
-## `IInlineSearchAdapter`
+## 3. Adaptador de búsqueda incrustada `IInlineSearchAdapter`
 
-Incrusta una barra de búsqueda de Lertaro directamente en un diálogo de archivos o una ventana del Explorador de
-archivos de destino (la "ventana en línea" del Manual de Usuario), manteniendo la selección sincronizada en ambas
-direcciones.
+Incrusta la barra de búsqueda de Lertaro directamente en el diálogo o Explorador, manteniendo la sincronización bidireccional de selección:
 
 ```csharp
-interface IInlineSearchAdapter
+public interface IInlineSearchAdapter
 {
     string Name { get; }
-    bool IsFileExplorer { get; }   // default false
+    bool IsFileExplorer => false;      // Indica si es el Explorador de Windows
     bool CanHandle(IntPtr hwnd, string className, string processName);
     bool CanTrigger(IntPtr focusedHwnd, string className);
-    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor); // default: delegates to CanTrigger
+    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => CanTrigger(hwndUnderCursor, classNameUnderCursor);
     bool CanEnterActionsMode(IntPtr hwnd);
     string? GetSearchScope(IntPtr hwnd);
     bool ExecuteItem(IntPtr hwnd, string path, string searchInput);
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
-    IEnumerable<string> GetListItems(IntPtr hwnd);        // optional
-    void OnSelectionChanged(IntPtr hwnd, string path);    // optional
-    void OnSearchFinished(IntPtr hwnd, bool executed);    // optional
+    IEnumerable<string> GetListItems(IntPtr hwnd) => [];
+    void OnSelectionChanged(IntPtr hwnd, string path) { }
+    void OnSearchFinished(IntPtr hwnd, bool executed) { }
 }
 ```
 
-`AdapterRect` (compartido con `IFileDialogAdapter`) es un rectángulo `int` sencillo `{ Left, Top, Right, Bottom }`.
+## 4. Proveedor de Navegación rápida `IQuickNavigationProvider`
 
-## `IQuickNavigationProvider`
-
-Suministra contenido (normalmente, un menú en cascada) para la ventana emergente de Navegación rápida — ver
-[Atajos → Navegación rápida](../../user-guide/hotkeys#navegacion-rapida-raton). Si la ventana emergente llega a
-abrirse para un clic dado lo decide el host, no esta interfaz: cualquier ventana ya reconocida por
-`IInlineSearchAdapter`/`IFileDialogAdapter` la activa por ti, así que esto es puramente una fuente de contenido.
+Aporta grupos y elementos dinámicos al menú contextual de [**Navegación rápida**](../../user-guide/hotkeys#3-navegacion-rapida-activadores-de-raton):
 
 ```csharp
-interface IQuickNavigationProvider
+public interface IQuickNavigationProvider
 {
-    string GroupName { get; }
-    Action<ISearchResult>? HeaderAction => null;
-    string? HeaderActionTooltip => null;
+    string GroupName { get; }           // Título del grupo raíz
+    Action<ISearchResult>? HeaderAction => null; // Botón de acción en la cabecera (p. ej. botón "+")
+    string? HeaderActionTooltip => null;// ToolTip del botón de cabecera
     bool CanProvide(ISearchResult result);
     IEnumerable<DynamicMenuItem> GetMenuItems(ISearchResult result, IntPtr hMenu);
     void ExecuteCommand(ISearchResult result, uint commandId, IntPtr ownerHwnd);
-    void ClearSession();
+    void ClearSession() { }
 }
 ```
 
-`GroupName` etiqueta un encabezado de sección mostrado sobre los elementos de nivel raíz propios de este proveedor,
-de modo que un usuario con más de un proveedor de navegación rápida activo pueda distinguir qué entradas aportó
-cada uno — el mismo papel que desempeña `IDynamicActionProvider.GroupName` para el menú de acciones.
-
-`HeaderAction` (opcional, `null` por defecto) añade un pequeño botón a ese mismo encabezado de grupo de nivel
-raíz — por ejemplo, un proveedor al estilo de marcadores podría usarlo para "añadir la carpeta actual". Se invoca
-con el mismo `ISearchResult` que `GetMenuItems` recibe para el nivel raíz; `HeaderActionTooltip` establece el
-tooltip del botón y se ignora cuando `HeaderAction` es `null`. Un submenú anidado (a cualquier profundidad por
-debajo de la raíz) no tiene un encabezado propio renderizado por el host, así que el efecto de `HeaderAction` se
-detiene en la raíz — un proveedor que quiera el mismo botón "+" en un submenú devuelve un `DynamicMenuItem` con
-`IsHeader = true` (ver más abajo) como primer elemento de ese submenú, con su propio `OnExecute` desempeñando el
-mismo papel.
-
-`DynamicMenuItem` es el mismo modelo usado por
-[`IDynamicActionProvider`](./core-search-actions#idynamicactionprovider), incluida su marca `IsHeader` para una
-fila de encabezado a nivel de submenú.
+- **`HeaderAction`**: Añade un botón en la cabecera del grupo (p. ej., "Fijar carpeta actual").
+- **`DynamicMenuItem.IsHeader`**: En submenús, devolver elementos con `IsHeader = true` renderiza encabezados interactivos con botones de acción.

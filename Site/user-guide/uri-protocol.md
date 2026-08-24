@@ -1,58 +1,84 @@
 # URI Protocol (lertaro://)
 
-Lertaro registers itself as the handler for a `lertaro://` link — no separate installer step,
-it's set up automatically the first time the app runs. This lets anything that can open a link
-(a browser, a shortcut, another app, a script) jump straight into a specific part of Lertaro,
-instead of only being reachable through a hotkey.
+On its first run, Lertaro automatically registers the **`lertaro://`** custom protocol with Windows. Web hyperlinks, desktop shortcuts, automation scripts, and third-party tools can use this protocol to invoke specific searches, navigate directly to settings sections, or initiate wireless transfers.
 
-If Lertaro isn't already running, opening a `lertaro://` link starts it and then follows the
-link. If it's already running, the running instance handles the link directly — it never starts a
-second copy.
+## 1. Scheme Architecture & Single-Instance Routing
 
-## Routes
+- **Out of the Box**: No manual registry editing is required. Lertaro configures and validates registration upon launch.
+- **Single-Instance Forwarding**: If Lertaro is already running in the background, opening a `lertaro://` link forwards the request directly to the active foreground instance without spawning duplicate processes. If Lertaro is not running, Windows starts the application and executes the requested route immediately.
 
-| Link | What it does |
-|---|---|
-| `lertaro://` | Activates the quick search window — same as summoning it with its hotkey. |
-| `lertaro://search/[keyword]` | Activates the quick search window with `[keyword]` pre-filled. |
-| `lertaro://fullsearch/[keyword]` | Opens the full search window with `[keyword]` pre-filled. |
-| `lertaro://settings/page/[section]` | Opens Settings to a specific top-level section. |
-| `lertaro://settings/entry/[index]` | Opens Settings and jumps straight to one specific setting, highlighted. |
-| `lertaro://localsend` | Opens an empty LocalSend send window. |
-| `lertaro://localsend/items[/encoded-item...]` | Switches to file/folder mode and optionally adds one encoded path segment per item. |
-| `lertaro://localsend/text[/encoded-text]` | Switches to text mode and optionally fills in encoded text. |
+## 2. Complete URI Route Cheat Sheet
 
-```
-lertaro://search/report
-lertaro://settings/page/Appearance
-```
+| URI Route | Description & Visual Outcome |
+| :--- | :--- |
+| `lertaro://` | Activates and displays the Quick Window (equivalent to double-tapping `Ctrl`). |
+| `lertaro://search/[keyword]` | Activates the Quick Window, pre-populates `[keyword]`, and filters immediately. |
+| `lertaro://fullsearch/[keyword]` | Opens the Full Window with `[keyword]` pre-populated. |
+| `lertaro://settings/page/[section]` | Opens the Settings window and switches directly to the specified top-level section. |
+| `lertaro://settings/entry/[id]` | Opens Settings and navigates straight to a specific setting item, highlighting it. |
+| `lertaro://localsend` | Opens a blank LocalSend wireless transfer window. |
+| `lertaro://localsend/items/[encoded_path...]` | Opens LocalSend in file mode with one or more pre-populated file/folder paths. |
+| `lertaro://localsend/text/[encoded_text]` | Opens LocalSend in text mode with pre-populated text ready to send. |
 
-The first activates the quick search window already filtered to "report"; the second opens
-Settings directly on the Appearance page.
+### Settings Section Keywords `[section]`
 
-`[section]` matches one of the top-level sidebar entries: `Service`, `Index`, `General`,
-`Appearance`, `Hotkeys`, `Plugins`, `Favorites`, `History`, `QuickPanel`, `About` — not
-case-sensitive.
+Section names are case-insensitive and match the sidebar navigation in the Settings window:
 
-`[index]` isn't meant to be typed by hand — it's a number [Settings Search](./instant-answers)
-generates itself for whatever setting you picked, so selecting one of its results round-trips
-straight back to that exact row. It isn't stable across restarts, so don't rely on a specific
-number staying the same.
-
-## LocalSend links
-
-Every file/folder path or text value must be URL-encoded as one complete path segment. To add multiple items, append one encoded segment per item; all paths must be absolute and must already exist. For example:
-
-```
-lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt/D%3A%5CShared
-lertaro://localsend/text/Hello%20world
+```text
+Service      - Service Status
+Index        - Indexing Settings
+General      - General Settings
+Appearance   - Appearance & Themes
+Hotkeys      - Hotkeys & Shortcuts
+Plugins      - Plugin Management
+Favorites    - Favorites
+History      - Search History
+QuickPanel   - Quick Panel
+About        - About & Updates
 ```
 
-`lertaro://localsend/items` opens the collection page in file/folder mode, while `lertaro://localsend/text` opens it in text mode. A link containing content proceeds to device selection, but never selects a device or starts a transfer automatically. If a send window is already open, the link does nothing and never changes its current content or state. If LocalSend is disabled, Lertaro opens its LocalSend settings page instead. Invalid or oversized content is ignored as a whole.
+> [!NOTE]
+> The numeric ID in `lertaro://settings/entry/[id]` is dynamically generated by the internal [**Settings Search**](./instant-answers#2-keyword-triggered-plugin-extensions) plugin. Because IDs may shift across versions, use `lertaro://settings/page/[section]` for external scripts and documentation links.
 
-## Unrecognized links
+## 3. LocalSend Parameters & Encoding Standards
 
-Anything that doesn't match a known route — a typo, an unsupported section, garbage after
-`lertaro://` — is silently ignored. Since any website or app can invoke this protocol without
-asking you first, a bad or unexpected link should never do anything surprising; it's logged for
-your own troubleshooting, but nothing else happens.
+When triggering LocalSend via URI, every path or text snippet must be properly URL-encoded (e.g. `:` as `%3A`, `\` as `%5C`, and spaces as `%20`):
+
+```text
+# Pre-filling multiple file paths
+lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Cdoc.pdf/D%3A%5CShared%5Cphotos
+
+# Pre-filling text payload
+lertaro://localsend/text/Hello%20from%20Lertaro%21
+```
+
+- **Security Constraint**: All file paths must be existing absolute paths on the local machine. Links containing payload data open the device selection screen; they never initiate transfers automatically.
+
+## 4. Integration Examples
+
+### Markdown & Knowledge Bases
+
+Embed direct links inside Obsidian, Notion, or internal Markdown documents:
+
+```markdown
+Open [Lertaro Appearance Settings](lertaro://settings/page/Appearance)
+Search for [Project Financials](lertaro://search/financial%20report%202026)
+```
+
+### Desktop Shortcuts & Scripts
+
+Create a standard Windows shortcut and set the target to:
+
+```cmd
+lertaro://fullsearch/D:\Projects\
+```
+
+Invoke from PowerShell:
+
+```powershell
+Start-Process "lertaro://settings/page/General"
+```
+
+## 5. Security & Fault Tolerance
+
+- **Silent Safety Handling**: Because any webpage or external application can invoke URI schemes, Lertaro enforces strict validation on all incoming commands. Malformed or unrecognized routes are safely ignored and logged without triggering errors or unexpected behaviors.

@@ -1,37 +1,44 @@
-# 封裝與發布
+# 封裝與分發
 
-## 外掛是如何被發現的
+本章節詳細介紹 Lertaro 外掛模組組件的目錄結構規範、第三方相依庫打包、多語言 JSON 資源內嵌以及自動化建置發布流程。
 
-App 啟動時會掃描自己的 `Plugins/` 資料夾(與 `Lertaro.App.exe` 同層)裡的每一個 `.dll`，尋找實作了 `IPlugin` 的型別。沒有單獨的清單檔——組件本身，加上它的型別實作了哪些 SDK 介面，就是完整的契約。
+## 1. 外掛模組組件目錄結構
 
-## 攜帶外掛自己的相依套件
+Lertaro 在啟動時會遞迴掃描應用程式根目錄下的 `Plugins\` 資料夾。為了保持環境純淨並避免不同外掛模組之間的相依庫發生版本衝突，強烈建議為每個外掛模組建立專屬的子目錄：
 
-如果你的外掛需要自己的受控或原生相依 DLL(比如資料庫驅動程式、原生互通程式庫……)，把它們放進 App
-的 `Plugins/` 資料夾下你外掛自己的一個子目錄裡——比如 `Plugins/YourPlugin/YourPlugin.dll` 連同它的相依套件都放在同一層——而不是平舖在 `Plugins/` 根目錄下。載入器會遞迴掃描 `Plugins/`，之後
-`Assembly.LoadFrom` 自帶的同目錄相依探測就會自動解析你的相依套件，不會把它們混進其他外掛的載入目錄裡。
+```text
+Lertaro/
+├── Lertaro.App.exe
+├── Lertaro.PluginSdk.dll
+└── Plugins/
+    └── MyCustomPlugin/
+        ├── MyCustomPlugin.dll           (外掛模組主組件)
+        ├── ThirdParty.Managed.dll       (託管第三方相依)
+        └── x64/
+            └── NativeLibrary.dll        (原生 C/C++ 動態連結庫)
+```
 
-掃描過程中遇到的非 .NET 檔案(比如原生 DLL `e_sqlite3.dll`)是預期之內的，會以 `Debug` 層級記錄，而不是 `Error`——只有真正載入失敗的受控組件才會記 `Error`。
+- **相依性自動探測**：Lertaro 的組件載入器透過 `Assembly.LoadFrom` 機制載入主 DLL，.NET 執行階段會自動從該子目錄中解析並載入其同級相依庫，絕不會與其他外掛模組相互干擾。
+- **原生檔案容錯**：掃描過程中若遇到原生 DLL（如 `e_sqlite3.dll`）或非託管資源，載入器會以 `Debug` 偵錯層級記錄並安全跳過，絕不產生誤報 `Error` 報錯。
 
-完整的真實範例可以看 `BrowserData` 外掛的 `.csproj`:它就是這樣封裝 `Microsoft.Data.Sqlite` 及其原生相依套件 `SQLitePCLRaw`/`e_sqlite3.dll` 的，還帶了 PostBuild/PostPublish 目標，不管是哪種建置方式產生的，都會把它們歸攏進自己的子資料夾。
+## 2. 自動化建置複製設定（PostBuild）
 
-## 開發時自動化複製
-
-Lertaro 自帶的外掛(`CoreExtensions`、`PinyinAlias`)都在各自的 `.csproj` 裡用一個 PostBuild 目標自動化了部署步驟，把剛編譯好的 DLL 直接複製到 App 自己輸出目錄下的 `Plugins/` 資料夾，這樣重新編譯後下次啟動就能立刻生效:
+在外掛模組工程的 `.csproj` 檔案中設定 `PostBuild` 目標，可以在每次編譯成功後自動將產物複製到 Lertaro App 的 `Plugins/` 偵錯目錄下，實現即改即測：
 
 ```xml
 <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-  <Copy SourceFiles="$(TargetDir)$(TargetName).dll"
-        DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\"
+  <ItemGroup>
+    <PluginOutputFiles Include="$(TargetDir)**\*.*" />
+  </ItemGroup>
+  <Copy SourceFiles="@(PluginOutputFiles)"
+        DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\$(TargetName)\%(RecursiveDir)"
         SkipUnchangedFiles="true" />
 </Target>
 ```
 
-把目標路徑改成你自己的建置輸出和 Lertaro App 安裝位置實際所在的路徑即可。
+## 3. 內嵌多語言資源檔案
 
-## 內嵌語言包
-
-如果外掛實作了 `ITranslationProvider`(見[介面與預覽擴充](./sdk/ui-extensions))，把語言包 JSON
-檔案作為內嵌資源封裝，而不是散落的獨立檔案，這樣它們才會跟著 DLL 一起發布:
+若你的外掛模組實作了 [`ITranslationProvider`](./sdk/ui-extensions#itranslationprovider) 多語言介面，推薦將翻譯 JSON 檔案作為**組件內嵌資源**打包，避免因外部檔案遺失導致介面亂碼：
 
 ```xml
 <ItemGroup>
@@ -39,8 +46,19 @@ Lertaro 自帶的外掛(`CoreExtensions`、`PinyinAlias`)都在各自的 `.cspro
 </ItemGroup>
 ```
 
-`TranslationService.LoadEmbeddedTranslations`(見[宿主服務](./sdk/services))會在執行階段按文化名稱從組件裡把它們讀出來。
+JSON 檔案組織建議遵循 `Resources/Translations/{CultureName}/{TypeName}.json` 規範（例如 `zh-CN/MyCustomPlugin.json`、`en-US/MyCustomPlugin.json`）。在程式碼中直接呼叫 `TranslationService.LoadEmbeddedTranslations` 即可自動按目前系統介面語言解析。
 
-## 版本號
+## 4. 外掛模組版本與中繼資料定義
 
-給外掛的 `.csproj` 加上 `<Version>`；它會顯示在**設定 → 外掛**裡對應外掛的卡片上，旁邊還會顯示你的外掛是針對哪個 `PluginSdk` 版本編譯的——在 SDK 介面發生變化時，這對確認相容性很有用。
+在 `.csproj` 中定義外掛模組的版本號與組件資訊：
+
+```xml
+<PropertyGroup>
+  <Version>1.2.0</Version>
+  <AssemblyVersion>1.2.0.0</AssemblyVersion>
+  <FileVersion>1.2.0.0</FileVersion>
+  <Description>針對特定業務系統的高效能即時檢索與動作擴充外掛模組。</Description>
+</PropertyGroup>
+```
+
+該版本號與描述資訊會自動呈現在 Lertaro **設定 → 外掛模組** 的管理卡片中，方便使用者和開發者直觀核驗元件版本。

@@ -1,24 +1,22 @@
 # LocalSend Settings
 
-Lertaro includes built-in compatibility with the official [LocalSend](https://localsend.org) protocol for local network cross-device transfers, enabling fast file, folder, and plain text sharing between mobile and desktop devices on the same LAN. Located at **Settings → LocalSend**.
+Lertaro includes a built-in transmission engine natively compatible with the open-source [LocalSend](https://localsend.org) protocol. Without requiring internet access or physical cables, you can instantly share files, directories, and raw text across Windows PCs, Macs, Linux workstations, iPhones, iPads, and Android devices on the same local network. The settings page is located under **Settings → LocalSend**.
 
-## Basic Settings
+## 1. Basic & Network Settings
 
-- **Enable LocalSend Transfer** —— Toggles the LocalSend service on or off. When enabled, the tray menu provides a "Send via LocalSend..." option and responds to the global hotkey.
-- **Device Alias** —— Alias displayed when recognized by other LocalSend clients on the LAN. Automatically generated from host system name by default.
-- **Port** —— HTTP/HTTPS port for listening to incoming transfer requests (default `53317`).
+- **Enable LocalSend Transfer Service**: Master switch. When enabled, Lertaro starts a lightweight background listener and activates the "Send to other devices..." item in the tray context menu.
+- **Device Name**: The alias broadcast to other devices across the local subnet. Automatically generated from your computer name by default, and fully customizable (e.g. `Work Laptop`).
+- **Service Port**: The HTTP/HTTPS listener port (follows the official LocalSend standard default `53317`). Can be changed if conflicting with other local services.
 
-## Security & Encryption
+## 2. Security, Encryption & Storage
 
-- **Encrypted Transfer (HTTPS)** —— Uses HTTPS encrypted connection for data transfer when enabled (requires target device HTTPS support).
-- **Receive PIN** —— Optional PIN code required for incoming transfer authorization (leave blank to disable).
+- **Encrypted Transfer (HTTPS)**: Enabled by default. Uses TLS encryption for all cross-device transfers to prevent local packet inspection.
+- **Receive PIN Code**: Optional numeric PIN (4–6 digits). When configured, incoming senders must input this PIN before transfers are accepted (leave blank to disable).
+- **Auto-Save Files**: When checked, incoming transfers from local devices are automatically accepted and written to disk without prompt dialogs.
+- **Save Directory**: The destination folder where received files are saved (defaults to `Downloads\LocalSend`), customizable via the browse button.
 
-## Receiving & Storage
+## 3. Sender Window & Workflows
 
-- **Quick Save (Auto Save)** —— Automatically accepts and saves incoming files from trusted clients without requiring manual confirmation.
-- **Download Location** —— Default destination directory for received files.
-
-## Summon & Transfer Modes
-
-- **Hotkey Summon** —— Press **`Ctrl+S`** by default (configurable in [Hotkeys Settings](./hotkeys-page)) or select "Send via LocalSend..." in tray menu.
-- **Mode Switching** —— Send window supports switching between [ Send Files / Folders ] and [ Send Text ] modes, as well as drag-and-drop file addition directly from search results.
+- **Hotkey Activation**: Press the default global shortcut **`Ctrl+S`** (rebindable under [**Settings → Hotkeys**](./hotkeys-page)) to summon the standalone LocalSend sender window instantly.
+- **Mode Switching**: Toggle seamlessly between **[Send Files / Folders]** and **[Send Text]** modes at the top of the sender window.
+- **Drag-and-Drop Staging**: Drag files directly from Lertaro search results, Quick Panel workspaces, or File Explorer into the sender window. The radar automatically discovers all online devices on the LAN; click any target device card to transmit at wire speed.

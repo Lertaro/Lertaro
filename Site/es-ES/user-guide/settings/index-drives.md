@@ -1,48 +1,60 @@
-# Índice
+# Gestión de indexación
 
-Cinco pestañas, en orden: **Unidades locales**, **Unidades de red**, **WSL** (solo se muestra al detectar una distribución), **Carpetas**, y **Reglas de exclusión**.
+La página de Indexación controla el alcance, la frecuencia de actualización y las reglas de exclusión para discos duros locales, recursos de red, distribuciones WSL y carpetas personalizadas. Contiene cinco pestañas: **Unidades locales**, **Unidades de red**, **WSL** (visible solo si se detectan distribuciones), **Carpetas** y **Reglas de exclusión**.
 
-## Unidades locales
+## 1. Unidades locales
 
-- Tarjeta de estado que resume cuántas unidades y elementos están indexados, más un botón **Reconstruir índice** para un reescaneo completo.
-- Una fila por unidad local: una **casilla de habilitar/deshabilitar**, nombre de la unidad, sistema de archivos (NTFS/ReFS/...), estado actual, número de elementos indexados, y una acción por fila de **Reconstruir**/**Eliminar** — más una acción **Detener** mientras hay una reconstrucción en curso, para toda unidad excepto las NTFS reales (su escaneo no tiene un punto seguro donde interrumpirse).
-- Las unidades NTFS y ReFS registran los cambios de forma continua a través del USN Journal de Windows; otros sistemas de archivos locales (FAT32, exFAT, ...) no tienen ningún journal que leer, así que se vigilan directamente en busca de cambios en su lugar. En cualquier caso, rara vez hace falta una reconstrucción manual, pero está ahí por si algo parece desincronizado — y si una se interrumpe (se detiene, o la app/servicio se reinicia a mitad de escaneo), la siguiente reconstrucción continúa desde donde se quedó en lugar de empezar de cero.
+- **Tarjeta de estado superior**: Muestra el total de unidades físicas y elementos indexados, con un botón global de **Reconstruir índice**.
+- **Filas de unidades**:
+  - **Casilla de activación**: Activa o desactiva la indexación para cada partición individual.
+  - **Sistema de archivos y estado**: Muestra el tipo de sistema de archivos (NTFS, ReFS, FAT32, exFAT), estado y recuento de elementos.
+  - **Acciones por unidad**: Botones independientes de **Reconstruir** y **Eliminar**; muestra un botón dinámico de **Detener** durante el escaneo.
+- **Seguimiento en tiempo real**: Los volúmenes NTFS / ReFS se sincronizan leyendo el diario de cambios USN de Windows; los volúmenes FAT32 / exFAT monitorizan eventos del sistema de archivos.
+- **Reconstrucción sin interrupciones**: Durante la reconstrucción de una unidad, el índice existente sigue respondiendo a las consultas hasta que el nuevo esté listo, realizándose un intercambio instantáneo. Si se interrumpe, se reanuda desde el último punto en el siguiente inicio.
 
-La selección de unidades habilitadas se respeta literalmente: si desmarcas todas las casillas, la indexación de unidades locales permanece deshabilitada en vez de volver a seleccionar todas las unidades en silencio. Las configuraciones existentes de versiones donde una selección vacía significaba «todas las unidades» se migran una sola vez para que una actualización no deshabilite inesperadamente la indexación.
+## 2. Unidades de red
 
-La búsqueda sigue funcionando mientras se reconstruye un índice. La unidad que se está reconstruyendo continúa respondiendo con su índice anterior hasta que el nuevo esté listo, y las demás unidades no se ven afectadas: una reconstrucción nunca te deja con una lista de resultados vacía.
+- **Soporte de almacenamiento en red**: Lista todas las unidades de red asignadas en Windows (SMB / NAS).
+- **Modo de actualización**: Al carecer de diarios USN locales, se puede programar su sondeo:
+  - **Manual** — Se actualiza solo al pulsar "Reconstruir índice".
+  - **Cada 15 minutos** — Recomendado para recursos colaborativos activos.
+  - **Cada hora** — Escaneo periódico equilibrado.
+  - **Diario** — Ideal para almacenamiento estático o de archivo.
+- **Protección contra bucles de enlaces simbólicos**: Algoritmos internos de detección de bucles evitan atascos provocados por enlaces simbólicos recursivos en carpetas NAS.
 
-## Unidades de red
+## 3. WSL (Subsistema de Windows para Linux)
 
-- La misma tarjeta de estado y botón **Reconstruir índice** que Unidades locales.
-- Una fila por cada unidad de red asignada: casilla de habilitar, ruta/nombre, estado (Indexando / Lista / En caché / Fallida / Pendiente / Conectada), número de elementos, y un desplegable **Modo de actualización**:
-  - **Manual** — solo se actualiza bajo demanda (mediante Reconstruir índice).
-  - **Cada 15 minutos**
-  - **Cada hora**
-  - **Diario**
+Aparece automáticamente si se detecta al menos una distribución WSL instalada:
 
-Los recursos de red no exponen un journal de cambios como sí lo hacen los volúmenes NTFS locales, por eso se actualizan según una programación en lugar de en tiempo real. El motor de escaneo incluye un mecanismo integrado de seguimiento de rutas y detección de bucles de enlaces simbólicos, interceptando bucles infinitos en recursos compartidos NAS/SMB para garantizar un recuento preciso.
+- **Detección automática**: Reconoce Ubuntu, Debian, Arch y otras distribuciones.
+- **Estado y programación**: Misma gestión y modos de actualización (Manual / 15 min / Cada hora / Diario).
+- **Consultas con latencia cero**: Busca directamente en el índice en memoria sin despertar ni ralentizar el subsistema Linux.
 
-## WSL
+## 4. Carpetas
 
-Solo se muestra al detectarse al menos una distribución de WSL — la misma estructura que Unidades de red (tarjeta de estado, botón **Reconstruir índice**, y una fila por distribución con estado/número de elementos/**Modo de actualización**). Las distribuciones se detectan automáticamente; no hay ningún paso manual de "añadir".
+Útil cuando se desea indexar carpetas de trabajo específicas en lugar de volúmenes completos:
 
-Los resultados de búsqueda de WSL siempre proceden del índice actual. Lertaro no sondea el sistema de archivos de WSL durante la búsqueda, por lo que el resultado refleja el estado indexado hasta la siguiente actualización o reconstrucción. Abrir o previsualizar un resultado sí puede acceder al archivo, ya que es una acción solicitada explícitamente por el usuario.
+- **Adición múltiple**: Pulsa **Añadir carpeta** para abrir un selector que permite selecciones múltiples con `Ctrl` o `Shift`.
+- **Rutas UNC**: Admite rutas compartidas de red (p. ej. `\\server\share\projects`).
+- **Programación independiente**: Cada carpeta dispone de su propio interruptor, contador y modo de actualización.
 
-## Carpetas
+## 5. Reglas de exclusión
 
-Indexa carpetas individuales arbitrarias en lugar de una unidad o recurso compartido entero — útil para indexar solo un subárbol sin arrastrar todo lo demás de ese volumen.
+Se aplican globalmente a discos locales, red y carpetas, organizadas en tres subpestañas:
 
-- Un botón **Añadir carpeta** abre un selector de carpetas con selección múltiple; mantén pulsada Ctrl o Shift para añadir varias carpetas de una vez. Las selecciones duplicadas se ignoran. Un botón **Reconstruir índice** vuelve a escanear cada carpeta de la lista.
-- Una fila por carpeta añadida: casilla de habilitar, ruta, estado, número de elementos, y el mismo desplegable **Modo de actualización** (Manual / Cada 15 minutos / Cada hora / Diario) que las unidades de red — las carpetas se escanean según una programación en lugar de vigilarse de forma continua, igual que los recursos de red.
-- El selector de carpetas también acepta una **ruta de recurso compartido de red UNC** (por ejemplo, `\\servidor\recurso`, o una subcarpeta dentro de ella) navegando a través de *Red* en el selector — útil para indexar un único recurso compartido o subárbol sin añadir el servidor entero como una unidad de red asignada.
+### Exclusión de rutas
 
-## Reglas de exclusión
+- **Coincidencia por prefijo**: Excluye rutas absolutas (`D:\Cache`) o variables de entorno (`%ProgramData%`, `%APPDATA%`).
 
-Tres subpestañas, cada una con la misma estructura: un cuadro de texto de una sola entrada + botón **Añadir**, una lista de reglas existentes (cada una editable/eliminable), y un cuadro de texto masivo de varias líneas con botones **Generar desde la lista** / **Aplicar a la lista** para editar todo a la vez.
+### Reglas Glob
 
-- **Exclusiones de ruta** — rutas completas o variables de entorno (por ejemplo, `D:\Cache`, `%ProgramData%`).
-- **Comodines glob** — `*` (cualquier carácter en un nombre de archivo), `?` (un solo carácter), `**` (directorios recursivos). Ejemplos: `*.tmp`, `**/node_modules/**`, `bin/**`.
-- **Patrones regex** — expresiones regulares arbitrarias comparadas contra la ruta/nombre de archivo (coincidencia parcial). Ejemplos: `^\.` (archivos ocultos), `~$` (archivos temporales de Office), `\.git\`.
+- **Sintaxis**:
+  - `*`: Coincide con caracteres dentro de un mismo nivel (p. ej. `*.tmp`, `*.log`).
+  - `**`: Coincidencia recursiva entre subdirectorios (p. ej. `**/node_modules/**`, `**/bin/**`, `**/obj/**`).
 
-Las exclusiones se aplican por igual a la indexación local, de red y de carpetas, y las unidades/carpetas de red se vuelven a escanear automáticamente después de aplicar cambios en las reglas de exclusión.
+### Reglas de expresiones regulares
+
+- **Filtrado avanzado**: Coincidencia mediante regex contra rutas y nombres de archivo (p. ej. `^\.` para archivos ocultos, `~\$` para temporales de Office).
+
+> [!TIP]
+> Las exclusiones admiten **adición individual** e **importación/exportación por lotes**: pulsa **Generar desde lista** para exportar las reglas a texto, edítalas y pulsa **Aplicar a la lista** para actualizarlas en bloque.

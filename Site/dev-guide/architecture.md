@@ -1,60 +1,43 @@
-# Architecture
+# System Architecture
 
-![Lertaro architecture](/architecture.svg)
+Lertaro is built upon a multi-process isolation model and a layered architecture, ensuring sub-millisecond retrieval speeds and deep desktop integration while maintaining maximum system stability and security.
 
-## Process split
+![Lertaro Architecture](/architecture.svg)
 
-Lertaro runs as three separate processes, deliberately isolated by privilege level and lifetime:
+## 1. Three-Process Isolation Model
 
-- **`Lertaro.Service`** — a Windows service running as `LocalSystem`. It owns all file indexing:
-  reading the USN Journal and MFT for NTFS/ReFS drives, walking and watching other local file
-  systems directly (they have no journal to read), scanning and caching network shares, and
-  answering search queries over a named pipe. Running this at SYSTEM level means it can read the
-  raw volume metadata every user account is allowed to see, without granting the interactive App
-  process elevated privileges it doesn't need.
-- **`Lertaro.App`** — the per-user, session-level WPF application: the search windows, the
-  Settings window, hotkey handling, and the Actions/QuickLook UI. It talks to the Service over a
-  named pipe (`SearchService`/`UsnServicePipeServer` in `Core.Services`) and never touches the disk
-  index directly. It also hosts a second, per-user pipe of its own (`AppSearchPipeService`) that
-  lets the `lff` CLI companion (see [Command-Line Search](../user-guide/cli)) reuse the App's
-  already-initialized search state — loaded alias/plugin providers, configured network-drive
-  indexes — instead of a bare client process having to replicate that setup itself.
-- **`Lertaro.Service --hook`** — a small separate process hosting the low-level global keyboard
-  hook, so a hook crash or a misbehaving foreground app can't take the main App process down with
-  it. It also loads plugins' window-integration adapters and runs their calls itself — see
-  [Where plugins fit](#where-plugins-fit) below.
+To prevent single component failures from crashing the entire system and to minimize elevated Windows privileges, Lertaro's runtime is decoupled into three independent processes:
 
-## Shared Core
+### 1. Background Indexing Service (`Lertaro.Service`)
 
-`Core` is a class library referenced by both the Service and the App. It holds:
+- **Identity**: Runs continuously as a Windows Service under the `LocalSystem` account.
+- **Responsibilities**: Performs disk indexing and change tracking. Reads NTFS / ReFS USN Change Journals and \$MFT tables; listens to FAT32 / exFAT change events; periodically crawls and caches SMB / NAS network shares.
+- **Security & Performance**: Running at the SYSTEM level allows raw disk volume metadata access without prompting UAC dialogs, returning results to the user-mode App over high-speed named pipes while keeping the UI unprivileged.
 
-- The search engine (`Core/SearchIndex/Fzf/*`) — a fuzzy-matching implementation modeled on the
-  `fzf` command-line tool's algorithm, plus a query parser (`SearchQueryParser`) for drive-letter
-  targeting and path-mode search.
-- The runtime index (`Core/IndexV2/*`) — a memory-mapped, columnar snapshot format built from
-  USN/MFT reads, with an in-memory delta overlay for changes since the last snapshot.
-- IPC contracts (`SearchRequestMessage`, `SearchResponseBinarySerializer`, ...) shared verbatim by
-  both processes, so the App and Service always agree on the wire format.
-- `Logger` — writes to per-process log files (`service.log`, `app.log`, `hook.log`), all readable
-  (but not all writable) from the App's Settings → Service Status log viewer.
+### 2. User Interaction Application (`Lertaro.App`)
 
-## Where plugins fit
+- **Identity**: Standard user-mode per-session WPF desktop application.
+- **Responsibilities**: Hosts the centered Quick Search bar, Full Search window, Settings Center, global hotkey dispatching, action menus (`Ctrl+O`), and QuickLook preview panels.
+- **IPC Bridge & CLI Hosting**: Communicates with the background service via bidirectional named pipes (`Core.Services.SearchService`). It also hosts a dedicated per-user named pipe (`AppSearchPipeService`), allowing external tools like the `lff` CLI companion to reuse the App's initialized memory aliases, plugin providers, and cache trees without separate initialization.
 
-Plugins are `.dll` assemblies referencing `PluginSdk` and are loaded by the App process (see
-[Getting Started](./getting-started) and [Packaging & Deployment](./packaging)). Lertaro ships
-built-in plugins as first-class examples — `Lertaro.Plugins.CoreExtensions` (built-in file
-actions and shell context-menu integration), `Lertaro.Plugins.PinyinAlias` (pinyin
-aliasing for Chinese filenames), and `Lertaro.Plugins.FlowLauncherBridge` (bridging third-party
-Flow Launcher plugins in C#, Python 3.12, Node.js v20 LTS, and Executable formats with isolated runtimes) — see [Example Plugins](./examples) for a walkthrough of native plugins.
+### 3. Global Keyboard Hook & Window Adapter Process (`Lertaro.Service --hook`)
 
-Plugins never talk to the Service directly; they interact with the App through the interfaces
-documented in the Plugin SDK Reference, and with the disk index (when they need custom indexed
-directories) through `DirectoryIndexerService`, which proxies to the Service on their behalf.
+- **Identity**: Dedicated helper process launched with appropriate privileges by the background service.
+- **Responsibilities**: Hosts low-level global keyboard hooks and mouse activity listeners.
+- **UIPI Bypass & Crash Isolation**: Windows User Interface Privilege Isolation (UIPI) prohibits lower-integrity user applications from sending messages to elevated administrator windows. By hosting window adapters ([`IActivePathCollector`, `IFileDialogAdapter`, `IInlineSearchAdapter`](./sdk/system-adapters)) inside this process, Lertaro hooks into Administrator-run Explorers, Total Commander, and file dialogs seamlessly. Furthermore, anti-cheat hooks or crashes cannot bring down the main UI.
 
-Window-integration adapters are the one exception to being App-only:
-[`IActivePathCollector`, `IFileDialogAdapter`, and `IInlineSearchAdapter`](./sdk/system-adapters)
-implementations are loaded a second time into the Hook process, and their calls run there instead
-of in the App. This is what lets Lertaro drive an elevated File Explorer/file dialog/third-party
-file manager window even though the App itself always runs unelevated — Windows blocks a
-lower-privilege process from sending input to a higher-privilege one, so the call has to originate
-from a process running at the same privilege level as the target.
+## 2. Shared Core Library (`Lertaro.Core`)
+
+`Lertaro.Core` is referenced simultaneously by the Service, App, and Hook processes, containing:
+
+- **fzf Fuzzy Matching Engine (`Core/SearchIndex/Fzf/*`)**: Optimized character jump matching, substring scoring, and highlight masks, coupled with `SearchQueryParser` for drive letters and path tokens.
+- **Columnar In-Memory Index (`Core/IndexV2/*`)**: High-performance memory-mapped columnar snapshots with an in-memory delta overlay for sub-millisecond searches across hundreds of millions of files.
+- **Binary IPC Protocols**: Standard serialized message structures (`SearchRequestMessage`, binary serializers) enabling zero-copy inter-process communication.
+- **Multi-Process Logging (`Logger`)**: Structured logging output to `service.log`, `app.log`, and `hook.log`, presented uniformly within the Settings live log viewer.
+
+## 3. Plugin Architecture & Lifecycle
+
+All plugins are built on `Lertaro.PluginSdk` and dynamically loaded by `Lertaro.App`:
+
+- **Zero-Privilege Direct Access**: Plugins interact exclusively with the App process. If a plugin requires custom directory indexing, it delegates requests through `DirectoryIndexerService`.
+- **Dual-Loading Mechanism**: Search sources, actions, and UI components run solely in the App process; window and file dialog adapters (`IActivePathCollector` etc.) are also loaded into the Hook process to handle cross-integrity window automation.

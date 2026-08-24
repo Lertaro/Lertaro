@@ -1,54 +1,69 @@
-# 시작하기
+# 빠른 시작
 
-## 플러그인 프로젝트 스캐폴딩
+이 장에서는 Lertaro용 네이티브 C# 플러그인 프로젝트를 처음부터 생성하고, 핵심 인터페이스를 구현하며, 로컬에서 로드 및 디버깅하는 과정을 안내합니다.
 
-플러그인은 호스트 앱과 동일한 대상 프레임워크(`net10.0-windows`)를 타겟팅하고 `PluginSdk`를 참조하는
-평범한 .NET 클래스 라이브러리입니다.
+## 1. 플러그인 프로젝트 생성
+
+Lertaro 플러그인은 표준 .NET 10 클래스 라이브러리 프로젝트입니다. C# 클래스 라이브러리를 생성하고 `.csproj` 파일을 다음과 같이 구성합니다.
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
+    <!-- XAML/WPF 커스텀 UI 컨트롤을 직접 작성할 때만 UseWPF 활성화 -->
     <UseWPF>true</UseWPF>
-    <AssemblyName>YourCompany.Plugins.YourPlugin</AssemblyName>
+    <AssemblyName>YourCompany.Plugins.MyCustomPlugin</AssemblyName>
     <Version>1.0.0</Version>
   </PropertyGroup>
+
   <ItemGroup>
-    <!-- Reference Lertaro.PluginSdk.dll from your Lertaro install directory, or PluginSdk.csproj
-         directly if you're building inside the Lertaro repo itself. -->
-    <ProjectReference Include="..\..\PluginSdk\PluginSdk.csproj" />
+    <!-- Lertaro 설치 경로의 Lertaro.PluginSdk.dll 참조 -->
+    <Reference Include="Lertaro.PluginSdk">
+      <HintPath>..\..\App\Lertaro.PluginSdk.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 </Project>
 ```
 
-`UseWPF`는 플러그인이 직접 WPF UI(커스텀 미리보기, 테마 리소스 딕셔너리 등)를 렌더링할 때만 필요합니다 —
-순수하게 검색 제공자 로직만 있는 플러그인이라면 필요하지 않습니다.
+> [!TIP]
+> 검색 소스, 별칭 엔진, CLI 도구 등 순수 로직형 플러그인은 `<UseWPF>`가 불필요합니다. `PluginSdk.dll`의 `<Private>`을 `false`로 설정하면 SDK 자체가 출력 디렉토리에 중복 복사되는 것을 방지할 수 있습니다.
 
-## `IPlugin` 구현하기
+## 2. 플러그인 진입점 `IPlugin` 구현
 
-모든 플러그인은 `IPlugin`을 구현하는 진입점을 정확히 하나 가집니다.
+각 플러그인 어셈블리에는 메인 진입점 역할을 하는 `IPlugin` 인터페이스 구현 공개 클래스가 반드시 하나 포함되어야 합니다.
 
 ```csharp
-public class YourPlugin : IPlugin
+using Lertaro.PluginSdk;
+
+namespace YourCompany.Plugins.MyCustomPlugin;
+
+public class MyCustomPlugin : IPlugin
 {
-    public string Name => "Your Plugin";
+    public string Name => "My Custom Plugin";
+    public string Description => "Lertaro SDK 플러그인 개발 기초를 보여주는 예제입니다.";
 }
 ```
 
-그 다음, 여러분의 플러그인이 실제로 필요로 하는 추가 인터페이스를 구현하면 됩니다 — 전체 목록은
-[Plugin SDK 참조](./sdk/core-search-actions)를 참고하세요. 대부분의 실제 플러그인은 `IPlugin`에 더해
-한두 개의 인터페이스를 추가로 구현합니다(`CoreExtensionsPlugin`은 `IPlugin`, `IActionProvider`,
-`IConfigurable`을 구현합니다. [예제 플러그인](./examples) 참고).
+이 클래스 또는 별도의 컴포넌트 클래스에 필요한 SDK 인터페이스를 추가로 구현합니다. 예를 들어 실시간 계산 응답을 제공하려면 `IInstantResultProvider`, 설정 폼을 제공하려면 `IConfigurable`을 구현합니다.
 
-## 로드하기
+## 3. 배포 및 로드 메커니즘
 
-플러그인을 빌드한 뒤, 출력된 DLL을 Lertaro App의 `Plugins/` 폴더(`Lertaro.App.exe` 옆)에 복사하세요 —
-App은 시작 시 해당 폴더를 스캔하여 발견되는 모든 플러그인 어셈블리를 로드합니다. 함께 제공되는 플러그인들이
-이 단계를 각자의 빌드 과정에서 어떻게 자동화하는지는 [패키징 및 배포](./packaging)를 참고하세요.
+1. 프로젝트를 빌드하여 `YourCompany.Plugins.MyCustomPlugin.dll`을 생성합니다.
+2. 컴파일된 DLL(및 의존하는 서드파티 라이브러리)을 Lertaro 설치 디렉토리 하위의 `Plugins\MyCustomPlugin\` 폴더에 배치합니다.
+3. Lertaro를 실행(또는 재시작)하면 App 프로세스가 `Plugins/` 디렉토리를 자동 스캔하여 어셈블리를 로드합니다.
+4. **설정 → 플러그인**으로 이동하여 설치된 플러그인 및 컴포넌트 상태를 확인합니다.
 
-## 디버깅
+## 4. 디버깅 및 로그 출력
 
-플러그인 전반에서 (`PluginSdk`의) `Logger.Log(message, level)`을 사용하세요 — 그 출력은 **설정 → 서비스
-상태** 아래의 **App** 로그 탭에 나타나며, 레벨별로 필터링하고 키워드로 검색할 수 있다는 점까지 호스트 앱
-자체 로그와 완전히 동일합니다.
+플러그인 코드 내에서는 `PluginSdk.Services.Logger`를 사용하여 로깅을 수행하는 것을 권장합니다.
+
+```csharp
+using Lertaro.PluginSdk.Services;
+
+Logger.Log("플러그인 초기화가 완료되었으며 서비스가 등록되었습니다.", LogLevel.Info);
+```
+
+- 출력된 로그는 **설정 → 서비스 상태 → App 탭**에 실시간으로 표시됩니다.
+- 로그 레벨(Error / Warn / Info / Debug) 필터링 및 키워드 검색을 지원하여 개발 중 문제를 손쉽게 추적할 수 있습니다.

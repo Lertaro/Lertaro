@@ -1,35 +1,40 @@
-# About
+# About & Updates
 
-Shows version numbers for the App, Core, Service, and CLI components (colored to reflect whether
-the service is currently healthy), a short description of Lertaro, and links to the project
-homepage and the online user guide.
+The About page displays component versions, provides one-click access to user and system storage directories, and supports manual update checks and seamless in-place upgrades. The page is located at **Settings → About**.
 
-## Data folders
+## 1. Component Versions & Project Info
 
-Two more links, right below those, open the folders Lertaro reads and writes its own
-configuration from — each shows the actual path as the clickable link text, creating the folder
-first if it doesn't exist yet:
+The top section displays independent version numbers across Lertaro's four architectural components:
 
-- **User Data Folder** — the per-user folder holding `user-settings.json`. Every time settings
-  are saved, the previous file is rotated into `user-settings.json.bak.1` (shifting any older
-  backups down, up to `.bak.5`) before the new one is written, so a bad edit or a crash mid-save
-  always leaves a recent copy to restore from.
-- **Machine Data Folder** — the shared, machine-wide folder used by the background service
-  (`machine-settings.json`, index caches, and service-side logs).
+- **App Version**: Foreground WPF user interface version.
+- **Core Version**: Core search and indexing logic library version.
+- **Service Version**: Background Windows indexing service version (text color dynamically indicates service connectivity and health).
+- **CLI Version**: Command-line interactive utility `lff` version.
 
-The installed build uses `%LocalAppData%\Lertaro` and `%ProgramData%\Lertaro`. A portable build uses `Data\Users\<SID hash>` and `Data\Machine` beside the application; if that portable `Data` folder has not been created yet, existing installed data is reused for compatibility. See [Portable data](../getting-started#portable-data) for the precedence rule.
+Direct links to the official website, GitHub repository, and documentation center are provided below.
 
-## Checking for updates
+## 2. Data Directories & 5-Stage Backup Rotation
 
-- **Check Update** button — queries for a newer release; the button's own label reflects progress
-  ("Checking...", then either "up to date" or the new version number found).
-- If a non-administrator account can't stop the background service to install an update in place,
-  a warning banner explains this and points you to the manual download page instead.
-- Once a new version is found:
-  - **Silent Auto-Update** — downloads and installs in the background, showing a progress bar,
-    then restarts Lertaro automatically.
-  - **Go to Download Page** — opens the GitHub release page in your browser for a manual install.
+Clickable links directly open storage directories in File Explorer (folders are created automatically if they do not yet exist):
 
-This mirrors the **Auto check for updates** / **Auto silent update** checkboxes under
-[General → System](./general#system) — those control whether this check happens automatically on
-startup; this page lets you trigger it manually at any time.
+### User Data Directory
+
+- **Contents**: Stores per-user settings (`user-settings.json`), search and keyword history, user caches, and security certificates.
+- **5-Stage Backup Rotation**: Whenever settings are saved, Lertaro automatically rotates existing configuration files to `user-settings.json.bak.1`, cascading up to `.bak.5`. Even in unexpected power cuts or misconfigurations, you can restore from the latest 5 backups.
+
+### Machine Data Directory
+
+- **Contents**: Stores machine-level configuration (`machine-settings.json`), persistent physical index caches, and background service logs.
+
+### Storage Path Architecture
+
+- **Installer Version**: User data is placed in `%LocalAppData%\Lertaro`, and machine data in `%ProgramData%\Lertaro`.
+- **Portable Version**: User data is placed in `Data\Users\<SID hash>`, and machine data in `Data\Machine` next to the executable (see [**Portable Data Isolation**](../getting-started#portable-data-isolation-architecture)).
+
+## 3. Update Checks & In-Place Upgrades
+
+- **Check for Updates**: Manually queries online repositories for newer releases with dynamic button state feedback ("Checking for updates..." → "Up to date" or release version details).
+- **Upgrade Paths When Updates Are Found**:
+  - **Silent In-Place Update** — Downloads and installs updates in the background, restarting Lertaro seamlessly.
+  - **Go to Download Page** — Opens the GitHub Releases page in your default browser for manual package downloads.
+- **Permission Safety Notices**: If running under a non-administrator account unable to restart the background service for in-place updates, a clear guidance banner directs you to the manual download page.

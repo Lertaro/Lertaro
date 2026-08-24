@@ -1,29 +1,26 @@
 # Favorites
 
-Pin frequently-used folders, files, or URLs so they're always one keystroke away.
+Favorites allows you to pin frequently accessed folders, files, scripts, or web URLs with custom display names and top search priority. The settings page is located at **Settings → Favorites**.
 
-## Adding a favorite
+## 1. Adding Favorite Items
 
-- **Display Name** — optional; if left blank and the target is a local path, it's auto-filled from
-  the path's filename.
-- **Target Path** — a local path, or an `http://`/`https://` URL.
-- **Browse Folder** / **Browse File** buttons open a native picker instead of typing the path.
-- **Add** button — enabled once a path is entered.
+Using the form at the top:
 
-## Managing the list
+- **Display Name**: Optional custom alias. If left empty and the target is a local path, Lertaro automatically uses the target folder or filename.
+- **Target Path**: Accepts absolute local file/directory paths or full URLs starting with `http://` / `https://`.
+- **Browse Picker**: Click **Browse Folder** or **Browse File** to open native selection dialogs.
+- **Add**: Click **Add** once a valid path is entered to save the item.
 
-Each favorite in the list shows its name and target path, with per-row actions:
+## 2. Managing List & Drag-and-Drop Ordering
 
-- **Move Up** / **Move Down** — reorders the list, which also affects how favorites rank against
-  other search results. Each row can also be dragged directly by the six-dot handle on its left
-  edge — the same drag-to-reorder handle used by every other reorderable list in Settings (Result
-  Type Priority, Quick Navigation Order, Sidebar Filter Order, and Results Grid Column Order).
-- **Edit** — loads the item back into the fields above for changes.
-- **Remove** — deletes it.
+The list below displays all saved favorites with granular management controls:
 
-## How favorites show up in search
+- **Six-Dot Drag Handle**: Every row includes a six-dot drag handle on the left to reorder items via drag-and-drop. You can also use the **Move Up** / **Move Down** buttons. The sequence here directly determines their ranking in search results and Quick Navigation menus.
+- **Edit Item**: Loads the item's data back into the top form for editing.
+- **Delete Item**: Safely removes the entry from Favorites.
 
-A matching favorite appears in results with a **★** marker next to its folder/path label, and is
-searchable by its display name — including pinyin, if the name contains Chinese characters, the
-same as any other result. This is Lertaro's closest equivalent to a custom search alias; see
-[Search Syntax](../search-syntax#favorites-not-custom-aliases).
+## 3. Search Recall & Visual Appearance
+
+- **Starred Star Badge (★)**: Matching favorite items display a prominent **★** badge beside their path in search results.
+- **Custom Alias Recall**: Assign memorable names to deeply nested paths (e.g. naming `D:\Workspace\2026\Q1\Financial\Summary.xlsx` as `Q1 Financials`). Searching for the alias recalls the item instantly.
+- **Multi-surface Aggregation**: Favorites automatically sync to the [**Quick Navigation**](../hotkeys#3-quick-navigation-mouse-triggers) menu and the [**Quick Panel**](./quick-panel#4-plugin-tabs) Favorites tab.

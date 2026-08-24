@@ -1,55 +1,69 @@
 # Getting Started
 
-## Scaffold a plugin project
+This chapter walks you through creating a native C# plugin for Lertaro from scratch, implementing core interfaces, and testing it locally.
 
-A plugin is a plain .NET class library targeting the same target framework as the host app
-(`net10.0-windows`), referencing `PluginSdk`:
+## 1. Setting Up the Plugin Project
+
+A Lertaro plugin is a standard .NET 10 class library project. Create a new C# class library and configure the `.csproj` file as follows:
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
+    <!-- Enable UseWPF only if your plugin renders custom XAML/WPF controls -->
     <UseWPF>true</UseWPF>
-    <AssemblyName>YourCompany.Plugins.YourPlugin</AssemblyName>
+    <AssemblyName>YourCompany.Plugins.MyCustomPlugin</AssemblyName>
     <Version>1.0.0</Version>
   </PropertyGroup>
+
   <ItemGroup>
-    <!-- Reference Lertaro.PluginSdk.dll from your Lertaro install directory, or PluginSdk.csproj
-         directly if you're building inside the Lertaro repo itself. -->
-    <ProjectReference Include="..\..\PluginSdk\PluginSdk.csproj" />
+    <!-- Reference Lertaro.PluginSdk.dll from your Lertaro installation directory -->
+    <Reference Include="Lertaro.PluginSdk">
+      <HintPath>..\..\App\Lertaro.PluginSdk.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 </Project>
 ```
 
-`UseWPF` is only required if your plugin renders any WPF UI itself (a custom preview, a theme
-resource dictionary, etc.) — a plugin that's pure search-provider logic doesn't need it.
+> [!TIP]
+> Pure logic plugins (such as search providers, alias engines, or CLI helpers) do not require `<UseWPF>`. Setting `<Private>false</Private>` on `PluginSdk.dll` avoids redundant copying of the SDK into your build output.
 
-## Implement `IPlugin`
+## 2. Implementing the `IPlugin` Entry Point
 
-Every plugin has exactly one entry point implementing `IPlugin`:
+Every plugin assembly must contain exactly one public class implementing the `IPlugin` interface as its primary entry point:
 
 ```csharp
-public class YourPlugin : IPlugin
+using Lertaro.PluginSdk;
+
+namespace YourCompany.Plugins.MyCustomPlugin;
+
+public class MyCustomPlugin : IPlugin
 {
-    public string Name => "Your Plugin";
+    public string Name => "My Custom Plugin";
+    public string Description => "A sample plugin demonstrating Lertaro SDK integration.";
 }
 ```
 
-From there, implement whichever additional interfaces your plugin actually needs — see the
-[Plugin SDK Reference](./sdk/core-search-actions) for the full list. Most real plugins implement
-`IPlugin` plus one or two more (`CoreExtensionsPlugin` implements `IPlugin`, `IActionProvider`, and
-`IConfigurable`; see [Example Plugins](./examples)).
+From here, you can implement additional SDK interfaces on the same class or on separate component classes. For instance, implement `IInstantResultProvider` to calculate dynamic answers or `IConfigurable` to provide a schema-driven configuration form.
 
-## Load it
+## 3. Deployment & Loading
 
-Build your plugin and copy the output DLL into the Lertaro App's `Plugins/` folder next to
-`Lertaro.App.exe` — the App scans that folder at startup and loads every plugin assembly it
-finds. See [Packaging & Deployment](./packaging) for how the shipped plugins automate this step as
-part of their own build.
+1. Build your project to produce `YourCompany.Plugins.MyCustomPlugin.dll`.
+2. Place the compiled DLL (along with any third-party dependencies) into a subfolder under `Plugins\MyCustomPlugin\` within the Lertaro App root.
+3. Start or restart Lertaro; the App process will automatically scan `Plugins/` and load the assembly.
+4. Navigate to **Settings → Plugins** to inspect your active components and settings.
 
-## Debugging
+## 4. Debugging & Logging
 
-Use `Logger.Log(message, level)` (from `PluginSdk`) throughout your plugin — its output lands in
-the **App** log tab under **Settings → Service Status**, filterable by level and searchable by
-keyword, exactly like the host app's own logs.
+Use `PluginSdk.Services.Logger` for all application logging inside your plugin:
+
+```csharp
+using Lertaro.PluginSdk.Services;
+
+Logger.Log("Plugin initialized successfully and mounted services.", LogLevel.Info);
+```
+
+- Output appears in real-time under **Settings → Service Status → App Tab**.
+- Filter logs directly by severity (Error / Warn / Info / Debug) and perform instant keyword searches to streamline development.

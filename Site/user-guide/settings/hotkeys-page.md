@@ -1,53 +1,48 @@
-# Hotkeys (Settings Page)
+# Hotkeys Settings
 
-Three tabs: **Global**, **Plugin Actions**, and **Process Blacklist**. See the
-[Hotkeys](../hotkeys) page for what each shortcut actually does — this page documents the settings
-UI itself.
+The Hotkeys settings page centralizes management of global summon hotkeys, in-app navigation keys, plugin action shortcuts, and foreground process filtering rules. The top tabs include: **Global**, **Plugin Actions**, and **Process Blacklist**.
 
-## Global
+## 1. Global
 
-**Global Hotkeys** group:
+### Global Hotkeys Group
 
-- **Show/Hide Quick Search** — recorder control; accepts either a bare modifier (double-tap mode,
-  default `Ctrl`) or a full combo. Next to it, **Still respond while a fullscreen app is focused**
-  — checkbox, off by default — opts this hotkey (and Quick Switch, and inline-search activation)
-  out of the automatic fullscreen exemption described under [Process Blacklist](#process-blacklist)
-  below.
-- **Quick Switch** — default `Ctrl+G`.
+- **Show/Hide Quick Search**: Dedicated key recording box. Supports **double-tap mode** (default double `Ctrl`, configurable to double `Alt` or `Shift`) as well as **standard key combinations** (e.g. `Alt+Space`, `Win+Space`).
+- **Respond when focused on full-screen applications**: Checkbox (default disabled). When enabled, Lertaro responds to hotkeys even when an exclusive fullscreen game or media player is active; when disabled, keys are bypassed silently to protect gameplay.
+- **Quick Jump**: Default `Ctrl+G`. In file dialogs, jumps immediately to the directory most recently browsed in supported file managers.
 
-**Function Keys** group:
+### Navigation & Function Keys Group
 
-- Next Item (`Ctrl+N`), Previous Item (`Ctrl+P`), Jump-to-Result modifier (default `Ctrl`, paired
-  with digits 1–9), Open Actions Menu (`Ctrl+O`), Complete from Selection (`Ctrl+Tab`), QuickLook
-  (`Alt+P`), Previous/Next Keyword History (`Alt+Up` / `Alt+Down`), Delete Keyword History Entry
-  (`Ctrl+Delete`), Open Full Window (default `Ctrl+F` — opens the full window directly, carrying
-  over the current query; same effect as left-clicking the Quick Window's own logo and choosing
-  Show Main Window, without that extra click).
-- Every recorder here accepts any key or combo you press — including keys like a bare `Tab` — and
-  that binding takes priority over any hardcoded default meaning that key might otherwise have.
+Provides dedicated key recording controls accepting custom single keys or combinations:
 
-**Quick Navigation** group:
+- **Select Next / Previous Item**: Default `Ctrl+N` / `Ctrl+P` (equivalent to `↓` / `↑`).
+- **Jump to Result Modifier**: Default `Ctrl`, used with numbers `1`–`9` for instant activation.
+- **Open Action Menu**: Default `Ctrl+O` (equivalent to `→`).
+- **Autocomplete from Selection**: Default `Ctrl+Tab`.
+- **QuickLook Instant Preview**: Default `Alt+P`.
+- **Previous / Next Search Term**: Default `Alt+Up` / `Alt+Down`.
+- **Delete Search History Term**: Default `Ctrl+Delete`.
+- **Open Full Window**: Default `Ctrl+F`.
+- **Open LocalSend Window**: Default `Ctrl+S`.
+- **Pin Window (Keep Visible)**: Default `Ctrl+T`.
+- **Toggle Quick Panel**: Default `Ctrl+F2`.
 
-- **Double left-click in empty space** — checkbox, default on.
-- **Middle-click in empty space** — checkbox, default on.
+### Quick Navigation Mouse Triggers Group
 
-## Plugin Actions
+- **Double-click left button on blank area**: Checkbox (default enabled). Pops up the Quick Navigation menu on desktop or File Explorer empty spaces.
+- **Middle-click on blank area**: Checkbox (default enabled). Pops up the Quick Navigation menu on desktop, File Explorer, or open/save file dialogs.
 
-One entry per action a plugin has registered (e.g. copy path, run as admin), grouped by plugin
-name, each with its own hotkey recorder. Falls back to the plugin's own suggested default until you
-change it.
+## 2. Plugin Actions
 
-## Process Blacklist {#process-blacklist}
+All action shortcuts registered by plugins (e.g. Copy Full Path `Ctrl+Shift+C`, Cut `Ctrl+X`, Copy `Ctrl+C`, Paste `Ctrl+V`, Delete `Delete`, Permanent Delete `Shift+Delete`) are grouped here.
 
-Add executable names (e.g. `game.exe`) whose foreground focus should suppress Lertaro's global
-hotkeys, keystroke interception, and the quick navigation double-click/middle-click mouse triggers
-entirely. Case-insensitive, `.exe` suffix optional. Supports the same add-one / bulk-edit pattern as
-the exclusion rules under **Index**: a single-entry textbox plus **Add Process**, a list of
-existing entries, and a bulk textbox with **Generate Text** / **Apply Text**.
+- **Categorized View**: Neatly organized by the originating plugin.
+- **Rebindable**: Each action includes its own key recording control.
 
-This is the fix for hotkey conflicts with fullscreen games or other apps that grab raw keyboard
-input — see [Troubleshooting](../troubleshooting#the-global-hotkey-doesn-t-respond). Any foreground
-app that's genuinely full-screen gets the same treatment automatically, with no entry needed here —
-unless **Still respond while a fullscreen app is focused** (under **Global**, next to Show/Hide
-Quick Search) is turned on, which opts back out of that exemption entirely. Either way, an active
-file dialog is always exempt, so quick navigation still works there.
+## 3. Process Blacklist
+
+Configures silence rules for specific foreground applications. When a blacklisted process is focused, Lertaro bypasses all global hotkeys and mouse triggers without interception.
+
+- **Case-Insensitive**: Both `game.exe` and `game` are matched.
+- **Add Single Entry**: Type the process name and click **Add Process**.
+- **Batch Editing**: Click **Generate Text** to export current entries to multi-line text, or paste a list and click **Apply to List** for batch updates.
+- **File Dialog Exemption**: Even if an application is blacklisted, its native file selection dialogs remain exempted, ensuring seamless Inline Search and Quick Navigation.

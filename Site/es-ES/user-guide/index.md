@@ -1,33 +1,21 @@
-# Manual de Usuario
+# Guía del usuario
 
-Lertaro es un lanzador de búsqueda de archivos rápido y centrado en el teclado para Windows. Indexa tus unidades
-locales (NTFS y ReFS a través de sus journals de cambios, otros sistemas de archivos vigilándolos directamente) y
-los recursos compartidos de red en segundo plano, y luego te permite saltar a cualquier archivo, carpeta o
-aplicación en una fracción de segundo.
+¡Te damos la bienvenida a la Guía oficial del usuario de Lertaro! Lertaro es un lanzador de búsqueda de archivos ultrarrápido y una herramienta de productividad diseñada a medida para Windows. Al mantener un árbol de índices en memoria en segundo plano (mediante diarios de cambios USN de NTFS/ReFS y eventos del sistema de archivos en tiempo real), ofrece respuestas de búsqueda en submilisegundos en millones de archivos.
 
-Este manual cubre todo lo que un usuario habitual necesita:
+Esta guía cubre de forma sistemática todas las funciones esenciales y avanzadas necesarias para tu flujo de trabajo:
 
-- **[Primeros pasos](./getting-started)** — instalar Lertaro y entender sus tres ventanas de búsqueda
-  (principal, rápida, en línea).
-- **[Sintaxis de búsqueda](./search-syntax)** — coincidencia difusa, operadores de exclusión/exacto/prefijo/sufijo,
-  grupos OR, segmentación por unidad, modo de ruta y alias en pinyin para nombres de archivo en chino.
-- **[Atajos de teclado](./hotkeys)** — cada atajo configurable y cada tecla fija, con sus asignaciones
-  predeterminadas.
-- **[Menú de acciones y vista previa](./actions-and-preview)** — la lista de acciones al estilo del clic derecho y
-  el panel de vista previa QuickLook.
-- **[Analizador de espacio](./space-analyzer)** — un mapa de árbol rápido que usa los índices existentes para mostrar el espacio relativo de archivos y carpetas.
-- **[Respuestas instantáneas y atajos de palabra clave](./instant-answers)** — la calculadora, las variables de
-  entorno, los atajos de comandos y los plugins activados por palabra clave como Gestor de procesos, Cambio de
-  ventana, Datos del navegador, Búsqueda de configuración, Búsqueda web y Traducción.
-- **[Búsqueda por línea de comandos (lff)](./cli)** — el complemento de línea de comandos al estilo fzf para
-  buscar desde una terminal.
-- **[Protocolo URI (lertaro://)](./uri-protocol)** — saltar directamente a una búsqueda o a un ajuste concreto
-  desde un enlace, otra aplicación o un script.
-- **[Gestores de archivos compatibles](./file-manager-support)** — en qué gestores de archivos y diálogos de
-  selección de archivos puede acoplarse Lertaro, desde cuáles puede activar la Navegación rápida, o de cuáles
-  puede detectar la carpeta actual.
-- **[Referencia de configuración](./settings/)** — cada página, pestaña y opción de configuración, detallada.
-- **[Solución de problemas](./troubleshooting)** — problemas habituales y cómo solucionarlos.
-- **[Donar](./donate)** — si Lertaro te ha resultado útil.
+- **[Primeros pasos](./getting-started)** —— Instalación, versión portátil, resumen de arquitectura, tres modalidades de ventana (Rápida / Principal / Incrustada) y operaciones básicas.
+- **[Sintaxis de búsqueda](./search-syntax)** —— Coincidencia difusa, operadores (`!` exclusión, `'` exacta, `^` prefijo, `$` sufijo, `|` OR), prefijos de unidad, modo ruta y alias de pinyin.
+- **[Atajos de teclado y gestos](./hotkeys)** —— Tabla de atajos globales, gestos de ratón en el logotipo, menús en cascada de Navegación rápida y teclas fijas.
+- **[Acciones y vista previa](./actions-and-preview)** —— Menú contextual de acciones (`Ctrl+O`), lista de la Ventana principal, vista previa multimedia/documentos con QuickLook y tarjetas de plugins.
+- **[Analizador de espacio](./space-analyzer)** —— Visualización Treemap con latencia cero y desglose ordenado por tamaño para limpiar almacenamiento.
+- **[Respuestas instantáneas y funciones con palabras clave](./instant-answers)** —— Calculadora, variables de entorno, comandos y plugins como Gestor de procesos (`ps`), Conmutador de ventanas (`win`), Datos del navegador (`bm`) y Configuración (`set`).
+- **[Búsqueda por línea de comandos (lff)](./cli)** —— Buscador difuso interactivo para terminal que comparte el índice en memoria para scripts y tuberías.
+- **[Protocolo URI (lertaro://)](./uri-protocol)** —— Enlaces directos desde navegadores, accesos directos y scripts hacia búsquedas, configuración y transferencias LocalSend.
+- **[Exploradores de archivos compatibles](./file-manager-support)** —— Integración con diálogos de Windows, Directory Opus, Total Commander, XYplorer, Files y One Commander.
+- **[Referencia de configuración](./settings/)** —— Desglose completo de Estado del servicio, Indexación, General, Apariencia, Atajos y Plugins.
+- **[Solución de problemas](./troubleshooting)** —— Guía paso a paso para diagnosticar atajos, indexación, métodos de entrada (IME) y consulta de registros.
+- **[Donaciones y apoyo](./donate)** —— Apoya el desarrollo continuo y el mantenimiento de código abierto de Lertaro.
 
-Si estás configurando Lertaro por primera vez, empieza por **Primeros pasos**.
+> [!TIP]
+> Si es la primera vez que utilizas Lertaro, te recomendamos comenzar por [**Primeros pasos**](./getting-started).

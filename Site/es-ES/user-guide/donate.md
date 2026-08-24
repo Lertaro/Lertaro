@@ -1,17 +1,16 @@
-# 🎁 Donación y apoyo
+# 🎁 Donaciones y apoyo
 
-Si te resulta extremadamente útil Lertaro, sientes que mejora tu flujo de trabajo diario y te gustaría apoyar su
-desarrollo y mantenimiento continuos, ¡muchas gracias por tu generoso apoyo y patrocinio!
+Si Lertaro te resulta de gran utilidad, mejora tu productividad diaria y deseas apoyar su mantenimiento y desarrollo continuo, ¡agradecemos enormemente tu generosidad y contribución!
 
 ## Canales de donación
 
-Por ahora, solo admitimos donaciones en la criptomoneda Tether USDT:
+Actualmente aceptamos contribuciones en criptomoneda mediante Tether USDT:
 
-- Dirección **USDT (TRC20)**:
+- Dirección de depósito **USDT (TRC20)**:
   ```text
   TNDh3husX1trDW2ZPm4ZZYdoCoCRCZQXn5
   ```
 
 ---
 
-*¡Muchísimas gracias por tu amabilidad! Cada contribución nos anima a seguir mejorando y actualizando Lertaro.*
+*¡Muchísimas gracias por tu generosidad! Cada muestra de apoyo impulsa la evolución y mejora constante de Lertaro.*

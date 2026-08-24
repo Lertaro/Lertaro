@@ -1,18 +1,21 @@
 # System & Dialog Adapters
 
-These interfaces let a plugin integrate Lertaro with *other* windows — File Explorer, native
-file-picker dialogs, third-party file managers — rather than just its own search windows.
+This chapter introduces adapter interfaces in `Lertaro.PluginSdk` for deep window docking, active directory extraction, and inline search integration across Windows File Explorer, native file dialogs, and third-party file managers.
 
-## `IActivePathCollector`
+> [!NOTE]
+> `IActivePathCollector`, `IFileDialogAdapter`, and `IInlineSearchAdapter` implementations are loaded into the **elevated Hook helper process** by the host to bypass Windows UIPI isolation when interacting with administrator-run windows.
 
-Extracts the "current directory" from whatever foreground window is active, so Lertaro knows
-what to scope a search to (or resolve a relative action against).
+## 1. Active Path Collector `IActivePathCollector`
+
+Extracts the active working directory from the focused foreground window, enabling Lertaro to scope inline searches or resolve relative paths:
 
 ```csharp
-interface IActivePathCollector
+namespace Lertaro.PluginSdk;
+
+public interface IActivePathCollector
 {
     string Name { get; }
-    string TargetName { get; }   // localized name of the app/manager this targets
+    string TargetName { get; }   // Target manager name (e.g. "Directory Opus", "Total Commander")
     bool CanHandle(string className);
     string? TryGetPath(
         IntPtr activeHwnd, string activeClassName,
@@ -21,96 +24,67 @@ interface IActivePathCollector
 }
 ```
 
-Both the active (focused) element and its containing window are passed in separately, since many
-file managers put the actual path in a child control (an address bar, a tree view selection) that
-isn't the top-level window itself.
+- Passes the focused control (`activeHwnd`) and parent window (`windowHwnd`) separately to handle cases where paths reside inside nested controls (address bars, tree views).
 
-## `IFileDialogAdapter`
+## 2. Native File Dialog Adapter `IFileDialogAdapter`
 
-Reads and drives natively-rendered Windows Open/Save file dialogs, so Lertaro can be embedded
-into them (see [`IInlineSearchAdapter`](#iinlinesearchadapter) below) and keep them in sync.
+Inspects and controls native Windows Open / Save file dialogs:
 
 ```csharp
-interface IFileDialogAdapter
+public interface IFileDialogAdapter
 {
     string Name { get; }
     bool CanHandle(IntPtr hwnd, string className, string processName);
     string? GetCurrentPath(IntPtr hwnd);
     bool NavigateTo(IntPtr hwnd, string targetPath);
-    bool TargetIsFolderOnly { get; } // default: false
-    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor); // default: true
+    bool TargetIsFolderOnly => false;  // True if target input accepts only folders (e.g. archive extraction)
+    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => true;
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
     bool RestoreFocus(IntPtr hwnd);
 }
 ```
 
-`TargetIsFolderOnly` is `true` for a dialog whose target field can only ever hold a folder — an
-archive tool's "extract to" destination, say — never a specific file, unlike an Open/Save dialog's
-filename box. The host uses it to decide whether a picked search result that's a file needs
-resolving to its containing folder before ever reaching `NavigateTo`, rather than leaving that to
-`NavigateTo` itself: that call runs in the elevated Hook process, where `File.Exists`/
-`Directory.Exists` can't be trusted for a drive the interactive user mapped without elevation.
-Leave it at its default `false` for anything with a real filename box.
+- **`TargetIsFolderOnly`**: When `true`, if the user selects a file from search results, the host automatically resolves its parent folder before invoking `NavigateTo`.
+- **`AdapterRect`**: Contains physical pixel boundaries `{ Left, Top, Right, Bottom }`.
 
-## `IInlineSearchAdapter`
+## 3. Inline Search Adapter `IInlineSearchAdapter`
 
-Embeds a Lertaro search bar directly into a target file dialog or file explorer window (the
-"inline window" from the User Manual), keeping selection in sync in both directions.
+Embeds the Lertaro search bar directly into target file dialogs or File Explorer windows, maintaining two-way selection synchronization:
 
 ```csharp
-interface IInlineSearchAdapter
+public interface IInlineSearchAdapter
 {
     string Name { get; }
-    bool IsFileExplorer { get; }   // default false
+    bool IsFileExplorer => false;      // True for Windows File Explorer
     bool CanHandle(IntPtr hwnd, string className, string processName);
     bool CanTrigger(IntPtr focusedHwnd, string className);
-    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor); // default: delegates to CanTrigger
+    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => CanTrigger(hwndUnderCursor, classNameUnderCursor);
     bool CanEnterActionsMode(IntPtr hwnd);
     string? GetSearchScope(IntPtr hwnd);
     bool ExecuteItem(IntPtr hwnd, string path, string searchInput);
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
-    IEnumerable<string> GetListItems(IntPtr hwnd);        // optional
-    void OnSelectionChanged(IntPtr hwnd, string path);    // optional
-    void OnSearchFinished(IntPtr hwnd, bool executed);    // optional
+    IEnumerable<string> GetListItems(IntPtr hwnd) => [];
+    void OnSelectionChanged(IntPtr hwnd, string path) { }
+    void OnSearchFinished(IntPtr hwnd, bool executed) { }
 }
 ```
 
-`AdapterRect` (shared with `IFileDialogAdapter`) is a plain `{ Left, Top, Right, Bottom }` `int`
-rectangle.
+## 4. Quick Navigation Provider `IQuickNavigationProvider`
 
-## `IQuickNavigationProvider`
-
-Supplies content (a cascaded menu, typically) for the Quick Navigation popup — see
-[Hotkeys → Quick navigation](../../user-guide/hotkeys#quick-navigation-mouse). Whether the popup
-opens at all for a given click is decided by the host, not by this interface: any window already
-recognized by `IInlineSearchAdapter`/`IFileDialogAdapter` triggers it for you, so this is purely a
-content source.
+Contributes dynamic groups and items to the [**Quick Navigation Menu**](../../user-guide/hotkeys#3-quick-navigation-mouse-triggers):
 
 ```csharp
-interface IQuickNavigationProvider
+public interface IQuickNavigationProvider
 {
-    string GroupName { get; }
-    Action<ISearchResult>? HeaderAction => null;
-    string? HeaderActionTooltip => null;
+    string GroupName { get; }           // Root group header text
+    Action<ISearchResult>? HeaderAction => null; // Action button on header row (e.g. "+" button)
+    string? HeaderActionTooltip => null;// ToolTip for header button
     bool CanProvide(ISearchResult result);
     IEnumerable<DynamicMenuItem> GetMenuItems(ISearchResult result, IntPtr hMenu);
     void ExecuteCommand(ISearchResult result, uint commandId, IntPtr ownerHwnd);
-    void ClearSession();
+    void ClearSession() { }
 }
 ```
 
-`GroupName` labels a section header shown above this provider's own root-level items, so a user with
-more than one quick-navigation provider active can tell which contributed which entries — the same
-role `IDynamicActionProvider.GroupName` plays for the actions menu.
-
-`HeaderAction` (optional, default `null`) adds a small button to that same root-level group header —
-for example, a bookmarking-style provider might use it for "add the current folder." It's invoked
-with the same `ISearchResult` `GetMenuItems` itself receives for the root level; `HeaderActionTooltip`
-sets the button's tooltip and is ignored when `HeaderAction` is null. A nested submenu (any depth
-below the root) has no host-rendered header of its own, so `HeaderAction`'s effect stops at the root —
-a provider wanting the same "+" button on a submenu returns a `DynamicMenuItem` with `IsHeader = true`
-(see below) as that submenu's own first item instead, with its own `OnExecute` playing the same role.
-
-`DynamicMenuItem` is the same model used by
-[`IDynamicActionProvider`](./core-search-actions#idynamicactionprovider), including its `IsHeader`
-flag for a submenu-level header row.
+- **`HeaderAction`**: Appends an action button to the root group header (e.g. bookmark providers adding "Pin current folder").
+- **`DynamicMenuItem.IsHeader`**: In nested submenus, returning items with `IsHeader = true` renders interactive group headers with action buttons.

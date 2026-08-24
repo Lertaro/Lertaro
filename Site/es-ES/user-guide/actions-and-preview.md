@@ -1,104 +1,67 @@
-# Menú de acciones y vista previa
+# Acciones y vista previa instantánea
 
-## Menú de acciones
+Lertaro no solo localiza archivos a velocidades ultrarrápidas, sino que integra un completo sistema de acciones contextuales y un potente panel de vista previa instantánea, lo que te permite inspeccionar, gestionar y abrir archivos sin cambiar al Explorador de archivos.
 
-Todo resultado — archivo, carpeta o aplicación — tiene un conjunto de acciones más allá de "simplemente abrirlo":
-localizar en el Explorador, copiar la ruta, ejecutar como administrador, cortar/copiar/pegar el propio archivo,
-eliminarlo (a la Papelera de reciclaje) o eliminarlo permanentemente, y cualquier cosa que añada un plugin (por
-ejemplo, el menú contextual completo del shell de Windows, submenús en cascada incluidos).
+## 1. Menú de acciones en detalle
 
-Ábrelo con el atajo **Abrir menú de acciones** (`Ctrl+O` por defecto) o con la flecha derecha literal sobre un
-resultado seleccionado. Dentro del menú:
+Pulsa `Ctrl+O` o la flecha derecha `→` en cualquier resultado de búsqueda (archivo, carpeta, aplicación o elemento de plugin) para desplegar el menú de acciones contextuales.
 
-- **Elemento siguiente/anterior** — las teclas de flecha, o tu propio
-  [atajo configurado de elemento siguiente/anterior](./hotkeys), mueven el resaltado arriba y abajo por la lista de
-  acciones. Un atajo personalizado (incluso algo como una tecla `Tab` suelta) se respeta aquí exactamente igual que
-  en la lista de resultados principal.
-- **Flecha derecha / Intro** sobre un elemento con submenú (por ejemplo, un menú en cascada del shell como "Enviar
-  a") profundiza en él; **Flecha izquierda** o **Retroceso** (con el cuadro de búsqueda vacío) retrocede un nivel.
-- **Escape** sale del menú de acciones, o primero borra el cuadro de búsqueda si habías escrito algo para filtrar
-  la lista de acciones.
-- Escribe para filtrar las acciones visibles por nombre, de la misma forma que filtrarías los resultados de
-  búsqueda.
+### Tabla de acciones principales integradas
 
-## Cuadrícula de resultados de la ventana completa
+| Acción | Atajo predeterminado | Descripción |
+| :--- | :--- | :--- |
+| **Abrir** | `Enter` | Abre el elemento seleccionado o inicia la aplicación con el programa predeterminado del sistema. |
+| **Mostrar en Explorador** | `Ctrl+Enter` | Abre la carpeta contenedora y selecciona el archivo en el Explorador de Windows. |
+| **Ejecutar como administrador** | `Ctrl+Shift+Enter` | Inicia la aplicación seleccionada con privilegios de administrador elevados. |
+| **Copiar ruta completa** | `Ctrl+Shift+C` | Copia la ruta absoluta (p. ej. `D:\Projects\app.exe`) al portapapeles. |
+| **Cortar / Copiar archivo** | `Ctrl+X` / `Ctrl+C` | Coloca el archivo en el portapapeles, listo para pegarlo en el Explorador o cualquier carpeta. |
+| **Pegar en esta carpeta** | `Ctrl+V` | Si el elemento seleccionado es una carpeta, pega los archivos del portapapeles en su interior. |
+| **Eliminar (Papelera de reciclaje)** | `Delete` | Mueve el archivo o carpeta seleccionado a la Papelera de reciclaje de Windows de forma segura. |
+| **Eliminación permanente** | `Shift+Delete` | Elimina permanentemente el elemento (solicita confirmación; no se puede recuperar). |
+| **Menú contextual de Windows** | — | Despliega el menú contextual nativo completo de Windows Explorer (incluyendo opciones de terceros y "Enviar a"). |
 
-Hacer doble clic en un resultado normalmente lo abre, igual que pulsar Intro — con una excepción: hacer doble clic
-en la columna **Ruta** en su lugar abre la carpeta contenedora del resultado en el Explorador, lo mismo que hace
-`Ctrl`+Intro en cualquier otro punto de la fila. Una columna personalizada de un plugin puede definir este mismo
-tipo de sobrescritura de doble clic para sí misma.
+### Interacción y filtrado en el Menú de acciones
 
-La cuadrícula conserva todas las coincidencias en lugar de una página limitada de ellas, y se va rellenando a
-medida que llegan los resultados en lugar de aparecer de golpe cuando termina la búsqueda: una consulta amplia
-en una unidad grande puede tardar varios segundos, y las filas se pueden usar durante todo ese tiempo. La
-navegación con las flechas da la vuelta en ambos extremos: pulsar ↑ en la primera fila lleva a la última, y ↓ en
-la última vuelve a la primera.
+- **Escribir para filtrar**: Al abrir el menú de acciones, escribe directamente para filtrar por nombre (p. ej., teclear `copy` reduce la lista a las acciones de copiado).
+- **Navegación jerárquica**: En elementos con submenús (como "Enviar a"), pulsa `→` o `Enter` para entrar; pulsa `←` o `Backspace` (con el filtro vacío) para regresar al nivel superior.
+- **Cerrar menú**: Pulsa `Escape` para cerrar el menú de acciones y regresar a la lista de búsqueda.
 
-La ventana no tiene barra de título, así que su encabezado es la zona de arrastre: pulsa en cualquier punto que
-no sea el cuadro de búsqueda ni un botón de ventana y arrastra para moverla. Mientras el puntero está sobre el
-encabezado aparece de forma gradual un asa en su parte superior que indica dónde agarrar.
+## 2. Características de la lista de la Ventana principal
 
-## Vista previa QuickLook
+La Ventana principal de búsqueda (`Ctrl+F`) está diseñada para la gestión masiva de archivos y la exploración profunda:
 
-Pulsa el atajo **QuickLook** (`Alt+P` por defecto) sobre un resultado seleccionado para abrir un panel de vista
-previa acoplado junto a la ventana de búsqueda — imágenes, documentos y otros tipos de archivo previsualizables se
-renderizan sin salir de Lertaro. Púlsalo de nuevo (o muévete a un resultado que QuickLook no pueda previsualizar)
-para cerrarlo.
+- **Doble clic en la columna Ruta**: Hacer doble clic en la columna **Nombre** abre el archivo; hacer doble clic en la columna **Ruta** abre directamente la carpeta que lo contiene.
+- **Carga continua de resultados en streaming**: Al escanear millones de elementos, los resultados se van añadiendo a la lista en tiempo real sin tener que esperar a que finalice el escaneo completo. Puedes interactuar con las filas al instante.
+- **Navegación en bucle**: Pulsar `↑` en la primera fila salta al último elemento; pulsar `↓` en la última fila vuelve al primero.
+- **Arrastre y memoria de tamaño**: Arrastra la barra superior para reubicar la ventana; las dimensiones ajustadas manualmente se recuerdan automáticamente entre sesiones.
 
-Las vistas previas de carpetas muestran hasta 30 elementos secundarios directos con sus iconos de archivo o carpeta. Los elementos ocultos y del sistema se omiten en esta vista previa aunque el Explorador de Windows esté configurado para mostrarlos.
+## 3. Vista previa instantánea con QuickLook
 
-Los archivos de audio y vídeo — cualquier formato que la reproducción multimedia integrada de WPF admita sin
-códecs adicionales (MP4, WMV, AVI, MOV, MP3, WAV, WMA, y algunos otros) — se reproducen automáticamente en cuanto
-se abre la vista previa, con una pequeña barra de transporte con el tema de la app (reproducir/pausar, buscar,
-tiempo actual/total, silenciar) en lugar de una miniatura estática. Moverse a otro resultado o cerrar la vista
-previa detiene la reproducción de inmediato. Un archivo cuyo códec específico no se pueda decodificar recurre en
-su lugar a una miniatura estática.
+Pulsa `Alt+P` en cualquier resultado para abrir el panel lateral de vista previa acoplado junto a la ventana de búsqueda:
 
-El tamaño de la ventana de vista previa es fijo y configurable por el usuario — ver
-[Configuración → General → Vista previa](./settings/general#vista-previa) — e independiente de cuántos resultados
-se estén mostrando en ese momento. Sea cual sea el tamaño que establezcas, Lertaro mantiene automáticamente la
-ventana de vista previa completamente en pantalla: si no cabe junto a la ventana de búsqueda en tu monitor, se
-acopla al lado que tenga espacio, y si el tamaño configurado es mayor que el área utilizable de tu monitor, la
-ventana se reduce para ajustarse en lugar de salirse del borde.
+### Formatos admitidos y funciones avanzadas
 
-Si el archivo que se está previsualizando necesita su propio manejador nativo para mostrar una ventana emergente
-propia — lo más habitual, Word o Excel pidiendo una contraseña para un documento cifrado — tanto la ventana rápida
-como el panel de vista previa se ocultan mientras esa ventana emergente esté abierta, ya que de lo contrario
-quedaría inalcanzable detrás de ellas. Esto no es Lertaro cerrándose ni fallando: resuelve la ventana emergente
-(introduce la contraseña, ciérrala, lo que sea que esté pidiendo) y ambas ventanas vuelven exactamente como las
-dejaste, texto de búsqueda y selección incluidos.
+- **Imágenes y gráficos vectoriales**: Renderizado nítido y escalado de JPG, PNG, GIF (reproducción animada automática), BMP, WebP, ICO, SVG y más.
+- **Documentos y resaltado de código**: Resaltado y formato para TXT, Markdown, JSON, XML, YAML, C#, Python, JS, HTML, etc.
+- **Reproducción instantánea de audio y vídeo**: Los archivos multimedia (MP4, MKV, AVI, MOV, WMV, MP3, WAV, FLAC, WMA) **se reproducen automáticamente** con una barra de control integrada que se adapta al tema (reproducir/pausa, barra de progreso, duración, silencio). Se detiene al instante al cambiar de elemento.
+- **Inspección de carpetas**: Muestra hasta 30 elementos directos con iconos y tamaños, omitiendo archivos ocultos y del sistema.
 
-El encabezado de la ventana de vista previa es en sí mismo un origen de arrastre para el archivo que se está
-previsualizando: arrástralo al Explorador, a un editor o a cualquier otro destino y se comporta igual que si
-arrastraras la fila del resultado desde la ventana de búsqueda.
+### Ajuste de pantalla y gestión de ventanas emergentes
 
-### Vista previa interactiva de plugins
+- **Ajuste automático de límites**: Las dimensiones de la vista previa se pueden personalizar en [**Configuración → General → Vista previa**](./settings/general#vista-previa); Lertaro garantiza que nunca sobrepase el área visible del monitor.
+- **Evitación de diálogos nativos**: Al previsualizar documentos de Office protegidos con contraseña, Lertaro oculta temporalmente sus ventanas para que puedas introducir la contraseña sin bloqueos, restaurándose después con normalidad.
+- **Arrastrar desde la vista previa**: La parte superior del panel sirve como origen de arrastre para llevar el archivo previsualizado directamente a editores, navegadores o chats.
 
-Además de archivos y carpetas locales, QuickLook admite paneles de vista previa interactivos personalizados proporcionados por plugins (como definiciones de diccionarios MDict, tarjetas meteorológicas, inspectores de API o vistas previas web de Flow Launcher).
+## 4. Paneles interactivos y texto enriquecido con plugins
 
-Al seleccionar el resultado de un plugin que proporciona vista previa instantánea, QuickLook activa automáticamente el panel de vista previa y actualiza el contenido de forma fluida al cambiar de selección, sin repetir animaciones de deslizamiento. Para vistas previas basadas en WebView2/HTML, Lertaro aplica automáticamente adaptación de temas, tipografía de alto contraste (claro/oscuro) y barras de desplazamiento translúcidas finas.
+QuickLook también admite tarjetas interactivas proporcionadas por plugins:
 
-Al abrir la ventana completa desde la rápida, el estado de la vista previa se traslada, así que una vista previa
-que ya tuvieras abierta permanece abierta.
+- **Texto enriquecido adaptado al tema**: Renderizado mediante WebView2 y controles nativos, adaptándose a temas oscuros y claros con tipografía de alto contraste y barras de desplazamiento sutiles.
+- **Tarjetas de plugins**: Consultas de diccionarios MDict, pronóstico meteorológico, capturas web y depuración de APIs.
 
-### Vista previa externa mediante QuickLook (opcional)
+## 5. Puente con QuickLook de terceros (Opcional)
 
-Esto es algo distinto del panel de vista previa integrado de arriba, a pesar del nombre compartido: una aplicación
-de terceros independiente, también llamada **QuickLook** ([QL-Win/QuickLook en
-GitHub](https://github.com/QL-Win/QuickLook), con licencia GPL), que instalas tú mismo — Lertaro no la incluye.
+Si utilizas la herramienta externa de código abierto **QuickLook** ([QL-Win/QuickLook en GitHub](https://github.com/QL-Win/QuickLook)), puedes activar el plugin **Puente QuickLook** en [**Configuración → Plugins**](./settings/plugins).
 
-Si está instalada y en ejecución, el plugin (experimental) incluido **QuickLook Bridge** — visible y activable
-como cualquier otro plugin en [Configuración → Plugins](./settings/plugins) — la contacta a través de su propia
-named pipe y toma el control de la vista previa para todo, por delante de cada tipo de vista previa integrada
-descrita más arriba. El propio panel de vista previa de Lertaro se oculta mientras esto está activo, y la propia
-ventana flotante de QuickLook se mueve exactamente al lugar que ese panel habría ocupado — visualmente se
-interpreta como "el panel de vista previa se convirtió en QuickLook", aunque técnicamente la ventana de QuickLook
-sigue siendo una ventana de nivel superior completamente independiente que Lertaro reposiciona para que la siga.
-
-Una entrada del menú de acciones, **Vista previa en QuickLook**, te permite enviar un resultado a QuickLook
-manualmente incluso cuando algún otro tipo de vista previa ganaría de otro modo para ese resultado.
-
-Dado que esto depende por completo del protocolo interproceso propio (no documentado, privado) de QuickLook, y no
-de ninguna API de integración publicada, una futura versión de QuickLook podría cambiar ese protocolo y romper
-esto en silencio. Desinstalar o cerrar QuickLook no tiene efecto sobre ninguna otra cosa — Lertaro simplemente
-recurre a sus propios tipos de vista previa integrados.
+- **Control de vista previa externa**: Se conecta mediante canalizaciones con nombre locales para acoplar la ventana externa de QuickLook directamente junto a Lertaro.
+- **Alternativa automática**: Si QuickLook externo no está ejecutándose, Lertaro recurre fluidamente a su motor de vista previa integrado.

@@ -1,24 +1,22 @@
 # History
 
-Two tabs, each independent: **Search History** and **Keyword History**.
+The History settings page manages usage traces and adaptive recall rankings. Top tabs include: **Search History** and **Keyword History**.
 
-## Search History
+## 1. Search History
 
-Tracks results you've actually opened, so they can be prioritized the next time you search for
-something similar.
+Search History tracks items and applications you have actually launched, binding the search query to the target physical path:
 
-Search History remembers both the opened path and the query that led to it. A later fuzzy match against that recorded query can recall and prioritize the existing path in the quick, inline, and full search windows—for example, opening `BCompare.exe` with `bcomp` lets `bc` bring it back near the top. Inline search keeps matches inside the active folder under **Current Folder** and places the rest under **Global Search**; missing paths are ignored and duplicate paths appear only once.
+- **Adaptive Prioritized Recall**: When you type characters related to past queries, Lertaro prioritizes previously opened items at the top of results. For instance, if you launched `BCompare.exe` by searching `bcomp`, future searches for `bc` will still boost it to the top.
+- **Inline Window Grouping**: Inside file dialogs, matching historical items within the active folder appear under "Current Folder", while others appear under "Global Search".
+- **Dead Link Filtering**: If an indexed path is moved or deleted, Lertaro automatically skips missing entries, guaranteeing unique rows.
+- **Management Controls**:
+  - **Enable History**: Master toggle; existing entries are retained when disabled, but new launches are not recorded.
+  - **Search Filter**: Narrows the visible history list by keyword.
+  - **Single Delete & Clear All**: Remove individual rows or click **Clear All History** to wipe everything.
 
-- **Enable History** checkbox — turns tracking on/off; existing entries are kept even if you
-  disable it, they're just no longer added to.
-- **Search box** — filters the visible history list by keyword.
-- Each entry can be deleted individually, or all at once with **Clear All History**.
+## 2. Keyword History
 
-## Keyword History
+Keyword History specifically remembers the **raw query strings** typed into the Quick Window:
 
-Tracks the raw text you've typed into the quick window's search box (not what you opened), so you
-can cycle back through recent queries with the
-[keyword history hotkeys](../hotkeys#global-hotkeys) (`Alt+Up` / `Alt+Down` by default).
-
-- Same **Enable History** toggle, search filter, per-entry delete, and **Clear All History**
-  button, scoped to keywords instead of opened results.
+- **Hotkey Navigation**: Inside the Quick Window, press **`Alt+Up`** / **`Alt+Down`** to cycle backward and forward through recent queries. Press **`Ctrl+Delete`** to delete the currently active term.
+- **Independent Maintenance**: Includes its own **Enable History** toggle, search filter, single-entry deletion, and **Clear All History** button.

@@ -1,42 +1,57 @@
 # Host Services
 
-Static services in `PluginSdk.Services` that expose host-app functionality back to plugins — each
-is a thin static class wrapping a delegate the host wires up at startup, so plugins call them the
-same way regardless of what's running underneath.
+The `Lertaro.PluginSdk.Services` namespace provides high-performance static services exposing the host application's algorithms, caches, and platform hooks to plugins.
 
-| Service | Purpose |
-|---|---|
-| `FuzzyMatchService` | `IsMatch(pattern, text)` — whether `text` (or one of its aliases) matches an fzf-syntax `pattern`, using the exact same matching the host's own search uses; `GetHighlightMask(text, query)` — the per-character highlight mask for that pair, using the same literal/fuzzy/alias fallback tiers (including CJK pinyin) the host's own results highlight with, so a plugin's results highlight consistently instead of only handling a literal substring match. |
-| `TranslationService` | `Get(key)` / `Format(key, args)` for runtime lookups against the active language; `LoadEmbeddedTranslations(assembly, cultureKey, typeName)` to load a plugin's own embedded JSON translations; `GetSupportedCultures(assembly)`; `GetCurrentCulture()` — the app's currently selected UI language (e.g. `"zh-CN"`), a user setting independent of the OS system locale. Reach for this only when you need the raw culture code itself (e.g. to put in an HTTP `Accept-Language` header or pick a translation API's target language) — `CultureInfo.CurrentUICulture` reflects the OS locale, not this setting, and will silently disagree with it whenever a user's Windows language and in-app language differ. |
-| `IconService` | `GetIcon(path, isDir)` and `GetThumbnail(path, size)` — cached shell icon/thumbnail extraction, so a plugin never has to shell out to the Windows icon APIs itself. |
-| `FavoritesService` | `GetFavorites()` — read-only access to the user's [Favorites](../../user-guide/settings/favorites) list (`FavoriteItem`: Name, Path). |
-| `HistoryService` | `GetHistoryEntries()` — every recorded [History](../../user-guide/settings/history) entry, most-recently-opened first, as `HistoryEntry { Keyword, Path, Kind, Time }` (`Kind` is a `HistoryEntryKind`: `File` / `Folder` / `Application`; `Keyword` is the search text that led to it, empty if opened without a query typed — e.g. straight from a Quick Panel tab; `Time` is Unix seconds). Each path appears at most once, under whichever keyword most recently led to it. |
-| `FileMetadataService` | `GetMetadataAsync(paths)` — batched Size/Created/Modified/Accessed lookup ([`FileMetadata`](./abstractions#filemetadata)) for a path that **isn't** already one of your current results — every `ISearchResult` already carries this via its own `Metadata` property at no cost (see [Abstractions](./abstractions#isearchresult)), so reach for this service only for paths you got some other way (e.g. from your own config). |
-| `DirectoryIndexerService` | `RegisterDirectory(pluginId, path, recursive, filterPattern)` / `UnregisterDirectories(pluginId)` / `SearchDirectoriesAsync(pluginId, query, token)` — lets a plugin register its own directories for background indexing and USN monitoring without reimplementing that machinery. `WatchDirectories(pluginId, onChanged)` calls you back when a directory YOU registered changed on disk, and returns an `IDisposable` to stop listening. Per registrant, not a broadcast: there is no id to compare and no chance of acting on somebody else's change, since the host already knows whose registration a change fell under. Raised on a background thread and already debounced — a bulk copy is one call once the directory settles, not one per file — and only for a change the host can actually attribute to your directory; where it cannot (a full re-scan that replaced the whole tree), it calls you rather than risk staying silent. `EnumerateDirectoryAsync(path, recursive, filterPattern, limit, token)` lists one directory's contents from that same index rather than the filesystem — no disk I/O at all for a drive the host indexes, and a live walk for one it doesn't, so you never have to decide which case applies. It streams, `filterPattern` selects **files** (directories always come back — drop them by `IsDir` if unwanted), hidden and system entries are never returned, and `limit` is worth setting for a recursive listing, since `EnumerateDirectoryAsync(@"C:\", recursive: true)` will deliver every entry on the volume exactly as asked. |
-| `RecentFilesService` | `GetRecentFilesAsync(directories, limit, maxAgeMinutes, token)` — the newest entries under a set of directories, most recent first, answered from the host's in-memory index rather than the disk. Across the directories as one merged list, not one list per directory. Files only: a folder's own modified time changes whenever anything is added to or removed from it, which would put the folders being worked *in* at the top of a list meant to show what was worked *on*. `limit` 0 means no cap and `maxAgeMinutes` 0 means no age cutoff, but leaving both off means an idle folder keeps offering month-old files simply because nothing newer exists. A directory the host doesn't index contributes nothing rather than being walked live — this is the fast answer or none, and `DirectoryIndexerService.EnumerateDirectoryAsync` is there for the slow one. |
-| `ExplorerPathService` | `GetLastActivePath()` — the folder an Explorer window or a file dialog was last showing, or `null` if nothing has been yet. Filled in by the host's own window tracking across *every* application's file dialogs, not just Lertaro's own UI, so it means the last folder the user actually looked at anywhere — not something a plugin could work out for itself. The opposite direction from [`IActivePathCollector`](./core-search-actions), which is how a plugin *tells* the host what a third-party file manager is showing. Not guaranteed to still exist: it records where the user went, and that folder can have been deleted or unplugged since. |
-| `PluginSettingsService` | `GetSetting<T>(pluginId, key, defaultValue)` — read-only access to a plugin's own persisted settings from the host's config store. Falls back through three tiers: the persisted value if the user has ever saved one, then your `IConfigurable` schema's own `DefaultValue` for that field if nothing was persisted, then the `defaultValue` argument you passed as a last resort — so a schema-declared default is the single source of truth and doesn't need a second hardcoded copy in your call site. If you cache a setting instead of re-reading it every call, subscribe to the `SettingChanged(pluginId, key)` event and drop your cache when it fires for your plugin — the host raises it right after a settings-page save, which is the only reliable point to invalidate against (a per-keystroke or polling check will not see a change until whatever coincidentally triggers it next, or never). |
-| `SearchRefreshService` | `RefreshIfMatches(queryMatches)` — for an `IInstantResultProvider` whose data arrives asynchronously (see [`IInstantResultProvider`](./core-search-actions#iinstantresultprovider)): once your background fetch completes and you've cached the result, call this with a predicate over a search's current query text, and the host re-runs every active search that predicate matches so the now-cached result actually appears without the user needing to retype anything. |
-| `Logger` | `Log(message, level = LogLevel.Info)` — writes to the App's log file, visible in **Settings → Service Status → App** exactly like the host's own log lines. |
-| `PluginPromptService` | `Prompt(title, fields, initialValues?)` — shows a small modal asking for the given [`PluginConfigField`](./abstractions#iconfigurable) values (the same field schema/rendering `IConfigurable`'s Configure dialog uses), pre-filled from `initialValues` (matched by `Key`) or each field's own `DefaultValue`. Returns the entered values keyed by field `Key`, or `null` if the user cancelled — these values are never read from or written to the plugin's actual persisted settings, so it's safe to reuse a config field's schema purely for one-off input (e.g. "name this before adding it") without touching the real setting behind it. |
-| `UserDataService` | `GetUserDataDirectory()` — returns the current user's private data directory (e.g. `%LOCALAPPDATA%\Lertaro` in installed mode or `Data\Users\<hash>` in portable mode), used for user-specific settings and plugin data; `GetSharedDataDirectory()` — returns the machine-wide shared data directory (e.g. `%PROGRAMDATA%\Lertaro` in installed mode or `Data\Machine` in portable mode), used for multi-user shared runtimes (such as embedded Python / Node.js packages) and global caches. |
+## 1. Core Static Services Overview
 
-`LogLevel` is `Error` / `Warn` / `Info` / `Debug`, matching the level filter in the
-[Service Status log viewer](../../user-guide/settings/service-status).
+| Host Service | Core Signatures | Key Capabilities |
+| :--- | :--- | :--- |
+| **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)` | Executes the host's fzf fuzzy matching engine and calculates character-level highlight masks with multi-tier fallback. |
+| **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()` | Dynamic localization. `GetCurrentCulture()` returns the language code configured in Settings (e.g. `"zh-CN"`), independent of OS defaults. |
+| **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | Windows Shell icon and thumbnail extraction with integrated memory and disk caching. |
+| **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()` | Read-only access to user-saved starred favorite entries. |
+| **`HistoryService`** | `IReadOnlyList<HistoryEntry> GetHistoryEntries()` | Reads historical launches sorted by recent access, including query keywords and entry types. |
+| **`FileMetadataService`** | `Task<IReadOnlyDictionary<string, FileMetadata>> GetMetadataAsync(IEnumerable<string> paths)` | Batch queries physical file sizes and timestamps for external paths not in the active result set. |
+| **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | Registers custom folders for background indexing and change tracking; streams directory contents without disk I/O. |
+| **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | Queries the memory index in sub-milliseconds to aggregate recent files across configured folders. |
+| **`ExplorerPathService`** | `string? GetLastActivePath()` | Retrieves the last directory browsed across File Explorer and all native file dialogs. |
+| **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | Reads persistent plugin settings (user value > schema default > fallback). |
+| **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | Notifies the host to re-evaluate matching active searches after asynchronous background operations complete. |
+| **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | Returns the user-specific data folder and machine-wide shared data directory (e.g. for Python/Node runtimes). |
+| **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | Writes logs to `app.log`, visible in real-time within the Settings log viewer. |
+| **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | Displays a lightweight modal input dialog rendered directly from field schemas. |
 
-## Shell file operations
+## 2. Shell Native File Operations
 
-`Lertaro.PluginSdk.Shell.FileOperations` — thin wrappers over the Windows shell's own
-`IFileOperation`, so a plugin that moves files around gets the same progress dialog, the same
-"this file already exists" prompt and the same undo entry Explorer would have produced, rather than a
-`System.IO` call that silently does something subtly different.
+`Lertaro.PluginSdk.Shell.FileOperations` wraps the native Windows Shell `IFileOperation` COM interface, providing native progress dialogs, conflict prompts, and `Ctrl+Z` undo support:
 
-| Helper | Purpose |
-|---|---|
-| `ShellPasteHelper` | `PasteAsync(sourcePaths, destinationFolder, move, onCompleted?)` — copies (or moves) any number of paths into one folder as a **single** shell operation, so a cross-drive multi-select still produces one dialog rather than one per file. Fire-and-forget: it returns immediately, because blocking on a native dialog the user may leave open would freeze your caller. `onCompleted` fires when the operation is over — whether it copied everything or the user cancelled, since a view showing the destination has the same answer to both, which is to go and look again. |
-| `ShellDeleteHelper` | `DeleteAsync(paths, permanent)` — recycles or permanently deletes, again batched into one operation and one confirmation. Also fire-and-forget. |
-| `VirtualFileExtractor` | `HasVirtualFiles(dataObject)` / `Extract(dataObject, targetFolder)` — writes out the files a drag is carrying that do not exist on disk yet: an image dragged from a browser, an attachment dragged from a mail client, a file dragged out of a zip preview. None of those arrive as a path, so `IDataObject.GetData(DataFormats.FileDrop)` finds nothing; what arrives is a descriptor naming them plus their bytes one index at a time, which is what this unpacks. Deliberately unfiltered by type: refusing what a drag was willing to hand over means trusting an extension or sniffing bytes, and neither is this helper's business. `ResolveDestination(folder, name)` is the same "add (2) rather than overwrite" naming it uses, exposed for callers writing files out themselves. |
+```csharp
+namespace Lertaro.PluginSdk.Shell.FileOperations;
 
-Both of the async helpers run on the SDK's own STA worker thread (`ShellOperationStaWorker`), which the
-host starts — the shell's COM interfaces require one, and sharing it means a plugin never has to spin up
-an apartment of its own.
+// Batch paste or move as a single atomic Shell operation
+public static class ShellPasteHelper
+{
+    public static void PasteAsync(
+        IEnumerable<string> sourcePaths,
+        string destinationFolder,
+        bool move = false,
+        Action? onCompleted = null);
+}
+
+// Recycle bin or permanent deletion
+public static class ShellDeleteHelper
+{
+    public static void DeleteAsync(IEnumerable<string> paths, bool permanent = false);
+}
+
+// Virtual file extraction from drag-and-drop streams
+public static class VirtualFileExtractor
+{
+    public static bool HasVirtualFiles(IDataObject dataObject);
+    public static Task<IReadOnlyList<string>> Extract(IDataObject dataObject, string targetFolder);
+    public static string ResolveDestination(string folder, string name); // Auto-renames to (2) on conflicts
+}
+```
+
+> [!TIP]
+> Shell helpers execute automatically on the SDK's dedicated STA worker thread (`ShellOperationStaWorker`), eliminating the need for plugins to manage COM apartment threading manually.

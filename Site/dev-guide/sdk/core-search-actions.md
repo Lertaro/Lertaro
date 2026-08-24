@@ -1,156 +1,113 @@
 # Core Search & Actions
 
-## `IPluginComponent` & `IPlugin`
+This chapter covers the core interfaces and data structures in `Lertaro.PluginSdk` for contributing search data sources, instant calculation answers, non-ASCII alias engines, query suffix token handlers, and static/dynamic context action menus.
 
-All plugin components (including the plugin entry class itself) must inherit from `IPluginComponent`. This interface provides the component's name and description:
+## 1. Base Component Specifications: `IPluginComponent` & `IPlugin`
+
+All plugin components inherit directly or indirectly from `IPluginComponent`:
 
 ```csharp
-interface IPluginComponent
+namespace Lertaro.PluginSdk;
+
+public interface IPluginComponent
 {
-    string Name => GetType().Name;       // Component display name, defaults to type name
-    string Description => string.Empty;  // Component description/tooltip shown in settings UI
+    string Name => GetType().Name;      // Display name (defaults to class name)
+    string Description => string.Empty; // Description shown as a ToolTip in settings
+}
+
+public interface IPlugin : IPluginComponent
+{
+    // Primary plugin assembly entry point
 }
 ```
 
-Every plugin must implement the `IPlugin` interface (inheriting from `IPluginComponent`) as the main entry point, plus whichever other interfaces it needs:
+## 2. Contributing Search Results
+
+### Static Cacheable Item Provider `ISearchableItemProvider`
+
+Ideal for relatively static or slow-to-enumerate items that do not change with every keystroke (e.g. Start Menu shortcuts, browser bookmarks, control panel items):
 
 ```csharp
-interface IPlugin : IPluginComponent
+public interface ISearchableItemProvider : IPluginComponent
 {
-}
-```
-
-## Contributing search results
-
-### `ISearchableItemProvider`
-
-Returns a full, cacheable list of items to fold into the index — for content that's static or
-slow to enumerate but doesn't change every keystroke (e.g. Start Menu shortcuts, a bookmark list).
-
-```csharp
-interface ISearchableItemProvider : IPluginComponent
-{
-    bool EnableAlias { get; } // default true
-    event Action? ItemsChanged;
+    bool EnableAlias => true;           // Allow alias transliteration (e.g. pinyin)
+    event Action? ItemsChanged;         // Trigger when items change to re-index
     IEnumerable<SearchableItem> GetSearchableItems();
 }
 ```
 
-### `IInstantResultProvider`
+### Dynamic Instant Calculation Provider `IInstantResultProvider`
 
-Runs on every keystroke and returns results directly — for query-shaped content like a calculator
-or a URL shortcut, not something you'd want indexed ahead of time.
+Executes synchronously on every keystroke, ideal for results derived purely from the query string (e.g. calculators, base converters, URL jumpers):
 
 ```csharp
-interface IInstantResultProvider : IPluginComponent
+public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
-    bool[]? GetHighlightMask(string text, string query); // optional match highlighting
+    bool[]? GetHighlightMask(string text, string query) => null; // Custom highlight mask
 }
 ```
 
-`GetInstantResults` is synchronous only — there's no async/cancellation-token overload. If your data
-needs a network round-trip (translating text, fetching search-engine suggestions), return a
-placeholder item immediately, kick off the real work with `Task.Run`, cache the result once it lands,
-and call `SearchRefreshService.RefreshIfMatches` (see [Host Services](./services)) so the host re-runs
-any search whose current query would now hit your cache — see the WebSearch plugin's suggestion
-fetching (`Plugins/WebSearch/WebSearchInstantProvider.cs`) for a worked example.
+> [!TIP]
+> `GetInstantResults` is synchronous for typing fluidity. For async network queries (translation, web suggestions), return a placeholder item immediately, fetch data via `Task.Run` in the background, cache the result, and call `SearchRefreshService.RefreshIfMatches` to notify the host to refresh live results.
 
-### `IAliasProvider`
+### Non-ASCII Alias Transliteration Engine `IAliasProvider`
 
-Generates extra searchable strings for non-ASCII text — this is how pinyin aliasing for Chinese
-filenames works (see [PinyinAlias](../examples#pinyinalias-pinyin-aliasing-for-chinese-filenames)).
+Generates indexable transliteration aliases for non-ASCII text, supporting mixed pinyin/character matching:
 
 ```csharp
-interface IAliasProvider
+public interface IAliasProvider
 {
     string Name { get; }
     bool CanHandle(string text);
-    IReadOnlyList<(char Start, char End)> InputRanges { get; }
-    IReadOnlyList<(char Start, char End)> OutputRanges { get; }
+    IReadOnlyList<(char Start, char End)> InputRanges { get; }  // Source range (e.g. CJK Ideographs)
+    IReadOnlyList<(char Start, char End)> OutputRanges { get; } // Target range (e.g. a-z)
     IEnumerable<string> GetAliases(string text);
 
-    int Version { get; } // default 1
-    int[]? MapAliasToSourceIndices(string text, string alias); // default null
-    void GetAliasesUtf8(string text, AliasByteSink dest); // default: adapts GetAliases
-    IEnumerable<string> GetQueryForms(string term); // default: none
+    int Version => 1;                                           // Increment to trigger re-indexing
+    int[]? MapAliasToSourceIndices(string text, string alias) => null; // Highlight mapping
+    void GetAliasesUtf8(string text, AliasByteSink dest);       // Zero-allocation UTF-8 builder
+    IEnumerable<string> GetQueryForms(string term);             // Query-side segmentation
 }
 ```
 
-`InputRanges` and `OutputRanges` have no default — every provider must declare them.
-`InputRanges` is the character range(s) this provider transliterates *from* (e.g. the CJK ideograph
-block, for pinyin); `OutputRanges` is the range(s) its generated aliases are made of (e.g. lowercase
-`a`-`z`). The host uses the two together to segment a query term that mixes a provider's own input and
-output alphabets (e.g. `大cj` against a candidate `大长今`) into a literal run matched against the
-candidate's own text and an alias-syntax run matched against this provider's alias, instead of
-guessing at ASCII-ness.
+### Query Suffix Token Handler `IQueryTokenProvider`
 
-`Version`, `MapAliasToSourceIndices`, and `GetAliasesUtf8` are all default-implemented — most
-providers never need to touch them:
-
-- **`Version`**: bump it when this provider's output could change for the same input (an algorithm
-  fix, a new rule, an updated data table). The index uses it to detect that previously-generated
-  aliases from this provider are stale and need regenerating.
-- **`MapAliasToSourceIndices`**: lets a match found against an alias (e.g. which pinyin letters
-  matched) be translated back onto the original text for highlighting, instead of highlighting
-  nothing because the query never appears verbatim in the untransliterated text. Return `null`
-  (the default) if this alias wasn't produced by this provider for this text, or mapping isn't
-  supported — the host treats that as "can't highlight via this provider," not an error.
-- **`GetAliasesUtf8`**: byte-native variant used on the host's bulk indexing path, where aliases are
-  ultimately stored as UTF-8 bytes. The default implementation adapts `GetAliases`, so existing
-  providers work unchanged; only override it to skip string materialization entirely when your
-  provider generates a very high volume of aliases and that allocation cost actually shows up in
-  practice.
-- **`GetQueryForms`**: the query-side counterpart of `GetAliases` — rewrites one typed query term
-  into whatever delimited shape this provider's own aliases use, so a term the user typed as one
-  run of plain characters can still respect structure the host doesn't understand (pinyin syllable
-  boundaries, for example, which is what keeps a query from matching across two unrelated
-  syllables). Returning nothing (the default) means "this term isn't in my alphabet at all," which
-  is what stops a query the provider can't express from reaching aliases it was never meant to
-  match. Called once per term per query, never per candidate, so real work here is affordable —
-  but every form returned becomes another alternative every candidate is tested against, so
-  returning many is what costs.
-
-### `IQueryTokenProvider`
-
-Claims a trailing token from the query (e.g. `report :size`, `report ::"hello world"`, or `report ::hello\ world`) and transforms the already-matched result list — sorting, filtering, or otherwise composing on top of a normal search. Supports spaces in tokens enclosed in double/single quotes (`"..."`, `'...'`) or with escaped spaces (`\ `).
+Claims and processes trailing tokens at the end of search queries (e.g. `report :size`, `doc :@today`, or `image ::"hello world"`), applying transformations (sorting, filtering) to matched results:
 
 ```csharp
-interface IQueryTokenProvider : IPluginComponent
+public interface IQueryTokenProvider : IPluginComponent
 {
     bool CanHandle(string token);
     Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results);
 }
 ```
 
-## Actions on results
+## 3. Context Actions on Results
 
-### `IActionProvider`
-
-The container a plugin implements to expose both static and dynamic actions:
+### Action Provider Container `IActionProvider`
 
 ```csharp
-interface IActionProvider
+public interface IActionProvider
 {
     IEnumerable<ISearchResultAction> GetActions();
     IEnumerable<IDynamicActionProvider> GetDynamicActionProviders();
 }
 ```
 
-### `ISearchResultAction`
+### Static Action Contract `ISearchResultAction`
 
-A single, static action (e.g. "Copy Path") shown in the Actions menu or the quick-window action
-hotkeys:
+Represents a standalone static operation (e.g. Copy Path, Run as Administrator) displayed in `Ctrl+O` action menus or bound to hotkeys:
 
 ```csharp
-interface ISearchResultAction : IPluginComponent
+public interface ISearchResultAction : IPluginComponent
 {
-    string GroupName { get; }
-    string DisplayName { get; }
-    string? Hotkey { get; }              // optional default hotkey
+    string GroupName { get; }           // Group name
+    string DisplayName { get; }         // Action title
+    string? Hotkey { get; }             // Default shortcut (e.g. "Ctrl+Shift+C")
     IReadOnlyList<string>? Keywords { get; }
     IReadOnlyList<string>? Parameters { get; }
-    ImageSource Icon { get; }
+    ImageSource Icon { get; }           // Action icon
     bool IsVisibleInSearch(IReadOnlyList<ISearchResult> selection, SearchWindowType windowType);
     bool IsVisibleInMenu(IReadOnlyList<ISearchResult> selection, SearchWindowType windowType);
     bool CanExecute(IReadOnlyList<ISearchResult> selection);
@@ -158,60 +115,30 @@ interface ISearchResultAction : IPluginComponent
 }
 ```
 
-### `IDynamicActionProvider`
+### Dynamic Menu Builder `IDynamicActionProvider`
 
-Builds menu items at runtime instead of returning a fixed list — this is how the real Windows
-shell right-click menu (with nested cascade submenus) gets surfaced inside Lertaro's Actions
-menu; see [ShellMenuActionProvider](../examples#coreextensions-actions-and-the-shell-context-menu).
+Constructs dynamic menus at runtime (such as embedding Windows Shell context menus):
 
 ```csharp
-interface IDynamicActionProvider
+public interface IDynamicActionProvider
 {
     string GroupName { get; }
-    int? Priority { get; }
+    int? Priority => 0;                 // Menu display priority
     IReadOnlyList<string>? Keywords { get; }
     IReadOnlyList<string>? Parameters { get; }
     bool IsVisibleInSearch(IReadOnlyList<ISearchResult> selection, SearchWindowType windowType);
     bool IsVisibleInMenu(IReadOnlyList<ISearchResult> selection, SearchWindowType windowType);
-    void Init();
+    void Init() { }                     // One-time warmup initialization
     bool CanProvide(IReadOnlyList<ISearchResult> selection);
     IEnumerable<DynamicMenuItem> GetMenuItems(IReadOnlyList<ISearchResult> selection, IntPtr hMenu);
     IEnumerable<(string Hotkey, Action Execute)> GetHotkeyActions(IReadOnlyList<ISearchResult> selection);
     void ExecuteCommand(IReadOnlyList<ISearchResult> selection, uint commandId, IntPtr ownerHwnd);
-    void ClearSession();
+    void ClearSession() { }
 }
 ```
 
-`Init()` is called by the host at most once per process, the first time any actions menu opens —
-before `CanProvide`/`GetMenuItems` are actually invoked for any selection. The host guarantees the
-at-most-once part, so an implementation doesn't need to guard against repeat calls itself. Use it
-for slow one-time setup (e.g. warming up a native worker thread) that benefits from a genuine head
-start instead of racing your own `CanProvide`/`GetMenuItems` call, which follow immediately after
-with no lead time of their own — must not block, so do any real work on a background thread.
-Default implementation is a no-op.
+## 4. Supporting Models
 
-`Priority` controls this provider's own section among the actions menu's dynamic (per-provider)
-groups: lower values appear first, default `0`. It's only a fallback, though — a user can drag/reorder
-these sections by hand under
-[Settings → General → Full Search Window](../../user-guide/settings/general#full-search-window), and
-a section they've explicitly ordered keeps that position regardless of `Priority`.
-
-## Supporting models
-
-- **`SearchableItem`** / **`InstantResultItem`** — share Title, Description, IconData, IconColor,
-  ActionType (`"Copy"` / `"Execute"` / `"None"`), ActionArgument, TabCompletion, and `HBitmapIcon` (a
-  pre-loaded GDI HBITMAP that takes priority over IconData when set — the host takes ownership and
-  calls DeleteObject once it's done with it, so don't reuse or free the handle yourself afterward;
-  see the Window Switcher plugin's own window-thumbnail capture for a worked example).
-  `SearchableItem` additionally has `OnExecute` (a direct invocation delegate) and `ResultKind`
-  (override, e.g. `"Application"`/`"File"`).
-- **`DynamicMenuItem`** — Text, CommandId, IsSeparator, HasSubMenu, SubMenuHandle, IsDisabled,
-  HBitmapItem, OnExecute, ShortcutHint, IsHeader. `IsHeader` renders the item as a non-clickable
-  section-header row (like a Quick Navigation submenu's own group name) instead of a normal row —
-  Text is the header label, and if `OnExecute` is also set, a small button appears at the header's
-  trailing edge invoking it; every other field is ignored when `IsHeader` is true. This is the
-  submenu-depth equivalent of [`IQuickNavigationProvider.HeaderAction`](./system-adapters#iquicknavigationprovider),
-  which only covers the root level.
-- **`SearchWindowType`** enum — `Main`, `Quick`, `Inline`. Lets an action or provider behave
-  differently depending on which of the three windows (see the
-  [User Manual](../../user-guide/getting-started#the-three-windows)) it's showing in.
+- **`SearchableItem` / `InstantResultItem`**: Contains `Title`, `Description`, `IconData`, `IconColor`, `ActionType` (`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon` (auto-disposed by host), and `OnExecute` callback.
+- **`DynamicMenuItem`**: Contains `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute`, `IsHeader` (renders as a group header with optional action button).
+- **`SearchWindowType`**: Enum with `Main`, `Quick`, and `Inline`.

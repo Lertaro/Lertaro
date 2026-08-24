@@ -1,24 +1,46 @@
 # Analizador de espacio
 
-El Analizador de espacio convierte los índices de archivos existentes de Lertaro en una vista rápida similar a SpaceSniffer. No analiza los discos, por lo que se abre con rapidez incluso si varias unidades contienen millones de elementos.
+Lertaro incluye un **Analizador de espacio (Space Analyzer)** ultrarrápido para discos y carpetas. A diferencia de las herramientas tradicionales que requieren escaneos físicos completos de los sectores, aprovecha el árbol de índices en memoria de Lertaro para desglosar el almacenamiento en milisegundos, incluso en unidades con millones de archivos.
 
-## Abrir el analizador
+## 1. Acceso al Analizador de espacio
 
-Abre la ventana de búsqueda completa de Lertaro y deja vacío el cuadro de búsqueda. El Analizador de espacio aparece automáticamente como página de inicio y muestra todos los índices cargados actualmente por Lertaro. Al escribir una consulta se cambia de inmediato a los resultados de búsqueda; al borrarla se vuelve a la raíz del analizador. Haz doble clic con el botón izquierdo en una unidad o carpeta para entrar; usa la flecha hacia arriba o cualquier elemento de la ruta de navegación para volver.
+- **Aparición automática**: Abre la Ventana principal de búsqueda (`Ctrl+F`) dejando la **barra de búsqueda vacía**; el Analizador de espacio se mostrará automáticamente como vista principal.
+- **Transición fluida**: Escribir cualquier carácter cambia al instante a la lista de resultados de búsqueda; borrar la búsqueda regresa de inmediato a la vista del Analizador de espacio.
 
-## Leer y usar la vista
+## 2. Diseño y visualización
 
-- El mapa de árbol de la izquierda asigna más superficie a los elementos grandes. Los tonos claros y oscuros indican el tamaño relativo, mientras que los bordes distinguen las carpetas de los archivos.
-- La lista de la derecha muestra los mismos elementos ordenados por tamaño descendente. Una barra fina bajo cada fila indica su proporción respecto al total visible de la ubicación actual. Seleccionar un elemento en una vista también lo resalta en la otra.
-- Haz clic con el botón derecho en una tarjeta o fila para abrir el mismo menú de acciones de los resultados de búsqueda, con opciones para abrir, localizar, copiar y ejecutar las acciones de plugins aplicables.
-- Haz clic con el botón central en una tarjeta o fila para localizarla en el gestor de archivos configurado, con el mismo comportamiento que al hacer doble clic en un archivo.
-- Selecciona una tarjeta o fila y usa el atajo de vista previa configurado para abrir la vista previa de la ventana de búsqueda completa; una vista previa abierta seguirá las selecciones posteriores.
-- Los nombres que desbordan la lista de la derecha se desplazan mientras la fila está seleccionada o bajo el puntero, en lugar de mostrar información emergente.
+El Analizador de espacio utiliza una disposición en dos paneles sincronizados para ofrecer máxima claridad:
 
-## Qué se cuenta
+### Panel izquierdo: Gráfico Treemap
 
-Solo se incluyen los elementos que ya existen en los índices habilitados de Lertaro, y el analizador nunca recorre el sistema de archivos para completar lo que falta. El contenido excluido o no indexado está ausente. Los elementos ocultos se muestran con normalidad; los elementos del sistema no se muestran individualmente, aunque su tamaño todavía puede contribuir al total de una carpeta antecesora visible.
+- **Área proporcional**: Los rectángulos más grandes corresponden a carpetas o archivos que ocupan mayor volumen de almacenamiento.
+- **Profundidad de color y bordes**: El sombreado refleja el peso relativo dentro del directorio actual, con bordes diferenciados para distinguir carpetas de archivos individuales.
 
-Los tamaños son tamaños lógicos de archivo, no espacio asignado en disco. Los totales de las carpetas incluyen sus descendientes indexados y los datos con vínculos físicos solo se cuentan una vez, por lo que los resultados pueden diferir del Explorador de Windows o de un analizador de disco a nivel de sectores.
+### Panel derecho: Lista ordenada por tamaño
 
-Mientras la página del analizador está visible, sigue automáticamente los eventos de cambio pertinentes de los índices en memoria y agrupa las ráfagas antes de actualizar. La vista raíz se sincroniza cuando se habilita, deshabilita o elimina un índice local o de carpeta. Dentro de un directorio, solo los cambios en ese directorio o sus descendientes reconstruyen la vista; los cambios en un antecesor únicamente comprueban que la ruta actual siga siendo válida. Si el directorio actual o uno de sus antecesores cambia de nombre, se elimina o desaparece de los índices habilitados, el analizador vuelve automáticamente al antecesor disponible más cercano. Nunca abre ni vuelve a cargar los archivos de caché del índice. Al iniciar una búsqueda se pausan sus actualizaciones; al cerrar la ventana de búsqueda completa se liberan los elementos renderizados y las cachés de interfaz compartidas.
+- **Orden descendente**: Lista los elementos ordenados de mayor a menor, identificando al instante los elementos que más espacio consumen.
+- **Barra de porcentaje**: Cada fila incluye una sutil barra de progreso que indica su proporción respecto al total visible.
+- **Resaltado bidireccional**: Al seleccionar un elemento en el Treemap o en la lista derecha, se enfoca simultáneamente en ambos paneles.
+- **Desplazamiento fluido de nombres largos**: Los nombres que superen el ancho visible se desplazan suavemente al pasar el ratón o seleccionarlos.
+
+## 3. Navegación y operaciones contextuales
+
+- **Exploración jerárquica**:
+  - **Entrar en una carpeta**: Haz doble clic izquierdo en cualquier tarjeta del Treemap o fila de la lista para explorar su interior.
+  - **Subir de nivel**: Haz clic en la flecha "Arriba" en la barra de navegación o en cualquier carpeta de la ruta de navegación (Breadcrumbs).
+- **Menú de acciones contextual**: Haz clic derecho en cualquier tarjeta o fila para abrir el **Menú de acciones** estándar (Abrir, Copiar ruta completa, Mostrar en Explorador, Enviar a la papelera o Eliminar permanentemente).
+- **Ubicar con clic central**: Haz clic central en cualquier elemento para abrir y ubicar su posición en tu explorador de archivos configurado.
+- **Vista previa sincronizada**: Pulsa `Alt+P` para abrir el panel de QuickLook; la vista previa se actualiza dinámicamente conforme navegas por los elementos.
+
+## 4. Criterios de cálculo y sincronización en tiempo real
+
+### Ámbito y cálculo de tamaños
+
+- **Basado en el índice existente**: Solo resume los elementos indexados por Lertaro sin realizar operaciones de E/S adicionales en disco. Los archivos excluidos por reglas no se contabilizan.
+- **Tamaño lógico de archivos**: Muestra los tamaños lógicos reales; los datos con enlaces físicos (hard links) solo se computan una vez para evitar duplicidades.
+- **Archivos ocultos y del sistema**: Los archivos ocultos se incluyen con normalidad; los archivos del sistema se consolidan en el tamaño total de su carpeta superior.
+
+### Seguimiento de cambios y autorrecuperación
+
+- **Actualizaciones en vivo**: Recibe notificaciones de cambios del servicio de indexación y actualiza la vista de forma fluida.
+- **Recuperación automática de rutas**: Si la carpeta activa es eliminada o renombrada externamente, el Analizador de espacio retrocede de forma inteligente a la carpeta superior válida más cercana sin bloquearse.

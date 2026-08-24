@@ -1,38 +1,44 @@
 # Troubleshooting
 
-## The global hotkey doesn't respond
+Encountering issues while using Lertaro? Follow these systematic steps to diagnose and resolve common situations.
 
-1. Check **Settings → Service Status** — if the background service isn't running, reinstalling or restarting it from that page usually fixes indexing-related issues, but the toggle hotkey itself is handled by the App process, not the service, so this is a secondary check.
-2. If the foreground app is running elevated (as administrator) and Lertaro isn't, Windows blocks lower-privilege processes from sending it input. Lertaro's background hotkey-listener process is elevated automatically whenever your account is an administrator — no setting to enable, no UAC prompt. If hotkeys still don't reach an elevated window, check **[Settings → Service Status](./settings/service-status)** to confirm the background service is running, since it's what launches the elevated listener. If your account isn't an administrator, there's no workaround — Windows won't let a lower-privilege process signal a higher-privilege one.
-3. Check the **[Process Blacklist](./settings/hotkeys-page#process-blacklist)** — if the foreground app's executable name was added there (intentionally or by accident), Lertaro's global hotkeys are deliberately let through untouched while it's focused.
-4. If the foreground app is genuinely full-screen (fills the entire monitor), Lertaro automatically lets its hotkeys through too by default — so it doesn't fight with fullscreen games. If your configured combo won't collide with anything the fullscreen app itself uses, enable **Still respond while a fullscreen app is focused** next to **Settings → Hotkeys → Show/Hide Quick Search** to keep it working there too. Otherwise, alt-tabbing out, or running the app in borderless/windowed mode instead of exclusive full-screen, avoids it.
+## 1. Global Hotkeys Not Responding
 
-## Search results seem out of date
+- **Verify Background Service Status**: Go to [**Settings → Service Status**](./settings/service-status) and verify that `Lertaro.Service` is running. While general hotkeys are handled by the App, the elevated hook process depends on the background service.
+- **Administrative Privilege Isolation (UIPI)**: If the active foreground window is elevated (e.g. Administrator Terminal or Task Manager), Windows UIPI prevents standard-user processes from intercepting hotkeys. Lertaro automatically elevates its keyboard hook process via the service; ensure the service is running.
+- **Check Process Blacklist**: In [**Settings → Hotkeys**](./settings/hotkeys-page#process-blacklist), ensure the active application is not listed in the Process Blacklist. Blacklisted apps cause Lertaro to bypass global hotkeys intentionally.
+- **Fullscreen App Bypass**: When an application is running in exclusive fullscreen mode (e.g. 3D games or video players), Lertaro suppresses hotkeys by default. Enable **Respond when focused on full-screen applications** under **Settings → Hotkeys** if you wish to override this behavior.
 
-NTFS and ReFS drives update from the USN Journal in near real time; other local file systems (FAT32, exFAT, ...) are watched for changes directly instead, just as continuously. If something still looks stale (a file you just created isn't showing up, or a deleted file still appears), use **Rebuild Index** on the affected drive under **Settings → Index → Local Drives** (or **Network Drives**).
+## 2. Search Results Stale or Incomplete
 
-## A network drive never seems to refresh
+- **Local NTFS / ReFS Drives**: Updated in real time with near-zero latency by monitoring the filesystem's USN Change Journal.
+- **FAT32 / exFAT Drives**: Tracked continuously via filesystem change events.
+- **Manual Reindex**: If an unexpected crash or sudden power cut caused index discrepancies, go to [**Settings → Indexing → Local Drives**](./settings/index-drives) and click **Rebuild Index** on the affected drive.
 
-Network shares don't have a USN Journal Lertaro can watch, so they're re-scanned on a schedule instead. Check the drive's **Refresh Mode** under **Settings → Index → Network Drives** — if it's set to **Manual**, nothing updates automatically; switch it to a timed interval, or use **Rebuild Index** to refresh on demand. For NAS SMB shares with special symlinks or recursive folder loops, the scan engine includes built-in loop detection to prevent duplicate entries and recursion blips.
+## 3. Network Drives Not Refreshing
 
-## The preview window looks wrong / cut off
+- **Scheduled Rescan**: Network shares (SMB / NAS) lack local USN journals and rely on scheduled polling.
+- **Check Refresh Mode**: In [**Settings → Indexing → Network Drives**](./settings/index-drives#network-drives), check if the refresh mode is set to "Manual". If so, switch to a periodic schedule or click "Rebuild Index".
+- **Symlink Loop Protection**: Lertaro includes a built-in cycle detection engine to prevent infinite loops caused by recursive symbolic links on NAS shares.
 
-This shouldn't happen — Lertaro clamps the QuickLook preview window's position and size to your monitor's usable area automatically. If you still see clipping, try **Settings → General → Preview → Reset Preview Window Settings** to rule out an unusual manual width/height value, and make sure you're on the latest release.
+## 4. Specific Files or Folders Missing
 
-## A file/folder doesn't show up at all
+- **Review Exclusion Rules**: Go to [**Settings → Indexing → Exclusions**](./settings/index-drives#exclusion-rules) and verify that the path is not inadvertently matched by exact path, glob, or regex patterns.
+- **Verify Drive Status**: In [**Settings → Indexing → Local Drives**](./settings/index-drives), confirm that the drive or mount point containing the file is marked as enabled.
 
-- Check it isn't excluded — **Settings → Index → Exclusion Rules** supports exact paths, glob patterns, and regexes, and any of the three could be catching it unintentionally.
-- Check the drive it lives on is enabled under **Settings → Index → Local/Network Drives**.
+## 5. IME Candidate Window Not Appearing in Inline Window
 
-## Typing Chinese (or another IME language) into the inline window doesn't work
+- **Non-Focus Design**: The [Inline Window](./getting-started#3-three-window-modes) intentionally avoids stealing real keyboard focus from the host application so it can dismiss cleanly without UI flicker. Because IME candidate popups require true window focus, they may not render in inline mode.
+- **Recommended Solutions**:
+  1. **Direct Pinyin Typing**: Lertaro features an embedded pinyin alias engine; type pinyin letters directly to fuzzy-match Chinese filenames without opening an IME popup (see [**Search Syntax**](./search-syntax#8-multilingual--pinyin-aliases)).
+  2. **Switch to Quick Window**: Double-tap `Ctrl` to open the fully focused Quick Window, where all input methods work normally.
 
-The [inline window](./getting-started#the-three-windows) deliberately never takes real keyboard focus away from the window it's docked in — that's what lets you dismiss it and land exactly back where you were, with no focus flicker. An IME's composition (the candidate list, and the character it actually commits) only happens for whichever window holds *real* focus, though, which is always the docked-in app, never Lertaro — so there's no message Lertaro could intercept to capture what you typed. This is a structural limitation of how the inline window works, not a bug.
+## 6. Inspecting Logs & Submitting Issues
 
-Two options:
+If the problem persists, visit [**Settings → Service Status**](./settings/service-status) to inspect live logs:
 
-- Type the pinyin romanization directly (no IME candidate popup needed) — Lertaro matches Chinese filenames by pinyin automatically, see [Search Syntax](./search-syntax#chinese-filenames-pinyin-aliasing).
-- Use the [quick window](./getting-started#the-three-windows) instead (double-tap `Ctrl` by default) — it's a real focused window, so IME composition works there normally.
+- **Service Logs**: Records background indexing, USN journals, network scans, and IPC communication.
+- **App Logs**: Records foreground UI rendering, plugin lifecycles, and configuration updates.
+- **Hook Logs**: Records global keyboard hook and mouse gesture event streams.
 
-## Still stuck?
-
-Check the **Service**, **App**, and **Hook** log tabs under **[Settings → Service Status](./settings/service-status)** — the search box there filters by keyword, and the level dropdown filters by severity — before filing an issue on GitHub.
+Use the search bar to filter keywords or sort by severity (Info / Warn / Error) to locate stack traces before attaching logs to a GitHub issue.

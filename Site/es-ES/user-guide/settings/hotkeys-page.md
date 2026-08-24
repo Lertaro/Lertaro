@@ -1,57 +1,48 @@
-# Atajos (página de configuración)
+# Atajos de teclado (Configuración)
 
-Tres pestañas: **Global**, **Acciones de plugins** y **Lista negra de procesos**. Ver la página de [Atajos de
-teclado](../hotkeys) para saber qué hace realmente cada atajo — esta página documenta la propia interfaz de
-configuración.
+La página de Atajos de teclado centraliza la gestión de atajos de invocación global, teclas de navegación interna, accesos rápidos de plugins y reglas de listas negras de procesos. Contiene tres pestañas: **Global**, **Acciones de plugins** y **Lista negra de procesos**.
 
-## Global
+## 1. Global
 
-Grupo **Atajos globales**:
+### Atajos globales
 
-- **Mostrar/Ocultar búsqueda rápida** — control grabador; acepta un modificador suelto (modo de doble pulsación,
-  `Ctrl` por defecto) o una combinación completa. Junto a él, **Seguir respondiendo mientras una app a pantalla
-  completa tiene el foco** — casilla, desactivada por defecto — excluye este atajo (y Cambio rápido, y la
-  activación de la búsqueda en línea) de la exención automática de pantalla completa descrita en [Lista negra de
-  procesos](#process-blacklist) más abajo.
-- **Cambio rápido** — `Ctrl+G` por defecto.
+- **Mostrar/Ocultar búsqueda rápida**: Grabador de teclas dedicado. Admite **modo de doble pulsación** (por defecto doble `Ctrl`, configurable a doble `Alt` o `Shift`) y **combinaciones estándar** (p. ej. `Alt+Space`, `Win+Space`).
+- **Responder al enfocar aplicaciones a pantalla completa**: Casilla (desactivada por defecto). Permite responder a los atajos incluso con juegos o reproductores a pantalla completa; si está desactivada, los atajos se omiten para no interrumpir.
+- **Salto rápido (Quick Jump)**: Por defecto `Ctrl+G`. En diálogos de archivos, salta a la carpeta navegada recientemente en exploradores compatibles.
 
-Grupo **Teclas de función**:
+### Teclas de función y navegación
 
-- Elemento siguiente (`Ctrl+N`), Elemento anterior (`Ctrl+P`), modificador de Saltar a resultado (`Ctrl` por
-  defecto, emparejado con los dígitos 1–9), Abrir menú de acciones (`Ctrl+O`), Completar desde selección
-  (`Ctrl+Tab`), QuickLook (`Alt+P`), Historial de palabras clave anterior/siguiente (`Alt+Arriba` /
-  `Alt+Abajo`), Eliminar entrada del historial de palabras clave (`Ctrl+Supr`), Abrir ventana completa
-  (`Ctrl+F` por defecto — abre la ventana completa directamente, trasladando la consulta actual; el mismo efecto
-  que hacer clic izquierdo en el propio logotipo de la Ventana rápida y elegir Mostrar ventana principal, sin ese
-  clic adicional).
-- Todo grabador de aquí acepta cualquier tecla o combinación que pulses — incluidas teclas como una `Tab` suelta —
-  y ese atajo tiene prioridad sobre cualquier significado predeterminado fijo que esa tecla pudiera tener por otro
-  lado.
+Controles independientes de grabación de teclas que aceptan combinaciones personalizadas:
 
-Grupo **Navegación rápida**:
+- **Seleccionar elemento siguiente / anterior**: Por defecto `Ctrl+N` / `Ctrl+P` (equivalente a `↓` / `↑`).
+- **Modificador de salto numérico**: Por defecto `Ctrl`, combinado con números `1`–`9`.
+- **Abrir Menú de acciones**: Por defecto `Ctrl+O` (equivalente a `→`).
+- **Autocompletar desde selección**: Por defecto `Ctrl+Tab`.
+- **Vista previa instantánea QuickLook**: Por defecto `Alt+P`.
+- **Término anterior / siguiente en historial**: Por defecto `Alt+Up` / `Alt+Down`.
+- **Eliminar término del historial**: Por defecto `Ctrl+Delete`.
+- **Abrir Ventana principal**: Por defecto `Ctrl+F`.
+- **Abrir ventana LocalSend**: Por defecto `Ctrl+S`.
+- **Fijar ventana (Mantener visible)**: Por defecto `Ctrl+T`.
+- **Mostrar/Ocultar Panel rápido**: Por defecto `Ctrl+F2`.
 
-- **Doble clic izquierdo en espacio vacío** — casilla, activada por defecto.
-- **Clic central en espacio vacío** — casilla, activada por defecto.
+### Activadores de ratón para Navegación rápida
 
-## Acciones de plugins
+- **Doble clic izquierdo en zona vacía**: Casilla (activada por defecto). Abre el menú de Navegación rápida en el escritorio o en el Explorador.
+- **Clic central en zona vacía**: Casilla (activada por defecto). Abre el menú en el escritorio, Explorador o cuadros de diálogo.
 
-Una entrada por cada acción que haya registrado un plugin (por ejemplo, copiar ruta, ejecutar como administrador),
-agrupadas por nombre de plugin, cada una con su propio grabador de atajo. Recurre al valor predeterminado sugerido
-por el propio plugin hasta que lo cambies.
+## 2. Acciones de plugins
 
-## Lista negra de procesos {#process-blacklist}
+Muestra todos los atajos registrados por plugins (p. ej. Copiar ruta completa `Ctrl+Shift+C`, Cortar `Ctrl+X`, Copiar `Ctrl+C`, Pegar `Ctrl+V`, Eliminar `Delete`, Eliminación permanente `Shift+Delete`).
 
-Añade nombres de ejecutables (por ejemplo, `juego.exe`) cuyo foco en primer plano deba suprimir por completo los
-atajos globales de Lertaro, la interceptación de pulsaciones de teclado y los disparadores de ratón de doble
-clic/clic central de navegación rápida. No distingue mayúsculas de minúsculas, el sufijo `.exe` es opcional. Admite
-el mismo patrón de añadir-uno / edición-masiva que las reglas de exclusión bajo **Índice**: un cuadro de texto de
-una sola entrada más **Añadir proceso**, una lista de entradas existentes, y un cuadro de texto masivo con
-**Generar texto** / **Aplicar texto**.
+- **Vista agrupada**: Organizado con claridad por plugin de origen.
+- **Reasignación individual**: Cada acción cuenta con su propio control de grabación.
 
-Esta es la solución para los conflictos de atajos con juegos a pantalla completa u otras aplicaciones que capturan
-la entrada de teclado en bruto — ver [Solución de problemas](../troubleshooting#el-atajo-global-no-responde).
-Cualquier aplicación en primer plano que sea realmente de pantalla completa recibe automáticamente el mismo trato,
-sin necesidad de ninguna entrada aquí — a menos que **Seguir respondiendo mientras una app a pantalla completa
-tiene el foco** (en **Global**, junto a Mostrar/Ocultar búsqueda rápida) esté activado, lo cual excluye por
-completo de esa exención. En cualquier caso, un diálogo de archivos activo siempre está exento, así que la
-navegación rápida sigue funcionando ahí.
+## 3. Lista negra de procesos
+
+Configura aplicaciones en primer plano ante las cuales Lertaro silenciará todos los atajos y activadores de ratón.
+
+- **Sin distinción de mayúsculas**: Acepta `game.exe` o `game`.
+- **Añadir individualmente**: Introduce el nombre del proceso y pulsa **Añadir proceso**.
+- **Gestión por lotes**: Pulsa **Generar texto** para exportar la lista a texto multilínea, o pega una lista y pulsa **Aplicar a la lista**.
+- **Exención automática en cuadros de diálogo**: Aunque una app esté en la lista negra, sus diálogos de selección de archivos conservan la Búsqueda incrustada y la Navegación rápida.

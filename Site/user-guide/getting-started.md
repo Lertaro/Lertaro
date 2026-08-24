@@ -1,60 +1,60 @@
 # Getting Started
 
-## Installing
+Welcome to Lertaro! Lertaro is an ultra-fast file search launcher and productivity tool purpose-built for Windows. This guide walks you through installation options, core architecture, three distinct window modes, and essential search workflows.
 
-Grab the latest release from the [download button](../) on the homepage — two flavors are
-published for every release:
+## 1. Download & Installation
 
-- **Installer** (`Lertaro-Setup.exe`) — recommended. It registers the background indexing
-  service and can start Lertaro with Windows.
-- **Portable** (`Lertaro-Portable.zip`) — unzip and run, no installation. You can still install
-  the background service later from **Settings → Service Status**. If your machine doesn't already
-  have the .NET Desktop Runtime Lertaro needs, run the included `install-dotnet-runtime.bat` once
-  — the Installer handles this step automatically, but the portable build can't. When you're done
-  with a portable install, there's no uninstaller to clean up after you: run the included
-  `portable-cleanup.bat` before deleting the folder. It stops and removes Lertaro's background
-  service when present, and removes the per-user `lertaro://` URI protocol and "start with Windows"
-  registrations. Removing the service may request administrator approval; the cleanup is otherwise
-  performed for the current user.
+You can get the latest release from the official homepage. Each release provides two execution formats, compiled natively for both **x64** and **ARM64**:
 
-Each of those is published for **x64** and for **ARM64**. The names above are the x64 builds, which
-run on any recent PC — including Windows on ARM, where they run emulated. On an ARM machine prefer
-`Lertaro-Setup-arm64.exe` or `Lertaro-Portable-arm64.zip`, which are native. Automatic updates
-stay on the architecture you installed, so moving between them means downloading the other build
-yourself.
+### Installer (`Lertaro-Setup.exe`, Recommended)
 
-## Portable data
+- **Automated Configuration**: The setup wizard automatically registers the background indexing service (`Lertaro.Service`), configures startup entries, and installs required .NET desktop runtime components.
+- **Seamless Upgrades**: Supports background update checks and one-click in-place upgrades.
 
-A portable copy stores machine data in `Data\Machine` and each user's private data in `Data\Users\<SID hash>` beside the application. If its `Data` folder has not been created yet, existing `%ProgramData%\Lertaro` and `%LocalAppData%\Lertaro` data is reused for compatibility; create `Data` when you want the portable copy to take precedence and be self-contained.
+### Portable Edition (`Lertaro-Portable.zip`)
 
-On first run, Lertaro installs and starts a Windows service (`Lertaro.Service`) that owns file
-indexing. This split exists on purpose — see [Architecture](../dev-guide/architecture) if you're
-curious why — but as a user, the only thing you need to know is: **Settings → Service Status**
-tells you whether the service is installed and running, and lets you install it if it isn't.
+- **Extract and Run**: Unzip to any folder and run immediately without installation.
+- **Runtime Dependency**: If your system lacks the required .NET desktop runtime, run the bundled `install-dotnet-runtime.bat` script once.
+- **Self-Contained Data Storage**: The portable edition saves machine-wide data to `Data\Machine` alongside the application, and user settings to `Data\Users\<SID hash>`. If the `Data` directory does not exist yet, it falls back to `%ProgramData%\Lertaro` and `%LocalAppData%\Lertaro` for compatibility; once created, it prioritizes local data as a fully self-contained instance.
+- **Clean Removal**: Before deleting the portable folder, run the bundled `portable-cleanup.bat` script. It stops and uninstalls the background service, and removes current-user `lertaro://` URI registrations and startup entries.
 
-## The three windows
+> [!TIP]
+> If you are using a Windows on ARM device (such as Surface Pro X or Snapdragon laptops), download the native `Lertaro-Setup-arm64.exe` or `Lertaro-Portable-arm64.zip` for maximum performance and battery efficiency.
 
-Lertaro doesn't have just one search window — it adapts to how you're using it:
+## 2. Architecture Overview
 
-- **Main window** — the full window you get from the taskbar/Start Menu shortcut, with the largest
-  result list and an in-window Actions panel.
-- **Quick window** — the compact, always-on-top popup you summon with the global toggle hotkey
-  (double-tap `Ctrl` by default). Built for "hit hotkey → type → Enter" muscle memory.
-- **Inline window** — embeds a Lertaro search bar directly into a supported native file dialog or
-  File Explorer window, so you can search without leaving the dialog you're already in.
+When running Lertaro for the first time, it installs and launches a dedicated Windows service (`Lertaro.Service`). Understanding this separation helps you get the most out of the system:
 
-All three share the same search engine, hotkey system, and Actions menu — the difference is purely
-where and how they appear.
+- **Foreground App (UI & Interaction)**: Renders search windows, floating panels, action menus, keyboard hooks, and interactive previews. The foreground process maintains a minimal memory footprint and instant responsiveness.
+- **Background Service (Indexing & Data)**: Runs with service privileges in the background, continuously monitoring NTFS / ReFS USN change journals, tracking filesystem events, managing network drives, and maintaining an in-memory index tree.
+- **Architectural Benefits**: Restarting, updating, or closing the UI never loses the background index or triggers full rescans. Heavy indexing tasks never stutter your keystrokes. You can check service status and health at any time under [**Settings → Service Status**](./settings/service-status).
 
-## Basic search
+## 3. Three Window Modes
 
-Recent files, favorites and history are reachable without typing anything at all — they are tabs in
-the [Quick Panel](./settings/quick-panel), which opens over whatever window is in front rather than
-inside the search window.
+Lertaro is not limited to a single search window. It adapts to different workflows with three purpose-built window modes:
 
-Just start typing. Results update as you type, ranked by relevance (see
-[Search Syntax](./search-syntax) for how matching and ranking work). Use the
-[configurable next/previous-item hotkeys](./hotkeys) (arrow keys by default) to move the
-selection, and Enter to open the highlighted result.
+| Window Mode | Default Trigger | Key Features & Design Focus | Best Used For |
+| :--- | :--- | :--- | :--- |
+| **Quick Window** | Double-tap `Ctrl` (Customizable) | Compact centered floating bar, optimized for muscle memory, number key jumps, and pure keyboard navigation | Frequent app launching, quick calculations, translations, and fast file lookup |
+| **Full Window** | Taskbar/Start shortcut, or `Ctrl+F` | Full-featured large window with tabular results, sidebar filter groups, column sorting, and built-in Space Analyzer | Deep file browsing, broad exploration, disk space cleaning, and batch management |
+| **Inline Window** | Automatically docks in file dialogs or Explorer | Embedded seamlessly into standard Windows file dialogs or third-party file managers | Quick destination locating when opening or saving files in external software |
 
-Next up: [Search Syntax](./search-syntax) to get the most out of the query box.
+All three window modes share the exact same underlying search engine, shortcut scheme, filter rules, and action menus.
+
+## 4. First Search & Basic Navigation
+
+### Type to Search
+
+Simply open the search window and start typing. Results appear in real time (sub-millisecond latency). Search matching uses fuzzy jump matching by default — characters do not need to be contiguous. For advanced syntax, operators, and modifiers, see [**Search Syntax**](./search-syntax).
+
+### Navigating & Opening Results
+
+- **Move Selection**: Use arrow keys `↑` / `↓` (or configured navigation hotkeys `Ctrl+P` / `Ctrl+N`) to move selection up and down.
+- **Open Directly**: Press `Enter` to open the highlighted file or launch the application.
+- **Reveal in Explorer**: Press `Ctrl+Enter` to locate and select the item directly in Windows File Explorer.
+- **Run as Administrator**: Press `Ctrl+Shift+Enter` to launch the selected application with administrative privileges.
+- **Direct Number Jump**: In the Quick Window, press `Ctrl` + `1`–`9` to jump directly to any of the first 9 results.
+
+### Action Menu & Context Actions
+
+Press `Ctrl+O` or `→` on any highlighted item to expand the comprehensive **Action Menu**, offering path copying, file operations, properties, and plugin extensions. Read [**Actions & Preview**](./actions-and-preview) and [**Hotkeys**](./hotkeys) for more tips.

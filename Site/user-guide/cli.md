@@ -1,87 +1,88 @@
-# Command-Line Search (lff)
+# CLI Search (lff)
 
-Lertaro also ships a small command-line companion, **`lff`** — an fzf-style fuzzy finder that
-searches through the same index the App itself already maintains, instead of duplicating any of
-that setup. It's for anyone who lives in a terminal and wants Lertaro's search (fuzzy matching,
-pinyin aliasing, network drives, everything) available there too, not just in the search windows.
+Lertaro includes a lightweight and highly efficient command-line companion named **`lff`** (Lertaro Fuzzy Finder) — an interactive fuzzy finder built specifically for terminal power users and shell scripts. It communicates via local named pipes with the running Lertaro App to reuse the in-memory index tree without rescanning drives.
 
-`lff` needs the Lertaro App to already be running — it talks to the App over a local, per-user
-pipe rather than re-scanning anything itself. If the App isn't running, `lff` fails fast with an
-error on stderr instead of hanging.
+## 1. Why Choose lff
 
-## Setting it up
+- **Shared Index, Zero I/O Latency**: Unlike `fzf` or `find` that crawl disk sectors from scratch on every run, `lff` queries Lertaro's multimillion-item memory index tree in sub-milliseconds.
+- **Identical Search Syntax**: Inherits Lertaro's fuzzy jump matching, Chinese pinyin aliases, and modifier operators (see [**Search Syntax**](./search-syntax)).
+- **Fast Fail-Safe**: Automatically detects whether Lertaro App is running. If not, it prints a clear error message to `stderr` and exits immediately without hanging your terminal.
 
-`lff.exe` is installed alongside the App. Check **Add the lff command-line search tool to PATH**
-on the installer's task selection page to make it runnable as `lff` from any terminal — this adds
-Lertaro's install folder to your system PATH. Open a new terminal window afterward; one already
-open when you installed won't pick up the change.
+## 2. Installation & PATH Setup
 
-If you skipped that option, you can still run it directly from wherever Lertaro is installed.
+`lff.exe` ships directly inside the Lertaro package:
 
-## Basic usage
+- **Installer**: Check **Add lff CLI search tool to PATH** in the setup wizard to make `lff` accessible anywhere in your terminal.
+- **Portable Edition**: Manually add the unzipped folder path to your user or system `PATH` environment variable.
 
-```
+> [!NOTE]
+> After updating PATH, open a new terminal window for the change to take effect; existing shell sessions will not reflect environment changes automatically.
+
+## 3. Interactive UI & Keybindings
+
+Run `lff` in any terminal to open the full-screen interactive interface:
+
+```bash
 lff
 ```
 
-opens an interactive picker: type to fuzzy-filter, exactly like the App's own search — including
-pinyin-alias matching for Chinese filenames (see [Search Syntax](./search-syntax)).
+### Keybindings Cheat Sheet
 
-| Key | Action |
-|---|---|
-| Type | Filter results |
-| ↑ / ↓ | Move the highlight |
-| Page Up / Page Down | Jump a page at a time |
-| ← / → | Move the text cursor within the query |
-| Tab | Toggle-select the highlighted result (marked rows show `*`) |
-| Enter | Print the selected path(s) — or just the highlighted one, if nothing's marked — and exit |
-| Esc / Ctrl+C | Exit without printing anything |
+| Key | Description |
+| :--- | :--- |
+| **Type Characters** | Filters search results in real time with fuzzy jump matching. |
+| `↑` / `↓` | Moves the highlight up / down. |
+| `Page Up` / `Page Down` | Scrolls up / down by full page. |
+| `←` / `→` | Moves the cursor horizontally within the search input bar. |
+| `Tab` | Toggles selection/mark on the highlighted row (marked items display a `*` badge). |
+| `Enter` | Outputs all marked paths (or the highlighted path if none marked) to `stdout` and exits. |
+| `Esc` or `Ctrl+C` | Exits cleanly without outputting anything. |
 
-## Pre-filling the query
+## 4. Pre-filling Queries & Pipeline Input
 
-```
+You can provide an initial search term directly via command-line arguments or standard input:
+
+```bash
+# Via argument
 lff report
-```
 
-and
-
-```
+# Via standard input pipeline
 echo report | lff
 ```
 
-both open already filtered to `report`. Either way this only pre-fills the query box and starts
-the same search typing it would — it never auto-selects or auto-prints a result on its own, so you
-still navigate and press Enter/Tab yourself.
+Both open the interactive TUI pre-populated with `report` as the initial filter, allowing you to refine the search or press `Enter` directly to confirm.
 
-## Selecting multiple results
+## 5. Multi-selection & Batch Output
 
-Tab marks or unmarks the highlighted row. Marked rows persist even after you change the query — so
-you can search for one file, mark it, search for something else, mark that too, and so on. The
-status line shows how many are currently marked. Pressing Enter while anything is marked prints
-every marked path, one per line, regardless of what's currently highlighted.
+Press `Tab` to mark items. **Marked selections persist even when you change your search query**.
 
-## Using the result in another command
+You can search for `doc` to mark several Word documents, clear the query, search `pdf` to mark several reports, and press `Enter` — `lff` outputs all marked paths across queries line-by-line to standard output.
 
-`lff`'s interactive picker is drawn directly to the console, never through the normal
-input/output streams — the only thing that ever goes to stdout is the final selected path(s), one
-per line, printed on Enter. That's what lets its output compose with the usual shell techniques
-for capturing another command's result.
+## 6. Shell Scripting Examples
 
-PowerShell:
+`lff` renders its TUI directly into the console buffer without polluting the standard output stream. Only the final confirmed path strings are written to `stdout`, making it ideal for piping into other tools:
+
+### PowerShell Workflows
 
 ```powershell
+# Open the selected file in VS Code
 code (lff)
-$path = lff; code $path
+
+# Assign chosen directory to a variable and navigate to it
+$target = lff; cd $target
+
+# Pipe results as FileInfo objects down the pipeline
+lff | Get-Item | Select-Object Name, Length, LastWriteTime
 ```
 
-cmd.exe (no built-in command substitution — use `for /f`):
+### CMD / Batch Workflows
 
 ```cmd
+:: Process selected paths line-by-line in a for loop
 for /f "delims=" %i in ('lff') do code "%i"
 ```
 
-## Limitations
+## 7. Limitations & Intentional Choices
 
-- No preview pane — deliberately out of scope, since the App's own [Actions Menu &
-  Preview](./actions-and-preview) already covers that.
-- Requires the Lertaro App to be running; `lff` doesn't index anything on its own.
+- **Requires Foreground App**: `lff` relies on the running Lertaro App instance for querying; it does not perform standalone indexing.
+- **No GUI Previews**: Optimized exclusively for fast terminal piping. For interactive media/rich text previews, use Lertaro's GUI [**Actions & Preview**](./actions-and-preview).

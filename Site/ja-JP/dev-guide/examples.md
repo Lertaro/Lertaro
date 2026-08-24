@@ -1,34 +1,38 @@
-# サンプルプラグイン
+# 公式プラグインのサンプル解説
 
-Lertaro 自身には2つのプラグインが同梱されており、実際の参考例として非常に役立ちます——どちらも
-Lertaro リポジトリの `Plugins/` フォルダーにあります。
+`Lertaro.PluginSdk` の各インターフェイスの連携を深く理解するために、公式リポジトリに同梱されている 3 つの代表的なプラグインの実装パターンを解説します。
 
-## CoreExtensions — アクションとシェルのコンテキストメニュー
+## 1. CoreExtensions —— アクション、Shell メニュー、クイックパネル
 
-`CoreExtensionsPlugin` は `IPlugin`、`IActionProvider`、`IConfigurable` の3つのインターフェースを同時に実装しています。
+`CoreExtensions` は Lertaro の中心的な拡張機能であり、`IPlugin`、`IActionProvider`、`IConfigurable`、および複数のプロバイダーを実装しています。
 
-- **`IActionProvider.GetActions()`** は10個の組み込み `ISearchResultAction` を返します——開く、
-  Explorer で開く場所を表示、パスのコピー、ファイル自体のコピー/切り取り、その場所でコマンドプロンプトを開く、touch/mkdir、そして開くとコマンドプロンプトの昇格(管理者として実行)バリアントです。
-- **`IActionProvider.GetDynamicActionProviders()`** は単一の `IDynamicActionProvider` である
-  `ShellMenuActionProvider` を返します。これが、実際の Windows 右クリックメニュー(「送る」のようなネストされたカスケードサブメニューを含む)を Lertaro 自身のアクションメニューの中に表示させている仕組みです。固定のアクションリストではなく、*任意の*外部の、動的に構築されるメニューを Lertaro
-  内に表示したい場合に真似すべきパターンです。
-- **`IConfigurable.GetConfigSchema()`** は、ネストされたフィールドグループと `StringList` フィールドタイプを使った設定スキーマの例を示しています——自分のプラグインの 設定 → プラグイン の設定ダイアログに、フラットなブール値のリスト以上のものが必要な場合は一読の価値があります。
-- 5つのプロバイダーが
-  [`IQuickPanelTabProvider`](./sdk/ui-extensions#iquickpaneltabprovider) を実装しており、これらでインターフェースの両極をカバーしています。`FavoritesTabProvider` と `HistoryTabProvider` はメモリ上のリストをそのまま返すだけ — どちらも独自の状態を持たないため、最小限のリファレンス実装です。`WindowsRecentTabProvider` はもう一方の極で、バックグラウンドタスクでディレクトリを読み、COM 経由でシェルのショートカットを解決し、高価な処理の**前に**件数を打ち切り、各項目の `Metadata.Modified` を埋めてタブの新しい順に意味を持たせています。
-- `LastDirectoryTabProvider` と `RecentFilesTabProvider` を読む理由は少し違います:どちらも自前のデータをまったく持たず、
-  [`ExplorerPathService`](./sdk/services) と `RecentFilesService` を通じてホストに尋ねています。プラグインで見せたいものを Lertaro がすでに知っている場合は、このパターンをまねてください。
+### 主な実装ポイント
 
-## PinyinAlias — 中国語ファイル名向けのピンインエイリアス
+- **静的アクション（`IActionProvider.GetActions()`）**：開く、エクスプローラーで表示、パスクリップボードコピー、ファイルのコピー/切り取り、コマンドプロンプトで開く、管理者として実行など、10 個の基本アクションを提供。
+- **Shell コンテキストメニュー統合（`IDynamicActionProvider`）**：`ShellMenuActionProvider` を介して Windows Shell の COM インターフェイスと連携し、階層化された右クリックメニュー（「送る」、7-Zip、VS Code など）を `Ctrl+O` アクションメニュー内に忠実に描画。
+- **スキーマ駆動の設定フォーム（`IConfigurable`）**：グループ化（`Group`）、文字列リスト（`StringList`）、ホットキー登録（`Hotkey`）を含むフォームスキーマを定義し、XAML を書かずに設定センターへ UI を自動生成。
+- **多彩なクイックパネルタブ（`IQuickPanelTabProvider`）**：
+  - `FavoritesTabProvider` / `HistoryTabProvider`：メモリ上のデータをそのまま結果として返し、ディスク I/O を発生させない最小構成。
+  - `WindowsRecentTabProvider`：バックグラウンドで `Recent` フォルダーを巡回し、COM でショートカットのリンク先を解決して `Metadata.Modified` を付与。
+  - `LastDirectoryTabProvider` / `RecentFilesTabProvider`：ホストが公開している [`ExplorerPathService`](./sdk/services) や `RecentFilesService` を直接参照。
 
-`PinyinAliasProvider` は `IAliasProvider` と `ITranslationProvider` の両方を実装しています——プラグインは関連する SDK の役割を自由に組み合わせることができ、これはその良いテンプレートです。
+## 2. PinyinAlias —— 非 ASCII エイリアス変換エンジン
 
-- **`IAliasProvider.InputRanges`/`OutputRanges`** は、`PinyinEngine` 自身のテーブルの境界値から2つのアルファベットをそのまま宣言しています(`InputRanges`:CJK ブロック、`OutputRanges`:`a`-`z`)。マジックナンバーを重複させないためです——ホストはこれら両方を使って、`大长今` に対する `大cj` のような、文字リテラルとピンインを混在させたクエリをサポートします。
-- **`IAliasProvider.CanHandle(text)`** は、実際の処理を行う前にまず中国語文字が含まれているかをスキャンするため、中国語以外のファイル名はエイリアス生成を完全にスキップします。
-- **`IAliasProvider.GetAliases(text)`** は文字単位の音節テーブル(各漢字が取りうるピンイン読みへのマッピング)を構築し、フルピンインのエイリアスと頭文字のみのエイリアスの両方を生成します。多音字
-  (有効な読みが複数ある文字)を含むファイル名については、一般的な組み合わせすべてに対してエイリアスを生成します——病的な入力での組み合わせ爆発を避けるため上限は32通りです——各候補は `|` で連結され、検索エンジンはそれらすべてが同時に一致することを要求するのではなく、それぞれを個別の候補として扱います。
-- **`ITranslationProvider`** は*同じ*クラスに実装されていますが、これは純粋にこのプラグイン自身の
-  UI 文字列(表示名など)を `TranslationService.LoadEmbeddedTranslations` 経由で提供するためのものです——両インターフェースは目的としては無関係ですが、この小さな単一ファイルのプラグインではたまたま
-  1つの型にまとまっています。
-- `lock` で保護された `Dictionary<string, Dictionary<string, string>>` のキャッシュにより、呼び出しのたびに埋め込みの翻訳 JSON を再パースすることを避けています——`GetTranslations` の中で軽くない処理を行うプラグインにとっての標準的なパターンです。
+`PinyinAlias` は、中国語ファイル名に対するピンイン全スペルおよび頭文字検索をサポートし、`IAliasProvider` と `ITranslationProvider` を実装しています。
 
-両方のプラグインを並べて読むことが、[プラグイン SDK リファレンス](./sdk/core-search-actions)の各パーツが実際にどう組み合わさるかを理解する最も手っ取り早い方法です。
+### 主な実装ポイント
+
+- **文字境界の宣言（`InputRanges` / `OutputRanges`）**：入力元を CJK 統合漢字、出力先を英小文字 `a`–`z` と定義。ホストはこの情報をもとに、漢字とアルファベットが混在したクエリを字面一致とピンイン一致に自動分割。
+- **事前高速判定（`CanHandle(text)`）**：文字列中に該当文字が含まれるかを事前に走査し、英数字のみの場合は即座に `false` を返して不要な処理をスキップ。
+- **多音字の組み合わせ生成（`GetAliases(text)`）**：音節マップを構築し、複数の読みが存在する場合にパイプ記号 `|` で連結した候補群を最大 32 通りまで生成して並列照合。
+- **多言語リソースとスレッドセーフなキャッシュ**：`ITranslationProvider` を通じてプラグインの表示名を多言語化し、内部では `lock` 付きディクショナリで JSON をキャッシュして高速化。
+
+## 3. FlowLauncherBridge —— コミュニティプラグインの相互運用
+
+`FlowLauncherBridge` は、外部の Flow Launcher プラグインをネイティブレベルで透過的に動かすための大規模ブリッジプラグインです。
+
+### 主な実装ポイント
+
+- **マルチ言語プロセス間ブリッジ**：C# (.NET)、Python 3.12、Node.js v20 LTS、および `.exe` 形式の Flow プラグインを実行。
+- **隔離された自己完結ランタイム**：ユーザーデータフォルダー内に Python / Node.js ランタイムを自動配置し、名前付きパイプによる JSON-RPC 通信を実行。
+- **動的設定フォームと WebView2 リッチプレビュー**：外部プラグインの `SettingsTemplate.yaml`/`.json` を `PluginConfigSchema` に動的変換し、辞書や天気などのリッチな HTML プレビューを QuickLook 内に表示。

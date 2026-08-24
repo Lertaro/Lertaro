@@ -1,16 +1,21 @@
 # 系統與對話方塊適配
 
-這些接口讓插件可以和*其他*視窗集成——檔案總管、原生檔案選擇對話方塊、第三方檔案管理器——而不僅僅是 Lertaro 自己的搜尋視窗。
+本章節介紹 `Lertaro.PluginSdk` 中用於與外部前景視窗（Windows 檔案總管、原生檔案開啟/儲存對話方塊、第三方檔案管理器等）進行深度掛載、目錄探測與內嵌搜尋互動的適配器介面。
 
-## `IActivePathCollector`
+> [!NOTE]
+> 本頁面中的 `IActivePathCollector`、`IFileDialogAdapter` 與 `IInlineSearchAdapter` 元件會被宿主載入至**特權 Hook 輔助程序**中執行，以確保能夠跨越 UIPI 隔離與以管理員身分啟動的檔案視窗安全互動。
 
-從當前活動的前臺視窗中提取"當前目錄"，讓 Lertaro 知道該把搜尋範圍限定在哪裏(或者相對什麼路徑解析動作)。
+## 1. 活動目錄收集器 `IActivePathCollector`
+
+用於從當前獲得焦點的活動視窗中精準擷取「當前工作目錄路徑」，使 Lertaro 能夠正確界定內嵌搜尋的作用範圍或執行相對路徑定位：
 
 ```csharp
-interface IActivePathCollector
+namespace Lertaro.PluginSdk;
+
+public interface IActivePathCollector
 {
     string Name { get; }
-    string TargetName { get; }   // 目標應用/管理器的本地化名稱
+    string TargetName { get; }   // 目標管理器名稱（如 "Directory Opus"、"Total Commander"）
     bool CanHandle(string className);
     string? TryGetPath(
         IntPtr activeHwnd, string activeClassName,
@@ -19,80 +24,67 @@ interface IActivePathCollector
 }
 ```
 
-活動(獲得焦點)的元素和它所在的視窗是分開傳入的，因為很多檔案管理器把實際路徑放在子控件裏(地址欄、樹形視圖的選中項)，而不是頂層視窗本身。
+- 將獲得焦點的子控制項（`activeHwnd`）與頂層主視窗（`windowHwnd`）分開傳入，以便適配器從深層網址列或樹狀檢視中擷取路徑。
 
-## `IFileDialogAdapter`
+## 2. 原生檔案對話方塊適配器 `IFileDialogAdapter`
 
-讀取並驅動原生渲染的 Windows 打開/保存檔案對話方塊，讓 Lertaro 可以被嵌入其中(見下面的
-[`IInlineSearchAdapter`](#iinlinesearchadapter))並保持雙方同步。
+用於讀取並驅動 Windows 原生檔案開啟/儲存對話方塊（Common Item Dialog 或經典對話方塊）：
 
 ```csharp
-interface IFileDialogAdapter
+public interface IFileDialogAdapter
 {
     string Name { get; }
     bool CanHandle(IntPtr hwnd, string className, string processName);
     string? GetCurrentPath(IntPtr hwnd);
     bool NavigateTo(IntPtr hwnd, string targetPath);
-    bool TargetIsFolderOnly { get; } // 預設 false
-    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor); // 預設 true
+    bool TargetIsFolderOnly => false;  // 目標是否僅接受資料夾（如壓縮解壓目錄）
+    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => true;
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
     bool RestoreFocus(IntPtr hwnd);
 }
 ```
 
-`TargetIsFolderOnly` 為 `true` 表示這個對話方塊的目標輸入框只能填資料夾——比如壓縮軟件的"解壓到"
-目標路徑——不像 Open/Save 對話方塊的檔案名輸入框那樣還能填具體檔案。宿主用它來判斷:如果使用者從搜尋結果裏選中的是一個檔案，需不需要在傳給 `NavigateTo` 之前先解析成它所在的資料夾，而不是把這個判斷留給 `NavigateTo` 自己——因為那個調用是在提升權限的 Hook 處理程序裏執行的，`File.Exists`/
-`Directory.Exists` 在那裏沒法信任(使用者在非提升權限下映射的磁碟機，在那邊可能"不存在")。如果目標輸入框本身就是能填具體檔案的，保持預設值 `false` 即可。
+- **`TargetIsFolderOnly`**：當設為 `true` 時，若使用者在搜尋結果中選取了一個具體檔案，宿主會在呼叫 `NavigateTo` 前自動將其剖析為其所在的父級資料夾，避免輸入框格式錯誤。
+- **`AdapterRect`**：包含 `{ Left, Top, Right, Bottom }` 實體像素邊界。
 
-## `IInlineSearchAdapter`
+## 3. 內嵌搜尋適配器 `IInlineSearchAdapter`
 
-把 Lertaro 搜尋欄直接嵌入目標檔案對話方塊或檔案總管視窗(即使用者手冊裏說的"內嵌視窗")，雙向保持選中狀態同步。
+將 Lertaro 的搜尋列直接掛載至目標視窗或檔案對話方塊內部，實現即時的內嵌搜尋與選取狀態雙向同步：
 
 ```csharp
-interface IInlineSearchAdapter
+public interface IInlineSearchAdapter
 {
     string Name { get; }
-    bool IsFileExplorer { get; }   // 預設 false
+    bool IsFileExplorer => false;      // 是否為系統檔案總管
     bool CanHandle(IntPtr hwnd, string className, string processName);
     bool CanTrigger(IntPtr focusedHwnd, string className);
-    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor); // 預設委託給 CanTrigger
+    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => CanTrigger(hwndUnderCursor, classNameUnderCursor);
     bool CanEnterActionsMode(IntPtr hwnd);
     string? GetSearchScope(IntPtr hwnd);
     bool ExecuteItem(IntPtr hwnd, string path, string searchInput);
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
-    IEnumerable<string> GetListItems(IntPtr hwnd);        // 可選
-    void OnSelectionChanged(IntPtr hwnd, string path);    // 可選
-    void OnSearchFinished(IntPtr hwnd, bool executed);    // 可選
+    IEnumerable<string> GetListItems(IntPtr hwnd) => [];
+    void OnSelectionChanged(IntPtr hwnd, string path) { }
+    void OnSearchFinished(IntPtr hwnd, bool executed) { }
 }
 ```
 
-`AdapterRect`(與 `IFileDialogAdapter` 共用)是一個簡單的 `{ Left, Top, Right, Bottom }` `int` 矩形。
+## 4. 滑鼠快速導覽提供者 `IQuickNavigationProvider`
 
-## `IQuickNavigationProvider`
-
-為快速導航選單提供內容(通常是級聯選單)——見[熱鍵 → 快速導航](../../user-guide/hotkeys#快速導航-滑鼠)。選單該不該彈出由宿主決定，不是這個接口的職責:任何已被 `IInlineSearchAdapter`/`IFileDialogAdapter` 識別的視窗，觸發選單的工作已經有人做了，所以這個接口純粹是內容來源。
+為滑鼠按兩下或中鍵呼出的[**快速導覽級聯選單**](../../user-guide/hotkeys#3-快速導覽滑鼠觸發)貢獻動態分組與項目：
 
 ```csharp
-interface IQuickNavigationProvider
+public interface IQuickNavigationProvider
 {
-    string GroupName { get; }
-    Action<ISearchResult>? HeaderAction => null;
-    string? HeaderActionTooltip => null;
+    string GroupName { get; }           // 根層級分組標題
+    Action<ISearchResult>? HeaderAction => null; // 分組標題列尾部的附加操作按鈕（如 "+" 按鈕）
+    string? HeaderActionTooltip => null;// 標題列操作按鈕的 ToolTip 提示
     bool CanProvide(ISearchResult result);
     IEnumerable<DynamicMenuItem> GetMenuItems(ISearchResult result, IntPtr hMenu);
     void ExecuteCommand(ISearchResult result, uint commandId, IntPtr ownerHwnd);
-    void ClearSession();
+    void ClearSession() { }
 }
 ```
 
-`GroupName`是顯示在這個 provider 自己根層級條目上方的分組標題，方便同時有多個快速導航 provider
-時區分各條目分別來自哪一個——跟 `IDynamicActionProvider.GroupName` 在動作選單裏的作用一樣。
-
-`HeaderAction`(可選，預設 `null`)會在同一個根層級分組標題上加一個小按鈕——比如一個書籤類的
-provider 可以用它做"添加當前資料夾"。回調參數用的是 `GetMenuItems` 在根層級收到的同一個
-`ISearchResult`;`HeaderActionTooltip` 設定這個按鈕的提示文字，`HeaderAction` 為空時會被忽略。嵌套的子選單(根層級以下的任意深度)沒有宿主渲染的標題欄，所以 `HeaderAction` 的效果只到根層級為止
-——想在子選單上做同樣的"+"按鈕，需要在該子選單的第一項裏返回一個 `IsHeader = true` 的
-`DynamicMenuItem`(見下文)，用它自己的 `OnExecute` 起同樣的作用。
-
-`DynamicMenuItem` 與
-[`IDynamicActionProvider`](./core-search-actions#idynamicactionprovider) 用的是同一個模型，包括子選單層級標題行用的 `IsHeader` 標記。
+- **`HeaderAction`**：可在根層級分組標題右側新增小圖示按鈕（例如書籤提供者利用此按鈕實現「新增當前資料夾」）。
+- **`DynamicMenuItem.IsHeader`**：在巢狀子選單中，可透過返回帶有 `IsHeader = true` 的功能表項目實現子選單內部帶有操作按鈕的分組標題行。

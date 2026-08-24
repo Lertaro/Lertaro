@@ -1,64 +1,50 @@
-# Plugins
+# Plugins (Gestión)
 
-Lista cada plugin instalado, con la versión del SDK de Plugins cargada actualmente mostrada como una insignia en
-la cabecera de la página — haz clic en ella para abrir el [Manual de Desarrollador](../../dev-guide/), que es
-justamente para lo que sirve ese número de versión.
+Lertaro cuenta con una arquitectura modular de extensiones. Tanto los componentes internos como los plugins nativos en C# y el ecosistema de Flow Launcher se gestionan en **Configuración → Plugins**.
 
-La página se divide en dos paneles: los plugins instalados a la izquierda, y los detalles del seleccionado a la
-derecha. Cada uno se desplaza por su cuenta, así que una lista larga de plugins y un formulario largo de ajustes
-no se arrastran mutuamente.
+## 1. Diseño de página y versión del SDK
 
-Si no hay ningún plugin instalado, la página muestra en su lugar un mensaje de estado vacío.
+- **Insignia del SDK**: En la esquina superior derecha se muestra la versión cargada de `Lertaro.PluginSdk`. Al hacer clic se abre la [**Guía de desarrollo**](../../dev-guide/).
+- **Diseño de doble panel independiente**: La columna izquierda muestra los plugins instalados y la derecha presenta los detalles y el formulario de configuración del plugin seleccionado, con desplazamiento independiente.
 
-## Lista de plugins
+## 2. Detalles del plugin y conmutadores de componentes
 
-Una fila por plugin instalado, con su nombre y debajo su versión. Al seleccionar una fila, ese plugin se abre en
-el panel de la derecha.
+Al seleccionar un plugin a la izquierda, el panel derecho muestra su icono, nombre, versión y descripción:
 
-La lista encabeza con lo que hay que hacer: primero los plugins con ajustes propios, después los que tienen
-componentes que puedes desactivar, y luego el resto, por orden alfabético dentro de cada grupo.
+### Pestaña Detalles (Details)
 
-## Plugin seleccionado
+- **Lista de componentes**: Muestra todos los componentes funcionales registrados (fuentes de búsqueda, proveedores de acciones, accesos rápidos, manejadores de vista previa, etc.).
+- **Conmutadores individuales**: Cada componente no esencial dispone de una **casilla de activación**; los componentes imprescindibles muestran un icono de candado y no se pueden desactivar.
+- **Seleccionar / Deseleccionar todo**: Enlace rápido para alternar en bloque todos los elementos de un grupo.
+- **Descripción emergente**: Pasa el ratón sobre el icono **(!)** de un componente para consultar sus detalles técnicos y activación.
 
-El panel empieza con el icono, el nombre y la **descripción general de la función** del plugin.
+### Pestaña Configuración (Configure)
 
-Debajo, un plugin que expone su propia configuración (ajustes personalizados más allá de un simple
-habilitar/deshabilitar) obtiene dos pestañas, **Detalles** y **Configurar**. Un plugin sin nada que configurar no
-muestra ninguna pestaña: sus detalles ocupan el panel entero.
+- **Formularios incrustados**: Las opciones personalizadas del plugin se muestran en el panel derecho sin cuadros de diálogo adicionales (campos de texto, números, selectores, pestañas, etc.).
+- **Guardado seguro y restauración**: Los cambios se conservan en memoria hasta pulsar **Aceptar**; cambiar de plugin o salir de la página restaura los valores anteriores automáticamente.
 
-### Detalles
+## 3. Soporte del ecosistema de plugins de Flow Launcher
 
-Los componentes que registra este plugin, agrupados por tipo (proveedores de búsqueda, proveedores de menú
-dinámico, etc.). Cada componente activable tiene su propia **casilla de habilitar/deshabilitar**; un componente
-marcado como obligatorio muestra en su lugar un icono de candado y no se puede desactivar. Al pasar el cursor
-sobre el **(!)** junto a un componente se revela su descripción detallada de función.
+Además de los plugins nativos de `Lertaro.PluginSdk`, el módulo integrado **Flow Launcher Bridge** ofrece compatibilidad total con el extenso catálogo de Flow Launcher.
 
-Cuando un grupo (o el plugin en su conjunto) tiene más de un componente activable, aparece un enlace
-**Seleccionar todo / Deseleccionar todo** junto a su encabezado, que permite marcar/desmarcar todas las casillas
-de ese ámbito a la vez en lugar de una por una.
+### Entornos aislados y multilingües
 
-### Configurar
+- **Compatibilidad total**: Ejecuta plugins de Flow Launcher escritos en **C# (.NET)**, **Python 3.12**, **Node.js v20 LTS** y binarios ejecutables (`.exe`).
+- **Aislamiento sin alterar el sistema**: Los entornos de Python (`FlowData\PythonEmbeded-{arch}`) y Node.js (`FlowData\NodeEmbeded-{arch}`) se despliegan automáticamente dentro de la carpeta de datos de Lertaro sin modificar la variable PATH de Windows.
+- **Instalación automática de dependencias**: Al cargar un plugin por primera vez, instala silenciosamente las librerías necesarias mediante `requirements.txt` (Python pip) o `package.json` (Node.js npm).
 
-Los ajustes propios del plugin, editados aquí mismo en lugar de en un diálogo aparte. Un plugin que reparte sus
-ajustes en dos o más grupos obtiene su propia fila de pestañas, una por grupo.
+### Gestión desde la barra de búsqueda
 
-No se escribe nada hasta que pulsas **Aceptar**. Al salir de esta pestaña — volviendo a Detalles, o eligiendo
-otro plugin — los campos vuelven a sus valores guardados, de modo que unas ediciones que dejaste atrás no puedan
-confirmarse más tarde por descuido.
+Gestiona plugins de Flow directamente con comandos en la barra de búsqueda:
 
-Para ver un ejemplo concreto de cómo es en la práctica la configuración de un plugin (por ejemplo, cambiar una
-palabra clave de activación), ver [Respuestas instantáneas y atajos de palabra clave](../instant-answers).
+- **`flow install <palabra clave>`**: Busca en el repositorio oficial de Flow.Launcher y descarga, extrae e instala el plugin y sus dependencias en un solo paso.
+- **`flow update`**: Comprueba actualizaciones de los plugins instalados y los actualiza.
+- **`flow uninstall <nombre>`**: Desinstala el plugin y limpia sus carpetas locales.
+- **Instalación manual**: Puedes colocar carpetas de plugins descargados en `<DirectorioUsuario>\FlowData\Plugins\`.
 
-## Soporte para el ecosistema de plugins de Flow Launcher
+### Configuración, palabras clave y vistas previas enriquecidas
 
-Además de los plugins nativos en C# construidos con `Lertaro.PluginSdk`, Lertaro incluye compatibilidad integrada con el extenso ecosistema de plugins de Flow Launcher a través del Flow Launcher Bridge.
-
-- **Tipos de plugins compatibles**: Plugins de Flow Launcher escritos en **C# (.NET)**, **Python 3.12** (con resolución e instalación automática de dependencias `pip` en segundo plano desde `requirements.txt`), **Node.js v20 LTS** (con resolución e instalación automática de dependencias `npm` en segundo plano desde `package.json`) y **ejecutables** independientes (`.exe`).
-- **Tienda comunitaria y gestión de paquetes (`flow install` / `flow update` / `flow uninstall`)**: Escribe `flow install` o `flow install <nombre/palabra clave>` en la barra de búsqueda para explorar el repositorio comunitario oficial de Flow.Launcher. Presiona Enter en cualquier resultado para descargarlo, verificarlo, descomprimirlo e instalarlo automáticamente en `FlowData\Plugins\`, instalando en segundo plano todas las dependencias necesarias. Escribe `flow update` para comprobar y actualizar los plugins instalados, o `flow uninstall <nombre>` para desinstalar un plugin y limpiar su directorio. También puedes colocar manualmente las carpetas de plugins de terceros en `<Directorio de datos de usuario>\FlowData\Plugins\`.
-- **Entornos de ejecución aislados**: Los entornos de Python (`FlowData\PythonEmbeded-{arch}`) y Node.js (`FlowData\NodeEmbeded-{arch}`) están totalmente aislados dentro del directorio de datos de usuario de Lertaro, descargándose e instalándose bajo demanda sin modificar ni contaminar el PATH del sistema.
-- **Gestión centralizada e interruptores individuales**: En la pestaña **Configurar** de **Configuración → Complementos → Flow Launcher Bridge**, todos los plugins de Flow cargados se organizan en subpestañas dedicadas. Cada plugin cuenta con un interruptor individual para **Habilitar este complemento** según tus necesidades.
-- **Palabras clave personalizadas y aislamiento de estado**: Personaliza la **palabra clave de activación (ActionKeyword)** para cada plugin de Flow. Las palabras clave personalizadas y los estados de desactivación se almacenan en `FlowData\Settings\Plugins.json`, evitando contaminar los ajustes originales del plugin y conservándose tras reinicios o actualizaciones.
-- **Interfaz nativa y soporte multiidioma (i18n)**: Compatible de forma transparente con plantillas de configuración en YAML/JSON (`SettingsTemplate.yaml`/`.json`) y paneles WPF personalizados en C# (`ISettingProvider`), adaptándose automáticamente al tema de Lertaro y aplicando traducción multiidioma (i18n).
-- **Vistas previas interactivas y estilos modernos con WebView2**: Admite paneles de vista previa interactivos personalizados proporcionados por plugins de Flow Launcher (como definiciones de diccionarios MDict, tarjetas meteorológicas, inspectores de API o vistas previas web). Las vistas previas se abren automáticamente en el panel lateral de QuickLook al seleccionar el resultado sin animaciones repetitivas. Para vistas previas basadas en WebView2/HTML, Lertaro inyecta automáticamente tipografía adaptada al tema (Segoe UI, Microsoft YaHei), estilos claros/oscuros de alto contraste y barras de desplazamiento finas y translúcidas.
-- **Búsqueda y ejecución rápida**: Escribe la palabra clave `flow` en la barra de búsqueda para listar todos los plugins de Flow Launcher cargados junto con sus palabras clave de activación y estado. Escribe la palabra clave específica de cualquier plugin (como `md` o `tr`) para realizar búsquedas directamente.
-
+- **Gestión de ActionKeyword**: En **Configuración → Plugins → Flow Launcher Bridge → Configuración**, activa o desactiva plugins individuales y modifica su **ActionKeyword** (almacenado en `FlowData\Settings\Plugins.json`).
+- **Formularios dinámicos**: Compatible con plantillas YAML/JSON (`SettingsTemplate.yaml`/`.json`) y paneles WPF (`ISettingProvider`), adaptados al tema visual activo y con soporte de traducción.
+- **Vistas previas interactivas con WebView2**: Muestra paneles ricos (diccionarios MDict, pronósticos del tiempo, depuradores API, capturas web) en la ventana de QuickLook.
+- **Listado rápido**: Escribe `flow` en la barra de búsqueda para ver todos los plugins cargados y sus palabras clave activas.

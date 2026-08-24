@@ -1,48 +1,69 @@
 # 快速上手
 
-## 搭建插件项目
+本章节将带领你从零开始搭建一个 Lertaro 原生 C# 插件项目，实现核心接口并完成本地加载与调试。
 
-插件就是一个普通的 .NET 类库，目标框架和宿主应用一致(`net10.0-windows`)，引用 `PluginSdk`:
+## 1. 搭建插件类库工程
+
+Lertaro 插件是一个标准的 .NET 10 类库项目。新建一个 C# 类库工程并配置 `.csproj` 文件：
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
+    <!-- 仅当插件需要直接编写自定义 XAML/WPF 界面控件时才需开启 UseWPF -->
     <UseWPF>true</UseWPF>
-    <AssemblyName>YourCompany.Plugins.YourPlugin</AssemblyName>
+    <AssemblyName>YourCompany.Plugins.MyCustomPlugin</AssemblyName>
     <Version>1.0.0</Version>
   </PropertyGroup>
+
   <ItemGroup>
-    <!-- 引用你 Lertaro 安装目录下的 Lertaro.PluginSdk.dll;如果是在 Lertaro 仓库内部构建，
-         也可以直接引用 PluginSdk.csproj。 -->
-    <ProjectReference Include="..\..\PluginSdk\PluginSdk.csproj" />
+    <!-- 引用 Lertaro 安装目录下的 Lertaro.PluginSdk.dll 或源码工程中的 PluginSdk.csproj -->
+    <Reference Include="Lertaro.PluginSdk">
+      <HintPath>..\..\App\Lertaro.PluginSdk.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 </Project>
 ```
 
-只有当插件自己要渲染 WPF 界面(自定义预览、主题资源字典等)时才需要 `UseWPF`——纯搜索源逻辑的插件不需要它。
+> [!TIP]
+> 纯逻辑型插件（如搜索源、别名转写引擎、命令行工具）无需启用 `<UseWPF>`，仅当需要自定义预览面板或主题资源字典时才需要启用。将 `PluginSdk.dll` 的 `<Private>` 设为 `false`，可避免在编译输出中冗余复制 SDK 本身。
 
-## 实现 `IPlugin`
+## 2. 实现插件主入口 `IPlugin`
 
-每个插件都有且只有一个入口点，实现 `IPlugin`:
+每个插件程序集中必须且仅能包含一个实现了 `IPlugin` 接口的公开类作为主入口点：
 
 ```csharp
-public class YourPlugin : IPlugin
+using Lertaro.PluginSdk;
+
+namespace YourCompany.Plugins.MyCustomPlugin;
+
+public class MyCustomPlugin : IPlugin
 {
-    public string Name => "Your Plugin";
+    public string Name => "My Custom Plugin";
+    public string Description => "这是一个演示 Lertaro 插件开发的基础范例。";
 }
 ```
 
-在此基础上，按需实现其他接口——完整列表见[插件 SDK 参考](./sdk/core-search-actions)。大多数真实插件会实现 `IPlugin` 再加一两个其他接口
-(`CoreExtensionsPlugin` 实现了 `IPlugin`、`IActionProvider` 和 `IConfigurable`；参见[插件示例](./examples))。
+在此基础上，你可以根据插件的功能定位组合实现其他 SDK 接口。例如让该类同时实现 `IInstantResultProvider` 提供即时答案计算，或实现 `IConfigurable` 提供可视化的参数配置表单。
 
-## 加载插件
+## 3. 部署与加载机制
 
-编译插件，把生成的 DLL 复制到 Lertaro App 的 `Plugins/` 文件夹(与 `Lertaro.App.exe` 同级)
-——App 启动时会扫描这个文件夹并加载找到的每一个插件程序集。这一步如何在构建时自动完成，见[打包与发布](./packaging)。
+1. 编译你的插件项目生成 `YourCompany.Plugins.MyCustomPlugin.dll`。
+2. 将编译生成的 DLL（及该插件所依赖的第三方库）放入 Lertaro 安装根目录下的 `Plugins\MyCustomPlugin\` 文件夹中。
+3. 启动或重启 Lertaro，App 进程会自动扫描 `Plugins/` 目录并完成类型反射加载。
+4. 打开**设置 → 插件**，即可在已安装列表中看到你的插件及其组件运行状态。
 
-## 调试
+## 4. 调试与日志输出
 
-在插件里全程使用 `PluginSdk` 提供的 `Logger.Log(message, level)`——它的输出会出现在
-**设置 → 运行状态** 的 **App** 日志 Tab 里，和宿主应用自己的日志一样可以按等级过滤、按关键词搜索。
+在插件代码中建议全程使用 `PluginSdk.Services.Logger` 进行日志跟踪记录：
+
+```csharp
+using Lertaro.PluginSdk.Services;
+
+Logger.Log("插件初始化完成，已成功挂载服务。", LogLevel.Info);
+```
+
+- 输出的日志行会实时同步呈现在 Lertaro 的**设置 → 运行状态 → App 标签页**中。
+- 支持直接在界面上按日志等级过滤（Error / Warn / Info / Debug）并进行全文关键词搜索，极大简化了开发排查过程。

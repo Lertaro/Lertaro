@@ -1,48 +1,69 @@
 # 快速上手
 
-## 搭建插件項目
+本章節將帶領你從零開始搭建一個 Lertaro 原生 C# 外掛模組專案，實作核心介面並完成本機載入與偵錯。
 
-插件就是一個普通的 .NET 類庫，目標框架和宿主應用一致(`net10.0-windows`)，引用 `PluginSdk`:
+## 1. 搭建外掛模組類別庫專案
+
+Lertaro 外掛模組是一個標準的 .NET 10 類別庫專案。新建一個 C# 類別庫專案並設定 `.csproj` 檔案：
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
+    <!-- 僅當外掛模組需要直接編寫自訂 XAML/WPF 介面控制項時才需開啟 UseWPF -->
     <UseWPF>true</UseWPF>
-    <AssemblyName>YourCompany.Plugins.YourPlugin</AssemblyName>
+    <AssemblyName>YourCompany.Plugins.MyCustomPlugin</AssemblyName>
     <Version>1.0.0</Version>
   </PropertyGroup>
+
   <ItemGroup>
-    <!-- 引用你 Lertaro 安裝目錄下的 Lertaro.PluginSdk.dll;如果是在 Lertaro 倉庫內部構建，
-         也可以直接引用 PluginSdk.csproj。 -->
-    <ProjectReference Include="..\..\PluginSdk\PluginSdk.csproj" />
+    <!-- 引用 Lertaro 安裝目錄下的 Lertaro.PluginSdk.dll 或原始碼工程中的 PluginSdk.csproj -->
+    <Reference Include="Lertaro.PluginSdk">
+      <HintPath>..\..\App\Lertaro.PluginSdk.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 </Project>
 ```
 
-只有當插件自己要渲染 WPF 介面(自訂預覽、主題資源字典等)時才需要 `UseWPF`——純搜尋源邏輯的插件不需要它。
+> [!TIP]
+> 純邏輯型外掛模組（如搜尋來源、別名轉寫引擎、命令列工具）無需啟用 `<UseWPF>`，僅當需要自訂預覽面板或主題資源字典時才需要啟用。將 `PluginSdk.dll` 的 `<Private>` 設為 `false`，可避免在編譯輸出中冗餘複製 SDK 本身。
 
-## 實現 `IPlugin`
+## 2. 實作外掛模組主入口 `IPlugin`
 
-每個插件都有且只有一個入口點，實現 `IPlugin`:
+每個外掛模組組件中必須且僅能包含一個實作了 `IPlugin` 介面的公開類別作為主入口點：
 
 ```csharp
-public class YourPlugin : IPlugin
+using Lertaro.PluginSdk;
+
+namespace YourCompany.Plugins.MyCustomPlugin;
+
+public class MyCustomPlugin : IPlugin
 {
-    public string Name => "Your Plugin";
+    public string Name => "My Custom Plugin";
+    public string Description => "這是一個示範 Lertaro 外掛模組開發的基礎範例。";
 }
 ```
 
-在此基礎上，按需實現其他接口——完整列表見[插件 SDK 參考](./sdk/core-search-actions)。大多數真實插件會實現 `IPlugin` 再加一兩個其他接口
-(`CoreExtensionsPlugin` 實現了 `IPlugin`、`IActionProvider` 和 `IConfigurable`；參見[插件示例](./examples))。
+在此基礎上，你可以根據外掛模組的功能定位組合實作其他 SDK 介面。例如讓該類別同時實作 `IInstantResultProvider` 提供即時答案計算，或實作 `IConfigurable` 提供視覺化的參數設定表單。
 
-## 加載插件
+## 3. 部署與載入機制
 
-編譯插件，把生成的 DLL 複製到 Lertaro App 的 `Plugins/` 資料夾(與 `Lertaro.App.exe` 同級)
-——App 啓動時會掃描這個資料夾並加載找到的每一個插件程式集。這一步如何在構建時自動完成，見[打包與發佈](./packaging)。
+1. 編譯你的外掛模組專案產生 `YourCompany.Plugins.MyCustomPlugin.dll`。
+2. 將編譯產生的 DLL（及該外掛模組所依賴的第三方庫）放入 Lertaro 安裝根目錄下的 `Plugins\MyCustomPlugin\` 資料夾中。
+3. 啟動或重啟 Lertaro，App 程序會自動掃描 `Plugins/` 目錄並完成類型反射載入。
+4. 開啟**設定 → 外掛模組**，即可在已安裝列表中看到你的外掛模組及其元件運行狀態。
 
-## 調試
+## 4. 偵錯與記錄輸出
 
-在插件裏全程使用 `PluginSdk` 提供的 `Logger.Log(message, level)`——它的輸出會出現在
-**設定 → 運行狀態** 的 **App** 日誌 Tab 裏，和宿主應用自己的日誌一樣可以按等級過濾、按關鍵詞搜尋。
+在外掛模組程式碼中建議全程使用 `PluginSdk.Services.Logger` 進行記錄追蹤記錄：
+
+```csharp
+using Lertaro.PluginSdk.Services;
+
+Logger.Log("外掛模組初始化完成，已成功掛載服務。", LogLevel.Info);
+```
+
+- 輸出的記錄行會即時同步呈現在 Lertaro 的**設定 → 運行狀態 → App 標籤頁**中。
+- 支援直接在介面上按記錄等級過濾（Error / Warn / Info / Debug）並進行全文關鍵字搜尋，極大簡化了開發排查過程。

@@ -1,39 +1,34 @@
-# Appearance
+# Appearance & Themes
 
-Pinned above [About](./about) at the bottom of the sidebar. Two groups: **Theme Mode** and the
-theme picker itself.
+Lertaro features a sleek, modern visual design system with granular theme mode controls and rich color palettes. The Appearance settings page is docked near the bottom of the left sidebar (just above "About").
 
-## Theme Mode
+## 1. Theme Modes
 
-Three cards, click to switch:
+Three mode selection cards are displayed at the top of the page:
 
-- **Light** — a single fixed theme, filtered to light-flavored ones in the grid below.
-- **Dark** — same, filtered to dark-flavored ones.
-- **Follow System** (split light/dark preview) — Lertaro switches between two themes you pick —
-  one for when Windows is in light mode, one for dark — instead of using a single fixed theme, and
-  updates immediately whenever you toggle Windows' own setting (no restart needed).
+- **Light Mode**: Locks the interface to a bright aesthetic; the theme selector grid displays only light-themed cards.
+- **Dark Mode**: Locks the interface to a sleek dark aesthetic; the grid displays only dark-themed cards.
+- **Follow System**: Automatically switches between two user-specified themes as Windows toggles between light and dark modes. In this mode, the grid splits into **Light Theme** and **Dark Theme** selectors, allowing you to choose distinct palettes for day and night without requiring application restarts.
 
-Switching between **Light** and **Dark** jumps to whichever theme of that flavor you last had
-selected (the same remembered pick **Follow System** itself uses for its light/dark pair), so
-flipping back and forth doesn't lose your choice on either side.
+> [!NOTE]
+> Lertaro independently remembers your chosen theme for both light and dark styles, preserving your selections when toggling modes.
 
-## Interface Theme
+## 2. Theme Selection Cards
 
-With **Light** or **Dark** selected above, a single card grid lists just that flavor's themes. With
-**Follow System** selected, the grid splits into two: **Light Theme** and **Dark Theme** — each
-defaults to whichever matching-flavor theme happens to be installed first, since which themes exist
-at all depends entirely on which theme plugins are installed.
+Themes are presented in an interactive card grid. Each card renders an accurate mini preview of the search bar, shadow borders, typography hierarchy, and highlighted result row colors. The active theme is marked with a checkmark badge.
 
-Each theme is shown as a card, not just a name: a small mock-up of the quick search window (search
-box plus a couple of result rows, one shown selected) rendered in that theme's own colors, so you
-can see what a theme actually looks like before switching to it. The active theme's card shows a
-checkmark badge.
+### Built-in & Bundled Themes
 
-Built-in and bundled theme plugins:
+- **Core Built-in Themes (CoreExtensions)**:
+  - **Light** / **Dark**: Clean and minimalistic designs that integrate seamlessly with native Windows styling.
+  - **Nordic Blue**: Cool-toned geek aesthetic featuring soft ice-blue accents against a deep navy backdrop.
+  - **Sakura Pink**: Gentle, refreshing pastel rose and white palette.
+  - **Cyberpunk**: High-contrast neon yellow and midnight purple for a futuristic flair.
+- **Anime Themes (AnimeThemes, Bundled)**:
+  - **Evangelion**, **Sakura Blossom**, and **Weathering with You**.
+- **Curated Theme Pairs (Curated Themes, Bundled)**:
+  - 10 paired light/dark palettes: **Glacier Blue**, **Terracotta**, **Forest Green**, **Amethyst**, **Crimson**, **Graphite**, **Indigo Night**, **Mint Cyan**, **Champagne Gold**, and **Amber Gold**.
 
-- **CoreExtensions** (built-in) — Light, Dark, Nord, Sakura, Cyberpunk.
-- **AnimeThemes** (bundled, if installed and enabled) — Neon Genesis, Sakura Bloom, Weathering Blue.
-- **Curated Themes** (bundled, if installed and enabled) — ten light/dark pairs: Glacier,
-  Terracotta, Forest, Amethyst, Crimson, Graphite, Indigo, Mint, Champagne, and Amber.
+### Plugin Theme Extensibility
 
-Any other theme plugin can add more cards to the grid the same way.
+All themes adhere to the standard UI theme specifications provided by `Lertaro.PluginSdk`. Third-party developers can create and distribute custom theme plugins to register new palettes in this grid.

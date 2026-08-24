@@ -1,195 +1,132 @@
 # UI & Preview Extensions
 
-## Result display
+This chapter introduces `Lertaro.PluginSdk` interfaces for extending the main sidebar, adding custom table columns, providing dynamic Quick Panel tabs, crafting QuickLook file previewers, extracting thumbnails, and building WPF themes and i18n localization packs.
 
-### `ISidebarFilterProvider`
+## 1. Sidebar Filter Provider `ISidebarFilterProvider`
 
-Adds categorizing filter groups to the results sidebar (e.g. date-range or size buckets).
+Injects custom category filter trees into the left sidebar of the Full Search window:
 
 ```csharp
-interface ISidebarFilterProvider
+namespace Lertaro.PluginSdk;
+
+public interface ISidebarFilterProvider : IPluginComponent
 {
-    int SortOrder { get; } // default 100; lower renders first
     IEnumerable<SidebarFilterGroup> GetFilterGroups();
 }
-```
 
-`SidebarFilterGroup` has a `Header`, an `AllowMultiSelect` flag (default `false`; opts the group into
-letting more than one item be selected at once, combined with OR — leave it off for items whose
-meaning only makes sense one at a time, e.g. overlapping/cumulative date ranges), and a list of
-`SidebarFilterItem`s (Id, DisplayName, optional icon, and an optional async `FilterPredicate` over the
-current result list). The host shows a clear button on a group once it has a selection, so a provider
-doesn't need an "All"/"Any" pseudo-item of its own.
-
-### `IResultColumnProvider`
-
-Injects extra columns into the results grid view (file size, modified date, custom metadata, ...).
-
-```csharp
-interface IResultColumnProvider
+public sealed class SidebarFilterGroup
 {
-    IEnumerable<ResultColumnDefinition> GetColumns();
-    string GetCellValue(ISearchResult result, string columnId);
+    public required string GroupName { get; init; }
+    public required IReadOnlyList<SidebarFilterItem> FilterItems { get; init; }
+}
+
+public sealed class SidebarFilterItem
+{
+    public required string Id { get; init; }
+    public required string DisplayName { get; init; }
+    public ImageSource? Icon { get; init; }
+    public required Func<ISearchResult, bool> FilterFunc { get; init; } // Match predicate
 }
 ```
 
-`ResultColumnDefinition` carries a column id, header text, width, and optional
-`VisibilityPredicate`/`SortComparer` delegates.
+## 2. Custom Table Column Provider `IResultColumnProvider`
 
-## Quick Panel
-
-### `IQuickPanelTabProvider`
-
-Contributes a whole tab to the [Quick Panel](../../user-guide/settings/quick-panel) — the floating
-panel docked over whatever window is in front. The tab is named after the component and holds one
-list, and the host renders the entries through its own result rows, so icons, opening, thumbnails and
-the actions menu all come for free. CoreExtensions ships five: Favorites, History, Windows Recent
-Items, Last Directory and Recent Files.
+Appends custom data columns to the "Details" table view of the Full Search window (e.g. displaying media duration, lines of code, or Git branches):
 
 ```csharp
-interface IQuickPanelTabProvider : IPluginComponent
+public interface IResultColumnProvider : IPluginComponent
 {
-    Task<IReadOnlyList<ISearchResult>> GetEntriesAsync(CancellationToken cancellationToken = default);
+    string ColumnId { get; }
+    string HeaderText { get; }
+    double DefaultWidth => 120;
+    double MinWidth => 40;
+    bool IsVisibleByDefault => false;
+    string? GetCellText(ISearchResult result);
+    int Compare(ISearchResult a, ISearchResult b) => 0; // Header click sort comparer
 }
 ```
 
-A tab rather than a group inside somebody else's tab: what a provider returns is a whole collection,
-orthogonal to the folders a workspace gathers, so it sits beside them rather than having to be ticked
-into each one.
+## 3. Quick Panel Tab Provider `IQuickPanelTabProvider`
 
-`GetEntriesAsync()` is called every time the panel is summoned, and returns a finished set rather
-than streaming: the panel orders and caps entries as a set (newest first, at most so many), so it
-cannot show half of one without re-sorting on every arrival. That costs nothing in latency — every
-tab loads on its own task and the panel opens on the first one to arrive, so a provider that has to
-go and look delays only its own tab. Honour the token all the same: it is cancelled when the panel
-closes.
-
-Fill in `ISearchResult.Metadata`'s `Modified` where the source knows one — the default newest-first
-order uses it, and entries without one keep the order they were returned in. A provider that returns
-nothing gets no tab, and one that throws costs its own tab and nothing else.
-
-The tab opens as thumbnail tiles unless the user ticks **Show as list** for it under Settings → Quick
-Panel → Plugin tabs; the panel's own header toggle still overrides that for as long as it is open.
-Closing a tab with its **×** is deliberately not the same as disabling the component in Settings →
-Plugins: the first only takes it out of the strip (untick it back on that same page), the second
-stops it loading at all. The host uses the component id as the stable key for both the closed state
-and the display choice, so a tab closed while its plugin was off stays closed when it comes back.
-
-## Preview & thumbnails
-
-### `IFilePreviewProvider`
-
-Renders a custom WPF `UIElement` in the QuickLook preview pane (see
-[Actions Menu & Preview](../../user-guide/actions-and-preview#quicklook-preview)) for file types
-you want to handle specially.
+Contributes dynamic workspace tabs to the [**Quick Panel**](../../user-guide/settings/quick-panel) under the Quick Search bar:
 
 ```csharp
-interface IFilePreviewProvider
+public interface IQuickPanelTabProvider : IPluginComponent
 {
-    string Name { get; }
-    int Priority { get; } // default 0; higher runs first
-    bool CanPreview(string path, bool isDir);
-    UIElement CreatePreview(string path, bool isDir);
-    bool RendersExternally { get; } // default false
+    string TabId { get; }
+    string Title { get; }
+    string? IconPath => null;
+    Task<IReadOnlyList<ISearchResult>> GetItemsAsync(CancellationToken token);
+
+    // Drag-and-drop acceptance logic
+    bool CanHandleDragOver(IDataObject data) => false;
+    Task HandleDropAsync(IDataObject data, CancellationToken token) => Task.CompletedTask;
+
+    // Drag-to-reorder support
+    bool SupportsReorder => false;
+    Task SaveOrderAsync(IReadOnlyList<ISearchResult> orderedItems) => Task.CompletedTask;
+
+    // Custom tab action context
+    DynamicActionContext CreateActionContext() => DynamicActionContext.Default;
 }
 ```
 
-`Priority` is only the *default* order — the user can freely reorder providers (including relative
-to yours) from Settings → General →
-[Preview & Thumbnails](../../user-guide/settings/general#preview-thumbnails), which wins over
-whatever `Priority` returns. Don't assume your provider's declared priority is the order it actually
-runs in.
+## 4. File Previews & Thumbnails
 
-Two optional companion interfaces refine preview behavior:
+### Custom File Preview Provider `IFilePreviewProvider`
 
-- **`IPreviewSessionAware`** — implement this on the preview provider itself if it holds onto
-  expensive out-of-process resources (a hosted native handler, a file lock); `EndPreviewSession()`
-  is called once the whole preview session ends, not on every individual preview swap. The one
-  exception: for a provider with `RendersExternally` true, the host calls it on every swap away
-  from that provider too, not just session end — see below.
-- **`IReusablePreview`** — implement this on the `UIElement` returned from `CreatePreview` if it
-  can re-point itself at a new file instead of being rebuilt from scratch: `TrySetTarget(path,
-  isDir)` returns `true` if it handled the change in place, `false` to tell the host to build a
-  fresh preview instead.
-
-`RendersExternally` is for a provider whose real preview surface is a separate, externally-managed
-window rather than the `UIElement` `CreatePreview` returns — e.g. handing the file off to another
-application entirely. When the winning provider has this set, the host hides its own preview panel
-instead of displaying `CreatePreview`'s content (which is then never actually shown, so it can be
-a trivial placeholder). Pair it with **`IReceivesPreviewPanelBounds`** to get the exact screen
-rectangle (physical pixels) the host's own panel would have occupied, so the external window can be
-positioned there instead of wherever it would otherwise appear:
+Renders interactive previews inside the QuickLook window (triggered via `Space`):
 
 ```csharp
-interface IReceivesPreviewPanelBounds
+public interface IFilePreviewProvider : IPluginComponent
 {
-    void OnPreviewPanelBoundsAvailable(int left, int top, int width, int height);
+    bool CanPreview(string filePath);
+    int Priority => 0;                  // Priority when multiple providers match
+    FrameworkElement CreatePreviewControl(string filePath);
 }
 ```
 
-See the bundled (experimental) QuickLook Bridge plugin for a real example: it detects an external
-[QuickLook](https://github.com/QL-Win/QuickLook) app over its own named pipe and, if reachable,
-docks that app's window into the host panel's spot for every file/folder — see [Actions Menu &
-Preview → External preview via QuickLook](../../user-guide/actions-and-preview#external-preview-via-quicklook-optional)
-for the user-facing behavior. Note this is a different thing from Lertaro's own built-in preview
-pane, which is also informally called "QuickLook" throughout this codebase and docs.
+#### Preview Lifecycle & Reuse Contracts
 
-### `IThumbnailProvider`
+When your returned WPF `FrameworkElement` implements the following optional contracts, the host optimizes the preview lifecycle:
 
-Overrides the icon/thumbnail shown for matching results.
+- **`IPreviewSessionAware`**: Implements `void OnPreviewClosed()`, triggered when the preview window closes or navigates to an incompatible file, ensuring safe disposal of media players, WebView2 instances, or file streams.
+- **`IReusablePreview`**: Implements `void UpdatePreview(string filePath)`. When navigating continuously between similar files via arrow keys, the host updates content in-place without destroying and recreating the control, eliminating UI flicker.
+
+### Custom Thumbnail Provider `IThumbnailProvider`
+
+Extracts high-resolution thumbnails for proprietary formats without native Shell thumbnail handlers (e.g. `.blend`, `.psd`, `.dwg`):
 
 ```csharp
-interface IThumbnailProvider : IPluginComponent
+public interface IThumbnailProvider : IPluginComponent
 {
-    int Priority { get; } // default 0; higher runs first
-    bool CanProvideThumbnail(string path, bool isDir);
-    ImageSource? GetThumbnail(string path, int size);
+    bool CanProvide(string filePath);
+    Task<ImageSource?> GetThumbnailAsync(string filePath, int targetSize, CancellationToken token);
 }
 ```
 
-Same caveat as `IFilePreviewProvider.Priority` above: it's only the default order, and the user can
-override it from Settings → General →
-[Preview & Thumbnails](../../user-guide/settings/general#preview-thumbnails) (the same tab hosts both
-providers' order lists).
+## 5. Themes & Localization
 
-## Themes & localization
+### Theme Provider `IThemeProvider`
 
-### `IThemeProvider` / `ITheme`
-
-Registers one or more custom WPF resource dictionaries as selectable themes (shown in
-**Settings → General → Interface theme**).
+Contributes custom color palettes and WPF Resource Dictionaries to Lertaro:
 
 ```csharp
-interface IThemeProvider
+public interface IThemeProvider : IPluginComponent
 {
-    string Name { get; }
-    IEnumerable<ITheme> GetThemes();
-}
-
-interface ITheme
-{
-    string Id { get; }
+    string ThemeId { get; }
     string DisplayName { get; }
-    bool IsDark { get; }
-    double WindowOpacity { get; } // default 1.0
-    ResourceDictionary GetResources();
+    ResourceDictionary GetResourceDictionary(bool isDark);
 }
 ```
 
-### `ITranslationProvider`
+### Localization Provider `ITranslationProvider`
 
-Supplies UI strings for a given culture — for the plugin's own UI, or (as with `PinyinAlias`) just
-its own display name. See [Example Plugins](../examples) for a plugin that implements this
-alongside an unrelated interface on the same class.
+Supplies localized translation dictionaries dynamically:
 
 ```csharp
-interface ITranslationProvider
+public interface ITranslationProvider : IPluginComponent
 {
-    string Name { get; }
-    IReadOnlyList<string> SupportedCultures { get; } // e.g. "zh-CN", "en-US"
     IReadOnlyDictionary<string, string> GetTranslations(string cultureName);
 }
 ```
-
-`TranslationService.LoadEmbeddedTranslations` (see [Host Services](./services)) is the standard way
-to back this with JSON files embedded in your plugin DLL.

@@ -1,119 +1,88 @@
-# Hotkeys
+# Hotkeys & Gestures
 
-All global and in-app hotkeys below can be rebound from **Settings → Hotkeys**; defaults are shown
-here. See [Settings → Hotkeys page](./settings/hotkeys-page) for the settings UI itself.
+Lertaro embraces a keyboard-first interaction philosophy while offering rich mouse gestures and quick cascading navigation. Except for non-configurable core keys, all global and in-app hotkeys can be customized under [**Settings → Hotkeys**](./settings/hotkeys-page).
 
-## Global hotkeys
+## 1. Global Hotkeys Cheat Sheet
 
-| Action | Default | Notes |
-|---|---|---|
-| Toggle quick window | Double-tap `Ctrl` | Can also be set to a full combo (e.g. `Alt+Space`) instead of a double-tap. |
-| Quick switch | `Ctrl+G` | In a supported file dialog, navigates to the last folder captured from a supported file manager or the Quick Panel. An empty inline query also shows that destination as a result. |
-| Select next item | `Ctrl+N` | Also works as the literal Down arrow. In the [Quick Panel](./settings/quick-panel) it walks the whole tab rather than one group, carrying on into the next group at the end of the current one. |
-| Select previous item | `Ctrl+P` | Also works as the literal Up arrow. Same whole-tab walk in the Quick Panel. |
-| Jump to result 1–9 | `Ctrl` + digit | The modifier is configurable; the digit is always 1–9. The quick window shows each visible result's shortcut as a small badge next to it, so you don't have to count rows. |
-| Open actions menu | `Ctrl+O` | Also works as the literal Right arrow on a selected result. |
-| Complete from selection | `Ctrl+Tab` | In the quick window, fills the search box with the selected result's name/path. |
-| QuickLook preview | `Alt+P` | Toggles the preview pane for the selected result. The [Quick Panel](./settings/quick-panel) takes the same key, and docks the preview to whichever side of itself has room for it. |
-| Previous keyword history | `Alt+Up` | Cycles backward through your recently typed queries. |
-| Next keyword history | `Alt+Down` | Cycles forward through your recently typed queries. |
-| Delete keyword history entry | `Ctrl+Delete` | |
-| Open full window | *(none)* | Opens the full window directly, carrying over the current query — same effect as left-clicking the [Quick Window's own logo](#search-box-logo-icon) and choosing Show Main Window from the menu that opens, without that extra step. Not bound by default; set one from **Settings → Hotkeys**. |
-| Keep window open | `Ctrl+T` | Stops the window hiding when focus moves elsewhere, so a query can be assembled out of text copied from other windows — hiding would otherwise clear the search box each time. Lasts for the current summon and ends with the next hide. In the quick window, middle-clicking the logo does the same thing and the logo brightens while it is on; pressing the summon hotkey while it is up but unfocused brings it back rather than hiding it. The [Quick Panel](./settings/quick-panel) takes the same key, with a pin button of its own as the visible marker. |
-| Toggle quick panel | `Ctrl+F2` | Opens the [Quick Panel](./settings/quick-panel) docked into the bottom-right corner of whatever window is in front, or closes it if it is already up. Once it is open, holding the "jump to result 1–9" modifier and pressing 1–9 switches workspaces. |
+| Action | Default Hotkey | Description & Interaction Details |
+| :--- | :--- | :--- |
+| **Toggle Quick Window** | Double-tap `Ctrl` | Can be set to a double-tap mode or standard key combinations (e.g. `Alt+Space`, `Win+Space`). |
+| **Quick Jump** | `Ctrl+G` | Jumps file dialogs directly to the directory most recently browsed in a supported file manager or Quick Panel. |
+| **Select Next Item** | `Ctrl+N` or `↓` | Moves highlight down. Navigates seamlessly across groups in the Quick Panel. |
+| **Select Previous Item** | `Ctrl+P` or `↑` | Moves highlight up. Navigates seamlessly across groups in the Quick Panel. |
+| **Jump to Results 1–9** | `Ctrl` + `1`–`9` | Modifier is customizable. Number badges appear next to visible items for instant activation. |
+| **Open Action Menu** | `Ctrl+O` or `→` | Expands the context action menu (copy path, properties, run as admin, file operations, etc.). |
+| **Autocomplete from Selection** | `Ctrl+Tab` | Fills the search box with the selected item's name or full path for secondary refinement. |
+| **QuickLook Instant Preview** | `Alt+P` | Opens or closes the side preview panel (images, documents, audio/video playback, folder trees). |
+| **Previous Search Term** | `Alt+Up` | Steps backward through recent search query history. |
+| **Next Search Term** | `Alt+Down` | Steps forward through recent search query history. |
+| **Delete Search History Term** | `Ctrl+Delete` | Removes the currently displayed keyword from search history. |
+| **Open Full Window** | `Ctrl+F` | Opens the full-sized main search window, carrying over the current query. |
+| **Open LocalSend Window** | `Ctrl+S` | Opens the LocalSend wireless LAN transfer window to quickly send files or text to other devices. |
+| **Pin Window (Keep Visible)** | `Ctrl+T` | Temporarily locks the window open when losing focus (ideal for pasting multi-part queries). |
+| **Toggle Quick Panel** | `Ctrl+F2` | Docks the quick panel beside the current active window for recent files, favorites, and workspaces. |
 
-## Search box logo icon
+## 2. Search Box Icon & Mouse Gestures
 
-The small logo icon in the search box (left or right side, depending on the window) does something
-different in each of the [three windows](./getting-started#the-three-windows):
+The small logo inside the search box is not just an indicator — it provides several quick mouse gestures:
 
-- **Quick window** — left-click (no movement) opens the same menu the tray icon's right-click shows
-  (Show Main Window, Toggle Hotkeys, Settings, About, Clean Exit, Exit), anchored at the cursor; that
-  menu's Show Main Window item also carries over whatever query you currently have typed. Click-and-drag
-  moves the window, same as dragging any other part of the search bar — hold **Ctrl** while dragging
-  (either the bar or the logo, and toggling Ctrl mid-drag works too) to constrain movement to vertical
-  only, useful for nudging the window up or down without shifting it sideways. Right-click resets the
-  window to its default on-screen position (not size) — the same one it centers to on first launch. A
-  hover tooltip spells out all three behaviors.
+### Quick Window Icon Gestures
 
-  The remembered position is relative to whichever monitor the window was last on, not an absolute
-  screen coordinate — summon it again on a different monitor (or one with a different resolution or
-  DPI scaling) and it reopens at the equivalent spot there instead of potentially landing off-screen
-  or on the wrong display.
-- **Inline window** — only clickable when the window is docked to a native Open/Save/Browse-for-folder
-  dialog: left-click opens [quick navigation](#quick-navigation-mouse), same as the dedicated trigger
-  below. Not clickable when docked to a plain Explorer window or the desktop, since there's nothing
-  useful to navigate to in that case — no hover highlight or tooltip appears either, so it stays quiet
-  rather than looking clickable and doing nothing.
-- **Main window** — the logo is purely decorative there; clicking it does nothing.
+- **Left-click**: Pops up the main context menu at the cursor (Show Full Window, Toggle Hotkey, Settings, About, Clean Exit, Exit). "Show Full Window" carries over your active query.
+- **Left-click & Drag**: Drags the search bar to reposition it. **Holding `Ctrl` while dragging** locks movement strictly to the **vertical axis**, keeping horizontal alignment intact.
+- **Right-click**: Instantly resets the Quick Window back to its default centered screen position without altering configured dimensions.
+- **Middle-click**: Toggles the "Pin Window" state. The logo illuminates while pinned.
 
-## Quick navigation (mouse)
+> [!NOTE]
+> Coordinates remembered for the Quick Window are **proportional relative coordinates** on that specific display. When invoked on another monitor with different resolutions or DPI scalings, Lertaro scales position automatically without escaping visible bounds.
 
-Middle-click is enabled by default; double-click is disabled by default. Each trigger can be changed independently in settings:
+### Inline and Full Window Icons
 
-- **Double-click** empty space on the desktop or inside an Explorer window to trigger quick navigation when you enable this trigger.
-- **Middle-click** empty space on the desktop or inside an Explorer window — or the file list of a
-  supported third-party file manager (Directory Opus, Total Commander, XYplorer, Files, ...), or a
-  native Open/Save/Browse-for-folder dialog — to trigger quick navigation. Those other windows only
-  respond to middle-click: double-clicking there already means "open this," so double-click isn't
-  repurposed. See [Supported File Managers](./file-manager-support) for what each integration covers.
-- When the inline search window is docked to a native Open/Save/Browse-for-folder dialog, its own
-  logo triggers quick navigation too — see [Search box logo icon](#search-box-logo-icon) above.
+- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows.
+- **Full Window**: Purely decorative.
 
-Any of these triggers pops a cascading menu of your Favorites, History, and configured quick-access
-folders (see [Settings → Favorites](./settings/favorites) and [Settings → History](./settings/history))
-— plugins can contribute their own entries too, such as Total Commander's own Directory Hotlist if
-you've set one up in `wincmd.ini`, Directory Opus's own Favorites menu, or a [Custom
-Command](./instant-answers#custom-commands) flagged
-"Show in Quick Navigation" (optionally nested into a submenu by giving it a `/`-separated path). Each
-contributing plugin gets its own labeled section at the root of the menu, and the order those
-sections appear in is yours to set — see
-[Settings → General → Quick Navigation](./settings/general#quick-navigation). Clicking a folder
-navigates the target window there; clicking a file navigates there too, landing on the file selected
-in its containing folder rather than opening it — the one exception is the desktop, which has no
-existing window pane to navigate within, so there a folder or file is opened directly, same as
-double-clicking it would. Inside a file dialog specifically, clicking a file instead jumps the
-dialog to that file's folder — it deliberately never auto-confirms Open/Save on your behalf.
+## 3. Quick Navigation (Mouse Triggers)
 
-The **Folder Cascader** plugin is what actually builds this menu. Beyond Favorites and History (each
-independently toggleable), it has its own configurable list of quick-access folders — from
-**Settings → Plugins → Folder Cascader → Configure**, add a folder's path and an optional display
-name, and give it a `Submenu` value (e.g. `Tools/Network`, `/`-separated for multiple levels) to nest
-it under a category instead of showing it at the root. Every level of the menu — the root and any
-nested category — also has a small **+** button on its own header: click it to add the folder you're
-currently browsing right there, pre-filled with its name, path, and that level's own submenu path
-(all still editable before confirming), without leaving the menu to open Settings.
+Quick Navigation lets you access frequently used directories and recent files with mouse clicks alone without typing.
 
-## Hardcoded keys (not configurable)
+### Triggering Environments
 
-These always behave the same way regardless of your hotkey settings:
+- **Desktop Blank Area**: Middle-click (or optional double-left-click) to open the menu. Clicking a folder or file opens it directly.
+- **File Explorer**: Middle-click empty areas in File Explorer; clicking an item navigates the current window directly to that folder.
+- **Third-party File Managers**: Middle-click file list areas in Directory Opus, Total Commander, XYplorer, Files, and One Commander (see [**Supported File Managers**](./file-manager-support)).
+- **File Dialogs**: Middle-click or click the embedded logo inside Open/Save/Browse dialogs to jump instantly to the target folder without accidentally triggering confirmation.
 
-| Key | Context | Behavior |
-|---|---|---|
-| `Escape` | Anywhere | Clears the search box if it has text; otherwise closes the window (or exits the actions menu). |
-| `Enter` | Result list | Opens the selected result. |
-| `Ctrl+Enter` | Result list | Locates the result in Explorer instead of opening it. |
-| `Ctrl+Shift+Enter` | Result list | Opens the result elevated (Run as administrator). |
-| `Left` / `Right` arrow | Actions menu | Go back a menu level / enter a submenu. |
-| `Backspace` | Actions menu | Exits the actions menu when the search box is already empty. |
-| `Alt+Space` / `Alt+F4` | All of Lertaro's own windows | `Alt+Space` is suppressed on all of them: none has a real title bar for the Windows system menu to belong to. `Alt+F4` closes the main and settings windows as usual; it stays suppressed on the quick, inline and QuickLook windows and the dialogs, which are shown and hidden rather than opened and closed. |
+### Cascading Menu Structure
 
-## Plugin action hotkeys
+Powered by the **Folder Cascader** plugin:
 
-Plugins can register their own actions with a default hotkey (e.g. copy path (`Ctrl+Shift+C`), run
-as admin, or the built-in file actions — Cut `Ctrl+X`, Copy `Ctrl+C`, Paste `Ctrl+V`, Delete
-`Delete`, Permanently Delete `Shift+Delete`). These show up under **Settings → Hotkeys → Plugin
-Actions**, grouped by the plugin that registered them, and can be rebound the same way as built-in
-hotkeys.
+1. **Currently Open Folders**: Aggregates and deduplicates active folders from all open file managers.
+2. **Favorites & History**: Lists starred folders, files, and recent visit histories.
+3. **Custom Categories**: Configure nested submenus under **Settings → Plugins → Folder Cascader** (e.g. `Work/ProjectA`).
+4. **Quick Add Folder (`+` Button)**: Every submenu header features a small `+` button to save the currently browsed directory directly into that category.
 
-## Process blacklist
+## 4. Hardcoded Core Keys (Non-configurable)
 
-If Lertaro's global hotkeys interfere with another application (a game capturing raw keyboard
-input, for example), add that process to the **Process Blacklist** — see
-[Settings → Hotkeys page](./settings/hotkeys-page#process-blacklist). While a blacklisted process is
-in the foreground, Lertaro's global hotkeys, keystroke interception, and the quick navigation
-mouse triggers above are all let through untouched.
+To ensure consistent and deterministic interaction, the following keys behave identically across all configurations:
 
-Any foreground app that's genuinely full-screen gets this same treatment automatically — no
-blacklist entry needed. Either way, an active file dialog is always exempt, so quick navigation
-still works there.
+| Key | Context | Standard Behavior |
+| :--- | :--- | :--- |
+| `Enter` | Result List | Opens the selected item (file, folder, app, or action). |
+| `Ctrl+Enter` | Result List | Reveals and selects the item in Windows File Explorer. |
+| `Ctrl+Shift+Enter` | Result List | Launches the selected item with administrative privileges. |
+| `Escape` | Any Context | Clears the query if text exists; closes the window or exits the menu if already empty. |
+| `Backspace` | Action Menu | Exits the action menu back to the search list when filter text is empty. |
+| `←` / `→` Arrow Keys | Action Menu | Left arrow navigates back to parent menu; right arrow enters submenus. |
+| `Alt+Space` | All Lertaro Windows | Suppressed to prevent triggering system titlebar menus on borderless windows. |
+| `Alt+F4` | Full / Settings Windows | Closes window normally; suppressed on Quick, Inline, and Preview floating windows. |
+
+## 5. Plugin Action Hotkeys & Process Blacklist
+
+### Plugin Action Hotkeys
+
+Plugins can register specific action shortcuts (e.g. `Ctrl+Shift+C` for copying paths, or file operations: Cut `Ctrl+X`, Copy `Ctrl+C`, Paste `Ctrl+V`, Delete `Delete`, Permanent Delete `Shift+Delete`). Manage and rebind them under **Settings → Hotkeys → Plugin Actions**.
+
+### Process Blacklist & Fullscreen Bypass
+
+- **Automatic Fullscreen Bypass**: When a focused foreground application runs in exclusive fullscreen mode (e.g. 3D games or video players), Lertaro automatically bypasses all global hotkeys to avoid interrupting gameplay.
+- **Custom Process Blacklist**: Add executable names under [**Settings → Hotkeys**](./settings/hotkeys-page#process-blacklist) (e.g. `game.exe`) to silence hotkeys and mouse triggers while that process is focused.

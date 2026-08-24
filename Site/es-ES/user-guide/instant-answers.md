@@ -1,128 +1,93 @@
-# Respuestas instantáneas y atajos de palabra clave
+# Respuestas instantáneas y funciones con palabras clave
 
-Algunos resultados aparecen al instante mientras escribes, sin esperar a una búsqueda de archivos — o bien siempre
-activos, o bien reservados detrás de una palabra clave corta que escribes antes de tu consulta real (para que una
-función grande como la búsqueda en el historial del navegador no compita por la atención en cada pulsación de
-tecla no relacionada). La mayoría de los que se activan por palabra clave tienen su palabra clave configurada en
-**Configuración → Plugins → Configurar**.
+Más allá de la búsqueda de archivos locales, Lertaro incluye un potente conjunto de herramientas de cálculo instantáneo, utilidades del sistema y extensiones de plugins mediante palabras clave. Las respuestas aparecen de inmediato sin esperar a los resultados de búsqueda de archivos.
 
-## Siempre activos
+## 1. Respuestas instantáneas siempre activas
 
-Estos no necesitan ninguna palabra clave — se activan en cuanto lo que escribes coincide con su patrón.
+Estas funciones no requieren ningún prefijo de activación; se ejecutan automáticamente cuando la entrada coincide con sus patrones:
 
-### Calculadora
+### Calculadora y conversión de base
 
-Escribe una expresión matemática directamente y el resultado aparece en vivo, con **Intro** copiándolo al
-portapapeles:
+Escribe cualquier expresión aritmética directamente en la barra de búsqueda. Los resultados aparecen en tiempo real. Pulsa `Enter` para copiar el resultado al portapapeles:
 
-```
+```text
 12 * (4 + 3)
+100 * (1 - 0.15)
 ```
 
-También se admite la conversión explícita de base:
+Admite conversiones de base numérica habituales:
 
-```
+```text
 255 to hex
 0xFF to dec
+101010 to bin
 ```
 
-### Variables de entorno
+### Expansión e inspección de variables de entorno
 
-- `%NOMBRE%` expande una variable concreta (incluidas variables multirruta como `%PATH%`, dividida en una entrada
-  por ruta).
-- `%parcial` lista de forma difusa toda variable cuyo nombre coincida con `parcial`.
+- **Expandir variables**: Escribe `%NAME%` (p. ej. `%PATH%`, `%APPDATA%`) para consultar su valor. Las variables con múltiples rutas como `PATH` se dividen en listas legibles línea por línea.
+- **Búsqueda difusa de variables**: Escribe `%` seguido de una palabra clave (p. ej. `%temp`) para buscar entre todas las variables de entorno del sistema y de usuario.
 
-### Ejecutar un comando
+### Ejecución rápida de comandos
 
-- `#<comando>` abre una ventana del símbolo del sistema y ejecuta `<comando>` **como Administrador**.
-- `$<comando>` abre una ventana del símbolo del sistema y ejecuta `<comando>` con normalidad.
+Ejecuta comandos directamente sin abrir una terminal previamente:
 
-### URL sueltas
+- `#<comando>`: Abre el símbolo del sistema y ejecuta el comando **con privilegios de administrador** (p. ej. `#sfc /scannow` o `#net start Lertaro.Service`).
+- `$<comando>`: Abre el símbolo del sistema y ejecuta el comando con **permisos de usuario estándar** (p. ej. `$ping 1.1.1.1` o `$ipconfig /all`).
 
-Escribe o pega una dirección `http://`/`https://` y Lertaro te ofrece abrirla directamente.
+### Apertura directa de URLs
 
-## Activados por palabra clave (integrados, prefijo configurable)
+Escribe o pega cualquier dirección que comience por `http://` o `https://` y pulsa `Enter` para abrirla de inmediato en tu navegador predeterminado.
 
-Escribe la palabra clave, un espacio y luego tu consulta. Cada palabra clave usa por defecto un prefijo corto,
-pero se puede cambiar de forma independiente en el propio diálogo **Configurar** de ese plugin si coincide con
-algo que escribas a menudo.
+## 2. Extensiones activadas por palabra clave (Plugins integrados)
 
-| Palabra clave (por defecto) | Plugin | Qué busca |
-|---|---|---|
-| `ps` | Gestor de procesos | Procesos en ejecución por nombre, PID o título de ventana (también coincidencias difusas/pinyin) — selecciona uno para eliminarlo. |
-| `win` | Cambio de ventana | Las ventanas actualmente abiertas y activables — el mismo conjunto que muestra Alt+Tab — por título, nombre de proceso o PID. Selecciona una para traerla al primer plano. |
-| `bm` | Datos del navegador | Marcadores e historial de los perfiles de navegador de la familia Chrome/Chromium y de la familia Firefox que hayas añadido en la propia configuración de ese plugin. |
-| `set` | Core Extensions | Cada ajuste de la aplicación, con coincidencia difusa por nombre — elige uno para saltar directamente a él en Configuración, resaltado. Escribe `set` sin nada detrás para listar todos los ajustes. |
-| `flow` | Puente Flow Launcher | Lista todos los plugins de Flow.Launcher cargados y sus palabras clave de activación (opcionalmente seguido de un filtro). La configuración de los plugins se gestiona directamente en **Configuración → Complementos**. |
+Escribe una breve **palabra clave activadora + espacio** seguida de tu consulta para invocar funciones específicas de plugins. Todas las palabras clave se pueden personalizar en [**Configuración → Plugins**](./settings/plugins).
 
-Cambio de ventana muestra por defecto una miniatura en vivo del contenido real de cada ventana como su icono,
-capturada en segundo plano para que nunca ralentice la escritura — un icono de aplicación normal aparece de
-inmediato, y la miniatura aparece gradualmente en cuanto está lista. Desactiva **Mostrar contenido de la ventana
-como icono** en **Configuración → Plugins → Cambio de ventana → Configurar** para omitir por completo esa captura
-y usar siempre el icono de la aplicación. Una ventana que se ejecute en pantalla completa exclusiva real (la
-mayoría de los juegos usan por defecto pantalla completa sin bordes, que esto gestiona bien) no se puede capturar
-de esta forma y siempre recurre a su icono de aplicación.
+| Palabra clave predeterminada | Nombre del plugin | Descripción y caso de uso | Ejemplo de uso |
+| :--- | :--- | :--- | :--- |
+| `ps` | **Gestor de procesos** | Busca procesos en ejecución por nombre, PID o título de ventana (con pinyin). Pulsa Enter para finalizar. | `ps chrome` o `ps 1234` |
+| `win` | **Conmutador de ventanas** | Busca y cambia entre ventanas abiertas con capturas en miniatura en segundo plano. | `win code` o `win navegador` |
+| `bm` | **Datos del navegador** | Busca marcadores e historial de Chrome, Edge y Firefox (marcadores e historial activables por separado). | `bm github` |
+| `set` | **Búsqueda en Configuración** | Búsqueda difusa en las opciones de Lertaro. Al seleccionar una, salta a la página correspondiente y la resalta. | `set atajo` o `set difuso` |
+| `flow` | **Puente Flow Launcher** | Muestra los plugins cargados de Flow.Launcher y sus palabras clave, aprovechando su ecosistema. | `flow` |
 
-Datos del navegador indexa marcadores e historial de forma independiente — **Indexar marcadores** e **Indexar
-historial** son interruptores separados en **Configuración → Plugins → Datos del navegador → Configurar**, así que
-puedes desactivar el historial (suele crecer mucho más que los marcadores) y seguir buscando en los marcadores, o
-al revés.
+## 3. Motores de búsqueda web
 
-## Búsqueda web
+El plugin de Búsqueda web incluye accesos directos para los principales motores. Escribe el prefijo seguido de tu consulta para buscar en el navegador:
 
-Búsqueda web incluye palabras clave predeterminadas para varios motores/sitios — `bd` (Baidu), `g` (Google),
-`bing` (Bing), `gh` (GitHub), `wiki` (Wikipedia), `yt` (YouTube) — y te permite añadir, editar o eliminar entradas
-por completo, cada una con su propio nombre, palabra clave, icono y plantilla de URL, desde **Configuración →
-Plugins → Búsqueda web → Configurar**.
+| Atajo | Motor de búsqueda | Ejemplo | Descripción |
+| :--- | :--- | :--- | :--- |
+| `bd` | Baidu | `bd aprendizaje profundo` | Buscar en Baidu |
+| `g` | Google | `g lertaro github` | Buscar en Google |
+| `bing` | Bing | `bing documentacion microsoft` | Buscar en Bing |
+| `gh` | GitHub | `gh Lertaro` | Buscar directamente en repositorios de GitHub |
+| `wiki` | Wikipedia | `wiki mecanica cuantica` | Consultar artículos de Wikipedia |
+| `yt` | YouTube | `yt lofi hip hop` | Buscar vídeos en YouTube |
 
-```
-g lertaro github
+Puedes añadir, editar o eliminar motores y plantillas de URL en **Configuración → Plugins → Búsqueda web → Configurar**.
+
+## 4. Traducción instantánea
+
+Escribe el activador predeterminado `tr` seguido del texto para traducirlo automáticamente al idioma de interfaz seleccionado en Lertaro:
+
+```text
+tr Hello, how are you today?
 ```
 
-abre una búsqueda de Google de "lertaro github" en tu navegador.
+- Los resultados aparecen de forma asíncrona mientras escribes; pulsa `Enter` para copiar la traducción.
+- Personaliza la palabra clave en **Configuración → Plugins → Traductor → Configurar**.
 
-## Traducción
+## 5. Filtros de archivos
 
-La palabra clave predeterminada del complemento de traducción es `tr`. Escribe texto después de ella para traducirlo al idioma seleccionado actualmente para la interfaz de Lertaro:
+En **Configuración → Plugins → Filtros de archivos → Configurar**, puedes definir ámbitos de búsqueda aislados para carpetas y extensiones concretas:
 
-```
-tr hello
-```
+- **Carpetas supervisadas**: Escanea de forma recursiva directorios de trabajo específicos (p. ej. `D:\Ingenieria\Planos`).
+- **Reglas de coincidencia**: Especifica patrones como `*.dwg;*.dxf` o `*.pdf;*.docx`.
+- **Palabra clave activadora**: Asigna una palabra clave exclusiva (p. ej. `cad`) para aislar búsquedas (p. ej. `cad plano_pieza`).
 
-El resultado aparece de forma asíncrona; pulsa **Entrar** o haz clic para copiarlo. El texto que se va a traducir se envía a Microsoft Translator, por lo que esta función requiere conexión a Internet. El idioma de destino es el idioma actual de la App. Puedes cambiar la palabra clave en **Configuración → Plugins → Traducción → Configurar**.
+## 6. Comandos personalizados
 
-## Filtros de archivos
+En **Configuración → Plugins → Comandos personalizados → Configurar**, convierte scripts complejos, herramientas de consola o aplicaciones en comandos concisos:
 
-Indexa carpetas concretas bajo su propia regla, configurado por completo en **Configuración → Plugins → Filtros de
-archivos → Configurar**. Cada regla tiene su propia lista de **Carpetas de destino** (escaneadas recursivamente),
-un campo **Extensiones / Patrón** (por ejemplo, `*.exe;*.lnk` — se admiten varios patrones separados por `;` o
-`,`; el `*` por defecto coincide con cualquier archivo), y un **Nombre de filtro** opcional mostrado en la
-descripción del resultado. Las subcarpetas siempre se incluyen sin importar el patrón — solo los archivos se
-filtran por él.
-
-Añade una **Palabra clave de acceso directo** para restringir las coincidencias de una regla detrás de un
-prefijo, igual que las palabras clave integradas de arriba, en lugar de mezclarlas siempre en el índice general.
-
-## Totalmente personalizados (tú defines la palabra clave)
-
-### Comandos personalizados
-
-Define tus propios comandos `<palabra clave> <argumentos>` que lancen un programa externo, configurados por
-completo en **Configuración → Plugins → Comandos personalizados → Configurar**. La plantilla de parámetros del
-comando admite marcadores posicionales (`%s1`, `%s2`, ... para cada argumento separado por espacios) y un
-marcador de "todo el resto" (`%s` para todo lo escrito después de la palabra clave).
-
-Cada comando también tiene una casilla **Mostrar en Navegación rápida** (desactivada por defecto) — actívala para
-listar también ese comando como su propia entrada en la raíz del menú de [Navegación
-rápida](./hotkeys#navegacion-rapida-raton), pulsable sin necesidad de escribir su palabra clave en absoluto. El
-campo **Submenú de Navegación rápida** lo anida bajo un submenú con nombre en lugar de la raíz — usa `/` para
-anidar varios niveles de profundidad (por ejemplo, `Herramientas/Red` para un submenú de dos niveles); déjalo
-vacío para mantener el comando en el nivel superior. Un comando mostrado de esta forma se ejecuta con sus
-parámetros configurados tal cual, ya que aquí no hay texto de argumento escrito que sustituir en `%s1`/`%s`.
-
----
-
-Ninguno de los plugins de esta página es obligatorio — cada uno se puede deshabilitar de forma independiente en
-[Configuración → Plugins](./settings/plugins) si no quieres que compita por espacio de teclado, y [Sintaxis de
-búsqueda](./search-syntax) cubre el lenguaje de consulta difuso, separado y siempre activo, usado para todo lo
-demás (archivos, carpetas, aplicaciones).
+- **Marcadores de posición de parámetros**: Admite marcadores posicionales `%s1`, `%s2`... y captura completa de consulta `%s`.
+- **Integración con Navegación rápida**: Marca "Mostrar en Navegación rápida" para fijar el comando en el menú de [**Navegación rápida**](./hotkeys#3-navegacion-rapida-activadores-de-raton), con rutas de submenú usando `/` (p. ej. `HerramientasDev/ReiniciarServicio`).

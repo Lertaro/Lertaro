@@ -1,48 +1,61 @@
-# Index
+# Indexing Management
 
-Five tabs, in order: **Local Drives**, **Network Drives**, **WSL** (only shown once a distribution is detected), **Folders**, and **Exclusion Rules**.
+The Indexing settings page controls indexing scopes, refresh schedules, and exclusion rules across local hard drives, network shares, WSL distributions, and standalone folders. Top tabs include: **Local Drives**, **Network Drives**, **WSL** (shown only when distributions are detected), **Folders**, and **Exclusions**.
 
-## Local Drives
+## 1. Local Drives
 
-- Status card summarizing how many drives and items are indexed, plus a **Rebuild Index** button for a full re-scan.
-- One row per local drive: an **enable/disable checkbox**, drive name, file system (NTFS/ReFS/...), current status, indexed item count, and a per-row **Rebuild**/**Remove** action — plus a **Stop** action while a rebuild is running, for every drive except true NTFS (its scan has no safe point to interrupt).
-- NTFS and ReFS drives track changes continuously through the Windows USN Journal; other local file systems (FAT32, exFAT, ...) have no journal to read, so they're watched for changes directly instead. Either way, a manual rebuild is rarely needed, but is there if something looks out of sync — and if one gets interrupted (stopped, or the app/service restarts mid-scan), the next rebuild picks up from where it left off instead of starting over.
+- **Top Status Card**: Displays total indexed physical drives and item counts, with a global **Rebuild Index** button.
+- **Drive Row Items**:
+  - **Enable / Disable Checkbox**: Toggles indexing for each individual partition.
+  - **Filesystem & Status**: Displays underlying filesystem (NTFS, ReFS, FAT32, exFAT), health state, and indexed count.
+  - **Per-Drive Actions**: Individual **Rebuild** and **Remove** buttons; displays a dynamic **Stop** button during active scans.
+- **Real-Time Tracking**: NTFS / ReFS volumes sync incrementally via Windows USN Change Journals; FAT32 / exFAT volumes monitor filesystem change events.
+- **Uninterrupted Rebuilds**: While a drive is rebuilding, its existing index answers user queries until the new index completes, swapping seamlessly. If interrupted, scanning resumes from the last checkpoint on the next launch.
 
-The enabled-drive selection is authoritative: if you clear every checkbox, local-drive indexing remains disabled instead of silently selecting every drive again. Existing settings from versions where an empty selection meant “all drives” are migrated once so an upgrade does not unexpectedly disable indexing.
+## 2. Network Drives
 
-Searching keeps working while a rebuild is running. The drive being rebuilt goes on answering from its previous index until the new one is ready, and the other drives are unaffected — a rebuild never leaves you with an empty result list.
+- **Network Storage Support**: Lists all mapped Windows network drives (SMB / NAS).
+- **Refresh Mode**: Network shares lack local USN journals and rely on scheduled polling:
+  - **Manual** — Refreshes only when "Rebuild Index" is clicked.
+  - **Every 15 Minutes** — Recommended for active collaborative shares.
+  - **Hourly** — Balanced schedule.
+  - **Daily** — Ideal for static archival storage.
+- **Symlink Loop Protection**: Built-in cycle detection and ancestor stack algorithms automatically prevent infinite traversal caused by circular symbolic links or reparse points.
 
-## Network Drives
+## 3. WSL (Windows Subsystem for Linux)
 
-- Same status card and **Rebuild Index** button as Local Drives.
-- One row per mapped network drive: enable checkbox, path/name, status (Indexing / Ready / Cached / Failed / Pending / Connected), item count, and a **Refresh Mode** dropdown:
-  - **Manual** — only refreshes on demand (via Rebuild Index).
-  - **Every 15 minutes**
-  - **Every hour**
-  - **Daily**
+Appears automatically whenever at least one WSL distribution is installed:
 
-Network shares don't expose a change journal the way local NTFS volumes do, which is why they're refreshed on a schedule instead of in real time. The scanning engine includes built-in branch path tracking and symlink loop detection, automatically intercepting recursion loops on NAS/SMB shares even if symlinks point back to ancestor directories.
+- **Auto-Discovery**: Automatically recognizes Ubuntu, Debian, Arch, and other WSL distros.
+- **Status & Schedules**: Identical status cards and Refresh Mode options (Manual / 15 Min / Hourly / Daily).
+- **Zero-I/O Queries**: WSL searches read the in-memory tree directly without waking or blocking the Linux subsystem.
 
-## WSL
+## 4. Folders
 
-Only shown once at least one WSL distribution is detected — same shape as Network Drives (status card, **Rebuild Index** button, and one row per distribution with status/item count/**Refresh Mode**). Distributions are detected automatically; there's no manual "add" step.
+Use standalone folder indexing when you want to target specific working directories instead of entire volumes or NAS shares:
 
-WSL search results always come from the current index. Lertaro does not probe the WSL file system while searching, so a result reflects the indexed state until its next refresh or rebuild. Opening or previewing a result can still access the file because that is an explicit user action.
+- **Multi-Select Addition**: Click **Add Folder** to open a native picker supporting `Ctrl` / `Shift` batch selection.
+- **UNC Path Support**: Add network UNC share paths directly (e.g. `\\server\share\projects`).
+- **Independent Schedules**: Each folder has its own toggle, item counter, and Refresh Mode dropdown.
 
-## Folders
+## 5. Exclusions
 
-Index arbitrary individual folders instead of a whole drive or share — useful for indexing just one subtree without pulling in everything else on that volume.
+Exclusion rules apply globally across local drives, network storage, and custom folders, organized into three sub-tabs:
 
-- An **Add Folder** button opens a multi-select folder picker; hold Ctrl or Shift to add several folders in one step. Duplicate selections are ignored. A **Rebuild Index** button re-scans every folder in the list.
-- One row per added folder: enable checkbox, path, status, item count, and the same **Refresh Mode** dropdown (Manual / Every 15 minutes / Every hour / Daily) as network drives — folders are scanned on a schedule rather than tracked continuously, the same way network shares are.
-- The folder picker also accepts a **UNC network share path** (e.g. `\\server\share`, or a subfolder inside it) browsed to via *Network* in the picker — useful for indexing a single share or subtree without adding the whole server as a mapped network drive.
+### Path Exclusions
 
-## Exclusion Rules
+- **Matching Logic**: Prefix matching against absolute physical paths.
+- **Environment Variables**: Accepts `%ProgramData%`, `%APPDATA%`, or `D:\Cache`.
 
-Three sub-tabs, each with the same shape: a single-entry textbox + **Add** button, a list of existing rules (each editable/deletable), and a bulk multi-line textbox with **Generate from List** / **Apply to List** buttons for editing everything at once.
+### Glob Rules
 
-- **Path Exclusions** — full paths or environment variables (e.g. `D:\Cache`, `%ProgramData%`).
-- **Glob Wildcards** — `*` (any characters in a filename), `?` (single character), `**` (recursive directories). Examples: `*.tmp`, `**/node_modules/**`, `bin/**`.
-- **Regex Patterns** — arbitrary regular expressions matched against the path/filename (partial match). Examples: `^\.` (hidden files), `~$` (Office temp files), `\.git\`.
+- **Syntax**:
+  - `*`: Matches characters within a single folder level (e.g. `*.tmp`, `*.log`).
+  - `**`: Matches recursively across subdirectories (e.g. `**/node_modules/**`, `**/bin/**`, `**/obj/**`).
 
-Exclusions apply to local, network, and folder indexing alike, and network drives/folders re-scan automatically after you apply exclusion changes.
+### Regex Rules
+
+- **Advanced Filtering**: Regular expression matching against paths and filenames (e.g. `^\.` for hidden dotfiles, `~\$` for temporary Office locks).
+
+> [!TIP]
+> Exclusions support both **single entry additions** and **batch editing**: click **Generate from List** to export rules to text, edit, and click **Apply to List** to update in bulk. Modified exclusion rules automatically trigger index filtering.

@@ -1,46 +1,84 @@
 # URI 协议（lertaro://）
 
-Lertaro 会自动把自己注册为 `lertaro://` 链接的处理程序——不需要额外的安装步骤，第一次运行时就会自动完成注册。这样任何能打开链接的东西（浏览器、快捷方式、别的程序、脚本）都能直接跳到 Lertaro
-的某个具体位置，而不是只能靠热键触发。
+Lertaro 在首次运行时会自动在 Windows 系统中注册自定义协议 **`lertaro://`**。无论是网页超链接、桌面快捷方式、自动化脚本还是第三方软件，均可通过该协议直接唤起 Lertaro 的特定搜索、直达设置页面或发起跨设备传输。
 
-如果 Lertaro 还没运行，打开一个 `lertaro://` 链接会先启动它，再执行这个链接指向的操作。如果已经在运行，正在运行的那个实例会直接处理这个链接——不会再启动第二份进程。
+## 1. 协议机制与实例路由
 
-## 支持的链接
+- **开箱即用**：无需手动配置注册表，Lertaro 启动时会自动完成注册与自愈校验。
+- **单实例路由**：若 Lertaro 已经在后台运行，打开 `lertaro://` 链接会直接唤醒当前运行中的前台实例，绝不会重复启动多个进程；若 Lertaro 尚未启动，系统会自动拉起主程序并立即执行链接指定的动作。
 
-| 链接 | 作用 |
-|---|---|
-| `lertaro://` | 激活快速搜索窗口——效果和用热键呼出它一样。 |
-| `lertaro://search/[关键词]` | 激活快速搜索窗口，并预填 `[关键词]`。 |
-| `lertaro://fullsearch/[关键词]` | 打开完整搜索窗口，并预填 `[关键词]`。 |
-| `lertaro://settings/page/[分区]` | 打开设置窗口，并切到指定的顶层分区。 |
-| `lertaro://settings/entry/[序号]` | 打开设置窗口，并直接跳转到某一项具体设置，并高亮显示。 |
-| `lertaro://localsend` | 打开空白的 LocalSend 发送窗口。 |
-| `lertaro://localsend/items[/编码后的项目...]` | 切换到文件/文件夹模式，并可按路径段添加一个或多个项目。 |
-| `lertaro://localsend/text[/编码后的文本]` | 切换到文本模式，并可填入编码后的文本。 |
+## 2. 完整 URI 路由指令表
 
-```
-lertaro://search/report
-lertaro://settings/page/Appearance
-```
+| URI 指令格式 | 功能说明与交互效果 |
+| :--- | :--- |
+| `lertaro://` | 激活并显示快速搜索窗口（效果等同于双击 `Ctrl` 全局热键）。 |
+| `lertaro://search/[关键词]` | 激活快速搜索窗口，并预先填入指定的 `[关键词]` 并立即过滤。 |
+| `lertaro://fullsearch/[关键词]` | 打开大尺寸完整搜索主窗口，并预先填入指定的 `[关键词]`。 |
+| `lertaro://settings/page/[分区]` | 打开设置窗口，并直接切换到指定的顶层分区标签页。 |
+| `lertaro://settings/entry/[序号]` | 打开设置窗口并精准跳转到某一项具体设置项，同时闪烁高亮该选项。 |
+| `lertaro://localsend` | 打开空白的 LocalSend 局域网发送窗口。 |
+| `lertaro://localsend/items/[编码后的绝对路径...]` | 打开 LocalSend 并切换至文件模式，自动添加一个或多个目标文件/目录。 |
+| `lertaro://localsend/text/[编码后的文本]` | 打开 LocalSend 并切换至文本模式，自动填入指定的待发送文本。 |
 
-第一个会激活快速搜索窗口，并已经用"report"过滤好；第二个会直接打开设置窗口的"外观"页。
+### 设置分区参数 `[分区]`
 
-`[分区]` 对应侧边栏顶层的某一项：`Service`、`Index`、`General`、`Appearance`、`Hotkeys`、
-`Plugins`、`Favorites`、`History`、`QuickPanel`、`About`——不区分大小写。
+设置分区参数不区分大小写，对应设置界面的侧边栏模块：
 
-`[序号]` 不是给人手动输入用的——它是[设置搜索](./instant-answers)在你选中某项设置结果时自己生成的一个数字，选中结果会自动带上这个序号，原样跳转回那一项设置。这个序号在重启之间并不稳定，不要指望某个具体数字每次都对应同一项设置。
-
-## LocalSend 链接
-
-每个文件/文件夹路径或文本值都必须整体编码为一个 URL 路径段。添加多个项目时，为每个项目追加一个独立的编码路径段；所有路径都必须是已经存在的绝对路径。例如：
-
-```
-lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt/D%3A%5CShared
-lertaro://localsend/text/Hello%20world
+```text
+Service      - 运行状态
+Index        - 索引设置
+General      - 通用设置
+Appearance   - 外观与主题
+Hotkeys      - 热键设置
+Plugins      - 插件管理
+Favorites    - 收藏夹
+History      - 历史记录
+QuickPanel   - 快速面板
+About        - 关于与更新
 ```
 
-`lertaro://localsend/items` 会打开收集页并切到文件/文件夹模式，`lertaro://localsend/text` 则切到文本模式。带有内容的链接会继续进入设备选择，但绝不会自动选择设备或开始传输。如果发送窗口已经打开，这个链接不会执行任何操作，也不会改变窗口当前的内容或状态。如果 LocalSend 尚未启用，Lertaro 会改为打开 LocalSend 设置页。内容无效或过长时，整个请求都会被忽略。
+> [!NOTE]
+> `lertaro://settings/entry/[序号]` 中的序号是由内置的[**设置搜索**](./instant-answers#2-关键词触发功能内置插件)功能动态生成的。由于内部序号在版本更新或重启后可能会重新分配，建议在外部脚本中优先使用 `lertaro://settings/page/[分区]`。
 
-## 无法识别的链接
+## 3. LocalSend 路由与参数编码规范
 
-任何匹配不上已知路由的链接——打错了字、分区不存在、`lertaro://` 后面跟了一堆乱七八糟的内容——都会被直接忽略。由于任何网站或程序都能在你不知情的情况下调起这个协议，一个错误或异常的链接不应该产生任何出人意料的效果；这类情况只会记进日志方便你自己排查，除此之外什么都不会发生。
+在使用 LocalSend 相关 URI 时，每个文件路径或文本必须进行标准的 URL 编码（例如将 `:` 转换为 `%3A`，将 `\` 转换为 `%5C`，将空格转换为 `%20`）：
+
+```text
+# 预填多个文件路径
+lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Cdoc.pdf/D%3A%5CShared%5Cphotos
+
+# 预填待发送文本
+lertaro://localsend/text/Hello%20from%20Lertaro%21
+```
+
+- **安全约束**：所有传入的文件路径必须为本机已经真实存在的绝对路径；带有预填内容的链接仅会打开 LocalSend 并进入设备选择界面，绝不会自动向任何设备发送数据。
+
+## 4. 外部联动实战示例
+
+### 浏览器与 Markdown 链接
+
+在个人知识库（如 Obsidian、Notion 或 Markdown 文档）中直接插入超链接：
+
+```markdown
+点击打开 [Lertaro 外观设置](lertaro://settings/page/Appearance)
+点击快速查找 [项目财务报表](lertaro://search/财务报表%202026)
+```
+
+### Windows 快捷方式与批处理
+
+在桌面右键新建快捷方式，在对象位置输入：
+
+```cmd
+lertaro://fullsearch/D:\Projects\
+```
+
+在 PowerShell 脚本中调用：
+
+```powershell
+Start-Process "lertaro://settings/page/General"
+```
+
+## 5. 安全性与未知路由容错
+
+- **静默容错**：由于任何外部网页或脚本均可尝试触发该协议，Lertaro 对所有传入的 URI 实行严格的白名单校验。若链接格式错误、拼写有误或指向不存在的路由，Lertaro 会直接安全忽略，仅记录调试日志，绝不会产生意外的破坏性操作或崩溃。

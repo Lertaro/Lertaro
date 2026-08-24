@@ -1,31 +1,21 @@
-# User Manual
+# User Guide
 
-Lertaro is a fast, keyboard-first file search launcher for Windows. It indexes your local drives
-(NTFS and ReFS via their change journals, other file systems by watching them directly) and network
-shares in the background, then lets you jump to any file, folder, or application in a fraction of a
-second.
+Welcome to the official Lertaro User Guide! Lertaro is an ultra-fast file search launcher and productivity powerhouse built specifically for Windows. By maintaining an in-memory index tree in the background (via NTFS/ReFS USN change journals and realtime filesystem event listeners), it delivers sub-millisecond query responses across millions of items.
 
-This manual covers everything a day-to-day user needs:
+This guide systematically covers all core features and advanced capabilities needed for daily workflows:
 
-- **[Getting Started](./getting-started)** — installing Lertaro and understanding its three
-  search windows (main, quick, inline).
-- **[Search Syntax](./search-syntax)** — fuzzy matching, exclude/exact/prefix/suffix operators,
-  OR groups, drive targeting, path mode, and pinyin aliasing for Chinese filenames.
-- **[Hotkeys](./hotkeys)** — every configurable shortcut and hardcoded key, with default bindings.
-- **[Actions Menu & Preview](./actions-and-preview)** — the right-click-style actions list and the
-  QuickLook preview pane.
-- **[Space Analyzer](./space-analyzer)** — a fast, index-only treemap for understanding how indexed files and folders use space.
-- **[Instant Answers & Keyword Shortcuts](./instant-answers)** — the calculator, environment
-  variables, run-command shortcuts, and keyword-triggered plugins like Process Manager, Window
-  Switcher, Browser Data, Settings Search, Web Search, and Translator.
-- **[Command-Line Search (lff)](./cli)** — the fzf-style CLI companion for searching from a
-  terminal.
-- **[URI Protocol (lertaro://)](./uri-protocol)** — jumping straight into a search or a
-  specific setting from a link, another app, or a script.
-- **[Supported File Managers](./file-manager-support)** — which file managers and file-picker
-  dialogs Lertaro can dock into, trigger Quick Navigation from, or detect the current folder of.
-- **[Settings Reference](./settings/)** — every settings page, tab, and option, itemized.
-- **[Troubleshooting](./troubleshooting)** — common problems and how to fix them.
-- **[Donate](./donate)** — if Lertaro has been useful to you.
+- **[Getting Started](./getting-started)** —— Installation, portable usage, architecture overview, three window modes (Quick / Full / Inline), and essential operations.
+- **[Search Syntax](./search-syntax)** —— Fuzzy matching, operators (`!` exclude, `'` exact, `^` prefix, `$` suffix, `|` OR), drive prefixes, path mode, and multilingual pinyin aliases.
+- **[Hotkeys & Gestures](./hotkeys)** —— Global hotkeys cheat sheet, search box logo drag/reset gestures, mouse Quick Navigation cascading menus, and hardcoded keys.
+- **[Actions & Preview](./actions-and-preview)** —— Context action menu (`Ctrl+O`), Full Window results list, built-in QuickLook media/document previews, and interactive plugin cards.
+- **[Space Analyzer](./space-analyzer)** —— Zero-I/O Treemap visualization and sorted size breakdown for effortless storage cleanup.
+- **[Instant Answers & Keyword Features](./instant-answers)** —— Always-active calculator, environment variables, commands, and keyword plugins like Process Manager (`ps`), Window Switcher (`win`), Browser Data (`bm`), and Settings Search (`set`).
+- **[CLI Search (lff)](./cli)** —— Terminal companion tool for interactive fuzzy finding, sharing the memory index with pipeline and shell integration.
+- **[URI Protocol (lertaro://)](./uri-protocol)** —— Deep-linking from browsers, shortcuts, and scripts to searches, settings pages, and LocalSend transfers.
+- **[Supported File Managers](./file-manager-support)** —— Integration with Windows dialogs, Directory Opus, Total Commander, XYplorer, Files, and One Commander.
+- **[Settings Reference](./settings/)** —— Comprehensive walkthrough of Service Status, Indexing, General, Appearance, Hotkeys, and Plugin options.
+- **[Troubleshooting](./troubleshooting)** —— Step-by-step diagnostic guide for hotkeys, indexing, IMEs, and live log inspection.
+- **[Donate & Support](./donate)** —— Support the ongoing development and open-source maintenance of Lertaro.
 
-If you're setting Lertaro up for the first time, start with **Getting Started**.
+> [!TIP]
+> If you are new to Lertaro, we recommend starting with [**Getting Started**](./getting-started).

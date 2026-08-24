@@ -1,28 +1,28 @@
 # Service Status
 
-Manages the background indexing service, and gives you a live view of its logs.
+The Service Status page monitors the health of Lertaro's background indexing service and provides real-time log viewers across the Service, App, and Hook processes. The page is located at **Settings → Service Status**.
 
-## Service control
+## 1. Service Control & Status Card
 
-A status card shows the elevated indexer's current state — **Installing**, **Indexing**, **Ready**
-(with a live file/folder count), or **Error** — with a matching icon (spinner, checkmark, or error
-badge).
+The top card displays real-time health metrics of the elevated Windows indexing service:
 
-An **Install & Start Service** button appears only when the service isn't installed yet or hit an
-error; once it's installed and running there's no manual start/stop/uninstall control on this
-page — the service is expected to just keep running in the background.
+- **State Indicators**:
+  - **Ready**: Service is healthy and operational, displaying live counts of indexed files and folders.
+  - **Indexing**: An initial scan or incremental index rebuild is in progress, accompanied by a dynamic progress spinner.
+  - **Installing**: Registering and launching the background Windows service.
+  - **Error**: The service is offline or encountered a critical fault, showing error descriptions and an alert badge.
+- **Self-Healing & Installation**: An **Install and Start Service** button appears exclusively when the service is missing or in an error state. During normal operation, the service runs continuously in the background.
 
-## Logs
+## 2. Multi-Process Live Log Viewer
 
-Three tabs — **App**, **Hook**, **Service** — corresponding to the three processes Lertaro runs
-(the elevated background indexer, the per-user App you interact with, and the keyboard-hook
-process). Each tab shows that process's log lines, color-coded by level.
+The integrated log viewer below is split into three dedicated tabs mapping to Lertaro's three active processes:
 
-- **Level filter** dropdown — All / Error / Warn / Info / Debug.
-- **Search box** — filters the visible lines by keyword, combined with the level filter.
-- **Clear** button — empties the log for the currently selected tab. Clearing the Service tab's
-  log is routed through the service itself (the App process doesn't have permission to write to
-  it directly); the App and Hook logs are cleared directly since they're per-user files.
+- **App Tab**: Logs user interactions, search queries, UI rendering, and hotkey activations from the foreground WPF application.
+- **Hook Tab**: Logs low-level keyboard hook events and isolation states from the hook process (`Lertaro.Hook.exe`).
+- **Service Tab**: Logs USN change journal parsing, filesystem scanning, in-memory tree building, and IPC communications from the background service (`Lertaro.Service.exe`).
 
-This is the first place to look when troubleshooting — see
-[Troubleshooting](../troubleshooting#still-stuck).
+### Filtering & Log Maintenance
+
+- **Level Filtering**: Dropdown filtering by "All / Error / Warning / Information / Debug", with color-coded log lines.
+- **Keyword Search**: Type text into the search box to filter log lines in real-time, combining additively with level filters.
+- **Safe Log Clearing**: Click **Clear Logs** to truncate logs for the active tab. Clearing the Service tab is handled safely via IPC proxy without requiring administrative elevation.

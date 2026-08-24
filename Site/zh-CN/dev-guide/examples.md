@@ -1,31 +1,38 @@
-# 插件示例
+# 官方插件范例
 
-Lertaro 自带两个插件，都是很有参考价值的真实案例——都在 Lertaro 仓库的 `Plugins/` 目录下。
+为了帮助开发者深入理解 `Lertaro.PluginSdk` 的各模块协同机制，本章节选取了 Lertaro 官方仓库自带的三个典型开源插件进行深度案例剖析。
 
-## CoreExtensions —— 动作与 Shell 右键菜单
+## 1. CoreExtensions —— 动作、Shell 菜单与快速面板
 
-`CoreExtensionsPlugin` 同时实现了三个接口:`IPlugin`、`IActionProvider`、`IConfigurable`。
+`CoreExtensions` 插件是 Lertaro 最核心的功能扩展包，同时实现了 `IPlugin`、`IActionProvider`、`IConfigurable` 以及多个子提供者接口。
 
-- **`IActionProvider.GetActions()`** 返回十个内置的 `ISearchResultAction`——打开、在资源管理器中定位、复制路径、复制/剪切文件本身、在其所在位置打开命令提示符、touch/mkdir，以及打开和命令提示符的提权(以管理员身份运行)变体。
-- **`IActionProvider.GetDynamicActionProviders()`** 返回一个 `IDynamicActionProvider`——
-  `ShellMenuActionProvider`——正是它让真正的 Windows 右键菜单(包括"发送到"这类级联子菜单)出现在 Lertaro 自己的动作菜单里。如果你想在 Lertaro 里呈现*任何*外部、动态构建的菜单，而不是一份固定的动作列表，这是值得照抄的模式。
-- **`IConfigurable.GetConfigSchema()`** 展示了带嵌套字段分组和 `StringList` 字段类型的配置模式
-  ——如果你的插件在设置 → 插件的配置对话框里需要的不只是一份扁平的布尔值列表，值得读一下这部分。
-- 有五个提供器实现了
-  [`IQuickPanelTabProvider`](./sdk/ui-extensions#iquickpaneltabprovider)，而且它们正好覆盖了这个接口的两端。`FavoritesTabProvider` 和 `HistoryTabProvider` 原样交出一份内存里的列表——最简参考实现，因为两者自己都没有额外的状态。`WindowsRecentTabProvider` 则是另一端：它在后台任务上读目录、通过 COM 解析 shell 快捷方式，**先**截断再做那件昂贵的事，并给每个条目填上 `Metadata.Modified`，好让标签的「最新在前」真的有意义。
-- `LastDirectoryTabProvider` 和 `RecentFilesTabProvider` 值得读的理由不太一样：它们自己压根没有数据，而是通过
-  [`ExplorerPathService`](./sdk/services) 和 `RecentFilesService` 向宿主要。只要你的插件想展示的东西 Lertaro 本来就知道，照抄这个模式就对了。
+### 核心实现要点
 
-## PinyinAlias —— 中文文件名拼音别名
+- **静态结果动作（`IActionProvider.GetActions()`）**：注册了 10 个常用的基础文件动作（打开、在资源管理器中定位、复制完整路径、复制/剪切物理文件、打开终端命令行以及提权以管理员身份运行等）。
+- **原生 Shell 菜单集成（`IDynamicActionProvider`）**：通过 `ShellMenuActionProvider` 与 Windows Shell COM 接口交互，将完整的 Windows 右键级联菜单（如“发送到”、7-Zip、VS Code 打开等）无缝渲染至 Lertaro 的 `Ctrl+O` 动作菜单中。
+- **模式驱动的配置表单（`IConfigurable`）**：展示了如何定义包含嵌套分组（`Group`）、多行字符串列表（`StringList`）与热键录制（`Hotkey`）的复杂配置表单，无需手写任何 XAML 即可在设置中心中自动生成。
+- **多样化的快速面板标签（`IQuickPanelTabProvider`）**：
+  - `FavoritesTabProvider` / `HistoryTabProvider`：直接将内存中的结构化列表包装为结果集，属于零 I/O 极简实现。
+  - `WindowsRecentTabProvider`：在后台任务中遍历系统 `Recent` 目录并通过 COM 解析快捷方式目标，预先截断并填充 `Metadata.Modified` 时间戳以实现“最新在前”。
+  - `LastDirectoryTabProvider` / `RecentFilesTabProvider`：直接调用宿主公开的 [`ExplorerPathService`](./sdk/services) 与 `RecentFilesService` 查询宿主已有状态。
 
-`PinyinAliasProvider` 同时实现了 `IAliasProvider` 和 `ITranslationProvider`——一个插件可以自由组合多个相关的 SDK 角色，这是个很好的参考模板:
+## 2. PinyinAlias —— 非 ASCII 别名转写引擎
 
-- **`IAliasProvider.InputRanges`/`OutputRanges`** 直接复用 `PinyinEngine` 自己表里的边界来声明这两个字母表(`InputRanges`:CJK 区块;`OutputRanges`:`a`-`z`),不重复写魔数——宿主用它们支持
-  "大cj"匹配"大长今"这类混合了字面汉字和拼音的查询。
-- **`IAliasProvider.CanHandle(text)`** 会先扫描是否存在任意中文字符，再决定要不要做实际工作，所以非中文文件名会完全跳过别名生成。
-- **`IAliasProvider.GetAliases(text)`** 先构建一张按字符划分的音节表(每个汉字映射到它可能的拼音读音)，然后产出一个全拼别名和一个首字母别名。对于含多音字(有一种以上有效读音)的文件名，会为每种常见读音组合都生成别名——上限 32 种组合，防止极端输入引发组合爆炸——用 `|` 连接各个备选项，这样搜索引擎会把每一个都当作候选，而不是要求它们同时全部匹配。
-- **`ITranslationProvider`** 实现在*同一个*类上，纯粹是为了给这个插件自己的界面文本(比如它的显示名称)提供翻译，通过 `TranslationService.LoadEmbeddedTranslations` 实现——这两个接口用途上并无关联，只是碰巧在这个体量很小的单文件插件里放在了同一个类型上。
-- 用一个 `lock` 保护的 `Dictionary<string, Dictionary<string, string>>` 缓存避免了每次调用
-  `GetTranslations` 都重新解析内嵌的翻译 JSON——这是任何在 `GetTranslations` 里做了非平凡工作的插件都该采用的标准模式。
+`PinyinAlias` 插件专门为中文文件名提供拼音全拼与首字母缩写检索支持，同时实现了 `IAliasProvider` 与 `ITranslationProvider` 两个接口。
 
-把这两个插件对照着看，是理解[插件 SDK 参考](./sdk/core-search-actions)里各个部分如何在实践中配合起来最快的方式。
+### 核心实现要点
+
+- **输入/输出字母表边界（`InputRanges` / `OutputRanges`）**：声明输入源字符范围为 CJK 表意文字区块，输出字符范围为小写 `a`–`z`。宿主利用该边界智能将“大cj”等混合查询切分为字面匹配与拼音别名匹配。
+- **快速预检过滤（`CanHandle(text)`）**：在生成别名前先扫描文本中是否存在中文字符，对于纯英文字符串直接返回 `false`，完全跳过后续开销。
+- **多音字组合与别名构建（`GetAliases(text)`）**：先构建字符级音节表，对于含多音字的文件名（如“重”、“长”），自动生成各常见读音组合并使用 `|` 管道符连接（上限 32 种组合以防爆炸），供搜索引擎作为候选集并行匹配。
+- **内嵌多语言与线程安全缓存**：通过 `ITranslationProvider` 提供插件显示名称与描述的多语言本地化，并在内部使用带 `lock` 保护的字典缓存解析后的 JSON 翻译，避免每次查询重复解析。
+
+## 3. FlowLauncherBridge —— 跨生态桥接与隔离运行时
+
+`FlowLauncherBridge` 插件展示了如何构建一个大型复合型桥接系统，将外部开源社区生态无缝吸纳进 Lertaro 体系。
+
+### 核心实现要点
+
+- **多语言跨进程桥接**：兼容 C# (.NET)、Python 3.12、Node.js v20 LTS 及独立 `.exe` 形式的 Flow Launcher 插件。
+- **纯净自包含环境**：在用户数据目录中自动隔离部署 Python / Node.js 运行时，并通过命名管道与子进程进行 JSON-RPC 通信。
+- **动态配置与富文本预览**：解析外部插件的 `SettingsTemplate.yaml`/`.json` 并动态映射为 `PluginConfigSchema`；在 QuickLook 预览面板中利用 WebView2 渲染外部插件返回的富文本卡片（如词典释义、实时天气等）。

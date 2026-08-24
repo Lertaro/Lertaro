@@ -1,57 +1,38 @@
-# 예제 플러그인
+# 공식 플러그인 예제 분석
 
-Lertaro 자체에는 두 개의 플러그인이 함께 제공되며, 둘 다 실전에서 유용한 참고 예제입니다 — 두 플러그인
-모두 Lertaro 저장소의 `Plugins/` 폴더에 있습니다.
+`Lertaro.PluginSdk`의 여러 인터페이스가 실전에서 어떻게 협력하는지 이해하기 위해 공식 리포지토리에 포함된 3가지 대표 오픈소스 플러그인의 구현 패턴을 분석합니다.
 
-## CoreExtensions — 동작과 셸 컨텍스트 메뉴
+## 1. CoreExtensions —— 액션, Shell 메뉴 및 퀵 패널
 
-`CoreExtensionsPlugin`은 `IPlugin`, `IActionProvider`, `IConfigurable` 세 가지 인터페이스를 동시에
-구현합니다.
+`CoreExtensions` 플러그인은 Lertaro의 핵심 기능 확장 패키지로 `IPlugin`, `IActionProvider`, `IConfigurable` 및 여러 하위 프로바이더를 구현합니다.
 
-- **`IActionProvider.GetActions()`** 는 열 개의 내장 `ISearchResultAction`을 반환합니다 — 열기, 탐색기에서
-  위치 찾기, 경로 복사, 파일 자체를 복사/잘라내기, 해당 위치에서 명령 프롬프트 열기, 파일/폴더 생성, 그리고
-  열기와 명령 프롬프트의 상승된(관리자 권한 실행) 변형까지 포함합니다.
-- **`IActionProvider.GetDynamicActionProviders()`** 는 단 하나의 `IDynamicActionProvider` —
-  `ShellMenuActionProvider` — 를 반환합니다. 이것이 바로 실제 Windows 마우스 우클릭 메뉴(중첩된 계단식
-  하위 메뉴, 예를 들어 "보내기"까지 포함)가 Lertaro 자체의 Actions 메뉴 안에 나타나게 만드는 방식입니다.
-  고정된 동작 목록이 아니라 *어떤* 외부의, 동적으로 구성되는 메뉴든 Lertaro 안에 그대로 노출하고 싶다면
-  이 패턴을 그대로 참고하면 됩니다.
-- **`IConfigurable.GetConfigSchema()`** 는 중첩된 필드 그룹과 `StringList` 필드 타입을 사용하는 설정
-  스키마를 보여줍니다 — 여러분의 플러그인이 설정 → 플러그인 구성 대화상자에서 단순한 불리언 목록 이상을
-  필요로 한다면 읽어볼 가치가 있습니다.
-- 다섯 개의 프로바이더가
-  [`IQuickPanelTabProvider`](./sdk/ui-extensions#iquickpaneltabprovider)를 구현하며, 이들이 합쳐 이
-  인터페이스의 양 극단을 보여줍니다. `FavoritesTabProvider`와 `HistoryTabProvider`는 메모리에 있는
-  목록을 그대로 돌려줍니다 — 둘 다 자체 상태가 없으므로 최소한의 참고 예제입니다.
-  `WindowsRecentTabProvider`가 반대쪽 극단으로, 백그라운드 작업에서 디렉터리를 읽고 COM으로 셸 바로
-  가기를 해석하되 비싼 작업 **전에** 개수를 먼저 잘라내며, 각 항목의 `Metadata.Modified`를 채워 탭의
-  최신순 정렬이 의미를 갖게 합니다.
-- `LastDirectoryTabProvider`와 `RecentFilesTabProvider`는 읽어 볼 이유가 조금 다릅니다: 둘 다 자기
-  데이터가 아예 없고, [`ExplorerPathService`](./sdk/services)와 `RecentFilesService`를 통해 호스트에
-  물어봅니다. 플러그인으로 보여 주고 싶은 것을 Lertaro가 이미 알고 있다면 이 패턴을 따라 하세요.
+### 핵심 구현 사항
 
-## PinyinAlias — 중국어 파일명을 위한 병음 별칭
+- **정적 결과 액션 (`IActionProvider.GetActions()`)**: 열기, 탐색기에서 위치 찾기, 전체 경로 복사, 파일 복사/잘라내기, 명령 프롬프트 열기, 관리자 권한 실행 등 10개의 기본 액션 제공.
+- **네이티브 Shell 메뉴 통합 (`IDynamicActionProvider`)**: `ShellMenuActionProvider`를 통해 Windows Shell COM 인터페이스와 연동하여 "보내기", 7-Zip, VS Code 등 계단식 우클릭 메뉴를 `Ctrl+O` 액션 메뉴 내에 렌더링.
+- **스키마 기반 설정 폼 (`IConfigurable`)**: 그룹화(`Group`), 문자열 목록(`StringList`), 단축키 녹화(`Hotkey`)를 포함한 폼 스키마를 정의하여 XAML 작성 없이 설정 센터에 네이티브 UI 자동 생성.
+- **다양한 퀵 패널 탭 (`IQuickPanelTabProvider`)**:
+  - `FavoritesTabProvider` / `HistoryTabProvider`: 메모리 상의 목록을 그대로 결과로 반환하는 제로 I/O 최소 구성.
+  - `WindowsRecentTabProvider`: 백그라운드에서 `Recent` 폴더를 탐색하고 COM으로 바로가기 대상을 해석하여 `Metadata.Modified`를 채워 정렬 지원.
+  - `LastDirectoryTabProvider` / `RecentFilesTabProvider`: 호스트가 제공하는 [`ExplorerPathService`](./sdk/services) 및 `RecentFilesService`를 직접 조회.
 
-`PinyinAliasProvider`는 `IAliasProvider`와 `ITranslationProvider`를 모두 구현합니다 — 관련이 있는 SDK
-역할이라면 플러그인이 자유롭게 결합할 수 있으며, 이 플러그인이 그 좋은 예시입니다.
+## 2. PinyinAlias —— 비 ASCII 별칭 변환 엔진
 
-- **`IAliasProvider.InputRanges`/`OutputRanges`** 는 매직 넘버를 중복해서 적는 대신 `PinyinEngine` 자체의
-  테이블 범위로부터 두 알파벳을 그대로 선언합니다(`InputRanges`: CJK 블록, `OutputRanges`: `a`-`z`) — 호스트는
-  이 둘을 함께 사용하여 `大长今`을 대상으로 한 `大cj`처럼 리터럴과 병음이 혼합된 쿼리 항목을 지원합니다.
-- **`IAliasProvider.CanHandle(text)`** 는 실제 작업을 수행하기 전에 중국어 문자가 있는지 먼저 스캔하므로,
-  중국어가 아닌 파일명은 별칭 생성을 완전히 건너뜁니다.
-- **`IAliasProvider.GetAliases(text)`** 는 문자별 음절 테이블(각 중국어 문자를 가능한 병음 발음에 매핑)을
-  구축한 뒤, 전체 병음 별칭과 이니셜만으로 된 별칭을 함께 생성합니다. 다음자(하나 이상의 유효한 발음을
-  가진 문자)가 포함된 파일명의 경우, 흔히 쓰이는 모든 조합에 대해 별칭을 생성합니다 — 병적인 입력에서 조합
-  폭발이 일어나지 않도록 32개 조합으로 상한을 두며, 각 대안을 `|`로 이어붙여 검색 엔진이 모든 대안이
-  동시에 일치해야 하는 것이 아니라 각각을 하나의 후보로 취급하도록 합니다.
-- **`ITranslationProvider`** 는 *같은* 클래스에 구현되어 있으며, 이는 순전히 이 플러그인 자체의 UI 문자열
-  (예: 표시 이름)을 `TranslationService.LoadEmbeddedTranslations`를 통해 제공하기 위한 것입니다 — 두
-  인터페이스는 목적상 서로 무관하지만, 작고 단일 파일로 이루어진 플러그인이다 보니 우연히 한 타입에 함께
-  놓여 있을 뿐입니다.
-- `lock`으로 보호되는 `Dictionary<string, Dictionary<string, string>>` 캐시는 호출할 때마다 내장된 번역
-  JSON을 다시 파싱하지 않도록 해줍니다 — `GetTranslations`에서 사소하지 않은 작업을 수행하는 모든 플러그인에
-  적용되는 표준 패턴입니다.
+`PinyinAlias` 플러그인은 중국어 파일명에 대한 병음 전체 및 초성 검색을 지원하며 `IAliasProvider`와 `ITranslationProvider`를 구현합니다.
 
-두 플러그인을 나란히 읽어보는 것이 [Plugin SDK 참조](./sdk/core-search-actions)의 각 구성 요소가 실제로
-어떻게 맞물리는지 가장 빠르게 파악하는 방법입니다.
+### 핵심 구현 사항
+
+- **입출력 문자 집합 경계 (`InputRanges` / `OutputRanges`)**: 입력 범위를 CJK 한자 블록, 출력 범위를 소문자 `a`–`z`로 선언. 호스트는 이 경계를 활용해 한자와 영문이 섞인 쿼리를 자면 매칭과 병음 매칭으로 자동 분할.
+- **빠른 사전 검사 (`CanHandle(text)`)**: 별칭 생성 전 한자가 포함되어 있는지 먼저 스캔하여 순수 영문 문자열은 즉시 `false`를 반환하고 후속 처리를 건너뜀.
+- **다음자 조합 및 별칭 구성 (`GetAliases(text)`)**: 음절 맵을 구성하고 여러 발음이 있는 경우 파이프 기호 `|`로 연결된 후보군을 최대 32개까지 생성하여 병렬 일치 수행.
+- **임베디드 다국어 및 스레드 안전 캐싱**: `ITranslationProvider`를 통해 표시 이름을 다국어화하고, 내부에서는 `lock` 기반 딕셔너리로 JSON 번역을 캐싱하여 반복 파싱 방지.
+
+## 3. FlowLauncherBridge —— 커뮤니티 플러그인 호환 및 격리 런타임
+
+`FlowLauncherBridge` 플러그인은 외부 Flow Launcher 생태계를 네이티브급으로 수용하기 위한 대규모 브리지 시스템입니다.
+
+### 핵심 구현 사항
+
+- **다중 언어 프로세스 간 브리지**: C# (.NET), Python 3.12, Node.js v20 LTS 및 `.exe` 플러그인을 원활히 실행.
+- **완전 격리 독립 런타임**: 사용자 데이터 디렉토리 내에 Python / Node.js 런타임을 자동 배치하고 명명된 파이프를 통해 JSON-RPC 통신 수행.
+- **동적 설정 폼 및 WebView2 리치 미리보기**: 외부 플러그인의 `SettingsTemplate.yaml`/`.json`을 `PluginConfigSchema`로 동적 매핑하고 사전이나 날씨 등의 HTML 카드를 QuickLook 내에 렌더링.

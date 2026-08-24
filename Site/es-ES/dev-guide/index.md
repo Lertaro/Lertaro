@@ -1,24 +1,23 @@
-# Manual de Desarrollador
+# Guía de desarrollo
 
-Lertaro ofrece un SDK de plugins abierto (`Lertaro.PluginSdk`) que ensamblados de terceros pueden usar como
-destino para ampliar el comportamiento de búsqueda, añadir acciones de menú contextual, integrarse con otras ventanas y
-personalizar la interfaz. Este manual documenta esa superficie.
+Bienvenido al Manual de referencia para desarrolladores de Lertaro. Diseñado sobre una arquitectura desacoplada y un ecosistema de plugins extensible, Lertaro proporciona un SDK oficial: `Lertaro.PluginSdk`. Al utilizar este SDK, los desarrolladores pueden aportar fuentes de búsqueda personalizadas, ampliar menús de acciones contextuales, integrarse con exploradores de archivos y cuadros de diálogo nativos, y crear temas o visores de vista previa a medida.
 
-- **[Arquitectura](./architecture)** — cómo encajan entre sí la App, el Servicio en segundo plano y los plugins.
-- **[Primeros pasos](./getting-started)** — cómo crear la estructura de un proyecto de plugin y cargarlo.
-- **Referencia del SDK de Plugins**:
-  - **[Búsqueda y acciones principales](./sdk/core-search-actions)** — cómo contribuir resultados de búsqueda y
-    acciones de resultado.
-  - **[Adaptadores de sistema y de diálogo](./sdk/system-adapters)** — integración con el Explorador de archivos, diálogos
-    de archivo nativos y otras ventanas en primer plano.
-  - **[Extensiones de interfaz y vista previa](./sdk/ui-extensions)** — filtros de la barra lateral, columnas de resultado,
-    vistas previas de archivo, miniaturas, temas y traducciones.
-  - **[Abstracciones compartidas](./sdk/abstractions)** — los modelos de solo lectura que reciben los plugins
-    (`ISearchResult`, `IPluginSearchWindow`) y el esquema de configuración (`IConfigurable`).
-  - **[Servicios del host](./sdk/services)** — servicios estáticos que el host expone a los plugins
-    (iconos, favoritos, historial, metadatos de archivo, indexación de directorios, configuración por plugin, registro).
-- **[Plugins de ejemplo](./examples)** — dos plugins reales, ya distribuidos, como casos de estudio.
-- **[Empaquetado y despliegue](./packaging)** — cómo se detecta y carga una DLL de plugin ya compilada.
+## 1. Arquitectura y flujo de trabajo
 
-Todas las firmas de interfaz de este documento se han verificado directamente contra el código fuente actual de
-`PluginSdk` — si encuentras alguna discrepancia, el código es la fuente autorizada.
+- **[Arquitectura del sistema](./architecture)** —— Explicación del modelo de aislamiento de tres procesos (Servicio de Windows a nivel SYSTEM, App WPF en modo usuario y proceso de interceptación de teclado Hook) y la comunicación IPC por tuberías con nombre.
+- **[Guía de inicio rápido](./getting-started)** —— Guía paso a paso para crear un proyecto de librería, referenciar el SDK, implementar `IPlugin` y depurar localmente.
+- **[Empaquetado y distribución](./packaging)** —— Estructura de carpetas de plugins, inclusión de librerías dependientes administradas y nativas, recursos i18n incrustados y automatización PostBuild.
+- **[Ejemplos de plugins](./examples)** —— Análisis en profundidad del código de los plugins oficiales de código abierto `CoreExtensions`, `PinyinAlias` y `FlowLauncherBridge`.
+
+## 2. Referencia de la API del SDK
+
+| Categoría del SDK | Interfaces y servicios principales | Descripción de capacidades |
+| :--- | :--- | :--- |
+| **[Búsqueda central y acciones](./sdk/core-search-actions)** | `ISearchableItemProvider`<br>`IInstantResultProvider`<br>`IAliasProvider`<br>`IQueryTokenProvider`<br>`ISearchResultAction`<br>`IDynamicActionProvider` | Aportar elementos indexados, respuestas de cálculo instantáneo, motores de transliteración de alias no ASCII, manejadores de tokens de sufijo y menús de acciones estáticos o dinámicos. |
+| **[Adaptadores de sistema y diálogo](./sdk/system-adapters)** | `IActivePathCollector`<br>`IFileDialogAdapter`<br>`IInlineSearchAdapter`<br>`IQuickNavigationProvider` | Detectar directorios activos en exploradores, enganchar diálogos nativos de archivos, incrustar la barra de búsqueda con sincronización bidireccional y menús de Navegación rápida. |
+| **[Extensiones de interfaz y vista previa](./sdk/ui-extensions)** | `ISidebarFilterProvider`<br>`IResultColumnProvider`<br>`IQuickPanelTabProvider`<br>`IFilePreviewProvider`<br>`IThumbnailProvider`<br>`IThemeProvider`<br>`ITranslationProvider` | Categorías de filtro lateral, columnas personalizadas en tablas, pestañas dinámicas en el Panel rápido, renderizadores de vista previa en QuickLook, extracción de miniaturas, temas WPF e idiomas i18n. |
+| **[Abstracciones compartidas](./sdk/abstractions)** | `ISearchResult`<br>`FileMetadata`<br>`IPluginSearchWindow`<br>`IConfigurable` | Modelos de resultados de solo lectura, metadatos de archivos de alta precisión, controladores seguros de la ventana anfitriona y formularios de configuración basados en esquemas. |
+| **[Servicios del anfitrión](./sdk/services)** | `FuzzyMatchService`<br>`TranslationService`<br>`IconService`<br>`FavoritesService`<br>`HistoryService`<br>`FileMetadataService`<br>`DirectoryIndexerService`<br>`RecentFilesService`<br>`ExplorerPathService`<br>`PluginSettingsService`<br>`SearchRefreshService`<br>`UserDataService`<br>`Logger` | Infraestructura de alto rendimiento: coincidencia difusa fzf y máscaras de resaltado, extracción de iconos con caché, consulta de favoritos/historial, proxies de indexación, aislamiento de datos y operaciones Shell. |
+
+> [!NOTE]
+> Todas las firmas de métodos, parámetros y contratos de comportamiento de este manual han sido contrastados directamente con el código fuente de `Lertaro.PluginSdk`.

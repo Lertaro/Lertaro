@@ -1,17 +1,21 @@
-# システム / ダイアログアダプター
+# システムとダイアログの統合
 
-これらのインターフェースは、プラグインが Lertaro を*他の*ウィンドウ——File Explorer、ネイティブのファイル選択ダイアログ、サードパーティ製ファイルマネージャー——と統合できるようにするもので、
-Lertaro 自身の検索ウィンドウだけを対象とするものではありません。
+この章では、Windows エクスプローラー、標準ファイルダイアログ、およびサードパーティ製ファイラーと連携するための `Lertaro.PluginSdk` アダプターインターフェイスを解説します。
 
-## `IActivePathCollector`
+> [!NOTE]
+> `IActivePathCollector`、`IFileDialogAdapter`、`IInlineSearchAdapter` の実装は、管理者権限のウィンドウとの UIPI 制限を越えて安全に対話するため、ホストによって **特権 Hook プロセス** 側にもロードされて実行されます。
 
-現在アクティブなフォアグラウンドウィンドウから「現在のディレクトリ」を抽出し、Lertaro が検索のスコープをどこに絞るべきか(あるいは相対的なアクションの解決先)を把握できるようにします。
+## 1. アクティブパスコレクター `IActivePathCollector`
+
+フォーカスのあるアクティブウィンドウから現在の作業ディレクトリを抽出し、インライン検索の絞り込み範囲や相対パスの解決に利用します。
 
 ```csharp
-interface IActivePathCollector
+namespace Lertaro.PluginSdk;
+
+public interface IActivePathCollector
 {
     string Name { get; }
-    string TargetName { get; }   // localized name of the app/manager this targets
+    string TargetName { get; }   // 対象ファイラー名（例: "Directory Opus", "Total Commander"）
     bool CanHandle(string className);
     string? TryGetPath(
         IntPtr activeHwnd, string activeClassName,
@@ -20,77 +24,67 @@ interface IActivePathCollector
 }
 ```
 
-多くのファイルマネージャーでは、実際のパスがトップレベルウィンドウ自体ではなく子コントロール(アドレスバー、ツリービューの選択項目)に入っているため、アクティブな(フォーカスのある)要素とそれを含むウィンドウは別々に渡されます。
+- フォーカスのあるコントロール（`activeHwnd`）と親ウィンドウ（`windowHwnd`）が個別に渡されるため、アドレスバーやツリービューのパスを柔軟に取得できます。
 
-## `IFileDialogAdapter`
+## 2. 標準ファイルダイアログアダプター `IFileDialogAdapter`
 
-ネイティブに描画された Windows の開く/保存ファイルダイアログを読み取り、操作します。これにより
-Lertaro をそれらに埋め込み(下記の [`IInlineSearchAdapter`](#iinlinesearchadapter) を参照)、同期を保つことができます。
+Windows 標準のファイルを開く/保存ダイアログを検出・操作します。
 
 ```csharp
-interface IFileDialogAdapter
+public interface IFileDialogAdapter
 {
     string Name { get; }
     bool CanHandle(IntPtr hwnd, string className, string processName);
     string? GetCurrentPath(IntPtr hwnd);
     bool NavigateTo(IntPtr hwnd, string targetPath);
-    bool TargetIsFolderOnly { get; } // default: false
-    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor); // default: true
+    bool TargetIsFolderOnly => false;  // フォルダー選択専用ダイアログかどうか
+    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => true;
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
     bool RestoreFocus(IntPtr hwnd);
 }
 ```
 
-`TargetIsFolderOnly` は、ターゲットフィールドがフォルダーしか保持できないダイアログ(たとえば圧縮ツールの「展開先」の指定先)に対して `true` を指定します——Open/Save ダイアログのファイル名ボックスとは異なり、特定のファイルを指すことは決してありません。ホストはこれを使って、選択された検索結果がファイルだった場合、`NavigateTo` に到達する前に含まれるフォルダーへ解決する必要があるかどうかを判断します。この判断を `NavigateTo` 自体に任せないのは、その呼び出しが昇格された Hook プロセス内で実行され、対話的なユーザーが非昇格状態でマップしたドライブに対しては `File.Exists`/
-`Directory.Exists` を信頼できないためです。実際のファイル名ボックスを持つものについては、デフォルトの `false` のままにしておいてください。
+- **`TargetIsFolderOnly`**：`true` の場合、ユーザーが検索結果でファイルを選択した際に、`NavigateTo` 呼び出し前に自動で親フォルダーへ展開されます。
+- **`AdapterRect`**：ピクセル単位の物理境界 `{ Left, Top, Right, Bottom }` を保持。
 
-## `IInlineSearchAdapter`
+## 3. インライン検索アダプター `IInlineSearchAdapter`
 
-Lertaro の検索バーをターゲットのファイルダイアログや File Explorer ウィンドウ(ユーザーマニュアルでいう「インラインウィンドウ」)に直接埋め込み、両方向で選択状態を同期させます。
+ファイルダイアログやエクスプローラー内部に Lertaro の検索バーを直接埋め込み、双方向の選択同期を実現します。
 
 ```csharp
-interface IInlineSearchAdapter
+public interface IInlineSearchAdapter
 {
     string Name { get; }
-    bool IsFileExplorer { get; }   // default false
+    bool IsFileExplorer => false;      // Windows エクスプローラーかどうか
     bool CanHandle(IntPtr hwnd, string className, string processName);
     bool CanTrigger(IntPtr focusedHwnd, string className);
-    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor); // default: delegates to CanTrigger
+    bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => CanTrigger(hwndUnderCursor, classNameUnderCursor);
     bool CanEnterActionsMode(IntPtr hwnd);
     string? GetSearchScope(IntPtr hwnd);
     bool ExecuteItem(IntPtr hwnd, string path, string searchInput);
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
-    IEnumerable<string> GetListItems(IntPtr hwnd);        // optional
-    void OnSelectionChanged(IntPtr hwnd, string path);    // optional
-    void OnSearchFinished(IntPtr hwnd, bool executed);    // optional
+    IEnumerable<string> GetListItems(IntPtr hwnd) => [];
+    void OnSelectionChanged(IntPtr hwnd, string path) { }
+    void OnSearchFinished(IntPtr hwnd, bool executed) { }
 }
 ```
 
-`AdapterRect`(`IFileDialogAdapter` と共有)は、単純な `{ Left, Top, Right, Bottom }` の `int` による矩形です。
+## 4. クイックナビゲーションプロバイダー `IQuickNavigationProvider`
 
-## `IQuickNavigationProvider`
-
-Quick Navigation ポップアップ([ホットキー → クイックナビゲーション](../../user-guide/hotkeys#クイックナビゲーション-マウス)を参照)にコンテンツ(通常はカスケードメニュー)を供給します。特定のクリックでポップアップが実際に開くかどうかを決めるのはこのインターフェースではなくホストです。`IInlineSearchAdapter`/
-`IFileDialogAdapter` にすでに認識されているウィンドウであれば自動的にトリガーされるため、これは純粋にコンテンツソースにすぎません。
+マウス操作で表示される [**クイックナビゲーションメニュー**](../../user-guide/hotkeys#3-クイックナビゲーションマウス操作) に動的な項目やグループを提供します。
 
 ```csharp
-interface IQuickNavigationProvider
+public interface IQuickNavigationProvider
 {
-    string GroupName { get; }
-    Action<ISearchResult>? HeaderAction => null;
-    string? HeaderActionTooltip => null;
+    string GroupName { get; }           // ルートグループの見出し名
+    Action<ISearchResult>? HeaderAction => null; // ヘッダー行末尾の操作ボタン（例: "+" ボタン）
+    string? HeaderActionTooltip => null;// ヘッダーボタンのツールチップ
     bool CanProvide(ISearchResult result);
     IEnumerable<DynamicMenuItem> GetMenuItems(ISearchResult result, IntPtr hMenu);
     void ExecuteCommand(ISearchResult result, uint commandId, IntPtr ownerHwnd);
-    void ClearSession();
+    void ClearSession() { }
 }
 ```
 
-`GroupName` は、このプロバイダー自身のルートレベル項目の上に表示されるセクション見出しにラベルを付けます。これにより、複数の Quick Navigation プロバイダーが有効なユーザーでも、どの項目がどのプロバイダー由来かを判別できます——アクションメニューにおける `IDynamicActionProvider.GroupName` と同じ役割です。
-
-`HeaderAction`(任意、デフォルト `null`)は、そのルートレベルのグループ見出しに小さなボタンを追加します——例えば、ブックマーク型のプロバイダーなら「現在のフォルダーを追加」といった用途に使えます。これは `GetMenuItems` 自体がルートレベルで受け取るのと同じ `ISearchResult` を引数として呼び出されます。`HeaderActionTooltip` はそのボタンのツールチップを設定するもので、`HeaderAction` が
-null の場合は無視されます。ネストされたサブメニュー(ルートより深い任意の階層)にはホストが描画する見出し自体が存在しないため、`HeaderAction` の効果はルートレベルまでにとどまります。サブメニューに同じ「+」ボタンを付けたいプロバイダーは、代わりにそのサブメニューの最初の項目として
-`IsHeader = true` の `DynamicMenuItem`(下記参照)を返し、独自の `OnExecute` に同じ役割を持たせてください。
-
-`DynamicMenuItem` は
-[`IDynamicActionProvider`](./core-search-actions#idynamicactionprovider) と同じモデルで、サブメニューレベルの見出し行を表す `IsHeader` フラグも含めて共通です。
+- **`HeaderAction`**：ルートグループヘッダーの右側にボタンを配置できます（例: ブックマークプロバイダーによる「現在のフォルダーを追加」）。
+- **`DynamicMenuItem.IsHeader`**：サブメニュー内において `IsHeader = true` の項目を返すことで、サブメニュー側にも操作ボタン付きの見出し行を描画できます。

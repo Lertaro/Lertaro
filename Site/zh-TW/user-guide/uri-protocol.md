@@ -1,46 +1,84 @@
 # URI 通訊協定（lertaro://）
 
-Lertaro 會自動把自己註冊為 `lertaro://` 連結的處理常式——不需要額外的安裝步驟，第一次執行時就會自動完成註冊。這樣任何能開啟連結的東西（瀏覽器、捷徑、別的程式、指令碼）都能直接跳到 Lertaro
-的某個具體位置，而不是只能靠熱鍵觸發。
+Lertaro 在首次執行時會自動在 Windows 系統中註冊自訂通訊協定 **`lertaro://`**。無論是網頁超連結、桌面捷徑、自動化指令碼還是第三方軟體，均可透過該通訊協定直接喚起 Lertaro 的特定搜尋、直達設定頁面或發起跨裝置傳輸。
 
-如果 Lertaro 還沒執行，開啟一個 `lertaro://` 連結會先啟動它，再執行這個連結指向的操作。如果已經在執行，正在執行的那個執行個體會直接處理這個連結——不會再啟動第二份處理程序。
+## 1. 通訊協定機制與執行個體路由
 
-## 支援的連結
+- **開箱即用**：無需手動設定登錄檔，Lertaro 啟動時會自動完成註冊與自癒校驗。
+- **單一執行個體路由**：若 Lertaro 已經在背景執行，開啟 `lertaro://` 連結會直接喚醒目前執行中的前景執行個體，絕不會重複啟動多個處理程序；若 Lertaro 尚未啟動，系統會自動拉起主程式並立即執行連結指定的動作。
 
-| 連結 | 作用 |
-|---|---|
-| `lertaro://` | 啟用快速搜尋視窗——效果和用熱鍵叫出它一樣。 |
-| `lertaro://search/[關鍵字]` | 啟用快速搜尋視窗，並預先帶入 `[關鍵字]`。 |
-| `lertaro://fullsearch/[關鍵字]` | 開啟完整搜尋視窗，並預先帶入 `[關鍵字]`。 |
-| `lertaro://settings/page/[分區]` | 開啟設定視窗，並切到指定的頂層分區。 |
-| `lertaro://settings/entry/[序號]` | 開啟設定視窗，並直接跳轉到某一項具體設定，並高亮顯示。 |
-| `lertaro://localsend` | 開啟空白的 LocalSend 傳送視窗。 |
-| `lertaro://localsend/items[/編碼後的項目...]` | 切換到檔案/資料夾模式，並可按路徑段加入一個或多個項目。 |
-| `lertaro://localsend/text[/編碼後的文字]` | 切換到文字模式，並可填入編碼後的文字。 |
+## 2. 完整 URI 路由指令表
 
-```
-lertaro://search/report
-lertaro://settings/page/Appearance
-```
+| URI 指令格式 | 功能說明與互動效果 |
+| :--- | :--- |
+| `lertaro://` | 啟用並顯示快速搜尋視窗（效果等同於按兩下 `Ctrl` 全域快速鍵）。 |
+| `lertaro://search/[關鍵字]` | 啟用快速搜尋視窗，並預先填入指定的 `[關鍵字]` 並立即過濾。 |
+| `lertaro://fullsearch/[關鍵字]` | 開啟大尺寸完整搜尋主視窗，並預先填入指定的 `[關鍵字]`。 |
+| `lertaro://settings/page/[分區]` | 開啟設定視窗，並直接切換到指定的分區索引標籤頁。 |
+| `lertaro://settings/entry/[序號]` | 開啟設定視窗並精準跳轉到某項具體設定項目，同時閃爍反白該選項。 |
+| `lertaro://localsend` | 開啟空白的 LocalSend 區域網路傳送視窗。 |
+| `lertaro://localsend/items/[編碼後的絕對路徑...]` | 開啟 LocalSend 並切換至檔案模式，自動新增一個或多個目標檔案/目錄。 |
+| `lertaro://localsend/text/[編碼後的文字]` | 開啟 LocalSend 並切換至文字模式，自動填入指定的待傳送文字。 |
 
-第一個會啟用快速搜尋視窗，並已經用「report」篩選好；第二個會直接開啟設定視窗的「外觀」頁。
+### 設定分區參數 `[分區]`
 
-`[分區]` 對應側邊欄頂層的某一項：`Service`、`Index`、`General`、`Appearance`、`Hotkeys`、
-`Plugins`、`Favorites`、`History`、`QuickPanel`、`About`——不區分大小寫。
+設定分區參數不區分大小寫，對應設定介面的側邊欄模組：
 
-`[序號]` 不是給人手動輸入用的——它是[設定搜尋](./instant-answers)在你選中某項設定結果時自己產生的一個數字，選中結果會自動帶上這個序號，原樣跳轉回那一項設定。這個序號在重新啟動之間並不穩定，不要指望某個具體數字每次都對應同一項設定。
-
-## LocalSend 連結
-
-每個檔案/資料夾路徑或文字值都必須整體編碼為一個 URL 路徑段。加入多個項目時，為每個項目附加一個獨立的編碼路徑段；所有路徑都必須是已經存在的絕對路徑。例如：
-
-```
-lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Ca.txt/D%3A%5CShared
-lertaro://localsend/text/Hello%20world
+```text
+Service      - 執行狀態
+Index        - 索引設定
+General      - 一般設定
+Appearance   - 外觀與主題
+Hotkeys      - 快速鍵設定
+Plugins      - 外掛模組管理
+Favorites    - 我的最愛
+History      - 搜尋歷程記錄
+QuickPanel   - 快速面板
+About        - 關於與更新
 ```
 
-`lertaro://localsend/items` 會開啟收集頁並切到檔案/資料夾模式，`lertaro://localsend/text` 則切到文字模式。帶有內容的連結會繼續進入裝置選擇，但絕不會自動選擇裝置或開始傳輸。如果傳送視窗已經開啟，這個連結不會執行任何操作，也不會改變視窗目前的內容或狀態。如果 LocalSend 尚未啟用，Lertaro 會改為開啟 LocalSend 設定頁。內容無效或過長時，整個要求都會被忽略。
+> [!NOTE]
+> `lertaro://settings/entry/[序號]` 中的序號是由內建的[**設定搜尋**](./instant-answers#2-關鍵字觸發功能內建外掛模組)功能動態產生的。由於內部序號在版本更新或重啟後可能會重新分配，建議在外部指令碼中優先使用 `lertaro://settings/page/[分區]`。
 
-## 無法識別的連結
+## 3. LocalSend 路由與參數編碼規範
 
-任何比對不上已知路由的連結——打錯了字、分區不存在、`lertaro://` 後面跟了一堆亂七八糟的內容——都會被直接忽略。由於任何網站或程式都能在你不知情的情況下叫用這個通訊協定，一個錯誤或異常的連結不應該產生任何出人意料的效果；這類情況只會記進記錄方便你自己排查，除此之外什麼都不會發生。
+在使用 LocalSend 相關 URI 時，每個檔案路徑或文字必須進行標準的 URL 編碼（例如將 `:` 轉換為 `%3A`，將 `\` 轉換為 `%5C`，將空格轉換為 `%20`）：
+
+```text
+# 預填多個檔案路徑
+lertaro://localsend/items/C%3A%5CUsers%5Ctestuser%5CDesktop%5Cdoc.pdf/D%3A%5CShared%5Cphotos
+
+# 預填待傳送文字
+lertaro://localsend/text/Hello%20from%20Lertaro%21
+```
+
+- **安全條件約束**：所有傳入的檔案路徑必須為本機已經真實存在的絕對路徑；帶有預填內容的連結僅會開啟 LocalSend 並進入裝置選取介面，絕不會自動向任何裝置傳送資料。
+
+## 4. 外部聯動實戰範例
+
+### 瀏覽器與 Markdown 連結
+
+在個人知識庫（如 Obsidian、Notion 或 Markdown 文件）中直接插入超連結：
+
+```markdown
+點擊開啟 [Lertaro 外觀設定](lertaro://settings/page/Appearance)
+點擊快速尋找 [專案財務報表](lertaro://search/財務報表%202026)
+```
+
+### Windows 捷徑與批次處理
+
+在桌面右鍵新建捷徑，在物件位置輸入：
+
+```cmd
+lertaro://fullsearch/D:\Projects\
+```
+
+在 PowerShell 指令碼中呼叫：
+
+```powershell
+Start-Process "lertaro://settings/page/General"
+```
+
+## 5. 安全性與未知路由容錯
+
+- **無訊息容錯**：由於任何外部網頁或指令碼均可嘗試觸發該通訊協定，Lertaro 對所有傳入的 URI 實行嚴格的白名單校驗。若連結格式錯誤、拼寫有誤或指向不存在的路由，Lertaro 會直接安全忽略，僅記錄偵錯記錄，絕不會產生意外的破壞性操作或當機。

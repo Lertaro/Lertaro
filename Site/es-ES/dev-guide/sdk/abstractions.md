@@ -1,89 +1,81 @@
 # Abstracciones compartidas
 
-Modelos y contratos de soporte usados en las interfaces del resto de páginas del SDK.
+Este capítulo resume los modelos de datos fundamentales, los contratos de solo lectura y las abstracciones de configuración basadas en esquemas de `Lertaro.PluginSdk`.
 
-## `ISearchResult`
+## 1. Modelo de resultado de búsqueda `ISearchResult`
 
-La vista de solo lectura de un resultado con la que opera toda interfaz de plugin — los plugins nunca reciben un
-objeto de resultado mutable, solo este:
+Los plugins observan los resultados de búsqueda mediante la interfaz de solo lectura `ISearchResult`:
 
 ```csharp
-interface ISearchResult
+namespace Lertaro.PluginSdk;
+
+public interface ISearchResult
 {
-    string Name { get; }
-    string FullPath { get; }
-    string ContextDirectory { get; }
-    bool IsDir { get; }
-    bool IsApplication { get; }
-    FileMetadata Metadata { get; }
-    bool[]? GetHighlightMask(string text, string query);
+    string Name { get; }                  // Nombre visible (p. ej. "Lertaro.exe")
+    string FullPath { get; }              // Ruta física absoluta
+    string ContextDirectory { get; }      // Ruta de la carpeta contenedora
+    bool IsDir { get; }                   // Indica si es una carpeta
+    bool IsApplication { get; }           // Indica si es un ejecutable o acceso directo
+    FileMetadata Metadata { get; }        // Metadatos de archivo de alto rendimiento
+    bool[]? GetHighlightMask(string text, string query); // Máscara de resaltado
 }
 ```
 
-`Metadata` transporta Size/Created/Modified/Accessed para todo resultado que provenga del propio índice de
-archivos del host — leerlo es gratis (sin E/S de disco ni IPC), a diferencia de
-`FileMetadataService.GetMetadataAsync` (ver [Servicios del host](./services)), que solo merece la pena llamar
-para una ruta que **no** sea ya uno de tus resultados actuales.
+> [!NOTE]
+> `ISearchResult.Metadata` se inyecta directamente desde el índice en memoria. **Acceder a esta propiedad no genera E/S de disco ni llamadas IPC**. Utiliza `FileMetadataService.GetMetadataAsync` únicamente al consultar rutas externas al conjunto de resultados.
 
-## `FileMetadata`
+## 2. Estructura de metadatos `FileMetadata`
 
 ```csharp
-readonly record struct FileMetadata(long Size, DateTime Created, DateTime Modified, DateTime Accessed);
+public readonly record struct FileMetadata(
+    long Size,
+    DateTime Created,
+    DateTime Modified,
+    DateTime Accessed
+);
 ```
 
-Hora local. `default` (todos los campos a cero/`DateTime.MinValue`) significa "no disponible" — un resultado que
-no proviene del índice de archivos (por ejemplo, uno generado por otro plugin). Comprueba `Metadata.Modified !=
-default` para distinguir ese caso de un archivo real, legítimamente de cero bytes, cuyo `Size` es realmente `0`
-pero cuyas marcas de tiempo siguen siendo reales.
+- Las marcas de tiempo están en **Hora local**.
+- `Metadata == default` indica resultados generados dinámicamente por plugins sin respaldo en el índice físico de archivos.
+- `Metadata.Modified != default` permite distinguir con precisión entre metadatos no disponibles y archivos válidos de 0 bytes.
 
-## `IPluginSearchWindow`
+## 3. Control de la ventana anfitriona `IPluginSearchWindow`
 
-La superficie mínima de control de ventana que se pasa a `ISearchResultAction.Execute` y callbacks similares —
-deliberadamente pequeña; los plugins actúan sobre los resultados a través de esto, no reteniendo la ventana real:
+Se proporciona en las devoluciones de llamada de acciones (como `ISearchResultAction.Execute`) para controlar la ventana anfitriona con seguridad:
 
 ```csharp
-interface IPluginSearchWindow
+public interface IPluginSearchWindow
 {
-    void LocateInExplorerExternal(string path);
-    void OpenFileOrFolderExternal(string path);
-    void OpenFileOrFolderAsAdminExternal(string path);
-    void HideWindow();
+    void LocateInExplorerExternal(string path);       // Resalta el elemento en el Explorador
+    void OpenFileOrFolderExternal(string path);       // Abre con la aplicación asociada
+    void OpenFileOrFolderAsAdminExternal(string path);// Ejecuta con privilegios de administrador
+    void HideWindow();                                // Oculta la ventana de búsqueda actual
 }
 ```
 
-## `IConfigurable`
+## 4. Configuración basada en esquemas `IConfigurable`
 
-Implementa esto junto a `IPlugin` para obtener una interfaz de configuración generada automáticamente en
-**Configuración → Plugins → Configurar** — sin necesidad de WPF personalizado para los casos simples.
+Al implementar `IConfigurable`, Lertaro genera automáticamente el formulario nativo en **Configuración → Plugins → Configuración** sin necesidad de escribir XAML:
 
 ```csharp
-interface IConfigurable
+public interface IConfigurable
 {
     PluginConfigSchema GetConfigSchema();
 }
 ```
 
-`PluginConfigSchema` es un `Fields: List<PluginConfigField>` plano. Cada `PluginConfigField` tiene una
-`Key`, opcionalmente `GroupKey`/`LabelKey`/`DescriptionKey` (claves de traducción, resueltas a través de tu propio
-`ITranslationProvider` si tienes uno), un `FieldType`, un `DefaultValue` y — según el tipo —
-`Choices`, `SubFields` anidados, o `RequireModifier` (solo campos `Hotkey`, rechaza una tecla suelta sin modificador). Los campos también admiten delegados personalizados `GetValue`/`SetValue` para almacenamiento externo.
+### Tipos de campo admitidos `ConfigFieldType`
 
-Define `RequireNonEmpty` en un campo (normalmente una palabra clave de activación de tipo `Text`) para volver a
-`DefaultValue` en lugar de guardar un valor vacío/en blanco al persistir — de lo contrario, un usuario que borre
-un campo de palabra clave dejaría en silencio inalcanzable lo que dependa de él en vez de revertir a un valor
-predeterminado razonable.
+| Tipo de campo | Control visual y comportamiento |
+| :--- | :--- |
+| **`Boolean`** | Interruptor de alternancia o casilla de verificación. |
+| **`Text`** | Campo de texto. Admite `RequireNonEmpty` para volver a `DefaultValue` si se vacía. |
+| **`Integer`** | Control numérico con límites mínimos y máximos. |
+| **`Choice`** | Selector desplegable basado en una colección `Choices`. |
+| **`Hotkey`** | Grabador de teclas con `RequireModifier = true` opcional. |
+| **`FilePath` / `FolderPath`** | Campo de texto con botón para abrir el diálogo nativo de Windows. |
+| **`StringList`** | Lista multilínea editable con adición, eliminación y reordenación. |
+| **`Group`** | Agrupación en tarjeta plegable con campos secundarios (`SubFields`). |
+| **`CustomControl`** | Inserta directamente un control WPF `UIElement` personalizado. |
 
-`ConfigFieldType` cubre: `Boolean`, `Text`, `Integer`, `Choice`, `Array`, `Object`, `Group`,
-`StringList`, `Hotkey`, `FilePath`, `FolderPath`, `CustomControl`. Cuando se utiliza `CustomControl`,
-se puede adjuntar directamente una instancia de control WPF personalizada a través de la propiedad `CustomControl`;
-`PluginConfigSchema` también proporciona devoluciones de llamada de ciclo de vida `OnSave` y `OnRollback` para gestionar persistencias y reinicios personalizados. Ver
-[CoreExtensions](../examples#coreextensions-—-acciones-y-el-menu-contextual-del-shell) para ver un esquema real
-que usa grupos anidados y `StringList`.
-
-## Registros
-
-`ActivePathCollectorRegistry`, `FileDialogAdapterRegistry` e `InlineSearchAdapterRegistry` son la forma en que
-el host reúne en tiempo de ejecución, en un solo lugar, todas las implementaciones cargadas de las
-[interfaces de adaptador de sistema](./system-adapters) correspondientes. Los autores de plugins normalmente no
-interactúan directamente con estos — basta con implementar la interfaz para que el host detecte y registre tu
-plugin automáticamente.
+`PluginConfigSchema` admite delegados de ciclo de vida `OnSave` y `OnRollback` para gestionar la persistencia y la restauración personalizada.

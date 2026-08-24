@@ -1,48 +1,69 @@
-# はじめに
+# クイックスタート
 
-## プラグインプロジェクトの雛形を作る
+この章では、Lertaro 向けのネイティブ C# プラグインプロジェクトを一から作成し、主要なインターフェイスを実装してローカルで読み込み・デバッグする手順を解説します。
 
-プラグインとは、ホストアプリと同じターゲットフレームワーク(`net10.0-windows`)を対象とし、
-`PluginSdk` を参照する、ごく普通の .NET クラスライブラリです。
+## 1. プラグインプロジェクトの作成
+
+Lertaro プラグインは標準的な .NET 10 クラスライブラリプロジェクトです。C# クラスライブラリを作成し、`.csproj` ファイルを次のように設定します。
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
+    <!-- XAML/WPF のカスタム UI コントロールを直接作成する場合のみ UseWPF を有効化 -->
     <UseWPF>true</UseWPF>
-    <AssemblyName>YourCompany.Plugins.YourPlugin</AssemblyName>
+    <AssemblyName>YourCompany.Plugins.MyCustomPlugin</AssemblyName>
     <Version>1.0.0</Version>
   </PropertyGroup>
+
   <ItemGroup>
-    <!-- Reference Lertaro.PluginSdk.dll from your Lertaro install directory, or PluginSdk.csproj
-         directly if you're building inside the Lertaro repo itself. -->
-    <ProjectReference Include="..\..\PluginSdk\PluginSdk.csproj" />
+    <!-- Lertaro のインストール先にある Lertaro.PluginSdk.dll を参照 -->
+    <Reference Include="Lertaro.PluginSdk">
+      <HintPath>..\..\App\Lertaro.PluginSdk.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 </Project>
 ```
 
-`UseWPF` は、プラグイン自身が何らかの WPF UI(カスタムプレビュー、テーマのリソースディクショナリなど)を描画する場合にのみ必要です——純粋な検索プロバイダーロジックだけのプラグインには不要です。
+> [!TIP]
+> 検索ソース、エイリアスエンジン、コマンドラインツールなどの純粋なロジックプラグインでは `<UseWPF>` は不要です。`PluginSdk.dll` の `<Private>` を `false` に設定することで、SDK 自体が不要に出力先へコピーされるのを防げます。
 
-## `IPlugin` を実装する
+## 2. プラグインエントリポイント `IPlugin` の実装
 
-すべてのプラグインには、`IPlugin` を実装するエントリポイントがちょうど1つ必要です。
+各プラグインアセンブリには、メインエントリポイントとして `IPlugin` インターフェイスを実装する公開クラスが必ず 1 つ存在する必要があります。
 
 ```csharp
-public class YourPlugin : IPlugin
+using Lertaro.PluginSdk;
+
+namespace YourCompany.Plugins.MyCustomPlugin;
+
+public class MyCustomPlugin : IPlugin
 {
-    public string Name => "Your Plugin";
+    public string Name => "My Custom Plugin";
+    public string Description => "Lertaro プラグイン開発の基本を示すサンプルプラグインです。";
 }
 ```
 
-そこから先は、プラグインが実際に必要とする追加のインターフェースを実装していきます——全リストは[プラグイン SDK リファレンス](./sdk/core-search-actions)を参照してください。実際の多くのプラグインは `IPlugin` に加えて1つか2つの追加インターフェースを実装します(`CoreExtensionsPlugin` は `IPlugin`、
-`IActionProvider`、`IConfigurable` を実装しています。[サンプルプラグイン](./examples)を参照)。
+このクラスまたは別のコンポーネントクラスに、目的に応じた SDK インターフェイスを追加実装します。例えば、動的計算結果を返すなら `IInstantResultProvider`、設定画面を提供するなら `IConfigurable` を実装します。
 
-## 読み込ませる
+## 3. 配置と読み込み
 
-プラグインをビルドし、出力された DLL を `Lertaro.App.exe` と同じ Lertaro App の `Plugins/` フォルダーにコピーしてください——App は起動時にそのフォルダーをスキャンし、見つかったすべてのプラグインアセンブリを読み込みます。同梱のプラグインがこのステップを自身のビルドの一部としてどう自動化しているかについては、[パッケージングと配布](./packaging)を参照してください。
+1. プロジェクトをビルドして `YourCompany.Plugins.MyCustomPlugin.dll` を生成します。
+2. 生成された DLL（および依存するサードパーティ製ライブラリ）を、Lertaro のインストールフォルダー直下にある `Plugins\MyCustomPlugin\` サブフォルダーに配置します。
+3. Lertaro を起動（または再起動）すると、App プロセスが `Plugins/` ディレクトリを自動スキャンしてアセンブリを読み込みます。
+4. **設定 → プラグイン** を開くと、インストール済みリストにプラグインと各コンポーネントが表示されます。
 
-## デバッグ
+## 4. デバッグとログ出力
 
-プラグイン全体で(`PluginSdk` の)`Logger.Log(message, level)` を使用してください——その出力は
-**設定 → サービスの状態** の **App** ログタブに表示され、ホストアプリ自身のログとまったく同じようにレベルでフィルタリングしたり、キーワードで検索したりできます。
+プラグイン内でのログ記録には `PluginSdk.Services.Logger` を使用することを推奨します。
+
+```csharp
+using Lertaro.PluginSdk.Services;
+
+Logger.Log("プラグインの初期化が完了し、サービスが登録されました。", LogLevel.Info);
+```
+
+- 出力されたログは **設定 → サービス状態 → App タブ** にリアルタイムで表示されます。
+- ログレベル（Error / Warn / Info / Debug）での絞り込みやキーワード検索に対応しており、開発時の動作確認がスムーズに行えます。

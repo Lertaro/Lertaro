@@ -1,33 +1,43 @@
-# 架構設計
+# 系統架構設計
 
-![Lertaro 架構圖](/architecture.svg)
+Lertaro 採用先進的多程序隔離架構與模組化分層設計，確保在實現系統級毫秒檢索與全方位視窗整合的同時，兼顧最高級別的運行安全與穩定性。
 
-## 處理程序拆分
+![Lertaro 架構圖](/architecture-zh-CN.svg)
 
-Lertaro 運行為三個獨立處理程序，按權限級別和生命週期有意拆分:
+## 1. 三程序隔離模型
 
-- **`Lertaro.Service`** —— 一個以 `LocalSystem` 身份運行的 Windows 服務。它負責全部檔案索引工作:讀取 NTFS/ReFS 磁碟的 USN 日誌與 MFT、直接遍歷並監聽其他本地檔案系統(它們沒有日誌可讀)、掃描並快取網絡共享，並通過命名管道回答搜尋查詢。在 SYSTEM 級別運行意味着它可以讀取所有使用者帳戶都被允許看到的原始卷中繼資料，而不需要讓交互式的 App 處理程序獲得它本不需要的提升權限。
-- **`Lertaro.App`** —— 使用者態、Session 級別的 WPF 應用:搜尋視窗、設定視窗、熱鍵處理、動作選單/QuickLook 介面都在這裏。它通過命名管道(`Core.Services` 裏的 `SearchService`/
-  `UsnServicePipeServer`)和 Service 通信，從不直接訪問磁碟索引。它自己也額外託管了一條按使用者區分的管道(`AppSearchPipeService`)，讓 `lff` 命令列伴侶工具(參見[命令列搜尋](../user-guide/cli))
-  能複用 App 已經初始化好的搜尋狀態——已加載的別名/插件提供方、已配置的網絡盤索引——而不用一個獨立的用戶端處理程序自己重新初始化一遍。
-- **`Lertaro.Service --hook`** —— 一個獨立的小處理程序，專門託管低層級全局鍵盤鉤子，這樣鉤子崩潰或者某個前臺應用行為異常都不會連累主 App 處理程序。它還會加載插件的視窗集成適配器，並在自己處理程序裏執行這些調用——見下文[插件在架構中的位置](#插件在架構中的位置)。
+為了徹底規避單一元件異常導致整個系統當機，並將 Windows 特權限制在最小範圍內，Lertaro 的執行階段被明確劃分為三個獨立的程序：
 
-## 共享的 Core
+### 1. 後台索引服務（`Lertaro.Service`）
 
-`Core` 是一個被 Service 和 App 同時引用的類庫。它包含:
+- **運行身份**：以 Windows 系統級 `LocalSystem` 身份常駐運行的 Windows 服務。
+- **職責範圍**：承擔全盤檔案索引與增量監聽的核心重任。直接讀取 NTFS / ReFS 磁碟底層的 USN 變更記錄檔與 \$MFT 主檔案表；即時監聽 FAT32 / exFAT 磁碟變更；定時抓取並快取 SMB / NAS 網路共用。
+- **安全與效能考量**：運行在 SYSTEM 級別使服務無需彈出任何 UAC 提權快顯視窗即可直接讀取原始磁碟卷的中繼資料；同時透過高效能具名管道向用戶態 App 返回檢索結果，徹底避免了讓前景 UI 程序持有不必要的全域高權限。
 
-- 搜尋引擎(`Core/SearchIndex/Fzf/*`)—— 一套仿照 `fzf` 命令列工具算法實現的模糊匹配引擎，配合一個查詢解析器(`SearchQueryParser`)處理盤符定向和路徑模式搜尋。
-- 運行時索引(`Core/IndexV2/*`)—— 由 USN/MFT 讀取結果構建的記憶體映射列式快照格式，配合一個記憶體中的增量覆蓋層記錄快照之後的變更。
-- IPC 契約(`SearchRequestMessage`、`SearchResponseBinarySerializer` 等)—— App 和 Service 兩邊完全共用同一份定義，保證雙方對線路格式的理解始終一致。
-- `Logger` —— 寫入各處理程序獨立的日誌檔案(`service.log`、`app.log`、`hook.log`)，都可以在 App 的設定 → 運行狀態 日誌查看器裏讀取(但不是都能直接寫入)。
+### 2. 用戶互動主程式（`Lertaro.App`）
 
-## 插件在架構中的位置
+- **運行身份**：標準 Windows 用戶態、Session 隔離的 WPF 前景桌面應用程式。
+- **職責範圍**：承載快速搜尋置中浮動視窗、完整主搜尋視窗、設定中心、全域快捷鍵分發、動作選單（`Ctrl+O`）以及 QuickLook 檔案即時預覽介面。
+- **IPC 橋樑與 CLI 託管**：透過雙向具名管道（`Core.Services.SearchService`）向後台 Service 發送搜尋請求與目錄管理指令；同時，App 自身還託管了一條面向當前用戶的專屬具名管道服務（`AppSearchPipeService`），使外部伴隨工具（如 `lff` 命令列工具）能直接複用 App 已經構建好的記憶體別名表、外掛模組提供者與網路磁碟快取，無需重複初始化。
 
-插件是引用 `PluginSdk` 的 `.dll` 程式集，由 App 進程加載(見[快速上手](./getting-started)和[打包與發布](./packaging))。Lertaro 自帶內建插件作為一等公民示例——`Lertaro.Plugins.CoreExtensions`(內建檔案動作與 Shell 右鍵選單集成)、`Lertaro.Plugins.PinyinAlias`(中文檔案名拼音別名)以及 `Lertaro.Plugins.FlowLauncherBridge`(橋接 C#、Python 3.12、Node.js v20 LTS 及可執行檔案格式的第三方 Flow Launcher 插件並提供純淨隔離運行環境)——參見[插件示例](./examples)了解原生插件的詳細走讀。
+### 3. 全域鍵盤掛鉤與視窗適配程序（`Lertaro.Service --hook`）
 
-插件從不直接和 Service 通信;它們通過插件 SDK 參考裏記錄的接口和 App 交互，如果需要索引自訂目錄，則通過 `DirectoryIndexerService` 代為向 Service 轉發請求。
+- **運行身份**：由後台服務按需拉起的獨立特權輔助程序。
+- **職責範圍**：託管低階全域鍵盤掛鉤（Low-Level Keyboard Hook）與滑鼠全域監聽。
+- **UIPI 權限突破與崩潰隔離**：在 Windows 安全體系中，低完整性級別的用戶態程序無法向以管理員身份運行的高權限視窗發送視窗訊息或模擬輸入（UIPI 隔離）。透過在該特權 Hook 程序中運行視窗整合適配器（[`IActivePathCollector`、`IFileDialogAdapter`、`IInlineSearchAdapter`](./sdk/system-adapters)），Lertaro 能夠毫無阻礙地識別並嵌入由管理員身份啟動的檔案總管、Total Commander 或第三方對話方塊。同時，即使底層掛鉤因第三方遊戲的反作弊模組產生異常，也不會影響主 App 程序的正常運行。
 
-視窗集成類適配器是"只在 App 裏跑"這條規則的唯一例外:
-[`IActivePathCollector`、`IFileDialogAdapter`、`IInlineSearchAdapter`](./sdk/system-adapters) 的實現會被再加載一份到 Hook 處理程序裏，它們的調用實際在 Hook 處理程序裏執行，而不是在 App 裏。這也是為什麼
-Lertaro 能操作一個以系統管理員身份運行的檔案總管/檔案對話方塊/第三方檔案管理器視窗——即使 App
-本身從來不提權:Windows 不允許低權限處理程序向高權限處理程序發送輸入，所以這類調用必須從一個和目標視窗權限級別相同的處理程序發起。
+## 2. 共用核心層（Shared Core Library）
+
+`Lertaro.Core` 是被 Service、App 和 Hook 程序同時引用的基礎類別庫，主要包含以下關鍵模組：
+
+- **自研 fzf 模糊比對引擎（`Core/SearchIndex/Fzf/*`）**：高效復刻並最佳化了知名 `fzf` 演算法的跳躍字元模糊比對、子字串分段與字元級反白計算，配合 `SearchQueryParser` 實現磁碟機定向與路徑模式切分。
+- **欄式記憶體索引（`Core/IndexV2/*`）**：採用記憶體對應欄式快照（Columnar Snapshot）與記憶體增量覆蓋層（Delta Overlay），實現億級檔案項目的亞毫秒級檢索。
+- **二進位 IPC 通訊契約**：定義了 `SearchRequestMessage`、`SearchResponseBinarySerializer` 等標準二進位資料通訊協定，確保多程序間零拷貝高效序列化。
+- **統一多程序記錄系統（`Logger`）**：分別輸出至 `service.log`、`app.log` 與 `hook.log`，並由 App 的設定中心記錄檢視器統一代理讀取與呈現。
+
+## 3. 外掛模組系統在架構中的定位
+
+所有第三方及內建外掛模組均基於 `Lertaro.PluginSdk` 構建，由 `Lertaro.App` 程序在啟動時自動反射掃描並載入：
+
+- **零特權直接通訊**：外掛模組通常只與 App 程序進行互動，不直接與底層 Service 通訊。若外掛模組需要註冊自訂實體目錄進行長效索引，可透過 SDK 提供的 `DirectoryIndexerService` 向宿主發起代理請求。
+- **雙重載入機制**：常規的搜尋來源、動作與介面擴充僅在 App 程序中運行；而實作了系統與視窗適配介面（`IActivePathCollector` 等）的元件會被宿主額外載入一份至 Hook 程序中執行，以確保跨權限視窗自動化的穩定性。
