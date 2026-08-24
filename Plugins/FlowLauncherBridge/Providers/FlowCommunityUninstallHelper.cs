@@ -44,7 +44,7 @@ public static class FlowCommunityUninstallHelper
             var title = $"{meta.Name} v{meta.Version} [{uninstallLabel}]";
             var desc = $"{lang}{meta.Description}".Trim();
 
-            items.Add(new InstantResultItem
+            var item = new InstantResultItem
             {
                 Title = title,
                 Description = desc,
@@ -54,7 +54,9 @@ public static class FlowCommunityUninstallHelper
                     {
                         await FlowPluginInstaller.UninstallPluginAsync(meta, host);
                     })
-            });
+            };
+            FlowPluginIconHelper.AttachPluginIcon(item, meta);
+            items.Add(item);
         }
 
         return items;

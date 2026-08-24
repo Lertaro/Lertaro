@@ -81,7 +81,7 @@ public static class FlowCommunityUpdateHelper
             var title = $"{online.Name} v{local.Metadata.Version} → v{online.Version} {author}".Trim();
             var desc = $"{statusPrefix}{lang}{online.Description}".Trim();
 
-            items.Add(new InstantResultItem
+            var item = new InstantResultItem
             {
                 Title = title,
                 Description = desc,
@@ -96,7 +96,9 @@ public static class FlowCommunityUpdateHelper
                             await FlowPluginInstaller.DownloadAndInstallPluginAsync(online, host);
                         });
                     }
-            });
+            };
+            FlowPluginIconHelper.AttachPluginIcon(item, local.Metadata);
+            items.Add(item);
         }
 
         return items;

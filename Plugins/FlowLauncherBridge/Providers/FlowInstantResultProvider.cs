@@ -109,12 +109,14 @@ public class FlowInstantResultProvider : IInstantResultProvider
                         if (!string.IsNullOrWhiteSpace(kw)) kwSet.Add(kw);
                 }
                 var kwList = kwSet.Count > 0 ? kwSet : [pair.Metadata.ActionKeyword];
-                items.Add(new InstantResultItem
+                var item = new InstantResultItem
                 {
                     Title = $"{pair.Metadata.Name} v{pair.Metadata.Version}",
                     Description = $"[{kwPrefix}: {string.Join(", ", kwList)}] {pair.Metadata.Description}",
                     ActionType = "None"
-                });
+                };
+                FlowPluginIconHelper.AttachPluginIcon(item, pair.Metadata);
+                items.Add(item);
             }
             return items;
         }
