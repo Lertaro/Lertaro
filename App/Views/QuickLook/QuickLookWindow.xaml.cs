@@ -196,11 +196,22 @@ public partial class QuickLookWindow : Window
             var entry = PluginPreviewCache.GetEntry(path);
             TxtFileName.Text = entry?.Title ?? Path.GetFileName(path);
             TxtFilePath.Text = !string.IsNullOrEmpty(entry?.PluginName) ? entry.PluginName : TranslationService.Get("QuickLook_PluginPreview");
-            ImgFileIcon.Source = null;
+            var pluginIcon = entry?.GetIcon() as System.Windows.Media.ImageSource;
+            ImgFileIcon.Source = pluginIcon;
+            ImgFileIcon.Visibility = pluginIcon != null ? Visibility.Visible : Visibility.Collapsed;
             TxtFooterSize.Text = string.Empty;
             TxtFooterDate.Text = string.Empty;
+
+            TxtDragGrip.Visibility = Visibility.Collapsed;
+            HeaderDragHandle.Cursor = System.Windows.Input.Cursors.Arrow;
+            HeaderDragHandle.ToolTip = null;
             return;
         }
+
+        ImgFileIcon.Visibility = Visibility.Visible;
+        TxtDragGrip.Visibility = Visibility.Visible;
+        HeaderDragHandle.Cursor = System.Windows.Input.Cursors.Hand;
+        HeaderDragHandle.ToolTip = TranslationService.Get("QuickLook_DragHint");
 
         TxtFileName.Text = Path.GetFileName(path);
         if (string.IsNullOrEmpty(TxtFileName.Text) && isDir) TxtFileName.Text = path;

@@ -17,11 +17,55 @@ public static class FlowResultMapper
         var title = flowResult.Title ?? string.Empty;
         var description = flowResult.SubTitle ?? string.Empty;
 
+        string? iconPath = null;
+        if (!string.IsNullOrEmpty(flowResult.IcoPathAbsolute) && File.Exists(flowResult.IcoPathAbsolute))
+            iconPath = flowResult.IcoPathAbsolute;
+        else if (!string.IsNullOrEmpty(flowResult.IcoPath) && File.Exists(flowResult.IcoPath))
+            iconPath = flowResult.IcoPath;
+        else if (!string.IsNullOrEmpty(flowResult.IcoPath) && host != null && !string.IsNullOrEmpty(flowResult.PluginID))
+        {
+            var plugin = host.GetAllPlugins().FirstOrDefault(p => p.Metadata.ID == flowResult.PluginID);
+            if (plugin != null)
+            {
+                var combined = Path.Combine(plugin.Metadata.PluginDirectory, flowResult.IcoPath);
+                if (File.Exists(combined)) iconPath = combined;
+            }
+        }
+        else if (host != null && !string.IsNullOrEmpty(flowResult.PluginID))
+        {
+            var plugin = host.GetAllPlugins().FirstOrDefault(p => p.Metadata.ID == flowResult.PluginID);
+            if (plugin != null && !string.IsNullOrEmpty(plugin.Metadata.IcoPath))
+            {
+                var combined = Path.Combine(plugin.Metadata.PluginDirectory, plugin.Metadata.IcoPath);
+                if (File.Exists(combined)) iconPath = combined;
+            }
+        }
+
+        Func<object?>? iconProvider = null;
+        if (flowResult.Icon != null)
+        {
+            var iconFunc = flowResult.Icon;
+            iconProvider = () =>
+            {
+                try { return iconFunc(); } catch { return null; }
+            };
+        }
+        else if (!string.IsNullOrEmpty(iconPath))
+        {
+            var capturedPath = iconPath;
+            iconProvider = () => FlowIconLoader.LoadIconAsBitmapSource(capturedPath);
+        }
+        else if (flowResult.Glyph != null)
+        {
+            var glyph = flowResult.Glyph;
+            iconProvider = () => FlowIconLoader.RenderGlyphAsImageSource(glyph.FontFamily, glyph.Glyph);
+        }
+
         var actionArg = !string.IsNullOrEmpty(flowResult.CopyText) ? flowResult.CopyText : title;
         if (flowResult.PreviewPanel != null)
         {
             var pluginName = host?.GetAllPlugins().FirstOrDefault(p => p.Metadata.ID == flowResult.PluginID)?.Metadata.Name ?? "Flow Launcher Plugin";
-            actionArg = PluginSdk.Services.PluginPreviewCache.Register(title, pluginName, flowResult.PreviewPanel);
+            actionArg = PluginSdk.Services.PluginPreviewCache.Register(title, pluginName, flowResult.PreviewPanel, iconProvider);
         }
 
         var item = new InstantResultItem
@@ -51,23 +95,16 @@ public static class FlowResultMapper
             catch { }
         }
 
-        if (item.HBitmapIcon == IntPtr.Zero)
+        if (item.HBitmapIcon == IntPtr.Zero && !string.IsNullOrEmpty(iconPath))
         {
-            var iconPath = !string.IsNullOrEmpty(flowResult.IcoPathAbsolute) && File.Exists(flowResult.IcoPathAbsolute)
-                ? flowResult.IcoPathAbsolute
-                : (!string.IsNullOrEmpty(flowResult.IcoPath) && File.Exists(flowResult.IcoPath) ? flowResult.IcoPath : null);
-
-            if (!string.IsNullOrEmpty(iconPath))
+            var hBitmap = FlowIconLoader.LoadIconAsHBitmap(iconPath);
+            if (hBitmap != IntPtr.Zero)
             {
-                var hBitmap = FlowIconLoader.LoadIconAsHBitmap(iconPath);
-                if (hBitmap != IntPtr.Zero)
-                {
-                    item.HBitmapIcon = hBitmap;
-                }
-                else
-                {
-                    item.IconData = "path:" + iconPath;
-                }
+                item.HBitmapIcon = hBitmap;
+            }
+            else
+            {
+                item.IconData = "path:" + iconPath;
             }
         }
 

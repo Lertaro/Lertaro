@@ -14,33 +14,59 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 /// </summary>
 public static class FlowIconLoader
 {
-    public static IntPtr LoadIconAsHBitmap(string? iconPath, int targetSize = 64)
+    public static BitmapSource? LoadIconAsBitmapSource(string? iconPath, int targetSize = 64)
     {
         if (string.IsNullOrWhiteSpace(iconPath) || !File.Exists(iconPath))
-            return IntPtr.Zero;
+            return null;
 
         try
         {
             var ext = Path.GetExtension(iconPath).ToLowerInvariant();
-            BitmapSource? bitmapSource = null;
-
             if (ext == ".svg")
             {
-                bitmapSource = LoadSvgUsingStdLib(iconPath, targetSize);
+                return LoadSvgUsingStdLib(iconPath, targetSize);
             }
             else if (ext is ".png" or ".jpg" or ".jpeg" or ".ico" or ".bmp" or ".gif")
             {
-                bitmapSource = LoadRasterImage(iconPath);
+                return LoadRasterImage(iconPath);
             }
+        }
+        catch { }
 
-            if (bitmapSource != null)
-            {
-                return ConvertBitmapSourceToHBitmap(bitmapSource);
-            }
+        return null;
+    }
+
+    public static ImageSource? RenderGlyphAsImageSource(string fontName, string glyphText, double size = 32)
+    {
+        try
+        {
+            var formattedText = new FormattedText(
+                glyphText,
+                CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight,
+                new Typeface(new FontFamily(fontName), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal),
+                size,
+                Brushes.White,
+                96.0 / 96.0);
+
+            var geometry = formattedText.BuildGeometry(new Point(0, 0));
+            var drawing = new GeometryDrawing(Brushes.White, null, geometry);
+            var drawingImage = new DrawingImage(drawing);
+            drawingImage.Freeze();
+            return drawingImage;
         }
         catch
         {
-            // Fall back cleanly if icon decoding fails
+            return null;
+        }
+    }
+
+    public static IntPtr LoadIconAsHBitmap(string? iconPath, int targetSize = 64)
+    {
+        var bitmapSource = LoadIconAsBitmapSource(iconPath, targetSize);
+        if (bitmapSource != null)
+        {
+            return ConvertBitmapSourceToHBitmap(bitmapSource);
         }
 
         return IntPtr.Zero;

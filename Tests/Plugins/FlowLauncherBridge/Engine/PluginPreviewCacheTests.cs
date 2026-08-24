@@ -26,4 +26,18 @@ public sealed class PluginPreviewCacheTests
         var entry = PluginPreviewCache.GetEntry("flow-preview:nonexistent");
         Assert.IsNull(entry);
     }
+
+    [TestMethod]
+    public void PluginPreviewCache_RegisterAndRetrieve_RoundtripsIconProvider()
+    {
+        var factory = new Lazy<UserControl>(() => new UserControl());
+        var iconObj = "fake-icon-object";
+        var key = PluginPreviewCache.Register("QR", "QRCodePlugin", factory, () => iconObj);
+
+        var entry = PluginPreviewCache.GetEntry(key);
+        Assert.IsNotNull(entry);
+        Assert.AreEqual("QR", entry.Title);
+        Assert.AreEqual("QRCodePlugin", entry.PluginName);
+        Assert.AreEqual(iconObj, entry.GetIcon());
+    }
 }
