@@ -1,4 +1,4 @@
-{
+﻿{
   "Settings_Title": "Lertaro 설정",
   "Settings_SearchPlaceholder": " 설정 검색...",
   "Settings_SearchNoResults": "일치하는 설정을 찾을 수 없습니다.",
@@ -507,6 +507,7 @@
   "Plugins_Hint": "설치된 플러그인을 확인하고 각 플러그인 하위 구성 요소의 활성화 상태를 제어합니다.",
   "Plugins_DevGuideTooltip": "클릭하여 개발자 가이드 보기",
   "Plugins_DevGuideUrl": "https://lertaro.github.io/dev-guide/",
+  "Plugins_VisitWebsite": "웹사이트 방문",
   "Plugins_ConfigurationTitle": "플러그인 설정",
   "Plugins_SaveConfig": "설정 저장",
   "Plugins_NoPlugins": "설치된 플러그인이 없습니다.",

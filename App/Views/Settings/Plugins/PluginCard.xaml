@@ -63,6 +63,23 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
+                    <Button Command="{Binding OpenWebsiteCommand}" HorizontalAlignment="Left" Margin="0,5,0,0"
+                            Visibility="{Binding HasWebsite, Converter={StaticResource BoolToVis}}"
+                            ToolTip="{Binding WebsiteUrl}" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <StackPanel Orientation="Horizontal" Background="Transparent">
+                                    <TextBlock x:Name="Txt" Text="{Binding DisplayWebsiteLabel}" FontSize="12" Foreground="{DynamicResource AccentBlue}"/>
+                                    <TextBlock Text="&#xE8A7;" FontFamily="Segoe MDL2 Assets" FontSize="11" Foreground="{DynamicResource AccentBlue}" Margin="4,1,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Txt" Property="TextDecorations" Value="Underline"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
                 </StackPanel>
             </Grid>
 
@@ -249,21 +266,15 @@
                                                             </Border>
 
                                                             <!-- CheckBox shown for toggleable components -->
-                                                            <CheckBox Grid.Column="2"
-                                                                      IsChecked="{Binding IsEnabled}"
-                                                                      HorizontalAlignment="Center"
-                                                                      VerticalAlignment="Center"
+                                                            <CheckBox Grid.Column="2" IsChecked="{Binding IsEnabled}"
+                                                                      HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                       Visibility="{Binding IsToggleable, Converter={StaticResource BoolToVis}}"/>
 
                                                             <!-- Lock icon shown for read-only components (e.g. TranslationProvider) -->
-                                                            <TextBlock Grid.Column="2"
-                                                                       Text="&#xE72E;"
-                                                                       FontFamily="Segoe MDL2 Assets"
-                                                                       FontSize="13"
+                                                            <TextBlock Grid.Column="2" Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="13"
                                                                        Foreground="{DynamicResource SeparatorBrush}"
                                                                        ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_ReadOnlyTooltip]}"
-                                                                       HorizontalAlignment="Center"
-                                                                       VerticalAlignment="Center"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                        Visibility="{Binding IsToggleable, Converter={StaticResource InvertBoolToVis}}"/>
                                                         </Grid>
                                                     </Border>

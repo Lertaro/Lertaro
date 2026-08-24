@@ -507,6 +507,7 @@
   "Plugins_Hint": "檢視已安裝的外掛程式，並控制各外掛程式子功能的啟用狀態。",
   "Plugins_DevGuideTooltip": "按一下查看開發手冊",
   "Plugins_DevGuideUrl": "https://lertaro.github.io/zh-CN/dev-guide/",
+  "Plugins_VisitWebsite": "造訪網站",
   "Plugins_ConfigurationTitle": "外掛程式設定",
   "Plugins_SaveConfig": "儲存設定",
   "Plugins_NoPlugins": "未安裝任何外掛程式。",

@@ -1,6 +1,7 @@
-{
+﻿{
   "FlowLauncherBridge_PluginName": "Flow.Launcher プラグインブリッジ",
   "FlowLauncherBridge_PluginDesc": "Lertaro 内で Flow.Launcher コミュニティプラグインと拡張機能を読み込んで実行します。",
+  "FlowLauncherBridge_WebsiteLabel": "Flow.Launcher コミュニティプラグインを参照",
   "FlowLauncherBridge_NoPluginsTitle": "Flow プラグイン (0 個読み込み済み)",
   "FlowLauncherBridge_NoPluginsDesc": "Lertaro の設定済みユーザーデータディレクトリにサードパーティ製 Flow プラグインが見つかりません",
   "FlowLauncherBridge_KeywordPrefix": "トリガーキーワード",
@@ -26,6 +27,8 @@
   "FlowLauncherBridge_PluginEnabledDesc": "このプラグインの即時検索と機能を有効または無効にします。",
   "FlowLauncherBridge_PluginActionKeywordLabel": "トリガーキーワード",
   "FlowLauncherBridge_PluginActionKeywordDesc": "このプラグインを起動するキーワードをカスタマイズします（デフォルト: \"{0}\"）。",
+  "FlowLauncherBridge_PreviewProviderName": "Flow プラグインプレビュープロバイダー",
+  "Plugin_Comp_Desc_FlowPreviewProvider": "クイックルックウィンドウ内で Flow.Launcher プラグインのカスタムプレビューパネルを描画します。",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "読み込まれた Flow.Launcher プラグインにキーワード クエリをディスパッチし、即時検索結果と設定管理を提供します。",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Flow.Launcher ブリッジ プラグインの多言語翻訳とローカリゼーション マッピングを提供します。"
 }

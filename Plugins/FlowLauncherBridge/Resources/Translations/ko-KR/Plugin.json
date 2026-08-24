@@ -1,6 +1,7 @@
-{
+﻿{
   "FlowLauncherBridge_PluginName": "Flow.Launcher 플러그인 브리지",
   "FlowLauncherBridge_PluginDesc": "Lertaro 내에서 Flow.Launcher 커뮤니티 플러그인 및 확장 기능을 로드하고 실행합니다.",
+  "FlowLauncherBridge_WebsiteLabel": "Flow.Launcher 커뮤니티 플러그인 찾아보기",
   "FlowLauncherBridge_NoPluginsTitle": "Flow 플러그인 (0개 로드됨)",
   "FlowLauncherBridge_NoPluginsDesc": "Lertaro의 구성된 사용자 데이터 디렉터리에서 타사 Flow 플러그인을 찾을 수 없습니다",
   "FlowLauncherBridge_KeywordPrefix": "트리거 키워드",
@@ -26,6 +27,8 @@
   "FlowLauncherBridge_PluginEnabledDesc": "이 플러그인의 인스턴트 검색 및 기능을 활성화하거나 비활성화합니다.",
   "FlowLauncherBridge_PluginActionKeywordLabel": "트리거 키워드",
   "FlowLauncherBridge_PluginActionKeywordDesc": "이 플러그인을 실행하는 키워드를 사용자 정의합니다(기본값: \"{0}\").",
+  "FlowLauncherBridge_PreviewProviderName": "Flow 플러그인 미리보기 공급자",
+  "Plugin_Comp_Desc_FlowPreviewProvider": "QuickLook 창 내에서 Flow.Launcher 플러그인의 사용자 지정 미리보기 패널을 렌더링합니다.",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "로드된 Flow.Launcher 플러그인에 키워드 쿼리를 전달하고 즉각적인 검색 결과 및 설정 관리를 제공합니다.",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Flow.Launcher 브리지 플러그인에 대한 다국어 번역 및 현지화 매핑을 제공합니다."
 }

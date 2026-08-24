@@ -1,6 +1,7 @@
-{
-  "FlowLauncherBridge_PluginName": "Flow.Launcher Plugin Bridge",
+﻿{
+  "FlowLauncherBridge_PluginName": "Flow.Launcher Bridge",
   "FlowLauncherBridge_PluginDesc": "Host and run Flow.Launcher community plugins and extensions inside Lertaro.",
+  "FlowLauncherBridge_WebsiteLabel": "Browse Flow.Launcher community plugins",
   "FlowLauncherBridge_NoPluginsTitle": "Flow Plugins (0 loaded)",
   "FlowLauncherBridge_NoPluginsDesc": "No third-party Flow plugins found in Lertaro's configured user data directory.",
   "FlowLauncherBridge_KeywordPrefix": "Action Keywords",
@@ -26,6 +27,8 @@
   "FlowLauncherBridge_PluginEnabledDesc": "Enable or disable instant search and features for this plugin.",
   "FlowLauncherBridge_PluginActionKeywordLabel": "Action Keyword",
   "FlowLauncherBridge_PluginActionKeywordDesc": "Custom trigger keyword for this plugin (e.g. default \"{0}\").",
+  "FlowLauncherBridge_PreviewProviderName": "Flow Plugin Preview Provider",
+  "Plugin_Comp_Desc_FlowPreviewProvider": "Renders custom preview panels for Flow.Launcher plugins inside the QuickLook window.",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "Dispatches keyword queries to loaded Flow.Launcher plugins and manages instant results and settings.",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Provides multilingual translations and localization mappings for Flow.Launcher bridge plugins."
 }

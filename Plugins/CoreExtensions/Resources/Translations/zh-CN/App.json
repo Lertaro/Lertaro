@@ -507,6 +507,7 @@
   "Plugins_Hint": "查看已安装的插件，并控制各插件子功能的启用状态。",
   "Plugins_DevGuideTooltip": "点击查看开发手册",
   "Plugins_DevGuideUrl": "https://lertaro.github.io/zh-CN/dev-guide/",
+  "Plugins_VisitWebsite": "访问网站",
   "Plugins_ConfigurationTitle": "插件配置",
   "Plugins_SaveConfig": "保存配置",
   "Plugins_NoPlugins": "未安装任何插件。",

@@ -209,4 +209,31 @@ public sealed class PluginInfoViewModelTests
         vm.ShowDetailsCommand.Execute(null);
         Assert.IsFalse(vm.IsConfigTab);
     }
+
+    [TestMethod]
+    public void WebsiteProperties_WhenSet_ReturnsExpectedValues()
+    {
+        var vm = new PluginInfoViewModel(
+            "Flow", "1.0", "flow.dll", "1.0-sdk",
+            new List<PluginComponentViewModel>(),
+            new List<PluginConfigFieldViewModel>(),
+            websiteUrl: "https://www.flowlauncher.com/plugins",
+            websiteLabel: "Browse Plugins");
+
+        Assert.IsTrue(vm.HasWebsite);
+        Assert.AreEqual("https://www.flowlauncher.com/plugins", vm.WebsiteUrl);
+        Assert.AreEqual("Browse Plugins", vm.WebsiteLabel);
+        Assert.AreEqual("Browse Plugins", vm.DisplayWebsiteLabel);
+    }
+
+    [TestMethod]
+    public void HasWebsite_WhenNullOrEmpty_ReturnsFalse()
+    {
+        var vm = new PluginInfoViewModel(
+            "Test", "1.0", "test.dll", "1.0-sdk",
+            new List<PluginComponentViewModel>(),
+            new List<PluginConfigFieldViewModel>());
+
+        Assert.IsFalse(vm.HasWebsite);
+    }
 }

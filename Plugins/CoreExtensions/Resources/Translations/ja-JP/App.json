@@ -1,4 +1,4 @@
-{
+﻿{
   "Settings_Title": "Lertaro 設定",
   "Settings_SearchPlaceholder": " 設定を検索...",
   "Settings_SearchNoResults": "一致する設定項目が見つかりません。",
@@ -507,6 +507,7 @@
   "Plugins_Hint": "インストール済みのプラグインを確認し、各プラグインのサブコンポーネントの有効状態を制御します。",
   "Plugins_DevGuideTooltip": "クリックして開発者ガイドを表示",
   "Plugins_DevGuideUrl": "https://lertaro.github.io/dev-guide/",
+  "Plugins_VisitWebsite": "Webサイトにアクセス",
   "Plugins_ConfigurationTitle": "プラグイン設定",
   "Plugins_SaveConfig": "設定を保存",
   "Plugins_NoPlugins": "プラグインはインストールされていません。",

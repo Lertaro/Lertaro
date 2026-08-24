@@ -9,7 +9,8 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Providers;
 /// </summary>
 public class FlowPreviewProvider : IFilePreviewProvider
 {
-    public string Name => "FlowLauncherPreviewProvider";
+    public string Name => TranslationService.Get("FlowLauncherBridge_PreviewProviderName");
+    public string Description => TranslationService.Get("Plugin_Comp_Desc_FlowPreviewProvider");
     public int Priority => 1000;
 
     public bool CanPreview(string path, bool isDir)

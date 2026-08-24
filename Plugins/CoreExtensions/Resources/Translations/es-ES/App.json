@@ -1,4 +1,4 @@
-{
+﻿{
   "Settings_Title": "Configuración de Lertaro",
   "Settings_SearchPlaceholder": " Buscar configuración...",
   "Settings_SearchNoResults": "No se encontraron configuraciones coincidentes.",
@@ -507,6 +507,7 @@
   "Plugins_Hint": "Consulta los complementos instalados y controla el estado de activación de los subcomponentes de cada complemento.",
   "Plugins_DevGuideTooltip": "Haz clic para ver la Guía del Desarrollador",
   "Plugins_DevGuideUrl": "https://lertaro.github.io/dev-guide/",
+  "Plugins_VisitWebsite": "Visitar sitio web",
   "Plugins_ConfigurationTitle": "Configuración del plugin",
   "Plugins_SaveConfig": "Guardar configuración",
   "Plugins_NoPlugins": "No hay complementos instalados.",

@@ -1,5 +1,4 @@
 using Lertaro.App.ViewModels.Search.Mapping;
-using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 

@@ -42,6 +42,8 @@ public class FlowLauncherBridgePlugin : IPlugin, IConfigurable
 
     public string Name => PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginName");
     public string Description => PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginDesc");
+    public string? WebsiteUrl => "https://www.flowlauncher.com/plugins";
+    public string? WebsiteLabel => PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_WebsiteLabel");
 
     public PluginConfigSchema GetConfigSchema() => FlowConfigSchemaBuilder.BuildSchema(SharedHost);
 

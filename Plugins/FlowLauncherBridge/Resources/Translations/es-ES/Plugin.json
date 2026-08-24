@@ -1,6 +1,7 @@
-{
-  "FlowLauncherBridge_PluginName": "Puente de complementos Flow.Launcher",
+﻿{
+  "FlowLauncherBridge_PluginName": "Puente de complementos de Flow.Launcher",
   "FlowLauncherBridge_PluginDesc": "Aloja y ejecuta complementos y extensiones de la comunidad de Flow.Launcher dentro de Lertaro.",
+  "FlowLauncherBridge_WebsiteLabel": "Explorar plugins de la comunidad Flow.Launcher",
   "FlowLauncherBridge_NoPluginsTitle": "Complementos de Flow (0 cargados)",
   "FlowLauncherBridge_NoPluginsDesc": "No se encontraron complementos de Flow de terceros en el directorio de datos de usuario configurado de Lertaro.",
   "FlowLauncherBridge_KeywordPrefix": "Palabras clave",
@@ -26,6 +27,8 @@
   "FlowLauncherBridge_PluginEnabledDesc": "Habilite o deshabilite la búsqueda instantánea y las funciones de este complemento.",
   "FlowLauncherBridge_PluginActionKeywordLabel": "Palabra clave de activación",
   "FlowLauncherBridge_PluginActionKeywordDesc": "Palabra clave personalizada para activar este complemento (predeterminado: \"{0}\").",
+  "FlowLauncherBridge_PreviewProviderName": "Proveedor de vista previa de complementos de Flow",
+  "Plugin_Comp_Desc_FlowPreviewProvider": "Representa paneles de vista previa personalizados para complementos de Flow.Launcher dentro de la ventana de vista previa.",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "Envía consultas de palabras clave a los complementos cargados de Flow.Launcher y administra los resultados instantáneos y la configuración.",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Proporciona traducciones multilingües y asignaciones de localización para los complementos del puente Flow.Launcher."
 }

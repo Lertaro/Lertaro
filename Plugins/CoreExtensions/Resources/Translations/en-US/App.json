@@ -507,6 +507,7 @@
   "Plugins_Hint": "View installed plugins and control the enabled state of each plugin's sub-components.",
   "Plugins_DevGuideTooltip": "Click to view the Developer Guide",
   "Plugins_DevGuideUrl": "https://lertaro.github.io/dev-guide/",
+  "Plugins_VisitWebsite": "Visit website",
   "Plugins_ConfigurationTitle": "Plugin Configuration",
   "Plugins_SaveConfig": "Save Configuration",
   "Plugins_NoPlugins": "No plugins installed.",

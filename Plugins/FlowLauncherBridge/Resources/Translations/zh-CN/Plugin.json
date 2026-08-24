@@ -1,6 +1,7 @@
-{
+﻿{
   "FlowLauncherBridge_PluginName": "Flow.Launcher 插件桥接",
   "FlowLauncherBridge_PluginDesc": "在 Lertaro 中加载并运行 Flow.Launcher 社区插件与扩展。",
+  "FlowLauncherBridge_WebsiteLabel": "浏览 Flow.Launcher 社区插件",
   "FlowLauncherBridge_NoPluginsTitle": "Flow 插件 (已加载 0 个)",
   "FlowLauncherBridge_NoPluginsDesc": "在 Lertaro 配置的用户数据目录中未找到第三方 Flow 插件",
   "FlowLauncherBridge_KeywordPrefix": "触发词",
@@ -26,6 +27,8 @@
   "FlowLauncherBridge_PluginEnabledDesc": "开启或关闭此插件的即时搜索与功能。",
   "FlowLauncherBridge_PluginActionKeywordLabel": "触发词",
   "FlowLauncherBridge_PluginActionKeywordDesc": "自定义触发该插件的关键字（例如默认的 \"{0}\"）。",
+  "FlowLauncherBridge_PreviewProviderName": "Flow 插件预览提供者",
+  "Plugin_Comp_Desc_FlowPreviewProvider": "在快捷预览窗口中渲染 Flow.Launcher 插件的自定义预览面板。",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "负责分发关键词查询至已加载的 Flow.Launcher 插件并提供即时搜索结果与配置管理。",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "为 Flow.Launcher 桥接插件提供多语言翻译和本地化映射。"
 }

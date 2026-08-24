@@ -68,7 +68,9 @@ public static class PluginLoaderHelper
                 continue;
 
             var description = pluginInstance != null ? PluginComponentBuilder.GetDescriptionWithFallback(pluginInstance) : string.Empty;
-            result.Add(new PluginInfoViewModel(pluginName, pluginVersion, dllName, sdkVersion, components, configFields, description, schema?.OnSave, schema?.OnRollback));
+            var websiteUrl = pluginInstance?.WebsiteUrl;
+            var websiteLabel = pluginInstance?.WebsiteLabel;
+            result.Add(new PluginInfoViewModel(pluginName, pluginVersion, dllName, sdkVersion, components, configFields, description, schema?.OnSave, schema?.OnRollback, websiteUrl, websiteLabel));
         }
 
         // Sorted here rather than at the one list that displays it, so the settings search index, which

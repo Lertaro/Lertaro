@@ -88,7 +88,9 @@ public class PluginInfoViewModel : ViewModelBase
         List<PluginConfigFieldViewModel> configFields,
         string description = "",
         Action? onSave = null,
-        Action? onRollback = null)
+        Action? onRollback = null,
+        string? websiteUrl = null,
+        string? websiteLabel = null)
     {
         Name = name;
         Version = version;
@@ -99,6 +101,8 @@ public class PluginInfoViewModel : ViewModelBase
         Description = description;
         OnSave = onSave;
         OnRollback = onRollback;
+        WebsiteUrl = websiteUrl;
+        WebsiteLabel = websiteLabel;
         ToggleAllComponentsCommand = new RelayCommand(ToggleAllComponents);
 
         // Group components by type
@@ -121,6 +125,20 @@ public class PluginInfoViewModel : ViewModelBase
     public string Version { get; }
     public string DllFileName { get; }
     public string SdkVersion { get; }
+    public string? WebsiteUrl { get; }
+    public string? WebsiteLabel { get; }
+    public bool HasWebsite => !string.IsNullOrWhiteSpace(WebsiteUrl);
+    public string DisplayWebsiteLabel => !string.IsNullOrWhiteSpace(WebsiteLabel)
+        ? WebsiteLabel
+        : TranslationManager.Instance["Plugins_VisitWebsite"];
+
+    private ICommand? _openWebsiteCommand;
+    public ICommand OpenWebsiteCommand => _openWebsiteCommand ??= new RelayCommand(() =>
+    {
+        if (!string.IsNullOrWhiteSpace(WebsiteUrl))
+            UrlLauncher.Open(WebsiteUrl);
+    });
+
     public List<PluginComponentViewModel> RawComponents { get; }
     public ObservableCollection<PluginComponentGroupViewModel> ComponentGroups { get; }
     public ObservableCollection<PluginConfigFieldViewModel> ConfigFields { get; }
