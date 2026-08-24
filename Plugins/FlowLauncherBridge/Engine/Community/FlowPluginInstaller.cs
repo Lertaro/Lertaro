@@ -66,13 +66,8 @@ public static class FlowPluginInstaller
             }
             SafeDeleteDirectory(standardDir);
 
-            foreach (var oldDir in Directory.GetDirectories(pluginsBaseDir, $"{plugin.Name}-*"))
-            {
-                SafeDeleteDirectory(oldDir);
-            }
-
             var targetPluginDir = Directory.Exists(standardDir)
-                ? Path.Combine(pluginsBaseDir, $"{plugin.Name}-{Guid.NewGuid():N[..8]}")
+                ? Path.Combine(pluginsBaseDir, $"{plugin.Name}-{Guid.NewGuid().ToString("N")[..8]}")
                 : standardDir;
 
             CopyDirectory(pluginFolder, targetPluginDir);
@@ -95,20 +90,8 @@ public static class FlowPluginInstaller
 
     private static string ResolvePluginFolder(string extractDir)
     {
-        if (File.Exists(Path.Combine(extractDir, "plugin.json")))
-            return extractDir;
-
-        var subDirs = Directory.GetDirectories(extractDir);
-        if (subDirs.Length == 1 && File.Exists(Path.Combine(subDirs[0], "plugin.json")))
-            return subDirs[0];
-
-        foreach (var dir in subDirs)
-        {
-            if (File.Exists(Path.Combine(dir, "plugin.json")))
-                return dir;
-        }
-
-        return extractDir;
+        var manifest = Directory.GetFiles(extractDir, "plugin.json", SearchOption.AllDirectories).FirstOrDefault();
+        return manifest != null ? Path.GetDirectoryName(manifest)! : extractDir;
     }
 
     private static void CopyDirectory(string source, string destination)
@@ -141,15 +124,6 @@ public static class FlowPluginInstaller
                 : Path.Combine(pluginsBaseDir, metadata.Name);
 
             SafeDeleteDirectory(targetDir);
-
-            if (Directory.Exists(pluginsBaseDir))
-            {
-                foreach (var oldDir in Directory.GetDirectories(pluginsBaseDir, $"{metadata.Name}-*"))
-                {
-                    SafeDeleteDirectory(oldDir);
-                }
-            }
-
             SearchRefreshService.RefreshIfMatches(q => true);
             return true;
         }

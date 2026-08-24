@@ -120,7 +120,7 @@ public class FlowPluginHost : IAsyncDisposable
 
             foreach (var pluginDir in Directory.GetDirectories(baseDir))
             {
-                if (File.Exists(Path.Combine(pluginDir, ".deleted")) || File.Exists(Path.Combine(pluginDir, "plugin.delete")))
+                if (File.Exists(Path.Combine(pluginDir, ".deleted")))
                 {
                     try { Directory.Delete(pluginDir, true); } catch { }
                 }
