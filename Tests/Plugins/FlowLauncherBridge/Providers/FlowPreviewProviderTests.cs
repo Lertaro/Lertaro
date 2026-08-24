@@ -36,6 +36,6 @@ public sealed class FlowPreviewProviderTests
         _ = new FlowLauncherBridgePlugin();
         var envVar = Environment.GetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER");
         Assert.IsNotNull(envVar);
-        Assert.IsTrue(envVar.EndsWith(Path.Combine("FlowData", "WebView2"), StringComparison.OrdinalIgnoreCase));
+        Assert.IsTrue(envVar.EndsWith(Path.Combine("FlowData", "WebView"), StringComparison.OrdinalIgnoreCase));
     }
 }
