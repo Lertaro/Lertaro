@@ -7,7 +7,7 @@
 | 서비스명 | 주요 메서드 및 시그니처 | 기능 설명 |
 | :--- | :--- | :--- |
 | **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)` | 호스트와 동일한 fzf 퍼지 매칭 엔진을 실행하고 문자 단위 하이라이트 마스크를 계산. |
-| **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()` | 다국어 동적 파싱. `GetCurrentCulture()`는 OS 언어가 아닌 설정 센터에서 선택된 UI 언어 코드(예: `"ko-KR"`)를 반환. |
+| **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 다국어 동적 파싱 및 런타임 언어 변경 브로드캐스트. `GetCurrentCulture()`는 OS 언어가 아닌 설정 센터에서 선택된 UI 언어 코드(예: `"ko-KR"`)를 반환하며, `CultureChanged`를 구독하여 UI 언어 변경 시 사전 재로드 및 내부 상태를 갱신할 수 있습니다. |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | 메모리 및 디스크 캐시가 적용된 Windows Shell 파일 아이콘 및 썸네일 추출. |
 | **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()` | 사용자가 설정 센터에 저장한 별표 즐겨찾기 항목 전체 목록 조회. |
 | **`HistoryService`** | `IReadOnlyList<HistoryEntry> GetHistoryEntries()` | 최근 열어본 순서대로 정렬된 검색 기록(키워드 및 파일 유형 포함) 조회. |

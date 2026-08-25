@@ -7,7 +7,7 @@
 | 宿主服務 | 核心方法與簽章 | 功能說明 |
 | :--- | :--- | :--- |
 | **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)` | 執行與宿主完全一致的 fzf 模糊比對引擎，並計算字元級的反白布林遮罩（自動支援中文字元拼音多級兜底）。 |
-| **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()` | 多語言動態剖析。`GetCurrentCulture()` 返回使用者在設定中心顯式選取的介面語言代碼（如 `"zh-TW"`），不受系統預設區域影響。 |
+| **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 多語言動態剖析與執行階段變更廣播。`GetCurrentCulture()` 返回使用者在設定中心顯式選取的介面語言代碼（如 `"zh-TW"`）；訂閱 `CultureChanged` 可在介面語言切換時動態重新整理內部狀態或重載字典。 |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | 帶記憶體與磁碟快取的 Windows Shell 檔案圖示與縮圖擷取服務。 |
 | **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()` | 唯讀讀取使用者在設定中心儲存的全部星標收藏項目清單。 |
 | **`HistoryService`** | `IReadOnlyList<HistoryEntry> GetHistoryEntries()` | 讀取搜尋歷程記錄項目，按最近開啟時間降序排列，包含關聯的搜尋關鍵字與檔案類型。 |
