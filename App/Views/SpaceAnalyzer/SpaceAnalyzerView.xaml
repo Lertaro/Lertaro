@@ -156,6 +156,7 @@
                                     <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
                                                   Focusable="False" Background="Transparent">
                                         <TextBlock Text="{Binding Name}" FontSize="12.5" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextPrimary}"
                                                    helpers:MarqueeBehavior.EnableMarquee="True"/>
                                     </ScrollViewer>
                                     <TextBlock Grid.Column="2" Text="{Binding DisplaySize}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"

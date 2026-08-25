@@ -163,11 +163,12 @@ internal static class SpaceTreemapPresenter
     }
 
     // Normalize each visible item's share against the largest visible share. The square root keeps
-    // small items distinguishable instead of compressing almost every tile into the darkest shade.
+    // small items distinguishable while the restrained range keeps light themes from becoming a
+    // wall of saturated accent color.
     internal static double CalculateAccentAmount(long size, long largestSize)
     {
-        const double minimum = 0.34;
-        const double range = 0.60;
+        const double minimum = 0.12;
+        const double range = 0.32;
         var ratio = largestSize > 0 ? Math.Clamp((double)size / largestSize, 0, 1) : 0;
         return minimum + Math.Sqrt(ratio) * range;
     }
