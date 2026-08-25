@@ -131,11 +131,14 @@ public static class SearchInputHelper
     /// -- not hardcoded to e.g. Delete, so rebinding DeleteFileAction to a different bare key still
     /// works here) and, like the Right-arrow-opens-Actions check below, only when the caret is already
     /// at the end of the query -- otherwise the key keeps its normal text-editing meaning while editing
-    /// earlier in the text. A modified key (e.g. Shift+Delete) never needs this: any modifier already
-    /// implies "this is a command, not typing" on its own.
+    /// earlier in the text. A non-empty selection is also always left to the search box, so standard
+    /// text commands such as Ctrl+C, Ctrl+V, and Ctrl+X are not mistaken for result actions.
     /// </summary>
     public static bool TryActionHotkey(System.Windows.Input.KeyEventArgs e, ISearchWindow window, ShellMenuPresenter? menuPresenter)
     {
+        if (window.SearchTextBox.IsKeyboardFocusWithin && window.SearchTextBox.SelectionLength > 0)
+            return false;
+
         var bareKeyBound = Keyboard.Modifiers == ModifierKeys.None && IsSearchCaretAtEnd(window) && HotkeyActionTrigger.HasBareKeyActionHotkey(e.Key);
         if ((Keyboard.Modifiers != ModifierKeys.None || bareKeyBound)
             && window.LstResults.SelectedItem is AppSearchResult selectedResult
