@@ -1,3 +1,5 @@
+using Lertaro.PluginSdk.Helpers;
+
 namespace Lertaro.Plugins.CoreExtensions.Providers.Indexing;
 
 /// <summary>
@@ -10,9 +12,11 @@ internal static class StartMenuAppFolderRoots
     internal static IReadOnlyList<string> Merge(
         IEnumerable<string> builtInRoots,
         IEnumerable<string>? customRoots,
-        Func<string, bool> directoryExists)
+        Func<string, bool> directoryExists,
+        Func<string, string>? resolveVirtualPath = null)
     {
         var roots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var resolve = resolveVirtualPath ?? ShellPathHelper.TryResolveVirtualPath;
         Add(builtInRoots);
         if (customRoots != null)
             Add(customRoots);
@@ -26,6 +30,7 @@ internal static class StartMenuAppFolderRoots
                     continue;
 
                 var path = Environment.ExpandEnvironmentVariables(candidate.Trim());
+                path = resolve(path);
                 if (!directoryExists(path))
                     continue;
 

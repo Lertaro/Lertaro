@@ -17,6 +17,22 @@ public sealed class StartMenuAppFolderRootsTests
     }
 
     [TestMethod]
+    public void Merge_ResolvesVirtualShellPathsBeforeCheckingExistence()
+    {
+        var resolvedStartup = @"C:\Users\testuser\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup";
+
+        var roots = StartMenuAppFolderRoots.Merge(
+            [],
+            ["shell:startup", @"C:\Real"],
+            path => path is @"C:\Users\testuser\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup" or @"C:\Real",
+            path => path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) ? resolvedStartup : path);
+
+        CollectionAssert.AreEquivalent(
+            new[] { resolvedStartup, @"C:\Real" },
+            roots.ToList());
+    }
+
+    [TestMethod]
     public void Merge_DeduplicatesRepeatedRootsAndDropsBlankOrMissingEntries()
     {
         var roots = StartMenuAppFolderRoots.Merge(
