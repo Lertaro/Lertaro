@@ -20,6 +20,7 @@ El espacio de nombres `Lertaro.PluginSdk.Services` proporciona servicios estáti
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | Devuelve la carpeta de datos privada del usuario y la carpeta compartida global del equipo (p. ej. runtimes Python/Node). |
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | Registra eventos en `app.log`, visibles en tiempo real en el visor de registros de Configuración. |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | Muestra un diálogo modal ligero generado automáticamente a partir de un esquema de campos. |
+| **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | Solicita un cuadro de mensaje gestionado por el anfitrión para que los plugins usen la interfaz temática del anfitrión; utiliza el cuadro del sistema si no hay un controlador registrado. |
 
 ## 2. Operaciones de archivos nativas del Shell
 
