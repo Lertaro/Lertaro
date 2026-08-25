@@ -39,6 +39,11 @@ internal static class PluginSdkBridge
         // Wire up the runtime field-prompt delegate, reusing the Settings UI's own field rendering.
         PluginSdk.Services.PluginPromptService.PromptFunc = Views.Controls.Dialogs.PluginFieldPromptWindow.ShowPrompt;
 
+        // Route Flow plugin message boxes through the host's themed dialog instead of the system dialog.
+        PluginSdk.Services.PluginMessageBoxService.ShowFunc =
+            (messageBoxText, caption, button, icon, _) =>
+                Views.Controls.Dialogs.CustomMessageBox.Show(messageBoxText, caption, button, icon);
+
         // Wire up the history service delegate for plugins using Core SearchHistoryStore
         PluginSdk.Services.HistoryService.GetHistoryEntriesFunc = SearchHistoryStore.GetEntries;
 
