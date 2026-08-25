@@ -12,7 +12,7 @@ Lertaro activa la coincidencia difusa (Fuzzy Matching) de forma predeterminada. 
 | :--- | :--- | :--- |
 | `ltro` | `Lertaro.exe` | Los caracteres coinciden en orden: `l` → `t` → `r` → `o` (**L**er**t**a**ro**.exe) |
 | `vsc` | `Visual Studio Code.lnk` | Coincide con las iniciales de cada palabra (**V**isual **S**tudio **C**ode) |
-| `rep` | `Q3-report-final.docx` | Coincide con la subcadena continua (Q3-**rep**ort-final.docx) |
+| `rt-fin` | `Q3-report-final.docx` | Coincide con la subcadena continua (Q3-repo**rt-fin**al.docx) |
 
 Desactiva esta opción en **Configuración → General → Sistema → Habilitar coincidencia difusa** y los términos de búsqueda simples (sin operadores) requerirán una subcadena continua — `abc` solo coincidirá con nombres que contengan `abc` continuo, ya no con `a-b-c`. Esta opción solo afecta a los términos simples; todos los operadores descritos a continuación mantienen su comportamiento exacto.
 
@@ -48,6 +48,18 @@ report | summary 2024
 ```
 
 Esto busca archivos que contengan `report` o `summary`, y que además contengan `2024`. En las consultas OR, todos los términos que coincidan se resaltarán simultáneamente en el nombre del resultado.
+
+### Precedencia de operadores: OR se agrupa más estrechamente que AND
+
+Cuando se mezclan espacios (AND) y la barra vertical `|` (OR) en una misma consulta, `|` tiene **mayor** prioridad que los espacios: los términos de ambos lados de `|` se agrupan primero en un único grupo OR, y los grupos separados por espacios se combinan después con AND. No se admiten paréntesis, por lo que este orden de agrupación no se puede cambiar.
+
+```text
+report | summary 2024 | draft
+```
+
+equivale a `(report OR summary) AND (2024 OR draft)`.
+
+Nota: `|` debe ser un token independiente con espacios a ambos lados: `a|b` o `a |b` no se interpreta como OR. Tampoco metas un término de exclusión `!` dentro de un grupo OR (p. ej. `b | !c`), que se interpreta como «b coincide o c no coincide»; para excluir un término globalmente, dale su propia condición AND separada por espacios (p. ej. `b !c`).
 
 ### Espacios en términos y frases entre comillas
 
@@ -94,7 +106,9 @@ Se pega automáticamente como:
 ### Comportamiento detallado de operadores y combinaciones
 
 1. **Exclusión `!`**: `!term` descarta directamente los resultados que contengan `term` como subcadena exacta. Los términos excluidos no se expanden con pinyin ni alias para evitar exclusiones accidentales.
-2. **Inversión de exactitud `'`**: Cuando la coincidencia difusa global está activada, anteponer `'` fuerza a un término específico a coincidir como subcadena continua exacta. Por ejemplo, `lertaro 'v1.2` busca `lertaro` de forma difusa mientras que exige `v1.2` de forma continua y exacta.
+2. **Inversión de exactitud `'`**: Cuando la coincidencia difusa global está activada, anteponer `'` fuerza a un término específico a coincidir como subcadena continua exacta.
+   - Por ejemplo, `lertaro 'v1.2` busca `lertaro` de forma difusa mientras que exige `v1.2` de forma continua y exacta.
+   - Los términos exactos siguen coincidiendo con nombres de archivo que tienen alias en pinyin: `'exe$` también encuentra `古恩希尔`, cuyo pinyin se asigna a `gexe`.
 3. **Límite de palabra `'...'`**: Encerrar una palabra entre comillas (por ejemplo, `'app'`) verifica los límites anteriores y posteriores (espacios, signos de puntuación, guiones, guiones bajos o extremos de cadena), evitando falsos positivos dentro de palabras largas.
 4. **Coincidencia exacta `^...$`**: Solo se aplica cuando `^` y `$` envuelven la **misma palabra**. Si se escriben en palabras separadas (por ejemplo, `^src md$`), siguen actuando como filtros independientes de prefijo y sufijo.
 
@@ -102,6 +116,7 @@ Se pega automáticamente como:
 
 - `^IMG !.png$ 2024`: Busca archivos que comiencen por `IMG`, contengan `2024` y **no** terminen en `.png`.
 - `'data | 'backup ^2024 .zip$`: Busca archivos comprimidos que comiencen por `2024`, terminen en `.zip` y contengan la subcadena exacta `data` o `backup`.
+- `^report '公告 | 'gw .pdf$ !draft`: Busca nombres que empiecen por `report`, terminen en `.pdf`, no contengan `draft` y contengan exactamente `公告`, `gw`, `公文` u otras combinaciones que coincidan con el pinyin `gw` (`'公告 | 'gw` forma un grupo OR; el resto de condiciones separadas por espacios se combinan con AND).
 
 ## 4. Modo de ruta y delimitación por unidad
 

@@ -12,7 +12,7 @@ Lertaro enables Fuzzy Matching by default. Simply enter any characters in order,
 | :--- | :--- | :--- |
 | `ltro` | `Lertaro.exe` | Characters match sequentially: `l` → `t` → `r` → `o` (**L**er**t**a**ro**.exe) |
 | `vsc` | `Visual Studio Code.lnk` | Matches initial letters of each word (**V**isual **S**tudio **C**ode) |
-| `rep` | `Q3-report-final.docx` | Matches contiguous substring (Q3-**rep**ort-final.docx) |
+| `rt-fin` | `Q3-report-final.docx` | Matches contiguous substring (Q3-repo**rt-fin**al.docx) |
 
 Turn this off under **Settings → General → System → Enable fuzzy matching** and plain search terms (without operators) will require a contiguous substring — `abc` will only match names containing contiguous `abc`, no longer matching `a-b-c`. This toggle only affects bare terms; all operators described below maintain their exact behaviors either way.
 
@@ -48,6 +48,18 @@ report | summary 2024
 ```
 
 This finds files matching either `report` or `summary`, and also containing `2024`. In OR queries, all matched terms across hit branches are highlighted simultaneously in the result name.
+
+### Operator Precedence: OR binds tighter than AND
+
+When spaces (AND) and the pipe `|` (OR) are mixed in a single query, `|` has **higher** precedence than spaces: the terms on both sides of `|` are merged into one OR group first, and the space-separated groups are then ANDed together. Parentheses are not supported, so this binding order cannot be changed.
+
+```text
+report | summary 2024 | draft
+```
+
+is equivalent to `(report OR summary) AND (2024 OR draft)`.
+
+Note: `|` must be a standalone token with spaces on both sides — `a|b` or `a |b` is not parsed as OR. Do not put an `!` exclusion term inside a `|` OR group either (e.g. `b | !c`), which is parsed as "b matches or c does not"; to exclude a term globally, give it its own space-separated AND condition instead (e.g. `b !c`).
 
 ### Escaping Spaces & Quoted Phrases
 
@@ -94,7 +106,9 @@ Pastes automatically as:
 ### Detailed Operator Behaviors & Combinations
 
 1. **Exclusion `!`**: `!term` directly excludes results containing `term` as an exact substring. Excluded terms do not undergo pinyin/alias expansion to avoid over-exclusion.
-2. **Exactness Flip `'`**: When global fuzzy matching is enabled, prefixing `'` forces a specific term to match as an exact substring. For example, `lertaro 'v1.2` performs a fuzzy search for `lertaro` while requiring `v1.2` as an exact contiguous substring.
+2. **Exactness Flip `'`**: When global fuzzy matching is enabled, prefixing `'` forces a specific term to match as an exact substring.
+   - For example, `lertaro 'v1.2` performs a fuzzy search for `lertaro` while requiring `v1.2` as an exact contiguous substring.
+   - Exact terms still match filenames that carry pinyin aliases: `'exe$` also finds `古恩希尔`, whose pinyin maps to `gexe`.
 3. **Word Boundary Exact Match `'...'`**: Enclosing a single word in quotes (e.g. `'app'`) checks for word boundaries (spaces, punctuation, hyphens, underscores, or string boundaries), preventing false positives inside larger words.
 4. **Exact Match `^...$`**: Only applies when `^` and `$` wrap the **same word**. When used on separate words (e.g. `^src md$`), they remain separate prefix and suffix filters.
 
@@ -102,6 +116,7 @@ Pastes automatically as:
 
 - `^IMG !.png$ 2024`: Finds files starting with `IMG`, containing `2024`, and **not** ending in `.png`.
 - `'data | 'backup ^2024 .zip$`: Finds archives starting with `2024`, ending in `.zip`, and containing the exact substring `data` or `backup`.
+- `^report '公告 | 'gw .pdf$ !draft`: Finds names starting with `report`, ending in `.pdf`, without `draft`, and exactly containing `公告`, `gw`, `公文`, or other text combinations matching the `gw` pinyin (`'公告 | 'gw` forms one OR group; the remaining space-separated conditions are ANDed with it).
 
 ## 4. Path Mode & Drive Scoping
 
