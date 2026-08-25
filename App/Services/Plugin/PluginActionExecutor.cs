@@ -178,6 +178,10 @@ public static class PluginActionExecutor
             return false;
         }
 
+        if (view is QuickSearchWindow quickSearch)
+            quickSearch.SuppressNextForegroundRestore();
+        view.HideWindow();
+
         registration.Action.Execute(
             new[] { new PluginSearchResult(result.Name, result.PluginActionArgumentText, result.ContextDirectory) }, view);
         return true;
