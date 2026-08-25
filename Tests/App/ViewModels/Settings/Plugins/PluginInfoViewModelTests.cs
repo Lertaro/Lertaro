@@ -236,4 +236,33 @@ public sealed class PluginInfoViewModelTests
 
         Assert.IsFalse(vm.HasWebsite);
     }
+
+    [TestMethod]
+    public void ConfigGroupProperties_MultipleGroups_PopulatesActiveChildrenAndNullsFlatFields()
+    {
+        var g1 = new PluginConfigFieldViewModel("p", new PluginSdk.Abstractions.PluginConfigField { Key = "g1", FieldType = PluginSdk.Abstractions.ConfigFieldType.Group, SubFields = [new PluginSdk.Abstractions.PluginConfigField { Key = "f1", FieldType = PluginSdk.Abstractions.ConfigFieldType.Text, DefaultValue = "" }] }, new Core.UserSettings(), null);
+        var g2 = new PluginConfigFieldViewModel("p", new PluginSdk.Abstractions.PluginConfigField { Key = "g2", FieldType = PluginSdk.Abstractions.ConfigFieldType.Group, SubFields = [new PluginSdk.Abstractions.PluginConfigField { Key = "f2", FieldType = PluginSdk.Abstractions.ConfigFieldType.Text, DefaultValue = "" }] }, new Core.UserSettings(), null);
+
+        var vm = MakeVm([], [g1, g2]);
+
+        Assert.IsTrue(vm.HasMultipleConfigGroups);
+        Assert.IsNotNull(vm.ActiveConfigGroupChildren);
+        Assert.IsNull(vm.FlatConfigFields);
+        Assert.AreEqual(g1, vm.SelectedConfigGroup);
+
+        vm.SelectConfigGroupCommand.Execute(g2);
+        Assert.AreEqual(g2, vm.SelectedConfigGroup);
+    }
+
+    [TestMethod]
+    public void ConfigGroupProperties_SingleOrNoGroup_PopulatesFlatFieldsAndNullsActiveChildren()
+    {
+        var g1 = new PluginConfigFieldViewModel("p", new PluginSdk.Abstractions.PluginConfigField { Key = "g1", FieldType = PluginSdk.Abstractions.ConfigFieldType.Group, SubFields = [] }, new Core.UserSettings(), null);
+        var vm = MakeVm([], [g1]);
+
+        Assert.IsFalse(vm.HasMultipleConfigGroups);
+        Assert.IsNull(vm.ActiveConfigGroupChildren);
+        Assert.IsNotNull(vm.FlatConfigFields);
+        Assert.HasCount(1, vm.FlatConfigFields);
+    }
 }

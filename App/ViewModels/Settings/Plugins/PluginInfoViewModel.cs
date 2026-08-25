@@ -199,6 +199,10 @@ public class PluginInfoViewModel : ViewModelBase
     {
         foreach (var field in ConfigFields)
             field.Reload();
+        _selectedConfigGroup = ConfigGroups.FirstOrDefault();
+        OnPropertyChanged(nameof(SelectedConfigGroup));
+        OnPropertyChanged(nameof(ActiveConfigGroupChildren));
+        OnPropertyChanged(nameof(FlatConfigFields));
         OnRollback?.Invoke();
     }
 
@@ -215,11 +219,26 @@ public class PluginInfoViewModel : ViewModelBase
     public List<PluginConfigFieldViewModel> ConfigGroups => ConfigFields.Where(f => f.IsGroup).ToList();
     public List<PluginConfigFieldViewModel> NonGroupConfigFields => ConfigFields.Where(f => !f.IsGroup).ToList();
 
+    public ObservableCollection<PluginConfigFieldViewModel>? ActiveConfigGroupChildren
+        => HasMultipleConfigGroups ? SelectedConfigGroup?.Children : null;
+
+    public ObservableCollection<PluginConfigFieldViewModel>? FlatConfigFields
+        => !HasMultipleConfigGroups ? ConfigFields : null;
+
     private PluginConfigFieldViewModel? _selectedConfigGroup;
     public PluginConfigFieldViewModel? SelectedConfigGroup
     {
-        get => _selectedConfigGroup ??= ConfigGroups.FirstOrDefault();
-        set => SetProperty(ref _selectedConfigGroup, value);
+        get
+        {
+            if (_selectedConfigGroup == null || !ConfigGroups.Contains(_selectedConfigGroup))
+                _selectedConfigGroup = ConfigGroups.FirstOrDefault();
+            return _selectedConfigGroup;
+        }
+        set
+        {
+            SetProperty(ref _selectedConfigGroup, value);
+            OnPropertyChanged(nameof(ActiveConfigGroupChildren));
+        }
     }
 
     private ICommand? _selectConfigGroupCommand;

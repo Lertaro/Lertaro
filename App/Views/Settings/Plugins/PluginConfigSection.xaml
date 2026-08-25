@@ -107,15 +107,12 @@
         <ScrollViewer Grid.Row="2" Margin="0,4,0,0"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
-                <ItemsControl ItemsSource="{Binding NonGroupConfigFields}"
-                              Visibility="{Binding HasMultipleConfigGroups, Converter={StaticResource InvertBoolToVis}}"/>
-
                 <!-- 2+ top-level Groups: active group's children -->
-                <ItemsControl ItemsSource="{Binding SelectedConfigGroup.Children}"
+                <ItemsControl ItemsSource="{Binding ActiveConfigGroupChildren}"
                               Visibility="{Binding HasMultipleConfigGroups, Converter={StaticResource BoolToVis}}"/>
 
-                <!-- 0 or 1 Groups: flat group rendering -->
-                <ItemsControl ItemsSource="{Binding ConfigGroups}"
+                <!-- 0 or 1 Groups: flat group rendering (includes non-group fields and group flat) -->
+                <ItemsControl ItemsSource="{Binding FlatConfigFields}"
                               Visibility="{Binding HasMultipleConfigGroups, Converter={StaticResource InvertBoolToVis}}"/>
             </StackPanel>
         </ScrollViewer>
