@@ -31,6 +31,13 @@ public class TranslationManager : INotifyPropertyChanged
             if (!string.IsNullOrEmpty(settings.PreferredLanguage))
             {
                 _currentCulture = settings.PreferredLanguage;
+                try
+                {
+                    var ci = new System.Globalization.CultureInfo(_currentCulture);
+                    System.Globalization.CultureInfo.CurrentUICulture = ci;
+                    System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = ci;
+                }
+                catch { }
             }
         }
         catch (Exception ex)
@@ -50,7 +57,15 @@ public class TranslationManager : INotifyPropertyChanged
             if (_currentCulture != value)
             {
                 _currentCulture = value;
+                try
+                {
+                    var ci = new System.Globalization.CultureInfo(value);
+                    System.Globalization.CultureInfo.CurrentUICulture = ci;
+                    System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = ci;
+                }
+                catch { }
                 ReloadTranslations();
+                PluginSdk.Services.TranslationService.NotifyCultureChanged(value);
                 OnPropertyChanged();
                 OnPropertyChanged("Item[]");
             }

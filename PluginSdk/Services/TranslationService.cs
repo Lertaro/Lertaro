@@ -25,6 +25,19 @@ public static class TranslationService
     public static Func<string> CurrentCultureFunc { get; set; } = () => System.Globalization.CultureInfo.CurrentUICulture.Name;
 
     /// <summary>
+    /// Event raised when the application's active UI culture changes.
+    /// </summary>
+    public static event Action<string>? CultureChanged;
+
+    /// <summary>
+    /// Notifies listeners that the application UI culture has changed.
+    /// </summary>
+    public static void NotifyCultureChanged(string cultureName)
+    {
+        try { CultureChanged?.Invoke(cultureName); } catch { }
+    }
+
+    /// <summary>
     /// Gets translation by key.
     /// </summary>
     public static string Get(string key) => LookupFunc(key);

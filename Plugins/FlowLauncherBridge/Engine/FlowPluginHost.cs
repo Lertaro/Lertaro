@@ -197,7 +197,7 @@ public class FlowPluginHost : IAsyncDisposable
 
                 if (pluginInstance is IPluginI18n pluginI18n)
                 {
-                    try { pluginI18n.OnCultureInfoChanged(System.Globalization.CultureInfo.CurrentUICulture); } catch { }
+                    try { pluginI18n.OnCultureInfoChanged(FlowPluginLanguageHelper.GetEffectiveCulture()); } catch { }
                 }
 
                 return true;
@@ -264,6 +264,8 @@ public class FlowPluginHost : IAsyncDisposable
     }
 
     public void RollbackAll() => _storage.ReloadAll();
+
+    public void UpdateCulture(string cultureName) => FlowPluginLanguageHelper.UpdatePluginsCulture(_loadedPlugins.Values, cultureName);
 
     public async ValueTask DisposeAsync()
     {

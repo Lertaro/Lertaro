@@ -24,6 +24,7 @@ public class FlowLauncherBridgePlugin : IPlugin, IConfigurable
         ConfigureWebView2Environment();
         _ = SharedHost.InitializeAsync();
         PluginSdk.Services.PluginSettingsService.SettingChangedWithValue += OnSettingChanged;
+        PluginSdk.Services.TranslationService.CultureChanged += OnCultureChanged;
     }
 
     private static void ConfigureWebView2Environment()
@@ -64,4 +65,6 @@ public class FlowLauncherBridgePlugin : IPlugin, IConfigurable
 
         SharedHost.SaveAll();
     }
+
+    private static void OnCultureChanged(string cultureName) => SharedHost.UpdateCulture(cultureName);
 }

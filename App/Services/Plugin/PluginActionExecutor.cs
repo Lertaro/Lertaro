@@ -178,8 +178,6 @@ public static class PluginActionExecutor
             return false;
         }
 
-        if (view is QuickSearchWindow quickSearch)
-            quickSearch.SuppressNextForegroundRestore();
         view.HideWindow();
 
         registration.Action.Execute(

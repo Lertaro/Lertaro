@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Xml.Linq;
+using Flow.Launcher.Plugin;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
@@ -40,14 +41,24 @@ public static class FlowPluginLanguageHelper
         return key;
     }
 
-    public static void LoadPluginLanguage(string pluginDirectory, ResourceDictionary? targetDictionary = null)
+    public static CultureInfo GetEffectiveCulture()
+    {
+        var cultureName = PluginSdk.Services.TranslationService.GetCurrentCulture();
+        if (!string.IsNullOrEmpty(cultureName))
+        {
+            try { return new CultureInfo(cultureName); } catch { }
+        }
+        return CultureInfo.CurrentUICulture;
+    }
+
+    public static void LoadPluginLanguage(string pluginDirectory, ResourceDictionary? targetDictionary = null, CultureInfo? culture = null)
     {
         if (string.IsNullOrEmpty(pluginDirectory)) return;
 
         var languagesDir = Path.Combine(pluginDirectory, "Languages");
         if (!Directory.Exists(languagesDir)) return;
 
-        var culture = CultureInfo.CurrentUICulture;
+        culture ??= GetEffectiveCulture();
         var languageFile = FindLanguageFile(languagesDir, culture);
         if (string.IsNullOrEmpty(languageFile) || !File.Exists(languageFile)) return;
 
@@ -57,8 +68,45 @@ public static class FlowPluginLanguageHelper
         {
             try
             {
+                for (var i = targetDictionary.MergedDictionaries.Count - 1; i >= 0; i--)
+                {
+                    var md = targetDictionary.MergedDictionaries[i];
+                    if (md.Source != null && md.Source.IsAbsoluteUri && md.Source.LocalPath.StartsWith(languagesDir, StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetDictionary.MergedDictionaries.RemoveAt(i);
+                    }
+                }
+
                 var dict = new ResourceDictionary { Source = new Uri(languageFile, UriKind.Absolute) };
                 targetDictionary.MergedDictionaries.Add(dict);
+            }
+            catch { }
+        }
+    }
+
+    public static void UpdatePluginsCulture(IEnumerable<PluginPair> plugins, string cultureName)
+    {
+        CultureInfo culture;
+        try { culture = new CultureInfo(cultureName); }
+        catch { culture = GetEffectiveCulture(); }
+
+        foreach (var pair in plugins)
+        {
+            try
+            {
+                if (Application.Current != null)
+                {
+                    LoadPluginLanguage(pair.Metadata.PluginDirectory, Application.Current.Resources, culture);
+                }
+                else
+                {
+                    LoadPluginLanguage(pair.Metadata.PluginDirectory, null, culture);
+                }
+
+                if (pair.Plugin is IPluginI18n pluginI18n)
+                {
+                    pluginI18n.OnCultureInfoChanged(culture);
+                }
             }
             catch { }
         }
