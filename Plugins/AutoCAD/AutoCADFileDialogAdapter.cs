@@ -250,25 +250,25 @@ internal static class AutoCADDialogControls
 {
     public static bool LooksLikeFileDialog(IntPtr hwnd)
     {
-        var hasEdit = false;
-        var hasFileList = false;
-        var hasFilter = false;
+        var hasFileNameEdit = false;
+        var hasFolderView = false;
+        var hasLocationCombo = false;
 
         EnumChildWindows(hwnd, (child, _) =>
         {
             var className = GetClassName(child);
-            if (className.Equals("Edit", StringComparison.OrdinalIgnoreCase))
-                hasEdit = true;
-            else if (className.Equals("SysListView32", StringComparison.OrdinalIgnoreCase))
-                hasFileList = true;
-            else if (className.Equals("ComboBox", StringComparison.OrdinalIgnoreCase)
-                || className.Equals("ComboBoxEx32", StringComparison.OrdinalIgnoreCase))
-                hasFilter = true;
+            var controlId = GetDlgCtrlID(child);
+            if (className.Equals("Edit", StringComparison.OrdinalIgnoreCase) && controlId == 1001)
+                hasFileNameEdit = true;
+            else if (className.Equals("SysListView32", StringComparison.OrdinalIgnoreCase) && controlId == 1)
+                hasFolderView = true;
+            else if (className.Equals("ComboBox", StringComparison.OrdinalIgnoreCase) && controlId == 1008)
+                hasLocationCombo = true;
 
-            return !(hasEdit && hasFileList && hasFilter);
+            return !(hasFileNameEdit && hasFolderView && hasLocationCombo);
         }, IntPtr.Zero);
 
-        return hasEdit && hasFileList && hasFilter;
+        return hasFileNameEdit && hasFolderView && hasLocationCombo;
     }
 
     private static string GetClassName(IntPtr hwnd)
@@ -284,4 +284,7 @@ internal static class AutoCADDialogControls
 
     [DllImport("user32.dll", EntryPoint = "GetClassName", CharSet = CharSet.Unicode)]
     private static extern int GetClassName(IntPtr hwnd, StringBuilder className, int maxCount);
+
+    [DllImport("user32.dll")]
+    private static extern int GetDlgCtrlID(IntPtr hwnd);
 }
