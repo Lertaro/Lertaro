@@ -58,20 +58,20 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
 
     public static List<CustomFilterItem> DefaultFilters() => new()
     {
-        new CustomFilterItem { Enabled = true, Keyword = "doc", Rule = "*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps" },
-        new CustomFilterItem { Enabled = true, Keyword = "img", Rule = "*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai" },
+        new CustomFilterItem { Enabled = true, Keyword = "doc", Rule = "*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps; *.et; *.dps; *.odf; *.odt; *.ods; *.odg; *.odb; *.eqp; *.mmx; *.tex" },
+        new CustomFilterItem { Enabled = true, Keyword = "img", Rule = "*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai; *.jxl; *.avif" },
         new CustomFilterItem { Enabled = true, Keyword = "video", Rule = "*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts" },
         new CustomFilterItem { Enabled = true, Keyword = "audio", Rule = "*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape" },
-        new CustomFilterItem { Enabled = true, Keyword = "zip", Rule = "*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso" }
+        new CustomFilterItem { Enabled = true, Keyword = "zip", Rule = "*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd" }
     };
 
     public static List<object> DefaultFiltersSchema() => new()
     {
-        new Dictionary<string, object> { ["Enabled"] = true, ["Keyword"] = "doc", ["Rule"] = "*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps" },
-        new Dictionary<string, object> { ["Enabled"] = true, ["Keyword"] = "img", ["Rule"] = "*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai" },
+        new Dictionary<string, object> { ["Enabled"] = true, ["Keyword"] = "doc", ["Rule"] = "*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps; *.et; *.dps; *.odf; *.odt; *.ods; *.odg; *.odb; *.eqp; *.mmx; *.tex" },
+        new Dictionary<string, object> { ["Enabled"] = true, ["Keyword"] = "img", ["Rule"] = "*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai; *.jxl; *.avif" },
         new Dictionary<string, object> { ["Enabled"] = true, ["Keyword"] = "video", ["Rule"] = "*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts" },
         new Dictionary<string, object> { ["Enabled"] = true, ["Keyword"] = "audio", ["Rule"] = "*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape" },
-        new Dictionary<string, object> { ["Enabled"] = true, ["Keyword"] = "zip", ["Rule"] = "*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso" }
+        new Dictionary<string, object> { ["Enabled"] = true, ["Keyword"] = "zip", ["Rule"] = "*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd" }
     };
 
     public static IReadOnlyList<ISearchResult> ApplyRule(string rule, IReadOnlyList<ISearchResult> results)

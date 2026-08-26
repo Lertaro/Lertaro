@@ -96,4 +96,22 @@ public class CustomFilterQueryTokenProviderTests
         Assert.IsTrue(defaults.Any(f => f.Keyword == "audio"));
         Assert.IsTrue(defaults.Any(f => f.Keyword == "zip"));
     }
+
+    [TestMethod]
+    public void DefaultFilters_IncludeNewDocumentImageAndArchiveExtensions()
+    {
+        var defaults = CustomFilterQueryTokenProvider.DefaultFilters();
+
+        var docRule = defaults.First(f => f.Keyword == "doc").Rule;
+        foreach (var ext in new[] { "*.et", "*.dps", "*.odf", "*.odt", "*.ods", "*.odg", "*.odb", "*.eqp", "*.mmx", "*.tex" })
+            Assert.Contains(ext, docRule, $"doc rule missing {ext}");
+
+        var imgRule = defaults.First(f => f.Keyword == "img").Rule;
+        foreach (var ext in new[] { "*.jxl", "*.avif" })
+            Assert.Contains(ext, imgRule, $"img rule missing {ext}");
+
+        var zipRule = defaults.First(f => f.Keyword == "zip").Rule;
+        foreach (var ext in new[] { "*.wim", "*.esd" })
+            Assert.Contains(ext, zipRule, $"zip rule missing {ext}");
+    }
 }
