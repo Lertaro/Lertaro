@@ -51,8 +51,9 @@ public static class RecentFilesV2
                     continue;
                 scanned++;
                 var isDirectory = (record.Flags & (ushort)FileRecordFlags.Directory) != 0;
-                if (!isDirectory && record.LastWrite >= cutoffUtc)
-                    candidates.Add(ToResult(record.Name, delta.GetFullPath(record), false, drive, record.LastWrite));
+                var flags = (FileRecordFlags)record.Flags;
+                if (!isDirectory && record.LastWrite >= cutoffUtc && !IsHiddenOrSystem(flags))
+                    candidates.Add(ToResult(record.Name, delta.GetFullPath(record), flags, drive, record.LastWrite));
             }
         }
     }
@@ -73,29 +74,41 @@ public static class RecentFilesV2
     {
         if (snapshot.IsDirectory(row))
             return;
+        var flags = delta.BaseOverrides.TryGetValue(row, out var overridden)
+            ? (FileRecordFlags)overridden.Flags
+            : (FileRecordFlags)snapshot.Flags[row];
+        if (IsHiddenOrSystem(flags))
+            return;
         var (_, _, lastWrite, _) = delta.MetadataOf(row);
         if (lastWrite < cutoffUtc)
             return;
-        candidates.Add(ToResult(delta.NameOf(row), delta.GetFullPath(row), false, drive, lastWrite));
+        candidates.Add(ToResult(delta.NameOf(row), delta.GetFullPath(row), flags, drive, lastWrite));
     }
 
     private static void EmitOverride(DeltaOverlay delta, int row, DeltaOverlay.DeltaRecord record, string drive, uint cutoffUtc, List<SearchResult> candidates)
     {
         if ((record.Flags & (ushort)FileRecordFlags.Directory) != 0)
             return;
+        var flags = (FileRecordFlags)record.Flags;
+        if (IsHiddenOrSystem(flags))
+            return;
         if (record.LastWrite < cutoffUtc)
             return;
-        candidates.Add(ToResult(record.Name, delta.GetFullPath(row), false, drive, record.LastWrite));
+        candidates.Add(ToResult(record.Name, delta.GetFullPath(row), flags, drive, record.LastWrite));
     }
+
+    private static bool IsHiddenOrSystem(FileRecordFlags flags)
+        => (flags & (FileRecordFlags.Hidden | FileRecordFlags.System)) != 0;
 
     // Size/Created/Accessed aren't tracked here -- Recent Files only ever needs Modified, for the
     // recency merge/sort (see SearchEngineRecentFilesExtensions/SearchService.GetRecentFilesAsync).
-    private static SearchResult ToResult(string name, string path, bool isDir, string drive, uint modifiedUtc) => new()
+    private static SearchResult ToResult(string name, string path, FileRecordFlags flags, string drive, uint modifiedUtc) => new()
     {
         Name = name,
         Path = path,
-        IsDir = isDir,
+        IsDir = (flags & FileRecordFlags.Directory) != 0,
         Drive = drive,
+        Attributes = FileRecordFlagsHelper.ToAttributes(flags),
         Metadata = new FileMetadata(0, DateTime.MinValue, FileTimeHelper.FromUnixSeconds(modifiedUtc).ToLocalTime(), DateTime.MinValue),
     };
 }

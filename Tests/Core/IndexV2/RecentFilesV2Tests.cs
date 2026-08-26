@@ -13,6 +13,8 @@ public sealed class RecentFilesV2Tests
         new FileRecord(4, 2, "new.txt", FileRecordFlags.None, lastWriteTimeUnixSeconds: 1000),
         new FileRecord(5, 2, "sub", FileRecordFlags.Directory),
         new FileRecord(6, 5, "nested.txt", FileRecordFlags.None, lastWriteTimeUnixSeconds: 2000),
+        new FileRecord(7, 2, "hidden.txt", FileRecordFlags.Hidden, lastWriteTimeUnixSeconds: 3000),
+        new FileRecord(8, 2, "system.txt", FileRecordFlags.System, lastWriteTimeUnixSeconds: 4000),
     });
 
     [TestMethod]
@@ -160,6 +162,22 @@ public sealed class RecentFilesV2Tests
             CollectionAssert.Contains(names, "old.txt");
             CollectionAssert.Contains(names, "new.txt");
             CollectionAssert.Contains(names, "nested.txt");
+            return 0;
+        });
+    }
+
+    [TestMethod]
+    public void CollectFromDirectory_ExcludesHiddenAndSystemFiles()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Read((snapshot, delta) =>
+        {
+            var candidates = new List<SearchResult>();
+            RecentFilesV2.CollectFromDirectory(snapshot, delta, @"c:\projects\", "C", cutoffUtc: 0, candidates);
+
+            var names = candidates.Select(c => c.Name).ToList();
+            CollectionAssert.DoesNotContain(names, "hidden.txt");
+            CollectionAssert.DoesNotContain(names, "system.txt");
             return 0;
         });
     }
