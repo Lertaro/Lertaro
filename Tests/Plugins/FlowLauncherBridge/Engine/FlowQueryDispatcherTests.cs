@@ -80,4 +80,33 @@ public sealed class FlowQueryDispatcherTests
         Assert.AreEqual("Result 1", results[0].Title);
         Assert.AreEqual("Result 2", results[1].Title);
     }
+
+    [TestMethod]
+    public async Task DispatchQueryAsync_DoesNotRouteDisabledKeywordPlugin()
+    {
+        var storage = new FlowSettingsStorage(Path.GetTempPath());
+        var host = new FlowPluginHost(storage, []);
+        var fakePlugin = new FakeFlowPlugin
+        {
+            ResultsToReturn = [new Result { Title = "Should not appear", Score = 100 }]
+        };
+        var pair = new PluginPair
+        {
+            Metadata = new PluginMetadata
+            {
+                ID = "disabled-plugin",
+                Name = "DisabledPlugin",
+                ActionKeyword = "gc",
+                Disabled = true
+            },
+            Plugin = fakePlugin
+        };
+        host.RegisterPlugin(pair);
+
+        var dispatcher = new FlowQueryDispatcher(host);
+        var results = await dispatcher.DispatchQueryAsync("gc 1");
+
+        Assert.IsEmpty(results);
+        Assert.IsNull(fakePlugin.LastReceivedQuery);
+    }
 }

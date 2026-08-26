@@ -95,9 +95,9 @@ public class FlowQueryDispatcher
     {
         if (!string.IsNullOrEmpty(actionKeyword) && _host.KeywordPlugins.TryGetValue(actionKeyword, out var specificPlugins))
         {
-            return specificPlugins;
+            return specificPlugins.Where(pair => !pair.Metadata.Disabled).ToList();
         }
 
-        return _host.GlobalPlugins;
+        return _host.GlobalPlugins.Where(pair => !pair.Metadata.Disabled).ToList();
     }
 }
