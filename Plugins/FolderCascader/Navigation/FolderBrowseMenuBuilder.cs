@@ -69,10 +69,11 @@ internal static class FolderBrowseMenuBuilder
 
     private static string ResolvePhysicalPath(string path)
     {
-        if (!IsVirtualPath(path)) return path;
+        var expanded = Environment.ExpandEnvironmentVariables(path);
+        if (!IsVirtualPath(expanded)) return expanded;
 
-        var resolved = ShellPathHelper.TryResolveVirtualPath(path);
-        return Directory.Exists(resolved) ? resolved : path;
+        var resolved = ShellPathHelper.TryResolveVirtualPath(expanded);
+        return Directory.Exists(resolved) ? resolved : expanded;
     }
 
     private static bool IsVirtualPath(string path) =>

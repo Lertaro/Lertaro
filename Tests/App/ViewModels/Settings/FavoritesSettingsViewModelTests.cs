@@ -177,6 +177,21 @@ public sealed class FavoriteItemViewModelTests
         Assert.AreEqual("Documents", new FavoriteItemViewModel { Path = @"C:\Users\me\Documents\" }.DisplayName);
 
     [TestMethod]
+    public void DisplayName_EnvironmentVariableInPathNoName_ExpandsAndReturnsFolderName()
+    {
+        Environment.SetEnvironmentVariable("TEST_FAV_DIR", @"C:\TestDir\Projects");
+        try
+        {
+            var vm = new FavoriteItemViewModel { Path = @"%TEST_FAV_DIR%" };
+            Assert.AreEqual("Projects", vm.DisplayName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TEST_FAV_DIR", null);
+        }
+    }
+
+    [TestMethod]
     public void Name_Set_RaisesPropertyChangedForDisplayNameToo()
     {
         var vm = new FavoriteItemViewModel();

@@ -132,4 +132,37 @@ public sealed class FavoriteSearchHelperTests
         Assert.AreEqual(7, ui.Index);
         Assert.AreEqual("myquery", ui.SearchQuery);
     }
+
+    [TestMethod]
+    public void ComputeMatch_EnvironmentVariableInPathNoExplicitName_MatchesExpandedFolderName()
+    {
+        Environment.SetEnvironmentVariable("TEST_SEARCH_FAV", @"C:\TestDir\SpecialTool");
+        try
+        {
+            var fav = new FavoriteItemSetting { Name = "", Path = @"%TEST_SEARCH_FAV%" };
+            var (isMatch, _) = FavoriteSearchHelper.ComputeMatch(fav, "special");
+            Assert.IsTrue(isMatch);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TEST_SEARCH_FAV", null);
+        }
+    }
+
+    [TestMethod]
+    public void CreateFavoriteUiResult_PathWithEnvironmentVariables_ExpandsFullPath()
+    {
+        Environment.SetEnvironmentVariable("TEST_SEARCH_FAV", @"C:\TestDir\SpecialTool");
+        try
+        {
+            var fav = new FavoriteItemSetting { Name = "", Path = @"%TEST_SEARCH_FAV%\doc.txt" };
+            var ui = FavoriteSearchHelper.CreateFavoriteUiResult(fav, "q", 0);
+            Assert.AreEqual(@"C:\TestDir\SpecialTool\doc.txt", ui.FullPath);
+            Assert.AreEqual("doc.txt", ui.Name);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TEST_SEARCH_FAV", null);
+        }
+    }
 }

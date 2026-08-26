@@ -53,6 +53,8 @@ public static class FileExecutor
             return;
         }
 
+        path = Environment.ExpandEnvironmentVariables(path);
+
         // Everything below can block for seconds on a slow or heavily-indexed network share
         // (File.Exists/Directory.Exists have no timeout) -- run it off the UI thread so launching
         // something doesn't freeze the whole app while a background scan is hammering the same share.

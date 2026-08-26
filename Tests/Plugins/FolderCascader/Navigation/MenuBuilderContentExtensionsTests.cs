@@ -42,4 +42,24 @@ public sealed class MenuBuilderContentExtensionsTests
 
         Assert.IsTrue(available);
     }
+
+    [TestMethod]
+    public void HasAvailableFavorites_AcceptsFolderWithEnvironmentVariables()
+    {
+        var favorites = new[] { new FavoriteItem { Path = @"%TEST_ENV_VAR%\SubFolder" } };
+        Environment.SetEnvironmentVariable("TEST_ENV_VAR", @"C:\TestDir");
+        try
+        {
+            var available = MenuBuilderContentExtensions.HasAvailableFavorites(
+                favorites,
+                _ => false,
+                path => path == @"C:\TestDir\SubFolder");
+
+            Assert.IsTrue(available);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TEST_ENV_VAR", null);
+        }
+    }
 }

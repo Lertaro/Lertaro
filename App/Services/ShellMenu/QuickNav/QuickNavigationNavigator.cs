@@ -31,6 +31,8 @@ public static class QuickNavigationNavigator
             return;
         }
 
+        path = Environment.ExpandEnvironmentVariables(path);
+
         if (trigger.DialogHwnd != IntPtr.Zero)
         {
             // A dialog's filename box submits (fires Open/Save) if given a complete, existing file path --

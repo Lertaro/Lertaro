@@ -13,13 +13,14 @@ public static class FavoriteSearchHelper
     private static string GetDisplayName(FavoriteItemSetting fav)
     {
         if (!string.IsNullOrWhiteSpace(fav.Name)) return fav.Name;
-        if (fav.Path.StartsWith("shell:::", StringComparison.OrdinalIgnoreCase) || fav.Path.StartsWith("::", StringComparison.OrdinalIgnoreCase))
-            return ShellPathHelper.GetVirtualFolderDisplayName(fav.Path, fav.Path);
+        var expanded = Environment.ExpandEnvironmentVariables(fav.Path);
+        if (expanded.StartsWith("shell:::", StringComparison.OrdinalIgnoreCase) || expanded.StartsWith("::", StringComparison.OrdinalIgnoreCase))
+            return ShellPathHelper.GetVirtualFolderDisplayName(expanded, fav.Path);
         if (FavoriteUrlHelper.IsWebUrl(fav.Path))
             return fav.Path.Trim();
         try
         {
-            var name = Path.GetFileName(fav.Path.TrimEnd('\\', '/'));
+            var name = Path.GetFileName(expanded.TrimEnd('\\', '/'));
             if (!string.IsNullOrWhiteSpace(name)) return name;
         }
         catch { }
@@ -37,7 +38,8 @@ public static class FavoriteSearchHelper
 
     public static AppSearchResult CreateFavoriteUiResult(FavoriteItemSetting fav, string query, int index)
     {
-        var isDir = fav.Path.StartsWith("::") || fav.Path.StartsWith("shell:") || Directory.Exists(fav.Path);
+        var expanded = Environment.ExpandEnvironmentVariables(fav.Path);
+        var isDir = expanded.StartsWith("::") || expanded.StartsWith("shell:") || Directory.Exists(expanded);
         var label = TranslationManager.Instance["Search_ResultFavorite"];
 
         var displayName = GetDisplayName(fav);
@@ -45,9 +47,9 @@ public static class FavoriteSearchHelper
         return new AppSearchResult
         {
             Name = displayName,
-            FullPath = fav.Path,
+            FullPath = expanded,
             ParentDir = "★ " + label,
-            ContextDirectory = isDir ? fav.Path : (Path.GetDirectoryName(fav.Path) ?? fav.Path),
+            ContextDirectory = isDir ? expanded : (Path.GetDirectoryName(expanded) ?? expanded),
             IsDir = isDir,
             Drive = string.Empty,
             ResultKind = "File",

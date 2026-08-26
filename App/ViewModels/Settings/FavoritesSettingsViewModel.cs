@@ -62,7 +62,8 @@ public class FavoritesSettingsViewModel : ViewModelBase
                 {
                     try
                     {
-                        var name = System.IO.Path.GetFileName(value.TrimEnd('\\', '/'));
+                        var expanded = Environment.ExpandEnvironmentVariables(value);
+                        var name = System.IO.Path.GetFileName(expanded.TrimEnd('\\', '/'));
                         if (!string.IsNullOrEmpty(name))
                             NewName = name;
                     }
@@ -181,9 +182,10 @@ public class FavoriteItemViewModel : ViewModelBase
             if (!string.IsNullOrWhiteSpace(Name))
                 return Name;
 
-            if (Path.StartsWith("shell:::", StringComparison.OrdinalIgnoreCase) || Path.StartsWith("::", StringComparison.OrdinalIgnoreCase))
+            var expanded = Environment.ExpandEnvironmentVariables(Path);
+            if (expanded.StartsWith("shell:::", StringComparison.OrdinalIgnoreCase) || expanded.StartsWith("::", StringComparison.OrdinalIgnoreCase))
             {
-                return PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName(Path, Path);
+                return PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName(expanded, Path);
             }
             if (FavoriteUrlHelper.IsWebUrl(Path))
             {
@@ -191,7 +193,7 @@ public class FavoriteItemViewModel : ViewModelBase
             }
             try
             {
-                var name = System.IO.Path.GetFileName(Path.TrimEnd('\\', '/'));
+                var name = System.IO.Path.GetFileName(expanded.TrimEnd('\\', '/'));
                 return string.IsNullOrEmpty(name) ? Path : name;
             }
             catch { return Path; }

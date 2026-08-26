@@ -182,12 +182,15 @@ internal static class MenuBuilderContentExtensions
         IEnumerable<FavoriteItem> favorites,
         Func<string, bool> fileExists,
         Func<string, bool> directoryExists) => favorites.Any(favorite =>
-            !string.IsNullOrWhiteSpace(favorite.Path) &&
-            (favorite.Path.StartsWith("::") ||
-             favorite.Path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) ||
-             MenuBuilder.IsWebUrl(favorite.Path) ||
-             directoryExists(favorite.Path) ||
-             fileExists(favorite.Path)));
+        {
+            if (string.IsNullOrWhiteSpace(favorite.Path)) return false;
+            var expanded = Environment.ExpandEnvironmentVariables(favorite.Path);
+            return expanded.StartsWith("::") ||
+                   expanded.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) ||
+                   MenuBuilder.IsWebUrl(expanded) ||
+                   directoryExists(expanded) ||
+                   fileExists(expanded);
+        });
 
     internal static List<DynamicMenuItem> BuildFavoritesMenu(Provider provider)
     {
@@ -198,13 +201,14 @@ internal static class MenuBuilderContentExtensions
 
         foreach (var favItem in favoritesList)
         {
-            var favPath = favItem.Path;
+            var rawPath = favItem.Path;
+            var favPath = Environment.ExpandEnvironmentVariables(rawPath);
             var isVirtual = favPath.StartsWith("::") || favPath.StartsWith("shell:", StringComparison.OrdinalIgnoreCase);
             if (isVirtual || Directory.Exists(favPath))
             {
                 items.Add(new DynamicMenuItem
                 {
-                    Text = MenuBuilder.GetDisplayName(favPath, favItem.Name),
+                    Text = MenuBuilder.GetDisplayName(rawPath, favItem.Name),
                     HasSubMenu = true,
                     SubMenuHandle = provider.AllocateHandle(favPath),
                     HBitmapItem = IntPtr.Zero
@@ -219,14 +223,14 @@ internal static class MenuBuilderContentExtensions
                     HBitmapItem = IntPtr.Zero
                 });
             }
-            else if (MenuBuilder.IsWebUrl(favPath))
+            else if (MenuBuilder.IsWebUrl(rawPath))
             {
                 // Web-address favorite: a leaf command item. The host renders the globe icon and
                 // opens it in the browser (both keyed off the http/https path).
                 items.Add(new DynamicMenuItem
                 {
-                    Text = string.IsNullOrWhiteSpace(favItem.Name) ? favPath : favItem.Name,
-                    CommandId = provider.AllocateCommand(favPath),
+                    Text = string.IsNullOrWhiteSpace(favItem.Name) ? rawPath : favItem.Name,
+                    CommandId = provider.AllocateCommand(rawPath),
                     HBitmapItem = IntPtr.Zero
                 });
             }

@@ -113,4 +113,23 @@ public sealed class MenuBuilderAddFolderItemsTests
         Assert.HasCount(3, items);
         Assert.IsTrue(items[1].IsSeparator);
     }
+
+    [TestMethod]
+    public void AddFolderItems_PathWithEnvironmentVariables_ExpandsVariablesAndAllocatesHandle()
+    {
+        var provider = new Provider();
+        var items = new List<DynamicMenuItem>();
+        var systemRoot = Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows";
+        var folders = new List<FolderCascaderPlugin.FolderConfigItem>
+        {
+            Folder("", @"%SystemRoot%")
+        };
+
+        MenuBuilder.AddFolderItems(items, folders, Array.Empty<string>(), provider);
+
+        Assert.HasCount(1, items);
+        Assert.IsTrue(items[0].HasSubMenu);
+        Assert.AreNotEqual(IntPtr.Zero, items[0].SubMenuHandle);
+        Assert.AreEqual(systemRoot, GetPath(provider, items[0].SubMenuHandle));
+    }
 }

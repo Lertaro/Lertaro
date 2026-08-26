@@ -18,7 +18,7 @@ internal static class ExplorerLocateHelper
     /// the shell work runs on a ShellThread, which is where the reasoning for that lives.
     /// </summary>
     public static void LocateInExplorer(string path) =>
-        ShellThread.Run("ExplorerLocate", () => LocateInExplorerCore(path));
+        ShellThread.Run("ExplorerLocate", () => LocateInExplorerCore(string.IsNullOrWhiteSpace(path) ? path : Environment.ExpandEnvironmentVariables(path)));
 
     private static void LocateInExplorerCore(string path)
     {
