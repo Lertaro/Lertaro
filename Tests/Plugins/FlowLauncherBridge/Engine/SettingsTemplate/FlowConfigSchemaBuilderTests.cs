@@ -204,10 +204,72 @@ public sealed class FlowConfigSchemaBuilderTests
         }
     }
 
+    [TestMethod]
+    public void BuildSchema_WithFlowNamedStylesPanel_InstantiatesWithoutMissingResourceExceptions()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"flow_test_styles_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var metadata = new PluginMetadata
+            {
+                ID = "STYLES_PLUGIN",
+                Name = "StylesPlugin",
+                ActionKeyword = "sp",
+                ActionKeywords = ["sp"],
+                PluginDirectory = tempDir
+            };
+
+            var storage = new FlowSettingsStorage(tempDir);
+            var host = new FlowPluginHost(storage, [tempDir]);
+
+            var fakePlugin = new FakeFlowStylesPlugin();
+            var pair = new PluginPair { Metadata = metadata, Plugin = fakePlugin };
+            host.RegisterPlugin(pair);
+
+            var t = new Thread(() =>
+            {
+                var schema = FlowConfigSchemaBuilder.BuildSchema(host);
+
+                Assert.IsNotNull(schema);
+                var groupField = schema.Fields.FirstOrDefault(f => f.Key == "StylesPluginGroup");
+                Assert.IsNotNull(groupField);
+                Assert.IsNotNull(groupField.SubFields);
+
+                var customControlField = groupField.SubFields.FirstOrDefault(f => f.Key == "StylesPlugin.CustomPanel");
+                Assert.IsNotNull(customControlField);
+                Assert.IsNotNull(customControlField.CustomControl);
+            });
+            t.SetApartmentState(ApartmentState.STA);
+            t.Start();
+            t.Join();
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, true); } catch { }
+        }
+    }
+
     private sealed class FakeSettingProviderPlugin : IPlugin, ISettingProvider
     {
         public void Init(PluginInitContext context) { }
         public List<Result> Query(Query query) => [];
         public System.Windows.Controls.Control CreateSettingPanel() => new System.Windows.Controls.UserControl { Content = new System.Windows.Controls.TextBlock { Text = "Settings" } };
+    }
+
+    private sealed class FakeFlowStylesPlugin : IPlugin, ISettingProvider
+    {
+        public void Init(PluginInitContext context) { }
+        public List<Result> Query(Query query) => [];
+        public System.Windows.Controls.Control CreateSettingPanel()
+        {
+            var btn = new System.Windows.Controls.Button();
+            if (System.Windows.Application.Current?.TryFindResource("DefaultButtonStyle") is System.Windows.Style style)
+            {
+                btn.Style = style;
+            }
+            return new System.Windows.Controls.UserControl { Content = btn };
+        }
     }
 }

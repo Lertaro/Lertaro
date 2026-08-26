@@ -128,38 +128,144 @@
         <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
     </Style>
 
-    <!-- Color brushes commonly referenced by Flow plugins -->
-    <SolidColorBrush x:Key="Color00B" Color="#2b2b2b" />
-    <SolidColorBrush x:Key="Color01B" Color="#202020" />
-    <SolidColorBrush x:Key="Color02B" Color="#2b2b2b" />
-    <SolidColorBrush x:Key="Color03B" Color="#1d1d1d" />
-    <SolidColorBrush x:Key="Color04B" Color="#cfcfcf" />
-    <SolidColorBrush x:Key="Color05B" Color="#ffffff" />
-    <SolidColorBrush x:Key="Color06B" Color="#2d2d2d" />
-    <SolidColorBrush x:Key="Color07B" Color="#363636" />
-    <SolidColorBrush x:Key="Color08B" Color="#878787" />
-    <SolidColorBrush x:Key="Color09B" Color="#292929" />
-    <SolidColorBrush x:Key="Color10B" Color="#c42b1c" />
-    <SolidColorBrush x:Key="Color11B" Color="#c83c31" />
-    <SolidColorBrush x:Key="Color12B" Color="#373737" />
-    <SolidColorBrush x:Key="Color13B" Color="#3f3f3f" />
-    <SolidColorBrush x:Key="Color14B" Color="#3f3f3f" />
-    <SolidColorBrush x:Key="Color15B" Color="#5d5d5d" />
-    <SolidColorBrush x:Key="Color16B" Color="#434343" />
-    <SolidColorBrush x:Key="Color17B" Color="#cccccc" />
-    <SolidColorBrush x:Key="Color18B" Color="#999999" />
-    <SolidColorBrush x:Key="Color19B" Color="#2a2a2a" />
-    <SolidColorBrush x:Key="Color20B" Color="#303030" />
-    <SolidColorBrush x:Key="Color21B" Color="#464646" />
-    <SolidColorBrush x:Key="Color22B" Color="#3c3c3c" />
-    <SolidColorBrush x:Key="Color23B" Color="#272727" />
-    <SolidColorBrush x:Key="Color24B" Color="#9a9a9a" />
-    <SolidColorBrush x:Key="Color25B" Color="#323232" />
+    <!-- Flow.Launcher standard settings container & label styles -->
+    <Style x:Key="SettingGroupBox" TargetType="{x:Type Border}">
+        <Setter Property="Background" Value="{DynamicResource SettingsCardBackground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SettingsRowBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="0,12" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+    <Style x:Key="SettingTitleLabel" TargetType="{x:Type TextBlock}">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,0,0,2" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style x:Key="SettingSubTitleLabel" TargetType="{x:Type TextBlock}">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Padding" Value="0,0,24,0" />
+        <Setter Property="TextWrapping" Value="WrapWithOverflow" />
+    </Style>
+    <Style x:Key="SettingGrid" TargetType="{x:Type ItemsControl}">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style x:Key="TextPanel" TargetType="{x:Type StackPanel}">
+        <Setter Property="Grid.Column" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+    <Style x:Key="SettingButton" TargetType="{x:Type Button}" BasedOn="{StaticResource SettingsButton}">
+        <Setter Property="Height" Value="28" />
+        <Setter Property="MinWidth" Value="60" />
+        <Setter Property="Margin" Value="4,0,0,0" />
+        <Setter Property="Padding" Value="10,0" />
+    </Style>
 
-    <SolidColorBrush x:Key="PopupBGColor" Color="#202020" />
-    <SolidColorBrush x:Key="PopupTextColor" Color="#cfcfcf" />
-    <SolidColorBrush x:Key="PopupButtonAreaBGColor" Color="#2b2b2b" />
-    <SolidColorBrush x:Key="PopupButtonAreaBorderColor" Color="#3f3f3f" />
-    <SolidColorBrush x:Key="SystemThemeBorder" Color="#3f3f3f" />
+    <!-- Color aliases mapped dynamically to Lertaro theme tokens -->
+    <StaticResource x:Key="Color00B" ResourceKey="SettingsCardBackground" />
+    <StaticResource x:Key="Color01B" ResourceKey="ContentBg" />
+    <StaticResource x:Key="Color02B" ResourceKey="HoverBackground" />
+    <StaticResource x:Key="Color03B" ResourceKey="SettingsRowBorderBrush" />
+    <StaticResource x:Key="Color04B" ResourceKey="TextSecondary" />
+    <StaticResource x:Key="Color05B" ResourceKey="TextPrimary" />
+    <StaticResource x:Key="Color06B" ResourceKey="ControlBackground" />
+    <StaticResource x:Key="Color07B" ResourceKey="ControlBackground" />
+    <StaticResource x:Key="Color08B" ResourceKey="TextSecondary" />
+    <StaticResource x:Key="Color09B" ResourceKey="HeaderBg" />
+    <StaticResource x:Key="Color10B" ResourceKey="AccentColor" />
+    <StaticResource x:Key="Color11B" ResourceKey="AccentColor" />
+    <StaticResource x:Key="Color12B" ResourceKey="ControlBorderBrush" />
+    <StaticResource x:Key="Color13B" ResourceKey="ControlBorderBrush" />
+    <StaticResource x:Key="Color14B" ResourceKey="ControlBorderBrush" />
+    <StaticResource x:Key="Color15B" ResourceKey="ControlHoverBackground" />
+    <StaticResource x:Key="Color16B" ResourceKey="ControlBorderBrush" />
+    <StaticResource x:Key="Color17B" ResourceKey="TextPrimary" />
+    <StaticResource x:Key="Color18B" ResourceKey="TextSecondary" />
+    <StaticResource x:Key="Color19B" ResourceKey="ControlBackground" />
+    <StaticResource x:Key="Color20B" ResourceKey="ControlBackground" />
+    <StaticResource x:Key="Color21B" ResourceKey="ControlBorderBrush" />
+    <StaticResource x:Key="Color22B" ResourceKey="ControlBackground" />
+    <StaticResource x:Key="Color23B" ResourceKey="ContentBg" />
+    <StaticResource x:Key="Color24B" ResourceKey="TextSecondary" />
+    <StaticResource x:Key="Color25B" ResourceKey="ControlBackground" />
+
+    <StaticResource x:Key="PopupBGColor" ResourceKey="MenuBackground" />
+    <StaticResource x:Key="PopupTextColor" ResourceKey="TextPrimary" />
+    <StaticResource x:Key="PopupButtonAreaBGColor" ResourceKey="ControlBackground" />
+    <StaticResource x:Key="PopupButtonAreaBorderColor" ResourceKey="ControlBorderBrush" />
+    <StaticResource x:Key="SystemThemeBorder" ResourceKey="ControlBorderBrush" />
     <Style x:Key="AccentButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource PrimarySettingsButton}" />
+
+    <!-- Flow.Launcher standard named styles -->
+    <Style x:Key="DefaultButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource SettingsButton}">
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="MinWidth" Value="60"/>
+        <Setter Property="Margin" Value="4,0,0,0"/>
+        <Setter Property="Padding" Value="10,0"/>
+    </Style>
+    <Style x:Key="DefaultTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource RuleTextBox}">
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource AccentColor}"/>
+    </Style>
+    <Style x:Key="DefaultComboBoxStyle" TargetType="{x:Type ComboBox}" BasedOn="{StaticResource SettingsComboBox}">
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style x:Key="DefaultComboBoxItemStyle" TargetType="{x:Type ComboBoxItem}" BasedOn="{StaticResource SettingsComboBoxItem}">
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style x:Key="DefaultCheckBoxStyle" TargetType="{x:Type CheckBox}" BasedOn="{StaticResource ThemedCheckBox}">
+        <Setter Property="Margin" Value="0,6"/>
+    </Style>
+    <Style x:Key="DefaultListBoxStyle" TargetType="{x:Type ListBox}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="2"/>
+        <Setter Property="MinHeight" Value="80"/>
+    </Style>
+    <Style x:Key="DefaultListBoxItemStyle" TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource SidebarItemStyle}">
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="Margin" Value="0,1"/>
+    </Style>
+    <Style x:Key="DefaultRadioButtonStyle" TargetType="{x:Type RadioButton}">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="Margin" Value="0,4"/>
+    </Style>
+    <Style x:Key="DefaultTextBlockStyle" TargetType="{x:Type TextBlock}">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style x:Key="DefaultLabelStyle" TargetType="{x:Type Label}">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="0,0,0,4"/>
+    </Style>
+    <Style x:Key="DefaultSeparatorStyle" TargetType="{x:Type Separator}" BasedOn="{StaticResource SettingPanelSeparatorStyle}" />
+    <Style x:Key="SettingPanelHeaderTextBlockStyle" TargetType="{x:Type TextBlock}">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,4,0,4" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+    <Style x:Key="SettingPanelTextBlockStyle" TargetType="{x:Type TextBlock}">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+    <Style x:Key="SettingPanelTextBlockTitleStyle" TargetType="{x:Type TextBlock}">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
 </ResourceDictionary>

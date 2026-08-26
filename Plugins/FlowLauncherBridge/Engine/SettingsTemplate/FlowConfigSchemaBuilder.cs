@@ -268,19 +268,16 @@ public static class FlowConfigSchemaBuilder
 
     private static void EnsureAppResourcesLoaded()
     {
-        if (Application.Current == null || Application.Current.Resources.Contains("SettingPanelMargin")) return;
+        if (Application.Current == null) return;
 
-        var res = Application.Current.Resources;
-        res["SettingPanelMargin"] = new Thickness(0, 4, 0, 4);
-        res["SettingPanelItemLeftMargin"] = new Thickness(9, 0, 0, 0);
-        res["SettingPanelItemRightMargin"] = new Thickness(0, 0, 9, 0);
-        res["SettingPanelItemTopBottomMargin"] = new Thickness(0, 4.5, 0, 4.5);
-        res["SettingPanelItemLeftTopBottomMargin"] = new Thickness(9, 4.5, 0, 4.5);
-        res["SettingPanelItemRightTopBottomMargin"] = new Thickness(0, 4.5, 9, 4.5);
-        res["SettingPanelTextBoxMinWidth"] = 180.0;
-        res["SettingPanelPathTextBoxWidth"] = 240.0;
-        res["SettingPanelAreaTextBoxMinHeight"] = 150.0;
-        res["SettingPanelSeparatorStyle"] = new Style(typeof(Separator));
-        res["SettingPanelTextBlockDescriptionStyle"] = new Style(typeof(TextBlock));
+        try
+        {
+            var uri = new Uri("pack://application:,,,/Lertaro.App;component/Views/Settings/Plugins/CustomControlStyles.xaml", UriKind.Absolute);
+            if (!Application.Current.Resources.MergedDictionaries.Any(d => d.Source == uri))
+            {
+                Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = uri });
+            }
+        }
+        catch { }
     }
 }
