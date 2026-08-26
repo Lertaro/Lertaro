@@ -60,13 +60,12 @@ public sealed class StayOpenGateTests
         // and must not hide it: in WPF the LAST matching DataTrigger wins, so stay-open has to come first.
         var xaml = Source("App/Views/Controls/SearchBoxControl.xaml");
 
-        // Scoped to the one style block that carries the indicator. The control declares two logos and
-        // only the right one gets it (the quick window is the only window with this feature and shows
-        // that one), so comparing raw file offsets would pick up the OTHER logo's service-down trigger.
+        // The control declares two logos: the full window uses the left one and the quick window uses the
+        // right one. Both support Stay Open, so verify that both indicator styles are theme-backed.
         var stayOpen = xaml.IndexOf("IsStayOpen, ElementName=root", StringComparison.Ordinal);
         Assert.IsGreaterThan(-1, stayOpen, "the indicator trigger is missing");
-        Assert.HasCount(1, System.Text.RegularExpressions.Regex.Matches(xaml, "IsStayOpen, ElementName=root"),
-            "only the logo the quick window actually shows should carry the indicator");
+        Assert.HasCount(2, System.Text.RegularExpressions.Regex.Matches(xaml, "IsStayOpen, ElementName=root"),
+            "the full and quick window logos should both carry the indicator");
 
         var serviceDown = xaml.IndexOf("IsServiceRunning, ElementName=root", stayOpen, StringComparison.Ordinal);
         Assert.IsGreaterThan(-1, serviceDown, "the service-down trigger should follow it in the same block");
@@ -112,22 +111,29 @@ public sealed class StayOpenGateTests
     [TestMethod]
     public void MiddleClickingTheLogoTogglesIt_OnTheSameLogoThatShowsIt()
     {
-        // The second way in, alongside the hotkey. It belongs on the icon that carries the indicator: the
-        // one the quick window shows, which is the right one (IsIconOnLeft defaults to false). Putting it
-        // on the other icon would give the full window a gesture for a feature it does not have.
+        // The second way in, alongside the hotkey. The full window uses the left logo and the quick window
+        // uses the right logo, so both visible variants must carry the middle-click handler.
         var xaml = Source("App/Views/Controls/SearchBoxControl.xaml");
         var control = Source("App/Views/Controls/SearchBoxControl.xaml.cs");
         var window = Source("App/Views/QuickSearchWindow/QuickSearchWindow.xaml.cs");
 
-        Assert.HasCount(1, System.Text.RegularExpressions.Regex.Matches(xaml, @"MouseUp=""Icon_MouseUp"""),
-            "exactly one icon should carry the middle-click handler");
+        Assert.HasCount(2, System.Text.RegularExpressions.Regex.Matches(xaml, @"MouseUp=""Icon_MouseUp"""),
+            "both window logos should carry the middle-click handler");
 
+        var leftIcon = xaml.IndexOf(@"Grid.Column=""0""", StringComparison.Ordinal);
         var rightIcon = xaml.IndexOf(@"Grid.Column=""3""", StringComparison.Ordinal);
-        var handler = xaml.IndexOf(@"MouseUp=""Icon_MouseUp""", StringComparison.Ordinal);
+        var firstHandler = xaml.IndexOf(@"MouseUp=""Icon_MouseUp""", StringComparison.Ordinal);
+        var secondHandler = xaml.IndexOf(@"MouseUp=""Icon_MouseUp""", firstHandler + 1, StringComparison.Ordinal);
+        var afterLeft = xaml.IndexOf("</Grid>", leftIcon, StringComparison.Ordinal);
         var afterRight = xaml.IndexOf("</Grid>", rightIcon, StringComparison.Ordinal);
+        Assert.IsGreaterThan(-1, leftIcon, "could not find the left icon grid");
         Assert.IsGreaterThan(-1, rightIcon, "could not find the right icon grid");
-        Assert.IsLessThan(handler, rightIcon, "the handler must be on the right icon");
-        Assert.IsLessThan(afterRight, handler, "the handler must be inside that grid, not a later one");
+        Assert.IsGreaterThan(-1, firstHandler, "could not find the left icon handler");
+        Assert.IsGreaterThan(-1, secondHandler, "could not find the right icon handler");
+        Assert.IsLessThan(firstHandler, leftIcon, "the first handler must be on the left icon");
+        Assert.IsLessThan(afterLeft, firstHandler, "the left handler must be inside the left icon grid");
+        Assert.IsLessThan(secondHandler, rightIcon, "the second handler must be on the right icon");
+        Assert.IsLessThan(afterRight, secondHandler, "the right handler must be inside the right icon grid");
 
         // WPF has no middle-button event, so the filter has to be explicit or every click would toggle.
         Assert.Contains("e.ChangedButton != MouseButton.Middle", control,

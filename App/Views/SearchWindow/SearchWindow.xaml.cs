@@ -84,7 +84,6 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
                 {
                     txtSearch.SelectionStart = initialQuery.Length;
                 }
-
             }), System.Windows.Threading.DispatcherPriority.Input);
         };
 

@@ -4,6 +4,7 @@ using Lertaro.App.ViewModels.Search;
 namespace Lertaro.App.Tests.ViewModels.Search;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class FavoriteSearchHelperTests
 {
     [TestMethod]
