@@ -6,7 +6,7 @@ Lertaro adopta una filosofía de interacción centrada en el teclado, complement
 
 | Acción | Atajo predeterminado | Descripción y detalles de interacción |
 | :--- | :--- | :--- |
-| **Mostrar/Ocultar Ventana rápida** | Doble pulsación de `Ctrl` | Configurable en modo doble pulsación o combinación estándar (p. ej. `Alt+Space`, `Win+Space`). Si se activa **Abrir el panel principal de forma predeterminada**, este atajo abre y alterna la Ventana principal; al abrirla de este modo, queda por encima de las demás ventanas. |
+| **Mostrar/Ocultar Ventana rápida** | Doble pulsación de `Ctrl` | Configurable en modo doble pulsación o combinación estándar (p. ej. `Alt+Space`, `Win+Space`). Si se activa **Abrir el panel principal de forma predeterminada**, este atajo abre la Ventana principal: al mostrarla por primera vez solo la lleva al primer plano y le da el foco una vez; si está visible pero inactiva la vuelve a activar, y si ya está activa la cierra al pulsar de nuevo. No se mantiene automáticamente siempre encima. |
 | **Salto rápido (Quick Jump)** | `Ctrl+G` | En cuadros de diálogo, salta directamente a la carpeta consultada recientemente en exploradores o en el Panel rápido. |
 | **Seleccionar elemento siguiente** | `Ctrl+N` o `↓` | Mueve el resaltado hacia abajo. En el Panel rápido se desplaza fluidamente entre grupos. |
 | **Seleccionar elemento anterior** | `Ctrl+P` o `↑` | Mueve el resaltado hacia arriba. En el Panel rápido también se desplaza entre grupos. |

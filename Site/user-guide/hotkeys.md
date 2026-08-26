@@ -6,7 +6,7 @@ Lertaro embraces a keyboard-first interaction philosophy while offering rich mou
 
 | Action | Default Hotkey | Description & Interaction Details |
 | :--- | :--- | :--- |
-| **Toggle Quick Window** | Double-tap `Ctrl` | Can be set to a double-tap mode or standard key combinations (e.g. `Alt+Space`, `Win+Space`). When **Open full panel by default** is enabled, this shortcut opens and toggles the Full Window instead; that Full Window is forced above other windows when opened this way. |
+| **Toggle Quick Window** | Double-tap `Ctrl` | Can be set to a double-tap mode or standard key combinations (e.g. `Alt+Space`, `Win+Space`). When **Open full panel by default** is enabled, this shortcut opens the Full Window instead: it is brought to the foreground once when first shown, refocused when visible but inactive, and closed when already active. It is not automatically kept topmost. |
 | **Quick Jump** | `Ctrl+G` | Jumps file dialogs directly to the directory most recently browsed in a supported file manager or Quick Panel. |
 | **Select Next Item** | `Ctrl+N` or `↓` | Moves highlight down. Navigates seamlessly across groups in the Quick Panel. |
 | **Select Previous Item** | `Ctrl+P` or `↑` | Moves highlight up. Navigates seamlessly across groups in the Quick Panel. |
