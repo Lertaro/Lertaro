@@ -31,6 +31,8 @@ public static class QuickNavigationNavigator
             return;
         }
 
+        // Expand environment variables before any dialog/adapter/Explorer logic so favorites stored
+        // raw (e.g. %USERPROFILE%\Desktop) navigate to the real filesystem path.
         path = Environment.ExpandEnvironmentVariables(path);
 
         if (trigger.DialogHwnd != IntPtr.Zero)

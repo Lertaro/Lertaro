@@ -172,10 +172,53 @@
                                     Command="{Binding BrowseFileCommand}"/>
                         </StackPanel>
 
-                        <Button Grid.Row="1" Grid.Column="3" 
-                                Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_AddBtn]}" 
-                                Style="{StaticResource PrimarySettingsButton}"
-                                Command="{Binding AddCommand}" Margin="4,0,0,0" Height="34"/>
+                        <StackPanel Grid.Row="1" Grid.Column="3" Orientation="Horizontal" Margin="4,0,0,0">
+                            <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_AddBtn]}"
+                                    Style="{StaticResource PrimarySettingsButton}"
+                                    Command="{Binding AddCommand}" Height="34" MinWidth="56" Padding="12,0"/>
+
+                            <Button Content="&#xE70D;" Style="{StaticResource FavIconButton}" Height="34" Margin="4,0,0,0"
+                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_AddPresetTooltip]}"
+                                    Click="OpenPresetMenu_Click">
+                                <Button.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetUser]}"
+                                                  Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="%USERPROFILE%"/>
+                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetAppData]}"
+                                                  Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="%USERPROFILE%\AppData"/>
+                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetRoaming]}"
+                                                  Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="%APPDATA%"/>
+                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetLocalTemp]}"
+                                                  Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="%TEMP%"/>
+                                        <Separator/>
+                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetUserFolders]}">
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetDesktop]}"
+                                                      Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="shell:Desktop"/>
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetDownloads]}"
+                                                      Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="shell:Downloads"/>
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetDocuments]}"
+                                                      Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="shell:Personal"/>
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetMusic]}"
+                                                      Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="shell:My Music"/>
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetPictures]}"
+                                                      Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="shell:My Pictures"/>
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetVideos]}"
+                                                      Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="shell:My Video"/>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                        </StackPanel>
                     </Grid>
 
                     <Separator Background="{DynamicResource SettingsRowBorderBrush}" Height="1" Margin="0,0,0,12"/>

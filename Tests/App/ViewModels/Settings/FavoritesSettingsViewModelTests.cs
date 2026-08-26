@@ -77,6 +77,17 @@ public sealed class FavoritesSettingsViewModelTests
     }
 
     [TestMethod]
+    public void AddPathPresetCommand_Execute_SetsVirtualPathAndClearsName()
+    {
+        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewName = "Old", NewPath = @"C:\Old" };
+
+        vm.AddPathPresetCommand.Execute("shell:Downloads");
+
+        Assert.AreEqual("shell:Downloads", vm.NewPath);
+        Assert.AreEqual(Lertaro.PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName("shell:Downloads", ""), vm.NewName);
+    }
+
+    [TestMethod]
     public void RemoveCommand_Execute_RemovesItem()
     {
         var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewPath = @"C:\Docs" };

@@ -1,5 +1,7 @@
+using System.IO;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.CoreExtensions.Providers.QuickPanel;
@@ -18,7 +20,14 @@ public class FavoritesTabProvider : IQuickPanelTabProvider
     {
         IReadOnlyList<ISearchResult> entries = FavoritesService.GetFavorites()
             .Where(favorite => !string.IsNullOrWhiteSpace(favorite.Path))
-            .Select(favorite => (ISearchResult)new PanelResultItem(favorite.Path, favorite.Name))
+            .Select(favorite =>
+            {
+                var resolved = ShellPathHelper.TryResolveVirtualPath(Environment.ExpandEnvironmentVariables(favorite.Path.Trim()));
+                var isDirectory = favorite.Path.StartsWith("::")
+                    || favorite.Path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase)
+                    || Directory.Exists(resolved);
+                return (ISearchResult)new PanelResultItem(favorite.Path, favorite.Name, isDirectory: isDirectory);
+            })
             .ToList();
 
         return Task.FromResult(entries);

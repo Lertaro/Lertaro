@@ -5,23 +5,50 @@ cd /d "%~dp0"
 echo ==========================================
 echo 1. Stopping Lertaro background service and frontend App...
 echo ==========================================
-echo Stopping frontend App...
-taskkill /f /im Lertaro.App.exe >nul 2>&1
-powershell -Command "Start-Process taskkill -ArgumentList '/f /im Lertaro.App.exe' -Verb RunAs -WindowStyle Hidden -Wait"
+set __killed=0
 
+tasklist /fi "IMAGENAME eq Lertaro.App.exe" | find /i "Lertaro.App.exe" >nul 2>&1
+if errorlevel 1 (
+    echo Lertaro.App.exe is not running, skipping...
+) else (
+    echo Stopping frontend App...
+    taskkill /f /im Lertaro.App.exe >nul 2>&1
+    powershell -Command "Start-Process taskkill -ArgumentList '/f /im Lertaro.App.exe' -Verb RunAs -WindowStyle Hidden -Wait"
+    set __killed=1
+)
 
-echo Requesting Administrator privileges to stop LertaroService...
-powershell -Command "Start-Process net -ArgumentList 'stop LertaroService' -Verb RunAs -WindowStyle Hidden -Wait"
+sc query LertaroService 2>nul | find /i "RUNNING" >nul 2>&1
+if errorlevel 1 (
+    echo LertaroService is not running, skipping...
+) else (
+    echo Requesting Administrator privileges to stop LertaroService...
+    powershell -Command "Start-Process net -ArgumentList 'stop LertaroService' -Verb RunAs -WindowStyle Hidden -Wait"
+    set __killed=1
+)
 
-echo Requesting Administrator privileges to kill hook subprocess (Lertaro.Service.exe)...
-powershell -Command "Start-Process taskkill -ArgumentList '/f /im Lertaro.Service.exe' -Verb RunAs -WindowStyle Hidden -Wait"
+tasklist /fi "IMAGENAME eq Lertaro.Service.exe" | find /i "Lertaro.Service.exe" >nul 2>&1
+if errorlevel 1 (
+    echo Lertaro.Service.exe is not running, skipping...
+) else (
+    echo Requesting Administrator privileges to kill hook subprocess Lertaro.Service.exe...
+    powershell -Command "Start-Process taskkill -ArgumentList '/f /im Lertaro.Service.exe' -Verb RunAs -WindowStyle Hidden -Wait"
+    set __killed=1
+)
 
-echo Stopping any running lff.exe (CLI)...
-taskkill /f /im lff.exe >nul 2>&1
-powershell -Command "Start-Process taskkill -ArgumentList '/f /im lff.exe' -Verb RunAs -WindowStyle Hidden -Wait"
+tasklist /fi "IMAGENAME eq lff.exe" | find /i "lff.exe" >nul 2>&1
+if errorlevel 1 (
+    echo lff.exe is not running, skipping...
+) else (
+    echo Stopping any running lff.exe CLI...
+    taskkill /f /im lff.exe >nul 2>&1
+    powershell -Command "Start-Process taskkill -ArgumentList '/f /im lff.exe' -Verb RunAs -WindowStyle Hidden -Wait"
+    set __killed=1
+)
 
-:: Wait a moment for file handles to be completely released
-ping 127.0.0.1 -n 3 >nul
+:: Wait a moment for file handles to be completely released, but only if something was killed
+if "%__killed%"=="1" (
+    ping 127.0.0.1 -n 3 >nul
+)
 
 echo Cleaning up debug directory...
 if exist "%~dp0debug" (
