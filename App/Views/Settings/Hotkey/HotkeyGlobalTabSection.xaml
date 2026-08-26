@@ -71,7 +71,7 @@
                 RequireModifier="True" DefaultValue="Ctrl+G"/>
         </Grid>
 
-        <TextBlock x:Name="RowSelectionTitle" Style="{StaticResource SettingsSubHeading}"
+        <TextBlock x:Name="RowSelectionTitle" Style="{StaticResource SettingsSubHeading}" FontSize="15"
                    Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_SelectionTitle]}"/>
 
         <Grid x:Name="RowSelectNext" Margin="0,4,0,0">
