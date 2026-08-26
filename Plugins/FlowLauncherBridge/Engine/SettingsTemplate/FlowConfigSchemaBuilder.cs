@@ -272,7 +272,7 @@ public static class FlowConfigSchemaBuilder
 
         try
         {
-            var uri = new Uri("pack://application:,,,/Lertaro.App;component/Views/Settings/Plugins/CustomControlStyles.xaml", UriKind.Absolute);
+            var uri = new Uri("pack://application:,,,/Lertaro.App;component/Views/Settings/Plugins/FlowCompatibilityStyles.xaml", UriKind.Absolute);
             if (!Application.Current.Resources.MergedDictionaries.Any(d => d.Source == uri))
             {
                 Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = uri });

@@ -1,0 +1,175 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+        <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+        <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+        <ResourceDictionary Source="../../../Resources/Styles/Controls/Controls.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- ═══════════ Flow.Launcher Settings Panel Compatibility Resources ═══════════ -->
+    <Thickness x:Key="SettingPanelMargin">0,4,0,4</Thickness>
+    <Thickness x:Key="SettingPanelItemLeftMargin">9,0,0,0</Thickness>
+    <Thickness x:Key="SettingPanelItemRightMargin">0,0,9,0</Thickness>
+    <Thickness x:Key="SettingPanelItemTopBottomMargin">0,4.5,0,4.5</Thickness>
+    <Thickness x:Key="SettingPanelItemLeftTopBottomMargin">9,4.5,0,4.5</Thickness>
+    <Thickness x:Key="SettingPanelItemRightTopBottomMargin">0,4.5,9,4.5</Thickness>
+
+    <Style x:Key="SettingPanelSeparatorStyle" TargetType="{x:Type Separator}">
+        <Setter Property="Margin" Value="0,8,0,8" />
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+    </Style>
+
+    <sys:Double x:Key="SettingPanelTextBoxMinWidth">180</sys:Double>
+    <sys:Double x:Key="SettingPanelPathTextBoxWidth">240</sys:Double>
+    <sys:Double x:Key="SettingPanelAreaTextBoxMinHeight">150</sys:Double>
+
+    <Style x:Key="SettingPanelTextBlockDescriptionStyle" TargetType="{x:Type TextBlock}">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Margin" Value="0,2,0,0" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    </Style>
+
+    <!-- Flow.Launcher standard settings container & label styles -->
+    <Style x:Key="SettingGroupBox" TargetType="{x:Type Border}">
+        <Setter Property="Background" Value="{DynamicResource SettingsCardBackground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SettingsRowBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="0,12" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+    <Style x:Key="SettingTitleLabel" TargetType="{x:Type TextBlock}">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,0,0,2" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style x:Key="SettingSubTitleLabel" TargetType="{x:Type TextBlock}">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Padding" Value="0,0,24,0" />
+        <Setter Property="TextWrapping" Value="WrapWithOverflow" />
+    </Style>
+    <Style x:Key="SettingGrid" TargetType="{x:Type ItemsControl}">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style x:Key="TextPanel" TargetType="{x:Type StackPanel}">
+        <Setter Property="Grid.Column" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+    <Style x:Key="SettingButton" TargetType="{x:Type Button}" BasedOn="{StaticResource SettingsButton}">
+        <Setter Property="Height" Value="28" />
+        <Setter Property="MinWidth" Value="60" />
+        <Setter Property="Margin" Value="4,0,0,0" />
+        <Setter Property="Padding" Value="10,0" />
+    </Style>
+
+    <!-- Color aliases mapped dynamically to Lertaro theme tokens -->
+    <StaticResource x:Key="Color00B" ResourceKey="SettingsCardBackground" />
+    <StaticResource x:Key="Color01B" ResourceKey="ContentBg" />
+    <StaticResource x:Key="Color02B" ResourceKey="HoverBackground" />
+    <StaticResource x:Key="Color03B" ResourceKey="SettingsRowBorderBrush" />
+    <StaticResource x:Key="Color04B" ResourceKey="TextSecondary" />
+    <StaticResource x:Key="Color05B" ResourceKey="TextPrimary" />
+    <StaticResource x:Key="Color06B" ResourceKey="ControlBackground" />
+    <StaticResource x:Key="Color07B" ResourceKey="ControlBackground" />
+    <StaticResource x:Key="Color08B" ResourceKey="TextSecondary" />
+    <StaticResource x:Key="Color09B" ResourceKey="HeaderBg" />
+    <StaticResource x:Key="Color10B" ResourceKey="AccentColor" />
+    <StaticResource x:Key="Color11B" ResourceKey="AccentColor" />
+    <StaticResource x:Key="Color12B" ResourceKey="ControlBorderBrush" />
+    <StaticResource x:Key="Color13B" ResourceKey="ControlBorderBrush" />
+    <StaticResource x:Key="Color14B" ResourceKey="ControlBorderBrush" />
+    <StaticResource x:Key="Color15B" ResourceKey="ControlHoverBackground" />
+    <StaticResource x:Key="Color16B" ResourceKey="ControlBorderBrush" />
+    <StaticResource x:Key="Color17B" ResourceKey="TextPrimary" />
+    <StaticResource x:Key="Color18B" ResourceKey="TextSecondary" />
+    <StaticResource x:Key="Color19B" ResourceKey="ControlBackground" />
+    <StaticResource x:Key="Color20B" ResourceKey="ControlBackground" />
+    <StaticResource x:Key="Color21B" ResourceKey="ControlBorderBrush" />
+    <StaticResource x:Key="Color22B" ResourceKey="ControlBackground" />
+    <StaticResource x:Key="Color23B" ResourceKey="ContentBg" />
+    <StaticResource x:Key="Color24B" ResourceKey="TextSecondary" />
+    <StaticResource x:Key="Color25B" ResourceKey="ControlBackground" />
+
+    <StaticResource x:Key="PopupBGColor" ResourceKey="MenuBackground" />
+    <StaticResource x:Key="PopupTextColor" ResourceKey="TextPrimary" />
+    <StaticResource x:Key="PopupButtonAreaBGColor" ResourceKey="ControlBackground" />
+    <StaticResource x:Key="PopupButtonAreaBorderColor" ResourceKey="ControlBorderBrush" />
+    <StaticResource x:Key="SystemThemeBorder" ResourceKey="ControlBorderBrush" />
+    <Style x:Key="AccentButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource PrimarySettingsButton}" />
+
+    <!-- Flow.Launcher standard named styles -->
+    <Style x:Key="DefaultButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource SettingsButton}">
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="MinWidth" Value="60"/>
+        <Setter Property="Margin" Value="4,0,0,0"/>
+        <Setter Property="Padding" Value="10,0"/>
+    </Style>
+    <Style x:Key="DefaultTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource RuleTextBox}">
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource AccentColor}"/>
+    </Style>
+    <Style x:Key="DefaultComboBoxStyle" TargetType="{x:Type ComboBox}" BasedOn="{StaticResource SettingsComboBox}">
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style x:Key="DefaultComboBoxItemStyle" TargetType="{x:Type ComboBoxItem}" BasedOn="{StaticResource SettingsComboBoxItem}">
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style x:Key="DefaultCheckBoxStyle" TargetType="{x:Type CheckBox}" BasedOn="{StaticResource ThemedCheckBox}">
+        <Setter Property="Margin" Value="0,6"/>
+    </Style>
+    <Style x:Key="DefaultListBoxStyle" TargetType="{x:Type ListBox}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="2"/>
+        <Setter Property="MinHeight" Value="80"/>
+    </Style>
+    <Style x:Key="DefaultListBoxItemStyle" TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource SidebarItemStyle}">
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="Margin" Value="0,1"/>
+    </Style>
+    <Style x:Key="DefaultRadioButtonStyle" TargetType="{x:Type RadioButton}">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="Margin" Value="0,4"/>
+    </Style>
+    <Style x:Key="DefaultTextBlockStyle" TargetType="{x:Type TextBlock}">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style x:Key="DefaultLabelStyle" TargetType="{x:Type Label}">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="0,0,0,4"/>
+    </Style>
+    <Style x:Key="DefaultSeparatorStyle" TargetType="{x:Type Separator}" BasedOn="{StaticResource SettingPanelSeparatorStyle}" />
+    <Style x:Key="SettingPanelHeaderTextBlockStyle" TargetType="{x:Type TextBlock}">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,4,0,4" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+    <Style x:Key="SettingPanelTextBlockStyle" TargetType="{x:Type TextBlock}">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+    <Style x:Key="SettingPanelTextBlockTitleStyle" TargetType="{x:Type TextBlock}">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+</ResourceDictionary>
