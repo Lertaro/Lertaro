@@ -122,7 +122,7 @@
   "QuickPanel_AcceptsDrops": "接收拖入的檔案",
   "QuickPanel_AcceptsDropsTooltip": "拖到這個分組上的檔案和資料夾會被複製進它的資料夾,使用 Windows 自己的檔案複製。永遠是複製,不會移動。",
   "QuickPanel_FilterPattern": "篩選",
-  "QuickPanel_FilterPatternTooltip": "可用「;」或「,」分隔多個模式(例如 *.mp4;*.mkv)。留空代表不篩選。",
+  "QuickPanel_FilterPatternTooltip": "可用「;」或「,」分隔多個模式(例如 *.mp4;*.mkv)，也可以使用搜尋篩選器（例如 :@doc 或 :@doc|img）。留空代表不篩選。",
   "QuickPanel_MaxItems": "最多",
   "QuickPanel_MaxAge": "修改於多少分鐘內",
   "QuickPanel_ProcessesDesc": "此工作區對應的應用程式,每行一個處理程序名稱(chrome 或 chrome.exe)。在這些應用程式上呼出面板時會自動切換到此工作區。",

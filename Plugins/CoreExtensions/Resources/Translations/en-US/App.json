@@ -122,7 +122,7 @@
   "QuickPanel_AcceptsDrops": "Accept dropped files",
   "QuickPanel_AcceptsDropsTooltip": "Files and folders dragged onto this group are copied into its folder, using Windows' own file copy. Always a copy, never a move.",
   "QuickPanel_FilterPattern": "Filter",
-  "QuickPanel_FilterPatternTooltip": "One or more patterns separated by ';' or ',' (e.g. *.mp4;*.mkv). Leave blank for no filtering.",
+  "QuickPanel_FilterPatternTooltip": "One or more patterns separated by ';' or ',' (e.g. *.mp4;*.mkv). You can also use search filters such as :@doc or :@doc|img. Leave blank for no filtering.",
   "QuickPanel_MaxItems": "At most",
   "QuickPanel_MaxAge": "Changed within (minutes)",
   "QuickPanel_ProcessesDesc": "Apps this workspace belongs to, one process name per line (chrome or chrome.exe). Summon the panel over one of them and it opens on this workspace.",
