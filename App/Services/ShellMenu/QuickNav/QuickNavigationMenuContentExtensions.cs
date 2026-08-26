@@ -215,11 +215,11 @@ internal static class QuickNavigationMenuContentExtensions
             }
         }
 
+        var resolvedItemPath = Helpers.FavoritePathResolver.Resolve(itemPath);
         var canNavigate = !string.IsNullOrEmpty(itemPath) &&
-                          (itemPath.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) ||
-                           itemPath.StartsWith("::", StringComparison.OrdinalIgnoreCase) ||
-                           Directory.Exists(itemPath) ||
-                           File.Exists(itemPath));
+                          (Helpers.FavoritePathResolver.IsVirtualPath(itemPath) ||
+                           Directory.Exists(resolvedItemPath) ||
+                           File.Exists(resolvedItemPath));
 
         Action triggerAction = () =>
         {

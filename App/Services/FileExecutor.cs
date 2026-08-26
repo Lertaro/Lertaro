@@ -70,6 +70,10 @@ public static class FileExecutor
     {
         try
         {
+            // Favorite targets are stored raw (e.g. %USERPROFILE%\Desktop); expand variables before
+            // the File.Exists/Directory.Exists checks below so those paths launch correctly.
+            path = Environment.ExpandEnvironmentVariables(path);
+
             var isVirtual = IsVirtualPath(path);
             if (isVirtual || File.Exists(path) || Directory.Exists(path))
             {

@@ -80,6 +80,17 @@ public sealed class FavoriteSearchHelperTests
     }
 
     [TestMethod]
+    public void CreateFavoriteUiResult_EnvironmentVariableFolder_IsDirectoryAndExpandsFullPath()
+    {
+        var fav = new FavoriteItemSetting { Name = "", Path = "%TEMP%" };
+
+        var ui = FavoriteSearchHelper.CreateFavoriteUiResult(fav, "q", 0);
+
+        Assert.IsTrue(ui.IsDir);
+        Assert.AreEqual(Environment.ExpandEnvironmentVariables("%TEMP%"), ui.FullPath);
+    }
+
+    [TestMethod]
     public void CreateFavoriteUiResult_PrefixesParentDirWithFavoriteStar()
     {
         var fav = new FavoriteItemSetting { Name = "My Docs", Path = @"C:\Documents" };

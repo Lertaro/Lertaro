@@ -22,6 +22,10 @@ internal static class ExplorerLocateHelper
 
     private static void LocateInExplorerCore(string path)
     {
+        // Expand environment variables first so "locate in Explorer" sees the same resolved path
+        // that FileExecutor.LaunchExistingPath already uses for opening favorites.
+        path = Environment.ExpandEnvironmentVariables(path);
+
         // A user-configured default file manager (see GitHub issue #180, FileExecutor.
         // TryBuildDefaultFileManagerStartInfo) takes over "open containing folder" too -- it can only open
         // the folder itself, not select-and-highlight the specific item within it the way

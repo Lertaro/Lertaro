@@ -97,15 +97,15 @@ public static class SearchResultMapper
                 // application", so it stays ahead of both. TypeRank never actually differentiates a
                 // favorite from anything else (IsCurated already does), so it's given the Files id here
                 // simply as the closest match to what a favorited path actually is.
-                var lookupPath = fav.Path.Length > 3 && fav.Path[^1] == '\\' ? fav.Path.TrimEnd('\\') : fav.Path;
-                var priority = historySnapshot.TryGetValue(lookupPath, out var hp) ? hp : int.MaxValue;
+                var normalizedFavPath = Helpers.FavoritePathResolver.NormalizeForComparison(fav.Path);
+                var priority = historySnapshot.TryGetValue(normalizedFavPath, out var hp) ? hp : int.MaxValue;
                 candidates.Add(new RankedCandidate(
                     FavoriteSearchHelper.CreateFavoriteUiResult(fav, query, 0),
                     IsCurated: true,
                     priority,
                     SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
                     weight,
-                    SearchResultHelper.NormalizePath(fav.Path)));
+                    normalizedFavPath));
             }
         }
 

@@ -13,8 +13,8 @@ public static class FavoriteSearchHelper
     private static string GetDisplayName(FavoriteItemSetting fav)
     {
         if (!string.IsNullOrWhiteSpace(fav.Name)) return fav.Name;
-        var expanded = Environment.ExpandEnvironmentVariables(fav.Path);
-        if (expanded.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) || expanded.StartsWith("::", StringComparison.OrdinalIgnoreCase))
+        var expanded = FavoritePathResolver.Expand(fav.Path);
+        if (FavoritePathResolver.IsVirtualPath(expanded))
             return ShellPathHelper.GetVirtualFolderDisplayName(expanded, fav.Path);
         if (FavoriteUrlHelper.IsWebUrl(fav.Path))
             return fav.Path.Trim();
@@ -38,8 +38,8 @@ public static class FavoriteSearchHelper
 
     public static AppSearchResult CreateFavoriteUiResult(FavoriteItemSetting fav, string query, int index)
     {
-        var expanded = Environment.ExpandEnvironmentVariables(fav.Path);
-        var isDir = expanded.StartsWith("::") || expanded.StartsWith("shell:") || Directory.Exists(expanded);
+        var resolved = FavoritePathResolver.Resolve(fav.Path);
+        var isDir = FavoritePathResolver.IsVirtualPath(fav.Path) || Directory.Exists(resolved);
         var label = TranslationManager.Instance["Search_ResultFavorite"];
 
         var displayName = GetDisplayName(fav);
@@ -47,9 +47,9 @@ public static class FavoriteSearchHelper
         return new AppSearchResult
         {
             Name = displayName,
-            FullPath = expanded,
+            FullPath = resolved,
             ParentDir = "★ " + label,
-            ContextDirectory = isDir ? expanded : (Path.GetDirectoryName(expanded) ?? expanded),
+            ContextDirectory = isDir ? resolved : (Path.GetDirectoryName(resolved) ?? resolved),
             IsDir = isDir,
             Drive = string.Empty,
             ResultKind = "File",

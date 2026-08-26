@@ -26,6 +26,7 @@ public class FavoritesSettingsViewModel : ViewModelBase
         BrowseFileCommand = new RelayCommand(BrowseFile);
         MoveUpCommand = new RelayCommand<FavoriteItemViewModel>(MoveUp);
         MoveDownCommand = new RelayCommand<FavoriteItemViewModel>(MoveDown);
+        AddPathPresetCommand = new RelayCommand<string>(AddPathPreset);
     }
 
     public ObservableCollection<FavoriteItemViewModel> Items { get; } = new();
@@ -37,6 +38,7 @@ public class FavoritesSettingsViewModel : ViewModelBase
     public ICommand BrowseFileCommand { get; }
     public ICommand MoveUpCommand { get; }
     public ICommand MoveDownCommand { get; }
+    public ICommand AddPathPresetCommand { get; }
 
     public string NewName
     {
@@ -56,14 +58,15 @@ public class FavoritesSettingsViewModel : ViewModelBase
             if (SetProperty(ref _newPath, value))
             {
                 CommandManager.InvalidateRequerySuggested();
-                // Don't auto-fill a name from a URL (GetFileName would give a stray last segment); leave it
-                // blank so the full URL shows as the display name.
-                if (string.IsNullOrWhiteSpace(NewName) && !string.IsNullOrWhiteSpace(value) && !FavoriteUrlHelper.IsWebUrl(value))
+                // A URL leaves the name blank so the full URL shows; a real file path auto-fills
+                // from its file name, and a shell virtual path auto-fills from the shell display name.
+                if (string.IsNullOrWhiteSpace(NewName) && !string.IsNullOrWhiteSpace(value)
+                    && !FavoriteUrlHelper.IsWebUrl(value))
                 {
                     try
                     {
-                        var expanded = Environment.ExpandEnvironmentVariables(value);
-                        if (expanded.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) || expanded.StartsWith("::", StringComparison.OrdinalIgnoreCase))
+                        var expanded = FavoritePathResolver.Expand(value);
+                        if (FavoritePathResolver.IsVirtualPath(expanded))
                         {
                             var virtualName = PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName(expanded, string.Empty);
                             if (!string.IsNullOrEmpty(virtualName))
@@ -94,6 +97,13 @@ public class FavoritesSettingsViewModel : ViewModelBase
         Items.Add(new FavoriteItemViewModel { Name = name, Path = path });
         NewName = string.Empty;
         NewPath = string.Empty;
+    }
+
+    public void AddPathPreset(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        NewName = string.Empty;
+        NewPath = path;
     }
 
     private void Remove(FavoriteItemViewModel item)
@@ -191,8 +201,8 @@ public class FavoriteItemViewModel : ViewModelBase
             if (!string.IsNullOrWhiteSpace(Name))
                 return Name;
 
-            var expanded = Environment.ExpandEnvironmentVariables(Path);
-            if (expanded.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) || expanded.StartsWith("::", StringComparison.OrdinalIgnoreCase))
+            var expanded = FavoritePathResolver.Expand(Path);
+            if (FavoritePathResolver.IsVirtualPath(expanded))
             {
                 return PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName(expanded, Path);
             }
