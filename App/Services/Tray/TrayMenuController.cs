@@ -39,6 +39,7 @@ internal sealed class TrayMenuController : IDisposable
     {
         EnsureInitialized();
         _showWindowOverride = null;
+        _showWindow!.Visibility = Visibility.Visible;
         CloseAnchor();
         _anchor = new Window
         {
@@ -64,10 +65,11 @@ internal sealed class TrayMenuController : IDisposable
         _menu.IsOpen = true;
     }
 
-    public void ShowAt(UIElement target, Action? onShowWindow)
+    public void ShowAt(UIElement target, Action? onShowWindow, bool hideShowWindow)
     {
         EnsureInitialized();
         _showWindowOverride = onShowWindow;
+        _showWindow!.Visibility = hideShowWindow ? Visibility.Collapsed : Visibility.Visible;
         _menu!.PlacementTarget = target;
         _menu.Placement = PlacementMode.MousePoint;
         _menu.IsOpen = true;

@@ -531,6 +531,7 @@
   "QuickNav_Loading": "(Cargando...)",
   "InlineSearch_QuickNavTooltip": "Navegación Rápida",
   "QuickSearch_LogoDragResetHint": "Clic para abrir el menú\nArrastra para mover\nClic derecho para restablecer la posición\nClic medio para alternar fijación",
+  "SearchWindow_LogoClickHint": "Clic para abrir el menú\nClic medio para alternar fijación",
   "Theme_Light": "Claro",
   "Theme_Dark": "Oscuro",
   "Theme_Nord": "Nord",

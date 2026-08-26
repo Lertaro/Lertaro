@@ -76,7 +76,8 @@ public class TrayIconService : IDisposable
         }
     }
 
-    public void ShowMenuAt(UIElement target, Action? onShowWindow = null) => _menu.ShowAt(target, onShowWindow);
+    public void ShowMenuAt(UIElement target, Action? onShowWindow = null, bool hideShowWindow = false) =>
+        _menu.ShowAt(target, onShowWindow, hideShowWindow);
 
     public void SetTrayIconVisible(bool visible)
     {

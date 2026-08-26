@@ -71,10 +71,9 @@
                              hit-testable, it only shows where the band already is. -->
                         <Grid Grid.Column="0" Margin="12,16,8,16">
                             <!-- No dedicated drag grip: the header itself is the grab area now, and the
-                                 logo drags too (this window leaves IsIconClickable false, so the icon's
-                                 own press handler does not mark the event handled and it bubbles up). -->
+                                 logo has its own click handler now, so it stays out of the drag gesture. -->
                             <!-- Shared SearchBoxControl component -->
-                            <app:SearchBoxControl x:Name="SearchBox" FontSize="15" Padding="0" IsIconOnLeft="True" SearchText="{Binding AdvancedQuery, Mode=TwoWay}" IsServiceRunning="{Binding IsServiceConnected}"/>
+                            <app:SearchBoxControl x:Name="SearchBox" FontSize="15" Padding="0" IsIconOnLeft="True" IsIconClickable="True" IconClickHint="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchWindow_LogoClickHint]}" SearchText="{Binding AdvancedQuery, Mode=TwoWay}" IsServiceRunning="{Binding IsServiceConnected}"/>
                         </Grid>
                         <!-- Drag grip: the affordance for the drag region above, which is otherwise
                              invisible and so undiscoverable (issue #195 asked for a title bar precisely

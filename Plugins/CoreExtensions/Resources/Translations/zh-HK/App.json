@@ -531,6 +531,7 @@
   "QuickNav_Loading": "(載入中...)",
   "InlineSearch_QuickNavTooltip": "快速導航",
   "QuickSearch_LogoDragResetHint": "按一下開啟選單\n拖曳移動視窗\n按右鍵重設位置\n中鍵切換置頂",
+  "SearchWindow_LogoClickHint": "按一下開啟選單\n中鍵切換置頂",
   "Theme_Light": "淺色",
   "Theme_Dark": "深色",
   "Theme_Nord": "北歐藍",

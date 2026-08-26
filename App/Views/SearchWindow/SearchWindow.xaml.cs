@@ -11,8 +11,8 @@ using ListBox = System.Windows.Controls.ListBox;
 using Grid = System.Windows.Controls.Grid;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.App.Services.AppWindow;
-
 using Lertaro.App.Services.ShellIcons;
+using Lertaro.App.Services.Tray;
 using Lertaro.App.Services.Theme;
 using Lertaro.App.Services.ShellMenu.Presenter;
 using Lertaro.App.Helpers.Visuals;
@@ -55,6 +55,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         _menuPresenter = new ShellMenuPresenter(this);
         _chromeHandler = new SearchWindowChromeHandler(this);
         _inputHandler = new SearchWindowInputHandler(this);
+        SearchBox.IconLeftClicked += (_, _) => TrayIconService.Instance?.ShowMenuAt(SearchBox, hideShowWindow: true);
         SearchBox.IconMiddleClicked += () => { Topmost = !Topmost; SearchBox.IsStayOpen = Topmost; };
         this.PreviewKeyDown += Window_PreviewKeyDown;
         this.StateChanged += SearchWindow_StateChanged;
