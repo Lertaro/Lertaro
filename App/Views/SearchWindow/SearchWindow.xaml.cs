@@ -33,6 +33,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     // replacing is still finishing its own hide -- the tail of that clears its query, which re-fires its
     // selection handler and would close a preview opened any earlier.
     private bool _restorePreviewOnFirstResult;
+    internal readonly string PowerWindowId = "full:" + Guid.NewGuid().ToString("N");
 
     public SearchWindow(string initialQuery = "", bool restorePreview = false)
     {
@@ -54,6 +55,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         _menuPresenter = new ShellMenuPresenter(this);
         _chromeHandler = new SearchWindowChromeHandler(this);
         _inputHandler = new SearchWindowInputHandler(this);
+        SearchBox.IconMiddleClicked += () => { Topmost = !Topmost; SearchBox.IsStayOpen = Topmost; };
         this.PreviewKeyDown += Window_PreviewKeyDown;
         this.StateChanged += SearchWindow_StateChanged;
 
@@ -275,6 +277,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         ShellIconHelper.ClearCache();
         PathCacheMaintenance.ClearAllPathCaches();
         Core.Win32Api.TrimWorkingSet();
+        PowerThrottlingHelper.WindowHidden(PowerWindowId);
         base.OnClosed(e);
     }
 
