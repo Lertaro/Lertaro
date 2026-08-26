@@ -165,4 +165,14 @@ public sealed class FavoriteSearchHelperTests
             Environment.SetEnvironmentVariable("TEST_SEARCH_FAV", null);
         }
     }
+
+    [TestMethod]
+    public void CreateFavoriteUiResult_ShellVirtualFolder_ResolvesNameAndSetsDirectory()
+    {
+        var fav = new FavoriteItemSetting { Name = "", Path = "shell:downloads" };
+        var ui = FavoriteSearchHelper.CreateFavoriteUiResult(fav, "q", 0);
+        var expectedName = Lertaro.PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName("shell:downloads", "shell:downloads");
+        Assert.AreEqual(expectedName, ui.Name);
+        Assert.IsTrue(ui.IsDir);
+    }
 }

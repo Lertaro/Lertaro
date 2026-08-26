@@ -59,6 +59,14 @@ public sealed class FavoritesSettingsViewModelTests
     }
 
     [TestMethod]
+    public void NewPath_ShellVirtualFolder_AutoFillsVirtualName()
+    {
+        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewPath = "shell:downloads" };
+        var expected = Lertaro.PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName("shell:downloads", "");
+        Assert.AreEqual(expected, vm.NewName);
+    }
+
+    [TestMethod]
     public void NewPath_ExplicitNameAlreadySet_IsNotOverwritten()
     {
         var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewName = "Custom" };
@@ -189,6 +197,14 @@ public sealed class FavoriteItemViewModelTests
         {
             Environment.SetEnvironmentVariable("TEST_FAV_DIR", null);
         }
+    }
+
+    [TestMethod]
+    public void DisplayName_ShellVirtualFolderNoName_ResolvesVirtualFolderDisplayName()
+    {
+        var vm = new FavoriteItemViewModel { Path = "shell:downloads" };
+        var expected = Lertaro.PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName("shell:downloads", "shell:downloads");
+        Assert.AreEqual(expected, vm.DisplayName);
     }
 
     [TestMethod]

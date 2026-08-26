@@ -14,7 +14,7 @@ public static class FavoriteSearchHelper
     {
         if (!string.IsNullOrWhiteSpace(fav.Name)) return fav.Name;
         var expanded = Environment.ExpandEnvironmentVariables(fav.Path);
-        if (expanded.StartsWith("shell:::", StringComparison.OrdinalIgnoreCase) || expanded.StartsWith("::", StringComparison.OrdinalIgnoreCase))
+        if (expanded.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) || expanded.StartsWith("::", StringComparison.OrdinalIgnoreCase))
             return ShellPathHelper.GetVirtualFolderDisplayName(expanded, fav.Path);
         if (FavoriteUrlHelper.IsWebUrl(fav.Path))
             return fav.Path.Trim();

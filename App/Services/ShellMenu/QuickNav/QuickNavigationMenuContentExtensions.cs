@@ -216,7 +216,7 @@ internal static class QuickNavigationMenuContentExtensions
         }
 
         var canNavigate = !string.IsNullOrEmpty(itemPath) &&
-                          (itemPath.StartsWith("shell:::", StringComparison.OrdinalIgnoreCase) ||
+                          (itemPath.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) ||
                            itemPath.StartsWith("::", StringComparison.OrdinalIgnoreCase) ||
                            Directory.Exists(itemPath) ||
                            File.Exists(itemPath));
