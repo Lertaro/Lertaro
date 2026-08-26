@@ -530,7 +530,7 @@
   "QuickNav_EmptySubmenu": "(Empty)",
   "QuickNav_Loading": "(Loading...)",
   "InlineSearch_QuickNavTooltip": "Quick Navigation",
-  "QuickSearch_LogoDragResetHint": "Click to open menu\nDrag to move\nRight-click to reset position",
+  "QuickSearch_LogoDragResetHint": "Click to open menu\nDrag to move\nRight-click to reset position\nMiddle-click to toggle pin",
   "Theme_Light": "Light",
   "Theme_Dark": "Dark",
   "Theme_Nord": "Nord",

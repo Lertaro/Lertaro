@@ -530,7 +530,7 @@
   "QuickNav_EmptySubmenu": "(비어 있음)",
   "QuickNav_Loading": "(불러오는 중...)",
   "InlineSearch_QuickNavTooltip": "빠른 탐색",
-  "QuickSearch_LogoDragResetHint": "클릭하여 메뉴 열기\n드래그하여 이동\n우클릭하여 위치 초기화",
+  "QuickSearch_LogoDragResetHint": "클릭하여 메뉴 열기\n드래그하여 이동\n우클릭하여 위치 초기화\n가운데 클릭으로 고정 전환",
   "Theme_Light": "밝게",
   "Theme_Dark": "어둡게",
   "Theme_Nord": "노르드",

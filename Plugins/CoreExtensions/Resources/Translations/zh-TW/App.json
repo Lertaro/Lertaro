@@ -530,7 +530,7 @@
   "QuickNav_EmptySubmenu": "(空)",
   "QuickNav_Loading": "(載入中...)",
   "InlineSearch_QuickNavTooltip": "快速導航",
-  "QuickSearch_LogoDragResetHint": "點選開啟選單\n拖動移動視窗\n右鍵重置位置",
+  "QuickSearch_LogoDragResetHint": "點選開啟選單\n拖動移動視窗\n右鍵重置位置\n中鍵切換置頂",
   "Theme_Light": "淺色",
   "Theme_Dark": "深色",
   "Theme_Nord": "北歐藍",

@@ -530,7 +530,7 @@
   "QuickNav_EmptySubmenu": "（空）",
   "QuickNav_Loading": "（読み込み中...）",
   "InlineSearch_QuickNavTooltip": "クイックナビゲーション",
-  "QuickSearch_LogoDragResetHint": "クリックしてメニューを開く\nドラッグして移動\n右クリックで位置をリセット",
+  "QuickSearch_LogoDragResetHint": "クリックでメニューを開く\nドラッグで移動\n右クリックで位置をリセット\n中央クリックでピン留めを切り替え",
   "Theme_Light": "ライト",
   "Theme_Dark": "ダーク",
   "Theme_Nord": "ノルド",
