@@ -3,12 +3,22 @@ using Lertaro.PluginSdk.Abstractions;
 namespace Lertaro.Core;
 
 
-public class SearchResult
+public class SearchResult : ISearchResult
 {
     public string Name { get; set; } = string.Empty;
     public string Path { get; set; } = string.Empty;
+
+    /// <summary>Plugin SDK contract alias for <see cref="Path"/>.</summary>
+    public string FullPath => Path;
+
+    /// <summary>Plugin SDK contract: the directory a result lives in (itself for folders).</summary>
+    public string ContextDirectory => IsDir ? Path : System.IO.Path.GetDirectoryName(Path) ?? Drive + ":\\";
+
     public bool IsDir { get; set; }
     public string Drive { get; set; } = string.Empty;
+
+    public bool IsApplication => false;
+
     public FileAttributes Attributes { get; set; }
     internal ulong RankSortKey { get; set; }
 
