@@ -31,7 +31,7 @@ Cada origen representa un grupo independiente dentro del espacio de trabajo:
   - **Todos los archivos, por nombre** —— Funciona como una barra fija de accesos directos.
 - **Incluir subcarpetas**: Incluye archivos descendientes de forma recursiva.
 - **Aceptar archivos arrastrados**: Permite arrastrar archivos, carpetas o imágenes web desde otras ventanas. Lertaro ejecuta una copia nativa de Windows con avisos de conflicto y opción de deshacer.
-- **Reglas de filtrado**: Filtra las extensiones visibles mediante comodines (p. ej. `*.mp4;*.mkv` o `*.pdf;*.docx`).
+- **Reglas de filtrado**: Filtra las extensiones visibles mediante comodines o filtros `@` de la sintaxis de búsqueda (p. ej. `*.mp4;*.mkv`, `*.lnk;:@doc;:@img` o `*.lnk;:@doc|img`).
 - **Límite de elementos y tiempo**: Restringe la cantidad máxima visible (0 para ilimitado) o muestra solo archivos modificados en los últimos N minutos.
 - **Lista detallada frente a mosaico de miniaturas**: Escoge entre vista de lista compacta o cuadrícula de miniaturas (las miniaturas escalan proporcionalmente conservando su formato original).
 
