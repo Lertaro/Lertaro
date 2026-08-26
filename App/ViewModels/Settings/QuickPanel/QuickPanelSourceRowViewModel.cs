@@ -3,7 +3,10 @@ using Lertaro.Core;
 namespace Lertaro.App.ViewModels.Settings.QuickPanel;
 
 /// <summary>One entry of the kind dropdown: the value that is stored, and the label that is shown.</summary>
-public sealed record QuickPanelSourceKindOption(QuickPanelSourceKind Value, string Label);
+public sealed record QuickPanelSourceKindOption(QuickPanelSourceKind Value, string Label)
+{
+    public override string ToString() => Label;
+}
 
 /// <summary>
 /// One row of a tab's source list, which is also one group in the panel. Folders are the only kind of

@@ -70,6 +70,12 @@ public class HotkeyPageSettings
     /// </summary>
     public bool AllowHotkeysInFullscreen { get; set; }
 
+    /// <summary>
+    /// When true, the toggle hotkey opens the full SearchWindow by default instead of the
+    /// QuickSearchWindow.
+    /// </summary>
+    public bool OpenFullWindowByDefault { get; set; }
+
     /// <summary>Same flat format as <see cref="ToggleWindowHotkey"/>.</summary>
     public string QuickSwitchHotkey { get; set; } = "Ctrl+G";
 

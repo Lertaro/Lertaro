@@ -101,7 +101,7 @@ internal static class SettingsWindowSearchExtensions
 
         var hotkeysSectionLabel = TranslationManager.Instance["Settings_Hotkeys"];
         var pluginActionsTabLabel = TranslationManager.Instance["Hotkeys_Tab_PluginActions"];
-        var pluginActionGroups = vm?.Hotkeys.PluginActionGroups ?? (IEnumerable<PluginActionGroupViewModel>)HotkeySettingsViewModel.BuildPluginActionGroups(UserSettings.Load().Hotkeys.PluginActionHotkeys);
+        var pluginActionGroups = vm?.Hotkeys.PluginActionGroups ?? (IEnumerable<PluginActionGroupViewModel>)HotkeyPluginActionGroupBuilder.Build(UserSettings.Load().Hotkeys.PluginActionHotkeys);
         foreach (var group in pluginActionGroups)
         {
             var capturedGroup = group;

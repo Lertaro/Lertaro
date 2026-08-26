@@ -138,10 +138,11 @@ public partial class App : Application
             {
                 InlineSearchManager.Instance.FocusSearchBox();
             }
+            else if (UserSettings.Load().Hotkeys.OpenFullWindowByDefault)
+                AppWindowManager.ToggleSearchWindow();
             else
             {
-                var quickSearchWindow = Current.MainWindow as QuickSearchWindow;
-                quickSearchWindow?.ToggleVisibility();
+                (Current.MainWindow as QuickSearchWindow)?.ToggleVisibility();
             }
         }));
         HookClient.OnQuickPanelHotkey += () => Dispatcher.BeginInvoke(

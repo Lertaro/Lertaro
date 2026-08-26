@@ -56,6 +56,10 @@
                       IsChecked="{Binding AllowHotkeysInFullscreen, Mode=TwoWay}"/>
         </Grid>
 
+        <CheckBox x:Name="RowOpenFullWindowByDefault" Margin="0,6,0,0"
+                  Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_OpenFullWindowByDefault]}"
+                  IsChecked="{Binding OpenFullWindowByDefault, Mode=TwoWay}"/>
+
         <Grid x:Name="RowQuickSwitch" Margin="0,8,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" SharedSizeGroup="HotkeyLabel"/>
@@ -67,7 +71,7 @@
                 RequireModifier="True" DefaultValue="Ctrl+G"/>
         </Grid>
 
-        <TextBlock x:Name="RowSelectionTitle" Style="{StaticResource SettingsSubHeading}"
+        <TextBlock x:Name="RowSelectionTitle" Style="{StaticResource SettingsSubHeading}" FontSize="15"
                    Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_SelectionTitle]}"/>
 
         <Grid x:Name="RowSelectNext" Margin="0,4,0,0">

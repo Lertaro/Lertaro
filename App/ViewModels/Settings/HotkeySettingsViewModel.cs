@@ -1,10 +1,7 @@
 using System.Windows.Input;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
-using Lertaro.App.Services.PluginManagerCore;
 using Lertaro.Core;
-
-using Lertaro.App.Services.Plugin;
 using Lertaro.Core.Wire;
 namespace Lertaro.App.ViewModels.Settings;
 
@@ -21,6 +18,7 @@ public class HotkeySettingsViewModel : ViewModelBase
         // Initialize local bindings from user settings
         _toggleHotkeyValue = hotkeys.ToggleWindowHotkey;
         _allowHotkeysInFullscreen = hotkeys.AllowHotkeysInFullscreen;
+        _openFullWindowByDefault = hotkeys.OpenFullWindowByDefault;
         _quickSwitchHotkeyValue = hotkeys.QuickSwitchHotkey;
 
         _quickNavTriggerOnDoubleClick = hotkeys.QuickNavTriggerOnDoubleClick;
@@ -40,7 +38,7 @@ public class HotkeySettingsViewModel : ViewModelBase
         _stayOpenHotkey = hotkeys.StayOpenHotkey;
         _quickPanelHotkey = hotkeys.QuickPanelHotkey;
 
-        PluginActionGroups = BuildPluginActionGroups(hotkeys.PluginActionHotkeys);
+        PluginActionGroups = HotkeyPluginActionGroupBuilder.Build(hotkeys.PluginActionHotkeys);
 
         // Plugin action DisplayName/plugin Name are read live off the action/plugin objects, so they
         // need an explicit refresh on a runtime language switch (nothing else re-raises them).
@@ -69,43 +67,6 @@ public class HotkeySettingsViewModel : ViewModelBase
     public BlacklistSettingsViewModel Blacklist { get; }
 
     public List<PluginActionGroupViewModel> PluginActionGroups { get; }
-
-    // Internal, not private: also called by SettingsWindowSearchExtensions.BuildAllEntries to build the
-    // same groups (in the same PluginManager.Instance.AllActions order) for settings search, both for
-    // the in-app search box when no live HotkeySettingsViewModel exists yet and for the SDK-facing
-    // SettingsSearchService feed, which never has a live SettingsViewModel at all.
-    internal static List<PluginActionGroupViewModel> BuildPluginActionGroups(Dictionary<string, Dictionary<string, string>> overrides)
-    {
-        var groups = new List<PluginActionGroupViewModel>();
-        foreach (var pluginGroup in PluginManager.Instance.AllActions.GroupBy(r => r.Plugin))
-        {
-            // Matches the plugin ID convention already used by PluginSettings/PluginConfigFieldViewModel:
-            // the DLL file name with its extension stripped (e.g. "Lertaro.Plugins.CoreExtensions").
-            var pluginId = System.IO.Path.GetFileNameWithoutExtension(ComponentFilter.GetDllName(pluginGroup.Key));
-            // Excludes actions that declare Parameters (e.g. TouchAction/MkdirAction's "filename"/
-            // "foldername") -- those only make sense invoked by typing their Keywords ("touch foo.txt"),
-            // which is where the actual argument comes from. A hotkey press has no such text to supply,
-            // and these actions don't override IsVisibleInMenu to offer a parameter-free fallback the way
-            // OpenCommandPromptAction does (its own Keywords-based "cmd"/"cmda" typing is one path, but it
-            // also stays hotkey-able whenever a single folder is selected) -- so a configured hotkey for
-            // one of these would sit in Settings looking functional while never actually firing, in any
-            // window, because HotkeyActionTrigger's dispatch (App\Helpers\HotkeyActionTrigger.cs) requires
-            // IsVisibleInMenu to be true, whose default implementation is `Keywords.Count == 0`.
-            var hotkeyConfigurableActions = pluginGroup.Where(reg => reg.Action.Parameters.Count == 0);
-            var items = hotkeyConfigurableActions.Select(reg =>
-            {
-                var currentValue = overrides.TryGetValue(pluginId, out var pluginOverrides)
-                     && pluginOverrides.TryGetValue(reg.Action.GetType().Name, out var overrideValue)
-                    ? overrideValue
-                    : reg.Action.Hotkey;
-                return new PluginActionHotkeyItemViewModel(pluginId, reg.Action, currentValue);
-            }).ToList();
-
-            if (items.Count > 0)
-                groups.Add(new PluginActionGroupViewModel(pluginGroup.Key, items));
-        }
-        return groups;
-    }
 
     // Quick Navigation properties
     private bool _quickNavTriggerOnDoubleClick;
@@ -147,6 +108,14 @@ public class HotkeySettingsViewModel : ViewModelBase
     {
         get => _allowHotkeysInFullscreen;
         set => SetProperty(ref _allowHotkeysInFullscreen, value);
+    }
+
+    // When true, the toggle hotkey opens the full SearchWindow instead of the QuickSearchWindow.
+    private bool _openFullWindowByDefault;
+    public bool OpenFullWindowByDefault
+    {
+        get => _openFullWindowByDefault;
+        set => SetProperty(ref _openFullWindowByDefault, value);
     }
 
     // Quick Switch: same flat format, bound directly to the recorder (combo-only in the current UI).
@@ -257,6 +226,7 @@ public class HotkeySettingsViewModel : ViewModelBase
 
         hotkeys.ToggleWindowHotkey = ToggleHotkeyValue;
         hotkeys.AllowHotkeysInFullscreen = AllowHotkeysInFullscreen;
+        hotkeys.OpenFullWindowByDefault = OpenFullWindowByDefault;
         hotkeys.QuickSwitchHotkey = QuickSwitchComboHotkey;
 
         hotkeys.QuickNavTriggerOnDoubleClick = QuickNavTriggerOnDoubleClick;

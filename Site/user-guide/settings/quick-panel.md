@@ -31,7 +31,7 @@ Each source represents a distinct group within the workspace:
   - **All files, by name** — Functions as a pinned shortcut launcher.
 - **Include Subfolders**: Recursively includes descendant files when checked.
 - **Accept Dropped Files**: Allows dragging files, folders, or web images from other windows into this group. Lertaro executes a native Windows copy with conflict prompts and undo support.
-- **Filtering Rules**: Uses wildcard patterns to constrain displayed file types (e.g. `*.mp4;*.mkv` or `*.pdf;*.docx`).
+- **Filtering Rules**: Uses wildcard patterns or search-syntax `@` filters to constrain displayed file types (e.g. `*.mp4;*.mkv`, `*.lnk;:@doc;:@img`, or `*.lnk;:@doc|img`).
 - **Max Count & Time Limit**: Limits total items displayed (0 for unlimited) or restricts results to files modified within N minutes.
 - **Detailed List vs. Thumbnail Tiles**: Choose between a compact list view or thumbnail grid (tiles scale proportionally while preserving image aspect ratios).
 

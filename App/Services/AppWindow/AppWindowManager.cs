@@ -1,4 +1,5 @@
 using System.Windows;
+using Lertaro.App.Views.QuickSearchWindow.Helpers;
 using Lertaro.Core;
 
 namespace Lertaro.App.Services.AppWindow;
@@ -80,19 +81,42 @@ public static class AppWindowManager
     {
         if (System.Windows.Application.Current == null) return;
 
+        System.Windows.Application.Current.Dispatcher.Invoke(() => ShowSearchWindowCore());
+    }
+
+    /// <summary>
+    /// Toggles the full SearchWindow for the global hotkey when "open full panel by default" is on:
+    /// closes the visible full window if one is up, otherwise shows (or restores) the full window.
+    /// </summary>
+    public static void ToggleSearchWindow()
+    {
+        if (System.Windows.Application.Current == null) return;
+
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
-            if (_searchWindow == null)
+            var visible = System.Windows.Application.Current.Windows.OfType<SearchWindow>().FirstOrDefault(w => w.IsVisible);
+            if (visible != null)
             {
-                _searchWindow = UserSettings.Load().MainWindow.SingleInstance
-                    ? System.Windows.Application.Current.Windows.OfType<SearchWindow>().FirstOrDefault()
-                    : null;
-                _searchWindow ??= new SearchWindow();
-                _searchWindow.Closed += (_, _) => _searchWindow = null;
+                visible.Close();
+                return;
             }
 
-            ShowAndActivateSearchWindow(_searchWindow);
+            ShowSearchWindowCore();
         });
+    }
+
+    private static void ShowSearchWindowCore()
+    {
+        if (_searchWindow == null)
+        {
+            _searchWindow = UserSettings.Load().MainWindow.SingleInstance
+                ? System.Windows.Application.Current.Windows.OfType<SearchWindow>().FirstOrDefault()
+                : null;
+            _searchWindow ??= new SearchWindow();
+            _searchWindow.Closed += (_, _) => _searchWindow = null;
+        }
+
+        ShowAndActivateSearchWindow(_searchWindow);
     }
 
     // "Show more" is the only route that normally creates additional full windows. When the user
@@ -109,8 +133,7 @@ public static class AppWindowManager
                 : null;
             if (existing == null)
             {
-                new SearchWindow(query, restorePreview).Show();
-                ViewModels.Search.SearchReachabilityGate.BeginSession();
+                ShowAndActivateSearchWindow(new SearchWindow(query, restorePreview));
                 return;
             }
 
@@ -122,6 +145,19 @@ public static class AppWindowManager
 
     private static void ShowAndActivateSearchWindow(SearchWindow window)
     {
+        // Mirrors QuickSearchWindowController.ShowWindow's pre-show sequence: shell overlays are
+        // dismissed while they still truthfully hold the foreground, and power throttling is lifted
+        // before the first frame paints. Unlike the quick window, the full window is not permanently
+        // topmost in XAML, so the false->true reassert below is what makes a hotkey summon surface
+        // above other windows (auto topmost); the icon middle-click toggles it back off.
+        ShellOverlayDismissHelper.DismissOverlayIfForeground();
+        PowerThrottlingHelper.WindowShowing(window.PowerWindowId);
+
+        // Auto-topmost on popup, same reassert the quick window does; the icon indicator follows it.
+        window.Topmost = false;
+        window.Topmost = true;
+        window.SearchBox.IsStayOpen = true;
+
         if (!window.IsVisible)
             window.Show();
         if (window.WindowState == WindowState.Minimized)

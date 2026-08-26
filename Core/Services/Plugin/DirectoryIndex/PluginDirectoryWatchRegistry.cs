@@ -13,7 +13,7 @@ internal sealed class MonitoredDir
 // single patterns Directory.EnumerateFiles accepts one at a time, and matched with the same Win32
 // wildcard semantics that call would apply, so an index-backed enumeration and a live filesystem walk
 // of the same directory agree on which names the pattern selects.
-internal static class FilterPatternHelper
+public static class FilterPatternHelper
 {
     public static string[] Split(string filterPattern)
     {

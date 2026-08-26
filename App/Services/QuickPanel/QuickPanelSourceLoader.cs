@@ -1,4 +1,6 @@
+using Lertaro.App.Services.Plugin;
 using Lertaro.Core;
+using Lertaro.Core.Services.Plugin.DirectoryIndex;
 using Lertaro.Core.Services.Search;
 
 namespace Lertaro.App.Services.QuickPanel;
@@ -33,6 +35,8 @@ public static class QuickPanelSourceLoader
         if (string.IsNullOrWhiteSpace(source.Path))
             return new List<SearchResult>();
 
+        var filter = QuickPanelFilterParser.Parse(source.FilterPattern, GetGlobalTokenPrefix());
+
         if (source.Kind == QuickPanelSourceKind.RecentFiles)
         {
             // The recency query is the index's own: it already returns newest-first across the whole
@@ -40,19 +44,79 @@ public static class QuickPanelSourceLoader
             var recent = await new SearchService()
                 .GetRecentFilesAsync(new[] { source.Path }, source.MaxItems, EffectiveMaxAge(source), token)
                 .ConfigureAwait(false);
+            if (filter.HasTokenFilters)
+            {
+                // ponytail: token filters run after the recency cap, so a filtered recent-files source
+                // can show fewer than MaxItems; fetching unbounded recency first would cost too much.
+                recent = await ApplyFilterAsync(recent, filter).ConfigureAwait(false);
+            }
             progress?.Report(recent);
             return recent;
         }
 
-        var results = new List<SearchResult>();
-        var batch = new List<SearchResult>(64);
+        if (filter.HasTokenFilters)
+        {
+            // Enumerate without a file pattern: glob and token entries are OR-ed, so narrowing the
+            // enumeration to the glob subset would silently drop every token-only match.
+            var results = new List<SearchResult>();
+            var batch = new List<SearchResult>(64);
+            await IndexedDirectoryEnumerator.EnumerateAsync(source.Path, source.Recursive, string.Empty,
+                result => AddResult(result, source.Kind, results, batch, progress), limit: 0, token).ConfigureAwait(false);
+
+            if (batch.Count > 0)
+                progress?.Report(batch);
+
+            results = await ApplyFilterAsync(results, filter).ConfigureAwait(false);
+            return Order(results, source.Kind, source.SortByModified, source.MaxItems);
+        }
+
+        var all = new List<SearchResult>();
+        var normalBatch = new List<SearchResult>(64);
         await IndexedDirectoryEnumerator.EnumerateAsync(source.Path, source.Recursive, source.FilterPattern,
-            result => AddResult(result, source.Kind, results, batch, progress), limit: 0, token).ConfigureAwait(false);
+            result => AddResult(result, source.Kind, all, normalBatch, progress), limit: 0, token).ConfigureAwait(false);
 
-        if (batch.Count > 0)
-            progress?.Report(batch);
+        if (normalBatch.Count > 0)
+            progress?.Report(normalBatch);
 
-        return Order(results, source.Kind, source.SortByModified, source.MaxItems);
+        return Order(all, source.Kind, source.SortByModified, source.MaxItems);
+    }
+
+    private static async Task<List<SearchResult>> ApplyFilterAsync(List<SearchResult> results, QuickPanelFilterSpec filter)
+    {
+        if (!filter.HasTokenFilters)
+            return results;
+
+        var matched = new HashSet<SearchResult>();
+        if (filter.GlobPatterns.Length > 0)
+        {
+            foreach (var result in results)
+            {
+                if (FilterPatternHelper.Matches(result.Name, filter.GlobPatterns))
+                    matched.Add(result);
+            }
+        }
+
+        foreach (var token in filter.TokenFilters)
+        {
+            var provider = PluginManager.Instance.QueryTokenProviders.FirstOrDefault(p => p.CanHandle(token));
+            if (provider == null)
+                continue; // entry did not fully match search syntax -- ignore it
+
+            var filtered = await provider.ApplyAsync(token, results);
+            foreach (var item in filtered)
+            {
+                if (item is SearchResult sr)
+                    matched.Add(sr);
+            }
+        }
+
+        return results.Where(matched.Contains).ToList();
+    }
+
+    private static char GetGlobalTokenPrefix()
+    {
+        var prefix = UserSettings.Load().GlobalTokenPrefix;
+        return string.IsNullOrEmpty(prefix) ? ':' : prefix[0];
     }
 
     private static void AddResult(

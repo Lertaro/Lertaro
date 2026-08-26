@@ -19,7 +19,7 @@
             <!-- Left Icon Grid (Visible only when IsIconOnLeft is True) -->
             <Grid Grid.Column="0" Margin="0,0,11,0" VerticalAlignment="Center"
                   MouseRightButtonUp="Icon_MouseRightButtonUp"
-                  MouseLeftButtonDown="Icon_MouseLeftButtonDown" MouseLeftButtonUp="Icon_MouseLeftButtonUp" MouseMove="Icon_MouseMove"
+                  MouseLeftButtonDown="Icon_MouseLeftButtonDown" MouseLeftButtonUp="Icon_MouseLeftButtonUp" MouseMove="Icon_MouseMove" MouseUp="Icon_MouseUp"
                   ToolTip="{Binding IconClickHint, ElementName=root}">
                 <Grid.Style>
                     <Style TargetType="Grid">
@@ -45,6 +45,10 @@
                             <Setter Property="Background" Value="{DynamicResource TextSecondary}"/>
                             <Setter Property="Opacity" Value="0.5"/>
                             <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsStayOpen, ElementName=root}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource TextPrimary}"/>
+                                    <Setter Property="Opacity" Value="1.0"/>
+                                </DataTrigger>
                                 <DataTrigger Binding="{Binding IsServiceRunning, ElementName=root}" Value="False">
                                     <Setter Property="Background" Value="{DynamicResource WarningBrush}"/>
                                     <Setter Property="Opacity" Value="0.8"/>
