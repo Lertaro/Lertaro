@@ -7,6 +7,7 @@ The Hotkeys settings page centralizes management of global summon hotkeys, in-ap
 ### Global Hotkeys Group
 
 - **Show/Hide Quick Search**: Dedicated key recording box. Supports **double-tap mode** (default double `Ctrl`, configurable to double `Alt` or `Shift`) as well as **standard key combinations** (e.g. `Alt+Space`, `Win+Space`).
+- **Open full panel by default**: Checkbox (default disabled). When enabled, the global summon hotkey opens and toggles the Full Window instead of the Quick Window. When opened this way, the Full Window is forced above other windows; opening it through **Open Full Window**, the tray menu, or another entry point does not force it above other windows.
 - **Respond when focused on full-screen applications**: Checkbox (default disabled). When enabled, Lertaro responds to hotkeys even when an exclusive fullscreen game or media player is active; when disabled, keys are bypassed silently to protect gameplay.
 - **Quick Jump**: Default `Ctrl+G`. In file dialogs, jumps immediately to the directory most recently browsed in supported file managers.
 

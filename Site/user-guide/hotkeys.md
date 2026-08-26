@@ -6,7 +6,7 @@ Lertaro embraces a keyboard-first interaction philosophy while offering rich mou
 
 | Action | Default Hotkey | Description & Interaction Details |
 | :--- | :--- | :--- |
-| **Toggle Quick Window** | Double-tap `Ctrl` | Can be set to a double-tap mode or standard key combinations (e.g. `Alt+Space`, `Win+Space`). |
+| **Toggle Quick Window** | Double-tap `Ctrl` | Can be set to a double-tap mode or standard key combinations (e.g. `Alt+Space`, `Win+Space`). When **Open full panel by default** is enabled, this shortcut opens and toggles the Full Window instead; that Full Window is forced above other windows when opened this way. |
 | **Quick Jump** | `Ctrl+G` | Jumps file dialogs directly to the directory most recently browsed in a supported file manager or Quick Panel. |
 | **Select Next Item** | `Ctrl+N` or `↓` | Moves highlight down. Navigates seamlessly across groups in the Quick Panel. |
 | **Select Previous Item** | `Ctrl+P` or `↑` | Moves highlight up. Navigates seamlessly across groups in the Quick Panel. |
@@ -39,7 +39,7 @@ The small logo inside the search box is not just an indicator — it provides se
 ### Inline and Full Window Icons
 
 - **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows.
-- **Full Window**: Purely decorative.
+- **Full Window**: Left-clicking the logo opens the context menu; **Open Full Window** is hidden there because the window is already open. Middle-clicking toggles the window's pinned state.
 
 ## 3. Quick Navigation (Mouse Triggers)
 

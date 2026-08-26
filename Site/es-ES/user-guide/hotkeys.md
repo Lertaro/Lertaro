@@ -6,7 +6,7 @@ Lertaro adopta una filosofía de interacción centrada en el teclado, complement
 
 | Acción | Atajo predeterminado | Descripción y detalles de interacción |
 | :--- | :--- | :--- |
-| **Mostrar/Ocultar Ventana rápida** | Doble pulsación de `Ctrl` | Configurable en modo doble pulsación o combinación estándar (p. ej. `Alt+Space`, `Win+Space`). |
+| **Mostrar/Ocultar Ventana rápida** | Doble pulsación de `Ctrl` | Configurable en modo doble pulsación o combinación estándar (p. ej. `Alt+Space`, `Win+Space`). Si se activa **Abrir el panel principal de forma predeterminada**, este atajo abre y alterna la Ventana principal; al abrirla de este modo, queda por encima de las demás ventanas. |
 | **Salto rápido (Quick Jump)** | `Ctrl+G` | En cuadros de diálogo, salta directamente a la carpeta consultada recientemente en exploradores o en el Panel rápido. |
 | **Seleccionar elemento siguiente** | `Ctrl+N` o `↓` | Mueve el resaltado hacia abajo. En el Panel rápido se desplaza fluidamente entre grupos. |
 | **Seleccionar elemento anterior** | `Ctrl+P` o `↑` | Mueve el resaltado hacia arriba. En el Panel rápido también se desplaza entre grupos. |
@@ -39,7 +39,7 @@ El pequeño logotipo en la barra de búsqueda no es solo estético: ofrece múlt
 ### Iconos en la Ventana incrustada y Ventana principal
 
 - **Ventana incrustada**: Al incrustarse en diálogos nativos (Abrir/Guardar/Examinar), hacer clic izquierdo en el icono abre el menú de [**Navegación rápida**](#3-navegacion-rapida-activadores-de-raton); desactivado en el Explorador ordinario.
-- **Ventana principal**: Exclusivamente decorativo.
+- **Ventana principal**: Al hacer clic izquierdo en el icono se abre el menú contextual; **Mostrar ventana principal** se oculta porque la ventana ya está abierta. El clic central alterna el estado de fijación de la ventana.
 
 ## 3. Navegación rápida (Activadores de ratón)
 

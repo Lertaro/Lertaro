@@ -7,6 +7,7 @@ La página de Atajos de teclado centraliza la gestión de atajos de invocación 
 ### Atajos globales
 
 - **Mostrar/Ocultar búsqueda rápida**: Grabador de teclas dedicado. Admite **modo de doble pulsación** (por defecto doble `Ctrl`, configurable a doble `Alt` o `Shift`) y **combinaciones estándar** (p. ej. `Alt+Space`, `Win+Space`).
+- **Abrir el panel principal de forma predeterminada**: Casilla (desactivada por defecto). Al activarla, el atajo global abre y alterna la Ventana principal en lugar de la Ventana rápida. Cuando se abre de este modo, queda por encima de las demás ventanas; abrirla mediante **Abrir ventana principal**, el menú de la bandeja u otra entrada no la fuerza por encima de las demás.
 - **Responder al enfocar aplicaciones a pantalla completa**: Casilla (desactivada por defecto). Permite responder a los atajos incluso con juegos o reproductores a pantalla completa; si está desactivada, los atajos se omiten para no interrumpir.
 - **Salto rápido (Quick Jump)**: Por defecto `Ctrl+G`. En diálogos de archivos, salta a la carpeta navegada recientemente en exploradores compatibles.
 
