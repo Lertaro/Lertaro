@@ -80,12 +80,11 @@ public sealed class FlowSettingsStorageTests
     }
 
     [TestMethod]
-    public void GetPluginSettingsDirectory_DefaultConstructor_ResolvesUnderSettingsFolder()
+    public void GetPluginSettingsDirectory_DefaultConstructor_ResolvesUnderPluginSettingsFolder()
     {
         var storage = new FlowSettingsStorage();
         var dir = storage.GetPluginSettingsDirectory("my-plugin");
 
-        Assert.IsTrue(dir.Contains(Path.Combine("FlowData", "Settings", "my-plugin"), StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(dir.Contains(Path.Combine("FlowData", "Settings", "Plugins"), StringComparison.OrdinalIgnoreCase));
+        Assert.IsTrue(dir.Contains(Path.Combine("FlowData", "Settings", "Plugins", "my-plugin"), StringComparison.OrdinalIgnoreCase));
     }
 }
