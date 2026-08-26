@@ -24,7 +24,7 @@ public sealed class FlowPythonDownloaderTests
     }
 
     [TestMethod]
-    public void EnsureSiteCustomizeInstalled_CreatesSiteCustomizeWithSettingsRemapping()
+    public void EnsureSiteCustomizeInstalled_DoesNotInjectLegacySettingsRemapping()
     {
         FlowPythonDownloader.EnsureSiteCustomizeInstalled(_tempDir);
 
@@ -32,9 +32,9 @@ public sealed class FlowPythonDownloaderTests
         Assert.IsTrue(File.Exists(file));
 
         var content = File.ReadAllText(file);
-        StringAssert.Contains(content, "_remap_settings_path");
-        StringAssert.Contains(content, "os.stat = _hooked_stat");
-        StringAssert.Contains(content, "os.path.exists = _hooked_exists");
-        StringAssert.Contains(content, "builtins.open = _hooked_open");
+        Assert.IsFalse(content.Contains("_remap_settings_path", StringComparison.Ordinal));
+        Assert.IsFalse(content.Contains("_hooked_stat", StringComparison.Ordinal));
+        Assert.IsFalse(content.Contains("_hooked_exists", StringComparison.Ordinal));
+        Assert.IsFalse(content.Contains("_hooked_open", StringComparison.Ordinal));
     }
 }

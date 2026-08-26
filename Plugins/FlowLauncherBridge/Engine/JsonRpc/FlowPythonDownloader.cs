@@ -107,8 +107,6 @@ class _FloxLoader(importlib.abc.Loader):
                 ""def app_settings(self):\n        try:\n            with open(os.path.join(self.appdata, 'Settings', 'Settings.json'), 'r', encoding='utf-8') as f:\n                return json.load(f)\n        except Exception:\n            return {'PluginSettings': {'Plugins': {}, 'PythonDirectory': sys.prefix}, 'QuerySearchPrecision': 'Regular'}"",
                 code_str
             )
-            code_str = code_str.replace(""'Settings', 'Plugins'"", ""'Settings'"")
-            code_str = code_str.replace('""Settings"", ""Plugins""', '""Settings""')
             code_str = code_str.replace('os.mkdir(os.path.dirname(self.settings_path))', 'os.makedirs(os.path.dirname(self.settings_path), exist_ok=True)')
 
             compiled = compile(code_str, module.__file__, 'exec')
@@ -117,50 +115,6 @@ class _FloxLoader(importlib.abc.Loader):
             self.orig_loader.exec_module(module)
 
 sys.meta_path.insert(0, _FloxMetaFinder())
-
-import builtins
-_orig_stat = os.stat
-_orig_open = builtins.open
-_orig_exists = os.path.exists
-
-def _remap_settings_path(path_obj):
-    try:
-        s = str(path_obj)
-        if 'Settings' in s and ('Settings/Plugins/' in s.replace('\\', '/') or 'Settings\\Plugins\\' in s):
-            alt = s.replace('Settings\\Plugins\\', 'Settings\\').replace('Settings/Plugins/', 'Settings/')
-            if _orig_exists(alt):
-                return alt
-    except Exception:
-        pass
-    return path_obj
-
-def _hooked_stat(path, *args, **kwargs):
-    try:
-        return _orig_stat(path, *args, **kwargs)
-    except (FileNotFoundError, OSError):
-        remapped = _remap_settings_path(path)
-        if remapped != path:
-            return _orig_stat(remapped, *args, **kwargs)
-        raise
-
-def _hooked_exists(path):
-    if _orig_exists(path):
-        return True
-    remapped = _remap_settings_path(path)
-    return _orig_exists(remapped)
-
-def _hooked_open(file, *args, **kwargs):
-    try:
-        return _orig_open(file, *args, **kwargs)
-    except (FileNotFoundError, OSError):
-        remapped = _remap_settings_path(file)
-        if remapped != file:
-            return _orig_open(remapped, *args, **kwargs)
-        raise
-
-os.stat = _hooked_stat
-os.path.exists = _hooked_exists
-builtins.open = _hooked_open
 
 import subprocess
 try:

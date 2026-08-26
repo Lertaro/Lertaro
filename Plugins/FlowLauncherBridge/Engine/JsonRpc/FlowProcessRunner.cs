@@ -177,7 +177,7 @@ public class FlowProcessRunner
         psi.Environment["FLOW_VERSION"] = "1.19.0";
         psi.Environment["FLOW_PROGRAM_DIRECTORY"] = _metadata.PluginDirectory;
         psi.Environment["FLOW_APPLICATION_DIRECTORY"] = _metadata.PluginDirectory;
-        psi.Environment["FLOW_LAUNCHER_SETTINGS_PATH"] = _metadata.PluginDirectory;
+        psi.Environment["FLOW_LAUNCHER_SETTINGS_PATH"] = _metadata.PluginSettingsDirectoryPath;
 
         using var process = new Process { StartInfo = psi };
         try
