@@ -1,4 +1,5 @@
 using Lertaro.App.Services;
+using Lertaro.App.Helpers;
 using Lertaro.Core;
 namespace Lertaro.App.ViewModels.Settings.QuickPanel;
 
@@ -23,7 +24,7 @@ public class QuickPanelSourceRowViewModel : ViewModelBase
     }
 
     public static QuickPanelSourceRowViewModel ForFolder(QuickPanelFolderSource folder)
-        => new(folder.Id, QuickPanelFolderSource.DefaultName(folder.Path), folder)
+        => new(folder.Id, FavoritePathResolver.GetDisplayName(folder.Path), folder)
         {
             _path = folder.Path,
             _kind = folder.Kind,
@@ -121,7 +122,7 @@ public class QuickPanelSourceRowViewModel : ViewModelBase
     /// colour straight over whatever style it is given, which in this app's dark settings window is a
     /// bright blue block where an icon should be.
     /// </summary>
-    public System.Windows.Input.ICommand ToggleOptionsCommand => _toggleOptions ??= new Helpers.RelayCommand(() => IsExpanded = !IsExpanded);
+    public System.Windows.Input.ICommand ToggleOptionsCommand => _toggleOptions ??= new RelayCommand(() => IsExpanded = !IsExpanded);
 
     private System.Windows.Input.ICommand? _toggleOptions;
 
@@ -142,7 +143,7 @@ public class QuickPanelSourceRowViewModel : ViewModelBase
     /// and a network share nobody has mapped is reachable only that way. This is the shortcut, not the
     /// only way in.
     /// </remarks>
-    public System.Windows.Input.ICommand BrowseCommand => _browse ??= new Helpers.RelayCommand(Browse);
+    public System.Windows.Input.ICommand BrowseCommand => _browse ??= new RelayCommand(Browse);
 
     private System.Windows.Input.ICommand? _browse;
 
@@ -150,8 +151,9 @@ public class QuickPanelSourceRowViewModel : ViewModelBase
     {
         var dialog = new Microsoft.Win32.OpenFolderDialog();
         // Spelled out: this type's own Path property shadows System.IO.Path inside it.
-        if (!string.IsNullOrWhiteSpace(Path) && System.IO.Directory.Exists(Path))
-            dialog.InitialDirectory = Path;
+        var resolvedPath = FavoritePathResolver.Resolve(Path);
+        if (!string.IsNullOrWhiteSpace(resolvedPath) && System.IO.Directory.Exists(resolvedPath))
+            dialog.InitialDirectory = resolvedPath;
 
         if (dialog.ShowDialog() == true)
             Path = dialog.FolderName;

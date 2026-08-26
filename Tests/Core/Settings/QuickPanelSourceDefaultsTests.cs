@@ -24,6 +24,16 @@ public sealed class QuickPanelSourceDefaultsTests
     public void DefaultName_NoPath_IsEmpty()
         => Assert.AreEqual(string.Empty, QuickPanelFolderSource.DefaultName("   "));
 
+    [TestMethod]
+    public void CreateDefault_UsesShellVirtualPaths()
+    {
+        var folders = QuickPanelTab.CreateDefault().Folders;
+
+        CollectionAssert.AreEqual(
+            new[] { "shell:Desktop", "shell:Downloads", "shell:Personal" },
+            folders.Select(folder => folder.Path).ToArray());
+    }
+
     // The kind is itself an order choice, so a group with no stored preference must not contradict the
     // dropdown that configured it.
     [TestMethod]

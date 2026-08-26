@@ -1,4 +1,5 @@
 using System.IO;
+using Lertaro.Core;
 using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.App.Helpers;
@@ -26,6 +27,19 @@ public static class FavoritePathResolver
     {
         var expanded = Expand(rawPath);
         return (virtualPathResolver ?? ShellPathHelper.TryResolveVirtualPath)(expanded);
+    }
+
+    public static string GetDisplayName(string? rawPath)
+    {
+        var expanded = Expand(rawPath);
+        if (IsVirtualPath(expanded))
+        {
+            var shellName = ShellPathHelper.GetVirtualFolderDisplayName(expanded, string.Empty);
+            if (!string.IsNullOrWhiteSpace(shellName))
+                return shellName;
+        }
+
+        return QuickPanelFolderSource.DefaultName(Resolve(expanded));
     }
 
     public static bool IsPathAvailable(

@@ -135,11 +135,9 @@ public class QuickPanelTab
         Id = NewId(),
         Folders =
         {
-            QuickPanelFolderSource.For(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)),
-            // No Environment.SpecialFolder.Downloads (it predates that folder existing) -- UserProfile +
-            // "Downloads" is the same fallback the rest of this codebase already uses.
-            QuickPanelFolderSource.For(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")),
-            QuickPanelFolderSource.For(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)),
+            QuickPanelFolderSource.For("shell:Desktop"),
+            QuickPanelFolderSource.For("shell:Downloads"),
+            QuickPanelFolderSource.For("shell:Personal"),
         },
     };
 

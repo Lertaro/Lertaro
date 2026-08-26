@@ -1,3 +1,4 @@
+using Lertaro.App.Helpers;
 using Lertaro.App.Services.Plugin;
 using Lertaro.Core;
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
@@ -32,7 +33,8 @@ public static class QuickPanelSourceLoader
         IProgress<IReadOnlyList<SearchResult>>? progress,
         CancellationToken token)
     {
-        if (string.IsNullOrWhiteSpace(source.Path))
+        var sourcePath = FavoritePathResolver.Resolve(source.Path);
+        if (string.IsNullOrWhiteSpace(sourcePath))
             return new List<SearchResult>();
 
         var filter = QuickPanelFilterParser.Parse(source.FilterPattern, GetGlobalTokenPrefix());
@@ -42,7 +44,7 @@ public static class QuickPanelSourceLoader
             // The recency query is the index's own: it already returns newest-first across the whole
             // subtree, so recursion and ordering are not this method's to apply.
             var recent = await new SearchService()
-                .GetRecentFilesAsync(new[] { source.Path }, source.MaxItems, EffectiveMaxAge(source), token)
+                .GetRecentFilesAsync(new[] { sourcePath }, source.MaxItems, EffectiveMaxAge(source), token)
                 .ConfigureAwait(false);
             if (!filter.IsMatchAll)
             {
@@ -67,7 +69,7 @@ public static class QuickPanelSourceLoader
 
         var results = new List<SearchResult>();
         var batch = new List<SearchResult>(64);
-        await IndexedDirectoryEnumerator.EnumerateAsync(source.Path, source.Recursive, enumerationPattern,
+        await IndexedDirectoryEnumerator.EnumerateAsync(sourcePath, source.Recursive, enumerationPattern,
             result => AddResult(result, source.Kind, results, batch, progress), limit: 0, token).ConfigureAwait(false);
 
         if (batch.Count > 0)

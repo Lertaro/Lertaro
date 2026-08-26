@@ -1,4 +1,5 @@
 using Lertaro.App.ViewModels.Search;
+using Lertaro.App.Helpers;
 using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.QuickPanel.Loading;
@@ -92,7 +93,7 @@ internal sealed class QuickPanelGroupLoader
         bool isLoading) => new(
             source.Id,
             TitleOf(source, preference),
-            source.Path,
+            FavoritePathResolver.Resolve(source.Path),
             items,
             QuickPanelGroupPreference.DefaultSortFor(source),
             preference?.ThumbnailView ?? true,
@@ -103,7 +104,7 @@ internal sealed class QuickPanelGroupLoader
 
     private static string TitleOf(QuickPanelFolderSource source, QuickPanelGroupPreference? preference)
         => string.IsNullOrWhiteSpace(preference?.DisplayName)
-            ? QuickPanelFolderSource.DefaultName(source.Path)
+            ? FavoritePathResolver.GetDisplayName(source.Path)
             : preference!.DisplayName.Trim();
 
     private static DateTime? ReadModified(SearchResult item)
