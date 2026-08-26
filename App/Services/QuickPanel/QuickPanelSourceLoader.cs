@@ -44,69 +44,85 @@ public static class QuickPanelSourceLoader
             var recent = await new SearchService()
                 .GetRecentFilesAsync(new[] { source.Path }, source.MaxItems, EffectiveMaxAge(source), token)
                 .ConfigureAwait(false);
-            if (filter.HasTokenFilters)
+            if (!filter.IsMatchAll)
             {
-                // ponytail: token filters run after the recency cap, so a filtered recent-files source
-                // can show fewer than MaxItems; fetching unbounded recency first would cost too much.
+                // ponytail: filters run after the recency cap, so a filtered recent-files source can
+                // show fewer than MaxItems; fetching unbounded recency first would cost too much.
                 recent = await ApplyFilterAsync(recent, filter).ConfigureAwait(false);
             }
             progress?.Report(recent);
             return recent;
         }
 
-        if (filter.HasTokenFilters)
+        var enumerationPattern = source.FilterPattern;
+        if (filter.NeedsPostFilter)
         {
-            // Enumerate without a file pattern: glob and token entries are OR-ed, so narrowing the
-            // enumeration to the glob subset would silently drop every token-only match.
-            var results = new List<SearchResult>();
-            var batch = new List<SearchResult>(64);
-            await IndexedDirectoryEnumerator.EnumerateAsync(source.Path, source.Recursive, string.Empty,
-                result => AddResult(result, source.Kind, results, batch, progress), limit: 0, token).ConfigureAwait(false);
-
-            if (batch.Count > 0)
-                progress?.Report(batch);
-
-            results = await ApplyFilterAsync(results, filter).ConfigureAwait(false);
-            return Order(results, source.Kind, source.SortByModified, source.MaxItems);
+            // With token filters OR-ed against globs, the enumeration must not be narrowed to the glob
+            // subset or every token-only match would be lost. Negated entries have to be applied after
+            // the positive set is known, so they also force a post-filter pass.
+            enumerationPattern = filter.HasTokenFilters
+                ? string.Empty
+                : filter.GlobPatterns.Length > 0 ? string.Join(';', filter.GlobPatterns) : string.Empty;
         }
 
-        var all = new List<SearchResult>();
-        var normalBatch = new List<SearchResult>(64);
-        await IndexedDirectoryEnumerator.EnumerateAsync(source.Path, source.Recursive, source.FilterPattern,
-            result => AddResult(result, source.Kind, all, normalBatch, progress), limit: 0, token).ConfigureAwait(false);
+        var results = new List<SearchResult>();
+        var batch = new List<SearchResult>(64);
+        await IndexedDirectoryEnumerator.EnumerateAsync(source.Path, source.Recursive, enumerationPattern,
+            result => AddResult(result, source.Kind, results, batch, progress), limit: 0, token).ConfigureAwait(false);
 
-        if (normalBatch.Count > 0)
-            progress?.Report(normalBatch);
+        if (batch.Count > 0)
+            progress?.Report(batch);
 
-        return Order(all, source.Kind, source.SortByModified, source.MaxItems);
+        if (filter.NeedsPostFilter)
+            results = await ApplyFilterAsync(results, filter).ConfigureAwait(false);
+
+        return Order(results, source.Kind, source.SortByModified, source.MaxItems);
     }
 
     private static async Task<List<SearchResult>> ApplyFilterAsync(List<SearchResult> results, QuickPanelFilterSpec filter)
     {
-        if (!filter.HasTokenFilters)
-            return results;
+        var hasMatchAllGlob = filter.GlobPatterns.Any(g => g is "*" or "*.*");
+        var hasNoPositiveFilter = filter.GlobPatterns.Length == 0 && filter.TokenFilters.Length == 0;
+        var includeAllPositive = hasMatchAllGlob || hasNoPositiveFilter;
 
         var matched = new HashSet<SearchResult>();
-        if (filter.GlobPatterns.Length > 0)
+        if (includeAllPositive)
         {
             foreach (var result in results)
+                matched.Add(result);
+        }
+        else
+        {
+            if (filter.GlobPatterns.Length > 0)
             {
-                if (FilterPatternHelper.Matches(result.Name, filter.GlobPatterns))
-                    matched.Add(result);
+                foreach (var result in results)
+                {
+                    if (FilterPatternHelper.Matches(result.Name, filter.GlobPatterns))
+                        matched.Add(result);
+                }
+            }
+
+            foreach (var token in filter.TokenFilters)
+            {
+                var provider = PluginManager.Instance.QueryTokenProviders.FirstOrDefault(p => p.CanHandle(token));
+                if (provider == null)
+                    continue; // entry did not fully match search syntax -- ignore it
+
+                var filtered = await provider.ApplyAsync(token, results);
+                foreach (var item in filtered)
+                {
+                    if (item is SearchResult sr)
+                        matched.Add(sr);
+                }
             }
         }
 
-        foreach (var token in filter.TokenFilters)
+        if (filter.ExcludedGlobPatterns.Length > 0)
         {
-            var provider = PluginManager.Instance.QueryTokenProviders.FirstOrDefault(p => p.CanHandle(token));
-            if (provider == null)
-                continue; // entry did not fully match search syntax -- ignore it
-
-            var filtered = await provider.ApplyAsync(token, results);
-            foreach (var item in filtered)
+            foreach (var result in results)
             {
-                if (item is SearchResult sr)
-                    matched.Add(sr);
+                if (matched.Contains(result) && FilterPatternHelper.Matches(result.Name, filter.ExcludedGlobPatterns))
+                    matched.Remove(result);
             }
         }
 
