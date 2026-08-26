@@ -86,4 +86,40 @@ public sealed class QuickPanelFilterParserTests
         CollectionAssert.AreEqual(new[] { "*.lnk" }, spec.GlobPatterns);
         CollectionAssert.AreEqual(new[] { "@doc" }, spec.TokenFilters);
     }
+    [TestMethod]
+    public void Parse_NegatedGlob_GoesToExcluded()
+    {
+        var spec = QuickPanelFilterParser.Parse("*.lnk;!*.desktop.ini");
+
+        CollectionAssert.AreEqual(new[] { "*.lnk" }, spec.GlobPatterns);
+        Assert.HasCount(0, spec.TokenFilters);
+        CollectionAssert.AreEqual(new[] { "*.desktop.ini" }, spec.ExcludedGlobPatterns);
+    }
+
+    [TestMethod]
+    public void Parse_ExclusionOnly_HasNoPositiveGlobs()
+    {
+        var spec = QuickPanelFilterParser.Parse("!desktop.ini");
+
+        Assert.HasCount(0, spec.GlobPatterns);
+        CollectionAssert.AreEqual(new[] { "desktop.ini" }, spec.ExcludedGlobPatterns);
+        Assert.IsFalse(spec.IsMatchAll);
+        Assert.IsTrue(spec.NeedsPostFilter);
+    }
+
+    [TestMethod]
+    public void Parse_BareNegation_IsIgnored()
+    {
+        var spec = QuickPanelFilterParser.Parse("!");
+
+        Assert.IsTrue(spec.IsMatchAll);
+    }
+
+    [TestMethod]
+    public void Parse_DuplicateNegatedGlobs_FirstWins()
+    {
+        var spec = QuickPanelFilterParser.Parse("!*.tmp;!*.tmp");
+
+        CollectionAssert.AreEqual(new[] { "*.tmp" }, spec.ExcludedGlobPatterns);
+    }
 }

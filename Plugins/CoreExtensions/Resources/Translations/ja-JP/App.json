@@ -122,7 +122,7 @@
   "QuickPanel_AcceptsDrops": "ドロップされたファイルを受け取る",
   "QuickPanel_AcceptsDropsTooltip": "このグループにドラッグしたファイルやフォルダーは、Windows 自身のファイルコピーでこのフォルダーにコピーされます。常にコピーで、移動はしません。",
   "QuickPanel_FilterPattern": "フィルター",
-  "QuickPanel_FilterPatternTooltip": "「;」または「,」で複数のパターンを区切れます(例: *.mp4;*.mkv)。空欄はフィルターなしです。",
+  "QuickPanel_FilterPatternTooltip": "「;」または「,」で複数のフィルター項目を区切れます（例: `*.mp4;*.mkv`、`*.lnk;:@doc;:@img`）。項目の先頭に `!` を付けると除外します（例: `!*.xxx`）。`:@doc` / `:@doc|img` は検索構文のカテゴリフィルターです。空欄はフィルターなしです。",
   "QuickPanel_MaxItems": "最大",
   "QuickPanel_MaxAge": "変更が何分以内",
   "QuickPanel_ProcessesDesc": "このワークスペースに対応するアプリを 1 行に 1 つのプロセス名で指定します(chrome または chrome.exe)。該当するアプリ上でパネルを呼び出すと、このワークスペースが開きます。",

@@ -122,7 +122,7 @@
   "QuickPanel_AcceptsDrops": "끌어다 놓은 파일 받기",
   "QuickPanel_AcceptsDropsTooltip": "이 그룹에 끌어다 놓은 파일과 폴더는 Windows 자체 파일 복사로 이 폴더에 복사됩니다. 항상 복사이며 이동하지 않습니다.",
   "QuickPanel_FilterPattern": "필터",
-  "QuickPanel_FilterPatternTooltip": "';' 또는 ','로 여러 패턴을 구분할 수 있습니다(예: *.mp4;*.mkv). 비워 두면 필터링하지 않습니다.",
+  "QuickPanel_FilterPatternTooltip": "';' 또는 ','로 여러 필터 항목을 구분합니다(예: `*.mp4;*.mkv`, `*.lnk;:@doc;:@img`). 항목 앞에 `!`를 붙이면 제외합니다(예: `!*.xxx`). `:@doc` / `:@doc|img`는 검색 구문 카테고리 필터입니다. 비워 두면 필터링하지 않습니다.",
   "QuickPanel_MaxItems": "최대",
   "QuickPanel_MaxAge": "변경된 지 몇 분 이내",
   "QuickPanel_ProcessesDesc": "이 작업 공간에 해당하는 앱을 한 줄에 하나씩 프로세스 이름으로 적습니다(chrome 또는 chrome.exe). 해당 앱 위에서 패널을 열면 이 작업 공간으로 전환됩니다.",
