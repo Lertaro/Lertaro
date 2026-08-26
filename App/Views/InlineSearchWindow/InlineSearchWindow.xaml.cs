@@ -24,6 +24,7 @@ public partial class InlineSearchWindow : Window, ISearchWindow
     private readonly InlineSearchManager _manager;
     private readonly ShellMenuPresenter _menuPresenter;
     private readonly InlineSearchWindowInputHandler _inputHandler;
+    private bool _isImeComposing;
     private readonly InlineSearchWindowPositioner _positioner;
     private readonly DispatcherTimer _activeTimer;
     private string _searchText = string.Empty;
@@ -54,6 +55,11 @@ public partial class InlineSearchWindow : Window, ISearchWindow
         this.DataContext = _viewModel;
         _menuPresenter = new ShellMenuPresenter(this);
         _inputHandler = new InlineSearchWindowInputHandler(this);
+        TextCompositionManager.AddPreviewTextInputStartHandler(SearchBox.SearchTextBox, (_, _) => _isImeComposing = true);
+        TextCompositionManager.AddPreviewTextInputUpdateHandler(SearchBox.SearchTextBox, (_, _) => _isImeComposing = true);
+        TextCompositionManager.AddPreviewTextInputHandler(SearchBox.SearchTextBox, (_, _) => _isImeComposing = false);
+        SearchBox.SearchTextBox.PreviewKeyDown += (_, e) => _isImeComposing = e.Key == Key.Escape ? false : _isImeComposing;
+        SearchBox.SearchTextBox.LostKeyboardFocus += (_, _) => _isImeComposing = false;
         _positioner = new InlineSearchWindowPositioner(this);
         PreviewMouseLeftButtonDown += (_, _) => HasPendingMouseDown = true;
         PreviewMouseLeftButtonUp += (_, _) => HasPendingMouseDown = false;
@@ -77,6 +83,7 @@ public partial class InlineSearchWindow : Window, ISearchWindow
 
         SearchBox.SearchTextBox.TextChanged += (s, e) =>
         {
+            if (_isImeComposing) return;
             // While in Actions mode, ShellMenuPresenter owns this text (filtering the actions list, and
             // restoring the saved query on exit) -- treating either as "new typing" here would wipe the
             // results selection/scroll position the user had before entering the actions menu.
