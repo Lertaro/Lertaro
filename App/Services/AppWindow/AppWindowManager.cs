@@ -81,7 +81,7 @@ public static class AppWindowManager
     {
         if (System.Windows.Application.Current == null) return;
 
-        System.Windows.Application.Current.Dispatcher.Invoke(() => ShowSearchWindowCore());
+        System.Windows.Application.Current.Dispatcher.Invoke(() => ShowSearchWindowCore(forceTopmost: false));
     }
 
     /// <summary>
@@ -101,11 +101,11 @@ public static class AppWindowManager
                 return;
             }
 
-            ShowSearchWindowCore();
+            ShowSearchWindowCore(forceTopmost: true);
         });
     }
 
-    private static void ShowSearchWindowCore()
+    private static void ShowSearchWindowCore(bool forceTopmost)
     {
         if (_searchWindow == null)
         {
@@ -116,7 +116,7 @@ public static class AppWindowManager
             _searchWindow.Closed += (_, _) => _searchWindow = null;
         }
 
-        ShowAndActivateSearchWindow(_searchWindow);
+        ShowAndActivateSearchWindow(_searchWindow, forceTopmost);
     }
 
     // "Show more" is the only route that normally creates additional full windows. When the user
@@ -133,17 +133,17 @@ public static class AppWindowManager
                 : null;
             if (existing == null)
             {
-                ShowAndActivateSearchWindow(new SearchWindow(query, restorePreview));
+                ShowAndActivateSearchWindow(new SearchWindow(query, restorePreview), forceTopmost: false);
                 return;
             }
 
             existing.SearchTextBox.Text = query;
             existing.SearchTextBox.SelectionStart = query.Length;
-            ShowAndActivateSearchWindow(existing);
+            ShowAndActivateSearchWindow(existing, forceTopmost: false);
         });
     }
 
-    private static void ShowAndActivateSearchWindow(SearchWindow window)
+    private static void ShowAndActivateSearchWindow(SearchWindow window, bool forceTopmost)
     {
         // Mirrors QuickSearchWindowController.ShowWindow's pre-show sequence: shell overlays are
         // dismissed while they still truthfully hold the foreground, and power throttling is lifted
@@ -153,10 +153,13 @@ public static class AppWindowManager
         ShellOverlayDismissHelper.DismissOverlayIfForeground();
         PowerThrottlingHelper.WindowShowing(window.PowerWindowId);
 
-        // Auto-topmost on popup, same reassert the quick window does; the icon indicator follows it.
-        window.Topmost = false;
-        window.Topmost = true;
-        window.SearchBox.IsStayOpen = true;
+        if (forceTopmost)
+        {
+            // Only the global summon hotkey opts the full window into forced-topmost behavior.
+            window.Topmost = false;
+            window.Topmost = true;
+            window.SearchBox.IsStayOpen = true;
+        }
 
         if (!window.IsVisible)
             window.Show();
