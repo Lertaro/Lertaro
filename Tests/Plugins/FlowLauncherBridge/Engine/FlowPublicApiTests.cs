@@ -4,6 +4,7 @@ using Lertaro.Plugins.FlowLauncherBridge.Engine;
 namespace Lertaro.Plugins.FlowLauncherBridge.Tests.Engine;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class FlowPublicApiTests
 {
     private string _tempDir = string.Empty;
@@ -11,6 +12,7 @@ public sealed class FlowPublicApiTests
     [TestInitialize]
     public void Setup()
     {
+        PluginSdk.Services.ExplorerService.OpenDirectoryFunc = null;
         _tempDir = Path.Combine(Path.GetTempPath(), "LertaroFlowApiTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
     }
@@ -18,6 +20,7 @@ public sealed class FlowPublicApiTests
     [TestCleanup]
     public void Cleanup()
     {
+        PluginSdk.Services.ExplorerService.OpenDirectoryFunc = null;
         if (Directory.Exists(_tempDir))
         {
             try { Directory.Delete(_tempDir, true); } catch { }
@@ -168,5 +171,25 @@ public sealed class FlowPublicApiTests
 
         api.RaiseVisibilityChanged(false);
         Assert.IsFalse(receivedVisibility);
+    }
+
+    [TestMethod]
+    public void FlowPublicApi_OpenDirectory_DelegatesToExplorerService()
+    {
+        var metadata = new PluginMetadata { ID = "TEST", Name = "Test" };
+        var storage = new FlowSettingsStorage(_tempDir);
+        var api = new FlowPublicApi(metadata, storage, () => []);
+
+        string? receivedDir = null;
+        string? receivedFile = null;
+        PluginSdk.Services.ExplorerService.OpenDirectoryFunc = (dir, file) =>
+        {
+            receivedDir = dir;
+            receivedFile = file;
+        };
+
+        api.OpenDirectory(@"C:\MyFolder", @"C:\MyFolder\file.txt");
+        Assert.AreEqual(@"C:\MyFolder", receivedDir);
+        Assert.AreEqual(@"C:\MyFolder\file.txt", receivedFile);
     }
 }

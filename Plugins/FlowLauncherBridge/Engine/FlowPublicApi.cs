@@ -189,16 +189,8 @@ public class FlowPublicApi : IPublicAPI
     public List<PluginPair> GetAllPlugins() => _getPluginsFunc();
     public List<PluginPair> GetAllInitializedPlugins(bool includeFailed) => _getPluginsFunc();
 
-    public void OpenDirectory(string DirectoryPath, string? FileNameOrFilePath = null)
-    {
-        if (string.IsNullOrWhiteSpace(DirectoryPath))
-            return;
-
-        if (!string.IsNullOrWhiteSpace(FileNameOrFilePath) && File.Exists(FileNameOrFilePath))
-            Process.Start("explorer.exe", $"/select,\"{FileNameOrFilePath}\"");
-        else
-            Process.Start("explorer.exe", $"\"{DirectoryPath}\"");
-    }
+    public void OpenDirectory(string DirectoryPath, string? FileNameOrFilePath = null) =>
+        PluginSdk.Services.ExplorerService.OpenDirectory(DirectoryPath, FileNameOrFilePath);
 
     public void OpenWebUrl(Uri url, bool? inPrivate = null) => OpenWebUrl(url.ToString(), inPrivate);
     public void OpenWebUrl(string url, bool? inPrivate = null) => Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });

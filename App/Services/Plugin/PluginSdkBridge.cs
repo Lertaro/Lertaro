@@ -44,6 +44,30 @@ internal static class PluginSdkBridge
             (messageBoxText, caption, button, icon, _) =>
                 Views.Controls.Dialogs.CustomMessageBox.Show(messageBoxText, caption, button, icon);
 
+        // Wire up directory opening and file locating to respect configured file managers.
+        PluginSdk.Services.ExplorerService.OpenDirectoryFunc = (directoryPath, fileNameOrFilePath) =>
+        {
+            string target;
+            if (!string.IsNullOrWhiteSpace(fileNameOrFilePath))
+            {
+                var combined = System.IO.Path.IsPathRooted(fileNameOrFilePath)
+                    ? fileNameOrFilePath
+                    : System.IO.Path.Combine(directoryPath ?? string.Empty, fileNameOrFilePath);
+                target = System.IO.File.Exists(combined) || System.IO.Directory.Exists(combined)
+                    ? combined
+                    : (directoryPath ?? fileNameOrFilePath);
+            }
+            else
+            {
+                target = directoryPath ?? string.Empty;
+            }
+
+            if (!string.IsNullOrWhiteSpace(target))
+            {
+                FileExecutor.LocateInExplorer(target);
+            }
+        };
+
         // Wire up the history service delegate for plugins using Core SearchHistoryStore
         PluginSdk.Services.HistoryService.GetHistoryEntriesFunc = SearchHistoryStore.GetEntries;
 

@@ -16,8 +16,16 @@ public static class FilesFolders
         catch { }
     }
 
+    public static Action<string, string?>? OpenFolderFunc { get; set; }
+
     public static void OpenFolder(string folderPath, string? selectFilePath = null)
     {
+        if (OpenFolderFunc != null)
+        {
+            OpenFolderFunc(folderPath, selectFilePath);
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(folderPath) && string.IsNullOrWhiteSpace(selectFilePath)) return;
         try
         {

@@ -24,6 +24,7 @@ public class FlowPluginHost : IAsyncDisposable
     {
         _storage = storage;
         _changeQueryAction = changeQueryAction;
+        Flow.Launcher.Plugin.SharedCommands.FilesFolders.OpenFolderFunc = PluginSdk.Services.ExplorerService.OpenDirectory;
 
         if (pluginDirectories != null)
         {
