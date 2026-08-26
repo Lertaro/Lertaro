@@ -225,8 +225,12 @@
                                            Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_FilterPattern]}"/>
                                 <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,6" Visibility="{Binding IsFolderSource, Converter={StaticResource BoolToVis}}">
                                     <TextBox Width="150" Style="{StaticResource RuleTextBox}"
-                                             ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_FilterPatternTooltip]}"
-                                             Text="{Binding FilterPattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                             Text="{Binding FilterPattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                        <ToolTipService.ToolTip>
+                                            <TextBlock MaxWidth="420" TextWrapping="Wrap"
+                                                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_FilterPatternTooltip]}"/>
+                                        </ToolTipService.ToolTip>
+                                    </TextBox>
                                     <CheckBox Margin="14,0,0,0" VerticalAlignment="Center"
                                               Visibility="{Binding IsRecentFiles, Converter={StaticResource InvertBoolToVis}}"
                                               IsChecked="{Binding Recursive, Mode=TwoWay}"

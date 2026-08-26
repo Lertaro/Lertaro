@@ -122,7 +122,7 @@
   "QuickPanel_AcceptsDrops": "Aceptar archivos soltados",
   "QuickPanel_AcceptsDropsTooltip": "Los archivos y carpetas que sueltes en este grupo se copian en su carpeta con la copia de archivos de Windows. Siempre copia, nunca mueve.",
   "QuickPanel_FilterPattern": "Filtro",
-  "QuickPanel_FilterPatternTooltip": "Uno o varios patrones separados por ';' o ',' (p. ej. *.mp4;*.mkv). También puede usar filtros de búsqueda como :@doc o :@doc|img. Déjelo vacío para no filtrar.",
+  "QuickPanel_FilterPatternTooltip": "Separe varios patrones con ';' o ',' (p. ej., *.mp4;*.mkv).\nAnteponer '!' a un patrón excluye las coincidencias (p. ej., !*.tmp).\nTambién puede usar filtros de búsqueda como :@doc o :@doc|img. Déjelo vacío para no filtrar.",
   "QuickPanel_MaxItems": "Como máximo",
   "QuickPanel_MaxAge": "Modificados hace (minutos)",
   "QuickPanel_ProcessesDesc": "Aplicaciones a las que pertenece este espacio de trabajo, un nombre de proceso por línea (chrome o chrome.exe). Al abrir el panel sobre una de ellas, se abrirá en este espacio de trabajo.",

@@ -122,7 +122,7 @@
   "QuickPanel_AcceptsDrops": "接收拖入的文件",
   "QuickPanel_AcceptsDropsTooltip": "拖到这个分组上的文件和文件夹会被复制进它的文件夹,使用 Windows 自己的文件复制。永远是复制,不会移动。",
   "QuickPanel_FilterPattern": "过滤",
-  "QuickPanel_FilterPatternTooltip": "可用「;」或「,」分隔多个模式(例如 *.mp4;*.mkv)，也可以使用搜索过滤器（例如 :@doc 或 :@doc|img）。留空代表不过滤。",
+  "QuickPanel_FilterPatternTooltip": "可用「;」或「,」分隔多个模式（例如 *.mp4;*.mkv）。\n在模式前加「!」可排除匹配项（例如 !*.tmp）。\n也可以使用搜索过滤器（例如 :@doc 或 :@doc|img）。留空代表不过滤。",
   "QuickPanel_MaxItems": "最多",
   "QuickPanel_MaxAge": "修改于多少分钟内",
   "QuickPanel_ProcessesDesc": "该工作区对应的应用,每行一个进程名(chrome 或 chrome.exe)。在这些应用上呼出面板时会自动切到该工作区。",
