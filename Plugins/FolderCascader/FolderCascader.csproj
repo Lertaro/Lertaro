@@ -6,7 +6,7 @@
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Lertaro.Plugins.FolderCascader</AssemblyName>
-    <Version>1.2.9</Version>
+    <Version>1.3.0</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
