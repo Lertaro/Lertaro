@@ -182,24 +182,39 @@
                                     Click="OpenPresetMenu_Click">
                                 <Button.ContextMenu>
                                     <ContextMenu>
-                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetDesktop]}"
+                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetUser]}"
                                                   Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                  CommandParameter="shell:Desktop"/>
-                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetDownloads]}"
+                                                  CommandParameter="%USERPROFILE%"/>
+                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetAppData]}"
                                                   Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                  CommandParameter="shell:Downloads"/>
-                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetDocuments]}"
+                                                  CommandParameter="%USERPROFILE%\AppData"/>
+                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetRoaming]}"
                                                   Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                  CommandParameter="shell:Personal"/>
-                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetMusic]}"
+                                                  CommandParameter="%APPDATA%"/>
+                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetLocalTemp]}"
                                                   Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                  CommandParameter="shell:My Music"/>
-                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetPictures]}"
-                                                  Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                  CommandParameter="shell:My Pictures"/>
-                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetVideos]}"
-                                                  Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                  CommandParameter="shell:My Video"/>
+                                                  CommandParameter="%TEMP%"/>
+                                        <Separator/>
+                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetUserFolders]}">
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetDesktop]}"
+                                                      Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="shell:Desktop"/>
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetDownloads]}"
+                                                      Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="shell:Downloads"/>
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetDocuments]}"
+                                                      Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="shell:Personal"/>
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetMusic]}"
+                                                      Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="shell:My Music"/>
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetPictures]}"
+                                                      Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="shell:My Pictures"/>
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_PresetVideos]}"
+                                                      Command="{Binding PlacementTarget.DataContext.AddPathPresetCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="shell:My Video"/>
+                                        </MenuItem>
                                     </ContextMenu>
                                 </Button.ContextMenu>
                             </Button>
