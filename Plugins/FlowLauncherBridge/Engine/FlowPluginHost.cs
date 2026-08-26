@@ -160,6 +160,7 @@ public class FlowPluginHost : IAsyncDisposable
             return false;
 
         metadata.PluginDirectory = pluginDir;
+        FlowPluginPathHelper.ApplyTo(metadata);
         var customKeyword = FlowPluginStateStore.GetCustomKeyword(metadata.Name);
         var isDisabled = metadata.Disabled || FlowPluginStateStore.IsPluginDisabled(metadata.Name);
         metadata.Disabled = isDisabled;

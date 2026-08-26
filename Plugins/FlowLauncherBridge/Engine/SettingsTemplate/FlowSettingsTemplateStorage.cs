@@ -13,7 +13,7 @@ public static class FlowSettingsTemplateStorage
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     public static string GetSettingsPath(string baseDir, string pluginName) =>
-        Path.Combine(baseDir, "FlowData", "Settings", pluginName, "Settings.json");
+        Path.Combine(baseDir, "FlowData", "Settings", "Plugins", pluginName, "Settings.json");
 
     public static JsonObject LoadSettings(string path)
     {

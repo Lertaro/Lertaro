@@ -87,10 +87,10 @@ public sealed class FlowSettingsTemplateStorageTests
     }
 
     [TestMethod]
-    public void GetSettingsPath_ReturnsFlatSettingsPath()
+    public void GetSettingsPath_ReturnsPluginSettingsPath()
     {
         var path = FlowSettingsTemplateStorage.GetSettingsPath(_tempDir, "AudFlow");
-        var expectedPath = Path.Combine(_tempDir, "FlowData", "Settings", "AudFlow", "Settings.json");
+        var expectedPath = Path.Combine(_tempDir, "FlowData", "Settings", "Plugins", "AudFlow", "Settings.json");
         Assert.AreEqual(expectedPath, path);
     }
 }
