@@ -1,4 +1,4 @@
-﻿{
+{
   "Settings_Title": "Lertaro 設定",
   "Settings_SearchPlaceholder": " 設定を検索...",
   "Settings_SearchNoResults": "一致する設定項目が見つかりません。",
@@ -547,9 +547,10 @@
   "Hotkeys_RecorderPlaceholder": "ホットキーを押してください",
   "Hotkeys_RecorderClear": "クリア",
   "Hotkeys_RecorderRestoreDefault": "既定値に戻す",
-  "Hotkeys_ToggleLabel": "クイック検索の表示/非表示",
+  "Hotkeys_ToggleLabel": "検索パネルの表示/非表示",
   "Hotkeys_ToggleDoubleTapHint": "（2回押し）",
   "Hotkeys_AllowInFullscreen": "全画面アプリがフォーカスされていても反応する",
+  "Hotkeys_OpenFullWindowByDefault": "既定ではフルパネルを開く",
   "Hotkeys_QuickSwitchLabel": "クイック切り替え",
   "Hotkeys_SelectionTitle": "機能キー",
   "Hotkeys_SelectNextItem": "次の項目",

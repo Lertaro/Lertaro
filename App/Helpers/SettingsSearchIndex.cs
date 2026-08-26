@@ -131,6 +131,7 @@ public static class SettingsSearchIndex
         // "outer/inner" FindName-hop pattern as the History tab entries further down.
         new("Hotkeys_GroupGlobal", "Hotkeys", vm => vm.Hotkeys.SelectedTab = "Global", "TabGlobal/RowGroupGlobal", "Hotkeys_Tab_Global"),
         new("Hotkeys_ToggleLabel", "Hotkeys", vm => vm.Hotkeys.SelectedTab = "Global", "TabGlobal/RowToggleHotkey", "Hotkeys_Tab_Global"),
+        new("Hotkeys_OpenFullWindowByDefault", "Hotkeys", vm => vm.Hotkeys.SelectedTab = "Global", "TabGlobal/RowOpenFullWindowByDefault", "Hotkeys_Tab_Global"),
         new("Hotkeys_AllowInFullscreen", "Hotkeys", vm => vm.Hotkeys.SelectedTab = "Global", "TabGlobal/RowAllowHotkeysInFullscreen", "Hotkeys_Tab_Global"),
         new("Hotkeys_QuickSwitchLabel", "Hotkeys", vm => vm.Hotkeys.SelectedTab = "Global", "TabGlobal/RowQuickSwitch", "Hotkeys_Tab_Global"),
         new("Hotkeys_SelectionTitle", "Hotkeys", vm => vm.Hotkeys.SelectedTab = "Global", "TabGlobal/RowSelectionTitle", "Hotkeys_Tab_Global"),

@@ -1,4 +1,4 @@
-﻿{
+{
   "Settings_Title": "Lertaro 설정",
   "Settings_SearchPlaceholder": " 설정 검색...",
   "Settings_SearchNoResults": "일치하는 설정을 찾을 수 없습니다.",
@@ -547,9 +547,10 @@
   "Hotkeys_RecorderPlaceholder": "단축키를 누르세요",
   "Hotkeys_RecorderClear": "지우기",
   "Hotkeys_RecorderRestoreDefault": "기본값으로 복원",
-  "Hotkeys_ToggleLabel": "빠른 검색 표시/숨기기",
+  "Hotkeys_ToggleLabel": "검색 패널 표시/숨기기",
   "Hotkeys_ToggleDoubleTapHint": "(두 번 누르기)",
   "Hotkeys_AllowInFullscreen": "전체 화면 앱에 포커스가 있을 때도 계속 반응",
+  "Hotkeys_OpenFullWindowByDefault": "기본으로 전체 패널 열기",
   "Hotkeys_QuickSwitchLabel": "빠른 전환",
   "Hotkeys_SelectionTitle": "기능 키",
   "Hotkeys_SelectNextItem": "다음 항목",

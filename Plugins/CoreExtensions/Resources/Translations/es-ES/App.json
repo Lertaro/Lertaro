@@ -1,4 +1,4 @@
-﻿{
+{
   "Settings_Title": "Configuración de Lertaro",
   "Settings_SearchPlaceholder": " Buscar configuración...",
   "Settings_SearchNoResults": "No se encontraron configuraciones coincidentes.",
@@ -547,9 +547,10 @@
   "Hotkeys_RecorderPlaceholder": "Pulsa un atajo de teclado",
   "Hotkeys_RecorderClear": "Borrar",
   "Hotkeys_RecorderRestoreDefault": "Restaurar valor predeterminado",
-  "Hotkeys_ToggleLabel": "Mostrar/Ocultar Búsqueda Rápida",
+  "Hotkeys_ToggleLabel": "Mostrar/Ocultar Panel de Búsqueda",
   "Hotkeys_ToggleDoubleTapHint": "(Doble Pulsación)",
   "Hotkeys_AllowInFullscreen": "Seguir respondiendo mientras una aplicación en pantalla completa tiene el foco",
+  "Hotkeys_OpenFullWindowByDefault": "Abrir panel completo por defecto",
   "Hotkeys_QuickSwitchLabel": "Cambio Rápido",
   "Hotkeys_SelectionTitle": "Teclas de Función",
   "Hotkeys_SelectNextItem": "Siguiente Elemento",

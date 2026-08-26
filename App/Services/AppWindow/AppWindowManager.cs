@@ -80,19 +80,42 @@ public static class AppWindowManager
     {
         if (System.Windows.Application.Current == null) return;
 
+        System.Windows.Application.Current.Dispatcher.Invoke(() => ShowSearchWindowCore());
+    }
+
+    /// <summary>
+    /// Toggles the full SearchWindow for the global hotkey when "open full panel by default" is on:
+    /// closes the visible full window if one is up, otherwise shows (or restores) the full window.
+    /// </summary>
+    public static void ToggleSearchWindow()
+    {
+        if (System.Windows.Application.Current == null) return;
+
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
-            if (_searchWindow == null)
+            var visible = System.Windows.Application.Current.Windows.OfType<SearchWindow>().FirstOrDefault(w => w.IsVisible);
+            if (visible != null)
             {
-                _searchWindow = UserSettings.Load().MainWindow.SingleInstance
-                    ? System.Windows.Application.Current.Windows.OfType<SearchWindow>().FirstOrDefault()
-                    : null;
-                _searchWindow ??= new SearchWindow();
-                _searchWindow.Closed += (_, _) => _searchWindow = null;
+                visible.Close();
+                return;
             }
 
-            ShowAndActivateSearchWindow(_searchWindow);
+            ShowSearchWindowCore();
         });
+    }
+
+    private static void ShowSearchWindowCore()
+    {
+        if (_searchWindow == null)
+        {
+            _searchWindow = UserSettings.Load().MainWindow.SingleInstance
+                ? System.Windows.Application.Current.Windows.OfType<SearchWindow>().FirstOrDefault()
+                : null;
+            _searchWindow ??= new SearchWindow();
+            _searchWindow.Closed += (_, _) => _searchWindow = null;
+        }
+
+        ShowAndActivateSearchWindow(_searchWindow);
     }
 
     // "Show more" is the only route that normally creates additional full windows. When the user
