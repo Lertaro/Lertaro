@@ -36,6 +36,29 @@ public sealed class FavoritePathResolverTests
         => Assert.IsFalse(FavoritePathResolver.IsVirtualPath(@"C:\Users\testuser\Desktop"));
 
     [TestMethod]
+    public void IsPathAvailable_VirtualPath_UsesInjectedResolver()
+        => Assert.IsTrue(FavoritePathResolver.IsPathAvailable(
+            "shell:Downloads",
+            virtualPathExists: path => path == "shell:Downloads"));
+
+    [TestMethod]
+    public void IsPathAvailable_InvalidVirtualPath_ReturnsFalse()
+        => Assert.IsFalse(FavoritePathResolver.IsPathAvailable(
+            "shell:MissingFolder",
+            virtualPathExists: _ => false));
+
+    [TestMethod]
+    public void IsPathAvailable_WebUrl_ReturnsTrue()
+        => Assert.IsTrue(FavoritePathResolver.IsPathAvailable("https://example.com/docs"));
+
+    [TestMethod]
+    public void IsPathAvailable_PhysicalPath_UsesInjectedFileAndDirectoryChecks()
+        => Assert.IsTrue(FavoritePathResolver.IsPathAvailable(
+            @"C:\Missing.txt",
+            fileExists: path => path == @"C:\Missing.txt",
+            directoryExists: _ => false));
+
+    [TestMethod]
     public void Resolve_ShellVirtualPath_UsesInjectedResolver()
     {
         var resolved = FavoritePathResolver.Resolve(

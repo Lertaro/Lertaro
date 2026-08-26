@@ -167,11 +167,7 @@ public static class MenuBuilder
             }
             if (string.IsNullOrWhiteSpace(folder.Path)) continue;
             var expandedPath = Environment.ExpandEnvironmentVariables(folder.Path);
-            var pathExists = true;
-            if (!expandedPath.StartsWith("::") && !expandedPath.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
-            {
-                pathExists = Directory.Exists(expandedPath);
-            }
+            var pathExists = PathAvailability.IsFolderAvailable(expandedPath);
             items.Add(new DynamicMenuItem
             {
                 Text = GetDisplayName(folder.Path, folder.Name),

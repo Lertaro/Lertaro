@@ -21,16 +21,31 @@ public sealed class MenuBuilderContentExtensionsTests
     }
 
     [TestMethod]
-    public void HasAvailableFavorites_AcceptsVirtualFolderWithoutProbingTheFileSystem()
+    public void HasAvailableFavorites_AcceptsValidVirtualFolderWithoutProbingTheFileSystem()
     {
         var favorites = new[] { new FavoriteItem { Path = "shell:AppsFolder" } };
 
         var available = MenuBuilderContentExtensions.HasAvailableFavorites(
             favorites,
             _ => throw new AssertFailedException("A virtual folder must not be probed."),
-            _ => throw new AssertFailedException("A virtual folder must not be probed."));
+            _ => throw new AssertFailedException("A virtual folder must not be probed."),
+            _ => true);
 
         Assert.IsTrue(available);
+    }
+
+    [TestMethod]
+    public void HasAvailableFavorites_HidesRootWhenVirtualFolderIsInvalid()
+    {
+        var favorites = new[] { new FavoriteItem { Path = "shell:MissingFolder" } };
+
+        var available = MenuBuilderContentExtensions.HasAvailableFavorites(
+            favorites,
+            _ => false,
+            _ => false,
+            _ => false);
+
+        Assert.IsFalse(available);
     }
 
     [TestMethod]

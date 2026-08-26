@@ -85,7 +85,7 @@ public class FavoritesSettingsViewModel : ViewModelBase
         }
     }
 
-    private bool CanAdd() => !string.IsNullOrWhiteSpace(NewPath);
+    private bool CanAdd() => FavoritePathResolver.IsPathAvailable(NewPath);
 
     private void Add()
     {

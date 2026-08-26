@@ -1,6 +1,7 @@
 using System.IO;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Models;
 using Lertaro.PluginSdk.Services;
 
@@ -181,15 +182,20 @@ internal static class MenuBuilderContentExtensions
     internal static bool HasAvailableFavorites(
         IEnumerable<FavoriteItem> favorites,
         Func<string, bool> fileExists,
-        Func<string, bool> directoryExists) => favorites.Any(favorite =>
+        Func<string, bool> directoryExists,
+        Func<string, bool>? virtualPathExists = null) => favorites.Any(favorite =>
         {
             if (string.IsNullOrWhiteSpace(favorite.Path)) return false;
             var expanded = Environment.ExpandEnvironmentVariables(favorite.Path);
-            return expanded.StartsWith("::") ||
-                   expanded.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) ||
-                   MenuBuilder.IsWebUrl(expanded) ||
-                   directoryExists(expanded) ||
-                   fileExists(expanded);
+            if (expanded.StartsWith("::", StringComparison.Ordinal)
+                || expanded.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
+            {
+                return virtualPathExists != null
+                    ? virtualPathExists(expanded)
+                    : ShellVirtualPathValidator.Exists(expanded);
+            }
+
+            return MenuBuilder.IsWebUrl(expanded) || directoryExists(expanded) || fileExists(expanded);
         });
 
     internal static List<DynamicMenuItem> BuildFavoritesMenu(Provider provider)
@@ -204,6 +210,10 @@ internal static class MenuBuilderContentExtensions
             var rawPath = favItem.Path;
             var favPath = Environment.ExpandEnvironmentVariables(rawPath);
             var isVirtual = favPath.StartsWith("::") || favPath.StartsWith("shell:", StringComparison.OrdinalIgnoreCase);
+            if (!MenuBuilder.IsWebUrl(favPath) && !PathAvailability.IsAvailable(favPath))
+            {
+                continue;
+            }
             if (isVirtual || Directory.Exists(favPath))
             {
                 items.Add(new DynamicMenuItem

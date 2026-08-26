@@ -1,5 +1,4 @@
 using Lertaro.PluginSdk.Abstractions;
-using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.Plugins.FolderCascader.Tests;
 

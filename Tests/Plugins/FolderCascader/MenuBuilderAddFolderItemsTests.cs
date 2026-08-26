@@ -132,4 +132,38 @@ public sealed class MenuBuilderAddFolderItemsTests
         Assert.AreNotEqual(IntPtr.Zero, items[0].SubMenuHandle);
         Assert.AreEqual(systemRoot, GetPath(provider, items[0].SubMenuHandle));
     }
+
+    [TestMethod]
+    public void AddFolderItems_InvalidVirtualFolder_DisablesItem()
+    {
+        var provider = new Provider();
+        var items = new List<DynamicMenuItem>();
+        var folders = new List<FolderCascaderPlugin.FolderConfigItem>
+        {
+            Folder("Missing", "shell:DefinitelyMissingFolder")
+        };
+
+        MenuBuilder.AddFolderItems(items, folders, Array.Empty<string>(), provider);
+
+        Assert.IsTrue(items[0].IsDisabled);
+        Assert.IsFalse(items[0].HasSubMenu);
+        Assert.AreEqual(IntPtr.Zero, items[0].SubMenuHandle);
+    }
+
+    [TestMethod]
+    public void AddFolderItems_ValidVirtualFolder_RemainsEnabled()
+    {
+        var provider = new Provider();
+        var items = new List<DynamicMenuItem>();
+        var folders = new List<FolderCascaderPlugin.FolderConfigItem>
+        {
+            Folder("This PC", "shell:::{20d04fe0-3aea-1069-a2d8-08002b30309d}")
+        };
+
+        MenuBuilder.AddFolderItems(items, folders, Array.Empty<string>(), provider);
+
+        Assert.IsFalse(items[0].IsDisabled);
+        Assert.IsTrue(items[0].HasSubMenu);
+        Assert.AreNotEqual(IntPtr.Zero, items[0].SubMenuHandle);
+    }
 }

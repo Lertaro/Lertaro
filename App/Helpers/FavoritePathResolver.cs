@@ -28,6 +28,26 @@ public static class FavoritePathResolver
         return (virtualPathResolver ?? ShellPathHelper.TryResolveVirtualPath)(expanded);
     }
 
+    public static bool IsPathAvailable(
+        string? rawPath,
+        Func<string, bool>? fileExists = null,
+        Func<string, bool>? directoryExists = null,
+        Func<string, bool>? virtualPathExists = null)
+    {
+        var expanded = Expand(rawPath);
+        if (string.IsNullOrWhiteSpace(expanded)) return false;
+        if (FavoriteUrlHelper.IsWebUrl(expanded)) return true;
+
+        if (IsVirtualPath(expanded))
+        {
+            return virtualPathExists is null
+                ? ShellVirtualPathValidator.Exists(expanded)
+                : virtualPathExists(expanded);
+        }
+
+        return (fileExists ?? File.Exists)(expanded) || (directoryExists ?? Directory.Exists)(expanded);
+    }
+
     public static string NormalizeForComparison(string? rawPath)
     {
         var expanded = Expand(rawPath);

@@ -1,3 +1,4 @@
+using System.IO;
 using Lertaro.Core;
 using Lertaro.App.ViewModels.Settings;
 
@@ -24,7 +25,7 @@ public sealed class FavoritesSettingsViewModelTests
 
         Assert.IsFalse(vm.AddCommand.CanExecute(null));
 
-        vm.NewPath = @"C:\Docs";
+        vm.NewPath = Path.GetTempPath();
 
         Assert.IsTrue(vm.AddCommand.CanExecute(null));
     }
@@ -32,11 +33,15 @@ public sealed class FavoritesSettingsViewModelTests
     [TestMethod]
     public void AddCommand_Execute_AddsTrimmedUnquotedPathAndClearsInputs()
     {
-        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewName = "Docs", NewPath = "  \"C:\\Docs\"  " };
+        var vm = new FavoritesSettingsViewModel(new UserSettings())
+        {
+            NewName = "Docs",
+            NewPath = $"  \"{Path.GetTempPath()}\"  "
+        };
 
         vm.AddCommand.Execute(null);
 
-        Assert.AreEqual(@"C:\Docs", vm.Items[0].Path);
+        Assert.AreEqual(Path.GetTempPath(), vm.Items[0].Path);
         Assert.AreEqual("Docs", vm.Items[0].Name);
         Assert.AreEqual("", vm.NewPath);
         Assert.AreEqual("", vm.NewName);
@@ -62,7 +67,7 @@ public sealed class FavoritesSettingsViewModelTests
     public void NewPath_ShellVirtualFolder_AutoFillsVirtualName()
     {
         var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewPath = "shell:downloads" };
-        var expected = Lertaro.PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName("shell:downloads", "");
+        var expected = PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName("shell:downloads", "");
         Assert.AreEqual(expected, vm.NewName);
     }
 
@@ -84,13 +89,13 @@ public sealed class FavoritesSettingsViewModelTests
         vm.AddPathPresetCommand.Execute("shell:Downloads");
 
         Assert.AreEqual("shell:Downloads", vm.NewPath);
-        Assert.AreEqual(Lertaro.PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName("shell:Downloads", ""), vm.NewName);
+        Assert.AreEqual(PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName("shell:Downloads", ""), vm.NewName);
     }
 
     [TestMethod]
     public void RemoveCommand_Execute_RemovesItem()
     {
-        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewPath = @"C:\Docs" };
+        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewPath = Path.GetTempPath() };
         vm.AddCommand.Execute(null);
         var item = vm.Items[0];
 
@@ -102,14 +107,14 @@ public sealed class FavoritesSettingsViewModelTests
     [TestMethod]
     public void EditCommand_Execute_MovesValuesBackIntoInputsAndRemovesFromList()
     {
-        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewName = "Docs", NewPath = @"C:\Docs" };
+        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewName = "Docs", NewPath = Path.GetTempPath() };
         vm.AddCommand.Execute(null);
         var item = vm.Items[0];
 
         vm.EditCommand.Execute(item);
 
         Assert.AreEqual("Docs", vm.NewName);
-        Assert.AreEqual(@"C:\Docs", vm.NewPath);
+        Assert.AreEqual(Path.GetTempPath(), vm.NewPath);
         Assert.IsEmpty(vm.Items);
     }
 
@@ -129,50 +134,50 @@ public sealed class FavoritesSettingsViewModelTests
     public void MoveUpCommand_Execute_SwapsWithPreviousItem()
     {
         var vm = new FavoritesSettingsViewModel(new UserSettings());
-        vm.NewPath = @"C:\a"; vm.AddCommand.Execute(null);
-        vm.NewPath = @"C:\b"; vm.AddCommand.Execute(null);
+        vm.NewPath = Path.GetTempPath(); vm.AddCommand.Execute(null);
+        vm.NewPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile); vm.AddCommand.Execute(null);
         var second = vm.Items[1];
 
         vm.MoveUpCommand.Execute(second);
 
-        Assert.AreEqual(@"C:\b", vm.Items[0].Path);
+        Assert.AreEqual(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), vm.Items[0].Path);
     }
 
     [TestMethod]
     public void MoveUpCommand_Execute_AlreadyFirst_DoesNothing()
     {
-        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewPath = @"C:\a" };
+        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewPath = Path.GetTempPath() };
         vm.AddCommand.Execute(null);
         var first = vm.Items[0];
 
         vm.MoveUpCommand.Execute(first);
 
-        Assert.AreEqual(@"C:\a", vm.Items[0].Path);
+        Assert.AreEqual(Path.GetTempPath(), vm.Items[0].Path);
     }
 
     [TestMethod]
     public void MoveDownCommand_Execute_SwapsWithNextItem()
     {
         var vm = new FavoritesSettingsViewModel(new UserSettings());
-        vm.NewPath = @"C:\a"; vm.AddCommand.Execute(null);
-        vm.NewPath = @"C:\b"; vm.AddCommand.Execute(null);
+        vm.NewPath = Path.GetTempPath(); vm.AddCommand.Execute(null);
+        vm.NewPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile); vm.AddCommand.Execute(null);
         var first = vm.Items[0];
 
         vm.MoveDownCommand.Execute(first);
 
-        Assert.AreEqual(@"C:\a", vm.Items[1].Path);
+        Assert.AreEqual(Path.GetTempPath(), vm.Items[1].Path);
     }
 
     [TestMethod]
     public void MoveDownCommand_Execute_AlreadyLast_DoesNothing()
     {
-        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewPath = @"C:\a" };
+        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewPath = Path.GetTempPath() };
         vm.AddCommand.Execute(null);
         var last = vm.Items[0];
 
         vm.MoveDownCommand.Execute(last);
 
-        Assert.AreEqual(@"C:\a", vm.Items[0].Path);
+        Assert.AreEqual(Path.GetTempPath(), vm.Items[0].Path);
     }
 }
 
@@ -214,7 +219,7 @@ public sealed class FavoriteItemViewModelTests
     public void DisplayName_ShellVirtualFolderNoName_ResolvesVirtualFolderDisplayName()
     {
         var vm = new FavoriteItemViewModel { Path = "shell:downloads" };
-        var expected = Lertaro.PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName("shell:downloads", "shell:downloads");
+        var expected = PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName("shell:downloads", "shell:downloads");
         Assert.AreEqual(expected, vm.DisplayName);
     }
 

@@ -88,6 +88,7 @@ public static class SearchResultMapper
             for (var i = 0; i < favorites.Count; i++)
             {
                 var fav = favorites[i];
+                if (!Helpers.FavoritePathResolver.IsPathAvailable(fav.Path)) continue;
                 var (isMatch, weight) = FavoriteSearchHelper.ComputeMatch(fav, query);
                 if (!isMatch)
                     continue;

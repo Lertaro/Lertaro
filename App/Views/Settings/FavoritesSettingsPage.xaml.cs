@@ -4,6 +4,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 
+using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.App.Services.ShellIcons;
 
@@ -81,6 +82,10 @@ public partial class FavoritesSettingsPage : System.Windows.Controls.UserControl
         }
 
         var item = new WpfMenuItem { Tag = definition.IconPathKey };
+        item.IsEnabled = definition.CommandParameter == null
+            ? definition.Children == null || definition.Children.Any(child =>
+                child.CommandParameter == null || FavoritePathResolver.IsPathAvailable(child.CommandParameter))
+            : FavoritePathResolver.IsPathAvailable(definition.CommandParameter);
         item.SetBinding(
             System.Windows.Controls.HeaderedItemsControl.HeaderProperty,
             new WpfBinding($"[{definition.TranslationKey}]") { Source = TranslationManager.Instance });

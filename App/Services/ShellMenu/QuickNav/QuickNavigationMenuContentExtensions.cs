@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using Lertaro.PluginSdk.Abstractions;
@@ -215,11 +214,8 @@ internal static class QuickNavigationMenuContentExtensions
             }
         }
 
-        var resolvedItemPath = Helpers.FavoritePathResolver.Resolve(itemPath);
         var canNavigate = !string.IsNullOrEmpty(itemPath) &&
-                          (Helpers.FavoritePathResolver.IsVirtualPath(itemPath) ||
-                           Directory.Exists(resolvedItemPath) ||
-                           File.Exists(resolvedItemPath));
+                          Helpers.FavoritePathResolver.IsPathAvailable(itemPath);
 
         Action triggerAction = () =>
         {
