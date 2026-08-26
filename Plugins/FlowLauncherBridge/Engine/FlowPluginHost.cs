@@ -15,6 +15,7 @@ public class FlowPluginHost : IAsyncDisposable
     private readonly FlowSettingsStorage _storage;
     private readonly FlowPluginKeywordManager _keywordManager = new();
     private readonly ConcurrentDictionary<string, PluginPair> _loadedPlugins = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, FlowPublicApi> _pluginApis = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, FlowAssemblyLoader> _loaders = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, (PluginMetadata Metadata, string Reason)> _failedPlugins = new(StringComparer.OrdinalIgnoreCase);
     private readonly Action<string, bool>? _changeQueryAction;
@@ -192,6 +193,7 @@ public class FlowPluginHost : IAsyncDisposable
                 }
 
                 var api = new FlowPublicApi(metadata, _storage, GetAllPlugins, _changeQueryAction, AddActionKeyword, RemoveActionKeyword, ActionKeywordAssigned);
+                _pluginApis[metadata.ID] = api;
                 var initContext = new PluginInitContext(metadata, api);
 
                 await pluginInstance.InitAsync(initContext);
@@ -223,22 +225,29 @@ public class FlowPluginHost : IAsyncDisposable
         }
     }
 
+    public void NotifyVisibilityChanged(IEnumerable<PluginPair> targetPlugins, bool isVisible)
+    {
+        foreach (var pair in targetPlugins)
+            if (_pluginApis.TryGetValue(pair.Metadata.ID, out var api)) api.RaiseVisibilityChanged(isVisible);
+    }
+
+    public void NotifyVisibilityChanged(bool isVisible)
+    {
+        foreach (var api in _pluginApis.Values) api.RaiseVisibilityChanged(isVisible);
+    }
+
     public async Task<bool> UnloadPluginAsync(string pluginId)
     {
         if (string.IsNullOrEmpty(pluginId)) return false;
 
+        _pluginApis.TryRemove(pluginId, out _);
         if (_loadedPlugins.TryRemove(pluginId, out var pair))
         {
             _keywordManager.UnregisterPluginKeywords(pair);
-
             if (pair.Plugin is IAsyncDisposable asyncDisposable)
-            {
                 try { await asyncDisposable.DisposeAsync().ConfigureAwait(false); } catch { }
-            }
             else if (pair.Plugin is IDisposable disposable)
-            {
                 try { disposable.Dispose(); } catch { }
-            }
         }
 
         if (_loaders.TryRemove(pluginId, out var loader))
@@ -254,14 +263,8 @@ public class FlowPluginHost : IAsyncDisposable
     public void SaveAll()
     {
         _storage.SaveAll();
-
         foreach (var pair in _loadedPlugins.Values)
-        {
-            if (pair.Plugin is ISavable savable)
-            {
-                try { savable.Save(); } catch { }
-            }
-        }
+            if (pair.Plugin is ISavable savable) try { savable.Save(); } catch { }
     }
 
     public void RollbackAll() => _storage.ReloadAll();
@@ -274,21 +277,15 @@ public class FlowPluginHost : IAsyncDisposable
         foreach (var pair in _loadedPlugins.Values)
         {
             if (pair.Plugin is IAsyncDisposable asyncDisposable)
-            {
                 try { await asyncDisposable.DisposeAsync().ConfigureAwait(false); } catch { }
-            }
             else if (pair.Plugin is IDisposable disposable)
-            {
                 try { disposable.Dispose(); } catch { }
-            }
         }
 
-        foreach (var loader in _loaders.Values)
-        {
-            try { loader.Unload(); } catch { }
-        }
+        foreach (var loader in _loaders.Values) try { loader.Unload(); } catch { }
 
         _loadedPlugins.Clear();
+        _pluginApis.Clear();
         _keywordManager.Clear();
         _loaders.Clear();
     }

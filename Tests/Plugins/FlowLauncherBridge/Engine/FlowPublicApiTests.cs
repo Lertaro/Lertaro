@@ -152,4 +152,21 @@ public sealed class FlowPublicApiTests
         var query = api.NormalizeQueryWithKeyword("pm install SomePlugin");
         Assert.AreEqual("pm install SomePlugin", query);
     }
+
+    [TestMethod]
+    public void FlowPublicApi_RaisesVisibilityChangedEvent()
+    {
+        var metadata = new PluginMetadata { ID = "TEST", Name = "Test" };
+        var storage = new FlowSettingsStorage(_tempDir);
+        var api = new FlowPublicApi(metadata, storage, () => []);
+
+        bool? receivedVisibility = null;
+        api.VisibilityChanged += (s, e) => receivedVisibility = e.IsVisible;
+
+        api.RaiseVisibilityChanged(true);
+        Assert.IsTrue(receivedVisibility);
+
+        api.RaiseVisibilityChanged(false);
+        Assert.IsFalse(receivedVisibility);
+    }
 }

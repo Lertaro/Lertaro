@@ -42,9 +42,15 @@ public class FlowPublicApi : IPublicAPI
         _actionKeywordAssignedFunc = actionKeywordAssignedFunc;
     }
 
-    public event VisibilityChangedEventHandler? VisibilityChanged { add { } remove { } }
+    public event VisibilityChangedEventHandler? VisibilityChanged;
     public event ActualApplicationThemeChangedEventHandler? ActualApplicationThemeChanged { add { } remove { } }
     public event EventHandler? StringMatcherBehaviorChanged { add { } remove { } }
+
+    public void RaiseVisibilityChanged(bool isVisible)
+    {
+        try { VisibilityChanged?.Invoke(this, new VisibilityChangedEventArgs { IsVisible = isVisible }); }
+        catch { }
+    }
 
     public void ChangeQuery(string query, bool requery = false)
     {
@@ -138,13 +144,15 @@ public class FlowPublicApi : IPublicAPI
     public void RegisterGlobalKeyboardCallback(Func<int, int, SpecialKeyState, bool> callback) { }
     public void RemoveGlobalKeyboardCallback(Func<int, int, SpecialKeyState, bool> callback) { }
 
-    public void ShowMsg(string title, string subTitle = "", string iconPath = "") => Debug.WriteLine($"[FlowPlugin:{_metadata.Name}] {title}: {subTitle}");
+    public void ShowMsg(string title, string subTitle = "", string iconPath = "") =>
+        PluginSdk.Logger.Log($"[FlowPlugin:{_metadata.Name}] {title}: {subTitle}", PluginSdk.LogLevel.Info);
 
     public void ShowMsg(string title, string subTitle, string iconPath, bool useMainWindowAsOwner = true) => ShowMsg(title, subTitle, iconPath);
     public void ShowMsgWithButton(string title, string buttonText, Action buttonAction, string subTitle = "", string iconPath = "") => ShowMsg(title, subTitle, iconPath);
     public void ShowMsgWithButton(string title, string buttonText, Action buttonAction, string subTitle, string iconPath, bool useMainWindowAsOwner = true) => ShowMsg(title, subTitle, iconPath);
 
-    public MessageBoxResult ShowMsgBox(string messageBoxText, string caption = "", MessageBoxButton button = MessageBoxButton.OK, MessageBoxImage icon = MessageBoxImage.None, MessageBoxResult defaultResult = MessageBoxResult.OK) => MessageBox.Show(messageBoxText, caption, button, icon, defaultResult);
+    public MessageBoxResult ShowMsgBox(string messageBoxText, string caption = "", MessageBoxButton button = MessageBoxButton.OK, MessageBoxImage icon = MessageBoxImage.None, MessageBoxResult defaultResult = MessageBoxResult.OK) =>
+        PluginSdk.Services.PluginMessageBoxService.Show(messageBoxText, caption, button, icon, defaultResult);
 
     public Task ShowProgressBoxAsync(string caption, Func<Action<double>, Task> reportProgressAsync, Action? cancelProgress = null) => reportProgressAsync(_ => { });
 
@@ -227,11 +235,16 @@ public class FlowPublicApi : IPublicAPI
     public void RemoveActionKeyword(string pluginId, string oldActionKeyword) => _removeActionKeywordAction?.Invoke(pluginId, oldActionKeyword);
     public bool ActionKeywordAssigned(string actionKeyword) => _actionKeywordAssignedFunc?.Invoke(actionKeyword) ?? false;
 
-    public void LogDebug(string className, string message, [CallerMemberName] string methodName = "") => Debug.WriteLine($"[DEBUG][{className}.{methodName}] {message}");
-    public void LogInfo(string className, string message, [CallerMemberName] string methodName = "") => Debug.WriteLine($"[INFO][{className}.{methodName}] {message}");
-    public void LogWarn(string className, string message, [CallerMemberName] string methodName = "") => Debug.WriteLine($"[WARN][{className}.{methodName}] {message}");
-    public void LogError(string className, string message, [CallerMemberName] string methodName = "") => Debug.WriteLine($"[ERROR][{className}.{methodName}] {message}");
-    public void LogException(string className, string message, Exception e, [CallerMemberName] string methodName = "") => Debug.WriteLine($"[EXCEPTION][{className}.{methodName}] {message}: {e}");
+    public void LogDebug(string className, string message, [CallerMemberName] string methodName = "") =>
+        PluginSdk.Logger.Log($"[{className}.{methodName}] {message}", PluginSdk.LogLevel.Debug);
+    public void LogInfo(string className, string message, [CallerMemberName] string methodName = "") =>
+        PluginSdk.Logger.Log($"[{className}.{methodName}] {message}", PluginSdk.LogLevel.Info);
+    public void LogWarn(string className, string message, [CallerMemberName] string methodName = "") =>
+        PluginSdk.Logger.Log($"[{className}.{methodName}] {message}", PluginSdk.LogLevel.Warn);
+    public void LogError(string className, string message, [CallerMemberName] string methodName = "") =>
+        PluginSdk.Logger.Log($"[{className}.{methodName}] {message}", PluginSdk.LogLevel.Error);
+    public void LogException(string className, string message, Exception e, [CallerMemberName] string methodName = "") =>
+        PluginSdk.Logger.Log($"[{className}.{methodName}] {message}: {e}", PluginSdk.LogLevel.Error);
 
     public ValueTask<ImageSource?> LoadImageAsync(string path, bool loadFullImage = false, bool cacheImage = true) => ValueTask.FromResult<ImageSource?>(null);
     public Task<bool> UpdatePluginManifestAsync(bool usePrimaryUrlOnly = false, CancellationToken token = default) => Task.FromResult(false);
@@ -246,6 +259,7 @@ public class FlowPublicApi : IPublicAPI
         var sw = Stopwatch.StartNew();
         action();
         sw.Stop();
+        PluginSdk.Logger.Log($"[{className}.{methodName}] {message} ({sw.ElapsedMilliseconds}ms)", PluginSdk.LogLevel.Debug);
         return sw.ElapsedMilliseconds;
     }
 
@@ -254,11 +268,27 @@ public class FlowPublicApi : IPublicAPI
         var sw = Stopwatch.StartNew();
         await action();
         sw.Stop();
+        PluginSdk.Logger.Log($"[{className}.{methodName}] {message} ({sw.ElapsedMilliseconds}ms)", PluginSdk.LogLevel.Debug);
         return sw.ElapsedMilliseconds;
     }
 
-    public long StopwatchLogInfo(string className, string message, Action action, [CallerMemberName] string methodName = "") => StopwatchLogDebug(className, message, action, methodName);
-    public Task<long> StopwatchLogInfoAsync(string className, string message, Func<Task> action, [CallerMemberName] string methodName = "") => StopwatchLogDebugAsync(className, message, action, methodName);
+    public long StopwatchLogInfo(string className, string message, Action action, [CallerMemberName] string methodName = "")
+    {
+        var sw = Stopwatch.StartNew();
+        action();
+        sw.Stop();
+        PluginSdk.Logger.Log($"[{className}.{methodName}] {message} ({sw.ElapsedMilliseconds}ms)", PluginSdk.LogLevel.Info);
+        return sw.ElapsedMilliseconds;
+    }
+
+    public async Task<long> StopwatchLogInfoAsync(string className, string message, Func<Task> action, [CallerMemberName] string methodName = "")
+    {
+        var sw = Stopwatch.StartNew();
+        await action();
+        sw.Stop();
+        PluginSdk.Logger.Log($"[{className}.{methodName}] {message} ({sw.ElapsedMilliseconds}ms)", PluginSdk.LogLevel.Info);
+        return sw.ElapsedMilliseconds;
+    }
 
     public bool IsApplicationDarkTheme() => PluginSdk.Services.ThemeService.IsDarkTheme;
     public string GetDataDirectory() => _storage.GetPluginSettingsDirectory(PluginSettingKey);

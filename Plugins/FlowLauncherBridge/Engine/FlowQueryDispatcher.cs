@@ -60,6 +60,8 @@ public class FlowQueryDispatcher
         if (targetPlugins.Count == 0)
             return [];
 
+        _host.NotifyVisibilityChanged(targetPlugins, true);
+
         var tasks = targetPlugins.Select(async pair =>
         {
             try
