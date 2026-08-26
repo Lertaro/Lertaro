@@ -21,6 +21,7 @@
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | `app.log`에 로그를 기록하고 설정 센터의 실시간 로그 뷰어에 동기화. |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | 스키마를 기반으로 자동 렌더링되는 경량 모달 입력 대화상자 표시. |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | 호스트가 관리하는 메시지 상자를 표시하여 플러그인이 호스트 테마 UI를 사용하도록 하며, 호스트 처리기가 등록되지 않은 경우 시스템 메시지 상자로 대체합니다. |
+| **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 지정된 디렉터리를 열거나 파일을 탐색하며, 호스트에 구성된 서드파티 파일 관리자(또는 탐색기 탭)를 따르고 미설정 시 시스템 파일 탐색기로 대체합니다. |
 
 ## 2. Windows Shell 파일 작업 래퍼
 

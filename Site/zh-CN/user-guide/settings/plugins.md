@@ -47,4 +47,5 @@ Lertaro 拥有高度模块化的插件化架构体系。无论是核心扩展组
 - **集中管理与触发词修改**：在**设置 → 插件 → Flow Launcher Bridge → 配置**中，可为每个 Flow 插件单独开关，并自由修改其专属**触发词（ActionKeyword）**。配置集中持久化在 `FlowData\Settings\Plugins.json` 中，插件更新后配置不丢失。
 - **动态配置表单**：完整支持 Flow 插件基于 YAML/JSON 模板表单（`SettingsTemplate.yaml`/`.json`）或 C# WPF 设置面板（`ISettingProvider`）的配置界面，自动融合当前深浅色主题并支持 i18n 本地化。
 - **WebView2 交互式富文本预览**：支持 Flow 插件返回的复杂预览面板（如 MDict 词典释义、天气卡片、API 调试信息、网页快照等），在 QuickLook 中免额外按键平滑展开；Lertaro 会自动注入深浅色自适应样式、清晰字体与精致滚动条。
+- **宿主能力深度融合**：Flow 插件通过 API 打开文件夹时自动遵循宿主配置的第三方文件管理器，弹窗消息框自动渲染为宿主主题自绘样式，且内部日志无缝汇入设置中心日志查看器。
 - **快捷总览**：在搜索框中直接输入 `flow` 即可列出当前已加载的所有 Flow 插件及其触发词。

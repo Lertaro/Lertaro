@@ -21,6 +21,7 @@ The `Lertaro.PluginSdk.Services` namespace provides high-performance static serv
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | Writes logs to `app.log`, visible in real-time within the Settings log viewer. |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | Displays a lightweight modal input dialog rendered directly from field schemas. |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | Requests a host-owned message box so plugins can use the host's themed UI, with a platform fallback when no host handler is registered. |
+| **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | Opens the specified directory or locates a file, respecting the host's configured third-party file manager (or Explorer tabs), with fallback to system Explorer. |
 
 ## 2. Shell Native File Operations
 

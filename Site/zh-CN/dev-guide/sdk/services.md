@@ -21,6 +21,7 @@
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | 统一输出日志至 `app.log`，并在设置中心的实时日志查看器中同步呈现。 |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | 弹出基于 Schema 自动渲染的小型模态输入对话框，向用户请求一次性输入。 |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | 请求由宿主显示消息框，使插件能够使用宿主的主题化界面；未注册宿主处理器时回退到系统消息框。 |
+| **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 打开指定文件夹或定位指定文件，遵循宿主配置的第三方文件管理器（或资源管理器多标签页），未配置时回退到系统资源管理器。 |
 
 ## 2. Shell 原生文件操作封装
 

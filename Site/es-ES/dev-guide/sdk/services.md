@@ -21,6 +21,7 @@ El espacio de nombres `Lertaro.PluginSdk.Services` proporciona servicios estáti
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | Registra eventos en `app.log`, visibles en tiempo real en el visor de registros de Configuración. |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | Muestra un diálogo modal ligero generado automáticamente a partir de un esquema de campos. |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | Solicita un cuadro de mensaje gestionado por el anfitrión para que los plugins usen la interfaz temática del anfitrión; utiliza el cuadro del sistema si no hay un controlador registrado. |
+| **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | Abre el directorio especificado o localiza un archivo, respetando el administrador de archivos de terceros configurado por el anfitrión (o pestañas del Explorador), con respaldo al Explorador del sistema. |
 
 ## 2. Operaciones de archivos nativas del Shell
 

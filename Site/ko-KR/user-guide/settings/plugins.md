@@ -47,4 +47,5 @@ Lertaro 검색창에서 명령어를 입력하여 Flow 플러그인을 직접 �
 - **ActionKeyword 변경**: **설정 → 플러그인 → Flow Launcher Bridge → 구성**에서 각 Flow 플러그인의 활성화 여부와 호출 키워드(ActionKeyword)를 개별 변경 가능(`FlowData\Settings\Plugins.json`에 영구 보관).
 - **동적 설정 폼**: YAML/JSON 템플릿(`SettingsTemplate.yaml`/`.json`) 및 C# WPF 패널(`ISettingProvider`)에 완벽 대응하며 다크/라이트 테마 및 다국어 i18n을 지원.
 - **WebView2 리치 미리보기**: 사전(MDict), 실시간 날씨, API 디버깅, 웹 스냅샷 등 인터랙티브 미리보기를 QuickLook 패널 내에서 매끄럽게 자동 렌더링.
+- **호스트 기능과의 완벽한 통합**：Flow 플러그인이 API를 통해 폴더를 열 때 호스트에 구성된 서드파티 파일 관리자를 자동으로 따르고, 메시지 상자는 호스트 테마 다이얼로그로 렌더링되며, 내부 로그는 설정 센터 로그 뷰어로 통합됩니다.
 - **목록 확인**: 검색창에 `flow`를 입력하여 로드된 모든 Flow 플러그인과 트리거 키워드를 즉시 조회.

@@ -21,6 +21,7 @@
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | 統一輸出記錄至 `app.log`，並在設定中心的即時記錄檢視器中同步呈現。 |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | 快顯基於 Schema 自動轉譯的小型強制回應輸入對話方塊，向使用者請求一次性輸入。 |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | 請求由宿主顯示訊息方塊，讓外掛模組使用宿主的主題化介面；未註冊宿主處理器時回退至系統訊息方塊。 |
+| **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 開啟指定資料夾或定位指定檔案，遵循宿主配置的第三方檔案管理員（或檔案總管分頁），未配置時回退至系統檔案總管。 |
 
 ## 2. Shell 原生檔案操作封裝
 

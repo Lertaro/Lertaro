@@ -47,4 +47,5 @@ Manage Flow plugins directly from the Lertaro search box:
 - **Centralized ActionKeywords**: Under **Settings → Plugins → Flow Launcher Bridge → Configure**, toggle individual Flow plugins and customize their **ActionKeyword**. Settings persist cleanly in `FlowData\Settings\Plugins.json`.
 - **Dynamic Configuration Forms**: Fully supports YAML/JSON template forms (`SettingsTemplate.yaml`/`.json`) and C# WPF panels (`ISettingProvider`), automatically styled to match the active theme with full i18n support.
 - **WebView2 Rich Previews**: Renders complex interactive preview panels (e.g. MDict dictionary definitions, live weather, API debuggers, webpage snapshots) seamlessly inside QuickLook with automatic dark/light styling and custom scrollbars.
+- **Deep Host Integration**: Flow plugins opening directories automatically respect the host's configured third-party file manager, message boxes render in host-native themed dialogs, and internal plugin logs flow directly into the Settings log viewer.
 - **Quick Overview**: Type `flow` into the search box to list all loaded Flow plugins and their action keywords.
