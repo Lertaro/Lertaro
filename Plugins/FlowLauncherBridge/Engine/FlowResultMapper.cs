@@ -65,7 +65,10 @@ public static class FlowResultMapper
         if (flowResult.PreviewPanel != null)
         {
             var pluginName = host?.GetAllPlugins().FirstOrDefault(p => p.Metadata.ID == flowResult.PluginID)?.Metadata.Name ?? "Flow Launcher Plugin";
-            actionArg = PluginSdk.Services.PluginPreviewCache.Register(title, pluginName, flowResult.PreviewPanel, iconProvider);
+            var previewFactory = flowResult.PreviewPanel;
+            var scopedPreviewFactory = new Lazy<System.Windows.Controls.UserControl>(
+                () => FlowPreviewEnvironment.CreatePreview(previewFactory));
+            actionArg = PluginSdk.Services.PluginPreviewCache.Register(title, pluginName, scopedPreviewFactory, iconProvider);
         }
 
         var item = new InstantResultItem

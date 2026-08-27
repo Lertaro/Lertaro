@@ -21,24 +21,9 @@ public class FlowLauncherBridgePlugin : IPlugin, IConfigurable
 
     public FlowLauncherBridgePlugin()
     {
-        ConfigureWebView2Environment();
         _ = SharedHost.InitializeAsync();
         PluginSdk.Services.PluginSettingsService.SettingChangedWithValue += OnSettingChanged;
         PluginSdk.Services.TranslationService.CultureChanged += OnCultureChanged;
-    }
-
-    private static void ConfigureWebView2Environment()
-    {
-        try
-        {
-            var baseDir = PluginSdk.Services.UserDataService.GetUserDataDirectory()
-                ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-            var flowDataDir = System.IO.Path.Combine(baseDir, "FlowData");
-            if (!System.IO.Directory.Exists(flowDataDir))
-                System.IO.Directory.CreateDirectory(flowDataDir);
-            Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", flowDataDir);
-        }
-        catch { }
     }
 
     public string Name => PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginName");

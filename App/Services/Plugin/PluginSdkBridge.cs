@@ -26,16 +26,6 @@ internal static class PluginSdkBridge
         PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = () => Logger.UserDataDir;
         PluginSdk.Services.UserDataService.GetSharedDataDirectoryFunc = () => Logger.SharedDataDir;
 
-        // Isolate WebView2 runtime data in <UserDataDir>\FlowData (WebView2 creates FlowData\EBWebView)
-        try
-        {
-            var flowDataDir = System.IO.Path.Combine(Logger.UserDataDir, "FlowData");
-            if (!System.IO.Directory.Exists(flowDataDir))
-                System.IO.Directory.CreateDirectory(flowDataDir);
-            Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", flowDataDir);
-        }
-        catch { }
-
         // Wire up the runtime field-prompt delegate, reusing the Settings UI's own field rendering.
         PluginSdk.Services.PluginPromptService.PromptFunc = Views.Controls.Dialogs.PluginFieldPromptWindow.ShowPrompt;
 

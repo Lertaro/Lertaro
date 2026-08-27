@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using Lertaro.PluginSdk.Services;
+using Lertaro.Plugins.FlowLauncherBridge.Engine;
 using LinqExpr = System.Linq.Expressions.Expression;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Providers;
@@ -54,42 +55,18 @@ public static class FlowPreviewStyler
 
     private static void SetupWebView(FrameworkElement webView)
     {
-        EnsureWebView2UserDataFolder(webView);
+        var environmentScope = FlowPreviewEnvironment.Enter();
+        webView.Unloaded += (_, _) => environmentScope.Dispose();
         HookEvent(webView, "NavigationCompleted", () => InjectCss(webView));
         HookEvent(webView, "CoreWebView2InitializationCompleted", () =>
         {
+            environmentScope.Dispose();
             RegisterDocumentScript(webView);
             InjectCss(webView);
         });
 
         RegisterDocumentScript(webView);
         InjectCss(webView);
-    }
-
-    private static void EnsureWebView2UserDataFolder(FrameworkElement webView)
-    {
-        try
-        {
-            var baseDir = UserDataService.GetUserDataDirectory()
-                ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro");
-            var flowDataDir = System.IO.Path.Combine(baseDir, "FlowData");
-            if (!System.IO.Directory.Exists(flowDataDir))
-                System.IO.Directory.CreateDirectory(flowDataDir);
-
-            Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", flowDataDir);
-
-            var prop = webView.GetType().GetProperty("CreationProperties");
-            if (prop != null && prop.GetValue(webView) == null)
-            {
-                var creationProps = Activator.CreateInstance(prop.PropertyType);
-                if (creationProps != null)
-                {
-                    prop.PropertyType.GetProperty("UserDataFolder")?.SetValue(creationProps, flowDataDir);
-                    prop.SetValue(webView, creationProps);
-                }
-            }
-        }
-        catch { }
     }
 
     private static void HookEvent(object target, string eventName, Action callback)
