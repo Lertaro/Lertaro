@@ -175,15 +175,8 @@ public class FlowPublicApi : IPublicAPI
         if (pair == null)
             return false;
 
-        try
-        {
-            Process.Start(new ProcessStartInfo("lertaro://settings/page/Plugins") { UseShellExecute = true });
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        var pluginName = !string.IsNullOrWhiteSpace(pair.Metadata.Name) ? pair.Metadata.Name : pair.Metadata.ID;
+        return FlowSettingsNavigationHelper.OpenPluginSettings(pluginName ?? pluginId);
     }
     public string GetTranslation(string key) => FlowPluginLanguageHelper.GetTranslation(key);
     public List<PluginPair> GetAllPlugins() => _getPluginsFunc();

@@ -113,7 +113,8 @@ public class FlowInstantResultProvider : IInstantResultProvider
                 {
                     Title = $"{pair.Metadata.Name} v{pair.Metadata.Version}",
                     Description = $"[{kwPrefix}: {string.Join(", ", kwList)}] {pair.Metadata.Description}",
-                    ActionType = "None"
+                    ActionType = "None",
+                    OnExecuteFunc = () => _host.OpenPluginSettings(pair.Metadata.ID)
                 };
                 FlowPluginIconHelper.AttachPluginIcon(item, pair.Metadata);
                 items.Add(item);

@@ -72,6 +72,7 @@ public sealed class FlowInstantResultProviderTests
 
         Assert.HasCount(1, results);
         Assert.Contains("YouTube", results[0].Title);
+        Assert.IsNotNull(results[0].OnExecuteFunc);
     }
 
     [TestMethod]

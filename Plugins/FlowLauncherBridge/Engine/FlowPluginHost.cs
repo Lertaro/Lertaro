@@ -51,13 +51,9 @@ public class FlowPluginHost : IAsyncDisposable
 
     public bool OpenPluginSettings(string pluginId)
     {
-        if (!_loadedPlugins.TryGetValue(pluginId, out _)) return false;
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("lertaro://settings/page/Plugins") { UseShellExecute = true });
-            return true;
-        }
-        catch { return false; }
+        if (!_loadedPlugins.TryGetValue(pluginId, out var pair)) return false;
+        var pluginName = !string.IsNullOrWhiteSpace(pair.Metadata.Name) ? pair.Metadata.Name : pair.Metadata.ID;
+        return FlowSettingsNavigationHelper.OpenPluginSettings(pluginName ?? pluginId);
     }
 
     private PluginPair? FindPluginPair(string nameOrId) => _loadedPlugins.Values.FirstOrDefault(p =>
