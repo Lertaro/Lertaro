@@ -16,34 +16,62 @@ public sealed class SidebarFilterCountAccumulatorTests
     }
 
     [TestMethod]
-    public void AddBatch_AccumulatesEachPredicateIndependently()
+    public void Calculate_AppliesOtherGroupsAndIgnoresTargetGroupSelection()
     {
-        var accumulator = new SidebarFilterCountAccumulator(new Func<ISearchResult, bool>[]
+        var accumulator = new SidebarFilterCountAccumulator(new IReadOnlyList<Func<ISearchResult, bool>>[]
         {
-            result => result.IsDir,
-            result => !result.IsDir
+            new Func<ISearchResult, bool>[]
+            {
+                result => result.IsDir,
+                result => !result.IsDir
+            },
+            new Func<ISearchResult, bool>[]
+            {
+                result => result.Name == "a",
+                result => result.Name == "b"
+            }
         });
 
         accumulator.AddBatch(new ISearchResult[]
         {
-            new FakeResult { IsDir = true },
-            new FakeResult { IsDir = false },
-            new FakeResult { IsDir = true }
+            new FakeResult { IsDir = true, Name = "a" },
+            new FakeResult { IsDir = true, Name = "b" },
+            new FakeResult { IsDir = false, Name = "a" },
+            new FakeResult { IsDir = false, Name = "b" },
+            new FakeResult { IsDir = false, Name = "c" }
         });
 
-        CollectionAssert.AreEqual(new[] { 2, 1 }, accumulator.Counts.ToArray());
+        accumulator.Calculate(new IReadOnlyList<Func<ISearchResult, bool>>[]
+        {
+            Array.Empty<Func<ISearchResult, bool>>(),
+            new Func<ISearchResult, bool>[] { result => result.Name == "a" }
+        });
+
+        CollectionAssert.AreEqual(new[] { 1, 1, 2, 2 }, accumulator.Counts.ToArray());
+
+        accumulator.Calculate(new IReadOnlyList<Func<ISearchResult, bool>>[]
+        {
+            new Func<ISearchResult, bool>[] { result => result.IsDir },
+            new Func<ISearchResult, bool>[] { result => result.Name == "a" }
+        });
+
+        CollectionAssert.AreEqual(new[] { 1, 1, 1, 1 }, accumulator.Counts.ToArray());
     }
 
     [TestMethod]
     public void Reset_ClearsCountsBeforeTheNextQuery()
     {
-        var accumulator = new SidebarFilterCountAccumulator(new Func<ISearchResult, bool>[]
+        var accumulator = new SidebarFilterCountAccumulator(new IReadOnlyList<Func<ISearchResult, bool>>[]
         {
-            result => result.IsDir
+            new Func<ISearchResult, bool>[] { result => result.IsDir }
         });
         accumulator.AddBatch(new[] { (ISearchResult)new FakeResult { IsDir = true } });
 
         accumulator.Reset();
+        accumulator.Calculate(new IReadOnlyList<Func<ISearchResult, bool>>[]
+        {
+            Array.Empty<Func<ISearchResult, bool>>()
+        });
 
         Assert.AreEqual(0, accumulator.Counts[0]);
     }

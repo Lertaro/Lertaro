@@ -91,7 +91,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
         {
             DynamicSidebarGroups[0].IsFirst = true;
         }
-        _sidebarCountHelper = new SearchSidebarCountHelper(DynamicSidebarGroups.SelectMany(group => group.Items).ToList());
+        _sidebarCountHelper = new SearchSidebarCountHelper(DynamicSidebarGroups);
 
         // Seeds the results grid's sort state from whatever was last clicked THIS app run (see
         // SearchResultSortMemory's own comment) so reopening the full window keeps showing the same
@@ -209,7 +209,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
         ApplyFiltersAndRender(extendsContent: false, unchangedPrefix: 0);
     }
 
-    public void OnDynamicFilterChanged() => ApplyFiltersAndRender(extendsContent: false, unchangedPrefix: 0);
+    public void OnDynamicFilterChanged() { _sidebarCountHelper?.Recalculate(); ApplyFiltersAndRender(extendsContent: false, unchangedPrefix: 0); }
     private readonly DynamicFilterCoordinator _dynamicFilterCoordinator = new();
 
     // DynamicFilterCoordinator renders through an Action<List<AppSearchResult>> and can do so twice
