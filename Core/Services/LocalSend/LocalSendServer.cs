@@ -74,6 +74,7 @@ public sealed class LocalSendServer : IDisposable
             try
             {
                 var client = await _listener!.AcceptTcpClientAsync(token).ConfigureAwait(false);
+                client.NoDelay = true;
                 _ = Task.Run(() => HandleClientAsync(client, token), token);
             }
             catch (OperationCanceledException) { break; }

@@ -11,7 +11,11 @@ internal static class LocalSendHttpClientFactory
         TimeSpan? timeout = null)
     {
         var normalizedExpected = NormalizeFingerprint(expectedFingerprint);
-        var handler = new HttpClientHandler { UseProxy = false };
+        var handler = new HttpClientHandler
+        {
+            UseProxy = false,
+            AllowAutoRedirect = false
+        };
         handler.ClientCertificates.Add(identityCertificate);
         handler.ServerCertificateCustomValidationCallback = (request, certificate, _, _) =>
         {
