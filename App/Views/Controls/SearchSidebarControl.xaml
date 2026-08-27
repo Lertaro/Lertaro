@@ -1,6 +1,7 @@
 <UserControl x:Class="Lertaro.App.Views.Controls.SearchSidebarControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
              xmlns:services="clr-namespace:Lertaro.App.Services">
     <UserControl.Resources>
         <ResourceDictionary>
@@ -70,10 +71,11 @@
                                                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
                                                     </Grid>
                                                     <TextBlock DockPanel.Dock="Right" Text="{Binding CountText}"
-                                                               Margin="10,0,0,0" FontSize="11"
+                                                               Width="48" Margin="10,0,0,0" FontSize="11"
                                                                Foreground="{DynamicResource TextSecondary}"
+                                                               TextAlignment="Right"
                                                                VerticalAlignment="Center"/>
-                                                    <TextBlock Text="{Binding DisplayName}"  FontSize="13"
+                                                    <TextBlock Text="{Binding DisplayName}" helpers:TrimmedTextToolTip.Text="{Binding DisplayName}" FontSize="13"
                                                                VerticalAlignment="Center"
                                                                TextWrapping="NoWrap"
                                                                TextTrimming="CharacterEllipsis"/>
