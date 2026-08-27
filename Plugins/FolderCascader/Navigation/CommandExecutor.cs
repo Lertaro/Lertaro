@@ -1,6 +1,7 @@
 using System.IO;
 using Lertaro.PluginSdk;
 using Lertaro.PluginSdk.Abstractions;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.FolderCascader.Navigation;
@@ -98,7 +99,9 @@ public static class CommandExecutor
     // instead of running this.
     internal static void AddCurrentFolder(string folderPath, string subMenu, string name = "")
     {
-        if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+        // Use the same resolver as configured folder entries so environment variables and Shell
+        // namespace paths are validated without replacing the original value stored in settings.
+        if (!PathAvailability.IsFolderAvailable(folderPath))
             return;
 
         var folders = PluginSettingsService.GetSetting(
