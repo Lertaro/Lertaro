@@ -5,14 +5,9 @@
                     xmlns:pconv="clr-namespace:Lertaro.App.Views.Settings.Plugins">
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="../Tokens/Colors.xaml"/>
-        <!-- Needed for RuleTextBox's BasedOn="{StaticResource {x:Type TextBox}}" below: StaticResource
-             resolves against the dictionary this file itself merges, not wherever RuleTextBox ends up
-             being consumed from (same rule IndexSettings/Styles.xaml's own copy of this style already
-             had to account for). -->
+        <!-- Controls.xaml supplies the shared TextBox base needed by the settings styles below. -->
         <ResourceDictionary Source="../Controls/Controls.xaml"/>
-        <!-- SettingsComboBox/SettingsComboBoxItem: split out because the combo box's custom
-             ControlTemplate (toggle chrome + popup) is a large, self-contained unit that isn't
-             coupled to the other settings styles below. -->
+        <!-- ComboBox chrome is kept separate because its popup template is self-contained. -->
         <ResourceDictionary Source="SettingsComboBox.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
@@ -188,14 +183,10 @@
         </Setter>
     </Style>
 
-    <Style x:Key="RuleTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+    <Style x:Key="RuleTextBox" TargetType="TextBox" BasedOn="{StaticResource ThemedTextBox}">
         <Setter Property="Height" Value="34"/>
         <Setter Property="Padding" Value="10,6"/>
         <Setter Property="FontSize" Value="13"/>
-        <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
-        <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
@@ -210,10 +201,7 @@
         <Setter Property="FontFamily" Value="Cascadia Mono, Consolas"/>
     </Style>
 
-    <!-- Small square icon button for the result-type / quick-nav-provider reorder rows (Move Up/Down).
-         Hover tints border+foreground with AccentColor rather than AccentBlue, matching the General
-         settings page's own accent everywhere else: a different accent from RuleIconButtonAccent's
-         AccentBlue, kept as its own style rather than merged with it. -->
+    <!-- Reorder button with accent-colored hover feedback for quick-navigation rows. -->
     <Style x:Key="QuickNavIconButton" TargetType="Button">
         <Setter Property="Width" Value="32"/>
         <Setter Property="Height" Value="32"/>
@@ -248,12 +236,7 @@
     <pconv:ComponentTypeToBadgeBrushConverter x:Key="TypeToBrush"/>
     <conv:StringToVisibilityConverter x:Key="StringToVis"/>
 
-    <!-- One editable list of process names: type-and-add, a row each, and a bulk box for pasting or
-         exporting the lot. Lives here rather than in one page because three lists want it now (the
-         hotkey blacklist, the quick panel's addition to it, and a workspace's own app list) and the
-         second and third were otherwise going to be bare text boxes. Content is a
-         ProcessBlacklistEditorViewModel; the row buttons reach its commands through the ItemsControl
-         rather than an ancestor UserControl, since the same template is used on several pages. -->
+    <!-- Shared editor template for process-name lists used by hotkeys and quick-panel workspaces. -->
     <DataTemplate x:Key="ProcessListRowTemplate">
         <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
             <Grid>

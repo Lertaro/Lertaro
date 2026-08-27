@@ -1,0 +1,82 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Tokens/Spacing.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- Shared TextBox chrome: replace the platform template's system-colored focus border with
+         theme-owned control chrome while retaining WPF's normal text editing behavior. -->
+    <Style x:Key="ThemedTextBox" TargetType="TextBox">
+        <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource AccentColor}"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="TextBoxBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{StaticResource CornerRadiusControl}"
+                            SnapsToDevicePixels="True">
+                        <ScrollViewer x:Name="PART_ContentHost"
+                                      Focusable="False"
+                                      HorizontalScrollBarVisibility="{TemplateBinding HorizontalScrollBarVisibility}"
+                                      VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}"
+                                      Padding="{TemplateBinding Padding}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="TextBoxBorder" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+                        </Trigger>
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter TargetName="TextBoxBorder" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="TextBoxBorder" Property="Background" Value="{DynamicResource ControlDisabledBackground}"/>
+                            <Setter TargetName="TextBoxBorder" Property="BorderBrush" Value="{DynamicResource ControlDisabledBorderBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource ControlDisabledForeground}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="ContextMenu">
+            <Setter.Value>
+                <ContextMenu Style="{DynamicResource {x:Type ContextMenu}}">
+                    <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.Cut"/>
+                    <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.Copy"/>
+                    <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.Paste"/>
+                    <Separator Style="{DynamicResource {x:Type Separator}}"/>
+                    <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.SelectAll"/>
+                </ContextMenu>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Validation.ErrorTemplate">
+            <Setter.Value>
+                <ControlTemplate>
+                    <DockPanel>
+                        <Border BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1.5" CornerRadius="{StaticResource CornerRadiusControl}">
+                            <AdornedElementPlaceholder/>
+                        </Border>
+                    </DockPanel>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="TextBox" BasedOn="{StaticResource ThemedTextBox}"/>
+
+    <Style x:Key="SettingsTextBox" TargetType="TextBox" BasedOn="{StaticResource ThemedTextBox}">
+        <Setter Property="Height" Value="30"/>
+        <Setter Property="Padding" Value="8,0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+</ResourceDictionary>

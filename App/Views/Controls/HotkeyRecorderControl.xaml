@@ -12,13 +12,9 @@
                        Opacity="0.5" FontSize="12"/>
             </VisualBrush.Visual>
         </VisualBrush>
-        <Style x:Key="RecorderBoxStyle" TargetType="TextBox">
+        <Style x:Key="RecorderBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="ContextMenu" Value="{x:Null}"/>
             <Setter Property="Padding" Value="6,2,20,2"/>
-            <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="FontSize" Value="12"/>

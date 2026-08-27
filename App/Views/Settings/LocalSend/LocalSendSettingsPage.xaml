@@ -14,33 +14,6 @@
                 <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <Style x:Key="SettingsTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-                <Setter Property="Height" Value="30"/>
-                <Setter Property="Padding" Value="8,0"/>
-                <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="VerticalContentAlignment" Value="Center"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="TextBox">
-                            <Border x:Name="border" CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
-                                <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="true">
-                                    <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
-                                </Trigger>
-                                <Trigger Property="IsFocused" Value="true">
-                                    <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 

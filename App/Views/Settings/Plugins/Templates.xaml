@@ -6,6 +6,7 @@
                     xmlns:local="clr-namespace:Lertaro.App.Views.Settings.Plugins">
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+        <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles/Controls/TextBox.xaml"/>
         <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
         <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
     </ResourceDictionary.MergedDictionaries>
@@ -48,42 +49,11 @@
         </Setter>
     </Style>
 
-    <!-- Implicit TextBox styling matching settings theme -->
-    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+    <!-- Plugin editors keep their compact dimensions while inheriting the app-wide TextBox chrome. -->
+    <Style TargetType="TextBox" BasedOn="{StaticResource ThemedTextBox}">
         <Setter Property="Padding" Value="6,2"/>
-        <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
-        <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="FontSize" Value="12"/>
-        <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
-        <Setter Property="SelectionBrush" Value="{DynamicResource AccentColor}"/>
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="TextBox">
-                    <Border x:Name="border" CornerRadius="{StaticResource CornerRadiusControl}"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            SnapsToDevicePixels="True">
-                        <ScrollViewer x:Name="PART_ContentHost" Focusable="False"
-                                      HorizontalScrollBarVisibility="{TemplateBinding HorizontalScrollBarVisibility}"
-                                      VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}"
-                                      Padding="{TemplateBinding Padding}"
-                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
-                        </Trigger>
-                        <Trigger Property="IsFocused" Value="True">
-                            <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
     </Style>
 
 

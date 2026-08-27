@@ -118,8 +118,6 @@
         <Setter Property="Height" Value="28"/>
         <Setter Property="Padding" Value="8,3"/>
         <Setter Property="FontSize" Value="12"/>
-        <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
-        <Setter Property="SelectionBrush" Value="{DynamicResource AccentColor}"/>
     </Style>
     <Style x:Key="DefaultComboBoxStyle" TargetType="{x:Type ComboBox}" BasedOn="{StaticResource SettingsComboBox}">
         <Setter Property="Height" Value="28"/>

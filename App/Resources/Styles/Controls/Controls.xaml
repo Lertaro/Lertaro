@@ -5,6 +5,7 @@
         <ResourceDictionary Source="../Tokens/Spacing.xaml"/>
         <ResourceDictionary Source="../Tokens/Motion.xaml"/>
         <ResourceDictionary Source="../Tokens/Elevation.xaml"/>
+        <ResourceDictionary Source="TextBox.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
     <!-- ═══════════ Modern Arc Spinner ═══════════ -->
@@ -226,32 +227,6 @@
                             Effect="{StaticResource Elevation1}">
                         <ContentPresenter/>
                     </Border>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
-    <!-- Global implicit TextBox style to styled ContextMenu & ErrorTemplate -->
-    <Style TargetType="TextBox">
-        <Setter Property="ContextMenu">
-            <Setter.Value>
-                <ContextMenu Style="{DynamicResource {x:Type ContextMenu}}">
-                    <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.Cut"/>
-                    <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.Copy"/>
-                    <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.Paste"/>
-                    <Separator Style="{DynamicResource {x:Type Separator}}"/>
-                    <MenuItem Style="{DynamicResource {x:Type MenuItem}}" Command="ApplicationCommands.SelectAll"/>
-                </ContextMenu>
-            </Setter.Value>
-        </Setter>
-        <Setter Property="Validation.ErrorTemplate">
-            <Setter.Value>
-                <ControlTemplate>
-                    <DockPanel>
-                        <Border BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1.5" CornerRadius="{StaticResource CornerRadiusControl}">
-                            <AdornedElementPlaceholder/>
-                        </Border>
-                    </DockPanel>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

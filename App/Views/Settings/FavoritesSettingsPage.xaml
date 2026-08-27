@@ -15,17 +15,6 @@
                 <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <Style x:Key="FavTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-                <Setter Property="Height" Value="34"/>
-                <Setter Property="Padding" Value="10,6"/>
-                <Setter Property="FontSize" Value="13"/>
-                <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="VerticalContentAlignment" Value="Center"/>
-            </Style>
-
             <Style x:Key="FavIconButton" TargetType="Button">
                 <Setter Property="Width" Value="32"/>
                 <Setter Property="Height" Value="32"/>
@@ -157,10 +146,10 @@
                         <TextBlock x:Name="RowFieldPath" Grid.Row="0" Grid.Column="1" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_FieldPath]}" FontSize="12" Foreground="{DynamicResource TextSecondary2}" Margin="8,0,0,4"/>
 
                         <!-- Inputs -->
-                        <TextBox Grid.Row="1" Grid.Column="0" Style="{StaticResource FavTextBox}" Margin="0,0,8,0"
+                        <TextBox Grid.Row="1" Grid.Column="0" Margin="0,0,8,0"
                                  Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}"/>
                         
-                        <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource FavTextBox}" Margin="8,0,8,0"
+                        <TextBox Grid.Row="1" Grid.Column="1" Margin="8,0,8,0"
                                  Text="{Binding NewPath, UpdateSourceTrigger=PropertyChanged}"/>
 
                         <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal">
