@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Lertaro.Plugins.FlowLauncherBridge</AssemblyName>
     <RootNamespace>Lertaro.Plugins.FlowLauncherBridge</RootNamespace>
-    <Version>1.1.2</Version>
+    <Version>1.1.3</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
