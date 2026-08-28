@@ -217,7 +217,8 @@ public class EnvironmentVariableInstantProvider : IInstantResultProvider
     {
         if (string.IsNullOrWhiteSpace(path) || path.Length < 3) return false;
         if (path[1] != ':' || path[2] != '\\') return false;
-        var driveLetter = char.ToUpper(path[0]);
+        // Invariant to avoid the Turkish-I problem: 'i'.ToUpper() yields U+0130 in tr-TR, failing the A-Z check.
+        var driveLetter = char.ToUpperInvariant(path[0]);
         if (driveLetter < 'A' || driveLetter > 'Z') return false;
 
         try

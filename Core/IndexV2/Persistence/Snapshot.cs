@@ -62,7 +62,12 @@ public sealed unsafe class Snapshot : IDisposable
             using var headerStream = _mmf.CreateViewStream(0, 0, MemoryMappedFileAccess.Read);
             using var reader = new BinaryReader(headerStream, SnapshotFormat.NameEncoding);
             Meta = SnapshotFormat.ReadHeader(reader);
-            _offsets = SnapshotFormat.ComputeSectionOffsets(Meta, out _);
+            _offsets = SnapshotFormat.ComputeSectionOffsets(Meta, out var totalLength);
+            // A truncated file (torn write / crashed checkpoint) would otherwise map fine and only blow
+            // up later with an access violation when a query walks off the end of a section -- fail at
+            // open, while the actual file size is still at hand.
+            if (stream.Length < totalLength)
+                throw new InvalidDataException($"Snapshot file is truncated: header requires {totalLength} bytes but the file holds only {stream.Length}.");
         }
         catch
         {

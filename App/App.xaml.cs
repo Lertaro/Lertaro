@@ -79,7 +79,7 @@ public partial class App : Application
         // The hash includes both SID and session, so accounts sharing a short username cannot collide
         // and no account/session identifier is exposed in the mutex name.
         var mutexName = $@"Local\Lertaro_App_{CurrentUserIdentity.SessionHash}";
-        _appMutex = new Mutex(true, mutexName, out var createdNew);
+        _appMutex = AppSingleInstance.AcquireMutex(mutexName, out var createdNew);
         if (!createdNew)
         {
             try

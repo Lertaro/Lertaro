@@ -74,6 +74,25 @@ public sealed class SnapshotWriterTests
         Assert.AreEqual(3, snapshot.Count);
     }
 
+    // Regression: a truncated file (torn write / crashed checkpoint) used to map fine and only blow
+    // up later with an access violation when a query walked off the end of a section -- it must be
+    // rejected at open with InvalidDataException instead.
+    [TestMethod]
+    public void Open_TruncatedFile_ThrowsInvalidDataException()
+    {
+        using var dir = new TempDirectory();
+        var path = Path.Combine(dir.Path, "truncated.idx");
+
+        SnapshotWriter.Write(BuildStore(fileCount: 4), path);
+        var fullLength = new FileInfo(path).Length;
+        using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write))
+        {
+            stream.SetLength(fullLength - 16); // chop bytes off the tail sections
+        }
+
+        Assert.ThrowsExactly<InvalidDataException>(() => Snapshot.Open(path));
+    }
+
     private static FileRecordStore BuildStore(int fileCount)
     {
         var store = new FileRecordStore

@@ -41,6 +41,15 @@ public sealed class ScientificMathParserTests
     [TestMethod]
     public void Parse_BinaryLiteral_ParsesAsBase2() => Assert.AreEqual(5.0, Parse("0b101"), 1e-9);
 
+    // Regression guard for a dead "0b" detection branch that compared the same index twice
+    // and had an empty body; the real 0b handling lives just below it and must keep working.
+    [TestMethod]
+    [DataRow("0b1010", 10.0)]
+    [DataRow("0b11111111", 255.0)]
+    [DataRow("0b101 + 0b10", 7.0)]
+    public void Parse_BinaryLiteral_MultiDigitAndInExpressions_ParsesAsBase2(string expr, double expected) =>
+        Assert.AreEqual(expected, Parse(expr), 1e-9);
+
     [TestMethod]
     public void Parse_ScientificNotation_ParsesCorrectly() => Assert.AreEqual(150.0, Parse("1.5e2"), 1e-9);
 

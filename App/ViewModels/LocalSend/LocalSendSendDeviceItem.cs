@@ -34,8 +34,9 @@ public sealed class LocalSendSendDeviceItem : INotifyPropertyChanged
                 if (lastDot > 0 && lastDot < ip.Length - 1)
                     return ip[(lastDot + 1)..];
             }
-            // Fallback to fingerprint hash if no IP available.
-            return (Math.Abs(Device.Fingerprint.GetHashCode()) % 10000).ToString("D4");
+            // Fallback to fingerprint hash if no IP available. Widen to long before Math.Abs:
+            // int.MinValue has no positive int counterpart, so Math.Abs throws OverflowException.
+            return (Math.Abs((long)Device.Fingerprint.GetHashCode()) % 10000).ToString("D4");
         }
     }
 

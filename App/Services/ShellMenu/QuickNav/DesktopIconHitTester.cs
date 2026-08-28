@@ -46,6 +46,14 @@ internal static class DesktopIconHitTester
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool CloseHandle(IntPtr hObject);
 
+    // Minimal rights this hit-test protocol actually needs: allocate/write/read remote memory and
+    // query the process -- not PROCESS_ALL_ACCESS, which is both unnecessary and can fail outright
+    // under stricter integrity-level boundaries.
+    private const uint PROCESS_VM_OPERATION = 0x0008;
+    private const uint PROCESS_VM_READ = 0x0010;
+    private const uint PROCESS_VM_WRITE = 0x0020;
+    private const uint PROCESS_QUERY_INFORMATION = 0x0400;
+
     public static bool IsPointOnDesktopIcon(IntPtr hwndListView, int x, int y)
     {
         var hProcess = IntPtr.Zero;
@@ -53,7 +61,9 @@ internal static class DesktopIconHitTester
         try
         {
             Native.GetWindowThreadProcessId(hwndListView, out var pid);
-            hProcess = OpenProcess(0x001F0FFF /* PROCESS_ALL_ACCESS */, false, pid);
+            hProcess = OpenProcess(
+                PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION,
+                false, pid);
             if (hProcess == IntPtr.Zero) return false;
 
             var pt = new PointNative.POINT { x = x, y = y };

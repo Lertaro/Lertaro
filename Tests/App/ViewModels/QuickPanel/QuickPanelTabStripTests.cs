@@ -87,6 +87,27 @@ public sealed class QuickPanelTabStripTests
         Assert.IsFalse(settings.Tabs.Single().Enabled, "still there, just disabled");
     }
 
+    // Ids are matched case-insensitively everywhere else in the panel (selection, settings lookups),
+    // so closing by a differently-cased id must not strand a disabled workspace's tab on the strip:
+    // the workspace is disabled either way, but an ordinal "!= " would keep the tab itself listed
+    // and, when it was the active one, leave the panel showing content its strip says is not there.
+    [TestMethod]
+    public async Task CloseTab_DifferentlyCasedId_StillClosesIt()
+    {
+        var settings = Settings(Workspace("w1"), Workspace("w2"));
+        var (vm, saves) = Build(settings);
+        await vm.RefreshAsync();
+        await vm.SelectTabAsync("w2");
+
+        await vm.CloseTabAsync("W2");
+
+        Assert.AreEqual("w1", vm.Tabs.Single(t => t.IsSelected).Id);
+        CollectionAssert.AreEqual(new[] { "w1" }, vm.Tabs.Select(t => t.Id).ToList());
+        Assert.IsFalse(settings.Tabs.Single(t => t.Id == "w2").Enabled);
+        CollectionAssert.AreEqual(new[] { "w1s" }, vm.Groups.Select(g => g.SourceId).ToList());
+        Assert.AreEqual(1, saves.Count);
+    }
+
     [TestMethod]
     public async Task CloseTab_AlreadyClosedOrUnknown_ChangesNothing()
     {

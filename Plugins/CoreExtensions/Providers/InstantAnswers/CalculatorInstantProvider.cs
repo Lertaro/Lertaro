@@ -48,7 +48,9 @@ public class CalculatorInstantProvider : IInstantResultProvider
                 }
                 else
                 {
-                    if (double.TryParse(numPart, out valDouble))
+                    // Invariant parse to match the rest of the provider (ScientificMathParser parses
+                    // numbers invariantly); a culture-dependent parse would read "1.5" as 15 on de-DE.
+                    if (double.TryParse(numPart, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out valDouble))
                     {
                         val = (long)valDouble;
                         parsed = true;
@@ -83,7 +85,7 @@ public class CalculatorInstantProvider : IInstantResultProvider
                 }
                 else if (targetBase == "dec")
                 {
-                    convertedResult = valDouble.ToString();
+                    convertedResult = valDouble.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 }
 
                 var desc = TranslationService.Format("Calculator_BaseConv", numPart, targetName);

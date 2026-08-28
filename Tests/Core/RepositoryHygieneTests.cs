@@ -32,10 +32,13 @@ public sealed class RepositoryHygieneTests
         })
         {
             // Very short or obviously generic values would fire on ordinary code; they also are not
-            // identifying, which is the thing being protected.
+            // identifying, which is the thing being protected. "admin"/"administrator" is the same
+            // case: near-universal in code and comments ("run as admin") and names no one person,
+            // but long enough to pass the length gate above.
             if (string.IsNullOrWhiteSpace(value) || value.Length < 4)
                 continue;
-            if (value.Equals("user", StringComparison.OrdinalIgnoreCase) || value.Equals("test", StringComparison.OrdinalIgnoreCase))
+            if (value.Equals("user", StringComparison.OrdinalIgnoreCase) || value.Equals("test", StringComparison.OrdinalIgnoreCase)
+                || value.Equals("admin", StringComparison.OrdinalIgnoreCase) || value.Equals("administrator", StringComparison.OrdinalIgnoreCase))
                 continue;
             yield return (what, new Regex($@"\b{Regex.Escape(value)}\b", RegexOptions.IgnoreCase));
         }

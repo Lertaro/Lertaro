@@ -197,4 +197,40 @@ public sealed class DeltaOverlayTests
             Assert.IsFalse(delta.IsVisiblyDeleted(baseRow));
         });
     }
+
+    // Regression: removing an added row decounted it, but re-upserting the same id resurrected the
+    // slot WITHOUT counting it again -- File/DirCountDelta drifted away from the visible row count.
+    [TestMethod]
+    public void Upsert_RemoveThenUpsertSameAddedId_CountsAsASingleAdd()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((_, delta) =>
+        {
+            delta.Upsert(100, 2, "new.txt", FileRecordFlags.None, 10, 0, 0, 0);
+            delta.Remove(100);
+            Assert.AreEqual(0, delta.FileCountDelta, "add then remove nets to zero");
+
+            delta.Upsert(100, 2, "new-again.txt", FileRecordFlags.None, 10, 0, 0, 0);
+
+            Assert.IsTrue(delta.Exists(100));
+            Assert.AreEqual(1, delta.FileCountDelta, "resurrection must count exactly like a fresh add");
+            Assert.AreEqual(0, delta.DirCountDelta);
+        });
+    }
+
+    [TestMethod]
+    public void Upsert_RemoveThenUpsertSameAddedIdAsDirectory_CountsTheNewTypeOnly()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((_, delta) =>
+        {
+            delta.Upsert(100, 2, "new.txt", FileRecordFlags.None, 10, 0, 0, 0);
+            delta.Remove(100);
+
+            delta.Upsert(100, 2, "newdir", FileRecordFlags.Directory, 0, 0, 0, 0);
+
+            Assert.AreEqual(0, delta.FileCountDelta, "the removed file's earlier add/remove pair nets to zero");
+            Assert.AreEqual(1, delta.DirCountDelta, "the resurrection counts as one live directory");
+        });
+    }
 }
