@@ -32,4 +32,36 @@ internal static class UserSettingsBackupStore
             Logger.Log($"[UserSettings] Failed to rotate settings backups for '{filePath}': {ex.Message}", LogLevel.Warn);
         }
     }
+
+    /// <summary>
+    /// Returns the settings parsed from the newest intact .bak.N backup (oldest index last), or null
+    /// when none parses. Called after the main file failed to read or parse.
+    /// </summary>
+    internal static UserSettings? TryLoadNewest(string filePath, int maxBackups, Func<string, UserSettings?> tryParse)
+    {
+        string BackupPath(int index) => $"{filePath}.bak.{index}";
+
+        for (var index = 1; index <= maxBackups; index++)
+        {
+            var backupPath = BackupPath(index);
+            if (!File.Exists(backupPath))
+                continue;
+
+            try
+            {
+                var restored = tryParse(File.ReadAllText(backupPath));
+                if (restored != null)
+                {
+                    Logger.Log($"[UserSettings] Restored settings from backup '{backupPath}' after the main file failed to parse", LogLevel.Warn);
+                    return restored;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[UserSettings] Failed to read settings backup '{backupPath}': {ex.Message}", LogLevel.Warn);
+            }
+        }
+
+        return null;
+    }
 }
