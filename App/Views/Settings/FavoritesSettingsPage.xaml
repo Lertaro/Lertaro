@@ -146,10 +146,15 @@
                         <TextBlock x:Name="RowFieldPath" Grid.Row="0" Grid.Column="1" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_FieldPath]}" FontSize="12" Foreground="{DynamicResource TextSecondary2}" Margin="8,0,0,4"/>
 
                         <!-- Inputs -->
+                        <!-- Height/FontSize/centering follow the 34px button row these boxes share,
+                             matching RuleTextBox's metrics: without them the row stretches the boxes
+                             and the text sits top-aligned at the small default size. -->
                         <TextBox Grid.Row="1" Grid.Column="0" Margin="0,0,8,0"
+                                 Height="34" FontSize="13" Padding="8,0" VerticalContentAlignment="Center"
                                  Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}"/>
-                        
+
                         <TextBox Grid.Row="1" Grid.Column="1" Margin="8,0,8,0"
+                                 Height="34" FontSize="13" Padding="8,0" VerticalContentAlignment="Center"
                                  Text="{Binding NewPath, UpdateSourceTrigger=PropertyChanged}"/>
 
                         <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal">
