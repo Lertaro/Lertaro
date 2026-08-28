@@ -1,6 +1,5 @@
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Services;
-using Lertaro.Plugins.ContentSearch.Storage;
 
 namespace Lertaro.Plugins.ContentSearch.Providers;
 
@@ -35,20 +34,21 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider
         if (keyword.Length == 0)
         {
             var (totalFiles, _) = db.GetStats();
-            yield return ContentSearchResultBuilder.CreatePlaceholderItem(totalFiles, scheduler.IsIndexing, scheduler.PendingCount);
+            yield return ContentSearchResultBuilder.CreatePlaceholderItem(
+                totalFiles,
+                scheduler.IsIndexing,
+                scheduler.PendingCount);
             yield break;
         }
 
-        var hits = db.SearchFts(keyword, 40);
-        var merged = HybridSearchMerger.MergeRrf(hits, maxResults: 30);
-
-        if (merged.Count == 0)
+        var ftsHits = db.SearchFts(keyword, 30);
+        if (ftsHits.Count == 0)
         {
             yield return ContentSearchResultBuilder.CreateNoResultsItem(keyword);
             yield break;
         }
 
-        foreach (var item in ContentSearchResultBuilder.BuildResultItems(merged))
+        foreach (var item in ContentSearchResultBuilder.BuildResultItems(ftsHits))
         {
             yield return item;
         }

@@ -82,14 +82,6 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                 DescriptionKey = "ContentSearch_Config_ExtensionsDesc",
                 FieldType = ConfigFieldType.Text,
                 DefaultValue = "txt,md,cs,json,xml,csv,docx,pdf,py,js,ts,html,css,log,yaml,yml,sql"
-            },
-            new()
-            {
-                Key = "EnableSemanticSearch",
-                LabelKey = "ContentSearch_Config_EnableSemanticLabel",
-                DescriptionKey = "ContentSearch_Config_EnableSemanticDesc",
-                FieldType = ConfigFieldType.Boolean,
-                DefaultValue = false
             }
         },
         OnSave = () =>
@@ -108,7 +100,6 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
 
         var maxSizeMb = PluginSettingsService.GetSetting(PluginId, "MaxFileSizeMb", 10);
         var extsStr = PluginSettingsService.GetSetting(PluginId, "IndexedExtensions", "txt,md,cs,json,xml,csv,docx,pdf,py,js,ts,html,css,log,yaml,yml,sql");
-        var enableSemantic = PluginSettingsService.GetSetting(PluginId, "EnableSemanticSearch", false);
 
         var extSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var rawExt in extsStr.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
@@ -123,8 +114,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
         {
             MonitoredFolders = rawFolders ?? new List<string>(),
             MaxFileSizeBytes = Math.Max(1, maxSizeMb) * 1024L * 1024L,
-            AllowedExtensions = extSet,
-            EnableSemanticSearch = enableSemantic
+            AllowedExtensions = extSet
         };
     }
 }

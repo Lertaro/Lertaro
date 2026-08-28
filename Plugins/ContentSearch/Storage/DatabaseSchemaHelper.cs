@@ -3,15 +3,12 @@ using Microsoft.Data.Sqlite;
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
-/// Helper responsible for SQLite table creation, PRAGMA configuration, and schema migrations.
-/// Split out to keep database management classes under the repository per-file line limit.
+/// Helper responsible for SQLite table creation, PRAGMA configuration, and FTS5 schema initialization.
 /// </summary>
 public static class DatabaseSchemaHelper
 {
     public static void InitializeSchema(SqliteConnection conn)
     {
-        SqliteVecLoader.TryEnableSqliteVec(conn);
-
         using (var pragmaCmd = conn.CreateCommand())
         {
             pragmaCmd.CommandText = """

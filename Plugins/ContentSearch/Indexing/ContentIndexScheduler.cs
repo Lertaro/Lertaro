@@ -182,7 +182,7 @@ public sealed class ContentIndexScheduler : IDisposable
 
             if (batch.Count == 0)
             {
-                await Task.Delay(300, ct);
+                await Task.Delay(200, ct);
                 continue;
             }
 

@@ -1,6 +1,6 @@
 {
   "ContentSearch_PluginName": "内容搜索",
-  "ContentSearch_PluginDesc": "基于本地全文与语义索引的文件内容即时检索插件",
+  "ContentSearch_PluginDesc": "基于 SQLite FTS5 的本地文件正文快速全文检索插件",
   "ContentSearch_ProviderName": "内容搜索",
   "ContentSearch_ProviderDesc": "通过触发关键字检索文档内容",
   "ContentSearch_Config_TriggerLabel": "触发关键字",
@@ -11,8 +11,6 @@
   "ContentSearch_Config_MaxSizeDesc": "超过此大小的文件将被跳过索引，以防止内存与性能过度消耗",
   "ContentSearch_Config_ExtensionsLabel": "索引文件后缀",
   "ContentSearch_Config_ExtensionsDesc": "以逗号分隔的文件扩展名列表（如 txt,md,docx,pdf）",
-  "ContentSearch_Config_EnableSemanticLabel": "启用语义检索",
-  "ContentSearch_Config_EnableSemanticDesc": "启用基于向量与 RRF 融合的语义内容检索",
   "ContentSearch_PlaceholderTitle": "内容搜索",
   "ContentSearch_PlaceholderDesc": "已索引 {0} 个文件 · 输入关键词搜索文件正文",
   "ContentSearch_NoResultsTitle": "未找到匹配内容",

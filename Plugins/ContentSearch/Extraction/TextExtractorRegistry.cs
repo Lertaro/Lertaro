@@ -10,11 +10,11 @@ public sealed class TextExtractorRegistry
     private readonly List<ITextExtractor> _extractors;
 
     public TextExtractorRegistry() => _extractors = new List<ITextExtractor>
-        {
-            new PlainTextExtractor(),
-            new DocxExtractor(),
-            new PdfExtractor()
-        };
+    {
+        new PlainTextExtractor(),
+        new DocxExtractor(),
+        new PdfExtractor()
+    };
 
     public bool IsSupportedExtension(string extension)
     {

@@ -12,7 +12,6 @@ public readonly record struct FileIndexBatchItem(
 
 /// <summary>
 /// Handles atomic insertions, chunk batch writing, and file deletions within database transactions.
-/// Split out to keep database management classes under the repository per-file line limit.
 /// </summary>
 public static class DatabaseWriterHelper
 {
@@ -81,7 +80,8 @@ public static class DatabaseWriterHelper
         tx.Commit();
     }
 
-    public static void InsertOrUpdateFile(SqliteConnection conn, string path, DateTime lastModifiedUtc, long fileSize, IReadOnlyList<TextChunk> chunks) => InsertOrUpdateBatch(conn, new[] { new FileIndexBatchItem(path, lastModifiedUtc, fileSize, chunks) });
+    public static void InsertOrUpdateFile(SqliteConnection conn, string path, DateTime lastModifiedUtc, long fileSize, IReadOnlyList<TextChunk> chunks) =>
+        InsertOrUpdateBatch(conn, new[] { new FileIndexBatchItem(path, lastModifiedUtc, fileSize, chunks) });
 
     public static void DeleteFile(SqliteConnection conn, string path)
     {

@@ -30,9 +30,6 @@
     <EmbeddedResource Include="Resources\Translations\**\*.json" />
   </ItemGroup>
 
-  <!-- Outputs to its own Plugins/Lertaro.Plugins.ContentSearch/ subdirectory instead of the flat
-       shared Plugins/ folder, so its bundled Microsoft.Data.Sqlite/SQLitePCLRaw/e_sqlite3.dll/PdfPig files
-       don't spill into every other plugin's load directory. PluginLoader scans Plugins/ recursively. -->
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <ItemGroup>
       <ContentSearchOutput Include="$(TargetDir)$(TargetName).dll" Condition="Exists('$(TargetDir)$(TargetName).dll')" />
