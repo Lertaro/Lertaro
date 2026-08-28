@@ -23,4 +23,5 @@
   <Project Path="Plugins/WPS/WPS.csproj" />
   <Project Path="Plugins/SpanishAlias/SpanishAlias.csproj" />
   <Project Path="Plugins/FlowLauncherBridge/FlowLauncherBridge.csproj" />
+  <Project Path="Plugins/ContentSearch/ContentSearch.csproj" />
 </Solution>

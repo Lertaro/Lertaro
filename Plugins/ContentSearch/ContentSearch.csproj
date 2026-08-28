@@ -1,0 +1,83 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Lertaro.Plugins.ContentSearch</AssemblyName>
+    <Version>1.0.0</Version>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <UseCurrentRuntimeIdentifier>true</UseCurrentRuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\PluginSdk\PluginSdk.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+    <PackageReference Include="PdfPig" Version="0.1.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lertaro.Plugins.ContentSearch.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Translations\**\*.json" />
+  </ItemGroup>
+
+  <!-- Outputs to its own Plugins/Lertaro.Plugins.ContentSearch/ subdirectory instead of the flat
+       shared Plugins/ folder, so its bundled Microsoft.Data.Sqlite/SQLitePCLRaw/e_sqlite3.dll/PdfPig files
+       don't spill into every other plugin's load directory. PluginLoader scans Plugins/ recursively. -->
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <ItemGroup>
+      <ContentSearchOutput Include="$(TargetDir)$(TargetName).dll" Condition="Exists('$(TargetDir)$(TargetName).dll')" />
+      <ContentSearchOutput Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+      <ContentSearchOutput Include="$(TargetDir)Microsoft.Data.Sqlite.dll" Condition="Exists('$(TargetDir)Microsoft.Data.Sqlite.dll')" />
+      <ContentSearchOutput Include="$(TargetDir)SQLitePCLRaw.batteries_v2.dll" Condition="Exists('$(TargetDir)SQLitePCLRaw.batteries_v2.dll')" />
+      <ContentSearchOutput Include="$(TargetDir)SQLitePCLRaw.core.dll" Condition="Exists('$(TargetDir)SQLitePCLRaw.core.dll')" />
+      <ContentSearchOutput Include="$(TargetDir)SQLitePCLRaw.provider.e_sqlite3.dll" Condition="Exists('$(TargetDir)SQLitePCLRaw.provider.e_sqlite3.dll')" />
+      <ContentSearchOutput Include="$(TargetDir)e_sqlite3.dll" Condition="Exists('$(TargetDir)e_sqlite3.dll')" />
+      <ContentSearchOutput Include="$(TargetDir)UglyToad.PdfPig.dll" Condition="Exists('$(TargetDir)UglyToad.PdfPig.dll')" />
+      <ContentSearchOutput Include="$(TargetDir)UglyToad.PdfPig.Core.dll" Condition="Exists('$(TargetDir)UglyToad.PdfPig.Core.dll')" />
+      <ContentSearchOutput Include="$(TargetDir)UglyToad.PdfPig.DocumentLayoutAnalysis.dll" Condition="Exists('$(TargetDir)UglyToad.PdfPig.DocumentLayoutAnalysis.dll')" />
+      <ContentSearchOutput Include="$(TargetDir)UglyToad.PdfPig.Fonts.dll" Condition="Exists('$(TargetDir)UglyToad.PdfPig.Fonts.dll')" />
+      <ContentSearchOutput Include="$(TargetDir)UglyToad.PdfPig.Package.dll" Condition="Exists('$(TargetDir)UglyToad.PdfPig.Package.dll')" />
+      <ContentSearchOutput Include="$(TargetDir)UglyToad.PdfPig.Tokenization.dll" Condition="Exists('$(TargetDir)UglyToad.PdfPig.Tokenization.dll')" />
+      <ContentSearchOutput Include="$(TargetDir)UglyToad.PdfPig.Tokens.dll" Condition="Exists('$(TargetDir)UglyToad.PdfPig.Tokens.dll')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ContentSearchOutput)" DestinationFolder="$(TargetDir)$(AssemblyName)\" SkipUnchangedFiles="true" />
+    <Delete Files="@(ContentSearchOutput)" />
+
+    <ItemGroup>
+      <ContentSearchNested Include="$(TargetDir)$(AssemblyName)\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ContentSearchNested)" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\$(AssemblyName)\" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="PostPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <ContentSearchPublishOutput Include="$(PublishDir)$(TargetName).dll" Condition="Exists('$(PublishDir)$(TargetName).dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)$(TargetName).pdb" Condition="Exists('$(PublishDir)$(TargetName).pdb')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)Microsoft.Data.Sqlite.dll" Condition="Exists('$(PublishDir)Microsoft.Data.Sqlite.dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)SQLitePCLRaw.batteries_v2.dll" Condition="Exists('$(PublishDir)SQLitePCLRaw.batteries_v2.dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)SQLitePCLRaw.core.dll" Condition="Exists('$(PublishDir)SQLitePCLRaw.core.dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)SQLitePCLRaw.provider.e_sqlite3.dll" Condition="Exists('$(PublishDir)SQLitePCLRaw.provider.e_sqlite3.dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)e_sqlite3.dll" Condition="Exists('$(PublishDir)e_sqlite3.dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)UglyToad.PdfPig.dll" Condition="Exists('$(PublishDir)UglyToad.PdfPig.dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)UglyToad.PdfPig.Core.dll" Condition="Exists('$(PublishDir)UglyToad.PdfPig.Core.dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)UglyToad.PdfPig.DocumentLayoutAnalysis.dll" Condition="Exists('$(PublishDir)UglyToad.PdfPig.DocumentLayoutAnalysis.dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)UglyToad.PdfPig.Fonts.dll" Condition="Exists('$(PublishDir)UglyToad.PdfPig.Fonts.dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)UglyToad.PdfPig.Package.dll" Condition="Exists('$(PublishDir)UglyToad.PdfPig.Package.dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)UglyToad.PdfPig.Tokenization.dll" Condition="Exists('$(PublishDir)UglyToad.PdfPig.Tokenization.dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)UglyToad.PdfPig.Tokens.dll" Condition="Exists('$(PublishDir)UglyToad.PdfPig.Tokens.dll')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ContentSearchPublishOutput)" DestinationFolder="$(PublishDir)$(AssemblyName)\" SkipUnchangedFiles="true" />
+    <Delete Files="@(ContentSearchPublishOutput)" />
+  </Target>
+
+</Project>

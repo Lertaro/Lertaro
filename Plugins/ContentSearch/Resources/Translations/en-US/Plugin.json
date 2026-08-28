@@ -1,0 +1,22 @@
+{
+  "ContentSearch_PluginName": "Content Search",
+  "ContentSearch_PluginDesc": "Instant document full-text and semantic content search plugin",
+  "ContentSearch_ProviderName": "Content Search",
+  "ContentSearch_ProviderDesc": "Search within document contents using a trigger keyword",
+  "ContentSearch_Config_TriggerLabel": "Trigger Keyword",
+  "ContentSearch_Config_TriggerDesc": "Type this keyword followed by a space to trigger content search (default: c)",
+  "ContentSearch_Config_FoldersLabel": "Monitored Folders",
+  "ContentSearch_Config_FoldersDesc": "List of folders to index, supports environment variables (e.g., %USERPROFILE%)",
+  "ContentSearch_Config_MaxSizeLabel": "Max File Size (MB)",
+  "ContentSearch_Config_MaxSizeDesc": "Files larger than this limit will be skipped to prevent excessive resource usage",
+  "ContentSearch_Config_ExtensionsLabel": "Indexed Extensions",
+  "ContentSearch_Config_ExtensionsDesc": "Comma-separated list of file extensions (e.g. txt,md,docx,pdf)",
+  "ContentSearch_Config_EnableSemanticLabel": "Enable Semantic Search",
+  "ContentSearch_Config_EnableSemanticDesc": "Enable vector-based semantic search fused with RRF ranking",
+  "ContentSearch_PlaceholderTitle": "Content Search",
+  "ContentSearch_PlaceholderDesc": "{0} files indexed · Type keywords to search document content",
+  "ContentSearch_NoResultsTitle": "No Content Found",
+  "ContentSearch_NoResultsDesc": "No indexed document content matched \"{0}\"",
+  "ContentSearch_IndexingDesc": "Indexing files in background ({0} files indexed)...",
+  "ContentSearch_IndexingWithRemainingDesc": "Indexing files in background ({0} files indexed, {1} remaining)..."
+}

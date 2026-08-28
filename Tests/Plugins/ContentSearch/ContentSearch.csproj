@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Lertaro.Plugins.ContentSearch.Tests</AssemblyName>
+    <RootNamespace>Lertaro.Plugins.ContentSearch.Tests</RootNamespace>
+    <UseCurrentRuntimeIdentifier>true</UseCurrentRuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MSTest" Version="4.0.2" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+    <PackageReference Include="PdfPig" Version="0.1.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ContentSearch.csproj's own PostBuild target nests+deletes its flat output DLL for the plugin
+         loader's benefit, which breaks a normal ProjectReference's copy-local step (the file it expects
+         to copy is gone by the time this project's build looks for it). Compiling its source files
+         directly into this test assembly mirrors BrowserData.Tests pattern. -->
+    <Compile Include="..\..\..\Plugins\ContentSearch\**\*.cs" Exclude="..\..\..\Plugins\ContentSearch\obj\**;..\..\..\Plugins\ContentSearch\bin\**" />
+    <Compile Include="**\*.cs" Exclude="bin\**;obj\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\Plugins\ContentSearch\Resources\Translations\**\*.json" Link="Resources\Translations\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\PluginSdk\PluginSdk.csproj" />
+  </ItemGroup>
+</Project>

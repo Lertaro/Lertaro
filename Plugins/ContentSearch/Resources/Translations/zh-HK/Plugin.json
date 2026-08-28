@@ -1,0 +1,22 @@
+{
+  "ContentSearch_PluginName": "內容搜尋",
+  "ContentSearch_PluginDesc": "基於本地全文與語義索引的檔案內容即時檢索外掛程式",
+  "ContentSearch_ProviderName": "內容搜尋",
+  "ContentSearch_ProviderDesc": "透過觸發關鍵字檢索文件內容",
+  "ContentSearch_Config_TriggerLabel": "觸發關鍵字",
+  "ContentSearch_Config_TriggerDesc": "在搜尋框輸入此關鍵字後加空格觸發內容搜尋（預設: c）",
+  "ContentSearch_Config_FoldersLabel": "監控資料夾白名單",
+  "ContentSearch_Config_FoldersDesc": "需要進行內容索引的本機資料夾清單，支援環境變數（如 %USERPROFILE%）",
+  "ContentSearch_Config_MaxSizeLabel": "單一檔案大小上限 (MB)",
+  "ContentSearch_Config_MaxSizeDesc": "超過此大小的檔案將被略過索引，以防止記憶體與效能過度消耗",
+  "ContentSearch_Config_ExtensionsLabel": "索引檔案副檔名",
+  "ContentSearch_Config_ExtensionsDesc": "以逗號分隔的檔案副檔名清單（如 txt,md,docx,pdf）",
+  "ContentSearch_Config_EnableSemanticLabel": "啟用語義檢索",
+  "ContentSearch_Config_EnableSemanticDesc": "啟用基於向量與 RRF 融合的語義內容檢索",
+  "ContentSearch_PlaceholderTitle": "內容搜尋",
+  "ContentSearch_PlaceholderDesc": "已索引 {0} 個檔案 · 輸入關鍵字搜尋文件內文",
+  "ContentSearch_NoResultsTitle": "未找到相符內容",
+  "ContentSearch_NoResultsDesc": "未在已索引檔案中找到包含「{0}」的內容",
+  "ContentSearch_IndexingDesc": "正在後台索引檔案（已索引 {0} 個檔案）...",
+  "ContentSearch_IndexingWithRemainingDesc": "正在後台索引檔案（已索引 {0} 個檔案，剩餘 {1} 個待索引）..."
+}
