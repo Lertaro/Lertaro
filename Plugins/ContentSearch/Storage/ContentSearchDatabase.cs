@@ -36,6 +36,13 @@ public sealed class ContentSearchDatabase : IDisposable
         _connectionString = builder.ToString();
     }
 
+    private SqliteConnection OpenConnection()
+    {
+        var conn = new SqliteConnection(_connectionString);
+        conn.Open();
+        return conn;
+    }
+
     public void Initialize()
     {
         if (_initialized) return;
@@ -43,8 +50,7 @@ public sealed class ContentSearchDatabase : IDisposable
         {
             if (_initialized) return;
 
-            using var conn = new SqliteConnection(_connectionString);
-            conn.Open();
+            using var conn = OpenConnection();
             DatabaseSchemaHelper.InitializeSchema(conn);
             RefreshStatsInternal(conn);
             _initialized = true;
@@ -56,8 +62,7 @@ public sealed class ContentSearchDatabase : IDisposable
         Initialize();
         lock (_writeLock)
         {
-            using var conn = new SqliteConnection(_connectionString);
-            conn.Open();
+            using var conn = OpenConnection();
             DatabaseWriterHelper.InsertOrUpdateBatch(conn, items);
             RefreshStatsInternal(conn);
         }
@@ -68,8 +73,7 @@ public sealed class ContentSearchDatabase : IDisposable
         Initialize();
         lock (_writeLock)
         {
-            using var conn = new SqliteConnection(_connectionString);
-            conn.Open();
+            using var conn = OpenConnection();
             DatabaseWriterHelper.InsertOrUpdateFile(conn, path, lastModifiedUtc, fileSize, content);
             RefreshStatsInternal(conn);
         }
@@ -81,8 +85,7 @@ public sealed class ContentSearchDatabase : IDisposable
         Initialize();
         lock (_writeLock)
         {
-            using var conn = new SqliteConnection(_connectionString);
-            conn.Open();
+            using var conn = OpenConnection();
             DatabaseWriterHelper.DeleteFile(conn, path);
             RefreshStatsInternal(conn);
         }
@@ -94,8 +97,7 @@ public sealed class ContentSearchDatabase : IDisposable
         Initialize();
         lock (_writeLock)
         {
-            using var conn = new SqliteConnection(_connectionString);
-            conn.Open();
+            using var conn = OpenConnection();
             DatabaseWriterHelper.DeleteFilesBatch(conn, paths);
             RefreshStatsInternal(conn);
         }
@@ -108,10 +110,28 @@ public sealed class ContentSearchDatabase : IDisposable
         {
             try
             {
-                using var conn = new SqliteConnection(_connectionString);
-                conn.Open();
+                using var conn = OpenConnection();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = truncate ? "PRAGMA wal_checkpoint(TRUNCATE);" : "PRAGMA wal_checkpoint(PASSIVE);";
+                cmd.ExecuteNonQuery();
+            }
+            catch { }
+        }
+    }
+
+    public void Optimize()
+    {
+        if (!File.Exists(_dbPath)) return;
+        lock (_writeLock)
+        {
+            try
+            {
+                using var conn = OpenConnection();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = """
+                    INSERT INTO files_fts(files_fts) VALUES('optimize');
+                    PRAGMA wal_checkpoint(TRUNCATE);
+                    """;
                 cmd.ExecuteNonQuery();
             }
             catch { }
@@ -124,8 +144,7 @@ public sealed class ContentSearchDatabase : IDisposable
         Initialize();
 
         var dict = new Dictionary<string, (long, long)>(StringComparer.OrdinalIgnoreCase);
-        using var conn = new SqliteConnection(_connectionString);
-        conn.Open();
+        using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT path, last_modified, file_size FROM files;";
         using var reader = cmd.ExecuteReader();
@@ -141,8 +160,7 @@ public sealed class ContentSearchDatabase : IDisposable
         if (!File.Exists(_dbPath)) return null;
         Initialize();
 
-        using var conn = new SqliteConnection(_connectionString);
-        conn.Open();
+        using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT id, path, last_modified, file_size, indexed_at FROM files WHERE path = @path LIMIT 1;";
         cmd.Parameters.AddWithValue("@path", path);
@@ -167,8 +185,7 @@ public sealed class ContentSearchDatabase : IDisposable
         Initialize();
 
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        using var conn = new SqliteConnection(_connectionString);
-        conn.Open();
+        using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT path FROM files;";
         using var reader = cmd.ExecuteReader();
@@ -187,8 +204,7 @@ public sealed class ContentSearchDatabase : IDisposable
         Initialize();
         var ftsQuery = DatabaseFtsQueryHelper.BuildFtsQuery(rawQuery);
 
-        using var conn = new SqliteConnection(_connectionString);
-        conn.Open();
+        using var conn = OpenConnection();
         return DatabaseSearchHelper.Search(conn, rawQuery, ftsQuery, limit);
     }
 
@@ -221,8 +237,7 @@ public sealed class ContentSearchDatabase : IDisposable
 
             try
             {
-                using var conn = new SqliteConnection(_connectionString);
-                conn.Open();
+                using var conn = OpenConnection();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = """
                     DELETE FROM files_fts;

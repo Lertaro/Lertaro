@@ -10,7 +10,7 @@ public readonly record struct FileIndexBatchItem(
 );
 
 /// <summary>
-/// Handles atomic file-level insertions, FTS indexing, and deletions with prepared statement reuse.
+/// Handles atomic file-level insertions, FTS indexing, and deletions.
 /// </summary>
 public static class DatabaseWriterHelper
 {

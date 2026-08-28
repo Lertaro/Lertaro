@@ -54,7 +54,7 @@ public sealed class ContentSearchDatabaseTests
     }
 
     [TestMethod]
-    public void Database_CjkSubstringAndFuzzySearch_MatchesSuccessfully()
+    public void Database_CjkAndShortQueries_MatchesSuccessfully()
     {
         var tempDb = Path.Combine(Path.GetTempPath(), $"test_db_cjk_{Guid.NewGuid():N}.db");
         var tempDoc = Path.Combine(Path.GetTempPath(), $"test_doc_cjk_{Guid.NewGuid():N}.txt");
@@ -62,7 +62,7 @@ public sealed class ContentSearchDatabaseTests
         try
         {
             var text1 = "喜羊羊与灰太狼：别看我只是一只羊，绿草因为我变得更香。";
-            var text2 = "你好世界！这是一个关于全文本地语义检索与大模型微调的技术文档。";
+            var text2 = "你好世界！这是一个关于全文本地语义检索与在线云南支付结算的技术文档。NetworkAdapter 3cudjz.";
             var fullText = text1 + " " + text2;
             File.WriteAllText(tempDoc, fullText);
 
@@ -71,21 +71,30 @@ public sealed class ContentSearchDatabaseTests
 
             db.InsertOrUpdateFile(tempDoc, DateTime.UtcNow, 1024, fullText);
 
-            // Substring search in CJK (>= 3 chars)
-            var hits1 = db.SearchFts("只是一只羊", 10);
-            Assert.HasCount(1, hits1);
-            Assert.Contains("只是一只羊", hits1[0].Snippet);
+            // 1-character CJK search
+            var hits1Char = db.SearchFts("羊", 10);
+            Assert.HasCount(1, hits1Char);
+            Assert.Contains("羊", hits1Char[0].Snippet);
 
-            var hits2 = db.SearchFts("语义检索", 10);
-            Assert.HasCount(1, hits2);
-            Assert.Contains("语义检索", hits2[0].Snippet);
+            // 2-character CJK search
+            var hits2Char = db.SearchFts("云南", 10);
+            Assert.HasCount(1, hits2Char);
+            Assert.Contains("云南", hits2Char[0].Snippet);
 
-            // Multi-token CJK search with spaces (fuzzy terms >= 3 chars)
-            var hits3 = db.SearchFts("全文本地 语义检索", 10);
-            Assert.HasCount(1, hits3);
+            // 3-character CJK search
+            var hits3Char = db.SearchFts("只是一只羊", 10);
+            Assert.HasCount(1, hits3Char);
+            Assert.Contains("只是一只羊", hits3Char[0].Snippet);
 
-            var hits4 = db.SearchFts("你好世界", 10);
-            Assert.HasCount(1, hits4);
+            // English 2-character search
+            var hitsEn2Char = db.SearchFts("jz", 10);
+            Assert.HasCount(1, hitsEn2Char);
+            Assert.Contains("jz", hitsEn2Char[0].Snippet, StringComparison.OrdinalIgnoreCase);
+
+            // English arbitrary substring search
+            var hitsEnSubstring = db.SearchFts("work", 10);
+            Assert.HasCount(1, hitsEnSubstring);
+            Assert.Contains("Network", hitsEnSubstring[0].Snippet, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

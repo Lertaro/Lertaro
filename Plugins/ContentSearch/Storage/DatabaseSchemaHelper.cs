@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
-/// Helper responsible for SQLite table creation, PRAGMA configuration, and file-level Contentless FTS5 schema initialization.
+/// Helper responsible for SQLite table creation, PRAGMA configuration, and standard FTS5 schema initialization.
 /// </summary>
 public static class DatabaseSchemaHelper
 {
@@ -33,8 +33,6 @@ public static class DatabaseSchemaHelper
 
                 CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
                     content,
-                    content='',
-                    contentless_delete=1,
                     tokenize = 'trigram'
                 );
                 """;

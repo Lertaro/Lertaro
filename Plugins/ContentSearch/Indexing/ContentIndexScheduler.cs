@@ -118,7 +118,7 @@ public sealed class ContentIndexScheduler : IDisposable
                     _database.DeleteFilesBatch(toDelete);
                 }
 
-                _database.Checkpoint(truncate: true);
+                _database.Optimize();
             }
             catch
             {
@@ -164,6 +164,9 @@ public sealed class ContentIndexScheduler : IDisposable
 
     private async Task WorkerLoopAsync(CancellationToken ct)
     {
+        var hasPendingOptimizations = false;
+        var idleCycles = 0;
+
         while (!ct.IsCancellationRequested)
         {
             var batch = new List<string>();
@@ -175,9 +178,22 @@ public sealed class ContentIndexScheduler : IDisposable
 
             if (batch.Count == 0)
             {
+                if (hasPendingOptimizations)
+                {
+                    idleCycles++;
+                    if (idleCycles >= 15) // ~3 seconds of idle time
+                    {
+                        _database.Optimize();
+                        hasPendingOptimizations = false;
+                        idleCycles = 0;
+                    }
+                }
                 await Task.Delay(200, ct);
                 continue;
             }
+
+            idleCycles = 0;
+            hasPendingOptimizations = true;
 
             await ProcessBatchAsync(batch, ct);
             _database.Checkpoint(truncate: false);

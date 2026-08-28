@@ -3,8 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
-/// Executes full-text queries against files tables and resolves snippets on-demand from files.
-/// Split out purely to keep ContentSearchDatabase under the repository per-file line limit.
+/// Executes full-text and short-term queries against FTS tables and extracts snippets directly from internal content.
 /// </summary>
 public static class DatabaseSearchHelper
 {
@@ -14,7 +13,7 @@ public static class DatabaseSearchHelper
         var seenFileIds = new HashSet<long>();
         var tokens = rawQuery.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
 
-        if (!string.IsNullOrWhiteSpace(ftsQuery))
+        if (!string.IsNullOrWhiteSpace(ftsQuery) && tokens.Any(t => t.Length >= 3))
         {
             ExecuteFts(conn, ftsQuery, rawQuery, limit, seenFileIds, hits);
 
@@ -28,7 +27,66 @@ public static class DatabaseSearchHelper
             }
         }
 
+        if (hits.Count < limit && tokens.Length > 0 && tokens.All(t => t.Length < 3))
+        {
+            ScanContentForShortTokens(conn, tokens, rawQuery, limit, seenFileIds, hits);
+        }
+
         return hits;
+    }
+
+    private static void ScanContentForShortTokens(
+        SqliteConnection conn,
+        string[] tokens,
+        string rawQuery,
+        int limit,
+        HashSet<long> seenFileIds,
+        List<SearchHitItem> hits)
+    {
+        try
+        {
+            var remainingLimit = limit - hits.Count;
+            if (remainingLimit <= 0) return;
+
+            using var cmd = conn.CreateCommand();
+            var whereClauses = new List<string>(tokens.Length);
+            for (var i = 0; i < tokens.Length; i++)
+            {
+                whereClauses.Add($"files_fts.content LIKE @token{i}");
+                cmd.Parameters.AddWithValue($"@token{i}", "%" + tokens[i] + "%");
+            }
+
+            cmd.CommandText = $"""
+                SELECT f.id, f.path, files_fts.content
+                FROM files_fts
+                JOIN files f ON f.id = files_fts.rowid
+                WHERE {string.Join(" AND ", whereClauses)}
+                LIMIT @limit;
+                """;
+            cmd.Parameters.AddWithValue("@limit", remainingLimit);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var fileId = reader.GetInt64(0);
+                if (seenFileIds.Add(fileId))
+                {
+                    var filePath = reader.GetString(1);
+                    var content = reader.IsDBNull(2) ? string.Empty : reader.GetString(2);
+                    var snippet = SnippetGenerator.CreateSnippet(content, rawQuery);
+
+                    hits.Add(new SearchHitItem
+                    {
+                        FilePath = filePath,
+                        FileName = Path.GetFileName(filePath),
+                        DirectoryPath = Path.GetDirectoryName(filePath) ?? string.Empty,
+                        Snippet = snippet,
+                        Score = 1.0
+                    });
+                }
+            }
+        }
+        catch { }
     }
 
     private static void ExecuteFts(
@@ -46,7 +104,7 @@ public static class DatabaseSearchHelper
 
             using var cmd = conn.CreateCommand();
             cmd.CommandText = """
-                SELECT f.id, f.path, rank
+                SELECT f.id, f.path, rank, files_fts.content
                 FROM files_fts(@query)
                 JOIN files f ON f.id = files_fts.rowid
                 ORDER BY rank
@@ -63,7 +121,8 @@ public static class DatabaseSearchHelper
                 {
                     var filePath = reader.GetString(1);
                     var rank = reader.GetDouble(2);
-                    var snippet = SnippetFileHelper.CreateFileSnippet(filePath, rawQuery);
+                    var content = reader.IsDBNull(3) ? string.Empty : reader.GetString(3);
+                    var snippet = SnippetGenerator.CreateSnippet(content, rawQuery);
 
                     hits.Add(new SearchHitItem
                     {
