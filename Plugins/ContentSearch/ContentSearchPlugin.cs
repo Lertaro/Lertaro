@@ -103,12 +103,15 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
         var extsStr = PluginSettingsService.GetSetting(PluginId, "IndexedExtensions", "txt,md,cs,json,xml,csv,docx,pptx,xlsx,pdf,py,js,ts,html,css,log,yaml,yml,sql");
 
         var extSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var rawExt in extsStr.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+        if (!string.IsNullOrWhiteSpace(extsStr))
         {
-            var ext = rawExt.Trim();
-            if (!ext.StartsWith('.'))
-                ext = "." + ext;
-            extSet.Add(ext);
+            foreach (var rawExt in extsStr.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var ext = rawExt.Trim();
+                if (!ext.StartsWith('.'))
+                    ext = "." + ext;
+                extSet.Add(ext);
+            }
         }
 
         return new ContentIndexConfig

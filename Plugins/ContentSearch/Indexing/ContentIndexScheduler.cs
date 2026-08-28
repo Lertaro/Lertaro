@@ -92,7 +92,7 @@ public sealed class ContentIndexScheduler : IDisposable
                 if (ct.IsCancellationRequested) return;
                 _isScanning = true;
 
-                if (_config.MonitoredFolders.Count == 0)
+                if (_config.MonitoredFolders.Count == 0 || _config.AllowedExtensions.Count == 0)
                 {
                     _database.ClearAll();
                     return;

@@ -24,6 +24,9 @@ public sealed class ContentFolderWatcher : IDisposable
         {
             DirectoryIndexerService.UnregisterDirectories(PluginId);
 
+            if (string.IsNullOrEmpty(filterPattern))
+                return;
+
             foreach (var rawFolder in folders)
             {
                 var folder = ContentIndexScheduler.NormalizeFolderPath(rawFolder);
