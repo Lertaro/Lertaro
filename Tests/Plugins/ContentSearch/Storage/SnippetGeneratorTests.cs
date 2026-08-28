@@ -18,7 +18,7 @@ public sealed class SnippetGeneratorTests
         var content = "This is a long introductory text before the important keyword that we want to search for in this test.";
         var snippet = SnippetGenerator.CreateSnippet(content, "keyword", maxLength: 50);
 
-        Assert.IsTrue(snippet.Contains("keyword", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("keyword", snippet, StringComparison.OrdinalIgnoreCase);
     }
 
     [TestMethod]
@@ -29,5 +29,17 @@ public sealed class SnippetGeneratorTests
 
         Assert.IsLessThanOrEqualTo(20, snippet.Length);
         Assert.StartsWith(snippet, content);
+    }
+
+    [TestMethod]
+    public void CreateSnippet_MultilineAndCarriageReturns_NormalizesToSingleLine()
+    {
+        var content = "Header text\r\nSecond line\rThird line\nFourth line\twith tabs";
+        var snippet = SnippetGenerator.CreateSnippet(content, "Third", maxLength: 100);
+
+        Assert.DoesNotContain("\r", snippet);
+        Assert.DoesNotContain("\n", snippet);
+        Assert.DoesNotContain("\t", snippet);
+        Assert.Contains("Third", snippet);
     }
 }

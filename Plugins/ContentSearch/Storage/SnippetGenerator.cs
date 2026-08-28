@@ -1,3 +1,4 @@
+using System.Text;
 using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.ContentSearch.Storage;
@@ -14,13 +15,13 @@ public static class SnippetGenerator
         if (string.IsNullOrWhiteSpace(content))
             return string.Empty;
 
+        var normalizedContent = NormalizeWhitespace(content);
         if (string.IsNullOrWhiteSpace(query))
         {
-            var len = Math.Min(content.Length, maxLength);
-            return content.Substring(0, len).Replace("\r\n", " ").Replace('\n', ' ').Trim();
+            var len = Math.Min(normalizedContent.Length, maxLength);
+            return normalizedContent.Substring(0, len).Trim();
         }
 
-        var normalizedContent = content.Replace("\r\n", " ").Replace('\n', ' ').Replace('\t', ' ');
         var tokens = query.Split(new[] { ' ', '+', '"' }, StringSplitOptions.RemoveEmptyEntries);
 
         var firstMatchIndex = -1;
@@ -68,5 +69,28 @@ public static class SnippetGenerator
         var suffix = end < normalizedContent.Length ? "..." : "";
 
         return $"{prefix}{snippet}{suffix}";
+    }
+
+    private static string NormalizeWhitespace(string text)
+    {
+        var sb = new StringBuilder(text.Length);
+        var prevWasSpace = false;
+        foreach (var ch in text)
+        {
+            if (ch == '\r' || ch == '\n' || ch == '\t' || ch == '\f' || ch == '\v' || char.IsWhiteSpace(ch))
+            {
+                if (!prevWasSpace)
+                {
+                    sb.Append(' ');
+                    prevWasSpace = true;
+                }
+            }
+            else
+            {
+                sb.Append(ch);
+                prevWasSpace = false;
+            }
+        }
+        return sb.ToString().Trim();
     }
 }

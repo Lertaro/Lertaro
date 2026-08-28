@@ -11,7 +11,7 @@ public readonly record struct FileIndexBatchItem(
 );
 
 /// <summary>
-/// Handles atomic insertions, chunk batch writing, and file deletions with prepared statement reuse.
+/// Handles atomic insertions, chunk batch writing, and file deletions with prepared statement reuse in Contentless mode.
 /// </summary>
 public static class DatabaseWriterHelper
 {
@@ -30,7 +30,7 @@ public static class DatabaseWriterHelper
 
         using var delFtsCmd = conn.CreateCommand();
         delFtsCmd.Transaction = tx;
-        delFtsCmd.CommandText = "DELETE FROM chunks_fts WHERE file_id = @file_id;";
+        delFtsCmd.CommandText = "DELETE FROM chunks_fts WHERE rowid IN (SELECT id FROM chunks WHERE file_id = @file_id);";
         var pDelFtsFileId = delFtsCmd.Parameters.Add("@file_id", SqliteType.Integer);
         delFtsCmd.Prepare();
 
@@ -63,26 +63,24 @@ public static class DatabaseWriterHelper
         using var insertChunkCmd = conn.CreateCommand();
         insertChunkCmd.Transaction = tx;
         insertChunkCmd.CommandText = """
-            INSERT INTO chunks (file_id, chunk_index, offset, length, content)
-            VALUES (@file_id, @chunk_index, @offset, @length, @content);
+            INSERT INTO chunks (file_id, chunk_index, offset, length)
+            VALUES (@file_id, @chunk_index, @offset, @length);
             SELECT last_insert_rowid();
             """;
         var pChunkFileId = insertChunkCmd.Parameters.Add("@file_id", SqliteType.Integer);
         var pChunkIndex = insertChunkCmd.Parameters.Add("@chunk_index", SqliteType.Integer);
         var pChunkOffset = insertChunkCmd.Parameters.Add("@offset", SqliteType.Integer);
         var pChunkLength = insertChunkCmd.Parameters.Add("@length", SqliteType.Integer);
-        var pChunkContent = insertChunkCmd.Parameters.Add("@content", SqliteType.Text);
         insertChunkCmd.Prepare();
 
         using var insertFtsCmd = conn.CreateCommand();
         insertFtsCmd.Transaction = tx;
         insertFtsCmd.CommandText = """
-            INSERT INTO chunks_fts (content, chunk_id, file_id)
-            VALUES (@content, @chunk_id, @file_id);
+            INSERT INTO chunks_fts (rowid, content)
+            VALUES (@rowid, @content);
             """;
+        var pFtsRowId = insertFtsCmd.Parameters.Add("@rowid", SqliteType.Integer);
         var pFtsContent = insertFtsCmd.Parameters.Add("@content", SqliteType.Text);
-        var pFtsChunkId = insertFtsCmd.Parameters.Add("@chunk_id", SqliteType.Integer);
-        var pFtsFileId = insertFtsCmd.Parameters.Add("@file_id", SqliteType.Integer);
         insertFtsCmd.Prepare();
 
         foreach (var item in items)
@@ -119,12 +117,10 @@ public static class DatabaseWriterHelper
                 pChunkIndex.Value = chunk.ChunkIndex;
                 pChunkOffset.Value = chunk.Offset;
                 pChunkLength.Value = chunk.Length;
-                pChunkContent.Value = chunk.Text;
                 var chunkId = (long)(insertChunkCmd.ExecuteScalar() ?? 0L);
 
+                pFtsRowId.Value = chunkId;
                 pFtsContent.Value = chunk.Text;
-                pFtsChunkId.Value = chunkId;
-                pFtsFileId.Value = newFileId;
                 insertFtsCmd.ExecuteNonQuery();
             }
         }
@@ -169,7 +165,7 @@ public static class DatabaseWriterHelper
         {
             delCmd.Transaction = tx;
             delCmd.CommandText = """
-                DELETE FROM chunks_fts WHERE file_id IN (SELECT id FROM files WHERE path IN (SELECT path FROM to_delete));
+                DELETE FROM chunks_fts WHERE rowid IN (SELECT c.id FROM chunks c JOIN files f ON f.id = c.file_id WHERE f.path IN (SELECT path FROM to_delete));
                 DELETE FROM chunks WHERE file_id IN (SELECT id FROM files WHERE path IN (SELECT path FROM to_delete));
                 DELETE FROM files WHERE path IN (SELECT path FROM to_delete);
                 DROP TABLE to_delete;
