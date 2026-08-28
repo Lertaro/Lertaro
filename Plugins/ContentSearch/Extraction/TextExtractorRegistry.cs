@@ -1,7 +1,7 @@
 namespace Lertaro.Plugins.ContentSearch.Extraction;
 
 /// <summary>
-/// Dispatches file text extraction to the appropriate registered extractor based on file extension.
+/// Dispatches file text extraction to registered specialized extractors first, falling back to plain text.
 /// </summary>
 public sealed class TextExtractorRegistry
 {
@@ -11,9 +11,9 @@ public sealed class TextExtractorRegistry
 
     public TextExtractorRegistry() => _extractors = new List<ITextExtractor>
     {
-        new PlainTextExtractor(),
         new DocxExtractor(),
-        new PdfExtractor()
+        new PdfExtractor(),
+        new PlainTextExtractor()
     };
 
     public bool IsSupportedExtension(string extension)

@@ -5,8 +5,8 @@ namespace Lertaro.Plugins.ContentSearch.Indexing;
 /// </summary>
 public static class TextChunker
 {
-    public const int DefaultChunkSize = 350;
-    public const int DefaultOverlap = 50;
+    public const int DefaultChunkSize = 2000;
+    public const int DefaultOverlap = 100;
 
     private static readonly char[] BoundaryDelimiters =
     [

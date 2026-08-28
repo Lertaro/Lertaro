@@ -6,15 +6,15 @@ namespace Lertaro.Plugins.ContentSearch.Tests.Extraction;
 public sealed class PlainTextExtractorTests
 {
     [TestMethod]
-    public void CanHandle_SupportedExtensions_ReturnsTrue()
+    public void CanHandle_AnyNonEmptyExtension_ReturnsTrue()
     {
         var extractor = new PlainTextExtractor();
         Assert.IsTrue(extractor.CanHandle(".txt"));
         Assert.IsTrue(extractor.CanHandle(".md"));
         Assert.IsTrue(extractor.CanHandle(".cs"));
-        Assert.IsTrue(extractor.CanHandle(".json"));
-        Assert.IsFalse(extractor.CanHandle(".pdf"));
-        Assert.IsFalse(extractor.CanHandle(".docx"));
+        Assert.IsTrue(extractor.CanHandle(".vue"));
+        Assert.IsTrue(extractor.CanHandle(".custom"));
+        Assert.IsFalse(extractor.CanHandle(""));
     }
 
     [TestMethod]
