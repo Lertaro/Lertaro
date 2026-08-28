@@ -60,11 +60,11 @@ public partial class QuickPanelViewModel
         // Dropped from what is already loaded rather than reloaded: closing a tab says nothing about what
         // the others hold, and the panel is open while this happens.
         _content.Remove(tabId);
-        _tabs = _tabs.Where(candidate => candidate.Id != tabId).ToList();
+        _tabs = _tabs.Where(candidate => !string.Equals(candidate.Id, tabId, StringComparison.OrdinalIgnoreCase)).ToList();
 
         // Closing the tab being looked at leaves the panel on the first one still there, rather than on
         // one that no longer has a tab to reach it by.
-        if (!_tabs.Any(candidate => candidate.Id == _activeTabId))
+        if (!_tabs.Any(candidate => string.Equals(candidate.Id, _activeTabId, StringComparison.OrdinalIgnoreCase)))
             _activeTabId = _tabs.Count > 0 ? _tabs[0].Id : string.Empty;
 
         RebuildTabs();

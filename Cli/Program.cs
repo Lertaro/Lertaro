@@ -66,12 +66,17 @@ try
 catch (Exception ex)
 {
     Console.Error.WriteLine($"[error] Could not reach the Lertaro App's search pipe within {AppSearchPipeClient.ConnectTimeoutMs}ms ({ex.GetType().Name}: {ex.Message}) -- is the Lertaro App running?");
+    Environment.ExitCode = 1;
     return;
 }
 
 var terminal = Lertaro.Cli.Terminal.Terminal.TryOpen();
 if (terminal == null)
-    return; // TryOpen already wrote the specific reason to stderr
+{
+    // TryOpen already wrote the specific reason to stderr
+    Environment.ExitCode = 1;
+    return;
+}
 
 var session = new SearchSession(pipeName);
 var renderer = new Renderer(terminal, session);

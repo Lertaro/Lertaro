@@ -236,12 +236,20 @@ public static class AppSearchPipeService
     private static async Task RunTokenizedSearchAsync(string query, IReadOnlyList<string> tokens, bool bypassExclusions, Stream pipe, CancellationToken token)
     {
         var raw = new List<SearchResult>();
+        // SearchStreamingAsync's onResult callback fires concurrently from its local/network tasks, and
+        // List<T>.Add is not safe under that -- same write-lock pattern RunStreamingSearchAsync uses.
+        var writeLock = new SemaphoreSlim(1, 1);
         await SharedSearchService.SearchStreamingAsync(
             query,
             SearchViewModel.FullSearchFileLimit,
             SearchViewModel.FullSearchAppLimit,
             null,
-            r => raw.Add(r),
+            r =>
+            {
+                writeLock.Wait();
+                try { raw.Add(r); }
+                finally { writeLock.Release(); }
+            },
             token,
             null,
             bypassExclusions);

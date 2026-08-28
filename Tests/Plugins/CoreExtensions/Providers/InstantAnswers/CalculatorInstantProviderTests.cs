@@ -1,3 +1,4 @@
+using System.Globalization;
 using Lertaro.Plugins.CoreExtensions.Providers.InstantAnswers;
 
 namespace Lertaro.Plugins.CoreExtensions.Tests.Providers.InstantAnswers;
@@ -87,6 +88,27 @@ public sealed class CalculatorInstantProviderTests
         var result = Provider.GetInstantResults("8 to oct").Single();
 
         Assert.AreEqual("010", result.ActionArgument);
+    }
+
+    [TestMethod]
+    public void GetInstantResults_DecimalToDecConversion_UnderCommaDecimalCulture_UsesInvariantDecimalSeparator()
+    {
+        // de-DE uses ',' as decimal separator; both the parse and the "dec" output must
+        // stay invariant, otherwise "1.5" would read as 15 and format back as "1,5".
+        // CurrentCulture is per-thread (AsyncLocal), so setting and restoring it here
+        // cannot leak into parallel test methods on other threads.
+        var original = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
+        try
+        {
+            var result = Provider.GetInstantResults("1.5 to dec").Single();
+
+            Assert.AreEqual("1.5", result.ActionArgument);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
     }
 
     [TestMethod]

@@ -150,10 +150,8 @@ internal class ScientificMathParser
             var hexStr = _expr[start.._pos];
             return Convert.ToInt64(hexStr, 16);
         }
-        if (_pos + 1 < _expr.Length && _expr[_pos] == '0' && _expr[_pos + 1] == '0' && _expr[_pos + 1] == 'b')
-        {
-            // Note: The original parser had a slight logic error in "0b" detection where it checked index _pos+1 twice or did start+2, let's keep it safe.
-        }
+        // Binary literals (0b...) are handled right below; an older revision kept a dead
+        // "0b" detection branch here that compared _expr[_pos + 1] twice and had an empty body.
         if (_pos + 1 < _expr.Length && _expr[_pos] == '0' && _expr[_pos + 1] == 'b')
         {
             _pos += 2;
