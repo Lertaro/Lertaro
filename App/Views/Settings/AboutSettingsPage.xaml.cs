@@ -311,4 +311,12 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
             MessageBox.Show(string.Format(TranslationManager.Instance["Executor_OpenFailed"], ex.Message), TranslationManager.Instance["Service_Error"], MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
+
+    // Config Management card: the flows (file pickers, confirms, message boxes) live in
+    // UserConfigBackups to keep this page under the repo's per-file line limit.
+    private async void BtnExportConfig_Click(object sender, RoutedEventArgs e) => await UserConfigBackups.RunExportFlowAsync();
+
+    private async void BtnImportConfig_Click(object sender, RoutedEventArgs e) => await UserConfigBackups.RunImportFlowAsync();
+
+    private async void BtnRestoreConfig_Click(object sender, RoutedEventArgs e) => await UserConfigBackups.RunRestoreFlowAsync();
 }
