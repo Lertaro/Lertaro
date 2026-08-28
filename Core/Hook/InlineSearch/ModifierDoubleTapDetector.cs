@@ -1,6 +1,6 @@
 namespace Lertaro.Core.Hook.InlineSearch;
 
-// Detects a double-tap of a single modifier key within a (100ms, 500ms) window. Reused by
+// Detects a double-tap of a single modifier key within a (100ms, 300ms) window. Reused by
 // GlobalHotkeyDetector for both the toggle-window and quick-switch hotkeys, which previously each
 // carried their own copy of this exact state machine.
 internal sealed class ModifierDoubleTapDetector
@@ -26,7 +26,7 @@ internal sealed class ModifierDoubleTapDetector
         _wasReleased = false;
 
         var elapsed = time - _lastDownTime;
-        if (vkCode == _lastVkCode && elapsed > 100 && elapsed < 500)
+        if (vkCode == _lastVkCode && elapsed > 100 && elapsed < 300)
         {
             _clickCount++;
             if (_clickCount >= DoubleTapClickCount)

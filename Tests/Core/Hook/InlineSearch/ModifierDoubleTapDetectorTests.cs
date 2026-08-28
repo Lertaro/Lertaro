@@ -49,8 +49,21 @@ public sealed class ModifierDoubleTapDetectorTests
         detector.OnModifierKeyDown(VkCtrl, 1000);
         detector.OnModifierKeyUp();
 
-        // 600ms later -- past the 500ms ceiling.
-        var triggered = detector.OnModifierKeyDown(VkCtrl, 1600);
+        // 400ms later -- past the 300ms ceiling.
+        var triggered = detector.OnModifierKeyDown(VkCtrl, 1400);
+
+        Assert.IsFalse(triggered);
+    }
+
+    [TestMethod]
+    public void OnModifierKeyDown_SecondTapAtUpperBoundary_DoesNotTrigger()
+    {
+        var detector = new ModifierDoubleTapDetector();
+        detector.OnModifierKeyDown(VkCtrl, 1000);
+        detector.OnModifierKeyUp();
+
+        // The upper boundary is exclusive, so exactly 300ms is outside the window.
+        var triggered = detector.OnModifierKeyDown(VkCtrl, 1300);
 
         Assert.IsFalse(triggered);
     }
