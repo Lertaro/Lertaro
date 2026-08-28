@@ -34,6 +34,9 @@ public class SearchWindowInputHandler
         if (SearchInputHelper.HandleCommonSearchKeys(e, _window, _window.MenuPresenter))
             return;
 
+        if (SearchWindowStayOpenSupport.TryHandle(_window, e))
+            return;
+
         // Normal mode keys
         if (Keyboard.FocusedElement == _window.TxtSearchBoxControl &&
             (e.Key == Key.Down || e.Key == Key.Up || e.Key == Key.Enter))

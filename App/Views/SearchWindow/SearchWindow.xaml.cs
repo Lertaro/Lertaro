@@ -56,7 +56,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         _chromeHandler = new SearchWindowChromeHandler(this);
         _inputHandler = new SearchWindowInputHandler(this);
         SearchBox.IconLeftClicked += (_, _) => TrayIconService.Instance?.ShowMenuAt(SearchBox, hideShowWindow: true);
-        SearchBox.IconMiddleClicked += () => { Topmost = !Topmost; SearchBox.IsStayOpen = Topmost; };
+        SearchBox.IconMiddleClicked += () => SearchWindowStayOpenSupport.Toggle(this);
         this.PreviewKeyDown += Window_PreviewKeyDown;
         this.StateChanged += SearchWindow_StateChanged;
 
@@ -167,6 +167,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     // ==========================================
 
     public TextBox TxtSearchBoxControl => SearchBox.SearchTextBox;
+    internal SearchBoxControl SearchBoxControl => SearchBox;
     public ListView LstGridResultsControl => (ListView)ResultsPanelControl.ActiveListBox;
     public ShellMenuPresenter MenuPresenter => _menuPresenter;
 
