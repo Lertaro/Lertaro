@@ -64,8 +64,8 @@ public sealed class ContentIndexSchedulerTests
     [TestMethod]
     public void TriggerFullScan_DisallowedExtensions_PrunedFromDatabaseImmediately()
     {
-        _database.InsertOrUpdateFile(@"C:\MyDocs\doc1.pdf", DateTime.UtcNow, 1024, new List<TextChunk> { new(0, 0, 10, "PDF text") });
-        _database.InsertOrUpdateFile(@"C:\MyDocs\doc2.txt", DateTime.UtcNow, 512, new List<TextChunk> { new(0, 0, 10, "TXT text") });
+        _database.InsertOrUpdateFile(@"C:\MyDocs\doc1.pdf", DateTime.UtcNow, 1024, "PDF text");
+        _database.InsertOrUpdateFile(@"C:\MyDocs\doc2.txt", DateTime.UtcNow, 512, "TXT text");
 
         Assert.AreEqual(2, _database.GetStats().TotalFiles);
 

@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.ContentSearch.Extraction;
 using Lertaro.Plugins.ContentSearch.Storage;
 
@@ -101,55 +100,29 @@ public sealed class ContentIndexScheduler : IDisposable
                 if (toDeleteImmediately.Count > 0)
                 {
                     _database.DeleteFilesBatch(toDeleteImmediately);
-                    foreach (var p in toDeleteImmediately) existingMeta.Remove(p);
+                    foreach (var p in toDeleteImmediately)
+                        existingMeta.Remove(p);
                 }
 
-                var foundPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var pattern = _config.FilterPattern;
-
-                foreach (var rawFolder in _config.MonitoredFolders)
-                {
-                    if (ct.IsCancellationRequested) return;
-                    var folder = NormalizeFolderPath(rawFolder);
-                    if (string.IsNullOrEmpty(folder)) continue;
-
-                    try
-                    {
-                        await foreach (var item in DirectoryIndexerService.EnumerateDirectoryAsync(folder, recursive: true, filterPattern: pattern, token: ct).ConfigureAwait(false))
-                        {
-                            if (ct.IsCancellationRequested) return;
-                            if (item.IsDir) continue;
-
-                            var file = item.FullPath;
-                            foundPaths.Add(file);
-
-                            var fileSize = item.Metadata.Size;
-                            var modified = item.Metadata.Modified;
-                            if (fileSize == 0 || fileSize > _config.MaxFileSizeBytes)
-                                continue;
-
-                            var lastModUnix = new DateTimeOffset(modified).ToUnixTimeSeconds();
-                            if (existingMeta.TryGetValue(file, out var meta) &&
-                                meta.LastModified == lastModUnix &&
-                                meta.FileSize == fileSize)
-                            {
-                                continue;
-                            }
-
-                            QueueFileChange(file);
-                        }
-                    }
-                    catch (OperationCanceledException) { return; }
-                    catch { }
-                }
+                var discovered = await FolderScanDiscoveryHelper.DiscoverFilesAsync(
+                    _config,
+                    existingMeta,
+                    EnqueueFile,
+                    ct).ConfigureAwait(false);
 
                 if (ct.IsCancellationRequested) return;
 
-                var toDelete = existingMeta.Keys.Where(p => !foundPaths.Contains(p)).ToList();
-                if (toDelete.Count > 0 && !ct.IsCancellationRequested)
+                var toDelete = existingMeta.Keys.Where(p => !discovered.Contains(p)).ToList();
+                if (toDelete.Count > 0)
+                {
                     _database.DeleteFilesBatch(toDelete);
+                }
+
+                _database.Checkpoint(truncate: true);
             }
-            catch (OperationCanceledException) { }
+            catch
+            {
+            }
             finally
             {
                 _scanGate.Release();
@@ -157,47 +130,36 @@ public sealed class ContentIndexScheduler : IDisposable
         }, ct);
     }
 
-    public void QueueFileChange(string filePath)
+    public void EnqueueFile(string filePath)
     {
-        if (!IsAllowedExtension(filePath) || !IsFileInMonitoredFolders(filePath))
-            return;
-
         lock (_queueLock)
         {
             if (_enqueuedPaths.Add(filePath))
-                _pendingFiles.Enqueue(filePath);
-        }
-    }
-
-    private bool IsAllowedExtension(string filePath)
-    {
-        var ext = Path.GetExtension(filePath);
-        return _config.AllowedExtensions.Contains(ext) &&
-               TextExtractorRegistry.Instance.IsSupportedExtension(ext);
-    }
-
-    public bool IsFileInMonitoredFolders(string filePath)
-    {
-        try
-        {
-            var fullPath = Path.GetFullPath(filePath);
-            foreach (var rawFolder in _config.MonitoredFolders)
             {
-                var folder = NormalizeFolderPath(rawFolder);
-                if (string.IsNullOrEmpty(folder)) continue;
-
-                var prefix = folder.EndsWith(Path.DirectorySeparatorChar) || folder.EndsWith(Path.AltDirectorySeparatorChar)
-                    ? folder
-                    : folder + Path.DirectorySeparatorChar;
-
-                if (fullPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(fullPath, folder, StringComparison.OrdinalIgnoreCase))
-                    return true;
+                _pendingFiles.Enqueue(filePath);
             }
         }
-        catch { }
+    }
 
+    internal bool IsFileInMonitoredFolders(string filePath)
+    {
+        foreach (var rawFolder in _config.MonitoredFolders)
+        {
+            var folder = NormalizeFolderPath(rawFolder);
+            if (string.IsNullOrEmpty(folder)) continue;
+
+            var folderWithSep = folder.EndsWith('\\') || folder.EndsWith('/') ? folder : folder + Path.DirectorySeparatorChar;
+            if (filePath.StartsWith(folderWithSep, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
         return false;
+    }
+
+    internal bool IsAllowedExtension(string filePath)
+    {
+        var ext = Path.GetExtension(filePath);
+        if (string.IsNullOrEmpty(ext)) return false;
+        return _config.AllowedExtensions.Contains(ext);
     }
 
     private async Task WorkerLoopAsync(CancellationToken ct)
@@ -218,7 +180,8 @@ public sealed class ContentIndexScheduler : IDisposable
             }
 
             await ProcessBatchAsync(batch, ct);
-            await Task.Delay(30, ct);
+            _database.Checkpoint(truncate: false);
+            await Task.Delay(20, ct);
         }
     }
 
@@ -257,9 +220,7 @@ public sealed class ContentIndexScheduler : IDisposable
                     return;
                 }
 
-                var chunks = TextChunker.ChunkText(text);
-                if (chunks.Count > 0)
-                    writeBatch.Add(new FileIndexBatchItem(filePath, fileInfo.LastWriteTimeUtc, fileInfo.Length, chunks));
+                writeBatch.Add(new FileIndexBatchItem(filePath, fileInfo.LastWriteTimeUtc, fileInfo.Length, text));
             }
             catch
             {

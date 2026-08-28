@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
-/// Manages SQLite storage, FTS5 full-text indexing, and search queries for document chunks.
+/// Manages SQLite storage, FTS5 full-text indexing, and search queries for documents.
 /// </summary>
 public sealed class ContentSearchDatabase : IDisposable
 {
@@ -14,10 +14,9 @@ public sealed class ContentSearchDatabase : IDisposable
     private bool _initialized;
 
     private int _cachedTotalFiles;
-    private int _cachedTotalChunks;
 
     public int TotalFiles => _cachedTotalFiles;
-    public int TotalChunks => _cachedTotalChunks;
+    public int TotalChunks => _cachedTotalFiles;
 
     public ContentSearchDatabase(string dbPath)
     {
@@ -64,14 +63,14 @@ public sealed class ContentSearchDatabase : IDisposable
         }
     }
 
-    public void InsertOrUpdateFile(string path, DateTime lastModifiedUtc, long fileSize, IReadOnlyList<TextChunk> chunks)
+    public void InsertOrUpdateFile(string path, DateTime lastModifiedUtc, long fileSize, string content)
     {
         Initialize();
         lock (_writeLock)
         {
             using var conn = new SqliteConnection(_connectionString);
             conn.Open();
-            DatabaseWriterHelper.InsertOrUpdateFile(conn, path, lastModifiedUtc, fileSize, chunks);
+            DatabaseWriterHelper.InsertOrUpdateFile(conn, path, lastModifiedUtc, fileSize, content);
             RefreshStatsInternal(conn);
         }
     }
@@ -102,6 +101,23 @@ public sealed class ContentSearchDatabase : IDisposable
         }
     }
 
+    public void Checkpoint(bool truncate = false)
+    {
+        if (!File.Exists(_dbPath)) return;
+        lock (_writeLock)
+        {
+            try
+            {
+                using var conn = new SqliteConnection(_connectionString);
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = truncate ? "PRAGMA wal_checkpoint(TRUNCATE);" : "PRAGMA wal_checkpoint(PASSIVE);";
+                cmd.ExecuteNonQuery();
+            }
+            catch { }
+        }
+    }
+
     public Dictionary<string, (long LastModified, long FileSize)> GetAllFileMetadata()
     {
         if (!File.Exists(_dbPath)) return new Dictionary<string, (long, long)>(StringComparer.OrdinalIgnoreCase);
@@ -128,7 +144,7 @@ public sealed class ContentSearchDatabase : IDisposable
         using var conn = new SqliteConnection(_connectionString);
         conn.Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT id, path, last_modified, file_size, chunk_count, indexed_at FROM files WHERE path = @path LIMIT 1;";
+        cmd.CommandText = "SELECT id, path, last_modified, file_size, indexed_at FROM files WHERE path = @path LIMIT 1;";
         cmd.Parameters.AddWithValue("@path", path);
         using var reader = cmd.ExecuteReader();
         if (reader.Read())
@@ -139,8 +155,7 @@ public sealed class ContentSearchDatabase : IDisposable
                 Path = reader.GetString(1),
                 LastModified = reader.GetInt64(2),
                 FileSize = reader.GetInt64(3),
-                ChunkCount = reader.GetInt32(4),
-                IndexedAt = reader.GetInt64(5)
+                IndexedAt = reader.GetInt64(4)
             };
         }
         return null;
@@ -181,7 +196,7 @@ public sealed class ContentSearchDatabase : IDisposable
     {
         if (!File.Exists(_dbPath)) return (0, 0);
         Initialize();
-        return (_cachedTotalFiles, _cachedTotalChunks);
+        return (_cachedTotalFiles, _cachedTotalFiles);
     }
 
     private void RefreshStatsInternal(SqliteConnection conn)
@@ -189,13 +204,9 @@ public sealed class ContentSearchDatabase : IDisposable
         try
         {
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT (SELECT COUNT(*) FROM files), (SELECT COUNT(*) FROM chunks);";
-            using var reader = cmd.ExecuteReader();
-            if (reader.Read())
-            {
-                _cachedTotalFiles = reader.GetInt32(0);
-                _cachedTotalChunks = reader.GetInt32(1);
-            }
+            cmd.CommandText = "SELECT COUNT(*) FROM files;";
+            var res = cmd.ExecuteScalar();
+            _cachedTotalFiles = res != null && res != DBNull.Value ? Convert.ToInt32(res) : 0;
         }
         catch { }
     }
@@ -205,7 +216,6 @@ public sealed class ContentSearchDatabase : IDisposable
         lock (_writeLock)
         {
             _cachedTotalFiles = 0;
-            _cachedTotalChunks = 0;
 
             if (!File.Exists(_dbPath)) return;
 
@@ -215,10 +225,10 @@ public sealed class ContentSearchDatabase : IDisposable
                 conn.Open();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = """
-                    DELETE FROM chunks_fts;
-                    DELETE FROM chunks;
+                    DELETE FROM files_fts;
                     DELETE FROM files;
                     VACUUM;
+                    PRAGMA wal_checkpoint(TRUNCATE);
                     """;
                 cmd.ExecuteNonQuery();
             }

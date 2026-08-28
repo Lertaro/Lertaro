@@ -9,6 +9,5 @@ public sealed class IndexedFileRecord
     public string Path { get; set; } = string.Empty;
     public long LastModified { get; set; }
     public long FileSize { get; set; }
-    public int ChunkCount { get; set; }
     public long IndexedAt { get; set; }
 }

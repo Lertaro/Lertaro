@@ -6,14 +6,14 @@ namespace Lertaro.Plugins.ContentSearch.Tests.Storage;
 public sealed class SnippetFileHelperTests
 {
     [TestMethod]
-    public void ReadSnippetContext_NonExistentFile_ReturnsEmpty()
+    public void CreateFileSnippet_NonExistentFile_ReturnsEmpty()
     {
-        var result = SnippetFileHelper.ReadSnippetContext(@"C:\NonExistent\dummy_12345.txt", 0, 100);
+        var result = SnippetFileHelper.CreateFileSnippet(@"C:\NonExistent\dummy_12345.txt", "query");
         Assert.AreEqual(string.Empty, result);
     }
 
     [TestMethod]
-    public void ReadSnippetContext_PlainTextFile_ReadsExactSegment()
+    public void CreateFileSnippet_PlainTextFile_ExtractsCleanSnippet()
     {
         var tempFile = Path.Combine(Path.GetTempPath(), $"snippet_test_{Guid.NewGuid():N}.txt");
         try
@@ -21,8 +21,8 @@ public sealed class SnippetFileHelperTests
             var text = "Hello world! This is a test file for on-demand snippet reading.";
             File.WriteAllText(tempFile, text);
 
-            var segment = SnippetFileHelper.ReadSnippetContext(tempFile, 13, 20);
-            Assert.AreEqual("This is a test file ", segment);
+            var snippet = SnippetFileHelper.CreateFileSnippet(tempFile, "test file");
+            Assert.Contains("test file", snippet, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

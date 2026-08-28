@@ -1,4 +1,3 @@
-using Lertaro.Plugins.ContentSearch.Indexing;
 using Lertaro.Plugins.ContentSearch.Storage;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Storage;
@@ -16,34 +15,27 @@ public sealed class ContentSearchDatabaseTests
         {
             var content1 = "Architecture overview for content search in Lertaro application.";
             var content2 = "Using SQLite FTS5 for fast full-text querying and snippets.";
-            File.WriteAllText(tempDoc, content1 + " " + content2);
+            var fullContent = content1 + " " + content2;
+            File.WriteAllText(tempDoc, fullContent);
 
             using var db = new ContentSearchDatabase(tempDb);
             db.Initialize();
 
-            var chunks = new List<TextChunk>
-            {
-                new(0, 0, content1.Length, content1),
-                new(1, content1.Length + 1, content2.Length, content2)
-            };
+            db.InsertOrUpdateFile(tempDoc, DateTime.UtcNow, 1024, fullContent);
 
-            db.InsertOrUpdateFile(tempDoc, DateTime.UtcNow, 1024, chunks);
-
-            var (files, totalChunks) = db.GetStats();
+            var (files, _) = db.GetStats();
             Assert.AreEqual(1, files);
-            Assert.AreEqual(2, totalChunks);
 
             var hits = db.SearchFts("SQLite FTS5", 10);
             Assert.HasCount(1, hits);
             Assert.AreEqual(tempDoc, hits[0].FilePath);
             Assert.AreEqual(Path.GetFileName(tempDoc), hits[0].FileName);
-            Assert.IsTrue(hits[0].Snippet.Contains("FTS5", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains("FTS5", hits[0].Snippet, StringComparison.OrdinalIgnoreCase);
 
             // Delete file and verify cleanup
             db.DeleteFile(tempDoc);
-            var (afterFiles, afterChunks) = db.GetStats();
+            var (afterFiles, _) = db.GetStats();
             Assert.AreEqual(0, afterFiles);
-            Assert.AreEqual(0, afterChunks);
 
             var afterHits = db.SearchFts("SQLite", 10);
             Assert.IsEmpty(afterHits);
@@ -71,18 +63,13 @@ public sealed class ContentSearchDatabaseTests
         {
             var text1 = "喜羊羊与灰太狼：别看我只是一只羊，绿草因为我变得更香。";
             var text2 = "你好，世界！这是一个关于全文本地语义检索与大模型微调的技术文档。";
-            File.WriteAllText(tempDoc, text1 + " " + text2);
+            var fullText = text1 + " " + text2;
+            File.WriteAllText(tempDoc, fullText);
 
             using var db = new ContentSearchDatabase(tempDb);
             db.Initialize();
 
-            var chunks = new List<TextChunk>
-            {
-                new(0, 0, text1.Length, text1),
-                new(1, text1.Length + 1, text2.Length, text2)
-            };
-
-            db.InsertOrUpdateFile(tempDoc, DateTime.UtcNow, 1024, chunks);
+            db.InsertOrUpdateFile(tempDoc, DateTime.UtcNow, 1024, fullText);
 
             // Substring search in CJK
             var hits1 = db.SearchFts("只是一只羊", 10);
