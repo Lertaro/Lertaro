@@ -26,8 +26,8 @@ public sealed class ContentFolderWatcher : IDisposable
 
             foreach (var rawFolder in folders)
             {
-                var folder = Environment.ExpandEnvironmentVariables(rawFolder);
-                if (Directory.Exists(folder))
+                var folder = ContentIndexScheduler.NormalizeFolderPath(rawFolder);
+                if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
                 {
                     DirectoryIndexerService.RegisterDirectory(PluginId, folder, recursive: true, filterPattern: "*");
                 }

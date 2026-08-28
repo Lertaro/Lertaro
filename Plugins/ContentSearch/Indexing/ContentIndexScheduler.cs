@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.ContentSearch.Extraction;
 using Lertaro.Plugins.ContentSearch.Storage;
 
@@ -46,50 +47,85 @@ public sealed class ContentIndexScheduler : IDisposable
         _folderWatcher.UpdateFolders(config.MonitoredFolders);
     }
 
-    public void TriggerFullScan() => Task.Run(() =>
+    public static string NormalizeFolderPath(string rawFolder)
+    {
+        var folder = Environment.ExpandEnvironmentVariables(rawFolder).Trim();
+        if (string.IsNullOrWhiteSpace(folder)) return string.Empty;
+
+        if (folder.Length == 2 && char.IsLetter(folder[0]) && folder[1] == ':')
+            folder += @"\";
+
+        try
+        {
+            folder = Path.GetFullPath(folder);
+            return Path.TrimEndingDirectorySeparator(folder);
+        }
+        catch
+        {
+            return folder;
+        }
+    }
+
+    public void TriggerFullScan() => Task.Run(async () =>
     {
         try
         {
             _isScanning = true;
+
+            if (_config.MonitoredFolders.Count == 0)
+            {
+                _database.ClearAll();
+                while (_pendingFiles.TryDequeue(out _)) { }
+                lock (_queueLock) { _enqueuedPaths.Clear(); }
+                return;
+            }
+
             var existingMeta = _database.GetAllFileMetadata();
             var foundPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var rawFolder in _config.MonitoredFolders)
             {
-                var folder = Environment.ExpandEnvironmentVariables(rawFolder);
-                if (!Directory.Exists(folder)) continue;
+                var folder = NormalizeFolderPath(rawFolder);
+                if (string.IsNullOrEmpty(folder)) continue;
 
                 try
                 {
-                    var files = Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories);
-                    foreach (var file in files)
+                    await foreach (var item in DirectoryIndexerService.EnumerateDirectoryAsync(folder, recursive: true))
                     {
+                        if (item.IsDir) continue;
+                        var file = item.FullPath;
                         var ext = Path.GetExtension(file);
                         if (!_config.AllowedExtensions.Contains(ext) ||
                             !TextExtractorRegistry.Instance.IsSupportedExtension(ext))
+                            continue;
+
+                        foundPaths.Add(file);
+
+                        var fileSize = item.Metadata.Size;
+                        var modified = item.Metadata.Modified;
+                        if (fileSize == 0 && modified == default)
+                        {
+                            try
+                            {
+                                var fi = new FileInfo(file);
+                                fileSize = fi.Length;
+                                modified = fi.LastWriteTimeUtc;
+                            }
+                            catch { }
+                        }
+
+                        if (fileSize == 0 || fileSize > _config.MaxFileSizeBytes)
+                            continue;
+
+                        var lastModUnix = new DateTimeOffset(modified).ToUnixTimeSeconds();
+                        if (existingMeta.TryGetValue(file, out var meta) &&
+                            meta.LastModified == lastModUnix &&
+                            meta.FileSize == fileSize)
                         {
                             continue;
                         }
 
-                        foundPaths.Add(file);
-
-                        try
-                        {
-                            var fi = new FileInfo(file);
-                            if (fi.Length == 0 || fi.Length > _config.MaxFileSizeBytes)
-                                continue;
-
-                            var lastModUnix = new DateTimeOffset(fi.LastWriteTimeUtc).ToUnixTimeSeconds();
-                            if (existingMeta.TryGetValue(file, out var meta) &&
-                                meta.LastModified == lastModUnix &&
-                                meta.FileSize == fi.Length)
-                            {
-                                continue;
-                            }
-
-                            QueueFileChange(file);
-                        }
-                        catch { }
+                        QueueFileChange(file);
                     }
                 }
                 catch { }
@@ -98,7 +134,7 @@ public sealed class ContentIndexScheduler : IDisposable
             var toDelete = new List<string>();
             foreach (var dbPath in existingMeta.Keys)
             {
-                if (!foundPaths.Contains(dbPath) && !File.Exists(dbPath))
+                if (!foundPaths.Contains(dbPath))
                 {
                     toDelete.Add(dbPath);
                 }
@@ -120,21 +156,15 @@ public sealed class ContentIndexScheduler : IDisposable
         var ext = Path.GetExtension(filePath);
         if (!_config.AllowedExtensions.Contains(ext) ||
             !TextExtractorRegistry.Instance.IsSupportedExtension(ext))
-        {
             return;
-        }
 
         if (!IsFileInMonitoredFolders(filePath))
-        {
             return;
-        }
 
         lock (_queueLock)
         {
             if (_enqueuedPaths.Add(filePath))
-            {
                 _pendingFiles.Enqueue(filePath);
-            }
         }
     }
 
@@ -145,20 +175,16 @@ public sealed class ContentIndexScheduler : IDisposable
             var fullPath = Path.GetFullPath(filePath);
             foreach (var rawFolder in _config.MonitoredFolders)
             {
-                var folder = Environment.ExpandEnvironmentVariables(rawFolder);
-                if (string.IsNullOrWhiteSpace(folder)) continue;
+                var folder = NormalizeFolderPath(rawFolder);
+                if (string.IsNullOrEmpty(folder)) continue;
 
-                var fullFolder = Path.GetFullPath(folder);
-                if (!fullFolder.EndsWith(Path.DirectorySeparatorChar) && !fullFolder.EndsWith(Path.AltDirectorySeparatorChar))
-                {
-                    fullFolder += Path.DirectorySeparatorChar;
-                }
+                var prefix = folder.EndsWith(Path.DirectorySeparatorChar) || folder.EndsWith(Path.AltDirectorySeparatorChar)
+                    ? folder
+                    : folder + Path.DirectorySeparatorChar;
 
-                if (fullPath.StartsWith(fullFolder, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(fullPath, Path.GetFullPath(folder), StringComparison.OrdinalIgnoreCase))
-                {
+                if (fullPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(fullPath, folder, StringComparison.OrdinalIgnoreCase))
                     return true;
-                }
             }
         }
         catch { }
@@ -173,10 +199,7 @@ public sealed class ContentIndexScheduler : IDisposable
             var batch = new List<string>();
             while (batch.Count < WriteBatchSize && _pendingFiles.TryDequeue(out var path))
             {
-                lock (_queueLock)
-                {
-                    _enqueuedPaths.Remove(path);
-                }
+                lock (_queueLock) { _enqueuedPaths.Remove(path); }
                 batch.Add(path);
             }
 
@@ -201,13 +224,13 @@ public sealed class ContentIndexScheduler : IDisposable
             await semaphore.WaitAsync(ct);
             try
             {
-                if (!File.Exists(filePath))
+                if (!IsFileInMonitoredFolders(filePath))
                 {
                     deleteBatch.Add(filePath);
                     return;
                 }
 
-                if (!IsFileInMonitoredFolders(filePath))
+                if (!File.Exists(filePath))
                 {
                     deleteBatch.Add(filePath);
                     return;
@@ -219,9 +242,7 @@ public sealed class ContentIndexScheduler : IDisposable
                     !TextExtractorRegistry.Instance.IsSupportedExtension(ext) ||
                     fileInfo.Length > _config.MaxFileSizeBytes ||
                     fileInfo.Length == 0)
-                {
                     return;
-                }
 
                 var text = await TextExtractorRegistry.Instance.ExtractTextAsync(
                     filePath, _config.MaxFileSizeBytes, ct);
@@ -234,13 +255,10 @@ public sealed class ContentIndexScheduler : IDisposable
 
                 var chunks = TextChunker.ChunkText(text);
                 if (chunks.Count > 0)
-                {
                     writeBatch.Add(new FileIndexBatchItem(filePath, fileInfo.LastWriteTimeUtc, fileInfo.Length, chunks));
-                }
             }
             catch
             {
-                // Silently ignore transient I/O failures
             }
             finally
             {
@@ -251,14 +269,10 @@ public sealed class ContentIndexScheduler : IDisposable
         await Task.WhenAll(tasks);
 
         if (!deleteBatch.IsEmpty)
-        {
             _database.DeleteFilesBatch(deleteBatch);
-        }
 
         if (!writeBatch.IsEmpty)
-        {
             _database.InsertOrUpdateBatch(writeBatch.ToList());
-        }
     }
 
     public void Dispose()

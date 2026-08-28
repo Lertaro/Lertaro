@@ -45,4 +45,19 @@ public sealed class ContentIndexSchedulerTests
         Assert.IsFalse(scheduler.IsFileInMonitoredFolders(@"C:\MyDocsOther\file.txt"));
         Assert.IsFalse(scheduler.IsFileInMonitoredFolders(@"Z:\Data\test.md"));
     }
+
+    [TestMethod]
+    public void IsFileInMonitoredFolders_DriveRootPaths_CorrectlyNormalized()
+    {
+        using var scheduler = new ContentIndexScheduler(_database);
+        var config = new ContentIndexConfig
+        {
+            MonitoredFolders = new List<string> { @"c:\", @"D:" }
+        };
+        scheduler.UpdateConfig(config);
+
+        Assert.IsTrue(scheduler.IsFileInMonitoredFolders(@"C:\Windows\System32\drivers\etc\hosts"));
+        Assert.IsTrue(scheduler.IsFileInMonitoredFolders(@"D:\Projects\App.cs"));
+        Assert.IsFalse(scheduler.IsFileInMonitoredFolders(@"Z:\Data\test.txt"));
+    }
 }

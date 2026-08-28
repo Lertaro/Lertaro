@@ -8,12 +8,14 @@ namespace Lertaro.Plugins.ContentSearch.Storage;
 /// </summary>
 public sealed class ContentSearchDatabase : IDisposable
 {
+    private readonly string _dbPath;
     private readonly string _connectionString;
     private readonly object _lock = new();
     private bool _initialized;
 
     public ContentSearchDatabase(string dbPath)
     {
+        _dbPath = dbPath;
         var dir = Path.GetDirectoryName(dbPath);
         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
         {
@@ -66,6 +68,7 @@ public sealed class ContentSearchDatabase : IDisposable
 
     public void DeleteFile(string path)
     {
+        if (!File.Exists(_dbPath)) return;
         Initialize();
         lock (_lock)
         {
@@ -77,6 +80,7 @@ public sealed class ContentSearchDatabase : IDisposable
 
     public void DeleteFilesBatch(IEnumerable<string> paths)
     {
+        if (!File.Exists(_dbPath)) return;
         Initialize();
         lock (_lock)
         {
@@ -88,6 +92,7 @@ public sealed class ContentSearchDatabase : IDisposable
 
     public Dictionary<string, (long LastModified, long FileSize)> GetAllFileMetadata()
     {
+        if (!File.Exists(_dbPath)) return new Dictionary<string, (long, long)>(StringComparer.OrdinalIgnoreCase);
         Initialize();
         lock (_lock)
         {
@@ -107,6 +112,7 @@ public sealed class ContentSearchDatabase : IDisposable
 
     public IndexedFileRecord? GetFileRecord(string path)
     {
+        if (!File.Exists(_dbPath)) return null;
         Initialize();
         lock (_lock)
         {
@@ -134,6 +140,7 @@ public sealed class ContentSearchDatabase : IDisposable
 
     public HashSet<string> GetAllIndexedPaths()
     {
+        if (!File.Exists(_dbPath)) return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         Initialize();
         lock (_lock)
         {
@@ -153,7 +160,7 @@ public sealed class ContentSearchDatabase : IDisposable
 
     public IReadOnlyList<SearchHitItem> SearchFts(string rawQuery, int limit = 30)
     {
-        if (string.IsNullOrWhiteSpace(rawQuery))
+        if (string.IsNullOrWhiteSpace(rawQuery) || !File.Exists(_dbPath))
             return Array.Empty<SearchHitItem>();
 
         Initialize();
@@ -169,6 +176,7 @@ public sealed class ContentSearchDatabase : IDisposable
 
     public (int TotalFiles, int TotalChunks) GetStats()
     {
+        if (!File.Exists(_dbPath)) return (0, 0);
         Initialize();
         lock (_lock)
         {
@@ -187,23 +195,23 @@ public sealed class ContentSearchDatabase : IDisposable
 
     public void ClearAll()
     {
-        Initialize();
         lock (_lock)
         {
-            using var conn = new SqliteConnection(_connectionString);
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = """
-                DELETE FROM chunks_fts;
-                DELETE FROM chunks;
-                DELETE FROM files;
-                VACUUM;
-                """;
-            cmd.ExecuteNonQuery();
+            _initialized = false;
+            SqliteConnection.ClearAllPools();
+            TryDeleteFile(_dbPath);
+            TryDeleteFile(_dbPath + "-wal");
+            TryDeleteFile(_dbPath + "-shm");
         }
     }
 
-    public void Dispose()
+    private static void TryDeleteFile(string path)
     {
+        if (File.Exists(path))
+        {
+            try { File.Delete(path); } catch { }
+        }
     }
+
+    public void Dispose() => SqliteConnection.ClearAllPools();
 }

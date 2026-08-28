@@ -35,6 +35,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
             if (string.Equals(id, PluginId, StringComparison.OrdinalIgnoreCase))
             {
                 Scheduler.UpdateConfig(LoadConfigFromSettings());
+                Scheduler.TriggerFullScan();
             }
         };
     }
