@@ -49,8 +49,8 @@ public static class ContentSearchResultBuilder
             Description = desc,
             IconData = DocumentSearchIcon,
             IconColor = "DefaultPluginIconColor",
-            ActionType = "None",
-            ActionArgument = string.Empty
+            ActionType = "Execute",
+            ActionArgument = GetPluginSettingsUri()
         };
     }
 
@@ -63,4 +63,31 @@ public static class ContentSearchResultBuilder
         ActionType = "None",
         ActionArgument = string.Empty
     };
+
+    private static string GetPluginSettingsUri()
+    {
+        try
+        {
+            var pluginName = TranslationService.Get("ContentSearch_PluginName");
+            var configPrefix = $" › {pluginName} › ";
+            var entries = SettingsSearchService.GetEntries();
+
+            // Prioritize jumping directly to the plugin's Configuration tab
+            var configEntry = entries.FirstOrDefault(e => e.Breadcrumb.Contains(configPrefix, StringComparison.OrdinalIgnoreCase));
+            if (configEntry != null)
+            {
+                return $"lertaro://settings/entry/{configEntry.Index}";
+            }
+
+            var suffix = $" › {pluginName}";
+            var pluginEntry = entries.FirstOrDefault(e => e.Breadcrumb.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+            if (pluginEntry != null)
+            {
+                return $"lertaro://settings/entry/{pluginEntry.Index}";
+            }
+        }
+        catch { }
+
+        return "lertaro://settings/page/Plugins";
+    }
 }
