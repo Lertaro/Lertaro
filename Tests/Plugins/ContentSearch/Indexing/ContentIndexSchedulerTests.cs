@@ -43,6 +43,6 @@ public sealed class ContentIndexSchedulerTests
 
         Assert.IsFalse(scheduler.IsFileInMonitoredFolders(@"C:\OtherFolder\file.txt"));
         Assert.IsFalse(scheduler.IsFileInMonitoredFolders(@"C:\MyDocsOther\file.txt"));
-        Assert.IsFalse(scheduler.IsFileInMonitoredFolders(@"E:\Data\test.md"));
+        Assert.IsFalse(scheduler.IsFileInMonitoredFolders(@"Z:\Data\test.md"));
     }
 }
