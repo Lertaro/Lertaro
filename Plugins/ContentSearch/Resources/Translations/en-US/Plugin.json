@@ -4,7 +4,7 @@
   "ContentSearch_ProviderName": "Content Search",
   "ContentSearch_ProviderDesc": "Search document content using a trigger keyword",
   "ContentSearch_Config_TriggerLabel": "Trigger Keyword",
-  "ContentSearch_Config_TriggerDesc": "Keyword followed by a space in the search bar to trigger content search (default: c)",
+  "ContentSearch_Config_TriggerDesc": "Keyword followed by a space in the search bar to trigger content search (default: cs)",
   "ContentSearch_Config_FoldersLabel": "Monitored Folders Whitelist",
   "ContentSearch_Config_FoldersDesc": "List of local folders to index, supports environment variables (e.g. %USERPROFILE%)",
   "ContentSearch_Config_MaxSizeLabel": "Max Single File Size (MB)",

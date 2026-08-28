@@ -4,7 +4,7 @@
   "ContentSearch_ProviderName": "Búsqueda de Contenido",
   "ContentSearch_ProviderDesc": "Busca contenido en documentos mediante una palabra clave de activación",
   "ContentSearch_Config_TriggerLabel": "Palabra clave de activación",
-  "ContentSearch_Config_TriggerDesc": "Palabra clave seguida de un espacio en la barra de búsqueda para activar la búsqueda de contenido (predeterminado: c)",
+  "ContentSearch_Config_TriggerDesc": "Palabra clave seguida de un espacio en la barra de búsqueda para activar la búsqueda de contenido (predeterminado: cs)",
   "ContentSearch_Config_FoldersLabel": "Carpetas monitorizadas permitidas",
   "ContentSearch_Config_FoldersDesc": "Lista de carpetas locales a indexar, admite variables de entorno (p. ej. %USERPROFILE%)",
   "ContentSearch_Config_MaxSizeLabel": "Tamaño máximo por archivo (MB)",

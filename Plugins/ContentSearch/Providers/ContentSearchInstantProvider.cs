@@ -9,7 +9,7 @@ namespace Lertaro.Plugins.ContentSearch.Providers;
 public sealed class ContentSearchInstantProvider : IInstantResultProvider
 {
     private const string PluginId = "Lertaro.Plugins.ContentSearch";
-    private const string DefaultTrigger = "c";
+    private const string DefaultTrigger = "cs";
     private static string? _cachedTrigger;
 
     static ContentSearchInstantProvider() => PluginSettingsService.SettingChanged += (pluginId, _) =>

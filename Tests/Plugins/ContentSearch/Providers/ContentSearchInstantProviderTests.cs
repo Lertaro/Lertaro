@@ -27,7 +27,7 @@ public sealed class ContentSearchInstantProviderTests
     public void GetHighlightMask_StripsTriggerPrefix()
     {
         var provider = new ContentSearchInstantProvider();
-        var mask = provider.GetHighlightMask("Hello world test", "c world");
+        var mask = provider.GetHighlightMask("Hello world test", "cs world");
 
         Assert.IsNotNull(mask);
         Assert.HasCount(16, mask);
@@ -44,10 +44,10 @@ public sealed class ContentSearchInstantProviderTests
     {
         var provider = new ContentSearchInstantProvider();
 
-        var maskAlone = provider.GetHighlightMask("已索引 8036 个文件 · 输入关键词搜索文件正文", "c");
+        var maskAlone = provider.GetHighlightMask("已索引 8036 个文件 · 输入关键词搜索文件正文", "cs");
         Assert.IsNull(maskAlone);
 
-        var maskWithSpace = provider.GetHighlightMask("已索引 8036 个文件 · 输入关键词搜索文件正文", "c ");
+        var maskWithSpace = provider.GetHighlightMask("已索引 8036 个文件 · 输入关键词搜索文件正文", "cs ");
         Assert.IsNotNull(maskWithSpace);
         Assert.IsFalse(maskWithSpace.Any(b => b));
     }

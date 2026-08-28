@@ -4,7 +4,7 @@
   "ContentSearch_ProviderName": "콘텐츠 검색",
   "ContentSearch_ProviderDesc": "트리거 키워드를 사용하여 문서 본문 검색",
   "ContentSearch_Config_TriggerLabel": "트리거 키워드",
-  "ContentSearch_Config_TriggerDesc": "검색창에 이 키워드와 공백을 입력하여 콘텐츠 검색 실행 (기본값: c)",
+  "ContentSearch_Config_TriggerDesc": "검색창에 이 키워드와 공백을 입력하여 콘텐츠 검색 실행 (기본값: cs)",
   "ContentSearch_Config_FoldersLabel": "모니터링 대상 폴더 목록",
   "ContentSearch_Config_FoldersDesc": "인덱싱할 로컬 폴더 목록, 환경 변수 지원 (예: %USERPROFILE%)",
   "ContentSearch_Config_MaxSizeLabel": "단일 파일 크기 상한 (MB)",

@@ -53,7 +53,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                 LabelKey = "ContentSearch_Config_TriggerLabel",
                 DescriptionKey = "ContentSearch_Config_TriggerDesc",
                 FieldType = ConfigFieldType.Text,
-                DefaultValue = "c",
+                DefaultValue = "cs",
                 RequireNonEmpty = true
             },
             new()
@@ -62,11 +62,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                 LabelKey = "ContentSearch_Config_FoldersLabel",
                 DescriptionKey = "ContentSearch_Config_FoldersDesc",
                 FieldType = ConfigFieldType.StringList,
-                DefaultValue = new List<string>
-                {
-                    @"%USERPROFILE%\Documents",
-                    @"%USERPROFILE%\Desktop"
-                }
+                DefaultValue = new List<string>()
             },
             new()
             {
@@ -82,7 +78,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                 LabelKey = "ContentSearch_Config_ExtensionsLabel",
                 DescriptionKey = "ContentSearch_Config_ExtensionsDesc",
                 FieldType = ConfigFieldType.Text,
-                DefaultValue = "txt,md,cs,json,xml,csv,docx,pptx,xlsx,pdf,py,js,ts,html,css,log,yaml,yml,sql"
+                DefaultValue = "txt,md,pdf,docx,pptx,xlsx,csv"
             }
         },
         OnSave = () =>
@@ -97,10 +93,10 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
         var rawFolders = PluginSettingsService.GetSetting(
             PluginId,
             "MonitoredFolders",
-            new List<string> { @"%USERPROFILE%\Documents", @"%USERPROFILE%\Desktop" });
+            new List<string>());
 
-        var maxSizeMb = PluginSettingsService.GetSetting(PluginId, "MaxFileSizeMb", 10);
-        var extsStr = PluginSettingsService.GetSetting(PluginId, "IndexedExtensions", "txt,md,cs,json,xml,csv,docx,pptx,xlsx,pdf,py,js,ts,html,css,log,yaml,yml,sql");
+        var maxSizeMb = PluginSettingsService.GetSetting(PluginId, "MaxFileSizeMb", 0);
+        var extsStr = PluginSettingsService.GetSetting(PluginId, "IndexedExtensions", string.Empty);
 
         var extSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(extsStr))
@@ -117,7 +113,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
         return new ContentIndexConfig
         {
             MonitoredFolders = rawFolders ?? new List<string>(),
-            MaxFileSizeBytes = Math.Max(1, maxSizeMb) * 1024L * 1024L,
+            MaxFileSizeBytes = maxSizeMb > 0 ? maxSizeMb * 1024L * 1024L : long.MaxValue,
             AllowedExtensions = extSet
         };
     }

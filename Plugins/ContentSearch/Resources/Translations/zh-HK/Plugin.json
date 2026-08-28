@@ -4,7 +4,7 @@
   "ContentSearch_ProviderName": "內容搜尋",
   "ContentSearch_ProviderDesc": "透過觸發關鍵字檢索文件內容",
   "ContentSearch_Config_TriggerLabel": "觸發關鍵字",
-  "ContentSearch_Config_TriggerDesc": "在搜尋列輸入此關鍵字後空一格觸發內容搜尋（預設: c）",
+  "ContentSearch_Config_TriggerDesc": "在搜尋列輸入此關鍵字後空一格觸發內容搜尋（預設: cs）",
   "ContentSearch_Config_FoldersLabel": "監測資料夾白名單",
   "ContentSearch_Config_FoldersDesc": "需要進行內容索引的本機資料夾清單，支援環境變數（如 %USERPROFILE%）",
   "ContentSearch_Config_MaxSizeLabel": "單一檔案大小上限 (MB)",

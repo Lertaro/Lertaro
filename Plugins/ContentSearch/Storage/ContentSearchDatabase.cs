@@ -204,14 +204,35 @@ public sealed class ContentSearchDatabase : IDisposable
     {
         lock (_writeLock)
         {
-            _initialized = false;
             _cachedTotalFiles = 0;
             _cachedTotalChunks = 0;
 
-            SqliteConnection.ClearAllPools();
-            TryDeleteFile(_dbPath);
-            TryDeleteFile(_dbPath + "-wal");
-            TryDeleteFile(_dbPath + "-shm");
+            if (!File.Exists(_dbPath)) return;
+
+            try
+            {
+                using var conn = new SqliteConnection(_connectionString);
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = """
+                    DELETE FROM chunks_fts;
+                    DELETE FROM chunks;
+                    DELETE FROM files;
+                    VACUUM;
+                    """;
+                cmd.ExecuteNonQuery();
+            }
+            catch
+            {
+                try
+                {
+                    SqliteConnection.ClearAllPools();
+                    TryDeleteFile(_dbPath);
+                    TryDeleteFile(_dbPath + "-wal");
+                    TryDeleteFile(_dbPath + "-shm");
+                }
+                catch { }
+            }
         }
     }
 

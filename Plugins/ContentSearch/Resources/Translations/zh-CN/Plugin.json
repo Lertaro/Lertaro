@@ -4,7 +4,7 @@
   "ContentSearch_ProviderName": "内容搜索",
   "ContentSearch_ProviderDesc": "通过触发关键字检索文档内容",
   "ContentSearch_Config_TriggerLabel": "触发关键字",
-  "ContentSearch_Config_TriggerDesc": "在搜索框输入此关键字后跟空格触发内容搜索（默认: c）",
+  "ContentSearch_Config_TriggerDesc": "在搜索框输入此关键字后跟空格触发内容搜索（默认: cs）",
   "ContentSearch_Config_FoldersLabel": "监测文件夹白名单",
   "ContentSearch_Config_FoldersDesc": "需要进行内容索引的本地文件夹列表，支持环境变量（如 %USERPROFILE%）",
   "ContentSearch_Config_MaxSizeLabel": "单个文件大小上限 (MB)",

@@ -34,6 +34,12 @@ public static class DatabaseWriterHelper
         var pDelFtsFileId = delFtsCmd.Parameters.Add("@file_id", SqliteType.Integer);
         delFtsCmd.Prepare();
 
+        using var delChunksCmd = conn.CreateCommand();
+        delChunksCmd.Transaction = tx;
+        delChunksCmd.CommandText = "DELETE FROM chunks WHERE file_id = @file_id;";
+        var pDelChunksFileId = delChunksCmd.Parameters.Add("@file_id", SqliteType.Integer);
+        delChunksCmd.Prepare();
+
         using var delFileCmd = conn.CreateCommand();
         delFileCmd.Transaction = tx;
         delFileCmd.CommandText = "DELETE FROM files WHERE id = @file_id;";
@@ -89,6 +95,9 @@ public static class DatabaseWriterHelper
                 pDelFtsFileId.Value = fileId;
                 delFtsCmd.ExecuteNonQuery();
 
+                pDelChunksFileId.Value = fileId;
+                delChunksCmd.ExecuteNonQuery();
+
                 pDelFileId.Value = fileId;
                 delFileCmd.ExecuteNonQuery();
             }
@@ -126,50 +135,48 @@ public static class DatabaseWriterHelper
     public static void InsertOrUpdateFile(SqliteConnection conn, string path, DateTime lastModifiedUtc, long fileSize, IReadOnlyList<TextChunk> chunks) =>
         InsertOrUpdateBatch(conn, new[] { new FileIndexBatchItem(path, lastModifiedUtc, fileSize, chunks) });
 
-    public static void DeleteFile(SqliteConnection conn, string path)
-    {
-        using var tx = conn.BeginTransaction();
-        DeleteFileInternal(conn, path, tx);
-        tx.Commit();
-    }
+    public static void DeleteFile(SqliteConnection conn, string path) => DeleteFilesBatch(conn, new[] { path });
 
     public static void DeleteFilesBatch(SqliteConnection conn, IEnumerable<string> paths)
     {
+        var pathList = paths as IReadOnlyList<string> ?? paths.ToList();
+        if (pathList.Count == 0) return;
+
         using var tx = conn.BeginTransaction();
-        foreach (var path in paths)
+
+        using (var createTemp = conn.CreateCommand())
         {
-            DeleteFileInternal(conn, path, tx);
+            createTemp.Transaction = tx;
+            createTemp.CommandText = "CREATE TEMP TABLE IF NOT EXISTS to_delete (path TEXT PRIMARY KEY); DELETE FROM to_delete;";
+            createTemp.ExecuteNonQuery();
         }
+
+        using (var insertTemp = conn.CreateCommand())
+        {
+            insertTemp.Transaction = tx;
+            insertTemp.CommandText = "INSERT OR IGNORE INTO to_delete (path) VALUES (@path);";
+            var pPath = insertTemp.Parameters.Add("@path", SqliteType.Text);
+            insertTemp.Prepare();
+
+            foreach (var path in pathList)
+            {
+                pPath.Value = path;
+                insertTemp.ExecuteNonQuery();
+            }
+        }
+
+        using (var delCmd = conn.CreateCommand())
+        {
+            delCmd.Transaction = tx;
+            delCmd.CommandText = """
+                DELETE FROM chunks_fts WHERE file_id IN (SELECT id FROM files WHERE path IN (SELECT path FROM to_delete));
+                DELETE FROM chunks WHERE file_id IN (SELECT id FROM files WHERE path IN (SELECT path FROM to_delete));
+                DELETE FROM files WHERE path IN (SELECT path FROM to_delete);
+                DROP TABLE to_delete;
+                """;
+            delCmd.ExecuteNonQuery();
+        }
+
         tx.Commit();
-    }
-
-    public static void DeleteFileInternal(SqliteConnection conn, string path, SqliteTransaction tx)
-    {
-        long? fileId = null;
-        using (var findCmd = conn.CreateCommand())
-        {
-            findCmd.Transaction = tx;
-            findCmd.CommandText = "SELECT id FROM files WHERE path = @path LIMIT 1;";
-            findCmd.Parameters.AddWithValue("@path", path);
-            var res = findCmd.ExecuteScalar();
-            if (res != null && res != DBNull.Value)
-                fileId = (long)res;
-        }
-
-        if (!fileId.HasValue) return;
-
-        using (var delFtsCmd = conn.CreateCommand())
-        {
-            delFtsCmd.Transaction = tx;
-            delFtsCmd.CommandText = "DELETE FROM chunks_fts WHERE file_id = @file_id;";
-            delFtsCmd.Parameters.AddWithValue("@file_id", fileId.Value);
-            delFtsCmd.ExecuteNonQuery();
-        }
-
-        using var delFileCmd = conn.CreateCommand();
-        delFileCmd.Transaction = tx;
-        delFileCmd.CommandText = "DELETE FROM files WHERE id = @file_id;";
-        delFileCmd.Parameters.AddWithValue("@file_id", fileId.Value);
-        delFileCmd.ExecuteNonQuery();
     }
 }

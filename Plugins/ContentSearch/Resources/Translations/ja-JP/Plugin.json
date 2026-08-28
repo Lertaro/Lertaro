@@ -4,7 +4,7 @@
   "ContentSearch_ProviderName": "コンテンツ検索",
   "ContentSearch_ProviderDesc": "トリガーキーワードを使用してドキュメントの本文を検索します",
   "ContentSearch_Config_TriggerLabel": "トリガーキーワード",
-  "ContentSearch_Config_TriggerDesc": "検索バーにこのキーワードとスペースを入力してコンテンツ検索をトリガーします（デフォルト: c）",
+  "ContentSearch_Config_TriggerDesc": "検索バーにこのキーワードとスペースを入力してコンテンツ検索をトリガーします（デフォルト: cs）",
   "ContentSearch_Config_FoldersLabel": "監視フォルダのホワイトリスト",
   "ContentSearch_Config_FoldersDesc": "インデックスを作成するローカルフォルダのリスト。環境変数をサポート（例: %USERPROFILE%）",
   "ContentSearch_Config_MaxSizeLabel": "単一ファイルの最大サイズ (MB)",

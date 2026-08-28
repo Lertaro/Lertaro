@@ -24,9 +24,8 @@ public sealed class ContentIndexScheduler : IDisposable
     private CancellationTokenSource? _scanCts;
     private Task? _workerTask;
     private volatile ContentIndexConfig _config = new();
-    private bool _isScanning;
 
-    public bool IsIndexing => _isScanning || !_pendingFiles.IsEmpty;
+    public bool IsIndexing => !_pendingFiles.IsEmpty;
     public int PendingCount => _pendingFiles.Count;
 
     public ContentIndexScheduler(ContentSearchDatabase database)
@@ -87,7 +86,6 @@ public sealed class ContentIndexScheduler : IDisposable
             try
             {
                 if (ct.IsCancellationRequested) return;
-                _isScanning = true;
 
                 if (_config.MonitoredFolders.Count == 0 || _config.AllowedExtensions.Count == 0)
                 {
@@ -154,7 +152,6 @@ public sealed class ContentIndexScheduler : IDisposable
             catch (OperationCanceledException) { }
             finally
             {
-                if (ReferenceEquals(_scanCts, newCts)) _isScanning = false;
                 _scanGate.Release();
             }
         }, ct);

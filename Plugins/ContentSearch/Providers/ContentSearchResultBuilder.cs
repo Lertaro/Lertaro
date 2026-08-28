@@ -32,17 +32,9 @@ public static class ContentSearchResultBuilder
 
     public static InstantResultItem CreatePlaceholderItem(int totalFiles, bool isIndexing, int pendingCount = 0)
     {
-        string desc;
-        if (isIndexing)
-        {
-            desc = pendingCount > 0
-                ? TranslationService.Format("ContentSearch_IndexingWithRemainingDesc", totalFiles, pendingCount)
-                : TranslationService.Format("ContentSearch_IndexingDesc", totalFiles);
-        }
-        else
-        {
-            desc = TranslationService.Format("ContentSearch_PlaceholderDesc", totalFiles);
-        }
+        var desc = pendingCount > 0
+            ? TranslationService.Format("ContentSearch_IndexingWithRemainingDesc", totalFiles, pendingCount)
+            : TranslationService.Format("ContentSearch_PlaceholderDesc", totalFiles);
 
         return new InstantResultItem
         {
