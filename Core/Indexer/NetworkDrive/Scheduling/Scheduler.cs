@@ -144,6 +144,12 @@ internal sealed class Scheduler : IDisposable
                 {
                     break;
                 }
+                catch (ObjectDisposedException)
+                {
+                    // Same exit path as SchedulerQueueRunner: RemovePeriodicLocked/Dispose can dispose
+                    // the cts between the token check and Task.Delay, surfacing here instead.
+                    break;
+                }
             }
         }, CancellationToken.None);
     }

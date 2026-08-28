@@ -86,8 +86,19 @@ public sealed class DeltaOverlay
 
         if (_addedById.TryGetValue(id, out var deltaIdx))
         {
-            var wasDirectory = IsDir(Added[deltaIdx].Flags);
-            if (wasDirectory != isDirectory) { CountRemoved(wasDirectory); CountAdded(isDirectory); }
+            var existing = Added[deltaIdx];
+            var wasDirectory = IsDir(existing.Flags);
+            if (existing.Removed)
+            {
+                // Resurrection: the earlier Remove already decounted this row, so bringing it back
+                // counts as a fresh add (the prior add/remove pair nets to zero either way).
+                CountAdded(isDirectory);
+            }
+            else if (wasDirectory != isDirectory)
+            {
+                CountRemoved(wasDirectory);
+                CountAdded(isDirectory);
+            }
             Added[deltaIdx] = record;
         }
         else if (TryFindBaseRow(id, out var baseRow) && !DeletedBase.Contains(baseRow) && !RenamedAway.ContainsKey(baseRow))
@@ -157,72 +168,11 @@ public sealed class DeltaOverlay
         return (Snapshot.Sizes[baseRow], Snapshot.CreationTimes[baseRow], Snapshot.LastWriteTimes[baseRow], Snapshot.LastAccessTimes[baseRow]);
     }
 
-    // Same Path.Combine chain as Snapshot.GetFullPath, with delta overrides patched in along the walk.
-    // Stepping onto a renamed-away row forwards to the FRN's live row (delta or base); with no live
-    // row yet, the accumulated tail hangs off the source root, like the old engine's re-orphaned rows.
-    public string GetFullPath(int baseRow)
-    {
-        var segments = new List<string>(8);
-        var current = baseRow;
-        for (var depth = 0; depth < 512; depth++)
-        {
-            if (RenamedAway.TryGetValue(current, out var awayFrn))
-            {
-                if (FindAddedDirectory(awayFrn) is { } liveRecord)
-                    return AppendSegments(GetFullPath(liveRecord), segments);
-                if (TryFindLiveBaseDirectory(awayFrn, out var liveRow) && liveRow != current)
-                {
-                    current = liveRow;
-                    continue;
-                }
-                return AppendSegments(Snapshot.SourceRoot, segments);
-            }
-
-            var parent = ParentOf(current);
-            segments.Add(NameOf(current));
-            if (parent < 0 || parent == current)
-                break;
-            current = parent;
-        }
-        return AppendSegments(Snapshot.SourceRoot, segments);
-    }
-
-    internal string GetFullPath(DeltaRecord record)
-    {
-        // The eagerly-resolved parent row only counts while it is still LIVE -- a tombstoned/renamed-
-        // away parent falls through to FRN re-resolution, and with no live heir the record hangs off
-        // the source root exactly like a re-orphaned old-engine row.
-        var parentPath = GetParentPath(record);
-        return parentPath[^1] == '\\' ? parentPath + record.Name : parentPath + "\\" + record.Name;
-    }
-
-    // The resolved directory path a DeltaRecord's parent link currently points at -- exposed
-    // separately from GetFullPath(record) so path-mode search can run its own directory-segment
-    // matching against it without reconstructing it via string surgery on the child's full path.
-    internal string GetParentPath(DeltaRecord record)
-    {
-        if (record.ParentBaseRow >= 0 && !DeletedBase.Contains(record.ParentBaseRow) && !RenamedAway.ContainsKey(record.ParentBaseRow))
-            return GetFullPath(record.ParentBaseRow);
-        if (TryFindLiveBaseDirectory(record.ParentFrn, out var baseRow))
-            return GetFullPath(baseRow);
-        if (FindAddedDirectory(record.ParentFrn) is { } parentRecord)
-            return GetFullPath(parentRecord);
-        return Snapshot.SourceRoot;
-    }
-
-    private static string AppendSegments(string basePath, List<string> reversedSegments)
-    {
-        var builder = new System.Text.StringBuilder(basePath, 64);
-        for (var i = reversedSegments.Count - 1; i >= 0; i--)
-        {
-            if (reversedSegments[i].Length == 0)
-                continue;
-            if (builder[^1] != '\\')
-                builder.Append('\\');
-            builder.Append(reversedSegments[i]);
-        }
-        return builder.ToString();
-    }
+    // Path building lives in DeltaPathBuilder (composition, purely to keep this file under the repo's
+    // per-file line limit); the builder has no state of its own and always operates on this overlay.
+    public string GetFullPath(int baseRow) => DeltaPathBuilder.GetFullPath(this, baseRow);
+    internal string GetFullPath(DeltaRecord record) => DeltaPathBuilder.GetFullPath(this, record);
+    internal string GetParentPath(DeltaRecord record) => DeltaPathBuilder.GetParentPath(this, record);
 
     internal DeltaRecord? FindAddedDirectory(UInt128 frn)
     {

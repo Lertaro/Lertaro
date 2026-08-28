@@ -50,12 +50,14 @@ internal static class MftParser
                     var hdr = rec[p++];
                     var lenBytes = hdr & 0x0F;
                     var offBytes = (hdr >> 4) & 0x0F;
-                    if (lenBytes == 0)
+                    if (lenBytes == 0 || p + lenBytes > rec.Length)
                         break;
                     var runLen = ReadLE(rec, p, lenBytes);
                     p += lenBytes;
                     if (offBytes == 0)
                         continue; // sparse hole (unexpected for $MFT)
+                    if (p + offBytes > rec.Length)
+                        break;
                     var runOff = ReadSignedLE(rec, p, offBytes);
                     p += offBytes;
                     lcn += runOff;

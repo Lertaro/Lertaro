@@ -191,10 +191,13 @@ internal sealed class PathGate
         }
         if (!AliasProviderRegistry.HasNonAscii(segment))
             return false;
+        var disabledIds = SearchContext.DisabledAliasIds;
         foreach (var provider in AliasProviderRegistry.GetActiveProviders())
         {
             try
             {
+                if (disabledIds != null && disabledIds.Contains(AliasProviderRegistry.GetProviderId(provider)))
+                    continue;
                 if (!provider.CanHandle(segment))
                     continue;
                 foreach (var alias in provider.GetAliases(segment))

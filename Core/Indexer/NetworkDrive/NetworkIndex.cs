@@ -33,8 +33,16 @@ internal sealed class NetworkIndex : IDisposable
         {
             if (_live == null)
                 return 0;
-            var (files, dirs) = _live.GetCounts();
-            return Math.Max(0, files + dirs - 1); // -1: exclude the root row itself
+            try
+            {
+                var (files, dirs) = _live.GetCounts();
+                return Math.Max(0, files + dirs - 1); // -1: exclude the root row itself
+            }
+            catch (ObjectDisposedException)
+            {
+                // Swapped out mid-poll, same as SearchStreaming below -- report empty rather than crash.
+                return 0;
+            }
         }
     }
 
@@ -238,49 +246,25 @@ internal sealed class NetworkIndex : IDisposable
     }
 
     public bool ApplyCreatedOrChanged(string root, string path, ExclusionRuleSet? exclusionRules = null)
-    {
-        if (_live == null)
-            return false;
-        try
-        {
-            var changed = false;
-            _live.Mutate((_, delta) => changed = DeltaPathApplier.ApplyCreatedOrChanged(delta, RootId, root, path, exclusionRules));
-            if (changed)
-                LastUpdated = DateTime.Now;
-            return changed;
-        }
-        catch (ObjectDisposedException)
-        {
-            return false;
-        }
-    }
+        => ApplyToLive(delta => DeltaPathApplier.ApplyCreatedOrChanged(delta, RootId, root, path, exclusionRules));
 
     public bool ApplyDeleted(string path)
-    {
-        if (_live == null)
-            return false;
-        try
-        {
-            var removed = false;
-            _live.Mutate((_, delta) => removed = DeltaPathApplier.ApplyDeleted(delta, path));
-            if (removed)
-                LastUpdated = DateTime.Now;
-            return removed;
-        }
-        catch (ObjectDisposedException)
-        {
-            return false;
-        }
-    }
+        => ApplyToLive(delta => DeltaPathApplier.ApplyDeleted(delta, path));
 
     public bool ApplyRenamed(string root, string oldPath, string newPath, ExclusionRuleSet? exclusionRules = null)
+        => ApplyToLive(delta => DeltaPathApplier.ApplyRenamed(delta, RootId, root, oldPath, newPath, exclusionRules));
+
+    // Shared tail of the three Apply* watchers above: run one mutation against the live index, stamp
+    // LastUpdated when it changed anything, and treat a mid-mutation swap-out (ObjectDisposedException,
+    // same as SearchStreaming above) as "nothing applied".
+    private bool ApplyToLive(Func<DeltaOverlay, bool> apply)
     {
         if (_live == null)
             return false;
         try
         {
             var changed = false;
-            _live.Mutate((_, delta) => changed = DeltaPathApplier.ApplyRenamed(delta, RootId, root, oldPath, newPath, exclusionRules));
+            _live.Mutate((_, delta) => changed = apply(delta));
             if (changed)
                 LastUpdated = DateTime.Now;
             return changed;

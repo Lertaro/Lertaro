@@ -42,28 +42,8 @@ public sealed class MftParserTests
         MftParser.ApplyFixup(buf, 512, 0, buf.Length);
     }
 
-    [TestMethod]
-    public void ParseDataRuns_SingleRun_ReturnsOneExtent()
-    {
-        var rec = BuildRecordWithDataRuns((runLen: 5, delta: 10));
-
-        var extents = MftParser.ParseDataRuns(rec);
-
-        Assert.HasCount(1, extents);
-        Assert.AreEqual((10L, 5L), extents[0]);
-    }
-
-    [TestMethod]
-    public void ParseDataRuns_MultipleDataAttributes_AccumulatesExtentsFromAllDataAttributes()
-    {
-        var rec = BuildRecordWithDataRuns((runLen: 5, delta: 10), (runLen: 3, delta: -4));
-
-        var extents = MftParser.ParseDataRuns(rec);
-
-        Assert.HasCount(2, extents);
-        Assert.AreEqual((10L, 5L), extents[0]);
-        Assert.AreEqual((6L, 3L), extents[1]);
-    }
+    // The $DATA run-list parsing tests live in MftParserDataRunTests (split out to keep this file
+    // under the repo's per-file line limit).
 
     [TestMethod]
     public void ParseAttributeListRecordIndexes_ResidentAttributeList_ExtractsTargetAttributeRecordIndexes()
@@ -135,33 +115,6 @@ public sealed class MftParserTests
         Assert.AreEqual(99uL, indexes[0]);
     }
 
-
-    [TestMethod]
-    public void ParseDataRuns_NoDataAttribute_ReturnsEmpty()
-    {
-        var rec = new byte[64];
-        WriteUInt16(rec, 0x14, 32);
-        WriteUInt32(rec, 32, 0xFFFFFFFF); // immediate end marker
-
-        var extents = MftParser.ParseDataRuns(rec);
-
-        Assert.IsEmpty(extents);
-    }
-
-    [TestMethod]
-    public void ParseDataRuns_ResidentDataAttribute_IsSkipped()
-    {
-        const int a = 32;
-        var rec = new byte[64];
-        WriteUInt16(rec, 0x14, a);
-        WriteUInt32(rec, a, 0x80); // $DATA
-        WriteUInt32(rec, a + 4, 16); // len, next attribute would start at a+16=48
-        rec[a + 8] = 0; // resident -> condition requires ==1, so this attribute is skipped
-
-        var extents = MftParser.ParseDataRuns(rec);
-
-        Assert.IsEmpty(extents);
-    }
 
     [TestMethod]
     public void CollectNames_StandardInfoAndFileNameAndData_PopulatesNamesAndTimestamps()
@@ -260,34 +213,6 @@ public sealed class MftParserTests
         buf[a3 + 8] = 1; // non-resident
         buf[a3 + 9] = 0; // unnamed stream
         WriteInt64(buf, a3 + 0x30, 99999); // dataSize
-
-        return buf;
-    }
-
-    private static byte[] BuildRecordWithDataRuns(params (long runLen, long delta)[] runs)
-    {
-        const int a = 32;
-        const int mpOff = 40; // relative to a
-
-        var runBytes = new List<byte>();
-        foreach (var (runLen, delta) in runs)
-        {
-            runBytes.Add(0x11); // lenBytes=1, offBytes=1
-            runBytes.Add((byte)runLen);
-            runBytes.Add(unchecked((byte)delta));
-        }
-        runBytes.Add(0x00); // terminator
-
-        var len = mpOff + runBytes.Count + 4;
-        var recLen = a + len + 16;
-        var buf = new byte[recLen];
-
-        WriteUInt16(buf, 0x14, a);
-        WriteUInt32(buf, a, 0x80); // $DATA
-        WriteUInt32(buf, a + 4, (uint)len);
-        buf[a + 8] = 1; // non-resident
-        WriteUInt16(buf, a + 0x20, mpOff);
-        WriteBytes(buf, a + mpOff, runBytes.ToArray());
 
         return buf;
     }

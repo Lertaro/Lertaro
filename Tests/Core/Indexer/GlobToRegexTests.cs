@@ -45,6 +45,29 @@ public sealed class GlobToRegexTests
         Assert.IsFalse(regex.IsMatch(@"c:\lib\File.cs"));
     }
 
+    // Three or more stars must behave exactly like two (cross-segment ".*"), not silently match
+    // nothing -- a user typo'ing an extra star used to turn the pattern into a literal collapse.
+    [TestMethod]
+    public void Compile_TripleStar_BehavesLikeDoubleStar()
+    {
+        var regex = GlobToRegex.Compile("a***b");
+
+        Assert.IsTrue(regex.IsMatch("ab"));
+        Assert.IsTrue(regex.IsMatch("axb"));
+        Assert.IsTrue(regex.IsMatch(@"a\x\b")); // crosses path separators like ** does
+        Assert.IsFalse(regex.IsMatch("b"));
+    }
+
+    [TestMethod]
+    public void Compile_LeadingTripleStar_MatchesAcrossPathSegments()
+    {
+        var regex = GlobToRegex.Compile("***foo");
+
+        Assert.IsTrue(regex.IsMatch("foo"));
+        Assert.IsTrue(regex.IsMatch(@"deep\nested\foo"));
+        Assert.IsFalse(regex.IsMatch(@"deep\nested\foobar"));
+    }
+
     [TestMethod]
     public void Compile_QuestionMark_MatchesExactlyOneNonSeparatorCharacter()
     {

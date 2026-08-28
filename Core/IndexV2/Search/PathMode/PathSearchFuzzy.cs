@@ -29,7 +29,8 @@ internal static class PathSearchFuzzy
 
         // See NameSearch: bounded by the index, and widened so a large limit cannot overflow.
         var keep = (int)Math.Min((long)Math.Max(limit, 8) * 8, snapshot.Count + delta.Added.Count);
-        var scanKeep = Math.Min(keep * RefinementHeadroomFactor, RefinementScanCap);
+        // Widen before multiplying so a large keep cannot overflow int (see NameSearch's identical fix).
+        var scanKeep = (int)Math.Min((long)keep * RefinementHeadroomFactor, RefinementScanCap);
         var topN = new FzfTopN(scanKeep);
 
         var lastSep = pathQuery.LastIndexOf(Path.DirectorySeparatorChar);

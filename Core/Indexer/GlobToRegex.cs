@@ -68,9 +68,9 @@ public static class GlobToRegex
                     // Match a single path segment (non-separator characters)
                     sb.Append("[^\\\\/]*");
                 }
-                else if (consecutiveStars == 2)
+                else
                 {
-                    // Match any character across multiple path segments
+                    // Two or more stars: match any character across multiple path segments
                     sb.Append(".*");
                 }
                 consecutiveStars = 0;
