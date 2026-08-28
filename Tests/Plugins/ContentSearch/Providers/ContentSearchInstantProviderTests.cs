@@ -40,6 +40,20 @@ public sealed class ContentSearchInstantProviderTests
     }
 
     [TestMethod]
+    public void GetHighlightMask_TriggerOnly_ReturnsEmptyMaskWithoutHighlighting()
+    {
+        var provider = new ContentSearchInstantProvider();
+
+        var maskAlone = provider.GetHighlightMask("已索引 8036 个文件 · 输入关键词搜索文件正文", "c");
+        Assert.IsNotNull(maskAlone);
+        Assert.IsFalse(maskAlone.Any(b => b));
+
+        var maskWithSpace = provider.GetHighlightMask("已索引 8036 个文件 · 输入关键词搜索文件正文", "c ");
+        Assert.IsNotNull(maskWithSpace);
+        Assert.IsFalse(maskWithSpace.Any(b => b));
+    }
+
+    [TestMethod]
     public void GetHighlightMask_NonMatchingTrigger_ReturnsNull()
     {
         var provider = new ContentSearchInstantProvider();

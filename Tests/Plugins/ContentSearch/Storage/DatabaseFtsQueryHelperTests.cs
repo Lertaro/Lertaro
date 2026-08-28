@@ -6,17 +6,20 @@ namespace Lertaro.Plugins.ContentSearch.Tests.Storage;
 public sealed class DatabaseFtsQueryHelperTests
 {
     [TestMethod]
-    public void BuildFtsQuery_SingleToken_AppendsPrefixWildcard()
+    public void BuildFtsQuery_SingleToken_FormattedForTrigram()
     {
         var result = DatabaseFtsQueryHelper.BuildFtsQuery("hello");
-        Assert.AreEqual("\"hello\"*", result);
+        Assert.AreEqual("\"hello\"", result);
+
+        var shortResult = DatabaseFtsQueryHelper.BuildFtsQuery("hi");
+        Assert.AreEqual("\"hi\"*", shortResult);
     }
 
     [TestMethod]
     public void BuildFtsQuery_MultipleTokens_CombinesWithAnd()
     {
         var result = DatabaseFtsQueryHelper.BuildFtsQuery("hello world");
-        Assert.AreEqual("\"hello\"* AND \"world\"*", result);
+        Assert.AreEqual("\"hello\" AND \"world\"", result);
     }
 
     [TestMethod]
@@ -27,9 +30,9 @@ public sealed class DatabaseFtsQueryHelperTests
     }
 
     [TestMethod]
-    public void BuildFtsQuery_SpecialQuotes_EscapesQuotesCorrectly()
+    public void BuildFtsQuery_SpecialQuotes_CleansCorrectly()
     {
         var result = DatabaseFtsQueryHelper.BuildFtsQuery("say \"hello\"");
-        Assert.AreEqual("\"say\"* AND \"\"\"hello\"\"\"*", result);
+        Assert.AreEqual("\"say\" AND \"hello\"", result);
     }
 }

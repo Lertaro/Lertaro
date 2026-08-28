@@ -56,20 +56,28 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider
 
     public bool[]? GetHighlightMask(string text, string query)
     {
-        var trigger = GetTriggerPrefix();
-        if (string.IsNullOrEmpty(query) || !query.StartsWith(trigger, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(query) || string.IsNullOrEmpty(text))
             return null;
 
-        var keyword = query[trigger.Length..].Trim();
-        if (keyword.Length == 0 || string.IsNullOrEmpty(text))
+        var triggerKeyword = GetTriggerKeyword();
+        var trimmed = query.TrimStart();
+        if (!trimmed.StartsWith(triggerKeyword, StringComparison.OrdinalIgnoreCase))
             return null;
 
-        return FuzzyMatchService.GetHighlightMask(text, keyword) ?? new bool[text.Length];
+        var remainder = trimmed.Substring(triggerKeyword.Length).Trim();
+        if (remainder.Length == 0)
+        {
+            return new bool[text.Length];
+        }
+
+        return FuzzyMatchService.GetHighlightMask(text, remainder) ?? new bool[text.Length];
     }
 
-    private static string GetTriggerPrefix()
+    private static string GetTriggerKeyword()
     {
         _cachedTrigger ??= PluginSettingsService.GetSetting(PluginId, "TriggerKeyword", DefaultTrigger).Trim();
-        return (_cachedTrigger.Length > 0 ? _cachedTrigger : DefaultTrigger) + " ";
+        return _cachedTrigger.Length > 0 ? _cachedTrigger : DefaultTrigger;
     }
+
+    private static string GetTriggerPrefix() => GetTriggerKeyword() + " ";
 }

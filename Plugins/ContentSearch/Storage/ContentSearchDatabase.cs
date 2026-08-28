@@ -158,51 +158,12 @@ public sealed class ContentSearchDatabase : IDisposable
 
         Initialize();
         var ftsQuery = DatabaseFtsQueryHelper.BuildFtsQuery(rawQuery);
-        if (string.IsNullOrWhiteSpace(ftsQuery))
-            return Array.Empty<SearchHitItem>();
 
         lock (_lock)
         {
-            var hits = new List<SearchHitItem>();
             using var conn = new SqliteConnection(_connectionString);
             conn.Open();
-
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = """
-                SELECT c.chunk_index, c.content, f.path, rank
-                FROM chunks_fts(@query)
-                JOIN chunks c ON c.id = chunks_fts.chunk_id
-                JOIN files f ON f.id = chunks_fts.file_id
-                ORDER BY rank
-                LIMIT @limit;
-                """;
-            cmd.Parameters.AddWithValue("@query", ftsQuery);
-            cmd.Parameters.AddWithValue("@limit", limit);
-
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                var chunkIndex = reader.GetInt32(0);
-                var content = reader.GetString(1);
-                var filePath = reader.GetString(2);
-                var rank = reader.GetDouble(3);
-
-                var fileName = Path.GetFileName(filePath);
-                var dirPath = Path.GetDirectoryName(filePath) ?? string.Empty;
-                var snippet = SnippetGenerator.CreateSnippet(content, rawQuery);
-
-                hits.Add(new SearchHitItem
-                {
-                    FilePath = filePath,
-                    FileName = fileName,
-                    DirectoryPath = dirPath,
-                    ChunkIndex = chunkIndex,
-                    Snippet = snippet,
-                    Score = -rank
-                });
-            }
-
-            return hits;
+            return DatabaseSearchHelper.Search(conn, rawQuery, ftsQuery, limit);
         }
     }
 
@@ -244,6 +205,5 @@ public sealed class ContentSearchDatabase : IDisposable
 
     public void Dispose()
     {
-        // SqliteConnection pooling handles underlying handle lifetime
     }
 }

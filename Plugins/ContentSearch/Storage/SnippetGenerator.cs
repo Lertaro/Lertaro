@@ -1,3 +1,5 @@
+using Lertaro.PluginSdk.Services;
+
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
@@ -31,6 +33,23 @@ public static class SnippetGenerator
             {
                 firstMatchIndex = idx;
                 matchedTokenLength = token.Length;
+            }
+        }
+
+        if (firstMatchIndex < 0)
+        {
+            var mask = FuzzyMatchService.GetHighlightMask(normalizedContent, query);
+            if (mask != null)
+            {
+                for (var i = 0; i < mask.Length; i++)
+                {
+                    if (mask[i])
+                    {
+                        firstMatchIndex = i;
+                        matchedTokenLength = Math.Max(1, query.Length);
+                        break;
+                    }
+                }
             }
         }
 
