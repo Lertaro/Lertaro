@@ -91,9 +91,15 @@ public sealed class ExclusionRuleSet
         // 1. Check excluded roots on the full normalized path
         foreach (var excludedRoot in _excludedRoots)
         {
+            // An exempt root re-includes only what is actually inside the subtree the caller pointed at:
+            // either the result sits under an exempt root that itself sits under this excluded root, or the
+            // result IS this excluded root while the exempt subtree is its ancestor (the folder's own row is
+            // not "content under the excluded root"). Without the containment check the first case would
+            // also re-include results elsewhere under the excluded root.
             if (normalizedExempt != null &&
+                normalized.StartsWith(normalizedExempt, StringComparison.OrdinalIgnoreCase) &&
                 (normalizedExempt.StartsWith(excludedRoot, StringComparison.OrdinalIgnoreCase) ||
-                 (excludedRoot.StartsWith(normalizedExempt, StringComparison.OrdinalIgnoreCase) && string.Equals(normalized, excludedRoot, StringComparison.OrdinalIgnoreCase))))
+                 string.Equals(normalized, excludedRoot, StringComparison.OrdinalIgnoreCase)))
                 continue;
 
             if (normalized.StartsWith(excludedRoot, StringComparison.OrdinalIgnoreCase))

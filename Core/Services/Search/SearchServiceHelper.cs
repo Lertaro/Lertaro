@@ -1,6 +1,4 @@
 using Lertaro.Core.Services.Network;
-
-using Lertaro.Core.SearchIndex.Query;
 namespace Lertaro.Core.Services.Search;
 
 internal static class SearchServiceHelper
@@ -16,13 +14,11 @@ internal static class SearchServiceHelper
     {
         try
         {
-            var parsed = SearchQueryParser.Parse(query);
-            var queryExemptRoot = parsed.IsPathMode ? parsed.ExactPathLower : null;
             var found = 0;
             UserNetworkDriveSearch.SearchStreaming(query, maxResults, result =>
             {
                 token.ThrowIfCancellationRequested();
-                if (bypassExclusions || !exclusionRules.IsExcluded(result, directoryFilter) || !exclusionRules.IsExcluded(result, queryExemptRoot))
+                if (bypassExclusions || !exclusionRules.IsExcluded(result, directoryFilter))
                 {
                     Interlocked.Increment(ref found);
                     onResult(result);
