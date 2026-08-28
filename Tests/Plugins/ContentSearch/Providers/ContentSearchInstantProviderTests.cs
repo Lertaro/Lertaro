@@ -9,16 +9,16 @@ public sealed class ContentSearchInstantProviderTests
 {
     [TestInitialize]
     public void SetUp() => FuzzyMatchService.GetHighlightMaskFunc = (text, query) =>
-                                {
-                                    var mask = new bool[text.Length];
-                                    var idx = text.IndexOf(query, StringComparison.OrdinalIgnoreCase);
-                                    if (idx >= 0)
-                                    {
-                                        for (var i = 0; i < query.Length && idx + i < mask.Length; i++)
-                                            mask[idx + i] = true;
-                                    }
-                                    return mask;
-                                };
+    {
+        var mask = new bool[text.Length];
+        var idx = text.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0)
+        {
+            for (var i = 0; i < query.Length && idx + i < mask.Length; i++)
+                mask[idx + i] = true;
+        }
+        return mask;
+    };
 
     [TestCleanup]
     public void TearDown() => FuzzyMatchService.GetHighlightMaskFunc = null;
@@ -40,13 +40,12 @@ public sealed class ContentSearchInstantProviderTests
     }
 
     [TestMethod]
-    public void GetHighlightMask_TriggerOnly_ReturnsEmptyMaskWithoutHighlighting()
+    public void GetHighlightMask_TriggerWithSpaceOnly_ReturnsEmptyMaskWithoutHighlighting()
     {
         var provider = new ContentSearchInstantProvider();
 
         var maskAlone = provider.GetHighlightMask("已索引 8036 个文件 · 输入关键词搜索文件正文", "c");
-        Assert.IsNotNull(maskAlone);
-        Assert.IsFalse(maskAlone.Any(b => b));
+        Assert.IsNull(maskAlone);
 
         var maskWithSpace = provider.GetHighlightMask("已索引 8036 个文件 · 输入关键词搜索文件正文", "c ");
         Assert.IsNotNull(maskWithSpace);

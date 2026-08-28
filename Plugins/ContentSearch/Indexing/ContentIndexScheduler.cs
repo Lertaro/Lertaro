@@ -81,10 +81,7 @@ public sealed class ContentIndexScheduler : IDisposable
         var ct = newCts.Token;
         Task.Run(async () =>
         {
-            try
-            {
-                await _scanGate.WaitAsync(ct).ConfigureAwait(false);
-            }
+            try { await _scanGate.WaitAsync(ct).ConfigureAwait(false); }
             catch (OperationCanceledException) { return; }
 
             try
@@ -99,6 +96,16 @@ public sealed class ContentIndexScheduler : IDisposable
                 }
 
                 var existingMeta = _database.GetAllFileMetadata();
+                var toDeleteImmediately = existingMeta.Keys
+                    .Where(p => !IsFileInMonitoredFolders(p) || !IsAllowedExtension(p))
+                    .ToList();
+
+                if (toDeleteImmediately.Count > 0)
+                {
+                    _database.DeleteFilesBatch(toDeleteImmediately);
+                    foreach (var p in toDeleteImmediately) existingMeta.Remove(p);
+                }
+
                 var foundPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var pattern = _config.FilterPattern;
 
@@ -140,21 +147,14 @@ public sealed class ContentIndexScheduler : IDisposable
 
                 if (ct.IsCancellationRequested) return;
 
-                var toDelete = new List<string>();
-                foreach (var dbPath in existingMeta.Keys)
-                {
-                    if (!foundPaths.Contains(dbPath))
-                        toDelete.Add(dbPath);
-                }
-
+                var toDelete = existingMeta.Keys.Where(p => !foundPaths.Contains(p)).ToList();
                 if (toDelete.Count > 0 && !ct.IsCancellationRequested)
                     _database.DeleteFilesBatch(toDelete);
             }
             catch (OperationCanceledException) { }
             finally
             {
-                if (ReferenceEquals(_scanCts, newCts))
-                    _isScanning = false;
+                if (ReferenceEquals(_scanCts, newCts)) _isScanning = false;
                 _scanGate.Release();
             }
         }, ct);
@@ -162,12 +162,7 @@ public sealed class ContentIndexScheduler : IDisposable
 
     public void QueueFileChange(string filePath)
     {
-        var ext = Path.GetExtension(filePath);
-        if (!_config.AllowedExtensions.Contains(ext) ||
-            !TextExtractorRegistry.Instance.IsSupportedExtension(ext))
-            return;
-
-        if (!IsFileInMonitoredFolders(filePath))
+        if (!IsAllowedExtension(filePath) || !IsFileInMonitoredFolders(filePath))
             return;
 
         lock (_queueLock)
@@ -175,6 +170,13 @@ public sealed class ContentIndexScheduler : IDisposable
             if (_enqueuedPaths.Add(filePath))
                 _pendingFiles.Enqueue(filePath);
         }
+    }
+
+    private bool IsAllowedExtension(string filePath)
+    {
+        var ext = Path.GetExtension(filePath);
+        return _config.AllowedExtensions.Contains(ext) &&
+               TextExtractorRegistry.Instance.IsSupportedExtension(ext);
     }
 
     public bool IsFileInMonitoredFolders(string filePath)
@@ -241,9 +243,7 @@ public sealed class ContentIndexScheduler : IDisposable
                 }
 
                 var fileInfo = new FileInfo(filePath);
-                var ext = fileInfo.Extension;
-                if (!_config.AllowedExtensions.Contains(ext) ||
-                    !TextExtractorRegistry.Instance.IsSupportedExtension(ext) ||
+                if (!IsAllowedExtension(filePath) ||
                     fileInfo.Length > _config.MaxFileSizeBytes ||
                     fileInfo.Length == 0)
                 {

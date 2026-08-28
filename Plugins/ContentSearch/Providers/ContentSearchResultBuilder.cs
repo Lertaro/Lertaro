@@ -10,6 +10,7 @@ namespace Lertaro.Plugins.ContentSearch.Providers;
 public static class ContentSearchResultBuilder
 {
     private const string DocumentSearchIcon = "M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z";
+    private static string? _cachedSettingsUri;
 
     public static IEnumerable<InstantResultItem> BuildResultItems(IReadOnlyList<SearchHitItem> hits)
     {
@@ -66,24 +67,25 @@ public static class ContentSearchResultBuilder
 
     private static string GetPluginSettingsUri()
     {
+        if (_cachedSettingsUri != null) return _cachedSettingsUri;
+
         try
         {
             var pluginName = TranslationService.Get("ContentSearch_PluginName");
             var configPrefix = $" › {pluginName} › ";
             var entries = SettingsSearchService.GetEntries();
 
-            // Prioritize jumping directly to the plugin's Configuration tab
             var configEntry = entries.FirstOrDefault(e => e.Breadcrumb.Contains(configPrefix, StringComparison.OrdinalIgnoreCase));
             if (configEntry != null)
             {
-                return $"lertaro://settings/entry/{configEntry.Index}";
+                return _cachedSettingsUri = $"lertaro://settings/entry/{configEntry.Index}";
             }
 
             var suffix = $" › {pluginName}";
             var pluginEntry = entries.FirstOrDefault(e => e.Breadcrumb.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
             if (pluginEntry != null)
             {
-                return $"lertaro://settings/entry/{pluginEntry.Index}";
+                return _cachedSettingsUri = $"lertaro://settings/entry/{pluginEntry.Index}";
             }
         }
         catch { }

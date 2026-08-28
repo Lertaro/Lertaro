@@ -59,12 +59,12 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider
         if (string.IsNullOrEmpty(query) || string.IsNullOrEmpty(text))
             return null;
 
-        var triggerKeyword = GetTriggerKeyword();
+        var triggerPrefix = GetTriggerPrefix();
         var trimmed = query.TrimStart();
-        if (!trimmed.StartsWith(triggerKeyword, StringComparison.OrdinalIgnoreCase))
+        if (!trimmed.StartsWith(triggerPrefix, StringComparison.OrdinalIgnoreCase))
             return null;
 
-        var remainder = trimmed.Substring(triggerKeyword.Length).Trim();
+        var remainder = trimmed[triggerPrefix.Length..].Trim();
         if (remainder.Length == 0)
         {
             return new bool[text.Length];

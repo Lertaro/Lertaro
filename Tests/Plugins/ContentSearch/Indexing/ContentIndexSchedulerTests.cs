@@ -60,4 +60,26 @@ public sealed class ContentIndexSchedulerTests
         Assert.IsTrue(scheduler.IsFileInMonitoredFolders(@"D:\Projects\App.cs"));
         Assert.IsFalse(scheduler.IsFileInMonitoredFolders(@"Z:\Data\test.txt"));
     }
+
+    [TestMethod]
+    public void TriggerFullScan_DisallowedExtensions_PrunedFromDatabaseImmediately()
+    {
+        _database.InsertOrUpdateFile(@"C:\MyDocs\doc1.pdf", DateTime.UtcNow, 1024, new List<TextChunk> { new(0, 0, 10, "PDF text") });
+        _database.InsertOrUpdateFile(@"C:\MyDocs\doc2.txt", DateTime.UtcNow, 512, new List<TextChunk> { new(0, 0, 10, "TXT text") });
+
+        Assert.AreEqual(2, _database.GetStats().TotalFiles);
+
+        using var scheduler = new ContentIndexScheduler(_database);
+        var config = new ContentIndexConfig
+        {
+            MonitoredFolders = new List<string> { @"C:\MyDocs" },
+            AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".txt" } // PDF disallowed
+        };
+        scheduler.UpdateConfig(config);
+        scheduler.TriggerFullScan();
+
+        Thread.Sleep(300);
+
+        Assert.IsNull(_database.GetFileRecord(@"C:\MyDocs\doc1.pdf"));
+    }
 }
