@@ -13,6 +13,8 @@ public static class KeywordHistoryStore
 
     public static string HistoryPath => Path.Combine(Logger.UserDataDir, "keyword-history.txt");
 
+    private static string BackupPath => HistoryPath + ".bak";
+
     public static void Record(string? keyword)
     {
         var trimmed = keyword?.Trim() ?? string.Empty;
@@ -70,13 +72,18 @@ public static class KeywordHistoryStore
         try
         {
             Directory.CreateDirectory(Logger.UserDataDir);
-            File.WriteAllLines(HistoryPath, _entriesCache!);
+            AtomicFileStore.Write(HistoryPath, ToFileContent(_entriesCache!), BackupPath);
         }
         catch (Exception ex)
         {
             Logger.Log($"[KeywordHistoryStore] Failed to write history: {ex.Message}", LogLevel.Error);
         }
     }
+
+    // Reproduces File.WriteAllLines' exact format so the atomic swap is byte-compatible with what
+    // older builds wrote: every line followed by the platform newline, an empty list an empty file.
+    private static string ToFileContent(List<string> entries) =>
+        entries.Count == 0 ? string.Empty : string.Join(Environment.NewLine, entries) + Environment.NewLine;
 
     private static void EnsureCacheNoLock()
     {
@@ -86,14 +93,29 @@ public static class KeywordHistoryStore
         _entriesCache = ReadEntriesNoLock();
     }
 
-    private static List<string> ReadEntriesNoLock()
+    private static List<string> ReadEntriesNoLock() => LoadFromFiles(HistoryPath, BackupPath);
+
+    internal static List<string> LoadFromFiles(string mainPath, string backupPath)
     {
-        if (!File.Exists(HistoryPath))
+        // A missing main file is a fresh store: backups must not resurrect history after the file was
+        // deliberately deleted. An existing file that cannot be read or parsed falls back to the
+        // backup the atomic writer left behind, because an empty store would let the next save wipe
+        // the user's history permanently.
+        if (!File.Exists(mainPath))
             return new List<string>();
+
+        return TryReadFile(mainPath) ?? TryReadFile(backupPath) ?? new List<string>();
+    }
+
+    /// <summary>Reads one history file into trimmed, deduped keywords; null when it cannot be read.</summary>
+    internal static List<string>? TryReadFile(string path)
+    {
+        if (!File.Exists(path))
+            return null;
 
         try
         {
-            return File.ReadLines(HistoryPath)
+            return File.ReadLines(path)
                 .Select(line => line.Trim())
                 .Where(line => line.Length > 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -102,8 +124,8 @@ public static class KeywordHistoryStore
         }
         catch (Exception ex)
         {
-            Logger.Log($"[KeywordHistoryStore] Failed to read history: {ex.Message}", LogLevel.Error);
-            return new List<string>();
+            Logger.Log($"[KeywordHistoryStore] Failed to read history from '{path}': {ex.Message}", LogLevel.Error);
+            return null;
         }
     }
 }
