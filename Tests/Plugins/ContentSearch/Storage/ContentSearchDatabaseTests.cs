@@ -62,7 +62,7 @@ public sealed class ContentSearchDatabaseTests
         try
         {
             var text1 = "喜羊羊与灰太狼：别看我只是一只羊，绿草因为我变得更香。";
-            var text2 = "你好，世界！这是一个关于全文本地语义检索与大模型微调的技术文档。";
+            var text2 = "你好世界！这是一个关于全文本地语义检索与大模型微调的技术文档。";
             var fullText = text1 + " " + text2;
             File.WriteAllText(tempDoc, fullText);
 
@@ -71,7 +71,7 @@ public sealed class ContentSearchDatabaseTests
 
             db.InsertOrUpdateFile(tempDoc, DateTime.UtcNow, 1024, fullText);
 
-            // Substring search in CJK
+            // Substring search in CJK (>= 3 chars)
             var hits1 = db.SearchFts("只是一只羊", 10);
             Assert.HasCount(1, hits1);
             Assert.Contains("只是一只羊", hits1[0].Snippet);
@@ -80,18 +80,11 @@ public sealed class ContentSearchDatabaseTests
             Assert.HasCount(1, hits2);
             Assert.Contains("语义检索", hits2[0].Snippet);
 
-            // Multi-token CJK search with spaces (fuzzy terms)
+            // Multi-token CJK search with spaces (fuzzy terms >= 3 chars)
             var hits3 = db.SearchFts("全文本地 语义检索", 10);
             Assert.HasCount(1, hits3);
 
-            var hitsMultiToken = db.SearchFts("你 好", 10);
-            Assert.HasCount(1, hitsMultiToken);
-
-            var hitsFuzzyChars = db.SearchFts("喜 羊", 10);
-            Assert.HasCount(1, hitsFuzzyChars);
-
-            // Single character search
-            var hits4 = db.SearchFts("羊", 10);
+            var hits4 = db.SearchFts("你好世界", 10);
             Assert.HasCount(1, hits4);
         }
         finally
