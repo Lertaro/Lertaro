@@ -82,7 +82,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                 LabelKey = "ContentSearch_Config_ExtensionsLabel",
                 DescriptionKey = "ContentSearch_Config_ExtensionsDesc",
                 FieldType = ConfigFieldType.Text,
-                DefaultValue = "txt,md,cs,json,xml,csv,docx,pdf,py,js,ts,html,css,log,yaml,yml,sql"
+                DefaultValue = "txt,md,cs,json,xml,csv,docx,pptx,xlsx,pdf,py,js,ts,html,css,log,yaml,yml,sql"
             }
         },
         OnSave = () =>
@@ -100,7 +100,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
             new List<string> { @"%USERPROFILE%\Documents", @"%USERPROFILE%\Desktop" });
 
         var maxSizeMb = PluginSettingsService.GetSetting(PluginId, "MaxFileSizeMb", 10);
-        var extsStr = PluginSettingsService.GetSetting(PluginId, "IndexedExtensions", "txt,md,cs,json,xml,csv,docx,pdf,py,js,ts,html,css,log,yaml,yml,sql");
+        var extsStr = PluginSettingsService.GetSetting(PluginId, "IndexedExtensions", "txt,md,cs,json,xml,csv,docx,pptx,xlsx,pdf,py,js,ts,html,css,log,yaml,yml,sql");
 
         var extSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var rawExt in extsStr.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))

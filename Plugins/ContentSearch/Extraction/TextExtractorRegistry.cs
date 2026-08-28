@@ -12,6 +12,8 @@ public sealed class TextExtractorRegistry
     public TextExtractorRegistry() => _extractors = new List<ITextExtractor>
     {
         new DocxExtractor(),
+        new PptxExtractor(),
+        new XlsxExtractor(),
         new PdfExtractor(),
         new PlainTextExtractor()
     };

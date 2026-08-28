@@ -18,10 +18,12 @@ public sealed class ContentIndexScheduler : IDisposable
     private readonly ConcurrentQueue<string> _pendingFiles = new();
     private readonly HashSet<string> _enqueuedPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _queueLock = new();
+    private readonly SemaphoreSlim _scanGate = new(1, 1);
 
     private CancellationTokenSource? _cts;
+    private CancellationTokenSource? _scanCts;
     private Task? _workerTask;
-    private ContentIndexConfig _config = new();
+    private volatile ContentIndexConfig _config = new();
     private bool _isScanning;
 
     public bool IsIndexing => _isScanning || !_pendingFiles.IsEmpty;
@@ -44,7 +46,7 @@ public sealed class ContentIndexScheduler : IDisposable
     public void UpdateConfig(ContentIndexConfig config)
     {
         _config = config;
-        _folderWatcher.UpdateFolders(config.MonitoredFolders);
+        _folderWatcher.UpdateFolders(config.MonitoredFolders, config.FilterPattern);
     }
 
     public static string NormalizeFolderPath(string rawFolder)
@@ -66,90 +68,97 @@ public sealed class ContentIndexScheduler : IDisposable
         }
     }
 
-    public void TriggerFullScan() => Task.Run(async () =>
+    public void TriggerFullScan()
     {
-        try
+        var newCts = new CancellationTokenSource();
+        var oldCts = Interlocked.Exchange(ref _scanCts, newCts);
+        oldCts?.Cancel();
+        oldCts?.Dispose();
+
+        while (_pendingFiles.TryDequeue(out _)) { }
+        lock (_queueLock) { _enqueuedPaths.Clear(); }
+
+        var ct = newCts.Token;
+        Task.Run(async () =>
         {
-            _isScanning = true;
-
-            if (_config.MonitoredFolders.Count == 0)
+            try
             {
-                _database.ClearAll();
-                while (_pendingFiles.TryDequeue(out _)) { }
-                lock (_queueLock) { _enqueuedPaths.Clear(); }
-                return;
+                await _scanGate.WaitAsync(ct).ConfigureAwait(false);
             }
+            catch (OperationCanceledException) { return; }
 
-            var existingMeta = _database.GetAllFileMetadata();
-            var foundPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var rawFolder in _config.MonitoredFolders)
+            try
             {
-                var folder = NormalizeFolderPath(rawFolder);
-                if (string.IsNullOrEmpty(folder)) continue;
+                if (ct.IsCancellationRequested) return;
+                _isScanning = true;
 
-                try
+                if (_config.MonitoredFolders.Count == 0)
                 {
-                    await foreach (var item in DirectoryIndexerService.EnumerateDirectoryAsync(folder, recursive: true))
+                    _database.ClearAll();
+                    return;
+                }
+
+                var existingMeta = _database.GetAllFileMetadata();
+                var foundPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var pattern = _config.FilterPattern;
+
+                foreach (var rawFolder in _config.MonitoredFolders)
+                {
+                    if (ct.IsCancellationRequested) return;
+                    var folder = NormalizeFolderPath(rawFolder);
+                    if (string.IsNullOrEmpty(folder)) continue;
+
+                    try
                     {
-                        if (item.IsDir) continue;
-                        var file = item.FullPath;
-                        var ext = Path.GetExtension(file);
-                        if (!_config.AllowedExtensions.Contains(ext) ||
-                            !TextExtractorRegistry.Instance.IsSupportedExtension(ext))
-                            continue;
-
-                        foundPaths.Add(file);
-
-                        var fileSize = item.Metadata.Size;
-                        var modified = item.Metadata.Modified;
-                        if (fileSize == 0 && modified == default)
+                        await foreach (var item in DirectoryIndexerService.EnumerateDirectoryAsync(folder, recursive: true, filterPattern: pattern, token: ct).ConfigureAwait(false))
                         {
-                            try
+                            if (ct.IsCancellationRequested) return;
+                            if (item.IsDir) continue;
+
+                            var file = item.FullPath;
+                            foundPaths.Add(file);
+
+                            var fileSize = item.Metadata.Size;
+                            var modified = item.Metadata.Modified;
+                            if (fileSize == 0 || fileSize > _config.MaxFileSizeBytes)
+                                continue;
+
+                            var lastModUnix = new DateTimeOffset(modified).ToUnixTimeSeconds();
+                            if (existingMeta.TryGetValue(file, out var meta) &&
+                                meta.LastModified == lastModUnix &&
+                                meta.FileSize == fileSize)
                             {
-                                var fi = new FileInfo(file);
-                                fileSize = fi.Length;
-                                modified = fi.LastWriteTimeUtc;
+                                continue;
                             }
-                            catch { }
+
+                            QueueFileChange(file);
                         }
-
-                        if (fileSize == 0 || fileSize > _config.MaxFileSizeBytes)
-                            continue;
-
-                        var lastModUnix = new DateTimeOffset(modified).ToUnixTimeSeconds();
-                        if (existingMeta.TryGetValue(file, out var meta) &&
-                            meta.LastModified == lastModUnix &&
-                            meta.FileSize == fileSize)
-                        {
-                            continue;
-                        }
-
-                        QueueFileChange(file);
                     }
+                    catch (OperationCanceledException) { return; }
+                    catch { }
                 }
-                catch { }
-            }
 
-            var toDelete = new List<string>();
-            foreach (var dbPath in existingMeta.Keys)
-            {
-                if (!foundPaths.Contains(dbPath))
+                if (ct.IsCancellationRequested) return;
+
+                var toDelete = new List<string>();
+                foreach (var dbPath in existingMeta.Keys)
                 {
-                    toDelete.Add(dbPath);
+                    if (!foundPaths.Contains(dbPath))
+                        toDelete.Add(dbPath);
                 }
-            }
 
-            if (toDelete.Count > 0)
-            {
-                _database.DeleteFilesBatch(toDelete);
+                if (toDelete.Count > 0 && !ct.IsCancellationRequested)
+                    _database.DeleteFilesBatch(toDelete);
             }
-        }
-        finally
-        {
-            _isScanning = false;
-        }
-    });
+            catch (OperationCanceledException) { }
+            finally
+            {
+                if (ReferenceEquals(_scanCts, newCts))
+                    _isScanning = false;
+                _scanGate.Release();
+            }
+        }, ct);
+    }
 
     public void QueueFileChange(string filePath)
     {
@@ -210,6 +219,7 @@ public sealed class ContentIndexScheduler : IDisposable
             }
 
             await ProcessBatchAsync(batch, ct);
+            await Task.Delay(30, ct);
         }
     }
 
@@ -224,13 +234,7 @@ public sealed class ContentIndexScheduler : IDisposable
             await semaphore.WaitAsync(ct);
             try
             {
-                if (!IsFileInMonitoredFolders(filePath))
-                {
-                    deleteBatch.Add(filePath);
-                    return;
-                }
-
-                if (!File.Exists(filePath))
+                if (ct.IsCancellationRequested || !IsFileInMonitoredFolders(filePath) || !File.Exists(filePath))
                 {
                     deleteBatch.Add(filePath);
                     return;
@@ -242,7 +246,10 @@ public sealed class ContentIndexScheduler : IDisposable
                     !TextExtractorRegistry.Instance.IsSupportedExtension(ext) ||
                     fileInfo.Length > _config.MaxFileSizeBytes ||
                     fileInfo.Length == 0)
+                {
+                    deleteBatch.Add(filePath);
                     return;
+                }
 
                 var text = await TextExtractorRegistry.Instance.ExtractTextAsync(
                     filePath, _config.MaxFileSizeBytes, ct);
@@ -277,6 +284,8 @@ public sealed class ContentIndexScheduler : IDisposable
 
     public void Dispose()
     {
+        _scanCts?.Cancel();
+        _scanCts?.Dispose();
         _cts?.Cancel();
         _folderWatcher.Dispose();
         try { _workerTask?.Wait(1000); } catch { }

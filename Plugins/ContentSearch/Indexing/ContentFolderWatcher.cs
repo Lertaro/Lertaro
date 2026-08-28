@@ -18,7 +18,7 @@ public sealed class ContentFolderWatcher : IDisposable
         _watchSubscription = DirectoryIndexerService.WatchDirectories(PluginId, _onFoldersChanged);
     }
 
-    public void UpdateFolders(IEnumerable<string> folders)
+    public void UpdateFolders(IEnumerable<string> folders, string filterPattern = "*")
     {
         lock (_lock)
         {
@@ -29,7 +29,7 @@ public sealed class ContentFolderWatcher : IDisposable
                 var folder = ContentIndexScheduler.NormalizeFolderPath(rawFolder);
                 if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
                 {
-                    DirectoryIndexerService.RegisterDirectory(PluginId, folder, recursive: true, filterPattern: "*");
+                    DirectoryIndexerService.RegisterDirectory(PluginId, folder, recursive: true, filterPattern: filterPattern);
                 }
             }
         }
