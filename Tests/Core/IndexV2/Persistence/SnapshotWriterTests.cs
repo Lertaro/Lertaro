@@ -93,6 +93,24 @@ public sealed class SnapshotWriterTests
         Assert.ThrowsExactly<InvalidDataException>(() => Snapshot.Open(path));
     }
 
+    [TestMethod]
+    public void ComputeSectionOffsets_NegativeMetadata_ThrowsInvalidDataException()
+    {
+        var meta = new SnapshotFormat.Meta { SectionsOffset = 0, RowCount = -1 };
+
+        Assert.ThrowsExactly<InvalidDataException>(() => SnapshotFormat.ComputeSectionOffsets(meta, out _));
+    }
+
+    [TestMethod]
+    public void ComputeSectionOffsets_LargeUniqueCount_DoesNotWrapIntegerArithmetic()
+    {
+        var meta = new SnapshotFormat.Meta { SectionsOffset = 0, UniqueCount = int.MaxValue };
+
+        SnapshotFormat.ComputeSectionOffsets(meta, out var totalLength);
+
+        Assert.IsGreaterThan((long)int.MaxValue, totalLength);
+    }
+
     private static FileRecordStore BuildStore(int fileCount)
     {
         var store = new FileRecordStore

@@ -147,13 +147,14 @@ internal static class SnapshotFormat
     // place layout order exists.
     public static long[] ComputeSectionOffsets(Meta meta, out long totalLength)
     {
+        ValidateCounts(meta);
         var sizes = new long[]
         {
             4L * meta.RowCount,            // NameIds
             2L * meta.RowCount,            // Flags
             4L * meta.RowCount,            // ParentIndexes
             8L * meta.UniqueCount,         // UniqueMasks
-            4L * (meta.UniqueCount + 1),   // NameOffsets
+            4L * ((long)meta.UniqueCount + 1),   // NameOffsets
             meta.NameBlobLength,           // NameBlob
             16L * meta.RowCount,           // Ids
             8L * meta.RowCount,            // Sizes
@@ -161,17 +162,17 @@ internal static class SnapshotFormat
             4L * meta.RowCount,            // CreationTimes
             4L * meta.RowCount,            // LastWriteTimes
             4L * meta.RowCount,            // LastAccessTimes
-            4L * (meta.RowCount + 1),      // ChildStarts
+            4L * ((long)meta.RowCount + 1),      // ChildStarts
             4L * meta.ChildrenLength,      // Children
-            4L * (meta.UniqueCount + 1),   // UidStarts
+            4L * ((long)meta.UniqueCount + 1),   // UidStarts
             4L * meta.RowCount,            // UidRows
-            4L * (meta.UniqueCount + 1),   // AliasStarts
-            4L * (meta.AliasEntryCount + 1), // AliasEntryOffsets
+            4L * ((long)meta.UniqueCount + 1),   // AliasStarts
+            4L * ((long)meta.AliasEntryCount + 1), // AliasEntryOffsets
             meta.AliasEntryCount,          // AliasProviderIds
             meta.AliasBlobLength,          // AliasBlob
             4L * meta.OrphanCount,         // OrphanRows
             16L * meta.OrphanCount,        // OrphanFrns
-            8L * ((meta.UniqueCount + 63) / 64), // UniqueAsciiBits
+            8L * (((long)meta.UniqueCount + 63) / 64), // UniqueAsciiBits
         };
 
         var offsets = new long[sizes.Length];
@@ -184,6 +185,14 @@ internal static class SnapshotFormat
         }
         totalLength = Align(cursor);
         return offsets;
+    }
+
+    private static void ValidateCounts(Meta meta)
+    {
+        if (meta.RowCount < 0 || meta.UniqueCount < 0 || meta.NameBlobLength < 0 || meta.ChildrenLength < 0
+            || meta.AliasEntryCount < 0 || meta.AliasBlobLength < 0 || meta.OrphanCount < 0
+            || meta.TotalFiles < 0 || meta.TotalDirs < 0)
+            throw new InvalidDataException("IndexV2 snapshot contains a negative metadata count");
     }
 
     // Reads just the small fixed+variable header (no mmap) -- for cache-discovery scans that need a

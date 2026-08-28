@@ -7,24 +7,29 @@ namespace Lertaro.App.Services;
 public static class AppSingleInstance
 {
     /// <summary>
-    /// Acquires the single-instance mutex, surviving an instance that crashed while holding it:
-    /// requesting initial ownership of an abandoned named mutex throws AbandonedMutexException, and
-    /// the dead owner means no live instance exists -- so ownership falls to this process, and it
-    /// runs as the single instance instead of aborting startup.
+    /// Acquires the single-instance mutex, including taking over one abandoned by a crashed instance.
     /// </summary>
     public static Mutex AcquireMutex(string mutexName, out bool createdNew)
     {
+        var mutex = new Mutex(true, mutexName, out createdNew);
+        if (createdNew)
+            return mutex;
+
         try
         {
-            return new Mutex(true, mutexName, out createdNew);
+            // The constructor only requests initial ownership when it creates the mutex. A zero-time
+            // wait is therefore needed for an existing mutex: it returns false for a live instance,
+            // and throws after taking ownership when the previous owner exited without releasing it.
+            if (mutex.WaitOne(0))
+                createdNew = true;
         }
         catch (AbandonedMutexException)
         {
-            // Re-open the same named mutex without requesting initial ownership: the abandoned
-            // acquisition already passed ownership to this process, and the handle keeps the mutex
-            // itself alive for this process's lifetime.
+            // WaitOne reports abandonment after transferring ownership to this thread. Keep and return
+            // this same handle so the caller can release the ownership during process shutdown.
             createdNew = true;
-            return new Mutex(false, mutexName);
         }
+
+        return mutex;
     }
 }

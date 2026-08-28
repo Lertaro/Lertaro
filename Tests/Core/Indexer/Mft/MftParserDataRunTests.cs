@@ -97,6 +97,30 @@ public sealed class MftParserDataRunTests
         Assert.IsEmpty(extents);
     }
 
+    [TestMethod]
+    public void RunFieldsOutsideAttribute_StopAtAttributeBoundary()
+    {
+        const int a = 32;
+        const int mpOff = 46; // run-list header starts at offset 78; the attribute ends at 80
+        var rec = new byte[96];
+        WriteUInt16(rec, 0x14, a);
+        WriteUInt32(rec, a, 0x80);
+        WriteUInt32(rec, a + 4, 48); // attribute ends before the complete run fields
+        rec[a + 8] = 1; // non-resident
+        WriteUInt16(rec, a + 0x20, mpOff);
+        rec[a + mpOff] = 0x12; // lenBytes=2, offBytes=1; the second length byte is outside the attribute
+        rec[a + mpOff + 1] = 1;
+        rec[a + mpOff + 2] = 0;
+        rec[a + mpOff + 3] = 1;
+
+        var extents = MftParser.ParseDataRuns(rec);
+        var attributeExtents = new List<(long lcn, long clusters)>();
+        MftParser.ParseDataRunsFromAttribute(rec, a, attributeExtents);
+
+        Assert.IsEmpty(extents);
+        Assert.IsEmpty(attributeExtents);
+    }
+
     private static byte[] BuildRecordWithDataRuns(params (long runLen, long delta)[] runs)
     {
         const int a = 32;
