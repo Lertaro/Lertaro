@@ -304,5 +304,42 @@ public class UserSettings
     }
 
     internal static void RotateBackups(string filePath, int maxBackups = 5) => UserSettingsBackupStore.Rotate(filePath, maxBackups);
+
+    /// <summary>
+    /// Replaces the on-disk user settings with the content of <paramref name="sourcePath"/> -- an
+    /// exported settings JSON or one of the <c>.bak.N</c> backups -- for the About page's config
+    /// import/restore actions. The current file is rotated into the backup chain first, so a bad
+    /// restore is itself reversible. Throws <see cref="InvalidDataException"/> when the source does
+    /// not parse as <see cref="UserSettings"/>; IO exceptions bubble to the caller.
+    /// </summary>
+    public static void RestoreFrom(string sourcePath)
+    {
+        lock (_cacheLock)
+        {
+            var restored = WriteRestored(sourcePath, SettingsPath, BackupCount, out var json);
+            _cachedSettings = restored;
+            _lastJsonOnDisk = json;
+        }
+        ExclusionRuleSet.InvalidateCache();
+    }
+
+    /// <summary>
+    /// Disk half of <see cref="RestoreFrom"/>, path-parameterized so tests can exercise it against a
+    /// temp directory without touching the static settings cache: validates the source, rotates the
+    /// current main file into the backup chain, then atomically replaces it. Returns the parsed
+    /// settings and the exact JSON text written.
+    /// </summary>
+    internal static UserSettings WriteRestored(string sourcePath, string settingsPath, int backupCount, out string json)
+    {
+        json = File.ReadAllText(sourcePath);
+        var restored = TryParse(json)
+            ?? throw new InvalidDataException($"The file is not a valid user settings file: {sourcePath}");
+        RotateBackups(settingsPath, backupCount);
+        // The source text is written verbatim; the parsed instance only feeds the in-memory cache.
+        // ponytail: hotkey normalization already ran on that instance at parse time and re-runs on
+        // every future load, so an unnormalized value on disk self-heals and raw text is safe.
+        AtomicFileStore.Write(settingsPath, json);
+        return restored;
+    }
 }
 
