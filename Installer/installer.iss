@@ -59,6 +59,9 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed={#SetupArchitectures}
 ArchitecturesInstallIn64BitMode={#SetupArchitectures}
+#if Arch == "x64"
+SetupArchitecture=x64
+#endif
 PrivilegesRequired=admin
 VersionInfoVersion={#AppVersion4}
 VersionInfoTextVersion={#AppVersion}
