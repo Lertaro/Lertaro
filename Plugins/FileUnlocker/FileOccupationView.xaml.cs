@@ -1,5 +1,8 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media.Animation;
 using Lertaro.PluginSdk.Services;
 using Lertaro.PluginSdk.Windows;
@@ -14,16 +17,22 @@ public partial class FileOccupationView : UserControl
     private double _pathTextWidth;
     private bool _hasProcesses;
     private Button? _releaseButton;
+    private string? _sortProperty;
+    private ListSortDirection _sortDirection = ListSortDirection.Ascending;
+    private string _processHeader = string.Empty;
+    private string _pidHeader = string.Empty;
+    private string _pathHeader = string.Empty;
+    private ICollectionView? _processView;
 
     public FileOccupationView(string path)
     {
         InitializeComponent();
         _path = path;
         PathText.Text = path;
-        PathText.ToolTip = path;
-        NameColumn.Header = TranslationService.Get("FileUnlocker_ProcessName");
-        PidColumn.Header = TranslationService.Get("FileUnlocker_ProcessId");
-        PathColumn.Header = TranslationService.Get("FileUnlocker_ProcessPath");
+        _processHeader = TranslationService.Get("FileUnlocker_ProcessName");
+        _pidHeader = TranslationService.Get("FileUnlocker_ProcessId");
+        _pathHeader = TranslationService.Get("FileUnlocker_ProcessPath");
+        UpdateSortHeaders();
         EmptyText.Text = TranslationService.Get("FileUnlocker_NoProcesses");
     }
 
@@ -45,13 +54,13 @@ public partial class FileOccupationView : UserControl
 
     private async void Window_Loaded(object sender, RoutedEventArgs e) => await RefreshAsync();
 
-    private void PathViewport_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    private void PathViewport_MouseEnter(object sender, MouseEventArgs e)
     {
         _pathIsHovered = true;
         UpdatePathMarquee();
     }
 
-    private void PathViewport_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    private void PathViewport_MouseLeave(object sender, MouseEventArgs e)
     {
         _pathIsHovered = false;
         StopPathMarquee();
@@ -124,6 +133,7 @@ public partial class FileOccupationView : UserControl
         if (result.Error is not null)
         {
             StatusText.Text = string.Format(TranslationService.Get("FileUnlocker_QueryFailed"), result.Error);
+            _processView = null;
             ProcessList.ItemsSource = null;
             EmptyText.Visibility = Visibility.Collapsed;
             _hasProcesses = false;
@@ -131,7 +141,9 @@ public partial class FileOccupationView : UserControl
             return;
         }
 
-        ProcessList.ItemsSource = result.Processes;
+        _processView = new ListCollectionView(result.Processes.ToList());
+        ProcessList.ItemsSource = _processView;
+        ApplyCurrentSort();
         _hasProcesses = result.Processes.Count > 0;
         EmptyText.Visibility = result.Processes.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         StatusText.Text = result.Processes.Count == 0
@@ -147,8 +159,83 @@ public partial class FileOccupationView : UserControl
         UpdateReleaseButtonState();
     }
 
-    private void UpdateReleaseButtonState()
+    private void UpdateReleaseButtonState() => _releaseButton?.IsEnabled = !_busy && _hasProcesses;
+
+    private void ProcessList_ColumnHeaderClick(object sender, RoutedEventArgs e)
     {
-        _releaseButton?.IsEnabled = !_busy && _hasProcesses;
+        if (FindVisualParent<GridViewColumnHeader>(e.OriginalSource as DependencyObject) is not { Column: not null } header) return;
+
+        var property = header.Column == NameColumn ? nameof(RestartManagerClient.LockedProcess.Name)
+            : header.Column == PidColumn ? nameof(RestartManagerClient.LockedProcess.ProcessId)
+            : header.Column == PathColumn ? nameof(RestartManagerClient.LockedProcess.ExecutablePath)
+            : null;
+        if (property == null) return;
+
+        if (string.Equals(_sortProperty, property, StringComparison.Ordinal))
+            _sortDirection = _sortDirection == ListSortDirection.Ascending
+                ? ListSortDirection.Descending
+                : ListSortDirection.Ascending;
+        else
+        {
+            _sortProperty = property;
+            _sortDirection = ListSortDirection.Ascending;
+        }
+
+        ApplyCurrentSort();
+    }
+
+    private void ApplyCurrentSort()
+    {
+        if (_processView == null) return;
+
+        _processView.SortDescriptions.Clear();
+        if (_sortProperty != null)
+            _processView.SortDescriptions.Add(new SortDescription(_sortProperty, _sortDirection));
+        UpdateSortHeaders();
+    }
+
+    private void UpdateSortHeaders()
+    {
+        NameColumn.Header = AddSortIndicator(_processHeader, nameof(RestartManagerClient.LockedProcess.Name));
+        PidColumn.Header = AddSortIndicator(_pidHeader, nameof(RestartManagerClient.LockedProcess.ProcessId));
+        PathColumn.Header = AddSortIndicator(_pathHeader, nameof(RestartManagerClient.LockedProcess.ExecutablePath));
+    }
+
+    private string AddSortIndicator(string header, string property)
+    {
+        if (!string.Equals(_sortProperty, property, StringComparison.Ordinal)) return header;
+        return header + (_sortDirection == ListSortDirection.Ascending ? " ▲" : " ▼");
+    }
+
+    private void ProcessList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (Keyboard.Modifiers != ModifierKeys.Shift) return;
+        if (FindScrollViewer(ProcessList) is not { } scrollViewer) return;
+
+        if (e.Delta > 0) scrollViewer.LineLeft();
+        else scrollViewer.LineRight();
+        e.Handled = true;
+    }
+
+    private static ScrollViewer? FindScrollViewer(DependencyObject root)
+    {
+        if (root is ScrollViewer viewer) return viewer;
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            if (FindScrollViewer(System.Windows.Media.VisualTreeHelper.GetChild(root, i)) is { } childViewer)
+                return childViewer;
+        }
+
+        return null;
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject? child) where T : DependencyObject
+    {
+        for (var current = child; current != null; current = System.Windows.Media.VisualTreeHelper.GetParent(current))
+        {
+            if (current is T match) return match;
+        }
+
+        return null;
     }
 }

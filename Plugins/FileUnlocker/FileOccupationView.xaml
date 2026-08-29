@@ -11,8 +11,7 @@
         <Border x:Name="PathViewport" ClipToBounds="True"
                 MouseEnter="PathViewport_MouseEnter" MouseLeave="PathViewport_MouseLeave"
                 SizeChanged="PathViewport_SizeChanged">
-            <TextBlock x:Name="PathText" TextTrimming="CharacterEllipsis"
-                       ToolTipService.ShowOnDisabled="True">
+            <TextBlock x:Name="PathText" TextTrimming="CharacterEllipsis">
                 <TextBlock.RenderTransform>
                     <TranslateTransform x:Name="PathTransform"/>
                 </TextBlock.RenderTransform>
@@ -24,7 +23,11 @@
             <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
                     Background="{DynamicResource ControlBackground}">
                 <ListView x:Name="ProcessList" ItemContainerStyle="{DynamicResource PluginListViewItemStyle}"
-                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                          ScrollViewer.CanContentScroll="False"
+                          PreviewMouseWheel="ProcessList_PreviewMouseWheel"
+                          GridViewColumnHeader.Click="ProcessList_ColumnHeaderClick">
                     <ListView.View>
                         <GridView>
                             <GridViewColumn x:Name="NameColumn" Width="160" DisplayMemberBinding="{Binding Name}"/>
