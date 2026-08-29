@@ -96,7 +96,7 @@ public sealed class StayOpenGateTests
         // because once the window has been activated GetForegroundWindow() reports us and the check can
         // no longer see the overlay.
         var controller = Source("App/Views/QuickSearchWindow/Helpers/QuickSearchWindowController.cs");
-        var focus = Between(controller, "public void FocusWindow()", "private void ActivateAndFocus()");
+        var focus = Between(controller, "public void FocusWindow()", "internal void ActivateAndFocus()");
 
         Assert.Contains("ShellOverlayDismissHelper.DismissOverlayIfForeground();", focus,
             "refocusing must dismiss a shell light-dismiss overlay, or the Start Menu stays up");

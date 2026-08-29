@@ -9,13 +9,10 @@ public sealed class ExclusionRuleSetTests
         IgnoredPathGlobs = new List<string>(),
         IgnoredPathRegexes = new List<string>()
     };
-
     [TestMethod]
     public void Empty_ExcludesNothing() => Assert.IsFalse(ExclusionRuleSet.Empty.IsExcludedPath(@"c:\anything\at\all.txt", isDirectory: false));
-
     [TestMethod]
     public void IsExcludedPath_BlankPath_ReturnsFalse() => Assert.IsFalse(ExclusionRuleSet.Empty.IsExcludedPath("", isDirectory: false));
-
     [TestMethod]
     public void IsExcludedPath_PathUnderExcludedRoot_IsExcluded()
     {
@@ -25,7 +22,6 @@ public sealed class ExclusionRuleSetTests
 
         Assert.IsTrue(rules.IsExcludedPath(@"c:\windows.old\system32\file.dll", isDirectory: false));
     }
-
     [TestMethod]
     public void IsExcludedPath_PathOutsideExcludedRoot_IsNotExcluded()
     {
@@ -35,7 +31,6 @@ public sealed class ExclusionRuleSetTests
 
         Assert.IsFalse(rules.IsExcludedPath(@"c:\projects\file.txt", isDirectory: false));
     }
-
     [TestMethod]
     public void IsExcludedPath_GlobMatchOnFileName_IsExcluded()
     {
@@ -45,7 +40,6 @@ public sealed class ExclusionRuleSetTests
 
         Assert.IsTrue(rules.IsExcludedPath(@"c:\projects\app\node_modules", isDirectory: true));
     }
-
     [TestMethod]
     public void IsExcludedPath_GlobMatchOnAncestorDirectory_ExcludesDescendants()
     {
@@ -57,7 +51,6 @@ public sealed class ExclusionRuleSetTests
 
         Assert.IsTrue(rules.IsExcludedPath(@"c:\projects\app\node_modules\lodash\index.js", isDirectory: false));
     }
-
     [TestMethod]
     public void IsExcludedPath_NoMatchingGlobOrRoot_IsNotExcluded()
     {
@@ -67,7 +60,6 @@ public sealed class ExclusionRuleSetTests
 
         Assert.IsFalse(rules.IsExcludedPath(@"c:\projects\app\src\index.js", isDirectory: false));
     }
-
     [TestMethod]
     public void IsExcludedPath_RegexMatchOnFileName_IsExcluded()
     {
@@ -77,7 +69,6 @@ public sealed class ExclusionRuleSetTests
 
         Assert.IsTrue(rules.IsExcludedPath(@"c:\projects\cache.tmp", isDirectory: false));
     }
-
     [TestMethod]
     public void IsExcludedPath_DotPrefixedGlob_MatchesHiddenStyleFolders()
     {
@@ -88,7 +79,6 @@ public sealed class ExclusionRuleSetTests
         Assert.IsTrue(rules.IsExcludedPath(@"c:\projects\.git", isDirectory: true));
         Assert.IsFalse(rules.IsExcludedPath(@"c:\projects\src", isDirectory: true));
     }
-
     [TestMethod]
     public void IsExcludedPath_ExemptRoot_OverridesExcludedRoot()
     {
@@ -101,7 +91,6 @@ public sealed class ExclusionRuleSetTests
         Assert.IsTrue(rules.IsExcludedPath(@"c:\data\file.txt", isDirectory: false));
         Assert.IsFalse(rules.IsExcludedPath(@"c:\data\file.txt", isDirectory: false, exemptRoot: @"c:\data"));
     }
-
     [TestMethod]
     public void IsExcludedPath_ExemptRootUnderExcludedRoot_DoesNotLeakToResultsOutsideIt()
     {
@@ -114,7 +103,6 @@ public sealed class ExclusionRuleSetTests
         Assert.IsTrue(rules.IsExcludedPath(@"c:\data\other.txt", isDirectory: false, exemptRoot: @"c:\data\sub"));
         Assert.IsFalse(rules.IsExcludedPath(@"c:\data\sub\file.txt", isDirectory: false, exemptRoot: @"c:\data\sub"));
     }
-
     [TestMethod]
     public void IsExcludedPath_ExemptAncestorOfExcludedRoot_ReincludesOnlyTheRootRow()
     {
@@ -129,7 +117,6 @@ public sealed class ExclusionRuleSetTests
         Assert.IsTrue(rules.IsExcludedPath(@"c:\data\file.txt", isDirectory: false, exemptRoot: @"c:\"));
         Assert.IsFalse(rules.IsExcludedPath(@"c:\data\other", isDirectory: true, exemptRoot: @"c:\data"));
     }
-
     [TestMethod]
     public void IsExcluded_UsesCanonicalIndexedPathWithoutExpandingShortNames()
     {
@@ -141,7 +128,6 @@ public sealed class ExclusionRuleSetTests
         Assert.IsTrue(rules.IsExcluded(result));
         Assert.AreEqual(@"c:\packages\~cache\file.txt", ExclusionRuleSet.NormalizeIndexedPath(result.Path, result.IsDir));
     }
-
     [TestMethod]
     public void NormalizeIndexedPath_AppendsOnlyMissingDirectorySeparator()
     {
@@ -149,7 +135,6 @@ public sealed class ExclusionRuleSetTests
         Assert.AreEqual(@"c:\data\", ExclusionRuleSet.NormalizeIndexedPath(@"c:\data\", isDirectory: true));
         Assert.AreEqual(@"c:\data.txt", ExclusionRuleSet.NormalizeIndexedPath(@"c:\data.txt", isDirectory: false));
     }
-
     [TestMethod]
     public void IsExcludedPath_WslPathUsesLexicalNormalization()
     {
@@ -159,10 +144,8 @@ public sealed class ExclusionRuleSetTests
 
         Assert.IsTrue(rules.IsExcludedPath(@"\\wsl$\Ubuntu/home/testuser/cache/file.txt", isDirectory: false));
     }
-
     [TestMethod]
     public void InvalidateCache_DoesNotThrow() => ExclusionRuleSet.InvalidateCache();
-
     // Ancestor verdicts are memoised per directory (see AncestorIsIgnored) -- an ignored directory's
     // answer is asked for once and reused by everything beneath it, which is what makes deciding this
     // for every match on a drive affordable. Everything below guards that the cache cannot answer for
@@ -174,7 +157,6 @@ public sealed class ExclusionRuleSetTests
         var settings = EmptySettings();
         settings.IgnoredPathGlobs.Add("node_modules");
         var rules = ExclusionRuleSet.From(settings, @"c:\");
-
         for (var i = 0; i < 50; i++)
             Assert.IsTrue(rules.IsExcludedPath($@"c:\app\node_modules\pkg{i}\deep\index.js", isDirectory: false), $"sibling {i}");
     }

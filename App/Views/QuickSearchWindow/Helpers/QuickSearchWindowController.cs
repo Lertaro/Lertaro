@@ -1,38 +1,30 @@
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Lertaro.App.Services;
-using Lertaro.Core;
-
 using Lertaro.App.Services.ShellIcons;
-using Lertaro.App.Services.Theme;
+using Lertaro.Core;
 using Lertaro.App.ViewModels.Search;
-using Lertaro.Core.Wire;
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
 
 public class QuickSearchWindowController
 {
     private readonly Lertaro.App.QuickSearchWindow _window;
-
-    [DllImport("user32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool SetForegroundWindow(IntPtr hWnd);
-    [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
-    [DllImport("user32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-    private const int SW_RESTORE = 9;
-
+    private readonly QuickSearchWindowShowSupport _showSupport;
     private IntPtr _lastActiveHwnd = IntPtr.Zero;
     private readonly QuickSearchWindowPositioner _positioner;
     private readonly QuickSearchWindowForegroundWatcher _foregroundWatcher;
 
+    internal Lertaro.App.QuickSearchWindow Window => _window;
+    internal QuickSearchWindowForegroundWatcher ForegroundWatcher => _foregroundWatcher;
+    internal IntPtr LastActiveHwnd { get => _lastActiveHwnd; set => _lastActiveHwnd = value; }
+    internal int VisibilityOperationToken { get => _visibilityOpToken; set => _visibilityOpToken = value; }
     // Bumped by every ShowWindow()/HideWindow() call. HideWindow()'s actual Hide() is deferred behind
     // a fade-out (see its own comment), so a rapid Show() right after a Hide() needs a way to tell that
     // deferred continuation "a newer call already superseded you" -- otherwise the pending continuation
     // would still fire and hide the window moments after the user just re-summoned it.
     private int _visibilityOpToken;
-
     // Set by a caller that's about to intentionally move focus to an external window itself as part of
     // executing a result (e.g. WindowSwitcher's "activatewindow:" action -- see PluginActionExecutor).
     // HideWindow's actual restore-focus step can be reached from THREE independent triggers -- this
@@ -45,38 +37,18 @@ public class QuickSearchWindowController
     // regardless of which trigger got there.
     private bool _suppressNextRestore;
     public void SuppressNextRestore() => _suppressNextRestore = true;
-
-    // useAltTapBypass: see HookCommandHandler's ForceForeground case -- callers backed by very recent real
-    // input on the Hook's own thread already (e.g. Quick Navigation's own mouse click) should pass false.
-    public static void ForceForeground(IntPtr hwnd, bool useAltTapBypass = true)
-    {
-        if (hwnd == IntPtr.Zero) return;
-        ShowWindow(hwnd, SW_RESTORE);
-
-        // Used to skip the IPC round-trip when GetForegroundWindow() already reported hwnd as
-        // foreground, on the assumption that Show()/Activate() already did the whole job. That
-        // assumption isn't always safe (e.g. a still-open shell overlay like the Start Menu can make
-        // Windows report our window as foreground without real per-thread keyboard focus having
-        // actually moved -- see ShellOverlayDismissHelper.DismissOverlayIfForeground(), which handles
-        // that case earlier in ShowWindow()). Always send it regardless; redoing an already-correct
-        // foreground/focus state is cheap and harmless.
-        App.HookClient?.SendMessage(new IpcMessage
-        {
-            Id = IpcMessageId.ForceForeground,
-            Hwnd = hwnd.ToInt64(),
-            BoolVal = useAltTapBypass
-        });
-    }
+    // useAltTapBypass is used by callers backed by recent input on the Hook thread.
+    public static void ForceForeground(IntPtr hwnd, bool useAltTapBypass = true) => QuickSearchWindowNative.ForceForeground(hwnd, useAltTapBypass);
 
     public QuickSearchWindowController(Lertaro.App.QuickSearchWindow window)
     {
         _window = window;
         _positioner = new QuickSearchWindowPositioner(window, () => _lastActiveHwnd);
         _foregroundWatcher = new QuickSearchWindowForegroundWatcher(window, () => HideOnFocusLoss());
+        _showSupport = new QuickSearchWindowShowSupport(this);
     }
 
     public void PositionWindow() => _positioner.PositionWindow();
-
     public void SaveWindowPosition() => _positioner.SaveWindowPosition();
 
     // Wired to the search box's status icon right-click -- clears the saved position and immediately
@@ -124,88 +96,7 @@ public class QuickSearchWindowController
         FileExecutor.OpenFileOrFolder("__SHOW_MORE__", query, () => HideWindow(restoreFocus: false));
     }
 
-    public void ShowWindow(string? initialQuery = null)
-    {
-        _visibilityOpToken++;
-
-        // As early as possible, before Show() -- Windows' Power Throttling operates at the process
-        // scheduling level, so lifting it only after this window has already started painting would miss
-        // the very first frame the user is waiting on. See PowerThrottlingHelper's own comment.
-        PowerThrottlingHelper.WindowShowing("quick");
-        // Cancels a trim that is armed but has not fired: emptying the working set moments before a
-        // summon is strictly worse than never emptying it.
-        IdleWorkingSetTrimmer.WindowShowing();
-
-        // Must run before anything below touches this window (Show()/Activate()/ForceForeground):
-        // once any of those runs, GetForegroundWindow() starts reporting THIS window as foreground
-        // (shell light-dismiss overlays don't compete for activation the normal way), so this is the
-        // last point where it still reflects the real, uncontaminated state.
-        ShellOverlayDismissHelper.DismissOverlayIfForeground();
-
-        _lastActiveHwnd = GetForegroundWindow();
-        if (_lastActiveHwnd != IntPtr.Zero)
-        {
-            GetWindowThreadProcessId(_lastActiveHwnd, out var activePid);
-            if (activePid == (uint)Environment.ProcessId) _lastActiveHwnd = IntPtr.Zero;
-        }
-
-        _window.ViewModel.IsInlineSearchContext = false;
-        App.HideInlineSearch();
-        QuickLookManager.Instance.Reset();
-        _window.ViewModel.RefreshLaunchItems();
-
-        InlineSearchManager.Instance.KeyboardHook.IsQuickSearchWindowVisible = true;
-        InlineSearchManager.Instance.KeyboardHook.Stop();
-        _window.ViewModel.EnsureServiceMonitoringActive();
-
-        _window.ViewModel.SearchQuery = initialQuery ?? string.Empty;
-        _window.ViewModel.RefreshEmptyState();
-        _window.ViewModel.RefreshLayoutSettings();
-        // UpdateLayout() first so everything the calls above may have just changed actually
-        // measures/arranges before ApplyResultsLayoutImmediate reads it -- then apply the results height synchronously too, rather than leaving it to the
-        // normal Send-priority-deferred QueueResultsLayoutUpdate. Both run while the window is still
-        // hidden, so the window's first visible frame (at Show() below) already lands at the correct size
-        // instead of showing at whatever Height this persistent window was last left at (a different tab,
-        // a longer results list, ...) and only snapping to the real size after a visible post-show flash.
-        _window.UpdateLayout();
-        _window.ApplyResultsLayoutImmediate();
-        _window.Topmost = false;
-        _window.Topmost = true;
-        // Position before Show() (not after, as before) so the window's first painted frame already
-        // lands at the real target -- Show()-then-PositionWindow() used to render one frame at wherever
-        // this persistent window was last left (a different monitor entirely, if that's where the user
-        // last summoned it) before snapping to the correct spot, an unconditional flash-then-jump on
-        // every summon rather than just while on a single monitor. PositionWindow() itself doesn't need
-        // the window's actual layout/HWND for anything (its width comes from settings, not ActualWidth,
-        // and its DPI now comes from the target monitor, not this window's own CompositionTarget), so
-        // moving it earlier is safe.
-        PositionWindow();
-
-        // Fade in from 0 rather than popping in fully opaque -- same technique (and target opacity)
-        // ThemeManager already uses for its own theme-swap fade, animating window.Content rather than
-        // the Window itself so a translucent theme's WindowOpacity (see WindowEffectHelper) stays the
-        // ceiling instead of always fading to a flat 1.0.
-        var fadeContent = _window.Content as UIElement;
-        fadeContent?.BeginAnimation(UIElement.OpacityProperty, null);
-        fadeContent?.Opacity = 0;
-
-        _window.Show();
-        _window.WindowState = WindowState.Normal;
-
-        if (fadeContent != null)
-        {
-            var targetOpacity = ThemeManager.Instance.ActiveTheme?.WindowOpacity ?? 1.0;
-            var fadeIn = new DoubleAnimation(targetOpacity, (Duration)System.Windows.Application.Current.FindResource("DurationWindowFadeIn"))
-            {
-                EasingFunction = System.Windows.Application.Current.TryFindResource("EaseOutCubic") as IEasingFunction
-            };
-            fadeContent.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-        }
-
-        _foregroundWatcher.Start();
-
-        ActivateAndFocus();
-    }
+    public void ShowWindow(string? initialQuery = null) => _showSupport.ShowWindow(initialQuery);
 
     // ForceForeground's SetForegroundWindow call -- whether it succeeds locally or has to round-trip
     // through the elevated Hook process's IPC -- doesn't complete synchronously with the call that
@@ -222,7 +113,7 @@ public class QuickSearchWindowController
         var timer = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(10) };
         timer.Tick += (s, _) =>
         {
-            var isForeground = hwnd == IntPtr.Zero || GetForegroundWindow() == hwnd;
+            var isForeground = hwnd == IntPtr.Zero || QuickSearchWindowNative.GetForegroundWindow() == hwnd;
             if (!isForeground && Environment.TickCount64 < deadline)
                 return;
 
@@ -282,10 +173,10 @@ public class QuickSearchWindowController
     }
 
     // The activation half of a summon, shared with ShowWindow so the two cannot drift apart.
-    private void ActivateAndFocus() => _window.Dispatcher.BeginInvoke(new Action(() =>
+    internal void ActivateAndFocus() => _window.Dispatcher.BeginInvoke(new Action(() =>
     {
         var hwnd = new WindowInteropHelper(_window).Handle;
-        if (hwnd != IntPtr.Zero) ForceForeground(hwnd);
+        if (hwnd != IntPtr.Zero) QuickSearchWindowNative.ForceForeground(hwnd);
 
         _window.Activate();
         _window.Focus();
@@ -365,7 +256,7 @@ public class QuickSearchWindowController
             InlineSearchManager.Instance.KeyboardHook.IsQuickSearchWindowVisible = false;
             InlineSearchManager.Instance.KeyboardHook.Start();
 
-            if (restoreFocus && !_suppressNextRestore && _lastActiveHwnd != IntPtr.Zero) SetForegroundWindow(_lastActiveHwnd);
+            if (restoreFocus && !_suppressNextRestore && _lastActiveHwnd != IntPtr.Zero) QuickSearchWindowNative.SetForegroundWindow(_lastActiveHwnd);
             _suppressNextRestore = false;
             _lastActiveHwnd = IntPtr.Zero;
 

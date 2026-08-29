@@ -60,54 +60,10 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
     }
 
     public string ServiceVersion
-    {
-        get
-        {
-            var dllPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Lertaro.Service.dll");
-            if (File.Exists(dllPath))
-            {
-                try
-                {
-                    var assemblyName = System.Reflection.AssemblyName.GetAssemblyName(dllPath);
-                    var version = assemblyName.Version;
-                    if (version != null)
-                    {
-                        return string.Format(TranslationManager.Instance["About_ServiceVersion"], version.ToString(3));
-                    }
-                }
-                catch
-                {
-                    // Fallback
-                }
-            }
-            return string.Format(TranslationManager.Instance["About_ServiceVersion"], "Unknown");
-        }
-    }
+        => AboutComponentVersionSupport.GetServiceVersion();
 
     public string CliVersion
-    {
-        get
-        {
-            var dllPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lff.dll");
-            if (File.Exists(dllPath))
-            {
-                try
-                {
-                    var assemblyName = System.Reflection.AssemblyName.GetAssemblyName(dllPath);
-                    var version = assemblyName.Version;
-                    if (version != null)
-                    {
-                        return string.Format(TranslationManager.Instance["About_CliVersion"], version.ToString(3));
-                    }
-                }
-                catch
-                {
-                    // Fallback
-                }
-            }
-            return string.Format(TranslationManager.Instance["About_CliVersion"], "Unknown");
-        }
-    }
+        => AboutComponentVersionSupport.GetCliVersion();
 
     // The user manual link's target differs per locale (/zh-CN/ prefix), so it's derived from the
     // same translated URL string the link displays rather than a single hardcoded Uri like the
