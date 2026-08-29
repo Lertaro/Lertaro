@@ -49,8 +49,11 @@ public sealed class PdfExtractor : ITextExtractor
                     {
                         throw;
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        PluginSdk.Logger.Log(
+                            $"[ContentSearch] PDF page {pageNumber} of '{filePath}' failed to process, skipping: {ex.Message}",
+                            PluginSdk.LogLevel.Warn);
                         continue;
                     }
 
@@ -66,8 +69,11 @@ public sealed class PdfExtractor : ITextExtractor
                 return builder.Length > 0 ? builder.ToString() : null;
             }, timeoutCts.Token);
         }
-        catch
+        catch (Exception ex)
         {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Failed to extract PDF '{filePath}': {ex.Message}",
+                PluginSdk.LogLevel.Warn);
             return null;
         }
     }

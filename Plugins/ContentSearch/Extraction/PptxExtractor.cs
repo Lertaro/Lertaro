@@ -37,8 +37,11 @@ public sealed class PptxExtractor : ITextExtractor
                 return ExtractPresentationText(archive, timeoutCts.Token);
             }, timeoutCts.Token);
         }
-        catch
+        catch (Exception ex)
         {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Failed to extract presentation '{filePath}': {ex.Message}",
+                PluginSdk.LogLevel.Warn);
             return null;
         }
     }

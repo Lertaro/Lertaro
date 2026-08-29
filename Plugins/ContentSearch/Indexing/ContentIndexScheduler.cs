@@ -127,8 +127,10 @@ public sealed class ContentIndexScheduler : IDisposable
 
                 _database.Optimize();
             }
-            catch
+            catch (Exception ex)
             {
+                PluginSdk.Logger.Log(
+                    $"[ContentSearch] Full scan failed: {ex.Message}", PluginSdk.LogLevel.Error);
             }
             finally
             {
@@ -245,8 +247,12 @@ public sealed class ContentIndexScheduler : IDisposable
 
                 writeBatch.Add(new FileIndexBatchItem(filePath, fileInfo.LastWriteTimeUtc, fileInfo.Length, text));
             }
-            catch
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
             {
+                PluginSdk.Logger.Log(
+                    $"[ContentSearch] Failed to index '{filePath}': {ex.Message}",
+                    PluginSdk.LogLevel.Warn);
             }
             finally
             {

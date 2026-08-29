@@ -47,8 +47,11 @@ public sealed class XlsxExtractor : ITextExtractor
                 return ExtractWorkbookText(archive, timeoutCts.Token);
             }, timeoutCts.Token);
         }
-        catch
+        catch (Exception ex)
         {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Failed to extract workbook '{filePath}': {ex.Message}",
+                PluginSdk.LogLevel.Warn);
             return null;
         }
     }

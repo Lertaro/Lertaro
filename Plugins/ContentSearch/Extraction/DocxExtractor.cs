@@ -37,8 +37,11 @@ public sealed class DocxExtractor : ITextExtractor
                 return ExtractDocumentText(archive, timeoutCts.Token);
             }, timeoutCts.Token);
         }
-        catch
+        catch (Exception ex)
         {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Failed to extract Word document '{filePath}': {ex.Message}",
+                PluginSdk.LogLevel.Warn);
             return null;
         }
     }

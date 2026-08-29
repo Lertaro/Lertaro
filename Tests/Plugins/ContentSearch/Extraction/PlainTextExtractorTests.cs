@@ -3,9 +3,24 @@ using Lertaro.Plugins.ContentSearch.Extraction;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Extraction;
 
+// PlainTextExtractor tests share the process-wide PluginSdk.Logger.LogAction hook,
+// so they must not run concurrently with anything that reads or resets it.
 [TestClass]
+[DoNotParallelize]
 public sealed class PlainTextExtractorTests
 {
+    private readonly List<string> _logLines = new();
+
+    [TestInitialize]
+    public void CaptureLogs()
+    {
+        _logLines.Clear();
+        PluginSdk.Logger.LogAction = (message, level) => _logLines.Add($"{level}: {message}");
+    }
+
+    [TestCleanup]
+    public void ReleaseLogs() => PluginSdk.Logger.LogAction = null;
+
     [TestMethod]
     public void CanHandle_AnyNonEmptyExtension_ReturnsTrue()
     {
@@ -126,5 +141,49 @@ public sealed class PlainTextExtractorTests
             if (File.Exists(tempFile))
                 File.Delete(tempFile);
         }
+    }
+
+    [TestMethod]
+    public async Task ExtractTextAsync_BinaryFileWithoutExtractor_SkipsAndLogsWarning()
+    {
+        var extractor = new PlainTextExtractor();
+        var tempFile = Path.Combine(Path.GetTempPath(), $"test_doc_{Guid.NewGuid():N}.doc");
+
+        try
+        {
+            // OLE compound file signature bytes as written by legacy .doc/.xls/.ppt, followed
+            // by the NUL-padded directory sector: typing "doc" into the whitelist lands here.
+            var oleBytes = new byte[512];
+            oleBytes[0] = 0xD0; oleBytes[1] = 0xCF; oleBytes[2] = 0x11; oleBytes[3] = 0xE0;
+            oleBytes[4] = 0xA1; oleBytes[5] = 0xB1; oleBytes[6] = 0x1A; oleBytes[7] = 0xE1;
+            await File.WriteAllBytesAsync(tempFile, oleBytes);
+
+            var text = await extractor.ExtractTextAsync(tempFile, maxFileSizeBytes: 1024 * 1024);
+
+            Assert.IsNull(text);
+            Assert.IsTrue(
+                _logLines.Any(l => l.Contains("Skipped binary file", StringComparison.Ordinal) && l.Contains(tempFile, StringComparison.Ordinal)),
+                $"Expected a skip warning in: [{string.Join("; ", _logLines)}]");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [TestMethod]
+    public void LooksBinary_NulByteInLeadingChunk_TellsBinaryFromText()
+    {
+        var oleBytes = new byte[256];
+        oleBytes[0] = 0xD0; oleBytes[1] = 0xCF; oleBytes[2] = 0x11; oleBytes[3] = 0xE0;
+        Assert.IsTrue(PlainTextExtractor.LooksBinary(oleBytes));
+        Assert.IsFalse(PlainTextExtractor.LooksBinary(Encoding.UTF8.GetBytes("plain text file\r\n")));
+
+        // UTF-16 text interleaves NUL bytes but carries a BOM: callers must exempt it
+        // via HasUnicodeBom before trusting LooksBinary.
+        var utf16Bytes = new byte[] { 0xFF, 0xFE, 0x2D, 0x00, 0x4E, 0x00 };
+        Assert.IsTrue(PlainTextExtractor.LooksBinary(utf16Bytes));
+        Assert.IsTrue(PlainTextExtractor.HasUnicodeBom(utf16Bytes));
     }
 }
