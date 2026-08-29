@@ -17,6 +17,7 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
     {
         _userSettings = userSettings;
         _isEnabled = userSettings.QuickLaunch.Enabled;
+        SelectSectionCommand = new RelayCommand<string>(section => SelectedSection = section ?? "Items");
         foreach (var item in userSettings.QuickLaunch.Items)
             Items.Add(new QuickLaunchItemViewModel { Name = item.Name, Path = item.Path });
 
@@ -39,6 +40,7 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
 
     public ObservableCollection<QuickLaunchItemViewModel> Items { get; } = new();
     public ObservableCollection<QuickLaunchSourceOptionViewModel> Sources { get; } = new();
+    public ICommand SelectSectionCommand { get; }
     public ICommand AddCommand { get; }
     public ICommand RemoveCommand { get; }
     public ICommand EditCommand { get; }
@@ -51,6 +53,13 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
     {
         get => _isEnabled;
         set => SetProperty(ref _isEnabled, value);
+    }
+
+    private string _selectedSection = "Items";
+    public string SelectedSection
+    {
+        get => _selectedSection;
+        set => SetProperty(ref _selectedSection, value);
     }
 
     public string NewName

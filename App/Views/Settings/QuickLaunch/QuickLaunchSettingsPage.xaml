@@ -49,42 +49,123 @@
         <StackPanel Margin="0,0,0,24">
             <TextBlock Style="{StaticResource SettingsSectionTitle}" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Title]}"/>
             <TextBlock Style="{StaticResource SettingsHintText}" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Hint]}"/>
-            <Border Style="{StaticResource SettingsCard}">
+            <CheckBox x:Name="RowQuickLaunchEnabled" Margin="0,12,0,8"
+                      Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Enabled]}"
+                      IsChecked="{Binding IsEnabled}" FontSize="13"/>
+            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ShiftWheelHint]}"
+                       Style="{StaticResource SettingsHintText}" Margin="0,0,0,14"/>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                 <StackPanel>
-                    <CheckBox x:Name="RowQuickLaunchEnabled" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Enabled]}" IsChecked="{Binding IsEnabled}" FontSize="13"/>
-                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ShiftWheelHint]}" Style="{StaticResource SettingsHintText}" Margin="24,4,0,0"/>
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Title]}"
+                            Command="{Binding SelectSectionCommand}" CommandParameter="Items">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedSection}" Value="Items">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedSection}" Value="Items">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
                 </StackPanel>
-            </Border>
-            <Border Style="{StaticResource SettingsCard}">
-                <StackPanel>
-                    <TextBlock x:Name="RowQuickLaunchItemsTitle" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ItemsTitle]}" FontWeight="SemiBold" FontSize="13"/>
-                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ItemsDesc]}" Style="{StaticResource SettingsHintText}" Margin="0,4,0,12"/>
-                    <Grid Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="1.5*"/><ColumnDefinition Width="3.5*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBox Grid.Column="0" Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_FieldName]}"/>
-                        <TextBox Grid.Column="1" Text="{Binding NewPath, UpdateSourceTrigger=PropertyChanged}" Margin="8,0,8,0" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_FieldPath]}"/>
-                        <StackPanel Grid.Column="2" Orientation="Horizontal">
-                            <Button Content="&#xED25;" Style="{StaticResource QuickLaunchIconButton}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_BrowseFolderTooltip]}" Command="{Binding BrowseFolderCommand}"/>
-                            <Button Content="&#xE8A5;" Style="{StaticResource QuickLaunchIconButton}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_BrowseFileTooltip]}" Command="{Binding BrowseFileCommand}"/>
-                        </StackPanel>
-                        <Button Grid.Column="3" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Add]}" Style="{StaticResource PrimarySettingsButton}" Command="{Binding AddCommand}" Height="34" MinWidth="56" Padding="12,0" Margin="8,0,0,0"/>
-                    </Grid>
-                    <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource QuickLaunchItemTemplate}" helpers:DragReorder.IsEnabled="True"/>
+                <StackPanel Margin="18,0,0,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceTitle]}"
+                            Command="{Binding SelectSectionCommand}" CommandParameter="Sources">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedSection}" Value="Sources">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedSection}" Value="Sources">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
                 </StackPanel>
-            </Border>
-            <Border Style="{StaticResource SettingsCard}">
-                <StackPanel>
-                    <TextBlock x:Name="RowQuickLaunchSourceTitle" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceTitle]}" FontWeight="SemiBold" FontSize="13"/>
-                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceDesc]}" Style="{StaticResource SettingsHintText}" Margin="0,4,0,8"/>
-                    <ItemsControl ItemsSource="{Binding Sources}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsEnabled}" Margin="0,5" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceEnabledTooltip]}"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </Border>
+            </StackPanel>
+            <Grid>
+                <Border>
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource SettingsCard}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedSection}" Value="Items">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel>
+                        <TextBlock x:Name="RowQuickLaunchItemsTitle"
+                                   Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ItemsTitle]}"
+                                   FontWeight="SemiBold" FontSize="13"/>
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ItemsDesc]}"
+                                   Style="{StaticResource SettingsHintText}" Margin="0,4,0,12"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="1.5*"/><ColumnDefinition Width="3.5*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_FieldName]}"/>
+                            <TextBox Grid.Column="1" Text="{Binding NewPath, UpdateSourceTrigger=PropertyChanged}" Margin="8,0,8,0" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_FieldPath]}"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <Button Content="&#xED25;" Style="{StaticResource QuickLaunchIconButton}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_BrowseFolderTooltip]}" Command="{Binding BrowseFolderCommand}"/>
+                                <Button Content="&#xE8A5;" Style="{StaticResource QuickLaunchIconButton}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_BrowseFileTooltip]}" Command="{Binding BrowseFileCommand}"/>
+                            </StackPanel>
+                            <Button Grid.Column="3" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Add]}" Style="{StaticResource PrimarySettingsButton}" Command="{Binding AddCommand}" Height="34" MinWidth="56" Padding="12,0" Margin="8,0,0,0"/>
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource QuickLaunchItemTemplate}" helpers:DragReorder.IsEnabled="True"/>
+                    </StackPanel>
+                </Border>
+                <Border>
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource SettingsCard}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedSection}" Value="Sources">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel>
+                        <TextBlock x:Name="RowQuickLaunchSourceTitle"
+                                   Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceTitle]}"
+                                   FontWeight="SemiBold" FontSize="13"/>
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceDesc]}"
+                                   Style="{StaticResource SettingsHintText}" Margin="0,4,0,8"/>
+                        <ItemsControl ItemsSource="{Binding Sources}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsEnabled}" Margin="0,5" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceEnabledTooltip]}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </UserControl>
