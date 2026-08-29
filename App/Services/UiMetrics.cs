@@ -18,6 +18,9 @@ public static class UiMetrics
     public const double BaseSearchResultItemHeight = 51;
     public const double BaseListItemHeight = 34;
     public const double BaseSearchSectionHeaderHeight = 28;
+    public const int QuickSearchMaxVisibleResultRows = 9;
+    public const double LaunchPanelHorizontalPadding = 24;
+    public const double LaunchPanelItemMinimumWidth = 108;
 
     // Floor for the action-menu section header row so its title font never gets clipped.
     public const double MinSectionHeaderHeight = 18;
@@ -221,6 +224,10 @@ public static class UiMetrics
     // applied -- shared by AppSearchResult (results list) and ActionMenuItem (actions list) so their
     // rows come out pixel-identical instead of one accounting for icon overflow and the other not.
     public static double ScaledNormalRowHeight => Math.Max(ScaledSearchResultItemHeight, ScaledResultIconSize + ResultRowVerticalMargin + IconRowBreathingRoom);
+    public static double ScaledQuickSearchMaxResultHeight => QuickSearchMaxVisibleResultRows * ScaledNormalRowHeight;
+
+    public static int GetLaunchPanelColumns(double searchBarWidth) =>
+        Math.Max(1, (int)Math.Floor((searchBarWidth - LaunchPanelHorizontalPadding) / LaunchPanelItemMinimumWidth));
 
     // Kept so ActionMenuItem's own icon/font scaling (ScaledIconSize etc., which multiplies its OWN
     // base sizes by this) tracks the same _flowRowScale-derived factor as the results row, while both

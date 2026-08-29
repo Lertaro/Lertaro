@@ -7,6 +7,7 @@
         xmlns:services="clr-namespace:Lertaro.App.Services"
         xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
         xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+        xmlns:quick="clr-namespace:Lertaro.App.Views.QuickSearchWindow"
         Title="Lertaro"
         SizeToContent="WidthAndHeight"
         WindowStyle="None"
@@ -70,6 +71,9 @@
                                   SelectedItem="{Binding SelectedResult, Mode=TwoWay}"
                                   ViewMode="List"
                                   Visibility="{Binding ResultsPanelVisibility}"/>
+
+            <quick:QuickSearchLaunchPanel Grid.Row="2"
+                                          Visibility="{Binding LaunchPanelVisibility}"/>
 
             <!-- ═══════════ 5. Status bar (shown when loading or ready) ═══════════ -->
             <local:StatusBarControl x:Name="StatusBarControl" Grid.Row="3"

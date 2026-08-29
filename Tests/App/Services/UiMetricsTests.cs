@@ -150,6 +150,23 @@ public sealed class UiMetricsTests
     }
 
     [TestMethod]
+    public void ScaledQuickSearchMaxResultHeight_UsesVisibleRowBudget()
+    {
+        UiMetrics.UpdateScaleFromSearchBarHeight(UiMetrics.FlowRowReferenceSearchBarHeight);
+
+        Assert.AreEqual(
+            UiMetrics.QuickSearchMaxVisibleResultRows * UiMetrics.ScaledNormalRowHeight,
+            UiMetrics.ScaledQuickSearchMaxResultHeight);
+    }
+
+    [TestMethod]
+    [DataRow(300, 2)]
+    [DataRow(400, 3)]
+    [DataRow(570, 5)]
+    [DataRow(800, 7)]
+    public void GetLaunchPanelColumns_AdaptsToSearchBarWidth(double searchBarWidth, int expectedColumns) => Assert.AreEqual(expectedColumns, UiMetrics.GetLaunchPanelColumns(searchBarWidth));
+
+    [TestMethod]
     public void Scale_SetToDifferentValue_RaisesScaleChanged()
     {
         UiMetrics.Scale = 1.0;

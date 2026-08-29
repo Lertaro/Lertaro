@@ -58,7 +58,7 @@ internal sealed class QuickSearchWindowLayoutManager
                     // filename) so a full actions list's total height (banner + rows) still tops out at
                     // that same budget -- otherwise the window visibly grows taller the moment actions
                     // mode's own banner is added on top of a full-height list.
-                    var maxAvailableHeight = 9 * UiMetrics.ScaledNormalRowHeight - actionsHeaderHeight;
+                    var maxAvailableHeight = UiMetrics.ScaledQuickSearchMaxResultHeight - actionsHeaderHeight;
                     // Let the height naturally fit the items count (free size dynamic resize)
                     actualActionsHeight = Math.Max(0.0, Math.Min(totalHeight, maxAvailableHeight));
                 }
@@ -116,7 +116,7 @@ internal sealed class QuickSearchWindowLayoutManager
         // (see MinHeight in ListBox.xaml) would otherwise throw off a single-height-times-count guess,
         // leaving stray blank space (or clipping) at the bottom of the list.
         var results = _window.ViewModel.Results;
-        var visibleCount = Math.Min(results.Count, 9);
+        var visibleCount = Math.Min(results.Count, UiMetrics.QuickSearchMaxVisibleResultRows);
 
         double resultsHeight = 0;
         for (var i = 0; i < visibleCount; i++)

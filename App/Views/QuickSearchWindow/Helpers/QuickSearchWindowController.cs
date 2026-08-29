@@ -152,6 +152,7 @@ public class QuickSearchWindowController
         _window.ViewModel.IsInlineSearchContext = false;
         App.HideInlineSearch();
         QuickLookManager.Instance.Reset();
+        _window.ViewModel.RefreshLaunchItems();
 
         InlineSearchManager.Instance.KeyboardHook.IsQuickSearchWindowVisible = true;
         InlineSearchManager.Instance.KeyboardHook.Stop();

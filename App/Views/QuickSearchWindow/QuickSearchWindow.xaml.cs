@@ -87,6 +87,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public TextBlock TxtActionsTarget => ResultsPanelControl.ActionsTargetTextBlock;
     public ListBox LstActions => ResultsPanelControl.ActionsListBox;
     public void UpdateActionsLayout() => _layoutManager.UpdateActionsLayout();
+    internal void ExecuteFavorite(AppSearchResult result) => _resultExecutor.Execute(result);
 
     // Runs the results-panel height computation synchronously instead of through the normal deferred
     // QueueResultsLayoutUpdate -- see QuickSearchWindowController.ShowWindow's own comment on why it needs

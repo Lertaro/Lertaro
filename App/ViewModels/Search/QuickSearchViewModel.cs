@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
+using Lertaro.App.Helpers;
 using Lertaro.Core;
 using Lertaro.App.ViewModels.Service;
 
@@ -58,6 +59,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
 
     public SearchExecutionViewModel Search { get; }
     public ServiceMonitorViewModel Monitor { get; }
+    public ObservableRangeCollection<AppSearchResult> LaunchItems { get; } = new();
 
     // ==========================================
     // Delegated Properties for UI Bindings
@@ -99,7 +101,11 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     public bool IsInlineSearchContext
     {
         get => Search.IsInlineSearchContext;
-        set => Search.IsInlineSearchContext = value;
+        set
+        {
+            Search.IsInlineSearchContext = value;
+            OnPropertyChanged(nameof(LaunchPanelVisibility));
+        }
     }
 
     public string SearchQuery
@@ -108,6 +114,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         set
         {
             Search.SearchQuery = value;
+            OnPropertyChanged(nameof(LaunchPanelVisibility));
             // The clock takes over the placeholder slot whenever the box is empty (see ClockText) --
             // refresh it right as that happens, not just whenever the window itself was last shown, so
             // clearing a query after the window's been open a while doesn't show stale time.
@@ -179,14 +186,29 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     }
     public void RefreshEmptyState() => Search.RefreshEmptyState();
 
+    public void RefreshLaunchItems()
+    {
+        LaunchItems.ReplaceRange(FavoriteSearchHelper.CreateLaunchItems(UserSettings.Load().Favorites));
+        OnPropertyChanged(nameof(LaunchPanelVisibility));
+    }
+
     public double SearchBarWidth => UserSettings.Load().SearchWindow.SearchBarWidth;
     public double SearchBarHeight => UserSettings.Load().SearchWindow.SearchBarHeight;
+    public int LaunchPanelColumns => Services.UiMetrics.GetLaunchPanelColumns(SearchBarWidth);
 
     // Quick window only: InlineSearchWindow shares this same ViewModel class (see
     // InlineSearchManager.EnsureWindowCreated setting IsInlineSearchContext), so without this check the
     // clock would also take over its placeholder even though it's usually mid-task in some other app's
     // window, not an idle "glance at the time" moment the way the Quick window's popup can be.
     public Visibility ClockVisibility => !IsInlineSearchContext && UserSettings.Load().SearchWindow.ShowClock ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility LaunchPanelVisibility => !IsInlineSearchContext
+        && string.IsNullOrWhiteSpace(SearchQuery)
+        && LaunchItems.Count > 0
+        ? Visibility.Visible
+        : Visibility.Collapsed;
+
+    public double LaunchPanelMaxHeight => Services.UiMetrics.ScaledQuickSearchMaxResultHeight;
 
     // Takes over the search box's own placeholder slot instead of a separate element elsewhere (see
     // SearchBoxControl.xaml's TxtPlaceholder) -- while the box is empty there's nothing to type-hint
@@ -229,7 +251,9 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     {
         OnPropertyChanged(nameof(SearchBarWidth));
         OnPropertyChanged(nameof(SearchBarHeight));
+        OnPropertyChanged(nameof(LaunchPanelColumns));
         OnPropertyChanged(nameof(ClockVisibility));
+        OnPropertyChanged(nameof(LaunchPanelMaxHeight));
         UpdateClockText();
 
         // Result rows persist as long-lived objects across searches, unlike a freshly-typed search's own
