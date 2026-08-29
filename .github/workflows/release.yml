@@ -28,8 +28,11 @@ jobs:
       # 3. Install Inno Setup 7, required for the 64-bit x64 Setup shell
       - name: Install Inno Setup
         run: |
-          $installerPath = Join-Path $env:RUNNER_TEMP 'innosetup-7.1.0-x64.exe'
-          Invoke-WebRequest -Uri 'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe' -OutFile $installerPath
+          $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/jrsoftware/issrc/releases/latest' -Headers @{ 'User-Agent' = 'Lertaro-Release' }
+          $asset = $release.assets | Where-Object { $_.name -match '^innosetup-7\.[0-9.]+-x64\.exe$' } | Select-Object -First 1
+          if ($null -eq $asset) { throw "No 64-bit Inno Setup 7 asset was found in release $($release.tag_name)." }
+          $installerPath = Join-Path $env:RUNNER_TEMP $asset.name
+          Invoke-WebRequest -Uri $asset.browser_download_url -Headers @{ 'User-Agent' = 'Lertaro-Release' } -OutFile $installerPath
           $installer = Start-Process -FilePath $installerPath -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-' -Wait -PassThru
           if ($installer.ExitCode -ne 0) { throw "Inno Setup 7 installer exited with code $($installer.ExitCode)." }
           $isccDir = Join-Path ${env:ProgramFiles} 'Inno Setup 7'
