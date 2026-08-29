@@ -1,12 +1,12 @@
+using System.Globalization;
 using System.IO;
 using Lertaro.App.Views.Controls.Dialogs;
-using Lertaro.App.Views.Settings;
 using Lertaro.Core;
+using Lertaro.PluginSdk.Abstractions;
 using MessageBox = Lertaro.App.Views.Controls.Dialogs.CustomMessageBox;
 using MessageBoxButton = System.Windows.MessageBoxButton;
 using MessageBoxImage = System.Windows.MessageBoxImage;
 using MessageBoxResult = System.Windows.MessageBoxResult;
-using WindowStartupLocation = System.Windows.WindowStartupLocation;
 using Application = System.Windows.Application;
 
 namespace Lertaro.App.Services;
@@ -22,6 +22,8 @@ namespace Lertaro.App.Services;
 /// </summary>
 internal static class UserConfigBackups
 {
+    internal sealed record RestoreChoice(string Display, string Path);
+
     /// <summary>Backups of user-settings.json (its .bak.N rotation), newest first. The rotation count
     /// is whatever the directory happens to hold: zero entries is normal for a fresh install.</summary>
     internal static IReadOnlyList<(string Path, DateTime ModifiedTime)> Enumerate(string dataDirectory)
@@ -42,6 +44,25 @@ internal static class UserConfigBackups
             .Select(f => (Path: f, ModifiedTime: File.GetLastWriteTime(f)))
             .OrderByDescending(b => b.ModifiedTime)
             .ToList();
+    }
+
+    internal static IReadOnlyList<RestoreChoice> BuildRestoreChoices(
+        IReadOnlyList<(string Path, DateTime ModifiedTime)> backups)
+    {
+        var choices = new List<RestoreChoice>(backups.Count);
+        var displayCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var (path, modifiedTime) in backups)
+        {
+            var baseDisplay = modifiedTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+            displayCounts.TryGetValue(baseDisplay, out var count);
+            count++;
+            displayCounts[baseDisplay] = count;
+            var display = count == 1 ? baseDisplay : $"{baseDisplay} ({count})";
+            choices.Add(new RestoreChoice(display, path));
+        }
+
+        return choices;
     }
 
     /// <summary>Copies the live user settings into <paramref name="targetFolder"/>. Returns the
@@ -131,15 +152,27 @@ internal static class UserConfigBackups
                 return;
             }
 
-            var dialog = new ConfigRestoreWindow(backups);
-            dialog.Owner = OwnedDialog.ResolveOwner(dialog);
-            dialog.WindowStartupLocation = dialog.Owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen;
-            // Not dialog.ShowDialog(): see OwnedDialog.ShowModal -- the same modal-showing path every
-            // custom dialog in the app takes, so an owner closing underneath cannot freeze the app.
-            OwnedDialog.ShowModal(dialog);
+            var choices = BuildRestoreChoices(backups);
+            const string fieldKey = "BackupPath";
+            var field = new PluginConfigField
+            {
+                Key = fieldKey,
+                LabelKey = TranslationManager.Instance["About_ConfigRestoreHint"],
+                FieldType = ConfigFieldType.Choice,
+                Choices = choices.Select(choice => choice.Display).ToList(),
+                DefaultValue = choices[0].Display
+            };
+            var values = PluginFieldPromptWindow.ShowPrompt(
+                TranslationManager.Instance["About_ConfigRestoreTitle"],
+                new[] { field },
+                initialValues: null);
 
-            if (dialog.SelectedBackupPath is string selected)
-                await ApplySourceAsync(selected);
+            if (values?.TryGetValue(fieldKey, out var selectedValue) == true && selectedValue is string selectedDisplay)
+            {
+                var selected = choices.FirstOrDefault(choice => choice.Display == selectedDisplay);
+                if (selected is not null)
+                    await ApplySourceAsync(selected.Path);
+            }
         }
         catch (Exception ex)
         {

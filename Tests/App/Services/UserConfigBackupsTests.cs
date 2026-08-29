@@ -67,6 +67,25 @@ public sealed class UserConfigBackupsTests
     }
 
     [TestMethod]
+    public void BuildRestoreChoices_FormatsTimestampAndDisambiguatesDuplicates()
+    {
+        var modified = new DateTime(2026, 3, 1, 8, 30, 0);
+        var backups = new[]
+        {
+            (Path: @"C:\backups\user-settings.json.bak.1", ModifiedTime: modified),
+            (Path: @"C:\backups\user-settings.json.bak.2", ModifiedTime: modified)
+        };
+
+        var choices = UserConfigBackups.BuildRestoreChoices(backups);
+
+        Assert.HasCount(2, choices);
+        Assert.AreEqual("2026-03-01 08:30:00", choices[0].Display);
+        Assert.AreEqual("2026-03-01 08:30:00 (2)", choices[1].Display);
+        Assert.AreEqual(backups[0].Path, choices[0].Path);
+        Assert.AreEqual(backups[1].Path, choices[1].Path);
+    }
+
+    [TestMethod]
     public void Export_CopiesSettingsFile()
     {
         using var source = new TempDirectory();
