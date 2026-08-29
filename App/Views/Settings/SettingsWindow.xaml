@@ -121,6 +121,7 @@
                                      BorderThickness="0" Background="Transparent"
                                      ItemContainerStyle="{StaticResource SidebarItemStyle}"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     ScrollViewer.CanContentScroll="False"
                                      MouseUp="LstSearchResults_MouseUp">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>

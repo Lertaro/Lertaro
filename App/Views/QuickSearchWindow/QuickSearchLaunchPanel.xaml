@@ -2,6 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+             xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
              MaxHeight="{Binding LaunchPanelMaxHeight}"
              Height="{Binding LaunchPanelHeight}"
              Background="Transparent"
@@ -67,10 +68,14 @@
                                     <Image Source="{Binding Icon}" Stretch="Uniform"
                                            RenderOptions.BitmapScalingMode="HighQuality"/>
                                 </Border>
-                                <TextBlock Text="{Binding Name}" Width="94" MaxHeight="30"
-                                           Margin="0,5,0,0" Foreground="{DynamicResource TextPrimary}"
-                                           FontSize="11" TextAlignment="Center" TextWrapping="Wrap"
-                                           TextTrimming="CharacterEllipsis"/>
+                                <ScrollViewer Width="94" Height="30" Margin="0,5,0,0"
+                                              HorizontalContentAlignment="Center"
+                                              HorizontalScrollBarVisibility="Hidden"
+                                              VerticalScrollBarVisibility="Disabled" Focusable="False">
+                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}"
+                                               FontSize="11" TextWrapping="NoWrap" TextTrimming="None"
+                                               helpers:MarqueeBehavior.EnableMarquee="{Binding RelativeSource={RelativeSource AncestorType={x:Type Button}}, Path=IsMouseOver}"/>
+                                </ScrollViewer>
                             </StackPanel>
                         </Button>
                     </DataTemplate>

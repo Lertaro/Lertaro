@@ -37,6 +37,8 @@
 
     <Style x:Key="MultiLineTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
         <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="VerticalContentAlignment" Value="Top"/>
         <Setter Property="FontSize" Value="11.5"/>
         <Setter Property="Background" Value="{DynamicResource FieldBackground}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
@@ -46,7 +48,14 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
-                    <Border x:Name="border" CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"><ScrollViewer x:Name="PART_ContentHost" Focusable="false" Background="{TemplateBinding Background}"/></Border>
+                    <Border x:Name="border" CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                        <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Background="{TemplateBinding Background}"
+                                      Padding="{TemplateBinding Padding}"
+                                      HorizontalScrollBarVisibility="{TemplateBinding HorizontalScrollBarVisibility}"
+                                      VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="true"><Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/></Trigger>
                         <Trigger Property="IsFocused" Value="true"><Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/></Trigger>
