@@ -37,6 +37,7 @@ public class SettingsViewModel : ViewModelBase
         Hotkeys = new HotkeySettingsViewModel(_userSettings, Blacklist);
         History = new HistorySettingsViewModel(_userSettings);
         Favorites = new FavoritesSettingsViewModel(_userSettings);
+        QuickLaunch = new QuickLaunchSettingsViewModel(_userSettings);
         QuickPanel = new QuickPanel.QuickPanelSettingsViewModel(_userSettings);
         LocalSend = new LocalSend.LocalSendSettingsViewModel(_userSettings);
         RefreshCommand = new RelayCommand(Refresh);
@@ -54,6 +55,7 @@ public class SettingsViewModel : ViewModelBase
     {
         ApplyUiState();
         QuickPanel.NotifyLanguageChanged();
+        QuickLaunch.NotifyLanguageChanged();
     }
 
     public ServiceSettingsViewModel Service { get; }
@@ -79,6 +81,7 @@ public class SettingsViewModel : ViewModelBase
     public BlacklistSettingsViewModel Blacklist { get; }
     public HistorySettingsViewModel History { get; }
     public FavoritesSettingsViewModel Favorites { get; }
+    public QuickLaunchSettingsViewModel QuickLaunch { get; }
     public LocalSend.LocalSendSettingsViewModel LocalSend { get; }
 
     /// <summary>
@@ -180,6 +183,7 @@ public class SettingsViewModel : ViewModelBase
         Blacklist.Save();
         History.Save();
         Favorites.Save();
+        QuickLaunch.Save();
         QuickPanel.Save();
         LocalSend.Apply();
         _userSettings.Save();

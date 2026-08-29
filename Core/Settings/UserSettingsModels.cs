@@ -34,6 +34,21 @@ public class DefaultFileManagerSetting
     public string Parameter { get; set; } = string.Empty;
 }
 
+/// <summary>Settings for the quick search window's independent launch sources.</summary>
+public class QuickLaunchSettings
+{
+    public bool Enabled { get; set; } = true;
+    public List<QuickLaunchItemSetting> Items { get; set; } = new();
+    public List<string> EnabledSourceIds { get; set; } = new();
+    public bool SourceSelectionInitialized { get; set; }
+}
+
+public class QuickLaunchItemSetting
+{
+    public string Name { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
+}
+
 /// <summary>Settings for the LocalSend protocol v2 LAN transfer engine.</summary>
 public class LocalSendSettingsModel
 {

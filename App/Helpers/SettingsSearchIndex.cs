@@ -169,6 +169,13 @@ public static class SettingsSearchIndex
         new("Favorites_FieldPath", "Favorites", TargetElementName: "RowFieldPath", TabLabelKey: "Favorites_AddCardTitle"),
         new("Favorites_ListTitle", "Favorites", TargetElementName: "RowListTitle"),
 
+        // Quick launch
+        new("Settings_QuickLaunch", "QuickLaunch"),
+        new("QuickLaunch_Title", "QuickLaunch"),
+        new("QuickLaunch_Enabled", "QuickLaunch", TargetElementName: "RowQuickLaunchEnabled"),
+        new("QuickLaunch_ItemsTitle", "QuickLaunch", TargetElementName: "RowQuickLaunchItemsTitle"),
+        new("QuickLaunch_SourceTitle", "QuickLaunch", TargetElementName: "RowQuickLaunchSourceTitle"),
+
         // History -- Enable/Clear All live inside the shared HistoryListControl, instantiated once per
         // tab; "Outer/Inner" targets one extra FindName hop into that instance's own XAML NameScope.
         new("Settings_History", "History"),

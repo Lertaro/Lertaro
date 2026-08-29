@@ -1,0 +1,90 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.QuickLaunch.QuickLaunchSettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="QuickLaunchIconButton" TargetType="Button" BasedOn="{StaticResource RuleIconButton}">
+                <Setter Property="Width" Value="30"/>
+                <Setter Property="Height" Value="30"/>
+                <Setter Property="Margin" Value="4,0,0,0"/>
+            </Style>
+            <DataTemplate x:Key="QuickLaunchItemTemplate">
+                <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="28"/><ColumnDefinition Width="24"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid Width="18" Height="24" Background="Transparent" Cursor="SizeAll" helpers:DragReorder.IsHandle="True">
+                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                            <Ellipse Grid.Row="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="0" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="1" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="2" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Ellipse Grid.Row="2" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                        </Grid>
+                        <TextBlock Grid.Column="1" Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary2}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="4,0,8,0"/>
+                        <TextBlock Grid.Column="3" Text="{Binding Path}" Foreground="{DynamicResource TextSecondary2}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="4" Orientation="Horizontal">
+                            <Button Content="&#xE74A;" Style="{StaticResource QuickLaunchIconButton}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_MoveUpTooltip]}" Command="{Binding DataContext.MoveUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                            <Button Content="&#xE74B;" Style="{StaticResource QuickLaunchIconButton}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_MoveDownTooltip]}" Command="{Binding DataContext.MoveDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                            <Button Content="&#xE70F;" Style="{StaticResource QuickLaunchIconButton}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_EditTooltip]}" Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                            <Button Content="&#xE74D;" Style="{StaticResource QuickLaunchIconButton}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_RemoveTooltip]}" Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="0,0,0,24">
+            <TextBlock Style="{StaticResource SettingsSectionTitle}" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Title]}"/>
+            <TextBlock Style="{StaticResource SettingsHintText}" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Hint]}"/>
+            <Border Style="{StaticResource SettingsCard}">
+                <StackPanel>
+                    <CheckBox x:Name="RowQuickLaunchEnabled" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Enabled]}" IsChecked="{Binding IsEnabled}" FontSize="13"/>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ShiftWheelHint]}" Style="{StaticResource SettingsHintText}" Margin="24,4,0,0"/>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource SettingsCard}">
+                <StackPanel>
+                    <TextBlock x:Name="RowQuickLaunchItemsTitle" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ItemsTitle]}" FontWeight="SemiBold" FontSize="13"/>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ItemsDesc]}" Style="{StaticResource SettingsHintText}" Margin="0,4,0,12"/>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="1.5*"/><ColumnDefinition Width="3.5*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_FieldName]}"/>
+                        <TextBox Grid.Column="1" Text="{Binding NewPath, UpdateSourceTrigger=PropertyChanged}" Margin="8,0,8,0" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_FieldPath]}"/>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <Button Content="&#xED25;" Style="{StaticResource QuickLaunchIconButton}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_BrowseFolderTooltip]}" Command="{Binding BrowseFolderCommand}"/>
+                            <Button Content="&#xE8A5;" Style="{StaticResource QuickLaunchIconButton}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_BrowseFileTooltip]}" Command="{Binding BrowseFileCommand}"/>
+                        </StackPanel>
+                        <Button Grid.Column="3" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Add]}" Style="{StaticResource PrimarySettingsButton}" Command="{Binding AddCommand}" Height="34" MinWidth="56" Padding="12,0" Margin="8,0,0,0"/>
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource QuickLaunchItemTemplate}" helpers:DragReorder.IsEnabled="True"/>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource SettingsCard}">
+                <StackPanel>
+                    <TextBlock x:Name="RowQuickLaunchSourceTitle" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceTitle]}" FontWeight="SemiBold" FontSize="13"/>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceDesc]}" Style="{StaticResource SettingsHintText}" Margin="0,4,0,8"/>
+                    <ItemsControl ItemsSource="{Binding Sources}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsEnabled}" Margin="0,5" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceEnabledTooltip]}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

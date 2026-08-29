@@ -188,22 +188,4 @@ public sealed class FavoriteSearchHelperTests
         Assert.IsTrue(ui.IsDir);
     }
 
-    [TestMethod]
-    public void CreateLaunchItems_FiltersUnavailableAndPreservesOrder()
-    {
-        var favorites = new List<FavoriteItemSetting>
-        {
-            new() { Name = "First", Path = "first" },
-            new() { Name = "Missing", Path = "missing" },
-            new() { Name = "Last", Path = "last" }
-        };
-
-        var items = FavoriteSearchHelper.CreateLaunchItems(favorites, path => path != "missing");
-
-        Assert.HasCount(2, items);
-        Assert.AreEqual("First", items[0].Name);
-        Assert.AreEqual("Last", items[1].Name);
-        Assert.AreEqual(0, items[0].Index);
-        Assert.AreEqual(1, items[1].Index);
-    }
 }

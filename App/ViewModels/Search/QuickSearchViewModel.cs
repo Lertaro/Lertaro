@@ -12,6 +12,7 @@ namespace Lertaro.App.ViewModels.Search;
 public class QuickSearchViewModel : ViewModelBase, IDisposable
 {
     private readonly SearchService _searchService;
+    private readonly QuickSearchLaunchSourceSupport _launchSources;
 
     public QuickSearchViewModel()
     {
@@ -19,6 +20,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         Services.UiMetrics.ApplyScaleFromSettings();
 
         _searchService = new SearchService();
+        _launchSources = new QuickSearchLaunchSourceSupport(OnLaunchSourceChanged);
         Search = new SearchExecutionViewModel(this, _searchService);
         Monitor = new ServiceMonitorViewModel(this, _searchService);
 
@@ -59,7 +61,8 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
 
     public SearchExecutionViewModel Search { get; }
     public ServiceMonitorViewModel Monitor { get; }
-    public ObservableRangeCollection<AppSearchResult> LaunchItems { get; } = new();
+    public ObservableRangeCollection<LaunchPanelSourceViewModel> LaunchSources => _launchSources.Sources;
+    public LaunchPanelSourceViewModel? SelectedLaunchSource => _launchSources.Selected;
 
     // ==========================================
     // Delegated Properties for UI Bindings
@@ -186,15 +189,25 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     }
     public void RefreshEmptyState() => Search.RefreshEmptyState();
 
-    public void RefreshLaunchItems()
-    {
-        LaunchItems.ReplaceRange(FavoriteSearchHelper.CreateLaunchItems(UserSettings.Load().Favorites));
-        OnPropertyChanged(nameof(LaunchPanelVisibility));
-    }
+    public void RefreshLaunchSources() => _ = _launchSources.RefreshAsync();
+    public void RefreshLaunchItems() => RefreshLaunchSources();
+
+    public ICommand SelectLaunchSourceCommand => new RelayCommand<LaunchPanelSourceViewModel>(source => _launchSources.Select(source));
+
+    public ObservableCollection<AppSearchResult> LaunchPanelItems
+        => _launchSources.Selected?.Items ?? EmptyLaunchItems;
+
+    private static readonly ObservableCollection<AppSearchResult> EmptyLaunchItems = new();
+
+    public void CycleLaunchSource(int direction) => _launchSources.Cycle(direction);
+
+    private void OnLaunchSourceChanged(string propertyName) => OnPropertyChanged(propertyName);
 
     public double SearchBarWidth => UserSettings.Load().SearchWindow.SearchBarWidth;
     public double SearchBarHeight => UserSettings.Load().SearchWindow.SearchBarHeight;
     public int LaunchPanelColumns => Services.UiMetrics.GetLaunchPanelColumns(SearchBarWidth);
+    public double LaunchPanelHeight => QuickSearchLaunchPanelHeightCalculator.Calculate(
+        LaunchSources, LaunchPanelColumns, LaunchPanelMaxHeight);
 
     // Quick window only: InlineSearchWindow shares this same ViewModel class (see
     // InlineSearchManager.EnsureWindowCreated setting IsInlineSearchContext), so without this check the
@@ -204,7 +217,8 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
 
     public Visibility LaunchPanelVisibility => !IsInlineSearchContext
         && string.IsNullOrWhiteSpace(SearchQuery)
-        && LaunchItems.Count > 0
+        && UserSettings.Load().QuickLaunch.Enabled
+        && LaunchSources.Count > 0
         ? Visibility.Visible
         : Visibility.Collapsed;
 
@@ -254,6 +268,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(LaunchPanelColumns));
         OnPropertyChanged(nameof(ClockVisibility));
         OnPropertyChanged(nameof(LaunchPanelMaxHeight));
+        OnPropertyChanged(nameof(LaunchPanelHeight));
         UpdateClockText();
 
         // Result rows persist as long-lived objects across searches, unlike a freshly-typed search's own

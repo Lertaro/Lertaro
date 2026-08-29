@@ -1,9 +1,17 @@
 <UserControl x:Class="Lertaro.App.Views.QuickSearchWindow.QuickSearchLaunchPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
              MaxHeight="{Binding LaunchPanelMaxHeight}"
-             Background="Transparent">
+             Height="{Binding LaunchPanelHeight}"
+             Background="Transparent"
+             PreviewMouseWheel="Panel_PreviewMouseWheel">
     <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
         <Style x:Key="LaunchItemButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -31,16 +39,23 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        </ResourceDictionary>
     </UserControl.Resources>
 
     <Border Background="{DynamicResource ContentBg}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled"
-                      Padding="12,4,12,8">
-            <ItemsControl ItemsSource="{Binding LaunchItems}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="38"/>
+            </Grid.RowDefinitions>
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Padding="12,4,12,8">
+            <ItemsControl ItemsSource="{Binding LaunchPanelItems}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <UniformGrid Columns="{Binding LaunchPanelColumns}" HorizontalAlignment="Stretch"/>
+                        <UniformGrid Columns="{Binding LaunchPanelColumns}" HorizontalAlignment="Stretch"
+                                     VerticalAlignment="Top"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
@@ -61,6 +76,60 @@
                     </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
-    </ScrollViewer>
+            </ScrollViewer>
+            <ctrl:TabStripScrollView Grid.Row="1" Height="38" Margin="8,0,8,2">
+                <ItemsControl ItemsSource="{Binding LaunchSources}" HorizontalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Width="18" Height="38" ClipToBounds="False">
+                                <Button x:Name="LaunchSourceButton" Width="18" Height="38"
+                                        HorizontalAlignment="Left" Panel.ZIndex="1" ClipToBounds="True"
+                                        MouseEnter="SourceButton_MouseEnter" MouseLeave="SourceButton_MouseLeave"
+                                        Command="{Binding DataContext.SelectLaunchSourceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                        <Setter Property="FontSize" Value="12"/>
+                                        <Setter Property="Padding" Value="0,3,0,8"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                                <Grid Width="136" Height="27" ClipToBounds="True">
+                                    <StackPanel x:Name="SourceDots" Orientation="Horizontal" HorizontalAlignment="Left" Margin="6,0,0,0" VerticalAlignment="Center" Opacity="1">
+                                        <Ellipse Width="5" Height="5">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Setter Property="Fill" Value="{DynamicResource TextSecondary}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter Property="Fill" Value="{DynamicResource AccentBlue}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                    </StackPanel>
+                                    <TextBlock x:Name="SourceName" Text="{Binding Name}" MaxWidth="128" Margin="6,0,0,0"
+                                               HorizontalAlignment="Left" TextAlignment="Left"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Opacity="0"
+                                               Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                </Grid>
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ctrl:TabStripScrollView>
+        </Grid>
     </Border>
 </UserControl>

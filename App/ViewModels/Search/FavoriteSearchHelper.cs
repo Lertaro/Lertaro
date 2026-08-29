@@ -60,19 +60,4 @@ public static class FavoriteSearchHelper
         };
     }
 
-    public static List<AppSearchResult> CreateLaunchItems(
-        IReadOnlyList<FavoriteItemSetting> favorites,
-        Func<string, bool>? isAvailable = null)
-    {
-        isAvailable ??= path => FavoritePathResolver.IsPathAvailable(path);
-        var items = new List<AppSearchResult>();
-
-        foreach (var favorite in favorites)
-        {
-            if (!isAvailable(favorite.Path)) continue;
-            items.Add(CreateFavoriteUiResult(favorite, string.Empty, items.Count));
-        }
-
-        return items;
-    }
 }

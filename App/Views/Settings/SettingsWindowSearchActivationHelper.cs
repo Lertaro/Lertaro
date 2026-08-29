@@ -100,6 +100,7 @@ internal static class SettingsWindowSearchActivationHelper
         "Plugins" => window.PagePlugins,
         "History" => window.PageHistory,
         "Favorites" => window.PageFavorites,
+        "QuickLaunch" => window.PageQuickLaunch,
         "QuickPanel" => window.PageQuickPanel,
         "LocalSend" => window.PageLocalSend,
         "About" => window.PageAbout,

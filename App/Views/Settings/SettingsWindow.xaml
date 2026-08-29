@@ -228,6 +228,12 @@
                                     <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History]}" Style="{StaticResource SidebarNavigationLabel}"/>
                                 </StackPanel>
                             </ListBoxItem>
+                            <ListBoxItem Tag="QuickLaunch" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_QuickLaunch]}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_QuickLaunch]}" Style="{StaticResource SidebarNavigationLabel}"/>
+                                </StackPanel>
+                            </ListBoxItem>
                             <ListBoxItem Tag="QuickPanel" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_QuickPanel]}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE8A1;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
