@@ -17,9 +17,13 @@ public sealed class SearchSettingsInstantProviderTests
     public void Reset()
     {
         PluginSettingsService.GetSettingFunc = null;
+        FuzzyMatchService.IsMatchFunc = null;
         PluginSettingsService.NotifySettingChanged(PluginId, "SearchSettingsTrigger"); // busts the cached trigger word
         SettingsSearchService.GetEntriesFunc = () => Array.Empty<SettingsSearchEntryInfo>();
     }
+
+    [TestCleanup]
+    public void Cleanup() => FuzzyMatchService.IsMatchFunc = null;
 
     private static void ConfigureEntries(params SettingsSearchEntryInfo[] entries) =>
         SettingsSearchService.GetEntriesFunc = () => entries;
@@ -50,6 +54,19 @@ public sealed class SearchSettingsInstantProviderTests
         ConfigureEntries(new SettingsSearchEntryInfo("Dark mode", "Appearance", 0));
 
         Assert.HasCount(1, new SearchSettingsInstantProvider().GetInstantResults("SET ").ToList());
+    }
+
+    [TestMethod]
+    public void GetInstantResults_FilteredQuery_ReturnsAllMatchingEntries()
+    {
+        FuzzyMatchService.IsMatchFunc = (_, _) => true;
+        ConfigureEntries(Enumerable.Range(0, 12)
+            .Select(index => new SettingsSearchEntryInfo($"Dark mode {index}", "Appearance", index))
+            .ToArray());
+
+        var results = new SearchSettingsInstantProvider().GetInstantResults("set dark").ToList();
+
+        Assert.HasCount(12, results);
     }
 
     [TestMethod]

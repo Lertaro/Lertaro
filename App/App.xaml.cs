@@ -18,7 +18,6 @@ using Lertaro.Core.Services.Installation;
 using Lertaro.Core.Services;
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 using Application = System.Windows.Application;
-
 namespace Lertaro.App;
 
 public partial class App : Application
@@ -38,6 +37,7 @@ public partial class App : Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        Services.AppLifecycle.AppRestartService.WaitForParentExit(e.Args);
         // Lertaro never set an explicit AppUserModelID, so Windows infers one on its own (commonly
         // derived from the exe's own path) -- the taskbar's default/resting icon for windows from a
         // path Windows treats as an "installed app" (Program Files + Start Menu registration) came

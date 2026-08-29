@@ -14,7 +14,6 @@ public class SearchSettingsInstantProvider : IInstantResultProvider
 {
     private const string PluginId = "Lertaro.Plugins.CoreExtensions";
     private const string DefaultTriggerWord = "set";
-    private const int MaxFilteredResults = 8;
 
     static SearchSettingsInstantProvider() =>
         // Invalidate the cached trigger word as soon as the host reports this plugin's settings were
@@ -45,18 +44,11 @@ public class SearchSettingsInstantProvider : IInstantResultProvider
         var term = query.Substring(trigger.Length).Trim();
         var browseAll = term.Length == 0;
 
-        var shown = 0;
         foreach (var entry in SettingsSearchService.GetEntries())
         {
-            // Only the filtered (non-empty term) case is bounded -- "list everything" is meant to
-            // literally list everything, and the results list is already virtualized for this.
-            if (!browseAll && shown >= MaxFilteredResults)
-                yield break;
-
             if (!browseAll && !FuzzyMatchService.IsMatch(term, entry.Label))
                 continue;
 
-            shown++;
             yield return new InstantResultItem
             {
                 Title = entry.Label,

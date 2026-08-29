@@ -91,15 +91,7 @@ public class FlowPublicApi : IPublicAPI
     public void ReQuery(bool reselect = true) => ChangeQuery(string.Empty, true);
     public void BackToQueryResults() { }
 
-    public void RestartApp()
-    {
-        var exePath = Process.GetCurrentProcess().MainModule?.FileName;
-        if (!string.IsNullOrEmpty(exePath))
-        {
-            Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
-            Application.Current?.Shutdown();
-        }
-    }
+    public void RestartApp() => PluginSdk.Services.AppLifecycleService.RequestRestart();
 
     public void ShellRun(string cmd, string filename = "cmd.exe") => Process.Start(new ProcessStartInfo(filename, $"/c {cmd}") { CreateNoWindow = true, UseShellExecute = false });
 
