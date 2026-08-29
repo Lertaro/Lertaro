@@ -191,6 +191,8 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
 
     public void RefreshLaunchSources() => _ = _launchSources.RefreshAsync();
     public void RefreshLaunchItems() => RefreshLaunchSources();
+    public bool CanAcceptLaunchPanelDrops => _launchSources.AcceptsDrops;
+    public int AddLaunchPanelDroppedPaths(IEnumerable<string> paths) => _launchSources.AddDroppedPaths(paths);
 
     public ICommand SelectLaunchSourceCommand => new RelayCommand<LaunchPanelSourceViewModel>(source => _launchSources.Select(source));
 

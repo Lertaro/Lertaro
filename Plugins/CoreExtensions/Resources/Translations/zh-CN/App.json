@@ -28,6 +28,7 @@
   "QuickLaunch_ShiftWheelHint": "在面板上按住 Shift 滚动鼠标滚轮可切换数据源。",
   "QuickLaunch_ItemsTitle": "手动快速启动项目",
   "QuickLaunch_ItemsDesc": "这些项目会按照此处的顺序显示。",
+  "QuickLaunch_ListTitle": "已添加的快速启动项目列表",
   "QuickLaunch_FieldName": "显示名称",
   "QuickLaunch_FieldPath": "目标路径",
   "QuickLaunch_Add": "添加",

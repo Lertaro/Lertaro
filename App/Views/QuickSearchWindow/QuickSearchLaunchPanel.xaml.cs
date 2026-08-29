@@ -5,6 +5,10 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Lertaro.App.ViewModels.Search;
 using WpfUserControl = System.Windows.Controls.UserControl;
+using WpfDataFormats = System.Windows.DataFormats;
+using WpfDragDropEffects = System.Windows.DragDropEffects;
+using WpfDragEventArgs = System.Windows.DragEventArgs;
+using ResultsDragDropHelper = Lertaro.App.Views.Controls.Results.ResultsDragDropHelper;
 
 namespace Lertaro.App.Views.QuickSearchWindow;
 
@@ -14,6 +18,35 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
     private int _sourceRevealGeneration;
 
     public QuickSearchLaunchPanel() => InitializeComponent();
+
+    private void Panel_PreviewDragOver(object sender, WpfDragEventArgs e)
+    {
+        if (CanAcceptFileDrop(e))
+        {
+            e.Effects = WpfDragDropEffects.Copy;
+            e.Handled = true;
+            return;
+        }
+
+        e.Effects = WpfDragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void Panel_PreviewDrop(object sender, WpfDragEventArgs e)
+    {
+        if (CanAcceptFileDrop(e) && e.Data.GetData(WpfDataFormats.FileDrop) is string[] paths
+            && DataContext is QuickSearchViewModel viewModel)
+        {
+            viewModel.AddLaunchPanelDroppedPaths(paths);
+        }
+
+        e.Handled = true;
+    }
+
+    private bool CanAcceptFileDrop(WpfDragEventArgs e)
+        => e.Data.GetDataPresent(WpfDataFormats.FileDrop)
+            && !ResultsDragDropHelper.IsDragActive
+            && DataContext is QuickSearchViewModel { CanAcceptLaunchPanelDrops: true };
 
     private void Panel_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {

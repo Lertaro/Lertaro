@@ -22,8 +22,12 @@ public class FavoritesSettingsViewModel : ViewModelBase
         AddCommand = new RelayCommand(Add, CanAdd);
         RemoveCommand = new RelayCommand<FavoriteItemViewModel>(Remove);
         EditCommand = new RelayCommand<FavoriteItemViewModel>(Edit);
+        SaveEditCommand = new RelayCommand<FavoriteItemViewModel>(SaveEdit, CanSaveEdit);
+        CancelEditCommand = new RelayCommand<FavoriteItemViewModel>(CancelEdit);
         BrowseFolderCommand = new RelayCommand(BrowseFolder);
         BrowseFileCommand = new RelayCommand(BrowseFile);
+        BrowseEditFolderCommand = new RelayCommand<FavoriteItemViewModel>(item => BrowseEdit(item, true));
+        BrowseEditFileCommand = new RelayCommand<FavoriteItemViewModel>(item => BrowseEdit(item, false));
         MoveUpCommand = new RelayCommand<FavoriteItemViewModel>(MoveUp);
         MoveDownCommand = new RelayCommand<FavoriteItemViewModel>(MoveDown);
         AddPathPresetCommand = new RelayCommand<string>(AddPathPreset);
@@ -34,8 +38,12 @@ public class FavoritesSettingsViewModel : ViewModelBase
     public ICommand AddCommand { get; }
     public ICommand RemoveCommand { get; }
     public ICommand EditCommand { get; }
+    public ICommand SaveEditCommand { get; }
+    public ICommand CancelEditCommand { get; }
     public ICommand BrowseFolderCommand { get; }
     public ICommand BrowseFileCommand { get; }
+    public ICommand BrowseEditFolderCommand { get; }
+    public ICommand BrowseEditFileCommand { get; }
     public ICommand MoveUpCommand { get; }
     public ICommand MoveDownCommand { get; }
     public ICommand AddPathPresetCommand { get; }
@@ -116,31 +124,64 @@ public class FavoritesSettingsViewModel : ViewModelBase
 
     private void Edit(FavoriteItemViewModel item)
     {
-        if (item != null)
+        if (item == null) return;
+        foreach (var other in Items.Where(other => other != item))
+            other.IsEditing = false;
+        item.EditName = item.Name;
+        item.EditPath = item.Path;
+        item.IsEditing = true;
+    }
+
+    private bool CanSaveEdit(FavoriteItemViewModel? item)
+    {
+        if (item == null) return false;
+        var path = NormalizePath(item.EditPath);
+        return FavoritePathResolver.IsPathAvailable(path)
+            && !Items.Any(other => other != item
+                && string.Equals(FavoritePathResolver.NormalizeForComparison(other.Path),
+                    FavoritePathResolver.NormalizeForComparison(path), StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void SaveEdit(FavoriteItemViewModel item)
+    {
+        if (!CanSaveEdit(item)) return;
+        item.Name = string.IsNullOrWhiteSpace(item.EditName) ? string.Empty : item.EditName.Trim();
+        item.Path = NormalizePath(item.EditPath);
+        item.IsEditing = false;
+    }
+
+    private static void CancelEdit(FavoriteItemViewModel item) => item?.IsEditing = false;
+
+    private void BrowseEdit(FavoriteItemViewModel item, bool folder)
+    {
+        if (item == null) return;
+        if (folder)
         {
-            NewName = string.IsNullOrWhiteSpace(item.Name) ? item.DisplayName : item.Name;
-            NewPath = item.Path;
-            Items.Remove(item);
+            var dialog = new Microsoft.Win32.OpenFolderDialog();
+            if (dialog.ShowDialog() == true) item.EditPath = dialog.FolderName;
+        }
+        else
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog();
+            if (dialog.ShowDialog() == true) item.EditPath = dialog.FileName;
         }
     }
 
+    private static string NormalizePath(string value) => value.Trim().Trim('"');
+
     private void BrowseFolder()
     {
-        var dialog = new Microsoft.Win32.OpenFolderDialog();
-        if (dialog.ShowDialog() == true)
-        {
-            NewPath = dialog.FolderName;
-        }
+        var dialog = new Microsoft.Win32.OpenFolderDialog { Multiselect = true };
+        if (dialog.ShowDialog() == true) AddPaths(dialog.FolderNames);
     }
 
     private void BrowseFile()
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog();
-        if (dialog.ShowDialog() == true)
-        {
-            NewPath = dialog.FileName;
-        }
+        var dialog = new Microsoft.Win32.OpenFileDialog { Multiselect = true };
+        if (dialog.ShowDialog() == true) AddPaths(dialog.FileNames);
     }
+
+    internal void AddPaths(IEnumerable<string> paths) => FavoritesSettingsPathSupport.AddPaths(this, paths);
 
     private void MoveUp(FavoriteItemViewModel item)
     {
@@ -173,6 +214,9 @@ public class FavoriteItemViewModel : ViewModelBase
 {
     private string _name = string.Empty;
     private string _path = string.Empty;
+    private string _editName = string.Empty;
+    private string _editPath = string.Empty;
+    private bool _isEditing;
 
     public string Name
     {
@@ -192,6 +236,28 @@ public class FavoriteItemViewModel : ViewModelBase
             if (SetProperty(ref _path, value))
                 OnPropertyChanged(nameof(DisplayName));
         }
+    }
+
+    public string EditName
+    {
+        get => _editName;
+        set => SetProperty(ref _editName, value);
+    }
+
+    public string EditPath
+    {
+        get => _editPath;
+        set
+        {
+            if (SetProperty(ref _editPath, value))
+                CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    public bool IsEditing
+    {
+        get => _isEditing;
+        set => SetProperty(ref _isEditing, value);
     }
 
     public string DisplayName

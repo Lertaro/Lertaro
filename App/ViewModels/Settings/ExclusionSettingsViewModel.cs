@@ -44,6 +44,12 @@ public class ExclusionSettingsViewModel : ViewModelBase
         EditPathCommand = new RelayCommand<ExclusionRuleItem>(EditPath);
         EditGlobCommand = new RelayCommand<ExclusionRuleItem>(EditGlob);
         EditRegexCommand = new RelayCommand<ExclusionRuleItem>(EditRegex);
+        SavePathCommand = new RelayCommand<ExclusionRuleItem>(item => SaveEdit(ExcludedPaths, item), item => CanSaveEdit(ExcludedPaths, item));
+        SaveGlobCommand = new RelayCommand<ExclusionRuleItem>(item => SaveEdit(IgnoredGlobs, item), item => CanSaveEdit(IgnoredGlobs, item));
+        SaveRegexCommand = new RelayCommand<ExclusionRuleItem>(item => SaveEdit(IgnoredRegexes, item), item => CanSaveEdit(IgnoredRegexes, item));
+        CancelPathCommand = new RelayCommand<ExclusionRuleItem>(CancelEdit);
+        CancelGlobCommand = new RelayCommand<ExclusionRuleItem>(CancelEdit);
+        CancelRegexCommand = new RelayCommand<ExclusionRuleItem>(CancelEdit);
         SelectSubTabCommand = new RelayCommand<string>(tab => SelectedSubTab = tab);
     }
 
@@ -75,6 +81,12 @@ public class ExclusionSettingsViewModel : ViewModelBase
     public ICommand EditPathCommand { get; }
     public ICommand EditGlobCommand { get; }
     public ICommand EditRegexCommand { get; }
+    public ICommand SavePathCommand { get; }
+    public ICommand SaveGlobCommand { get; }
+    public ICommand SaveRegexCommand { get; }
+    public ICommand CancelPathCommand { get; }
+    public ICommand CancelGlobCommand { get; }
+    public ICommand CancelRegexCommand { get; }
 
     public string NewExcludedPath
     {
@@ -200,35 +212,42 @@ public class ExclusionSettingsViewModel : ViewModelBase
         }
     }
 
-    private void EditPath(ExclusionRuleItem item)
+    private void EditPath(ExclusionRuleItem item) => BeginEdit(ExcludedPaths, item);
+
+    private void EditGlob(ExclusionRuleItem item) => BeginEdit(IgnoredGlobs, item);
+
+    private void EditRegex(ExclusionRuleItem item) => BeginEdit(IgnoredRegexes, item);
+
+    private static void BeginEdit(ObservableCollection<ExclusionRuleItem> items, ExclusionRuleItem? item)
     {
-        if (item == null)
+        if (item == null || !items.Contains(item))
             return;
 
-        NewExcludedPath = item.Value;
-        ExcludedPaths.Remove(item);
-        RefreshBulkText();
+        foreach (var other in items.Where(other => other != item))
+            other.IsEditing = false;
+        item.EditValue = item.Value;
+        item.IsEditing = true;
     }
-
-    private void EditGlob(ExclusionRuleItem item)
+    private static bool CanSaveEdit(ObservableCollection<ExclusionRuleItem> items, ExclusionRuleItem? item)
     {
         if (item == null)
-            return;
+            return false;
 
-        NewIgnoredGlob = item.Value;
-        IgnoredGlobs.Remove(item);
-        RefreshBulkText();
+        var value = NormalizeRule(item.EditValue);
+        return value.Length > 0 && !items.Any(other => other != item
+            && other.Value.Equals(value, StringComparison.OrdinalIgnoreCase));
     }
-
-    private void EditRegex(ExclusionRuleItem item)
+    private void SaveEdit(ObservableCollection<ExclusionRuleItem> items, ExclusionRuleItem item)
     {
-        if (item == null)
+        if (!CanSaveEdit(items, item))
             return;
 
-        NewIgnoredRegex = item.Value;
-        IgnoredRegexes.Remove(item);
+        item.Value = NormalizeRule(item.EditValue);
+        item.IsEditing = false;
         RefreshBulkText();
     }
+    private static void CancelEdit(ExclusionRuleItem item) => item?.IsEditing = false;
+    private static string NormalizeRule(string value) => value.Trim().Trim('"');
 
     private void RefreshBulkText()
     {
@@ -264,11 +283,4 @@ public class ExclusionSettingsViewModel : ViewModelBase
         SyncCollection(target, ParseLines(text));
         RefreshBulkText();
     }
-}
-
-public sealed class ExclusionRuleItem
-{
-    public ExclusionRuleItem(string value) => Value = value;
-
-    public string Value { get; }
 }

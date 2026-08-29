@@ -93,7 +93,7 @@ public sealed class ExclusionSettingsViewModelTests
     }
 
     [TestMethod]
-    public void EditGlobCommand_Execute_MovesValueBackIntoInputAndRemovesFromList()
+    public void EditGlobCommand_Execute_StartsInlineEditWithoutRemovingItem()
     {
         var vm = new ExclusionSettingsViewModel(EmptySettings()) { NewIgnoredGlob = "*.tmp" };
         vm.AddGlobCommand.Execute(null);
@@ -101,8 +101,30 @@ public sealed class ExclusionSettingsViewModelTests
 
         vm.EditGlobCommand.Execute(item);
 
-        Assert.AreEqual("*.tmp", vm.NewIgnoredGlob);
-        Assert.IsEmpty(vm.IgnoredGlobs);
+        Assert.HasCount(1, vm.IgnoredGlobs);
+        Assert.IsTrue(item.IsEditing);
+        Assert.AreEqual("*.tmp", item.EditValue);
+    }
+
+    [TestMethod]
+    public void SaveGlobCommand_Execute_UpdatesItemAndBulkText()
+    {
+        var vm = new ExclusionSettingsViewModel(EmptySettings()) { NewIgnoredGlob = "*.tmp" };
+        vm.AddGlobCommand.Execute(null);
+        var item = vm.IgnoredGlobs[0];
+
+        vm.EditGlobCommand.Execute(item);
+        item.EditValue = "*.cache";
+        vm.SaveGlobCommand.Execute(item);
+
+        Assert.AreEqual("*.cache", item.Value);
+        Assert.AreEqual("*.cache", vm.IgnoredGlobsText);
+        Assert.IsFalse(item.IsEditing);
+
+        vm.EditGlobCommand.Execute(item);
+        item.EditValue = "";
+        vm.CancelGlobCommand.Execute(item);
+        Assert.AreEqual("*.cache", item.Value);
     }
 
     [TestMethod]

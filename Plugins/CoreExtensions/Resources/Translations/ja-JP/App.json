@@ -28,6 +28,7 @@
   "QuickLaunch_ShiftWheelHint": "パネル上で Shift を押しながらホイールを回すとデータソースを切り替えます。",
   "QuickLaunch_ItemsTitle": "手動クイック起動項目",
   "QuickLaunch_ItemsDesc": "項目はここに表示されている順に並びます。",
+  "QuickLaunch_ListTitle": "クイック起動項目の一覧",
   "QuickLaunch_FieldName": "表示名",
   "QuickLaunch_FieldPath": "対象パス",
   "QuickLaunch_Add": "追加",

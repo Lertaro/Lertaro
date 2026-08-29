@@ -48,6 +48,30 @@ public sealed class FavoritesSettingsViewModelTests
     }
 
     [TestMethod]
+    public void AddPaths_AddsAllUniqueExistingPaths()
+    {
+        var first = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var second = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        File.WriteAllText(first, string.Empty);
+        File.WriteAllText(second, string.Empty);
+        try
+        {
+            var vm = new FavoritesSettingsViewModel(new UserSettings());
+
+            vm.AddPaths(new[] { first, second, first });
+
+            Assert.HasCount(2, vm.Items);
+            Assert.AreEqual(Path.GetFileName(first), vm.Items[0].Name);
+            Assert.AreEqual(Path.GetFileName(second), vm.Items[1].Name);
+        }
+        finally
+        {
+            File.Delete(first);
+            File.Delete(second);
+        }
+    }
+
+    [TestMethod]
     public void NewPath_BlankName_AutoFillsNameFromFileName()
     {
         var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewPath = @"C:\Users\me\Documents\" };
@@ -105,7 +129,7 @@ public sealed class FavoritesSettingsViewModelTests
     }
 
     [TestMethod]
-    public void EditCommand_Execute_MovesValuesBackIntoInputsAndRemovesFromList()
+    public void EditCommand_Execute_StartsInlineEditWithoutRemovingItem()
     {
         var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewName = "Docs", NewPath = Path.GetTempPath() };
         vm.AddCommand.Execute(null);
@@ -113,21 +137,45 @@ public sealed class FavoritesSettingsViewModelTests
 
         vm.EditCommand.Execute(item);
 
-        Assert.AreEqual("Docs", vm.NewName);
-        Assert.AreEqual(Path.GetTempPath(), vm.NewPath);
-        Assert.IsEmpty(vm.Items);
+        Assert.HasCount(1, vm.Items);
+        Assert.IsTrue(item.IsEditing);
+        Assert.AreEqual("Docs", item.EditName);
+        Assert.AreEqual(Path.GetTempPath(), item.EditPath);
     }
 
     [TestMethod]
-    public void EditCommand_Execute_BlankExplicitName_FallsBackToDisplayName()
+    public void SaveEditCommand_Execute_UpdatesItemInPlace()
     {
-        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewPath = @"C:\Users\me\Documents" };
+        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewName = "Docs", NewPath = Path.GetTempPath() };
         vm.AddCommand.Execute(null);
         var item = vm.Items[0];
 
         vm.EditCommand.Execute(item);
+        item.EditName = "Temp";
+        item.EditPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        vm.SaveEditCommand.Execute(item);
 
-        Assert.AreEqual("Documents", vm.NewName);
+        Assert.HasCount(1, vm.Items);
+        Assert.AreEqual("Temp", item.Name);
+        Assert.AreEqual(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), item.Path);
+        Assert.IsFalse(item.IsEditing);
+    }
+
+    [TestMethod]
+    public void CancelEditCommand_Execute_LeavesOriginalValuesUnchanged()
+    {
+        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewName = "Docs", NewPath = Path.GetTempPath() };
+        vm.AddCommand.Execute(null);
+        var item = vm.Items[0];
+
+        vm.EditCommand.Execute(item);
+        item.EditName = "Changed";
+        item.EditPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        vm.CancelEditCommand.Execute(item);
+
+        Assert.AreEqual("Docs", item.Name);
+        Assert.AreEqual(Path.GetTempPath(), item.Path);
+        Assert.IsFalse(item.IsEditing);
     }
 
     [TestMethod]

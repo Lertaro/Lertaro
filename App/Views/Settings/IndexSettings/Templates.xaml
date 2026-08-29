@@ -16,28 +16,27 @@
     <DataTemplate x:Key="RuleItemTemplate">
         <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="24"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                           Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13"
-                           Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"/>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="&#xE70F;"
-                            ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_EditTooltip]}"
-                            Style="{StaticResource RuleIconButtonAccent}"
-                            Command="{Binding DataContext.Exclusions.EditPathCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                            CommandParameter="{Binding}"/>
-                    <Button Content="&#xE74D;"
-                            ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_RemoveTooltip]}"
-                            Style="{StaticResource RuleIconButtonAccent}"
-                            Command="{Binding DataContext.Exclusions.RemovePathCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                            CommandParameter="{Binding}"/>
-                </StackPanel>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Grid Grid.ColumnSpan="3">
+                    <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13" Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="&#xE70F;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_EditTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.EditPathCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                        <Button Content="&#xE74D;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_RemoveTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.RemovePathCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                    </StackPanel>
+                </Grid>
+                <Grid Grid.ColumnSpan="3">
+                    <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Text="{Binding EditValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Button Content="&#xE73E;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.SavePathCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                        <Button Content="&#xE711;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.CancelPathCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
     </DataTemplate>
@@ -45,28 +44,27 @@
     <DataTemplate x:Key="GlobItemTemplate">
         <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="24"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                           Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13"
-                           Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"/>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="&#xE70F;"
-                            ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_EditTooltip]}"
-                            Style="{StaticResource RuleIconButtonAccent}"
-                            Command="{Binding DataContext.Exclusions.EditGlobCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                            CommandParameter="{Binding}"/>
-                    <Button Content="&#xE74D;"
-                            ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_RemoveTooltip]}"
-                            Style="{StaticResource RuleIconButtonAccent}"
-                            Command="{Binding DataContext.Exclusions.RemoveGlobCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                            CommandParameter="{Binding}"/>
-                </StackPanel>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Grid Grid.ColumnSpan="3">
+                    <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13" Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="&#xE70F;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_EditTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.EditGlobCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                        <Button Content="&#xE74D;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_RemoveTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.RemoveGlobCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                    </StackPanel>
+                </Grid>
+                <Grid Grid.ColumnSpan="3">
+                    <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Text="{Binding EditValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Button Content="&#xE73E;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.SaveGlobCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                        <Button Content="&#xE711;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.CancelGlobCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
     </DataTemplate>
@@ -74,28 +72,27 @@
     <DataTemplate x:Key="RegexItemTemplate">
         <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="24"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                           Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13"
-                           Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"/>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="&#xE70F;"
-                            ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_EditTooltip]}"
-                            Style="{StaticResource RuleIconButtonAccent}"
-                            Command="{Binding DataContext.Exclusions.EditRegexCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                            CommandParameter="{Binding}"/>
-                    <Button Content="&#xE74D;"
-                            ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_RemoveTooltip]}"
-                            Style="{StaticResource RuleIconButtonAccent}"
-                            Command="{Binding DataContext.Exclusions.RemoveRegexCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                            CommandParameter="{Binding}"/>
-                </StackPanel>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Grid Grid.ColumnSpan="3">
+                    <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13" Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="&#xE70F;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_EditTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.EditRegexCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                        <Button Content="&#xE74D;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_RemoveTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.RemoveRegexCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                    </StackPanel>
+                </Grid>
+                <Grid Grid.ColumnSpan="3">
+                    <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Text="{Binding EditValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Button Content="&#xE73E;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.SaveRegexCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                        <Button Content="&#xE711;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.CancelRegexCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
     </DataTemplate>

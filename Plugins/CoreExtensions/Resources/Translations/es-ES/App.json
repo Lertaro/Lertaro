@@ -28,6 +28,7 @@
   "QuickLaunch_ShiftWheelHint": "Mantén pulsada Mayús y desplázate sobre el panel para cambiar de fuente.",
   "QuickLaunch_ItemsTitle": "Elementos de inicio rápido manuales",
   "QuickLaunch_ItemsDesc": "Estos elementos se muestran en el orden indicado.",
+  "QuickLaunch_ListTitle": "Lista de elementos de inicio rápido",
   "QuickLaunch_FieldName": "Nombre para mostrar",
   "QuickLaunch_FieldPath": "Ruta de destino",
   "QuickLaunch_Add": "Añadir",

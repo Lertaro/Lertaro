@@ -32,10 +32,14 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
         AddCommand = new RelayCommand(Add, CanAdd);
         RemoveCommand = new RelayCommand<QuickLaunchItemViewModel>(item => Items.Remove(item));
         EditCommand = new RelayCommand<QuickLaunchItemViewModel>(Edit);
+        SaveEditCommand = new RelayCommand<QuickLaunchItemViewModel>(SaveEdit, CanSaveEdit);
+        CancelEditCommand = new RelayCommand<QuickLaunchItemViewModel>(CancelEdit);
         MoveUpCommand = new RelayCommand<QuickLaunchItemViewModel>(item => Move(item, -1));
         MoveDownCommand = new RelayCommand<QuickLaunchItemViewModel>(item => Move(item, 1));
         BrowseFolderCommand = new RelayCommand(() => Browse(true));
         BrowseFileCommand = new RelayCommand(() => Browse(false));
+        BrowseEditFolderCommand = new RelayCommand<QuickLaunchItemViewModel>(item => BrowseEdit(item, true));
+        BrowseEditFileCommand = new RelayCommand<QuickLaunchItemViewModel>(item => BrowseEdit(item, false));
     }
 
     public ObservableCollection<QuickLaunchItemViewModel> Items { get; } = new();
@@ -44,10 +48,14 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
     public ICommand AddCommand { get; }
     public ICommand RemoveCommand { get; }
     public ICommand EditCommand { get; }
+    public ICommand SaveEditCommand { get; }
+    public ICommand CancelEditCommand { get; }
     public ICommand MoveUpCommand { get; }
     public ICommand MoveDownCommand { get; }
     public ICommand BrowseFolderCommand { get; }
     public ICommand BrowseFileCommand { get; }
+    public ICommand BrowseEditFolderCommand { get; }
+    public ICommand BrowseEditFileCommand { get; }
 
     public bool IsEnabled
     {
@@ -76,7 +84,7 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
             if (!SetProperty(ref _newPath, value)) return;
             CommandManager.InvalidateRequerySuggested();
             if (string.IsNullOrWhiteSpace(NewName) && !FavoriteUrlHelper.IsWebUrl(value))
-                NewName = FavoritePathResolver.GetDisplayName(value);
+                NewName = LaunchItemNameHelper.GetAutomaticName(value);
         }
     }
 
@@ -114,10 +122,49 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
     private void Edit(QuickLaunchItemViewModel? item)
     {
         if (item == null) return;
-        NewName = item.Name;
-        NewPath = item.Path;
-        Items.Remove(item);
+        foreach (var other in Items.Where(other => other != item))
+            other.IsEditing = false;
+        item.EditName = item.Name;
+        item.EditPath = item.Path;
+        item.IsEditing = true;
     }
+
+    private bool CanSaveEdit(QuickLaunchItemViewModel? item)
+    {
+        if (item == null) return false;
+        var path = NormalizePath(item.EditPath);
+        return FavoritePathResolver.IsPathAvailable(path)
+            && !Items.Any(other => other != item
+                && string.Equals(FavoritePathResolver.NormalizeForComparison(other.Path),
+                    FavoritePathResolver.NormalizeForComparison(path), StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void SaveEdit(QuickLaunchItemViewModel item)
+    {
+        if (!CanSaveEdit(item)) return;
+        item.Name = string.IsNullOrWhiteSpace(item.EditName) ? string.Empty : item.EditName.Trim();
+        item.Path = NormalizePath(item.EditPath);
+        item.IsEditing = false;
+    }
+
+    private static void CancelEdit(QuickLaunchItemViewModel item) => item?.IsEditing = false;
+
+    private void BrowseEdit(QuickLaunchItemViewModel item, bool folder)
+    {
+        if (item == null) return;
+        if (folder)
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog();
+            if (dialog.ShowDialog() == true) item.EditPath = dialog.FolderName;
+        }
+        else
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog();
+            if (dialog.ShowDialog() == true) item.EditPath = dialog.FileName;
+        }
+    }
+
+    private static string NormalizePath(string value) => value.Trim().Trim('"');
 
     private void Move(QuickLaunchItemViewModel? item, int offset)
     {
@@ -131,14 +178,39 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
     {
         if (folder)
         {
-            var dialog = new Microsoft.Win32.OpenFolderDialog();
-            if (dialog.ShowDialog() == true) NewPath = dialog.FolderName;
+            var dialog = new Microsoft.Win32.OpenFolderDialog { Multiselect = true };
+            if (dialog.ShowDialog() == true) AddPaths(dialog.FolderNames);
         }
         else
         {
-            var dialog = new Microsoft.Win32.OpenFileDialog();
-            if (dialog.ShowDialog() == true) NewPath = dialog.FileName;
+            var dialog = new Microsoft.Win32.OpenFileDialog { Multiselect = true };
+            if (dialog.ShowDialog() == true) AddPaths(dialog.FileNames);
         }
+    }
+
+    internal void AddPaths(IEnumerable<string> paths)
+    {
+        var existing = Items
+            .Select(item => FavoritePathResolver.NormalizeForComparison(item.Path))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var rawPath in paths)
+        {
+            var path = rawPath.Trim().Trim('"');
+            if (string.IsNullOrWhiteSpace(path) || !FavoritePathResolver.IsPathAvailable(path))
+                continue;
+            if (!existing.Add(FavoritePathResolver.NormalizeForComparison(path)))
+                continue;
+
+            Items.Add(new QuickLaunchItemViewModel
+            {
+                Name = LaunchItemNameHelper.GetAutomaticName(path),
+                Path = path
+            });
+        }
+
+        NewName = string.Empty;
+        NewPath = string.Empty;
     }
 }
 
@@ -146,8 +218,38 @@ public sealed class QuickLaunchItemViewModel : ViewModelBase
 {
     private string _name = string.Empty;
     private string _path = string.Empty;
-    public string Name { get => _name; set => SetProperty(ref _name, value); }
-    public string Path { get => _path; set => SetProperty(ref _path, value); }
+    private string _editName = string.Empty;
+    private string _editPath = string.Empty;
+    private bool _isEditing;
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            if (SetProperty(ref _name, value))
+                OnPropertyChanged(nameof(DisplayName));
+        }
+    }
+    public string Path
+    {
+        get => _path;
+        set
+        {
+            if (SetProperty(ref _path, value))
+                OnPropertyChanged(nameof(DisplayName));
+        }
+    }
+    public string EditName { get => _editName; set => SetProperty(ref _editName, value); }
+    public string EditPath
+    {
+        get => _editPath;
+        set
+        {
+            if (SetProperty(ref _editPath, value))
+                CommandManager.InvalidateRequerySuggested();
+        }
+    }
+    public bool IsEditing { get => _isEditing; set => SetProperty(ref _isEditing, value); }
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? FavoritePathResolver.GetDisplayName(Path) : Name;
 }
 

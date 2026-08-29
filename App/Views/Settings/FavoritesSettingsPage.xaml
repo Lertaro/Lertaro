@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:services="clr-namespace:Lertaro.App.Services"
              xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+             xmlns:settings="clr-namespace:Lertaro.App.Views.Settings"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="700">
     <UserControl.Resources>
@@ -50,65 +51,41 @@
                 <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="24"/>
-                            <ColumnDefinition Width="2*"/>
-                            <ColumnDefinition Width="3*"/>
-                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/><ColumnDefinition Width="24"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-
-                        <Grid Grid.Column="0" Width="18" Height="24" Margin="0,0,10,0" Background="Transparent" VerticalAlignment="Center" Cursor="SizeAll" helpers:DragReorder.IsHandle="True">
+                        <Grid Grid.ColumnSpan="5">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="24"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <Ellipse Grid.Row="0" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
-                            <Ellipse Grid.Row="0" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
-                            <Ellipse Grid.Row="1" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
-                            <Ellipse Grid.Row="1" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
-                            <Ellipse Grid.Row="2" Grid.Column="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
-                            <Ellipse Grid.Row="2" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
+                            <Grid Grid.Column="0" Width="18" Height="24" Margin="0,0,10,0" Background="Transparent" VerticalAlignment="Center" Cursor="SizeAll" helpers:DragReorder.IsHandle="True">
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                                <Ellipse Grid.Row="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/><Ellipse Grid.Row="0" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                <Ellipse Grid.Row="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/><Ellipse Grid.Row="1" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                <Ellipse Grid.Row="2" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/><Ellipse Grid.Row="2" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                            </Grid>
+                            <TextBlock Grid.Column="1" Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="4,0,8,0"/>
+                            <TextBlock Grid.Column="3" Text="{Binding Path}" FontSize="12" Foreground="{DynamicResource TextSecondary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                            <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="&#xE74A;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveUpTooltip]}" Style="{StaticResource FavIconButton}" Command="{Binding DataContext.MoveUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                                <Button Content="&#xE74B;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveDownTooltip]}" Style="{StaticResource FavIconButton}" Command="{Binding DataContext.MoveDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                                <Button Content="&#xE70F;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_EditTooltip]}" Style="{StaticResource FavIconButton}" Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                                <Button Content="&#xE74D;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_RemoveTooltip]}" Style="{StaticResource FavIconButton}" Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                            </StackPanel>
                         </Grid>
-
-                        <TextBlock Grid.Column="1" Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                   Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"
-                                   ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_StarTooltip]}"/>
-
-                        <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" Margin="4,0,8,0"/>
-
-                        <TextBlock Grid.Column="3" Text="{Binding Path}" FontSize="12"
-                                   Foreground="{DynamicResource TextSecondary2}" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
-
-                        <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="&#xE74A;" 
-                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveUpTooltip]}" 
-                                    Style="{StaticResource FavIconButton}"
-                                    Command="{Binding DataContext.MoveUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    CommandParameter="{Binding}"/>
-                            <Button Content="&#xE74B;" 
-                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveDownTooltip]}" 
-                                    Style="{StaticResource FavIconButton}"
-                                    Command="{Binding DataContext.MoveDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    CommandParameter="{Binding}"/>
-                            <Button Content="&#xE70F;" 
-                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_EditTooltip]}" 
-                                    Style="{StaticResource FavIconButton}"
-                                    Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    CommandParameter="{Binding}"/>
-                            <Button Content="&#xE74D;" 
-                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_RemoveTooltip]}" 
-                                    Style="{StaticResource FavIconButton}"
-                                    Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    CommandParameter="{Binding}"/>
-                        </StackPanel>
+                        <Grid Grid.ColumnSpan="5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="24"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
+                            <settings:PathEntryEditor Grid.Column="2" Grid.ColumnSpan="2" EntryName="{Binding EditName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" EntryPath="{Binding EditPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" BrowseFolderCommand="{Binding DataContext.BrowseEditFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" BrowseFileCommand="{Binding DataContext.BrowseEditFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                            <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="&#xE73E;" Style="{StaticResource PrimarySettingsButton}" Width="30" MinWidth="30" Height="30" Padding="0" FontFamily="Segoe MDL2 Assets" FontSize="14" Command="{Binding DataContext.SaveEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                                <Button Content="&#xE711;" Style="{StaticResource FavIconButton}" Command="{Binding DataContext.CancelEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                 </Border>
             </DataTemplate>
@@ -145,21 +122,7 @@
                         <TextBlock x:Name="RowFieldName" Grid.Row="0" Grid.Column="0" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_FieldName]}" FontSize="12" Foreground="{DynamicResource TextSecondary2}" Margin="0,0,0,4"/>
                         <TextBlock x:Name="RowFieldPath" Grid.Row="0" Grid.Column="1" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_FieldPath]}" FontSize="12" Foreground="{DynamicResource TextSecondary2}" Margin="8,0,0,4"/>
 
-                        <!-- Inputs -->
-                        <TextBox Grid.Row="1" Grid.Column="0" Margin="0,0,8,0"
-                                 Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}"/>
-
-                        <TextBox Grid.Row="1" Grid.Column="1" Margin="8,0,8,0"
-                                 Text="{Binding NewPath, UpdateSourceTrigger=PropertyChanged}"/>
-
-                        <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal">
-                            <Button Content="&#xED25;" Style="{StaticResource FavIconButton}" Margin="0,0,4,0"
-                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_BrowseFolderTooltip]}"
-                                    Command="{Binding BrowseFolderCommand}"/>
-                            <Button Content="&#xE8A5;" Style="{StaticResource FavIconButton}" Margin="0,0,8,0"
-                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_BrowseFileTooltip]}"
-                                    Command="{Binding BrowseFileCommand}"/>
-                        </StackPanel>
+                        <settings:PathEntryEditor Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" EntryName="{Binding NewName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" EntryPath="{Binding NewPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" BrowseFolderCommand="{Binding BrowseFolderCommand}" BrowseFileCommand="{Binding BrowseFileCommand}"/>
 
                         <StackPanel Grid.Row="1" Grid.Column="3" Orientation="Horizontal" Margin="4,0,0,0">
                             <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_AddBtn]}"

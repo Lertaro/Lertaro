@@ -28,6 +28,7 @@
   "QuickLaunch_ShiftWheelHint": "喺面板上按住 Shift 滾動滑鼠滾輪即可切換資料來源。",
   "QuickLaunch_ItemsTitle": "手動快速啟動項目",
   "QuickLaunch_ItemsDesc": "呢啲項目會按此處嘅順序顯示。",
+  "QuickLaunch_ListTitle": "已加入嘅快速啟動項目清單",
   "QuickLaunch_FieldName": "顯示名稱",
   "QuickLaunch_FieldPath": "目標路徑",
   "QuickLaunch_Add": "新增",

@@ -1,3 +1,4 @@
+using System.IO;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.Core;
@@ -18,6 +19,7 @@ internal sealed class QuickSearchLaunchSourceSupport
 
     public ObservableRangeCollection<LaunchPanelSourceViewModel> Sources { get; } = new();
     public LaunchPanelSourceViewModel? Selected { get; private set; }
+    public bool AcceptsDrops => Selected?.Id.Equals(QuickLaunchSourceCatalog.ManualSourceId, StringComparison.OrdinalIgnoreCase) == true;
 
     public async Task RefreshAsync()
     {
@@ -32,6 +34,7 @@ internal sealed class QuickSearchLaunchSourceSupport
         _notify(nameof(QuickSearchViewModel.LaunchPanelItems));
         _notify(nameof(QuickSearchViewModel.LaunchPanelHeight));
         _notify(nameof(QuickSearchViewModel.HasMultipleLaunchSources));
+        _notify(nameof(QuickSearchViewModel.CanAcceptLaunchPanelDrops));
         var settings = UserSettings.Load().QuickLaunch;
         var loaded = new List<LaunchPanelSourceViewModel>();
 
@@ -73,6 +76,7 @@ internal sealed class QuickSearchLaunchSourceSupport
         _notify(nameof(QuickSearchViewModel.LaunchPanelItems));
         _notify(nameof(QuickSearchViewModel.LaunchPanelHeight));
         _notify(nameof(QuickSearchViewModel.HasMultipleLaunchSources));
+        _notify(nameof(QuickSearchViewModel.CanAcceptLaunchPanelDrops));
     }
 
     public void Select(LaunchPanelSourceViewModel? source)
@@ -81,6 +85,44 @@ internal sealed class QuickSearchLaunchSourceSupport
         Selected = source;
         UpdateSelection();
         _notify(nameof(QuickSearchViewModel.LaunchPanelItems));
+        _notify(nameof(QuickSearchViewModel.CanAcceptLaunchPanelDrops));
+    }
+
+    public int AddDroppedPaths(IEnumerable<string> paths)
+    {
+        if (!AcceptsDrops)
+            return 0;
+
+        var userSettings = UserSettings.Load();
+        var settings = userSettings.QuickLaunch;
+        var existing = settings.Items.ToList();
+        var existingPaths = existing
+            .Select(item => FavoritePathResolver.NormalizeForComparison(item.Path))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var added = 0;
+
+        foreach (var rawPath in paths)
+        {
+            var path = rawPath.Trim().Trim('"');
+            if (string.IsNullOrWhiteSpace(path) || (!File.Exists(path) && !Directory.Exists(path)))
+                continue;
+
+            var comparison = FavoritePathResolver.NormalizeForComparison(path);
+            if (!existingPaths.Add(comparison))
+                continue;
+
+            var name = LaunchItemNameHelper.GetAutomaticName(path);
+            existing.Add(new QuickLaunchItemSetting { Name = name, Path = path });
+            added++;
+        }
+
+        if (added == 0)
+            return 0;
+
+        settings.Items = existing;
+        userSettings.Save();
+        _ = RefreshAsync();
+        return added;
     }
 
     public void Cycle(int direction)
