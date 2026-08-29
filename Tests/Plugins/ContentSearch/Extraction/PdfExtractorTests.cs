@@ -26,8 +26,8 @@ public sealed class PdfExtractorTests
             var text = await extractor.ExtractTextAsync(tempFile, maxFileSizeBytes: 1024 * 1024);
 
             Assert.IsNotNull(text);
-            Assert.IsTrue(text.Contains("first page words"));
-            Assert.IsTrue(text.Contains("second page words"));
+            Assert.Contains("first page words", text);
+            Assert.Contains("second page words", text);
         }
         finally
         {
@@ -58,8 +58,8 @@ public sealed class PdfExtractorTests
             var text = await extractor.ExtractTextAsync(tempFile, maxFileSizeBytes: 1024 * 1024);
 
             Assert.IsNotNull(text);
-            Assert.IsTrue(text.Contains("Cysteine normal page"));
-            Assert.IsFalse(text.Contains("Rotated page"));
+            Assert.Contains("Cysteine normal page", text);
+            Assert.DoesNotContain("Rotated page", text);
         }
         finally
         {
