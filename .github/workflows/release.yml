@@ -25,11 +25,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # 3. Install Inno Setup packaging tool via Chocolatey
+      # 3. Install Inno Setup 7, required for the 64-bit x64 Setup shell
       - name: Install Inno Setup
         run: |
-          choco install innosetup -y
-          echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
+          winget install --id JRSoftware.InnoSetup.7 -e --source winget --silent --accept-source-agreements --accept-package-agreements
+          $isccDir = 'C:\Program Files\Inno Setup 7'
+          if (-not (Test-Path (Join-Path $isccDir 'ISCC.exe'))) { throw '64-bit Inno Setup 7 ISCC.exe was not found after installation.' }
+          Add-Content -Path $env:GITHUB_PATH -Value $isccDir
 
       # 4. Execute the build and package batch script
       - name: Run Build and Package Script

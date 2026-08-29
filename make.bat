@@ -29,16 +29,19 @@ if exist "%DIST%" (
 mkdir "%DIST%"
 
 
-:: 3. Find Inno Setup compiler (architecture-independent, so hoisted ahead of both passes)
-set "ISCC="
-where iscc >nul 2>&1
-if "%errorlevel%"=="0" set "ISCC=iscc"
-if "%ISCC%"=="" if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-if "%ISCC%"=="" if exist "C:\Program Files\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files\Inno Setup 6\ISCC.exe"
+:: 3. Find the 64-bit Inno Setup 7 compiler (hoisted ahead of both passes)
+set "ISCC=C:\Program Files\Inno Setup 7\ISCC.exe"
 
-if "%ISCC%"=="" (
-    echo [Error] Inno Setup compiler ISCC.exe not found.
-    echo Please install Inno Setup or add it to your PATH.
+if not exist "%ISCC%" (
+    echo [Error] 64-bit Inno Setup 7 compiler ISCC.exe not found.
+    echo Please install the 64-bit edition of Inno Setup 7.
+    exit /b 1
+)
+
+"%ISCC%" /? 2>&1 | findstr /c:"Inno Setup 7" >nul
+if errorlevel 1 (
+    echo [Error] Inno Setup 7 is required to compile the installers.
+    echo The selected ISCC.exe is not an Inno Setup 7 compiler.
     exit /b 1
 )
 
