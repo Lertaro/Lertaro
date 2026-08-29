@@ -14,7 +14,6 @@ public partial class FileOccupationView : UserControl
     private readonly string _path;
     private bool _busy;
     private bool _pathIsHovered;
-    private double _pathTextWidth;
     private bool _hasProcesses;
     private Button? _releaseButton;
     private string? _sortProperty;
@@ -68,35 +67,36 @@ public partial class FileOccupationView : UserControl
 
     private void PathViewport_SizeChanged(object sender, SizeChangedEventArgs e) => UpdatePathMarquee();
 
+    private void PathText_SizeChanged(object sender, SizeChangedEventArgs e) => UpdatePathMarquee();
+
     private void UpdatePathMarquee()
     {
-        if (!_pathIsHovered || PathViewport.ActualWidth <= 0)
+        var availableWidth = PathViewport.ActualWidth;
+        var elementWidth = PathText.ActualWidth;
+        if (!_pathIsHovered || availableWidth <= 0 || elementWidth <= 0)
         {
             StopPathMarquee();
             return;
         }
 
-        PathText.TextTrimming = TextTrimming.None;
-        PathText.Width = double.NaN;
-        PathText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        _pathTextWidth = PathText.DesiredSize.Width;
-        if (_pathTextWidth <= PathViewport.ActualWidth + 1)
+        var overflow = elementWidth - availableWidth;
+        if (overflow <= 0)
         {
             StopPathMarquee();
             return;
         }
 
-        PathText.Width = _pathTextWidth;
-        var distance = _pathTextWidth - PathViewport.ActualWidth;
-        var animation = new DoubleAnimation
+        const double speed = 40;
+        var durationSeconds = overflow / speed;
+        var animation = new DoubleAnimationUsingKeyFrames
         {
-            From = 0,
-            To = -distance,
-            BeginTime = TimeSpan.FromMilliseconds(700),
-            Duration = TimeSpan.FromMilliseconds(Math.Max(1800, distance * 28)),
             AutoReverse = true,
             RepeatBehavior = RepeatBehavior.Forever
         };
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.8))));
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(-overflow, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.8 + durationSeconds))));
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(-overflow, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.8 + durationSeconds + 1.0))));
         PathTransform.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, animation);
     }
 
@@ -104,8 +104,6 @@ public partial class FileOccupationView : UserControl
     {
         PathTransform.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, null);
         PathTransform.X = 0;
-        PathText.Width = double.NaN;
-        PathText.TextTrimming = TextTrimming.CharacterEllipsis;
     }
 
     private async void RefreshButton_Click(object sender, RoutedEventArgs e) => await RefreshAsync();

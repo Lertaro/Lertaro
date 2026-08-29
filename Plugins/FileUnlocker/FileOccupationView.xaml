@@ -8,15 +8,17 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Border x:Name="PathViewport" ClipToBounds="True"
+        <ScrollViewer x:Name="PathViewport" Background="Transparent"
+                      HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                      Focusable="False"
                 MouseEnter="PathViewport_MouseEnter" MouseLeave="PathViewport_MouseLeave"
                 SizeChanged="PathViewport_SizeChanged">
-            <TextBlock x:Name="PathText" TextTrimming="CharacterEllipsis">
+            <TextBlock x:Name="PathText" TextTrimming="None" SizeChanged="PathText_SizeChanged">
                 <TextBlock.RenderTransform>
                     <TranslateTransform x:Name="PathTransform"/>
                 </TextBlock.RenderTransform>
             </TextBlock>
-        </Border>
+        </ScrollViewer>
         <TextBlock x:Name="StatusText" Grid.Row="1" Margin="0,10,0,10"
                    Foreground="{DynamicResource TextSecondary}"/>
         <Grid Grid.Row="2">
