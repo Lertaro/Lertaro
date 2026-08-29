@@ -10,7 +10,6 @@ namespace Lertaro.Plugins.ContentSearch.Indexing;
 /// </summary>
 public sealed class ContentIndexScheduler : IDisposable
 {
-    private const int MaxParallelExtractors = 4;
     private const int WriteBatchSize = 50;
 
     private readonly ContentSearchDatabase _database;
@@ -28,6 +27,13 @@ public sealed class ContentIndexScheduler : IDisposable
     public bool IsIndexing => !_pendingFiles.IsEmpty;
     public int PendingCount => _pendingFiles.Count;
 
+    // Extraction is CPU-heavy (PDF/XML parsing). Running all four lanes on a low-core machine
+    // starves the UI thread and thread-pool continuations -- the settings window then takes
+    // seconds to open while indexing. Cap the lanes at half the cores so the UI always keeps
+    // headroom, with 8 as the ceiling for high-core machines.
+    internal static int GetExtractorParallelism(int processorCount) =>
+        Math.Clamp(processorCount - 2, 1, 8);
+
     public ContentIndexScheduler(ContentSearchDatabase database)
     {
         _database = database;
@@ -38,7 +44,22 @@ public sealed class ContentIndexScheduler : IDisposable
     {
         UpdateConfig(config);
         _cts = new CancellationTokenSource();
-        _workerTask = Task.Run(() => WorkerLoopAsync(_cts.Token));
+        _workerTask = Task.Factory.StartNew(
+            () =>
+            {
+                try
+                {
+                    // Dedicated below-normal thread: the scheduler loop and DB writes must
+                    // never win CPU against the UI. LongRunning keeps this thread out of the
+                    // thread pool, so its priority sticks and pool starvation cannot stall it.
+                    Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
+                    WorkerLoop(_cts.Token);
+                }
+                catch (OperationCanceledException) { }
+            },
+            _cts.Token,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
         TriggerFullScan();
     }
 
@@ -171,7 +192,7 @@ public sealed class ContentIndexScheduler : IDisposable
         return _config.AllowedExtensions.Contains(ext);
     }
 
-    private async Task WorkerLoopAsync(CancellationToken ct)
+    private void WorkerLoop(CancellationToken ct)
     {
         var hasPendingOptimizations = false;
         var idleCycles = 0;
@@ -197,16 +218,18 @@ public sealed class ContentIndexScheduler : IDisposable
                         idleCycles = 0;
                     }
                 }
-                await Task.Delay(200, ct);
+                if (ct.WaitHandle.WaitOne(200)) break;
                 continue;
             }
 
             idleCycles = 0;
             hasPendingOptimizations = true;
 
-            await ProcessBatchAsync(batch, ct);
+            // Blocking wait is fine here: this is the dedicated below-normal scheduler
+            // thread, and the parallel extraction lanes run on thread-pool threads.
+            ProcessBatchAsync(batch, ct).GetAwaiter().GetResult();
             _database.Checkpoint(truncate: false);
-            await Task.Delay(20, ct);
+            if (ct.WaitHandle.WaitOne(20)) break;
         }
     }
 
@@ -215,7 +238,7 @@ public sealed class ContentIndexScheduler : IDisposable
         var writeBatch = new ConcurrentBag<FileIndexBatchItem>();
         var deleteBatch = new ConcurrentBag<string>();
 
-        using var semaphore = new SemaphoreSlim(MaxParallelExtractors);
+        using var semaphore = new SemaphoreSlim(GetExtractorParallelism(Environment.ProcessorCount));
         var tasks = filePaths.Select(async filePath =>
         {
             await semaphore.WaitAsync(ct);
