@@ -62,6 +62,47 @@ public sealed class ContentIndexSchedulerTests
     }
 
     [TestMethod]
+    public void NormalizeFolderPath_ShellVirtualPath_ResolvesToPhysicalFolder()
+    {
+        var resolved = ContentIndexScheduler.NormalizeFolderPath("shell:Personal");
+
+        var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        Assert.IsFalse(string.IsNullOrEmpty(documents));
+        Assert.AreEqual(
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(documents)),
+            resolved,
+            ignoreCase: true);
+    }
+
+    [TestMethod]
+    public void IsFileInMonitoredFolders_ShellVirtualPathEntry_MatchesPhysicalFiles()
+    {
+        using var scheduler = new ContentIndexScheduler(_database);
+        var config = new ContentIndexConfig
+        {
+            MonitoredFolders = new List<string> { "shell:Personal" }
+        };
+        scheduler.UpdateConfig(config);
+
+        var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        Assert.IsTrue(scheduler.IsFileInMonitoredFolders(Path.Combine(documents, "note.txt")));
+        Assert.IsFalse(scheduler.IsFileInMonitoredFolders(@"C:\OtherFolder\file.txt"));
+    }
+
+    [TestMethod]
+    public void GetExtractorParallelism_ScalesWithCoresAndCapsAtFour()
+    {
+        // Half the cores, minimum one lane so indexing still progresses on 1-2 core machines,
+        // capped at four so high-core machines do not over-parallelize the CPU-bound parsing.
+        Assert.AreEqual(1, ContentIndexScheduler.GetExtractorParallelism(1));
+        Assert.AreEqual(1, ContentIndexScheduler.GetExtractorParallelism(2));
+        Assert.AreEqual(2, ContentIndexScheduler.GetExtractorParallelism(4));
+        Assert.AreEqual(3, ContentIndexScheduler.GetExtractorParallelism(6));
+        Assert.AreEqual(4, ContentIndexScheduler.GetExtractorParallelism(8));
+        Assert.AreEqual(4, ContentIndexScheduler.GetExtractorParallelism(32));
+    }
+
+    [TestMethod]
     public void TriggerFullScan_DisallowedExtensions_PrunedFromDatabaseImmediately()
     {
         _database.InsertOrUpdateFile(@"C:\MyDocs\doc1.pdf", DateTime.UtcNow, 1024, "PDF text");

@@ -118,6 +118,10 @@ public class PluginInfoViewModel : ViewModelBase
         // so there's nothing for the plugin-wide select-all button to toggle for those.
         foreach (var component in RawComponents.Where(c => c.IsToggleable))
             component.PropertyChanged += OnComponentIsEnabledChanged;
+
+        // Snapshot without raising the event: a plugin restored from persisted settings may
+        // start out fully disabled, and the list is about to be sorted by that state anyway.
+        _isFullyDisabled = ComputeFullyDisabled();
     }
 
     public string Name { get; }
@@ -155,10 +159,40 @@ public class PluginInfoViewModel : ViewModelBase
 
     public ICommand ToggleAllComponentsCommand { get; }
 
+    /// <summary>
+    /// Raised when the plugin crosses the fully-disabled boundary (every toggleable component
+    /// off, or back on again), so the owning list can move the card to its new sort position.
+    /// </summary>
+    public event Action<PluginInfoViewModel>? FullyDisabledChanged;
+
+    private bool _isFullyDisabled;
+
+    /// <summary>
+    /// Whether every toggleable component of this plugin is currently disabled. A plugin with no
+    /// toggleable components at all (translation/theme-only) can never be "fully disabled" --
+    /// there is nothing the user turned off. Fully-disabled plugins sort after all others.
+    /// </summary>
+    public bool IsFullyDisabled
+    {
+        get => _isFullyDisabled;
+        private set
+        {
+            if (SetProperty(ref _isFullyDisabled, value))
+                FullyDisabledChanged?.Invoke(this);
+        }
+    }
+
+    private bool ComputeFullyDisabled()
+    {
+        var toggleable = RawComponents.Where(c => c.IsToggleable).ToList();
+        return toggleable.Count > 0 && toggleable.All(c => !c.IsEnabled);
+    }
+
     private void OnComponentIsEnabledChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(PluginComponentViewModel.IsEnabled))
-            OnPropertyChanged(nameof(SelectAllToggleLabel));
+        if (e.PropertyName != nameof(PluginComponentViewModel.IsEnabled)) return;
+        OnPropertyChanged(nameof(SelectAllToggleLabel));
+        IsFullyDisabled = ComputeFullyDisabled();
     }
 
     private void ToggleAllComponents()
@@ -245,52 +279,3 @@ public class PluginInfoViewModel : ViewModelBase
     public ICommand SelectConfigGroupCommand => _selectConfigGroupCommand ??= new RelayCommand<PluginConfigFieldViewModel>(g => SelectedConfigGroup = g);
 }
 
-/// <summary>
-/// Represents a single sub-component of a plugin (action, provider, etc.) that can be enabled/disabled.
-/// </summary>
-public class PluginComponentViewModel : ViewModelBase
-{
-    private bool _isEnabled;
-
-    public PluginComponentViewModel(string componentId, PluginComponentType componentType, string displayName, bool isEnabled, string description = "")
-    {
-        ComponentId = componentId;
-        ComponentType = componentType;
-        DisplayName = displayName;
-        _isEnabled = isEnabled;
-        Description = description;
-    }
-
-    /// <summary>The stable unique ID used to persist the disabled state.</summary>
-    public string ComponentId { get; }
-
-    /// <summary>The category/type of this component (strongly-typed enum).</summary>
-    public PluginComponentType ComponentType { get; }
-
-    public string DisplayName { get; }
-
-    public string Description { get; }
-
-    /// <summary>
-    /// Whether the user can toggle this component on/off.
-    /// TranslationProvider and ThemeProvider components are shown read-only and cannot be disabled.
-    /// </summary>
-    public bool IsToggleable => ComponentType != PluginComponentType.TranslationProvider && ComponentType != PluginComponentType.ThemeProvider;
-
-    /// <summary>Set once the user actually flips this checkbox. Lets Save() apply only components the
-    /// user touched in this page, instead of blindly re-asserting this snapshot's IsEnabled for every
-    /// component -- which would clobber changes made through other channels (e.g. closing a Startup
-    /// Panel tab's x button, or the Startup Panel settings page's own re-enable checkbox) in the same
-    /// Settings window session.</summary>
-    public bool IsDirty { get; private set; }
-
-    public bool IsEnabled
-    {
-        get => _isEnabled;
-        set
-        {
-            if (SetProperty(ref _isEnabled, value))
-                IsDirty = true;
-        }
-    }
-}
