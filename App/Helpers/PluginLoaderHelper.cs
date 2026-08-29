@@ -75,11 +75,16 @@ public static class PluginLoaderHelper
 
         // Sorted here rather than at the one list that displays it, so the settings search index, which
         // builds from this same call, offers plugins in the order the page will show them.
-        return result
-            .OrderBy(p => DisplayRank(p.HasConfigFields, p.RawComponents.Any(c => c.IsToggleable)))
-            .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
-            .ToList();
+        return SortForDisplay(result);
     }
+
+    /// <summary>Final display order of the plugin list: fully-disabled plugins sink to the end
+    /// (they are the least actionable), then the actionable-first DisplayRank bands, then name.</summary>
+    internal static List<PluginInfoViewModel> SortForDisplay(IEnumerable<PluginInfoViewModel> plugins) => plugins
+        .OrderBy(p => p.IsFullyDisabled)
+        .ThenBy(p => DisplayRank(p.HasConfigFields, p.RawComponents.Any(c => c.IsToggleable)))
+        .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+        .ToList();
 
     /// <summary>Which band a plugin sorts into: what you can act on first, alphabetical within each.</summary>
     /// <remarks>

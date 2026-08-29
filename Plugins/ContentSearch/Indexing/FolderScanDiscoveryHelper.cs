@@ -3,8 +3,11 @@ using Lertaro.PluginSdk.Services;
 namespace Lertaro.Plugins.ContentSearch.Indexing;
 
 /// <summary>
-/// Scans monitored directories using SDK host index or safe filesystem enumeration to discover modified files.
-/// Split out purely to keep ContentIndexScheduler under the repository per-file line limit.
+/// Scans monitored directories using the SDK host index plus a filesystem walk to discover modified files.
+/// The host index can answer from a stale snapshot (e.g. the service has not yet picked up recently
+/// created files) and a non-empty enumeration carries no completeness signal, so the filesystem walk
+/// always runs as well and the two result sets merge. Split out purely to keep ContentIndexScheduler
+/// under the repository per-file line limit.
 /// </summary>
 public static class FolderScanDiscoveryHelper
 {
@@ -26,7 +29,6 @@ public static class FolderScanDiscoveryHelper
 
             try
             {
-                var enumeratedAny = false;
                 await foreach (var item in DirectoryIndexerService.EnumerateDirectoryAsync(
                     folder,
                     recursive: true,
@@ -34,7 +36,6 @@ public static class FolderScanDiscoveryHelper
                     limit: 0,
                     token: ct).ConfigureAwait(false))
                 {
-                    enumeratedAny = true;
                     if (ct.IsCancellationRequested) return discovered;
                     if (item.IsDir) continue;
 
@@ -60,23 +61,23 @@ public static class FolderScanDiscoveryHelper
 
                     onEnqueue(file);
                 }
-
-                if (!enumeratedAny && Directory.Exists(folder))
-                {
-                    ScanFilesystemFallback(folder, config, existingMeta, discovered, onEnqueue, ct);
-                }
             }
             catch (OperationCanceledException) { return discovered; }
             catch
             {
-                ScanFilesystemFallback(folder, config, existingMeta, discovered, onEnqueue, ct);
+                // Host enumeration unavailable (service down, pipe timeout): the filesystem
+                // walk below still covers the folder, so keep going instead of failing.
             }
+
+            // Runs even when the host enumeration answered: its snapshot may be stale.
+            if (ct.IsCancellationRequested) return discovered;
+            ScanFilesystem(folder, config, existingMeta, discovered, onEnqueue, ct);
         }
 
         return discovered;
     }
 
-    private static void ScanFilesystemFallback(
+    private static void ScanFilesystem(
         string folder,
         ContentIndexConfig config,
         Dictionary<string, (long LastModified, long FileSize)> existingMeta,
@@ -102,7 +103,11 @@ public static class FolderScanDiscoveryHelper
                     if (string.IsNullOrEmpty(ext) || !config.AllowedExtensions.Contains(ext))
                         continue;
 
-                    discovered.Add(file);
+                    // The host enumeration already reported (and possibly enqueued) this file;
+                    // keep the onEnqueue contract at "at most once per file".
+                    if (!discovered.Add(file))
+                        continue;
+
                     try
                     {
                         var info = new FileInfo(file);

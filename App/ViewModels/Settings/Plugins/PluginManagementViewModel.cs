@@ -22,6 +22,7 @@ public class PluginManagementViewModel : ViewModelBase
         Plugins = new ObservableCollection<PluginInfoViewModel>(PluginLoaderHelper.BuildPluginList(_userSettings));
         SaveConfigCommand = new RelayCommand<PluginInfoViewModel>(SaveConfig);
         _selectedPlugin = Plugins.FirstOrDefault();
+        AttachFullyDisabledWatch();
 
         // Dynamically refresh the plugin list when language changes to dynamically apply localized plugin names
         TranslationManager.Instance.PropertyChanged += (s, e) =>
@@ -34,12 +35,56 @@ public class PluginManagementViewModel : ViewModelBase
             foreach (var p in newList)
                 Plugins.Add(p);
             SelectedPlugin = Plugins.FirstOrDefault(p => p.DllFileName == selectedDll) ?? Plugins.FirstOrDefault();
+            AttachFullyDisabledWatch();
             OnPropertyChanged(nameof(IsEmpty));
             OnPropertyChanged(nameof(DevGuideUri));
         };
     }
 
     public ObservableCollection<PluginInfoViewModel> Plugins { get; }
+
+    // Toggling a plugin's last components off (or back on) moves its card to its sorted position
+    // in place, instead of waiting for the next rebuild.
+    private void AttachFullyDisabledWatch()
+    {
+        foreach (var plugin in Plugins)
+            plugin.FullyDisabledChanged += p => MovePluginForDisabledState(Plugins, p);
+    }
+
+    internal static void MovePluginForDisabledState(ObservableCollection<PluginInfoViewModel> plugins, PluginInfoViewModel plugin)
+    {
+        var currentIndex = plugins.IndexOf(plugin);
+        if (currentIndex < 0) return;
+
+        // Remove first, then re-insert at the first position that sorts after the moved plugin:
+        // that is exactly where SortForDisplay would have put it, in the disabled tail as well
+        // as back among the active band. No position found means it belongs at the end.
+        plugins.RemoveAt(currentIndex);
+
+        var insertAt = plugins.Count;
+        for (var i = 0; i < plugins.Count; i++)
+        {
+            if (CompareDisplayOrder(plugins[i], plugin) > 0)
+            {
+                insertAt = i;
+                break;
+            }
+        }
+
+        plugins.Insert(insertAt, plugin);
+    }
+
+    private static int CompareDisplayOrder(PluginInfoViewModel left, PluginInfoViewModel right)
+    {
+        var byDisabled = left.IsFullyDisabled.CompareTo(right.IsFullyDisabled);
+        if (byDisabled != 0) return byDisabled;
+
+        var byRank = PluginLoaderHelper.DisplayRank(left.HasConfigFields, left.RawComponents.Any(c => c.IsToggleable))
+            .CompareTo(PluginLoaderHelper.DisplayRank(right.HasConfigFields, right.RawComponents.Any(c => c.IsToggleable)));
+        if (byRank != 0) return byRank;
+
+        return string.Compare(left.Name, right.Name, StringComparison.CurrentCultureIgnoreCase);
+    }
 
     private PluginInfoViewModel? _selectedPlugin;
 
