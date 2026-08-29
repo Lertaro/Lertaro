@@ -28,4 +28,14 @@ public sealed class QuickSearchLaunchPanelHeightCalculatorTests
 
         Assert.AreEqual(522, height);
     }
+
+    [TestMethod]
+    public void Calculate_DoesNotReserveTabHeightForOneSource()
+    {
+        var source = new LaunchPanelSourceViewModel("single", "Single", Enumerable.Repeat(new AppSearchResult(), 1));
+
+        var height = QuickSearchLaunchPanelHeightCalculator.Calculate(new[] { source }, 5, 522);
+
+        Assert.AreEqual(108, height);
+    }
 }

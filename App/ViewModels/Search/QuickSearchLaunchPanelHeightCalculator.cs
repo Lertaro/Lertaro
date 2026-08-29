@@ -16,7 +16,7 @@ internal static class QuickSearchLaunchPanelHeightCalculator
         var maximumItemCount = sources.Max(source => source.Items.Count);
         var rows = Math.Max(1, (maximumItemCount + columns - 1) / columns);
         var itemsHeight = rows * (LaunchItemHeight + LaunchItemVerticalMargin) + ItemsVerticalPadding;
-        var tabsHeight = SourceTabsHeight + SourceTabsBottomMargin;
+        var tabsHeight = sources.Count > 1 ? SourceTabsHeight + SourceTabsBottomMargin : 0;
         return Math.Min(maximumHeight, itemsHeight + tabsHeight);
     }
 }

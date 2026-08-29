@@ -31,6 +31,7 @@ internal sealed class QuickSearchLaunchSourceSupport
         _notify(nameof(QuickSearchViewModel.LaunchPanelVisibility));
         _notify(nameof(QuickSearchViewModel.LaunchPanelItems));
         _notify(nameof(QuickSearchViewModel.LaunchPanelHeight));
+        _notify(nameof(QuickSearchViewModel.HasMultipleLaunchSources));
         var settings = UserSettings.Load().QuickLaunch;
         var loaded = new List<LaunchPanelSourceViewModel>();
 
@@ -47,7 +48,7 @@ internal sealed class QuickSearchLaunchSourceSupport
 
         if (settings.Enabled)
         {
-            var providers = QuickLaunchSourceCatalog.GetEffectiveSourceIds(settings)
+            var providers = QuickLaunchSourceCatalog.GetEnabledSourceIds(settings)
                 .Select(QuickLaunchSourceCatalog.Find)
                 .Where(provider => provider != null)
                 .Cast<IQuickPanelTabProvider>()
@@ -71,6 +72,7 @@ internal sealed class QuickSearchLaunchSourceSupport
         _notify(nameof(QuickSearchViewModel.LaunchPanelVisibility));
         _notify(nameof(QuickSearchViewModel.LaunchPanelItems));
         _notify(nameof(QuickSearchViewModel.LaunchPanelHeight));
+        _notify(nameof(QuickSearchViewModel.HasMultipleLaunchSources));
     }
 
     public void Select(LaunchPanelSourceViewModel? source)

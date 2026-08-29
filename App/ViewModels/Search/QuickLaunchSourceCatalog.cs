@@ -14,12 +14,13 @@ internal static class QuickLaunchSourceCatalog
 
     public static IQuickPanelTabProvider? Find(string id) => QuickPanelPluginTabs.Find(id);
 
-    public static List<string> GetDefaultSourceIds()
-        => GetDefaultSourceIds(Providers);
+    public static IReadOnlyList<string> GetEnabledSourceIds(QuickLaunchSettings settings)
+        => GetEnabledSourceIds(settings, Providers);
 
-    internal static List<string> GetDefaultSourceIds(IEnumerable<IQuickPanelTabProvider> providers)
-        => providers.Select(GetId).ToList();
-
-    public static IReadOnlyList<string> GetEffectiveSourceIds(QuickLaunchSettings settings)
-        => settings.SourceSelectionInitialized ? settings.EnabledSourceIds : GetDefaultSourceIds();
+    internal static List<string> GetEnabledSourceIds(QuickLaunchSettings settings,
+        IEnumerable<IQuickPanelTabProvider> providers)
+        => providers
+            .Where(provider => !settings.DisabledSourceIds.Contains(GetId(provider), StringComparer.OrdinalIgnoreCase))
+            .Select(GetId)
+            .ToList();
 }

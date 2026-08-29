@@ -208,6 +208,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     public int LaunchPanelColumns => Services.UiMetrics.GetLaunchPanelColumns(SearchBarWidth);
     public double LaunchPanelHeight => QuickSearchLaunchPanelHeightCalculator.Calculate(
         LaunchSources, LaunchPanelColumns, LaunchPanelMaxHeight);
+    public bool HasMultipleLaunchSources => LaunchSources.Count > 1;
 
     // Quick window only: InlineSearchWindow shares this same ViewModel class (see
     // InlineSearchManager.EnsureWindowCreated setting IsInlineSearchContext), so without this check the

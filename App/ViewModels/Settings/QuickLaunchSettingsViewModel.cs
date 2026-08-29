@@ -20,11 +20,12 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
         foreach (var item in userSettings.QuickLaunch.Items)
             Items.Add(new QuickLaunchItemViewModel { Name = item.Name, Path = item.Path });
 
-        var selectedIds = QuickLaunchSourceCatalog.GetEffectiveSourceIds(userSettings.QuickLaunch);
+        var disabledIds = userSettings.QuickLaunch.DisabledSourceIds;
         foreach (var provider in QuickLaunchSourceCatalog.Providers)
         {
             var id = QuickLaunchSourceCatalog.GetId(provider);
-            Sources.Add(new QuickLaunchSourceOptionViewModel(id, provider.Name, selectedIds.Contains(id, StringComparer.OrdinalIgnoreCase)));
+            Sources.Add(new QuickLaunchSourceOptionViewModel(id, provider.Name,
+                !disabledIds.Contains(id, StringComparer.OrdinalIgnoreCase)));
         }
 
         AddCommand = new RelayCommand(Add, CanAdd);
@@ -85,11 +86,10 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
         settings.Enabled = IsEnabled;
         settings.Items = Items.Select(item => new QuickLaunchItemSetting { Name = item.Name, Path = item.Path }).ToList();
         var visibleIds = Sources.Select(source => source.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        settings.EnabledSourceIds = settings.EnabledSourceIds
+        settings.DisabledSourceIds = settings.DisabledSourceIds
             .Where(id => !visibleIds.Contains(id))
-            .Concat(Sources.Where(source => source.IsEnabled).Select(source => source.Id))
+            .Concat(Sources.Where(source => !source.IsEnabled).Select(source => source.Id))
             .ToList();
-        settings.SourceSelectionInitialized = true;
     }
 
     private bool CanAdd() => FavoritePathResolver.IsPathAvailable(NewPath);

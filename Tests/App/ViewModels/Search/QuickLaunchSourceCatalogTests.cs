@@ -9,23 +9,27 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 public sealed class QuickLaunchSourceCatalogTests
 {
     [TestMethod]
-    public void GetEffectiveSourceIds_UsesSavedSelectionAfterInitialization()
+    public void GetEnabledSourceIds_ExcludesSavedDisabledSources()
     {
+        var providers = new IQuickPanelTabProvider[]
+        {
+            new FirstSourceProvider(),
+            new SecondSourceProvider()
+        };
         var settings = new QuickLaunchSettings
         {
-            SourceSelectionInitialized = true,
-            EnabledSourceIds = new List<string> { "source-a", "source-b" }
+            DisabledSourceIds = new List<string> { QuickLaunchSourceCatalog.GetId(providers[1]) }
         };
 
-        var ids = QuickLaunchSourceCatalog.GetEffectiveSourceIds(settings);
+        var ids = QuickLaunchSourceCatalog.GetEnabledSourceIds(settings, providers);
 
-        CollectionAssert.AreEqual(new[] { "source-a", "source-b" }, ids.ToArray());
+        CollectionAssert.AreEqual(new[] { QuickLaunchSourceCatalog.GetId(providers[0]) }, ids.ToArray());
     }
 
     [TestMethod]
-    public void GetDefaultSourceIds_IncludesEveryAvailableProvider()
+    public void GetEnabledSourceIds_WithNoDisabledSourcesIncludesEveryProvider()
     {
-        var ids = QuickLaunchSourceCatalog.GetDefaultSourceIds(new IQuickPanelTabProvider[]
+        var ids = QuickLaunchSourceCatalog.GetEnabledSourceIds(new QuickLaunchSettings(), new IQuickPanelTabProvider[]
         {
             new FirstSourceProvider(),
             new SecondSourceProvider()
