@@ -28,9 +28,15 @@ jobs:
       # 3. Install Inno Setup 7, required for the 64-bit x64 Setup shell
       - name: Install Inno Setup
         run: |
-          winget install --id JRSoftware.InnoSetup.7 -e --source winget --silent --accept-source-agreements --accept-package-agreements
-          $isccDir = 'C:\Program Files\Inno Setup 7'
-          if (-not (Test-Path (Join-Path $isccDir 'ISCC.exe'))) { throw '64-bit Inno Setup 7 ISCC.exe was not found after installation.' }
+          $installerPath = Join-Path $env:RUNNER_TEMP 'innosetup-7.1.0-x64.exe'
+          Invoke-WebRequest -Uri 'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe' -OutFile $installerPath
+          $installer = Start-Process -FilePath $installerPath -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-' -Wait -PassThru
+          if ($installer.ExitCode -ne 0) { throw "Inno Setup 7 installer exited with code $($installer.ExitCode)." }
+          $isccDir = Join-Path ${env:ProgramFiles} 'Inno Setup 7'
+          $isccPath = Join-Path $isccDir 'ISCC.exe'
+          if (-not (Test-Path $isccPath)) { throw '64-bit Inno Setup 7 ISCC.exe was not found after installation.' }
+          $isccInfo = (& $isccPath /? 2>&1 | Out-String)
+          if ($isccInfo -notmatch 'Inno Setup 7') { throw 'The installed ISCC.exe is not an Inno Setup 7 compiler.' }
           Add-Content -Path $env:GITHUB_PATH -Value $isccDir
 
       # 4. Execute the build and package batch script
