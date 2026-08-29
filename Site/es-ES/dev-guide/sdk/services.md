@@ -57,3 +57,16 @@ public static class VirtualFileExtractor
 
 > [!TIP]
 > Estos ayudantes del Shell se ejecutan en un subproceso STA dedicado (`ShellOperationStaWorker`), por lo que los plugins no necesitan gestionar manualmente modelos de apartamentos COM.
+
+## 3. Ciclo de vida de la aplicación y ventanas de plugins con tema
+
+`AppLifecycleService.RequestRestart()` solicita al anfitrión un reinicio ordenado. El anfitrión inicia el proceso de reemplazo, espera a que la instancia actual complete su cierre normal y después termina; los plugins no necesitan iniciar el ejecutable ni cerrar el anfitrión por su cuenta. El método devuelve `true` cuando el anfitrión acepta la solicitud.
+
+Para el contenido WPF propio de un plugin, `Lertaro.PluginSdk.Windows.PluginWindow` proporciona un marco de ventana redondeado y adaptado al tema del anfitrión. Asigna la vista del plugin a `ContentHostControl.Content` y añade botones inferiores mediante `Footer`. Usa `PluginWindowMode.Window` para una ventana normal en la barra de tareas o `PluginWindowMode.Dialog` para un diálogo siempre visible y oculto en Alt+Tab. Si no se especifica un icono, se usa el icono de aplicación predeterminado del anfitrión.
+
+```csharp
+var window = new PluginWindow("Herramienta", 720, 470, PluginWindowMode.Dialog);
+window.ContentHostControl.Content = new MyView();
+window.Footer.Children.Add(new Button { Content = "Aceptar", IsDefault = true });
+window.ShowDialog();
+```

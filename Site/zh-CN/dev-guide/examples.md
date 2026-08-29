@@ -1,6 +1,6 @@
 # 官方插件范例
 
-为了帮助开发者深入理解 `Lertaro.PluginSdk` 的各模块协同机制，本章节选取了 Lertaro 官方仓库自带的三个典型开源插件进行深度案例剖析。
+为了帮助开发者深入理解 `Lertaro.PluginSdk` 的各模块协同机制，本章节选取了 Lertaro 官方仓库自带的四个典型开源插件进行深度案例剖析。
 
 ## 1. CoreExtensions —— 动作、Shell 菜单与快速面板
 
@@ -36,3 +36,14 @@
 - **多语言跨进程桥接**：兼容 C# (.NET)、Python 3.12、Node.js v20 LTS 及独立 `.exe` 形式的 Flow Launcher 插件。
 - **纯净自包含环境**：在用户数据目录中自动隔离部署 Python / Node.js 运行时，并通过命名管道与子进程进行 JSON-RPC 通信。
 - **动态配置与富文本预览**：解析外部插件的 `SettingsTemplate.yaml`/`.json` 并动态映射为 `PluginConfigSchema`；在 QuickLook 预览面板中利用 WebView2 渲染外部插件返回的富文本卡片（如词典释义、实时天气等）。
+
+## 4. FileUnlocker —— 解除文件占用动作
+
+`FileUnlocker` 展示了一个专注于单一动作的插件如何通过 Windows Restart Manager API 查询文件占用并请求释放。
+
+### 核心实现要点
+
+- **单选约束**：仅对一个已存在的文件提供动作，避免对文件夹或多个结果发起含义不明确的请求。
+- **进程信息展示**：显示占用进程名称、PID 和可执行文件路径，并提供刷新操作以应对文件状态变化。
+- **请求式释放**：请求占用进程释放文件；未检测到进程或操作进行中时，释放按钮会禁用。
+- **宿主窗口框架**：将 WPF 视图放入 SDK 提供的主题化 `PluginWindow` 对话框，插件无需重复实现主题、DPI、任务栏和 Alt+Tab 处理。

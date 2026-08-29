@@ -65,3 +65,7 @@ If you have installed the standalone open-source tool **QuickLook** ([QL-Win/Qui
 
 - **External Preview Takeover**: Connects via local named pipes to host external QuickLook preview windows anchored directly beside Lertaro.
 - **Seamless Fallback**: If the external QuickLook process is not running, Lertaro smoothly falls back to its built-in preview engine.
+
+## 6. Release File Occupation
+
+The official **File Occupation Release** plugin adds a single-selection action for existing files. It lists the processes currently using the file, including their PIDs and executable paths, and sends a request for those processes to release it. The action is disabled for folders, missing files, or multiple selections; the release button is also disabled when no process is detected. The themed dialog supports refresh and automatically hides itself from Alt+Tab while remaining above the search window.

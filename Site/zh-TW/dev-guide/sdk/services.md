@@ -57,3 +57,16 @@ public static class VirtualFileExtractor
 
 > [!TIP]
 > 上述 Shell 非同步幫助類別均自動執行在 SDK 獨立的專用 STA 背景工作執行緒（`ShellOperationStaWorker`）中，外掛模組呼叫時無需自行建立 STA 執行緒套間。
+
+## 3. 應用程式生命週期與佈景主題化外掛模組視窗
+
+`AppLifecycleService.RequestRestart()` 會要求主機應用程式執行優雅重新啟動。主機會啟動替代程序，等待目前執行個體完成正常結束後再退出；外掛模組不需要自行啟動可執行檔或關閉主機。主機接受要求時此方法會回傳 `true`。
+
+對於外掛模組自有的 WPF 內容，`Lertaro.PluginSdk.Windows.PluginWindow` 提供統一的圓角佈景主題視窗框架。將外掛模組檢視指派給 `ContentHostControl.Content`，並透過 `Footer` 加入底部按鈕。一般工作列視窗使用 `PluginWindowMode.Window`；需要置頂且從 Alt+Tab 隱藏的對話方塊使用 `PluginWindowMode.Dialog`。不傳入圖示時會使用主機的預設應用程式圖示。
+
+```csharp
+var window = new PluginWindow("我的工具", 720, 470, PluginWindowMode.Dialog);
+window.ContentHostControl.Content = new MyView();
+window.Footer.Children.Add(new Button { Content = "確定", IsDefault = true });
+window.ShowDialog();
+```

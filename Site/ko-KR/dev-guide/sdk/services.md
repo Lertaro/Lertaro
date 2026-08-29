@@ -57,3 +57,16 @@ public static class VirtualFileExtractor
 
 > [!TIP]
 > 상기 Shell 헬퍼는 SDK 내부의 전용 STA 스레드(`ShellOperationStaWorker`)에서 비동기로 실행되므로 호출 측에서 COM 아파트먼트 스레드를 별도로 생성할 필요가 없습니다.
+
+## 3. 애플리케이션 수명 주기 및 테마 플러그인 창
+
+`AppLifecycleService.RequestRestart()`는 호스트 애플리케이션에 정상적인 재시작을 요청합니다. 호스트가 교체 프로세스를 시작하고 현재 인스턴스가 정상 종료를 마칠 때까지 기다린 뒤 종료하므로 플러그인이 실행 파일을 직접 시작하거나 호스트를 종료할 필요가 없습니다. 호스트가 요청을 수락하면 `true`를 반환합니다.
+
+플러그인 소유 WPF 콘텐츠에는 `Lertaro.PluginSdk.Windows.PluginWindow`가 호스트와 동일한 둥근 모서리 테마 창 프레임을 제공합니다. 플러그인 뷰를 `ContentHostControl.Content`에 지정하고 `Footer`를 통해 하단 버튼을 추가할 수 있습니다. 일반 작업 표시줄 창에는 `PluginWindowMode.Window`, 항상 위에 표시되고 Alt+Tab에서 숨겨지는 대화상자에는 `PluginWindowMode.Dialog`를 사용합니다. 아이콘을 생략하면 호스트의 기본 앱 아이콘이 사용됩니다.
+
+```csharp
+var window = new PluginWindow("도구", 720, 470, PluginWindowMode.Dialog);
+window.ContentHostControl.Content = new MyView();
+window.Footer.Children.Add(new Button { Content = "확인", IsDefault = true });
+window.ShowDialog();
+```

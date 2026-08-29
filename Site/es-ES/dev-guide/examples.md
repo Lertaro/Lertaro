@@ -1,6 +1,6 @@
 # Ejemplos de plugins
 
-Para ayudar a los desarrolladores a comprender cómo interactúan las interfaces de `Lertaro.PluginSdk`, este capítulo analiza tres plugins representativos incluidos en el repositorio de Lertaro.
+Para ayudar a los desarrolladores a comprender cómo interactúan las interfaces de `Lertaro.PluginSdk`, este capítulo analiza cuatro plugins representativos incluidos en el repositorio de Lertaro.
 
 ## 1. CoreExtensions —— Acciones, menús Shell y Panel rápido
 
@@ -36,3 +36,14 @@ El plugin `FlowLauncherBridge` demuestra la creación de un sistema de puente a 
 - **Puente multiproceso y multilenguaje**: Ejecuta plugins escritos en C# (.NET), Python 3.12, Node.js v20 LTS y binarios `.exe`.
 - **Entornos autónomos aislados**: Despliega entornos de Python y Node.js en la carpeta de datos de Lertaro y se comunica mediante tuberías con nombre usando JSON-RPC sin modificar la variable PATH.
 - **Formularios dinámicos y vistas previas en WebView2**: Asigna formularios `SettingsTemplate.yaml`/`.json` a `PluginConfigSchema` y renderiza tarjetas interactivas (diccionarios, tiempo, etc.) dentro de QuickLook.
+
+## 4. FileUnlocker —— Acción para liberar la ocupación de archivos
+
+`FileUnlocker` muestra un plugin de acción especializada que consulta la ocupación de archivos mediante Windows Restart Manager y solicita su liberación.
+
+### Puntos clave de implementación
+
+- **Restricción de selección única**: Solo ofrece la acción para un archivo existente seleccionado, evitando solicitudes ambiguas sobre carpetas o selecciones múltiples.
+- **Información de procesos**: Muestra el nombre, PID y ruta del ejecutable de cada proceso que usa el archivo, con una opción de actualización para los cambios de estado.
+- **Liberación mediante solicitud**: Solicita a los procesos implicados que liberen el archivo y desactiva el botón si no se detecta ningún proceso o hay una operación en curso.
+- **Marco de ventana del anfitrión**: Aloja la vista WPF en el diálogo `PluginWindow` adaptado al tema del SDK, sin duplicar en el plugin la gestión del tema, DPI, barra de tareas o Alt+Tab.

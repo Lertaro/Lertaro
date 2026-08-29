@@ -57,3 +57,16 @@ public static class VirtualFileExtractor
 
 > [!TIP]
 > 上記の Shell ヘルパーは SDK 内部の専用 STA スレッド（`ShellOperationStaWorker`）で非同期実行されるため、呼び出し元で COM アパートメントスレッドを意識する必要はありません。
+
+## 3. アプリケーションのライフサイクルとテーマ対応プラグインウィンドウ
+
+`AppLifecycleService.RequestRestart()` はホストに正常な再起動を要求します。ホストは後継プロセスを起動し、現在のインスタンスが通常の終了処理を完了してから終了するため、プラグインが実行ファイルを起動したりホストを終了したりする必要はありません。ホストが要求を受け付けた場合は `true` を返します。
+
+プラグイン独自の WPF コンテンツには、`Lertaro.PluginSdk.Windows.PluginWindow` がホストと同じ角丸テーマのウィンドウフレームを提供します。`ContentHostControl.Content` にプラグインのビューを設定し、`Footer` から下部ボタンを追加できます。通常のタスクバーウィンドウには `PluginWindowMode.Window`、最前面に表示し Alt+Tab から隠すダイアログには `PluginWindowMode.Dialog` を使用します。アイコンを省略するとホストの既定のアプリアイコンが使われます。
+
+```csharp
+var window = new PluginWindow("ツール", 720, 470, PluginWindowMode.Dialog);
+window.ContentHostControl.Content = new MyView();
+window.Footer.Children.Add(new Button { Content = "OK", IsDefault = true });
+window.ShowDialog();
+```

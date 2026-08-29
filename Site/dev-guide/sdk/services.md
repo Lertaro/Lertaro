@@ -57,3 +57,16 @@ public static class VirtualFileExtractor
 
 > [!TIP]
 > Shell helpers execute automatically on the SDK's dedicated STA worker thread (`ShellOperationStaWorker`), eliminating the need for plugins to manage COM apartment threading manually.
+
+## 3. Application lifecycle and themed plugin windows
+
+`AppLifecycleService.RequestRestart()` asks the host application to perform an orderly restart. The host starts the replacement process, waits for the current instance to finish its normal shutdown, and then exits; plugins do not need to launch the executable or shut down the host themselves. The method returns `true` when the host accepts the request.
+
+For plugin-owned WPF content, `Lertaro.PluginSdk.Windows.PluginWindow` supplies the host's rounded, themed window frame. Set `ContentHostControl.Content` to the plugin view and add footer buttons through `Footer`. Use `PluginWindowMode.Window` for a normal taskbar window or `PluginWindowMode.Dialog` for a topmost dialog that is hidden from Alt+Tab. An omitted icon uses the host's default application icon.
+
+```csharp
+var window = new PluginWindow("My tool", 720, 470, PluginWindowMode.Dialog);
+window.ContentHostControl.Content = new MyView();
+window.Footer.Children.Add(new Button { Content = "OK", IsDefault = true });
+window.ShowDialog();
+```

@@ -1,6 +1,6 @@
 # Plugin Examples
 
-To help developers understand how `Lertaro.PluginSdk` interfaces cooperate in real-world scenarios, this chapter analyzes three representative open-source plugins included in the Lertaro repository.
+To help developers understand how `Lertaro.PluginSdk` interfaces cooperate in real-world scenarios, this chapter analyzes four representative open-source plugins included in the Lertaro repository.
 
 ## 1. CoreExtensions —— Actions, Shell Menus & Quick Panel
 
@@ -36,3 +36,14 @@ The `FlowLauncherBridge` plugin demonstrates building a large-scale bridge syste
 - **Multi-Language IPC Bridge**: Runs Flow Launcher plugins written in C# (.NET), Python 3.12, Node.js v20 LTS, and standalone executables (`.exe`).
 - **Isolated Self-Contained Runtimes**: Deploys isolated Python and Node.js runtimes within Lertaro's user data directory, communicating via named pipes using JSON-RPC without polluting the system PATH.
 - **Dynamic Configuration & WebView2 Previews**: Dynamically maps external `SettingsTemplate.yaml`/`.json` forms to `PluginConfigSchema`, and renders rich interactive HTML/WebView2 previews (e.g. MDict definitions, weather cards) inside QuickLook.
+
+## 4. FileUnlocker —— File occupation release action
+
+`FileUnlocker` demonstrates a focused action plugin that uses the Windows Restart Manager API through a small client wrapper.
+
+### Key Implementation Highlights
+
+- **Single-selection guard**: The action is offered only for one existing file, avoiding ambiguous requests against folders or multiple results.
+- **Process inspection**: It displays the locking process name, PID, and executable path, with a refresh operation for changing file state.
+- **Request-based release**: The plugin asks the owning processes to release the file and disables the release button while no process is detected or an operation is running.
+- **Host-owned window frame**: Its WPF view is placed in the SDK's themed `PluginWindow` dialog, so the plugin does not duplicate theme, DPI, taskbar, or Alt+Tab handling.

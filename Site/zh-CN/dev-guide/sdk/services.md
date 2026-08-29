@@ -57,3 +57,16 @@ public static class VirtualFileExtractor
 
 > [!TIP]
 > 上述 Shell 异步帮助类均自动运行在 SDK 独立的专用 STA 工作线程（`ShellOperationStaWorker`）中，插件调用时无需自行创建 STA 线程套间。
+
+## 3. 应用生命周期与主题化插件窗口
+
+`AppLifecycleService.RequestRestart()` 请求宿主应用执行优雅重启。宿主会启动替代进程，等待当前实例完成正常退出后再结束；插件无需自行启动可执行文件或关闭宿主。宿主接受请求时该方法返回 `true`。
+
+对于插件自有的 WPF 内容，`Lertaro.PluginSdk.Windows.PluginWindow` 提供统一的圆角主题窗口框架。将插件视图赋给 `ContentHostControl.Content`，并通过 `Footer` 添加底部按钮。普通任务栏窗口使用 `PluginWindowMode.Window`；需要置顶且从 Alt+Tab 隐藏的对话框使用 `PluginWindowMode.Dialog`。不传入图标时会使用宿主的默认应用图标。
+
+```csharp
+var window = new PluginWindow("我的工具", 720, 470, PluginWindowMode.Dialog);
+window.ContentHostControl.Content = new MyView();
+window.Footer.Children.Add(new Button { Content = "确定", IsDefault = true });
+window.ShowDialog();
+```
