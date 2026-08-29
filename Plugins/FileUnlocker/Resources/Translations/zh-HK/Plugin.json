@@ -1,0 +1,17 @@
+{
+  "FileUnlocker_PluginName": "解除檔案佔用",
+  "FileUnlocker_PluginDesc": "尋找正在使用所選檔案的處理程序，並要求它們釋放檔案。",
+  "FileUnlocker_GroupName": "檔案佔用",
+  "FileUnlocker_ActionName": "解除檔案佔用",
+  "FileUnlocker_ActionDesc": "尋找正在使用所選檔案的處理程序，並要求它們釋放檔案。",
+  "FileUnlocker_WindowTitle": "檔案佔用",
+  "FileUnlocker_ProcessName": "處理程序",
+  "FileUnlocker_ProcessId": "PID",
+  "FileUnlocker_ProcessPath": "可執行檔路徑",
+  "FileUnlocker_NoProcesses": "目前沒有處理程序使用此檔案。",
+  "FileUnlocker_Querying": "正在檢查檔案佔用……",
+  "FileUnlocker_Detected": "偵測到 {0} 個處理程序正在使用此檔案。",
+  "FileUnlocker_QueryFailed": "無法查詢檔案佔用：{0}",
+  "FileUnlocker_Refresh": "重新整理",
+  "FileUnlocker_RequestRelease": "要求釋放"
+}

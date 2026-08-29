@@ -1,0 +1,17 @@
+{
+  "FileUnlocker_PluginName": "ファイル占有解除",
+  "FileUnlocker_PluginDesc": "選択したファイルを使用しているプロセスを検索し、ファイルの解放を要求します。",
+  "FileUnlocker_GroupName": "ファイル占有",
+  "FileUnlocker_ActionName": "ファイル占有を解除",
+  "FileUnlocker_ActionDesc": "選択したファイルを使用しているプロセスを検索し、解放を要求します。",
+  "FileUnlocker_WindowTitle": "ファイル占有",
+  "FileUnlocker_ProcessName": "プロセス",
+  "FileUnlocker_ProcessId": "PID",
+  "FileUnlocker_ProcessPath": "実行ファイルのパス",
+  "FileUnlocker_NoProcesses": "現在このファイルを使用しているプロセスはありません。",
+  "FileUnlocker_Querying": "ファイルの占有を確認しています……",
+  "FileUnlocker_Detected": "このファイルを使用しているプロセスが {0} 個見つかりました。",
+  "FileUnlocker_QueryFailed": "ファイルの占有を確認できません：{0}",
+  "FileUnlocker_Refresh": "更新",
+  "FileUnlocker_RequestRelease": "解放を要求"
+}

@@ -1,0 +1,17 @@
+{
+  "FileUnlocker_PluginName": "File Occupation Release",
+  "FileUnlocker_PluginDesc": "Finds processes that are using a selected file and asks them to release it.",
+  "FileUnlocker_GroupName": "File Occupation",
+  "FileUnlocker_ActionName": "Release File Occupation",
+  "FileUnlocker_ActionDesc": "Finds processes using the selected file and asks them to release it.",
+  "FileUnlocker_WindowTitle": "File Occupation",
+  "FileUnlocker_ProcessName": "Process",
+  "FileUnlocker_ProcessId": "PID",
+  "FileUnlocker_ProcessPath": "Executable path",
+  "FileUnlocker_NoProcesses": "No processes are currently using this file.",
+  "FileUnlocker_Querying": "Checking file occupation...",
+  "FileUnlocker_Detected": "Detected {0} process(es) using this file.",
+  "FileUnlocker_QueryFailed": "Unable to query file occupation: {0}",
+  "FileUnlocker_Refresh": "Refresh",
+  "FileUnlocker_RequestRelease": "Request release"
+}

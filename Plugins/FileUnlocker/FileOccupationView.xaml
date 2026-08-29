@@ -1,0 +1,41 @@
+<UserControl x:Class="Lertaro.Plugins.FileUnlocker.FileOccupationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Loaded="Window_Loaded">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Border x:Name="PathViewport" ClipToBounds="True"
+                MouseEnter="PathViewport_MouseEnter" MouseLeave="PathViewport_MouseLeave"
+                SizeChanged="PathViewport_SizeChanged">
+            <TextBlock x:Name="PathText" TextTrimming="CharacterEllipsis"
+                       ToolTipService.ShowOnDisabled="True">
+                <TextBlock.RenderTransform>
+                    <TranslateTransform x:Name="PathTransform"/>
+                </TextBlock.RenderTransform>
+            </TextBlock>
+        </Border>
+        <TextBlock x:Name="StatusText" Grid.Row="1" Margin="0,10,0,10"
+                   Foreground="{DynamicResource TextSecondary}"/>
+        <Grid Grid.Row="2">
+            <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                    Background="{DynamicResource ControlBackground}">
+                <ListView x:Name="ProcessList" ItemContainerStyle="{DynamicResource PluginListViewItemStyle}"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn x:Name="NameColumn" Width="160" DisplayMemberBinding="{Binding Name}"/>
+                            <GridViewColumn x:Name="PidColumn" Width="80" DisplayMemberBinding="{Binding ProcessId}"/>
+                            <GridViewColumn x:Name="PathColumn" Width="360" DisplayMemberBinding="{Binding ExecutablePath}"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </Border>
+            <TextBlock x:Name="EmptyText" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{DynamicResource TextSecondary}" Visibility="Collapsed"/>
+        </Grid>
+    </Grid>
+</UserControl>

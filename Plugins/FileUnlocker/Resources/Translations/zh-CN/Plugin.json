@@ -1,0 +1,17 @@
+{
+  "FileUnlocker_PluginName": "文件占用解除",
+  "FileUnlocker_PluginDesc": "查找正在使用所选文件的进程，并请求它们释放文件。",
+  "FileUnlocker_GroupName": "文件占用",
+  "FileUnlocker_ActionName": "解除文件占用",
+  "FileUnlocker_ActionDesc": "查找正在使用所选文件的进程，并请求它们释放文件。",
+  "FileUnlocker_WindowTitle": "文件占用",
+  "FileUnlocker_ProcessName": "进程",
+  "FileUnlocker_ProcessId": "PID",
+  "FileUnlocker_ProcessPath": "可执行文件路径",
+  "FileUnlocker_NoProcesses": "当前没有进程使用此文件。",
+  "FileUnlocker_Querying": "正在检查文件占用……",
+  "FileUnlocker_Detected": "检测到 {0} 个进程正在使用此文件。",
+  "FileUnlocker_QueryFailed": "无法查询文件占用：{0}",
+  "FileUnlocker_Refresh": "刷新",
+  "FileUnlocker_RequestRelease": "请求释放"
+}

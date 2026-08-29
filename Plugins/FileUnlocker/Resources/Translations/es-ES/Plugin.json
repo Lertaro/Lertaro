@@ -1,0 +1,17 @@
+{
+  "FileUnlocker_PluginName": "Liberar archivos en uso",
+  "FileUnlocker_PluginDesc": "Busca los procesos que están usando el archivo seleccionado y les solicita que lo liberen.",
+  "FileUnlocker_GroupName": "Archivo en uso",
+  "FileUnlocker_ActionName": "Liberar archivo en uso",
+  "FileUnlocker_ActionDesc": "Busca los procesos que usan el archivo seleccionado y solicita que lo liberen.",
+  "FileUnlocker_WindowTitle": "Archivo en uso",
+  "FileUnlocker_ProcessName": "Proceso",
+  "FileUnlocker_ProcessId": "PID",
+  "FileUnlocker_ProcessPath": "Ruta del ejecutable",
+  "FileUnlocker_NoProcesses": "Ningún proceso está usando este archivo.",
+  "FileUnlocker_Querying": "Comprobando el uso del archivo…",
+  "FileUnlocker_Detected": "Se detectaron {0} proceso(s) usando este archivo.",
+  "FileUnlocker_QueryFailed": "No se puede consultar el uso del archivo: {0}",
+  "FileUnlocker_Refresh": "Actualizar",
+  "FileUnlocker_RequestRelease": "Solicitar liberación"
+}
