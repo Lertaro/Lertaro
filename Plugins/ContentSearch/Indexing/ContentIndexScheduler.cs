@@ -28,11 +28,11 @@ public sealed class ContentIndexScheduler : IDisposable
     public int PendingCount => _pendingFiles.Count;
 
     // Extraction is CPU-heavy (PDF/XML parsing). Running all four lanes on a low-core machine
-    // starves the UI thread and thread-pool continuations -- the settings window then takes
+    // starves the UI thread and thread-pool continuations. The settings window then takes
     // seconds to open while indexing. Cap the lanes at half the cores so the UI always keeps
-    // headroom, with 8 as the ceiling for high-core machines.
+    // headroom, with 4 as the ceiling for high-core machines.
     internal static int GetExtractorParallelism(int processorCount) =>
-        Math.Clamp(processorCount - 2, 1, 8);
+        Math.Clamp(processorCount / 2, 1, 4);
 
     public ContentIndexScheduler(ContentSearchDatabase database)
     {
