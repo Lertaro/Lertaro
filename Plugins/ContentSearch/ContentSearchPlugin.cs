@@ -78,7 +78,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                 LabelKey = "ContentSearch_Config_ExtensionsLabel",
                 DescriptionKey = "ContentSearch_Config_ExtensionsDesc",
                 FieldType = ConfigFieldType.Text,
-                DefaultValue = "txt,md,pdf,docx,pptx,xlsx,csv"
+                DefaultValue = "txt,md,pdf,docx,docm,pptx,pptm,xlsx,xlsm,csv"
             }
         },
         OnSave = () =>
