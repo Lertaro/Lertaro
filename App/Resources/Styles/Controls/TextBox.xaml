@@ -14,6 +14,9 @@
         <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
         <Setter Property="SelectionBrush" Value="{DynamicResource AccentColor}"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <!-- Single-line editors should center their content by default; multiline variants explicitly
+             override this to Top where their larger editing surface needs it. -->
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
