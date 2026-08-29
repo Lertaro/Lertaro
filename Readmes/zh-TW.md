@@ -38,7 +38,7 @@ Lertaro 是一款基於 **.NET 10 (WPF)** 打造的超輕量、極速、高度�
 
 ## 從原始碼建構
 
-環境要求：Windows 10/11、.NET 10 SDK、Visual Studio 2022 或 JetBrains Rider；如需產生安裝套件還需要 [Inno Setup](https://jrsoftware.org/isinfo.php)。
+環境要求：Windows 10/11、.NET 10 SDK、Visual Studio 2022 或 JetBrains Rider；如需產生安裝套件還需要 [64 位元 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)。
 
 - `build_and_run.bat` —— 重新編譯 App/Core/Service/外掛並在本機重新啟動，適合日常開發除錯。
 - `make.bat` —— 產生 Release 建構，產出 `dist/` 目錄下的 x64 與 ARM64 安裝套件及便攜包。

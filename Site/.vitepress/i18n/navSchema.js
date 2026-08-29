@@ -24,6 +24,7 @@ export const navSchema = [
           { id: 'ugSettingsHotkeysPage', slug: 'user-guide/settings/hotkeys-page' },
           { id: 'ugSettingsFavorites', slug: 'user-guide/settings/favorites' },
           { id: 'ugSettingsHistory', slug: 'user-guide/settings/history' },
+          { id: 'ugSettingsQuickLaunch', slug: 'user-guide/settings/quick-launch' },
           { id: 'ugSettingsQuickPanel', slug: 'user-guide/settings/quick-panel' },
           { id: 'ugSettingsPlugins', slug: 'user-guide/settings/plugins' },
           { id: 'ugSettingsLocalSend', slug: 'user-guide/settings/localsend' },

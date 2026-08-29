@@ -38,7 +38,7 @@ Grab the latest release from the [homepage](https://lertaro.github.io/) or direc
 
 ## Building from Source
 
-Requirements: Windows 10/11, .NET 10 SDK, Visual Studio 2022 or JetBrains Rider, and [Inno Setup](https://jrsoftware.org/isinfo.php) if you want to build the installer.
+Requirements: Windows 10/11, .NET 10 SDK, Visual Studio 2022 or JetBrains Rider, and the [64-bit edition of Inno Setup 7](https://jrsoftware.org/isdl.php#v7) if you want to build the installer.
 
 - `build_and_run.bat` — rebuilds App/Core/Service/plugins and relaunches everything locally.
 - `make.bat` — produces Release builds for both x64 and ARM64 in `dist/`.

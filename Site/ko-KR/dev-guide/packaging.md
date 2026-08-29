@@ -62,3 +62,12 @@ Lertaro/
 ```
 
 이 정보는 **설정 → 플러그인**의 관리 카드에 자동으로 표시됩니다.
+
+## 5. 릴리스 빌드 및 아키텍처별 산출물
+
+Windows에서 저장소 루트의 `make.bat`을 실행하기 전에 .NET SDK와 [64비트 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)을 설치해야 합니다. 스크립트는 x64와 `win-arm64`용 게시 출력을 각각 만들고 `dist/`에 다음 파일을 생성합니다.
+
+- x64: `Lertaro-Setup.exe` 및 `Lertaro-Portable.zip`.
+- ARM64: `Lertaro-Setup-arm64.exe` 및 `Lertaro-Portable-arm64.zip`.
+
+ARM64 산출물의 애플리케이션 본체는 네이티브 ARM64입니다. ARM64 설치 프로그램은 호환 가능한 Inno Setup 부트스트래퍼를 사용하고, x64 설치 프로그램은 64비트 Inno Setup 7 셸을 사용합니다. 아키텍처별 페이로드와 파일명 접미사는 `make.bat`, `Installer/installer.iss`, 릴리스 워크플로에서 일치하게 유지해야 합니다.

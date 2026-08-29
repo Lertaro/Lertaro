@@ -4,7 +4,7 @@ Welcome to Lertaro! Lertaro is an ultra-fast file search launcher and productivi
 
 ## 1. Download & Installation
 
-You can get the latest release from the official homepage. Each release provides two execution formats, compiled natively for both **x64** and **ARM64**:
+You can get the latest release from the official homepage. Each release provides installer and portable artifacts for native **x64** and **ARM64** application builds:
 
 ### Installer (`Lertaro-Setup.exe`, Recommended)
 

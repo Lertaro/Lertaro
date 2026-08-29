@@ -38,7 +38,7 @@ Lertaro는 **.NET 10 (WPF)** 기반으로 제작된 초경량, 고성능, 확장
 
 ## 소스코드에서 빌드하기
 
-요구 사양: Windows 10/11, .NET 10 SDK, Visual Studio 2022 또는 JetBrains Rider. 인스톨러를 제작하려면 [Inno Setup](https://jrsoftware.org/isinfo.php)도 필요합니다.
+요구 사양: Windows 10/11, .NET 10 SDK, Visual Studio 2022 또는 JetBrains Rider. 인스톨러를 제작하려면 [64비트 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)도 필요합니다.
 
 - `build_and_run.bat` —— App/Core/Service/플러그인을 다시 빌드하고 로컬에서 즉시 재실행합니다.
 - `make.bat` —— `dist/` 폴더에 x64 및 ARM64용 Release 인스톨러와 포터블 빌드를 생성합니다.

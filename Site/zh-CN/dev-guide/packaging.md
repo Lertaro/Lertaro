@@ -62,3 +62,12 @@ JSON 文件组织建议遵循 `Resources/Translations/{CultureName}/{TypeName}.j
 ```
 
 该版本号与描述信息会自动呈现在 Lertaro **设置 → 插件** 的管理卡片中，方便用户和开发者直观核验组件版本。
+
+## 5. Release 构建与架构产物
+
+在 Windows 上从仓库根目录运行 `make.bat` 前，需要安装 .NET SDK 和[64 位 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)。脚本会分别为 x64 和 `win-arm64` 创建发布目录，并在 `dist/` 中生成以下文件：
+
+- x64：`Lertaro-Setup.exe` 与 `Lertaro-Portable.zip`。
+- ARM64：`Lertaro-Setup-arm64.exe` 与 `Lertaro-Portable-arm64.zip`。
+
+ARM64 产物中的应用程序本体是原生 ARM64。ARM64 安装包使用兼容性的 Inno Setup 引导程序，x64 安装包则使用 64 位 Inno Setup 7 壳程序。请确保架构对应的应用程序载荷和文件名后缀在 `make.bat`、`Installer/installer.iss` 与发布工作流中保持一致。

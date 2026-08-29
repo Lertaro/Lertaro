@@ -4,7 +4,7 @@
 
 ## 1. Descarga e instalación
 
-Puedes obtener la última versión en la página principal oficial. Cada versión publicada se distribuye en dos formatos ejecutables, compilados de forma nativa tanto para **x64** como para **ARM64**:
+Puedes obtener la última versión en la página principal oficial. Cada versión publicada ofrece instalador y paquete portable para aplicaciones compiladas de forma nativa tanto para **x64** como para **ARM64**:
 
 ### Paquete de instalación (`Lertaro-Setup.exe`, recomendado)
 

@@ -22,6 +22,7 @@ The sidebar contains the following core sections:
 | **[LocalSend](./localsend)** | Wireless local network transfer protocol configuration (device name, port, PIN code, and auto-save options). |
 | **[Favorites](./favorites)** | Starred folders, files, and URLs with drag-and-drop ordering and quick alias recall. |
 | **[History](./history)** | Search result recall history, keyword query history, and cleanup tools. |
+| **[Quick Launch](./quick-launch)** | Manage manual quick-launch items and choose which dynamic data sources appear in the empty Quick Search Window. |
 | **[Quick Panel](./quick-panel)** | Floating docked workspaces, folder source aggregations, drag-and-drop file ingestion, and plugin dynamic tabs. |
 | **[Appearance & Themes](./appearance)** | Light / Dark / Follow System mode toggle and real-time visual thumbnail cards for built-in and curated themes. |
 | **[About & Updates](./about)** | Component version breakdown, user/machine data directory paths, backup rotation mechanisms, and in-place silent updates. |

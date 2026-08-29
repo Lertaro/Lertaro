@@ -62,3 +62,12 @@ Lertaro/
 ```
 
 これらの情報は **設定 → プラグイン** の管理カードに自動的に表示されます。
+
+## 5. リリースビルドとアーキテクチャ別成果物
+
+Windows でリポジトリのルートから `make.bat` を実行する前に、.NET SDK と[64 ビット版 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)をインストールしてください。スクリプトは x64 と `win-arm64` の公開用出力を分けて作成し、`dist/` に次のファイルを生成します。
+
+- x64：`Lertaro-Setup.exe` と `Lertaro-Portable.zip`。
+- ARM64：`Lertaro-Setup-arm64.exe` と `Lertaro-Portable-arm64.zip`。
+
+ARM64 成果物に含まれるアプリケーション本体はネイティブ ARM64 です。ARM64 インストーラーは互換性のある Inno Setup ブートストラッパーを使用し、x64 インストーラーは 64 ビット版 Inno Setup 7 のシェルを使用します。アーキテクチャ別のペイロードとファイル名サフィックスは、`make.bat`、`Installer/installer.iss`、リリースワークフローで一致させてください。

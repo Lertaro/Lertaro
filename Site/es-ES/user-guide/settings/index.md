@@ -22,6 +22,7 @@ La barra lateral izquierda contiene las siguientes diez secciones principales:
 | **[LocalSend](./localsend)** | Configuración del protocolo de transferencia inalámbrica compatible con LocalSend (nombre de dispositivo, puerto, PIN y autoguardado). |
 | **[Favoritos](./favorites)** | Accesos directos con estrella a carpetas, archivos y URLs con ordenación por arrastre y búsqueda rápida por alias. |
 | **[Historial](./history)** | Gestión de resultados abiertos y términos de búsqueda consultados, reapertura inteligente y limpieza. |
+| **[Inicio rápido](./quick-launch)** | Gestiona accesos directos manuales y elige las fuentes de datos dinámicas que aparecen cuando la ventana de búsqueda rápida está vacía. |
 | **[Panel rápido](./quick-panel)** | Espacios de trabajo flotantes acoplados, agregación de carpetas de múltiples orígenes, recepción de archivos y pestañas de plugins. |
 | **[Apariencia y temas](./appearance)** | Selector de modo Claro / Oscuro / Seguir al sistema y tarjetas con vista previa en miniatura de temas integrados y seleccionados. |
 | **[Acerca de y actualizaciones](./about)** | Versiones de componentes, rutas a directorios de datos de usuario y equipo, rotación de copias de seguridad y actualización silenciosa. |

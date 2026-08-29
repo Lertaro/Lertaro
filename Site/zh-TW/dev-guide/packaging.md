@@ -62,3 +62,12 @@ JSON 檔案組織建議遵循 `Resources/Translations/{CultureName}/{TypeName}.j
 ```
 
 該版本號與描述資訊會自動呈現在 Lertaro **設定 → 外掛模組** 的管理卡片中，方便使用者和開發者直觀核驗元件版本。
+
+## 5. Release 建置與架構產物
+
+在 Windows 上從儲存庫根目錄執行 `make.bat` 前，需要安裝 .NET SDK 和 [64 位元 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)。指令碼會分別為 x64 和 `win-arm64` 建立發行目錄，並在 `dist/` 中產生以下檔案：
+
+- x64：`Lertaro-Setup.exe` 與 `Lertaro-Portable.zip`。
+- ARM64：`Lertaro-Setup-arm64.exe` 與 `Lertaro-Portable-arm64.zip`。
+
+ARM64 產物中的應用程式本體是原生 ARM64。ARM64 安裝包使用相容的 Inno Setup 引導程式，x64 安裝包則使用 64 位元 Inno Setup 7 外殼程式。請確保架構對應的應用程式載荷和檔名後綴在 `make.bat`、`Installer/installer.iss` 與發行工作流程中保持一致。

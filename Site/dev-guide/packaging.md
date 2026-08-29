@@ -62,3 +62,12 @@ Define assembly version numbers and descriptions inside your `.csproj`:
 ```
 
 This version and description string will be presented automatically inside the **Settings → Plugins** card.
+
+## 5. Release Build & Architecture Artifacts
+
+Run `make.bat` from the repository root on Windows with the .NET SDK and the [64-bit edition of Inno Setup 7](https://jrsoftware.org/isdl.php#v7) installed. The script creates separate publish outputs for x64 and `win-arm64`, then produces these files in `dist/`:
+
+- `Lertaro-Setup.exe` and `Lertaro-Portable.zip` for x64.
+- `Lertaro-Setup-arm64.exe` and `Lertaro-Portable-arm64.zip` for ARM64.
+
+The application payload in the ARM64 artifacts is native ARM64. The ARM64 installer uses a compatibility Inno Setup bootstrapper, while the x64 installer uses a 64-bit Inno Setup 7 shell. Keep the architecture-specific payload and artifact suffixes aligned with `make.bat`, `Installer/installer.iss`, and the release workflow.
