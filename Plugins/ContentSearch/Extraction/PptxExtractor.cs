@@ -5,7 +5,9 @@ using System.Xml.Linq;
 namespace Lertaro.Plugins.ContentSearch.Extraction;
 
 /// <summary>
-/// Extracts readable slide text from PowerPoint (.pptx) presentations using built-in ZipArchive and DrawingML parsing.
+/// Extracts searchable slide text from PowerPoint (.pptx) presentations using built-in ZipArchive and
+/// DrawingML parsing. Covers speaker notes slides in addition to the slides themselves, mirroring
+/// dnGrep's PowerPointReader; notes live in separate zip entries that a slides-only read misses.
 /// </summary>
 public sealed class PptxExtractor : ITextExtractor
 {
@@ -32,43 +34,7 @@ public sealed class PptxExtractor : ITextExtractor
                 timeoutCts.Token.ThrowIfCancellationRequested();
                 using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read, leaveOpen: false);
-
-                var builder = new StringBuilder();
-
-                var slideEntries = archive.Entries
-                    .Where(e => e.FullName.StartsWith("ppt/slides/slide", StringComparison.OrdinalIgnoreCase) &&
-                                e.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(e => e.FullName, StringComparer.OrdinalIgnoreCase);
-
-                foreach (var entry in slideEntries)
-                {
-                    timeoutCts.Token.ThrowIfCancellationRequested();
-                    using var slideStream = entry.Open();
-                    var xDoc = XDocument.Load(slideStream);
-                    if (xDoc.Root == null) continue;
-
-                    foreach (var paragraph in xDoc.Descendants(DrawingNs + "p"))
-                    {
-                        var pText = new StringBuilder();
-                        foreach (var textElem in paragraph.Descendants(DrawingNs + "t"))
-                        {
-                            pText.Append(textElem.Value);
-                        }
-
-                        if (pText.Length > 0)
-                        {
-                            builder.AppendLine(pText.ToString());
-                        }
-
-                        if (builder.Length >= MaxExtractedCharacters)
-                            break;
-                    }
-
-                    if (builder.Length >= MaxExtractedCharacters)
-                        break;
-                }
-
-                return builder.Length > 0 ? builder.ToString() : null;
+                return ExtractPresentationText(archive, timeoutCts.Token);
             }, timeoutCts.Token);
         }
         catch
@@ -76,4 +42,71 @@ public sealed class PptxExtractor : ITextExtractor
             return null;
         }
     }
+
+    private static string? ExtractPresentationText(ZipArchive archive, CancellationToken ct)
+    {
+        var builder = new StringBuilder();
+
+        foreach (var entry in SlidesOrNotes(archive, "ppt/slides/slide"))
+        {
+            ct.ThrowIfCancellationRequested();
+            AppendSlideText(entry, builder, ct, skipSlideNumberFields: false);
+            if (builder.Length >= MaxExtractedCharacters)
+                return builder.ToString();
+        }
+
+        foreach (var entry in SlidesOrNotes(archive, "ppt/notesSlides/notesSlide"))
+        {
+            ct.ThrowIfCancellationRequested();
+            AppendSlideText(entry, builder, ct, skipSlideNumberFields: true);
+            if (builder.Length >= MaxExtractedCharacters)
+                return builder.ToString();
+        }
+
+        return builder.Length > 0 ? builder.ToString() : null;
+    }
+
+    private static IEnumerable<ZipArchiveEntry> SlidesOrNotes(ZipArchive archive, string entryNamePrefix) =>
+        archive.Entries
+            .Where(e => e.FullName.StartsWith(entryNamePrefix, StringComparison.OrdinalIgnoreCase) &&
+                        e.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(e => e.FullName, StringComparer.OrdinalIgnoreCase);
+
+    private static void AppendSlideText(ZipArchiveEntry entry, StringBuilder builder, CancellationToken ct, bool skipSlideNumberFields)
+    {
+        using var slideStream = entry.Open();
+        var xDoc = XDocument.Load(slideStream);
+        if (xDoc.Root == null) return;
+
+        foreach (var paragraph in xDoc.Descendants(DrawingNs + "p"))
+        {
+            ct.ThrowIfCancellationRequested();
+            var text = new StringBuilder();
+            foreach (var node in paragraph.Descendants())
+            {
+                if (node.Name == DrawingNs + "t")
+                {
+                    // Notes slides repeat the slide number field on every page; indexing it
+                    // would pollute the full-text index with meaningless page counters.
+                    if (skipSlideNumberFields && IsSlideNumberField(node))
+                        continue;
+                    text.Append(node.Value);
+                }
+                else if (node.Name == DrawingNs + "br")
+                {
+                    text.Append(' ');
+                }
+            }
+
+            if (text.Length > 0)
+                builder.AppendLine(text.ToString());
+
+            if (builder.Length >= MaxExtractedCharacters)
+                return;
+        }
+    }
+
+    private static bool IsSlideNumberField(XElement textElement) =>
+        textElement.Ancestors(DrawingNs + "fld")
+            .Any(fld => (string?)fld.Attribute("type") == "slidenum");
 }
