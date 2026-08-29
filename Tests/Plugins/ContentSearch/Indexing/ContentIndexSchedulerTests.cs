@@ -62,6 +62,34 @@ public sealed class ContentIndexSchedulerTests
     }
 
     [TestMethod]
+    public void NormalizeFolderPath_ShellVirtualPath_ResolvesToPhysicalFolder()
+    {
+        var resolved = ContentIndexScheduler.NormalizeFolderPath("shell:Personal");
+
+        var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        Assert.IsFalse(string.IsNullOrEmpty(documents));
+        Assert.AreEqual(
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(documents)),
+            resolved,
+            ignoreCase: true);
+    }
+
+    [TestMethod]
+    public void IsFileInMonitoredFolders_ShellVirtualPathEntry_MatchesPhysicalFiles()
+    {
+        using var scheduler = new ContentIndexScheduler(_database);
+        var config = new ContentIndexConfig
+        {
+            MonitoredFolders = new List<string> { "shell:Personal" }
+        };
+        scheduler.UpdateConfig(config);
+
+        var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        Assert.IsTrue(scheduler.IsFileInMonitoredFolders(Path.Combine(documents, "note.txt")));
+        Assert.IsFalse(scheduler.IsFileInMonitoredFolders(@"C:\OtherFolder\file.txt"));
+    }
+
+    [TestMethod]
     public void TriggerFullScan_DisallowedExtensions_PrunedFromDatabaseImmediately()
     {
         _database.InsertOrUpdateFile(@"C:\MyDocs\doc1.pdf", DateTime.UtcNow, 1024, "PDF text");
