@@ -6,6 +6,21 @@ namespace Lertaro.Core.Tests.Settings;
 [TestClass]
 public sealed class MachineSettingsTests
 {
+    private string _dir = string.Empty;
+
+    [TestInitialize]
+    public void SetUp()
+    {
+        _dir = Path.Combine(Path.GetTempPath(), "LertaroMachineSettingsTests_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_dir);
+    }
+
+    [TestCleanup]
+    public void TearDown()
+    {
+        try { Directory.Delete(_dir, recursive: true); } catch { }
+    }
+
     private static LogLevel Resolve(string? value) => new MachineSettings { ServiceLogLevel = value! }.ResolveServiceLogLevel();
 
     [TestMethod]
@@ -85,5 +100,52 @@ public sealed class MachineSettingsTests
 
         CollectionAssert.AreEqual(new[] { "volume-d" }, settings.LocalDrives);
         Assert.IsTrue(settings.LocalDriveSelectionConfigured);
+    }
+
+    // TryLoadFromFile takes an explicit path, so it can be exercised against an isolated temp
+    // directory. Save() itself is NOT tested: it targets the real static %ProgramData% path.
+    [TestMethod]
+    public void TryLoadFromFile_ValidJson_ReturnsSettings()
+    {
+        var path = Path.Combine(_dir, "machine-settings.json");
+        File.WriteAllText(path, """{"LocalDrives":["volume-c"],"LocalDriveSelectionConfigured":true}""");
+
+        var settings = MachineSettings.TryLoadFromFile(path);
+
+        Assert.IsNotNull(settings);
+        CollectionAssert.AreEqual(new[] { "volume-c" }, settings.LocalDrives);
+        Assert.IsTrue(settings.LocalDriveSelectionConfigured);
+    }
+
+    [TestMethod]
+    public void TryLoadFromFile_CorruptJson_ReturnsNull()
+    {
+        var path = Path.Combine(_dir, "machine-settings.json");
+        File.WriteAllText(path, "{ truncated");
+
+        Assert.IsNull(MachineSettings.TryLoadFromFile(path));
+    }
+
+    [TestMethod]
+    public void TryLoadFromFile_MissingFile_ReturnsNull() => Assert.IsNull(MachineSettings.TryLoadFromFile(Path.Combine(_dir, "machine-settings.json")));
+
+    [TestMethod]
+    public void TryLoadFromFile_LockedFile_ReturnsNullInsteadOfThrowing()
+    {
+        var path = Path.Combine(_dir, "machine-settings.json");
+        File.WriteAllText(path, """{"LocalDrives":["volume-c"]}""");
+
+        // The retry budget (~150ms) must be exhausted before the load gives up with null rather
+        // than propagating the sharing violation.
+        FileStream? lockStream = null;
+        try
+        {
+            lockStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+            Assert.IsNull(MachineSettings.TryLoadFromFile(path));
+        }
+        finally
+        {
+            lockStream?.Dispose();
+        }
     }
 }

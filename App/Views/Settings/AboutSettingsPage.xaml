@@ -93,6 +93,26 @@
                 </StackPanel>
             </Border>
 
+            <!-- Config Management Section -->
+            <TextBlock Style="{StaticResource SettingsSectionTitle}"
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_ConfigSection]}"
+                       Margin="0,20,0,0"/>
+            <Border Style="{StaticResource SettingsCard}">
+                <StackPanel>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_ConfigHint]}"
+                               Foreground="{DynamicResource TextSecondary2}"
+                               TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_ExportConfig]}"
+                                Style="{StaticResource SettingsButton}" Click="BtnExportConfig_Click" MinWidth="130"/>
+                        <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_ImportConfig]}"
+                                Style="{StaticResource SettingsButton}" Click="BtnImportConfig_Click" MinWidth="130" Margin="12,0,0,0"/>
+                        <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_RestoreConfig]}"
+                                Style="{StaticResource SettingsButton}" Click="BtnRestoreConfig_Click" MinWidth="130" Margin="12,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <!-- Update Section -->
             <TextBlock Style="{StaticResource SettingsSectionTitle}" 
                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_CheckUpdate]}"

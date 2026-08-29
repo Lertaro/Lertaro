@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace Lertaro.Core;
 
 /// <summary>
@@ -9,7 +7,6 @@ namespace Lertaro.Core;
 internal static class SettingsDataDirectoryMigrator
 {
     private const string LegacyProductName = "SwiftList";
-    private const string ProductName = "Lertaro";
 
     public static void Migrate(string currentDirectory, bool updateUserSettings)
     {
@@ -29,7 +26,7 @@ internal static class SettingsDataDirectoryMigrator
                 MergeDirectory(legacyDirectory, currentDirectory);
 
             if (updateUserSettings)
-                UpdateUserSettings(currentDirectory);
+                UpdateUserSettings(currentDirectory, legacyDirectory);
         }
         catch
         {
@@ -72,15 +69,22 @@ internal static class SettingsDataDirectoryMigrator
         }
     }
 
-    private static void UpdateUserSettings(string directory)
+    private static void UpdateUserSettings(string directory, string legacyDirectory)
     {
         var settingsPath = Path.Combine(directory, "user-settings.json");
         if (!File.Exists(settingsPath))
             return;
 
         var json = File.ReadAllText(settingsPath);
-        var updatedJson = json.Replace(LegacyProductName, ProductName, StringComparison.Ordinal);
+        // Rewrite only the legacy data-directory path, in its raw and JSON string-escaped backslash
+        // forms, instead of the bare product name: a blind word replace corrupts legitimate user
+        // strings that merely contain "SwiftList" (favorite names, plugin titles, ...). ponytail:
+        // forward-slash or \u005c escape variants of the legacy path are not rewritten -- the app only
+        // ever wrote backslash paths, so nothing in a settings file it produced needs them.
+        var updatedJson = json
+            .Replace(legacyDirectory.Replace("\\", "\\\\"), directory.Replace("\\", "\\\\"), StringComparison.Ordinal)
+            .Replace(legacyDirectory, directory, StringComparison.Ordinal);
         if (updatedJson != json)
-            File.WriteAllText(settingsPath, updatedJson, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            AtomicFileStore.Write(settingsPath, updatedJson);
     }
 }

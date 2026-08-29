@@ -80,12 +80,6 @@ public class SearchService : IDisposable
         SearchContext.FuzzyMatchEnabled = !msg.ExactMatch;
 
         var parsed = SearchQueryParser.Parse(query);
-        string? queryExemptRoot = null;
-        if (parsed.IsPathMode && !string.IsNullOrEmpty(parsed.ExactPathLower))
-        {
-            var resolved = LiveDirectorySearcher.ResolvePathModeSearch(parsed.ExactPathLower);
-            queryExemptRoot = !string.IsNullOrEmpty(resolved.DirectoryToScan) ? resolved.DirectoryToScan : parsed.ExactPathLower;
-        }
         // A path-mode query ("C:\Windows\...") is the user typing an exact location they want to look at,
         // same as ExplorerSearchHelper's "current folder" search always passing bypassExclusions: true for
         // the directory the user is actually standing in -- global exclusion settings have no business
@@ -115,7 +109,7 @@ public class SearchService : IDisposable
             {
                 await SearchPipeClient.SendSearchPipeCommandAsync(msg, result =>
                 {
-                    if (effectiveBypassExclusions || !exclusionRules.IsExcluded(result, directoryFilter) || !exclusionRules.IsExcluded(result, queryExemptRoot))
+                    if (effectiveBypassExclusions || !exclusionRules.IsExcluded(result, directoryFilter))
                         uniqueOnResult(result);
                 }, token).ConfigureAwait(false);
                 return true;

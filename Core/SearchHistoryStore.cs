@@ -24,12 +24,14 @@ public static class SearchHistoryStore
         Converters = { new JsonStringEnumConverter() }
     };
 
-    private readonly record struct StoredEntry(
+    internal readonly record struct StoredEntry(
         [property: JsonPropertyName("path")] string Path,
         [property: JsonPropertyName("type")] HistoryEntryKind Kind,
         [property: JsonPropertyName("time")] long Time);
 
     public static string HistoryPath => Path.Combine(Logger.UserDataDir, "search-history.json");
+
+    private static string BackupPath => HistoryPath + ".bak";
 
     /// <param name="keyword">The search box text at the time this was opened. Nothing is recorded if
     /// this is empty -- opening something directly from a Startup Panel tab (no query typed) isn't
@@ -171,16 +173,33 @@ public static class SearchHistoryStore
         _priorityCache = BuildPriorityCache(_buckets);
     }
 
-    private static Dictionary<string, List<StoredEntry>> LoadNoLock()
+    private static Dictionary<string, List<StoredEntry>> LoadNoLock() => LoadFromFiles(HistoryPath, BackupPath);
+
+    internal static Dictionary<string, List<StoredEntry>> LoadFromFiles(string mainPath, string backupPath)
     {
-        if (!File.Exists(HistoryPath))
+        // A missing main file is a fresh store: backups must not resurrect history after the file was
+        // deliberately deleted. An existing file that cannot be read or parsed falls back to the
+        // backup the atomic writer left behind, because an empty store would let the next save wipe
+        // the user's history permanently.
+        if (!File.Exists(mainPath))
             return new Dictionary<string, List<StoredEntry>>(StringComparer.OrdinalIgnoreCase);
+
+        return TryLoadFile(mainPath)
+            ?? TryLoadFile(backupPath)
+            ?? new Dictionary<string, List<StoredEntry>>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Parses one history file into re-derived buckets; null when it cannot be read or parsed.</summary>
+    internal static Dictionary<string, List<StoredEntry>>? TryLoadFile(string path)
+    {
+        if (!File.Exists(path))
+            return null;
 
         try
         {
-            var raw = JsonSerializer.Deserialize<Dictionary<string, List<StoredEntry>>>(File.ReadAllText(HistoryPath), JsonOptions);
+            var raw = JsonSerializer.Deserialize<Dictionary<string, List<StoredEntry>>>(File.ReadAllText(path), JsonOptions);
             if (raw == null)
-                return new Dictionary<string, List<StoredEntry>>(StringComparer.OrdinalIgnoreCase);
+                return null;
 
             // Re-derive through the same one-path-one-keyword + per-keyword-cap rule RecordCore/
             // SaveEntries enforce -- retroactively fixes up a file that predates this rule (or was
@@ -191,8 +210,8 @@ public static class SearchHistoryStore
         }
         catch (Exception ex)
         {
-            Logger.Log($"[SearchHistoryStore] Failed to read history: {ex.Message}", LogLevel.Error);
-            return new Dictionary<string, List<StoredEntry>>(StringComparer.OrdinalIgnoreCase);
+            Logger.Log($"[SearchHistoryStore] Failed to read history from '{path}': {ex.Message}", LogLevel.Error);
+            return null;
         }
     }
 
@@ -226,7 +245,7 @@ public static class SearchHistoryStore
         try
         {
             Directory.CreateDirectory(Logger.UserDataDir);
-            File.WriteAllText(HistoryPath, JsonSerializer.Serialize(_buckets, JsonOptions));
+            AtomicFileStore.Write(HistoryPath, JsonSerializer.Serialize(_buckets, JsonOptions), BackupPath);
         }
         catch (Exception ex)
         {

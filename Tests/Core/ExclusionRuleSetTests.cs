@@ -103,6 +103,34 @@ public sealed class ExclusionRuleSetTests
     }
 
     [TestMethod]
+    public void IsExcludedPath_ExemptRootUnderExcludedRoot_DoesNotLeakToResultsOutsideIt()
+    {
+        // The exemption covers only the subtree the caller pointed at -- an exempt root sitting inside
+        // an excluded one must not smuggle out sibling results that were never under it.
+        var settings = EmptySettings();
+        settings.ExcludedPaths.Add(@"c:\data");
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+
+        Assert.IsTrue(rules.IsExcludedPath(@"c:\data\other.txt", isDirectory: false, exemptRoot: @"c:\data\sub"));
+        Assert.IsFalse(rules.IsExcludedPath(@"c:\data\sub\file.txt", isDirectory: false, exemptRoot: @"c:\data\sub"));
+    }
+
+    [TestMethod]
+    public void IsExcludedPath_ExemptAncestorOfExcludedRoot_ReincludesOnlyTheRootRow()
+    {
+        // An exempt ancestor re-includes the excluded root's own row -- that row is the location the
+        // caller pointed at, not "content under the excluded root" -- while everything still under the
+        // root stays excluded.
+        var settings = EmptySettings();
+        settings.ExcludedPaths.Add(@"c:\data");
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+
+        Assert.IsFalse(rules.IsExcludedPath(@"c:\data", isDirectory: true, exemptRoot: @"c:\"));
+        Assert.IsTrue(rules.IsExcludedPath(@"c:\data\file.txt", isDirectory: false, exemptRoot: @"c:\"));
+        Assert.IsFalse(rules.IsExcludedPath(@"c:\data\other", isDirectory: true, exemptRoot: @"c:\data"));
+    }
+
+    [TestMethod]
     public void IsExcluded_UsesCanonicalIndexedPathWithoutExpandingShortNames()
     {
         var settings = EmptySettings();

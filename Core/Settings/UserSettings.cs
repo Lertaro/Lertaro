@@ -174,6 +174,8 @@ public class UserSettings
 
     public static string SettingsPath => Path.Combine(UserDataDirectory.Value, "user-settings.json");
 
+    private const int BackupCount = 5;
+
     private static UserSettings? _cachedSettings;
     private static string? _lastJsonOnDisk;
     private static readonly object _cacheLock = new();
@@ -201,38 +203,70 @@ public class UserSettings
 
     private static UserSettings LoadFromDisk()
     {
+        var json = TryReadMainJson();
+        var settings = json != null ? TryParse(json) : null;
+        if (settings != null)
+        {
+            lock (_cacheLock) { _lastJsonOnDisk = json; }
+            return settings;
+        }
+        if (json != null)
+        {
+            // Main file exists but is unreadable/corrupt (a torn write from an older build, or an external
+            // edit): fall back to the newest intact backup instead of silently resetting every setting to
+            // defaults. A missing file stays a fresh install -- backups must not resurrect after the file
+            // was deliberately deleted.
+            // ponytail: the corrupt main file is left in place until the next Save() rewrites it; the backup chain tolerates that.
+            settings = UserSettingsBackupStore.TryLoadNewest(SettingsPath, BackupCount, backupJson =>
+            {
+                var restored = TryParse(backupJson);
+                if (restored != null)
+                {
+                    lock (_cacheLock) { _lastJsonOnDisk = backupJson; }
+                }
+                return restored;
+            });
+        }
+        return settings ?? new UserSettings();
+    }
+
+    // null when the settings file does not exist; otherwise its full text with transient sharing violations retried.
+    private static string? TryReadMainJson()
+    {
+        if (!File.Exists(SettingsPath))
+            return null;
+
         var retries = 5;
-        while (retries > 0)
+        while (true)
         {
             try
             {
-                if (!File.Exists(SettingsPath))
-                    return new UserSettings();
-
                 using var stream = new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 using var reader = new StreamReader(stream);
-                var json = reader.ReadToEnd();
-                lock (_cacheLock)
-                {
-                    _lastJsonOnDisk = json;
-                }
-                var settings = JsonSerializer.Deserialize<UserSettings>(json) ?? new UserSettings();
-                NormalizeHotkeys(settings);
-                return settings;
+                return reader.ReadToEnd();
             }
             catch (IOException)
             {
-                retries--;
-                if (retries <= 0) throw;
+                if (--retries <= 0) throw;
                 Task.Delay(50).Wait();
             }
-            catch (Exception ex)
-            {
-                Logger.Log($"[UserSettings] Failed to load settings: {ex.Message}", Core.LogLevel.Warn);
-                return new UserSettings();
-            }
         }
-        return new UserSettings();
+    }
+
+    /// <summary>Parses settings JSON with hotkey normalization; null when it cannot be parsed. Pure apart from logging.</summary>
+    internal static UserSettings? TryParse(string json)
+    {
+        try
+        {
+            var settings = JsonSerializer.Deserialize<UserSettings>(json) ?? new UserSettings();
+            NormalizeHotkeys(settings);
+            return settings;
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[UserSettings] Settings file is corrupt: {ex.Message}", Core.LogLevel.Warn);
+            return null;
+        }
     }
 
     // A blank ToggleWindowHotkey leaves GlobalHotkeyDetector.CheckToggleWindowHotkey with no modifier
@@ -251,46 +285,61 @@ public class UserSettings
     {
         NormalizeHotkeys(this);
         Directory.CreateDirectory(Logger.UserDataDir);
-        var options = new JsonSerializerOptions { WriteIndented = true };
-        var json = JsonSerializer.Serialize(this, options);
 
         lock (_cacheLock)
         {
-            if (json == _lastJsonOnDisk)
-            {
-                _cachedSettings = this;
-                return;
-            }
-        }
+            // ponytail: serializing under the lock makes the JSON string an immutable point-in-time
+            // snapshot and serializes concurrent saves, but another thread can still mutate a collection
+            // on the live instance mid-serialization; a fully torn-proof save needs immutable settings models.
+            var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+            if (json == _lastJsonOnDisk) { _cachedSettings = this; return; }
 
-        RotateBackups(SettingsPath);
-
-        var retries = 5;
-        while (retries > 0)
-        {
-            try
-            {
-                using var stream = new FileStream(SettingsPath, FileMode.Create, FileAccess.Write, FileShare.Read);
-                using var writer = new StreamWriter(stream);
-                writer.Write(json);
-                break;
-            }
-            catch (IOException)
-            {
-                retries--;
-                if (retries <= 0) throw;
-                Task.Delay(50).Wait();
-            }
-        }
-
-        lock (_cacheLock)
-        {
+            RotateBackups(SettingsPath);
+            AtomicFileStore.Write(SettingsPath, json);
             _cachedSettings = this;
+            _lastJsonOnDisk = json;
+        }
+
+        ExclusionRuleSet.InvalidateCache();
+    }
+
+    internal static void RotateBackups(string filePath, int maxBackups = 5) => UserSettingsBackupStore.Rotate(filePath, maxBackups);
+
+    /// <summary>
+    /// Replaces the on-disk user settings with the content of <paramref name="sourcePath"/> -- an
+    /// exported settings JSON or one of the <c>.bak.N</c> backups -- for the About page's config
+    /// import/restore actions. The current file is rotated into the backup chain first, so a bad
+    /// restore is itself reversible. Throws <see cref="InvalidDataException"/> when the source does
+    /// not parse as <see cref="UserSettings"/>; IO exceptions bubble to the caller.
+    /// </summary>
+    public static void RestoreFrom(string sourcePath)
+    {
+        lock (_cacheLock)
+        {
+            var restored = WriteRestored(sourcePath, SettingsPath, BackupCount, out var json);
+            _cachedSettings = restored;
             _lastJsonOnDisk = json;
         }
         ExclusionRuleSet.InvalidateCache();
     }
 
-    internal static void RotateBackups(string filePath, int maxBackups = 5) => UserSettingsBackupStore.Rotate(filePath, maxBackups);
+    /// <summary>
+    /// Disk half of <see cref="RestoreFrom"/>, path-parameterized so tests can exercise it against a
+    /// temp directory without touching the static settings cache: validates the source, rotates the
+    /// current main file into the backup chain, then atomically replaces it. Returns the parsed
+    /// settings and the exact JSON text written.
+    /// </summary>
+    internal static UserSettings WriteRestored(string sourcePath, string settingsPath, int backupCount, out string json)
+    {
+        json = File.ReadAllText(sourcePath);
+        var restored = TryParse(json)
+            ?? throw new InvalidDataException($"The file is not a valid user settings file: {sourcePath}");
+        RotateBackups(settingsPath, backupCount);
+        // The source text is written verbatim; the parsed instance only feeds the in-memory cache.
+        // ponytail: hotkey normalization already ran on that instance at parse time and re-runs on
+        // every future load, so an unnormalized value on disk self-heals and raw text is safe.
+        AtomicFileStore.Write(settingsPath, json);
+        return restored;
+    }
 }
 
