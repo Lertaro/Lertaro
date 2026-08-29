@@ -32,17 +32,34 @@ public sealed class PdfExtractor : ITextExtractor
                 using var document = PdfDocument.Open(fileStream);
 
                 var builder = new StringBuilder();
-                var pageCount = 0;
-
-                foreach (var page in document.GetPages())
+                for (var pageNumber = 1; pageNumber <= document.NumberOfPages; pageNumber++)
                 {
                     timeoutCts.Token.ThrowIfCancellationRequested();
-                    if (!string.IsNullOrWhiteSpace(page.Text))
+
+                    // Some PDFs draw glyphs on a slightly rotated text matrix (e.g. 4 degrees);
+                    // PdfPig 0.1.9 throws from Letter.GetTextOrientationRot while processing such
+                    // a page. One bad page must not void the whole document, so isolate each page
+                    // and skip the ones that fail to process.
+                    string? pageText;
+                    try
                     {
-                        builder.AppendLine(page.Text);
+                        pageText = document.GetPage(pageNumber).Text;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch
+                    {
+                        continue;
                     }
 
-                    if (++pageCount >= MaxPagesToExtract || builder.Length >= MaxExtractedCharacters)
+                    if (!string.IsNullOrWhiteSpace(pageText))
+                    {
+                        builder.AppendLine(pageText);
+                    }
+
+                    if (pageNumber >= MaxPagesToExtract || builder.Length >= MaxExtractedCharacters)
                         break;
                 }
 
