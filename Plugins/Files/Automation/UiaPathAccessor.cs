@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Collections.Concurrent;
 using System.Windows.Automation;
 
@@ -33,6 +34,10 @@ internal static class UiaPathAccessor
     // thread is running an IInlineSearchAdapter call -- each ExecuteItem/etc. gets its own dedicated STA
     // thread (see InlineAdapterCommandHandler.RunOnSta), so a read here can genuinely race a write.
     private static readonly ConcurrentDictionary<IntPtr, AutomationElement> _focusAnchors = new();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindow(IntPtr hWnd);
 
     /// <summary>
     /// Snapshots the currently-focused UI element for later use, while Files (hwnd) still plausibly holds
@@ -120,6 +125,17 @@ internal static class UiaPathAccessor
 
             if (_focusAnchors.TryGetValue(hwnd, out var anchor))
             {
+                if (!IsWindow(hwnd))
+                {
+                    _focusAnchors.TryRemove(hwnd, out _);
+                    anchor = null;
+                }
+
+                if (anchor == null)
+                {
+                    return root.FindFirst(TreeScope.Descendants, condition);
+                }
+
                 var walker = TreeWalker.RawViewWalker;
                 var node = anchor;
                 for (var depth = 0; depth < 25 && node != null; depth++)
