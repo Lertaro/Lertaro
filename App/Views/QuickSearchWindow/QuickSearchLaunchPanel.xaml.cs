@@ -59,6 +59,21 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
         e.Handled = true;
     }
 
+    // A nested item control can mark MouseWheel handled before the outer viewer receives it. Handle the
+    // event at the launch-items viewer itself so icons, buttons, and the name viewport all scroll the
+    // panel consistently, matching QuickPanel's forwarding behavior.
+    private void LaunchItemsScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0
+            || sender is not System.Windows.Controls.ScrollViewer scrollViewer
+            || scrollViewer.ScrollableHeight <= 0)
+            return;
+
+        if (e.Delta > 0) scrollViewer.LineUp();
+        else scrollViewer.LineDown();
+        e.Handled = true;
+    }
+
     private void SourceButton_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
     {
         if (sender is not System.Windows.Controls.Button button)

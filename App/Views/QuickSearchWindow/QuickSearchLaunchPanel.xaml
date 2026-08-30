@@ -52,9 +52,10 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto"
+            <ScrollViewer x:Name="LaunchItemsScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
-                          Padding="12,4,12,8">
+                          Padding="12,4,12,8"
+                          PreviewMouseWheel="LaunchItemsScrollViewer_PreviewMouseWheel">
             <ItemsControl ItemsSource="{Binding LaunchPanelItems}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
