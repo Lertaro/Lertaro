@@ -37,16 +37,40 @@ internal static class FavoritesIcon
 
     public static IntPtr GetRootHBitmap()
     {
+        var fresh = Render(StarPath, viewBoxSize: 24);
         if (_rootCached != IntPtr.Zero) DeleteObject(_rootCached);
-        _rootCached = Render(StarPath, viewBoxSize: 24);
+        _rootCached = fresh;
         return _rootCached;
     }
 
     public static IntPtr GetMenuGroupHBitmap()
     {
+        var fresh = Render(MenuGroupPath, viewBoxSize: 24);
         if (_menuGroupCached != IntPtr.Zero) DeleteObject(_menuGroupCached);
-        _menuGroupCached = Render(MenuGroupPath, viewBoxSize: 24);
+        _menuGroupCached = fresh;
         return _menuGroupCached;
+    }
+
+    private static IntPtr RunOnSta(Func<IntPtr> render)
+    {
+        using var done = new ManualResetEventSlim(false);
+        Exception? error = null;
+        var result = IntPtr.Zero;
+        var thread = new Thread(() =>
+        {
+            try { result = render(); }
+            catch (Exception ex) { error = ex; }
+            finally { done.Set(); }
+        })
+        {
+            IsBackground = true,
+            Name = "FavoritesIconSta"
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        done.Wait();
+        if (error != null) throw error;
+        return result;
     }
 
     private static Brush AccentBrush() =>
@@ -56,6 +80,17 @@ internal static class FavoritesIcon
     // Re-rendered on every call (cheap, one 64x64 bitmap) so it tracks the current theme's accent color;
     // the previous handle is freed first to avoid leaking a GDI object per popup.
     private static IntPtr Render(string pathData, double viewBoxSize)
+    {
+        Func<IntPtr> render = () => RenderCore(pathData, viewBoxSize);
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null && dispatcher.CheckAccess())
+            return render();
+        if (dispatcher != null)
+            return dispatcher.Invoke(render);
+        return RunOnSta(render);
+    }
+
+    private static IntPtr RenderCore(string pathData, double viewBoxSize)
     {
         var geometry = Geometry.Parse(pathData);
         var scale = 64.0 / viewBoxSize;

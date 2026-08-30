@@ -25,32 +25,31 @@ public static class IconBitmapCache
         {
             try
             {
-                if (FavoritesHBitmap != IntPtr.Zero)
-                {
-                    DeleteObject(FavoritesHBitmap);
-                }
-                if (HistoryHBitmap != IntPtr.Zero)
-                {
-                    DeleteObject(HistoryHBitmap);
-                }
-                if (OpenedFoldersHBitmap != IntPtr.Zero)
-                {
-                    DeleteObject(OpenedFoldersHBitmap);
-                }
-                if (CategoryHBitmap != IntPtr.Zero)
-                {
-                    DeleteObject(CategoryHBitmap);
-                }
-                if (AddHBitmap != IntPtr.Zero)
-                {
-                    DeleteObject(AddHBitmap);
-                }
+                // Render the new handles first, then delete the old ones, so a failed render never leaves
+                // the menu pointing at deleted GDI objects.
+                var newFavorites = CreateStarHBitmap();
+                var newHistory = CreateClockHBitmap();
+                var newOpened = CreateOpenedFoldersHBitmap();
+                var newCategory = CreateCategoryHBitmap();
+                var newAdd = CreateAddHBitmap();
 
-                FavoritesHBitmap = CreateStarHBitmap();
-                HistoryHBitmap = CreateClockHBitmap();
-                OpenedFoldersHBitmap = CreateOpenedFoldersHBitmap();
-                CategoryHBitmap = CreateCategoryHBitmap();
-                AddHBitmap = CreateAddHBitmap();
+                var oldFavorites = FavoritesHBitmap;
+                var oldHistory = HistoryHBitmap;
+                var oldOpened = OpenedFoldersHBitmap;
+                var oldCategory = CategoryHBitmap;
+                var oldAdd = AddHBitmap;
+
+                FavoritesHBitmap = newFavorites;
+                HistoryHBitmap = newHistory;
+                OpenedFoldersHBitmap = newOpened;
+                CategoryHBitmap = newCategory;
+                AddHBitmap = newAdd;
+
+                if (oldFavorites != IntPtr.Zero) DeleteObject(oldFavorites);
+                if (oldHistory != IntPtr.Zero) DeleteObject(oldHistory);
+                if (oldOpened != IntPtr.Zero) DeleteObject(oldOpened);
+                if (oldCategory != IntPtr.Zero) DeleteObject(oldCategory);
+                if (oldAdd != IntPtr.Zero) DeleteObject(oldAdd);
             }
             catch (Exception ex)
             {
@@ -63,6 +62,17 @@ public static class IconBitmapCache
     // category hamburger path below is authored in a 24-unit viewBox (matching QuickNavIcon's own
     // copy of it) and needs a correspondingly smaller scale, or it renders oversized/clipped.
     private static IntPtr CreateHBitmapFromWpfPath(string pathData, System.Windows.Media.Brush? fill, System.Windows.Media.Pen? stroke, double scale = 4.0)
+    {
+        Func<IntPtr> render = () => CreateHBitmapFromWpfPathCore(pathData, fill, stroke, scale);
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher != null && dispatcher.CheckAccess())
+            return render();
+        if (dispatcher != null)
+            return dispatcher.Invoke(render);
+        return RunOnSta(render);
+    }
+
+    private static IntPtr CreateHBitmapFromWpfPathCore(string pathData, System.Windows.Media.Brush? fill, System.Windows.Media.Pen? stroke, double scale)
     {
         var geometry = System.Windows.Media.Geometry.Parse(pathData);
         var visual = new System.Windows.Media.DrawingVisual();
@@ -87,6 +97,28 @@ public static class IconBitmapCache
         bmp.UnlockBits(bmpData);
 
         return bmp.GetHbitmap();
+    }
+
+    private static IntPtr RunOnSta(Func<IntPtr> render)
+    {
+        using var done = new ManualResetEventSlim(false);
+        Exception? error = null;
+        var result = IntPtr.Zero;
+        var thread = new Thread(() =>
+        {
+            try { result = render(); }
+            catch (Exception ex) { error = ex; }
+            finally { done.Set(); }
+        })
+        {
+            IsBackground = true,
+            Name = "FolderCascaderIconSta"
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        done.Wait();
+        if (error != null) throw error;
+        return result;
     }
 
     private static IntPtr CreateStarHBitmap()
