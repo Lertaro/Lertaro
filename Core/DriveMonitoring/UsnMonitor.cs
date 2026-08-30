@@ -128,7 +128,7 @@ public class UsnMonitor
     {
         if (returnedSize > 8)
         {
-            _startUsn = BitConverter.ToInt64(outBuf, 0);
+            var nextUsn = BitConverter.ToInt64(outBuf, 0);
             var offset = 8;
             var recordsProcessed = 0;
             var records = new List<ParsedUsnRecord>();
@@ -156,8 +156,17 @@ public class UsnMonitor
                 offset += (int)recordLen;
             }
 
+            // Advance the watermark only after a successful apply. If ApplyUsnRecords throws, keep the
+            // old _startUsn so the next read replays this batch instead of dropping it forever.
             if (records.Count > 0)
+            {
                 _indexer.ApplyUsnRecords(_drive, records);
+                _startUsn = nextUsn;
+            }
+            else if (recordsProcessed == 0)
+            {
+                _startUsn = nextUsn;
+            }
 
             if (_startUsn == previousUsn)
                 await Task.Delay(1000, _token);
