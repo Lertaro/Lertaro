@@ -132,12 +132,12 @@ public sealed class ContentSearchDatabaseTests
             }
 
             var sizeBefore = db.GetDatabasePageBytes();
-            Assert.IsTrue(sizeBefore > 0, "database must report its footprint");
+            Assert.IsGreaterThan(0, sizeBefore, "database must report its footprint");
 
             db.VacuumIfBloat();
 
             var sizeAfter = db.GetDatabasePageBytes();
-            Assert.IsTrue(sizeAfter <= sizeBefore, $"vacuum must not grow the database ({sizeBefore} -> {sizeAfter})");
+            Assert.IsLessThanOrEqualTo(sizeBefore, sizeAfter, $"vacuum must not grow the database ({sizeBefore} -> {sizeAfter})");
 
             // The two surviving rows stay searchable after the vacuum.
             Assert.HasCount(2, db.SearchFts("vacuummarker", 10));
