@@ -96,9 +96,9 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid Width="18" Height="38" ClipToBounds="False">
-                                <Button x:Name="LaunchSourceButton" Width="18" Height="38"
-                                        HorizontalAlignment="Left" Panel.ZIndex="1" ClipToBounds="True"
+                            <Grid Width="32" Height="38" Margin="2,0" ClipToBounds="False">
+                                <Button x:Name="LaunchSourceButton" Width="32" Height="38"
+                                        HorizontalAlignment="Left" Panel.ZIndex="1" ClipToBounds="False"
                                         MouseEnter="SourceButton_MouseEnter" MouseLeave="SourceButton_MouseLeave"
                                         Command="{Binding DataContext.SelectLaunchSourceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                         CommandParameter="{Binding}">
@@ -114,8 +114,8 @@
                                         </Style.Triggers>
                                     </Style>
                                 </Button.Style>
-                                <Grid Width="136" Height="27" ClipToBounds="True">
-                                    <StackPanel x:Name="SourceDots" Orientation="Horizontal" HorizontalAlignment="Left" Margin="6,0,0,0" VerticalAlignment="Center" Opacity="1">
+                                <Grid Width="32" Height="27" ClipToBounds="False" IsHitTestVisible="False">
+                                    <StackPanel x:Name="SourceDots" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="1">
                                         <Ellipse Width="5" Height="5">
                                             <Ellipse.Style>
                                                 <Style TargetType="Ellipse">
@@ -129,12 +129,16 @@
                                             </Ellipse.Style>
                                         </Ellipse>
                                     </StackPanel>
-                                    <TextBlock x:Name="SourceName" Text="{Binding Name}" MaxWidth="128" Margin="6,0,0,0"
-                                               HorizontalAlignment="Left" TextAlignment="Left"
-                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Opacity="0"
-                                               Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                 </Grid>
                                 </Button>
+                                <Canvas x:Name="SourceReveal" Width="32" Height="27" Margin="0,3,0,8"
+                                        HorizontalAlignment="Left" VerticalAlignment="Top" Panel.ZIndex="2"
+                                        ClipToBounds="False" IsHitTestVisible="False">
+                                    <TextBlock x:Name="SourceName" Text="{Binding Name}" Canvas.Top="4"
+                                               Margin="6,0,0,0" TextAlignment="Left"
+                                               TextTrimming="None" Opacity="0"
+                                               Foreground="{Binding Foreground, ElementName=LaunchSourceButton}"/>
+                                </Canvas>
                             </Grid>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>

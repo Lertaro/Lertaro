@@ -14,6 +14,7 @@ namespace Lertaro.App.Views.QuickSearchWindow;
 
 public partial class QuickSearchLaunchPanel : WpfUserControl
 {
+    private const double SourceSlotWidth = 32;
     private DispatcherTimer? _sourceRevealTimer;
     private int _sourceRevealGeneration;
 
@@ -60,25 +61,25 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
 
     private void SourceButton_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        if (sender is not System.Windows.Controls.Button button || button.Content is not System.Windows.Controls.Grid grid)
+        if (sender is not System.Windows.Controls.Button button)
             return;
 
         ++_sourceRevealGeneration;
         _sourceRevealTimer?.Stop();
         _sourceRevealTimer = null;
         ResetSourceButtons();
-        AnimateSourceExpand(button, grid);
+        AnimateSourceExpand(button);
     }
 
     private void SourceButton_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        if (sender is not System.Windows.Controls.Button button || button.Content is not System.Windows.Controls.Grid grid)
+        if (sender is not System.Windows.Controls.Button button)
             return;
 
         ++_sourceRevealGeneration;
         _sourceRevealTimer?.Stop();
         _sourceRevealTimer = null;
-        AnimateSourceCollapse(button, grid);
+        AnimateSourceCollapse(button);
     }
 
     private void PlaySelectedSourceReveal(QuickSearchViewModel viewModel)
@@ -95,9 +96,9 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
             var selected = viewModel.SelectedLaunchSource;
             var button = FindVisualChildren<System.Windows.Controls.Button>(this)
                 .FirstOrDefault(candidate => ReferenceEquals(candidate.DataContext, selected));
-            if (button?.Content is not System.Windows.Controls.Grid grid) return;
+            if (button == null) return;
 
-            AnimateSourceExpand(button, grid);
+            AnimateSourceExpand(button);
 
             var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
             _sourceRevealTimer = timer;
@@ -110,28 +111,33 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
                 }
                 timer.Stop();
                 if (ReferenceEquals(_sourceRevealTimer, timer)) _sourceRevealTimer = null;
-                if (!button.IsMouseOver) AnimateSourceCollapse(button, grid);
+                if (!button.IsMouseOver) AnimateSourceCollapse(button);
             };
             timer.Start();
         });
     }
 
-    private static void AnimateSourceExpand(System.Windows.Controls.Button button,
-        System.Windows.Controls.Grid grid)
+    private static void AnimateSourceExpand(System.Windows.Controls.Button button)
     {
-        var name = grid.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault();
+        var slot = VisualTreeHelper.GetParent(button) as System.Windows.Controls.Grid;
+        var reveal = slot?.Children.OfType<System.Windows.Controls.Canvas>()
+            .FirstOrDefault(candidate => candidate.Name == "SourceReveal");
+        var name = reveal?.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault();
         if (name == null) return;
 
-        var textWidth = name.ActualWidth > 0 ? name.ActualWidth : name.DesiredSize.Width;
-        var expandedWidth = Math.Clamp(Math.Ceiling(textWidth + name.Margin.Left + 6), 18, 136);
-        var slot = VisualTreeHelper.GetParent(button) as System.Windows.Controls.Grid;
+        name.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        var expandedWidth = Math.Max(
+            SourceSlotWidth,
+            Math.Ceiling(name.DesiredSize.Width + name.Margin.Left + name.Margin.Right + 6));
+        if (slot != null) System.Windows.Controls.Panel.SetZIndex(slot, 100);
         var duration = new Duration(TimeSpan.FromMilliseconds(160));
         var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
         slot?.BeginAnimation(WidthProperty,
-            new DoubleAnimation(18, expandedWidth, duration) { EasingFunction = easing });
+            new DoubleAnimation(SourceSlotWidth, expandedWidth, duration) { EasingFunction = easing });
         button.BeginAnimation(WidthProperty,
-            new DoubleAnimation(18, expandedWidth, duration) { EasingFunction = easing });
-        grid.Children.OfType<System.Windows.Controls.StackPanel>().FirstOrDefault()?.BeginAnimation(
+            new DoubleAnimation(SourceSlotWidth, expandedWidth, duration) { EasingFunction = easing });
+        (button.Content as System.Windows.Controls.Grid)?.Children
+            .OfType<System.Windows.Controls.StackPanel>().FirstOrDefault()?.BeginAnimation(
             OpacityProperty, new DoubleAnimation(1, 0, duration));
         name.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, duration));
     }
@@ -142,31 +148,38 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
                      .Where(candidate => candidate.DataContext is LaunchPanelSourceViewModel))
         {
             var slot = VisualTreeHelper.GetParent(button) as System.Windows.Controls.Grid;
+            if (slot != null) System.Windows.Controls.Panel.SetZIndex(slot, 0);
             slot?.BeginAnimation(WidthProperty, null);
-            slot?.Width = 18;
+            slot?.Width = SourceSlotWidth;
             button.BeginAnimation(WidthProperty, null);
-            button.Width = 18;
-            if (button.Content is not System.Windows.Controls.Grid grid) continue;
-
-            var dots = grid.Children.OfType<System.Windows.Controls.StackPanel>().FirstOrDefault();
+            button.Width = SourceSlotWidth;
+            var reveal = slot?.Children.OfType<System.Windows.Controls.Canvas>()
+                .FirstOrDefault(candidate => candidate.Name == "SourceReveal");
+            var dots = (button.Content as System.Windows.Controls.Grid)?.Children
+                .OfType<System.Windows.Controls.StackPanel>().FirstOrDefault();
             dots?.BeginAnimation(OpacityProperty, null);
             dots?.Opacity = 1;
-            var name = grid.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault();
+            var name = reveal?.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault();
             name?.BeginAnimation(OpacityProperty, null);
             name?.Opacity = 0;
         }
     }
 
-    private static void AnimateSourceCollapse(System.Windows.Controls.Button button,
-        System.Windows.Controls.Grid grid)
+    private static void AnimateSourceCollapse(System.Windows.Controls.Button button)
     {
         var duration = new Duration(TimeSpan.FromMilliseconds(160));
         var slot = VisualTreeHelper.GetParent(button) as System.Windows.Controls.Grid;
-        slot?.BeginAnimation(WidthProperty, new DoubleAnimation { To = 18, Duration = duration });
-        button.BeginAnimation(WidthProperty, new DoubleAnimation { To = 18, Duration = duration });
-        grid.Children.OfType<System.Windows.Controls.StackPanel>().FirstOrDefault()?.BeginAnimation(
+        if (slot != null) System.Windows.Controls.Panel.SetZIndex(slot, 0);
+        slot?.BeginAnimation(WidthProperty,
+            new DoubleAnimation { To = SourceSlotWidth, Duration = duration });
+        button.BeginAnimation(WidthProperty,
+            new DoubleAnimation { To = SourceSlotWidth, Duration = duration });
+        var reveal = slot?.Children.OfType<System.Windows.Controls.Canvas>()
+            .FirstOrDefault(candidate => candidate.Name == "SourceReveal");
+        (button.Content as System.Windows.Controls.Grid)?.Children
+            .OfType<System.Windows.Controls.StackPanel>().FirstOrDefault()?.BeginAnimation(
             OpacityProperty, new DoubleAnimation { To = 1, Duration = duration });
-        grid.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault()?.BeginAnimation(
+        reveal?.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault()?.BeginAnimation(
             OpacityProperty, new DoubleAnimation { To = 0, Duration = duration });
     }
 
