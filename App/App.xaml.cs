@@ -84,16 +84,13 @@ public partial class App : Application
         {
             try
             {
-                var current = Process.GetCurrentProcess();
+                using var current = Process.GetCurrentProcess();
                 foreach (var proc in Process.GetProcessesByName(current.ProcessName))
                 {
-                    if (proc.Id != current.Id)
-                    {
-                        AllowSetForegroundWindow(proc.Id);
-                    }
+                    try { if (proc.Id != current.Id) AllowSetForegroundWindow(proc.Id); }
+                    finally { proc.Dispose(); }
                 }
             }
-
             catch { }
 
             // Send activation command to the already running process and then exit immediately.

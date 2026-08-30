@@ -15,7 +15,9 @@ public static class AppNativeHelper
         try
         {
             ExplorerNativeHooks.GetWindowThreadProcessId(hwnd, out var pid);
-            return pid != 0 ? Process.GetProcessById((int)pid).ProcessName : "Unknown";
+            if (pid == 0) return "Unknown";
+            using var process = Process.GetProcessById((int)pid);
+            return process.ProcessName;
         }
         catch
         {
