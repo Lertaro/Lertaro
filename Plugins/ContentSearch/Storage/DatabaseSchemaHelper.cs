@@ -20,6 +20,11 @@ public static class DatabaseSchemaHelper
         }
 
         using var tableCmd = conn.CreateCommand();
+        // ponytail: content_hash and content_ref carry no index by design; both back
+        // dedup lookups and cascade deletions that scan the whole files table, which is
+        // fine at the current corpus size (see FindIndexedSourceByHash's tripwire
+        // warning). If the corpus outgrows it, add:
+        // CREATE INDEX idx_files_content_hash ON files(content_hash);
         tableCmd.CommandText = """
                 CREATE TABLE IF NOT EXISTS files (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
