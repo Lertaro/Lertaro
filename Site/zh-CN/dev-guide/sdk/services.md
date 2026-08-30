@@ -6,7 +6,7 @@
 
 | 宿主服务 | 核心方法与签名 | 功能说明 |
 | :--- | :--- | :--- |
-| **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)` | 运行与宿主完全一致的 fzf 模糊匹配引擎，并计算字符级的高亮布尔掩码（自动支持汉字拼音多级兜底）。 |
+| **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)`<br>`double GetMatchScore(string text, string query)` | 运行与宿主完全一致的 fzf 模糊匹配引擎，计算字符级的高亮布尔掩码（自动支持汉字拼音多级兜底），并提供用于统一排序的匹配质量评分。 |
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 多语言动态解析与运行时变更广播。`GetCurrentCulture()` 返回用户在设置中心显式选择的界面语言代码（如 `"zh-CN"`）；订阅 `CultureChanged` 可在界面语言切换时动态刷新内部状态或重载字典。 |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | 带内存与磁盘缓存的 Windows Shell 文件图标与缩略图提取服务。 |
 | **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | 读取收藏夹、检查路径是否已登记，并通过宿主桥接添加收藏项。 |
@@ -16,7 +16,7 @@
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | 利用内存索引快速提取指定目录列表下的最新修改文件集合（毫秒级应答，不产生物理磁盘 I/O）。 |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | 获取用户最近一次在文件资源管理器或任意应用的文件选择对话框中浏览过的活动目录路径。 |
 | **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | 读取插件持久化的配置项（优先读取用户修改值，其次读取 Schema 默认值，最后回退 defaultValue）。 |
-| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()` | 读取宿主当前可搜索的设置条目，供插件生成设置搜索结果。 |
+| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()`<br>`void Invalidate()` | 读取宿主当前可搜索的设置条目，并在动态提供的条目发生变化时通知宿主刷新缓存快照。 |
 | **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | 请求宿主显示主题化设置窗口，或直接跳转到可搜索的设置条目，不启动 URI 或其他进程。 |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | 用于异步即时计算源完成后台数据获取后，通知宿主原地重跑当前匹配的搜索查询并刷新视图。 |
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | 获取当前用户的专属数据目录（存放私有配置）与机器级全局共享数据目录（共享 Python/Node 运行时）。 |

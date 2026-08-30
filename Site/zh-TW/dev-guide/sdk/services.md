@@ -6,7 +6,7 @@
 
 | 宿主服務 | 核心方法與簽章 | 功能說明 |
 | :--- | :--- | :--- |
-| **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)` | 執行與宿主完全一致的 fzf 模糊比對引擎，並計算字元級的反白布林遮罩（自動支援中文字元拼音多級兜底）。 |
+| **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)`<br>`double GetMatchScore(string text, string query)` | 執行與宿主完全一致的 fzf 模糊比對引擎，計算字元級的反白布林遮罩（自動支援中文字元拼音多級兜底），並提供用於統一排序的比對品質評分。 |
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 多語言動態剖析與執行階段變更廣播。`GetCurrentCulture()` 返回使用者在設定中心顯式選取的介面語言代碼（如 `"zh-TW"`）；訂閱 `CultureChanged` 可在介面語言切換時動態重新整理內部狀態或重載字典。 |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | 帶記憶體與磁碟快取的 Windows Shell 檔案圖示與縮圖擷取服務。 |
 | **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | 讀取收藏清單、檢查路徑是否已登記，並透過主機橋接新增收藏項目。 |
@@ -16,7 +16,7 @@
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | 利用記憶體索引快速擷取指定目錄清單下的最新修改檔案集合（毫秒級應答，不產生實體磁碟 I/O）。 |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | 獲取使用者最近一次在檔案總管或任意應用程式的檔案選取對話方塊中瀏覽過的活動目錄路徑。 |
 | **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | 讀取外掛模組持久化的設定項目（優先讀取使用者修改值，其次讀取 Schema 預設值，最後回復 defaultValue）。 |
-| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()` | 讀取主機目前可搜尋的設定項目，供外掛模組建立設定搜尋結果。 |
+| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()`<br>`void Invalidate()` | 讀取主機目前可搜尋的設定項目，並在動態提供的項目發生變更時通知主機重新整理快取快照。 |
 | **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | 請求主機顯示佈景主題化設定視窗，或直接跳轉到可搜尋的設定項目，不啟動 URI 或其他程序。 |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | 用於非同步即時計算來源完成背景資料獲取後，通知宿主原地重跑目前比對的搜尋查詢並重新整理檢視。 |
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | 獲取目前使用者的專屬資料目錄（存放私有設定）與機器級全域共用資料目錄（共用 Python/Node 執行階段）。 |

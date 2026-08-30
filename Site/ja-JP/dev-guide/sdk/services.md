@@ -6,7 +6,7 @@
 
 | サービス名 | 主要メソッドとシグネチャ | 機能説明 |
 | :--- | :--- | :--- |
-| **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)` | ホストと同一の fzf あいまい一致エンジンを実行し、文字単位のハイライトマスク（ピンイン多階層フォールバック対応）を計算。 |
+| **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)`<br>`double GetMatchScore(string text, string query)` | ホストと同一の fzf あいまい一致エンジンを実行し、文字単位のハイライトマスク（ピンイン多階層フォールバック対応）を計算し、結果の一貫した並べ替えに使える一致品質スコアを提供。 |
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 多言語動的解決と実行時言語変更ブロードキャスト。`GetCurrentCulture()` は OS の言語ではなく設定画面で明示的に選択されている言語コード（例: `"ja-JP"`）を返却；`CultureChanged` を購読することで UI 言語変更時に内部状態の更新や辞書の再読み込みが可能。 |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | メモリおよびディスクキャッシュ付きの Windows Shell ファイルアイコン・サムネイル抽出。 |
 | **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | お気に入り一覧の取得、パスの登録済み確認、ホストブリッジ経由でのお気に入り追加を提供。 |
@@ -16,7 +16,7 @@
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | インメモリインデックスから指定フォルダー群の最新更新ファイルをミリ秒単位で集約抽出。 |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | エクスプローラーや各アプリのファイルダイアログで最後に開かれた作業ディレクトリパスを取得。 |
 | **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | プラグイン設定の読み取り（ユーザー値 > スキーマ既定値 > フォールバック値の優先順位）。 |
-| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()` | ホストが現在提供している検索可能な設定項目を取得し、プラグインの設定検索結果に利用。 |
+| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()`<br>`void Invalidate()` | ホストが現在提供している検索可能な設定項目を取得し、動的な項目が変化したときにホストのキャッシュ済みスナップショットを更新可能。 |
 | **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | テーマ対応の設定画面を表示するか、検索可能な設定項目へ直接移動するようホストに要求。URI や別プロセスは起動しません。 |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | 非同期処理の完了後に、一致するアクティブな検索結果の再評価とビューの即時更新をホストへ通知。 |
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | ユーザー専用データフォルダー（個別設定用）およびマシン共通データフォルダー（Python/Node ランタイム等）を取得。 |

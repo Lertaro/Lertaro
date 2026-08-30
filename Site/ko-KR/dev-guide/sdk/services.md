@@ -6,7 +6,7 @@
 
 | 서비스명 | 주요 메서드 및 시그니처 | 기능 설명 |
 | :--- | :--- | :--- |
-| **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)` | 호스트와 동일한 fzf 퍼지 매칭 엔진을 실행하고 문자 단위 하이라이트 마스크를 계산. |
+| **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)`<br>`double GetMatchScore(string text, string query)` | 호스트와 동일한 fzf 퍼지 매칭 엔진을 실행하고 문자 단위 하이라이트 마스크를 계산하며, 일관된 결과 정렬에 사용할 매칭 품질 점수를 제공합니다. |
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 다국어 동적 파싱 및 런타임 언어 변경 브로드캐스트. `GetCurrentCulture()`는 OS 언어가 아닌 설정 센터에서 선택된 UI 언어 코드(예: `"ko-KR"`)를 반환하며, `CultureChanged`를 구독하여 UI 언어 변경 시 사전 재로드 및 내부 상태를 갱신할 수 있습니다. |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | 메모리 및 디스크 캐시가 적용된 Windows Shell 파일 아이콘 및 썸네일 추출. |
 | **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | 즐겨찾기 목록 조회, 경로의 등록 여부 확인, 호스트 브리지를 통한 즐겨찾기 추가를 제공합니다. |
@@ -16,7 +16,7 @@
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | 인메모리 인덱스로부터 지정 폴더 목록의 최근 수정 파일들을 밀리초 단위로 집계 추출. |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | 탐색기 및 모든 파일 대화상자에서 마지막으로 탐색된 활성 작업 디렉토리 경로 조회. |
 | **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | 플러그인 설정값 읽기 (사용자 설정값 > 스키마 기본값 > 폴백 기본값 순서). |
-| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()` | 호스트가 현재 제공하는 검색 가능한 설정 항목을 조회하여 플러그인 설정 검색 결과에 사용합니다. |
+| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()`<br>`void Invalidate()` | 호스트가 현재 제공하는 검색 가능한 설정 항목을 조회하고, 동적으로 제공되는 항목이 변경될 때 호스트의 캐시된 스냅샷을 갱신하도록 알립니다. |
 | **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | 테마가 적용된 설정 창을 표시하거나 검색 가능한 설정 항목으로 직접 이동하도록 호스트에 요청합니다. URI나 다른 프로세스를 실행하지 않습니다. |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | 비동기 작업 완료 후 일치하는 활성 검색 결과를 재평가하고 뷰를 갱신하도록 호스트에 알림. |
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | 사용자 전용 데이터 폴더(개인 설정용) 및 머신 공용 데이터 폴더(Python/Node 런타임 등) 경로 반환. |
