@@ -17,6 +17,8 @@ namespace Lertaro.App.ViewModels.Settings.General;
 // GeneralSettingsViewModel.Apply()).
 public class SidebarGroupOrderViewModel : ViewModelBase
 {
+    private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
+
     private readonly UserSettings _userSettings;
 
     public SidebarGroupOrderViewModel(UserSettings userSettings)
@@ -45,11 +47,13 @@ public class SidebarGroupOrderViewModel : ViewModelBase
         MoveUpCommand = new RelayCommand<SidebarGroupOrderItem>(MoveUp);
         MoveDownCommand = new RelayCommand<SidebarGroupOrderItem>(MoveDown);
 
-        TranslationManager.Instance.PropertyChanged += (_, _) =>
+        _translationHandler = (_, _) =>
         {
             foreach (var item in Items)
                 item.NotifyLanguageChanged();
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
+
     }
 
     public ObservableCollection<SidebarGroupOrderItem> Items { get; } = new();
@@ -75,6 +79,8 @@ public class SidebarGroupOrderViewModel : ViewModelBase
     }
 
     public void Save() => _userSettings.SidebarGroupOrder = Items.Select(x => x.Id).ToList();
+
+    public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
 }
 
 public class SidebarGroupOrderItem : OrderItemBase

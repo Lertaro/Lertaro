@@ -13,6 +13,8 @@ namespace Lertaro.App.ViewModels.Settings.LocalDrive;
 
 public class LocalDriveSettingsViewModel : ViewModelBase
 {
+    private readonly PropertyChangedEventHandler _translationHandler;
+
     private readonly SearchService _searchService;
     private readonly Action _onTriggerFastRefresh;
     private readonly HashSet<string> _pendingRowRebuilds = new(StringComparer.OrdinalIgnoreCase);
@@ -33,11 +35,13 @@ public class LocalDriveSettingsViewModel : ViewModelBase
         // RowActionText only re-evaluates when RowAction itself changes value, so a language switch
         // otherwise leaves the per-row Rebuild/Delete button text stuck in the old language until the
         // action type actually changes (which may never happen while the page is open).
-        TranslationManager.Instance.PropertyChanged += (s, e) =>
+        _translationHandler = (s, e) =>
         {
             foreach (var item in LocalDrives)
                 item.NotifyLanguageChanged();
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
+
     }
 
     public ObservableCollection<LocalDriveSettingsItem> LocalDrives { get; } = new();
@@ -278,4 +282,6 @@ public class LocalDriveSettingsViewModel : ViewModelBase
             _observedRowRebuilds.Remove(drive.Drive);
         }
     }
+
+    public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
 }

@@ -11,6 +11,8 @@ namespace Lertaro.App.ViewModels.Settings.General;
 /// applies live (no Apply()/staging), matching how the manual theme pick has always worked.</summary>
 public class ThemeSettingsViewModel : ViewModelBase
 {
+    private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
+
     private readonly UserSettings _userSettings;
     private ThemeOption? _selectedTheme;
     private ThemeOption? _selectedLightTheme;
@@ -39,7 +41,7 @@ public class ThemeSettingsViewModel : ViewModelBase
         // Id/Value. See GeneralSettingsViewModel's identical LogLevel/Language handling for why this
         // needs an explicit re-match-by-Value after the ItemsSource rebuild rather than relying on
         // record value-equality to "just work".
-        TranslationManager.Instance.PropertyChanged += (s, e) =>
+        _translationHandler = (s, e) =>
         {
             _themeOptions = null;
             _lightThemeOptions = null;
@@ -67,6 +69,8 @@ public class ThemeSettingsViewModel : ViewModelBase
                 if (newDarkTheme != null) SelectedDarkTheme = newDarkTheme;
             }), System.Windows.Threading.DispatcherPriority.Loaded);
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
+
     }
 
     public IReadOnlyList<ThemeOption> ThemeOptions => _themeOptions ??= SettingsOptionGenerator.GetThemeOptions();
@@ -275,4 +279,6 @@ public class ThemeSettingsViewModel : ViewModelBase
             }
         }
     }
+
+    public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
 }

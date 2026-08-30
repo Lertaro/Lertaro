@@ -6,6 +6,8 @@ namespace Lertaro.App.ViewModels.Settings.General;
 
 public class GeneralSettingsViewModel : ViewModelBase
 {
+    private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
+
     private readonly UserSettings _userSettings;
     private LogLevelOption? _selectedLogLevel;
     private IReadOnlyList<LogLevelOption>? _logLevelOptions;
@@ -68,7 +70,7 @@ public class GeneralSettingsViewModel : ViewModelBase
                             ?? LogLevelOptions[2]; // Default to Info
 
         // Dynamically refresh properties when the language changes
-        TranslationManager.Instance.PropertyChanged += (s, e) =>
+        _translationHandler = (s, e) =>
         {
             _logLevelOptions = null;
             _languageOptions = null;
@@ -86,6 +88,8 @@ public class GeneralSettingsViewModel : ViewModelBase
                 }
             }), System.Windows.Threading.DispatcherPriority.Loaded);
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
+
     }
 
     // Persistence and the side effects (Logger.MinimumLevel, hook-process notification) are staged
@@ -273,4 +277,16 @@ public class GeneralSettingsViewModel : ViewModelBase
     public ActionMenuGroupOrderViewModel ActionMenuGroupOrder { get; }
     public FilePreviewProviderOrderViewModel FilePreviewProviderOrder { get; }
     public ThumbnailProviderOrderViewModel ThumbnailProviderOrder { get; }
+
+    public void Cleanup()
+    {
+        QuickNavigationOrder.Cleanup();
+        ResultTypeOrder.Cleanup();
+        SidebarGroupOrder.Cleanup();
+        ColumnOrder.Cleanup();
+        ActionMenuGroupOrder.Cleanup();
+        FilePreviewProviderOrder.Cleanup();
+        ThumbnailProviderOrder.Cleanup();
+        TranslationManager.Instance.PropertyChanged -= _translationHandler;
+    }
 }
