@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media.Animation;
+using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.App.Services.Theme;
 
@@ -39,7 +40,7 @@ internal sealed class QuickSearchWindowShowSupport
         InlineSearchManager.Instance.KeyboardHook.Stop();
         window.ViewModel.EnsureServiceMonitoringActive();
         var useClipboardText = false;
-        var searchQuery = initialQuery ?? string.Empty;
+        var searchQuery = SearchTextPasteFormatter.FormatForSearch(initialQuery) ?? string.Empty;
         if (QuickSearchClipboardSupport.ShouldReadClipboard(initialQuery)
             && _clipboardSupport.TryGetNewText(out var clipboardText))
         {

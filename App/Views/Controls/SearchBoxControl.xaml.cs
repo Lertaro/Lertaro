@@ -4,7 +4,7 @@ using UserControl = System.Windows.Controls.UserControl;
 using TextBox = System.Windows.Controls.TextBox;
 using TextBlock = System.Windows.Controls.TextBlock;
 using DataObject = System.Windows.DataObject;
-using DataFormats = System.Windows.DataFormats;
+using Lertaro.App.Views.Controls;
 
 namespace Lertaro.App;
 
@@ -135,47 +135,7 @@ public partial class SearchBoxControl : UserControl
     {
         InitializeComponent();
         SizeChanged += SearchBoxControl_SizeChanged;
-        DataObject.AddPastingHandler(TxtSearch, OnSearchTextPasting);
-    }
-
-    // TxtSearch is a single-line TextBox (AcceptsReturn defaults to false), whose default paste command
-    // silently truncates multi-line clipboard content down to just its first line -- pasting several
-    // filenames copied one-per-line from a spreadsheet or text file used to leave only the first one in
-    // the box. Everything has a similar convenience feature (wrapping a multi-line paste into an OR
-    // query), and Lertaro already has an equivalent OR operator of its own (see search-syntax.md's
-    // `report | summary`), so this just needs to fold the pasted lines into that syntax instead of letting
-    // the default paste drop them. Left untouched for a normal single-line paste (the common case) so
-    // existing behavior there is unaffected.
-    // Cancels the default paste and inserts the transformed text directly through the TextBox's own
-    // SelectedText API instead of trying to hand WPF's internal paste command a substitute DataObject/
-    // FormatToApply to consume -- that approach silently pasted nothing at all in real use (verified by
-    // hand) despite looking correct in isolated unit tests, and there's no reliable way to prove from here
-    // whether the internal command actually honors a replaced DataObject at all. Doing the insertion
-    // ourselves sidesteps that uncertainty entirely: there's no internal pipeline left to second-guess.
-    internal static void OnSearchTextPasting(object sender, DataObjectPastingEventArgs e)
-    {
-        if (sender is not TextBox textBox)
-            return;
-        if (!e.DataObject.GetDataPresent(DataFormats.UnicodeText) && !e.DataObject.GetDataPresent(DataFormats.Text))
-            return;
-
-        var text = e.DataObject.GetData(DataFormats.UnicodeText) as string ?? e.DataObject.GetData(DataFormats.Text) as string;
-        if (string.IsNullOrEmpty(text))
-            return;
-
-        var lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n')
-            .Select(line => line.Trim())
-            .Where(line => line.Length > 0)
-            .ToArray();
-        if (lines.Length < 2)
-            return; // Not a multi-line paste -- let the default single-line paste behavior run as-is.
-
-        var joined = string.Join(" | ", lines);
-        var insertAt = textBox.SelectionStart;
-        textBox.SelectedText = joined; // Replaces the current selection, same as a real paste would.
-        textBox.SelectionStart = insertAt + joined.Length;
-        textBox.SelectionLength = 0;
-        e.CancelCommand();
+        DataObject.AddPastingHandler(TxtSearch, SearchBoxPasteHandler.Handle);
     }
 
     private void SearchBoxControl_SizeChanged(object sender, SizeChangedEventArgs e)

@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using Lertaro.App.Helpers;
 using Lertaro.App.Views.QuickSearchWindow.Helpers;
 using Lertaro.Core;
 
@@ -134,6 +135,7 @@ public static class AppWindowManager
     public static void ShowSearchWindowFromQuick(string query, bool restorePreview)
     {
         if (System.Windows.Application.Current == null) return;
+        query = SearchTextPasteFormatter.FormatForSearch(query) ?? string.Empty;
 
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {

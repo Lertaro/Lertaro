@@ -1,11 +1,12 @@
 using System.Windows;
 using System.Windows.Controls;
+using Lertaro.App.Views.Controls;
 
 namespace Lertaro.App.Tests.Views.Controls;
 
 // Asserts the actual observable outcome (the real TextBox's Text/caret after the handler runs), not an
 // intermediate DataObject/FormatToApply value WPF's internal paste command may or may not honor -- see
-// OnSearchTextPasting's own comment for why the DataObject-replacement approach was abandoned after it
+// SearchBoxPasteHandler's implementation for why the DataObject-replacement approach was abandoned after it
 // looked correct here but silently pasted nothing in real use.
 [TestClass]
 public sealed class SearchBoxControlPasteTests
@@ -19,7 +20,7 @@ public sealed class SearchBoxControlPasteTests
         var textBox = new TextBox { Text = "" };
         var e = MakeArgs("123\n456\n678");
 
-        SearchBoxControl.OnSearchTextPasting(textBox, e);
+        SearchBoxPasteHandler.Handle(textBox, e);
 
         Assert.AreEqual("123 | 456 | 678", textBox.Text);
         Assert.AreEqual(textBox.Text.Length, textBox.SelectionStart);
@@ -34,7 +35,7 @@ public sealed class SearchBoxControlPasteTests
         textBox.Select(7, 5); // selects "AFTER"
         var e = MakeArgs("123\n456");
 
-        SearchBoxControl.OnSearchTextPasting(textBox, e);
+        SearchBoxPasteHandler.Handle(textBox, e);
 
         Assert.AreEqual("before 123 | 456", textBox.Text);
     }
@@ -45,7 +46,7 @@ public sealed class SearchBoxControlPasteTests
         var textBox = new TextBox { Text = "" };
         var e = MakeArgs("123\r\n456\r\n678");
 
-        SearchBoxControl.OnSearchTextPasting(textBox, e);
+        SearchBoxPasteHandler.Handle(textBox, e);
 
         Assert.AreEqual("123 | 456 | 678", textBox.Text);
         Assert.IsTrue(e.CommandCancelled);
@@ -57,7 +58,7 @@ public sealed class SearchBoxControlPasteTests
         var textBox = new TextBox { Text = "" };
         var e = MakeArgs("123\n\n   \n456\n");
 
-        SearchBoxControl.OnSearchTextPasting(textBox, e);
+        SearchBoxPasteHandler.Handle(textBox, e);
 
         Assert.AreEqual("123 | 456", textBox.Text);
     }
@@ -68,7 +69,7 @@ public sealed class SearchBoxControlPasteTests
         var textBox = new TextBox { Text = "" };
         var e = MakeArgs("report.docx");
 
-        SearchBoxControl.OnSearchTextPasting(textBox, e);
+        SearchBoxPasteHandler.Handle(textBox, e);
 
         Assert.AreEqual("", textBox.Text);
         Assert.IsFalse(e.CommandCancelled);
@@ -80,7 +81,7 @@ public sealed class SearchBoxControlPasteTests
         var textBox = new TextBox { Text = "" };
         var e = MakeArgs("\n\n   \n");
 
-        SearchBoxControl.OnSearchTextPasting(textBox, e);
+        SearchBoxPasteHandler.Handle(textBox, e);
 
         Assert.AreEqual("", textBox.Text);
         Assert.IsFalse(e.CommandCancelled);
@@ -95,7 +96,7 @@ public sealed class SearchBoxControlPasteTests
         var dataObject = new DataObject(DataFormats.Bitmap, new object());
         var e = new DataObjectPastingEventArgs(dataObject, false, DataFormats.Bitmap);
 
-        SearchBoxControl.OnSearchTextPasting(textBox, e);
+        SearchBoxPasteHandler.Handle(textBox, e);
 
         Assert.AreEqual("", textBox.Text);
         Assert.IsFalse(e.CommandCancelled);
@@ -106,7 +107,7 @@ public sealed class SearchBoxControlPasteTests
     {
         var e = MakeArgs("123\n456");
 
-        SearchBoxControl.OnSearchTextPasting(new object(), e);
+        SearchBoxPasteHandler.Handle(new object(), e);
 
         Assert.IsFalse(e.CommandCancelled);
     }

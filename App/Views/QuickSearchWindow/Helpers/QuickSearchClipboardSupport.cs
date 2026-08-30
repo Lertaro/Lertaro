@@ -1,3 +1,5 @@
+using Lertaro.App.Helpers;
+
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
 
 /// <summary>Reads the clipboard for the quick window and suppresses consecutive duplicate imports.</summary>
@@ -10,11 +12,12 @@ internal sealed class QuickSearchClipboardSupport
         text = string.Empty;
         if (!TryReadClipboardText(out var clipboardText)) return false;
 
+        var searchText = SearchTextPasteFormatter.FormatForSearch(clipboardText);
         var previousText = _lastClipboardText;
-        _lastClipboardText = clipboardText;
-        if (!ShouldApply(clipboardText, previousText)) return false;
+        _lastClipboardText = searchText;
+        if (!ShouldApply(searchText, previousText)) return false;
 
-        text = clipboardText!;
+        text = searchText!;
         return true;
     }
 
