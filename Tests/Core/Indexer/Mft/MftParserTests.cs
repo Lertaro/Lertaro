@@ -115,6 +115,31 @@ public sealed class MftParserTests
         Assert.AreEqual(99uL, indexes[0]);
     }
 
+    [TestMethod]
+    public void HasAttribute_AttributeTypeIsPresent_ReturnsTrue()
+    {
+        const int attributeOffset = 32;
+        var buf = new byte[64];
+        WriteUInt16(buf, 0x14, attributeOffset);
+        WriteUInt32(buf, attributeOffset, 0x20);
+        WriteUInt32(buf, attributeOffset + 4, 32);
+
+        Assert.IsTrue(MftParser.HasAttribute(buf, 0, buf.Length, 0x20));
+        Assert.IsFalse(MftParser.HasAttribute(buf, 0, buf.Length, 0x80));
+    }
+
+    [TestMethod]
+    public void HasAttribute_MalformedAttributeList_ReturnsFalse()
+    {
+        const int attributeOffset = 32;
+        var buf = new byte[64];
+        WriteUInt16(buf, 0x14, attributeOffset);
+        WriteUInt32(buf, attributeOffset, 0x20);
+        WriteUInt32(buf, attributeOffset + 4, 8);
+
+        Assert.IsFalse(MftParser.HasAttribute(buf, 0, buf.Length, 0x20));
+    }
+
 
     [TestMethod]
     public void CollectNames_StandardInfoAndFileNameAndData_PopulatesNamesAndTimestamps()

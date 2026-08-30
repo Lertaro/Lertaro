@@ -65,6 +65,8 @@ internal static class MftIndexScanner
         store.Records.EnsureCapacity(2_800_000);
         var namePool = new FileRecordNamePool();
         var records = store.Records;
+        var baseMetadata = new Dictionary<ulong, MftMetadata>();
+        var pendingExtensionRows = new Dictionary<ulong, List<int>>();
 
         int files = 0, dirs = 0;
         long processed = 0;
@@ -99,17 +101,27 @@ internal static class MftIndexScanner
 
                     var baseRef = (ulong)BitConverter.ToInt64(buf, r + 0x20);
                     var isExtension = (baseRef & 0xFFFFFFFFFFFF) != 0;
-                    if (isExtension)
-                        continue; // Primary $FILE_NAME attributes reside in the base record; skip extension records.
 
                     if (idx == NtfsRootRecordIndex)
                         continue; // root already present via CreateEmptyStore
 
                     var seq = BitConverter.ToUInt16(buf, r + 0x10);
-                    UInt128 owner = ((ulong)seq << 48) | ((ulong)idx & 0xFFFFFFFFFFFF);
+                    var owner = ResolveRecordOwner(baseRef, seq, idx);
                     names.Clear();
                     var stdAttrs = MftParser.CollectNames(buf, r, (int)recordSize, names,
                         out var creationTimeUtc, out var lastWriteTimeUtc, out var lastAccessTimeUtc);
+
+                    if (!isExtension && MftParser.HasAttribute(buf, r, (int)recordSize, 0x20))
+                    {
+                        var metadata = new MftMetadata(
+                            FileRecordFlagsHelper.FromAttributes((FileAttributes)stdAttrs),
+                            names.Count == 0 ? 0 : names[0].size,
+                            FileTimeHelper.FileTimeToUnixSeconds(creationTimeUtc),
+                            FileTimeHelper.FileTimeToUnixSeconds(lastWriteTimeUtc),
+                            FileTimeHelper.FileTimeToUnixSeconds(lastAccessTimeUtc));
+                        baseMetadata[(ulong)owner] = metadata;
+                        ApplyPendingExtensionMetadata(records, pendingExtensionRows, (ulong)owner, metadata);
+                    }
 
                     if (names.Count == 0)
                         continue;
@@ -123,10 +135,29 @@ internal static class MftIndexScanner
                     var lastWriteUnixSeconds = FileTimeHelper.FileTimeToUnixSeconds(lastWriteTimeUtc);
                     var lastAccessUnixSeconds = FileTimeHelper.FileTimeToUnixSeconds(lastAccessTimeUtc);
 
+                    if (isExtension && baseMetadata.TryGetValue(baseRef, out var metadataFromBase))
+                    {
+                        flags = metadataFromBase.Flags;
+                        isDir = (flags & FileRecordFlags.Directory) != 0;
+                        creationUnixSeconds = metadataFromBase.CreationTimeUnixSeconds;
+                        lastWriteUnixSeconds = metadataFromBase.LastWriteTimeUnixSeconds;
+                        lastAccessUnixSeconds = metadataFromBase.LastAccessTimeUnixSeconds;
+                    }
+
                     foreach (var (parent, name, size) in names)
                     {
-                        records.Add(new FileRecord(owner, parent, namePool.Get(name), flags, isDir ? 0 : size,
+                        var row = records.Count;
+                        var effectiveSize = isExtension && baseMetadata.TryGetValue(baseRef, out var baseMetadataForSize)
+                            ? (isDir ? 0 : baseMetadataForSize.Size)
+                            : (isDir ? 0 : size);
+                        records.Add(new FileRecord(owner, parent, namePool.Get(name), flags, effectiveSize,
                             creationUnixSeconds, lastWriteUnixSeconds, lastAccessUnixSeconds));
+                        if (isExtension && !baseMetadata.ContainsKey(baseRef))
+                        {
+                            if (!pendingExtensionRows.TryGetValue(baseRef, out var rows))
+                                pendingExtensionRows[baseRef] = rows = new List<int>();
+                            rows.Add(row);
+                        }
                         if (isDir) dirs++; else files++;
                     }
                 }
@@ -150,6 +181,36 @@ internal static class MftIndexScanner
             IsSortedById = false // one FRN can span multiple rows; let RuntimeIndex.Load sort.
         };
     }
+
+    internal static UInt128 ResolveRecordOwner(ulong baseRef, ushort sequence, long recordIndex)
+        => (baseRef & 0xFFFFFFFFFFFF) != 0
+            ? (UInt128)baseRef
+            : ((ulong)sequence << 48) | ((ulong)recordIndex & 0xFFFFFFFFFFFF);
+
+    private static void ApplyPendingExtensionMetadata(
+        List<FileRecord> records,
+        Dictionary<ulong, List<int>> pendingRows,
+        ulong owner,
+        MftMetadata metadata)
+    {
+        if (!pendingRows.Remove(owner, out var rows))
+            return;
+
+        foreach (var row in rows)
+        {
+            var existing = records[row];
+            records[row] = new FileRecord(existing.Id, existing.ParentId, existing.Name, metadata.Flags,
+                existing.IsDirectory ? 0 : metadata.Size, metadata.CreationTimeUnixSeconds,
+                metadata.LastWriteTimeUnixSeconds, metadata.LastAccessTimeUnixSeconds);
+        }
+    }
+
+    private readonly record struct MftMetadata(
+        FileRecordFlags Flags,
+        long Size,
+        uint CreationTimeUnixSeconds,
+        uint LastWriteTimeUnixSeconds,
+        uint LastAccessTimeUnixSeconds);
 
     private static bool ReadAt(SafeFileHandle handle, long offset, byte[] buffer, int count)
     {

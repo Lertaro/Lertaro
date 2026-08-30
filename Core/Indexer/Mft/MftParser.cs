@@ -93,6 +93,24 @@ internal static class MftParser
     internal static void ParseDataRunsFromAttribute(byte[] rec, int attrOffset, List<(long lcn, long clusters)> extents) =>
         MftDataRunParser.ParseDataRunsFromAttribute(rec, attrOffset, extents);
 
+    internal static bool HasAttribute(byte[] buf, int recOff, int recLen, uint targetAttrType)
+    {
+        int a = BitConverter.ToUInt16(buf, recOff + 0x14);
+        while (a + 8 <= recLen)
+        {
+            var type = BitConverter.ToUInt32(buf, recOff + a);
+            if (type == 0xFFFFFFFF)
+                return false;
+            var len = BitConverter.ToUInt32(buf, recOff + a + 4);
+            if (len < 16 || a + len > recLen)
+                return false;
+            if (type == targetAttrType)
+                return true;
+            a += (int)len;
+        }
+        return false;
+    }
+
     private static void ParseAttributeListEntries(ReadOnlySpan<byte> buffer, uint targetAttrType, List<ulong> records)
     {
         var p = 0;
