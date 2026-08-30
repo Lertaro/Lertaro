@@ -27,7 +27,9 @@ public static class DatabaseSchemaHelper
                     last_modified INTEGER NOT NULL,
                     file_size INTEGER NOT NULL,
                     indexed_at INTEGER NOT NULL,
-                    failed_at INTEGER
+                    failed_at INTEGER,
+                    content_hash TEXT,
+                    content_ref INTEGER
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);
@@ -40,6 +42,8 @@ public static class DatabaseSchemaHelper
         tableCmd.ExecuteNonQuery();
 
         AddColumnIfMissing(conn, "files", "failed_at", "INTEGER");
+        AddColumnIfMissing(conn, "files", "content_hash", "TEXT");
+        AddColumnIfMissing(conn, "files", "content_ref", "INTEGER");
     }
 
     /// <summary>
