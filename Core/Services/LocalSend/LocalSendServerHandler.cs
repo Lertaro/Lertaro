@@ -10,6 +10,9 @@ namespace Lertaro.Core.Services.LocalSend;
 /// </summary>
 internal static class LocalSendServerHandler
 {
+    private const int MaxRequestBodyBytes = 1024 * 1024;
+    private const int MaxRequestLineBytes = 8192;
+
     internal static Task ProcessAsync(
         LocalSendServer server, Stream stream, EndPoint? remoteEp, string? peerFingerprint, CancellationToken token) =>
         LocalSendHttpConnection.ProcessAsync(server, stream, remoteEp, peerFingerprint, token);
@@ -221,7 +224,17 @@ internal static class LocalSendServerHandler
     private static async Task<string> ReadBodyAsync(Stream body, CancellationToken token)
     {
         using var memory = new MemoryStream();
-        await body.CopyToAsync(memory, token).ConfigureAwait(false);
+        var buffer = new byte[81920];
+        var total = 0;
+        while (true)
+        {
+            var read = await body.ReadAsync(buffer.AsMemory(0, buffer.Length), token).ConfigureAwait(false);
+            if (read == 0) break;
+            total += read;
+            if (total > MaxRequestBodyBytes)
+                throw new InvalidDataException("Request body exceeds the maximum allowed size.");
+            await memory.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+        }
         return Encoding.UTF8.GetString(memory.GetBuffer(), 0, (int)memory.Length);
     }
 
@@ -235,7 +248,12 @@ internal static class LocalSendServerHandler
             if (read == 0) break;
             var ch = (char)buf[0];
             if (ch == '\n') break;
-            if (ch != '\r') sb.Append(ch);
+            if (ch != '\r')
+                {
+                    if (sb.Length >= MaxRequestLineBytes)
+                        throw new InvalidDataException("Request line exceeds the maximum allowed length.");
+                    sb.Append(ch);
+                }
         }
 
         return sb.ToString();
