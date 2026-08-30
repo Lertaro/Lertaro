@@ -30,7 +30,12 @@ public sealed class PlainTextExtractor : ITextExtractor
             if (!fileInfo.Exists || fileInfo.Length > maxFileSizeBytes || fileInfo.Length == 0)
                 return null;
 
-            var bytes = await File.ReadAllBytesAsync(filePath, cancellationToken);
+            // Reading is I/O-bound but can still hang on network shares; apply the same
+            // size-proportional timeout as the CPU-bound extractors.
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(ExtractorTimeoutPolicy.ForFileSize(fileInfo.Length));
+
+            var bytes = await File.ReadAllBytesAsync(filePath, timeoutCts.Token);
 
             if (!HasUnicodeBom(bytes) && LooksBinary(bytes))
             {
@@ -41,6 +46,13 @@ public sealed class PlainTextExtractor : ITextExtractor
             }
 
             return DecodeText(bytes);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Timed out extracting text from '{filePath}'",
+                PluginSdk.LogLevel.Warn);
+            return null;
         }
         catch (Exception ex)
         {

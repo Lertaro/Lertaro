@@ -25,7 +25,7 @@ public sealed class PptxExtractor : ITextExtractor
             return null;
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+        timeoutCts.CancelAfter(ExtractorTimeoutPolicy.ForFileSize(fileInfo.Length));
 
         try
         {
@@ -36,6 +36,13 @@ public sealed class PptxExtractor : ITextExtractor
                 using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read, leaveOpen: false);
                 return ExtractPresentationText(archive, timeoutCts.Token);
             }, timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Timed out extracting presentation '{filePath}'",
+                PluginSdk.LogLevel.Warn);
+            return null;
         }
         catch (Exception ex)
         {
