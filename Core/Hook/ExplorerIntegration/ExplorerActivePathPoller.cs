@@ -65,7 +65,7 @@ internal sealed class ExplorerActivePathPoller : IDisposable
         {
             var dialogHwnd = tracker.ActiveHwnd;
             var dialogAdapter = tracker.ActiveAdapter;
-            var activePath = dialogAdapter.GetCurrentPath(dialogHwnd);
+            var activePath = RunOnStaWithTimeout(() => dialogAdapter.GetCurrentPath(dialogHwnd), null, TimeSpan.FromSeconds(2));
             if (!IsObservedWindowStillActive(dialogHwnd, tracker.ActiveHwnd)) return;
             if (!string.IsNullOrEmpty(activePath) && activePath != tracker.LastPath)
             {
@@ -105,7 +105,7 @@ internal sealed class ExplorerActivePathPoller : IDisposable
 
                     if (focused == IntPtr.Zero) focused = collectorHwnd;
 
-                    var activePath = collector.TryGetPath(focused, activeClassName, collectorHwnd, activeClass, tracker.GetProcessName(collectorHwnd));
+                    var activePath = RunOnStaWithTimeout(() => collector.TryGetPath(focused, activeClassName, collectorHwnd, activeClass, tracker.GetProcessName(collectorHwnd)), null, TimeSpan.FromSeconds(2));
                     if (!IsObservedWindowStillActive(collectorHwnd, tracker.ActiveHwnd)) return;
                     if (!string.IsNullOrEmpty(activePath))
                     {
@@ -127,7 +127,7 @@ internal sealed class ExplorerActivePathPoller : IDisposable
         {
             var inlineHwnd = tracker.ActiveHwnd;
             var inlineAdapter = tracker.ActiveInlineAdapter;
-            var activePath = inlineAdapter.GetSearchScope(inlineHwnd);
+            var activePath = RunOnStaWithTimeout(() => inlineAdapter.GetSearchScope(inlineHwnd), null, TimeSpan.FromSeconds(2));
             if (!IsObservedWindowStillActive(inlineHwnd, tracker.ActiveHwnd)) return;
             if (!string.IsNullOrEmpty(activePath))
             {
@@ -141,6 +141,32 @@ internal sealed class ExplorerActivePathPoller : IDisposable
                 tracker.UpdatePath(string.Empty, false);
             }
         }
+    }
+
+    private static T RunOnStaWithTimeout<T>(Func<T> func, T fallback, TimeSpan timeout)
+    {
+        using var done = new ManualResetEventSlim(false);
+        Exception? error = null;
+        var result = fallback;
+        var thread = new Thread(() =>
+        {
+            try { result = func(); }
+            catch (Exception ex) { error = ex; }
+            finally { done.Set(); }
+        })
+        {
+            IsBackground = true,
+            Name = "ExplorerPathPollSta"
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+
+        if (!done.Wait(timeout))
+            Logger.Log("[ExplorerActivePathPoller] Adapter read timed out; continuing without path.", LogLevel.Warn);
+        else if (error != null)
+            Logger.Log($"[ExplorerActivePathPoller] Adapter read failed: {error.Message}", LogLevel.Warn);
+
+        return result;
     }
 
     internal static bool IsObservedWindowStillActive(IntPtr observedHwnd, IntPtr activeHwnd) =>
