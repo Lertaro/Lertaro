@@ -11,6 +11,8 @@
   "ContentSearch_Config_MaxSizeDesc": "超過此大小的檔案將被跳過索引，以防止記憶體與效能過度消耗",
   "ContentSearch_Config_ExtensionsLabel": "索引副檔名",
   "ContentSearch_Config_ExtensionsDesc": "以逗號分隔的副檔名清單（如 txt,md,docx,pdf）",
+  "ContentSearch_Config_ExclusionsLabel": "排除路徑正規表達式（黑名單）",
+  "ContentSearch_Config_ExclusionsDesc": "以分號分隔的正規表達式清單，完整路徑符合的檔案或資料夾（含其子資料夾）將被排除出內容索引（如 .*\\backup\\; .*\\.tmp$）",
   "ContentSearch_PlaceholderTitle": "內容搜尋",
   "ContentSearch_PlaceholderDesc": "已索引 {0} 個檔案 · 輸入關鍵字搜尋檔案內文",
   "ContentSearch_NoResultsTitle": "未找到相符內容",

@@ -69,7 +69,7 @@ public sealed class IndexBatchProcessor
             }
 
             var fileInfo = new FileInfo(filePath);
-            if (!config.IsAllowedExtension(filePath))
+            if (!config.IsAllowedExtension(filePath) || config.IsExcluded(filePath))
             {
                 deleteBatch.Add(filePath);
                 return;

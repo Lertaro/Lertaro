@@ -11,6 +11,8 @@
   "ContentSearch_Config_MaxSizeDesc": "Los archivos que superen este tamaño se omitirán para ahorrar memoria y rendimiento",
   "ContentSearch_Config_ExtensionsLabel": "Extensiones de archivo indexadas",
   "ContentSearch_Config_ExtensionsDesc": "Lista separada por comas de extensiones de archivo (p. ej. txt,md,docx,pdf)",
+  "ContentSearch_Config_ExclusionsLabel": "Patrones de ruta excluidos",
+  "ContentSearch_Config_ExclusionsDesc": "Expresiones regulares separadas por punto y coma; cualquier archivo o carpeta cuya ruta completa coincida queda excluido de la indexación (p. ej. .*\\backup\\; .*\\.tmp$)",
   "ContentSearch_PlaceholderTitle": "Búsqueda de Contenido",
   "ContentSearch_PlaceholderDesc": "{0} archivos indexados · Ingrese palabras clave para buscar en el contenido",
   "ContentSearch_NoResultsTitle": "No se encontraron resultados",

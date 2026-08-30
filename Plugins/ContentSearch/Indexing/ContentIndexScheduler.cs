@@ -123,7 +123,7 @@ public sealed class ContentIndexScheduler : IDisposable
 
                 var existingMeta = _database.GetAllFileMetadata();
                 var toDeleteImmediately = existingMeta.Keys
-                    .Where(p => !IsFileInMonitoredFolders(p) || !IsAllowedExtension(p))
+                    .Where(p => !IsFileInMonitoredFolders(p) || !IsAllowedExtension(p) || _config.IsExcluded(p))
                     .ToList();
 
                 if (toDeleteImmediately.Count > 0)

@@ -40,6 +40,8 @@ public static class FolderScanDiscoveryHelper
                     if (item.IsDir) continue;
 
                     var file = item.FullPath;
+                    if (config.IsExcluded(file)) continue;
+
                     discovered.Add(file);
 
                     var ext = Path.GetExtension(file);
@@ -99,6 +101,8 @@ public static class FolderScanDiscoveryHelper
                 foreach (var file in Directory.EnumerateFiles(currentDir, "*.*", SearchOption.TopDirectoryOnly))
                 {
                     if (ct.IsCancellationRequested) return;
+                    if (config.IsExcluded(file)) continue;
+
                     var ext = Path.GetExtension(file);
                     if (string.IsNullOrEmpty(ext) || !config.AllowedExtensions.Contains(ext))
                         continue;
@@ -124,7 +128,11 @@ public static class FolderScanDiscoveryHelper
 
                 foreach (var subDir in Directory.EnumerateDirectories(currentDir, "*", SearchOption.TopDirectoryOnly))
                 {
-                    dirQueue.Enqueue(subDir);
+                    // A matching directory drops its entire subtree from the walk.
+                    if (!config.IsExcluded(subDir))
+                    {
+                        dirQueue.Enqueue(subDir);
+                    }
                 }
             }
             catch { }
