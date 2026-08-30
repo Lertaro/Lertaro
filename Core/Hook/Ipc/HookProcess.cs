@@ -161,9 +161,16 @@ public sealed class HookProcess : IDisposable
             trackerStartedEvent.Wait();
         }
 
+        if (_explorerTracker == null)
+        {
+            Logger.Log("[HookProcess] Explorer tracker failed to start; aborting hook installation.", LogLevel.Error);
+            CleanupHooks();
+            return;
+        }
+
         try
         {
-            _keyboardHook = new KeyboardHookService(_explorerTracker!);
+            _keyboardHook = new KeyboardHookService(_explorerTracker);
             _keyboardHook.AppProcessId = _appProcessId;
             _keyboardHook.IsHotkeysDisabledTemporarily = _isHotkeysDisabledTemporarily;
             _keyboardHook.OnQuickPanelHotkey += () =>
@@ -248,10 +255,18 @@ public sealed class HookProcess : IDisposable
             PostThreadMessage(_trackerThreadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
         }
 
-        _trackerThread?.Join(2000);
+        var trackerJoined = _trackerThread?.Join(2000) ?? true;
         _trackerThread = null;
-        _explorerTracker?.Dispose(); _explorerTracker = null;
-        Logger.Log("[HookProcess] Hooks and ExplorerTracker stopped/cleaned up.", LogLevel.Info);
+        if (trackerJoined)
+        {
+            _explorerTracker?.Dispose();
+            _explorerTracker = null;
+            Logger.Log("[HookProcess] Hooks and ExplorerTracker stopped/cleaned up.", LogLevel.Info);
+        }
+        else
+        {
+            Logger.Log("[HookProcess] Tracker thread did not stop in time; skipping tracker dispose to avoid a race.", LogLevel.Warn);
+        }
         try { Win32Api.TrimWorkingSet(); } catch { }
     }
 
