@@ -146,8 +146,8 @@ public partial class SettingsWindow : Window
         }
     }
 
-    // Case-insensitive: callers include lertaro://settings/page/<section>, external/typed input that
-    // shouldn't have to match this internal tag's exact casing.
+    // Case-insensitive: callers may provide a section name from the host UI, SDK, or external URI
+    // compatibility route.
     public void SelectSection(string tag)
     {
         if (LstSections == null || LstSectionsBottom == null)
@@ -173,12 +173,10 @@ public partial class SettingsWindow : Window
         }
     }
 
-    // lertaro://settings/entry/<index> (see UriRouter) -- index is this entry's position in
-    // SettingsWindowSearchExtensions.BuildAllEntries's combined static+dynamic list, the same list
-    // PluginSdk.Services.SettingsSearchService exposes to plugins (see App.xaml.cs), so a plugin-selected
-    // result round-trips straight back to the entry it matched. Reuses ActivateSearchResult (the same
-    // jump+highlight a typed search-box match would trigger) rather than duplicating its section/tab-
-    // selection and highlight logic.
+    // The index is this entry's position in SettingsWindowSearchExtensions.BuildAllEntries's combined
+    // static+dynamic list, the same list PluginSdk.Services.SettingsSearchService exposes to plugins
+    // (see App.xaml.cs). Reuses ActivateSearchResult (the same jump+highlight a typed search-box match
+    // would trigger) rather than duplicating its section/tab-selection and highlight logic.
     //
     // Passes this window's own real DataContext (needed so the Plugins/Hotkeys dynamic
     // entries' Reveal step resolves against the SAME live-bound objects actually in the visual tree --

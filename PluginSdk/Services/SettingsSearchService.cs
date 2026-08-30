@@ -9,8 +9,7 @@ public static class SettingsSearchService
 {
     /// <summary>
     /// Delegate function set by the main application to enumerate every currently-reachable settings
-    /// entry. Each entry's Index round-trips through lertaro://settings/entry/&lt;index&gt; to jump
-    /// straight to it (see UriRouter in the host app).
+    /// entry. The host uses each entry's opaque index when it receives a direct navigation request.
     /// </summary>
     public static Func<IReadOnlyList<SettingsSearchEntryInfo>> GetEntriesFunc { get; set; } = () => Array.Empty<SettingsSearchEntryInfo>();
 
@@ -25,7 +24,6 @@ public static class SettingsSearchService
 /// </summary>
 /// <param name="Label">The setting's translated display label.</param>
 /// <param name="Breadcrumb">The translated "Section &gt; Tab &gt; SubTab" path this entry lives under.</param>
-/// <param name="Index">This entry's position in the host's internal list -- pass back via
-/// lertaro://settings/entry/&lt;index&gt; to jump straight to it. Not stable across app restarts or
-/// settings-page changes; only meaningful within the same running process's list of entries.</param>
+/// <param name="Index">This entry's position in the host's internal list. It is not stable across app
+/// restarts or settings-page changes, and is only meaningful within the same running process.</param>
 public sealed record SettingsSearchEntryInfo(string Label, string Breadcrumb, int Index);

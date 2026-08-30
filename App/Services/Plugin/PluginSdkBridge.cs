@@ -2,6 +2,7 @@ using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
 using Lertaro.App.Helpers;
+using Lertaro.App.Services.AppWindow;
 namespace Lertaro.App.Services.Plugin;
 
 /// <summary>
@@ -27,6 +28,18 @@ internal static class PluginSdkBridge
         PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = () => Logger.UserDataDir;
         PluginSdk.Services.UserDataService.GetSharedDataDirectoryFunc = () => Logger.SharedDataDir;
         PluginSdk.Services.AppLifecycleService.RequestRestartFunc = AppLifecycle.AppRestartService.RequestRestart;
+        PluginSdk.Services.SettingsWindowService.ShowWindowFunc = targetSection =>
+        {
+            if (System.Windows.Application.Current == null) return false;
+            AppWindowManager.ShowSettingsWindow(targetSection);
+            return true;
+        };
+        PluginSdk.Services.SettingsWindowService.ShowEntryFunc = entry =>
+        {
+            if (System.Windows.Application.Current == null) return false;
+            AppWindowManager.ShowSettingsWindowEntry(entry.Index);
+            return true;
+        };
 
         // Wire up the runtime field-prompt delegate, reusing the Settings UI's own field rendering.
         PluginSdk.Services.PluginPromptService.PromptFunc = Views.Controls.Dialogs.PluginFieldPromptWindow.ShowPrompt;

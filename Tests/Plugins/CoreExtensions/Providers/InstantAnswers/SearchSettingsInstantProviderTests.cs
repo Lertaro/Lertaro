@@ -3,7 +3,8 @@ using Lertaro.Plugins.CoreExtensions.Providers.InstantAnswers;
 
 namespace Lertaro.Plugins.CoreExtensions.Tests.Providers.InstantAnswers;
 
-// SettingsSearchService.GetEntriesFunc and PluginSettingsService.GetSettingFunc are both shared static
+// SettingsSearchService.GetEntriesFunc, SettingsWindowService.ShowEntryFunc, and
+// PluginSettingsService.GetSettingFunc are shared static
 // delegates, and this provider also caches the resolved trigger word in a private static field --
 // [DoNotParallelize] plus resetting everything (including busting the cache via NotifySettingChanged)
 // keeps tests in this class from racing on any of that.
@@ -18,12 +19,19 @@ public sealed class SearchSettingsInstantProviderTests
     {
         PluginSettingsService.GetSettingFunc = null;
         FuzzyMatchService.IsMatchFunc = null;
+        SettingsWindowService.ShowEntryFunc = null;
+        SettingsWindowService.ShowWindowFunc = null;
         PluginSettingsService.NotifySettingChanged(PluginId, "SearchSettingsTrigger"); // busts the cached trigger word
         SettingsSearchService.GetEntriesFunc = () => Array.Empty<SettingsSearchEntryInfo>();
     }
 
     [TestCleanup]
-    public void Cleanup() => FuzzyMatchService.IsMatchFunc = null;
+    public void Cleanup()
+    {
+        FuzzyMatchService.IsMatchFunc = null;
+        SettingsWindowService.ShowEntryFunc = null;
+        SettingsWindowService.ShowWindowFunc = null;
+    }
 
     private static void ConfigureEntries(params SettingsSearchEntryInfo[] entries) =>
         SettingsSearchService.GetEntriesFunc = () => entries;
@@ -70,13 +78,23 @@ public sealed class SearchSettingsInstantProviderTests
     }
 
     [TestMethod]
-    public void GetInstantResults_ActionArgumentEncodesEntryIndex()
+    public void GetInstantResults_SelectionNotifiesHostWithEntry()
     {
         ConfigureEntries(new SettingsSearchEntryInfo("Dark mode", "Appearance", 42));
+        SettingsSearchEntryInfo? selected = null;
+        SettingsWindowService.ShowEntryFunc = entry =>
+        {
+            selected = entry;
+            return true;
+        };
 
         var result = new SearchSettingsInstantProvider().GetInstantResults("set ").Single();
 
-        Assert.AreEqual("lertaro://settings/entry/42", result.ActionArgument);
+        result.OnExecute?.Invoke();
+        Assert.IsNotNull(selected);
+        Assert.AreEqual(42, selected.Index);
+        Assert.AreEqual("None", result.ActionType);
+        Assert.IsEmpty(result.ActionArgument);
         Assert.AreEqual("Dark mode", result.Title);
         Assert.AreEqual("Appearance", result.Description);
     }

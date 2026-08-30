@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
@@ -9,17 +8,9 @@ internal static class FlowSettingsNavigationHelper
     internal static bool OpenPluginSettings(string pluginName)
     {
         var entry = FindPluginConfigEntry(pluginName);
-        var target = entry == null ? "page/Plugins" : $"entry/{entry.Index}";
-
-        try
-        {
-            Process.Start(new ProcessStartInfo($"lertaro://settings/{target}") { UseShellExecute = true });
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return entry == null
+            ? SettingsWindowService.ShowWindow("Plugins")
+            : SettingsWindowService.ShowEntry(entry);
     }
 
     private static SettingsSearchEntryInfo? FindPluginConfigEntry(string pluginName)

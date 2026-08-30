@@ -54,9 +54,8 @@ public static class AppWindowManager
         });
     }
 
-    // lertaro://settings/entry/<index> (see UriRouter) -- jumps straight to one specific setting
-    // (section + tab + row highlight), not just its section. index into SettingsSearchIndex.Entries via
-    // SettingsWindow.JumpToEntry, which validates it and no-ops on an out-of-range value.
+    // Jumps straight to one specific setting (section + tab + row highlight), not just its section.
+    // The index comes from the host's searchable settings entries and is validated by the window.
     public static void ShowSettingsWindowEntry(int entryIndex)
     {
         if (System.Windows.Application.Current == null) return;

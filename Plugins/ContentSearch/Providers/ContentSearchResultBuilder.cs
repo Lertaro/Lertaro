@@ -10,7 +10,6 @@ namespace Lertaro.Plugins.ContentSearch.Providers;
 public static class ContentSearchResultBuilder
 {
     private const string DocumentSearchIcon = "M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z";
-    private static string? _cachedSettingsUri;
 
     public static IEnumerable<InstantResultItem> BuildResultItems(IReadOnlyList<SearchHitItem> hits)
     {
@@ -42,8 +41,8 @@ public static class ContentSearchResultBuilder
             Description = desc,
             IconData = DocumentSearchIcon,
             IconColor = "DefaultPluginIconColor",
-            ActionType = "Execute",
-            ActionArgument = GetPluginSettingsUri()
+            ActionType = "None",
+            OnExecute = ShowPluginSettings
         };
     }
 
@@ -57,10 +56,8 @@ public static class ContentSearchResultBuilder
         ActionArgument = string.Empty
     };
 
-    private static string GetPluginSettingsUri()
+    private static void ShowPluginSettings()
     {
-        if (_cachedSettingsUri != null) return _cachedSettingsUri;
-
         try
         {
             var pluginName = TranslationService.Get("ContentSearch_PluginName");
@@ -70,18 +67,20 @@ public static class ContentSearchResultBuilder
             var configEntry = entries.FirstOrDefault(e => e.Breadcrumb.Contains(configPrefix, StringComparison.OrdinalIgnoreCase));
             if (configEntry != null)
             {
-                return _cachedSettingsUri = $"lertaro://settings/entry/{configEntry.Index}";
+                SettingsWindowService.ShowEntry(configEntry);
+                return;
             }
 
             var suffix = $" › {pluginName}";
             var pluginEntry = entries.FirstOrDefault(e => e.Breadcrumb.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
             if (pluginEntry != null)
             {
-                return _cachedSettingsUri = $"lertaro://settings/entry/{pluginEntry.Index}";
+                SettingsWindowService.ShowEntry(pluginEntry);
+                return;
             }
         }
         catch { }
 
-        return "lertaro://settings/page/Plugins";
+        SettingsWindowService.ShowWindow("Plugins");
     }
 }
