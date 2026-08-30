@@ -251,7 +251,8 @@ public sealed class ContentIndexSchedulerTests
             scheduler.EnqueueFile(file);
             await WaitUntilAsync(() => CountLogLines("Indexing batch failed") >= 2, timeoutMs: 8000);
 
-            Assert.IsTrue(CountLogLines("Indexing batch failed") >= 2,
+            Assert.IsGreaterThanOrEqualTo(
+                2, CountLogLines("Indexing batch failed"),
                 $"the worker must survive the failure and keep serving later batches: [{string.Join("; ", _logLines)}]");
         }
         finally

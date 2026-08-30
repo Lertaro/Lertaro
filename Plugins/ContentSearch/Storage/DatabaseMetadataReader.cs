@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Lertaro.Plugins.ContentSearch.Indexing;
 using Microsoft.Data.Sqlite;
 
@@ -11,6 +12,10 @@ namespace Lertaro.Plugins.ContentSearch.Storage;
 /// </summary>
 public static class DatabaseMetadataReader
 {
+    // Threshold above which a hash lookup (a full files-table scan; no content_hash
+    // index by design) warns that the corpus has outgrown the trade-off.
+    private const long SlowHashLookupWarnMs = 500;
+
     public static Dictionary<string, (long LastModified, long FileSize)> GetAllFileMetadata(SqliteConnection conn)
     {
         var dict = new Dictionary<string, (long, long)>(StringComparer.OrdinalIgnoreCase);
@@ -53,6 +58,13 @@ public static class DatabaseMetadataReader
     /// </summary>
     public static long? FindIndexedSourceByHash(SqliteConnection conn, string contentHash, string selfPath)
     {
+        // ponytail: no index on content_hash by design: one full files-table scan per
+        // dedup-eligible file (>= 10 MB) is acceptable at the current corpus size, and
+        // the column only fills for large files. The warning below is the tripwire: if
+        // it starts firing regularly, add CREATE INDEX idx_files_content_hash ON
+        // files(content_hash) to InitializeSchema.
+        var stopwatch = Stopwatch.StartNew();
+
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             SELECT id FROM files
@@ -62,6 +74,14 @@ public static class DatabaseMetadataReader
         cmd.Parameters.AddWithValue("@hash", contentHash);
         cmd.Parameters.AddWithValue("@self", selfPath);
         var res = cmd.ExecuteScalar();
+
+        if (stopwatch.ElapsedMilliseconds >= SlowHashLookupWarnMs)
+        {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Content-hash dedup lookup took {stopwatch.ElapsedMilliseconds} ms without a content_hash index; consider indexing files(content_hash)",
+                PluginSdk.LogLevel.Warn);
+        }
+
         return res != null && res != DBNull.Value ? (long)res : null;
     }
 

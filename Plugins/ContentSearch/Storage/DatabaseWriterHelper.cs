@@ -56,7 +56,10 @@ public static class DatabaseWriterHelper
 
         // Rows referencing this file as their duplicate source must go too: their reuse
         // target is about to change identity (delete+reinsert takes a new id) and its new
-        // content may no longer match theirs. They are re-discovered on the next scan.
+        // content may no longer match theirs. Until the next full scan re-indexes those
+        // duplicate files they are invisible to search: normally a short gap (the folder
+        // watcher triggers a scan), but potentially long on network shares where the
+        // watcher is unreliable, so the count is logged below when it happens.
         using var delRefCmd = conn.CreateCommand();
         delRefCmd.Transaction = tx;
         delRefCmd.CommandText = "DELETE FROM files WHERE content_ref = @file_id;";
@@ -89,6 +92,8 @@ public static class DatabaseWriterHelper
         var pFtsContent = insertFtsCmd.Parameters.Add("@content", SqliteType.Text);
         insertFtsCmd.Prepare();
 
+        long cascadeDeleted = 0;
+
         foreach (var item in items)
         {
             pFindPath.Value = item.Path;
@@ -100,7 +105,7 @@ public static class DatabaseWriterHelper
                 delFtsCmd.ExecuteNonQuery();
 
                 pDelRefId.Value = fileId;
-                delRefCmd.ExecuteNonQuery();
+                cascadeDeleted += delRefCmd.ExecuteNonQuery();
 
                 pDelFileId.Value = fileId;
                 delFileCmd.ExecuteNonQuery();
@@ -134,6 +139,14 @@ public static class DatabaseWriterHelper
         }
 
         tx.Commit();
+
+        if (cascadeDeleted > 0)
+        {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] {cascadeDeleted} duplicate row(s) invalidated by source updates, re-indexed on the next full scan",
+                PluginSdk.LogLevel.Info);
+        }
+
         return idByPath;
     }
 
@@ -170,11 +183,23 @@ public static class DatabaseWriterHelper
             }
         }
 
+        // The first statement cascade-deletes duplicate rows pointing at the sources
+        // being removed (kept separate so its affected-rows count is exact): until the
+        // next full scan re-indexes those duplicate files they are invisible to search,
+        // which on network shares with an unreliable watcher can be a long gap, hence
+        // the log below when it happens.
+        long cascadedDuplicates;
+        using (var delRefCmd = conn.CreateCommand())
+        {
+            delRefCmd.Transaction = tx;
+            delRefCmd.CommandText = "DELETE FROM files WHERE content_ref IN (SELECT id FROM files WHERE path IN (SELECT path FROM to_delete));";
+            cascadedDuplicates = delRefCmd.ExecuteNonQuery();
+        }
+
         using (var delCmd = conn.CreateCommand())
         {
             delCmd.Transaction = tx;
             delCmd.CommandText = """
-                DELETE FROM files WHERE content_ref IN (SELECT id FROM files WHERE path IN (SELECT path FROM to_delete));
                 DELETE FROM files_fts WHERE rowid IN (SELECT id FROM files WHERE path IN (SELECT path FROM to_delete));
                 DELETE FROM files WHERE path IN (SELECT path FROM to_delete);
                 DROP TABLE to_delete;
@@ -183,5 +208,12 @@ public static class DatabaseWriterHelper
         }
 
         tx.Commit();
+
+        if (cascadedDuplicates > 0)
+        {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] {cascadedDuplicates} duplicate row(s) cascade-deleted with their sources, re-indexed on the next full scan",
+                PluginSdk.LogLevel.Info);
+        }
     }
 }
