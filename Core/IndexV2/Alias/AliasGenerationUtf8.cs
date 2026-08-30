@@ -33,7 +33,7 @@ internal static class AliasGenerationUtf8
     // the name yields no aliases (the common pure-ASCII case exits on the vectorized gate).
     public static Result? Generate(string name, ref ulong mask)
     {
-        if (string.IsNullOrEmpty(name) || !AliasProviderRegistry.HasNonAscii(name))
+        if (string.IsNullOrEmpty(name) || AliasProviderRegistry.HasInvalidUtf16(name) || !AliasProviderRegistry.HasNonAscii(name))
             return null;
 
         var sink = _sink ??= new AliasByteSink();

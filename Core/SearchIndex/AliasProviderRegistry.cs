@@ -94,4 +94,27 @@ public static class AliasProviderRegistry
 
         return !Ascii.IsValid(text);
     }
+
+    /// <summary>
+    /// Detects unpaired surrogate halves. NTFS/Win32 file names are UTF-16 and CAN legally carry
+    /// lone surrogates; every provider-side Unicode API (string.Normalize via the Windows
+    /// NormalizeString, per-char code point conversion) throws on them, so alias generation skips
+    /// such names outright instead of failing provider by provider on every scan.
+    /// </summary>
+    public static bool HasInvalidUtf16(string text)
+    {
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (!char.IsSurrogate(text[i]))
+                continue;
+            if (char.IsHighSurrogate(text[i]) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]))
+            {
+                i++; // a valid pair
+                continue;
+            }
+            return true; // lone surrogate (either kind)
+        }
+
+        return false;
+    }
 }

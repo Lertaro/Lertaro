@@ -175,7 +175,7 @@ public static class LiveDirectorySearcher
 
     private static string[]? GenerateAliases(string text)
     {
-        if (string.IsNullOrEmpty(text) || !AliasProviderRegistry.HasNonAscii(text))
+        if (string.IsNullOrEmpty(text) || AliasProviderRegistry.HasInvalidUtf16(text) || !AliasProviderRegistry.HasNonAscii(text))
             return null;
 
         var list = new List<string>();
