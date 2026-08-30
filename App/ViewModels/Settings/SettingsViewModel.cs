@@ -199,6 +199,10 @@ public class SettingsViewModel : ViewModelBase
         PluginManager.Instance.RefreshDisabledComponents();
         InlineSearchManager.Instance.ExplorerTracker.RefreshActiveWindowAdapters();
         NetworkDrive.ResetPendingEdits();
+        // Favorites/quick-launch edits must reach search windows that are already open: the quick
+        // window's launch panel otherwise only rebuilds on its next show, and its live result list
+        // keeps the rows the previous query read -- see OpenSearchWindowRefresher.
+        OpenSearchWindowRefresher.AfterSettingsSaved();
         var exclusionsChanged = SettingsChangeSnapshot.ExclusionsChanged(previousExclusions, SettingsChangeSnapshot.CaptureExclusions(_userSettings));
         var newDisabledAliases = _userSettings.DisabledPluginComponents
             .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))
