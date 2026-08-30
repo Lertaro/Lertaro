@@ -20,8 +20,17 @@ internal static class TrayCleanExitHelper
     {
         try
         {
-            var current = Process.GetCurrentProcess();
-            return Process.GetProcessesByName(current.ProcessName).Length == 1;
+            using var current = Process.GetCurrentProcess();
+            var processes = Process.GetProcessesByName(current.ProcessName);
+            try
+            {
+                return processes.Length == 1;
+            }
+            finally
+            {
+                foreach (var process in processes)
+                    process.Dispose();
+            }
         }
         catch (Exception ex)
         {
@@ -44,7 +53,8 @@ internal static class TrayCleanExitHelper
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-            Process.Start(psi);
+            using var proc = Process.Start(psi);
+            _ = proc;
         }
         catch (Exception ex)
         {
