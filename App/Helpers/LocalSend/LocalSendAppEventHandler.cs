@@ -121,6 +121,12 @@ public static class LocalSendAppEventHandler
 
     private static void OnUploadRequested(object? sender, LocalSendUploadRequestArgs e) => Application.Current.Dispatcher.BeginInvoke(new Action(() =>
     {
+        // A receive dialog is modal; if a second request arrives while one is already open, opening
+        // another would overwrite _activeReceiveWindow and corrupt the close-handler state. Drop the
+        // duplicate request; the first window remains the single owner of receive state.
+        if (_isReceiveWindowOpen)
+            return;
+
         _activeReceiveWindow = new LocalSendReceiveWindow(e);
         _isReceiveWindowOpen = true;
         _activeReceiveWindow.Closed += (_, _) => { _activeReceiveWindow = null; _isReceiveWindowOpen = false; };
