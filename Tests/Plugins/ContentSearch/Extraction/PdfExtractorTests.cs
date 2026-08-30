@@ -1,9 +1,12 @@
-using System.Text;
 using Lertaro.Plugins.ContentSearch.Extraction;
+using Lertaro.Plugins.ContentSearch.Tests.TestSupport;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Extraction;
 
+// Captures the process-wide PluginSdk.Logger.LogAction hook, so it must not run
+// concurrently with anything that reads or resets it.
 [TestClass]
+[DoNotParallelize]
 public sealed class PdfExtractorTests
 {
     [TestMethod]
@@ -22,7 +25,7 @@ public sealed class PdfExtractorTests
 
         try
         {
-            await File.WriteAllBytesAsync(tempFile, BuildTwoPagePdf(TextStream("first page words"), TextStream("second page words")));
+            await File.WriteAllBytesAsync(tempFile, PdfTestDocument.TwoPage(TextStream("first page words"), TextStream("second page words")));
             var text = await extractor.ExtractTextAsync(tempFile, maxFileSizeBytes: 1024 * 1024);
 
             Assert.IsNotNull(text);
@@ -52,7 +55,7 @@ public sealed class PdfExtractorTests
             // to reach Letter.GetTextOrientationRot with an unresolvable rotation in 0.1.9.
             const string rotatedPage =
                 "BT 0.99756405 0.06975647 -0.06975647 0.99756405 72 720 Tm /F1 12 Tf 0 Tz (Rotated page) Tj ET";
-            await File.WriteAllBytesAsync(tempFile, BuildTwoPagePdf(TextStream("Cysteine normal page"), rotatedPage));
+            await File.WriteAllBytesAsync(tempFile, PdfTestDocument.TwoPage(TextStream("Cysteine normal page"), rotatedPage));
 
             var text = await extractor.ExtractTextAsync(tempFile, maxFileSizeBytes: 1024 * 1024);
 
@@ -67,37 +70,73 @@ public sealed class PdfExtractorTests
         }
     }
 
-    private static string TextStream(string text) => $"BT /F1 12 Tf 72 720 Td ({text}) Tj ET";
-
-    private static byte[] BuildTwoPagePdf(string firstPageContentStream, string secondPageContentStream)
+    [TestMethod]
+    public async Task ExtractTextAsync_ImageOnlyPdf_ReturnsEmptyStringNotFailure()
     {
-        var objects = new List<string>
-        {
-            "<< /Type /Catalog /Pages 2 0 R >>",
-            "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R >>",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>",
-            "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-        };
+        // A well-formed PDF whose pages draw only shapes (no text operators) must come back
+        // as an empty string, not null: null means "extraction failed" to the scheduler,
+        // while empty means "no text layer" and earns its own distinct warning.
+        var extractor = new PdfExtractor();
+        var tempFile = Path.Combine(Path.GetTempPath(), $"test_doc_{Guid.NewGuid():N}.pdf");
 
-        objects.Add($"<< /Length {firstPageContentStream.Length} >>\nstream\n{firstPageContentStream}\nendstream");
-        objects.Add($"<< /Length {secondPageContentStream.Length} >>\nstream\n{secondPageContentStream}\nendstream");
-
-        var sb = new StringBuilder();
-        sb.Append("%PDF-1.4\n");
-        var offsets = new List<int>();
-        foreach (var (obj, idx) in objects.Select((o, i) => (o, i)))
+        try
         {
-            offsets.Add(sb.Length);
-            sb.Append($"{idx + 1} 0 obj\n{obj}\nendobj\n");
+            // A filled rectangle and a stroked line: real visible content, zero text.
+            const string graphicsOnly = "0 0 1 rg 72 720 200 100 re f  0 0 0 RG 72 400 m 300 400 l S";
+            await File.WriteAllBytesAsync(tempFile, PdfTestDocument.SinglePage(graphicsOnly));
+
+            var text = await extractor.ExtractTextAsync(tempFile, maxFileSizeBytes: 1024 * 1024);
+
+            Assert.IsNotNull(text);
+            Assert.IsEmpty(text.Trim());
         }
-
-        var xrefStart = sb.Length;
-        sb.Append($"xref\n0 {objects.Count + 1}\n0000000000 65535 f \n");
-        foreach (var offset in offsets)
-            sb.Append($"{offset:D10} 00000 n \n");
-        sb.Append($"trailer\n<< /Size {objects.Count + 1} /Root 1 0 R >>\nstartxref\n{xrefStart}\n%%EOF\n");
-
-        return Encoding.Latin1.GetBytes(sb.ToString());
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
     }
+
+    [TestMethod]
+    public async Task ExtractTextAsync_TruncatedXrefTable_FailsWithNull()
+    {
+        // A file whose xref/startxref trailer is missing must surface as a null (hard
+        // failure, the extractor logs it), never as an empty-string "no text" result.
+        var extractor = new PdfExtractor();
+        var tempFile = Path.Combine(Path.GetTempPath(), $"test_doc_{Guid.NewGuid():N}.pdf");
+
+        try
+        {
+            var valid = PdfTestDocument.SinglePage(TextStream("readable words"));
+            // Chop the file right after the last object: no xref, no startxref, no trailer.
+            var truncated = valid.AsSpan(0, valid.Length - 60).ToArray();
+            await File.WriteAllBytesAsync(tempFile, truncated);
+
+            var text = await extractor.ExtractTextAsync(tempFile, maxFileSizeBytes: 1024 * 1024);
+
+            Assert.IsNull(text);
+            Assert.IsTrue(
+                _logLines.Any(l => l.Contains("Failed to extract PDF", StringComparison.Ordinal) && l.Contains(tempFile, StringComparison.Ordinal)),
+                $"Expected a failure warning in: [{string.Join("; ", _logLines)}]");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    private readonly List<string> _logLines = new();
+
+    [TestInitialize]
+    public void CaptureLogs()
+    {
+        _logLines.Clear();
+        PluginSdk.Logger.LogAction = (message, level) => _logLines.Add($"{level}: {message}");
+    }
+
+    [TestCleanup]
+    public void ReleaseLogs() => PluginSdk.Logger.LogAction = null;
+
+    private static string TextStream(string text) => $"BT /F1 12 Tf 72 720 Td ({text}) Tj ET";
 }

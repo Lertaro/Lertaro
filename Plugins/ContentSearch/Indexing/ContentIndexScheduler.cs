@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using Lertaro.PluginSdk.Helpers;
-using Lertaro.Plugins.ContentSearch.Extraction;
 using Lertaro.Plugins.ContentSearch.Storage;
 
 namespace Lertaro.Plugins.ContentSearch.Indexing;
@@ -14,6 +13,7 @@ public sealed class ContentIndexScheduler : IDisposable
 
     private readonly ContentSearchDatabase _database;
     private readonly ContentFolderWatcher _folderWatcher;
+    private readonly IndexBatchProcessor _batchProcessor;
     private readonly ConcurrentQueue<string> _pendingFiles = new();
     private readonly HashSet<string> _enqueuedPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _queueLock = new();
@@ -37,6 +37,7 @@ public sealed class ContentIndexScheduler : IDisposable
     public ContentIndexScheduler(ContentSearchDatabase database)
     {
         _database = database;
+        _batchProcessor = new IndexBatchProcessor(database);
         _folderWatcher = new ContentFolderWatcher(() => TriggerFullScan());
     }
 
@@ -171,9 +172,12 @@ public sealed class ContentIndexScheduler : IDisposable
         }
     }
 
-    internal bool IsFileInMonitoredFolders(string filePath)
+    internal bool IsFileInMonitoredFolders(string filePath) =>
+        IsFileInMonitoredFolders(filePath, _config);
+
+    internal static bool IsFileInMonitoredFolders(string filePath, ContentIndexConfig config)
     {
-        foreach (var rawFolder in _config.MonitoredFolders)
+        foreach (var rawFolder in config.MonitoredFolders)
         {
             var folder = NormalizeFolderPath(rawFolder);
             if (string.IsNullOrEmpty(folder)) continue;
@@ -185,12 +189,7 @@ public sealed class ContentIndexScheduler : IDisposable
         return false;
     }
 
-    internal bool IsAllowedExtension(string filePath)
-    {
-        var ext = Path.GetExtension(filePath);
-        if (string.IsNullOrEmpty(ext)) return false;
-        return _config.AllowedExtensions.Contains(ext);
-    }
+    internal bool IsAllowedExtension(string filePath) => _config.IsAllowedExtension(filePath);
 
     private void WorkerLoop(CancellationToken ct)
     {
@@ -227,69 +226,10 @@ public sealed class ContentIndexScheduler : IDisposable
 
             // Blocking wait is fine here: this is the dedicated below-normal scheduler
             // thread, and the parallel extraction lanes run on thread-pool threads.
-            ProcessBatchAsync(batch, ct).GetAwaiter().GetResult();
+            _batchProcessor.ProcessBatchAsync(batch, _config, ct).GetAwaiter().GetResult();
             _database.Checkpoint(truncate: false);
             if (ct.WaitHandle.WaitOne(20)) break;
         }
-    }
-
-    private async Task ProcessBatchAsync(IReadOnlyList<string> filePaths, CancellationToken ct)
-    {
-        var writeBatch = new ConcurrentBag<FileIndexBatchItem>();
-        var deleteBatch = new ConcurrentBag<string>();
-
-        using var semaphore = new SemaphoreSlim(GetExtractorParallelism(Environment.ProcessorCount));
-        var tasks = filePaths.Select(async filePath =>
-        {
-            await semaphore.WaitAsync(ct);
-            try
-            {
-                if (ct.IsCancellationRequested || !IsFileInMonitoredFolders(filePath) || !File.Exists(filePath))
-                {
-                    deleteBatch.Add(filePath);
-                    return;
-                }
-
-                var fileInfo = new FileInfo(filePath);
-                if (!IsAllowedExtension(filePath) ||
-                    fileInfo.Length > _config.MaxFileSizeBytes ||
-                    fileInfo.Length == 0)
-                {
-                    deleteBatch.Add(filePath);
-                    return;
-                }
-
-                var text = await TextExtractorRegistry.Instance.ExtractTextAsync(
-                    filePath, _config.MaxFileSizeBytes, ct);
-
-                if (string.IsNullOrWhiteSpace(text))
-                {
-                    deleteBatch.Add(filePath);
-                    return;
-                }
-
-                writeBatch.Add(new FileIndexBatchItem(filePath, fileInfo.LastWriteTimeUtc, fileInfo.Length, text));
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex)
-            {
-                PluginSdk.Logger.Log(
-                    $"[ContentSearch] Failed to index '{filePath}': {ex.Message}",
-                    PluginSdk.LogLevel.Warn);
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        });
-
-        await Task.WhenAll(tasks);
-
-        if (!deleteBatch.IsEmpty)
-            _database.DeleteFilesBatch(deleteBatch);
-
-        if (!writeBatch.IsEmpty)
-            _database.InsertOrUpdateBatch(writeBatch.ToList());
     }
 
     public void Dispose()

@@ -3,11 +3,15 @@ using Lertaro.Plugins.ContentSearch.Storage;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Indexing;
 
+// Shares the process-wide PluginSdk.Logger.LogAction hook and a temp database, so it
+// must not run concurrently with anything that reads or resets them.
 [TestClass]
+[DoNotParallelize]
 public sealed class ContentIndexSchedulerTests
 {
     private string _tempDbPath = null!;
     private ContentSearchDatabase _database = null!;
+    private readonly List<string> _logLines = new();
 
     [TestInitialize]
     public void SetUp()
@@ -15,11 +19,14 @@ public sealed class ContentIndexSchedulerTests
         _tempDbPath = Path.Combine(Path.GetTempPath(), "TestIndexScheduler_" + Guid.NewGuid().ToString("N") + ".db");
         _database = new ContentSearchDatabase(_tempDbPath);
         _database.Initialize();
+        _logLines.Clear();
+        PluginSdk.Logger.LogAction = (message, level) => _logLines.Add($"{level}: {message}");
     }
 
     [TestCleanup]
     public void TearDown()
     {
+        PluginSdk.Logger.LogAction = null;
         _database.Dispose();
         if (File.Exists(_tempDbPath))
         {
@@ -122,5 +129,73 @@ public sealed class ContentIndexSchedulerTests
         Thread.Sleep(300);
 
         Assert.IsNull(_database.GetFileRecord(@"C:\MyDocs\doc1.pdf"));
+    }
+
+    [TestMethod]
+    public async Task TriggerFullScan_FailedFile_IsNotReExtractedOnSecondScan()
+    {
+        // Regression for the log-spam loop: a file that fails extraction (here: OLE bytes in
+        // a whitelisted .txt) used to be deleted from the index, re-discovered, and
+        // re-extracted on every watcher-triggered scan, emitting the same warning forever.
+        // The failed row must now stick, so the second scan produces no new warnings.
+        var tempDir = Path.Combine(Path.GetTempPath(), "TestIndexScheduler_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var binaryTxt = Path.Combine(tempDir, "diskstats.txt");
+        var oleBytes = new byte[512];
+        oleBytes[0] = 0xD0; oleBytes[1] = 0xCF; oleBytes[2] = 0x11; oleBytes[3] = 0xE0;
+        await File.WriteAllBytesAsync(binaryTxt, oleBytes);
+
+        try
+        {
+            _scheduler = new ContentIndexScheduler(_database);
+            var config = new ContentIndexConfig
+            {
+                MonitoredFolders = new List<string> { tempDir },
+                AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".txt" }
+            };
+            _scheduler.Start(config);
+
+            await WaitUntilAsync(() => _database.GetFileRecord(binaryTxt) != null);
+            var warningsAfterFirstScan = CountLogLines("Skipped binary file");
+            Assert.AreEqual(1, warningsAfterFirstScan,
+                $"Expected exactly one skip warning after the first scan: [{string.Join("; ", _logLines)}]");
+
+            _scheduler.TriggerFullScan();
+            await WaitUntilAsync(() => _scheduler.PendingCount == 0, timeoutMs: 1500);
+            await Task.Delay(400); // give the worker a beat to finish the drained batch
+
+            Assert.AreEqual(1, CountLogLines("Skipped binary file"),
+                $"Second scan must not re-extract the unchanged failed file: [{string.Join("; ", _logLines)}]");
+
+            // Changing the file (new mtime/size) must clear the failure and retry.
+            await File.WriteAllTextAsync(binaryTxt, "now it is plain readable text");
+            _scheduler.TriggerFullScan();
+            await WaitUntilAsync(() =>
+                _database.GetFileRecord(binaryTxt) is { FailedAt: null });
+
+            Assert.AreEqual(1, CountLogLines("Skipped binary file"),
+                "The retried file now indexes as text, so no new binary-skip warning may appear");
+        }
+        finally
+        {
+            _scheduler?.Dispose();
+            _scheduler = null;
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+    }
+
+    private ContentIndexScheduler? _scheduler;
+
+    private int CountLogLines(string fragment) =>
+        _logLines.Count(l => l.Contains(fragment, StringComparison.Ordinal));
+
+    private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMs = 5000)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (condition()) return;
+            await Task.Delay(50);
+        }
     }
 }

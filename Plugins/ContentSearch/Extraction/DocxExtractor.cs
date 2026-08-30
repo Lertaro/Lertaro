@@ -64,7 +64,9 @@ public sealed class DocxExtractor : ITextExtractor
         AppendPrefixedParts(archive, "word/header", builder, ct);
         AppendPrefixedParts(archive, "word/footer", builder, ct);
 
-        return builder.Length > 0 ? builder.ToString() : null;
+        // Empty string (not null) for a well-formed but textless document; null is
+        // reserved for actual extraction failures.
+        return builder.ToString();
     }
 
     private static void AppendParagraphsFromEntry(ZipArchiveEntry? entry, StringBuilder builder, CancellationToken ct)

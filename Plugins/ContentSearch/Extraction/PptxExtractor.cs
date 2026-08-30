@@ -73,7 +73,9 @@ public sealed class PptxExtractor : ITextExtractor
                 return builder.ToString();
         }
 
-        return builder.Length > 0 ? builder.ToString() : null;
+        // Empty string (not null) for a well-formed but textless presentation; null is
+        // reserved for actual extraction failures.
+        return builder.ToString();
     }
 
     private static IEnumerable<ZipArchiveEntry> SlidesOrNotes(ZipArchive archive, string entryNamePrefix) =>
