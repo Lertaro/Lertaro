@@ -95,6 +95,20 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                 DescriptionKey = "ContentSearch_Config_ExclusionsDesc",
                 FieldType = ConfigFieldType.Text,
                 DefaultValue = string.Empty
+            },
+            new()
+            {
+                Key = "RebuildIndex",
+                LabelKey = "ContentSearch_Config_RebuildLabel",
+                DescriptionKey = "ContentSearch_Config_RebuildDesc",
+                FieldType = ConfigFieldType.Button,
+                DefaultValue = string.Empty,
+                // Off the UI thread: ClearAll runs DELETE + VACUUM, seconds on a large index.
+                OnClick = () => Task.Run(() =>
+                {
+                    Database.ClearAll();
+                    Scheduler.TriggerFullScan();
+                })
             }
         },
         OnSave = () =>
