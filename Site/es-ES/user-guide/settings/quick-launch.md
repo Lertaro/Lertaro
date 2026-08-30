@@ -33,4 +33,5 @@ Abre **Configuración → Inicio rápido → Fuentes de datos** para elegir fuen
 - Si solo hay una fuente, el indicador inferior de fuentes se oculta.
 - Con varias fuentes, la franja inferior muestra un punto por fuente. El punto seleccionado es azul y los demás grises; al pasar el ratón por encima, el punto se expande para mostrar el nombre de la fuente.
 - Mantén pulsada la tecla **Shift** y usa la rueda del ratón sobre el panel para recorrer las fuentes. La fuente seleccionada reproduce brevemente la misma animación de expansión.
+- Si los elementos superan el alto visible del panel, usa la rueda del ratón sobre el área de elementos para desplazarte verticalmente; pasar el ratón sobre un elemento no bloquea el desplazamiento.
 - Al empezar a escribir una consulta, el panel se oculta.

@@ -17,7 +17,7 @@ Lertaro 開発者向けリファレンスマニュアルへようこそ。Lertar
 | **[システムとダイアログの統合](./sdk/system-adapters)** | `IActivePathCollector`<br>`IFileDialogAdapter`<br>`IInlineSearchAdapter`<br>`IQuickNavigationProvider` | アクティブなファイラーのパス取得、標準ファイルダイアログのフック、インライン検索バーの埋め込みと双方向選択同期、クイックナビゲーションメニュー。 |
 | **[UI とプレビューの拡張](./sdk/ui-extensions)** | `ISidebarFilterProvider`<br>`IResultColumnProvider`<br>`IQuickPanelTabProvider`<br>`IFilePreviewProvider`<br>`IThumbnailProvider`<br>`IThemeProvider`<br>`ITranslationProvider` | サイドバーフィルターカテゴリ、テーブル列の拡張、クイックパネルの動的タブ、QuickLook プレビュー描画、サムネイル抽出、WPF テーマ、多言語 i18n。 |
 | **[共通データ構造と契約](./sdk/abstractions)** | `ISearchResult`<br>`FileMetadata`<br>`IPluginSearchWindow`<br>`IConfigurable` | 検索結果の読み取り専用モデル、高精度ファイルメタデータ、親ウィンドウの制御ハンドル、スキーマ駆動型ネイティブ設定フォーム。 |
-| **[ホストが提供する各種サービス](./sdk/services)** | `FuzzyMatchService`<br>`TranslationService`<br>`IconService`<br>`FavoritesService`<br>`HistoryService`<br>`FileMetadataService`<br>`DirectoryIndexerService`<br>`RecentFilesService`<br>`ExplorerPathService`<br>`PluginSettingsService`<br>`SearchRefreshService`<br>`UserDataService`<br>`Logger` | 高性能ホスト機能：fzf あいまい一致とハイライトマスク、多言語解析、キャッシュ付きアイコン抽出、お気に入り管理・履歴取得、インデックスサービス連携、データ分離、Shell ファイル操作。 |
+| **[ホストが提供する各種サービス](./sdk/services)** | `FuzzyMatchService`<br>`TranslationService`<br>`IconService`<br>`FavoritesService`<br>`HistoryService`<br>`FileMetadataService`<br>`DirectoryIndexerService`<br>`RecentFilesService`<br>`ExplorerPathService`<br>`PluginSettingsService`<br>`SettingsSearchService`<br>`SettingsWindowService`<br>`SearchRefreshService`<br>`UserDataService`<br>`Logger` | 高性能ホスト機能：fzf あいまい一致とハイライトマスク、多言語解析、キャッシュ付きアイコン抽出、お気に入り管理・履歴取得、インデックスサービス連携、データ分離、Shell ファイル操作。 |
 
 > [!NOTE]
 > 本マニュアルのすべてのインターフェイス定義、引数、動作仕様は `Lertaro.PluginSdk` のソースコードに基づいて厳密に記述されています。

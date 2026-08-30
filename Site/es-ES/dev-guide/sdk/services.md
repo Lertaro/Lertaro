@@ -16,12 +16,16 @@ El espacio de nombres `Lertaro.PluginSdk.Services` proporciona servicios estáti
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | Consulta el índice en memoria para extraer en submilisegundos los archivos modificados recientemente. |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | Obtiene la última carpeta activa explorada en el Explorador o en cualquier diálogo de archivos. |
 | **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | Lectura de configuraciones del plugin (valor de usuario > valor por defecto de esquema > valor de respaldo). |
+| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()` | Lee las opciones de configuración que el anfitrión expone actualmente para búsquedas, de modo que los plugins puedan crear sus propios resultados. |
+| **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | Solicita al anfitrión mostrar su ventana de Configuración con tema o navegar directamente a una opción, sin iniciar una URI ni otro proceso. |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | Notifica al anfitrión para reevaluar búsquedas activas tras completar operaciones asíncronas en segundo plano. |
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | Devuelve la carpeta de datos privada del usuario y la carpeta compartida global del equipo (p. ej. runtimes Python/Node). |
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | Registra eventos en `app.log`, visibles en tiempo real en el visor de registros de Configuración. |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | Muestra un diálogo modal ligero generado automáticamente a partir de un esquema de campos. |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | Solicita un cuadro de mensaje gestionado por el anfitrión para que los plugins usen la interfaz temática del anfitrión; utiliza el cuadro del sistema si no hay un controlador registrado. |
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | Abre el directorio especificado o localiza un archivo, respetando el administrador de archivos de terceros configurado por el anfitrión (o pestañas del Explorador), con respaldo al Explorador del sistema. |
+
+Los índices devueltos por `SettingsSearchService.GetEntries()` solo son válidos durante el proceso actual del anfitrión. Pasa una entrada directamente a `SettingsWindowService.ShowEntry(...)`: el SDK invoca el callback del anfitrión y no construye ni inicia URI `lertaro://`.
 
 ## 2. Operaciones de archivos nativas del Shell
 

@@ -16,12 +16,16 @@
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | 인메모리 인덱스로부터 지정 폴더 목록의 최근 수정 파일들을 밀리초 단위로 집계 추출. |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | 탐색기 및 모든 파일 대화상자에서 마지막으로 탐색된 활성 작업 디렉토리 경로 조회. |
 | **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | 플러그인 설정값 읽기 (사용자 설정값 > 스키마 기본값 > 폴백 기본값 순서). |
+| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()` | 호스트가 현재 제공하는 검색 가능한 설정 항목을 조회하여 플러그인 설정 검색 결과에 사용합니다. |
+| **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | 테마가 적용된 설정 창을 표시하거나 검색 가능한 설정 항목으로 직접 이동하도록 호스트에 요청합니다. URI나 다른 프로세스를 실행하지 않습니다. |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | 비동기 작업 완료 후 일치하는 활성 검색 결과를 재평가하고 뷰를 갱신하도록 호스트에 알림. |
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | 사용자 전용 데이터 폴더(개인 설정용) 및 머신 공용 데이터 폴더(Python/Node 런타임 등) 경로 반환. |
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | `app.log`에 로그를 기록하고 설정 센터의 실시간 로그 뷰어에 동기화. |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | 스키마를 기반으로 자동 렌더링되는 경량 모달 입력 대화상자 표시. |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | 호스트가 관리하는 메시지 상자를 표시하여 플러그인이 호스트 테마 UI를 사용하도록 하며, 호스트 처리기가 등록되지 않은 경우 시스템 메시지 상자로 대체합니다. |
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 지정된 디렉터리를 열거나 파일을 탐색하며, 호스트에 구성된 서드파티 파일 관리자(또는 탐색기 탭)를 따르고 미설정 시 시스템 파일 탐색기로 대체합니다. |
+
+`SettingsSearchService.GetEntries()`가 반환하는 항목 인덱스는 현재 호스트 프로세스에서만 유효합니다. 항목을 그대로 `SettingsWindowService.ShowEntry(...)`에 전달하면 SDK가 호스트 콜백을 호출하며, `lertaro://` URI를 만들거나 실행하지 않습니다.
 
 ## 2. Windows Shell 파일 작업 래퍼
 

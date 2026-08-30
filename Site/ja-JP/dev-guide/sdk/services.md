@@ -16,12 +16,16 @@
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | インメモリインデックスから指定フォルダー群の最新更新ファイルをミリ秒単位で集約抽出。 |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | エクスプローラーや各アプリのファイルダイアログで最後に開かれた作業ディレクトリパスを取得。 |
 | **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | プラグイン設定の読み取り（ユーザー値 > スキーマ既定値 > フォールバック値の優先順位）。 |
+| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()` | ホストが現在提供している検索可能な設定項目を取得し、プラグインの設定検索結果に利用。 |
+| **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | テーマ対応の設定画面を表示するか、検索可能な設定項目へ直接移動するようホストに要求。URI や別プロセスは起動しません。 |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | 非同期処理の完了後に、一致するアクティブな検索結果の再評価とビューの即時更新をホストへ通知。 |
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | ユーザー専用データフォルダー（個別設定用）およびマシン共通データフォルダー（Python/Node ランタイム等）を取得。 |
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | `app.log` にログを出力し、設定画面のログビューアーにリアルタイム同期。 |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | スキーマに基づいて自動生成される軽量なモーダル入力ダイアログを表示。 |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | ホスト管理のメッセージボックスを表示し、プラグインがホストのテーマ UI を利用できるようにします；ホストのハンドラーが未登録の場合はシステムのメッセージボックスへフォールバックします。 |
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 指定されたディレクトリを開くかファイルを特定し、ホスト設定のサードパーティ製ファイルマネージャー（またはエクスプローラーのタブ）を尊重します。未設定時はシステムのエクスプローラーにフォールバックします。 |
+
+`SettingsSearchService.GetEntries()` が返す項目のインデックスは、現在のホストプロセス内でのみ有効です。項目をそのまま `SettingsWindowService.ShowEntry(...)` に渡すと、SDK はホストのコールバックを呼び出し、`lertaro://` URI の生成や起動は行いません。
 
 ## 2. Windows Shell ファイル操作ヘルパー
 

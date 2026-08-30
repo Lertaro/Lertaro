@@ -16,12 +16,16 @@ The `Lertaro.PluginSdk.Services` namespace provides high-performance static serv
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | Queries the memory index in sub-milliseconds to aggregate recent files across configured folders. |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | Retrieves the last directory browsed across File Explorer and all native file dialogs. |
 | **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | Reads persistent plugin settings (user value > schema default > fallback). |
+| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()` | Reads the host's current searchable settings entries for plugin-provided settings search results. |
+| **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | Requests that the host show its themed Settings window or navigate directly to a searchable entry, without launching a URI or another process. |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | Notifies the host to re-evaluate matching active searches after asynchronous background operations complete. |
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | Returns the user-specific data folder and machine-wide shared data directory (e.g. for Python/Node runtimes). |
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | Writes logs to `app.log`, visible in real-time within the Settings log viewer. |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | Displays a lightweight modal input dialog rendered directly from field schemas. |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | Requests a host-owned message box so plugins can use the host's themed UI, with a platform fallback when no host handler is registered. |
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | Opens the specified directory or locates a file, respecting the host's configured third-party file manager (or Explorer tabs), with fallback to system Explorer. |
+
+`SettingsSearchService.GetEntries()` returns entries whose indexes are valid only during the current host process. Pass an entry directly to `SettingsWindowService.ShowEntry(...)`; the SDK invokes the host callback and does not construct or launch `lertaro://` URIs.
 
 ## 2. Shell Native File Operations
 

@@ -16,12 +16,16 @@
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | 利用内存索引快速提取指定目录列表下的最新修改文件集合（毫秒级应答，不产生物理磁盘 I/O）。 |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | 获取用户最近一次在文件资源管理器或任意应用的文件选择对话框中浏览过的活动目录路径。 |
 | **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | 读取插件持久化的配置项（优先读取用户修改值，其次读取 Schema 默认值，最后回退 defaultValue）。 |
+| **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()` | 读取宿主当前可搜索的设置条目，供插件生成设置搜索结果。 |
+| **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | 请求宿主显示主题化设置窗口，或直接跳转到可搜索的设置条目，不启动 URI 或其他进程。 |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | 用于异步即时计算源完成后台数据获取后，通知宿主原地重跑当前匹配的搜索查询并刷新视图。 |
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | 获取当前用户的专属数据目录（存放私有配置）与机器级全局共享数据目录（共享 Python/Node 运行时）。 |
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | 统一输出日志至 `app.log`，并在设置中心的实时日志查看器中同步呈现。 |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | 弹出基于 Schema 自动渲染的小型模态输入对话框，向用户请求一次性输入。 |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | 请求由宿主显示消息框，使插件能够使用宿主的主题化界面；未注册宿主处理器时回退到系统消息框。 |
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 打开指定文件夹或定位指定文件，遵循宿主配置的第三方文件管理器（或资源管理器多标签页），未配置时回退到系统资源管理器。 |
+
+`SettingsSearchService.GetEntries()` 返回的条目索引只在当前宿主进程中有效。将条目直接传给 `SettingsWindowService.ShowEntry(...)`，SDK 会调用宿主回调，不会构造或启动 `lertaro://` URI。
 
 ## 2. Shell 原生文件操作封装
 
