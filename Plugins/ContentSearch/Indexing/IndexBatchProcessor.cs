@@ -31,6 +31,19 @@ public sealed class IndexBatchProcessor
         var failedBatch = new ConcurrentBag<FileIndexBatchItem>();
         var deleteBatch = new ConcurrentBag<string>();
 
+        // Budget guard: past the configured index size cap, whole batches are skipped
+        // (their deletions are re-evaluated on the next scan) until the user raises the
+        // cap or clears the index. One warning per batch; identical repeats are
+        // condensed by the logger.
+        var indexBytes = _database.GetDatabasePageBytes();
+        if (indexBytes > config.MaxIndexSizeBytes)
+        {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Index size cap reached ({indexBytes / (1024 * 1024)} MB of {config.MaxIndexSizeBytes / (1024 * 1024)} MB), skipping {filePaths.Count} file(s)",
+                PluginSdk.LogLevel.Warn);
+            return;
+        }
+
         using var semaphore = new SemaphoreSlim(ContentIndexScheduler.GetExtractorParallelism(Environment.ProcessorCount));
         var tasks = filePaths.Select(async filePath =>
         {

@@ -11,6 +11,12 @@ public sealed class ContentIndexConfig
     public long MaxFileSizeBytes { get; init; } = long.MaxValue;
     public HashSet<string> AllowedExtensions { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Hard cap on the index database size; once exceeded, new files are not indexed
+    /// until the cap is raised or the index is cleared. 0 means unlimited.
+    /// </summary>
+    public long MaxIndexSizeBytes { get; init; } = 5L * 1024 * 1024 * 1024;
+
     // The exclusion blacklist: user-supplied full-path regexes compiled once per config
     // snapshot. Matching runs against the whole path string, so a pattern that matches an
     // ancestor folder also matches everything below it, which is how whole subtrees drop out.

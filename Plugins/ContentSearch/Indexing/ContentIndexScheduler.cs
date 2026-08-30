@@ -148,6 +148,7 @@ public sealed class ContentIndexScheduler : IDisposable
                 }
 
                 _database.Optimize();
+                _database.VacuumIfBloat();
             }
             catch (Exception ex)
             {

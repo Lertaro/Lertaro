@@ -13,6 +13,8 @@
   "ContentSearch_Config_ExtensionsDesc": "以逗号分隔的文件扩展名列表（如 txt,md,docx,pdf）",
   "ContentSearch_Config_ExclusionsLabel": "排除路径正则（黑名单）",
   "ContentSearch_Config_ExclusionsDesc": "以分号分隔的正则表达式列表，完整路径匹配的文件或文件夹（含其子文件夹）将被排除出内容索引（如 .*\\backup\\; .*\\.tmp$）",
+  "ContentSearch_Config_IndexSizeLabel": "索引数据库体积上限 (MB)",
+  "ContentSearch_Config_IndexSizeDesc": "内容索引数据库的最大体积，达到上限后将暂停索引新文件，直到提高上限或清空索引（0 = 不限制）",
   "ContentSearch_PlaceholderTitle": "内容搜索",
   "ContentSearch_PlaceholderDesc": "已索引 {0} 个文件 · 输入关键词搜索文件正文",
   "ContentSearch_NoResultsTitle": "未找到匹配内容",

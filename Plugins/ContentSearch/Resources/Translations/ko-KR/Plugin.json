@@ -13,6 +13,8 @@
   "ContentSearch_Config_ExtensionsDesc": "쉼표로 구분된 파일 확장자 목록 (예: txt,md,docx,pdf)",
   "ContentSearch_Config_ExclusionsLabel": "제외 경로 패턴",
   "ContentSearch_Config_ExclusionsDesc": "세미콜론으로 구분된 정규식이며 전체 경로가 일치하는 파일 또는 폴더는 인덱싱에서 제외됩니다 (예: .*\\backup\\; .*\\.tmp$)",
+  "ContentSearch_Config_IndexSizeLabel": "인덱스 크기 제한 (MB)",
+  "ContentSearch_Config_IndexSizeDesc": "콘텐츠 인덱스 데이터베이스의 최대 크기입니다. 제한에 도달하면 새 파일의 인덱싱이 일시 중지됩니다 (제한 인상 또는 인덱스 삭제까지, 0 = 무제한)",
   "ContentSearch_PlaceholderTitle": "콘텐츠 검색",
   "ContentSearch_PlaceholderDesc": "{0}개 파일 인덱싱됨 · 키워드를 입력하여 파일 본문 검색",
   "ContentSearch_NoResultsTitle": "일치하는 콘텐츠 없음",
