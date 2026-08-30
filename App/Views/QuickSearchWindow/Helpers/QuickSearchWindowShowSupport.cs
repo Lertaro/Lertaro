@@ -12,6 +12,7 @@ namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
 internal sealed class QuickSearchWindowShowSupport
 {
     private readonly QuickSearchWindowController _controller;
+    private readonly QuickSearchClipboardSupport _clipboardSupport = new();
 
     internal QuickSearchWindowShowSupport(QuickSearchWindowController controller) => _controller = controller;
 
@@ -37,7 +38,16 @@ internal sealed class QuickSearchWindowShowSupport
         InlineSearchManager.Instance.KeyboardHook.IsQuickSearchWindowVisible = true;
         InlineSearchManager.Instance.KeyboardHook.Stop();
         window.ViewModel.EnsureServiceMonitoringActive();
-        window.ViewModel.SearchQuery = initialQuery ?? string.Empty;
+        var useClipboardText = false;
+        var searchQuery = initialQuery ?? string.Empty;
+        if (QuickSearchClipboardSupport.ShouldReadClipboard(initialQuery)
+            && _clipboardSupport.TryGetNewText(out var clipboardText))
+        {
+            useClipboardText = true;
+            searchQuery = clipboardText;
+        }
+
+        window.ViewModel.SearchQuery = searchQuery;
         window.ViewModel.RefreshEmptyState();
         window.ViewModel.RefreshLayoutSettings();
         window.UpdateLayout();
@@ -63,6 +73,6 @@ internal sealed class QuickSearchWindowShowSupport
         }
 
         _controller.ForegroundWatcher.Start();
-        _controller.ActivateAndFocus();
+        _controller.ActivateAndFocus(useClipboardText);
     }
 }

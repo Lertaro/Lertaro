@@ -107,7 +107,7 @@ public class QuickSearchWindowController
     // at 200ms so a case where foreground genuinely never arrives (something else is holding it,
     // blocked by Windows' foreground-lock rules) still ends in focusing the search box rather than
     // leaving it silently unfocused forever.
-    private void FocusSearchBoxWhenForeground(IntPtr hwnd)
+    private void FocusSearchBoxWhenForeground(IntPtr hwnd, bool selectSearchText)
     {
         var deadline = Environment.TickCount64 + 200;
         var timer = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(10) };
@@ -120,6 +120,7 @@ public class QuickSearchWindowController
             timer.Stop();
             _window.TxtSearch.Focus();
             System.Windows.Input.Keyboard.Focus(_window.TxtSearch);
+            if (selectSearchText) _window.TxtSearch.SelectAll();
         };
         timer.Start();
     }
@@ -173,7 +174,8 @@ public class QuickSearchWindowController
     }
 
     // The activation half of a summon, shared with ShowWindow so the two cannot drift apart.
-    internal void ActivateAndFocus() => _window.Dispatcher.BeginInvoke(new Action(() =>
+    internal void ActivateAndFocus() => ActivateAndFocus(false);
+    internal void ActivateAndFocus(bool selectSearchText) => _window.Dispatcher.BeginInvoke(new Action(() =>
     {
         var hwnd = new WindowInteropHelper(_window).Handle;
         if (hwnd != IntPtr.Zero) QuickSearchWindowNative.ForceForeground(hwnd);
@@ -181,7 +183,7 @@ public class QuickSearchWindowController
         _window.Activate();
         _window.Focus();
 
-        FocusSearchBoxWhenForeground(hwnd);
+        FocusSearchBoxWhenForeground(hwnd, selectSearchText);
     }), DispatcherPriority.Input);
 
     /// <summary>

@@ -39,7 +39,10 @@ public static class UriRouter
                     break;
 
                 case "search":
-                    (System.Windows.Application.Current.MainWindow as QuickSearchWindow)?.ShowWindow(string.IsNullOrEmpty(arg) ? null : arg);
+                    // An empty search URI is still an explicit launch request. Passing an empty string
+                    // keeps it from being mistaken for the ordinary hotkey summon, which may import the
+                    // clipboard when no query was supplied.
+                    (System.Windows.Application.Current.MainWindow as QuickSearchWindow)?.ShowWindow(arg);
                     break;
 
                 case "fullsearch":
