@@ -33,8 +33,9 @@ public sealed class LocalSendServer : IDisposable
     public string? ReceivePin { get; set; }
     public string ShowToken { get; set; } = string.Empty;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _pinAttempts = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> _pinAttemptTimes = new();
     internal bool CheckPin(string clientIp, string? requestPin, out int statusCode, out string? jsonBody)
-        => LocalSendServerHelper.CheckPin(ReceivePin, _pinAttempts, clientIp, requestPin, out statusCode, out jsonBody);
+        => LocalSendServerHelper.CheckPin(ReceivePin, _pinAttempts, clientIp, requestPin, out statusCode, out jsonBody, _pinAttemptTimes);
 
     public event EventHandler<LocalSendUploadRequestArgs>? UploadRequested;
     public event EventHandler<(string FileId, string Path)>? FileReceived;

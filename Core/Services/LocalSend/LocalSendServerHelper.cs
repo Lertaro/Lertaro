@@ -230,6 +230,7 @@ public static class LocalSendServerHelper
         string clientIp,
         string? requestPin,
         out int statusCode,
-        out string? jsonResponseBody)
-        => LocalSendPinValidator.CheckPin(configuredPin, pinAttempts, clientIp, requestPin, out statusCode, out jsonResponseBody);
+        out string? jsonResponseBody,
+        System.Collections.Concurrent.ConcurrentDictionary<string, DateTime>? attemptTimes = null)
+        => LocalSendPinValidator.CheckPin(configuredPin, pinAttempts, clientIp, requestPin, out statusCode, out jsonResponseBody, attemptTimes);
 }
