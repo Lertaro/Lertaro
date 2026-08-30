@@ -97,7 +97,7 @@ public partial class PluginFieldPromptWindow : Window
     {
         if (e.ChangedButton == MouseButton.Left)
         {
-            DragMove();
+            try { DragMove(); } catch { }
         }
     }
 

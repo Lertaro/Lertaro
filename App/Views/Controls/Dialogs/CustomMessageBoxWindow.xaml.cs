@@ -31,6 +31,13 @@ public partial class CustomMessageBoxWindow : Window
         base.OnKeyDown(e);
         if (e.Key == Key.Escape)
         {
+            if (BtnOK.Visibility == Visibility.Visible &&
+                BtnCancel.Visibility == Visibility.Collapsed &&
+                BtnYes.Visibility == Visibility.Collapsed &&
+                BtnNo.Visibility == Visibility.Collapsed)
+            {
+                Result = MessageBoxResult.OK;
+            }
             Close();
         }
     }
@@ -107,7 +114,7 @@ public partial class CustomMessageBoxWindow : Window
     {
         if (e.ChangedButton == MouseButton.Left)
         {
-            DragMove();
+            try { DragMove(); } catch { }
         }
     }
 

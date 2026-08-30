@@ -8,9 +8,7 @@ using Lertaro.App.Services.Theme;
 using Lertaro.Core.Services.LocalSend;
 using Lertaro.Core.Services.LocalSend.Models;
 using System.Windows.Threading;
-
 namespace Lertaro.App.Views.LocalSend;
-
 public partial class LocalSendReceiveWindow : Window
 {
     private readonly LocalSendUploadRequestArgs _requestArgs;
@@ -60,7 +58,6 @@ public partial class LocalSendReceiveWindow : Window
                     ? "Settings_LocalSend_VerifyingChecksum" : "Settings_LocalSend_Receiving";
             TxtWindowTitle.Text = TranslationManager.Instance[titleKey];
         }
-
         LocalSendReceiveWindowHelper.UpdateItemLanguage(_fileItems);
     }
     private void PopulateRequestData(PrepareUploadRequestDto dto)
@@ -93,7 +90,6 @@ public partial class LocalSendReceiveWindow : Window
             Size = kv.Value.Size,
             SizeText = LocalSendServerHelper.FormatBytes(kv.Value.Size)
         }).ToList();
-
         LstFiles.ItemsSource = _fileItems;
         LstFiles.SelectAll();
         UpdateSummaryText();
@@ -103,10 +99,8 @@ public partial class LocalSendReceiveWindow : Window
         }
     }
     private void LstFiles_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) { if (GridStep1Footer.Visibility == Visibility.Visible) UpdateSummaryText(); else LstFiles.UnselectAll(); }
-
     private void BtnToggleSelectAll_Click(object sender, RoutedEventArgs e) =>
         (LstFiles.SelectedItems.Count == _fileItems.Count ? (Action)LstFiles.UnselectAll : LstFiles.SelectAll)();
-
     private void UpdateSummaryText()
     {
         var selectedFiles = LstFiles.SelectedItems.OfType<LocalSendReceiveFileItem>().ToList();
@@ -114,14 +108,11 @@ public partial class LocalSendReceiveWindow : Window
         var sizeFormatted = LocalSendServerHelper.FormatBytes(totalBytes);
         var msgFormat = TranslationManager.Instance["Settings_LocalSend_UploadRequestMsg"];
         TxtSummary.Text = string.Format(msgFormat, _senderAlias, selectedFiles.Count, sizeFormatted);
-
         var hasSelection = selectedFiles.Count > 0;
         BtnSaveTo.IsEnabled = hasSelection;
         BtnAcceptDefault.IsEnabled = hasSelection;
     }
-
-    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) { if (e.ChangedButton == MouseButton.Left) DragMove(); }
-
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) { if (e.ChangedButton == MouseButton.Left) { try { DragMove(); } catch { } } }
     protected override void OnPreviewKeyDown(System.Windows.Input.KeyEventArgs e)
     {
         base.OnPreviewKeyDown(e);
@@ -130,18 +121,13 @@ public partial class LocalSendReceiveWindow : Window
             e.Handled = true;
         }
     }
-
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     { if (GridStep1Footer.Visibility != Visibility.Visible && !_isCompleted) { e.Cancel = true; return; } base.OnClosing(e); }
-
     protected override void OnClosed(EventArgs e)
     { base.OnClosed(e); if (!string.IsNullOrEmpty(_currentSessionId)) LocalSendServiceManager.Instance.UnregisterSession(_currentSessionId); }
-
     private void BtnDecline_Click(object sender, RoutedEventArgs e) { _requestArgs.Respond(false); Close(); }
-
     private bool ApplySelectedFiles()
     { var selected = LstFiles.SelectedItems.OfType<LocalSendReceiveFileItem>().Select(i => i.FileId).ToHashSet(); if (selected.Count == 0) { BtnDecline_Click(this, new RoutedEventArgs()); return false; } _requestArgs.SelectedFileIds = selected; return true; }
-
     private void BtnAcceptDefault_Click(object sender, RoutedEventArgs e)
     {
         if (_isCompleted || LocalSendServiceManager.Instance.IsSessionCanceled(_currentSessionId ?? string.Empty))
@@ -153,7 +139,6 @@ public partial class LocalSendReceiveWindow : Window
         _requestArgs.Respond(true);
         SwitchToProgressStep();
     }
-
     private void BtnSaveTo_Click(object sender, RoutedEventArgs e)
     {
         var title = TranslationManager.Instance["Settings_LocalSend_UploadRequestTitle"];
@@ -171,14 +156,12 @@ public partial class LocalSendReceiveWindow : Window
             SwitchToProgressStep();
         }
     }
-
     private void ShowSenderCanceledInStep1()
     {
         _isCompleted = true; _requestArgs.Respond(false); LstFiles.UnselectAll();
         BtnToggleSelectAll.Visibility = Visibility.Collapsed; GridStep1Footer.Visibility = Visibility.Collapsed; PanelStep2Footer.Visibility = Visibility.Visible;
         TxtSummary.Text = TranslationManager.Instance["Settings_LocalSend_SenderCanceled"]; BtnCloseProgress.Content = TranslationManager.Instance["Common_Close"];
     }
-
     private void SwitchToProgressStep()
     {
         var selectedItems = LstFiles.SelectedItems.OfType<LocalSendReceiveFileItem>().ToList();
@@ -190,7 +173,6 @@ public partial class LocalSendReceiveWindow : Window
         }
         LstFiles.ItemsSource = selectedItems;
         LstFiles.UnselectAll(); LstFiles.ItemContainerStyle = (Style)FindResource("LocalSendProgressListBoxItemStyle");
-
         BtnToggleSelectAll.Visibility = Visibility.Collapsed;
         GridStep1Footer.Visibility = Visibility.Collapsed;
         PanelStep2Footer.Visibility = Visibility.Visible;
@@ -198,41 +180,40 @@ public partial class LocalSendReceiveWindow : Window
         _stopwatch.Start();
         ResetInactivityTimer();
     }
-
     private DispatcherTimer? _inactivityTimer;
+    private DispatcherTimer? _autoCloseTimer;
     private void ResetInactivityTimer()
     {
-        _inactivityTimer?.Stop();
         if (_isCompleted) return;
-        _inactivityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
-        _inactivityTimer.Tick += (_, _) => { _inactivityTimer?.Stop(); if (!_isCompleted) HandleSessionCanceled(_currentSessionId ?? string.Empty); };
+        _inactivityTimer ??= CreateInactivityTimer();
+        _inactivityTimer.Stop();
         _inactivityTimer.Start();
     }
-
+    private DispatcherTimer CreateInactivityTimer()
+    {
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+        timer.Tick += (_, _) => { timer.Stop(); if (!_isCompleted) HandleSessionCanceled(_currentSessionId ?? string.Empty); };
+        return timer;
+    }
     private int _maxCompletedCount;
     public void HandleProgressChanged(LocalSendProgressArgs args) => Dispatcher.BeginInvoke(new Action(() =>
     {
         if (_isCompleted && !args.IsAllDone) return;
-
         ResetInactivityTimer();
         _currentSessionId = args.SessionId;
         _transferStage = args.Stage;
         var isAllDone = args.IsAllDone;
         if (isAllDone) { _isCompleted = true; _inactivityTimer?.Stop(); }
-
         UpdateFileItemsProgress(args);
         var hasError = LstFiles.Items.OfType<LocalSendReceiveFileItem>().Any(i => i.IsFailed);
         if (args.IsFailed) _inactivityTimer?.Stop();
-
         var realFinishedCount = isAllDone ? args.TotalFiles : LstFiles.Items.OfType<LocalSendReceiveFileItem>().Count(i => i.IsFinished);
         _maxCompletedCount = Math.Max(_maxCompletedCount, realFinishedCount);
-
         TxtSummary.Text = $"({_maxCompletedCount}/{args.TotalFiles})";
         var activeTitle = args.Stage == LocalSendTransferStage.VerifyingChecksum
             ? TranslationManager.Instance["Settings_LocalSend_VerifyingChecksum"]
             : $"{TranslationManager.Instance["Settings_LocalSend_Receiving"]} ({_maxCompletedCount}/{args.TotalFiles})";
         TxtWindowTitle.Text = hasError ? TranslationManager.Instance["Local_StateFailed"] : activeTitle;
-
         var elapsedSec = _stopwatch.Elapsed.TotalSeconds;
         var curBytes = args.SessionBytesTransferred > 0 ? args.SessionBytesTransferred : args.BytesTransferred;
         if (elapsedSec >= 0.3 || _lastBytes == 0)
@@ -242,7 +223,6 @@ public partial class LocalSendReceiveWindow : Window
             _lastBytes = curBytes;
             _stopwatch.Restart();
         }
-
         if (isAllDone)
         {
             _inactivityTimer?.Stop();
@@ -252,18 +232,21 @@ public partial class LocalSendReceiveWindow : Window
             BtnCloseProgress.Content = TranslationManager.Instance["Common_Close"];
             var target = LocalSendReceiveWindowHelper.ResolveFolderTarget(_lastRootSavedPath, _lastSavedPath);
             if (!string.IsNullOrEmpty(target)) BtnOpenFolder.Visibility = Visibility.Visible;
-
             if (!hasError && _requestArgs.IsAutoAccepted)
             {
-                var autoCloseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1200) };
-                autoCloseTimer.Tick += (_, _) => { autoCloseTimer.Stop(); Close(); };
-                autoCloseTimer.Start();
+                _autoCloseTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1200) };
+                _autoCloseTimer.Tick += AutoCloseTimer_Tick;
+                _autoCloseTimer.Stop();
+                _autoCloseTimer.Start();
             }
         }
     }));
-
+    private void AutoCloseTimer_Tick(object? sender, EventArgs e)
+    {
+        _autoCloseTimer?.Stop();
+        Close();
+    }
     private void UpdateFileItemsProgress(LocalSendProgressArgs args) => PbTransfer.Value = LocalSendReceiveWindowHelper.UpdateItemProgress(LstFiles.Items, args);
-
     public void HandleSessionCanceled(string sessionId) => Dispatcher.BeginInvoke(new Action(() =>
     {
         _isCompleted = true; _inactivityTimer?.Stop();
@@ -287,7 +270,6 @@ public partial class LocalSendReceiveWindow : Window
         }
         Close();
     }
-
     private void BtnCopyText_Click(object sender, RoutedEventArgs e)
     { if (_isTextUrl) { try { Process.Start(new ProcessStartInfo(TxtTextMessage.Text.Trim()) { UseShellExecute = true }); } catch { } } else System.Windows.Clipboard.SetText(TxtTextMessage.Text); Close(); }
 }
