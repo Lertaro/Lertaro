@@ -12,6 +12,8 @@ internal static class ExplorerSelectionQuery
 
     public static bool IsActiveWindowFolderEmptySpace(IntPtr hwnd)
     {
+        object? shell = null;
+        object? windows = null;
         try
         {
             var rootHwnd = Native.GetAncestor(hwnd, GA_ROOT);
@@ -20,19 +22,23 @@ internal static class ExplorerSelectionQuery
             var shellType = Type.GetTypeFromProgID("Shell.Application");
             if (shellType == null) return true;
 
-            var shell = Activator.CreateInstance(shellType);
+            shell = Activator.CreateInstance(shellType);
             if (shell == null) return true;
 
             dynamic dShell = shell;
-            dynamic windows = dShell.Windows();
+            windows = dShell.Windows();
             if (windows == null) return true;
 
-            int count = windows.Count;
+            dynamic dWindows = windows;
+            int count = dWindows.Count;
             for (var i = 0; i < count; i++)
             {
+                object? window = null;
+                object? doc = null;
+                object? selectedItems = null;
                 try
                 {
-                    dynamic window = windows.Item(i);
+                    window = dWindows.Item(i);
                     if (window == null) continue;
 
                     dynamic w = window;
@@ -41,22 +47,48 @@ internal static class ExplorerSelectionQuery
                     var isMatch = isActiveDesktop ? Native.IsDesktopWindow(wHwnd, out _) : wHwnd == rootHwnd;
                     if (!isMatch) continue;
 
-                    dynamic doc = w.Document;
+                    doc = w.Document;
                     if (doc != null)
                     {
-                        dynamic selectedItems = doc.SelectedItems;
+                        dynamic dDoc = doc;
+                        selectedItems = dDoc.SelectedItems;
                         if (selectedItems != null)
                         {
-                            int itemsCount = selectedItems.Count;
+                            dynamic dSelected = selectedItems;
+                            int itemsCount = dSelected.Count;
                             if (itemsCount > 0) return false;
                         }
                     }
                     break;
                 }
                 catch { }
+                finally
+                {
+                    ReleaseComObject(selectedItems);
+                    ReleaseComObject(doc);
+                    ReleaseComObject(window);
+                }
             }
         }
         catch { }
+        finally
+        {
+            ReleaseComObject(windows);
+            ReleaseComObject(shell);
+        }
         return true;
+    }
+
+    private static void ReleaseComObject(object? comObject)
+    {
+        try
+        {
+            if (comObject != null && System.Runtime.InteropServices.Marshal.IsComObject(comObject))
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(comObject);
+        }
+        catch
+        {
+            // Best-effort cleanup; the RCW will still be reclaimed by the GC finalizer.
+        }
     }
 }
