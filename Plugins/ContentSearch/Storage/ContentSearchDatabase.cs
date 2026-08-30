@@ -57,14 +57,15 @@ public sealed class ContentSearchDatabase : IDisposable
         }
     }
 
-    public void InsertOrUpdateBatch(IReadOnlyList<FileIndexBatchItem> items)
+    public IReadOnlyDictionary<string, long> InsertOrUpdateBatch(IReadOnlyList<FileIndexBatchItem> items)
     {
         Initialize();
         lock (_writeLock)
         {
             using var conn = OpenConnection();
-            DatabaseWriterHelper.InsertOrUpdateBatch(conn, items);
+            var result = DatabaseWriterHelper.InsertOrUpdateBatch(conn, items);
             RefreshStatsInternal(conn);
+            return result;
         }
     }
 
@@ -162,7 +163,7 @@ public sealed class ContentSearchDatabase : IDisposable
 
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT id, path, last_modified, file_size, indexed_at, failed_at FROM files WHERE path = @path LIMIT 1;";
+        cmd.CommandText = "SELECT id, path, last_modified, file_size, indexed_at, failed_at, content_hash, content_ref FROM files WHERE path = @path LIMIT 1;";
         cmd.Parameters.AddWithValue("@path", path);
         using var reader = cmd.ExecuteReader();
         if (reader.Read())
@@ -174,10 +175,34 @@ public sealed class ContentSearchDatabase : IDisposable
                 LastModified = reader.GetInt64(2),
                 FileSize = reader.GetInt64(3),
                 IndexedAt = reader.GetInt64(4),
-                FailedAt = reader.IsDBNull(5) ? null : reader.GetInt64(5)
+                FailedAt = reader.IsDBNull(5) ? null : reader.GetInt64(5),
+                ContentHash = reader.IsDBNull(6) ? null : reader.GetString(6),
+                ContentRef = reader.IsDBNull(7) ? null : reader.GetInt64(7)
             };
         }
         return null;
+    }
+
+    /// <summary>
+    /// Finds the id of an indexed row holding this exact content: a source row (its own
+    /// text, not failed, not itself a duplicate) other than the given path.
+    /// </summary>
+    public long? FindIndexedSourceByHash(string contentHash, string selfPath)
+    {
+        if (!File.Exists(_dbPath)) return null;
+        Initialize();
+
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT id FROM files
+            WHERE content_hash = @hash AND content_ref IS NULL AND failed_at IS NULL AND path <> @self
+            LIMIT 1;
+            """;
+        cmd.Parameters.AddWithValue("@hash", contentHash);
+        cmd.Parameters.AddWithValue("@self", selfPath);
+        var res = cmd.ExecuteScalar();
+        return res != null && res != DBNull.Value ? (long)res : null;
     }
 
     public HashSet<string> GetAllIndexedPaths()

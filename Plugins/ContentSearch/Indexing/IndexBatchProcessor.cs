@@ -14,8 +14,13 @@ namespace Lertaro.Plugins.ContentSearch.Indexing;
 public sealed class IndexBatchProcessor
 {
     private readonly ContentSearchDatabase _database;
+    private readonly DuplicateContentResolver _duplicateResolver;
 
-    public IndexBatchProcessor(ContentSearchDatabase database) => _database = database;
+    public IndexBatchProcessor(ContentSearchDatabase database)
+    {
+        _database = database;
+        _duplicateResolver = new DuplicateContentResolver(database);
+    }
 
     public async Task ProcessBatchAsync(
         IReadOnlyList<string> filePaths,
@@ -42,14 +47,60 @@ public sealed class IndexBatchProcessor
 
         await Task.WhenAll(tasks);
 
+        WriteBatchesWithIntraBatchDedup(writeBatch, deleteBatch);
+
         if (!deleteBatch.IsEmpty)
             _database.DeleteFilesBatch(deleteBatch);
 
         if (!failedBatch.IsEmpty)
             _database.InsertOrUpdateBatch(failedBatch.ToList());
+    }
 
-        if (!writeBatch.IsEmpty)
-            _database.InsertOrUpdateBatch(writeBatch.ToList());
+    /// <summary>
+    /// Writes successfully extracted items. Files processed in the same batch never see
+    /// each other in the database, so duplicates of the same content are resolved here:
+    /// the first item for a content hash stays the source row, the rest become duplicates
+    /// referencing it once its row id is known.
+    /// </summary>
+    private void WriteBatchesWithIntraBatchDedup(ConcurrentBag<FileIndexBatchItem> writeBatch, ConcurrentBag<string> deleteBatch)
+    {
+        if (writeBatch.IsEmpty) return;
+
+        var sources = new List<FileIndexBatchItem>(writeBatch.Count);
+        var duplicates = new List<(FileIndexBatchItem Item, string SourcePath)>();
+        var hashToSourcePath = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var item in writeBatch)
+        {
+            // Items that already reference a source (their DB lookup hit) are final.
+            if (item.ContentHash is null || item.ContentRef is not null)
+            {
+                sources.Add(item);
+                continue;
+            }
+
+            if (hashToSourcePath.TryGetValue(item.ContentHash, out var sourcePath))
+            {
+                // Keep the original content as the fallback for the (unreachable in
+                // practice) case where the source row ends up missing from the write.
+                duplicates.Add((item, sourcePath));
+                continue;
+            }
+
+            hashToSourcePath[item.ContentHash] = item.Path;
+            sources.Add(item);
+        }
+
+        var idByPath = _database.InsertOrUpdateBatch(sources);
+
+        var resolvedDuplicates = duplicates
+            .Select(d => idByPath.TryGetValue(d.SourcePath, out var sourceId)
+                ? d.Item with { Content = string.Empty, ContentRef = sourceId }
+                : d.Item) // degrade to a normal indexed row if the source is missing
+            .ToList();
+
+        if (resolvedDuplicates.Count > 0)
+            _database.InsertOrUpdateBatch(resolvedDuplicates);
     }
 
     private async Task ProcessSingleFileAsync(
@@ -86,6 +137,20 @@ public sealed class IndexBatchProcessor
                 return;
             }
 
+            // Large files are hashed before parsing: a duplicate of an already-indexed
+            // document reuses the source row's text instead of paying for a second parse
+            // and a second full copy of the text and FTS entry.
+            var contentHash = DuplicateContentResolver.ComputeHashIfLarge(filePath, fileInfo.Length);
+            if (_duplicateResolver.FindDuplicateSource(contentHash, filePath) is { } sourceId)
+            {
+                PluginSdk.Logger.Log(
+                    $"[ContentSearch] '{filePath}' duplicates already-indexed content, reusing stored text",
+                    PluginSdk.LogLevel.Info);
+                writeBatch.Add(new FileIndexBatchItem(
+                    filePath, fileInfo.LastWriteTimeUtc, fileInfo.Length, string.Empty, contentHash, sourceId));
+                return;
+            }
+
             var text = await TextExtractorRegistry.Instance.ExtractTextAsync(
                 filePath, config.MaxFileSizeBytes, ct);
 
@@ -106,7 +171,7 @@ public sealed class IndexBatchProcessor
                 return;
             }
 
-            writeBatch.Add(new FileIndexBatchItem(filePath, fileInfo.LastWriteTimeUtc, fileInfo.Length, text));
+            writeBatch.Add(new FileIndexBatchItem(filePath, fileInfo.LastWriteTimeUtc, fileInfo.Length, text, contentHash));
         }
         catch (OperationCanceledException)
         {

@@ -133,6 +133,63 @@ public sealed class IndexBatchProcessorTests
         MaxFileSizeBytes = maxFileSizeBytes
     };
 
+    [TestMethod]
+    public async Task ProcessBatchAsync_DuplicateLargeFiles_SecondPathReusesSourceText()
+    {
+        // Two identical >10 MB files: whether they arrive in different batches (DB lookup)
+        // or the same batch (intra-batch coordination), exactly one of them parses and
+        // stores text; the other references it and the FTS index holds one copy.
+        const string marker = "dedup payload marker uniquephrase";
+        var payload = new string('x', (int)DuplicateContentResolver.HashThresholdBytes) + marker;
+        var first = await WriteFileAsync("first.txt", payload);
+        var second = await WriteFileAsync("second.txt", payload);
+        var processor = new IndexBatchProcessor(_database);
+        var config = MakeConfig(maxFileSizeBytes: 512L * 1024 * 1024);
+
+        // Different batches: the second file's DB lookup must hit the first's hash.
+        await processor.ProcessBatchAsync(new[] { first }, config, CancellationToken.None);
+        await processor.ProcessBatchAsync(new[] { second }, config, CancellationToken.None);
+
+        var firstRecord = _database.GetFileRecord(first)!;
+        var secondRecord = _database.GetFileRecord(second)!;
+        Assert.IsNull(firstRecord.ContentRef);
+        Assert.IsNotNull(secondRecord.ContentRef);
+        Assert.AreEqual(firstRecord.Id, secondRecord.ContentRef);
+        Assert.IsNull(secondRecord.FailedAt, "a duplicate is indexed, not failed");
+
+        var hits = _database.SearchFts("dedup payload marker", 10);
+        Assert.HasCount(2, hits);
+        Assert.IsTrue(hits.All(h => h.Snippet.Contains("dedup payload marker", StringComparison.Ordinal)),
+            "the duplicate must surface the source row's text in its snippet");
+
+        // Same batch, source still in the DB: both files resolve to the existing source
+        // directly, no intra-batch coordination needed.
+        var third = await WriteFileAsync("third.txt", payload);
+        var fourth = await WriteFileAsync("fourth.txt", payload);
+        await processor.ProcessBatchAsync(new[] { third, fourth }, config, CancellationToken.None);
+
+        Assert.AreEqual(firstRecord.Id, _database.GetFileRecord(third)!.ContentRef);
+        Assert.AreEqual(firstRecord.Id, _database.GetFileRecord(fourth)!.ContentRef);
+
+        // Same batch, no source in the DB (deleted): both DB lookups miss, so the
+        // intra-batch coordination must pick one as source and reference it from the other.
+        _database.DeleteFilesBatch(new[] { first });
+        var fifth = await WriteFileAsync("fifth.txt", payload);
+        var sixth = await WriteFileAsync("sixth.txt", payload);
+        await processor.ProcessBatchAsync(new[] { fifth, sixth }, config, CancellationToken.None);
+
+        var fifthRecord = _database.GetFileRecord(fifth)!;
+        var sixthRecord = _database.GetFileRecord(sixth)!;
+        // Which one becomes the source is unspecified (the batch is processed in parallel);
+        // exactly one holds the text, the other references it.
+        var fifthIsSource = fifthRecord.ContentRef == null && sixthRecord.ContentRef == fifthRecord.Id;
+        var sixthIsSource = sixthRecord.ContentRef == null && fifthRecord.ContentRef == sixthRecord.Id;
+        Assert.IsTrue(fifthIsSource || sixthIsSource,
+            $"expected one source and one duplicate, got refs {fifthRecord.ContentRef}/{sixthRecord.ContentRef}");
+        Assert.IsNull(fifthRecord.FailedAt);
+        Assert.IsNull(sixthRecord.FailedAt);
+    }
+
     private async Task<string> WriteFileAsync(string name, string content)
     {
         var path = Path.Combine(_tempDir, name);

@@ -60,6 +60,7 @@ public static class DatabaseSearchHelper
                 SELECT f.id, f.path, files_fts.content
                 FROM files_fts
                 JOIN files f ON f.id = files_fts.rowid
+                JOIN files ref ON ref.id = f.id OR ref.content_ref = f.id
                 WHERE {string.Join(" AND ", whereClauses)}
                 LIMIT @limit;
                 """;
@@ -103,12 +104,17 @@ public static class DatabaseSearchHelper
             if (remainingLimit <= 0) return;
 
             using var cmd = conn.CreateCommand();
+            // Duplicate rows (content_ref set) own no FTS entry: a hit on the source row
+            // must surface the duplicates too, and their snippet reuses the source text.
             cmd.CommandText = """
-                SELECT f.id, f.path, rank, files_fts.content
-                FROM files_fts(@query)
-                JOIN files f ON f.id = files_fts.rowid
-                ORDER BY rank
-                LIMIT @limit;
+                WITH hits AS (
+                    SELECT rowid AS src_id, rank, content FROM files_fts(@query) ORDER BY rank LIMIT @limit
+                )
+                SELECT f.id, f.path, hits.rank, COALESCE(src_fts.content, hits.content) AS content
+                FROM hits
+                JOIN files f ON f.id = hits.src_id OR f.content_ref = hits.src_id
+                LEFT JOIN files_fts src_fts ON src_fts.rowid = f.content_ref
+                ORDER BY hits.rank;
                 """;
             cmd.Parameters.AddWithValue("@query", query);
             cmd.Parameters.AddWithValue("@limit", remainingLimit);

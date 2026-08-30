@@ -17,4 +17,15 @@ public sealed class IndexedFileRecord
     /// mtime/size so unchanged files are not re-extracted on every scan.
     /// </summary>
     public long? FailedAt { get; set; }
+
+    /// <summary>
+    /// Hex XxHash-128 of the file bytes for dedup-eligible (large) files, else null.
+    /// </summary>
+    public string? ContentHash { get; set; }
+
+    /// <summary>
+    /// Id of the source row whose text this duplicate reuses, or null when the row holds
+    /// its own text (or is a failed row).
+    /// </summary>
+    public long? ContentRef { get; set; }
 }
