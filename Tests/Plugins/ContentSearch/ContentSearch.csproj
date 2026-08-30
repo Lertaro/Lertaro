@@ -19,6 +19,8 @@
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <PackageReference Include="System.IO.Hashing" Version="10.0.9" />
     <PackageReference Include="PdfPig" Version="0.1.16" />
+    <PackageReference Include="Lucene.Net" Version="4.8.0-beta00018" />
+    <PackageReference Include="Lucene.Net.Analysis.Common" Version="4.8.0-beta00018" />
   </ItemGroup>
 
   <ItemGroup>

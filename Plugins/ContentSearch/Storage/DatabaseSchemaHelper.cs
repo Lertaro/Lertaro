@@ -25,6 +25,9 @@ public static class DatabaseSchemaHelper
         // fine at the current corpus size (see FindIndexedSourceByHash's tripwire
         // warning). If the corpus outgrows it, add:
         // CREATE INDEX idx_files_content_hash ON files(content_hash);
+        //
+        // Full-text indexing lives in Lucene (see LuceneContentIndex) on this branch: the
+        // FTS5 trigram table is gone, so text is never stored or searched here.
         tableCmd.CommandText = """
                 CREATE TABLE IF NOT EXISTS files (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,11 +41,6 @@ public static class DatabaseSchemaHelper
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);
-
-                CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
-                    content,
-                    tokenize = 'trigram'
-                );
                 """;
         tableCmd.ExecuteNonQuery();
 
