@@ -49,6 +49,7 @@ public class ShellMenuSession : IDisposable
     private IntPtr _parentFolderPtr;
     private IntPtr _contextMenuPtr;
     private IntPtr _hMenu;
+    private ShellContextMenuNativeMethods.IShellFolder? _parentFolder;
     private ShellContextMenuNativeMethods.IContextMenu? _contextMenu;
     private bool _disposed;
 
@@ -83,6 +84,7 @@ public class ShellMenuSession : IDisposable
             }
 
             var parentFolder = (ShellContextMenuNativeMethods.IShellFolder)Marshal.GetObjectForIUnknown(session._parentFolderPtr);
+            session._parentFolder = parentFolder;
 
             var iidIContextMenu = new Guid("000214E4-0000-0000-C000-000000000046");
             uint reserved = 0;
@@ -248,6 +250,16 @@ public class ShellMenuSession : IDisposable
         {
             ShellContextMenuNativeMethods.DestroyMenu(_hMenu);
             _hMenu = IntPtr.Zero;
+        }
+        if (_contextMenu != null)
+        {
+            Marshal.ReleaseComObject(_contextMenu);
+            _contextMenu = null;
+        }
+        if (_parentFolder != null)
+        {
+            Marshal.ReleaseComObject(_parentFolder);
+            _parentFolder = null;
         }
         if (_contextMenuPtr != IntPtr.Zero)
         {
