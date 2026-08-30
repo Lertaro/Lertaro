@@ -47,6 +47,7 @@ public class FlowPluginHost : IAsyncDisposable
     {
         _loadedPlugins[pair.Metadata.ID] = pair;
         _keywordManager.RegisterPluginKeywords(pair);
+        PluginSdk.Services.SettingsSearchService.Invalidate();
     }
 
     public bool OpenPluginSettings(string pluginId)
@@ -200,6 +201,7 @@ public class FlowPluginHost : IAsyncDisposable
                     try { pluginI18n.OnCultureInfoChanged(FlowPluginLanguageHelper.GetEffectiveCulture()); } catch { }
                 }
 
+                PluginSdk.Services.SettingsSearchService.Invalidate();
                 return true;
             }
             return false;
@@ -245,6 +247,8 @@ public class FlowPluginHost : IAsyncDisposable
                 try { await asyncDisposable.DisposeAsync().ConfigureAwait(false); } catch { }
             else if (pair.Plugin is IDisposable disposable)
                 try { disposable.Dispose(); } catch { }
+
+            PluginSdk.Services.SettingsSearchService.Invalidate();
         }
 
         if (_loaders.TryRemove(pluginId, out var loader))
@@ -285,5 +289,6 @@ public class FlowPluginHost : IAsyncDisposable
         _pluginApis.Clear();
         _keywordManager.Clear();
         _loaders.Clear();
+        PluginSdk.Services.SettingsSearchService.Invalidate();
     }
 }

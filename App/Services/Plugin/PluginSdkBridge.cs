@@ -184,6 +184,7 @@ internal static class PluginSdkBridge
         // highlighting tiers (including CJK pinyin) as the host's own results, instead of each
         // reimplementing a literal-substring-only highlighter that misses fuzzy/alias matches
         PluginSdk.Services.FuzzyMatchService.GetHighlightMaskFunc = FuzzyMatcher.ComputeHighlightMask;
+        PluginSdk.Services.FuzzyMatchService.GetMatchScoreFunc = FuzzyMatcher.ComputeMatchWeight;
 
         // Wire up the directory search delegate for plugins using CoreDirectoryIndexManager
         PluginSdk.Services.DirectoryIndexerService.SearchPluginDirectoriesFunc = async (pluginId, query, token) =>

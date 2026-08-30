@@ -34,8 +34,16 @@ internal static class FlowSettingsNavigationHelper
         if (string.IsNullOrWhiteSpace(pluginName))
             return null;
 
-        var suffix = $" › {pluginName}";
+        var nameSegment = $" › {pluginName}";
+        var fieldEntry = entries.FirstOrDefault(entry =>
+            entry.Breadcrumb.EndsWith(nameSegment, StringComparison.OrdinalIgnoreCase));
+        if (fieldEntry != null)
+            return fieldEntry;
+
+        // A Flow plugin always contributes a top-level config group. If that group has no visible
+        // child field, its own entry is the only searchable item that can reveal the config tab.
         return entries.FirstOrDefault(entry =>
-            entry.Breadcrumb.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+            string.Equals(entry.Label, pluginName, StringComparison.OrdinalIgnoreCase)
+            && entry.Breadcrumb.Contains(" › ", StringComparison.Ordinal));
     }
 }

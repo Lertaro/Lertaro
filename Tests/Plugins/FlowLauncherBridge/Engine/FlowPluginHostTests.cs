@@ -1,11 +1,31 @@
 using Flow.Launcher.Plugin;
+using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.FlowLauncherBridge.Engine;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Tests.Engine;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class FlowPluginHostTests
 {
+    [TestInitialize]
+    public void SetUp() => SettingsSearchService.InvalidateFunc = null;
+
+    [TestCleanup]
+    public void TearDown() => SettingsSearchService.InvalidateFunc = null;
+
+    [TestMethod]
+    public void RegisterPlugin_InvalidatesSettingsSearchEntries()
+    {
+        var invalidated = false;
+        SettingsSearchService.InvalidateFunc = () => invalidated = true;
+        var host = new FlowPluginHost(new FlowSettingsStorage(Path.GetTempPath()), []);
+
+        host.RegisterPlugin(new PluginPair { Metadata = new PluginMetadata { ID = "settings-id" } });
+
+        Assert.IsTrue(invalidated);
+    }
+
     [TestMethod]
     public void FlowPluginHost_TracksLoadedPluginsAndKeywords()
     {

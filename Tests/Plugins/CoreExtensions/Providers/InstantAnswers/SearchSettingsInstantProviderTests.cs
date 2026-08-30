@@ -19,6 +19,7 @@ public sealed class SearchSettingsInstantProviderTests
     {
         PluginSettingsService.GetSettingFunc = null;
         FuzzyMatchService.IsMatchFunc = null;
+        FuzzyMatchService.GetMatchScoreFunc = null;
         SettingsWindowService.ShowEntryFunc = null;
         SettingsWindowService.ShowWindowFunc = null;
         PluginSettingsService.NotifySettingChanged(PluginId, "SearchSettingsTrigger"); // busts the cached trigger word
@@ -29,6 +30,7 @@ public sealed class SearchSettingsInstantProviderTests
     public void Cleanup()
     {
         FuzzyMatchService.IsMatchFunc = null;
+        FuzzyMatchService.GetMatchScoreFunc = null;
         SettingsWindowService.ShowEntryFunc = null;
         SettingsWindowService.ShowWindowFunc = null;
     }
@@ -75,6 +77,21 @@ public sealed class SearchSettingsInstantProviderTests
         var results = new SearchSettingsInstantProvider().GetInstantResults("set dark").ToList();
 
         Assert.HasCount(12, results);
+    }
+
+    [TestMethod]
+    public void GetInstantResults_FilteredQuery_SortsByMatchScore()
+    {
+        FuzzyMatchService.IsMatchFunc = (_, _) => true;
+        FuzzyMatchService.GetMatchScoreFunc = (text, _) => text == "Best match" ? 1.0 : 0.25;
+        ConfigureEntries(
+            new SettingsSearchEntryInfo("Weak match", "Appearance", 0),
+            new SettingsSearchEntryInfo("Best match", "Appearance", 1));
+
+        var results = new SearchSettingsInstantProvider().GetInstantResults("set match").ToList();
+
+        Assert.HasCount(2, results);
+        Assert.AreEqual("Best match", results[0].Title);
     }
 
     [TestMethod]

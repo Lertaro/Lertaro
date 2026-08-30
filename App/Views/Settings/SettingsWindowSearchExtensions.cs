@@ -146,9 +146,7 @@ internal static class SettingsWindowSearchExtensions
         }
 
         var vm = window.DataContext as SettingsViewModel;
-        var results = BuildAllEntries(vm)
-            .Where(r => FuzzyMatcher.IsMatch(query, r.Label))
-            .ToList();
+        var results = RankSearchResults(query, BuildAllEntries(vm));
 
         window.LstSearchResults.ItemsSource = results;
         window.LstSearchResults.Visibility = results.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -196,4 +194,17 @@ internal static class SettingsWindowSearchExtensions
         if (e.ChangedButton == MouseButton.Left && e.OriginalSource is FrameworkElement { DataContext: SettingsSearchResultItem item })
             window.ActivateSearchResult(item);
     }
+
+    internal static List<SettingsSearchResultItem> RankSearchResults(
+        string query, IEnumerable<SettingsSearchResultItem> entries) => entries
+            .Select((entry, index) => (entry, index))
+            .Where(candidate => FuzzyMatcher.IsMatch(query, candidate.entry.Label))
+            .Select(candidate => (
+                candidate.entry,
+                candidate.index,
+                score: FuzzyMatcher.ComputeMatchWeight(candidate.entry.Label, query)))
+            .OrderByDescending(candidate => candidate.score)
+            .ThenBy(candidate => candidate.index)
+            .Select(candidate => candidate.entry)
+            .ToList();
 }

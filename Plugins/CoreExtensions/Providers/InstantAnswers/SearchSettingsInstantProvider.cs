@@ -41,10 +41,17 @@ public class SearchSettingsInstantProvider : IInstantResultProvider
         var term = query.Substring(trigger.Length).Trim();
         var browseAll = term.Length == 0;
 
-        foreach (var entry in SettingsSearchService.GetEntries())
+        var entries = SettingsSearchService.GetEntries();
+        if (!browseAll)
         {
-            if (!browseAll && !FuzzyMatchService.IsMatch(term, entry.Label))
-                continue;
+            entries = entries
+                .Where(entry => FuzzyMatchService.IsMatch(term, entry.Label))
+                .OrderByDescending(entry => FuzzyMatchService.GetMatchScore(entry.Label, term))
+                .ToList();
+        }
+
+        foreach (var entry in entries)
+        {
 
             yield return new InstantResultItem
             {

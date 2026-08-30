@@ -13,10 +13,16 @@ public static class SettingsSearchService
     /// </summary>
     public static Func<IReadOnlyList<SettingsSearchEntryInfo>> GetEntriesFunc { get; set; } = () => Array.Empty<SettingsSearchEntryInfo>();
 
+    /// <summary>Delegate function set by the host to invalidate its cached entry snapshot.</summary>
+    public static Action? InvalidateFunc { get; set; }
+
     /// <summary>
     /// Gets every currently-reachable settings entry.
     /// </summary>
     public static IReadOnlyList<SettingsSearchEntryInfo> GetEntries() => GetEntriesFunc();
+
+    /// <summary>Notifies the host that the searchable settings entry list may have changed.</summary>
+    public static void Invalidate() => InvalidateFunc?.Invoke();
 }
 
 /// <summary>

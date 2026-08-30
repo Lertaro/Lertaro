@@ -11,6 +11,7 @@ public sealed class FlowSettingsNavigationHelperTests
     public void SetUp()
     {
         SettingsSearchService.GetEntriesFunc = () => Array.Empty<SettingsSearchEntryInfo>();
+        SettingsSearchService.InvalidateFunc = null;
         SettingsWindowService.ShowEntryFunc = null;
         SettingsWindowService.ShowWindowFunc = null;
     }
@@ -19,6 +20,7 @@ public sealed class FlowSettingsNavigationHelperTests
     public void TearDown()
     {
         SettingsSearchService.GetEntriesFunc = () => Array.Empty<SettingsSearchEntryInfo>();
+        SettingsSearchService.InvalidateFunc = null;
         SettingsWindowService.ShowEntryFunc = null;
         SettingsWindowService.ShowWindowFunc = null;
     }
@@ -39,16 +41,17 @@ public sealed class FlowSettingsNavigationHelperTests
     }
 
     [TestMethod]
-    public void FindPluginConfigEntry_DoesNotMatchPluginNameInMiddleOfBreadcrumb()
+    public void FindPluginConfigEntry_MatchesConfigGroupLabelWhenItHasNoChildEntry()
     {
         var entries = new[]
         {
-            new SettingsSearchEntryInfo("Clipboard+", "Plugins › Clipboard+ › 配置", 3)
+            new SettingsSearchEntryInfo("Clipboard+", "Plugins › Flow.Launcher 插件桥接 › 配置", 3)
         };
 
         var result = FlowSettingsNavigationHelper.FindPluginConfigEntry("Clipboard+", entries);
 
-        Assert.IsNull(result);
+        Assert.IsNotNull(result);
+        Assert.AreEqual(3, result.Index);
     }
 
     [TestMethod]

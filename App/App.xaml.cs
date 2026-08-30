@@ -149,7 +149,6 @@ public partial class App : Application
             new Action(() => _quickPanelManager?.Toggle()));
 
         HookClient.Start();
-
         // The quick panel. Built here rather than lazily on the first hotkey so the handler above always
         // has something to call; it creates no window of its own until it is first opened.
         _quickPanelManager = new Services.QuickPanel.QuickPanelManager();
@@ -220,6 +219,7 @@ public partial class App : Application
             List<PluginSdk.Services.SettingsSearchEntryInfo>? cachedSettingsSearchEntries = null;
             TranslationManager.Instance.PropertyChanged += (_, _) => cachedSettingsSearchEntries = null;
             PluginManager.Instance.ComponentsRefreshed += () => cachedSettingsSearchEntries = null;
+            PluginSdk.Services.SettingsSearchService.InvalidateFunc = () => cachedSettingsSearchEntries = null;
             PluginSdk.Services.SettingsSearchService.GetEntriesFunc = () =>
             {
                 if (cachedSettingsSearchEntries != null)

@@ -1,5 +1,6 @@
 using Lertaro.App.ViewModels.Settings;
 using Lertaro.App.ViewModels.Settings.Plugins;
+using Lertaro.App.Helpers;
 using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions;
 
@@ -8,6 +9,21 @@ namespace Lertaro.App.Tests.Views.Settings;
 [TestClass]
 public sealed class SettingsWindowSearchExtensionsTests
 {
+    [TestMethod]
+    public void RankSearchResults_PlacesHigherQualityMatchesFirst()
+    {
+        var entries = new[]
+        {
+            new SettingsSearchResultItem("a_x_b_x_c", "General", "General", null),
+            new SettingsSearchResultItem("abc", "General", "General", null)
+        };
+
+        var results = SettingsWindowSearchExtensions.RankSearchResults("abc", entries);
+
+        Assert.HasCount(2, results);
+        Assert.AreEqual("abc", results[0].Label);
+    }
+
     [TestMethod]
     public void BuildAllEntries_IncludesPluginConfigFields()
     {

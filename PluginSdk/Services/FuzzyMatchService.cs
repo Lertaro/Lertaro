@@ -33,4 +33,13 @@ public static class FuzzyMatchService
     /// instead of only handling a literal substring match.
     /// </summary>
     public static bool[]? GetHighlightMask(string text, string query) => GetHighlightMaskFunc?.Invoke(text, query);
+
+    /// <summary>Delegate set by the host application to score a matched text/query pair.</summary>
+    public static Func<string, string, double>? GetMatchScoreFunc { get; set; }
+
+    /// <summary>
+    /// Returns the host's match-quality weight for <paramref name="text"/> and <paramref name="query"/>.
+    /// Higher values indicate a tighter, more relevant match.
+    /// </summary>
+    public static double GetMatchScore(string text, string query) => GetMatchScoreFunc?.Invoke(text, query) ?? 0;
 }
