@@ -55,7 +55,7 @@ internal static class HookLaunchRequestHandler
         }
     }
 
-    private static bool IsGenuineAppProcess(int pid)
+    internal static bool IsGenuineAppProcess(int pid)
     {
         try
         {
