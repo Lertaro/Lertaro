@@ -63,46 +63,76 @@ internal static class ExplorerAdapterHelpers
             return true;
         }, IntPtr.Zero);
 
-        dynamic shellWindows = Activator.CreateInstance(shellWindowsType)!;
-        int count = shellWindows.Count;
-
-        for (var i = 0; i < count; i++)
+        object? shellWindows = null;
+        try
         {
-            try
+            shellWindows = Activator.CreateInstance(shellWindowsType);
+            if (shellWindows == null) return null;
+
+            dynamic dShellWindows = shellWindows;
+            int count = dShellWindows.Count;
+            object? match = null;
+            for (var i = 0; i < count; i++)
             {
-                dynamic? window = shellWindows.Item(i);
-                if (window == null) continue;
-
-                if ((IntPtr)window.HWND == explorerHwnd)
+                object? window = null;
+                try
                 {
-                    // 2. Verify if this COM window matches the active tab HWND
-                    if (activeTabHwnd != IntPtr.Zero)
+                    window = dShellWindows.Item(i);
+                    if (window == null) continue;
+
+                    dynamic dWindow = window;
+                    if ((IntPtr)dWindow.HWND == explorerHwnd)
                     {
-                        if (window is IComServiceProvider serviceProvider)
+                        // 2. Verify if this COM window matches the active tab HWND
+                        if (activeTabHwnd != IntPtr.Zero)
                         {
-                            var serviceId = new Guid("4C96BE40-915C-11CF-99D3-00AA004AE837"); // SID_STopLevelBrowser
-                            var interfaceId = new Guid("000214E2-0000-0000-C000-000000000046"); // IID_IShellBrowser
-
-                            var hr = serviceProvider.QueryService(ref serviceId, ref interfaceId, out var shellBrowserPtr);
-                            if (hr == 0 && shellBrowserPtr != IntPtr.Zero)
+                            if (window is IComServiceProvider serviceProvider)
                             {
-                                var shellBrowser = (IShellBrowser)Marshal.GetObjectForIUnknown(shellBrowserPtr);
-                                shellBrowser.GetWindow(out var tabHwnd);
-                                Marshal.Release(shellBrowserPtr);
+                                var serviceId = new Guid("4C96BE40-915C-11CF-99D3-00AA004AE837"); // SID_STopLevelBrowser
+                                var interfaceId = new Guid("000214E2-0000-0000-C000-000000000046"); // IID_IShellBrowser
 
-                                if (tabHwnd != activeTabHwnd)
+                                var hr = serviceProvider.QueryService(ref serviceId, ref interfaceId, out var shellBrowserPtr);
+                                if (hr == 0 && shellBrowserPtr != IntPtr.Zero)
                                 {
-                                    continue; // Skip inactive tab
+                                    try
+                                    {
+                                        var shellBrowser = (IShellBrowser)Marshal.GetObjectForIUnknown(shellBrowserPtr);
+                                        try
+                                        {
+                                            shellBrowser.GetWindow(out var tabHwnd);
+                                            if (tabHwnd != activeTabHwnd)
+                                                continue; // Skip inactive tab
+                                        }
+                                        finally
+                                        {
+                                            Marshal.ReleaseComObject(shellBrowser);
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        Marshal.Release(shellBrowserPtr);
+                                    }
                                 }
                             }
                         }
+                        match = window;
+                        window = null;
+                        break;
                     }
-                    return window;
+                }
+                catch { }
+                finally
+                {
+                    ReleaseComObject(window);
                 }
             }
-            catch { }
+
+            return match;
         }
-        return null;
+        finally
+        {
+            ReleaseComObject(shellWindows);
+        }
     }
 
     // Synchronous (Thread.Sleep, not await Task.Delay) and meant to be called from the same dedicated STA
@@ -115,16 +145,20 @@ internal static class ExplorerAdapterHelpers
     public static void SelectItemInExplorerLater(string path, IntPtr explorerHwnd)
     {
         Thread.Sleep(250);
+        dynamic? window = null;
+        dynamic? folder = null;
+        object? item = null;
         try
         {
-            dynamic? window = FindExplorerWindow(explorerHwnd);
+            window = FindExplorerWindow(explorerHwnd);
             if (window == null) return;
 
             var name = Path.GetFileName(path);
             if (string.IsNullOrEmpty(name)) return;
 
-            dynamic folder = window.Document.Folder;
-            dynamic? item = folder.ParseName(name);
+            folder = window.Document.Folder;
+            if (folder == null) return;
+            item = folder.ParseName(name);
             if (item == null) return;
 
             const int svsiSelect = 0x1;
@@ -133,6 +167,25 @@ internal static class ExplorerAdapterHelpers
             window.Document.SelectItem(item, svsiSelect | svsiDeselectOthers | svsiEnsureVisible);
         }
         catch { }
+        finally
+        {
+            ReleaseComObject(item);
+            ReleaseComObject(folder);
+            ReleaseComObject(window);
+        }
+    }
+
+    private static void ReleaseComObject(object? comObject)
+    {
+        try
+        {
+            if (comObject != null && Marshal.IsComObject(comObject))
+                Marshal.ReleaseComObject(comObject);
+        }
+        catch
+        {
+            // Best-effort cleanup; the RCW will still be reclaimed by the GC finalizer.
+        }
     }
 
     #region COM Interfaces for Tab Resolution
