@@ -18,8 +18,16 @@ public sealed class SearchSession
     public StringBuilder Query { get; } = new();
     public int CursorPos { get; set; } // edit position within Query, 0..Query.Length
 
+    private readonly object _resultsLock = new();
     private List<(SearchResult Result, int[] Highlights)> _results = new();
-    public IReadOnlyList<(SearchResult Result, int[] Highlights)> Results => _results;
+    public IReadOnlyList<(SearchResult Result, int[] Highlights)> Results
+    {
+        get
+        {
+            lock (_resultsLock)
+                return _results.ToArray();
+        }
+    }
 
     // Keyed by Path, not by index into Results -- Results gets entirely replaced by every new search (a
     // fresh List each time, not an in-place update), so an index-based selection would silently point at
@@ -49,9 +57,12 @@ public sealed class SearchSession
     // against a known result set exactly as they'd see one after a real search completes.
     internal void SetResultsForTests(IReadOnlyList<(SearchResult Result, int[] Highlights)> results)
     {
-        _results = results.ToList();
-        HighlightIndex = 0;
-        ViewOffset = 0;
+        lock (_resultsLock)
+        {
+            _results = results.ToList();
+            HighlightIndex = 0;
+            ViewOffset = 0;
+        }
     }
 
     // Moves the highlight by `delta` rows (±1 for arrow keys, ±MaxVisible for PageUp/PageDown), clamped to
@@ -60,20 +71,26 @@ public sealed class SearchSession
     // behaves.
     public void MoveHighlight(int delta)
     {
-        if (_results.Count == 0) return;
-        HighlightIndex = Math.Clamp(HighlightIndex + delta, 0, _results.Count - 1);
-        if (HighlightIndex < ViewOffset)
-            ViewOffset = HighlightIndex;
-        else if (HighlightIndex >= ViewOffset + MaxVisible)
-            ViewOffset = HighlightIndex - MaxVisible + 1;
-        ViewOffset = Math.Clamp(ViewOffset, 0, Math.Max(0, _results.Count - MaxVisible));
+        lock (_resultsLock)
+        {
+            if (_results.Count == 0) return;
+            HighlightIndex = Math.Clamp(HighlightIndex + delta, 0, _results.Count - 1);
+            if (HighlightIndex < ViewOffset)
+                ViewOffset = HighlightIndex;
+            else if (HighlightIndex >= ViewOffset + MaxVisible)
+                ViewOffset = HighlightIndex - MaxVisible + 1;
+            ViewOffset = Math.Clamp(ViewOffset, 0, Math.Max(0, _results.Count - MaxVisible));
+        }
     }
 
     public void ToggleSelectionAtHighlight()
     {
-        if (_results.Count == 0) return;
-        var path = _results[HighlightIndex].Result.Path;
-        if (!_selected.Add(path)) _selected.Remove(path);
+        lock (_resultsLock)
+        {
+            if (_results.Count == 0) return;
+            var path = _results[HighlightIndex].Result.Path;
+            if (!_selected.Add(path)) _selected.Remove(path);
+        }
         MoveHighlight(1);
     }
 
@@ -81,9 +98,12 @@ public sealed class SearchSession
     // highlighted), otherwise just whatever's highlighted right now.
     public IEnumerable<string> GetChosenPaths()
     {
-        if (_selected.Count > 0)
-            return _selected.OrderBy(p => p, StringComparer.OrdinalIgnoreCase);
-        return _results.Count > 0 ? new[] { _results[HighlightIndex].Result.Path } : Array.Empty<string>();
+        lock (_resultsLock)
+        {
+            if (_selected.Count > 0)
+                return _selected.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToArray();
+            return _results.Count > 0 ? new[] { _results[HighlightIndex].Result.Path } : Array.Empty<string>();
+        }
     }
 
     // Shared by both the initial query (args[0]/stdin, if any) and every subsequent keystroke -- 80ms
@@ -130,13 +150,16 @@ public sealed class SearchSession
             // happens to reach late never got INTO the pool at all, however good its eventual rank would
             // have been). The App still scans/ranks its full depth; this just doesn't bother rendering
             // past the point a human would actually scroll to.
-            _results = sorted.Count > MaxResultsShown ? sorted.GetRange(0, MaxResultsShown) : sorted;
-            StatusLine = "";
-            // Deliberately does NOT reset selection/highlight/viewOffset mid-stream -- only the final
-            // snapshot below does that. Resetting on every progress tick would fight the user if they
-            // start navigating a promising early result before the search has fully settled.
-            HighlightIndex = Math.Clamp(HighlightIndex, 0, Math.Max(0, _results.Count - 1));
-            ViewOffset = Math.Clamp(ViewOffset, 0, Math.Max(0, _results.Count - MaxVisible));
+            lock (_resultsLock)
+            {
+                _results = sorted.Count > MaxResultsShown ? sorted.GetRange(0, MaxResultsShown) : sorted;
+                StatusLine = "";
+                // Deliberately does NOT reset selection/highlight/viewOffset mid-stream -- only the final
+                // snapshot below does that. Resetting on every progress tick would fight the user if they
+                // start navigating a promising early result before the search has fully settled.
+                HighlightIndex = Math.Clamp(HighlightIndex, 0, Math.Max(0, _results.Count - 1));
+                ViewOffset = Math.Clamp(ViewOffset, 0, Math.Max(0, _results.Count - MaxVisible));
+            }
             Changed?.Invoke();
         }
 
@@ -161,14 +184,17 @@ public sealed class SearchSession
         if (generation != _searchGeneration) return;
 
         if (!hasTokens) fresh.Sort(comparer);
-        _results = fresh.Count > MaxResultsShown ? fresh.GetRange(0, MaxResultsShown) : fresh;
-        if (string.IsNullOrEmpty(StatusLine) || !StatusLine.StartsWith("[error]"))
-            StatusLine = "";
-        // Deliberately does NOT clear _selected -- it's keyed by Path precisely so a Tab-marked row from
-        // an earlier query survives this reassignment even though it (usually) isn't part of Results
-        // anymore.
-        HighlightIndex = 0;
-        ViewOffset = 0;
+        lock (_resultsLock)
+        {
+            _results = fresh.Count > MaxResultsShown ? fresh.GetRange(0, MaxResultsShown) : fresh;
+            if (string.IsNullOrEmpty(StatusLine) || !StatusLine.StartsWith("[error]"))
+                StatusLine = "";
+            // Deliberately does NOT clear _selected -- it's keyed by Path precisely so a Tab-marked row from
+            // an earlier query survives this reassignment even though it (usually) isn't part of Results
+            // anymore.
+            HighlightIndex = 0;
+            ViewOffset = 0;
+        }
         Changed?.Invoke();
     }
 }
