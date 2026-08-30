@@ -122,6 +122,10 @@ public sealed class ContentIndexScheduler : IDisposable
                 }
 
                 var existingMeta = _database.GetAllFileMetadata();
+                // Deliberately no size check here: lowering MaxFileSizeBytes does not
+                // prune already-indexed oversized rows, they keep serving their stale
+                // text until a full index rebuild (see FolderScanDiscoveryHelper for the
+                // enqueue side of the same trade-off).
                 var toDeleteImmediately = existingMeta.Keys
                     .Where(p => !IsFileInMonitoredFolders(p) || !IsAllowedExtension(p) || _config.IsExcluded(p))
                     .ToList();

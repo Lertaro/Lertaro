@@ -50,6 +50,12 @@ public static class FolderScanDiscoveryHelper
 
                     var fileSize = item.Metadata.Size;
                     var modified = item.Metadata.Modified;
+                    // ponytail: new oversized files deliberately stay unindexed. An
+                    // already-indexed file that becomes oversized after the cap was
+                    // lowered keeps its stale indexed text until a full index rebuild:
+                    // pruning a file that still exists and is still in scope was judged
+                    // worse than serving stale text (to prune those rows instead,
+                    // filter by size in TriggerFullScan's toDeleteImmediately).
                     if (fileSize == 0 || (config.MaxFileSizeBytes > 0 && fileSize > config.MaxFileSizeBytes))
                         continue;
 
