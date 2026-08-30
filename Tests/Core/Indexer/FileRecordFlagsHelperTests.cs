@@ -51,6 +51,15 @@ public sealed class FileRecordFlagsHelperTests
     }
 
     [TestMethod]
+    public void FromAttributes_ReparsePoint_PreservesLinkMarker()
+    {
+        var flags = FileRecordFlagsHelper.FromAttributes(FileAttributes.ReparsePoint);
+
+        Assert.IsTrue(flags.HasFlag(FileRecordFlags.ReparsePoint));
+        Assert.AreEqual(FileAttributes.ReparsePoint, FileRecordFlagsHelper.ToAttributes(flags));
+    }
+
+    [TestMethod]
     public void FileRecord_IsDirectory_ReflectsDirectoryFlag()
     {
         var record = new FileRecord(1, 0, "folder", FileRecordFlags.Directory);

@@ -24,6 +24,7 @@ public enum FileRecordFlags : ushort
     ReadOnly = 32,
     Compressed = 64,
     Encrypted = 128,
+    ReparsePoint = 512,
     // Directories only: this directory's own children were fully enumerated as of this snapshot, so a
     // later diff-aware walk (see TreeDiffBaseline) can trust its cached children when the directory's own
     // LastWriteTimeUnixSeconds still matches -- rather than trusting cached children for any directory
@@ -43,6 +44,7 @@ public static class FileRecordFlagsHelper
         if ((attrs & FileAttributes.ReadOnly) != 0) flags |= FileRecordFlags.ReadOnly;
         if ((attrs & FileAttributes.Compressed) != 0) flags |= FileRecordFlags.Compressed;
         if ((attrs & FileAttributes.Encrypted) != 0) flags |= FileRecordFlags.Encrypted;
+        if ((attrs & FileAttributes.ReparsePoint) != 0) flags |= FileRecordFlags.ReparsePoint;
         return flags;
     }
 
@@ -55,6 +57,7 @@ public static class FileRecordFlagsHelper
         if ((flags & FileRecordFlags.ReadOnly) != 0) attrs |= FileAttributes.ReadOnly;
         if ((flags & FileRecordFlags.Compressed) != 0) attrs |= FileAttributes.Compressed;
         if ((flags & FileRecordFlags.Encrypted) != 0) attrs |= FileAttributes.Encrypted;
+        if ((flags & FileRecordFlags.ReparsePoint) != 0) attrs |= FileAttributes.ReparsePoint;
         if (attrs == 0) attrs = FileAttributes.Normal;
         return attrs;
     }
