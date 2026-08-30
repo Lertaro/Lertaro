@@ -9,7 +9,7 @@
 | **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)` | 运行与宿主完全一致的 fzf 模糊匹配引擎，并计算字符级的高亮布尔掩码（自动支持汉字拼音多级兜底）。 |
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 多语言动态解析与运行时变更广播。`GetCurrentCulture()` 返回用户在设置中心显式选择的界面语言代码（如 `"zh-CN"`）；订阅 `CultureChanged` 可在界面语言切换时动态刷新内部状态或重载字典。 |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | 带内存与磁盘缓存的 Windows Shell 文件图标与缩略图提取服务。 |
-| **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()` | 只读读取用户在设置中心保存的全部星标收藏项列表。 |
+| **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | 读取收藏夹、检查路径是否已登记，并通过宿主桥接添加收藏项。 |
 | **`HistoryService`** | `IReadOnlyList<HistoryEntry> GetHistoryEntries()` | 读取历史记录条目，按最近打开时间降序排列，包含关联的搜索关键词与文件类型。 |
 | **`FileMetadataService`** | `Task<IReadOnlyDictionary<string, FileMetadata>> GetMetadataAsync(IEnumerable<string> paths)` | 批量查询外部路径的物理文件大小与时间戳（仅用于查询未出现在当前搜索结果集中的外部路径）。 |
 | **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | 允许插件向后台服务注册专属自定义目录以进行自动索引与变更监听；提供流式免 I/O 目录遍历。 |

@@ -9,7 +9,7 @@
 | **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)` | ホストと同一の fzf あいまい一致エンジンを実行し、文字単位のハイライトマスク（ピンイン多階層フォールバック対応）を計算。 |
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 多言語動的解決と実行時言語変更ブロードキャスト。`GetCurrentCulture()` は OS の言語ではなく設定画面で明示的に選択されている言語コード（例: `"ja-JP"`）を返却；`CultureChanged` を購読することで UI 言語変更時に内部状態の更新や辞書の再読み込みが可能。 |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | メモリおよびディスクキャッシュ付きの Windows Shell ファイルアイコン・サムネイル抽出。 |
-| **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()` | ユーザーが設定画面で登録したお気に入り項目一覧の読み取り。 |
+| **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | お気に入り一覧の取得、パスの登録済み確認、ホストブリッジ経由でのお気に入り追加を提供。 |
 | **`HistoryService`** | `IReadOnlyList<HistoryEntry> GetHistoryEntries()` | 最近のアクセス順に並んだ履歴項目（検索キーワード、ファイル種別を含む）の読み取り。 |
 | **`FileMetadataService`** | `Task<IReadOnlyDictionary<string, FileMetadata>> GetMetadataAsync(IEnumerable<string> paths)` | 検索結果セットに含まれない外部パスのファイルサイズやタイムスタンプを一括取得。 |
 | **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | バックグラウンドサービスにカスタムディレクトリを登録して自動インデックス・監視；I/O なしのストリーム列挙を提供。 |

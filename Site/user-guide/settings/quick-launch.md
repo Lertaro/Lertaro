@@ -14,7 +14,8 @@ Open **Settings → Quick Launch → Quick Launch** to manage your own items:
 
 - Add a file, folder, URL, or Windows shell path. Environment variables are supported when the target is checked.
 - The display name is optional. If it is blank, Lertaro derives a name from the target.
-- Use the drag handle to reorder items, and use the edit or remove controls to manage them. File and folder browse buttons are also available when adding an item.
+- The file and folder browse buttons support selecting multiple items at once; each valid, non-duplicate target is added as its own entry.
+- Use the drag handle to reorder items. Editing changes the same row into an inline editor with save and cancel controls; the remove control deletes the item.
 - Missing targets are omitted from the panel until they become available again.
 
 ## 3. Data sources

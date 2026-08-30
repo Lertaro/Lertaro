@@ -69,3 +69,7 @@ Si utilizas la herramienta externa de código abierto **QuickLook** ([QL-Win/Qui
 ## 6. Liberar la ocupación de un archivo
 
 El plugin oficial **Liberar ocupación de archivos** añade una acción disponible al seleccionar un único archivo existente. Muestra los procesos que lo están utilizando, sus PID y las rutas de sus ejecutables, y les solicita que liberen el archivo. La acción no está disponible para carpetas, archivos inexistentes ni selecciones múltiples; el botón de solicitud también se desactiva cuando no se detecta ningún proceso. El diálogo usa el tema del anfitrión, permanece sobre la ventana de búsqueda y queda oculto en Alt+Tab, además de incluir actualización manual.
+
+## 7. Añadir a Favoritos
+
+CoreExtensions ofrece la acción **Añadir a Favoritos** para un único archivo o carpeta existente. Abre un diálogo con el tema del anfitrión para introducir el nombre visible y oculta la acción si la misma ruta ya está en Favoritos.

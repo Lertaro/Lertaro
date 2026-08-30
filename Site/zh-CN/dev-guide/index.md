@@ -17,7 +17,7 @@
 | **[系统与对话框适配](./sdk/system-adapters)** | `IActivePathCollector`<br>`IFileDialogAdapter`<br>`IInlineSearchAdapter`<br>`IQuickNavigationProvider` | 探测前台管理器活动目录、挂载原生文件对话框、内嵌搜索条并双向同步选中状态、贡献鼠标快速导航级联菜单。 |
 | **[界面与预览扩展](./sdk/ui-extensions)** | `ISidebarFilterProvider`<br>`IResultColumnProvider`<br>`IQuickPanelTabProvider`<br>`IFilePreviewProvider`<br>`IThumbnailProvider`<br>`IThemeProvider`<br>`ITranslationProvider` | 扩展侧边栏筛选分类、表格视图自定义列、快速面板动态工作区标签、QuickLook 自定义渲染器与缩略图提取、WPF 资源字典主题包与多语言 i18n。 |
 | **[共享抽象契约](./sdk/abstractions)** | `ISearchResult`<br>`FileMetadata`<br>`IPluginSearchWindow`<br>`IConfigurable` | 检索结果只读数据契约、纳秒级文件时间戳与大小元数据、宿主窗口安全控制句柄与基于模式驱动的原生配置表单。 |
-| **[宿主开放服务](./sdk/services)** | `FuzzyMatchService`<br>`TranslationService`<br>`IconService`<br>`FavoritesService`<br>`HistoryService`<br>`FileMetadataService`<br>`DirectoryIndexerService`<br>`RecentFilesService`<br>`ExplorerPathService`<br>`PluginSettingsService`<br>`SearchRefreshService`<br>`UserDataService`<br>`Logger` | 宿主暴露的高性能基础设施：fzf 模糊匹配与高亮掩码、多语言解析、带缓存图标提取、收藏与历史读取、后台目录索引代理、用户数据目录隔离及 Shell 原生文件操作。 |
+| **[宿主开放服务](./sdk/services)** | `FuzzyMatchService`<br>`TranslationService`<br>`IconService`<br>`FavoritesService`<br>`HistoryService`<br>`FileMetadataService`<br>`DirectoryIndexerService`<br>`RecentFilesService`<br>`ExplorerPathService`<br>`PluginSettingsService`<br>`SearchRefreshService`<br>`UserDataService`<br>`Logger` | 宿主暴露的高性能基础设施：fzf 模糊匹配与高亮掩码、多语言解析、带缓存图标提取、收藏管理与历史读取、后台目录索引代理、用户数据目录隔离及 Shell 原生文件操作。 |
 
 > [!NOTE]
 > 本手册所有接口签名、方法参数与行为契约均直接对照 `Lertaro.PluginSdk` 源码严格编写并校验。

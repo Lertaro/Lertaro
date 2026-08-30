@@ -16,8 +16,10 @@ Using the form at the top:
 The list below displays all saved favorites with granular management controls:
 
 - **Six-Dot Drag Handle**: Every row includes a six-dot drag handle on the left to reorder items via drag-and-drop. You can also use the **Move Up** / **Move Down** buttons. The sequence here directly determines their ranking in search results and Quick Navigation menus.
-- **Edit Item**: Loads the item's data back into the top form for editing.
+- **Edit Item**: Turns the selected row into an inline editor. Save or cancel directly in that row; the top add form is not reused.
 - **Delete Item**: Safely removes the entry from Favorites.
+
+You can also add a single existing file or folder directly from the search result action menu. Lertaro asks for the display name, and hides this action when the same path is already in Favorites.
 
 ## 3. Search Recall & Visual Appearance
 

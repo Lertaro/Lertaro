@@ -8,7 +8,7 @@ The `CoreExtensions` plugin is Lertaro's core functionality bundle, implementing
 
 ### Key Implementation Highlights
 
-- **Static Result Actions (`IActionProvider.GetActions()`)**: Exposes 10 essential file actions (Open, Locate in Explorer, Copy Path, Copy/Cut Files, Open Command Prompt, and Run as Administrator variants).
+- **Static Result Actions (`IActionProvider.GetActions()`)**: Exposes the core file actions, including opening and locating items, copying paths and files, adding a result to Favorites, shell commands, deletion, and administrator variants.
 - **Native Shell Menu Integration (`IDynamicActionProvider`)**: Interacts with Windows Shell COM interfaces via `ShellMenuActionProvider`, rendering full Windows context menus (with cascading submenus like "Send to", 7-Zip, VS Code) directly inside Lertaro's `Ctrl+O` action menu.
 - **Schema-Driven Configuration Forms (`IConfigurable`)**: Demonstrates defining configuration schemas with nested groups (`Group`), string lists (`StringList`), and hotkey recorders (`Hotkey`), rendering native UI forms in Settings without custom XAML.
 - **Diverse Quick Panel Tabs (`IQuickPanelTabProvider`)**:

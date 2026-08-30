@@ -69,3 +69,7 @@ If you have installed the standalone open-source tool **QuickLook** ([QL-Win/Qui
 ## 6. Release File Occupation
 
 The official **File Occupation Release** plugin adds a single-selection action for existing files. It lists the processes currently using the file, including their PIDs and executable paths, and sends a request for those processes to release it. The action is disabled for folders, missing files, or multiple selections; the release button is also disabled when no process is detected. The themed dialog supports refresh and automatically hides itself from Alt+Tab while remaining above the search window.
+
+## 7. Add to Favorites
+
+CoreExtensions provides an **Add to Favorites** action for one existing file or folder. It opens a themed dialog for the display name and hides the action when the same path is already a favorite.

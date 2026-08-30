@@ -16,8 +16,10 @@ En el formulario superior:
 La lista inferior muestra todos los favoritos guardados con opciones de gestión:
 
 - **Control de arrastre de seis puntos**: Cada fila dispone de un tirador de seis puntos a la izquierda para reordenar elementos arrastrándolos. También puedes usar los botones **Mover arriba** / **Mover abajo**. El orden aquí define su posición en los resultados de búsqueda y en el menú de Navegación rápida.
-- **Editar elemento**: Carga los datos del elemento en el formulario superior para modificarlos.
+- **Edición en línea**: Al pulsar editar, la fila se convierte directamente en un editor; puedes guardar o cancelar desde la propia fila sin reutilizar el formulario superior.
 - **Eliminar elemento**: Elimina la entrada de Favoritos de forma segura.
+
+También puedes añadir directamente a Favoritos un único archivo o carpeta existente desde el menú de acciones del resultado de búsqueda. Lertaro muestra un diálogo para introducir el nombre visible y oculta esta acción si la misma ruta ya está en Favoritos.
 
 ## 3. Aparición en búsquedas y aspectos visuales
 

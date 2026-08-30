@@ -37,7 +37,11 @@ Ejecuta comandos directamente sin abrir una terminal previamente:
 
 ### Apertura directa de URLs
 
-Escribe o pega cualquier dirección que comience por `http://` o `https://` y pulsa `Enter` para abrirla de inmediato en tu navegador predeterminado.
+Escribe o pega cualquier dirección que comience por `http://` o `https://` y pulsa `Enter` para abrirla de inmediato en tu navegador predeterminado. Cuando no hay resultados y la consulta comienza por un dominio sin protocolo, la ventana de búsqueda rápida completa automáticamente `https://` y mueve el cursor al final; las entradas que ya incluyen un protocolo no se modifican.
+
+### Importar texto del portapapeles en la ventana de búsqueda rápida
+
+Al mostrar la ventana de búsqueda rápida sin texto prellenado, importa y selecciona automáticamente el texto no vacío del portapapeles si es distinto del último valor importado por esa ventana. El mismo valor no se importa repetidamente y nunca se sobrescriben las consultas prellenadas desde una URI o al volver desde la ventana de búsqueda completa.
 
 ## 2. Extensiones activadas por palabra clave (Plugins integrados)
 

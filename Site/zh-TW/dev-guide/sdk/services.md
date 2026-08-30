@@ -9,7 +9,7 @@
 | **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)` | 執行與宿主完全一致的 fzf 模糊比對引擎，並計算字元級的反白布林遮罩（自動支援中文字元拼音多級兜底）。 |
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 多語言動態剖析與執行階段變更廣播。`GetCurrentCulture()` 返回使用者在設定中心顯式選取的介面語言代碼（如 `"zh-TW"`）；訂閱 `CultureChanged` 可在介面語言切換時動態重新整理內部狀態或重載字典。 |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | 帶記憶體與磁碟快取的 Windows Shell 檔案圖示與縮圖擷取服務。 |
-| **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()` | 唯讀讀取使用者在設定中心儲存的全部星標收藏項目清單。 |
+| **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | 讀取收藏清單、檢查路徑是否已登記，並透過主機橋接新增收藏項目。 |
 | **`HistoryService`** | `IReadOnlyList<HistoryEntry> GetHistoryEntries()` | 讀取搜尋歷程記錄項目，按最近開啟時間降序排列，包含關聯的搜尋關鍵字與檔案類型。 |
 | **`FileMetadataService`** | `Task<IReadOnlyDictionary<string, FileMetadata>> GetMetadataAsync(IEnumerable<string> paths)` | 批次查詢外部路徑的實體檔案大小與時間戳記（僅用於查詢未出現在目前搜尋結果集中的外部路徑）。 |
 | **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | 允許外掛模組向背景服務註冊專屬自訂目錄以進行自動索引與變更監聽；提供串流免 I/O 目錄周遊。 |

@@ -8,7 +8,7 @@
 
 ### 核心实现要点
 
-- **静态结果动作（`IActionProvider.GetActions()`）**：注册了 10 个常用的基础文件动作（打开、在资源管理器中定位、复制完整路径、复制/剪切物理文件、打开终端命令行以及提权以管理员身份运行等）。
+- **静态结果动作（`IActionProvider.GetActions()`）**：注册了一组常用的基础文件动作，包括打开与定位项目、复制路径和文件、添加到收藏夹、终端命令、删除以及管理员身份运行等。
 - **原生 Shell 菜单集成（`IDynamicActionProvider`）**：通过 `ShellMenuActionProvider` 与 Windows Shell COM 接口交互，将完整的 Windows 右键级联菜单（如“发送到”、7-Zip、VS Code 打开等）无缝渲染至 Lertaro 的 `Ctrl+O` 动作菜单中。
 - **模式驱动的配置表单（`IConfigurable`）**：展示了如何定义包含嵌套分组（`Group`）、多行字符串列表（`StringList`）与热键录制（`Hotkey`）的复杂配置表单，无需手写任何 XAML 即可在设置中心中自动生成。
 - **多样化的快速面板标签（`IQuickPanelTabProvider`）**：

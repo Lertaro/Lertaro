@@ -14,7 +14,8 @@ Abre **Configuración → Inicio rápido → Inicio rápido** para gestionar tus
 
 - Añade archivos, carpetas, URL o rutas de Windows Shell. Las variables de entorno se expanden al comprobar el destino.
 - El nombre visible es opcional. Si queda vacío, Lertaro lo genera a partir del destino.
-- Usa el controlador de arrastre para cambiar el orden y los botones de editar o eliminar para gestionar los elementos. Al añadir uno también puedes explorar archivos y carpetas.
+- Los botones para explorar archivos y carpetas permiten seleccionar varios elementos a la vez; cada destino válido y no duplicado se añade como una entrada independiente.
+- Usa el controlador de arrastre para cambiar el orden. Al pulsar editar, la misma fila se convierte en un editor en línea con controles para guardar o cancelar; el control de eliminar quita el elemento.
 - Los destinos que no estén disponibles se omiten temporalmente y vuelven a aparecer cuando están disponibles.
 
 ## 3. Fuentes de datos

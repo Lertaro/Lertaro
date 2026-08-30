@@ -8,7 +8,7 @@
 
 ### 主な実装ポイント
 
-- **静的アクション（`IActionProvider.GetActions()`）**：開く、エクスプローラーで表示、パスクリップボードコピー、ファイルのコピー/切り取り、コマンドプロンプトで開く、管理者として実行など、10 個の基本アクションを提供。
+- **静的アクション（`IActionProvider.GetActions()`）**：開く、エクスプローラーで表示、パスやファイルのコピー、お気に入りへの追加、コマンドプロンプト、削除、管理者としての実行など、基本的なファイル操作を提供。
 - **Shell コンテキストメニュー統合（`IDynamicActionProvider`）**：`ShellMenuActionProvider` を介して Windows Shell の COM インターフェイスと連携し、階層化された右クリックメニュー（「送る」、7-Zip、VS Code など）を `Ctrl+O` アクションメニュー内に忠実に描画。
 - **スキーマ駆動の設定フォーム（`IConfigurable`）**：グループ化（`Group`）、文字列リスト（`StringList`）、ホットキー登録（`Hotkey`）を含むフォームスキーマを定義し、XAML を書かずに設定センターへ UI を自動生成。
 - **多彩なクイックパネルタブ（`IQuickPanelTabProvider`）**：

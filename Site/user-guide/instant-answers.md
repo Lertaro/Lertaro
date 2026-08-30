@@ -37,7 +37,11 @@ Run commands directly without launching a terminal window first:
 
 ### Direct URL Navigation
 
-Type or paste any URL beginning with `http://` or `https://` and press `Enter` to open it immediately in your default browser.
+Type or paste any URL beginning with `http://` or `https://` and press `Enter` to open it immediately in your default browser. When the query has no search results and begins with a bare domain name, the Quick Search Window automatically fills in `https://` and moves the caret to the end; inputs that already include a protocol are left unchanged.
+
+### Clipboard text in the Quick Search Window
+
+When the Quick Search Window is summoned without prefilled text, a non-empty clipboard text is imported and selected automatically if it differs from the last clipboard value imported by that window. The same value is not imported repeatedly, and prefilled queries from a URI or from returning from the full search window are never overwritten.
 
 ## 2. Keyword-Triggered Plugin Extensions
 

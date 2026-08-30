@@ -8,7 +8,7 @@ El plugin `CoreExtensions` constituye el paquete de extensiones principal de Ler
 
 ### Puntos clave de implementación
 
-- **Acciones estáticas (`IActionProvider.GetActions()`)**: Registra 10 acciones esenciales sobre archivos (Abrir, Ubicar en Explorador, Copiar ruta, Copiar/Cortar archivos, Abrir consola y Ejecutar como Administrador).
+- **Acciones estáticas (`IActionProvider.GetActions()`)**: Registra acciones esenciales sobre archivos, como abrir y ubicar elementos, copiar rutas y archivos, añadir a Favoritos, usar la consola, eliminar y ejecutar como Administrador.
 - **Integración con menús Shell de Windows (`IDynamicActionProvider`)**: Se comunica con las interfaces COM del Shell mediante `ShellMenuActionProvider`, renderizando menús contextuales completos (con submenús como "Enviar a", 7-Zip, VS Code) dentro del menú `Ctrl+O`.
 - **Formularios de configuración por esquemas (`IConfigurable`)**: Define esquemas con grupos anidados (`Group`), listas de cadenas (`StringList`) y asignación de atajos (`Hotkey`), generando formularios nativos en Configuración sin escribir XAML.
 - **Pestañas para el Panel rápido (`IQuickPanelTabProvider`)**:

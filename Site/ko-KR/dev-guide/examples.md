@@ -8,7 +8,7 @@
 
 ### 핵심 구현 사항
 
-- **정적 결과 액션 (`IActionProvider.GetActions()`)**: 열기, 탐색기에서 위치 찾기, 전체 경로 복사, 파일 복사/잘라내기, 명령 프롬프트 열기, 관리자 권한 실행 등 10개의 기본 액션 제공.
+- **정적 결과 액션 (`IActionProvider.GetActions()`)**: 열기 및 탐색기에서 위치 찾기, 경로와 파일 복사, 즐겨찾기 추가, 명령 프롬프트, 삭제, 관리자 권한 실행 등 기본 파일 액션 제공.
 - **네이티브 Shell 메뉴 통합 (`IDynamicActionProvider`)**: `ShellMenuActionProvider`를 통해 Windows Shell COM 인터페이스와 연동하여 "보내기", 7-Zip, VS Code 등 계단식 우클릭 메뉴를 `Ctrl+O` 액션 메뉴 내에 렌더링.
 - **스키마 기반 설정 폼 (`IConfigurable`)**: 그룹화(`Group`), 문자열 목록(`StringList`), 단축키 녹화(`Hotkey`)를 포함한 폼 스키마를 정의하여 XAML 작성 없이 설정 센터에 네이티브 UI 자동 생성.
 - **다양한 퀵 패널 탭 (`IQuickPanelTabProvider`)**:
