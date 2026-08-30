@@ -98,6 +98,77 @@ public sealed class PdfExtractorTests
     }
 
     [TestMethod]
+    public async Task ExtractTextAsync_MajorityOfPagesUnreadable_GivesUpWithSingleWarning()
+    {
+        // A PDF where most pages throw during parsing (here: a Tf operator missing its size
+        // operand, the real-world "Invalid number of inputs" failure) must be given up as a
+        // whole with exactly one summary warning, instead of emitting one warning per page
+        // (real case: a 7-page PDF spammed 7 identical warnings on every scan).
+        var extractor = new PdfExtractor();
+        var tempFile = Path.Combine(Path.GetTempPath(), $"test_doc_{Guid.NewGuid():N}.pdf");
+
+        try
+        {
+            // A Tf operator missing its size operand throws during page parsing in PdfPig
+            // (the real-world "Invalid number of inputs" failure). Four pages give a
+            // give-up threshold of max(3, 4/2) = 3, so three broken pages trip it.
+            const string brokenPage = "BT /F1 Tf (broken page) Tj ET";
+            await File.WriteAllBytesAsync(tempFile, PdfTestDocument.Pages(
+                TextStream("good page one"),
+                brokenPage,
+                brokenPage,
+                brokenPage));
+
+            var text = await extractor.ExtractTextAsync(tempFile, maxFileSizeBytes: 1024 * 1024);
+
+            Assert.IsNull(text);
+            var giveUps = _logLines.Count(l => l.Contains("Giving up on PDF", StringComparison.Ordinal));
+            Assert.AreEqual(1, giveUps,
+                $"Expected exactly one give-up warning: [{string.Join("; ", _logLines)}]");
+            Assert.DoesNotContain("good page one", text ?? string.Empty);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [TestMethod]
+    public async Task ExtractTextAsync_FewUnreadablePages_IndexesRestWithInfoNote()
+    {
+        // Few bad pages in a larger document: the good pages are indexed, and a single
+        // Info note reports the skipped page count (no per-page warnings).
+        var extractor = new PdfExtractor();
+        var tempFile = Path.Combine(Path.GetTempPath(), $"test_doc_{Guid.NewGuid():N}.pdf");
+
+        try
+        {
+            const string brokenPage = "BT /F1 Tf (broken page) Tj ET";
+            await File.WriteAllBytesAsync(tempFile, PdfTestDocument.Pages(
+                TextStream("readable start"),
+                brokenPage,
+                TextStream("readable middle"),
+                TextStream("readable end")));
+
+            var text = await extractor.ExtractTextAsync(tempFile, maxFileSizeBytes: 1024 * 1024);
+
+            Assert.IsNotNull(text);
+            Assert.Contains("readable start", text);
+            Assert.Contains("readable end", text);
+            Assert.IsTrue(
+                _logLines.Any(l => l.Contains("indexed with 1 unreadable page", StringComparison.Ordinal)),
+                $"Expected one info note about the skipped page: [{string.Join("; ", _logLines)}]");
+            Assert.AreEqual(0, _logLines.Count(l => l.Contains("Giving up on PDF", StringComparison.Ordinal)));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [TestMethod]
     public async Task ExtractTextAsync_TruncatedXrefTable_FailsWithNull()
     {
         // A file whose xref/startxref trailer is missing must surface as a null (hard
