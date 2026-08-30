@@ -7,6 +7,9 @@ namespace Lertaro.Plugins.FolderCascader.Navigation;
 public static class ShellEnumerator
 {
     public static void EnumerateShellFolder(string scanPath, List<DynamicMenuItem> items, Provider provider)
+        => RunOnSta(() => EnumerateShellFolderCore(scanPath, items, provider));
+
+    private static void EnumerateShellFolderCore(string scanPath, List<DynamicMenuItem> items, Provider provider)
     {
         try
         {
@@ -59,6 +62,27 @@ public static class ShellEnumerator
             }
         }
         catch { }
+    }
+
+    private static void RunOnSta(Action action)
+    {
+        using var done = new ManualResetEventSlim(false);
+        Exception? error = null;
+        var thread = new Thread(() =>
+        {
+            try { action(); }
+            catch (Exception ex) { error = ex; }
+            finally { done.Set(); }
+        })
+        {
+            IsBackground = true,
+            Name = "ShellEnumeratorSta"
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        done.Wait();
+        if (error != null)
+            Logger.Log($"[ShellEnumerator] STA enumeration failed: {error.Message}", LogLevel.Error);
     }
 
     private static void InvokeShellItem(string parentPath, string itemPath)
