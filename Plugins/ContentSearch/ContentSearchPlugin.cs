@@ -79,6 +79,14 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                 DescriptionKey = "ContentSearch_Config_ExtensionsDesc",
                 FieldType = ConfigFieldType.Text,
                 DefaultValue = "txt,md,pdf,docx,docm,pptx,pptm,xlsx,xlsm,csv"
+            },
+            new()
+            {
+                Key = "ExcludedNamePatterns",
+                LabelKey = "ContentSearch_Config_ExclusionsLabel",
+                DescriptionKey = "ContentSearch_Config_ExclusionsDesc",
+                FieldType = ConfigFieldType.Text,
+                DefaultValue = string.Empty
             }
         },
         OnSave = () =>
@@ -97,6 +105,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
 
         var maxSizeMb = PluginSettingsService.GetSetting(PluginId, "MaxFileSizeMb", 0);
         var extsStr = PluginSettingsService.GetSetting(PluginId, "IndexedExtensions", string.Empty);
+        var exclusionsStr = PluginSettingsService.GetSetting(PluginId, "ExcludedNamePatterns", string.Empty);
 
         var extSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(extsStr))
@@ -114,7 +123,8 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
         {
             MonitoredFolders = rawFolders ?? new List<string>(),
             MaxFileSizeBytes = maxSizeMb > 0 ? maxSizeMb * 1024L * 1024L : long.MaxValue,
-            AllowedExtensions = extSet
+            AllowedExtensions = extSet,
+            ExcludedPatterns = ContentIndexConfig.ParseExcludedPatterns(exclusionsStr)
         };
     }
 }

@@ -11,6 +11,8 @@
   "ContentSearch_Config_MaxSizeDesc": "Files exceeding this size will be skipped to prevent excessive memory and CPU consumption",
   "ContentSearch_Config_ExtensionsLabel": "Indexed File Extensions",
   "ContentSearch_Config_ExtensionsDesc": "Comma-separated list of file extensions (e.g. txt,md,docx,pdf)",
+  "ContentSearch_Config_ExclusionsLabel": "Excluded Path Patterns",
+  "ContentSearch_Config_ExclusionsDesc": "Semicolon-separated regular expressions; any file or folder whose full path matches is excluded from indexing (e.g. .*\\backup\\; .*\\.tmp$)",
   "ContentSearch_PlaceholderTitle": "Content Search",
   "ContentSearch_PlaceholderDesc": "Indexed {0} files · Enter keywords to search file content",
   "ContentSearch_NoResultsTitle": "No Matching Content Found",

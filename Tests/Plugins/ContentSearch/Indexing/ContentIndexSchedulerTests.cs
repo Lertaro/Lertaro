@@ -184,6 +184,43 @@ public sealed class ContentIndexSchedulerTests
         }
     }
 
+    [TestMethod]
+    public async Task TriggerFullScan_BlacklistedFile_PrunedFromDatabaseImmediately()
+    {
+        // Files must really exist on disk: the scan also prunes rows whose file vanished,
+        // which would otherwise delete the "kept" row for an unrelated reason.
+        var tempDir = Path.Combine(Path.GetTempPath(), "TestIndexScheduler_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(tempDir, "Backup"));
+        await File.WriteAllTextAsync(Path.Combine(tempDir, "keep.txt"), "indexed text");
+        await File.WriteAllTextAsync(Path.Combine(tempDir, "Backup", "old.txt"), "old backup text");
+
+        try
+        {
+            _database.InsertOrUpdateFile(Path.Combine(tempDir, "keep.txt"), DateTime.UtcNow, 12, "indexed text");
+            _database.InsertOrUpdateFile(Path.Combine(tempDir, "Backup", "old.txt"), DateTime.UtcNow, 14, "old backup text");
+            Assert.AreEqual(2, _database.GetStats().TotalFiles);
+
+            using var scheduler = new ContentIndexScheduler(_database);
+            var config = new ContentIndexConfig
+            {
+                MonitoredFolders = new List<string> { tempDir },
+                AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".txt" },
+                ExcludedPatterns = ContentIndexConfig.ParseExcludedPatterns(@"\\Backup\\")
+            };
+            scheduler.UpdateConfig(config);
+            scheduler.TriggerFullScan();
+
+            Thread.Sleep(300);
+
+            Assert.IsNull(_database.GetFileRecord(Path.Combine(tempDir, "Backup", "old.txt")));
+            Assert.IsNotNull(_database.GetFileRecord(Path.Combine(tempDir, "keep.txt")));
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+    }
+
     private ContentIndexScheduler? _scheduler;
 
     private int CountLogLines(string fragment) =>
