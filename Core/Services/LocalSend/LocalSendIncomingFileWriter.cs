@@ -17,9 +17,11 @@ internal static class LocalSendIncomingFileWriter
 {
     private const int BufferSize = 1024 * 1024;
 
+    private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(30);
+
     internal static async Task<LocalSendFileSaveResult> SaveAsync(Stream source, string targetPath,
         long expectedSize, string? expectedSha256, Func<bool> isCanceled, Action<long>? onProgress = null,
-        Action<long>? onChecksumProgress = null)
+        Action<long>? onChecksumProgress = null, CancellationToken cancellationToken = default)
     {
         if (expectedSize < 0)
             return new(LocalSendFileSaveStatus.SizeMismatch, 0, "Negative advertised size");
@@ -32,9 +34,10 @@ internal static class LocalSendIncomingFileWriter
             {
                 var buffer = new byte[BufferSize];
                 int read;
-                while ((read = await source.ReadAsync(buffer).ConfigureAwait(false)) > 0)
+                while ((read = await source.ReadAsync(buffer, cancellationToken).AsTask()
+                    .WaitAsync(IdleTimeout, cancellationToken).ConfigureAwait(false)) > 0)
                 {
-                    if (isCanceled())
+                    if (isCanceled() || cancellationToken.IsCancellationRequested)
                         return new(LocalSendFileSaveStatus.Canceled, written);
                     if (written + read > expectedSize)
                         return new(LocalSendFileSaveStatus.SizeMismatch, written + read,
@@ -60,9 +63,13 @@ internal static class LocalSendIncomingFileWriter
 
             return new(LocalSendFileSaveStatus.Success, written);
         }
-        catch (OperationCanceledException) when (isCanceled())
+        catch (OperationCanceledException) when (isCanceled() || cancellationToken.IsCancellationRequested)
         {
             return new(LocalSendFileSaveStatus.Canceled, 0);
+        }
+        catch (TimeoutException)
+        {
+            return new(LocalSendFileSaveStatus.Error, 0, "Idle timeout while receiving data");
         }
         catch (Exception ex)
         {
