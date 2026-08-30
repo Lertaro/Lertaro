@@ -166,6 +166,9 @@ public static class Win32Helper
     /// inside SendMessage before it returns.
     /// </summary>
     public static string? QueryExpression(IntPtr xyHwnd, string quotedExpression)
+        => StaQueryHelper.Run(() => QueryExpressionCore(xyHwnd, quotedExpression), null);
+
+    private static string? QueryExpressionCore(IntPtr xyHwnd, string quotedExpression)
     {
         if (xyHwnd == IntPtr.Zero) return null;
         EnsureClassRegistered();
