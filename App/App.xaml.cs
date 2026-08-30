@@ -16,7 +16,6 @@ using Lertaro.Core;
 using Lertaro.Core.Hook.Ipc;
 using Lertaro.Core.Services.Installation;
 using Lertaro.Core.Services;
-using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 using Application = System.Windows.Application;
 namespace Lertaro.App;
 
@@ -106,28 +105,7 @@ public partial class App : Application
         PluginSdkBridge.ConfigureExplorerPathTracking();
         HookClient.OnOpenedFoldersCaptured += PluginSdkBridge.UpdateOpenedFolders;
 
-        HookClient.OnMouseDoubleClick += (x, y) =>
-        {
-            if (!UserSettings.Load().Hotkeys.QuickNavTriggerOnDoubleClick) return;
-            if (Views.InlineSearchWindow.Helpers.InlineSearchWindowNativeMethods.IsPointInsideWindow(x, y)) return;
-            var trk = InlineSearchManager.Instance.ExplorerTracker;
-            var proc = Helpers.App.AppNativeHelper.GetProcessNameOfWindow(trk.ActiveHwnd);
-            var cls = Helpers.App.AppNativeHelper.GetClassNameOfWindow(trk.ActiveHwnd);
-            if (QuickNavigationTriggerGate.CanShow(trk.ActiveHwnd, proc, cls, trk.IsDesktop, x, y, MouseTriggerType.DoubleClick))
-                Dispatcher.BeginInvoke(() => QuickNavigationMenu.Show(x, y));
-        };
-
-        HookClient.OnMouseMiddleClick += (x, y) =>
-        {
-            if (!UserSettings.Load().Hotkeys.QuickNavTriggerOnMiddleClick) return;
-            if (Views.InlineSearchWindow.Helpers.InlineSearchWindowNativeMethods.IsPointInsideWindow(x, y)) return;
-            var trk = InlineSearchManager.Instance.ExplorerTracker;
-            var proc = Helpers.App.AppNativeHelper.GetProcessNameOfWindow(trk.ActiveHwnd);
-            var cls = Helpers.App.AppNativeHelper.GetClassNameOfWindow(trk.ActiveHwnd);
-            if (QuickNavigationTriggerGate.CanShow(trk.ActiveHwnd, proc, cls, trk.IsDesktop, x, y, MouseTriggerType.MiddleClick)
-                || FileDialogQuickNavGate.CanShow(trk.ActiveHwnd, proc, cls, x, y))
-                Dispatcher.BeginInvoke(() => QuickNavigationMenu.Show(x, y));
-        };
+        QuickNavigationHookHandlers.AttachTo(HookClient, Dispatcher);
 
         HookClient.OnActivated += () => Dispatcher.BeginInvoke(new Action(() =>
         {
