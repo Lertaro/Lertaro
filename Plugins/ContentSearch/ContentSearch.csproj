@@ -40,6 +40,7 @@
       <ContentSearchOutput Include="$(TargetDir)SQLitePCLRaw.core.dll" Condition="Exists('$(TargetDir)SQLitePCLRaw.core.dll')" />
       <ContentSearchOutput Include="$(TargetDir)SQLitePCLRaw.provider.e_sqlite3.dll" Condition="Exists('$(TargetDir)SQLitePCLRaw.provider.e_sqlite3.dll')" />
       <ContentSearchOutput Include="$(TargetDir)e_sqlite3.dll" Condition="Exists('$(TargetDir)e_sqlite3.dll')" />
+      <ContentSearchOutput Include="$(TargetDir)System.IO.Hashing.dll" Condition="Exists('$(TargetDir)System.IO.Hashing.dll')" />
       <ContentSearchOutput Include="$(TargetDir)UglyToad.PdfPig.dll" Condition="Exists('$(TargetDir)UglyToad.PdfPig.dll')" />
       <ContentSearchOutput Include="$(TargetDir)UglyToad.PdfPig.Core.dll" Condition="Exists('$(TargetDir)UglyToad.PdfPig.Core.dll')" />
       <ContentSearchOutput Include="$(TargetDir)UglyToad.PdfPig.DocumentLayoutAnalysis.dll" Condition="Exists('$(TargetDir)UglyToad.PdfPig.DocumentLayoutAnalysis.dll')" />
@@ -66,6 +67,7 @@
       <ContentSearchPublishOutput Include="$(PublishDir)SQLitePCLRaw.core.dll" Condition="Exists('$(PublishDir)SQLitePCLRaw.core.dll')" />
       <ContentSearchPublishOutput Include="$(PublishDir)SQLitePCLRaw.provider.e_sqlite3.dll" Condition="Exists('$(PublishDir)SQLitePCLRaw.provider.e_sqlite3.dll')" />
       <ContentSearchPublishOutput Include="$(PublishDir)e_sqlite3.dll" Condition="Exists('$(PublishDir)e_sqlite3.dll')" />
+      <ContentSearchPublishOutput Include="$(PublishDir)System.IO.Hashing.dll" Condition="Exists('$(PublishDir)System.IO.Hashing.dll')" />
       <ContentSearchPublishOutput Include="$(PublishDir)UglyToad.PdfPig.dll" Condition="Exists('$(PublishDir)UglyToad.PdfPig.dll')" />
       <ContentSearchPublishOutput Include="$(PublishDir)UglyToad.PdfPig.Core.dll" Condition="Exists('$(PublishDir)UglyToad.PdfPig.Core.dll')" />
       <ContentSearchPublishOutput Include="$(PublishDir)UglyToad.PdfPig.DocumentLayoutAnalysis.dll" Condition="Exists('$(PublishDir)UglyToad.PdfPig.DocumentLayoutAnalysis.dll')" />
