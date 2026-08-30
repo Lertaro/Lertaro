@@ -83,9 +83,10 @@ internal static class ExplorerLocateHelper
         if (fileManager is { Enabled: true }) return false;
         if (fileManager.OpenFoldersInNewExplorerTabs)
             return FileExecutor.TryLocateInNewExplorerTab(path, preferredExplorerWindow: explorerHwnd);
+        dynamic? window = null;
         try
         {
-            dynamic? window = FindExplorerWindow(explorerHwnd);
+            window = FindExplorerWindow(explorerHwnd);
             if (window == null) return false;
 
             // The parent, whatever the item is. Navigating to the item itself when it happened to be a
@@ -111,30 +112,53 @@ internal static class ExplorerLocateHelper
             Logger.Log($"[FileExecutor] Locate in existing explorer failed for '{path}': {ex.Message}", LogLevel.Error);
             return false;
         }
+        finally
+        {
+            ReleaseComObject(window);
+        }
     }
 
     private static dynamic? FindExplorerWindow(IntPtr explorerHwnd)
     {
-        var shellWindowsType = Type.GetTypeFromCLSID(new Guid("9BA05972-F6A8-11CF-A442-00A0C90A8F39"));
-        if (shellWindowsType == null) return null;
-        dynamic shellWindows = Activator.CreateInstance(shellWindowsType)!;
-        int count = shellWindows.Count;
-        for (var i = 0; i < count; i++)
+        object? shellWindows = null;
+        try
         {
-            try
+            var shellWindowsType = Type.GetTypeFromCLSID(new Guid("9BA05972-F6A8-11CF-A442-00A0C90A8F39"));
+            if (shellWindowsType == null) return null;
+            shellWindows = Activator.CreateInstance(shellWindowsType);
+            if (shellWindows == null) return null;
+
+            dynamic dShellWindows = shellWindows;
+            int count = dShellWindows.Count;
+            object? match = null;
+            for (var i = 0; i < count; i++)
             {
-                dynamic? window = shellWindows.Item(i);
-                if (window == null) continue;
-                if ((IntPtr)window.HWND == explorerHwnd)
+                object? window = null;
+                try
                 {
-                    return window;
+                    window = dShellWindows.Item(i);
+                    if (window == null) continue;
+                    dynamic dWindow = window;
+                    if ((IntPtr)dWindow.HWND == explorerHwnd)
+                    {
+                        match = window;
+                        window = null;
+                        break;
+                    }
+                }
+                catch { }
+                finally
+                {
+                    ReleaseComObject(window);
                 }
             }
 
-            catch { }
+            return match;
         }
-
-        return null;
+        finally
+        {
+            ReleaseComObject(shellWindows);
+        }
     }
 
     private static bool TryLocateWithShell(string path)
@@ -157,14 +181,18 @@ internal static class ExplorerLocateHelper
     {
         await Task.Delay(250);
 
+        dynamic? window = null;
+        dynamic? folder = null;
+        object? item = null;
         try
         {
-            dynamic? window = FindExplorerWindow(explorerHwnd);
+            window = FindExplorerWindow(explorerHwnd);
             if (window == null) return;
             var name = Path.GetFileName(path);
             if (string.IsNullOrEmpty(name)) return;
-            dynamic folder = window.Document.Folder;
-            dynamic? item = folder.ParseName(name);
+            folder = window.Document.Folder;
+            if (folder == null) return;
+            item = folder.ParseName(name);
             if (item == null) return;
             const int svsiSelect = 0x1;
             const int svsiDeselectOthers = 0x4;
@@ -175,6 +203,25 @@ internal static class ExplorerLocateHelper
         catch (Exception ex)
         {
             Logger.Log($"[FileExecutor] Select item in existing explorer failed for '{path}': {ex.Message}", LogLevel.Error);
+        }
+        finally
+        {
+            ReleaseComObject(item);
+            ReleaseComObject(folder);
+            ReleaseComObject(window);
+        }
+    }
+
+    private static void ReleaseComObject(object? comObject)
+    {
+        try
+        {
+            if (comObject != null && Marshal.IsComObject(comObject))
+                Marshal.ReleaseComObject(comObject);
+        }
+        catch
+        {
+            // Best-effort cleanup; the RCW will still be reclaimed by the GC finalizer.
         }
     }
 }
