@@ -179,6 +179,8 @@ public static class PipeResponseBinarySerializer
     private static List<string> ReadDirectories(byte[] payload, ref int offset)
     {
         var count = ReadInt32(payload, ref offset);
+        if (count < 0 || count > payload.Length - offset)
+            throw new InvalidDataException("Invalid directory count.");
         var directories = new List<string>(count);
         for (var i = 0; i < count; i++)
             directories.Add(ReadString(payload, ref offset));
@@ -216,6 +218,8 @@ public static class PipeResponseBinarySerializer
     {
         var count = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
         offset += 4;
+        if (count < 0 || count > payload.Length - offset)
+            throw new InvalidDataException("Invalid machine settings drive count.");
         var settings = new MachineSettings();
         for (var i = 0; i < count; i++)
             settings.LocalDrives.Add(ReadString(payload, ref offset));
@@ -239,7 +243,11 @@ public static class PipeResponseBinarySerializer
         var shift = 0;
         while (shift < 35)
         {
+            if (offset >= buffer.Length)
+                throw new InvalidDataException("Truncated 7-bit encoded integer.");
             var b = buffer[offset++];
+            if (shift == 28 && (b & 0xF0) != 0)
+                throw new InvalidDataException("Invalid 7-bit encoded integer.");
             result |= (uint)(b & 0x7F) << shift;
             shift += 7;
             if ((b & 0x80) == 0)
@@ -259,6 +267,8 @@ public static class PipeResponseBinarySerializer
     {
         var length = Read7BitEncodedInt(buffer, ref offset);
         if (length == 0) return string.Empty;
+        if (length < 0 || length > buffer.Length - offset)
+            throw new InvalidDataException("Invalid string length.");
         var str = Encoding.UTF8.GetString(buffer, offset, length);
         offset += length;
         return str;

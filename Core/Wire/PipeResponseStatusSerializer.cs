@@ -76,11 +76,15 @@ internal static class PipeResponseStatusSerializer
 
         var activeCount = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
         offset += 4;
+        if (activeCount < 0 || activeCount > payload.Length - offset)
+            throw new InvalidDataException("Invalid active drive count.");
         for (var i = 0; i < activeCount; i++)
             status.ActiveDrives.Add(PipeResponseBinarySerializer.ReadString(payload, ref offset));
 
         var driveCount = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
         offset += 4;
+        if (driveCount < 0 || driveCount > (payload.Length - offset) / 17)
+            throw new InvalidDataException("Invalid drive index status count.");
         for (var i = 0; i < driveCount; i++)
         {
             var drive = PipeResponseBinarySerializer.ReadString(payload, ref offset);
