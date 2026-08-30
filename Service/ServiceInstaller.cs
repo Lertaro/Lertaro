@@ -23,7 +23,7 @@ static class ServiceInstaller
             Logger.Log("Preparing existing service instance before install.");
             var stop = ServiceControlRunner.Run("stop LertaroService", 0, 1060, 1062);
             if (!stop.IsSuccess(0, 1060, 1062))
-                throw new InvalidOperationException("sc stop failed. See service.log for details.");
+                throw new InvalidOperationException($"sc stop failed: {stop.Error}");
             if (!ServiceControlRunner.WaitForStopped("LertaroService"))
                 throw new InvalidOperationException("sc stop timed out before the service reached STOPPED.");
 
@@ -71,7 +71,7 @@ static class ServiceInstaller
             Logger.Log("Stopping service: sc.exe stop LertaroService");
             var stop = ServiceControlRunner.Run("stop LertaroService", 0, 1060, 1062);
             if (!stop.IsSuccess(0, 1060, 1062))
-                throw new InvalidOperationException("sc stop failed. See service.log for details.");
+                throw new InvalidOperationException($"sc stop failed: {stop.Error}");
             if (!ServiceControlRunner.WaitForStopped("LertaroService"))
                 throw new InvalidOperationException("sc stop timed out before the service reached STOPPED.");
 
