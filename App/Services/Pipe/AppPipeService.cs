@@ -1,5 +1,6 @@
 using System.IO.Pipes;
 using Lertaro.Core;
+using Lertaro.Core.Services.Pipe;
 using Lertaro.App.Services.UrlProtocol;
 using Lertaro.Core.Wire;
 namespace Lertaro.App.Services.Pipe;
@@ -35,11 +36,28 @@ public static class AppPipeService
     private static async Task RunPipeServerAsync()
     {
         var pipeName = AppPipeNames.ActivationPipeName;
+
+        // Apply the same current-user ACL the search pipe uses so other local processes cannot send
+        // activation/URI commands to this app instance.
+        var pipeSecurity = PipeSecurityFactory.CreateCurrentUserOnly();
+        if (pipeSecurity == null)
+        {
+            Logger.Log("[AppPipeService] Could not resolve the current user's SID -- refusing to start the activation pipe.", LogLevel.Error);
+            return;
+        }
+
         while (_keepRunningPipeServer)
         {
             try
             {
-                using var server = new NamedPipeServerStream(pipeName, PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                using var server = NamedPipeServerStreamAcl.Create(
+                    pipeName,
+                    PipeDirection.In,
+                    1,
+                    PipeTransmissionMode.Byte,
+                    PipeOptions.Asynchronous,
+                    4096, 4096,
+                    pipeSecurity);
 
                 await server.WaitForConnectionAsync();
                 var msg = await PipeRequestBinarySerializer.ReadStringAsync(server);
