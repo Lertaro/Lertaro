@@ -98,10 +98,17 @@ public static class VirtualFileExtractor
 
             try
             {
+                var blockSize = (long)GlobalSize(medium.unionmember);
                 var count = Marshal.ReadInt32(block);
                 // The count is followed by that many fixed-size descriptors, so each one is found by
-                // walking rather than by any pointer in the block.
+                // walking rather than by any pointer in the block. Clamp against the actual HGLOBAL size:
+                // a hostile/truncated descriptor must not make us read past the block.
                 var descriptorSize = Marshal.SizeOf<FileDescriptorW>();
+                if (count < 0 || (long)count > (blockSize - sizeof(int)) / descriptorSize)
+                {
+                    Logger.Log($"[VirtualFileExtractor] Invalid file group descriptor count: {count}.", LogLevel.Error);
+                    return names;
+                }
                 for (var i = 0; i < count; i++)
                 {
                     var at = IntPtr.Add(block, sizeof(int) + (i * descriptorSize));
