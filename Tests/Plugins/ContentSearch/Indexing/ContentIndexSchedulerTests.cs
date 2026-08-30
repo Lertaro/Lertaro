@@ -221,6 +221,47 @@ public sealed class ContentIndexSchedulerTests
         }
     }
 
+    [TestMethod]
+    public async Task WorkerLoop_BatchWriteFailure_KeepsWorkerAliveAndLogs()
+    {
+        // One transient failure (a corrupted database file standing in for a SQLite I/O
+        // error or a full disk) must not kill the indexing thread permanently until app
+        // restart: the loop logs the failure and keeps serving later batches. Two failed
+        // batches prove the worker survived the first one.
+        var badDbPath = Path.Combine(Path.GetTempPath(), "TestIndexScheduler_" + Guid.NewGuid().ToString("N") + ".db");
+        File.WriteAllBytes(badDbPath, [0x01, 0x02, 0x03]); // garbage: every SQL statement fails
+        var badDatabase = new ContentSearchDatabase(badDbPath); // deliberately left uninitialized
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "TestIndexScheduler_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var file = Path.Combine(tempDir, "note.txt");
+        await File.WriteAllTextAsync(file, "plain readable text");
+
+        try
+        {
+            using var scheduler = new ContentIndexScheduler(badDatabase);
+            scheduler.Start(new ContentIndexConfig
+            {
+                MonitoredFolders = new List<string> { tempDir },
+                AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".txt" }
+            });
+
+            scheduler.EnqueueFile(file);
+            await WaitUntilAsync(() => CountLogLines("Indexing batch failed") >= 1, timeoutMs: 8000);
+            scheduler.EnqueueFile(file);
+            await WaitUntilAsync(() => CountLogLines("Indexing batch failed") >= 2, timeoutMs: 8000);
+
+            Assert.IsTrue(CountLogLines("Indexing batch failed") >= 2,
+                $"the worker must survive the failure and keep serving later batches: [{string.Join("; ", _logLines)}]");
+        }
+        finally
+        {
+            badDatabase.Dispose();
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+            try { File.Delete(badDbPath); } catch { }
+        }
+    }
+
     private ContentIndexScheduler? _scheduler;
 
     private int CountLogLines(string fragment) =>
