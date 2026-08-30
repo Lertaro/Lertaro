@@ -30,6 +30,8 @@ internal static class FileMetadataResponseCodec
     {
         var count = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
         offset += sizeof(int);
+        if (count < 0 || count > (payload.Length - offset) / (sizeof(long) + 3 * sizeof(uint) + 1))
+            throw new InvalidDataException("Invalid file metadata count.");
         var metadata = new Dictionary<string, FileMetadataEntry>(count, StringComparer.OrdinalIgnoreCase);
         for (var i = 0; i < count; i++)
         {
