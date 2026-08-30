@@ -135,6 +135,39 @@ public sealed class PdfExtractorTests
     }
 
     [TestMethod]
+    public async Task ExtractTextAsync_EightConsecutiveFailures_GivesUpBeforeThreshold()
+    {
+        // A long unbroken run of failures gives up even though the total failure count
+        // stays below the majority threshold: 20 pages give a majority threshold of 10,
+        // but 8 consecutive broken pages at the start must abandon the document instead
+        // of scanning the remaining 12 good pages pointlessly.
+        var extractor = new PdfExtractor();
+        var tempFile = Path.Combine(Path.GetTempPath(), $"test_doc_{Guid.NewGuid():N}.pdf");
+
+        try
+        {
+            const string brokenPage = "BT /F1 Tf (broken page) Tj ET";
+            var pages = Enumerable.Range(0, 8).Select(_ => brokenPage)
+                .Concat(Enumerable.Range(0, 12).Select(i => TextStream($"good page {i}")))
+                .ToArray();
+            await File.WriteAllBytesAsync(tempFile, PdfTestDocument.Pages(pages));
+
+            var text = await extractor.ExtractTextAsync(tempFile, maxFileSizeBytes: 1024 * 1024);
+
+            Assert.IsNull(text);
+            var giveUps = _logLines.Count(l => l.Contains("Giving up on PDF", StringComparison.Ordinal));
+            Assert.AreEqual(1, giveUps,
+                $"Expected exactly one give-up warning: [{string.Join("; ", _logLines)}]");
+            Assert.DoesNotContain("good page 11", text ?? string.Empty);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [TestMethod]
     public async Task ExtractTextAsync_FewUnreadablePages_IndexesRestWithInfoNote()
     {
         // Few bad pages in a larger document: the good pages are indexed, and a single

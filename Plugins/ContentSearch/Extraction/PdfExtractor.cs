@@ -12,6 +12,12 @@ public sealed class PdfExtractor : ITextExtractor
     private const int MaxPagesToExtract = 150;
     private const int MaxExtractedCharacters = 500_000;
 
+    // An unbroken run of this many unparseable pages gives up on the whole document:
+    // a long failing run predicts the rest fails the same way, even when the overall
+    // failure ratio stays below the give-up threshold (e.g. a 1000-page PDF whose
+    // first 8 pages are all broken).
+    private const int MaxConsecutiveFailedPages = 8;
+
     public bool CanHandle(string extension) =>
         string.Equals(extension, ".pdf", StringComparison.OrdinalIgnoreCase);
 
@@ -34,11 +40,12 @@ public sealed class PdfExtractor : ITextExtractor
 
                 var builder = new StringBuilder();
                 var failedPages = 0;
+                var consecutiveFailedPages = 0;
 
-                // ponytail: the give-up threshold is a heuristic, not tuned from data. A
+                // ponytail: the give-up thresholds are heuristics, not tuned from data. A
                 // document where most pages fail to parse yields garbage indexing value for
                 // the same CPU cost as a good one; if real documents start tripping this
-                // with recoverable damage, raise the floor (3) first.
+                // with recoverable damage, raise the floor (3) and the run length (8) first.
                 var giveUpAfterFailedPages = Math.Max(3, document.NumberOfPages / 2);
 
                 for (var pageNumber = 1; pageNumber <= document.NumberOfPages; pageNumber++)
@@ -62,7 +69,12 @@ public sealed class PdfExtractor : ITextExtractor
                     catch
                     {
                         failedPages++;
-                        if (failedPages >= giveUpAfterFailedPages)
+                        consecutiveFailedPages++;
+
+                        // Two give-up signals: the document is mostly broken overall, or an
+                        // unbroken run of failures means the tail of a large document fails
+                        // the same way its recent past did and is not worth scanning.
+                        if (consecutiveFailedPages >= MaxConsecutiveFailedPages || failedPages >= giveUpAfterFailedPages)
                         {
                             PluginSdk.Logger.Log(
                                 $"[ContentSearch] Giving up on PDF '{filePath}': {failedPages} of {document.NumberOfPages} pages failed to process",
@@ -71,6 +83,8 @@ public sealed class PdfExtractor : ITextExtractor
                         }
                         continue;
                     }
+
+                    consecutiveFailedPages = 0;
 
                     if (!string.IsNullOrWhiteSpace(pageText))
                     {
