@@ -12,6 +12,7 @@ internal sealed class DriveWatcherHost : IDisposable
     private readonly TimeSpan _retryDelay;
     private readonly object _gate = new();
     private FileSystemWatcher? _watcher;
+    private bool _retryInFlight;
     private bool _disposed;
 
     public DriveWatcherHost(string name, string drive, Func<string, bool> exists,
@@ -86,21 +87,39 @@ internal sealed class DriveWatcherHost : IDisposable
         ScheduleRetry();
     }
 
-    private void ScheduleRetry() => _ = Task.Run(async () =>
-                                         {
-                                             while (!_disposed)
-                                             {
-                                                 await Task.Delay(_retryDelay).ConfigureAwait(false);
-                                                 if (_disposed)
-                                                     return;
-                                                 EnsureWatcher();
-                                                 lock (_gate)
-                                                 {
-                                                     if (_watcher != null)
-                                                         return;
-                                                 }
-                                             }
-                                         });
+    private void ScheduleRetry()
+    {
+        lock (_gate)
+        {
+            if (_retryInFlight || _disposed)
+                return;
+            _retryInFlight = true;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (!_disposed)
+                {
+                    await Task.Delay(_retryDelay).ConfigureAwait(false);
+                    if (_disposed)
+                        return;
+                    EnsureWatcher();
+                    lock (_gate)
+                    {
+                        if (_watcher != null)
+                            return;
+                    }
+                }
+            }
+            finally
+            {
+                lock (_gate)
+                    _retryInFlight = false;
+            }
+        });
+    }
 
     private void LogError(string message) => _onLog($"[{_name}] {message}");
 }
