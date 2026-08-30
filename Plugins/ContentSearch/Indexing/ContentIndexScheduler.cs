@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using Lertaro.PluginSdk.Helpers;
 using Lertaro.Plugins.ContentSearch.Storage;
 
@@ -121,6 +122,11 @@ public sealed class ContentIndexScheduler : IDisposable
                     return;
                 }
 
+                PluginSdk.Logger.Log(
+                    $"[ContentSearch] Full scan started over {_config.MonitoredFolders.Count} folder(s)",
+                    PluginSdk.LogLevel.Info);
+                var scanStopwatch = Stopwatch.StartNew();
+
                 var existingMeta = _database.GetAllFileMetadata();
                 // Deliberately no size check here: lowering MaxFileSizeBytes does not
                 // prune already-indexed oversized rows, they keep serving their stale
@@ -153,6 +159,11 @@ public sealed class ContentIndexScheduler : IDisposable
 
                 _database.Optimize();
                 _database.VacuumIfBloat();
+
+                scanStopwatch.Stop();
+                PluginSdk.Logger.Log(
+                    $"[ContentSearch] Full scan completed in {scanStopwatch.Elapsed.TotalSeconds:F1}s: {discovered.Count} file(s) in scope, {toDelete.Count} pruned, {PendingCount} queued for indexing",
+                    PluginSdk.LogLevel.Info);
             }
             catch (Exception ex)
             {
