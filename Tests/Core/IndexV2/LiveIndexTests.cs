@@ -70,4 +70,24 @@ public sealed class LiveIndexTests
         Assert.AreEqual(0, files);
         Assert.AreEqual(1, dirs);
     }
+
+    [TestMethod]
+    public void Compact_DoubleFailure_EntersObjectDisposedStateInsteadOfLeavingDanglingSnapshot()
+    {
+        using var fixture = LiveIndexFixture.Build("C", new[]
+        {
+            LiveIndexFixture.Root(),
+        });
+
+        // Force both steps of the compact double-failure path: SnapshotWriter.Write cannot replace a
+        // directory, and Snapshot.Open also cannot open a directory. The old mapping has already been
+        // disposed by then, so Compact must transition into a clear invalid state rather than leaving a
+        // disposed Snapshot behind for later queries to dereference.
+        File.Delete(fixture.Path);
+        Directory.CreateDirectory(fixture.Path);
+
+        Assert.ThrowsExactly<ObjectDisposedException>(() => fixture.Index.Compact(fixture.Path, force: true));
+        Assert.ThrowsExactly<ObjectDisposedException>(() => fixture.Index.GetCounts());
+    }
+
 }
