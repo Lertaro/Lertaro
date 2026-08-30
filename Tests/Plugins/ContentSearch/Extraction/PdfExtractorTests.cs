@@ -37,20 +37,19 @@ public sealed class PdfExtractorTests
     }
 
     [TestMethod]
-    public async Task ExtractTextAsync_PageWithSlightlyRotatedGlyphs_SkipsBadPageExtractsRest()
+    public async Task ExtractTextAsync_PageWithSlightlyRotatedGlyphs_ExtractsAllPages()
     {
-        // Regression: PdfPig 0.1.9 throws "Could not find TextOrientation for rotation" for
-        // glyphs with zero advance width on a ~4 degree rotated text matrix, which previously
-        // made the extractor discard the whole document (real case: a PDF whose page 4 has
-        // such glyphs was entirely unindexable).
+        // PdfPig 0.1.9 threw "Could not find TextOrientation for rotation" for glyphs with zero
+        // advance width on a ~4 degree rotated text matrix, which forced the extractor to skip
+        // such pages (real case: a PDF whose page 4 has such glyphs lost that page entirely).
+        // Fixed upstream in 0.1.10; this asserts the rotated page is now fully extracted.
         var extractor = new PdfExtractor();
         var tempFile = Path.Combine(Path.GetTempPath(), $"test_doc_{Guid.NewGuid():N}.pdf");
 
         try
         {
-            // Zero horizontal scale collapses glyph advances; the precise 4 degree matrix then
-            // reaches Letter.GetTextOrientationRot with a rotation near an integer that is not
-            // a multiple of 90, which throws in PdfPig 0.1.9.
+            // Zero horizontal scale collapses glyph advances; the precise 4 degree matrix used
+            // to reach Letter.GetTextOrientationRot with an unresolvable rotation in 0.1.9.
             const string rotatedPage =
                 "BT 0.99756405 0.06975647 -0.06975647 0.99756405 72 720 Tm /F1 12 Tf 0 Tz (Rotated page) Tj ET";
             await File.WriteAllBytesAsync(tempFile, BuildTwoPagePdf(TextStream("Cysteine normal page"), rotatedPage));
@@ -59,7 +58,7 @@ public sealed class PdfExtractorTests
 
             Assert.IsNotNull(text);
             Assert.Contains("Cysteine normal page", text);
-            Assert.DoesNotContain("Rotated page", text);
+            Assert.Contains("Rotated page", text);
         }
         finally
         {
