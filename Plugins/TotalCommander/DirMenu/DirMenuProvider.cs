@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using Lertaro.PluginSdk.Abstractions;
@@ -13,10 +14,10 @@ namespace Lertaro.Plugins.TotalCommander.DirMenu;
 // finds by reflection to resolve a handle back to a path for icon loading).
 public class DirMenuProvider : IQuickNavigationProvider
 {
-    private readonly Dictionary<IntPtr, object> _nodeMap = new();
-    private readonly Dictionary<uint, string> _commandMap = new();
-    private int _nextId = 1;
-    private uint _nextCmdId = 1;
+    private readonly ConcurrentDictionary<IntPtr, object> _nodeMap = new();
+    private readonly ConcurrentDictionary<uint, string> _commandMap = new();
+    private int _nextId;
+    private int _nextCmdId;
 
     // Matches TotalCommanderPlugin.Name exactly (a product name, not localized).
     public string GroupName => "Total Commander";
@@ -161,20 +162,20 @@ public class DirMenuProvider : IQuickNavigationProvider
     {
         _nodeMap.Clear();
         _commandMap.Clear();
-        _nextId = 1;
-        _nextCmdId = 1;
+        _nextId = 0;
+        _nextCmdId = 0;
     }
 
     private IntPtr AllocateHandle(DirMenuNode node)
     {
-        var handle = new IntPtr(_nextId++);
+        var handle = new IntPtr(Interlocked.Increment(ref _nextId));
         _nodeMap[handle] = node;
         return handle;
     }
 
     private uint AllocateCommand(string path)
     {
-        var cmdId = _nextCmdId++;
+        var cmdId = (uint)Interlocked.Increment(ref _nextCmdId);
         _commandMap[cmdId] = path;
         return cmdId;
     }
