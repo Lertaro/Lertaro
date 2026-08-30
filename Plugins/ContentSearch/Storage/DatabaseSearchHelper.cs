@@ -56,13 +56,21 @@ public static class DatabaseSearchHelper
                 cmd.Parameters.AddWithValue($"@token{i}", "%" + tokens[i] + "%");
             }
 
+            // Same direction as ExecuteFts: only source rows own an FTS entry, so a match
+            // must expand to the source itself AND every duplicate referencing it, with
+            // the snippet reusing the source text. LIMIT caps the FTS matches, not the
+            // expanded rows, so duplicates cannot eat other files out of the limit.
             cmd.CommandText = $"""
-                SELECT f.id, f.path, files_fts.content
-                FROM files_fts
-                JOIN files f ON f.id = files_fts.rowid
-                JOIN files ref ON ref.id = f.id OR ref.content_ref = f.id
-                WHERE {string.Join(" AND ", whereClauses)}
-                LIMIT @limit;
+                WITH matches AS (
+                    SELECT rowid AS src_id, content
+                    FROM files_fts
+                    WHERE {string.Join(" AND ", whereClauses)}
+                    LIMIT @limit
+                )
+                SELECT f.id, f.path, COALESCE(src_fts.content, matches.content) AS content
+                FROM matches
+                JOIN files f ON f.id = matches.src_id OR f.content_ref = matches.src_id
+                LEFT JOIN files_fts src_fts ON src_fts.rowid = f.content_ref;
                 """;
             cmd.Parameters.AddWithValue("@limit", remainingLimit);
 
