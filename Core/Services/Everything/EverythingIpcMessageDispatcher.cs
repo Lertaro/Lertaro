@@ -109,8 +109,9 @@ public sealed class EverythingIpcMessageDispatcher
         try
         {
             var queryTask = _dataProvider.ExecuteQueryAsync(request);
-            // Synchronously wait with a safe timeout since Win32 SendMessage is blocking for the caller
-            var queryResult = queryTask.GetAwaiter().GetResult();
+            // Bound the sync wait with a timeout since Win32 SendMessage is blocking for the caller and a
+            // stalled query must not wedge the single message-loop thread forever.
+            var queryResult = queryTask.WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
             Logger.Log($"[EverythingIpc] Query: Search='{request.SearchString}', RequestFlags=0x{request.RequestFlags:X}, ReplyHwnd=0x{request.ReplyHwnd:X}, Results={queryResult.Items.Count}", LogLevel.Debug);
 
             var responseBuffer = request.IsQuery2
