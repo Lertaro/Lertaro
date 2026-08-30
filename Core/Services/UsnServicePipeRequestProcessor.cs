@@ -1,3 +1,6 @@
+using System.IO.Pipes;
+using Lertaro.Core.Services.HookLaunch;
+using Lertaro.Core.Services.Pipe;
 using Lertaro.Core.Wire;
 
 namespace Lertaro.Core.Services;
@@ -7,7 +10,7 @@ namespace Lertaro.Core.Services;
 // single response) -- extracted to keep UsnServicePipeServer.cs under the project's line limit.
 internal static class UsnServicePipeRequestProcessor
 {
-    public static PipeResponse Process(SearchEngine? engine, SearchRequestMessage msg, CancellationToken token)
+    public static PipeResponse Process(SearchEngine? engine, SearchRequestMessage msg, CancellationToken token, NamedPipeServerStream pipe)
     {
         try
         {
@@ -26,6 +29,8 @@ internal static class UsnServicePipeRequestProcessor
                     };
 
                 case SearchRequestId.Rebuild:
+                    if (!IsAuthorizedControlClient(pipe))
+                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
                     Logger.Log("[UsnService] Received REBUILD request from client.");
                     engine?.InitializeOrLoadIndex(true);
                     return new PipeResponse { Kind = PipeResponseKind.Ok };
@@ -36,6 +41,8 @@ internal static class UsnServicePipeRequestProcessor
                     return new PipeResponse { Kind = PipeResponseKind.Ok };
 
                 case SearchRequestId.RebuildDrive:
+                    if (!IsAuthorizedControlClient(pipe))
+                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
                     var drive = msg.Drive ?? string.Empty;
                     Logger.Log($"[UsnService] Received REBUILD_DRIVE request from client: {drive}");
                     return engine?.RebuildDriveIndex(drive) == true
@@ -43,6 +50,8 @@ internal static class UsnServicePipeRequestProcessor
                         : new PipeResponse { Kind = PipeResponseKind.Error, Message = "Invalid or disabled drive" };
 
                 case SearchRequestId.DeleteDriveIndex:
+                    if (!IsAuthorizedControlClient(pipe))
+                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
                     var deleteDrive = msg.Drive ?? string.Empty;
                     Logger.Log($"[UsnService] Received DELETE_DRIVE_INDEX request from client: {deleteDrive}");
                     return engine?.DeleteDriveIndex(deleteDrive) == true
@@ -64,6 +73,8 @@ internal static class UsnServicePipeRequestProcessor
                     };
 
                 case SearchRequestId.SetMachineSettings:
+                    if (!IsAuthorizedControlClient(pipe))
+                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
                     var settings = msg.MachineSettings;
                     if (settings == null)
                         return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Invalid settings" };
@@ -104,6 +115,19 @@ internal static class UsnServicePipeRequestProcessor
         {
             Logger.Log($"[UsnService] Error processing request {msg.Id}: {ex.Message}", LogLevel.Error);
             return new PipeResponse { Kind = PipeResponseKind.Error, Message = ex.Message };
+        }
+    }
+
+    private static bool IsAuthorizedControlClient(NamedPipeServerStream pipe)
+    {
+        try
+        {
+            return PipeClientIdentity.TryGetClientProcessId(pipe, out var callerPid) &&
+                HookLaunchRequestHandler.IsGenuineAppProcess(callerPid);
+        }
+        catch
+        {
+            return false;
         }
     }
 }
