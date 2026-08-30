@@ -126,11 +126,12 @@ public sealed class IndexBatchProcessorTests
     }
 
 
-    private ContentIndexConfig MakeConfig(string? folder = null, long maxFileSizeBytes = 1024 * 1024) => new()
+    private ContentIndexConfig MakeConfig(string? folder = null, long maxFileSizeBytes = 1024 * 1024, long maxIndexSizeBytes = long.MaxValue) => new()
     {
         MonitoredFolders = new List<string> { folder ?? _tempDir },
         AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".txt", ".pdf" },
-        MaxFileSizeBytes = maxFileSizeBytes
+        MaxFileSizeBytes = maxFileSizeBytes,
+        MaxIndexSizeBytes = maxIndexSizeBytes
     };
 
     [TestMethod]
@@ -188,6 +189,21 @@ public sealed class IndexBatchProcessorTests
             $"expected one source and one duplicate, got refs {fifthRecord.ContentRef}/{sixthRecord.ContentRef}");
         Assert.IsNull(fifthRecord.FailedAt);
         Assert.IsNull(sixthRecord.FailedAt);
+    }
+
+    [TestMethod]
+    public async Task ProcessBatchAsync_IndexOverSizeCap_SkipsWholeBatchWithWarning()
+    {
+        var file = await WriteFileAsync("readable.txt", "indexable plain text content");
+        var config = MakeConfig(maxIndexSizeBytes: 1); // 1 byte cap: always over
+        var processor = new IndexBatchProcessor(_database);
+
+        await processor.ProcessBatchAsync(new[] { file }, config, CancellationToken.None);
+
+        Assert.IsNull(_database.GetFileRecord(file), "an over-budget batch must not write anything");
+        Assert.IsTrue(
+            _logLines.Any(l => l.Contains("Index size cap reached", StringComparison.Ordinal)),
+            $"Expected a cap warning in: [{string.Join("; ", _logLines)}]");
     }
 
     private async Task<string> WriteFileAsync(string name, string content)

@@ -74,6 +74,14 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
             },
             new()
             {
+                Key = "MaxIndexSizeMb",
+                LabelKey = "ContentSearch_Config_IndexSizeLabel",
+                DescriptionKey = "ContentSearch_Config_IndexSizeDesc",
+                FieldType = ConfigFieldType.Integer,
+                DefaultValue = 5120
+            },
+            new()
+            {
                 Key = "IndexedExtensions",
                 LabelKey = "ContentSearch_Config_ExtensionsLabel",
                 DescriptionKey = "ContentSearch_Config_ExtensionsDesc",
@@ -104,6 +112,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
             new List<string>());
 
         var maxSizeMb = PluginSettingsService.GetSetting(PluginId, "MaxFileSizeMb", 0);
+        var maxIndexSizeMb = PluginSettingsService.GetSetting(PluginId, "MaxIndexSizeMb", 5120);
         var extsStr = PluginSettingsService.GetSetting(PluginId, "IndexedExtensions", string.Empty);
         var exclusionsStr = PluginSettingsService.GetSetting(PluginId, "ExcludedNamePatterns", string.Empty);
 
@@ -123,6 +132,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
         {
             MonitoredFolders = rawFolders ?? new List<string>(),
             MaxFileSizeBytes = maxSizeMb > 0 ? maxSizeMb * 1024L * 1024L : long.MaxValue,
+            MaxIndexSizeBytes = maxIndexSizeMb > 0 ? maxIndexSizeMb * 1024L * 1024L : long.MaxValue,
             AllowedExtensions = extSet,
             ExcludedPatterns = ContentIndexConfig.ParseExcludedPatterns(exclusionsStr)
         };

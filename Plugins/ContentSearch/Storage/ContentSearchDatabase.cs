@@ -139,21 +139,45 @@ public sealed class ContentSearchDatabase : IDisposable
         }
     }
 
+    /// <summary>
+    /// Runs VACUUM when a large share of the database is free pages left over from
+    /// deleted rows, reclaiming the file space. Cheap no-op on a compact database.
+    /// </summary>
+    public void VacuumIfBloat(double maxFreeRatio = 0.3)
+    {
+        if (!File.Exists(_dbPath)) return;
+        lock (_writeLock)
+        {
+            try
+            {
+                using var conn = OpenConnection();
+                DatabaseMaintenanceHelper.VacuumIfBloat(conn, maxFreeRatio);
+            }
+            catch { }
+        }
+    }
+
+    /// <summary>
+    /// Total on-disk footprint of the index (all database pages, free ones included).
+    /// </summary>
+    public long GetDatabasePageBytes()
+    {
+        if (!File.Exists(_dbPath)) return 0;
+        try
+        {
+            using var conn = OpenConnection();
+            return DatabaseMaintenanceHelper.GetDatabasePageBytes(conn);
+        }
+        catch { return 0; }
+    }
+
     public Dictionary<string, (long LastModified, long FileSize)> GetAllFileMetadata()
     {
         if (!File.Exists(_dbPath)) return new Dictionary<string, (long, long)>(StringComparer.OrdinalIgnoreCase);
         Initialize();
 
-        var dict = new Dictionary<string, (long, long)>(StringComparer.OrdinalIgnoreCase);
         using var conn = OpenConnection();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT path, last_modified, file_size FROM files;";
-        using var reader = cmd.ExecuteReader();
-        while (reader.Read())
-        {
-            dict[reader.GetString(0)] = (reader.GetInt64(1), reader.GetInt64(2));
-        }
-        return dict;
+        return DatabaseMetadataReader.GetAllFileMetadata(conn);
     }
 
     public IndexedFileRecord? GetFileRecord(string path)
@@ -162,47 +186,16 @@ public sealed class ContentSearchDatabase : IDisposable
         Initialize();
 
         using var conn = OpenConnection();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT id, path, last_modified, file_size, indexed_at, failed_at, content_hash, content_ref FROM files WHERE path = @path LIMIT 1;";
-        cmd.Parameters.AddWithValue("@path", path);
-        using var reader = cmd.ExecuteReader();
-        if (reader.Read())
-        {
-            return new IndexedFileRecord
-            {
-                Id = reader.GetInt64(0),
-                Path = reader.GetString(1),
-                LastModified = reader.GetInt64(2),
-                FileSize = reader.GetInt64(3),
-                IndexedAt = reader.GetInt64(4),
-                FailedAt = reader.IsDBNull(5) ? null : reader.GetInt64(5),
-                ContentHash = reader.IsDBNull(6) ? null : reader.GetString(6),
-                ContentRef = reader.IsDBNull(7) ? null : reader.GetInt64(7)
-            };
-        }
-        return null;
+        return DatabaseMetadataReader.GetFileRecord(conn, path);
     }
 
-    /// <summary>
-    /// Finds the id of an indexed row holding this exact content: a source row (its own
-    /// text, not failed, not itself a duplicate) other than the given path.
-    /// </summary>
     public long? FindIndexedSourceByHash(string contentHash, string selfPath)
     {
         if (!File.Exists(_dbPath)) return null;
         Initialize();
 
         using var conn = OpenConnection();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            SELECT id FROM files
-            WHERE content_hash = @hash AND content_ref IS NULL AND failed_at IS NULL AND path <> @self
-            LIMIT 1;
-            """;
-        cmd.Parameters.AddWithValue("@hash", contentHash);
-        cmd.Parameters.AddWithValue("@self", selfPath);
-        var res = cmd.ExecuteScalar();
-        return res != null && res != DBNull.Value ? (long)res : null;
+        return DatabaseMetadataReader.FindIndexedSourceByHash(conn, contentHash, selfPath);
     }
 
     public HashSet<string> GetAllIndexedPaths()
@@ -210,16 +203,8 @@ public sealed class ContentSearchDatabase : IDisposable
         if (!File.Exists(_dbPath)) return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         Initialize();
 
-        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using var conn = OpenConnection();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT path FROM files;";
-        using var reader = cmd.ExecuteReader();
-        while (reader.Read())
-        {
-            paths.Add(reader.GetString(0));
-        }
-        return paths;
+        return DatabaseMetadataReader.GetAllIndexedPaths(conn);
     }
 
     public IReadOnlyList<SearchHitItem> SearchFts(string rawQuery, int limit = 30)
