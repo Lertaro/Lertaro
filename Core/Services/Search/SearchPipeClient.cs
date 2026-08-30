@@ -16,6 +16,9 @@ internal sealed class SearchPipeClient
     {
         var pipe = new NamedPipeClientStream(".", "LertaroPipe", PipeDirection.InOut, PipeOptions.Asynchronous);
         await pipe.ConnectAsync(2000, token).ConfigureAwait(false);
+        // The service listening is the readiness signal: until this first succeeds, connect
+        // failures elsewhere log as cold-start noise instead of real faults.
+        ServicePipeReadinessGate.Instance.MarkConnected();
         return pipe;
     }
 
@@ -77,7 +80,12 @@ internal sealed class SearchPipeClient
             // Warn, not Error: this fires routinely on a cold start (App connects before the Service has
             // finished coming up) and is expected to self-heal via the caller's own retry -- callers that
             // need to surface a persistent failure to the user already re-log at Error with more context.
-            Logger.Log($"[PipeClient] SendPipeCommand failed for {msg.Id}: {ex.Message}", LogLevel.Warn);
+            // Inside the cold-start window it is Debug outright: a batch of these on every boot is
+            // noise, the callers' fallbacks answer meanwhile and nothing is actually broken.
+            var level = ServicePipeReadinessGate.Instance.IsColdStart(Environment.TickCount64)
+                ? LogLevel.Debug
+                : LogLevel.Warn;
+            Logger.Log($"[PipeClient] SendPipeCommand failed for {msg.Id}: {ex.Message}", level);
             return new PipeResponse { Kind = PipeResponseKind.Error, Message = ex.Message };
         }
     }

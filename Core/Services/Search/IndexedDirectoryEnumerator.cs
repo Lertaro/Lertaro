@@ -96,7 +96,13 @@ public static class IndexedDirectoryEnumerator
         }
         catch (Exception ex)
         {
-            Logger.Log($"[IndexedDirectoryEnumerator] Index enumeration of '{path}' failed, falling back: {ex.Message}", LogLevel.Warn);
+            // Cold-start connect timeouts (the App racing the service's own initialization) hit
+            // every enumerated directory at once and are pure noise at Warn: the live walk below
+            // answers meanwhile and the next request goes through the pipe again.
+            var level = ServicePipeReadinessGate.Instance.IsColdStart(Environment.TickCount64)
+                ? LogLevel.Debug
+                : LogLevel.Warn;
+            Logger.Log($"[IndexedDirectoryEnumerator] Index enumeration of '{path}' failed, falling back: {ex.Message}", level);
             return false;
         }
         return indexed;
