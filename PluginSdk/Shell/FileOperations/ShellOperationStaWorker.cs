@@ -11,6 +11,8 @@ internal static class ShellOperationStaWorker
 {
     private static Dispatcher? _staDispatcher;
     private static readonly object _staLock = new();
+    private static bool _threadCreated;
+    private static bool _startupFailed;
 
     [DllImport("ole32.dll")]
     private static extern int OleInitialize(IntPtr pvReserved);
@@ -19,10 +21,13 @@ internal static class ShellOperationStaWorker
     {
         get
         {
+            if (_startupFailed) return null;
             if (_staDispatcher != null) return _staDispatcher;
             lock (_staLock)
             {
-                if (_staDispatcher != null) return _staDispatcher;
+                if (_startupFailed) return null;
+                if (_threadCreated) return _staDispatcher;
+                _threadCreated = true;
                 using var ready = new ManualResetEventSlim();
                 var thread = new Thread(() =>
                 {
@@ -41,6 +46,7 @@ internal static class ShellOperationStaWorker
                 if (!ready.Wait(TimeSpan.FromSeconds(5)))
                 {
                     Logger.Log("[ShellOperationStaWorker] STA worker failed to start within 5s.", LogLevel.Error);
+                    _startupFailed = true;
                     return null;
                 }
 
