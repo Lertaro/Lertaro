@@ -22,6 +22,13 @@ public static class SpanishDiacritics
 
     private static char RemoveUnicodeDiacritic(char c)
     {
+        // Surrogate halves of emoji and other astral chars reach here one char at a time (the
+        // callers iterate char by char); handing a lone surrogate to Normalize throws
+        // ArgumentException on Windows ("String contains invalid Unicode code points"). No Latin
+        // diacritic lives inside a surrogate, so pass it through unchanged.
+        if (char.IsSurrogate(c))
+            return c;
+
         var normalized = c.ToString().Normalize(System.Text.NormalizationForm.FormD);
         return char.ToLowerInvariant(normalized[0]);
     }
