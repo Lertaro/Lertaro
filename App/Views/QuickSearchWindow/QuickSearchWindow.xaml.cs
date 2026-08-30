@@ -15,7 +15,6 @@ using Grid = System.Windows.Controls.Grid;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.App.Views.QuickSearchWindow.Helpers;
 using Lertaro.App.Services.AppWindow;
-
 using Lertaro.App.Services.Tray;
 
 using Lertaro.App.Services.Theme;
@@ -34,6 +33,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private readonly QuickSearchWindowResultExecutor _resultExecutor;
     private readonly QuickSearchWindowLifecycle _lifecycle;
     private readonly QuickSearchWindowDragSupport _dragSupport;
+    private readonly QuickSearchDomainUrlSupport _domainUrlSupport;
     internal QuickSearchKeywordHistoryController KeywordHistoryController { get; private set; } = null!;
 
     // Must match QuickSearchWindow.xaml's root Border Margin ("24,40,24,24").
@@ -56,6 +56,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         _lifecycle = new QuickSearchWindowLifecycle(this, () => _trayService?.HandleTaskbarCreated());
         _dragSupport = new QuickSearchWindowDragSupport(this);
         InitializeChildControls();
+        _domainUrlSupport = new QuickSearchDomainUrlSupport(this);
     }
 
     public ShellMenuPresenter? MenuPresenter => _menuPresenter;
@@ -169,8 +170,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
             }
         };
     }
-
-    private void QueueResultsLayoutUpdate() => _layoutManager.QueueResultsLayoutUpdate();
 
     private void OnResultsScrollChanged(object sender, ScrollChangedEventArgs e) => _layoutManager.UpdateShortcutHints();
 
@@ -291,6 +290,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
 
     protected override void OnClosed(EventArgs e)
     {
+        _domainUrlSupport.Dispose();
         _viewModel.Dispose();
         _trayService?.Dispose();
         _menuPresenter?.Dispose();
