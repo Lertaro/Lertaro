@@ -17,6 +17,8 @@ namespace Lertaro.App.ViewModels.Settings.General;
 // from GeneralSettingsViewModel.Apply()).
 public class FilePreviewProviderOrderViewModel : ViewModelBase
 {
+    private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
+
     private readonly UserSettings _userSettings;
 
     public FilePreviewProviderOrderViewModel(UserSettings userSettings)
@@ -36,11 +38,13 @@ public class FilePreviewProviderOrderViewModel : ViewModelBase
         MoveUpCommand = new RelayCommand<FilePreviewProviderOrderItem>(MoveUp);
         MoveDownCommand = new RelayCommand<FilePreviewProviderOrderItem>(MoveDown);
 
-        TranslationManager.Instance.PropertyChanged += (_, _) =>
+        _translationHandler = (_, _) =>
         {
             foreach (var item in Items)
                 item.NotifyLanguageChanged();
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
+
     }
 
     public ObservableCollection<FilePreviewProviderOrderItem> Items { get; } = new();
@@ -66,6 +70,8 @@ public class FilePreviewProviderOrderViewModel : ViewModelBase
     }
 
     public void Save() => _userSettings.FilePreviewProviderOrder = Items.Select(x => x.Id).ToList();
+
+    public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
 }
 
 public class FilePreviewProviderOrderItem : OrderItemBase

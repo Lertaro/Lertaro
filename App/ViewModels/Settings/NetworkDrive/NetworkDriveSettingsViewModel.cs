@@ -13,6 +13,8 @@ namespace Lertaro.App.ViewModels.Settings.NetworkDrive;
 
 public class NetworkDriveSettingsViewModel : ViewModelBase
 {
+    private readonly PropertyChangedEventHandler _translationHandler;
+
     private readonly SearchService _searchService;
     private readonly Action _onTriggerFastRefresh;
     private readonly HashSet<string> _pendingRowRebuilds = new(StringComparer.OrdinalIgnoreCase);
@@ -52,7 +54,7 @@ public class NetworkDriveSettingsViewModel : ViewModelBase
             new LabeledOption("Daily", TranslationManager.Instance["Network_ModeDaily"])
         ];
 
-        TranslationManager.Instance.PropertyChanged += (s, e) =>
+        _translationHandler = (s, e) =>
         {
             // Update labels in place -- the ComboBoxes' ItemsSource is bound to this same stable
             // array/reference and never gets reassigned, so their SelectedValue is never disturbed.
@@ -74,6 +76,8 @@ public class NetworkDriveSettingsViewModel : ViewModelBase
                 item.NotifyLanguageChanged();
             }
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
+
     }
 
     public ObservableCollection<NetworkDriveSettingsItem> NetworkDrives { get; } = new();
@@ -238,4 +242,6 @@ public class NetworkDriveSettingsViewModel : ViewModelBase
             _observedRowRebuilds.Remove(drive);
         }
     }
+
+    public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
 }

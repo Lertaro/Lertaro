@@ -7,6 +7,8 @@ namespace Lertaro.App.ViewModels.Settings;
 
 public class HotkeySettingsViewModel : ViewModelBase
 {
+    private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
+
     private readonly UserSettings _userSettings;
 
     public HotkeySettingsViewModel(UserSettings userSettings, BlacklistSettingsViewModel blacklist)
@@ -42,7 +44,7 @@ public class HotkeySettingsViewModel : ViewModelBase
 
         // Plugin action DisplayName/plugin Name are read live off the action/plugin objects, so they
         // need an explicit refresh on a runtime language switch (nothing else re-raises them).
-        TranslationManager.Instance.PropertyChanged += (s, e) =>
+        _translationHandler = (s, e) =>
         {
             foreach (var group in PluginActionGroups)
             {
@@ -50,6 +52,8 @@ public class HotkeySettingsViewModel : ViewModelBase
                 foreach (var item in group.Items) item.RefreshDisplayName();
             }
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
+
     }
 
     // Tab navigation
@@ -267,4 +271,6 @@ public class HotkeySettingsViewModel : ViewModelBase
         // Notify hook service process via IPC to reload settings!
         App.HookClient?.SendMessage(new IpcMessage { Id = IpcMessageId.ReloadSettings });
     }
+
+    public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
 }

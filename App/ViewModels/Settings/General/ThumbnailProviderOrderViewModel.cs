@@ -16,6 +16,8 @@ namespace Lertaro.App.ViewModels.Settings.General;
 // from GeneralSettingsViewModel.Apply()).
 public class ThumbnailProviderOrderViewModel : ViewModelBase
 {
+    private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
+
     private readonly UserSettings _userSettings;
 
     public ThumbnailProviderOrderViewModel(UserSettings userSettings)
@@ -35,11 +37,13 @@ public class ThumbnailProviderOrderViewModel : ViewModelBase
         MoveUpCommand = new RelayCommand<ThumbnailProviderOrderItem>(MoveUp);
         MoveDownCommand = new RelayCommand<ThumbnailProviderOrderItem>(MoveDown);
 
-        TranslationManager.Instance.PropertyChanged += (_, _) =>
+        _translationHandler = (_, _) =>
         {
             foreach (var item in Items)
                 item.NotifyLanguageChanged();
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
+
     }
 
     public ObservableCollection<ThumbnailProviderOrderItem> Items { get; } = new();
@@ -65,6 +69,8 @@ public class ThumbnailProviderOrderViewModel : ViewModelBase
     }
 
     public void Save() => _userSettings.ThumbnailProviderOrder = Items.Select(x => x.Id).ToList();
+
+    public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
 }
 
 public class ThumbnailProviderOrderItem : OrderItemBase
