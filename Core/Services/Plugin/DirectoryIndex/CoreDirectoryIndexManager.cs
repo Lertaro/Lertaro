@@ -50,23 +50,41 @@ public sealed class CoreDirectoryIndexManager
     public async IAsyncEnumerable<SearchResult> EnumerateDirectoryAsync(string directoryPath, bool recursive, string filterPattern, int limit,
         [EnumeratorCancellation] CancellationToken token = default)
     {
-        var channel = Channel.CreateUnbounded<SearchResult>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var channel = Channel.CreateBounded<SearchResult>(new BoundedChannelOptions(1024)
+        {
+            SingleReader = true,
+            SingleWriter = true,
+            FullMode = BoundedChannelFullMode.Wait
+        });
         var producer = Task.Run(async () =>
         {
             try
             {
                 await IndexedDirectoryEnumerator.EnumerateAsync(directoryPath, recursive, filterPattern,
-                    result => channel.Writer.TryWrite(result), limit, token).ConfigureAwait(false);
+                    result => channel.Writer.TryWrite(result), limit, cts.Token).ConfigureAwait(false);
+                channel.Writer.TryComplete();
+            }
+            catch (OperationCanceledException)
+            {
                 channel.Writer.TryComplete();
             }
             catch (Exception ex)
             {
                 channel.Writer.TryComplete(ex);
             }
-        }, token);
+        }, cts.Token);
 
-        await foreach (var result in channel.Reader.ReadAllAsync(token).ConfigureAwait(false))
-            yield return result;
-        await producer.ConfigureAwait(false);
+        try
+        {
+            await foreach (var result in channel.Reader.ReadAllAsync(token).ConfigureAwait(false))
+                yield return result;
+        }
+        finally
+        {
+            // If the consumer stops early, cancel the producer so it does not keep filling the channel.
+            cts.Cancel();
+            await producer.ConfigureAwait(false);
+        }
     }
 }
