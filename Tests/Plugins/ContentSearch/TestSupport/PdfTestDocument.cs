@@ -14,6 +14,8 @@ internal static class PdfTestDocument
 
     public static byte[] SinglePage(string contentStream) => Build(contentStream);
 
+    public static byte[] Pages(params string[] pageContentStreams) => Build(pageContentStreams);
+
     private static byte[] Build(params string[] pageStreams)
     {
         var objects = new List<string>

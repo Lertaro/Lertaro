@@ -32,14 +32,23 @@ public sealed class PdfExtractor : ITextExtractor
                 using var document = PdfDocument.Open(fileStream);
 
                 var builder = new StringBuilder();
+                var failedPages = 0;
+
+                // ponytail: the give-up threshold is a heuristic, not tuned from data. A
+                // document where most pages fail to parse yields garbage indexing value for
+                // the same CPU cost as a good one; if real documents start tripping this
+                // with recoverable damage, raise the floor (3) first.
+                var giveUpAfterFailedPages = Math.Max(3, document.NumberOfPages / 2);
+
                 for (var pageNumber = 1; pageNumber <= document.NumberOfPages; pageNumber++)
                 {
                     timeoutCts.Token.ThrowIfCancellationRequested();
 
                     // Some PDFs draw glyphs on a slightly rotated text matrix (e.g. 4 degrees);
-                    // PdfPig 0.1.9 throws from Letter.GetTextOrientationRot while processing such
-                    // a page. One bad page must not void the whole document, so isolate each page
-                    // and skip the ones that fail to process.
+                    // PdfPig 0.1.9 threw from Letter.GetTextOrientationRot while processing such
+                    // a page (fixed upstream in 0.1.10). One bad page must not void the whole
+                    // document, so pages that fail are counted, not logged individually: if too
+                    // many fail, the document is given up with a single summary warning.
                     string? pageText;
                     try
                     {
@@ -49,11 +58,16 @@ public sealed class PdfExtractor : ITextExtractor
                     {
                         throw;
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        PluginSdk.Logger.Log(
-                            $"[ContentSearch] PDF page {pageNumber} of '{filePath}' failed to process, skipping: {ex.Message}",
-                            PluginSdk.LogLevel.Warn);
+                        failedPages++;
+                        if (failedPages >= giveUpAfterFailedPages)
+                        {
+                            PluginSdk.Logger.Log(
+                                $"[ContentSearch] Giving up on PDF '{filePath}': {failedPages} of {document.NumberOfPages} pages failed to process",
+                                PluginSdk.LogLevel.Warn);
+                            return null;
+                        }
                         continue;
                     }
 
@@ -64,6 +78,13 @@ public sealed class PdfExtractor : ITextExtractor
 
                     if (pageNumber >= MaxPagesToExtract || builder.Length >= MaxExtractedCharacters)
                         break;
+                }
+
+                if (failedPages > 0)
+                {
+                    PluginSdk.Logger.Log(
+                        $"[ContentSearch] PDF '{filePath}' indexed with {failedPages} unreadable page(s) skipped",
+                        PluginSdk.LogLevel.Info);
                 }
 
                 // Empty string (not null) when the document opens fine but has no text on any
