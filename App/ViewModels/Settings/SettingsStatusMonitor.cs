@@ -20,6 +20,7 @@ internal sealed class SettingsStatusMonitor
     private readonly SearchService _searchService;
     private readonly Action _onStatusUpdated;
     private readonly System.Windows.Threading.DispatcherTimer _refreshTimer;
+    private readonly object _subscriptionLock = new();
     private readonly CancellationTokenSource _statusSubscriptionCts = new();
     private Task? _statusSubscriptionTask;
 
@@ -96,10 +97,13 @@ internal sealed class SettingsStatusMonitor
 
     private void EnsureStatusSubscription()
     {
-        if (_statusSubscriptionTask is { IsCompleted: false })
-            return;
+        lock (_subscriptionLock)
+        {
+            if (_statusSubscriptionTask is { IsCompleted: false })
+                return;
 
-        _statusSubscriptionTask = StartStatusSubscriptionAsync(_statusSubscriptionCts.Token);
+            _statusSubscriptionTask = StartStatusSubscriptionAsync(_statusSubscriptionCts.Token);
+        }
     }
 
     private async Task StartStatusSubscriptionAsync(CancellationToken token)
@@ -131,7 +135,10 @@ internal sealed class SettingsStatusMonitor
         if (Interlocked.CompareExchange(ref _uiUpdateScheduled, 1, 0) != 0)
             return; // already scheduled/running -- it will pick up the latest state fields once it runs
 
-        _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null)
+            return;
+        _ = dispatcher.BeginInvoke(new Action(() =>
         {
             try { _onStatusUpdated(); }
             finally { Interlocked.Exchange(ref _uiUpdateScheduled, 0); }
