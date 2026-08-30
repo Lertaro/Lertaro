@@ -60,6 +60,11 @@ public sealed class IndexBatchProcessor
 
         await Task.WhenAll(tasks);
 
+        // A cancellation that raced past the per-file checks voids the whole batch:
+        // nothing may reach the database, otherwise a shutdown would delete or rewrite
+        // rows that are still valid and should survive until the next scan re-checks them.
+        ct.ThrowIfCancellationRequested();
+
         WriteBatchesWithIntraBatchDedup(writeBatch, deleteBatch);
 
         if (!deleteBatch.IsEmpty)
@@ -126,7 +131,13 @@ public sealed class IndexBatchProcessor
     {
         try
         {
-            if (ct.IsCancellationRequested || !ContentIndexScheduler.IsFileInMonitoredFolders(filePath, config) || !File.Exists(filePath))
+            // Cancellation must not turn into a delete: the file is still valid, so just
+            // drop it from the batch. When every task has already cleared the semaphore
+            // wait and none is mid-extraction, Task.WhenAll completes normally and a
+            // deleteBatch entry here would delete a valid row on shutdown.
+            if (ct.IsCancellationRequested) return;
+
+            if (!ContentIndexScheduler.IsFileInMonitoredFolders(filePath, config) || !File.Exists(filePath))
             {
                 deleteBatch.Add(filePath);
                 return;

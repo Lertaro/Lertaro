@@ -126,6 +126,45 @@ public sealed class IndexBatchProcessorTests
     }
 
 
+    [TestMethod]
+    public async Task ProcessBatchAsync_CancelledToken_KeepsValidRowsAndThrows()
+    {
+        // Regression: a cancellation that lands while the batch is in flight (e.g. app
+        // shutdown after all tasks cleared the semaphore wait) used to turn the per-file
+        // cancellation check into deleteBatch entries, deleting still-valid index rows.
+        // The batch must be discarded wholesale instead: OperationCanceledException and
+        // no database writes.
+        var file = await WriteFileAsync("readable.txt", "indexable plain text content");
+        _database.InsertOrUpdateFile(file, DateTime.UtcNow, 27, "existing indexed content");
+        var processor = new IndexBatchProcessor(_database);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // TaskCanceledException (a subclass) surfaces from the WaitAsync path, so the
+        // assertion accepts any OperationCanceledException on purpose.
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => processor.ProcessBatchAsync(new[] { file }, MakeConfig(), cts.Token));
+
+        Assert.IsNotNull(_database.GetFileRecord(file), "a cancelled batch must not delete valid rows");
+    }
+
+    [TestMethod]
+    public async Task ProcessBatchAsync_CancelledToken_VoidsBatchBeforeAnyWrite()
+    {
+        // The ThrowIfCancellationRequested guard after Task.WhenAll: even when the tasks
+        // all complete without observing the cancellation, the batch must be voided
+        // before anything reaches the database. An empty batch reaches the guard
+        // deterministically (no WaitAsync to throw first).
+        var processor = new IndexBatchProcessor(_database);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => processor.ProcessBatchAsync(Array.Empty<string>(), MakeConfig(), cts.Token));
+    }
+
     private ContentIndexConfig MakeConfig(string? folder = null, long maxFileSizeBytes = 1024 * 1024, long maxIndexSizeBytes = long.MaxValue) => new()
     {
         MonitoredFolders = new List<string> { folder ?? _tempDir },
