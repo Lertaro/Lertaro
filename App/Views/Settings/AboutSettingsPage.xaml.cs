@@ -26,6 +26,7 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
     // property (not a DependencyProperty) -- unlike SetResourceReference on a UI element, its value
     // never re-resolves on its own when the theme changes, so ThemeChanged below re-runs this lookup
     // manually against whatever status was last determined.
+    private readonly PropertyChangedEventHandler _translationHandler;
     private string? _serviceStatusBrushKey;
     private Brush _serviceStatusBrush = Brushes.Gray;
     public Brush ServiceStatusBrush
@@ -87,7 +88,7 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
 
         // AppVersion/CoreVersion/ServiceVersion embed a translated format string, so they need to
         // re-resolve (not just the XAML-bound About_* labels) when the language changes at runtime.
-        TranslationManager.Instance.PropertyChanged += (s, e) =>
+        _translationHandler = (s, e) =>
         {
             OnPropertyChanged(nameof(AppVersion));
             OnPropertyChanged(nameof(CoreVersion));
@@ -95,9 +96,14 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
             OnPropertyChanged(nameof(CliVersion));
             OnPropertyChanged(nameof(UserGuideUri));
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
 
         ThemeManager.Instance.ThemeChanged += UpdateServiceStatusBrush;
-        Unloaded += (_, _) => ThemeManager.Instance.ThemeChanged -= UpdateServiceStatusBrush;
+        Unloaded += (_, _) =>
+        {
+            ThemeManager.Instance.ThemeChanged -= UpdateServiceStatusBrush;
+            TranslationManager.Instance.PropertyChanged -= _translationHandler;
+        };
     }
 
     private void AboutSettingsPage_Loaded(object sender, RoutedEventArgs e) => CheckServiceStatus();
