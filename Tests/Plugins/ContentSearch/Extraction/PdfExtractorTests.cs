@@ -197,6 +197,36 @@ public sealed class PdfExtractorTests
         }
     }
 
+    [TestMethod]
+    public async Task ExtractTextAsync_FilledAcroForm_IncludesFieldValues()
+    {
+        // Interactive PDFs such as invoices store the filled-in content in AcroForm
+        // field values (/V), not in the page content stream: extraction must surface
+        // them, otherwise a filled invoice indexes as near-empty text.
+        var extractor = new PdfExtractor();
+        var tempFile = Path.Combine(Path.GetTempPath(), $"test_doc_{Guid.NewGuid():N}.pdf");
+
+        try
+        {
+            await File.WriteAllBytesAsync(tempFile, PdfTestDocument.AcroFormSinglePage(
+                TextStream("invoice form"),
+                ("InvoiceNumber", "INV-2026-001"),
+                ("CustomerName", "Mika Nanbu")));
+
+            var text = await extractor.ExtractTextAsync(tempFile, maxFileSizeBytes: 1024 * 1024);
+
+            Assert.IsNotNull(text);
+            Assert.Contains("invoice form", text);
+            Assert.Contains("InvoiceNumber: INV-2026-001", text);
+            Assert.Contains("CustomerName: Mika Nanbu", text);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
     private readonly List<string> _logLines = new();
 
     [TestInitialize]

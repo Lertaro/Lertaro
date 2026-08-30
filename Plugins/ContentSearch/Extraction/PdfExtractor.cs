@@ -1,5 +1,6 @@
 using System.Text;
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.AcroForms;
 
 namespace Lertaro.Plugins.ContentSearch.Extraction;
 
@@ -87,6 +88,8 @@ public sealed class PdfExtractor : ITextExtractor
                         PluginSdk.LogLevel.Info);
                 }
 
+                AppendFormFieldValues(document, filePath, builder);
+
                 // Empty string (not null) when the document opens fine but has no text on any
                 // page (image-only PDF): lets the scheduler log a distinct "no extractable
                 // text" warning, while null stays reserved for actual extraction failures.
@@ -106,6 +109,41 @@ public sealed class PdfExtractor : ITextExtractor
                 $"[ContentSearch] Failed to extract PDF '{filePath}': {ex.Message}",
                 PluginSdk.LogLevel.Warn);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Appends saved AcroForm field values (name: value lines) after the page text. The
+    /// filled-in content of interactive PDFs such as invoices lives in field values, not
+    /// in the page content stream, so a text-only extraction would miss it entirely.
+    /// </summary>
+    private static void AppendFormFieldValues(PdfDocument document, string filePath, StringBuilder builder)
+    {
+        // ponytail: XFA-only forms (Adobe's XML Forms Architecture) are not supported by
+        // PdfPig; the xpdf parser has preferXFAFieldValues for that case but is GPL and
+        // cannot be embedded. Saved AcroForm values cover the common fillable invoice.
+        try
+        {
+            if (!document.TryGetForm(out var form) || form is null)
+                return;
+
+            foreach (var field in form.GetFields())
+            {
+                // GetFieldValue's key is the fully qualified field name, its value the
+                // saved contents (empty for untouched fields).
+                var fieldValue = field.GetFieldValue();
+                if (string.IsNullOrWhiteSpace(fieldValue.Value))
+                    continue;
+
+                builder.AppendLine($"{fieldValue.Key}: {fieldValue.Value}");
+            }
+        }
+        catch (Exception ex)
+        {
+            // A broken form dictionary must not void an otherwise extracted document.
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Could not read form fields of '{filePath}': {ex.Message}",
+                PluginSdk.LogLevel.Info);
         }
     }
 }
