@@ -76,4 +76,26 @@ public sealed class LocalSendPinValidatorTests
         Assert.IsTrue(valid);
         Assert.IsFalse(attempts.ContainsKey("127.0.0.1"));
     }
+
+    [TestMethod]
+    public void CheckPin_LockoutExpiresAfterDuration_AllowsRetry()
+    {
+        var attempts = new ConcurrentDictionary<string, int>();
+        var attemptTimes = new ConcurrentDictionary<string, DateTime>();
+
+        for (var i = 0; i < 3; i++)
+            LocalSendPinValidator.CheckPin("1234", attempts, "127.0.0.1", "9999", out _, out _, attemptTimes);
+
+        var blocked = LocalSendPinValidator.CheckPin("1234", attempts, "127.0.0.1", "1234", out var blockedStatus, out _, attemptTimes);
+        Assert.IsFalse(blocked);
+        Assert.AreEqual(429, blockedStatus);
+
+        attemptTimes["127.0.0.1"] = DateTime.UtcNow.AddMinutes(-6);
+        var allowed = LocalSendPinValidator.CheckPin("1234", attempts, "127.0.0.1", "1234", out var allowedStatus, out _, attemptTimes);
+
+        Assert.IsTrue(allowed);
+        Assert.AreEqual(200, allowedStatus);
+        Assert.IsFalse(attempts.ContainsKey("127.0.0.1"));
+    }
+
 }
