@@ -1,6 +1,7 @@
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
+using Lertaro.App.Helpers;
 namespace Lertaro.App.Services.Plugin;
 
 /// <summary>
@@ -159,6 +160,8 @@ internal static class PluginSdkBridge
         // Wire up the favorites service delegate for plugins using Core UserSettings
         PluginSdk.Services.FavoritesService.GetFavoritesFunc = () =>
             UserSettings.Load().Favorites.Select(f => new PluginSdk.Models.FavoriteItem { Name = f.Name, Path = f.Path });
+        PluginSdk.Services.FavoritesService.IsFavoriteFunc = IsFavoritePath;
+        PluginSdk.Services.FavoritesService.AddFavoriteFunc = TryAddFavorite;
 
         // Wire up the fuzzy-match delegate for plugins wanting the host's own matching (with alias
         // fallback) instead of reimplementing a fuzzy matcher of their own
@@ -191,6 +194,29 @@ internal static class PluginSdkBridge
 
         // Trigger CoreDirectoryIndexManager singleton instantiation to bind SDK DirectoryIndexerService delegates
         _ = CoreDirectoryIndexManager.Instance;
+    }
+
+    private static bool IsFavoritePath(string path)
+    {
+        var normalizedPath = FavoritePathResolver.NormalizeForComparison(path);
+        return UserSettings.Load().Favorites.Any(favorite =>
+            string.Equals(FavoritePathResolver.NormalizeForComparison(favorite.Path), normalizedPath, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool TryAddFavorite(PluginSdk.Models.FavoriteItem favorite)
+    {
+        var path = favorite.Path.Trim().Trim('"');
+        if (string.IsNullOrWhiteSpace(path) || IsFavoritePath(path) || !FavoritePathResolver.IsPathAvailable(path))
+            return false;
+
+        var settings = UserSettings.Load();
+        settings.Favorites.Add(new FavoriteItemSetting
+        {
+            Name = favorite.Name.Trim(),
+            Path = path
+        });
+        settings.Save();
+        return true;
     }
 
     private static async Task<IReadOnlyList<PluginSdk.Abstractions.ISearchResult>> GetRecentFilesAsync(

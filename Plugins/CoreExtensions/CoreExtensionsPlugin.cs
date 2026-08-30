@@ -17,6 +17,7 @@ public class CoreExtensionsPlugin : IPlugin, IActionProvider, IConfigurable
             new LocateInExplorerAction(),
             new CopyNameAction(),
             new CopyPathAction(),
+            new AddFavoriteAction(),
             new LocalSendAction(),
             new CutFileAction(),
             new CopyFileAction(),
