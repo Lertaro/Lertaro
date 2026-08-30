@@ -15,7 +15,11 @@ public static class ShellDeleteHelper
         if (paths.Count == 0) return;
 
         var dispatcher = ShellOperationStaWorker.StaDispatcher;
-        if (dispatcher == null) return;
+        if (dispatcher == null)
+        {
+            Logger.Log("[ShellDeleteHelper] Shell STA worker is unavailable; delete was not performed.", LogLevel.Error);
+            return;
+        }
 
         dispatcher.BeginInvoke(new Action(() => DeleteCore(paths, permanent)));
     }
@@ -41,8 +45,15 @@ public static class ShellDeleteHelper
                 {
                     var iid = typeof(IShellItem).GUID;
                     ShellItemInterop.SHCreateItemFromParsingName(path, IntPtr.Zero, ref iid, out var item);
-                    fileOp.DeleteItem(item, null);
-                    queued++;
+                    try
+                    {
+                        fileOp.DeleteItem(item, null);
+                        queued++;
+                    }
+                    finally
+                    {
+                        Marshal.ReleaseComObject(item);
+                    }
                 }
                 catch (Exception ex)
                 {
