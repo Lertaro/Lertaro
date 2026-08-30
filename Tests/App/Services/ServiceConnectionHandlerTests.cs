@@ -23,7 +23,7 @@ public sealed class ServiceConnectionHandlerTests
         onServiceReachable: () => { });
 
     private static void SetGlobalField(string name, object value) =>
-        typeof(ServiceConnectionHandler).GetField(name, BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, value);
+        typeof(ServiceConnectionMonitor).GetField(name, BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, value);
 
     [TestInitialize]
     [TestCleanup]
