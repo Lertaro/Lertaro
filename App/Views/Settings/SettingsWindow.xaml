@@ -4,6 +4,7 @@
         xmlns:controls="clr-namespace:Lertaro.App.Views.Controls"
         xmlns:services="clr-namespace:Lertaro.App.Services"
         xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+        xmlns:local="clr-namespace:Lertaro.App.Converters"
         Title="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Title]}"
         Height="720" Width="1280"
         MinHeight="560" MinWidth="880"
@@ -128,7 +129,10 @@
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel Margin="0,2">
-                                            <TextBlock Text="{Binding Label}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock local:TextHighlighter.Text="{Binding Label}"
+                                                       local:TextHighlighter.HighlightText="{Binding Text, ElementName=TxtSettingsSearch}"
+                                                       local:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}"
+                                                       FontSize="13" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Text="{Binding SectionLabel}" FontSize="11"
                                                        Foreground="{DynamicResource TextSecondary2}" Margin="0,2,0,0"
                                                        TextTrimming="CharacterEllipsis"/>
