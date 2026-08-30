@@ -15,6 +15,8 @@
   "ContentSearch_Config_ExclusionsDesc": "以分號分隔的正規表達式清單，完整路徑符合的檔案或資料夾（含其子資料夾）將被排除出內容索引（如 .*\\backup\\; .*\\.tmp$）",
   "ContentSearch_Config_IndexSizeLabel": "索引資料庫體積上限 (MB)",
   "ContentSearch_Config_IndexSizeDesc": "內容索引資料庫的最大體積，達到上限後將暫停索引新檔案，直到提高上限或清空索引（0 = 不限制）",
+  "ContentSearch_Config_RebuildLabel": "重建索引",
+  "ContentSearch_Config_RebuildDesc": "清空內容索引並重新擷取所有監測檔案的文字；其他索引不受影響",
   "ContentSearch_PlaceholderTitle": "內容搜尋",
   "ContentSearch_PlaceholderDesc": "已索引 {0} 個檔案 · 輸入關鍵字搜尋檔案內文",
   "ContentSearch_NoResultsTitle": "未找到相符內容",

@@ -181,4 +181,22 @@ public sealed class PluginConfigFieldViewModelTests
 
         Assert.AreEqual("user-value", settings.GetPluginSetting<string?>("plugin", "myKey", null));
     }
+
+    [TestMethod]
+    public void ButtonField_Click_InvokesOnClickAndCommitStoresNothing()
+    {
+        var clicks = 0;
+        var field = Field(ConfigFieldType.Button, string.Empty);
+        field.OnClick = () => clicks++;
+        var settings = new UserSettings();
+        var vm = new PluginConfigFieldViewModel("plugin", field, settings, null);
+
+        Assert.IsTrue(vm.IsButton);
+        vm.ButtonClickCommand.Execute(null);
+        Assert.AreEqual(1, clicks);
+
+        // A button has no value of its own: committing must not write a settings key.
+        vm.Commit();
+        Assert.AreEqual("sentinel", settings.GetPluginSetting<string?>("plugin", "myKey", "sentinel"));
+    }
 }

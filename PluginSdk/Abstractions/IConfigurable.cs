@@ -13,7 +13,8 @@ public enum ConfigFieldType
     Hotkey,
     FilePath,
     FolderPath,
-    CustomControl
+    CustomControl,
+    Button
 }
 
 public class PluginConfigField
@@ -36,6 +37,9 @@ public class PluginConfigField
     public int MaxLength { get; set; }
     /// <summary>For CustomControl fields: custom UI element/control hosted directly by the application.</summary>
     public object? CustomControl { get; set; }
+    /// <summary>For Button fields: invoked when the button is clicked. A Button field stores no value;
+    /// the click runs this delegate directly (e.g. a rebuild or clear action).</summary>
+    public Action? OnClick { get; set; }
     /// <summary>Custom getter delegate for external plugin settings.</summary>
     public Func<object?>? GetValue { get; set; }
     /// <summary>Custom setter delegate for external plugin settings.</summary>

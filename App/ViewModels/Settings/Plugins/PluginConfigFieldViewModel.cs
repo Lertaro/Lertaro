@@ -62,9 +62,11 @@ public class PluginConfigFieldViewModel : ViewModelBase
     public bool IsFolderPath => FieldType == ConfigFieldType.FolderPath;
     public bool IsCustomControl => FieldType == ConfigFieldType.CustomControl;
     public object? CustomControl => SchemaField.CustomControl;
+    public bool IsButton => FieldType == ConfigFieldType.Button;
+    public ICommand ButtonClickCommand { get; }
     public bool HotkeyRequireModifier => SchemaField.RequireModifier;
     public bool IsIconField => SchemaField.Key.Equals("Icon", StringComparison.OrdinalIgnoreCase);
-    public bool IsSimpleField => (IsBoolean || IsText || IsInteger || IsChoice || IsStringList || IsHotkey || IsFilePath || IsFolderPath) && !IsCustomControl;
+    public bool IsSimpleField => (IsBoolean || IsText || IsInteger || IsChoice || IsStringList || IsHotkey || IsFilePath || IsFolderPath || IsButton) && !IsCustomControl;
 
     public ObservableCollection<PluginConfigFieldViewModel> Children { get; } = new();
     public ObservableCollection<PluginConfigArrayItemViewModel> ArrayItems { get; } = new();
@@ -151,6 +153,7 @@ public class PluginConfigFieldViewModel : ViewModelBase
         _arraySupport = new PluginConfigArrayFieldSupport(this);
         AddCommand = new RelayCommand(_arraySupport.AddArrayItem);
         DuplicateCommand = new RelayCommand(_arraySupport.DuplicateArrayItem, () => SelectedArrayItem != null);
+        ButtonClickCommand = new RelayCommand(() => SchemaField.OnClick?.Invoke());
 
         if (_onValueChanged == null)
         {
@@ -160,7 +163,9 @@ public class PluginConfigFieldViewModel : ViewModelBase
 
     public void Commit()
     {
-        if (IsCustomControl) return;
+        // Nothing to store for a non-value row: a custom control is hosted UI, and a button runs
+        // its OnClick delegate directly -- persisting either would write meaningless settings keys.
+        if (IsCustomControl || IsButton) return;
         if (IsGroup)
         {
             foreach (var child in Children)

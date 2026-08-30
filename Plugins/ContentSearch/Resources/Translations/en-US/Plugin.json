@@ -15,6 +15,8 @@
   "ContentSearch_Config_ExclusionsDesc": "Semicolon-separated regular expressions; any file or folder whose full path matches is excluded from indexing (e.g. .*\\backup\\; .*\\.tmp$)",
   "ContentSearch_Config_IndexSizeLabel": "Index Size Cap (MB)",
   "ContentSearch_Config_IndexSizeDesc": "Maximum size of the content index database. Once reached, indexing pauses for new files until the cap is raised or the index is cleared (0 = unlimited)",
+  "ContentSearch_Config_RebuildLabel": "Rebuild Index",
+  "ContentSearch_Config_RebuildDesc": "Clear the content index and re-extract text for every monitored file; other search indexes are not affected",
   "ContentSearch_PlaceholderTitle": "Content Search",
   "ContentSearch_PlaceholderDesc": "Indexed {0} files · Enter keywords to search file content",
   "ContentSearch_NoResultsTitle": "No Matching Content Found",
