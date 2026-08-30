@@ -171,6 +171,9 @@ public static class Win32Helper
     public static string? QueryTargetPanelPath(IntPtr tcHwnd) => QueryPanelPath(tcHwnd, "TP");
 
     private static string? QueryPanelPath(IntPtr tcHwnd, string command)
+        => StaQueryHelper.Run(() => QueryPanelPathCore(tcHwnd, command), null);
+
+    private static string? QueryPanelPathCore(IntPtr tcHwnd, string command)
     {
         if (tcHwnd == IntPtr.Zero) return null;
         EnsureClassRegistered();
