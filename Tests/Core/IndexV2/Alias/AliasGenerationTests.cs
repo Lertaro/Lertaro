@@ -35,4 +35,17 @@ public sealed class AliasGenerationTests
         Assert.IsNull(result);
         Assert.IsEmpty(providerIds);
     }
+
+    [TestMethod]
+    public void Generate_NameWithLoneSurrogate_ReturnsNullBeforeAnyProviderRuns()
+    {
+        // NTFS file names can legally carry lone surrogate halves; every provider-side Unicode
+        // API throws on them, so the gate must reject the name outright instead of letting each
+        // provider fail on every scan. This test process registers no providers, so reaching
+        // them is also directly observable as an empty result.
+        var result = AliasGeneration.Generate("broken\uD83Ename 文件.srt", out var providerIds);
+
+        Assert.IsNull(result);
+        Assert.IsEmpty(providerIds);
+    }
 }

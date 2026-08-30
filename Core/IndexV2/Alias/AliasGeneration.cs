@@ -17,7 +17,7 @@ internal static class AliasGeneration
     public static string[]? Generate(string name, out byte[] providerIds)
     {
         providerIds = Array.Empty<byte>();
-        if (string.IsNullOrEmpty(name) || !AliasProviderRegistry.HasNonAscii(name))
+        if (string.IsNullOrEmpty(name) || AliasProviderRegistry.HasInvalidUtf16(name) || !AliasProviderRegistry.HasNonAscii(name))
             return null;
 
         List<string>? aliases = null;
