@@ -72,9 +72,16 @@ public static class PluginPreviewCache
         var parts = key.Split(':');
         if (parts.Length >= 4 && parts[0].Equals("flow-preview", StringComparison.OrdinalIgnoreCase))
         {
-            var title = Uri.UnescapeDataString(parts[1]);
-            var plugin = Uri.UnescapeDataString(parts[2]);
-            return new PluginPreviewEntry(title, plugin, new Lazy<UserControl>(() => new UserControl()));
+            try
+            {
+                var title = Uri.UnescapeDataString(parts[1]);
+                var plugin = Uri.UnescapeDataString(parts[2]);
+                return new PluginPreviewEntry(title, plugin, new Lazy<UserControl>(() => new UserControl()));
+            }
+            catch (UriFormatException)
+            {
+                return null;
+            }
         }
 
         return null;
