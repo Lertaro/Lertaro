@@ -194,7 +194,17 @@ public class SearchService : IDisposable
                         dir => Task.Run(() => LiveDirectorySearcher.ScanDirectory(dir, 10000, cacheFillToken,
                             liveQuery: liveScanFilter, onLiveMatch: uniqueOnResult,
                             onlyDirectChildren: onlyDirectChildren, parentPath: liveScanDir)));
-                    var entries = await scanTask.WaitAsync(token).ConfigureAwait(false);
+                    List<SearchResult> entries;
+                    try
+                    {
+                        entries = await scanTask.WaitAsync(token).ConfigureAwait(false);
+                    }
+                    catch (Exception) when (scanTask.IsFaulted)
+                    {
+                        // Do not let a faulted live-scan task poison the cache for every later keystroke.
+                        _sessionDirectoryCache.TryRemove(new KeyValuePair<string, Task<List<SearchResult>>>(liveScanDir, scanTask));
+                        throw;
+                    }
 
                     return LiveDirectorySearcher.MatchAndStream(entries, liveScanFilter, uniqueOnResult, token, onlyDirectChildren, liveScanDir);
                 }
