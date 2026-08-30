@@ -11,7 +11,7 @@ public sealed class DynamicFilterCoordinatorTests
     private static List<AppSearchResult> IdentitySort(IEnumerable<AppSearchResult> items) => items.ToList();
 
     [TestMethod]
-    public void Apply_NoActiveFilters_RendersSortedResultsSynchronouslyWithoutBusyIndicator()
+    public void Apply_NoActiveFilters_RendersSortedResultsAndClearsBusyIndicator()
     {
         var coordinator = new DynamicFilterCoordinator();
         var all = new List<AppSearchResult> { Result(@"C:\a") };
@@ -23,7 +23,8 @@ public sealed class DynamicFilterCoordinatorTests
 
         Assert.HasCount(1, renders);
         Assert.AreEqual(@"C:\a", renders[0][0].FullPath);
-        Assert.IsEmpty(busyStates);
+        Assert.HasCount(1, busyStates);
+        Assert.IsFalse(busyStates[0]);
     }
 
     [TestMethod]
