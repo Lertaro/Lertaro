@@ -12,7 +12,7 @@
   "ContentSearch_Config_ExtensionsLabel": "インデックス対象の拡張子",
   "ContentSearch_Config_ExtensionsDesc": "カンマ区切りのファイル拡張子リスト（例: txt,md,docx,pdf）",
   "ContentSearch_Config_ExclusionsLabel": "除外パスパターン",
-  "ContentSearch_Config_ExclusionsDesc": "セミコロン区切りの正規表現。完全パスが一致するファイルやフォルダーはインデックス対象から除外されます（例: .*\\backup\\; .*\\.tmp$）",
+  "ContentSearch_Config_ExclusionsDesc": "セミコロン区切りの正規表現。完全パスが一致するファイルやフォルダーはインデックス対象から除外されます（例: .*\\\\backup\\\\; .*\\\\.tmp$）",
   "ContentSearch_Config_IndexSizeLabel": "インデックスサイズ上限 (MB)",
   "ContentSearch_Config_IndexSizeDesc": "コンテンツインデックスデータベースの最大サイズ。上限に達すると新規ファイルのインデックスを一時停止します（上限引上げまたはインデックス削除まで。0 = 無制限）",
   "ContentSearch_Config_RebuildLabel": "インデックスを再構築",

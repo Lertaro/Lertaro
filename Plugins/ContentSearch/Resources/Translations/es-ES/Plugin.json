@@ -12,7 +12,7 @@
   "ContentSearch_Config_ExtensionsLabel": "Extensiones de archivo indexadas",
   "ContentSearch_Config_ExtensionsDesc": "Lista separada por comas de extensiones de archivo (p. ej. txt,md,docx,pdf)",
   "ContentSearch_Config_ExclusionsLabel": "Patrones de ruta excluidos",
-  "ContentSearch_Config_ExclusionsDesc": "Expresiones regulares separadas por punto y coma; cualquier archivo o carpeta cuya ruta completa coincida queda excluido de la indexación (p. ej. .*\\backup\\; .*\\.tmp$)",
+  "ContentSearch_Config_ExclusionsDesc": "Expresiones regulares separadas por punto y coma; cualquier archivo o carpeta cuya ruta completa coincida queda excluido de la indexación (p. ej. .*\\\\backup\\\\; .*\\\\.tmp$)",
   "ContentSearch_Config_IndexSizeLabel": "Límite de tamaño del índice (MB)",
   "ContentSearch_Config_IndexSizeDesc": "Tamaño máximo de la base de datos del índice de contenido. Al alcanzarse, la indexación se pausa para archivos nuevos hasta que se aumente el límite o se borre el índice (0 = sin límite)",
   "ContentSearch_Config_RebuildLabel": "Reconstruir índice",
