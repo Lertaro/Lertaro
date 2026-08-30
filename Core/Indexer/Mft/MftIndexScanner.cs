@@ -115,7 +115,6 @@ internal static class MftIndexScanner
                     {
                         var metadata = new MftMetadata(
                             FileRecordFlagsHelper.FromAttributes((FileAttributes)stdAttrs),
-                            names.Count == 0 ? 0 : names[0].size,
                             FileTimeHelper.FileTimeToUnixSeconds(creationTimeUtc),
                             FileTimeHelper.FileTimeToUnixSeconds(lastWriteTimeUtc),
                             FileTimeHelper.FileTimeToUnixSeconds(lastAccessTimeUtc));
@@ -147,10 +146,7 @@ internal static class MftIndexScanner
                     foreach (var (parent, name, size) in names)
                     {
                         var row = records.Count;
-                        var effectiveSize = isExtension && baseMetadata.TryGetValue(baseRef, out var baseMetadataForSize)
-                            ? (isDir ? 0 : baseMetadataForSize.Size)
-                            : (isDir ? 0 : size);
-                        records.Add(new FileRecord(owner, parent, namePool.Get(name), flags, effectiveSize,
+                        records.Add(new FileRecord(owner, parent, namePool.Get(name), flags, isDir ? 0 : size,
                             creationUnixSeconds, lastWriteUnixSeconds, lastAccessUnixSeconds));
                         if (isExtension && !baseMetadata.ContainsKey(baseRef))
                         {
@@ -200,14 +196,13 @@ internal static class MftIndexScanner
         {
             var existing = records[row];
             records[row] = new FileRecord(existing.Id, existing.ParentId, existing.Name, metadata.Flags,
-                existing.IsDirectory ? 0 : metadata.Size, metadata.CreationTimeUnixSeconds,
+                existing.Size, metadata.CreationTimeUnixSeconds,
                 metadata.LastWriteTimeUnixSeconds, metadata.LastAccessTimeUnixSeconds);
         }
     }
 
     private readonly record struct MftMetadata(
         FileRecordFlags Flags,
-        long Size,
         uint CreationTimeUnixSeconds,
         uint LastWriteTimeUnixSeconds,
         uint LastAccessTimeUnixSeconds);
