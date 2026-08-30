@@ -20,12 +20,13 @@ internal sealed class ExplorerWindowClassifier
     // synchronous, per-keystroke foreground check disagrees with the tracker's last-known state. Without
     // this, those two threads could both be mutating the tracker's unsynchronized fields
     // (ActiveHwnd/IsActiveWindowDialog/ActiveAdapter/LastPath/...) concurrently.
-    private readonly object _lock = new();
+    private readonly object _lock;
 
     public ExplorerWindowClassifier(ExplorerTracker tracker, FileDialogNavigationTracker dialogTracker)
     {
         _tracker = tracker;
         _dialogTracker = dialogTracker;
+        _lock = tracker.StateLock;
     }
 
     public void CheckActiveWindow(IntPtr hwnd)
@@ -260,16 +261,7 @@ internal sealed class ExplorerWindowClassifier
             var className = sbClass.ToString();
 
             ExplorerNativeHooks.GetWindowThreadProcessId(current, out var pid);
-            var processName = "Unknown";
-            if (pid != 0)
-            {
-                try
-                {
-                    using var proc = System.Diagnostics.Process.GetProcessById((int)pid);
-                    processName = proc.ProcessName;
-                }
-                catch { }
-            }
+            var processName = ProcessNameResolver.GetNameWithoutExtension(pid);
 
             var matched = FileDialogAdapterRegistry.GetMatchingAdapter(current, className, processName);
             if (matched != null)
