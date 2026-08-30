@@ -11,6 +11,7 @@ internal sealed class FolderDriveMonitor : IDisposable
     private readonly DriveWatcherHost _host;
     private readonly List<PendingChange> _pending = new();
     private Timer? _debounce;
+    private bool _disposed;
 
     public FolderDriveMonitor(string drive, Action<WatcherChangeTypes, string, string?> onChange, CancellationToken token)
     {
@@ -55,6 +56,8 @@ internal sealed class FolderDriveMonitor : IDisposable
 
         lock (_gate)
         {
+            if (_disposed)
+                return;
             _pending.Add(new PendingChange(changeType, path, oldPath));
             _debounce?.Dispose();
             _debounce = new Timer(_ => FlushPending(), null, TimeSpan.FromMilliseconds(250), Timeout.InfiniteTimeSpan);
@@ -85,7 +88,14 @@ internal sealed class FolderDriveMonitor : IDisposable
 
     public void Dispose()
     {
-        _debounce?.Dispose();
+        lock (_gate)
+        {
+            if (_disposed)
+                return;
+            _disposed = true;
+            _debounce?.Dispose();
+            _debounce = null;
+        }
         _host.Dispose();
     }
 }
