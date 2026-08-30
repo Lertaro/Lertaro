@@ -67,6 +67,7 @@ internal static class MftIndexScanner
         var records = store.Records;
         var baseMetadata = new Dictionary<ulong, MftMetadata>();
         var pendingExtensionRows = new Dictionary<ulong, List<int>>();
+        var remainingMftBytes = mftValidLen > 0 ? mftValidLen : long.MaxValue;
 
         int files = 0, dirs = 0;
         long processed = 0;
@@ -76,7 +77,9 @@ internal static class MftIndexScanner
 
         foreach (var (lcn, clusters) in extents)
         {
-            var extBytes = clusters * bytesPerCluster;
+            if (remainingMftBytes <= 0)
+                break;
+            var extBytes = LimitExtentBytes(clusters * bytesPerCluster, remainingMftBytes);
             var off = lcn * bytesPerCluster;
             while (extBytes > 0)
             {
@@ -160,6 +163,7 @@ internal static class MftIndexScanner
 
                 off += chunk;
                 extBytes -= chunk;
+                remainingMftBytes -= chunk;
                 onProgress?.Invoke(files, dirs);
             }
         }
@@ -182,6 +186,9 @@ internal static class MftIndexScanner
         => (baseRef & 0xFFFFFFFFFFFF) != 0
             ? (UInt128)baseRef
             : ((ulong)sequence << 48) | ((ulong)recordIndex & 0xFFFFFFFFFFFF);
+
+    internal static long LimitExtentBytes(long extentBytes, long remainingValidBytes)
+        => Math.Min(extentBytes, remainingValidBytes);
 
     private static void ApplyPendingExtensionMetadata(
         List<FileRecord> records,

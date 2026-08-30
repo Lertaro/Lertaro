@@ -22,4 +22,10 @@ public sealed class MftIndexScannerTests
 
         Assert.AreEqual((UInt128)baseReference, owner);
     }
+
+    [TestMethod]
+    public void LimitExtentBytes_ValidLengthStopsAtMftEnd() => Assert.AreEqual(4096L, MftIndexScanner.LimitExtentBytes(8192, 4096));
+
+    [TestMethod]
+    public void LimitExtentBytes_LargerValidLengthKeepsEntireExtent() => Assert.AreEqual(8192L, MftIndexScanner.LimitExtentBytes(8192, 16384));
 }
