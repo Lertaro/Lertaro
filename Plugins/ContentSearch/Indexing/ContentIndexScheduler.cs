@@ -199,37 +199,54 @@ public sealed class ContentIndexScheduler : IDisposable
 
         while (!ct.IsCancellationRequested)
         {
-            var batch = new List<string>();
-            while (batch.Count < WriteBatchSize && _pendingFiles.TryDequeue(out var path))
+            try
             {
-                lock (_queueLock) { _enqueuedPaths.Remove(path); }
-                batch.Add(path);
-            }
-
-            if (batch.Count == 0)
-            {
-                if (hasPendingOptimizations)
+                var batch = new List<string>();
+                while (batch.Count < WriteBatchSize && _pendingFiles.TryDequeue(out var path))
                 {
-                    idleCycles++;
-                    if (idleCycles >= 15) // ~3 seconds of idle time
-                    {
-                        _database.Optimize();
-                        hasPendingOptimizations = false;
-                        idleCycles = 0;
-                    }
+                    lock (_queueLock) { _enqueuedPaths.Remove(path); }
+                    batch.Add(path);
                 }
-                if (ct.WaitHandle.WaitOne(200)) break;
-                continue;
+
+                if (batch.Count == 0)
+                {
+                    if (hasPendingOptimizations)
+                    {
+                        idleCycles++;
+                        if (idleCycles >= 15) // ~3 seconds of idle time
+                        {
+                            _database.Optimize();
+                            hasPendingOptimizations = false;
+                            idleCycles = 0;
+                        }
+                    }
+                    if (ct.WaitHandle.WaitOne(200)) break;
+                    continue;
+                }
+
+                idleCycles = 0;
+                hasPendingOptimizations = true;
+
+                // Blocking wait is fine here: this is the dedicated below-normal scheduler
+                // thread, and the parallel extraction lanes run on thread-pool threads.
+                _batchProcessor.ProcessBatchAsync(batch, _config, ct).GetAwaiter().GetResult();
+                _database.Checkpoint(truncate: false);
+                if (ct.WaitHandle.WaitOne(20)) break;
             }
-
-            idleCycles = 0;
-            hasPendingOptimizations = true;
-
-            // Blocking wait is fine here: this is the dedicated below-normal scheduler
-            // thread, and the parallel extraction lanes run on thread-pool threads.
-            _batchProcessor.ProcessBatchAsync(batch, _config, ct).GetAwaiter().GetResult();
-            _database.Checkpoint(truncate: false);
-            if (ct.WaitHandle.WaitOne(20)) break;
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                // A transient failure (SQLite I/O error, disk full) must not kill the
+                // worker thread permanently until app restart: log it, drop the failed
+                // batch (the next full scan re-enqueues those files) and keep serving
+                // later batches.
+                PluginSdk.Logger.Log(
+                    $"[ContentSearch] Indexing batch failed, the next full scan retries it: {ex.Message}",
+                    PluginSdk.LogLevel.Error);
+            }
         }
     }
 
