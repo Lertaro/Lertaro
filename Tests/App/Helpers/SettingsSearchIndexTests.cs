@@ -96,6 +96,26 @@ public sealed class SettingsSearchIndexTests
         Assert.AreEqual("TabGlobal/RowStayOpen", entry.TargetElementName);
     }
 
+    [TestMethod]
+    public void TheQuickLaunchItemsTitleSelectsTheItemsSubsection()
+    {
+        var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "QuickLaunch_ItemsTitle");
+
+        Assert.IsNotNull(entry, "the quick-launch items title has no search index entry");
+        Assert.IsNotNull(entry!.Activate, "the quick-launch items title does not select its subsection");
+        Assert.AreEqual("RowQuickLaunchItemsTitle", entry.TargetElementName);
+    }
+
+    [TestMethod]
+    public void TheQuickLaunchSourceTitleSelectsTheSourcesSubsection()
+    {
+        var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "QuickLaunch_SourceTitle");
+
+        Assert.IsNotNull(entry, "the quick-launch source title has no search index entry");
+        Assert.IsNotNull(entry!.Activate, "the quick-launch source title does not select its subsection");
+        Assert.AreEqual("RowQuickLaunchSourceTitle", entry.TargetElementName);
+    }
+
     // Every segment of every reveal path. The paths are "outer/inner" hops resolved one FindName at a
     // time (see SettingsSearchEntry), so a nested anchor only ever appears as a trailing segment.
     private static HashSet<string> IndexedAnchors() =>

@@ -173,8 +173,8 @@ public static class SettingsSearchIndex
         new("Settings_QuickLaunch", "QuickLaunch"),
         new("QuickLaunch_Title", "QuickLaunch"),
         new("QuickLaunch_Enabled", "QuickLaunch", TargetElementName: "RowQuickLaunchEnabled"),
-        new("QuickLaunch_ItemsTitle", "QuickLaunch", TargetElementName: "RowQuickLaunchItemsTitle"),
-        new("QuickLaunch_SourceTitle", "QuickLaunch", TargetElementName: "RowQuickLaunchSourceTitle"),
+        new("QuickLaunch_ItemsTitle", "QuickLaunch", vm => vm.QuickLaunch.SelectedSection = "Items", "RowQuickLaunchItemsTitle"),
+        new("QuickLaunch_SourceTitle", "QuickLaunch", vm => vm.QuickLaunch.SelectedSection = "Sources", "RowQuickLaunchSourceTitle"),
 
         // History -- Enable/Clear All live inside the shared HistoryListControl, instantiated once per
         // tab; "Outer/Inner" targets one extra FindName hop into that instance's own XAML NameScope.
