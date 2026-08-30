@@ -66,7 +66,10 @@ public sealed class PdfExtractor : ITextExtractor
                         break;
                 }
 
-                return builder.Length > 0 ? builder.ToString() : null;
+                // Empty string (not null) when the document opens fine but has no text on any
+                // page (image-only PDF): lets the scheduler log a distinct "no extractable
+                // text" warning, while null stays reserved for actual extraction failures.
+                return builder.ToString();
             }, timeoutCts.Token);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)

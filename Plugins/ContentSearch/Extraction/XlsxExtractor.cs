@@ -96,7 +96,9 @@ public sealed class XlsxExtractor : ITextExtractor
             }
         }
 
-        return builder.Length > 0 ? builder.ToString() : null;
+        // Empty string (not null) for a well-formed but textless workbook; null is
+        // reserved for actual extraction failures.
+        return builder.ToString();
     }
 
     private static string? GetCellText(

@@ -42,14 +42,15 @@ public static class DatabaseWriterHelper
         using var insertFileCmd = conn.CreateCommand();
         insertFileCmd.Transaction = tx;
         insertFileCmd.CommandText = """
-            INSERT INTO files (path, last_modified, file_size, indexed_at)
-            VALUES (@path, @last_modified, @file_size, @indexed_at);
+            INSERT INTO files (path, last_modified, file_size, indexed_at, failed_at)
+            VALUES (@path, @last_modified, @file_size, @indexed_at, @failed_at);
             SELECT last_insert_rowid();
             """;
         var pPath = insertFileCmd.Parameters.Add("@path", SqliteType.Text);
         var pLastMod = insertFileCmd.Parameters.Add("@last_modified", SqliteType.Integer);
         var pSize = insertFileCmd.Parameters.Add("@file_size", SqliteType.Integer);
         var pIndexedAt = insertFileCmd.Parameters.Add("@indexed_at", SqliteType.Integer);
+        var pFailedAt = insertFileCmd.Parameters.Add("@failed_at", SqliteType.Integer);
         insertFileCmd.Prepare();
 
         using var insertFtsCmd = conn.CreateCommand();
@@ -76,19 +77,26 @@ public static class DatabaseWriterHelper
                 delFileCmd.ExecuteNonQuery();
             }
 
-            if (string.IsNullOrWhiteSpace(item.Content)) continue;
-
+            // An empty-content item is a failed extraction (parse error, timeout, binary
+            // file, no text layer). The row is kept with its real mtime/size so discovery
+            // sees the file as already visited while unchanged, and failed_at marks it as
+            // not indexed; the file is retried once its mtime or size changes.
+            var failed = string.IsNullOrWhiteSpace(item.Content);
             var lastModUnix = new DateTimeOffset(item.LastModifiedUtc).ToUnixTimeSeconds();
             pPath.Value = item.Path;
             pLastMod.Value = lastModUnix;
             pSize.Value = item.FileSize;
             pIndexedAt.Value = nowUtc;
+            pFailedAt.Value = failed ? nowUtc : DBNull.Value;
 
             var newFileId = (long)(insertFileCmd.ExecuteScalar() ?? 0L);
 
-            pFtsRowId.Value = newFileId;
-            pFtsContent.Value = item.Content;
-            insertFtsCmd.ExecuteNonQuery();
+            if (!failed)
+            {
+                pFtsRowId.Value = newFileId;
+                pFtsContent.Value = item.Content;
+                insertFtsCmd.ExecuteNonQuery();
+            }
         }
 
         tx.Commit();

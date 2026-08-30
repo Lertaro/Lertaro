@@ -12,4 +12,11 @@ public sealed class ContentIndexConfig
     public string FilterPattern => AllowedExtensions.Count > 0
         ? string.Join(";", AllowedExtensions.Select(e => "*" + (e.StartsWith('.') ? e : "." + e)))
         : string.Empty;
+
+    public bool IsAllowedExtension(string filePath)
+    {
+        var ext = Path.GetExtension(filePath);
+        if (string.IsNullOrEmpty(ext)) return false;
+        return AllowedExtensions.Contains(ext);
+    }
 }

@@ -26,7 +26,8 @@ public static class DatabaseSchemaHelper
                     path TEXT UNIQUE NOT NULL,
                     last_modified INTEGER NOT NULL,
                     file_size INTEGER NOT NULL,
-                    indexed_at INTEGER NOT NULL
+                    indexed_at INTEGER NOT NULL,
+                    failed_at INTEGER
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);
@@ -37,5 +38,35 @@ public static class DatabaseSchemaHelper
                 );
                 """;
         tableCmd.ExecuteNonQuery();
+
+        AddColumnIfMissing(conn, "files", "failed_at", "INTEGER");
+    }
+
+    /// <summary>
+    /// Adds a column to an existing table when the database predates it. The fresh-table
+    /// CREATE above already includes newer columns, so this only fires on older databases.
+    /// </summary>
+    private static void AddColumnIfMissing(SqliteConnection conn, string table, string column, string type)
+    {
+        var hasColumn = false;
+        using (var infoCmd = conn.CreateCommand())
+        {
+            infoCmd.CommandText = $"PRAGMA table_info({table});";
+            using var reader = infoCmd.ExecuteReader();
+            while (reader.Read())
+            {
+                if (string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase))
+                {
+                    hasColumn = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasColumn) return;
+
+        using var alterCmd = conn.CreateCommand();
+        alterCmd.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {type};";
+        alterCmd.ExecuteNonQuery();
     }
 }

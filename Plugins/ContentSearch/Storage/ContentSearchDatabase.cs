@@ -162,7 +162,7 @@ public sealed class ContentSearchDatabase : IDisposable
 
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT id, path, last_modified, file_size, indexed_at FROM files WHERE path = @path LIMIT 1;";
+        cmd.CommandText = "SELECT id, path, last_modified, file_size, indexed_at, failed_at FROM files WHERE path = @path LIMIT 1;";
         cmd.Parameters.AddWithValue("@path", path);
         using var reader = cmd.ExecuteReader();
         if (reader.Read())
@@ -173,7 +173,8 @@ public sealed class ContentSearchDatabase : IDisposable
                 Path = reader.GetString(1),
                 LastModified = reader.GetInt64(2),
                 FileSize = reader.GetInt64(3),
-                IndexedAt = reader.GetInt64(4)
+                IndexedAt = reader.GetInt64(4),
+                FailedAt = reader.IsDBNull(5) ? null : reader.GetInt64(5)
             };
         }
         return null;
