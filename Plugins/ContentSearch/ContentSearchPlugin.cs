@@ -98,6 +98,16 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
             },
             new()
             {
+                Key = "ClearIndex",
+                LabelKey = "ContentSearch_Config_ClearLabel",
+                DescriptionKey = "ContentSearch_Config_ClearDesc",
+                FieldType = ConfigFieldType.Button,
+                DefaultValue = string.Empty,
+                // Clear-only: unlike RebuildIndex, this does not trigger a full scan.
+                OnClick = () => Task.Run(() => Database.ClearAll())
+            },
+            new()
+            {
                 Key = "RebuildIndex",
                 LabelKey = "ContentSearch_Config_RebuildLabel",
                 DescriptionKey = "ContentSearch_Config_RebuildDesc",

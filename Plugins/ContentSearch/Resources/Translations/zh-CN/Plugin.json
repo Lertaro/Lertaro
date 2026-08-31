@@ -1,6 +1,6 @@
 {
   "ContentSearch_PluginName": "内容搜索",
-  "ContentSearch_PluginDesc": "基于 SQLite FTS5 的本地文件正文快速全文检索插件",
+  "ContentSearch_PluginDesc": "基于 Lucene.Net 的本地文件正文快速全文检索插件",
   "ContentSearch_ProviderName": "内容搜索",
   "ContentSearch_ProviderDesc": "通过触发关键字检索文档内容",
   "ContentSearch_Config_TriggerLabel": "触发关键字",
@@ -17,6 +17,8 @@
   "ContentSearch_Config_IndexSizeDesc": "内容索引数据库的最大体积，达到上限后将暂停索引新文件，直到提高上限或清空索引（0 = 不限制）",
   "ContentSearch_Config_RebuildLabel": "重建索引",
   "ContentSearch_Config_RebuildDesc": "清空内容索引并重新提取所有监测文件的文本；其他索引不受影响",
+  "ContentSearch_Config_ClearLabel": "清空索引",
+  "ContentSearch_Config_ClearDesc": "仅清空内容索引，不重新索引受监测文件；如需清空并重新扫描请使用“重建索引”",
   "ContentSearch_PlaceholderTitle": "内容搜索",
   "ContentSearch_PlaceholderDesc": "已索引 {0} 个文件 · 输入关键词搜索文件正文",
   "ContentSearch_NoResultsTitle": "未找到匹配内容",

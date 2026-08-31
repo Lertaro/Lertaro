@@ -1,6 +1,6 @@
 {
   "ContentSearch_PluginName": "Búsqueda de Contenido",
-  "ContentSearch_PluginDesc": "Complemento de búsqueda rápida de texto completo en archivos locales con SQLite FTS5",
+  "ContentSearch_PluginDesc": "Complemento de búsqueda rápida de texto completo en archivos locales con Lucene.Net",
   "ContentSearch_ProviderName": "Búsqueda de Contenido",
   "ContentSearch_ProviderDesc": "Busca contenido en documentos mediante una palabra clave de activación",
   "ContentSearch_Config_TriggerLabel": "Palabra clave de activación",
@@ -17,6 +17,8 @@
   "ContentSearch_Config_IndexSizeDesc": "Tamaño máximo de la base de datos del índice de contenido. Al alcanzarse, la indexación se pausa para archivos nuevos hasta que se aumente el límite o se borre el índice (0 = sin límite)",
   "ContentSearch_Config_RebuildLabel": "Reconstruir índice",
   "ContentSearch_Config_RebuildDesc": "Borra el índice de contenido y vuelve a extraer el texto de todos los archivos monitorizados; los demás índices no se ven afectados",
+  "ContentSearch_Config_ClearLabel": "Borrar índice",
+  "ContentSearch_Config_ClearDesc": "Borra el índice de contenido sin volver a indexar los archivos monitorizados; use Reconstruir índice para borrar y volver a escanear",
   "ContentSearch_PlaceholderTitle": "Búsqueda de Contenido",
   "ContentSearch_PlaceholderDesc": "{0} archivos indexados · Ingrese palabras clave para buscar en el contenido",
   "ContentSearch_NoResultsTitle": "No se encontraron resultados",
