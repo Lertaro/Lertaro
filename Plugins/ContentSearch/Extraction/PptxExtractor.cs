@@ -11,7 +11,6 @@ namespace Lertaro.Plugins.ContentSearch.Extraction;
 /// </summary>
 public sealed class PptxExtractor : ITextExtractor
 {
-    private const int MaxExtractedCharacters = 500_000;
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
     public bool CanHandle(string extension) =>
@@ -61,16 +60,12 @@ public sealed class PptxExtractor : ITextExtractor
         {
             ct.ThrowIfCancellationRequested();
             AppendSlideText(entry, builder, ct, skipSlideNumberFields: false);
-            if (builder.Length >= MaxExtractedCharacters)
-                return builder.ToString();
         }
 
         foreach (var entry in SlidesOrNotes(archive, "ppt/notesSlides/notesSlide"))
         {
             ct.ThrowIfCancellationRequested();
             AppendSlideText(entry, builder, ct, skipSlideNumberFields: true);
-            if (builder.Length >= MaxExtractedCharacters)
-                return builder.ToString();
         }
 
         // Empty string (not null) for a well-formed but textless presentation; null is
@@ -113,8 +108,6 @@ public sealed class PptxExtractor : ITextExtractor
             if (text.Length > 0)
                 builder.AppendLine(text.ToString());
 
-            if (builder.Length >= MaxExtractedCharacters)
-                return;
         }
     }
 

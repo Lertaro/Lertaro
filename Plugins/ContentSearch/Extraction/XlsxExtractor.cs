@@ -12,7 +12,6 @@ namespace Lertaro.Plugins.ContentSearch.Extraction;
 /// </summary>
 public sealed class XlsxExtractor : ITextExtractor
 {
-    private const int MaxExtractedCharacters = 500_000;
     private static readonly XNamespace SpreadsheetNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 
     // Excel serial dates below 61 involve the fictional 1900-02-29 leap day kept for Lotus
@@ -91,8 +90,6 @@ public sealed class XlsxExtractor : ITextExtractor
                 // Flatten in-cell line breaks to spaces (same as dnGrep) so a single cell's
                 // phrase stays contiguous for trigram matching.
                 builder.AppendLine(cellText.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' '));
-                if (builder.Length >= MaxExtractedCharacters)
-                    return builder.ToString();
             }
         }
 
