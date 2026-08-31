@@ -1,5 +1,6 @@
 using System.Windows;
 using Lertaro.Core;
+using Lertaro.App.Services.Plugin;
 using Lertaro.App.ViewModels.Service;
 
 using Lertaro.Core.SearchIndex.Query;
@@ -143,7 +144,13 @@ internal sealed class SearchQueryDispatchController
                 }
                 else
                 {
-                    _setAllResults(filteredResults);
+                    // Content-style file providers (e.g. ContentSearch's "cs " hits) are real
+                    // files and belong in this window's grid, but only on the final render:
+                    // appending them mid-stream would be re-ordered away by the next paint.
+                    var finalResults = final
+                        ? MergeFullSearchFileResults(filteredResults, cleanQuery)
+                        : filteredResults;
+                    _setAllResults(finalResults);
                     _applyFiltersAndRender(extendsContent, accumulator?.FirstChangedIndex ?? 0);
                 }
                 if (final)
@@ -169,6 +176,31 @@ internal sealed class SearchQueryDispatchController
                     _setReceivedCount(count);
             }
         );
+    }
+
+    private static List<AppSearchResult> MergeFullSearchFileResults(List<AppSearchResult> fileResults, string query)
+    {
+        var extras = new List<AppSearchResult>();
+        foreach (var provider in PluginManager.Instance.FullSearchFileResultProviders)
+        {
+            try
+            {
+                var items = provider.GetFileResults(query, 20);
+                PluginSearchResultMapper.AddInstantResultItems(extras, items, query, provider);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[SearchQueryDispatch] Full search file provider '{provider.Name}' failed: {ex.Message}", LogLevel.Error);
+            }
+        }
+
+        if (extras.Count == 0)
+            return fileResults;
+
+        var merged = new List<AppSearchResult>(fileResults.Count + extras.Count);
+        merged.AddRange(fileResults);
+        merged.AddRange(extras);
+        return merged;
     }
 
     private async Task RefreshAfterTokenDispatchAsync(List<AppSearchResult> resultsSnapshot, IReadOnlyList<string> tokensSnapshot, bool extendsContent)

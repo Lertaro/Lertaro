@@ -6,7 +6,7 @@ namespace Lertaro.Plugins.ContentSearch.Providers;
 /// <summary>
 /// Instant result provider handling keyword-triggered full-text document content queries.
 /// </summary>
-public sealed class ContentSearchInstantProvider : IInstantResultProvider
+public sealed class ContentSearchInstantProvider : IInstantResultProvider, IFullSearchFileResultProvider
 {
     private const string PluginId = "Lertaro.Plugins.ContentSearch";
     private const string DefaultTrigger = "cs";
@@ -54,6 +54,23 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider
         {
             yield return item;
         }
+    }
+
+    public IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit)
+    {
+        // The full search window calls this on its final render with the already token-stripped
+        // query. Only a real content-search keyword ("cs xxx") contributes hits; the bare "cs "
+        // placeholder has no file rows to show there.
+        var trigger = GetTriggerPrefix();
+        if (string.IsNullOrWhiteSpace(query) || !query.StartsWith(trigger, StringComparison.OrdinalIgnoreCase))
+            return Array.Empty<InstantResultItem>();
+
+        var keyword = query[trigger.Length..].Trim();
+        if (keyword.Length == 0)
+            return Array.Empty<InstantResultItem>();
+
+        var hits = ContentSearchPlugin.Database.SearchFts(keyword, limit);
+        return ContentSearchResultBuilder.BuildResultItems(hits).ToList();
     }
 
     public bool[]? GetHighlightMask(string text, string query)
