@@ -4,10 +4,9 @@ namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
 /// Executes full-text queries against the Lucene index and expands each hit to the source row
-/// and every duplicate referencing it, mirroring the hit-expansion semantics the SQLite FTS5
-/// backend used to provide. Split from the Lucene wrapper itself so the wrapper stays storage
-/// mechanics only. Internal: the signature exposes the internal Lucene wrapper type; the
-/// database facade is the only caller.
+/// and every duplicate referencing it. Split from the Lucene wrapper itself so the wrapper
+/// stays storage mechanics only. Internal: the signature exposes the internal Lucene wrapper
+/// type; the database facade is the only caller.
 /// </summary>
 internal static class DatabaseSearchHelper
 {
@@ -18,9 +17,9 @@ internal static class DatabaseSearchHelper
 
         try
         {
-            // The top-N cap applies to indexed source rows, exactly like the FTS5 backend's
-            // LIMIT-in-CTE: each hit then expands to the source itself and every duplicate
-            // referencing it, so a duplicate cannot eat another file out of the limit.
+            // The top-N cap applies to indexed source rows: each hit then expands to the source
+            // itself and every duplicate referencing it, so a duplicate cannot eat another file
+            // out of the limit.
             var luceneHits = lucene.Search(rawQuery, limit);
             foreach (var hit in luceneHits)
             {
