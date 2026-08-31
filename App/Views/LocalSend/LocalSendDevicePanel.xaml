@@ -70,7 +70,7 @@
         </Grid>
         <Border Grid.Row="1" Background="{DynamicResource FooterBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0" Padding="16,0">
             <Grid VerticalAlignment="Center">
-                <Button x:Name="SelectAllButton" Content="全选" Click="SelectAll_Click" Style="{StaticResource SettingsButton}" HorizontalAlignment="Left" Width="70" Height="30"/>
+                <Button x:Name="SelectAllButton" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_SelectAll], Mode=OneWay}" Click="SelectAll_Click" Style="{StaticResource SettingsButton}" HorizontalAlignment="Left" Width="70" Height="30"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Cancel]}" Click="Cancel_Click" Style="{StaticResource SettingsButton}" Margin="0,0,8,0" Width="80" Height="30"/>
                     <Button x:Name="SendButton" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Send]}" Click="Send_Click" Style="{StaticResource PrimarySettingsButton}" IsDefault="True" Width="85" Height="30" IsEnabled="False"/>
