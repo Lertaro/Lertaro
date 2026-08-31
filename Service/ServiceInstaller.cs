@@ -18,16 +18,27 @@ static class ServiceInstaller
 
             Console.WriteLine($"Installing service from path: {serviceExePath}");
 
-            // Clean up any existing service instance to prevent "1073: service already exists" errors
-            Logger.Log("Cleaning up existing service instance before install.");
-            ServiceControlRunner.Run("stop LertaroService", 0, 1060, 1062);
-            ServiceControlRunner.Run("delete LertaroService", 0, 1060);
+            // Stop an existing service before changing its executable path. Updating it in place avoids
+            // the SCM's asynchronous "marked for deletion" window that makes delete-then-create fragile.
+            Logger.Log("Preparing existing service instance before install.");
+            var stop = ServiceControlRunner.Run("stop LertaroService", 0, 1060, 1062);
+            if (!stop.IsSuccess(0, 1060, 1062))
+                throw new InvalidOperationException("sc stop failed. See service.log for details.");
+            if (!ServiceControlRunner.WaitForStopped("LertaroService"))
+                throw new InvalidOperationException("sc stop timed out before the service reached STOPPED.");
 
-            Logger.Log($"Installing service: sc.exe create LertaroService binPath=\"{serviceExePath} --service\"");
+            var serviceArguments = $"binPath= \"\\\"{serviceExePath}\\\" --service\" start= auto DisplayName= \"Lertaro Background Service\"";
+            var configure = ServiceControlRunner.Run($"config LertaroService {serviceArguments}", 0, 1060);
+            if (!configure.IsSuccess(0))
+            {
+                if (!configure.IsSuccess(1060))
+                    throw new InvalidOperationException("sc config failed. See service.log for details.");
 
-            var create = ServiceControlRunner.Run($"create LertaroService binPath= \"\\\"{serviceExePath}\\\" --service\" start= auto DisplayName= \"Lertaro Background Service\"");
-            if (!create.IsSuccess(0))
-                throw new InvalidOperationException("sc create failed. See service.log for details.");
+                Logger.Log($"Installing service: sc.exe create LertaroService {serviceArguments}");
+                var create = ServiceControlRunner.Run($"create LertaroService {serviceArguments}");
+                if (!create.IsSuccess(0))
+                    throw new InvalidOperationException("sc create failed. See service.log for details.");
+            }
 
             // Grant all authenticated users START/STOP/QUERY on the service so the non-elevated app can
             // start and stop it without a UAC prompt every time. Install is already elevated here, so this
@@ -58,12 +69,18 @@ static class ServiceInstaller
         try
         {
             Logger.Log("Stopping service: sc.exe stop LertaroService");
-            ServiceControlRunner.Run("stop LertaroService", 0, 1060, 1062);
+            var stop = ServiceControlRunner.Run("stop LertaroService", 0, 1060, 1062);
+            if (!stop.IsSuccess(0, 1060, 1062))
+                throw new InvalidOperationException("sc stop failed. See service.log for details.");
+            if (!ServiceControlRunner.WaitForStopped("LertaroService"))
+                throw new InvalidOperationException("sc stop timed out before the service reached STOPPED.");
 
             Logger.Log("Deleting service: sc.exe delete LertaroService");
             var delete = ServiceControlRunner.Run("delete LertaroService", 0, 1060);
             if (!delete.IsSuccess(0, 1060))
                 throw new InvalidOperationException("sc delete failed. See service.log for details.");
+            if (!ServiceControlRunner.WaitForDeleted("LertaroService"))
+                throw new InvalidOperationException("sc delete timed out before the service was removed.");
 
             Console.WriteLine("Service uninstalled successfully!");
         }

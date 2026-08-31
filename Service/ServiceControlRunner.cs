@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.Diagnostics;
+using System.ServiceProcess;
 using Lertaro.Core;
 
 namespace Lertaro.Service;
@@ -6,6 +8,7 @@ namespace Lertaro.Service;
 internal static class ServiceControlRunner
 {
     private const int TimeoutMs = 30000;
+    private const int ServicePollIntervalMs = 100;
 
     public static ServiceCommandResult Run(string arguments, params int[] successExitCodes)
     {
@@ -49,6 +52,60 @@ internal static class ServiceControlRunner
             return LogResult(new ServiceCommandResult(arguments, null, false, string.Empty, ex.Message), successExitCodes);
         }
     }
+
+    public static bool WaitForStopped(string serviceName)
+        => WaitForStatus(serviceName, ServiceControllerStatus.Stopped, allowMissing: true);
+
+    public static bool WaitForDeleted(string serviceName)
+    {
+        var deadline = Environment.TickCount64 + TimeoutMs;
+        while (true)
+        {
+            try
+            {
+                using var service = new ServiceController(serviceName);
+                service.Refresh();
+                _ = service.Status;
+            }
+            catch (Exception ex) when (IsServiceMissing(ex))
+            {
+                return true;
+            }
+
+            if (Environment.TickCount64 >= deadline)
+                return false;
+
+            Thread.Sleep(ServicePollIntervalMs);
+        }
+    }
+
+    private static bool WaitForStatus(string serviceName, ServiceControllerStatus expected, bool allowMissing)
+    {
+        var deadline = Environment.TickCount64 + TimeoutMs;
+        while (true)
+        {
+            try
+            {
+                using var service = new ServiceController(serviceName);
+                service.Refresh();
+                if (service.Status == expected)
+                    return true;
+            }
+            catch (Exception ex) when (allowMissing && IsServiceMissing(ex))
+            {
+                return true;
+            }
+
+            if (Environment.TickCount64 >= deadline)
+                return false;
+
+            Thread.Sleep(ServicePollIntervalMs);
+        }
+    }
+
+    private static bool IsServiceMissing(Exception exception)
+        => exception is Win32Exception { NativeErrorCode: 1060 }
+            || exception.InnerException is Win32Exception { NativeErrorCode: 1060 };
 
     private static ServiceCommandResult LogResult(ServiceCommandResult result, int[] successExitCodes)
     {
