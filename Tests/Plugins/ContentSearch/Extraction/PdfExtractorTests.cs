@@ -260,6 +260,29 @@ public sealed class PdfExtractorTests
         }
     }
 
+    [TestMethod]
+    public async Task ExtractTextAsync_Over150Pages_ExtractsBeyondTheOldPageCap()
+    {
+        var extractor = new PdfExtractor();
+        var tempFile = Path.Combine(Path.GetTempPath(), $"test_doc_{Guid.NewGuid():N}.pdf");
+
+        try
+        {
+            var pages = Enumerable.Range(0, 160).Select(i => TextStream($"page {i} token")).ToArray();
+            await File.WriteAllBytesAsync(tempFile, PdfTestDocument.Pages(pages));
+
+            var text = await extractor.ExtractTextAsync(tempFile, maxFileSizeBytes: 1024 * 1024);
+
+            Assert.IsNotNull(text);
+            Assert.Contains("page 159 token", text);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
     private readonly List<string> _logLines = new();
 
     [TestInitialize]

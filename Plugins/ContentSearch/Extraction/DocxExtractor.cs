@@ -11,7 +11,6 @@ namespace Lertaro.Plugins.ContentSearch.Extraction;
 /// </summary>
 public sealed class DocxExtractor : ITextExtractor
 {
-    private const int MaxExtractedCharacters = 500_000;
     private static readonly XNamespace WordNs = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 
     public bool CanHandle(string extension) =>
@@ -81,8 +80,6 @@ public sealed class DocxExtractor : ITextExtractor
         {
             ct.ThrowIfCancellationRequested();
             AppendParagraphText(paragraph, builder);
-            if (builder.Length >= MaxExtractedCharacters)
-                return;
         }
     }
 
@@ -104,8 +101,6 @@ public sealed class DocxExtractor : ITextExtractor
             {
                 ct.ThrowIfCancellationRequested();
                 AppendParagraphText(paragraph, builder);
-                if (builder.Length >= MaxExtractedCharacters)
-                    return;
             }
         }
     }
@@ -130,8 +125,6 @@ public sealed class DocxExtractor : ITextExtractor
                 AppendParagraphText(paragraph, builder);
             }
 
-            if (builder.Length >= MaxExtractedCharacters)
-                return;
         }
     }
 
@@ -144,8 +137,6 @@ public sealed class DocxExtractor : ITextExtractor
         foreach (var entry in entries)
         {
             AppendParagraphsFromEntry(entry, builder, ct);
-            if (builder.Length >= MaxExtractedCharacters)
-                return;
         }
     }
 
