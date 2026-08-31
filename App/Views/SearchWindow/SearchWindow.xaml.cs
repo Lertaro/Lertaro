@@ -17,14 +17,12 @@ using Lertaro.App.Services.Theme;
 using Lertaro.App.Services.ShellMenu.Presenter;
 using Lertaro.App.Helpers.Visuals;
 namespace Lertaro.App;
-
 public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentInset
 {
     private readonly SearchViewModel _viewModel;
     private readonly SearchWindowChromeHandler _chromeHandler;
     private readonly SearchWindowInputHandler _inputHandler;
     private readonly ShellMenuPresenter _menuPresenter;
-
     // Must match SearchWindow.xaml's MainBorder Margin.
     public Thickness VisibleContentInset => new(8);
 
@@ -89,6 +87,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
 
         // Bind list events
         var activeList = ResultsPanelControl.ActiveListBox;
+        new SearchWindowHoverPreviewSupport(this, activeList);
         activeList.KeyDown += LstGridResults_KeyDown;
         activeList.MouseDoubleClick += LstGridResults_MouseDoubleClick;
         activeList.PreviewMouseRightButtonUp += LstGridResults_PreviewMouseRightButtonUp;
