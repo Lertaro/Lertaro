@@ -39,6 +39,8 @@
   "QuickLaunch_MoveDownTooltip": "下移",
   "QuickLaunch_EditTooltip": "編輯項目",
   "QuickLaunch_RemoveTooltip": "刪除項目",
+  "QuickLaunch_Edit": "編輯",
+  "QuickLaunch_Remove": "刪除",
   "QuickLaunch_SourceTitle": "資料來源",
   "QuickLaunch_SourceDesc": "只有已啟用而且目前有資料嘅來源，先會顯示為快速搜尋視窗底部嘅標籤。",
   "QuickLaunch_SourceEnabledTooltip": "喺快速搜尋視窗顯示呢個來源",

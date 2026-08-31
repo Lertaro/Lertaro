@@ -39,6 +39,8 @@
   "QuickLaunch_MoveDownTooltip": "下へ移動",
   "QuickLaunch_EditTooltip": "項目を編集",
   "QuickLaunch_RemoveTooltip": "項目を削除",
+  "QuickLaunch_Edit": "編集",
+  "QuickLaunch_Remove": "削除",
   "QuickLaunch_SourceTitle": "データソース",
   "QuickLaunch_SourceDesc": "現在データがある有効なソースだけがクイック検索ウィンドウのタブとして表示されます。",
   "QuickLaunch_SourceEnabledTooltip": "このソースをクイック検索ウィンドウに表示",

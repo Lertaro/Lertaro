@@ -39,6 +39,8 @@
   "QuickLaunch_MoveDownTooltip": "Bajar",
   "QuickLaunch_EditTooltip": "Editar elemento",
   "QuickLaunch_RemoveTooltip": "Quitar elemento",
+  "QuickLaunch_Edit": "Editar",
+  "QuickLaunch_Remove": "Quitar",
   "QuickLaunch_SourceTitle": "Fuentes de datos",
   "QuickLaunch_SourceDesc": "Solo las fuentes habilitadas que contienen datos aparecen como pestañas en la ventana de búsqueda rápida.",
   "QuickLaunch_SourceEnabledTooltip": "Mostrar esta fuente en la ventana de búsqueda rápida",

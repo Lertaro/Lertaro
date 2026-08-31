@@ -169,7 +169,7 @@ public class FavoritesSettingsViewModel : ViewModelBase
         }
         else
         {
-            var dialog = new Microsoft.Win32.OpenFileDialog();
+            var dialog = new Microsoft.Win32.OpenFileDialog { DereferenceLinks = false };
             if (dialog.ShowDialog() == true) item.EditPath = dialog.FileName;
         }
     }
@@ -184,7 +184,7 @@ public class FavoritesSettingsViewModel : ViewModelBase
 
     private void BrowseFile()
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog { Multiselect = true };
+        var dialog = new Microsoft.Win32.OpenFileDialog { Multiselect = true, DereferenceLinks = false };
         if (dialog.ShowDialog() == true) AddPaths(dialog.FileNames);
     }
 

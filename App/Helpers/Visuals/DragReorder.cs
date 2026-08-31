@@ -8,6 +8,7 @@ using DragDropEffects = System.Windows.DragDropEffects;
 using DragEventArgs = System.Windows.DragEventArgs;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using Point = System.Windows.Point;
+using WpfSize = System.Windows.Size;
 using Selector = System.Windows.Controls.Primitives.Selector;
 using TextBoxBase = System.Windows.Controls.Primitives.TextBoxBase;
 
@@ -52,6 +53,14 @@ public static class DragReorder
     public static void SetIsHorizontal(ItemsControl control, bool value) => control.SetValue(IsHorizontalProperty, value);
     public static bool GetIsHorizontal(ItemsControl control) => (bool)control.GetValue(IsHorizontalProperty);
 
+    // A grid needs a marker beside the target card, rather than a line across the whole control at the
+    // target row's edge. Lists keep the default false value.
+    public static readonly DependencyProperty IsGridProperty = DependencyProperty.RegisterAttached(
+        "IsGrid", typeof(bool), typeof(DragReorder), new PropertyMetadata(false));
+
+    public static void SetIsGrid(ItemsControl control, bool value) => control.SetValue(IsGridProperty, value);
+    public static bool GetIsGrid(ItemsControl control) => (bool)control.GetValue(IsGridProperty);
+
     // Keyed per-ItemsControl (not a single shared field) so two reorderable lists open in the same
     // window at once (e.g. this settings page's own sidebar-order and column-order cards) never
     // interfere with each other's in-progress drag.
@@ -60,7 +69,14 @@ public static class DragReorder
 
     private static void OnIsEnabledChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is not ItemsControl control || e.NewValue is not true) return;
+        if (d is not ItemsControl control) return;
+
+        if (e.NewValue is not true)
+        {
+            control.PreviewMouseLeftButtonDown -= OnPreviewMouseLeftButtonDown; control.PreviewMouseMove -= OnPreviewMouseMove;
+            control.DragOver -= OnDragOver; control.Drop -= OnDrop;
+            EndDrag(control); control.AllowDrop = false; return;
+        }
 
         control.AllowDrop = true;
         control.PreviewMouseLeftButtonDown += OnPreviewMouseLeftButtonDown;
@@ -97,7 +113,7 @@ public static class DragReorder
             Math.Abs(pos.Y - s.start.Y) < SystemParameters.MinimumVerticalDragDistance)
             return;
 
-        var container = FindContainer(e.OriginalSource as DependencyObject, control);
+        var container = DragReorderContainerHelper.Find(e.OriginalSource as DependencyObject, control);
         if (container == null) return;
 
         var item = control.ItemContainerGenerator.ItemFromContainer(container);
@@ -187,7 +203,7 @@ public static class DragReorder
         }
 
         var oldIndex = list.IndexOf(s.item);
-        var targetContainer = FindContainer(e.OriginalSource as DependencyObject, control);
+        var targetContainer = DragReorderContainerHelper.Find(e.OriginalSource as DependencyObject, control);
         var targetItem = targetContainer != null ? control.ItemContainerGenerator.ItemFromContainer(targetContainer) : null;
         var targetIndex = targetItem != null ? list.IndexOf(targetItem) : -1;
 
@@ -201,6 +217,14 @@ public static class DragReorder
         // -- which is the edge it would actually come to rest against, either way.
         var horizontal = GetIsHorizontal(control);
         var far = oldIndex < targetIndex;
+        if (GetIsGrid(control))
+        {
+            var topLeft = targetContainer.TranslatePoint(new Point(0, 0), control);
+            var bounds = new Rect(topLeft, new WpfSize(targetContainer.ActualWidth, targetContainer.ActualHeight));
+            indicator.UpdateGrid(bounds, far);
+            return;
+        }
+
         var offset = horizontal
             ? targetContainer.TranslatePoint(new Point(far ? targetContainer.ActualWidth : 0, 0), control).X
             : targetContainer.TranslatePoint(new Point(0, far ? targetContainer.ActualHeight : 0), control).Y;
@@ -220,7 +244,7 @@ public static class DragReorder
         var oldIndex = list.IndexOf(s.item);
         if (oldIndex < 0) return;
 
-        var targetContainer = FindContainer(e.OriginalSource as DependencyObject, control);
+        var targetContainer = DragReorderContainerHelper.Find(e.OriginalSource as DependencyObject, control);
         var targetItem = targetContainer != null ? control.ItemContainerGenerator.ItemFromContainer(targetContainer) : null;
         var newIndex = targetItem != null ? list.IndexOf(targetItem) : list.Count - 1;
 
@@ -260,23 +284,6 @@ public static class DragReorder
             source = TreeWalk.Parent(source);
         }
         return false;
-    }
-
-    // Walks up from whatever was actually clicked/dropped on to the realized item container
-    // ItemContainerGenerator knows about -- VirtualizingStackPanel means only currently-visible
-    // containers exist at all, which is exactly what a live mouse event can ever land on anyway.
-    //
-    // Through TreeWalk, like the walk above: both start at an OriginalSource, and an item whose label
-    // carries highlighted text hands one of these a Run, which is not a Visual at all.
-    private static FrameworkElement? FindContainer(DependencyObject? source, ItemsControl control)
-    {
-        while (source != null && source != control)
-        {
-            if (source is FrameworkElement fe && control.ItemContainerGenerator.IndexFromContainer(fe) >= 0)
-                return fe;
-            source = TreeWalk.Parent(source);
-        }
-        return null;
     }
 
 }

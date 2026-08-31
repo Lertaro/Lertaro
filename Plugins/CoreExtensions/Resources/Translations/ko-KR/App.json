@@ -39,6 +39,8 @@
   "QuickLaunch_MoveDownTooltip": "아래로 이동",
   "QuickLaunch_EditTooltip": "항목 편집",
   "QuickLaunch_RemoveTooltip": "항목 제거",
+  "QuickLaunch_Edit": "편집",
+  "QuickLaunch_Remove": "삭제",
   "QuickLaunch_SourceTitle": "데이터 원본",
   "QuickLaunch_SourceDesc": "현재 데이터가 있는 사용 설정된 원본만 빠른 검색 창의 탭으로 표시됩니다.",
   "QuickLaunch_SourceEnabledTooltip": "이 원본을 빠른 검색 창에 표시",

@@ -2,6 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
              xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
              MaxHeight="{Binding LaunchPanelMaxHeight}"
              Height="{Binding LaunchPanelHeight}"
@@ -16,27 +17,54 @@
                 <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
                 <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-        <Style x:Key="LaunchItemButtonStyle" TargetType="Button">
+        <Style x:Key="LaunchItemCardStyle" TargetType="Border">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="4"/>
             <Setter Property="Margin" Value="2"/>
             <Setter Property="Height" Value="92"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ItemHover}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="LaunchItemMenuButtonStyle" TargetType="Button" BasedOn="{StaticResource RuleIconButton}">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Panel.ZIndex" Value="2"/>
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding DataContext.IsManualLaunchSourceSelected, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}" Value="True"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Border}}, Path=IsMouseOver}" Value="True"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Visibility" Value="Visible"/>
+                </MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="LaunchItemContainerStyle" TargetType="ListViewItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
-                                CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <ControlTemplate TargetType="ListViewItem">
+                        <Border x:Name="SelectionOverlay" Background="Transparent"
+                                CornerRadius="6" Margin="2" Padding="2" Cursor="Hand">
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource ItemHover}"/>
+                                <Setter TargetName="SelectionOverlay" Property="Background" Value="{DynamicResource ItemHover}"/>
                             </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource ControlHoverBackground}"/>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="SelectionOverlay" Property="Background" Value="{DynamicResource ItemHover}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -56,36 +84,68 @@
                           HorizontalScrollBarVisibility="Disabled"
                           Padding="12,4,12,8"
                           PreviewMouseWheel="LaunchItemsScrollViewer_PreviewMouseWheel">
-            <ItemsControl ItemsSource="{Binding LaunchPanelItems}">
-                <ItemsControl.ItemsPanel>
+            <ListView x:Name="LaunchItemsListView" ItemsSource="{Binding LaunchPanelItems}"
+                     SelectedItem="{Binding SelectedLaunchPanelItem, Mode=TwoWay}"
+                     ItemContainerStyle="{StaticResource LaunchItemContainerStyle}"
+                     SelectionMode="Single" BorderThickness="0" Background="Transparent"
+                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.CanContentScroll="False"
+                     helpers:DragReorder.IsEnabled="{Binding IsManualLaunchSourceSelected}"
+                     helpers:DragReorder.IsGrid="True">
+                <ListView.ItemsPanel>
                     <ItemsPanelTemplate>
                         <UniformGrid Columns="{Binding LaunchPanelColumns}" HorizontalAlignment="Stretch"
                                      VerticalAlignment="Top"/>
                     </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
+                </ListView.ItemsPanel>
+                <ListView.ItemTemplate>
                     <DataTemplate>
-                        <Button Tag="{Binding}" Click="LaunchButton_Click"
-                                Style="{StaticResource LaunchItemButtonStyle}">
-                            <StackPanel HorizontalAlignment="Center">
-                                <Border Width="56" Height="56" Padding="4">
-                                    <Image Source="{Binding Icon}" Stretch="Uniform"
-                                           RenderOptions.BitmapScalingMode="HighQuality"/>
-                                </Border>
-                                <ScrollViewer Width="94" Height="30" Margin="0,5,0,0"
-                                              HorizontalContentAlignment="Center"
-                                              HorizontalScrollBarVisibility="Hidden"
-                                              VerticalScrollBarVisibility="Disabled" Focusable="False">
-                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}"
-                                               FontSize="11" TextWrapping="NoWrap" TextTrimming="None"
-                                               HorizontalAlignment="Center" TextAlignment="Center"
-                                               helpers:MarqueeBehavior.EnableMarquee="{Binding RelativeSource={RelativeSource AncestorType={x:Type Button}}, Path=IsMouseOver}"/>
-                                </ScrollViewer>
-                            </StackPanel>
-                        </Button>
+                        <Border Style="{StaticResource LaunchItemCardStyle}"
+                                helpers:DragReorder.IsHandle="True"
+                                MouseLeftButtonUp="LaunchItem_MouseLeftButtonUp"
+                                PreviewMouseRightButtonUp="LaunchItem_PreviewMouseRightButtonUp">
+                            <Grid>
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Border Width="56" Height="56" Padding="4">
+                                        <Image Source="{Binding Icon}" Stretch="Uniform"
+                                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                                    </Border>
+                                    <ScrollViewer Width="94" Height="30" Margin="0,5,0,0"
+                                                  HorizontalContentAlignment="Center"
+                                                  HorizontalScrollBarVisibility="Hidden"
+                                                  VerticalScrollBarVisibility="Disabled" Focusable="False">
+                                        <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}"
+                                                   FontSize="11" TextWrapping="NoWrap" TextTrimming="None"
+                                                   HorizontalAlignment="Center" TextAlignment="Center"
+                                                   helpers:MarqueeBehavior.EnableMarquee="{Binding RelativeSource={RelativeSource AncestorType={x:Type Border}}, Path=IsMouseOver}"/>
+                                    </ScrollViewer>
+                                </StackPanel>
+                                <Button Content="&#xE712;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource LaunchItemMenuButtonStyle}"
+                                        HorizontalAlignment="Right" VerticalAlignment="Top"
+                                        Click="LaunchItemMenu_Click">
+                                    <Button.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Edit]}"
+                                                      Click="EditLaunchItem_Click">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Foreground="{DynamicResource MenuText}"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Remove]}"
+                                                      Click="DeleteLaunchItem_Click">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Foreground="{DynamicResource MenuText}"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
+                            </Grid>
+                        </Border>
                     </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+                </ListView.ItemTemplate>
+            </ListView>
             </ScrollViewer>
             <ctrl:TabStripScrollView Grid.Row="1" Height="38" Margin="8,0,8,2"
                                      Visibility="{Binding HasMultipleLaunchSources, Converter={StaticResource BoolToVis}}">

@@ -39,6 +39,8 @@
   "QuickLaunch_MoveDownTooltip": "Move down",
   "QuickLaunch_EditTooltip": "Edit item",
   "QuickLaunch_RemoveTooltip": "Remove item",
+  "QuickLaunch_Edit": "Edit",
+  "QuickLaunch_Remove": "Remove",
   "QuickLaunch_SourceTitle": "Data sources",
   "QuickLaunch_SourceDesc": "Only enabled sources that currently contain data appear as tabs in the quick search window.",
   "QuickLaunch_SourceEnabledTooltip": "Show this source in the quick search window",

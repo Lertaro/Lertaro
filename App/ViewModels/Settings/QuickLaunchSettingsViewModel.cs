@@ -179,7 +179,7 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
         }
         else
         {
-            var dialog = new Microsoft.Win32.OpenFileDialog();
+            var dialog = new Microsoft.Win32.OpenFileDialog { DereferenceLinks = false };
             if (dialog.ShowDialog() == true) item.EditPath = dialog.FileName;
         }
     }
@@ -203,7 +203,7 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
         }
         else
         {
-            var dialog = new Microsoft.Win32.OpenFileDialog { Multiselect = true };
+            var dialog = new Microsoft.Win32.OpenFileDialog { Multiselect = true, DereferenceLinks = false };
             if (dialog.ShowDialog() == true) AddPaths(dialog.FileNames);
         }
     }

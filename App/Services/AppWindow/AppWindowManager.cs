@@ -83,6 +83,9 @@ public static class AppWindowManager
         });
     }
 
+    public static void ShowQuickLaunchItemEditor(string path)
+        => QuickLaunchItemEditor.Show(path);
+
     public static void ShowSearchWindow()
     {
         if (System.Windows.Application.Current == null) return;

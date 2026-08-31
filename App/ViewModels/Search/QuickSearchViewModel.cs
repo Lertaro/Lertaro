@@ -190,12 +190,17 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     public void RefreshLaunchSources() => _ = _launchSources.RefreshAsync();
     public void RefreshLaunchItems() => RefreshLaunchSources();
     public bool CanAcceptLaunchPanelDrops => _launchSources.AcceptsDrops;
+    public bool IsManualLaunchSourceSelected => _launchSources.IsManualSourceSelected;
     public int AddLaunchPanelDroppedPaths(IEnumerable<string> paths) => _launchSources.AddDroppedPaths(paths);
+    public bool RemoveLaunchPanelItem(AppSearchResult result) => _launchSources.RemoveManualItem(result);
 
     public ICommand SelectLaunchSourceCommand => new RelayCommand<LaunchPanelSourceViewModel>(source => _launchSources.Select(source));
 
     public ObservableCollection<AppSearchResult> LaunchPanelItems
         => _launchSources.Selected?.Items ?? EmptyLaunchItems;
+
+    public AppSearchResult? SelectedLaunchPanelItem { get => _launchSources.SelectedItem; set => _launchSources.SelectItem(value); }
+    public bool MoveLaunchPanelSelection(int direction) => _launchSources.MoveItemSelection(direction);
 
     private static readonly ObservableCollection<AppSearchResult> EmptyLaunchItems = new();
 

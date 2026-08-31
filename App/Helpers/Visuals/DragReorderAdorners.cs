@@ -70,6 +70,8 @@ internal sealed class DropIndicatorAdorner : Adorner
     private double _length;
     private bool _visible;
     private bool _horizontal;
+    private bool _grid;
+    private Rect _gridBounds;
     private readonly Pen _pen;
 
     public DropIndicatorAdorner(UIElement adornedElement) : base(adornedElement)
@@ -88,12 +90,28 @@ internal sealed class DropIndicatorAdorner : Adorner
         _length = length;
         _visible = visible;
         _horizontal = horizontal;
+        _grid = false;
+        InvalidateVisual();
+    }
+
+    public void UpdateGrid(Rect bounds, bool after)
+    {
+        _gridBounds = bounds;
+        _offset = after ? bounds.Right : bounds.Left;
+        _visible = true;
+        _grid = true;
         InvalidateVisual();
     }
 
     protected override void OnRender(DrawingContext drawingContext)
     {
         if (!_visible) return;
+
+        if (_grid)
+        {
+            drawingContext.DrawLine(_pen, new Point(_offset, _gridBounds.Top), new Point(_offset, _gridBounds.Bottom));
+            return;
+        }
 
         drawingContext.DrawLine(_pen,
             _horizontal ? new Point(_offset, 0) : new Point(0, _offset),

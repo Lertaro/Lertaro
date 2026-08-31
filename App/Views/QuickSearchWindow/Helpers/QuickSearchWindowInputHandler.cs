@@ -15,6 +15,9 @@ public class QuickSearchWindowInputHandler
 
     public void HandleWindowPreviewKeyDown(KeyEventArgs e)
     {
+        if (QuickSearchLaunchPanelInputHelper.Handle(e, _window))
+            return;
+
         if (SearchInputHelper.HandleCommonSearchKeys(e, _window, _window.MenuPresenter))
             return;
 
@@ -190,6 +193,7 @@ public class QuickSearchWindowInputHandler
             }
         }
     }
+
     private void CompleteSearchFromSelection()
     {
         var result = _window.LstResults.SelectedItem as AppSearchResult;

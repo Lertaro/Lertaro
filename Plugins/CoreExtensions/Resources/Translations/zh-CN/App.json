@@ -39,6 +39,8 @@
   "QuickLaunch_MoveDownTooltip": "下移",
   "QuickLaunch_EditTooltip": "编辑项目",
   "QuickLaunch_RemoveTooltip": "删除项目",
+  "QuickLaunch_Edit": "编辑",
+  "QuickLaunch_Remove": "删除",
   "QuickLaunch_SourceTitle": "数据源",
   "QuickLaunch_SourceDesc": "只有已启用且当前有数据的数据源，才会显示为快速搜索窗口底部的标签页。",
   "QuickLaunch_SourceEnabledTooltip": "在快速搜索窗口中显示此数据源",

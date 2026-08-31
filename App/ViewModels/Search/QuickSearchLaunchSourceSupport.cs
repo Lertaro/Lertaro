@@ -19,7 +19,9 @@ internal sealed class QuickSearchLaunchSourceSupport
 
     public ObservableRangeCollection<LaunchPanelSourceViewModel> Sources { get; } = new();
     public LaunchPanelSourceViewModel? Selected { get; private set; }
+    public AppSearchResult? SelectedItem { get; private set; }
     public bool AcceptsDrops => Selected?.Id.Equals(QuickLaunchSourceCatalog.ManualSourceId, StringComparison.OrdinalIgnoreCase) == true;
+    public bool IsManualSourceSelected => AcceptsDrops;
 
     public async Task RefreshAsync()
     {
@@ -30,8 +32,10 @@ internal sealed class QuickSearchLaunchSourceSupport
         var selectedId = Selected?.Id;
         Sources.ReplaceRange(Array.Empty<LaunchPanelSourceViewModel>());
         Selected = null;
+        SelectedItem = null;
         _notify(nameof(QuickSearchViewModel.LaunchPanelVisibility));
         _notify(nameof(QuickSearchViewModel.LaunchPanelItems));
+        _notify(nameof(QuickSearchViewModel.SelectedLaunchPanelItem));
         _notify(nameof(QuickSearchViewModel.LaunchPanelHeight));
         _notify(nameof(QuickSearchViewModel.HasMultipleLaunchSources));
         _notify(nameof(QuickSearchViewModel.CanAcceptLaunchPanelDrops));
@@ -45,8 +49,12 @@ internal sealed class QuickSearchLaunchSourceSupport
                 .Select((item, index) => LaunchItemMapper.ToUiResult(item, index))
                 .ToList();
             if (items.Count > 0)
-                loaded.Add(new LaunchPanelSourceViewModel(QuickLaunchSourceCatalog.ManualSourceId,
-                    TranslationManager.Instance["QuickLaunch_ManualSource"], items));
+            {
+                var manualSource = new LaunchPanelSourceViewModel(QuickLaunchSourceCatalog.ManualSourceId,
+                    TranslationManager.Instance["QuickLaunch_ManualSource"], items);
+                manualSource.Items.CollectionChanged += (_, _) => SaveManualItemOrder(manualSource.Items);
+                loaded.Add(manualSource);
+            }
         }
 
         if (settings.Enabled)
@@ -78,15 +86,59 @@ internal sealed class QuickSearchLaunchSourceSupport
         _notify(nameof(QuickSearchViewModel.LaunchPanelHeight));
         _notify(nameof(QuickSearchViewModel.HasMultipleLaunchSources));
         _notify(nameof(QuickSearchViewModel.CanAcceptLaunchPanelDrops));
+        _notify(nameof(QuickSearchViewModel.IsManualLaunchSourceSelected));
     }
 
     public void Select(LaunchPanelSourceViewModel? source)
     {
         if (source == null || !Sources.Contains(source)) return;
         Selected = source;
+        SelectedItem = null;
         UpdateSelection();
         _notify(nameof(QuickSearchViewModel.LaunchPanelItems));
+        _notify(nameof(QuickSearchViewModel.SelectedLaunchPanelItem));
         _notify(nameof(QuickSearchViewModel.CanAcceptLaunchPanelDrops));
+        _notify(nameof(QuickSearchViewModel.IsManualLaunchSourceSelected));
+    }
+
+    public void SelectItem(AppSearchResult? item)
+    {
+        if (item != null && (Selected == null || !Selected.Items.Contains(item)))
+            return;
+        if (ReferenceEquals(SelectedItem, item))
+            return;
+
+        SelectedItem = item;
+        _notify(nameof(QuickSearchViewModel.SelectedLaunchPanelItem));
+    }
+
+    public bool MoveItemSelection(int direction)
+    {
+        var items = Selected?.Items;
+        if (items == null || items.Count == 0)
+            return false;
+
+        var next = ListSelectionNavigator.NextSelectable(
+            SelectedItem == null ? -1 : items.IndexOf(SelectedItem), direction, items.Count, _ => true);
+        if (next < 0)
+            return false;
+
+        SelectItem(items[next]);
+        return true;
+    }
+
+    public bool RemoveManualItem(AppSearchResult result)
+    {
+        var userSettings = UserSettings.Load();
+        var settings = userSettings.QuickLaunch;
+        var index = settings.Items.FindIndex(item => PathsMatch(item.Path, result.FullPath));
+        if (index < 0)
+            return false;
+
+        settings.Items.RemoveAt(index);
+        userSettings.Save();
+        _ = RefreshAsync();
+        return true;
     }
 
     public int AddDroppedPaths(IEnumerable<string> paths)
@@ -139,6 +191,47 @@ internal sealed class QuickSearchLaunchSourceSupport
         foreach (var source in Sources)
             source.IsSelected = ReferenceEquals(source, Selected);
     }
+
+    private static void SaveManualItemOrder(IReadOnlyList<AppSearchResult> displayedItems)
+    {
+        var userSettings = UserSettings.Load();
+        var settings = userSettings.QuickLaunch;
+        var ordered = OrderManualItems(settings.Items, displayedItems);
+
+        if (ordered.SequenceEqual(settings.Items))
+            return;
+
+        settings.Items = ordered;
+        userSettings.Save();
+    }
+
+    internal static List<QuickLaunchItemSetting> OrderManualItems(
+        IReadOnlyList<QuickLaunchItemSetting> configuredItems,
+        IReadOnlyList<AppSearchResult> displayedItems)
+    {
+        var ordered = new List<QuickLaunchItemSetting>(configuredItems.Count);
+        var used = new HashSet<QuickLaunchItemSetting>();
+
+        foreach (var displayed in displayedItems)
+        {
+            var item = configuredItems.FirstOrDefault(candidate =>
+                !used.Contains(candidate) && PathsMatch(candidate.Path, displayed.FullPath));
+            if (item == null)
+                continue;
+
+            used.Add(item);
+            ordered.Add(item);
+        }
+
+        ordered.AddRange(configuredItems.Where(item => !used.Contains(item)));
+        return ordered;
+    }
+
+    private static bool PathsMatch(string configuredPath, string displayedPath)
+        => string.Equals(
+            FavoritePathResolver.NormalizeForComparison(FavoritePathResolver.Resolve(configuredPath)),
+            FavoritePathResolver.NormalizeForComparison(displayedPath),
+            StringComparison.OrdinalIgnoreCase);
 
     private static async Task<IReadOnlyList<ISearchResult>> LoadProviderAsync(
         IQuickPanelTabProvider provider, CancellationToken token)
