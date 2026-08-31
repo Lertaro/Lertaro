@@ -27,6 +27,7 @@ public class TypeFilterProvider : ISidebarFilterProvider
     {
         var group = new SidebarFilterGroup
         {
+            Id = "Type",
             Header = TranslationService.Get("Filter_TypeHeader"),
             AllowMultiSelect = true
         };

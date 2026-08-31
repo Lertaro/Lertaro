@@ -73,7 +73,8 @@ public class SearchViewModel : ViewModelBase, IDisposable
                     ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count);
             },
             updateSidebarCounts: (batch, final) => _sidebarCountHelper?.Update(batch, final),
-            applyFiltersAndRender: ApplyFiltersAndRender);
+            applyFiltersAndRender: ApplyFiltersAndRender,
+            isTypeFilterSelected: () => IsTypeFilterSelected);
 
         // Initialize dynamic plugin sidebar groups -- PluginManager.SidebarFilterProviders already
         // applies the user's saved order (falling back to each provider's own SortOrder).
@@ -122,6 +123,12 @@ public class SearchViewModel : ViewModelBase, IDisposable
 
     public ObservableRangeCollection<AppSearchResult> FilteredResults { get; }
     public ObservableCollection<DynamicSidebarGroupViewModel> DynamicSidebarGroups { get; } = new();
+
+    // True when any item of the well-known result-type group is selected. Content-search results
+    // are only merged into _allResults while no type filter is active; a selected type (e.g. "文件")
+    // means the user asked for exactly that type, so the extra content rows are excluded.
+    internal bool IsTypeFilterSelected =>
+        DynamicSidebarGroups.Any(g => string.Equals(g.Id, "Type", StringComparison.OrdinalIgnoreCase) && g.HasSelection);
     public string AdvancedQuery
     {
         get => _advancedQuery;

@@ -21,6 +21,7 @@ internal sealed class SearchQueryDispatchController
     private readonly Action<bool> _setIsSearchBoxEnabled;
     private readonly Action<int> _setReceivedCount;
     private readonly Action<IReadOnlyList<AppSearchResult>, bool> _updateSidebarCounts;
+    private readonly Func<bool> _isTypeFilterSelected;
     // bool: whether this render extends what is already on screen (a later paint of a search still
     // streaming) rather than replacing it with a different result set.
     // int: index of the first row this render changed -- everything before it is already correct on
@@ -39,7 +40,8 @@ internal sealed class SearchQueryDispatchController
         Action<bool> setIsSearchBoxEnabled,
         Action<int> setReceivedCount,
         Action<IReadOnlyList<AppSearchResult>, bool> updateSidebarCounts,
-        Action<bool, int> applyFiltersAndRender)
+        Action<bool, int> applyFiltersAndRender,
+        Func<bool> isTypeFilterSelected)
     {
         _searchEngine = searchEngine;
         _serviceStatus = serviceStatus;
@@ -51,6 +53,7 @@ internal sealed class SearchQueryDispatchController
         _setReceivedCount = setReceivedCount;
         _updateSidebarCounts = updateSidebarCounts;
         _applyFiltersAndRender = applyFiltersAndRender;
+        _isTypeFilterSelected = isTypeFilterSelected;
     }
 
     public void OnAdvancedQueryChanged(string query)
@@ -146,12 +149,31 @@ internal sealed class SearchQueryDispatchController
                 {
                     // Content-style file providers (e.g. ContentSearch's "cs " hits) are real
                     // files and belong in this window's grid, but only on the final render:
-                    // appending them mid-stream would be re-ordered away by the next paint.
-                    var finalResults = final
-                        ? MergeFullSearchFileResults(filteredResults, cleanQuery)
-                        : filteredResults;
-                    _setAllResults(finalResults);
-                    _applyFiltersAndRender(extendsContent, accumulator?.FirstChangedIndex ?? 0);
+                    // adding them mid-stream would be re-ordered away by the next paint. While
+                    // no TYPE filter is selected they are prepended (priority); once a type is
+                    // selected (e.g. "文件") they are excluded entirely -- a type filter means
+                    // "exactly this type", and the extra content rows are outside that contract.
+                    if (final && !_isTypeFilterSelected())
+                    {
+                        var merged = MergeFullSearchFileResults(filteredResults, cleanQuery);
+                        if (!ReferenceEquals(merged, filteredResults))
+                        {
+                            // Prepending changes every row's position, so no scroll anchor can
+                            // survive; treat it as a fresh result set.
+                            _setAllResults(merged);
+                            _applyFiltersAndRender(false, 0);
+                        }
+                        else
+                        {
+                            _setAllResults(filteredResults);
+                            _applyFiltersAndRender(extendsContent, accumulator?.FirstChangedIndex ?? 0);
+                        }
+                    }
+                    else
+                    {
+                        _setAllResults(filteredResults);
+                        _applyFiltersAndRender(extendsContent, accumulator?.FirstChangedIndex ?? 0);
+                    }
                 }
                 if (final)
                     _setIsSearching(false);
@@ -197,9 +219,11 @@ internal sealed class SearchQueryDispatchController
         if (extras.Count == 0)
             return fileResults;
 
-        var merged = new List<AppSearchResult>(fileResults.Count + extras.Count);
-        merged.AddRange(fileResults);
+        // No type filter active: content-search hits lead the list, ahead of the regular
+        // file-index matches, per the full-window content-search priority rule.
+        var merged = new List<AppSearchResult>(extras.Count + fileResults.Count);
         merged.AddRange(extras);
+        merged.AddRange(fileResults);
         return merged;
     }
 
