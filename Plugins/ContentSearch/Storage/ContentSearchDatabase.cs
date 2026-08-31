@@ -6,6 +6,10 @@ namespace Lertaro.Plugins.ContentSearch.Storage;
 /// <summary>
 /// Manages SQLite storage, Lucene.Net full-text indexing, and search queries for documents.
 /// </summary>
+// ponytail: this file sits a few lines above the repo's 300-line guideline on purpose. The
+// only mechanical split (moving ClearAll/TryDelete helpers into DatabaseMaintenanceHelper)
+// would save ~10 lines at the cost of scattering one cohesive reset/fallback flow across two
+// files; if it grows further, extract the SQLite file-management section as a whole.
 public sealed class ContentSearchDatabase : IDisposable
 {
     private readonly string _dbPath;

@@ -8,6 +8,10 @@ namespace Lertaro.Plugins.ContentSearch.Indexing;
 /// <summary>
 /// Coordinates background indexing, file discovery, and incremental updates.
 /// </summary>
+// ponytail: this file sits slightly above the repo's 300-line guideline on purpose. The only
+// mechanical split (moving NormalizeFolderPath/IsFileInMonitoredFolders into a path helper)
+// would save ~35 lines but add a low-cohesion helper and touch five call sites for little
+// readability gain; if it grows further, extract the worker/scan loop instead.
 public sealed class ContentIndexScheduler : IDisposable
 {
     private const int WriteBatchSize = 50;
