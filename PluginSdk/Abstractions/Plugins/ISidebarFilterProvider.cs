@@ -21,6 +21,11 @@ public interface ISidebarFilterProvider : IPluginComponent
 /// </summary>
 public class SidebarFilterGroup
 {
+    /// <summary>
+    /// Optional stable id used by the host to recognise well-known groups (e.g. "Type" for the
+    /// built-in result-type filter). Empty when the provider does not need host-side behaviour.
+    /// </summary>
+    public string Id { get; set; } = string.Empty;
     public string Header { get; set; } = string.Empty;
     public List<SidebarFilterItem> Items { get; set; } = new();
 
