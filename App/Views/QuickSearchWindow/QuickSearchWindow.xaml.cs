@@ -8,8 +8,6 @@ using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using TextBox = System.Windows.Controls.TextBox;
 using TextBlock = System.Windows.Controls.TextBlock;
-using Border = System.Windows.Controls.Border;
-using Button = System.Windows.Controls.Button;
 using ListBox = System.Windows.Controls.ListBox;
 using Grid = System.Windows.Controls.Grid;
 using Lertaro.App.ViewModels.Search;
@@ -33,7 +31,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private readonly QuickSearchWindowDragSupport _dragSupport;
     private readonly QuickSearchDomainUrlSupport _domainUrlSupport;
     private Action? _scaleChangedHandler;
-    internal QuickSearchKeywordHistoryController KeywordHistoryController { get; private set; } = null!;
+    internal QuickSearchKeywordHistoryController KeywordHistoryController { get; }
     // Must match QuickSearchWindow.xaml's root Border Margin ("24,40,24,24").
     public Thickness VisibleContentInset => new(24, 40, 24, 24);
     public QuickSearchWindow()
@@ -53,6 +51,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         _lifecycle = new QuickSearchWindowLifecycle(this, () => _trayService?.HandleTaskbarCreated());
         _dragSupport = new QuickSearchWindowDragSupport(this);
         InitializeChildControls();
+        KeywordHistoryController = new QuickSearchKeywordHistoryController(this);
         _domainUrlSupport = new QuickSearchDomainUrlSupport(this);
     }
     public ShellMenuPresenter? MenuPresenter => _menuPresenter;
@@ -71,11 +70,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public TextBox SearchTextBox => SearchBox.SearchTextBox;
     public TextBlock TxtPlaceholder => SearchBox.PlaceholderTextBlock;
     public UIElement ResultsPanel => ResultsPanelControl;
-    public Border GridLoading => ResultsPanelControl.LoadingBorder;
-    public System.Windows.Controls.Control ProgressLoading => ResultsPanelControl.LoadingProgressBar;
-    public TextBlock TxtLoadingTitle => ResultsPanelControl.LoadingTitleTextBlock;
-    public TextBlock TxtLoadingStats => ResultsPanelControl.LoadingStatsTextBlock;
-    public Button BtnInstallService => ResultsPanelControl.InstallServiceButton;
     public ListBox LstResults => ResultsPanelControl.ResultsListBox;
     public Grid GridSearchResults => ResultsPanelControl.SearchResultsGrid;
     public Grid GridActions => ResultsPanelControl.ActionsGrid;
@@ -143,7 +137,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         // CollectionChanged, so the subscription above alone wouldn't resize the window to match.
         _scaleChangedHandler = () => _layoutManager.QueueResultsLayoutUpdate();
         UiMetrics.ScaleChanged += _scaleChangedHandler;
-        KeywordHistoryController = new QuickSearchKeywordHistoryController(this);
         LstResults.SelectionChanged += (s, e) =>
         {
             if (LstResults.SelectedItem is AppSearchResult result && result.CanPreview)
