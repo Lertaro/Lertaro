@@ -33,9 +33,11 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider
 
         if (keyword.Length == 0)
         {
-            var (totalFiles, _) = db.GetStats();
+            // "Indexed" means successfully indexed rows only: failed/skipped rows are not
+            // searchable and must not be counted in the placeholder total.
+            var indexedFiles = db.CountIndexedFiles();
             yield return ContentSearchResultBuilder.CreatePlaceholderItem(
-                totalFiles,
+                indexedFiles,
                 scheduler.IsIndexing,
                 scheduler.PendingCount);
             yield break;

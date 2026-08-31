@@ -228,6 +228,14 @@ public sealed class ContentSearchDatabase : IDisposable
         return (_cachedTotalFiles, _cachedTotalFiles);
     }
 
+    public int CountIndexedFiles()
+    {
+        if (!File.Exists(_dbPath)) return 0;
+        Initialize();
+        using var conn = OpenConnection();
+        return DatabaseMetadataReader.CountIndexedFiles(conn);
+    }
+
     private void RefreshStatsInternal(SqliteConnection conn)
     {
         try

@@ -54,6 +54,34 @@ public sealed class ContentSearchDatabaseTests
     }
 
     [TestMethod]
+    public void CountIndexedFiles_ExcludesFailedRows()
+    {
+        var tempDb = Path.Combine(Path.GetTempPath(), $"test_db_count_{Guid.NewGuid():N}.db");
+        try
+        {
+            using var db = new ContentSearchDatabase(tempDb);
+            db.Initialize();
+
+            var now = DateTime.UtcNow;
+            db.InsertOrUpdateBatch(new[]
+            {
+                new FileIndexBatchItem(@"C:\docs\good.txt", now, 10, "indexed text"),
+                new FileIndexBatchItem(@"C:\docsad.pdf", now, 20, string.Empty)
+            });
+
+            Assert.AreEqual(1, db.CountIndexedFiles());
+            Assert.AreEqual(2, db.GetStats().TotalFiles);
+        }
+        finally
+        {
+            if (File.Exists(tempDb))
+            {
+                try { File.Delete(tempDb); } catch { }
+            }
+        }
+    }
+
+    [TestMethod]
     public void Database_CjkAndShortQueries_MatchesSuccessfully()
     {
         var tempDb = Path.Combine(Path.GetTempPath(), $"test_db_cjk_{Guid.NewGuid():N}.db");
