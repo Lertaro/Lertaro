@@ -16,6 +16,7 @@ Open **Settings → Quick Launch → Quick Launch** to manage your own items:
 - The display name is optional. If it is blank, Lertaro derives a name from the target.
 - The file and folder browse buttons support selecting multiple items at once; each valid, non-duplicate target is added as its own entry.
 - Use the drag handle to reorder items. Editing changes the same row into an inline editor with save and cancel controls; the remove control deletes the item.
+- When the list contains items, use **Clear list** beside the list heading to remove all manual items at once; the button is hidden when the list is empty.
 - Missing targets are omitted from the panel until they become available again.
 
 ## 3. Data sources
@@ -25,6 +26,7 @@ Open **Settings → Quick Launch → Data sources** to choose dynamic sources:
 - Sources come from the installed Quick Panel tab providers. This lets Quick Launch reuse Favorites, History, Windows History, Last Directory, Recent Files, and future plugin sources without maintaining a second copy of their data.
 - A source is enabled by default when its provider is present. Only explicitly disabled providers are stored in user settings.
 - A source gets a panel tab only when it is enabled and currently returns data. Empty sources are hidden.
+- Use the drag handle beside a data source to reorder its panel tabs; the order is saved with the Quick Launch settings.
 - If all manual items and dynamic sources are empty, the Quick Launch panel is hidden.
 
 ## 4. Panel interaction

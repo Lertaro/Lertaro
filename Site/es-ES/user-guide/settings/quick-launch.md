@@ -16,6 +16,7 @@ Abre **Configuración → Inicio rápido → Inicio rápido** para gestionar tus
 - El nombre visible es opcional. Si queda vacío, Lertaro lo genera a partir del destino.
 - Los botones para explorar archivos y carpetas permiten seleccionar varios elementos a la vez; cada destino válido y no duplicado se añade como una entrada independiente.
 - Usa el controlador de arrastre para cambiar el orden. Al pulsar editar, la misma fila se convierte en un editor en línea con controles para guardar o cancelar; el control de eliminar quita el elemento.
+- Cuando hay elementos, el botón **Vaciar lista** situado junto al título elimina todos los elementos manuales de una vez; permanece oculto cuando la lista está vacía.
 - Los destinos que no estén disponibles se omiten temporalmente y vuelven a aparecer cuando están disponibles.
 
 ## 3. Fuentes de datos
@@ -25,6 +26,7 @@ Abre **Configuración → Inicio rápido → Fuentes de datos** para elegir fuen
 - Las fuentes proceden de los proveedores de pestañas del Panel rápido instalados. Así Inicio rápido reutiliza Favoritos, Historial, Historial de Windows, Último directorio, Archivos recientes y futuras fuentes de plugins sin duplicar sus datos.
 - Una fuente está activada por defecto cuando existe su proveedor. Solo se guardan en la configuración las fuentes desactivadas explícitamente.
 - Solo se crea una pestaña para una fuente activada que devuelva datos en ese momento. Las fuentes vacías se ocultan.
+- Usa el controlador de arrastre situado junto a una fuente para reordenar sus pestañas del panel; el orden se guarda en la configuración de Inicio rápido.
 - Si no hay datos en ningún elemento manual ni fuente dinámica, el panel de Inicio rápido se oculta.
 
 ## 4. Interacción con el panel
