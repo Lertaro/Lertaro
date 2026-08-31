@@ -202,36 +202,6 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        <!-- Actions View (Self-drawn context actions menu, decoupled and shared) -->
-                        <Grid x:Name="GridActions" Visibility="Collapsed">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <Border Grid.Row="0" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1" 
-                                    Height="{Binding SelectedItem.ActionsHeaderHeight, ElementName=ResultsPanelControl}" Padding="14,0,14,0" Background="{DynamicResource ActionsHeaderBg}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_ActionsTitle]}" Foreground="{DynamicResource AccentBlue}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock x:Name="TxtActionsTarget" Grid.Column="1" Text="" Foreground="{DynamicResource TextPrimary}" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_EscBack]}" Foreground="{DynamicResource TextSecondary}" FontSize="11" VerticalAlignment="Center"/>
-                                </Grid>
-                            </Border>
-                            <!-- Actions List -->
-                            <ListBox x:Name="LstActions" Grid.Row="1"
-                                     Background="Transparent"
-                                     BorderThickness="0"
-                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                     Style="{StaticResource SleekListBoxStyle}"
-                                     ItemContainerStyle="{StaticResource ActionItemStyle}"
-                                     ItemTemplate="{StaticResource ActionMenuItemTemplate}"
-                                     SelectionMode="Single"/>
-                        </Grid>
                     </Grid>
                     </Grid>
                 </Grid>

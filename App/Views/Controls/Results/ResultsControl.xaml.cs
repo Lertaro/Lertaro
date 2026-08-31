@@ -82,11 +82,6 @@ public partial class ResultsControl : System.Windows.Controls.UserControl
         return null;
     }
 
-    public Border LoadingBorder => null!;
-    public System.Windows.Controls.Control LoadingProgressBar => null!;
-    public TextBlock LoadingTitleTextBlock => null!;
-    public TextBlock LoadingStatsTextBlock => null!;
-    public System.Windows.Controls.Button InstallServiceButton => null!;
     public System.Windows.Controls.ListBox ResultsListBox => LstResults;
     public Grid SearchResultsGrid => GridSearchResultsContainer;
     public Grid ActionsGrid => GridActions;
