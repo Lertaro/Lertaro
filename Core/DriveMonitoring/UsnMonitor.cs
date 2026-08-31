@@ -89,6 +89,12 @@ public class UsnMonitor
                     {
                         var err = Marshal.GetLastWin32Error();
                         Logger.Log($"[Monitor] FSCTL_READ_USN_JOURNAL error on drive {_drive}: {err}", LogLevel.Warn);
+                        if (IsJournalReindexError(err))
+                        {
+                            Logger.Log($"[Monitor] USN journal invalidated on drive {_drive} (error {err}). Stopping monitor for re-index.", LogLevel.Error);
+                            _onReindexRequired?.Invoke(_drive);
+                            break;
+                        }
                         handle = await RecoverVolumeHandle(volumePath, handle, err);
                         if (handle.IsInvalid)
                             break;
@@ -242,6 +248,9 @@ public class UsnMonitor
 
     private static bool IsRecoverableVolumeError(int err) =>
         err is Win32Api.ERROR_NOT_READY or Win32Api.ERROR_INVALID_HANDLE or Win32Api.ERROR_DEVICE_NOT_CONNECTED;
+
+    private static bool IsJournalReindexError(int err) =>
+        err is Win32Api.ERROR_JOURNAL_DELETE_IN_PROGRESS or Win32Api.ERROR_JOURNAL_NOT_ACTIVE or Win32Api.ERROR_JOURNAL_ENTRY_DELETED;
 
     private static (ulong JournalId, long LowestValidUsn, long NextUsn)? QueryJournal(SafeFileHandle handle)
     {
