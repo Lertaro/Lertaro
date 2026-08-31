@@ -49,7 +49,7 @@ internal sealed class ResultsHoverSelection
         return moved;
     }
 
-    private static bool TryGetScreenPosition(out Point position)
+    internal static bool TryGetScreenPosition(out Point position)
     {
         if (GetCursorPos(out var nativePosition))
         {

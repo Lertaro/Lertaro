@@ -4,6 +4,7 @@ using Lertaro.App.Views.Controls.Results;
 using ListBox = System.Windows.Controls.ListBox;
 using ListBoxItem = System.Windows.Controls.ListBoxItem;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
+using Point = System.Windows.Point;
 
 namespace Lertaro.App;
 
@@ -13,6 +14,7 @@ internal sealed class SearchWindowHoverPreviewSupport
 {
     private readonly SearchWindow _window;
     private string? _lastHoveredPreviewPath;
+    private Point? _lastScreenPosition;
 
     public SearchWindowHoverPreviewSupport(SearchWindow window, ListBox list)
     {
@@ -22,6 +24,12 @@ internal sealed class SearchWindowHoverPreviewSupport
 
     private void OnListMouseMove(object sender, MouseEventArgs e)
     {
+        if (!ResultsHoverSelection.TryGetScreenPosition(out var position)
+            || !ResultsHoverSelection.UpdatePointerPosition(ref _lastScreenPosition, position))
+        {
+            return;
+        }
+
         var item = ResultsControl.FindVisualParent<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (item?.Content is not AppSearchResult result || !result.CanPreview)
         {
