@@ -1,4 +1,5 @@
 using System.Windows;
+using Lertaro.App.Services;
 using Lertaro.App.ViewModels.LocalSend;
 using WpfDragEventArgs = System.Windows.DragEventArgs;
 using WpfUserControl = System.Windows.Controls.UserControl;
@@ -22,14 +23,17 @@ public partial class LocalSendCollectPanel : WpfUserControl
 
     private void AddFiles_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog { Multiselect = true, Title = "选择要发送的文件" };
+        var dialog = new Microsoft.Win32.OpenFileDialog { Multiselect = true, Title = TranslationManager.Instance["Settings_LocalSend_ChooseFiles"] };
         if (dialog.ShowDialog() == true) ViewModel?.AddPaths(dialog.FileNames);
     }
 
     private void AddFolder_Click(object sender, RoutedEventArgs e)
     {
-        using var dialog = new FolderBrowserDialog { Description = "选择要发送的文件夹", UseDescriptionForTitle = true };
-        if (dialog.ShowDialog() == DialogResult.OK && !string.IsNullOrEmpty(dialog.SelectedPath)) ViewModel?.AddPaths([dialog.SelectedPath]);
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = TranslationManager.Instance["Settings_LocalSend_ChooseFolder"]
+        };
+        if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.FolderName)) ViewModel?.AddPaths([dialog.FolderName]);
     }
 
     private void RemoveItem_Click(object sender, RoutedEventArgs e)
