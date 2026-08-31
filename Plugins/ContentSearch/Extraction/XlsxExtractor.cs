@@ -88,7 +88,7 @@ public sealed class XlsxExtractor : ITextExtractor
                     continue;
 
                 // Flatten in-cell line breaks to spaces (same as dnGrep) so a single cell's
-                // phrase stays contiguous for trigram matching.
+                // phrase stays contiguous for Lucene phrase matching.
                 builder.AppendLine(cellText.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' '));
             }
         }

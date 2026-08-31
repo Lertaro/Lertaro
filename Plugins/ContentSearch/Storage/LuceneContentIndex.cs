@@ -11,13 +11,12 @@ using Lucene.Net.Util;
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
-/// Lucene.Net 4.8-backed full-text index replacing the SQLite FTS5 trigram table on this
-/// experiment branch. One document per indexed file, keyed by a path term so updates rewrite
-/// in place; the text is stored so snippets come straight back without touching SQLite.
-/// The analyzer is whitespace tokenization + lowercase + character n-grams (1..3), which keeps
-/// the substring-search semantics of the FTS5 trigram tokenizer AND lets 1-2 character tokens
-/// go through the index instead of a LIKE scan. Searchers are NRT readers over the writer, so
-/// freshly written batches are searchable before commit.
+/// Lucene.Net 4.8-backed full-text index. One document per indexed file, keyed by a path term
+/// so updates rewrite in place; the text is stored so snippets come straight back without
+/// touching SQLite. The analyzer is whitespace tokenization + lowercase + character n-grams
+/// (1..3), which gives substring search and lets 1-2 character tokens go through the index.
+/// Searchers are NRT readers over the writer, so freshly written batches are searchable before
+/// commit.
 /// </summary>
 internal sealed class LuceneContentIndex : IDisposable
 {
@@ -93,7 +92,7 @@ internal sealed class LuceneContentIndex : IDisposable
     /// <summary>
     /// Each whitespace-separated token must appear as a contiguous substring: the token is run
     /// through the same analyzer and its n-grams become a phrase query at the analyzer's own
-    /// positions, so multi-token queries are AND-ed phrases just like the FTS5 quoted-token query.
+    /// positions, so multi-token queries are AND-ed phrase queries.
     /// </summary>
     public IReadOnlyList<LuceneHit> Search(string rawQuery, int limit)
     {
