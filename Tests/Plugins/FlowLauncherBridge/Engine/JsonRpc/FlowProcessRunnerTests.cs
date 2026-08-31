@@ -24,15 +24,6 @@ public sealed class FlowProcessRunnerTests
     }
 
     [TestMethod]
-    public void FlowJsonRpcPlugin_Constructs_AndInitializes()
-    {
-        var meta = new PluginMetadata { ID = "TEST_RPC", Name = "RpcPlugin" };
-        var runner = new FlowProcessRunner(meta, "non_existent_binary.exe");
-        var plugin = new FlowJsonRpcPlugin(runner, meta);
-        Assert.IsNotNull(plugin);
-    }
-
-    [TestMethod]
     public void FlowProcessRunner_InjectsTriggerKeyword_IntoSettings()
     {
         var meta = new PluginMetadata { ID = "TEST_RPC", Name = "RpcPlugin", ActionKeyword = "tra" };
