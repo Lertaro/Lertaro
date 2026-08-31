@@ -175,8 +175,26 @@ public sealed class IndexBatchProcessor
                 return;
             }
 
-            var text = await TextExtractorRegistry.Instance.ExtractTextAsync(
-                filePath, config.MaxFileSizeBytes, ct);
+            // Hard per-file cap: the extractors apply their own cooperative timeout, but a
+            // pathological file (e.g. a PDF whose parser never returns to a token check)
+            // would otherwise block this lane forever and, through Task.WhenAll, the whole
+            // batch. WaitAsync guarantees the batch moves on; the orphaned extractor task
+            // keeps running but can no longer stall indexing.
+            var hardTimeout = ExtractorTimeoutPolicy.ForFileSize(fileInfo.Length).Add(TimeSpan.FromSeconds(5));
+            string? text;
+            try
+            {
+                text = await TextExtractorRegistry.Instance.ExtractTextAsync(
+                    filePath, config.MaxFileSizeBytes, ct).WaitAsync(hardTimeout, ct);
+            }
+            catch (TimeoutException)
+            {
+                PluginSdk.Logger.Log(
+                    $"[ContentSearch] Timed out extracting '{filePath}' after {hardTimeout.TotalSeconds:F0}s (hard cap)",
+                    PluginSdk.LogLevel.Warn);
+                failedBatch.Add(MakeFailedItem(filePath, fileInfo));
+                return;
+            }
 
             if (text is null)
             {
