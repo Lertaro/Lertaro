@@ -32,6 +32,12 @@ public sealed class ContentIndexScheduler : IDisposable
     public bool IsIndexing => !_pendingFiles.IsEmpty;
     public int PendingCount => _pendingFiles.Count;
 
+    // Raised from the scheduler's background thread whenever the visible indexing state
+    // (queued count, committed rows) changes. Subscribers must marshal to their own
+    // thread; the host wires this to SearchRefreshService to refresh a visible "cs "
+    // placeholder in place.
+    public event Action? ProgressChanged;
+
     // Extraction is CPU-heavy (PDF/XML parsing). Running all four lanes on a low-core machine
     // starves the UI thread and thread-pool continuations. The settings window then takes
     // seconds to open while indexing. Cap the lanes at half the cores so the UI always keeps
@@ -175,6 +181,8 @@ public sealed class ContentIndexScheduler : IDisposable
                     discovered,
                     reachableConfig);
 
+                ProgressChanged?.Invoke();
+
                 _database.Optimize();
                 _database.VacuumIfBloat();
 
@@ -284,6 +292,7 @@ public sealed class ContentIndexScheduler : IDisposable
                     }
                 }
 
+                ProgressChanged?.Invoke();
                 if (ct.WaitHandle.WaitOne(20)) break;
             }
             catch (OperationCanceledException)

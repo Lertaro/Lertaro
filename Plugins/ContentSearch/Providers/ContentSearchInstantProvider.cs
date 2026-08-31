@@ -80,4 +80,12 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider
     }
 
     private static string GetTriggerPrefix() => GetTriggerKeyword() + " ";
+
+    /// <summary>
+    /// True for exactly the query that shows the indexing placeholder ("cs" or "cs " with no
+    /// search term). Used by the host's progress refresh to re-run only that query.
+    /// </summary>
+    internal static bool IsPlaceholderQuery(string query) =>
+        !string.IsNullOrWhiteSpace(query) &&
+        query.Trim().Equals(GetTriggerKeyword(), StringComparison.OrdinalIgnoreCase);
 }
