@@ -2,6 +2,7 @@ using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.ContentSearch.Indexing;
+using Lertaro.Plugins.ContentSearch.Providers;
 using Lertaro.Plugins.ContentSearch.Storage;
 
 namespace Lertaro.Plugins.ContentSearch;
@@ -29,6 +30,8 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
 
         Scheduler = new ContentIndexScheduler(Database);
         Scheduler.Start(LoadConfigFromSettings());
+        Scheduler.ProgressChanged += () =>
+            SearchRefreshService.RefreshIfMatches(ContentSearchInstantProvider.IsPlaceholderQuery);
 
         PluginSettingsService.SettingChanged += (id, _) =>
         {
