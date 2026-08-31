@@ -255,7 +255,8 @@
             <RichTextBox x:Name="LogTextBox" IsReadOnly="True" IsReadOnlyCaretVisible="True"
                          Background="Transparent" BorderThickness="0" Padding="12,10"
                          CaretBrush="{DynamicResource TextPrimary}"
-                         FontFamily="Consolas" FontSize="11"
+                         FontFamily="Consolas, Microsoft YaHei UI, Microsoft JhengHei UI, Malgun Gothic, Yu Gothic UI" FontSize="11"
+                         xml:lang="zh-CN"
                          HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                          PreviewMouseWheel="LogTextBox_PreviewMouseWheel">
                 <!-- The app's TextBox style gives every plain TextBox this same themed context menu
