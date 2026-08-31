@@ -29,6 +29,8 @@ public sealed class SidebarFilterItem
 }
 ```
 
+`SidebarFilterGroup.Id` 是可選的穩定分組識別碼。主機可以根據 `Type` 等已知識別碼套用內建行為；如果分組完全由外掛模組自訂，則留空即可。
+
 ## 2. 結果表格自訂資料欄 `IResultColumnProvider`
 
 在主搜尋視窗的「詳細資料」多列表格檢視中追加自訂資料欄（例如：擷取並展示影音時長、程式碼行數或 Git 存放庫分支名稱）：

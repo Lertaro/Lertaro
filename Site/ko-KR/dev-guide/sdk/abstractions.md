@@ -77,5 +77,19 @@ public interface IConfigurable
 | **`StringList`** | 항목 추가, 삭제, 순서 변경이 가능한 다중 행 목록 상자. |
 | **`Group`** | 접을 수 있는 카드 형태의 하위 필드 그룹(`SubFields`). |
 | **`CustomControl`** | 커스텀 WPF `UIElement` 컨트롤을 직접 임베드. |
+| **`Button`** | 작업 버튼을 표시하고 필드의 `OnClick` 델리게이트를 호출하며 설정 값은 저장하지 않습니다. |
 
 `PluginConfigSchema`는 `OnSave` 및 `OnRollback` 생명주기 델리게이트를 지원하여 저장 및 취소 시의 커스텀 로직을 처리할 수 있습니다.
+
+## 5. 전체 검색 창 파일 결과 `IFullSearchFileResultProvider`
+
+전체 검색 창에 실제 파일 또는 폴더 행을 추가해야 하는 플러그인은 `IFullSearchFileResultProvider`를 구현할 수 있습니다.
+
+```csharp
+public interface IFullSearchFileResultProvider : IPluginComponent
+{
+    IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit);
+}
+```
+
+호스트는 전체 검색 창의 최종 렌더링 단계에서만 `GetFileResults`를 호출합니다. 현재 쿼리를 처리하지 않을 때는 빈 목록을 반환하세요. 반환하는 각 `InstantResultItem`은 실제로 존재하는 파일 또는 폴더를 나타내야 전체 검색 창의 경로, 크기, 유형 열을 의미 있게 표시할 수 있습니다. 이 구성 요소는 플러그인의 즉시 결과 제공자와 동일한 활성화/비활성화 스위치로 관리됩니다.

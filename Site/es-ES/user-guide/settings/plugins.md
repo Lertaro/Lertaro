@@ -49,3 +49,9 @@ Gestiona plugins de Flow directamente con comandos en la barra de búsqueda:
 - **Vistas previas interactivas con WebView2**: Muestra paneles ricos (diccionarios MDict, pronósticos del tiempo, depuradores API, capturas web) en la ventana de QuickLook.
 - **Integración profunda con el anfitrión**: Los plugins de Flow que abren carpetas respetan automáticamente el administrador de archivos de terceros configurado por el anfitrión, los cuadros de mensaje se muestran con el tema visual nativo y los registros internos se integran en el visor de registros de Configuración.
 - **Listado rápido**: Escribe `flow` en la barra de búsqueda para ver todos los plugins cargados y sus palabras clave activas; al seleccionar un plugin se abre su grupo de configuración correspondiente.
+
+## 4. Búsqueda de contenido
+
+El plugin **Búsqueda de contenido** busca en el texto de los documentos locales configurados. En la pestaña **Configurar** puedes establecer la palabra clave activadora, las carpetas supervisadas, las extensiones indexadas, el límite por archivo, el límite de tamaño del índice y las expresiones regulares para excluir rutas completas. La palabra clave predeterminada es `cs`; escribe `cs plan del proyecto` para buscar en el contenido y mostrar archivos coincidentes con fragmentos.
+
+La configuración también ofrece **Borrar índice** y **Reconstruir índice**. Borrar elimina solo el índice de contenido, mientras que Reconstruir lo elimina y vuelve a analizar todas las carpetas supervisadas. Ninguna de las dos acciones elimina el índice normal de nombres de archivo de Lertaro.

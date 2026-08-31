@@ -77,5 +77,19 @@ public interface IConfigurable
 | **`StringList`** | Editable multi-line list box supporting addition, deletion, and reordering. |
 | **`Group`** | Collapsible card grouping containing nested `SubFields`. |
 | **`CustomControl`** | Mounts a custom WPF `UIElement` control directly. |
+| **`Button`** | Renders an action button and invokes the field's `OnClick` delegate; it stores no setting value. |
 
 `PluginConfigSchema` also supports `OnSave` and `OnRollback` lifecycle delegates to manage custom persistence and rollback workflows.
+
+## 5. Full-search file results `IFullSearchFileResultProvider`
+
+Plugins that need to contribute real file or folder rows to the full search window can implement `IFullSearchFileResultProvider`:
+
+```csharp
+public interface IFullSearchFileResultProvider : IPluginComponent
+{
+    IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit);
+}
+```
+
+The host calls `GetFileResults` only during the full search window's final render. Return an empty list when the provider does not handle the query. Every returned `InstantResultItem` must represent an existing file or folder so the full window's path, size, and type columns remain meaningful. The component is managed by the same enable/disable switch as the plugin's instant-result provider.

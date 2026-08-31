@@ -29,6 +29,8 @@ public sealed class SidebarFilterItem
 }
 ```
 
+`SidebarFilterGroup.Id`는 선택 사항인 안정적인 그룹 식별자입니다. 호스트는 `Type`처럼 인식 가능한 식별자에 기본 동작을 적용할 수 있으며, 플러그인 전용 그룹이면 비워 두면 됩니다.
+
 ## 2. 테이블 커스텀 열 제공자 `IResultColumnProvider`
 
 메인 검색 윈도우의 "자세히" 테이블 뷰에 커스텀 데이터 열을 추가합니다 (예: 미디어 재생 시간, 코드 줄 수, Git 브랜치명 등).

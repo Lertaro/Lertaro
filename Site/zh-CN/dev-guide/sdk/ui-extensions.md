@@ -29,6 +29,8 @@ public sealed class SidebarFilterItem
 }
 ```
 
+`SidebarFilterGroup.Id` 是可选的稳定分组标识。宿主可以根据 `Type` 等已知标识应用内置行为；如果分组完全由插件自定义，则留空即可。
+
 ## 2. 结果表格自定义数据列 `IResultColumnProvider`
 
 在主搜索窗口的“详细信息”多列表格视图中追加自定义数据列（例如：提取并展示音视频时长、代码行数或 Git 仓库分支名）：

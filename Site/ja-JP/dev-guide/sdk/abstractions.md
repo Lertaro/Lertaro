@@ -77,5 +77,19 @@ public interface IConfigurable
 | **`StringList`** | 項目の追加・削除・並び替えが可能な複数行リスト。 |
 | **`Group`** | 折りたたみ可能なカード形式のサブフィールドグループ（`SubFields`）。 |
 | **`CustomControl`** | プラグインが作成したカスタム WPF `UIElement` を直接埋め込み。 |
+| **`Button`** | 操作ボタンを表示し、フィールドの `OnClick` デリゲートを呼び出します。設定値は保存しません。 |
 
 `PluginConfigSchema` では `OnSave` や `OnRollback` デリゲートを設定し、保存や破棄時のカスタム処理をフックできます。
+
+## 5. フル検索ウィンドウのファイル結果 `IFullSearchFileResultProvider`
+
+フル検索ウィンドウに実在するファイルやフォルダーの行を追加するプラグインは、`IFullSearchFileResultProvider` を実装できます。
+
+```csharp
+public interface IFullSearchFileResultProvider : IPluginComponent
+{
+    IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit);
+}
+```
+
+ホストはフル検索ウィンドウの最終描画時だけ `GetFileResults` を呼び出します。現在のクエリを処理しない場合は空のリストを返してください。返す各 `InstantResultItem` は実在するファイルまたはフォルダーを表す必要があります。これにより、フル検索ウィンドウのパス、サイズ、種類の列を正しく表示できます。このコンポーネントは、プラグインのインスタント結果プロバイダーと同じ有効化・無効化スイッチで管理されます。

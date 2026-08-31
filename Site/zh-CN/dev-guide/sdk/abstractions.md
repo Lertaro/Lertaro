@@ -77,5 +77,19 @@ public interface IConfigurable
 | **`StringList`** | 支持多行编辑与条目增删排序的多行列表框。 |
 | **`Group`** | 包含子字段列表（`SubFields`）的可折叠卡片分组。 |
 | **`CustomControl`** | 允许插件直接挂载一个自定义的 WPF `UIElement` 控件实例。 |
+| **`Button`** | 渲染操作按钮并调用字段的 `OnClick` 委托，不存储设置值。 |
 
 `PluginConfigSchema` 亦支持配置 `OnSave` 与 `OnRollback` 生命周期委托，在用户点击确认提交或离开页面放弃修改时执行自定义持久化或状态复原。
+
+## 5. 完整搜索窗口文件结果 `IFullSearchFileResultProvider`
+
+如果插件需要向完整搜索窗口贡献真实的文件或文件夹行，可以实现 `IFullSearchFileResultProvider`：
+
+```csharp
+public interface IFullSearchFileResultProvider : IPluginComponent
+{
+    IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit);
+}
+```
+
+宿主只会在完整搜索窗口的最终渲染阶段调用 `GetFileResults`。插件不处理当前查询时应返回空列表。返回的每个 `InstantResultItem` 都必须对应一个实际存在的文件或文件夹，这样完整窗口的路径、大小和类型列才有意义。该组件与插件的即时结果提供者共用同一个启用/禁用开关。

@@ -29,6 +29,8 @@ public sealed class SidebarFilterItem
 }
 ```
 
+`SidebarFilterGroup.Id` is an optional stable group identifier. The host can use recognised identifiers such as `Type` to apply built-in behaviour; leave it empty when the group is entirely plugin-defined.
+
 ## 2. Custom Table Column Provider `IResultColumnProvider`
 
 Appends custom data columns to the "Details" table view of the Full Search window (e.g. displaying media duration, lines of code, or Git branches):

@@ -29,6 +29,8 @@ public sealed class SidebarFilterItem
 }
 ```
 
+`SidebarFilterGroup.Id` es un identificador de grupo estable y opcional. El anfitrión puede aplicar comportamientos integrados a identificadores reconocidos como `Type`; déjalo vacío cuando el grupo sea completamente propio del plugin.
+
 ## 2. Proveedor de columnas personalizadas `IResultColumnProvider`
 
 Añade columnas de datos adicionales a la vista de tabla "Detalles" de la ventana principal (p. ej. duración multimedia, líneas de código o ramas Git):

@@ -77,5 +77,19 @@ public interface IConfigurable
 | **`StringList`** | 支援多行編輯與項目增刪排序的多行列表框。 |
 | **`Group`** | 包含子欄位列表（`SubFields`）的可折疊卡片分組。 |
 | **`CustomControl`** | 允許外掛模組直接掛載一個自訂的 WPF `UIElement` 控制項執行個體。 |
+| **`Button`** | 顯示操作按鈕並呼叫欄位的 `OnClick` 委派，不儲存設定值。 |
 
 `PluginConfigSchema` 亦支援設定 `OnSave` 與 `OnRollback` 生命週期委派，在使用者按一下確認提交或離開頁面放棄修改時執行自訂持久化或狀態復原。
+
+## 5. 完整搜尋視窗檔案結果 `IFullSearchFileResultProvider`
+
+如果外掛模組需要向完整搜尋視窗提供真實的檔案或資料夾列，可以實作 `IFullSearchFileResultProvider`：
+
+```csharp
+public interface IFullSearchFileResultProvider : IPluginComponent
+{
+    IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit);
+}
+```
+
+宿主只會在完整搜尋視窗的最終渲染階段呼叫 `GetFileResults`。外掛模組不處理目前查詢時應返回空列表。返回的每個 `InstantResultItem` 都必須對應一個實際存在的檔案或資料夾，這樣完整視窗的路徑、大小和類型欄位才有意義。此元件與外掛模組的即時結果提供者共用同一個啟用/停用開關。

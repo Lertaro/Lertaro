@@ -54,6 +54,7 @@ By typing a short **trigger keyword + space** followed by your query, you can in
 | `bm` | **Browser Data** | Search bookmarks and history from Chrome, Edge, and Firefox profiles (history and bookmarks toggleable independently). | `bm github` |
 | `set` | **Settings Search** | Fuzzy-search Lertaro's internal settings. Selecting an item jumps directly to that setting page and highlights it. | `set hotkey` or `set fuzzy` |
 | `flow` | **Flow Launcher Bridge** | Lists loaded Flow.Launcher plugins and their action keywords, connecting with the Flow community ecosystem. | `flow` |
+| `cs` | **Content Search** | Searches the text of indexed local documents and returns matching files with snippets. | `cs project plan` |
 
 ## 3. Web Search Engines
 

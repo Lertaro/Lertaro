@@ -54,6 +54,7 @@ Escribe una breve **palabra clave activadora + espacio** seguida de tu consulta 
 | `bm` | **Datos del navegador** | Busca marcadores e historial de Chrome, Edge y Firefox (marcadores e historial activables por separado). | `bm github` |
 | `set` | **Búsqueda en Configuración** | Búsqueda difusa en las opciones de Lertaro. Al seleccionar una, salta a la página correspondiente y la resalta. | `set atajo` o `set difuso` |
 | `flow` | **Puente Flow Launcher** | Muestra los plugins cargados de Flow.Launcher y sus palabras clave, aprovechando su ecosistema. | `flow` |
+| `cs` | **Búsqueda de contenido** | Busca en el texto de documentos locales indexados y muestra archivos coincidentes con fragmentos. | `cs plan del proyecto` |
 
 ## 3. Motores de búsqueda web
 

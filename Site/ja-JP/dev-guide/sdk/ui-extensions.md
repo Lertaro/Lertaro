@@ -29,6 +29,8 @@ public sealed class SidebarFilterItem
 }
 ```
 
+`SidebarFilterGroup.Id` は任意の安定したグループ識別子です。ホストは `Type` など認識済みの識別子に対して組み込みの動作を適用できます。プラグイン独自のグループでは空欄にしてください。
+
 ## 2. テーブルカスタム列プロバイダー `IResultColumnProvider`
 
 メイン検索ウィンドウの「詳細」テーブルビューにカスタム列を追加します（例: メディア再生時間、コード行数、Git ブランチ名等）。
