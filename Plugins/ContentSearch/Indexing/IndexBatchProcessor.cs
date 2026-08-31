@@ -224,6 +224,18 @@ public sealed class IndexBatchProcessor
             PluginSdk.Logger.Log(
                 $"[ContentSearch] Failed to index '{filePath}': {ex.Message}",
                 PluginSdk.LogLevel.Warn);
+            // Persist the failure too: otherwise the file has no row at all and every
+            // full scan would re-discover and re-attempt it forever. MakeFailedItem is
+            // best-effort here because the exception may have happened before metadata
+            // could be read (e.g. File.Exists on a hung share).
+            try
+            {
+                failedBatch.Add(MakeFailedItem(filePath, new FileInfo(filePath)));
+            }
+            catch
+            {
+                // Metadata unavailable; leave no row so the next scan retries it.
+            }
         }
     }
 
