@@ -8,14 +8,12 @@ using QuickSearchWindowView = Lertaro.App.QuickSearchWindow;
 
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
 
-// Owns the quick-window-only domain completion so the general search and inline search behaviors remain unchanged.
+// Owns the quick-window-only domain suggestions so the general search and inline search behaviors remain unchanged.
 internal sealed class QuickSearchDomainUrlSupport : IDisposable
 {
     private static readonly TimeSpan QueryChangeDelay = TimeSpan.FromMilliseconds(80);
     private readonly QuickSearchWindowView _window;
     private readonly DispatcherTimer _queryTimer;
-    private bool _isApplying;
-
     public QuickSearchDomainUrlSupport(QuickSearchWindowView window)
     {
         _window = window;
@@ -37,9 +35,6 @@ internal sealed class QuickSearchDomainUrlSupport : IDisposable
 
     private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
     {
-        if (_isApplying)
-            return;
-
         _queryTimer.Stop();
         _queryTimer.Start();
     }
@@ -60,26 +55,39 @@ internal sealed class QuickSearchDomainUrlSupport : IDisposable
 
     private void TryCompleteDomainUrl()
     {
-        if (_isApplying || _window.IsInActionsMode || _window.ViewModel.IsSearching)
+        if (_window.IsInActionsMode || _window.ViewModel.IsSearching)
+            return;
+
+        // Only replace the engine's explicit no-results row. An empty collection can be a transient
+        // state while a new query is being dispatched, and must never be treated as a settled miss.
+        if (!_window.ViewModel.Results.Any(result => result.IsEmptyResult))
             return;
 
         if (_window.ViewModel.Results.Any(result => !result.IsEmptyResult && !result.IsSearchSectionHeader))
             return;
 
-        if (!DomainUrlHelper.TryBuildHttpsUrl(_window.TxtSearch.Text, out var url))
+        if (!DomainUrlHelper.TryBuildWebUrls(_window.TxtSearch.Text, out var httpsUrl, out var httpUrl))
             return;
 
-        _isApplying = true;
-        try
+        var query = _window.TxtSearch.Text;
+        _window.ViewModel.Search.Results.ReplaceRange(new[]
         {
-            _window.TxtSearch.Text = url;
-            _window.TxtSearch.CaretIndex = url.Length;
-            _window.TxtSearch.SelectionStart = url.Length;
-            _window.TxtSearch.SelectionLength = 0;
-        }
-        finally
-        {
-            _isApplying = false;
-        }
+            CreateWebUrlResult(httpsUrl, query),
+            CreateWebUrlResult(httpUrl, query)
+        });
     }
+
+    private static AppSearchResult CreateWebUrlResult(string url, string query) => new()
+    {
+        Name = url,
+        FullPath = url,
+        ParentDir = string.Empty,
+        IsDir = false,
+        Drive = string.Empty,
+        ResultKind = "InstantResult",
+        SearchQuery = query,
+        IconOverride = FavoriteUrlHelper.Icon,
+        InstantResultActionType = "Execute",
+        InstantResultActionArgument = url
+    };
 }

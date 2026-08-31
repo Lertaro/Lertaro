@@ -21,14 +21,16 @@ internal static class DomainUrlHelper
         $@"\A(?:{UserInfoToken}+@)?{Host}(?::{Port})?(?:/{PathOrQueryToken}*)?(?:\?{PathOrQueryToken}*)?(?:\#{PathOrQueryToken}*)?\z",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
-    public static bool TryBuildHttpsUrl(string? input, out string url)
+    public static bool TryBuildWebUrls(string? input, out string httpsUrl, out string httpUrl)
     {
-        url = string.Empty;
+        httpsUrl = string.Empty;
+        httpUrl = string.Empty;
         var candidate = input?.Trim();
         if (string.IsNullOrEmpty(candidate) || !BareHttpUrlPattern.IsMatch(candidate))
             return false;
 
-        url = $"https://{candidate}";
+        httpsUrl = $"https://{candidate}";
+        httpUrl = $"http://{candidate}";
         return true;
     }
 }
