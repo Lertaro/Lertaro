@@ -34,10 +34,8 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         Search.PropertyChanged += (s, e) =>
         {
             OnPropertyChanged(e.PropertyName);
-            if (e.PropertyName == nameof(SelectedResult))
-            {
-                OnPropertyChanged(nameof(PathPreviewVisibility));
-            }
+            if (e.PropertyName == nameof(SelectedResult)) OnPropertyChanged(nameof(PathPreviewVisibility));
+            if (e.PropertyName == nameof(SearchExecutionViewModel.IsActionsMode)) OnPropertyChanged(nameof(LaunchPanelVisibility));
         };
         Monitor.PropertyChanged += (s, e) => OnPropertyChanged(e.PropertyName);
 
@@ -219,6 +217,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     public Visibility ClockVisibility => !IsInlineSearchContext && UserSettings.Load().SearchWindow.ShowClock ? Visibility.Visible : Visibility.Collapsed;
 
     public Visibility LaunchPanelVisibility => !IsInlineSearchContext
+        && !Search.IsActionsMode
         && string.IsNullOrWhiteSpace(SearchQuery)
         && UserSettings.Load().QuickLaunch.Enabled
         && LaunchSources.Count > 0
