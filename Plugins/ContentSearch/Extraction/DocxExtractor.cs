@@ -11,7 +11,6 @@ namespace Lertaro.Plugins.ContentSearch.Extraction;
 /// </summary>
 public sealed class DocxExtractor : ITextExtractor
 {
-    private const int MaxExtractedCharacters = 500_000;
     private static readonly XNamespace WordNs = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 
     public bool CanHandle(string extension) =>
@@ -25,7 +24,7 @@ public sealed class DocxExtractor : ITextExtractor
             return null;
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+        timeoutCts.CancelAfter(ExtractorTimeoutPolicy.ForFileSize(fileInfo.Length));
 
         try
         {
@@ -36,6 +35,13 @@ public sealed class DocxExtractor : ITextExtractor
                 using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read, leaveOpen: false);
                 return ExtractDocumentText(archive, timeoutCts.Token);
             }, timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Timed out extracting Word document '{filePath}'",
+                PluginSdk.LogLevel.Warn);
+            return null;
         }
         catch (Exception ex)
         {
@@ -57,7 +63,9 @@ public sealed class DocxExtractor : ITextExtractor
         AppendPrefixedParts(archive, "word/header", builder, ct);
         AppendPrefixedParts(archive, "word/footer", builder, ct);
 
-        return builder.Length > 0 ? builder.ToString() : null;
+        // Empty string (not null) for a well-formed but textless document; null is
+        // reserved for actual extraction failures.
+        return builder.ToString();
     }
 
     private static void AppendParagraphsFromEntry(ZipArchiveEntry? entry, StringBuilder builder, CancellationToken ct)
@@ -72,8 +80,6 @@ public sealed class DocxExtractor : ITextExtractor
         {
             ct.ThrowIfCancellationRequested();
             AppendParagraphText(paragraph, builder);
-            if (builder.Length >= MaxExtractedCharacters)
-                return;
         }
     }
 
@@ -95,8 +101,6 @@ public sealed class DocxExtractor : ITextExtractor
             {
                 ct.ThrowIfCancellationRequested();
                 AppendParagraphText(paragraph, builder);
-                if (builder.Length >= MaxExtractedCharacters)
-                    return;
             }
         }
     }
@@ -121,8 +125,6 @@ public sealed class DocxExtractor : ITextExtractor
                 AppendParagraphText(paragraph, builder);
             }
 
-            if (builder.Length >= MaxExtractedCharacters)
-                return;
         }
     }
 
@@ -135,8 +137,6 @@ public sealed class DocxExtractor : ITextExtractor
         foreach (var entry in entries)
         {
             AppendParagraphsFromEntry(entry, builder, ct);
-            if (builder.Length >= MaxExtractedCharacters)
-                return;
         }
     }
 

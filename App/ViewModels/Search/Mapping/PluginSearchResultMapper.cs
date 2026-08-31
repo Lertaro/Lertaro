@@ -2,6 +2,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Lertaro.Core;
 using Lertaro.App.Services;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 
 using Lertaro.App.Services.Plugin;
 using Lertaro.App.Services.ShellIcons;
@@ -65,6 +66,52 @@ public static class PluginSearchResultMapper
                 {
                     if (item == null)
                         continue;
+
+                    MapItem(uiResults, item, effectiveHighlightQuery, provider);
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[SearchResultMapper] Error getting instant results from provider '{provider.Name}': {ex.Message}", LogLevel.Error);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Maps already-fetched instant result items into display rows. Used by the full search window,
+    /// which requests file-like results from IFullSearchFileResultProvider on its final render
+    /// instead of going through the normal instant-result emission path.
+    /// </summary>
+    public static void AddInstantResultItems(
+        List<AppSearchResult> uiResults,
+        IEnumerable<InstantResultItem>? items,
+        string? highlightQuery,
+        IPluginComponent sourceProvider)
+    {
+        if (items == null)
+            return;
+
+        var effectiveHighlightQuery = highlightQuery ?? string.Empty;
+        var firstAdded = uiResults.Count;
+        foreach (var item in items)
+        {
+            if (item == null)
+                continue;
+
+            MapItem(uiResults, item, effectiveHighlightQuery, sourceProvider);
+        }
+
+        // Rows from IFullSearchFileResultProvider are marked so the full search window can exclude
+        // them again while a type filter is selected, even if they were merged on an earlier render.
+        for (var i = firstAdded; i < uiResults.Count; i++)
+        {
+            uiResults[i].IsFullSearchFileResult = true;
+        }
+    }
+
+    private static void MapItem(List<AppSearchResult> uiResults, InstantResultItem item, string effectiveHighlightQuery, IPluginComponent provider)
+    {
 
                     // Detect if the result represents a real file or directory to unlock native thumbnail and correct path display
                     var isRealFile = false;
@@ -154,14 +201,7 @@ public static class PluginSearchResultMapper
                         TabCompletion = SanitizeSingleLine(item.TabCompletion),
                         SourceProvider = provider
                     });
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Log($"[SearchResultMapper] Error getting instant results from provider '{provider.Name}': {ex.Message}", LogLevel.Error);
-            }
-        }
-    }
+                    }
 
     public static bool AddPluginSearchActionResults(List<AppSearchResult> uiResults, string query, string? contextDirectory, bool isInlineWindow)
     {

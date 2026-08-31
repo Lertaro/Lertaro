@@ -168,9 +168,9 @@ static string? ReadInitialQueryFromStdin()
 {
     if (!Console.IsInputRedirected)
         return null;
-    foreach (var line in Console.In.ReadToEnd().Split('\n'))
+    while (Console.In.ReadLine() is { } line)
     {
-        var trimmed = line.Trim('\r', '\n', ' ', '\t');
+        var trimmed = line.Trim(' ', '\t');
         if (trimmed.Length > 0)
             return trimmed;
     }

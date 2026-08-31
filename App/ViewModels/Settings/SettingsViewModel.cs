@@ -108,6 +108,13 @@ public class SettingsViewModel : ViewModelBase
         _statusMonitor.Dispose();
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
         Log.Dispose();
+        _searchService.Dispose();
+        General.Cleanup();
+        Appearance.Cleanup();
+        LocalDrive.Cleanup();
+        NetworkDrive.Cleanup();
+        Hotkeys.Cleanup();
+        _plugins?.Cleanup();
 
         if (!_isSaved)
         {
@@ -192,6 +199,10 @@ public class SettingsViewModel : ViewModelBase
         PluginManager.Instance.RefreshDisabledComponents();
         InlineSearchManager.Instance.ExplorerTracker.RefreshActiveWindowAdapters();
         NetworkDrive.ResetPendingEdits();
+        // Favorites/quick-launch edits must reach search windows that are already open: the quick
+        // window's launch panel otherwise only rebuilds on its next show, and its live result list
+        // keeps the rows the previous query read -- see OpenSearchWindowRefresher.
+        OpenSearchWindowRefresher.AfterSettingsSaved();
         var exclusionsChanged = SettingsChangeSnapshot.ExclusionsChanged(previousExclusions, SettingsChangeSnapshot.CaptureExclusions(_userSettings));
         var newDisabledAliases = _userSettings.DisabledPluginComponents
             .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))
@@ -200,6 +211,8 @@ public class SettingsViewModel : ViewModelBase
 
         _ = Task.Run(async () =>
         {
+            try
+            {
             var previousLocalDrives = (await _searchService.GetMachineSettingsAsync()).LocalDrives.ToList();
             if (SettingsChangeSnapshot.StringListChanged(previousLocalDrives, machineSettings.LocalDrives))
                 await _searchService.SaveMachineSettingsAsync(machineSettings);
@@ -237,8 +250,15 @@ public class SettingsViewModel : ViewModelBase
 
             if (aliasProviderEnabled)
                 await _searchService.InitializeOrLoadIndexAsync(false);
-
-            RefreshLists();
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[Settings] Apply pipeline failed: {ex}", LogLevel.Error);
+            }
+            finally
+            {
+                RefreshLists();
+            }
         });
     }
 

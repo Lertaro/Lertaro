@@ -30,8 +30,16 @@ internal static class PluginLoader
             // Recursive: a plugin with its own dependency DLLs can sit in its own subdirectory (they
             // colocate with Assembly.LoadFrom's own implicit same-directory probing for dependency
             // resolution) instead of every DLL needing to live flat in Plugins/ directly.
+            // Only actual plugin entry assemblies (Lertaro.Plugins.*.dll) are scanned directly.
+            // Dependency DLLs are resolved implicitly from the plugin's own directory when its main
+            // assembly loads; loading them here as if they were plugins can fail with
+            // "Assembly with same name is already loaded" when two plugins bundle the same package
+            // (e.g. Microsoft.Data.Sqlite in both BrowserData and ContentSearch).
             foreach (var dllFile in Directory.GetFiles(pluginsDir, "*.dll", SearchOption.AllDirectories))
             {
+                var assemblyName = Path.GetFileNameWithoutExtension(dllFile);
+                if (!assemblyName.StartsWith("Lertaro.Plugins.", StringComparison.OrdinalIgnoreCase))
+                    continue;
                 TryLoadAssembly(dllFile, registry);
             }
         }
@@ -75,6 +83,13 @@ internal static class PluginLoader
                     var provider = (PluginSdk.Abstractions.Plugins.IInstantResultProvider)Activator.CreateInstance(type)!;
                     registry.AddInstantResultProvider(provider);
                     Logger.Log($"[PluginManager] Loaded instant result provider: '{type.Name}' from {fileName}");
+                }
+
+                if (typeof(PluginSdk.Abstractions.Plugins.IFullSearchFileResultProvider).IsAssignableFrom(type))
+                {
+                    var provider = (PluginSdk.Abstractions.Plugins.IFullSearchFileResultProvider)Activator.CreateInstance(type)!;
+                    registry.AddFullSearchFileResultProvider(provider);
+                    Logger.Log($"[PluginManager] Loaded full search file result provider: '{type.Name}' from {fileName}");
                 }
 
                 if (typeof(PluginSdk.Abstractions.Plugins.ISearchableItemProvider).IsAssignableFrom(type))
@@ -175,6 +190,12 @@ internal static class PluginLoader
             // (e.g. a SQLite provider's e_sqlite3.dll) now that the scan is recursive into each
             // plugin's own subdirectory. Not a failure, so not worth an Error-level log line.
             Logger.Log($"[PluginManager] Skipped non-.NET file: {fileName}", LogLevel.Debug);
+        }
+        catch (FileLoadException ex) when (ex.Message.Contains("same name is already loaded", StringComparison.OrdinalIgnoreCase))
+        {
+            // Two plugins can legitimately bundle the same dependency (e.g. Microsoft.Data.Sqlite).
+            // The second copy is not a plugin entry assembly, so this is expected -- keep it quiet.
+            Logger.Log($"[PluginManager] Skipped duplicate dependency assembly: {fileName}", LogLevel.Debug);
         }
         catch (Exception ex)
         {

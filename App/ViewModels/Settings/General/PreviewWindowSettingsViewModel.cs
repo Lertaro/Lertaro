@@ -16,8 +16,8 @@ public class PreviewWindowSettingsViewModel : ViewModelBase
     public PreviewWindowSettingsViewModel(UserSettings userSettings)
     {
         _userSettings = userSettings;
-        _width = userSettings.PreviewWindow.Width;
-        _height = userSettings.PreviewWindow.Height;
+        _width = UiMetrics.RoundWindowSize(userSettings.PreviewWindow.Width);
+        _height = UiMetrics.RoundWindowSize(userSettings.PreviewWindow.Height);
     }
 
     public double Width
@@ -25,12 +25,13 @@ public class PreviewWindowSettingsViewModel : ViewModelBase
         get => _width;
         set
         {
-            if (value < UiMetrics.MinPreviewWindowWidth || value > UiMetrics.MaxPreviewWindowWidth)
+            var rounded = UiMetrics.RoundWindowSize(value);
+            if (rounded < UiMetrics.MinPreviewWindowWidth || rounded > UiMetrics.MaxPreviewWindowWidth)
             {
                 throw new ArgumentOutOfRangeException(nameof(value),
                     $"Width must be between {UiMetrics.MinPreviewWindowWidth} and {UiMetrics.MaxPreviewWindowWidth}.");
             }
-            SetProperty(ref _width, value);
+            SetProperty(ref _width, rounded);
         }
     }
 
@@ -39,12 +40,13 @@ public class PreviewWindowSettingsViewModel : ViewModelBase
         get => _height;
         set
         {
-            if (value < UiMetrics.MinPreviewWindowHeight || value > UiMetrics.MaxPreviewWindowHeight)
+            var rounded = UiMetrics.RoundWindowSize(value);
+            if (rounded < UiMetrics.MinPreviewWindowHeight || rounded > UiMetrics.MaxPreviewWindowHeight)
             {
                 throw new ArgumentOutOfRangeException(nameof(value),
                     $"Height must be between {UiMetrics.MinPreviewWindowHeight} and {UiMetrics.MaxPreviewWindowHeight}.");
             }
-            SetProperty(ref _height, value);
+            SetProperty(ref _height, rounded);
         }
     }
 

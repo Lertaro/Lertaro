@@ -22,7 +22,7 @@
             </Grid.RowDefinitions>
             <Border Grid.Row="0" Margin="0,0,0,10" Background="{DynamicResource ControlBackground}" CornerRadius="6" Padding="2" HorizontalAlignment="Left">
                 <StackPanel Orientation="Horizontal">
-                    <RadioButton Content="文件 / 文件夹" IsChecked="{Binding IsFilesMode, Mode=OneWay}" Click="FilesMode_Click" Style="{StaticResource SegmentRadioButtonStyle}"/>
+                    <RadioButton Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_FilesOrFolders], Mode=OneWay}" IsChecked="{Binding IsFilesMode, Mode=OneWay}" Click="FilesMode_Click" Style="{StaticResource SegmentRadioButtonStyle}"/>
                     <RadioButton Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Text], Mode=OneWay}" IsChecked="{Binding IsTextMode, Mode=OneWay}" Click="TextMode_Click" Style="{StaticResource SegmentRadioButtonStyle}"/>
                 </StackPanel>
             </Border>
@@ -32,8 +32,8 @@
                 </Grid.Style>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <Button Content="添加文件" Click="AddFiles_Click" Style="{StaticResource SettingsButton}" Height="28" Padding="12,0" Margin="0,0,8,0"/>
-                    <Button Content="添加文件夹" Click="AddFolder_Click" Style="{StaticResource SettingsButton}" Height="28" Padding="12,0"/>
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_AddFiles], Mode=OneWay}" Click="AddFiles_Click" Style="{StaticResource SettingsButton}" Height="28" Padding="12,0" Margin="0,0,8,0"/>
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_AddFolder], Mode=OneWay}" Click="AddFolder_Click" Style="{StaticResource SettingsButton}" Height="28" Padding="12,0"/>
                 </StackPanel>
                 <Border Grid.Row="1" Background="{DynamicResource FieldBackground}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="8">
                     <ListBox ItemsSource="{Binding CollectedItems}" Background="Transparent" BorderThickness="0" Margin="4" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
@@ -62,7 +62,7 @@
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="{Binding DisplayName}" ToolTip="{Binding Path}" FontSize="12" Foreground="{DynamicResource TextPrimary2}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                    <Button Grid.Column="1" Content="&#xE74D;" Click="RemoveItem_Click" Style="{StaticResource RemoveItemButtonStyle}" ToolTip="移除" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                    <Button Grid.Column="1" Content="&#xE74D;" Click="RemoveItem_Click" Style="{StaticResource RemoveItemButtonStyle}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Remove]}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="4,0,0,0"/>
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -77,7 +77,7 @@
         <Border Grid.Row="1" Background="{DynamicResource FooterBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0" Padding="16,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                 <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Cancel]}" Click="Cancel_Click" Style="{StaticResource SettingsButton}" Margin="0,0,8,0" Width="80" Height="30"/>
-                <Button Content="下一步" Click="Next_Click" Style="{StaticResource PrimarySettingsButton}" IsEnabled="{Binding CanGoNextStep}" Width="85" Height="30"/>
+                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Next], Mode=OneWay}" Click="Next_Click" Style="{StaticResource PrimarySettingsButton}" IsEnabled="{Binding CanGoNextStep}" Width="85" Height="30"/>
             </StackPanel>
         </Border>
     </Grid>

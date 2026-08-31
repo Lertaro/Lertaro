@@ -14,6 +14,8 @@ namespace Lertaro.App.ViewModels.Settings.General;
 // Save() runs (called from GeneralSettingsViewModel.Apply()).
 public class ColumnOrderViewModel : ViewModelBase
 {
+    private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
+
     private readonly UserSettings _userSettings;
 
     public ColumnOrderViewModel(UserSettings userSettings)
@@ -46,11 +48,13 @@ public class ColumnOrderViewModel : ViewModelBase
         MoveUpCommand = new RelayCommand<ColumnOrderItem>(MoveUp);
         MoveDownCommand = new RelayCommand<ColumnOrderItem>(MoveDown);
 
-        TranslationManager.Instance.PropertyChanged += (_, _) =>
+        _translationHandler = (_, _) =>
         {
             foreach (var item in Items)
                 item.NotifyLanguageChanged();
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
+
     }
 
     public ObservableCollection<ColumnOrderItem> Items { get; } = new();
@@ -83,6 +87,8 @@ public class ColumnOrderViewModel : ViewModelBase
     }
 
     public void Save() => _userSettings.ColumnOrder = Items.Select(x => x.Id).ToList();
+
+    public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
 }
 
 public class ColumnOrderItem : OrderItemBase

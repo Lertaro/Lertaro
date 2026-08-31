@@ -14,13 +14,15 @@ public partial class PluginConfigTemplates : ResourceDictionary
         if (sender is not System.Windows.Controls.Button btn) return;
         var panel = btn.Parent as System.Windows.Controls.StackPanel;
         var textBox = panel?.Children.OfType<System.Windows.Controls.TextBox>().FirstOrDefault();
+        if (textBox == null)
+            return;
 
         if (btn.Tag as string == "Folder")
         {
             var dlg = new OpenFolderDialog();
             if (dlg.ShowDialog() == true)
             {
-                textBox!.Text = dlg.FolderName;
+                textBox.Text = dlg.FolderName;
                 textBox.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)?.UpdateSource();
             }
         }
@@ -29,7 +31,7 @@ public partial class PluginConfigTemplates : ResourceDictionary
             var dlg = new Microsoft.Win32.OpenFileDialog();
             if (dlg.ShowDialog() == true)
             {
-                textBox!.Text = dlg.FileName;
+                textBox.Text = dlg.FileName;
                 textBox.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)?.UpdateSource();
             }
         }

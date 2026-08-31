@@ -28,7 +28,11 @@ public static class ShellPasteHelper
         if (sourcePaths.Count == 0) return;
 
         var dispatcher = ShellOperationStaWorker.StaDispatcher;
-        if (dispatcher == null) return;
+        if (dispatcher == null)
+        {
+            Logger.Log("[ShellPasteHelper] Shell STA worker is unavailable; paste was not performed.", LogLevel.Error);
+            return;
+        }
 
         dispatcher.BeginInvoke(new Action(() =>
         {
@@ -53,27 +57,40 @@ public static class ShellPasteHelper
 
             var destIid = typeof(IShellItem).GUID;
             ShellItemInterop.SHCreateItemFromParsingName(destinationFolder, IntPtr.Zero, ref destIid, out var destItem);
-
-            var queued = 0;
-            foreach (var path in sourcePaths)
+            try
             {
-                try
+                var queued = 0;
+                foreach (var path in sourcePaths)
                 {
-                    var iid = typeof(IShellItem).GUID;
-                    ShellItemInterop.SHCreateItemFromParsingName(path, IntPtr.Zero, ref iid, out var item);
-                    if (move)
-                        fileOp.MoveItem(item, destItem, null, null);
-                    else
-                        fileOp.CopyItem(item, destItem, null, null);
-                    queued++;
+                    try
+                    {
+                        var iid = typeof(IShellItem).GUID;
+                        ShellItemInterop.SHCreateItemFromParsingName(path, IntPtr.Zero, ref iid, out var item);
+                        try
+                        {
+                            if (move)
+                                fileOp.MoveItem(item, destItem, null, null);
+                            else
+                                fileOp.CopyItem(item, destItem, null, null);
+                            queued++;
+                        }
+                        finally
+                        {
+                            Marshal.ReleaseComObject(item);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log($"[ShellPasteHelper] Failed to queue {(move ? "move" : "copy")} for '{path}': {ex.Message}", LogLevel.Error);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Logger.Log($"[ShellPasteHelper] Failed to queue {(move ? "move" : "copy")} for '{path}': {ex.Message}", LogLevel.Error);
-                }
-            }
 
-            if (queued == 0) return;
+                if (queued == 0) return;
+            }
+            finally
+            {
+                Marshal.ReleaseComObject(destItem);
+            }
 
             fileOp.PerformOperations();
         }

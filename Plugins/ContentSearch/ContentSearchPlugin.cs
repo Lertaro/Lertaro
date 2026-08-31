@@ -2,6 +2,7 @@ using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.ContentSearch.Indexing;
+using Lertaro.Plugins.ContentSearch.Providers;
 using Lertaro.Plugins.ContentSearch.Storage;
 
 namespace Lertaro.Plugins.ContentSearch;
@@ -29,6 +30,8 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
 
         Scheduler = new ContentIndexScheduler(Database);
         Scheduler.Start(LoadConfigFromSettings());
+        Scheduler.ProgressChanged += () =>
+            SearchRefreshService.RefreshIfMatches(ContentSearchInstantProvider.IsPlaceholderQuery);
 
         PluginSettingsService.SettingChanged += (id, _) =>
         {
@@ -74,11 +77,51 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
             },
             new()
             {
+                Key = "MaxIndexSizeMb",
+                LabelKey = "ContentSearch_Config_IndexSizeLabel",
+                DescriptionKey = "ContentSearch_Config_IndexSizeDesc",
+                FieldType = ConfigFieldType.Integer,
+                DefaultValue = 5120
+            },
+            new()
+            {
                 Key = "IndexedExtensions",
                 LabelKey = "ContentSearch_Config_ExtensionsLabel",
                 DescriptionKey = "ContentSearch_Config_ExtensionsDesc",
                 FieldType = ConfigFieldType.Text,
                 DefaultValue = "txt,md,pdf,docx,docm,pptx,pptm,xlsx,xlsm,csv"
+            },
+            new()
+            {
+                Key = "ExcludedNamePatterns",
+                LabelKey = "ContentSearch_Config_ExclusionsLabel",
+                DescriptionKey = "ContentSearch_Config_ExclusionsDesc",
+                FieldType = ConfigFieldType.Text,
+                DefaultValue = string.Empty
+            },
+            new()
+            {
+                Key = "ClearIndex",
+                LabelKey = "ContentSearch_Config_ClearLabel",
+                DescriptionKey = "ContentSearch_Config_ClearDesc",
+                FieldType = ConfigFieldType.Button,
+                DefaultValue = string.Empty,
+                // Clear-only: unlike RebuildIndex, this does not trigger a full scan.
+                OnClick = () => Task.Run(() => Database.ClearAll())
+            },
+            new()
+            {
+                Key = "RebuildIndex",
+                LabelKey = "ContentSearch_Config_RebuildLabel",
+                DescriptionKey = "ContentSearch_Config_RebuildDesc",
+                FieldType = ConfigFieldType.Button,
+                DefaultValue = string.Empty,
+                // Off the UI thread: ClearAll runs DELETE + VACUUM, seconds on a large index.
+                OnClick = () => Task.Run(() =>
+                {
+                    Database.ClearAll();
+                    Scheduler.TriggerFullScan();
+                })
             }
         },
         OnSave = () =>
@@ -96,7 +139,9 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
             new List<string>());
 
         var maxSizeMb = PluginSettingsService.GetSetting(PluginId, "MaxFileSizeMb", 0);
+        var maxIndexSizeMb = PluginSettingsService.GetSetting(PluginId, "MaxIndexSizeMb", 5120);
         var extsStr = PluginSettingsService.GetSetting(PluginId, "IndexedExtensions", string.Empty);
+        var exclusionsStr = PluginSettingsService.GetSetting(PluginId, "ExcludedNamePatterns", string.Empty);
 
         var extSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(extsStr))
@@ -114,7 +159,9 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
         {
             MonitoredFolders = rawFolders ?? new List<string>(),
             MaxFileSizeBytes = maxSizeMb > 0 ? maxSizeMb * 1024L * 1024L : long.MaxValue,
-            AllowedExtensions = extSet
+            MaxIndexSizeBytes = maxIndexSizeMb > 0 ? maxIndexSizeMb * 1024L * 1024L : long.MaxValue,
+            AllowedExtensions = extSet,
+            ExcludedPatterns = ContentIndexConfig.ParseExcludedPatterns(exclusionsStr)
         };
     }
 }

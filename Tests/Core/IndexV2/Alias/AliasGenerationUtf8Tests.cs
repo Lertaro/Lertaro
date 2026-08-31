@@ -34,4 +34,14 @@ public sealed class AliasGenerationUtf8Tests
 
         Assert.IsNull(result);
     }
+
+    [TestMethod]
+    public void Generate_NameWithLoneSurrogate_ReturnsNullBeforeAnyProviderRuns()
+    {
+        // Mirrors the AliasGeneration gate: lone surrogates are rejected before any provider runs.
+        ulong mask = 0;
+        var result = AliasGenerationUtf8.Generate("broken\uD83Ename 文件.srt", ref mask);
+
+        Assert.IsNull(result);
+    }
 }

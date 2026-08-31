@@ -15,6 +15,8 @@ namespace Lertaro.App.ViewModels.Settings.General;
 // not tied to whatever file happens to be selected right now.
 public class ActionMenuGroupOrderViewModel : ViewModelBase
 {
+    private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
+
     private readonly UserSettings _userSettings;
 
     public ActionMenuGroupOrderViewModel(UserSettings userSettings)
@@ -61,11 +63,13 @@ public class ActionMenuGroupOrderViewModel : ViewModelBase
         MoveUpCommand = new RelayCommand<ActionMenuGroupOrderItem>(MoveUp);
         MoveDownCommand = new RelayCommand<ActionMenuGroupOrderItem>(MoveDown);
 
-        TranslationManager.Instance.PropertyChanged += (_, _) =>
+        _translationHandler = (_, _) =>
         {
             foreach (var item in Items)
                 item.NotifyLanguageChanged();
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
+
     }
 
     public ObservableCollection<ActionMenuGroupOrderItem> Items { get; } = new();
@@ -88,6 +92,8 @@ public class ActionMenuGroupOrderViewModel : ViewModelBase
     }
 
     public void Save() => _userSettings.ActionMenuGroupOrder = Items.Select(x => x.Id).ToList();
+
+    public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
 }
 
 public class ActionMenuGroupOrderItem : OrderItemBase

@@ -6,7 +6,7 @@ namespace Lertaro.Plugins.ContentSearch.Providers;
 /// <summary>
 /// Instant result provider handling keyword-triggered full-text document content queries.
 /// </summary>
-public sealed class ContentSearchInstantProvider : IInstantResultProvider
+public sealed class ContentSearchInstantProvider : IInstantResultProvider, IFullSearchFileResultProvider
 {
     private const string PluginId = "Lertaro.Plugins.ContentSearch";
     private const string DefaultTrigger = "cs";
@@ -33,9 +33,11 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider
 
         if (keyword.Length == 0)
         {
-            var (totalFiles, _) = db.GetStats();
+            // "Indexed" means successfully indexed rows only: failed/skipped rows are not
+            // searchable and must not be counted in the placeholder total.
+            var indexedFiles = db.CountIndexedFiles();
             yield return ContentSearchResultBuilder.CreatePlaceholderItem(
-                totalFiles,
+                indexedFiles,
                 scheduler.IsIndexing,
                 scheduler.PendingCount);
             yield break;
@@ -52,6 +54,23 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider
         {
             yield return item;
         }
+    }
+
+    public IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit)
+    {
+        // The full search window calls this on its final render with the already token-stripped
+        // query. Only a real content-search keyword ("cs xxx") contributes hits; the bare "cs "
+        // placeholder has no file rows to show there.
+        var trigger = GetTriggerPrefix();
+        if (string.IsNullOrWhiteSpace(query) || !query.StartsWith(trigger, StringComparison.OrdinalIgnoreCase))
+            return Array.Empty<InstantResultItem>();
+
+        var keyword = query[trigger.Length..].Trim();
+        if (keyword.Length == 0)
+            return Array.Empty<InstantResultItem>();
+
+        var hits = ContentSearchPlugin.Database.SearchFts(keyword, limit);
+        return ContentSearchResultBuilder.BuildResultItems(hits).ToList();
     }
 
     public bool[]? GetHighlightMask(string text, string query)
@@ -80,4 +99,12 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider
     }
 
     private static string GetTriggerPrefix() => GetTriggerKeyword() + " ";
+
+    /// <summary>
+    /// True for exactly the query that shows the indexing placeholder ("cs" or "cs " with no
+    /// search term). Used by the host's progress refresh to re-run only that query.
+    /// </summary>
+    internal static bool IsPlaceholderQuery(string query) =>
+        !string.IsNullOrWhiteSpace(query) &&
+        query.Trim().Equals(GetTriggerKeyword(), StringComparison.OrdinalIgnoreCase);
 }

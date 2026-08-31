@@ -42,6 +42,8 @@ public static class RecentFilesResponseCodec
     {
         var count = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
         offset += 4;
+        if (count < 0 || count > (payload.Length - offset) / 8)
+            throw new InvalidDataException("Invalid recent files count.");
         var recentFiles = new List<SearchResult>(count);
         for (var i = 0; i < count; i++)
         {

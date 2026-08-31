@@ -14,6 +14,8 @@ namespace Lertaro.App.ViewModels.Settings.Plugins;
 /// </summary>
 public class PluginManagementViewModel : ViewModelBase
 {
+    private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
+
     private readonly UserSettings _userSettings;
 
     public PluginManagementViewModel(UserSettings userSettings)
@@ -25,7 +27,7 @@ public class PluginManagementViewModel : ViewModelBase
         AttachFullyDisabledWatch();
 
         // Dynamically refresh the plugin list when language changes to dynamically apply localized plugin names
-        TranslationManager.Instance.PropertyChanged += (s, e) =>
+        _translationHandler = (s, e) =>
         {
             // Keeping the selection across a rebuild means matching on the one stable identifier a
             // rebuilt view model shares with the old one -- the instances themselves are all new.
@@ -39,6 +41,8 @@ public class PluginManagementViewModel : ViewModelBase
             OnPropertyChanged(nameof(IsEmpty));
             OnPropertyChanged(nameof(DevGuideUri));
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
+
     }
 
     public ObservableCollection<PluginInfoViewModel> Plugins { get; }
@@ -166,4 +170,6 @@ public class PluginManagementViewModel : ViewModelBase
 
         _userSettings.DisabledPluginComponents = disabled.ToList();
     }
+
+    public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
 }

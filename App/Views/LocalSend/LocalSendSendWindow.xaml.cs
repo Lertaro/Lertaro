@@ -107,7 +107,7 @@ public partial class LocalSendSendWindow : Window
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ButtonState == MouseButtonState.Pressed) DragMove();
+        if (e.ButtonState == MouseButtonState.Pressed) { try { DragMove(); } catch { } }
     }
 
     private async void DevicePanel_SendRequested(object? sender, LocalSendDeviceSelectionEventArgs e)

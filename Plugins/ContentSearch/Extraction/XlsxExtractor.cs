@@ -12,7 +12,6 @@ namespace Lertaro.Plugins.ContentSearch.Extraction;
 /// </summary>
 public sealed class XlsxExtractor : ITextExtractor
 {
-    private const int MaxExtractedCharacters = 500_000;
     private static readonly XNamespace SpreadsheetNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 
     // Excel serial dates below 61 involve the fictional 1900-02-29 leap day kept for Lotus
@@ -35,7 +34,7 @@ public sealed class XlsxExtractor : ITextExtractor
             return null;
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+        timeoutCts.CancelAfter(ExtractorTimeoutPolicy.ForFileSize(fileInfo.Length));
 
         try
         {
@@ -46,6 +45,13 @@ public sealed class XlsxExtractor : ITextExtractor
                 using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read, leaveOpen: false);
                 return ExtractWorkbookText(archive, timeoutCts.Token);
             }, timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Timed out extracting workbook '{filePath}'",
+                PluginSdk.LogLevel.Warn);
+            return null;
         }
         catch (Exception ex)
         {
@@ -82,14 +88,14 @@ public sealed class XlsxExtractor : ITextExtractor
                     continue;
 
                 // Flatten in-cell line breaks to spaces (same as dnGrep) so a single cell's
-                // phrase stays contiguous for trigram matching.
+                // phrase stays contiguous for Lucene phrase matching.
                 builder.AppendLine(cellText.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' '));
-                if (builder.Length >= MaxExtractedCharacters)
-                    return builder.ToString();
             }
         }
 
-        return builder.Length > 0 ? builder.ToString() : null;
+        // Empty string (not null) for a well-formed but textless workbook; null is
+        // reserved for actual extraction failures.
+        return builder.ToString();
     }
 
     private static string? GetCellText(

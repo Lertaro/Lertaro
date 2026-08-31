@@ -5,6 +5,8 @@ namespace Lertaro.Core.Hook;
 
 public class ExplorerTracker : IDisposable
 {
+    internal object StateLock { get; } = new();
+
     private ExplorerNativeHooks.WinEventDelegate? _winEventDelegate;
     private IntPtr _hForegroundHook = IntPtr.Zero;
     private IntPtr _hNameChangeHook = IntPtr.Zero;
@@ -62,16 +64,19 @@ public class ExplorerTracker : IDisposable
     }
     public void SetActiveInlineAdapterDirectly(IInlineSearchAdapter? adapter, IntPtr hwnd)
     {
-        ActiveInlineAdapter = adapter;
-        _activeHwnd = hwnd;
-        IsExplorerOrDesktopActive = adapter != null;
-        if (adapter != null && hwnd != IntPtr.Zero)
+        lock (StateLock)
         {
-            var windowTitle = new StringBuilder(256);
-            ExplorerNativeHooks.GetWindowText(hwnd, windowTitle, windowTitle.Capacity);
-            var sbClass = new StringBuilder(256);
-            ExplorerNativeHooks.GetClassName(hwnd, sbClass, sbClass.Capacity);
-            RaiseExplorerActivated(hwnd, windowTitle.ToString(), sbClass.ToString(), false);
+            ActiveInlineAdapter = adapter;
+            _activeHwnd = hwnd;
+            IsExplorerOrDesktopActive = adapter != null;
+            if (adapter != null && hwnd != IntPtr.Zero)
+            {
+                var windowTitle = new StringBuilder(256);
+                ExplorerNativeHooks.GetWindowText(hwnd, windowTitle, windowTitle.Capacity);
+                var sbClass = new StringBuilder(256);
+                ExplorerNativeHooks.GetClassName(hwnd, sbClass, sbClass.Capacity);
+                RaiseExplorerActivated(hwnd, windowTitle.ToString(), sbClass.ToString(), false);
+            }
         }
     }
     // Re-broadcasts whatever this tracker already believes is currently active, without re-deriving

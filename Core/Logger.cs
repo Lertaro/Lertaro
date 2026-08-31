@@ -40,6 +40,15 @@ public static class Logger
     private static LogLevel _minimumLevel = LogLevel.Info;
     private static readonly object LogLock = new();
 
+    // Writing the same message over and over (a watcher loop re-failing the same file, a
+    // retry storm) drowns everything else in the log. An identical consecutive message is
+    // written once, condensed into a "(repeated x N)" tally line at every 10th occurrence,
+    // and flushed with its final tally when a different message arrives.
+    private const int RepeatReportInterval = 10;
+    private static string? _lastMessage;
+    private static LogLevel _lastLevel;
+    private static int _repeatsSinceFirst;
+
     /// <summary>
     /// Gets the directory where the current log file is stored.
     /// </summary>
@@ -70,6 +79,8 @@ public static class Logger
                 _logDir = Path.Combine(baseDirectory ?? UserDataDir, "logs");
                 Directory.CreateDirectory(_logDir);
                 _logPath = Path.Combine(_logDir, logFileName);
+                _lastMessage = null;
+                _repeatsSinceFirst = 0;
 
                 var shouldAppend = false;
                 if (File.Exists(_logPath))
@@ -115,7 +126,21 @@ public static class Logger
         {
             try
             {
-                File.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] {message}\n");
+                if (level == _lastLevel && message == _lastMessage)
+                {
+                    _repeatsSinceFirst++;
+                    if ((_repeatsSinceFirst + 1) % RepeatReportInterval == 0)
+                    {
+                        WriteLine($"{message} (repeated x{_repeatsSinceFirst + 1})", level);
+                    }
+                    return;
+                }
+
+                FlushRepeatTally();
+                _lastMessage = message;
+                _lastLevel = level;
+                _repeatsSinceFirst = 0;
+                WriteLine(message, level);
             }
             catch
             {
@@ -123,6 +148,21 @@ public static class Logger
             }
         }
     }
+
+    /// <summary>
+    /// Writes the final tally of a repeat run that ended between the every-10th report
+    /// points, so a consumer can tell exactly how many times the message occurred.
+    /// </summary>
+    private static void FlushRepeatTally()
+    {
+        var total = _repeatsSinceFirst + 1;
+        if (_lastMessage != null && total >= 2 && total % RepeatReportInterval != 0)
+        {
+            WriteLine($"{_lastMessage} (repeated x{total})", _lastLevel);
+        }
+    }
+
+    private static void WriteLine(string content, LogLevel level) => File.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] {content}\n");
 
     /// <summary>
     /// Truncates the current process's own log file. Only the process that owns a given log file is
@@ -137,6 +177,8 @@ public static class Logger
             try
             {
                 File.WriteAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Log cleared\n");
+                _lastMessage = null;
+                _repeatsSinceFirst = 0;
             }
             catch
             {

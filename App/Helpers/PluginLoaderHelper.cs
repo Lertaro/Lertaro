@@ -25,15 +25,17 @@ public static class PluginLoaderHelper
             return result;
         }
 
+        // Only actual plugin entry assemblies (Lertaro.Plugins.*.dll) are processed; dependency DLLs are
+        // resolved implicitly from the plugin's own directory and are not plugin candidates.
         var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => !a.IsDynamic && a.Location.StartsWith(pluginsDir, StringComparison.OrdinalIgnoreCase))
+            .Where(a => !a.IsDynamic && a.Location.StartsWith(pluginsDir, StringComparison.OrdinalIgnoreCase)
+                && Path.GetFileNameWithoutExtension(a.Location).StartsWith("Lertaro.Plugins.", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         foreach (var assembly in loadedAssemblies)
         {
             var dllName = Path.GetFileName(assembly.Location);
-            if (dllName.Equals("Lertaro.PluginSdk.dll", StringComparison.OrdinalIgnoreCase))
-                continue;
+
 
             var sdkVersion = "1.0.0";
             var referencedSdk = assembly.GetReferencedAssemblies()
@@ -181,8 +183,10 @@ public static class PluginLoaderHelper
         if (!Directory.Exists(pluginsDir))
             return result;
 
+        // Only actual plugin entry assemblies (Lertaro.Plugins.*.dll) are processed.
         var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => !a.IsDynamic && a.Location.StartsWith(pluginsDir, StringComparison.OrdinalIgnoreCase));
+            .Where(a => !a.IsDynamic && a.Location.StartsWith(pluginsDir, StringComparison.OrdinalIgnoreCase)
+                && Path.GetFileNameWithoutExtension(a.Location).StartsWith("Lertaro.Plugins.", StringComparison.OrdinalIgnoreCase));
 
         foreach (var assembly in loadedAssemblies)
         {

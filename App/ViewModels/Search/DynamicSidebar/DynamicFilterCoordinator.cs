@@ -23,6 +23,7 @@ internal sealed class DynamicFilterCoordinator
         if (activeFilters.Count == 0)
         {
             _pendingFilters = null;
+            setBusy(false);
             render(sorted);
             return;
         }

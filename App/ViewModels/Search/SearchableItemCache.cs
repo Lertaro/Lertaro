@@ -31,6 +31,7 @@ internal static class SearchableItemCache
     static SearchableItemCache() => TranslationManager.Instance.PropertyChanged += (_, _) => Clear();
 
     private static int _watchingComponentChanges;
+    private static int _generation;
 
     // Subscribed on first real use rather than from the static constructor. Reading
     // PluginManager.Instance during type initialization would touch a Lazy singleton whose own
@@ -53,6 +54,7 @@ internal static class SearchableItemCache
         // Dropped outright, unlike Invalidate below: a language switch or a component being turned off
         // makes the cached entries WRONG, not merely old, and showing the previous language for another
         // second is not a kindness.
+        Interlocked.Increment(ref _generation);
         _cache.Clear();
         _loadingTasks.Clear();
         _stale.Clear();
@@ -117,6 +119,7 @@ internal static class SearchableItemCache
         if (_cache.ContainsKey(id) && !_stale.ContainsKey(id)) return;
 
         // Named, not a discard: `_` inside this lambda would shadow the discard the body wants to use.
+        var generation = Volatile.Read(ref _generation);
         _loadingTasks.GetOrAdd(id, key => Task.Run(() =>
         {
             try
@@ -134,6 +137,8 @@ internal static class SearchableItemCache
                         : new List<string>();
                     entries.Add(new CacheEntry(item, aliases, MaterializeIcon(item)));
                 }
+                if (generation != Volatile.Read(ref _generation))
+                    return;
                 _cache[id] = entries;
                 _stale.TryRemove(id, out _);
             }
@@ -143,8 +148,11 @@ internal static class SearchableItemCache
                 // Only when there is nothing to fall back on. A reload that failed is no reason to throw
                 // away the entries that were working a moment ago -- the empty list would be served for
                 // the rest of the session, since nothing retries until the next change.
-                _cache.TryAdd(id, new List<CacheEntry>());
-                _stale.TryRemove(id, out _);
+                if (generation == Volatile.Read(ref _generation))
+                {
+                    _cache.TryAdd(id, new List<CacheEntry>());
+                    _stale.TryRemove(id, out _);
+                }
             }
             finally
             {

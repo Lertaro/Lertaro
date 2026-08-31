@@ -19,8 +19,8 @@ namespace Lertaro.Core.IndexV2;
 public sealed class LiveIndex : IDisposable
 {
     private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.NoRecursion);
-    private Snapshot _snapshot;
-    private DeltaOverlay _delta;
+    private Snapshot? _snapshot;
+    private DeltaOverlay? _delta;
     private long _revision;
 
     public LiveIndex(Snapshot snapshot)
@@ -29,7 +29,13 @@ public sealed class LiveIndex : IDisposable
         _delta = new DeltaOverlay(snapshot);
     }
 
-    public string SourceKey => _snapshot.SourceKey;
+    public string SourceKey => _snapshot?.SourceKey ?? throw new ObjectDisposedException(nameof(LiveIndex));
+
+    private void EnsureUsable()
+    {
+        if (_snapshot == null)
+            throw new ObjectDisposedException(nameof(LiveIndex));
+    }
     public long Revision => Interlocked.Read(ref _revision);
 
     // The scan-completeness marker recorded when this snapshot was written. DeltaOverlay never changes
@@ -43,7 +49,8 @@ public sealed class LiveIndex : IDisposable
         _lock.EnterReadLock();
         try
         {
-            return read(_snapshot, _delta);
+            EnsureUsable();
+            return read(_snapshot!, _delta!);
         }
         finally
         {
@@ -58,7 +65,8 @@ public sealed class LiveIndex : IDisposable
         _lock.EnterWriteLock();
         try
         {
-            mutate(_snapshot, _delta);
+            EnsureUsable();
+            mutate(_snapshot!, _delta!);
             Interlocked.Increment(ref _revision);
         }
         finally
@@ -91,7 +99,8 @@ public sealed class LiveIndex : IDisposable
         _lock.EnterWriteLock();
         try
         {
-            if (!force && _delta.PendingChangeCount == 0)
+            EnsureUsable();
+            if (!force && _delta!.PendingChangeCount == 0)
                 return false;
 
             // Merge first (the only step that still needs the OLD snapshot's memory-mapped data), then
@@ -101,23 +110,40 @@ public sealed class LiveIndex : IDisposable
             // guarantees the RENAME succeeds -- can make that immediately-following delete fail on some
             // Windows/filesystem combinations (seen reliably on a Windows 10 VM indexing a network share,
             // not on Windows 11), leaving an orphaned .bak file this exact process still holds open.
-            var mergedStore = Compaction.BuildMergedStore(_snapshot, _delta, stamp);
-            _snapshot.Dispose();
+            var mergedStore = Compaction.BuildMergedStore(_snapshot!, _delta!, stamp);
+            _snapshot!.Dispose();
+            _snapshot = null;
+            _delta = null;
             try
             {
                 SnapshotWriter.Write(mergedStore, path);
-            }
-            finally
-            {
-                // Reopen either way: on success this is the fresh compacted file; on failure, File.Replace's
-                // swap is all-or-nothing, so `path` still holds its original pre-compaction content, and
-                // reopening it keeps this drive serving valid (if now stale) data instead of leaving
-                // _snapshot pointing at something already disposed above.
                 _snapshot = Snapshot.Open(path);
                 _delta = new DeltaOverlay(_snapshot);
                 Interlocked.Increment(ref _revision);
+                return true;
             }
-            return true;
+            catch (Exception originalException)
+            {
+                // SnapshotWriter.Write uses File.Replace, which is all-or-nothing. On a write failure the
+                // original pre-compaction file should still be at `path`; on a successful write followed by
+                // an open failure the fresh file is there but unreadable. Either way, try to keep this
+                // LiveIndex serving a valid snapshot before propagating the failure.
+                try
+                {
+                    _snapshot = Snapshot.Open(path);
+                    _delta = new DeltaOverlay(_snapshot);
+                    Logger.Log($"LiveIndex.Compact failed to write/reopen '{path}', recovered the on-disk snapshot: {originalException.Message}", LogLevel.Error);
+                }
+                catch (Exception reopenException)
+                {
+                    Logger.Log($"LiveIndex.Compact could not recover a snapshot after '{path}' write/reopen failure: {reopenException.Message}", LogLevel.Error);
+                    _snapshot = null;
+                    _delta = null;
+                    throw new ObjectDisposedException(nameof(LiveIndex), originalException);
+                }
+
+                throw;
+            }
         }
         finally
         {
@@ -133,6 +159,7 @@ public sealed class LiveIndex : IDisposable
         _lock.EnterWriteLock();
         try
         {
+            EnsureUsable();
             SwapUnderLock(newSnapshot);
         }
         finally
@@ -149,7 +176,7 @@ public sealed class LiveIndex : IDisposable
         _snapshot = newSnapshot;
         _delta = new DeltaOverlay(newSnapshot);
         Interlocked.Increment(ref _revision);
-        old.Dispose();
+        old?.Dispose();
     }
 
     public void Dispose()
@@ -157,7 +184,9 @@ public sealed class LiveIndex : IDisposable
         _lock.EnterWriteLock();
         try
         {
-            _snapshot.Dispose();
+            _snapshot?.Dispose();
+            _snapshot = null;
+            _delta = null;
         }
         finally
         {

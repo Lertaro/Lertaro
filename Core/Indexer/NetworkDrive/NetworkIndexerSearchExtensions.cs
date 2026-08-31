@@ -25,6 +25,7 @@ public static class NetworkIndexerSearchExtensions
 
         var parsed = SearchQueryParser.Parse(query);
         var directoryFilterLower = IndexerHelper.NormalizeFilter(directoryFilter);
+        var callbackLock = new object();
 
         Parallel.ForEach(
             snapshots,
@@ -39,7 +40,15 @@ public static class NetworkIndexerSearchExtensions
                 if (!IsDriveAllowed(index.Drive, parsed, directoryFilterLower))
                     return;
 
-                index.SearchStreaming(parsed, query, directoryFilterLower, limit, onResult, token);
+                // Parallel search invokes the caller-provided callback from multiple threads. Serialize
+                // the callback exactly like SearchCoordinator does so non-thread-safe consumers are safe.
+                index.SearchStreaming(parsed, query, directoryFilterLower, limit, result =>
+                {
+                    lock (callbackLock)
+                    {
+                        onResult(result);
+                    }
+                }, token);
             });
     }
 

@@ -126,6 +126,11 @@
             <DataTrigger Binding="{Binding IsChoice}" Value="True">
                 <Setter Property="ContentTemplate"><Setter.Value><DataTemplate><ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Value, Mode=TwoWay}" MinWidth="180"/></DataTemplate></Setter.Value></Setter>
             </DataTrigger>
+            <!-- Button fields: a plain action button (e.g. rebuild the plugin's index). The schema's
+                 OnClick delegate runs on click; nothing is stored for the field itself. -->
+            <DataTrigger Binding="{Binding IsButton}" Value="True">
+                <Setter Property="ContentTemplate"><Setter.Value><DataTemplate><Button Command="{Binding ButtonClickCommand}" Content="{Binding Label}" Style="{StaticResource PrimarySettingsButton}" Height="26" MinWidth="96" Padding="10,0" FontSize="11" Cursor="Hand" VerticalAlignment="Center"/></DataTemplate></Setter.Value></Setter>
+            </DataTrigger>
         </Style.Triggers>
     </Style>
 

@@ -20,7 +20,7 @@ public sealed class FolderScanDiscoveryHelperTests
         {
             MonitoredFolders = new List<string>()
         };
-        var existingMeta = new Dictionary<string, (long, long)>();
+        var existingMeta = new Dictionary<string, (long, long, int)>();
         var enqueued = new List<string>();
 
         var discovered = await FolderScanDiscoveryHelper.DiscoverFilesAsync(
@@ -58,7 +58,7 @@ public sealed class FolderScanDiscoveryHelperTests
 
             var discovered = await FolderScanDiscoveryHelper.DiscoverFilesAsync(
                 config,
-                new Dictionary<string, (long LastModified, long FileSize)>(),
+                new Dictionary<string, (long LastModified, long FileSize, int MissingCount)>(),
                 enqueued.Add,
                 CancellationToken.None);
 
@@ -92,7 +92,7 @@ public sealed class FolderScanDiscoveryHelperTests
 
             var discovered = await FolderScanDiscoveryHelper.DiscoverFilesAsync(
                 config,
-                new Dictionary<string, (long LastModified, long FileSize)>(),
+                new Dictionary<string, (long LastModified, long FileSize, int MissingCount)>(),
                 enqueued.Add,
                 CancellationToken.None);
 
@@ -124,9 +124,9 @@ public sealed class FolderScanDiscoveryHelperTests
                 AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".txt" }
             };
             var info = new FileInfo(filePath);
-            var existingMeta = new Dictionary<string, (long LastModified, long FileSize)>
+            var existingMeta = new Dictionary<string, (long LastModified, long FileSize, int MissingCount)>
             {
-                [filePath] = (new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeSeconds(), info.Length)
+                [filePath] = (new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeSeconds(), info.Length, 0)
             };
             var enqueued = new List<string>();
 
@@ -137,6 +137,79 @@ public sealed class FolderScanDiscoveryHelperTests
                 CancellationToken.None);
 
             CollectionAssert.AreEquivalent(new[] { filePath }, discovered.ToList());
+            Assert.IsEmpty(enqueued);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [TestMethod]
+    public async Task DiscoverFilesAsync_ExcludedFolder_SubtreeSkippedByFilesystemWalk()
+    {
+        var dir = CreateTempDirectory();
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(dir, "keep.txt"), "indexed content");
+            var backupDir = Path.Combine(dir, "Backup");
+            Directory.CreateDirectory(backupDir);
+            await File.WriteAllTextAsync(Path.Combine(backupDir, "old.txt"), "must not be indexed");
+
+            // Host enumeration unavailable: everything below comes from the raw walk.
+            DirectoryIndexerService.EnumerateDirectoryFunc = (_, _, _, _, _) => throw new IOException("service unreachable");
+
+            var config = new ContentIndexConfig
+            {
+                MonitoredFolders = new List<string> { dir },
+                AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".txt" },
+                ExcludedPatterns = ContentIndexConfig.ParseExcludedPatterns(@"\\Backup\\")
+            };
+            var enqueued = new List<string>();
+
+            var discovered = await FolderScanDiscoveryHelper.DiscoverFilesAsync(
+                config,
+                new Dictionary<string, (long LastModified, long FileSize, int MissingCount)>(),
+                enqueued.Add,
+                CancellationToken.None);
+
+            CollectionAssert.AreEquivalent(new[] { Path.Combine(dir, "keep.txt") }, discovered.ToList());
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [TestMethod]
+    public async Task DiscoverFilesAsync_HostReportsExcludedFile_NotDiscovered()
+    {
+        var dir = CreateTempDirectory();
+
+        try
+        {
+            var secretPath = Path.Combine(dir, "secret.txt");
+            await File.WriteAllTextAsync(secretPath, "sensitive");
+
+            DirectoryIndexerService.EnumerateDirectoryFunc = (folder, recursive, pattern, limit, token) =>
+                EnumerateFake(secretPath, new FileInfo(secretPath).Length, FileInfoMetaModified(secretPath));
+
+            var config = new ContentIndexConfig
+            {
+                MonitoredFolders = new List<string> { dir },
+                AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".txt" },
+                ExcludedPatterns = ContentIndexConfig.ParseExcludedPatterns("secret")
+            };
+            var enqueued = new List<string>();
+
+            var discovered = await FolderScanDiscoveryHelper.DiscoverFilesAsync(
+                config,
+                new Dictionary<string, (long LastModified, long FileSize, int MissingCount)>(),
+                enqueued.Add,
+                CancellationToken.None);
+
+            Assert.IsEmpty(discovered);
             Assert.IsEmpty(enqueued);
         }
         finally

@@ -98,10 +98,17 @@ public static class VirtualFileExtractor
 
             try
             {
+                var blockSize = (long)GlobalSize(medium.unionmember);
                 var count = Marshal.ReadInt32(block);
                 // The count is followed by that many fixed-size descriptors, so each one is found by
-                // walking rather than by any pointer in the block.
+                // walking rather than by any pointer in the block. Clamp against the actual HGLOBAL size:
+                // a hostile/truncated descriptor must not make us read past the block.
                 var descriptorSize = Marshal.SizeOf<FileDescriptorW>();
+                if (count < 0 || (long)count > (blockSize - sizeof(int)) / descriptorSize)
+                {
+                    Logger.Log($"[VirtualFileExtractor] Invalid file group descriptor count: {count}.", LogLevel.Error);
+                    return names;
+                }
                 for (var i = 0; i < count; i++)
                 {
                     var at = IntPtr.Add(block, sizeof(int) + (i * descriptorSize));
@@ -204,12 +211,22 @@ public static class VirtualFileExtractor
 
         try
         {
-            var size = (int)GlobalSize(medium.unionmember);
+            var size = (long)GlobalSize(medium.unionmember);
             if (size <= 0) return false;
 
-            var bytes = new byte[size];
-            Marshal.Copy(block, bytes, 0, size);
-            File.WriteAllBytes(destination, bytes);
+            // Stream in chunks instead of casting to int: HGLOBAL payloads can exceed 2 GiB.
+            using var file = File.Create(destination);
+            var buffer = new byte[81920];
+            var offset = 0L;
+            while (offset < size)
+            {
+                var chunk = (int)Math.Min(buffer.Length, size - offset);
+                var source = new IntPtr(block.ToInt64() + offset);
+                Marshal.Copy(source, buffer, 0, chunk);
+                file.Write(buffer, 0, chunk);
+                offset += chunk;
+            }
+
             return true;
         }
         finally

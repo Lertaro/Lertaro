@@ -30,7 +30,6 @@ public static class SearchHistoryStore
         [property: JsonPropertyName("time")] long Time);
 
     public static string HistoryPath => Path.Combine(Logger.UserDataDir, "search-history.json");
-
     private static string BackupPath => HistoryPath + ".bak";
 
     /// <param name="keyword">The search box text at the time this was opened. Nothing is recorded if
@@ -123,19 +122,22 @@ public static class SearchHistoryStore
     /// <summary>Replaces the whole store with exactly these entries (Settings' edited/removed list).</summary>
     public static void SaveEntries(IEnumerable<HistoryEntry> entries)
     {
+        // Network-path probes must happen outside Gate (see Record's comment above): File.Exists/
+        // Directory.Exists have no timeout and can block for seconds on a slow share, and Gate is
+        // taken by Snapshot/GetPriority on every keystroke's search. Only the commit holds the lock.
+        var validated = new List<(string Keyword, StoredEntry Entry)>();
+        foreach (var entry in entries.OrderByDescending(e => e.Time))
+        {
+            var isApp = entry.Kind == HistoryEntryKind.Application;
+            var normalizedPath = isApp ? entry.Path.Trim() : NormalizePath(entry.Path);
+            if (!ExistsForKind(normalizedPath, entry.Kind, File.Exists, Directory.Exists))
+                continue;
+
+            validated.Add((entry.Keyword?.Trim() ?? string.Empty, new StoredEntry(normalizedPath, entry.Kind, entry.Time)));
+        }
+
         lock (Gate)
         {
-            var validated = new List<(string Keyword, StoredEntry Entry)>();
-            foreach (var entry in entries.OrderByDescending(e => e.Time))
-            {
-                var isApp = entry.Kind == HistoryEntryKind.Application;
-                var normalizedPath = isApp ? entry.Path.Trim() : NormalizePath(entry.Path);
-                if (!ExistsForKind(normalizedPath, entry.Kind, File.Exists, Directory.Exists))
-                    continue;
-
-                validated.Add((entry.Keyword?.Trim() ?? string.Empty, new StoredEntry(normalizedPath, entry.Kind, entry.Time)));
-            }
-
             _buckets = BuildBuckets(validated);
             PersistNoLock();
             _priorityCache = BuildPriorityCache(_buckets);

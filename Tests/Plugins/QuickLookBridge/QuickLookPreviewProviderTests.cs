@@ -9,10 +9,6 @@ namespace Lertaro.Plugins.QuickLookBridge.Tests;
 public sealed class QuickLookPreviewProviderTests
 {
     [TestMethod]
-    public void RendersExternally_IsTrue() =>
-        Assert.IsTrue(new QuickLookPreviewProvider().RendersExternally);
-
-    [TestMethod]
     public void EndPreviewSession_DoesNotThrow() =>
         new QuickLookPreviewProvider().EndPreviewSession();
 

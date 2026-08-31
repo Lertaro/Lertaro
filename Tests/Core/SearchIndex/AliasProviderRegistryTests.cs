@@ -18,6 +18,25 @@ public sealed class AliasProviderRegistryTests
     public void HasNonAscii_DetectsAnyNonAsciiCharacter(string text, bool expected) => Assert.AreEqual(expected, AliasProviderRegistry.HasNonAscii(text));
 
     [TestMethod]
+    [DataRow("readme", false)]
+    [DataRow("文件搜索", false)]
+    [DataRow("\U0001F872", false)] // a complete surrogate pair is valid UTF-16
+    [DataRow("name \U0001F872.txt", false)]
+    [DataRow("", false)]
+    public void HasInvalidUtf16_DetectsUnpairedSurrogatesOnly(string text, bool expected) =>
+        Assert.AreEqual(expected, AliasProviderRegistry.HasInvalidUtf16(text));
+
+    [TestMethod]
+    public void HasInvalidUtf16_LoneSurrogates_ReturnsTrue()
+    {
+        // Not DataRows: DataRow's parameter plumbing replaces lone surrogate halves with
+        // U+FFFD before the test method ever sees them, so the gate would see valid text.
+        Assert.IsTrue(AliasProviderRegistry.HasInvalidUtf16("\uD83E"), "lone high surrogate");
+        Assert.IsTrue(AliasProviderRegistry.HasInvalidUtf16("\uDED2"), "lone low surrogate");
+        Assert.IsTrue(AliasProviderRegistry.HasInvalidUtf16("name\uD83E.txt"), "high surrogate followed by a BMP char");
+    }
+
+    [TestMethod]
     public void GetProviderIdByComponentId_UnknownComponent_ReturnsSentinel255()
     {
         var id = AliasProviderRegistry.GetProviderIdByComponentId("definitely-not-registered::AliasProvider::Nothing");

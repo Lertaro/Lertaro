@@ -3,6 +3,7 @@ using Lertaro.Core.Services.LocalSend.Models;
 
 public sealed class LocalSendServiceManager : IDisposable
 {
+    private readonly object _fileSendClientLock = new();
     private LocalSendDiscoveryService? _discoveryService;
     private LocalSendServer? _server;
     private LocalSendClient? _fileSendClient;
@@ -99,8 +100,13 @@ public sealed class LocalSendServiceManager : IDisposable
 
     public void Stop()
     {
-        _fileSendClient?.Dispose();
-        _fileSendClient = null;
+        LocalSendClient? fileSendClient;
+        lock (_fileSendClientLock)
+        {
+            fileSendClient = _fileSendClient;
+            _fileSendClient = null;
+        }
+        fileSendClient?.Dispose();
         _discoveryService?.Stop();
         _discoveryService?.Dispose();
         _discoveryService = null;
@@ -115,21 +121,29 @@ public sealed class LocalSendServiceManager : IDisposable
         Action<LocalSendSendProgressArgs>? onProgress = null, Action<LocalSendFileConfirmationArgs>? onFileConfirmed = null,
         CancellationToken token = default)
     {
-        _fileSendClient?.Dispose();
-        _fileSendClient = new LocalSendClient(_server, targetDevice.Https ? targetDevice.Fingerprint : null, _createChecksums);
+        LocalSendClient client;
+        lock (_fileSendClientLock)
+        {
+            _fileSendClient?.Dispose();
+            client = new LocalSendClient(_server, targetDevice.Https ? targetDevice.Fingerprint : null, _createChecksums);
+            _fileSendClient = client;
+        }
         var senderInfo = _server?.DeviceInfo ?? new LocalSendDeviceInfo { Alias = Environment.MachineName };
-        var res = await _fileSendClient.SendFilesAsync(targetDevice.IpAddress, targetDevice.Port, targetDevice.Https, senderInfo, filePaths, pin, onProgress, onFileConfirmed, token, targetDevice.Version).ConfigureAwait(false);
-        return (res, _fileSendClient.LastError);
+        var res = await client.SendFilesAsync(targetDevice.IpAddress, targetDevice.Port, targetDevice.Https, senderInfo, filePaths, pin, onProgress, onFileConfirmed, token, targetDevice.Version).ConfigureAwait(false);
+        return (res, client.LastError);
     }
 
     public async Task<(LocalSendSendResult Result, string? ErrorDetails)> RetryLastFailedFileAsync(
         Action<LocalSendSendProgressArgs>? onProgress = null, Action<LocalSendFileConfirmationArgs>? onFileConfirmed = null,
         CancellationToken token = default)
     {
-        if (_fileSendClient == null)
+        LocalSendClient? client;
+        lock (_fileSendClientLock)
+            client = _fileSendClient;
+        if (client == null)
             return (LocalSendSendResult.Error, null);
-        var result = await _fileSendClient.RetryLastFailedFileAsync(onProgress, onFileConfirmed, token).ConfigureAwait(false);
-        return (result, _fileSendClient.LastError);
+        var result = await client.RetryLastFailedFileAsync(onProgress, onFileConfirmed, token).ConfigureAwait(false);
+        return (result, client.LastError);
     }
 
     public async Task<(LocalSendSendResult Result, string? ErrorDetails)> SendTextAsync(

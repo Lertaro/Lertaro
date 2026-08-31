@@ -191,6 +191,10 @@ public static class ShellContextMenuHelper
         var pIContextMenu3 = IntPtr.Zero;
         var subclassed = false;
         var lpDir = IntPtr.Zero;
+        IShellFolder? parentFolder = null;
+        IContextMenu? contextMenu = null;
+        IContextMenu2? contextMenu2 = null;
+        IContextMenu3? contextMenu3 = null;
 
         try
         {
@@ -200,12 +204,12 @@ public static class ShellContextMenuHelper
             var relativePidl = IntPtr.Zero;
             if (SHBindToParent(pidl, ref iidIShellFolder, out parentFolderPtr, ref relativePidl) < 0) return;
 
-            var parentFolder = (IShellFolder)Marshal.GetObjectForIUnknown(parentFolderPtr);
+            parentFolder = (IShellFolder)Marshal.GetObjectForIUnknown(parentFolderPtr);
             var iidIContextMenu = new Guid("000214E4-0000-0000-C000-000000000046");
             uint reserved = 0;
             parentFolder.GetUIObjectOf(IntPtr.Zero, 1, new[] { relativePidl }, ref iidIContextMenu, ref reserved, out contextMenuPtr);
 
-            var contextMenu = (IContextMenu)Marshal.GetObjectForIUnknown(contextMenuPtr);
+            contextMenu = (IContextMenu)Marshal.GetObjectForIUnknown(contextMenuPtr);
             hMenu = CreatePopupMenu();
             if (hMenu == IntPtr.Zero) return;
 
@@ -218,11 +222,13 @@ public static class ShellContextMenuHelper
 
             if (Marshal.QueryInterface(contextMenuPtr, in iidIContextMenu3, out pIContextMenu3) == 0)
             {
-                _currentContextMenu3 = (IContextMenu3)Marshal.GetObjectForIUnknown(pIContextMenu3);
+                contextMenu3 = (IContextMenu3)Marshal.GetObjectForIUnknown(pIContextMenu3);
+                _currentContextMenu3 = contextMenu3;
             }
             else if (Marshal.QueryInterface(contextMenuPtr, in iidIContextMenu2, out pIContextMenu2) == 0)
             {
-                _currentContextMenu2 = (IContextMenu2)Marshal.GetObjectForIUnknown(pIContextMenu2);
+                contextMenu2 = (IContextMenu2)Marshal.GetObjectForIUnknown(pIContextMenu2);
+                _currentContextMenu2 = contextMenu2;
             }
 
             if ((_currentContextMenu3 != null || _currentContextMenu2 != null) && hwndOwner != IntPtr.Zero)
@@ -261,6 +267,10 @@ public static class ShellContextMenuHelper
             if (subclassed) RemoveWindowSubclass(hwndOwner, _subclassProc, new IntPtr(1001));
             _currentContextMenu3 = null;
             _currentContextMenu2 = null;
+            if (contextMenu3 != null) Marshal.ReleaseComObject(contextMenu3);
+            if (contextMenu2 != null) Marshal.ReleaseComObject(contextMenu2);
+            if (contextMenu != null) Marshal.ReleaseComObject(contextMenu);
+            if (parentFolder != null) Marshal.ReleaseComObject(parentFolder);
             if (pIContextMenu3 != IntPtr.Zero) Marshal.Release(pIContextMenu3);
             if (pIContextMenu2 != IntPtr.Zero) Marshal.Release(pIContextMenu2);
             if (hMenu != IntPtr.Zero) DestroyMenu(hMenu);
@@ -269,4 +279,5 @@ public static class ShellContextMenuHelper
             if (pidl != IntPtr.Zero) CoTaskMemFree(pidl);
         }
     }
+
 }

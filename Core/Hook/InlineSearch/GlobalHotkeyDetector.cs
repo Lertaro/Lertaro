@@ -134,19 +134,27 @@ public sealed class GlobalHotkeyDetector
     private bool TryHandleQuickSwitchNavigation(bool triggered, out bool consumeKey)
     {
         consumeKey = false;
-        if (_explorerTracker.IsActiveWindowDialog && triggered && _explorerTracker.ActiveAdapter != null)
+        lock (_explorerTracker.StateLock)
         {
-            var lastExplorerPath = _explorerTracker.LastActiveExplorerPath;
-            var isValid = !string.IsNullOrEmpty(lastExplorerPath) && Path.IsPathRooted(lastExplorerPath);
-
-            if (isValid)
+            if (_explorerTracker.IsActiveWindowDialog && triggered && _explorerTracker.ActiveAdapter != null)
             {
-                var navPath = lastExplorerPath!.EndsWith("\\") ? lastExplorerPath : lastExplorerPath + "\\";
-                var adapter = _explorerTracker.ActiveAdapter;
-                var hwnd = _explorerTracker.ActiveHwnd;
-                ThreadPool.QueueUserWorkItem(_ => adapter.NavigateTo(hwnd, navPath));
-                consumeKey = true;
-                return true;
+                var lastExplorerPath = _explorerTracker.LastActiveExplorerPath;
+                var isValid = !string.IsNullOrEmpty(lastExplorerPath) && Path.IsPathRooted(lastExplorerPath);
+
+                if (isValid)
+                {
+                    var navPath = lastExplorerPath!.EndsWith("\\") ? lastExplorerPath : lastExplorerPath + "\\";
+                    var adapter = _explorerTracker.ActiveAdapter;
+                    var hwnd = _explorerTracker.ActiveHwnd;
+                    ThreadPool.QueueUserWorkItem(_ =>
+                    {
+                        // The HWND can be recycled after the snapshot; do not navigate a dead window.
+                        if (ExplorerNativeHooks.IsWindow(hwnd))
+                            adapter.NavigateTo(hwnd, navPath);
+                    });
+                    consumeKey = true;
+                    return true;
+                }
             }
         }
         return false;

@@ -17,12 +17,15 @@ namespace Lertaro.Core.Services.HookLaunch;
 public static class HookProcessBroker
 {
     private static readonly ConcurrentDictionary<int, Process> _liveHooks = new();
+    private static readonly object _liveHooksGate = new();
 
     public static bool TryLaunch(int sessionId, string exePath, string arguments, bool requestElevation, out int pid, out string? error)
     {
         pid = 0;
         error = null;
 
+        lock (_liveHooksGate)
+        {
         if (_liveHooks.TryGetValue(sessionId, out var existing))
         {
             try
@@ -34,7 +37,8 @@ public static class HookProcessBroker
                 }
             }
             catch { /* process object stale; fall through and relaunch */ }
-            _liveHooks.TryRemove(sessionId, out _);
+            if (_liveHooks.TryRemove(sessionId, out var removed))
+                removed.Dispose();
         }
 
         EnableTcbPrivilege();
@@ -88,7 +92,10 @@ public static class HookProcessBroker
             try
             {
                 pid = processInfo.dwProcessId;
-                _liveHooks[sessionId] = Process.GetProcessById(pid);
+                var newProcess = Process.GetProcessById(pid);
+                if (_liveHooks.TryGetValue(sessionId, out var previous))
+                    previous.Dispose();
+                _liveHooks[sessionId] = newProcess;
             }
             finally
             {
@@ -110,6 +117,7 @@ public static class HookProcessBroker
             if (linkedToken != IntPtr.Zero) CloseHandle(linkedToken);
             if (userToken != IntPtr.Zero) CloseHandle(userToken);
         }
+    }
     }
 
     private static bool TryGetLinkedToken(IntPtr token, out IntPtr linkedToken)

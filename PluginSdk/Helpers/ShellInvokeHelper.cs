@@ -11,27 +11,57 @@ public static class ShellInvokeHelper
     /// </summary>
     public static void InvokeShellItem(string parentShellPath, string itemPath)
     {
+        object? shell = null;
+        object? folder = null;
         try
         {
             var shellType = Type.GetTypeFromProgID("Shell.Application");
             if (shellType == null) return;
-            var shell = Activator.CreateInstance(shellType);
+            shell = Activator.CreateInstance(shellType);
             if (shell == null) return;
 
             dynamic dShell = shell;
-            dynamic folder = dShell.NameSpace(parentShellPath);
+            folder = dShell.NameSpace(parentShellPath);
             if (folder == null) return;
+            dynamic dFolder = folder;
 
-            foreach (var item in folder.Items())
+            foreach (var itemObj in dFolder.Items())
             {
-                string p = item.Path;
-                if (string.Equals(p, itemPath, StringComparison.OrdinalIgnoreCase))
+                var item = itemObj;
+                try
                 {
-                    item.InvokeVerb();
-                    return;
+                    dynamic dItem = item;
+                    string p = dItem.Path;
+                    if (string.Equals(p, itemPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        dItem.InvokeVerb();
+                        return;
+                    }
+                }
+                finally
+                {
+                    ReleaseComObject(item);
                 }
             }
         }
         catch { }
+        finally
+        {
+            ReleaseComObject(folder);
+            ReleaseComObject(shell);
+        }
+    }
+
+    private static void ReleaseComObject(object? comObject)
+    {
+        try
+        {
+            if (comObject != null && System.Runtime.InteropServices.Marshal.IsComObject(comObject))
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(comObject);
+        }
+        catch
+        {
+            // Best-effort cleanup; the RCW will still be reclaimed by the GC finalizer.
+        }
     }
 }

@@ -137,7 +137,7 @@ public sealed class UsnServicePipeServer : IDisposable
                         break;
                     }
 
-                    var response = UsnServicePipeRequestProcessor.Process(_engine, request, token);
+                    var response = UsnServicePipeRequestProcessor.Process(_engine, request, token, pipe);
 
                     if (verboseLog)
                         Logger.Log($"[PipeServer] Sending response: {response.Kind}...", LogLevel.Debug);

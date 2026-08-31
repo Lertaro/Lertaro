@@ -38,9 +38,17 @@ public class ThemeManager
         SystemThemeWatcher.EnsureWatching();
         SystemThemeWatcher.SystemThemeChanged += () =>
         {
-            var settings = UserSettings.Load();
-            if (!settings.ThemeFollowSystem) return;
-            ApplyTheme(ResolveLightDarkThemeId(SystemThemeWatcher.IsSystemLight, settings), saveSettings: false);
+            // SystemEvents raises this on a non-UI thread. ApplyTheme touches WPF windows/dictionaries,
+            // so marshal the whole handler body onto the Dispatcher before doing any theme work.
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher == null)
+                return;
+            dispatcher.BeginInvoke(new Action(() =>
+            {
+                var settings = UserSettings.Load();
+                if (!settings.ThemeFollowSystem) return;
+                ApplyTheme(ResolveLightDarkThemeId(SystemThemeWatcher.IsSystemLight, settings), saveSettings: false);
+            }));
         };
     }
 

@@ -33,8 +33,9 @@ public sealed class LocalSendServer : IDisposable
     public string? ReceivePin { get; set; }
     public string ShowToken { get; set; } = string.Empty;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _pinAttempts = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> _pinAttemptTimes = new();
     internal bool CheckPin(string clientIp, string? requestPin, out int statusCode, out string? jsonBody)
-        => LocalSendServerHelper.CheckPin(ReceivePin, _pinAttempts, clientIp, requestPin, out statusCode, out jsonBody);
+        => LocalSendServerHelper.CheckPin(ReceivePin, _pinAttempts, clientIp, requestPin, out statusCode, out jsonBody, _pinAttemptTimes);
 
     public event EventHandler<LocalSendUploadRequestArgs>? UploadRequested;
     public event EventHandler<(string FileId, string Path)>? FileReceived;
@@ -193,7 +194,8 @@ public sealed class LocalSendServer : IDisposable
         long lastProgressTimeMs = 0;
         var progressStopwatch = System.Diagnostics.Stopwatch.StartNew();
         var saveResult = await LocalSendIncomingFileWriter.SaveAsync(
-            requestBody, targetPath, totalBytes, expectedSha256, () => false, bytesReadTotal =>
+            requestBody, targetPath, totalBytes, expectedSha256,
+            () => context.SessionCancellation.IsCancellationRequested, bytesReadTotal =>
             {
                 if (context.SessionCancellation.IsCancellationRequested)
                     return;
@@ -213,11 +215,22 @@ public sealed class LocalSendServer : IDisposable
                     ProgressChanged?.Invoke(this, new LocalSendProgressArgs(sessionId, senderAlias, fileId,
                         fileName, checksumBytes, totalBytes, fileIndex, expectedTotalFiles, savedPath: targetPath,
                         stage: LocalSendTransferStage.VerifyingChecksum));
-            }).ConfigureAwait(false);
+            }, context.SessionCancellation).ConfigureAwait(false);
         var bytesReadTotal = saveResult.BytesWritten;
 
         if (saveResult.Status != LocalSendFileSaveStatus.Success)
         {
+            // Receiver-initiated cancellation is a clean stop, not a failure: keep what was already
+            // written, unregister the session, and answer 200 so the sender does not retry a canceled file.
+            if (saveResult.Status == LocalSendFileSaveStatus.Canceled || context.SessionCancellation.IsCancellationRequested)
+            {
+                LocalSendFileMetadataApplier.Apply(targetPath, metadata);
+                FileReceived?.Invoke(this, (fileId, targetPath));
+                UnregisterSession(sessionId);
+                await LocalSendServerHelper.WriteResponseAsync(stream, 200).ConfigureAwait(false);
+                return;
+            }
+
             var sessionEnded = !context.SessionCancellation.IsCancellationRequested && v2 && CompleteUploadAttempt(sessionId, fileId, saveResult.Status);
             LocalSendServerHelper.TryDeleteFile(targetPath);
             Logger.Log($"[LocalSendServer] Upload failed for {fileName}: {saveResult.Error ?? saveResult.Status.ToString()}", LogLevel.Warn);

@@ -1,3 +1,4 @@
+using Lertaro.PluginSdk.Abstractions.Plugins;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Lertaro.Plugins.SpanishAlias.Tests;
@@ -62,5 +63,33 @@ public sealed class SpanishAliasProviderTests
         Assert.AreEqual(11, mapCiguena.Length);
         for (var i = 0; i < mapCiguena.Length; i++)
             Assert.AreEqual(i, mapCiguena[i]);
+    }
+
+    [TestMethod]
+    public void GetAliases_NameContainingAstralChar_GeneratesAliasWithoutThrowing()
+    {
+        // Regression: an astral char (the arrow U+1F872) reaches RemoveDiacritic one surrogate
+        // half at a time; handing a lone surrogate to string.Normalize used to throw
+        // ArgumentException on Windows ("String contains invalid Unicode code points") and
+        // fail alias generation for the whole file name on every scan.
+        var provider = new SpanishAliasProvider();
+
+        var aliases = provider.GetAliases("BURIÁ \U0001F872 简体.srt").ToList();
+
+        Assert.AreEqual(1, aliases.Count);
+        Assert.AreEqual("buria \U0001F872 简体.srt", aliases[0]);
+    }
+
+    [TestMethod]
+    public void GetAliasesUtf8_NameContainingAstralChar_EncodesAliasWithoutThrowing()
+    {
+        // The byte-native path walks the same per-char RemoveDiacritic.
+        var provider = new SpanishAliasProvider();
+        var sink = new AliasByteSink();
+
+        provider.GetAliasesUtf8("BURIÁ \U0001F872 简体.srt", sink);
+
+        Assert.AreEqual(1, sink.SegmentCount);
+        Assert.AreEqual("buria \U0001F872 简体.srt", System.Text.Encoding.UTF8.GetString(sink.Segment(0)));
     }
 }

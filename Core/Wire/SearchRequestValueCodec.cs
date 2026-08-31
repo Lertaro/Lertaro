@@ -20,6 +20,8 @@ internal static class SearchRequestValueCodec
     {
         var count = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
         offset += sizeof(int);
+        if (count < 0 || count > payload.Length - offset)
+            throw new InvalidDataException("Invalid machine settings drive count.");
         var settings = new MachineSettings();
         for (var i = 0; i < count; i++)
             settings.LocalDrives.Add(SearchRequestBinarySerializer.ReadString(payload, ref offset));
@@ -43,6 +45,8 @@ internal static class SearchRequestValueCodec
     {
         var count = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(offset));
         offset += sizeof(int);
+        if (count < 0 || count > payload.Length - offset)
+            throw new InvalidDataException("Invalid string list count.");
         var result = new List<string>(count);
         for (var i = 0; i < count; i++)
             result.Add(SearchRequestBinarySerializer.ReadString(payload, ref offset));

@@ -131,6 +131,59 @@ public class EverythingBinaryResponseBuilderTests
         Assert.AreEqual(0x20u, attrs);
     }
 
+    [TestMethod]
+    public void BuildListV2_WithSizeAndExtension_OrdersChunksPerSdk()
+    {
+        var items = new List<EverythingResultItem>
+        {
+            new(@"D:\Data", "archive.zip", 10485760L, false)
+        };
+
+        var requestFlags = EverythingIpcConstants.RequestFileName |
+                           EverythingIpcConstants.RequestPath |
+                           EverythingIpcConstants.RequestSize |
+                           EverythingIpcConstants.RequestExtension;
+
+        var bytes = EverythingBinaryResponseBuilder.BuildListV2(
+            items,
+            totalItems: 1,
+            offset: 0,
+            requestFlags: requestFlags,
+            sortType: EverythingIpcConstants.SortNameAscending,
+            isUnicode: true);
+
+        using var stream = new MemoryStream(bytes);
+        using var reader = new BinaryReader(stream);
+
+        // LIST2 header: totitems, numitems, offset, request_flags, sort_type (5 x uint32)
+        stream.Position = 20;
+        var itemFlag = reader.ReadUInt32();
+        var dataOffset = reader.ReadUInt32();
+        Assert.AreEqual(0u, itemFlag);
+
+        stream.Position = dataOffset;
+
+        // 1. FileName: DWORD len + wchar null-term
+        var nameLen = reader.ReadUInt32();
+        var name = ReadUnicodeNullTerminated(stream);
+        Assert.AreEqual("archive.zip", name);
+
+        // 2. Path: DWORD len + wchar null-term
+        var pathLen = reader.ReadUInt32();
+        var path = ReadUnicodeNullTerminated(stream);
+        Assert.AreEqual(@"D:\Data", path);
+
+        // 3. Size: Int64 (SDK order: SIZE before EXTENSION)
+        var size = reader.ReadInt64();
+        Assert.AreEqual(10485760L, size);
+
+        // 4. Extension: DWORD len + wchar null-term
+        var extLen = reader.ReadUInt32();
+        Assert.AreEqual((uint)"zip".Length, extLen);
+        var ext = ReadUnicodeNullTerminated(stream);
+        Assert.AreEqual("zip", ext);
+    }
+
     private static string ReadUnicodeNullTerminated(Stream stream)
     {
         var chars = new List<char>();

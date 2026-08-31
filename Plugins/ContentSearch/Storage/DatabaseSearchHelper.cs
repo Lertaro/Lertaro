@@ -3,138 +3,60 @@ using Microsoft.Data.Sqlite;
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
-/// Executes full-text and short-term queries against FTS tables and extracts snippets directly from internal content.
+/// Executes full-text queries against the Lucene index and expands each hit to the source row
+/// and every duplicate referencing it. Split from the Lucene wrapper itself so the wrapper
+/// stays storage mechanics only. Internal: the signature exposes the internal Lucene wrapper
+/// type; the database facade is the only caller.
 /// </summary>
-public static class DatabaseSearchHelper
+internal static class DatabaseSearchHelper
 {
-    public static IReadOnlyList<SearchHitItem> Search(SqliteConnection conn, string rawQuery, string ftsQuery, int limit)
+    public static IReadOnlyList<SearchHitItem> Search(SqliteConnection conn, LuceneContentIndex lucene, string rawQuery, int limit)
     {
         var hits = new List<SearchHitItem>();
-        var seenFileIds = new HashSet<long>();
-        var tokens = rawQuery.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (!string.IsNullOrWhiteSpace(ftsQuery) && tokens.Any(t => t.Length >= 3))
+        try
         {
-            ExecuteFts(conn, ftsQuery, rawQuery, limit, seenFileIds, hits);
-
-            if (hits.Count < limit && tokens.Length > 1)
+            // The top-N cap applies to indexed source rows: each hit then expands to the source
+            // itself and every duplicate referencing it, so a duplicate cannot eat another file
+            // out of the limit.
+            var luceneHits = lucene.Search(rawQuery, limit);
+            foreach (var hit in luceneHits)
             {
-                var compacted = DatabaseFtsQueryHelper.BuildFtsQuery(string.Concat(tokens));
-                if (!string.IsNullOrEmpty(compacted) && compacted != ftsQuery)
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = """
+                    SELECT id, path FROM files
+                    WHERE path = @path OR content_ref = (SELECT id FROM files WHERE path = @path);
+                    """;
+                cmd.Parameters.AddWithValue("@path", hit.Path);
+
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
                 {
-                    ExecuteFts(conn, compacted, rawQuery, limit, seenFileIds, hits);
+                    var filePath = reader.GetString(1);
+                    if (!seenPaths.Add(filePath))
+                        continue;
+
+                    hits.Add(new SearchHitItem
+                    {
+                        FilePath = filePath,
+                        FileName = Path.GetFileName(filePath),
+                        DirectoryPath = Path.GetDirectoryName(filePath) ?? string.Empty,
+                        // A duplicate owns no text of its own: its snippet reuses the source
+                        // row's content that Lucene stored with the hit.
+                        Snippet = SnippetGenerator.CreateSnippet(hit.Content, rawQuery),
+                        Score = hit.Score
+                    });
                 }
             }
         }
-
-        if (hits.Count < limit && tokens.Length > 0 && tokens.All(t => t.Length < 3))
+        catch (Exception ex)
         {
-            ScanContentForShortTokens(conn, tokens, rawQuery, limit, seenFileIds, hits);
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Full-text search failed for '{rawQuery}': {ex.Message}",
+                PluginSdk.LogLevel.Warn);
         }
 
         return hits;
-    }
-
-    private static void ScanContentForShortTokens(
-        SqliteConnection conn,
-        string[] tokens,
-        string rawQuery,
-        int limit,
-        HashSet<long> seenFileIds,
-        List<SearchHitItem> hits)
-    {
-        try
-        {
-            var remainingLimit = limit - hits.Count;
-            if (remainingLimit <= 0) return;
-
-            using var cmd = conn.CreateCommand();
-            var whereClauses = new List<string>(tokens.Length);
-            for (var i = 0; i < tokens.Length; i++)
-            {
-                whereClauses.Add($"files_fts.content LIKE @token{i}");
-                cmd.Parameters.AddWithValue($"@token{i}", "%" + tokens[i] + "%");
-            }
-
-            cmd.CommandText = $"""
-                SELECT f.id, f.path, files_fts.content
-                FROM files_fts
-                JOIN files f ON f.id = files_fts.rowid
-                WHERE {string.Join(" AND ", whereClauses)}
-                LIMIT @limit;
-                """;
-            cmd.Parameters.AddWithValue("@limit", remainingLimit);
-
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                var fileId = reader.GetInt64(0);
-                if (seenFileIds.Add(fileId))
-                {
-                    var filePath = reader.GetString(1);
-                    var content = reader.IsDBNull(2) ? string.Empty : reader.GetString(2);
-                    var snippet = SnippetGenerator.CreateSnippet(content, rawQuery);
-
-                    hits.Add(new SearchHitItem
-                    {
-                        FilePath = filePath,
-                        FileName = Path.GetFileName(filePath),
-                        DirectoryPath = Path.GetDirectoryName(filePath) ?? string.Empty,
-                        Snippet = snippet,
-                        Score = 1.0
-                    });
-                }
-            }
-        }
-        catch { }
-    }
-
-    private static void ExecuteFts(
-        SqliteConnection conn,
-        string query,
-        string rawQuery,
-        int limit,
-        HashSet<long> seenFileIds,
-        List<SearchHitItem> hits)
-    {
-        try
-        {
-            var remainingLimit = limit - hits.Count;
-            if (remainingLimit <= 0) return;
-
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = """
-                SELECT f.id, f.path, rank, files_fts.content
-                FROM files_fts(@query)
-                JOIN files f ON f.id = files_fts.rowid
-                ORDER BY rank
-                LIMIT @limit;
-                """;
-            cmd.Parameters.AddWithValue("@query", query);
-            cmd.Parameters.AddWithValue("@limit", remainingLimit);
-
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                var fileId = reader.GetInt64(0);
-                if (seenFileIds.Add(fileId))
-                {
-                    var filePath = reader.GetString(1);
-                    var rank = reader.GetDouble(2);
-                    var content = reader.IsDBNull(3) ? string.Empty : reader.GetString(3);
-                    var snippet = SnippetGenerator.CreateSnippet(content, rawQuery);
-
-                    hits.Add(new SearchHitItem
-                    {
-                        FilePath = filePath,
-                        FileName = Path.GetFileName(filePath),
-                        DirectoryPath = Path.GetDirectoryName(filePath) ?? string.Empty,
-                        Snippet = snippet,
-                        Score = -rank
-                    });
-                }
-            }
-        }
-        catch { }
     }
 }

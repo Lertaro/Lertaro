@@ -36,7 +36,20 @@ internal static class ServiceControlRunner
             if (!process.WaitForExit(TimeoutMs))
             {
                 TryKill(process);
-                return LogResult(new ServiceCommandResult(arguments, null, true, string.Empty, $"Timed out after {TimeoutMs}ms."), successExitCodes);
+                var stdout = string.Empty;
+                var stderr = string.Empty;
+                try
+                {
+                    Task.WaitAll(new[] { stdoutTask, stderrTask }, TimeSpan.FromSeconds(1));
+                    if (stdoutTask.IsCompletedSuccessfully) stdout = stdoutTask.Result.Trim();
+                    if (stderrTask.IsCompletedSuccessfully) stderr = stderrTask.Result.Trim();
+                }
+                catch
+                {
+                    // Output tasks may fault if the process was killed before producing complete output.
+                }
+
+                return LogResult(new ServiceCommandResult(arguments, null, true, stdout, string.IsNullOrWhiteSpace(stderr) ? $"Timed out after {TimeoutMs}ms." : stderr), successExitCodes);
             }
 
             var result = new ServiceCommandResult(

@@ -57,7 +57,7 @@ public partial class QuickLookWindow : Window
         {
             if (e.ButtonState == System.Windows.Input.MouseButtonState.Pressed)
             {
-                DragMove();
+                try { DragMove(); } catch { }
             }
         };
         IsVisibleChanged += (s, e) =>

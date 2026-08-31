@@ -16,6 +16,8 @@ namespace Lertaro.App.ViewModels.Settings.General;
 // _userSettings.QuickNavigationProviderOrder when Save() runs (called from GeneralSettingsViewModel.Apply()).
 public class QuickNavigationOrderViewModel : ViewModelBase
 {
+    private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
+
     private readonly UserSettings _userSettings;
 
     public QuickNavigationOrderViewModel(UserSettings userSettings)
@@ -34,11 +36,13 @@ public class QuickNavigationOrderViewModel : ViewModelBase
         MoveUpCommand = new RelayCommand<QuickNavProviderOrderItem>(MoveUp);
         MoveDownCommand = new RelayCommand<QuickNavProviderOrderItem>(MoveDown);
 
-        TranslationManager.Instance.PropertyChanged += (_, _) =>
+        _translationHandler = (_, _) =>
         {
             foreach (var item in Items)
                 item.NotifyLanguageChanged();
         };
+        TranslationManager.Instance.PropertyChanged += _translationHandler;
+
     }
 
     public ObservableCollection<QuickNavProviderOrderItem> Items { get; } = new();
@@ -64,6 +68,8 @@ public class QuickNavigationOrderViewModel : ViewModelBase
     }
 
     public void Save() => _userSettings.QuickNavigationProviderOrder = Items.Select(x => x.Id).ToList();
+
+    public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
 }
 
 public class QuickNavProviderOrderItem : OrderItemBase

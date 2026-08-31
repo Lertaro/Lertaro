@@ -89,6 +89,12 @@ public class UsnMonitor
                     {
                         var err = Marshal.GetLastWin32Error();
                         Logger.Log($"[Monitor] FSCTL_READ_USN_JOURNAL error on drive {_drive}: {err}", LogLevel.Warn);
+                        if (IsJournalReindexError(err))
+                        {
+                            Logger.Log($"[Monitor] USN journal invalidated on drive {_drive} (error {err}). Stopping monitor for re-index.", LogLevel.Error);
+                            _onReindexRequired?.Invoke(_drive);
+                            break;
+                        }
                         handle = await RecoverVolumeHandle(volumePath, handle, err);
                         if (handle.IsInvalid)
                             break;
@@ -128,7 +134,7 @@ public class UsnMonitor
     {
         if (returnedSize > 8)
         {
-            _startUsn = BitConverter.ToInt64(outBuf, 0);
+            var nextUsn = BitConverter.ToInt64(outBuf, 0);
             var offset = 8;
             var recordsProcessed = 0;
             var records = new List<ParsedUsnRecord>();
@@ -156,8 +162,17 @@ public class UsnMonitor
                 offset += (int)recordLen;
             }
 
+            // Advance the watermark only after a successful apply. If ApplyUsnRecords throws, keep the
+            // old _startUsn so the next read replays this batch instead of dropping it forever.
             if (records.Count > 0)
+            {
                 _indexer.ApplyUsnRecords(_drive, records);
+                _startUsn = nextUsn;
+            }
+            else if (recordsProcessed == 0)
+            {
+                _startUsn = nextUsn;
+            }
 
             if (_startUsn == previousUsn)
                 await Task.Delay(1000, _token);
@@ -233,6 +248,9 @@ public class UsnMonitor
 
     private static bool IsRecoverableVolumeError(int err) =>
         err is Win32Api.ERROR_NOT_READY or Win32Api.ERROR_INVALID_HANDLE or Win32Api.ERROR_DEVICE_NOT_CONNECTED;
+
+    private static bool IsJournalReindexError(int err) =>
+        err is Win32Api.ERROR_JOURNAL_DELETE_IN_PROGRESS or Win32Api.ERROR_JOURNAL_NOT_ACTIVE or Win32Api.ERROR_JOURNAL_ENTRY_DELETED;
 
     private static (ulong JournalId, long LowestValidUsn, long NextUsn)? QueryJournal(SafeFileHandle handle)
     {

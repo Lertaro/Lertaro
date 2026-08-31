@@ -20,7 +20,15 @@ internal sealed class HookLaunchBroker : IDisposable
             if (!ok)
             {
                 if (!string.IsNullOrEmpty(error))
-                    Logger.Log($"[HookIpcClient] Service declined hook launch: {error}", LogLevel.Warn);
+                {
+                    // The hook launch is retried every 5s by HookIpcClient, so a batch of these is
+                    // expected while the service is still coming up on boot; downgrade to Debug
+                    // inside the cold-start window and keep real failures afterwards visible.
+                    var level = ServicePipeReadinessGate.Instance.IsColdStart(Environment.TickCount64)
+                        ? LogLevel.Debug
+                        : LogLevel.Warn;
+                    Logger.Log($"[HookIpcClient] Service declined hook launch: {error}", level);
+                }
                 return null;
             }
 

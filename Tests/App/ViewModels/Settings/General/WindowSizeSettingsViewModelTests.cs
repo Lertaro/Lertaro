@@ -29,6 +29,27 @@ public sealed class MainWindowSettingsViewModelTests
 
         Assert.AreEqual(UiMetrics.MinMainWindowWidth + 1, vm.Width);
     }
+    [TestMethod]
+    public void Constructor_RoundsFractionalStoredWindowSize()
+    {
+        var settings = new UserSettings();
+        settings.MainWindow.Width = 1053.6000000000001;
+        settings.MainWindow.Height = 680.4;
+
+        var vm = new MainWindowSettingsViewModel(settings);
+
+        Assert.AreEqual(1054, vm.Width);
+        Assert.AreEqual(680, vm.Height);
+    }
+
+    [TestMethod]
+    public void Width_SetterRoundsFractionalValue()
+    {
+        var vm = new MainWindowSettingsViewModel(new UserSettings()) { Width = 1053.6000000000001 };
+
+        Assert.AreEqual(1054, vm.Width);
+    }
+
 
     [TestMethod]
     public void Width_BelowMinimum_Throws() =>
@@ -84,6 +105,19 @@ public sealed class PreviewWindowSettingsViewModelTests
     }
 
     [TestMethod]
+    public void Constructor_RoundsFractionalStoredWindowSize()
+    {
+        var settings = new UserSettings();
+        settings.PreviewWindow.Width = 500.6;
+        settings.PreviewWindow.Height = 700.4;
+
+        var vm = new PreviewWindowSettingsViewModel(settings);
+
+        Assert.AreEqual(501, vm.Width);
+        Assert.AreEqual(700, vm.Height);
+    }
+
+    [TestMethod]
     public void Width_OutOfRange_Throws() =>
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new PreviewWindowSettingsViewModel(new UserSettings()).Width = UiMetrics.MaxPreviewWindowWidth + 1);
 
@@ -107,6 +141,18 @@ public sealed class PreviewWindowSettingsViewModelTests
         vm.Save();
 
         Assert.AreEqual(600, settings.PreviewWindow.Width);
+        Assert.AreEqual(800, settings.PreviewWindow.Height);
+    }
+
+    [TestMethod]
+    public void Save_WritesRoundedValuesToUserSettings()
+    {
+        var settings = new UserSettings();
+        var vm = new PreviewWindowSettingsViewModel(settings) { Width = 600.6, Height = 800.4 };
+
+        vm.Save();
+
+        Assert.AreEqual(601, settings.PreviewWindow.Width);
         Assert.AreEqual(800, settings.PreviewWindow.Height);
     }
 }

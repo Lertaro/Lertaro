@@ -11,7 +11,6 @@ namespace Lertaro.Plugins.ContentSearch.Extraction;
 /// </summary>
 public sealed class PptxExtractor : ITextExtractor
 {
-    private const int MaxExtractedCharacters = 500_000;
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
     public bool CanHandle(string extension) =>
@@ -25,7 +24,7 @@ public sealed class PptxExtractor : ITextExtractor
             return null;
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+        timeoutCts.CancelAfter(ExtractorTimeoutPolicy.ForFileSize(fileInfo.Length));
 
         try
         {
@@ -36,6 +35,13 @@ public sealed class PptxExtractor : ITextExtractor
                 using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read, leaveOpen: false);
                 return ExtractPresentationText(archive, timeoutCts.Token);
             }, timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Timed out extracting presentation '{filePath}'",
+                PluginSdk.LogLevel.Warn);
+            return null;
         }
         catch (Exception ex)
         {
@@ -54,19 +60,17 @@ public sealed class PptxExtractor : ITextExtractor
         {
             ct.ThrowIfCancellationRequested();
             AppendSlideText(entry, builder, ct, skipSlideNumberFields: false);
-            if (builder.Length >= MaxExtractedCharacters)
-                return builder.ToString();
         }
 
         foreach (var entry in SlidesOrNotes(archive, "ppt/notesSlides/notesSlide"))
         {
             ct.ThrowIfCancellationRequested();
             AppendSlideText(entry, builder, ct, skipSlideNumberFields: true);
-            if (builder.Length >= MaxExtractedCharacters)
-                return builder.ToString();
         }
 
-        return builder.Length > 0 ? builder.ToString() : null;
+        // Empty string (not null) for a well-formed but textless presentation; null is
+        // reserved for actual extraction failures.
+        return builder.ToString();
     }
 
     private static IEnumerable<ZipArchiveEntry> SlidesOrNotes(ZipArchive archive, string entryNamePrefix) =>
@@ -104,8 +108,6 @@ public sealed class PptxExtractor : ITextExtractor
             if (text.Length > 0)
                 builder.AppendLine(text.ToString());
 
-            if (builder.Length >= MaxExtractedCharacters)
-                return;
         }
     }
 

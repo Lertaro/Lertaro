@@ -13,7 +13,7 @@ public static class FolderScanDiscoveryHelper
 {
     public static async Task<HashSet<string>> DiscoverFilesAsync(
         ContentIndexConfig config,
-        Dictionary<string, (long LastModified, long FileSize)> existingMeta,
+        Dictionary<string, (long LastModified, long FileSize, int MissingCount)> existingMeta,
         Action<string> onEnqueue,
         CancellationToken ct)
     {
@@ -40,6 +40,8 @@ public static class FolderScanDiscoveryHelper
                     if (item.IsDir) continue;
 
                     var file = item.FullPath;
+                    if (config.IsExcluded(file)) continue;
+
                     discovered.Add(file);
 
                     var ext = Path.GetExtension(file);
@@ -48,6 +50,12 @@ public static class FolderScanDiscoveryHelper
 
                     var fileSize = item.Metadata.Size;
                     var modified = item.Metadata.Modified;
+                    // ponytail: new oversized files deliberately stay unindexed. An
+                    // already-indexed file that becomes oversized after the cap was
+                    // lowered keeps its stale indexed text until a full index rebuild:
+                    // pruning a file that still exists and is still in scope was judged
+                    // worse than serving stale text (to prune those rows instead,
+                    // filter by size in TriggerFullScan's toDeleteImmediately).
                     if (fileSize == 0 || (config.MaxFileSizeBytes > 0 && fileSize > config.MaxFileSizeBytes))
                         continue;
 
@@ -80,7 +88,7 @@ public static class FolderScanDiscoveryHelper
     private static void ScanFilesystem(
         string folder,
         ContentIndexConfig config,
-        Dictionary<string, (long LastModified, long FileSize)> existingMeta,
+        Dictionary<string, (long LastModified, long FileSize, int MissingCount)> existingMeta,
         HashSet<string> discovered,
         Action<string> onEnqueue,
         CancellationToken ct)
@@ -99,6 +107,8 @@ public static class FolderScanDiscoveryHelper
                 foreach (var file in Directory.EnumerateFiles(currentDir, "*.*", SearchOption.TopDirectoryOnly))
                 {
                     if (ct.IsCancellationRequested) return;
+                    if (config.IsExcluded(file)) continue;
+
                     var ext = Path.GetExtension(file);
                     if (string.IsNullOrEmpty(ext) || !config.AllowedExtensions.Contains(ext))
                         continue;
@@ -124,7 +134,11 @@ public static class FolderScanDiscoveryHelper
 
                 foreach (var subDir in Directory.EnumerateDirectories(currentDir, "*", SearchOption.TopDirectoryOnly))
                 {
-                    dirQueue.Enqueue(subDir);
+                    // A matching directory drops its entire subtree from the walk.
+                    if (!config.IsExcluded(subDir))
+                    {
+                        dirQueue.Enqueue(subDir);
+                    }
                 }
             }
             catch { }

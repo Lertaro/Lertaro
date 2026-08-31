@@ -29,17 +29,6 @@ internal static class ShellMenuStaWorker
     [DllImport("kernel32.dll")]
     private static extern uint GetCurrentThreadId();
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr OpenThread(uint dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool TerminateThread(IntPtr hThread, uint dwExitCode);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool CloseHandle(IntPtr hObject);
-
-    private const uint ThreadTerminateAccess = 0x0001;
-
     public static Dispatcher? StaDispatcher
     {
         get
@@ -88,25 +77,18 @@ internal static class ShellMenuStaWorker
         }
     }
 
-    // A shell extension stuck in a native call can wedge this thread forever; Thread.Abort/Interrupt
-    // don't reach native code, so the only way out is a hard OS-level kill. This intentionally skips
-    // cleanup (no stack unwind, no COM release) -- the thread and everything it was doing is discarded,
-    // and a fresh STA worker takes over for the next call.
+    // A shell extension stuck in a native call can wedge this thread forever. TerminateThread is not a
+    // safe way out (no stack unwind, no COM release, and it can leave process-wide locks held), so the
+    // wedged background STA thread is simply abandoned and a fresh worker is created for the next call.
     public static void KillWedgedStaWorker(Dispatcher wedgedDispatcher)
     {
         lock (_staLock)
         {
             if (_staDispatcher != wedgedDispatcher) return; // already replaced by another caller's timeout
 
-            var threadId = _staThreadId;
             _staDispatcher = null;
             _staThreadId = 0;
-
-            if (threadId == 0) return;
-            var handle = OpenThread(ThreadTerminateAccess, false, threadId);
-            if (handle == IntPtr.Zero) return;
-            try { TerminateThread(handle, 1); }
-            finally { CloseHandle(handle); }
+            Logger.Log("[ShellMenuSession] Abandoned wedged STA worker; a fresh worker will start on the next call.", LogLevel.Warn);
         }
     }
 }

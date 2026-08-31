@@ -16,11 +16,9 @@ public partial class LocalSendDevicePanel : WpfUserControl
     public LocalSendDevicePanel()
     {
         InitializeComponent();
-        Loaded += (_, _) =>
-        {
-            if (DeviceList.Items is INotifyCollectionChanged items) items.CollectionChanged += (_, _) => UpdateButtons();
-            UpdateButtons();
-        };
+        if (DeviceList.Items is INotifyCollectionChanged items)
+            items.CollectionChanged += (_, _) => UpdateButtons();
+        Loaded += (_, _) => UpdateButtons();
     }
 
     private void DeviceList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateButtons();

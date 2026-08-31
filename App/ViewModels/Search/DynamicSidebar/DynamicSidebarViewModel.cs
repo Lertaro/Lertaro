@@ -12,12 +12,15 @@ public class DynamicSidebarGroupViewModel : ViewModelBase
     public DynamicSidebarGroupViewModel(SidebarFilterGroup group, SearchViewModel mainVm)
     {
         _mainVm = mainVm;
+        Id = group.Id;
         _header = group.Header;
         AllowMultiSelect = group.AllowMultiSelect;
         Items = group.Items.Select(item => new DynamicSidebarItemViewModel(item, this)).ToList();
         // Nothing selected by default -- there's no "All" pseudo-item anymore; an empty selection IS
         // the unfiltered state.
     }
+
+    public string Id { get; }
 
     private string _header;
     public string Header

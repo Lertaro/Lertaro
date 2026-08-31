@@ -105,7 +105,9 @@ public sealed partial class QuickPanelManager : IDisposable
         try
         {
             Core.Hook.ExplorerNativeHooks.GetWindowThreadProcessId(hwnd, out var pid);
-            return pid != 0 ? System.Diagnostics.Process.GetProcessById((int)pid).ProcessName : null;
+            if (pid == 0) return null;
+            using var process = System.Diagnostics.Process.GetProcessById((int)pid);
+            return process.ProcessName;
         }
         catch
         {
