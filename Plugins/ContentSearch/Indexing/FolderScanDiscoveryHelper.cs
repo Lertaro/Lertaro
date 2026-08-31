@@ -13,7 +13,7 @@ public static class FolderScanDiscoveryHelper
 {
     public static async Task<HashSet<string>> DiscoverFilesAsync(
         ContentIndexConfig config,
-        Dictionary<string, (long LastModified, long FileSize)> existingMeta,
+        Dictionary<string, (long LastModified, long FileSize, int MissingCount)> existingMeta,
         Action<string> onEnqueue,
         CancellationToken ct)
     {
@@ -88,7 +88,7 @@ public static class FolderScanDiscoveryHelper
     private static void ScanFilesystem(
         string folder,
         ContentIndexConfig config,
-        Dictionary<string, (long LastModified, long FileSize)> existingMeta,
+        Dictionary<string, (long LastModified, long FileSize, int MissingCount)> existingMeta,
         HashSet<string> discovered,
         Action<string> onEnqueue,
         CancellationToken ct)

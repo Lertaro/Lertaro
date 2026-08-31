@@ -28,4 +28,10 @@ public sealed class IndexedFileRecord
     /// its own text (or is a failed row).
     /// </summary>
     public long? ContentRef { get; set; }
+
+    /// <summary>
+    /// Number of consecutive full scans in which this file was not discovered while its
+    /// monitored folder was reachable. Reaching the retry limit deletes the row.
+    /// </summary>
+    public int MissingCount { get; set; }
 }

@@ -166,20 +166,18 @@ public sealed class ContentIndexScheduler : IDisposable
                     ExcludedPatterns = _config.ExcludedPatterns
                 };
 
-                var toDelete = existingMeta.Keys
-                    .Where(p => !discovered.Contains(p) && IsFileInMonitoredFolders(p, reachableConfig))
-                    .ToList();
-                if (toDelete.Count > 0)
-                {
-                    _database.DeleteFilesBatch(toDelete);
-                }
+                var missingResult = MissingObservationHelper.ApplyRetention(
+                    _database,
+                    existingMeta,
+                    discovered,
+                    reachableConfig);
 
                 _database.Optimize();
                 _database.VacuumIfBloat();
 
                 scanStopwatch.Stop();
                 PluginSdk.Logger.Log(
-                    $"[ContentSearch] Full scan completed in {scanStopwatch.Elapsed.TotalSeconds:F1}s: {discovered.Count} file(s) in scope, {toDelete.Count} pruned, {PendingCount} queued for indexing",
+                    $"[ContentSearch] Full scan completed in {scanStopwatch.Elapsed.TotalSeconds:F1}s: {discovered.Count} file(s) in scope, {toDeleteImmediately.Count} pruned by config, {missingResult.Pruned} pruned after retry, {missingResult.KeptForRetry} kept for retry, {PendingCount} queued for indexing",
                     PluginSdk.LogLevel.Info);
             }
             catch (Exception ex)

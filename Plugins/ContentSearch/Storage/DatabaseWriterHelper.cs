@@ -65,8 +65,8 @@ public static class DatabaseWriterHelper
         using var insertFileCmd = conn.CreateCommand();
         insertFileCmd.Transaction = tx;
         insertFileCmd.CommandText = """
-            INSERT INTO files (path, last_modified, file_size, indexed_at, failed_at, content_hash, content_ref)
-            VALUES (@path, @last_modified, @file_size, @indexed_at, @failed_at, @content_hash, @content_ref);
+            INSERT INTO files (path, last_modified, file_size, indexed_at, failed_at, content_hash, content_ref, missing_count)
+            VALUES (@path, @last_modified, @file_size, @indexed_at, @failed_at, @content_hash, @content_ref, 0);
             SELECT last_insert_rowid();
             """;
         var pPath = insertFileCmd.Parameters.Add("@path", SqliteType.Text);
@@ -125,6 +125,32 @@ public static class DatabaseWriterHelper
         }
 
         return idByPath;
+    }
+
+    /// <summary>
+    /// Updates the persisted consecutive-missing scan count for the given paths. The
+    /// scheduler uses this between discovery passes; rows are kept until the retry limit.
+    /// </summary>
+    public static void UpdateMissingCounts(SqliteConnection conn, IReadOnlyDictionary<string, int> countsByPath)
+    {
+        if (countsByPath.Count == 0) return;
+
+        using var tx = conn.BeginTransaction();
+        using var updateCmd = conn.CreateCommand();
+        updateCmd.Transaction = tx;
+        updateCmd.CommandText = "UPDATE files SET missing_count = @missing_count WHERE path = @path;";
+        var pPath = updateCmd.Parameters.Add("@path", SqliteType.Text);
+        var pMissingCount = updateCmd.Parameters.Add("@missing_count", SqliteType.Integer);
+        updateCmd.Prepare();
+
+        foreach (var pair in countsByPath)
+        {
+            pPath.Value = pair.Key;
+            pMissingCount.Value = pair.Value;
+            updateCmd.ExecuteNonQuery();
+        }
+
+        tx.Commit();
     }
 
     public static IReadOnlyDictionary<string, long> InsertOrUpdateFile(SqliteConnection conn, string path, DateTime lastModifiedUtc, long fileSize, string content) =>
