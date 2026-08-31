@@ -16,6 +16,7 @@ Open **Settings → Quick Launch → Quick Launch** to manage your own items:
 - The display name is optional. If it is blank, Lertaro derives a name from the target.
 - The file and folder browse buttons support selecting multiple items at once; each valid, non-duplicate target is added as its own entry.
 - Use the drag handle to reorder items. Editing changes the same row into an inline editor with save and cancel controls; the remove control deletes the item.
+- For a manual item, hover over the tile and click the ellipsis button to open its menu, then choose **Edit** or **Remove**. **Edit** opens the item editor dialog.
 - When the list contains items, use **Clear list** beside the list heading to remove all manual items at once; the button is hidden when the list is empty.
 - Missing targets are omitted from the panel until they become available again.
 
@@ -35,5 +36,7 @@ Open **Settings → Quick Launch → Data sources** to choose dynamic sources:
 - With one source, the source indicator is hidden.
 - With multiple sources, the bottom strip shows one dot per source. The selected dot is blue and the other dots are gray; hovering over a dot expands it to show the source name.
 - Hold **Shift** and scroll over the panel to cycle through sources. The selected source briefly plays the same reveal animation.
+- The configured **Select Next Item** and **Select Previous Item** hotkeys (defaults **Ctrl+N** and **Ctrl+P**) also cycle through sources when the panel is visible; selection wraps from the last source to the first and vice versa.
+- Right-click any item from any source to open the standard action menu for that item.
 - When the panel contains more items than fit vertically, use the mouse wheel over the item area to scroll; hovering an item does not block vertical scrolling.
 - Starting a query hides the panel.
