@@ -29,6 +29,18 @@ public static class DatabaseMetadataReader
         return dict;
     }
 
+    /// <summary>
+    /// Number of searchable file rows: rows whose extraction succeeded (failed_at IS NULL),
+    /// including duplicates that reuse a source row's text. Failed/skipped rows are excluded.
+    /// </summary>
+    public static int CountIndexedFiles(SqliteConnection conn)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM files WHERE failed_at IS NULL;";
+        var res = cmd.ExecuteScalar();
+        return res != null && res != DBNull.Value ? Convert.ToInt32(res) : 0;
+    }
+
     public static IndexedFileRecord? GetFileRecord(SqliteConnection conn, string path)
     {
         using var cmd = conn.CreateCommand();
