@@ -122,9 +122,6 @@ public sealed class ContentIndexScheduler : IDisposable
                     return;
                 }
 
-                PluginSdk.Logger.Log(
-                    $"[ContentSearch] Full scan started over {_config.MonitoredFolders.Count} folder(s)",
-                    PluginSdk.LogLevel.Info);
                 var scanStopwatch = Stopwatch.StartNew();
 
                 var existingMeta = _database.GetAllFileMetadata();
@@ -176,9 +173,15 @@ public sealed class ContentIndexScheduler : IDisposable
                 _database.VacuumIfBloat();
 
                 scanStopwatch.Stop();
-                PluginSdk.Logger.Log(
-                    $"[ContentSearch] Full scan completed in {scanStopwatch.Elapsed.TotalSeconds:F1}s: {discovered.Count} file(s) in scope, {toDeleteImmediately.Count} pruned by config, {missingResult.Pruned} pruned after retry, {missingResult.KeptForRetry} kept for retry, {PendingCount} queued for indexing",
-                    PluginSdk.LogLevel.Info);
+                // One info line per scan, only when there is actual indexing work: it tells the
+                // user how many files this scan queued without the folder-count noise or the
+                // per-scan completion bookkeeping that used to be logged here.
+                if (PendingCount > 0)
+                {
+                    PluginSdk.Logger.Log(
+                        $"[ContentSearch] Started scanning {PendingCount} file(s)",
+                        PluginSdk.LogLevel.Info);
+                }
             }
             catch (Exception ex)
             {
