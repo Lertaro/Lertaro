@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Markup;
 using System.Windows.Media;
 using Lertaro.App.Helpers;
 using Lertaro.App.ViewModels.Settings;
@@ -26,13 +27,10 @@ public partial class ServiceSettingsPage : System.Windows.Controls.UserControl
 
     private void OnLogLinesChanged(IEnumerable<LogLineViewModel> lines)
     {
-        // Only auto-follow to the newest lines if the user was already at (or near) the bottom --
-        // otherwise a periodic refresh would yank them away while reading older lines. Checked against
-        // the scroll extent from before this update, i.e. where the user actually was.
-        var wasNearBottom = LogTextBox.VerticalOffset >= LogTextBox.ExtentHeight - LogTextBox.ViewportHeight - 20;
+        // Always follow the newest log lines: the log viewer is a live tail, so every refresh
+        // rebuilds the document and jumps straight to the end, no matter where the caret was.
         RebuildLogDocument(lines);
-        if (wasNearBottom)
-            LogTextBox.ScrollToEnd();
+        LogTextBox.ScrollToEnd();
     }
 
     private void RebuildLogDocument(IEnumerable<LogLineViewModel> lines)
@@ -41,6 +39,10 @@ public partial class ServiceSettingsPage : System.Windows.Controls.UserControl
         // scroll horizontally instead" -- there's no direct TextWrapping=NoWrap for it. How much wider
         // has to come from the text, because that width is also the horizontal scroll range.
         var document = new FlowDocument { PagePadding = new Thickness(0) };
+        // Mark the whole document as Simplified Chinese so WPF's per-glyph font fallback picks the CJK
+        // fonts from the composite FontFamily (Microsoft YaHei UI and the other East Asian UI fonts)
+        // even on a non-Chinese Windows install; Latin glyphs still come from Consolas, the first family.
+        document.Language = XmlLanguage.GetLanguage("zh-CN");
         var paragraph = new Paragraph { Margin = new Thickness(0) };
         var typeface = new Typeface(LogTextBox.FontFamily, LogTextBox.FontStyle, LogTextBox.FontWeight, LogTextBox.FontStretch);
         var pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
