@@ -151,7 +151,24 @@ public sealed class ContentIndexScheduler : IDisposable
 
                 if (ct.IsCancellationRequested) return;
 
-                var toDelete = existingMeta.Keys.Where(p => !discovered.Contains(p)).ToList();
+                // A monitored NAS/share can be offline while the app keeps running. A scan
+                // while it is unreachable must not prune every file below it as "vanished":
+                // only prune paths whose monitored folder is currently reachable, so the
+                // offline share's content remains searchable from the local index.
+                var reachableFolders = _config.MonitoredFolders
+                    .Select(NormalizeFolderPath)
+                    .Where(folder => !string.IsNullOrEmpty(folder) && Directory.Exists(folder))
+                    .ToList();
+                var reachableConfig = new ContentIndexConfig
+                {
+                    MonitoredFolders = reachableFolders,
+                    AllowedExtensions = _config.AllowedExtensions,
+                    ExcludedPatterns = _config.ExcludedPatterns
+                };
+
+                var toDelete = existingMeta.Keys
+                    .Where(p => !discovered.Contains(p) && IsFileInMonitoredFolders(p, reachableConfig))
+                    .ToList();
                 if (toDelete.Count > 0)
                 {
                     _database.DeleteFilesBatch(toDelete);

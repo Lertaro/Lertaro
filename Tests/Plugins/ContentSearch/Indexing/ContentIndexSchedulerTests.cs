@@ -222,6 +222,25 @@ public sealed class ContentIndexSchedulerTests
     }
 
     [TestMethod]
+    public void TriggerFullScan_UnreachableMonitoredFolder_KeepsExistingRows()
+    {
+        // A disconnected NAS/share is not on disk; a scan must not prune its indexed files.
+        var offlineRoot = Path.Combine(Path.GetTempPath(), "TestIndexScheduler_OfflineNas_" + Guid.NewGuid().ToString("N"));
+        var offlineFile = Path.Combine(offlineRoot, "manual.pdf");
+        _database.InsertOrUpdateFile(offlineFile, DateTime.UtcNow, 1024, "offline searchable text");
+        using var scheduler = new ContentIndexScheduler(_database);
+        var config = new ContentIndexConfig
+        {
+            MonitoredFolders = new List<string> { offlineRoot },
+            AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".pdf" }
+        };
+        scheduler.UpdateConfig(config);
+        scheduler.TriggerFullScan();
+        Thread.Sleep(300);
+        Assert.IsNotNull(_database.GetFileRecord(offlineFile));
+    }
+
+    [TestMethod]
     public async Task WorkerLoop_BatchWriteFailure_KeepsWorkerAliveAndLogs()
     {
         // One transient failure (a corrupted database file standing in for a SQLite I/O
