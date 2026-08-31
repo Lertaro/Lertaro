@@ -18,8 +18,10 @@ public class FavoritesSettingsViewModel : ViewModelBase
         {
             Items.Add(new FavoriteItemViewModel { Name = fav.Name, Path = fav.Path });
         }
+        Items.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasItems));
 
         AddCommand = new RelayCommand(Add, CanAdd);
+        ClearCommand = new RelayCommand(Clear);
         RemoveCommand = new RelayCommand<FavoriteItemViewModel>(Remove);
         EditCommand = new RelayCommand<FavoriteItemViewModel>(Edit);
         SaveEditCommand = new RelayCommand<FavoriteItemViewModel>(SaveEdit, CanSaveEdit);
@@ -36,6 +38,7 @@ public class FavoritesSettingsViewModel : ViewModelBase
     public ObservableCollection<FavoriteItemViewModel> Items { get; } = new();
 
     public ICommand AddCommand { get; }
+    public ICommand ClearCommand { get; }
     public ICommand RemoveCommand { get; }
     public ICommand EditCommand { get; }
     public ICommand SaveEditCommand { get; }
@@ -47,6 +50,8 @@ public class FavoritesSettingsViewModel : ViewModelBase
     public ICommand MoveUpCommand { get; }
     public ICommand MoveDownCommand { get; }
     public ICommand AddPathPresetCommand { get; }
+
+    public bool HasItems => Items.Count > 0;
 
     public string NewName
     {
@@ -94,6 +99,8 @@ public class FavoritesSettingsViewModel : ViewModelBase
     }
 
     private bool CanAdd() => FavoritePathResolver.IsPathAvailable(NewPath);
+
+    private void Clear() => Items.Clear();
 
     private void Add()
     {

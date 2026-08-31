@@ -20,6 +20,7 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
         SelectSectionCommand = new RelayCommand<string>(section => SelectedSection = section ?? "Items");
         foreach (var item in userSettings.QuickLaunch.Items)
             Items.Add(new QuickLaunchItemViewModel { Name = item.Name, Path = item.Path });
+        Items.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasItems));
 
         var disabledIds = userSettings.QuickLaunch.DisabledSourceIds;
         var sourceOptions = QuickLaunchSourceCatalog.Providers
@@ -38,6 +39,7 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
         }
 
         AddCommand = new RelayCommand(Add, CanAdd);
+        ClearCommand = new RelayCommand(Clear);
         RemoveCommand = new RelayCommand<QuickLaunchItemViewModel>(item => Items.Remove(item));
         EditCommand = new RelayCommand<QuickLaunchItemViewModel>(Edit);
         SaveEditCommand = new RelayCommand<QuickLaunchItemViewModel>(SaveEdit, CanSaveEdit);
@@ -54,6 +56,7 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
     public ObservableCollection<QuickLaunchSourceOptionViewModel> Sources { get; } = new();
     public ICommand SelectSectionCommand { get; }
     public ICommand AddCommand { get; }
+    public ICommand ClearCommand { get; }
     public ICommand RemoveCommand { get; }
     public ICommand EditCommand { get; }
     public ICommand SaveEditCommand { get; }
@@ -64,6 +67,8 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
     public ICommand BrowseFileCommand { get; }
     public ICommand BrowseEditFolderCommand { get; }
     public ICommand BrowseEditFileCommand { get; }
+
+    public bool HasItems => Items.Count > 0;
 
     public bool IsEnabled
     {
@@ -123,6 +128,8 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
     }
 
     private bool CanAdd() => FavoritePathResolver.IsPathAvailable(NewPath);
+
+    private void Clear() => Items.Clear();
 
     private void Add()
     {

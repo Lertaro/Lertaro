@@ -147,8 +147,14 @@
                             <Button Grid.Column="3" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Add]}" Style="{StaticResource PrimarySettingsButton}" Command="{Binding AddCommand}" Height="34" MinWidth="56" Padding="12,0" Margin="8,0,0,0"/>
                         </Grid>
                         <Separator Background="{DynamicResource SettingsRowBorderBrush}" Height="1" Margin="0,0,0,12"/>
-                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ListTitle]}"
-                                   FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,8">
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ListTitle]}"
+                                       FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+                            <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ClearList]}"
+                                    Style="{StaticResource SettingsButton}" HorizontalAlignment="Right"
+                                    Visibility="{Binding HasItems, Converter={StaticResource BoolToVis}}"
+                                    Command="{Binding ClearCommand}"/>
+                        </Grid>
                         <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource QuickLaunchItemTemplate}" helpers:DragReorder.IsEnabled="True"/>
                     </StackPanel>
                 </Border>

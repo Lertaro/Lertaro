@@ -141,8 +141,14 @@
 
                     <Separator Background="{DynamicResource SettingsRowBorderBrush}" Height="1" Margin="0,0,0,12"/>
 
-                    <TextBlock x:Name="RowListTitle" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_ListTitle]}"
-                               FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                    <Grid Margin="0,0,0,8">
+                        <TextBlock x:Name="RowListTitle" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_ListTitle]}"
+                                   FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+                        <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_ClearList]}"
+                                Style="{StaticResource SettingsButton}" HorizontalAlignment="Right"
+                                Visibility="{Binding HasItems, Converter={StaticResource BoolToVis}}"
+                                Command="{Binding ClearCommand}"/>
+                    </Grid>
 
                     <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource FavItemTemplate}" helpers:DragReorder.IsEnabled="True">
                         <ItemsControl.ItemsPanel>

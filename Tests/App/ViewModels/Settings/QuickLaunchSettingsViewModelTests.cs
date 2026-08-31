@@ -25,6 +25,20 @@ public sealed class QuickLaunchSettingsViewModelTests
     }
 
     [TestMethod]
+    public void ClearCommand_Execute_ClearsItemsAndUpdatesHasItems()
+    {
+        var vm = new QuickLaunchSettingsViewModel(new UserSettings()) { NewPath = Path.GetTempPath() };
+        vm.AddCommand.Execute(null);
+
+        Assert.IsTrue(vm.HasItems);
+
+        vm.ClearCommand.Execute(null);
+
+        Assert.IsEmpty(vm.Items);
+        Assert.IsFalse(vm.HasItems);
+    }
+
+    [TestMethod]
     public void AddPaths_AddsAllUniqueExistingPathsWithAutomaticNames()
     {
         var first = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".exe");

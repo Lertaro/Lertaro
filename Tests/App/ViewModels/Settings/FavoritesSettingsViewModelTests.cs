@@ -129,6 +129,20 @@ public sealed class FavoritesSettingsViewModelTests
     }
 
     [TestMethod]
+    public void ClearCommand_Execute_ClearsItemsAndUpdatesHasItems()
+    {
+        var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewPath = Path.GetTempPath() };
+        vm.AddCommand.Execute(null);
+
+        Assert.IsTrue(vm.HasItems);
+
+        vm.ClearCommand.Execute(null);
+
+        Assert.IsEmpty(vm.Items);
+        Assert.IsFalse(vm.HasItems);
+    }
+
+    [TestMethod]
     public void EditCommand_Execute_StartsInlineEditWithoutRemovingItem()
     {
         var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewName = "Docs", NewPath = Path.GetTempPath() };
