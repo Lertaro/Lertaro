@@ -134,19 +134,24 @@ public static class UiMetrics
         }
     }
 
+    /// <summary>Window sizes are stored/displayed as whole DIPs when possible. WPF often reports
+    /// fractional sizes after DPI-scaling/resizing (e.g. 1053.6000000000001), so normalize every
+    /// stored/displayed window metric to the nearest whole DIP.</summary>
+    internal static double RoundWindowSize(double value) => Math.Round(value, MidpointRounding.AwayFromZero);
+
     /// <summary>QuickLook preview window size. User-configurable (General settings page); fixed rather
     /// than derived from the owner window's current height so it doesn't change with however many
     /// results happen to be showing right now.</summary>
     public static double PreviewWindowWidth
     {
         get => _previewWindowWidth;
-        set => _previewWindowWidth = Math.Clamp(value, MinPreviewWindowWidth, MaxPreviewWindowWidth);
+        set => _previewWindowWidth = Math.Clamp(RoundWindowSize(value), MinPreviewWindowWidth, MaxPreviewWindowWidth);
     }
 
     public static double PreviewWindowHeight
     {
         get => _previewWindowHeight;
-        set => _previewWindowHeight = Math.Clamp(value, MinPreviewWindowHeight, MaxPreviewWindowHeight);
+        set => _previewWindowHeight = Math.Clamp(RoundWindowSize(value), MinPreviewWindowHeight, MaxPreviewWindowHeight);
     }
 
     /// <summary>Main SearchWindow default size. User-configurable (General settings page) and also
@@ -155,13 +160,13 @@ public static class UiMetrics
     public static double MainWindowWidth
     {
         get => _mainWindowWidth;
-        set => _mainWindowWidth = Math.Clamp(value, MinMainWindowWidth, MaxMainWindowWidth);
+        set => _mainWindowWidth = Math.Clamp(RoundWindowSize(value), MinMainWindowWidth, MaxMainWindowWidth);
     }
 
     public static double MainWindowHeight
     {
         get => _mainWindowHeight;
-        set => _mainWindowHeight = Math.Clamp(value, MinMainWindowHeight, MaxMainWindowHeight);
+        set => _mainWindowHeight = Math.Clamp(RoundWindowSize(value), MinMainWindowHeight, MaxMainWindowHeight);
     }
 
     /// <summary>Loads the current search bar height, quick-window icon size, preview window size, and
