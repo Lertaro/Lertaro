@@ -16,15 +16,15 @@ public static class DatabaseMetadataReader
     // index by design) warns that the corpus has outgrown the trade-off.
     private const long SlowHashLookupWarnMs = 500;
 
-    public static Dictionary<string, (long LastModified, long FileSize)> GetAllFileMetadata(SqliteConnection conn)
+    public static Dictionary<string, (long LastModified, long FileSize, int MissingCount)> GetAllFileMetadata(SqliteConnection conn)
     {
-        var dict = new Dictionary<string, (long, long)>(StringComparer.OrdinalIgnoreCase);
+        var dict = new Dictionary<string, (long, long, int)>(StringComparer.OrdinalIgnoreCase);
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT path, last_modified, file_size FROM files;";
+        cmd.CommandText = "SELECT path, last_modified, file_size, missing_count FROM files;";
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
-            dict[reader.GetString(0)] = (reader.GetInt64(1), reader.GetInt64(2));
+            dict[reader.GetString(0)] = (reader.GetInt64(1), reader.GetInt64(2), (int)reader.GetInt64(3));
         }
         return dict;
     }
@@ -32,7 +32,7 @@ public static class DatabaseMetadataReader
     public static IndexedFileRecord? GetFileRecord(SqliteConnection conn, string path)
     {
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT id, path, last_modified, file_size, indexed_at, failed_at, content_hash, content_ref FROM files WHERE path = @path LIMIT 1;";
+        cmd.CommandText = "SELECT id, path, last_modified, file_size, indexed_at, failed_at, content_hash, content_ref, missing_count FROM files WHERE path = @path LIMIT 1;";
         cmd.Parameters.AddWithValue("@path", path);
         using var reader = cmd.ExecuteReader();
         if (reader.Read())
@@ -46,7 +46,8 @@ public static class DatabaseMetadataReader
                 IndexedAt = reader.GetInt64(4),
                 FailedAt = reader.IsDBNull(5) ? null : reader.GetInt64(5),
                 ContentHash = reader.IsDBNull(6) ? null : reader.GetString(6),
-                ContentRef = reader.IsDBNull(7) ? null : reader.GetInt64(7)
+                ContentRef = reader.IsDBNull(7) ? null : reader.GetInt64(7),
+                MissingCount = (int)reader.GetInt64(8)
             };
         }
         return null;

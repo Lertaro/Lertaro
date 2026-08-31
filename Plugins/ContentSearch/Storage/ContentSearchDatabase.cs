@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
-/// Manages SQLite storage, FTS5 full-text indexing, and search queries for documents.
+/// Manages SQLite storage, Lucene.Net full-text indexing, and search queries for documents.
 /// </summary>
 public sealed class ContentSearchDatabase : IDisposable
 {
@@ -127,7 +127,7 @@ public sealed class ContentSearchDatabase : IDisposable
                 using var conn = OpenConnection();
                 using var cmd = conn.CreateCommand();
                 // Segment merging is Lucene's own background policy; only the SQLite side needs
-                // the explicit checkpoint now that the FTS5 'optimize' command is gone.
+                // the explicit checkpoint now that Lucene handles segment merging.
                 cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
                 cmd.ExecuteNonQuery();
             }
@@ -168,13 +168,19 @@ public sealed class ContentSearchDatabase : IDisposable
         catch { return 0; }
     }
 
-    public Dictionary<string, (long LastModified, long FileSize)> GetAllFileMetadata()
+    public Dictionary<string, (long LastModified, long FileSize, int MissingCount)> GetAllFileMetadata()
     {
-        if (!File.Exists(_dbPath)) return new Dictionary<string, (long, long)>(StringComparer.OrdinalIgnoreCase);
+        if (!File.Exists(_dbPath)) return new Dictionary<string, (long, long, int)>(StringComparer.OrdinalIgnoreCase);
         Initialize();
-
         using var conn = OpenConnection();
         return DatabaseMetadataReader.GetAllFileMetadata(conn);
+    }
+
+    public void UpdateMissingCounts(IReadOnlyDictionary<string, int> countsByPath)
+    {
+        if (countsByPath.Count == 0 || !File.Exists(_dbPath)) return;
+        Initialize();
+        lock (_writeLock) using (var conn = OpenConnection()) DatabaseWriterHelper.UpdateMissingCounts(conn, countsByPath);
     }
 
     public IndexedFileRecord? GetFileRecord(string path)
