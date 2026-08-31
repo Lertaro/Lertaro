@@ -19,8 +19,8 @@ public class MainWindowSettingsViewModel : ViewModelBase
     public MainWindowSettingsViewModel(UserSettings userSettings)
     {
         _userSettings = userSettings;
-        _width = userSettings.MainWindow.Width;
-        _height = userSettings.MainWindow.Height;
+        _width = UiMetrics.RoundWindowSize(userSettings.MainWindow.Width);
+        _height = UiMetrics.RoundWindowSize(userSettings.MainWindow.Height);
         _singleInstance = userSettings.MainWindow.SingleInstance;
     }
 
@@ -29,12 +29,13 @@ public class MainWindowSettingsViewModel : ViewModelBase
         get => _width;
         set
         {
-            if (value < UiMetrics.MinMainWindowWidth || value > UiMetrics.MaxMainWindowWidth)
+            var rounded = UiMetrics.RoundWindowSize(value);
+            if (rounded < UiMetrics.MinMainWindowWidth || rounded > UiMetrics.MaxMainWindowWidth)
             {
                 throw new ArgumentOutOfRangeException(nameof(value),
                     $"Width must be between {UiMetrics.MinMainWindowWidth} and {UiMetrics.MaxMainWindowWidth}.");
             }
-            SetProperty(ref _width, value);
+            SetProperty(ref _width, rounded);
         }
     }
 
@@ -43,12 +44,13 @@ public class MainWindowSettingsViewModel : ViewModelBase
         get => _height;
         set
         {
-            if (value < UiMetrics.MinMainWindowHeight || value > UiMetrics.MaxMainWindowHeight)
+            var rounded = UiMetrics.RoundWindowSize(value);
+            if (rounded < UiMetrics.MinMainWindowHeight || rounded > UiMetrics.MaxMainWindowHeight)
             {
                 throw new ArgumentOutOfRangeException(nameof(value),
                     $"Height must be between {UiMetrics.MinMainWindowHeight} and {UiMetrics.MaxMainWindowHeight}.");
             }
-            SetProperty(ref _height, value);
+            SetProperty(ref _height, rounded);
         }
     }
 

@@ -291,10 +291,10 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         if (size.Width <= 0 || size.Height <= 0) return;
 
         var settings = Core.UserSettings.Load();
-        settings.MainWindow.Width = size.Width;
-        settings.MainWindow.Height = size.Height;
+        settings.MainWindow.Width = UiMetrics.RoundWindowSize(size.Width);
+        settings.MainWindow.Height = UiMetrics.RoundWindowSize(size.Height);
         settings.Save();
-        UiMetrics.MainWindowWidth = size.Width;
-        UiMetrics.MainWindowHeight = size.Height;
+        UiMetrics.MainWindowWidth = settings.MainWindow.Width;
+        UiMetrics.MainWindowHeight = settings.MainWindow.Height;
     }
 }
