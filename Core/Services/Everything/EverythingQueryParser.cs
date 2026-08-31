@@ -59,7 +59,7 @@ public static class EverythingQueryParser
             {
                 case EverythingIpcConstants.CopyDataGetRunCountA:
                 case EverythingIpcConstants.CopyDataIncRunCountA:
-                    var fileNameA = ReadNullTerminatedString(cds.lpData, 0, cds.cbData, Encoding.Default);
+                    var fileNameA = ReadNullTerminatedString(cds.lpData, 0, cds.cbData, EverythingAnsiEncoding.Instance);
                     request = new EverythingRunHistoryRequest(actionCode, fileNameA);
                     return true;
 
@@ -72,7 +72,7 @@ public static class EverythingQueryParser
                 case EverythingIpcConstants.CopyDataSetRunCountA:
                     if (cds.cbData < sizeof(uint)) return false;
                     var runCountA = (uint)Marshal.ReadInt32(cds.lpData, 0);
-                    var nameA = ReadNullTerminatedString(cds.lpData, sizeof(uint), cds.cbData - sizeof(uint), Encoding.Default);
+                    var nameA = ReadNullTerminatedString(cds.lpData, sizeof(uint), cds.cbData - sizeof(uint), EverythingAnsiEncoding.Instance);
                     request = new EverythingRunHistoryRequest(actionCode, nameA, runCountA);
                     return true;
 
@@ -129,7 +129,7 @@ public static class EverythingQueryParser
         var requestFlags = isV2 ? (uint)Marshal.ReadInt32(ptr, 20) : EverythingIpcConstants.RequestFileName | EverythingIpcConstants.RequestPath;
         var sortType = isV2 ? (uint)Marshal.ReadInt32(ptr, 24) : 0u;
 
-        var encoding = isUnicode ? Encoding.Unicode : Encoding.Default;
+        var encoding = isUnicode ? Encoding.Unicode : EverythingAnsiEncoding.Instance;
         var searchString = ReadNullTerminatedString(ptr, headerSize, size - headerSize, encoding);
 
         request = new EverythingQueryRequest(

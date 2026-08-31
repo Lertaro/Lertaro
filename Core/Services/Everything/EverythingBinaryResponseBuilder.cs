@@ -15,7 +15,7 @@ public static class EverythingBinaryResponseBuilder
     {
         using var stream = new MemoryStream();
         using var writer = new BinaryWriter(stream);
-        var encoding = isUnicode ? Encoding.Unicode : Encoding.Default;
+        var encoding = isUnicode ? Encoding.Unicode : EverythingAnsiEncoding.Instance;
 
         var numItems = (uint)items.Count;
         var numFolders = (uint)items.Count(i => i.IsDirectory);
@@ -66,7 +66,7 @@ public static class EverythingBinaryResponseBuilder
     {
         using var stream = new MemoryStream();
         using var writer = new BinaryWriter(stream);
-        var encoding = isUnicode ? Encoding.Unicode : Encoding.Default;
+        var encoding = isUnicode ? Encoding.Unicode : EverythingAnsiEncoding.Instance;
         var numItems = (uint)items.Count;
 
         writer.Write(totalItems);
@@ -115,14 +115,14 @@ public static class EverythingBinaryResponseBuilder
             WriteLengthPrefixedString(writer, fullPath, encoding);
         }
 
+        if ((requestFlags & EverythingIpcConstants.RequestSize) != 0)
+            writer.Write(item.Size);
+
         if ((requestFlags & EverythingIpcConstants.RequestExtension) != 0)
         {
             var ext = item.IsDirectory ? string.Empty : Path.GetExtension(item.FileName).TrimStart('.');
             WriteLengthPrefixedString(writer, ext, encoding);
         }
-
-        if ((requestFlags & EverythingIpcConstants.RequestSize) != 0)
-            writer.Write(item.Size);
 
         if ((requestFlags & EverythingIpcConstants.RequestDateCreated) != 0)
             writer.Write(item.DateCreated?.ToFileTimeUtc() ?? 0L);
@@ -169,7 +169,12 @@ public static class EverythingBinaryResponseBuilder
     private static void WriteLengthPrefixedString(BinaryWriter writer, string text, Encoding encoding)
     {
         var str = text ?? string.Empty;
-        writer.Write((uint)str.Length);
+        // The SDK's QUERY2 ITEM2 data chunks prefix each string with its length "in characters":
+        // that is WCHAR count for the Unicode variants, but CHAR (encoded byte) count for the
+        // ANSI variants, because the chunks are walked by byte offsets. str.Length is only
+        // correct for Encoding.Unicode.
+        var length = encoding == Encoding.Unicode ? str.Length : encoding.GetByteCount(str);
+        writer.Write((uint)length);
         WriteStringNullTerminated(writer, str, encoding);
     }
 
