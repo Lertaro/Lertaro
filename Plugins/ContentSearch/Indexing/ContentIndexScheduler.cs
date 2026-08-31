@@ -17,6 +17,10 @@ public sealed class ContentIndexScheduler : IDisposable
     private readonly IndexBatchProcessor _batchProcessor;
     private readonly ConcurrentQueue<string> _pendingFiles = new();
     private readonly HashSet<string> _enqueuedPaths = new(StringComparer.OrdinalIgnoreCase);
+    // Files the worker has dequeued and is currently extracting/writing. A watcher-triggered
+    // full scan racing that in-flight batch must not re-enqueue them (their rows are not in
+    // the database yet), otherwise the same file is extracted twice and progress jumps.
+    private readonly HashSet<string> _inFlightPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _queueLock = new();
     private readonly SemaphoreSlim _scanGate = new(1, 1);
 
@@ -103,8 +107,10 @@ public sealed class ContentIndexScheduler : IDisposable
         oldCts?.Cancel();
         oldCts?.Dispose();
 
-        while (_pendingFiles.TryDequeue(out _)) { }
-        lock (_queueLock) { _enqueuedPaths.Clear(); }
+        // Deliberately do NOT clear _pendingFiles/_enqueuedPaths here: the pending work is
+        // still valid, and clearing it is what let a watcher-triggered scan re-enqueue the
+        // same files (and made the "remaining" progress count jump). The worker still picks
+        // up config changes per file via ProcessSingleFileAsync.
 
         var ct = newCts.Token;
         Task.Run(async () =>
@@ -199,10 +205,12 @@ public sealed class ContentIndexScheduler : IDisposable
     {
         lock (_queueLock)
         {
-            if (_enqueuedPaths.Add(filePath))
+            if (_inFlightPaths.Contains(filePath) || !_enqueuedPaths.Add(filePath))
             {
-                _pendingFiles.Enqueue(filePath);
+                return;
             }
+
+            _pendingFiles.Enqueue(filePath);
         }
     }
 
@@ -237,7 +245,7 @@ public sealed class ContentIndexScheduler : IDisposable
                 var batch = new List<string>();
                 while (batch.Count < WriteBatchSize && _pendingFiles.TryDequeue(out var path))
                 {
-                    lock (_queueLock) { _enqueuedPaths.Remove(path); }
+                    lock (_queueLock) { _enqueuedPaths.Remove(path); _inFlightPaths.Add(path); }
                     batch.Add(path);
                 }
 
@@ -260,10 +268,22 @@ public sealed class ContentIndexScheduler : IDisposable
                 idleCycles = 0;
                 hasPendingOptimizations = true;
 
-                // Blocking wait is fine here: this is the dedicated below-normal scheduler
-                // thread, and the parallel extraction lanes run on thread-pool threads.
-                _batchProcessor.ProcessBatchAsync(batch, _config, ct).GetAwaiter().GetResult();
-                _database.Checkpoint(truncate: false);
+                try
+                {
+                    // Blocking wait is fine here: this is the dedicated below-normal scheduler
+                    // thread, and the parallel extraction lanes run on thread-pool threads.
+                    _batchProcessor.ProcessBatchAsync(batch, _config, ct).GetAwaiter().GetResult();
+                    _database.Checkpoint(truncate: false);
+                }
+                finally
+                {
+                    lock (_queueLock)
+                    {
+                        foreach (var path in batch)
+                            _inFlightPaths.Remove(path);
+                    }
+                }
+
                 if (ct.WaitHandle.WaitOne(20)) break;
             }
             catch (OperationCanceledException)
