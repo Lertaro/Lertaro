@@ -68,9 +68,10 @@ internal sealed class QuickSearchLaunchSourceSupport
         }
 
         if (token.IsCancellationRequested) return;
-        Sources.ReplaceRange(loaded);
-        Selected = loaded.FirstOrDefault(source => source.Id.Equals(selectedId, StringComparison.OrdinalIgnoreCase))
-            ?? loaded.FirstOrDefault();
+        var ordered = QuickLaunchSourceCatalog.OrderSources(loaded, settings.SourceOrder);
+        Sources.ReplaceRange(ordered);
+        Selected = ordered.FirstOrDefault(source => source.Id.Equals(selectedId, StringComparison.OrdinalIgnoreCase))
+            ?? ordered.FirstOrDefault();
         UpdateSelection();
         _notify(nameof(QuickSearchViewModel.LaunchPanelVisibility));
         _notify(nameof(QuickSearchViewModel.LaunchPanelItems));

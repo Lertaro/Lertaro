@@ -9,6 +9,35 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 public sealed class QuickLaunchSourceCatalogTests
 {
     [TestMethod]
+    public void OrderSources_AppliesSavedOrderAndLeavesNewSourcesAtTheEnd()
+    {
+        var sources = new[]
+        {
+            new LaunchPanelSourceViewModel("first", "First", Array.Empty<AppSearchResult>()),
+            new LaunchPanelSourceViewModel("second", "Second", Array.Empty<AppSearchResult>()),
+            new LaunchPanelSourceViewModel("new", "New", Array.Empty<AppSearchResult>())
+        };
+
+        var ordered = QuickLaunchSourceCatalog.OrderSources(sources, new[] { "second", "first" });
+
+        CollectionAssert.AreEqual(new[] { "second", "first", "new" }, ordered.Select(source => source.Id).ToArray());
+    }
+
+    [TestMethod]
+    public void OrderSources_IgnoresStaleSavedIds()
+    {
+        var sources = new[]
+        {
+            new LaunchPanelSourceViewModel("first", "First", Array.Empty<AppSearchResult>()),
+            new LaunchPanelSourceViewModel("second", "Second", Array.Empty<AppSearchResult>())
+        };
+
+        var ordered = QuickLaunchSourceCatalog.OrderSources(sources, new[] { "missing", "second" });
+
+        CollectionAssert.AreEqual(new[] { "second", "first" }, ordered.Select(source => source.Id).ToArray());
+    }
+
+    [TestMethod]
     public void GetEnabledSourceIds_ExcludesSavedDisabledSources()
     {
         var providers = new IQuickPanelTabProvider[]

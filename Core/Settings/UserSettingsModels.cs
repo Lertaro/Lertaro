@@ -40,6 +40,7 @@ public class QuickLaunchSettings
     public bool Enabled { get; set; } = true;
     public List<QuickLaunchItemSetting> Items { get; set; } = new();
     public List<string> DisabledSourceIds { get; set; } = new();
+    public List<string> SourceOrder { get; set; } = new();
 }
 
 public class QuickLaunchItemSetting

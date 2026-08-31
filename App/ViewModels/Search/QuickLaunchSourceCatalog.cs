@@ -14,6 +14,19 @@ internal static class QuickLaunchSourceCatalog
 
     public static IQuickPanelTabProvider? Find(string id) => QuickPanelPluginTabs.Find(id);
 
+    internal static List<string> OrderSourceIds(IEnumerable<string> available, IEnumerable<string>? order)
+        => QuickPanelGroupOrdering.Resolve(available, order, disabled: null);
+
+    internal static List<LaunchPanelSourceViewModel> OrderSources(
+        IEnumerable<LaunchPanelSourceViewModel> sources, IEnumerable<string>? order)
+    {
+        var available = sources.ToList();
+        var byId = available.ToDictionary(source => source.Id, StringComparer.OrdinalIgnoreCase);
+        return OrderSourceIds(available.Select(source => source.Id), order)
+            .Select(id => byId[id])
+            .ToList();
+    }
+
     public static IReadOnlyList<string> GetEnabledSourceIds(QuickLaunchSettings settings)
         => GetEnabledSourceIds(settings, Providers);
 

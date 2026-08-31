@@ -169,10 +169,25 @@
                                    FontWeight="SemiBold" FontSize="13"/>
                         <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceDesc]}"
                                    Style="{StaticResource SettingsHintText}" Margin="0,4,0,8"/>
-                        <ItemsControl ItemsSource="{Binding Sources}">
+                        <ItemsControl ItemsSource="{Binding Sources}" helpers:DragReorder.IsEnabled="True">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsEnabled}" Margin="0,5" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceEnabledTooltip]}"/>
+                                    <Grid Margin="0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="28"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid Grid.Column="0" Width="18" Height="24" Background="Transparent"
+                                              Cursor="SizeAll" helpers:DragReorder.IsHandle="True">
+                                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                                            <Ellipse Grid.Row="0" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/><Ellipse Grid.Row="0" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                            <Ellipse Grid.Row="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/><Ellipse Grid.Row="1" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                            <Ellipse Grid.Row="2" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/><Ellipse Grid.Row="2" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                        </Grid>
+                                        <CheckBox Grid.Column="1" Content="{Binding Name}" IsChecked="{Binding IsEnabled}"
+                                                  ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceEnabledTooltip]}"/>
+                                    </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

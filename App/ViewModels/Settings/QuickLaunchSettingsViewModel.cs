@@ -22,11 +22,19 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
             Items.Add(new QuickLaunchItemViewModel { Name = item.Name, Path = item.Path });
 
         var disabledIds = userSettings.QuickLaunch.DisabledSourceIds;
-        foreach (var provider in QuickLaunchSourceCatalog.Providers)
+        var sourceOptions = QuickLaunchSourceCatalog.Providers
+            .Select(provider =>
+            {
+                var id = QuickLaunchSourceCatalog.GetId(provider);
+                return new QuickLaunchSourceOptionViewModel(id, provider.Name,
+                    !disabledIds.Contains(id, StringComparer.OrdinalIgnoreCase));
+            })
+            .ToList();
+        var sourceOptionsById = sourceOptions.ToDictionary(source => source.Id, StringComparer.OrdinalIgnoreCase);
+        foreach (var id in QuickLaunchSourceCatalog.OrderSourceIds(
+                     sourceOptions.Select(source => source.Id), userSettings.QuickLaunch.SourceOrder))
         {
-            var id = QuickLaunchSourceCatalog.GetId(provider);
-            Sources.Add(new QuickLaunchSourceOptionViewModel(id, provider.Name,
-                !disabledIds.Contains(id, StringComparer.OrdinalIgnoreCase)));
+            Sources.Add(sourceOptionsById[id]);
         }
 
         AddCommand = new RelayCommand(Add, CanAdd);
@@ -106,6 +114,11 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
         settings.DisabledSourceIds = settings.DisabledSourceIds
             .Where(id => !visibleIds.Contains(id))
             .Concat(Sources.Where(source => !source.IsEnabled).Select(source => source.Id))
+            .ToList();
+        var sourceIds = Sources.Select(source => source.Id).ToList();
+        var currentSourceIds = sourceIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        settings.SourceOrder = sourceIds
+            .Concat(settings.SourceOrder.Where(id => !currentSourceIds.Contains(id)))
             .ToList();
     }
 
