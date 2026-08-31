@@ -29,6 +29,7 @@ public sealed class PluginSearchResultMapperTests
             Assert.HasCount(1, rows);
             Assert.AreEqual("File", rows[0].ResultKind);
             Assert.AreEqual(tempFile, rows[0].FullPath);
+            Assert.IsTrue(rows[0].IsFullSearchFileResult, "full-window file rows must be marked so the type filter can exclude them");
         }
         finally
         {

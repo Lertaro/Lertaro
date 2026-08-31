@@ -93,12 +93,20 @@ public static class PluginSearchResultMapper
             return;
 
         var effectiveHighlightQuery = highlightQuery ?? string.Empty;
+        var firstAdded = uiResults.Count;
         foreach (var item in items)
         {
             if (item == null)
                 continue;
 
             MapItem(uiResults, item, effectiveHighlightQuery, sourceProvider);
+        }
+
+        // Rows from IFullSearchFileResultProvider are marked so the full search window can exclude
+        // them again while a type filter is selected, even if they were merged on an earlier render.
+        for (var i = firstAdded; i < uiResults.Count; i++)
+        {
+            uiResults[i].IsFullSearchFileResult = true;
         }
     }
 

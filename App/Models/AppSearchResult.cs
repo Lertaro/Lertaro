@@ -126,6 +126,9 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
 
     public string ResultKind { get; set; } = "File";
     public int Index { get; set; }
+    // True for rows contributed by IFullSearchFileResultProvider (e.g. ContentSearch hits in the
+    // full search window). The full window excludes these rows whenever a type filter is selected.
+    public bool IsFullSearchFileResult { get; set; }
     public string SearchQuery { get; set; } = string.Empty;
     public bool IsApplication => ResultKind == "Application";
     public bool IsPluginSearchAction => ResultKind == "PluginAction";

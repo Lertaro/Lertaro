@@ -224,6 +224,10 @@ public class SearchViewModel : ViewModelBase, IDisposable
     // rides on the instance rather than through that callback's signature.
     private bool _renderExtendsContent;
     private int _renderUnchangedPrefix;
+    // The list currently being filtered/rendered. Normally _allResults itself; when a TYPE filter is
+    // selected it is a filtered copy without the full-search-file-provider rows (e.g. ContentSearch
+    // hits), so selecting "文件" excludes those rows even if an earlier unfiltered render merged them.
+    private List<AppSearchResult>? _filterSource;
 
     private void ApplyFiltersAndRender(bool extendsContent, int unchangedPrefix)
     {
@@ -237,10 +241,14 @@ public class SearchViewModel : ViewModelBase, IDisposable
             .Select(p => p!)
             .ToList();
 
+        _filterSource = IsTypeFilterSelected
+            ? _allResults.Where(r => !r.IsFullSearchFileResult).ToList()
+            : _allResults;
+
         // Query-token providers (sort/filter/etc) have already been applied to _allResults by the
         // time this runs -- this only handles the column-header sort and dynamic sidebar filters.
         _dynamicFilterCoordinator.Apply(
-            _allResults,
+            _filterSource,
             activeFilters,
             // ToList only when the sort actually reordered something. With no column selected --
             // relevance order, the default -- Sort hands back the very list it was given, and
@@ -252,7 +260,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
                     ? asList
                     : sorted.ToList();
             },
-            () => _allResults,
+            () => _filterSource!,
             RenderFinal,
             v => IsSearching = v);
     }
