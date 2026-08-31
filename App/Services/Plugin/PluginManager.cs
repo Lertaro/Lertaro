@@ -26,6 +26,7 @@ public class PluginManager : PluginRegistry
     private readonly List<PluginActionRegistration> _actions = new();
     private readonly List<PluginSdk.Abstractions.Plugins.IDynamicActionProvider> _dynamicActionProviders = new();
     private readonly List<PluginSdk.Abstractions.Plugins.IInstantResultProvider> _instantResultProviders = new();
+    private readonly List<PluginSdk.Abstractions.Plugins.IFullSearchFileResultProvider> _fullSearchFileResultProviders = new();
     private readonly List<PluginSdk.Abstractions.Plugins.ISearchableItemProvider> _searchableItemProviders = new();
     private readonly List<PluginSdk.Abstractions.Plugins.ISidebarFilterProvider> _sidebarFilterProviders = new();
     private readonly List<PluginSdk.Abstractions.Plugins.IResultColumnProvider> _resultColumnProviders = new();
@@ -83,6 +84,7 @@ public class PluginManager : PluginRegistry
     void PluginRegistry.RegisterPlugin(PluginSdk.Abstractions.Plugins.IPlugin plugin) => RegisterPlugin(plugin);
 
     void PluginRegistry.AddInstantResultProvider(PluginSdk.Abstractions.Plugins.IInstantResultProvider p) => _instantResultProviders.Add(p);
+    void PluginRegistry.AddFullSearchFileResultProvider(PluginSdk.Abstractions.Plugins.IFullSearchFileResultProvider p) => _fullSearchFileResultProviders.Add(p);
     void PluginRegistry.AddSearchableItemProvider(PluginSdk.Abstractions.Plugins.ISearchableItemProvider p) => _searchableItemProviders.Add(p);
     void PluginRegistry.AddSidebarFilterProvider(PluginSdk.Abstractions.Plugins.ISidebarFilterProvider p) => _sidebarFilterProviders.Add(p);
     void PluginRegistry.AddResultColumnProvider(PluginSdk.Abstractions.Plugins.IResultColumnProvider p) => _resultColumnProviders.Add(p);
@@ -201,6 +203,11 @@ public class PluginManager : PluginRegistry
 
     public IEnumerable<PluginSdk.Abstractions.Plugins.IInstantResultProvider> InstantResultProviders
         => _instantResultProviders.Where(p => _filter.IsEnabled(ComponentFilter.GetDllName(p), PluginComponentType.InstantProvider, p.GetType().Name));
+
+    // Filtered by the same InstantProvider enable/disable switch as GetInstantResults: a provider
+    // that contributes full-window file results is the same component, just a different surface.
+    public IEnumerable<PluginSdk.Abstractions.Plugins.IFullSearchFileResultProvider> FullSearchFileResultProviders
+        => _fullSearchFileResultProviders.Where(p => _filter.IsEnabled(ComponentFilter.GetDllName(p), PluginComponentType.InstantProvider, p.GetType().Name));
 
     public IEnumerable<PluginSdk.Abstractions.Plugins.ISearchableItemProvider> SearchableItemProviders
         => _searchableItemProviders.Where(p => _filter.IsEnabled(ComponentFilter.GetDllName(p), PluginComponentType.SearchableItemProvider, p.GetType().Name));

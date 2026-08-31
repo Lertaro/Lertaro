@@ -77,6 +77,13 @@ internal static class PluginLoader
                     Logger.Log($"[PluginManager] Loaded instant result provider: '{type.Name}' from {fileName}");
                 }
 
+                if (typeof(PluginSdk.Abstractions.Plugins.IFullSearchFileResultProvider).IsAssignableFrom(type))
+                {
+                    var provider = (PluginSdk.Abstractions.Plugins.IFullSearchFileResultProvider)Activator.CreateInstance(type)!;
+                    registry.AddFullSearchFileResultProvider(provider);
+                    Logger.Log($"[PluginManager] Loaded full search file result provider: '{type.Name}' from {fileName}");
+                }
+
                 if (typeof(PluginSdk.Abstractions.Plugins.ISearchableItemProvider).IsAssignableFrom(type))
                 {
                     var provider = (PluginSdk.Abstractions.Plugins.ISearchableItemProvider)Activator.CreateInstance(type)!;
