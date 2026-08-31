@@ -27,6 +27,9 @@ public static class Win32Api
     public const int ERROR_NOT_READY = 21;
     public const int ERROR_NO_MORE_FILES = 18;
     public const int ERROR_DEVICE_NOT_CONNECTED = 1167;
+    public const int ERROR_JOURNAL_DELETE_IN_PROGRESS = 1178;
+    public const int ERROR_JOURNAL_NOT_ACTIVE = 1179;
+    public const int ERROR_JOURNAL_ENTRY_DELETED = 1181;
 
     public const uint FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000;
     public const int FileIdExtdDirectoryInfo = 19;
