@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Lertaro.Core</AssemblyName>
     <RootNamespace>Lertaro.Core</RootNamespace>
-    <Version>2.7.5</Version>
+    <Version>2.7.6</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <!-- IndexV2 reads its memory-mapped snapshot through typed spans over a raw view pointer. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
