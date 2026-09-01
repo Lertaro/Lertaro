@@ -46,10 +46,14 @@ public class PluginManager : PluginRegistry
     private Dictionary<string, Dictionary<string, object?>> _pluginSchemaDefaults = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly ComponentFilter _filter = new();
+    private readonly PluginManagerOrderedProviders _orderedProviders;
 
     private PluginManager()
     {
         _filter.Refresh();
+        _orderedProviders = new PluginManagerOrderedProviders(
+            this, _filter, _quickNavigationProviders, _sidebarFilterProviders, _resultColumnProviders,
+            _previewProviders, _thumbnailProviders);
 
         // Wire up the dynamic filtering delegate for alias providers in the Core indexer
         AliasProviderRegistry.FilterFunc = prov =>
@@ -178,111 +182,35 @@ public class PluginManager : PluginRegistry
     public IEnumerable<PluginSdk.Abstractions.Plugins.IDynamicActionProvider> DynamicActionProviders
         => _dynamicActionProviders.Where(p => _filter.IsEnabled(ComponentFilter.GetDllName(p), PluginComponentType.DynamicActionProvider, p.GetType().Name));
 
-    // Ordered per UserSettings.QuickNavigationProviderOrder (position = priority, most-preferred
-    // first); a provider whose id isn't listed there yet falls back to int.MaxValue, which -- since
-    // LINQ's OrderBy is a stable sort -- lands it after every listed provider while preserving its
-    // original discovery-order position relative to any OTHER unlisted provider, rather than an
-    // arbitrary reshuffle.
     public IEnumerable<IQuickNavigationProvider> QuickNavigationProviders
-    {
-        get
-        {
-            var order = UserSettings.Load().QuickNavigationProviderOrder;
-            return _quickNavigationProviders
-                .Where(p => _filter.IsEnabled(ComponentFilter.GetDllName(p), PluginComponentType.QuickNavigationProvider, p.GetType().Name))
-                .OrderBy(p =>
-                {
-                    var id = Helpers.PluginLoaderHelper.MakeId(ComponentFilter.GetDllName(p), PluginComponentType.QuickNavigationProvider, p.GetType().Name);
-                    var rank = order.IndexOf(id);
-                    return rank >= 0 ? rank : int.MaxValue;
-                });
-        }
-    }
+        => _orderedProviders.QuickNavigationProviders;
 
     public IEnumerable<IQuickNavigationProvider> AllQuickNavigationProviders => _quickNavigationProviders;
 
     public IEnumerable<PluginSdk.Abstractions.Plugins.IInstantResultProvider> InstantResultProviders
         => _instantResultProviders.Where(p => _filter.IsEnabled(ComponentFilter.GetDllName(p), PluginComponentType.InstantProvider, p.GetType().Name));
 
-    // Filtered by the same InstantProvider enable/disable switch as GetInstantResults: a provider
-    // that contributes full-window file results is the same component, just a different surface.
     public IEnumerable<PluginSdk.Abstractions.Plugins.IFullSearchFileResultProvider> FullSearchFileResultProviders
-        => _fullSearchFileResultProviders.Where(p => _filter.IsEnabled(ComponentFilter.GetDllName(p), PluginComponentType.InstantProvider, p.GetType().Name));
+        => _fullSearchFileResultProviders.Where(p => _filter.IsEnabled(
+            ComponentFilter.GetDllName(p), PluginComponentType.FullSearchFileResultProvider, p.GetType().Name));
 
     public IEnumerable<PluginSdk.Abstractions.Plugins.ISearchableItemProvider> SearchableItemProviders
         => _searchableItemProviders.Where(p => _filter.IsEnabled(ComponentFilter.GetDllName(p), PluginComponentType.SearchableItemProvider, p.GetType().Name));
 
-    // Ordered per UserSettings.SidebarGroupOrder (position = priority, most-preferred first), one id per
-    // PROVIDER rather than per group -- a provider whose id isn't listed there yet falls back to its own
-    // SortOrder, so the built-in Type/Date/Size default ordering still holds until the user customizes it.
     public IEnumerable<PluginSdk.Abstractions.Plugins.ISidebarFilterProvider> SidebarFilterProviders
-    {
-        get
-        {
-            var order = UserSettings.Load().SidebarGroupOrder;
-            return _sidebarFilterProviders
-                .OrderBy(p =>
-                {
-                    var id = Helpers.PluginLoaderHelper.MakeId(ComponentFilter.GetDllName(p), PluginComponentType.FilterProvider, p.GetType().Name);
-                    var rank = order.IndexOf(id);
-                    return rank >= 0 ? rank : int.MaxValue;
-                })
-                .ThenBy(p => p.SortOrder)
-                .Select(p => (PluginSdk.Abstractions.Plugins.ISidebarFilterProvider)new FilteredSidebarFilterProvider(p, ComponentFilter.GetDllName(p), this));
-        }
-    }
+        => _orderedProviders.SidebarFilterProviders;
 
     public IEnumerable<PluginSdk.Abstractions.Plugins.IResultColumnProvider> ResultColumnProviders
-    {
-        get
-        {
-            foreach (var p in _resultColumnProviders)
-                yield return new FilteredResultColumnProvider(p, ComponentFilter.GetDllName(p), this);
-        }
-    }
+        => _orderedProviders.ResultColumnProviders;
 
     public IEnumerable<PluginSdk.Abstractions.Plugins.ITranslationProvider> TranslationProviders => _translationProviders;
     public IEnumerable<PluginSdk.Abstractions.Plugins.IThemeProvider> ThemeProviders => _themeProviders;
     public IEnumerable<IActivePathCollector> ActivePathCollectors => _pathCollectors;
-    // Ordered per UserSettings.FilePreviewProviderOrder (position = priority, most-preferred first); a
-    // provider whose id isn't listed there yet falls back to its own Priority (higher first), same
-    // fallback shape SidebarFilterProviders/QuickNavigationProviders use for their own user-order lists.
     public IEnumerable<IFilePreviewProvider> FilePreviewProviders
-    {
-        get
-        {
-            var order = UserSettings.Load().FilePreviewProviderOrder;
-            return _previewProviders
-                .Where(p => _filter.IsEnabled(ComponentFilter.GetDllName(p), PluginComponentType.FilePreviewProvider, p.GetType().Name))
-                .OrderBy(p =>
-                {
-                    var id = Helpers.PluginLoaderHelper.MakeId(ComponentFilter.GetDllName(p), PluginComponentType.FilePreviewProvider, p.GetType().Name);
-                    var rank = order.IndexOf(id);
-                    return rank >= 0 ? rank : int.MaxValue;
-                })
-                .ThenByDescending(p => p.Priority);
-        }
-    }
+        => _orderedProviders.FilePreviewProviders;
 
-    // Ordered per UserSettings.ThumbnailProviderOrder (position = priority, most-preferred first); a
-    // provider whose id isn't listed there yet falls back to its own Priority (higher first), same
-    // fallback shape FilePreviewProviders above uses for its own user-order list.
     public IEnumerable<IThumbnailProvider> ThumbnailProviders
-    {
-        get
-        {
-            var order = UserSettings.Load().ThumbnailProviderOrder;
-            return _thumbnailProviders
-                .Where(p => _filter.IsEnabled(ComponentFilter.GetDllName(p), PluginComponentType.ThumbnailProvider, p.GetType().Name))
-                .OrderBy(p =>
-                {
-                    var id = Helpers.PluginLoaderHelper.MakeId(ComponentFilter.GetDllName(p), PluginComponentType.ThumbnailProvider, p.GetType().Name);
-                    var rank = order.IndexOf(id);
-                    return rank >= 0 ? rank : int.MaxValue;
-                })
-                .ThenByDescending(p => p.Priority);
-        }
-    }
+        => _orderedProviders.ThumbnailProviders;
 
     public IEnumerable<PluginSdk.Abstractions.Plugins.IQueryTokenProvider> QueryTokenProviders
         => _queryTokenProviders.Where(p => _filter.IsEnabled(ComponentFilter.GetDllName(p), PluginComponentType.QueryTokenProvider, p.GetType().Name));
@@ -298,6 +226,7 @@ public class PluginManager : PluginRegistry
     public IEnumerable<PluginActionRegistration> AllActions => _actions;
     public IEnumerable<PluginSdk.Abstractions.Plugins.IDynamicActionProvider> AllDynamicActionProviders => _dynamicActionProviders;
     public IEnumerable<PluginSdk.Abstractions.Plugins.IInstantResultProvider> AllInstantResultProviders => _instantResultProviders;
+    public IEnumerable<PluginSdk.Abstractions.Plugins.IFullSearchFileResultProvider> AllFullSearchFileResultProviders => _fullSearchFileResultProviders;
     public IEnumerable<PluginSdk.Abstractions.Plugins.ISearchableItemProvider> AllSearchableItemProviders => _searchableItemProviders;
     public IEnumerable<PluginSdk.Abstractions.Plugins.ISidebarFilterProvider> AllSidebarFilterProviders => _sidebarFilterProviders;
     public IEnumerable<PluginSdk.Abstractions.Plugins.IResultColumnProvider> AllResultColumnProviders => _resultColumnProviders;

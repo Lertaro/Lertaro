@@ -13,6 +13,7 @@ public enum PluginComponentType
     Action,
     DynamicActionProvider,
     InstantProvider,
+    FullSearchFileResultProvider,
     SearchableItemProvider,
     FilterProvider,
     ColumnProvider,

@@ -75,7 +75,8 @@ public class UserSettings
     }
 
     /// <summary>
-    /// Stores IDs of disabled plugin sub-components (actions, dynamic providers, instant providers, filter providers, column providers).
+    /// Stores IDs of disabled plugin sub-components (actions, dynamic providers, instant providers,
+    /// full-search file result providers, filter providers, column providers).
     /// Format: "{PluginDllFileName}::{ComponentType}::{ComponentName}"
     /// </summary>
     public List<string> DisabledPluginComponents { get; set; } = new();

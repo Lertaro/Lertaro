@@ -57,6 +57,11 @@ internal static class PluginComponentBuilder
             var id = PluginLoaderHelper.MakeId(dllName, PluginComponentType.InstantProvider, prov.GetType().Name);
             components.Add(new PluginComponentViewModel(id, PluginComponentType.InstantProvider, prov.Name, !disabledSet.Contains(id), GetDescriptionWithFallback(prov)));
         }
+        foreach (var prov in manager.AllFullSearchFileResultProviders.Where(p => p.GetType().Assembly == assembly))
+        {
+            var id = PluginLoaderHelper.MakeId(dllName, PluginComponentType.FullSearchFileResultProvider, prov.GetType().Name);
+            components.Add(new PluginComponentViewModel(id, PluginComponentType.FullSearchFileResultProvider, prov.Name, !disabledSet.Contains(id), GetDescriptionWithFallback(prov, PluginComponentType.FullSearchFileResultProvider)));
+        }
         foreach (var prov in manager.AllSearchableItemProviders.Where(p => p.GetType().Assembly == assembly))
         {
             var id = PluginLoaderHelper.MakeId(dllName, PluginComponentType.SearchableItemProvider, prov.GetType().Name);
@@ -130,7 +135,7 @@ internal static class PluginComponentBuilder
         }
     }
 
-    internal static string GetDescriptionWithFallback(IPluginComponent component)
+    internal static string GetDescriptionWithFallback(IPluginComponent component, PluginComponentType? preferredType = null)
     {
         var desc = component.Description;
         if (!string.IsNullOrWhiteSpace(desc))
@@ -146,8 +151,11 @@ internal static class PluginComponentBuilder
             return val;
         }
 
+        if (preferredType == PluginComponentType.FullSearchFileResultProvider)
+            return TranslationService.Get("Plugins_TypeDesc_IFullSearchFileResultProvider");
         if (component is ISearchResultAction) return TranslationService.Get("Plugins_TypeDesc_ISearchResultAction");
         if (component is IInstantResultProvider) return TranslationService.Get("Plugins_TypeDesc_IInstantResultProvider");
+        if (component is IFullSearchFileResultProvider) return TranslationService.Get("Plugins_TypeDesc_IFullSearchFileResultProvider");
         if (component is ISearchableItemProvider) return TranslationService.Get("Plugins_TypeDesc_ISearchableItemProvider");
         if (component is IActivePathCollector) return TranslationService.Get("Plugins_TypeDesc_IActivePathCollector");
         if (component is IInlineSearchAdapter) return TranslationService.Get("Plugins_TypeDesc_IInlineSearchAdapter");

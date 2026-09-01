@@ -10,7 +10,8 @@ namespace Lertaro.App.Services.PluginManagerCore;
 /// <summary>
 /// Scans the <c>Plugins/</c> directory for DLL assemblies and registers every
 /// recognised <see cref="PluginSdk.Abstractions.Plugins.IPlugin"/>, <see cref="IAliasProvider"/>,
-/// <see cref="PluginSdk.Abstractions.Plugins.IInstantResultProvider"/>, <see cref="PluginSdk.Abstractions.Plugins.ISidebarFilterProvider"/>,
+/// <see cref="PluginSdk.Abstractions.Plugins.IInstantResultProvider"/>, <see cref="PluginSdk.Abstractions.Plugins.IFullSearchFileResultProvider"/>,
+/// <see cref="PluginSdk.Abstractions.Plugins.ISidebarFilterProvider"/>,
 /// <see cref="PluginSdk.Abstractions.Plugins.IResultColumnProvider"/> and <see cref="PluginSdk.Abstractions.Plugins.ITranslationProvider"/>.
 /// </summary>
 internal static class PluginLoader
