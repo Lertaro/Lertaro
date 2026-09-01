@@ -1,11 +1,12 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using Lertaro.App.Services;
 using Lertaro.App.Helpers;
-using Lertaro.App.Views.Controls.Results;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using ListViewItem = System.Windows.Controls.ListViewItem;
+using Lertaro.App.Services.ShellMenu.ActionFlyout;
 namespace Lertaro.App.Views.SearchWindow;
 
 public class SearchWindowInputHandler
@@ -21,6 +22,15 @@ public class SearchWindowInputHandler
 
     public void HandleWindowPreviewKeyDown(KeyEventArgs e)
     {
+        // While the action flyout is open it owns navigation; still let action hotkeys fire on the item
+        // (Ctrl+C etc.), then stand down so arrows/enter drive the flyout, not the result list behind it.
+        if (ActionFlyout.IsOpen)
+        {
+            if (SearchInputHelper.TryActionHotkey(e, _window, _window.MenuPresenter))
+                ActionFlyout.Close();
+            return;
+        }
+
         if (SearchInputHelper.HandleCommonSearchKeys(e, _window, _window.MenuPresenter))
             return;
 
@@ -51,34 +61,25 @@ public class SearchWindowInputHandler
             return;
         }
 
-        // The Menu/Application key mirrors right-click and enters the same in-window floating actions
-        // panel for keyboard users.
+        // The Menu/Application key mirrors right-click, same as Explorer and other Windows apps: opens
+        // the action flyout for whatever's currently selected. Reuses the exact same PlacementMode.
+        // MousePoint right-click uses -- WPF's Popup reads the current system cursor position itself for
+        // that mode, so this needs no coordinate math of its own; the pointer just happens to still be
+        // sitting wherever it last was (typically on/near the selected row) instead of mid-click. Other
+        // keyboard access to actions is via the registered action hotkeys (Ctrl+C, Ctrl+Enter, ...),
+        // handled directly on the item by HandleCommonSearchKeys above.
         if (e.Key == Key.Apps)
         {
-            _window.MenuPresenter?.EnterActionsMode(GetSelectedResults());
+            ShowActionFlyout(PlacementMode.MousePoint);
             e.Handled = true;
             return;
         }
     }
 
-    public void HandleWindowPreviewMouseDown(MouseButtonEventArgs e)
-    {
-        if (_window.MenuPresenter?.IsInActionsMode != true
-            || _window.ResultsPanelControl.ActionsFlyoutHost.IsMouseOver)
-            return;
-
-        if (e.ChangedButton == MouseButton.Right
-            && ResultsControl.FindVisualParent<ListViewItem>(e.OriginalSource as DependencyObject)?.Content is AppSearchResult result
-            && !result.IsEmptyResult && !result.IsSearchSectionHeader)
-            return;
-
-        _window.MenuPresenter.ExitActionsMode();
-    }
-
     // WPF's ContextMenuService reacts to the Menu/Application key independently of the handler above --
     // its class handler runs on PreviewKeyUp with handledEventsToo:true, so setting e.Handled on KeyDown
     // above doesn't suppress it -- and opens the search box's own default Cut/Copy/Paste ContextMenu at
-    // the same time as our action panel. CursorLeft/CursorTop are both -1 specifically when this event
+    // the same time as our action flyout. CursorLeft/CursorTop are both -1 specifically when this event
     // was raised by a keyboard invocation (Apps key / Shift+F10) rather than an actual right-click, so
     // this only suppresses the redundant native menu for that keyboard case, and only when our own
     // flyout has something to show instead; a real right-click on the search box (e.g. to paste) is
@@ -243,7 +244,56 @@ public class SearchWindowInputHandler
             if (!_window.LstGridResultsControl.SelectedItems.Contains(result))
                 _window.LstGridResultsControl.SelectedItem = result;
 
-            _window.MenuPresenter?.EnterActionsMode(GetSelectedResults());
+            // Show the action flyout at the cursor. Anchored to the LIST, not to the row's own
+            // container -- see ShowActionFlyout. MousePoint positions against the pointer, so the row
+            // never contributed anything here anyway.
+            ShowActionFlyout(PlacementMode.MousePoint, _window.LstGridResultsControl);
         }
+    }
+
+    // Opens the action flyout for the current selection. Gated by the same CanShowActionsMenu check the
+    // old in-window actions panel used, so apps / plugin results / empty rows still suppress it.
+    //
+    // The anchor is never a row's own container. A Popup dies with its PlacementTarget, and the results
+    // list virtualizes with recycling, so a container is torn down and rebuilt whenever the collection
+    // changes -- which for a search that is still streaming is every couple of hundred milliseconds. The
+    // flyout closed by itself while the rows it was opened over sat there unchanged, because what went
+    // away was the container and not the selection. Anchoring to the list instead costs nothing:
+    // MousePoint places the popup against the pointer and ignores the target, and the one placement that
+    // does use the target (Bottom, the fallback below) uses the search box.
+    private void ShowActionFlyout(PlacementMode placement, UIElement? anchor = null)
+    {
+        var selection = GetSelectedResults();
+        if (_window.MenuPresenter?.CanShowActionsMenu(selection) != true)
+            return;
+
+        if (anchor == null)
+        {
+            // Keyboard-triggered. Scroll the selected row into view first so the flyout opens next to
+            // something the user can see; if it still isn't realized after that, fall back to the search
+            // box so the flyout is always visible rather than off the bottom of the list.
+            var lst = _window.LstGridResultsControl;
+            var selected = lst.SelectedItem;
+            if (selected != null)
+            {
+                lst.ScrollIntoView(selected);
+                lst.UpdateLayout();
+            }
+
+            // The container is asked about, but only to tell whether the row is on screen -- it is not
+            // what gets anchored to.
+            var rowIsRealized = selected != null && lst.ItemContainerGenerator.ContainerFromItem(selected) != null;
+            if (rowIsRealized)
+            {
+                anchor = lst;
+            }
+            else
+            {
+                anchor = _window.TxtSearchBoxControl;
+                placement = PlacementMode.Bottom;
+            }
+        }
+
+        ActionFlyout.Show(selection, _window, _window, anchor, placement);
     }
 }

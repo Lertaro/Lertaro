@@ -140,5 +140,5 @@ public interface IDynamicActionProvider
 ## 4. 보조 데이터 구조
 
 - **`SearchableItem` / `InstantResultItem`**: `Title`, `Description`, `IconData`, `IconColor`, `ActionType`, `ActionArgument`, `TabCompletion`, `HBitmapIcon`(호스트 자동 해제), `OnExecute` 등을 포함.
-- **`DynamicMenuItem`**: `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `IsActionable`, `IsContinuation`, `OnExecute`, `IsHeader`, `ShortcutHint`를 포함합니다. 하위 메뉴만 여는 순수 범주 노드는 `IsActionable = false`로 설정하고, 실제 폴더 항목은 기본값 `true`를 유지할 수 있습니다. `IsContinuation = true`는 페이지로 나뉜 하위 메뉴의 연속 커서를 나타내며 호스트가 자동으로 다음 페이지를 로드하므로 “더 불러오기” 행으로 표시되지 않습니다. `IsHeader`는 선택적 작업 버튼이 있는 그룹 헤더로 렌더링합니다.
+- **`DynamicMenuItem`**: `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute`, `IsHeader`(작업 버튼이 있는 그룹 헤더로 렌더링)를 포함.
 - **`SearchWindowType`**: `Main`(메인 창), `Quick`(퀵 검색창), `Inline`(인라인 파일 대화상자) 열거형.

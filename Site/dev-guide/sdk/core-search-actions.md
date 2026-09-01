@@ -140,5 +140,5 @@ public interface IDynamicActionProvider
 ## 4. Supporting Models
 
 - **`SearchableItem` / `InstantResultItem`**: Contains `Title`, `Description`, `IconData`, `IconColor`, `ActionType` (`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon` (auto-disposed by host), and `OnExecute` callback.
-- **`DynamicMenuItem`**: Contains `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `IsActionable`, `IsContinuation`, `OnExecute`, `IsHeader`, and `ShortcutHint`. Set `IsActionable = false` for a pure category node that only opens a submenu; actionable folder nodes can keep the default `true`. `IsContinuation = true` marks a paged submenu cursor that the host loads automatically instead of rendering as a visible "load more" row. `IsHeader` renders a group header with an optional action button.
+- **`DynamicMenuItem`**: Contains `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute`, `IsHeader` (renders as a group header with optional action button).
 - **`SearchWindowType`**: Enum with `Main`, `Quick`, and `Inline`.

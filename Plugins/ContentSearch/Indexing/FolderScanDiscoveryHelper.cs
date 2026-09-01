@@ -3,11 +3,10 @@ using Lertaro.PluginSdk.Services;
 namespace Lertaro.Plugins.ContentSearch.Indexing;
 
 /// <summary>
-/// Scans monitored directories using the SDK host index plus a filesystem walk to discover modified files.
-/// The host index can answer from a stale snapshot (e.g. the service has not yet picked up recently
-/// created files) and a non-empty enumeration carries no completeness signal, so the filesystem walk
-/// always runs as well and the two result sets merge. Split out purely to keep ContentIndexScheduler
-/// under the repository per-file line limit.
+/// Discovers modified files through the SDK host index, which already falls back to a live filesystem
+/// walk whenever no index can answer. A raw filesystem walk is only used here when the host enumeration
+/// itself fails, so a healthy host enumeration never pays for the same directory traversal twice.
+/// Split out purely to keep ContentIndexScheduler under the repository per-file line limit.
 /// </summary>
 public static class FolderScanDiscoveryHelper
 {
@@ -27,6 +26,7 @@ public static class FolderScanDiscoveryHelper
             if (string.IsNullOrEmpty(folder))
                 continue;
 
+            var hostEnumerationFailed = false;
             try
             {
                 await foreach (var item in DirectoryIndexerService.EnumerateDirectoryAsync(
@@ -75,11 +75,16 @@ public static class FolderScanDiscoveryHelper
             {
                 // Host enumeration unavailable (service down, pipe timeout): the filesystem
                 // walk below still covers the folder, so keep going instead of failing.
+                hostEnumerationFailed = true;
             }
 
-            // Runs even when the host enumeration answered: its snapshot may be stale.
+            // DirectoryIndexerService already falls back to a live filesystem walk whenever
+            // no host index can answer, so a successful enumeration is authoritative: running
+            // the raw filesystem walk again here would only duplicate that work for large or
+            // slow (network) trees. Only a failed enumeration needs the local fallback.
             if (ct.IsCancellationRequested) return discovered;
-            ScanFilesystem(folder, config, existingMeta, discovered, onEnqueue, ct);
+            if (hostEnumerationFailed)
+                ScanFilesystem(folder, config, existingMeta, discovered, onEnqueue, ct);
         }
 
         return discovered;

@@ -1,8 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:app="clr-namespace:Lertaro.App"
-                    xmlns:converters="clr-namespace:Lertaro.App.Converters"
-                    xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals">
+                    xmlns:converters="clr-namespace:Lertaro.App.Converters">
 	<ResourceDictionary.MergedDictionaries>
 		<ResourceDictionary Source="../Styles/Tokens/Colors.xaml"/>
 	</ResourceDictionary.MergedDictionaries>
@@ -76,17 +75,12 @@
 				<Ellipse Grid.Column="0" Width="4" Height="4" Fill="{DynamicResource FileIconColor}" Margin="10,0,10,0" VerticalAlignment="Center"
                          Visibility="{Binding PlaceholderVisibility}"/>
 
-				<ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden"
-                              VerticalScrollBarVisibility="Disabled" Focusable="False"
-                              HorizontalContentAlignment="Left"
-                              converters:ScrollViewerHelper.BubbleMouseWheel="True">
-				<TextBlock VerticalAlignment="Center"
+				<TextBlock Grid.Column="1" VerticalAlignment="Center"
                            Foreground="{DynamicResource TextPrimary}"
                            converters:TextHighlighter.Text="{Binding Text}"
                            converters:TextHighlighter.HighlightText="{Binding SearchQuery}"
                            converters:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}"
-                           TextTrimming="None"
-                           helpers:MarqueeBehavior.EnableMarquee="{Binding IsSelected}">
+                           TextTrimming="CharacterEllipsis">
 					<TextBlock.Style>
 						<Style TargetType="TextBlock">
 							<Setter Property="FontSize" Value="13"/>
@@ -101,7 +95,6 @@
 						</Style>
 					</TextBlock.Style>
 				</TextBlock>
-				</ScrollViewer>
 
 				<!-- Keyboard shortcut hint: same pill badge as SearchResultTemplate (DataTemplates.xaml),
 				     reusing HoverBackground/ShortcutColor/AccentBlue rather than new themed resources.

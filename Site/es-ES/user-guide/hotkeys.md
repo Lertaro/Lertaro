@@ -61,8 +61,6 @@ Impulsado por el plugin **Folder Cascader**:
 3. **Categorías personalizadas**: Configura submenús anidados en **Configuración → Plugins → Folder Cascader** (p. ej. `Trabajo/ProyectoA`).
 4. **Añadir carpeta rápida (Botón `+`)**: Cada encabezado de submenú cuenta con un botón `+` para guardar el directorio activo directamente en esa categoría.
 
-Las categorías solo sirven para expandir el menú y no ejecutan ninguna apertura; las carpetas o archivos reales se pueden abrir o usar para navegar directamente con un clic.
-
 ## 4. Teclas fijas básicas (No configurables)
 
 Para garantizar un comportamiento coherente y determinista, las siguientes teclas actúan igual en todas las configuraciones:

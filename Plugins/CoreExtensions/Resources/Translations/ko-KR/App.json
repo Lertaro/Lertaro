@@ -457,7 +457,6 @@
   "Search_Total": "{0:N0}개 항목",
   "Search_StatusText": "MFT/USN 로컬 드라이브 서비스 연결됨",
   "Search_HintKeyboard": "더블클릭하여 열기 · Enter로 열기 · ↑↓ 선택",
-  "Search_SelectedItemsCount": "{0}개 선택됨",
   "QuickSearch_Placeholder": " 입력하여 검색...",
   "Search_BackTooltip": "빠른 검색으로 돌아가기",
   "Search_HeaderName": "이름",

@@ -183,8 +183,6 @@
                         <results:ResultsControl x:Name="ResultsPanelControl"
                                             ItemsSource="{Binding FilteredResults}"
                                             ViewMode="Grid"
-                                            UsesFloatingActionsLayout="True"
-                                            UseRoomyActionRows="True"
                                             Visibility="Visible"/>
                         <!-- No Results Hint -->
                         <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_NoResult]}"
@@ -238,12 +236,6 @@
                                        FontSize="12" FontWeight="Medium"
                                        Foreground="{DynamicResource TextSecondary2}"
                                        
-                                       VerticalAlignment="Center"/>
-                            <TextBlock x:Name="TxtSelectedResultCount"
-                                       FontSize="12" FontWeight="Medium"
-                                       Foreground="{DynamicResource TextSecondary2}"
-                                       Visibility="Collapsed"
-                                       Margin="12,0,0,0"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
                         <!-- Keyboard hint -->

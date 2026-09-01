@@ -92,4 +92,4 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 }
 ```
 
-宿主只会在完整搜索窗口的最终渲染阶段调用 `GetFileResults`。插件不处理当前查询时应返回空列表。返回的每个 `InstantResultItem` 都必须对应一个实际存在的文件或文件夹，这样完整窗口的路径、大小和类型列才有意义。该组件会在**设置 → 插件**中拥有独立的启用/禁用开关，不会与插件的即时结果提供器联动。
+宿主只会在完整搜索窗口的最终渲染阶段调用 `GetFileResults`。插件不处理当前查询时应返回空列表。返回的每个 `InstantResultItem` 都必须对应一个实际存在的文件或文件夹，这样完整窗口的路径、大小和类型列才有意义。该组件与插件的即时结果提供者共用同一个启用/禁用开关。

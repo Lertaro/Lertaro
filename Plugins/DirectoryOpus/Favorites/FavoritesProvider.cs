@@ -44,8 +44,7 @@ public class FavoritesProvider : IQuickNavigationProvider
                     Text = TranslationService.Get("Plugins_DirectoryOpus_Favorites_RootLabel"),
                     HasSubMenu = true,
                     SubMenuHandle = AllocateHandle(new FavoritesNode { Children = parsed }),
-                    HBitmapItem = FavoritesIcon.GetRootHBitmap(),
-                    IsActionable = false
+                    HBitmapItem = FavoritesIcon.GetRootHBitmap()
                 }
             };
         }

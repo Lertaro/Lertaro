@@ -37,6 +37,6 @@ Abre **Configuración → Inicio rápido → Fuentes de datos** para elegir fuen
 - Con varias fuentes, la franja inferior muestra un punto por fuente. El punto seleccionado es azul y los demás grises; al pasar el ratón por encima, el punto se expande para mostrar el nombre de la fuente.
 - Mantén pulsada la tecla **Shift** y usa la rueda del ratón sobre el panel para recorrer las fuentes. La fuente seleccionada reproduce brevemente la misma animación de expansión.
 - Los atajos configurados de **Seleccionar elemento siguiente** y **Seleccionar elemento anterior** (por defecto **Ctrl+N** y **Ctrl+P**) también recorren las fuentes cuando el panel está visible; la selección vuelve de la última fuente a la primera y viceversa.
-- Haz clic derecho en cualquier elemento de cualquier fuente para abrir su menú de acciones flotante dentro del panel de Inicio rápido. El panel se amplía temporalmente hasta la altura máxima de trabajo de la lista de acciones y recupera su altura anterior al cerrar el menú; al hacer clic fuera del menú, este se cierra.
+- Haz clic derecho en cualquier elemento de cualquier fuente para abrir el menú de acciones estándar de ese elemento.
 - Si los elementos superan el alto visible del panel, usa la rueda del ratón sobre el área de elementos para desplazarte verticalmente; pasar el ratón sobre un elemento no bloquea el desplazamiento.
 - Al empezar a escribir una consulta, el panel se oculta.

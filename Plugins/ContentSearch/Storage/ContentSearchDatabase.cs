@@ -19,6 +19,7 @@ public sealed class ContentSearchDatabase : IDisposable
     private LuceneContentIndex? _lucene;
 
     private int _cachedTotalFiles;
+    private int _cachedIndexedFiles;
 
     public int TotalFiles => _cachedTotalFiles;
     public int TotalChunks => _cachedTotalFiles;
@@ -236,8 +237,7 @@ public sealed class ContentSearchDatabase : IDisposable
     {
         if (!File.Exists(_dbPath)) return 0;
         Initialize();
-        using var conn = OpenConnection();
-        return DatabaseMetadataReader.CountIndexedFiles(conn);
+        return _cachedIndexedFiles;
     }
 
     private void RefreshStatsInternal(SqliteConnection conn)
@@ -245,9 +245,21 @@ public sealed class ContentSearchDatabase : IDisposable
         try
         {
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM files;";
-            var res = cmd.ExecuteScalar();
-            _cachedTotalFiles = res != null && res != DBNull.Value ? Convert.ToInt32(res) : 0;
+            cmd.CommandText = """
+                SELECT COUNT(*), COALESCE(SUM(CASE WHEN failed_at IS NULL THEN 1 ELSE 0 END), 0)
+                FROM files;
+                """;
+            using var reader = cmd.ExecuteReader();
+            if (reader.Read())
+            {
+                _cachedTotalFiles = Convert.ToInt32(reader.GetInt64(0));
+                _cachedIndexedFiles = Convert.ToInt32(reader.GetInt64(1));
+            }
+            else
+            {
+                _cachedTotalFiles = 0;
+                _cachedIndexedFiles = 0;
+            }
         }
         catch { }
     }
@@ -257,6 +269,7 @@ public sealed class ContentSearchDatabase : IDisposable
         lock (_writeLock)
         {
             _cachedTotalFiles = 0;
+            _cachedIndexedFiles = 0;
             _lucene?.ClearAll();
 
             if (!File.Exists(_dbPath)) return;

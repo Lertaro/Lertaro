@@ -178,14 +178,17 @@ public sealed class IndexBatchProcessor
             // Hard per-file cap: the extractors apply their own cooperative timeout, but a
             // pathological file (e.g. a PDF whose parser never returns to a token check)
             // would otherwise block this lane forever and, through Task.WhenAll, the whole
-            // batch. WaitAsync guarantees the batch moves on; the orphaned extractor task
-            // keeps running but can no longer stall indexing.
+            // batch. WaitAsync guarantees the batch moves on; the extractors dispose their
+            // file stream when their timeout token cancels, so the abandoned extraction
+            // unblocks and exits instead of running on indefinitely.
             var hardTimeout = ExtractorTimeoutPolicy.ForFileSize(fileInfo.Length).Add(TimeSpan.FromSeconds(5));
+            using var hardTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            hardTimeoutCts.CancelAfter(hardTimeout);
             string? text;
             try
             {
                 text = await TextExtractorRegistry.Instance.ExtractTextAsync(
-                    filePath, config.MaxFileSizeBytes, ct).WaitAsync(hardTimeout, ct);
+                    filePath, config.MaxFileSizeBytes, hardTimeoutCts.Token).WaitAsync(hardTimeout, ct);
             }
             catch (TimeoutException)
             {

@@ -13,8 +13,7 @@ Al seleccionar un plugin a la izquierda, el panel derecho muestra su icono, nomb
 
 ### Pestaña Detalles (Details)
 
-- **Lista de componentes**: Muestra todos los componentes funcionales registrados (fuentes de búsqueda, resultados de archivos de la búsqueda completa, proveedores de acciones, accesos rápidos, manejadores de vista previa, etc.).
-- **Interruptor independiente para resultados completos**: `IFullSearchFileResultProvider` aparece como un tipo de componente propio y puede activarse o desactivarse sin cambiar el proveedor de resultados instantáneos del plugin.
+- **Lista de componentes**: Muestra todos los componentes funcionales registrados (fuentes de búsqueda, proveedores de acciones, accesos rápidos, manejadores de vista previa, etc.).
 - **Conmutadores individuales**: Cada componente no esencial dispone de una **casilla de activación**; los componentes imprescindibles muestran un icono de candado y no se pueden desactivar.
 - **Seleccionar / Deseleccionar todo**: Enlace rápido para alternar en bloque todos los elementos de un grupo.
 - **Descripción emergente**: Pasa el ratón sobre el icono **(!)** de un componente para consultar sus detalles técnicos y activación.

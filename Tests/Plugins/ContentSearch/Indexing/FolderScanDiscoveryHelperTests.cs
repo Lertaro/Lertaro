@@ -34,10 +34,12 @@ public sealed class FolderScanDiscoveryHelperTests
     }
 
     [TestMethod]
-    public async Task DiscoverFilesAsync_StaleHostSnapshot_MergesFilesystemWalk()
+    public async Task DiscoverFilesAsync_HostEnumerationSucceeds_TrustsHostWithoutRedundantWalk()
     {
-        // Regression: the service index can answer from a stale snapshot that misses recently
-        // created files; a non-empty answer must not stop the filesystem walk from finding them.
+        // The host DirectoryIndexerService already falls back to a live filesystem walk when
+        // no index can answer, so a successful enumeration must be trusted as complete. Running
+        // our own raw walk here too would duplicate the traversal and re-queue files that the
+        // host already reported.
         var dir = CreateTempDirectory();
 
         try
@@ -45,7 +47,7 @@ public sealed class FolderScanDiscoveryHelperTests
             foreach (var name in new[] { "a.txt", "b.txt", "c.txt" })
                 await File.WriteAllTextAsync(Path.Combine(dir, name), "content of " + name);
 
-            var hostFiles = new[] { "a.txt" }; // stale snapshot: only one of three files
+            var hostFiles = new[] { "a.txt" };
             DirectoryIndexerService.EnumerateDirectoryFunc = (folder, recursive, pattern, limit, token) =>
                 EnumerateFake(Path.Combine(dir, hostFiles[0]), (long)new FileInfo(Path.Combine(dir, hostFiles[0])).Length, DateTime.Now);
 
@@ -62,9 +64,9 @@ public sealed class FolderScanDiscoveryHelperTests
                 enqueued.Add,
                 CancellationToken.None);
 
-            var expected = new[] { "a.txt", "b.txt", "c.txt" }.Select(n => Path.Combine(dir, n)).ToList();
+            var expected = new[] { Path.Combine(dir, "a.txt") };
             CollectionAssert.AreEquivalent(expected, discovered.ToList());
-            Assert.HasCount(3, enqueued);
+            Assert.HasCount(1, enqueued);
         }
         finally
         {

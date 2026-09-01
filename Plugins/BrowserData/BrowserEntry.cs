@@ -2,12 +2,7 @@ namespace Lertaro.Plugins.BrowserData;
 
 // SortKey is a history entry's last-visit timestamp (higher = more recent, epoch/units don't matter
 // since it's only ever compared to other entries from the same source) or a bookmark's insertion order.
-internal readonly record struct BrowserEntry(
-    string Title,
-    string Url,
-    bool IsBookmark,
-    long SortKey,
-    DateTimeOffset? VisitTime = null);
+internal readonly record struct BrowserEntry(string Title, string Url, bool IsBookmark, long SortKey);
 
 internal static class BrowserEntryFilter
 {

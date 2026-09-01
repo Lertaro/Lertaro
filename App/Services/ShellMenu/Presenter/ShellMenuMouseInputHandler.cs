@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Lertaro.App.Helpers;
 using Lertaro.App.Services.AppWindow;
 
 namespace Lertaro.App.Services.ShellMenu.Presenter;
@@ -44,12 +43,6 @@ internal sealed class ShellMenuMouseInputHandler
     }
 
     public void ReseedHoverBaseline() => _lastHoverPos = Mouse.GetPosition(_view.LstActions);
-
-    public void HandleActionsPreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        e.Handled = true;
-        SearchInputHelper.HandleActionsEscape(_view, _presenter);
-    }
 
     public void HandleActionsPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {

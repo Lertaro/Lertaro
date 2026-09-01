@@ -13,8 +13,7 @@ internal static class QuickSearchLaunchPanelInputHelper
 {
     public static bool Handle(KeyEventArgs e, Lertaro.App.QuickSearchWindow window)
     {
-        if (window.ViewModel.LaunchPanelVisibility != Visibility.Visible
-            || window.MenuPresenter?.IsInActionsMode == true)
+        if (window.ViewModel.LaunchPanelVisibility != Visibility.Visible)
             return false;
 
         if (e.Key is Key.Up or Key.Down)

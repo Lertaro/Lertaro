@@ -1,4 +1,5 @@
 using System.IO;
+using Lertaro.App;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 

@@ -32,12 +32,29 @@ public sealed class DocxExtractor : ITextExtractor
             {
                 timeoutCts.Token.ThrowIfCancellationRequested();
                 using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                // Disposing the stream from the timeout callback unblocks ZipArchive/XDocument
+                // reads that are stuck on a hung network share: the abandoned extraction then
+                // throws and exits instead of running forever.
+                using var timeoutRegistration = timeoutCts.Token.Register(fileStream.Dispose);
                 using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read, leaveOpen: false);
                 return ExtractDocumentText(archive, timeoutCts.Token);
             }, timeoutCts.Token);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Timed out extracting Word document '{filePath}'",
+                PluginSdk.LogLevel.Warn);
+            return null;
+        }
+        catch (Exception) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            // The stream was disposed by the timeout callback above while the reader was
+            // still reading it; semantically this is a timeout, not a random parse error.
             PluginSdk.Logger.Log(
                 $"[ContentSearch] Timed out extracting Word document '{filePath}'",
                 PluginSdk.LogLevel.Warn);

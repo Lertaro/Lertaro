@@ -1,5 +1,7 @@
+using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.ContentSearch.Indexing;
 using Lertaro.Plugins.ContentSearch.Storage;
+using Lertaro.Plugins.ContentSearch.Tests.TestSupport;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Indexing;
 
@@ -21,12 +23,16 @@ public sealed class ContentIndexSchedulerMissingObservationTests
         _database.Initialize();
         _logLines.Clear();
         PluginSdk.Logger.LogAction = (message, level) => _logLines.Add($"{level}: {message}");
+        // The App host normally supplies this hook; scheduler tests run without the App,
+        // so a real filesystem walk stands in for the host's index enumeration.
+        DirectoryIndexerService.EnumerateDirectoryFunc = LiveDirectoryEnumerator.EnumerateAsync;
     }
 
     [TestCleanup]
     public void TearDown()
     {
         PluginSdk.Logger.LogAction = null;
+        DirectoryIndexerService.EnumerateDirectoryFunc = null;
         _database.Dispose();
         if (File.Exists(_tempDbPath))
         {

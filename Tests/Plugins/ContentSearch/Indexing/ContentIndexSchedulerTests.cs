@@ -2,7 +2,6 @@ using Lertaro.Plugins.ContentSearch.Indexing;
 using Lertaro.Plugins.ContentSearch.Storage;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Indexing;
-
 // Shares the process-wide PluginSdk.Logger.LogAction hook and a temp database, so it
 // must not run concurrently with anything that reads or resets them.
 [TestClass]
@@ -12,7 +11,6 @@ public sealed class ContentIndexSchedulerTests
     private string _tempDbPath = null!;
     private ContentSearchDatabase _database = null!;
     private readonly List<string> _logLines = new();
-
     [TestInitialize]
     public void SetUp()
     {
@@ -21,12 +19,15 @@ public sealed class ContentIndexSchedulerTests
         _database.Initialize();
         _logLines.Clear();
         PluginSdk.Logger.LogAction = (message, level) => _logLines.Add($"{level}: {message}");
+        Lertaro.PluginSdk.Services.DirectoryIndexerService.EnumerateDirectoryFunc =
+            TestSupport.LiveDirectoryEnumerator.EnumerateAsync;
     }
 
     [TestCleanup]
     public void TearDown()
     {
         PluginSdk.Logger.LogAction = null;
+        Lertaro.PluginSdk.Services.DirectoryIndexerService.EnumerateDirectoryFunc = null;
         _database.Dispose();
         if (File.Exists(_tempDbPath))
         {

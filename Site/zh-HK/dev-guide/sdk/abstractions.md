@@ -92,4 +92,4 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 }
 ```
 
-宿主只會在完整搜尋視窗的最終渲染階段呼叫 `GetFileResults`。外掛模組不處理目前查詢時應返回空列表。返回的每個 `InstantResultItem` 都必須對應一個實際存在的檔案或資料夾，這樣完整視窗的路徑、大小和類型欄位才有意義。此元件會在**設定 → 外掛模組**中擁有獨立的啟用/停用開關，不會與外掛模組的即時結果提供者聯動。
+宿主只會在完整搜尋視窗的最終渲染階段呼叫 `GetFileResults`。外掛模組不處理目前查詢時應返回空列表。返回的每個 `InstantResultItem` 都必須對應一個實際存在的檔案或資料夾，這樣完整視窗的路徑、大小和類型欄位才有意義。此元件與外掛模組的即時結果提供者共用同一個啟用/停用開關。
