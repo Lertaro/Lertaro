@@ -368,6 +368,8 @@
   "General_LayoutReopenFullWindowOnHotkey": "視窗已開啟時再次按下快捷鍵，將改為開啟完整視窗，而不是關閉視窗",
   "General_LayoutLockPosition": "鎖定位置",
   "General_LayoutLockPositionHint": "禁止拖動此視窗，避免誤按把它挪離你放好的位置。右鍵點擊狀態圖示仍然可以重置位置。",
+  "General_LayoutAutoFillClipboard": "自動將剪貼簿文字填入快速搜尋框",
+  "General_LayoutAutoFillClipboardHint": "快速視窗在沒有預填內容時，如果剪貼簿中有新的非空文字，就將其用作搜尋內容。手動貼上和其他視窗不受影響。",
   "General_LayoutReset": "重設版面配置設定",
   "General_ResultTypeOrderTitle": "結果類型優先順序",
   "General_ResultTypeOrderHint": "當快速視窗裡幾個相符結果不相上下時，決定哪種類型勝出：把某個類型上移，就能讓它始終排在下面的類型前面，不管實際上誰的文字比對得更好。歷史紀錄和我的最愛始終排最前，不受這個清單影響。也可以給某個類型設定一個單字元觸發符——把它當成查詢的第一個字元打出來，就只會顯示這個類型的結果。",

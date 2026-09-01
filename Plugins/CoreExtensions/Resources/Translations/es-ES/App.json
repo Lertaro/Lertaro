@@ -368,6 +368,8 @@
   "General_LayoutReopenFullWindowOnHotkey": "Pulsar de nuevo el atajo de teclado mientras esta ventana ya está abierta cambia a la ventana completa en lugar de cerrarla",
   "General_LayoutLockPosition": "Bloquear posición",
   "General_LayoutLockPositionHint": "Impide arrastrar esta ventana, para que una pulsación accidental no la desplace del sitio donde la dejaste. Hacer clic derecho en el icono de estado sigue restableciendo su posición.",
+  "General_LayoutAutoFillClipboard": "Rellenar automáticamente el cuadro de búsqueda rápida con el texto del portapapeles",
+  "General_LayoutAutoFillClipboardHint": "Cuando la ventana de búsqueda rápida se abre sin texto preintroducido, usa como consulta el texto nuevo y no vacío del portapapeles. El pegado manual y las demás ventanas no se ven afectados.",
   "General_LayoutReset": "Restablecer Configuración de Diseño",
   "General_ResultTypeOrderTitle": "Prioridad de Tipo de Resultado",
   "General_ResultTypeOrderHint": "Elige qué tipo de resultado gana cuando varias coincidencias igual de buenas empatan en la ventana rápida: sube un tipo para que siempre tenga prioridad sobre los que están debajo, independientemente de cuál coincida realmente mejor con el texto de la consulta. El Historial y los Favoritos siempre aparecen primero y no se ven afectados por esta lista. Opcionalmente, asigna a un tipo un activador de un solo carácter a continuación: al escribirlo como primer carácter se mostrarán solo los resultados de ese tipo.",

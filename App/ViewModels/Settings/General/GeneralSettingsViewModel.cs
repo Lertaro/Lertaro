@@ -20,6 +20,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _autoSilentUpdate;
     private bool _enableHardwareAcceleration;
     private bool _enableFuzzyMatch;
+    private bool _enableQuickSearchClipboardAutoFill;
     private bool _enableEverythingIpc;
     private bool _hideTrayIcon;
     private bool _openFoldersInNewExplorerTabs;
@@ -58,6 +59,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _autoSilentUpdate = userSettings.AutoSilentUpdate;
         _enableHardwareAcceleration = userSettings.EnableHardwareAcceleration;
         _enableFuzzyMatch = userSettings.EnableFuzzyMatch;
+        _enableQuickSearchClipboardAutoFill = userSettings.EnableQuickSearchClipboardAutoFill;
         _enableEverythingIpc = userSettings.EnableEverythingIpc;
         _hideTrayIcon = userSettings.HideTrayIcon;
         _openFoldersInNewExplorerTabs = userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs;
@@ -89,7 +91,6 @@ public class GeneralSettingsViewModel : ViewModelBase
             }), System.Windows.Threading.DispatcherPriority.Loaded);
         };
         TranslationManager.Instance.PropertyChanged += _translationHandler;
-
     }
 
     // Persistence and the side effects (Logger.MinimumLevel, hook-process notification) are staged
@@ -168,6 +169,8 @@ public class GeneralSettingsViewModel : ViewModelBase
         get => _enableFuzzyMatch;
         set => SetProperty(ref _enableFuzzyMatch, value);
     }
+
+    public bool EnableQuickSearchClipboardAutoFill { get => _enableQuickSearchClipboardAutoFill; set => SetProperty(ref _enableQuickSearchClipboardAutoFill, value); }
 
     public bool EnableEverythingIpc
     {
@@ -258,6 +261,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _autoSilentUpdate,
         _enableHardwareAcceleration,
         _enableFuzzyMatch,
+        _enableQuickSearchClipboardAutoFill,
         _enableEverythingIpc,
         _hideTrayIcon,
         _openFoldersInNewExplorerTabs,

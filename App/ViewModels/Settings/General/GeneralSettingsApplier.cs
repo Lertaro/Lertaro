@@ -20,6 +20,7 @@ internal static class GeneralSettingsApplier
         bool autoSilentUpdate,
         bool enableHardwareAcceleration,
         bool enableFuzzyMatch,
+        bool enableQuickSearchClipboardAutoFill,
         bool enableEverythingIpc,
         bool hideTrayIcon,
         bool openFoldersInNewExplorerTabs,
@@ -38,6 +39,7 @@ internal static class GeneralSettingsApplier
             userSettings.AutoSilentUpdate = autoSilentUpdate;
         userSettings.EnableHardwareAcceleration = enableHardwareAcceleration;
         userSettings.EnableFuzzyMatch = enableFuzzyMatch;
+        userSettings.EnableQuickSearchClipboardAutoFill = enableQuickSearchClipboardAutoFill;
         SearchContext.DefaultFuzzyMatchEnabled = enableFuzzyMatch;
         userSettings.EnableEverythingIpc = enableEverythingIpc;
         userSettings.HideTrayIcon = hideTrayIcon;

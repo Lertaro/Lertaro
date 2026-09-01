@@ -55,6 +55,7 @@ public class UserSettings
     public string DarkThemeId { get; set; } = string.Empty;
     public HotkeyPageSettings Hotkeys { get; set; } = new();
     public SearchWindowSettings SearchWindow { get; set; } = new();
+    public bool EnableQuickSearchClipboardAutoFill { get; set; } = false;
     public PreviewWindowSettings PreviewWindow { get; set; } = new();
     public MainWindowSettings MainWindow { get; set; } = new();
     public QuickPanelSettings QuickPanel { get; set; } = new();

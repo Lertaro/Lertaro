@@ -130,6 +130,13 @@
                 <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutLockPositionHint]}"
                            Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" Margin="24,4,0,0"/>
 
+                <CheckBox x:Name="RowLayoutAutoFillClipboard"
+                           Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutAutoFillClipboard]}"
+                           IsChecked="{Binding General.EnableQuickSearchClipboardAutoFill, Mode=TwoWay}"
+                           Margin="0,8,0,0"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutAutoFillClipboardHint]}"
+                           Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" Margin="24,4,0,0"/>
+
                 <Grid x:Name="RowLayoutReset" Margin="0,16,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>

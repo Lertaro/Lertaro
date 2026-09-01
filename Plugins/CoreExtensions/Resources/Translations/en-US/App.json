@@ -368,6 +368,8 @@
   "General_LayoutReopenFullWindowOnHotkey": "Pressing the hotkey again while this window is already open switches to the full window instead of closing it",
   "General_LayoutLockPosition": "Lock position",
   "General_LayoutLockPositionHint": "Stops this window being dragged, so a stray press cannot nudge it off the spot you put it on. Right-clicking the status icon still resets its position.",
+  "General_LayoutAutoFillClipboard": "Automatically fill the quick search box with clipboard text",
+  "General_LayoutAutoFillClipboardHint": "When the quick search window opens without pre-filled text, use new non-empty clipboard text as the search query. Manual paste and other windows are unaffected.",
   "General_LayoutReset": "Reset Layout Settings",
   "General_ResultTypeOrderTitle": "Result Type Priority",
   "General_ResultTypeOrderHint": "Choose which result type wins when several equally-good matches tie in the quick window -- move a type up to make it always outrank the ones below it, regardless of which one actually matched the query text better. History and Favorites always come first and aren't affected by this list. Optionally, give a type a single-character trigger below -- typing it as the very first character shows only that type's results.",

@@ -368,6 +368,8 @@
   "General_LayoutReopenFullWindowOnHotkey": "이 창이 이미 열려 있을 때 단축키를 다시 누르면 닫는 대신 전체 창으로 전환",
   "General_LayoutLockPosition": "위치 잠금",
   "General_LayoutLockPositionHint": "이 창을 끌 수 없게 하여, 실수로 눌러 놓아둔 자리에서 밀려나는 일을 막습니다. 상태 아이콘 우클릭으로 위치를 초기화하는 것은 그대로 사용할 수 있습니다.",
+  "General_LayoutAutoFillClipboard": "빠른 검색 상자에 클립보드 텍스트 자동 입력",
+  "General_LayoutAutoFillClipboardHint": "빠른 검색 창을 미리 입력된 텍스트 없이 열 때 새롭고 비어 있지 않은 클립보드 텍스트를 검색어로 사용합니다. 수동 붙여넣기와 다른 창에는 영향을 주지 않습니다.",
   "General_LayoutReset": "레이아웃 설정 초기화",
   "General_ResultTypeOrderTitle": "결과 유형 우선순위",
   "General_ResultTypeOrderHint": "빠른 창에서 여러 결과가 비슷하게 일치할 때 어떤 결과 유형이 우선할지 선택하세요 -- 유형을 위로 이동하면 실제로 어느 것이 검색어와 더 잘 일치하는지와 무관하게 항상 아래에 있는 유형보다 우선합니다. 기록과 즐겨찾기는 항상 맨 앞에 오며 이 목록의 영향을 받지 않습니다. 선택적으로 유형에 단일 문자 트리거를 지정할 수 있습니다 -- 검색어의 첫 글자로 입력하면 해당 유형의 결과만 표시됩니다.",

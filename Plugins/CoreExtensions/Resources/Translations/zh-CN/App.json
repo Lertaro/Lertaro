@@ -368,6 +368,8 @@
   "General_LayoutReopenFullWindowOnHotkey": "窗口已打开时再次按下快捷键，将改为打开完整窗口，而不是关闭窗口",
   "General_LayoutLockPosition": "锁定位置",
   "General_LayoutLockPositionHint": "禁止拖动此窗口，避免误按把它挪离你放好的位置。右键点击状态图标仍然可以重置位置。",
+  "General_LayoutAutoFillClipboard": "自动将剪贴板文本填入快速搜索框",
+  "General_LayoutAutoFillClipboardHint": "快速窗口在没有预填内容时，如果剪贴板中有新的非空文本，就将其用作搜索内容。手动粘贴和其他窗口不受影响。",
   "General_LayoutReset": "重置布局设置",
   "General_ResultTypeOrderTitle": "结果类型优先级",
   "General_ResultTypeOrderHint": "当快速窗口里几个匹配结果不相上下时，决定哪种类型胜出：把某个类型上移，就能让它始终排在下面的类型前面，不管实际上谁的文本匹配得更好。历史记录和收藏夹始终排最前，不受这个列表影响。也可以给某个类型配一个单字符触发符——把它当成查询的第一个字符打出来，就只会显示这个类型的结果。",
