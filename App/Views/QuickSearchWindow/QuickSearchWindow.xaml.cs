@@ -29,7 +29,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private readonly QuickSearchWindowResultExecutor _resultExecutor;
     private readonly QuickSearchWindowLifecycle _lifecycle;
     private readonly QuickSearchWindowDragSupport _dragSupport;
-    private readonly QuickSearchDomainUrlSupport _domainUrlSupport;
     private Action? _scaleChangedHandler;
     internal QuickSearchKeywordHistoryController KeywordHistoryController { get; }
     // Must match QuickSearchWindow.xaml's root Border Margin ("24,40,24,24").
@@ -52,7 +51,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         _dragSupport = new QuickSearchWindowDragSupport(this);
         InitializeChildControls();
         KeywordHistoryController = new QuickSearchKeywordHistoryController(this);
-        _domainUrlSupport = new QuickSearchDomainUrlSupport(this);
     }
     public ShellMenuPresenter? MenuPresenter => _menuPresenter;
     public QuickSearchViewModel ViewModel => _viewModel;
@@ -251,7 +249,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     {
         if (_scaleChangedHandler != null)
             UiMetrics.ScaleChanged -= _scaleChangedHandler;
-        _domainUrlSupport.Dispose();
         _viewModel.Dispose();
         _trayService?.Dispose();
         _menuPresenter?.Dispose();
