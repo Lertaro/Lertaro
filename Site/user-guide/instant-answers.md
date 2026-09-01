@@ -37,7 +37,7 @@ Run commands directly without launching a terminal window first:
 
 ### Direct URL Navigation
 
-Type or paste any URL beginning with `http://` or `https://` and press `Enter` to open it immediately in your default browser. When the query has no search results and begins with a bare domain name, the Quick Search Window automatically fills in `https://` and moves the caret to the end; inputs that already include a protocol are left unchanged.
+Type or paste any URL beginning with `http://` or `https://` and press `Enter` to open it immediately in your default browser. Entering a valid protocol-less web address such as `example.com` generates two instant results in the Quick Search Window: `https://...` and `http://...`. Each result uses the two-line browser-open presentation, the query text is not modified, and an address that already includes a protocol produces one result.
 
 ### Clipboard text in the Quick Search Window
 
