@@ -49,6 +49,16 @@ public sealed class DomainUrlHelperTests
     }
 
     [TestMethod]
+    public void TryBuildWebUrls_AllowsHyphensInPathQueryAndFragment()
+    {
+        const string input = "github.com/timsaya/openwrt-bandix/a-b?q=a-b&next=x-y#part-a";
+
+        Assert.IsTrue(DomainUrlHelper.TryBuildWebUrls(input, out var httpsUrl, out var httpUrl));
+        Assert.AreEqual($"https://{input}", httpsUrl);
+        Assert.AreEqual($"http://{input}", httpUrl);
+    }
+
+    [TestMethod]
     public void TryBuildWebUrls_AllowsUrlHostUnderscore()
         => Assert.IsTrue(DomainUrlHelper.TryBuildWebUrls("a_b.cn", out _, out _));
 
