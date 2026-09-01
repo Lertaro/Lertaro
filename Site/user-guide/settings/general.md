@@ -26,6 +26,7 @@ Fine-tunes the dimensions, layout, and priority rankings of the centered floatin
 - **Show Clock in Search Box**: Replaces the placeholder text with current date and time when the search box is empty. The clock disappears as soon as you type.
 - **Switch to Full Window on Second Hotkey Press**: When enabled, pressing the global summon hotkey while the Quick Window is already open transitions directly into the Full Window, carrying over your active query.
 - **Lock Position**: Prevents dragging the search bar to avoid accidental displacement.
+- **Automatically Fill Clipboard Text**: Disabled by default. When the Quick Search Window opens without pre-filled text, new non-empty clipboard text is used as the search query. Manual paste and other windows are unaffected.
 - **Reset Layout Settings**: Restores all search bar layout properties to initial defaults.
 
 ### Result Type Priority & Trigger Characters

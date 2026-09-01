@@ -26,6 +26,7 @@ Permite ajustar con precisión las dimensiones geométricas y las prioridades de
 - **Mostrar reloj en la barra de búsqueda**: Sustituye el texto de sugerencia por la fecha y hora actuales cuando la barra está vacía. Desaparece al empezar a escribir.
 - **Abrir ventana principal al pulsar de nuevo el atajo**: Si la Ventana rápida ya está abierta, pulsar de nuevo su atajo transfiere la búsqueda activa a la Ventana principal.
 - **Bloquear posición**: Evita que la barra se mueva accidentalmente al arrastrarla con el ratón.
+- **Rellenar automáticamente el texto del portapapeles**: Desactivado por defecto. Cuando la Ventana de búsqueda rápida se abre sin texto preintroducido, usa como consulta el texto nuevo y no vacío del portapapeles. El pegado manual y las demás ventanas no se ven afectados.
 - **Restablecer diseño**: Restaura todas las propiedades de diseño a sus valores predeterminados.
 
 ### Prioridad de tipos de resultado y activadores
