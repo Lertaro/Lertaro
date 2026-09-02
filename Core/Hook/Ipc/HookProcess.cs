@@ -45,6 +45,12 @@ public sealed class HookProcess : IDisposable
     private int _trackerThreadId;
     private Thread? _trackerThread;
     private volatile bool _running;
+    // Stop() can legitimately arrive before RunMessageLoop has even entered (the App's stop request
+    // races hook-process startup). Record it separately: RunMessageLoop used to overwrite the stop
+    // request by setting _running = true unconditionally, and the WM_QUIT posted before the native
+    // thread id existed was a no-op -- leaving the main loop blocked in GetMessage forever with every
+    // hook still installed.
+    private volatile bool _stopRequested;
     private uint _appProcessId;
     private bool _isHotkeysDisabledTemporarily;
 
@@ -93,7 +99,10 @@ public sealed class HookProcess : IDisposable
     public void RunMessageLoop()
     {
         _nativeThreadId = GetCurrentThreadId();
-        _running = true;
+        // Honor a Stop() that arrived before this point: the WM_QUIT it posted was a no-op, so the
+        // flag is the only reliable signal. With _running false the tracker thread and the message
+        // loop below exit immediately and the finally block cleans the freshly installed hooks up.
+        _running = !_stopRequested;
 
         using (var trackerStartedEvent = new ManualResetEventSlim(false))
         {
@@ -275,6 +284,7 @@ public sealed class HookProcess : IDisposable
 
     public void Stop()
     {
+        _stopRequested = true;
         _running = false;
         if (_nativeThreadId != 0) PostThreadMessage(_nativeThreadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
         if (_trackerThreadId != 0) PostThreadMessage(_trackerThreadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
