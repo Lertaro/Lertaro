@@ -8,17 +8,33 @@
              d:DesignHeight="30" d:DesignWidth="600">
 
 
+    <!-- Visibility is owned by the outer binding (QuickSearchWindow binds this control to
+         StatusBarVisibility); the inner content must not force itself collapsed or the control
+         renders nothing no matter what the view model says. -->
     <Border x:Name="StatusBar"
-            Height="0" MaxHeight="0" Visibility="Collapsed"
              BorderThickness="0" Padding="0" Margin="0">
         <Grid Margin="12,4,12,4">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Ellipse x:Name="DotStatus" Width="6" Height="6" Fill="{DynamicResource SuccessBrush}"
-                         Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <Ellipse x:Name="DotStatus" Width="6" Height="6"
+                         Margin="0,0,6,0" VerticalAlignment="Center">
+                    <Ellipse.Style>
+                        <Style TargetType="Ellipse">
+                            <Setter Property="Fill" Value="{DynamicResource WarningBrush}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Monitor.IsServiceConnected}" Value="True">
+                                    <Setter Property="Fill" Value="{DynamicResource SuccessBrush}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Monitor.IsServiceConnected}" Value="False">
+                                    <Setter Property="Fill" Value="{DynamicResource ErrorBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Ellipse.Style>
+                </Ellipse>
                 <TextBlock x:Name="TxtStatusInfo"
-                           Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Status_Ready]}"
+                           Text="{Binding StatusText}"
                            FontSize="11"
-                           
+
                            Foreground="{DynamicResource TextSecondary}"
                            VerticalAlignment="Center"/>
             </StackPanel>

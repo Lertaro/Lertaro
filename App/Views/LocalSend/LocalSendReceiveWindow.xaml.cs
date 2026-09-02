@@ -124,7 +124,14 @@ public partial class LocalSendReceiveWindow : Window
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     { if (GridStep1Footer.Visibility != Visibility.Visible && !_isCompleted) { e.Cancel = true; return; } base.OnClosing(e); }
     protected override void OnClosed(EventArgs e)
-    { base.OnClosed(e); if (!string.IsNullOrEmpty(_currentSessionId)) LocalSendServiceManager.Instance.UnregisterSession(_currentSessionId); }
+    {
+        base.OnClosed(e);
+        // DispatcherTimers keep ticking (and keep this closed window alive) until stopped; nothing
+        // here needs to fire after the window is gone, so stop both unconditionally.
+        _inactivityTimer?.Stop();
+        _autoCloseTimer?.Stop();
+        if (!string.IsNullOrEmpty(_currentSessionId)) LocalSendServiceManager.Instance.UnregisterSession(_currentSessionId);
+    }
     private void BtnDecline_Click(object sender, RoutedEventArgs e) { _requestArgs.Respond(false); Close(); }
     private bool ApplySelectedFiles()
     { var selected = LstFiles.SelectedItems.OfType<LocalSendReceiveFileItem>().Select(i => i.FileId).ToHashSet(); if (selected.Count == 0) { BtnDecline_Click(this, new RoutedEventArgs()); return false; } _requestArgs.SelectedFileIds = selected; return true; }
@@ -195,6 +202,13 @@ public partial class LocalSendReceiveWindow : Window
         timer.Tick += (_, _) => { timer.Stop(); if (!_isCompleted) HandleSessionCanceled(_currentSessionId ?? string.Empty); };
         return timer;
     }
+
+    private DispatcherTimer CreateAutoCloseTimer()
+    {
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1200) };
+        timer.Tick += AutoCloseTimer_Tick;
+        return timer;
+    }
     private int _maxCompletedCount;
     public void HandleProgressChanged(LocalSendProgressArgs args) => Dispatcher.BeginInvoke(new Action(() =>
     {
@@ -234,8 +248,9 @@ public partial class LocalSendReceiveWindow : Window
             if (!string.IsNullOrEmpty(target)) BtnOpenFolder.Visibility = Visibility.Visible;
             if (!hasError && _requestArgs.IsAutoAccepted)
             {
-                _autoCloseTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1200) };
-                _autoCloseTimer.Tick += AutoCloseTimer_Tick;
+                // Subscribe exactly once, at creation: every all-done progress event re-ran this line
+                // otherwise, stacking duplicate Tick handlers that each closed the window.
+                _autoCloseTimer ??= CreateAutoCloseTimer();
                 _autoCloseTimer.Stop();
                 _autoCloseTimer.Start();
             }

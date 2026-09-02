@@ -42,14 +42,25 @@ public static class UpdateCheckService
                                                                {
                                                                    _ = dispatcher.BeginInvoke(new Action(async () =>
                                                                    {
-                                                                       var promptFormat = TranslationManager.Instance["About_SilentUpdatePrompt"];
-                                                                       var prompt = string.Format(promptFormat, release.TagName);
-                                                                       var title = TranslationManager.Instance["About_CheckUpdate"];
-                                                                       MessageBox.Show(prompt, title, MessageBoxButton.OK, MessageBoxImage.Information);
-                                                                       var success = await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.BrowserDownloadUrl);
-                                                                       if (success)
+                                                                       // try/catch INSIDE the async lambda: an async-void action's
+                                                                       // continuations escape the outer Task.Run's catch entirely, so a
+                                                                       // failed silent-update ride would surface as an unhandled
+                                                                       // dispatcher exception instead of a log line.
+                                                                       try
                                                                        {
-                                                                           TrayCleanExitHelper.CleanExit();
+                                                                           var promptFormat = TranslationManager.Instance["About_SilentUpdatePrompt"];
+                                                                           var prompt = string.Format(promptFormat, release.TagName);
+                                                                           var title = TranslationManager.Instance["About_CheckUpdate"];
+                                                                           MessageBox.Show(prompt, title, MessageBoxButton.OK, MessageBoxImage.Information);
+                                                                           var success = await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.BrowserDownloadUrl);
+                                                                           if (success)
+                                                                           {
+                                                                               TrayCleanExitHelper.CleanExit();
+                                                                           }
+                                                                       }
+                                                                       catch (Exception ex)
+                                                                       {
+                                                                           Logger.Log($"[App] Silent update flow failed: {ex.Message}", LogLevel.Error);
                                                                        }
                                                                    }));
                                                                    return;

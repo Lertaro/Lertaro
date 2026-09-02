@@ -102,7 +102,7 @@ internal static class ExplorerLocateHelper
             window.Navigate2(targetFolder);
             // Folders get selected too, for the same reason: the gate used to be File.Exists, so a
             // located folder was never highlighted once the window arrived.
-            SelectItemInExplorerLater(path, explorerHwnd);
+            SelectItemInExplorer(path, explorerHwnd);
 
             return true;
         }
@@ -177,9 +177,16 @@ internal static class ExplorerLocateHelper
         }
     }
 
-    private static async void SelectItemInExplorerLater(string path, IntPtr explorerHwnd)
+    // Runs on the caller's ShellThread STA and blocks for a beat before selecting: Navigate2 needs a
+    // moment before the item exists to select, and staying on the SAME thread keeps every COM call on
+    // the STA the RCWs were created on. This used to be an async-void helper resuming on the thread
+    // pool after Task.Delay -- by then the one-shot STA thread had exited, and COM calls against its
+    // dead apartment failed with RPC_E_DISCONNECTED, so the selection silently never happened.
+    // Blocking the ShellThread for 250ms is fine: it is a thread-per-call worker built for exactly
+    // this kind of blocking shell work.
+    private static void SelectItemInExplorer(string path, IntPtr explorerHwnd)
     {
-        await Task.Delay(250);
+        Thread.Sleep(250);
 
         dynamic? window = null;
         dynamic? folder = null;

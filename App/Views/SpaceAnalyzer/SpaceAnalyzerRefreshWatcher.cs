@@ -56,7 +56,6 @@ internal sealed class SpaceAnalyzerRefreshWatcher : IDisposable
         _atRoot = atRoot;
         _watchedPaths = watched;
         _directoryCts?.Cancel();
-        _directoryCts?.Dispose();
         var subscription = new CancellationTokenSource();
         _directoryCts = subscription;
         _ = Task.Run(() => WatchLocalDirectoriesAsync(watched, subscription.Token));
@@ -192,8 +191,11 @@ internal sealed class SpaceAnalyzerRefreshWatcher : IDisposable
             UserNetworkDriveSearch.DirectoriesChanged -= OnNetworkDirectoriesChanged;
             _networkSubscribed = false;
         }
+        // Cancel only, no Dispose: the watcher loop still holds this token and registers on it while
+        // winding down (Task.Delay in its retry path) -- a disposed CTS throws there, outside both of
+        // the loop's OCE-only catches, into unobserved-task territory. It holds no unmanaged
+        // resources, so dropping the reference is safe.
         _directoryCts?.Cancel();
-        _directoryCts?.Dispose();
         _directoryCts = null;
     }
 }
