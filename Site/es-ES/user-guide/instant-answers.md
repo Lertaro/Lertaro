@@ -51,7 +51,8 @@ Escribe una breve **palabra clave activadora + espacio** seguida de tu consulta 
 | :--- | :--- | :--- | :--- |
 | `ps` | **Gestor de procesos** | Busca procesos en ejecución por nombre, PID o título de ventana (con pinyin). Pulsa Enter para finalizar. | `ps chrome` o `ps 1234` |
 | `win` | **Conmutador de ventanas** | Busca y cambia entre ventanas abiertas con capturas en miniatura en segundo plano. | `win code` o `win navegador` |
-| `bm` | **Datos del navegador** | Busca marcadores e historial de Chrome, Edge y Firefox (marcadores e historial activables por separado). | `bm github` |
+| `bb` | **Marcadores del navegador** | Busca marcadores de Chrome, Edge y Firefox. | `bb github` |
+| `bh` | **Historial del navegador** | Busca el historial de navegación de Chrome, Edge y Firefox. | `bh github` |
 | `set` | **Búsqueda en Configuración** | Búsqueda difusa en las opciones de Lertaro. Al seleccionar una, salta a la página correspondiente y la resalta. | `set atajo` o `set difuso` |
 | `flow` | **Puente Flow Launcher** | Muestra los plugins cargados de Flow.Launcher y sus palabras clave, aprovechando su ecosistema. | `flow` |
 | `cs` | **Búsqueda de contenido** | Busca en el texto de documentos locales indexados y muestra archivos coincidentes con fragmentos. | `cs plan del proyecto` |

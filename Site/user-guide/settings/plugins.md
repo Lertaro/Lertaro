@@ -56,3 +56,12 @@ Manage Flow plugins directly from the Lertaro search box:
 The **Content Search** plugin searches text inside configured local documents. Open its **Configure** tab to set the trigger keyword, monitored folders, indexed extensions, per-file size limit, index size cap, and excluded full-path regular expressions. The default trigger is `cs`, so `cs project plan` searches document content and shows matching files with snippets.
 
 The configuration also provides **Clear Index** and **Rebuild Index**. Clear removes only the content index, while Rebuild removes it and scans all monitored folders again. Neither action removes Lertaro's normal filename index.
+
+## 5. Plugin Runtime Status
+
+The **Runtime Status** tab under **Settings → Plugins** shows live host-side activity for installed plugins while Lertaro is running. The values are aggregated by plugin and refresh while the tab is open.
+
+- **Plugin filter**: Use the filter box to fuzzy-search plugin names.
+- **Sortable columns**: Click a column header to cycle through ascending order, descending order, and the default plugin order.
+- **Available metrics**: Calls, average duration, most recent duration, maximum duration, managed allocation, and observed exceptions.
+- **Session scope**: Statistics accumulate during the current Lertaro process and reset after restart. A zero value means no measured call has been recorded yet. Managed allocation is the memory allocated by measured calls, not the plugin's total private memory usage.

@@ -51,7 +51,8 @@ By typing a short **trigger keyword + space** followed by your query, you can in
 | :--- | :--- | :--- | :--- |
 | `ps` | **Process Manager** | Search running processes by name, PID, or window title (supports pinyin). Press Enter to terminate. | `ps chrome` or `ps 1234` |
 | `win` | **Window Switcher** | Search and jump to active application windows with live background thumbnail snapshots. | `win code` or `win browser` |
-| `bm` | **Browser Data** | Search bookmarks and history from Chrome, Edge, and Firefox profiles (history and bookmarks toggleable independently). | `bm github` |
+| `bb` | **Browser Bookmarks** | Search bookmarks from Chrome, Edge, and Firefox profiles. | `bb github` |
+| `bh` | **Browser History** | Search browsing history from Chrome, Edge, and Firefox profiles. | `bh github` |
 | `set` | **Settings Search** | Fuzzy-search Lertaro's internal settings. Selecting an item jumps directly to that setting page and highlights it. | `set hotkey` or `set fuzzy` |
 | `flow` | **Flow Launcher Bridge** | Lists loaded Flow.Launcher plugins and their action keywords, connecting with the Flow community ecosystem. | `flow` |
 | `cs` | **Content Search** | Searches the text of indexed local documents and returns matching files with snippets. | `cs project plan` |

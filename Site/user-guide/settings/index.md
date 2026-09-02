@@ -18,7 +18,7 @@ The sidebar contains the following core sections:
 | **[Indexing Management](./index-drives)** | Local drives (NTFS / ReFS / FAT32), network shares (SMB / NAS), WSL distributions, custom folders, and three exclusion rule types. |
 | **[General Settings](./general)** | Autostart, hardware acceleration, IPC compatibility, search bar dimensions, Full Window column ordering, and preview parameters. |
 | **[Hotkeys](./hotkeys-page)** | Global search hotkeys, navigation keys, plugin action shortcuts, process blacklist, and fullscreen bypass rules. |
-| **[Plugins](./plugins)** | Installed plugins list, component toggles, custom configuration forms, and Flow Launcher community bridge. |
+| **[Plugins](./plugins)** | Installed plugins list, component toggles, custom configuration forms, Flow Launcher community bridge, and live plugin runtime status. |
 | **[LocalSend](./localsend)** | Wireless local network transfer protocol configuration (device name, port, PIN code, and auto-save options). |
 | **[Favorites](./favorites)** | Starred folders, files, and URLs with drag-and-drop ordering and quick alias recall. |
 | **[History](./history)** | Search result recall history, keyword query history, and cleanup tools. |

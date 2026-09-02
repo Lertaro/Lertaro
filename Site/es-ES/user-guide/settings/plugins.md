@@ -56,3 +56,12 @@ Gestiona plugins de Flow directamente con comandos en la barra de búsqueda:
 El plugin **Búsqueda de contenido** busca en el texto de los documentos locales configurados. En la pestaña **Configurar** puedes establecer la palabra clave activadora, las carpetas supervisadas, las extensiones indexadas, el límite por archivo, el límite de tamaño del índice y las expresiones regulares para excluir rutas completas. La palabra clave predeterminada es `cs`; escribe `cs plan del proyecto` para buscar en el contenido y mostrar archivos coincidentes con fragmentos.
 
 La configuración también ofrece **Borrar índice** y **Reconstruir índice**. Borrar elimina solo el índice de contenido, mientras que Reconstruir lo elimina y vuelve a analizar todas las carpetas supervisadas. Ninguna de las dos acciones elimina el índice normal de nombres de archivo de Lertaro.
+
+## 5. Estado de ejecución de plugins
+
+La pestaña **Estado de ejecución**, dentro de **Configuración → Plugins**, muestra la actividad del anfitrión para los plugins instalados mientras Lertaro está en ejecución. Los valores se agregan por plugin y se actualizan mientras la pestaña está abierta.
+
+- **Filtro de plugins**: Usa el cuadro de filtro para buscar de forma difusa por nombre de plugin.
+- **Columnas ordenables**: Haz clic en un encabezado para alternar entre orden ascendente, descendente y el orden predeterminado de plugins.
+- **Métricas disponibles**: Número de llamadas, duración media, duración más reciente, duración máxima, asignación administrada y excepciones observadas.
+- **Alcance de la sesión**: Las estadísticas se acumulan durante el proceso actual de Lertaro y se reinician al volver a iniciar la aplicación. Un cero indica que todavía no se ha registrado una llamada medida. La asignación administrada es la memoria asignada por las llamadas medidas, no el uso total de memoria privada del plugin.

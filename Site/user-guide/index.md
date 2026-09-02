@@ -9,7 +9,7 @@ This guide systematically covers all core features and advanced capabilities nee
 - **[Hotkeys & Gestures](./hotkeys)** —— Global hotkeys cheat sheet, search box logo drag/reset gestures, mouse Quick Navigation cascading menus, and hardcoded keys.
 - **[Actions & Preview](./actions-and-preview)** —— Context action menu (`Ctrl+O`), Full Window results list, built-in QuickLook media/document previews, and interactive plugin cards.
 - **[Space Analyzer](./space-analyzer)** —— Zero-I/O Treemap visualization and sorted size breakdown for effortless storage cleanup.
-- **[Instant Answers & Keyword Features](./instant-answers)** —— Always-active calculator, environment variables, commands, and keyword plugins like Process Manager (`ps`), Window Switcher (`win`), Browser Data (`bm`), and Settings Search (`set`).
+- **[Instant Answers & Keyword Features](./instant-answers)** —— Always-active calculator, environment variables, commands, and keyword plugins like Process Manager (`ps`), Window Switcher (`win`), Browser Bookmarks (`bb`), Browser History (`bh`), and Settings Search (`set`).
 - **[CLI Search (lff)](./cli)** —— Terminal companion tool for interactive fuzzy finding, sharing the memory index with pipeline and shell integration.
 - **[URI Protocol (lertaro://)](./uri-protocol)** —— Deep-linking from browsers, shortcuts, and scripts to searches, settings pages, and LocalSend transfers.
 - **[Supported File Managers](./file-manager-support)** —— Integration with Windows dialogs, Directory Opus, Total Commander, XYplorer, Files, and One Commander.

@@ -18,7 +18,7 @@ La barra lateral izquierda contiene las siguientes diez secciones principales:
 | **[Gestión de indexación](./index-drives)** | Unidades locales (NTFS / ReFS / FAT32), unidades de red (SMB / NAS), distribuciones WSL, carpetas personalizadas y reglas de exclusión. |
 | **[Configuración general](./general)** | Inicio automático, aceleración por hardware, servicio compatible con IPC, dimensiones de la barra de búsqueda y opciones de vista previa. |
 | **[Atajos de teclado](./hotkeys-page)** | Atajos de búsqueda global, teclas de navegación, accesos de plugins, lista negra de procesos y omisión en pantalla completa. |
-| **[Plugins](./plugins)** | Lista de plugins instalados, activación por componentes, formularios de configuración y ecosistema de Flow Launcher. |
+| **[Plugins](./plugins)** | Lista de plugins instalados, activación por componentes, formularios de configuración, ecosistema de Flow Launcher y estado de ejecución en vivo. |
 | **[LocalSend](./localsend)** | Configuración del protocolo de transferencia inalámbrica compatible con LocalSend (nombre de dispositivo, puerto, PIN y autoguardado). |
 | **[Favoritos](./favorites)** | Accesos directos con estrella a carpetas, archivos y URLs con ordenación por arrastre y búsqueda rápida por alias. |
 | **[Historial](./history)** | Gestión de resultados abiertos y términos de búsqueda consultados, reapertura inteligente y limpieza. |
