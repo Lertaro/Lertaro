@@ -43,7 +43,11 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
             if (process == IntPtr.Zero) return null;
             remoteBuffer = VirtualAllocEx(process, IntPtr.Zero, (uint)(maxChars * sizeof(char)), MEM_COMMIT, PAGE_READWRITE);
             if (remoteBuffer == IntPtr.Zero) return null;
-            if (SendMessage(hwnd, CDM_GETFOLDERPATH, (IntPtr)maxChars, remoteBuffer).ToInt64() <= 0) return null;
+            // SendMessageTimeout, not SendMessage: this runs on the hook process's polling thread,
+            // and a hung target dialog would otherwise park that thread forever. SMTO_ABORTIFHUNG
+            // degrades a wedged dialog to a failed read instead.
+            if (SendMessageTimeout(hwnd, CDM_GETFOLDERPATH, (IntPtr)maxChars, remoteBuffer, SMTO_ABORTIFHUNG, GetPathTimeoutMs, out var result) == IntPtr.Zero) return null;
+            if (result.ToInt64() <= 0) return null;
             var bytes = new byte[maxChars * sizeof(char)];
             if (!ReadProcessMemory(process, remoteBuffer, bytes, (uint)bytes.Length, out _)) return null;
             var path = Encoding.Unicode.GetString(bytes).TrimEnd('\0');
@@ -171,6 +175,11 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
 
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wParam, string lParam);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr SendMessageTimeout(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);
+    private const uint SMTO_ABORTIFHUNG = 0x0002;
+    private const uint GetPathTimeoutMs = 500;
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetParent(IntPtr hwnd);

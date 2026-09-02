@@ -57,7 +57,11 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
                 while (child != IntPtr.Zero)
                 {
                     var textSb = new StringBuilder(1024);
-                    SendMessage(child, WM_GETTEXT, (IntPtr)textSb.Capacity, textSb);
+                    // SendMessageTimeout, not SendMessage: this read runs on the hook process's
+                    // polling thread, and a hung dialog would park that thread forever.
+                    // SMTO_ABORTIFHUNG degrades a wedged dialog to an empty read instead.
+                    if (SendMessageTimeout(child, WM_GETTEXT, (IntPtr)textSb.Capacity, textSb, SMTO_ABORTIFHUNG, GetTextTimeoutMs, out _) == IntPtr.Zero)
+                        return null;
                     var text = textSb.ToString().Trim();
                     var potentialPath = text;
                     var colonIndex = text.IndexOf(':');
@@ -199,6 +203,10 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
     private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, string lParam);
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, StringBuilder lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);
+    private const uint SMTO_ABORTIFHUNG = 0x0002;
+    private const uint GetTextTimeoutMs = 500;
     [DllImport("user32.dll")]
     private static extern IntPtr GetParent(IntPtr hWnd);
     [DllImport("user32.dll")]
