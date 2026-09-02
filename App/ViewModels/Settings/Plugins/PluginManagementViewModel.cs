@@ -2,7 +2,9 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
+using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
+using Lertaro.Core.SearchIndex;
 using Lertaro.Core.Wire;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
@@ -22,7 +24,10 @@ public class PluginManagementViewModel : ViewModelBase
     {
         _userSettings = userSettings;
         Plugins = new ObservableCollection<PluginInfoViewModel>(PluginLoaderHelper.BuildPluginList(_userSettings));
+        RebuildRuntimeStatuses();
         SaveConfigCommand = new RelayCommand<PluginInfoViewModel>(SaveConfig);
+        ShowPluginManagementCommand = new RelayCommand(() => IsRuntimeStatusTab = false);
+        ShowRuntimeStatusCommand = new RelayCommand(() => IsRuntimeStatusTab = true);
         _selectedPlugin = Plugins.FirstOrDefault();
         AttachFullyDisabledWatch();
 
@@ -36,6 +41,7 @@ public class PluginManagementViewModel : ViewModelBase
             Plugins.Clear();
             foreach (var p in newList)
                 Plugins.Add(p);
+            RebuildRuntimeStatuses();
             SelectedPlugin = Plugins.FirstOrDefault(p => p.DllFileName == selectedDll) ?? Plugins.FirstOrDefault();
             AttachFullyDisabledWatch();
             OnPropertyChanged(nameof(IsEmpty));
@@ -46,6 +52,112 @@ public class PluginManagementViewModel : ViewModelBase
     }
 
     public ObservableCollection<PluginInfoViewModel> Plugins { get; }
+    private readonly List<PluginRuntimeStatusItemViewModel> _allRuntimeStatuses = new();
+    public ObservableCollection<PluginRuntimeStatusItemViewModel> RuntimeStatuses { get; } = new();
+
+    private string _runtimeStatusSearchText = string.Empty;
+    public string RuntimeStatusSearchText
+    {
+        get => _runtimeStatusSearchText;
+        set
+        {
+            if (SetProperty(ref _runtimeStatusSearchText, value))
+                RebuildRuntimeStatuses();
+        }
+    }
+
+    private void RebuildRuntimeStatuses()
+    {
+        _allRuntimeStatuses.Clear();
+        _allRuntimeStatuses.AddRange(Plugins.Select(static p => new PluginRuntimeStatusItemViewModel(p)));
+        ApplyRuntimeStatusFilterAndSort();
+    }
+
+    internal void SortRuntimeStatuses(string column)
+    {
+        (RuntimeStatusSortColumn, RuntimeStatusSortDescending) =
+            SearchResultSortCycle.Advance(RuntimeStatusSortColumn, RuntimeStatusSortDescending, column);
+
+        ApplyRuntimeStatusFilterAndSort();
+    }
+
+    private void ApplyRuntimeStatusFilterAndSort()
+    {
+        var query = RuntimeStatusSearchText.Trim();
+        var filtered = _allRuntimeStatuses.Where(status =>
+            string.IsNullOrEmpty(query) || FuzzyMatcher.IsMatch(query, status.Name));
+        filtered = RuntimeStatusSortColumn switch
+        {
+            nameof(PluginRuntimeStatusItemViewModel.InvocationCount) => RuntimeStatusSortDescending
+                ? filtered.OrderByDescending(status => status.InvocationCount)
+                : filtered.OrderBy(status => status.InvocationCount),
+            nameof(PluginRuntimeStatusItemViewModel.AverageElapsedMilliseconds) => RuntimeStatusSortDescending
+                ? filtered.OrderByDescending(status => status.AverageElapsedMilliseconds)
+                : filtered.OrderBy(status => status.AverageElapsedMilliseconds),
+            nameof(PluginRuntimeStatusItemViewModel.LastElapsedMilliseconds) => RuntimeStatusSortDescending
+                ? filtered.OrderByDescending(status => status.LastElapsedMilliseconds)
+                : filtered.OrderBy(status => status.LastElapsedMilliseconds),
+            nameof(PluginRuntimeStatusItemViewModel.MaxElapsedMilliseconds) => RuntimeStatusSortDescending
+                ? filtered.OrderByDescending(status => status.MaxElapsedMilliseconds)
+                : filtered.OrderBy(status => status.MaxElapsedMilliseconds),
+            nameof(PluginRuntimeStatusItemViewModel.AllocatedMegabytes) => RuntimeStatusSortDescending
+                ? filtered.OrderByDescending(status => status.AllocatedMegabytes)
+                : filtered.OrderBy(status => status.AllocatedMegabytes),
+            nameof(PluginRuntimeStatusItemViewModel.ExceptionCount) => RuntimeStatusSortDescending
+                ? filtered.OrderByDescending(status => status.ExceptionCount)
+                : filtered.OrderBy(status => status.ExceptionCount),
+            _ => filtered
+        };
+        SyncRuntimeStatusCollection(RuntimeStatuses, filtered.ToList());
+    }
+
+    internal static void SyncRuntimeStatusCollection(
+        ObservableCollection<PluginRuntimeStatusItemViewModel> current,
+        IReadOnlyList<PluginRuntimeStatusItemViewModel> desired)
+    {
+        for (var i = current.Count - 1; i >= 0; i--)
+        {
+            if (!desired.Contains(current[i]))
+                current.RemoveAt(i);
+        }
+
+        for (var i = 0; i < desired.Count; i++)
+        {
+            if (i < current.Count && ReferenceEquals(current[i], desired[i]))
+                continue;
+
+            var currentIndex = current.IndexOf(desired[i]);
+            if (currentIndex >= 0)
+                current.Move(currentIndex, i);
+            else
+                current.Insert(i, desired[i]);
+        }
+    }
+
+    public string RuntimeStatusSortColumn { get; private set; } = string.Empty;
+    public bool RuntimeStatusSortDescending { get; private set; } = true;
+
+    private bool _isRuntimeStatusTab;
+    public bool IsRuntimeStatusTab
+    {
+        get => _isRuntimeStatusTab;
+        set
+        {
+            if (SetProperty(ref _isRuntimeStatusTab, value))
+                OnPropertyChanged(nameof(IsPluginManagementTab));
+        }
+    }
+
+    public bool IsPluginManagementTab => !IsRuntimeStatusTab;
+    public ICommand ShowPluginManagementCommand { get; }
+    public ICommand ShowRuntimeStatusCommand { get; }
+
+    public void RefreshRuntimeStatus()
+    {
+        foreach (var status in _allRuntimeStatuses)
+            status.Refresh();
+        ApplyRuntimeStatusFilterAndSort();
+    }
 
     // Toggling a plugin's last components off (or back on) moves its card to its sorted position
     // in place, instead of waiting for the next rebuild.

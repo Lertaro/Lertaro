@@ -124,15 +124,15 @@ internal static class SearchableItemCache
         {
             try
             {
-                var rawItems = provider.GetSearchableItems() ?? Array.Empty<SearchableItem>();
+                var rawItems = PluginPerformanceMonitor.Measure(provider, () => provider.GetSearchableItems()?.ToList() ?? new List<SearchableItem>());
                 var entries = new List<CacheEntry>();
                 foreach (var item in rawItems)
                 {
                     if (item == null) continue;
                     var aliases = provider.EnableAlias
                         ? AliasProviderRegistry.GetActiveProviders()
-                            .Where(p => p.CanHandle(item.Title))
-                            .SelectMany(p => p.GetAliases(item.Title))
+                            .Where(p => PluginPerformanceMonitor.Measure(p, () => p.CanHandle(item.Title)))
+                            .SelectMany(p => PluginPerformanceMonitor.Measure(p, () => p.GetAliases(item.Title)?.ToList() ?? new List<string>()))
                             .ToList()
                         : new List<string>();
                     entries.Add(new CacheEntry(item, aliases, MaterializeIcon(item)));

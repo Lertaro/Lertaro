@@ -37,9 +37,67 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0">
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4"
+                    Visibility="{Binding IsEmpty, Converter={StaticResource InvertBoolToVis}}">
+            <StackPanel Margin="0,0,28,0">
+                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_TabManagement]}"
+                        Command="{Binding ShowPluginManagementCommand}">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPluginManagementTab}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Border>
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPluginManagementTab}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
+            </StackPanel>
+            <StackPanel>
+                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_TabRuntimeStatus]}"
+                        Command="{Binding ShowRuntimeStatusCommand}">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsRuntimeStatusTab}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Border>
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsRuntimeStatusTab}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Visibility="{Binding IsPluginManagementTab, Converter={StaticResource BoolToVis}}">
             <!-- Page header -->
             <Grid Margin="0,0,0,4">
                 <Grid.ColumnDefinitions>
@@ -70,6 +128,7 @@
                            Foreground="{DynamicResource TextSecondary2}"
                            HorizontalAlignment="Center" Padding="0,8"/>
             </Border>
+
         </StackPanel>
 
         <!-- Two independently scrolling panes with a hairline between them, matching how the settings
@@ -80,8 +139,8 @@
 
              Kept named PluginsList: the settings search reveals a plugin by looking this element up by
              name (SettingsWindowSearchExtensions), and selecting the row is now what revealing means. -->
-        <Grid Grid.Row="1" Margin="0,12,0,0"
-              Visibility="{Binding IsEmpty, Converter={StaticResource InvertBoolToVis}}">
+        <Grid Grid.Row="2" Margin="0,12,0,0"
+              Visibility="{Binding IsPluginManagementTab, Converter={StaticResource BoolToVis}}">
             <!-- Both panes are proportional so a wider window widens the list too. Fixed at 200 it
                  truncated plugin names at every window size, since the one thing that would have
                  fixed that, more width, was the one thing it could never get. The detail side still
@@ -200,5 +259,8 @@
                 </ContentControl.ContentTemplate>
             </ContentControl>
         </Grid>
+
+        <local:PluginRuntimeStatusView Grid.Row="1" Grid.RowSpan="2" Margin="0,12,0,0"
+                                       Visibility="{Binding IsRuntimeStatusTab, Converter={StaticResource BoolToVis}}"/>
     </Grid>
 </UserControl>

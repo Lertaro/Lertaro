@@ -180,8 +180,8 @@ public static class PluginActionExecutor
 
         view.HideWindow();
 
-        registration.Action.Execute(
-            new[] { new PluginSearchResult(result.Name, result.PluginActionArgumentText, result.ContextDirectory) }, view);
+        PluginPerformanceMonitor.Measure(registration.Action, () => registration.Action.Execute(
+            new[] { new PluginSearchResult(result.Name, result.PluginActionArgumentText, result.ContextDirectory) }, view));
         return true;
     }
 }

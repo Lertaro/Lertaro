@@ -56,7 +56,7 @@ internal sealed class ActionsMenuExecutor
                     _view.HideWindow();
                 }
 
-                registration.Action.Execute(activeResults, _view);
+                PluginPerformanceMonitor.Measure(registration.Action, () => registration.Action.Execute(activeResults, _view));
             }
 
             _exitActionsMode();
@@ -78,7 +78,7 @@ internal sealed class ActionsMenuExecutor
             if (activeResult != null)
             {
                 var hwnd = new WindowInteropHelper(_view as Window ?? System.Windows.Application.Current.MainWindow).Handle;
-                provider.ExecuteCommand(activeResults, item.CommandId, hwnd);
+                PluginPerformanceMonitor.Measure(provider, () => provider.ExecuteCommand(activeResults, item.CommandId, hwnd));
                 if (!_view.GetType().Name.Equals("SearchWindow", StringComparison.Ordinal))
                 {
                     _view.HideWindow();

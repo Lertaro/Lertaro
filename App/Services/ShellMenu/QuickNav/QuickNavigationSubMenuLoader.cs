@@ -6,6 +6,7 @@ using ContextMenu = System.Windows.Controls.ContextMenu;
 using Application = System.Windows.Application;
 
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+using Lertaro.App.Services.Plugin;
 using System.Windows.Controls;
 using System.Windows.Threading;
 namespace Lertaro.App.Services.ShellMenu.QuickNav;
@@ -30,7 +31,8 @@ internal static class QuickNavigationSubMenuLoader
 
         Task.Run(() =>
         {
-            var subItems = provider.GetMenuItems(result, item.SubMenuHandle).ToList();
+            var subItems = PluginPerformanceMonitor.Measure(provider,
+                () => provider.GetMenuItems(result, item.SubMenuHandle)?.ToList() ?? new List<DynamicMenuItem>());
             Application.Current.Dispatcher.BeginInvoke(new Action(() =>
             {
                 // The whole quick-nav popup (or just this submenu's owning menu) may have already been
@@ -85,7 +87,8 @@ internal static class QuickNavigationSubMenuLoader
 
                                                                                                                                                                                                                                            var nextHandle = continuation.SubMenuHandle;
                                                                                                                                                                                                                                            isLoading = true;
-                                                                                                                                                                                                                                           Task.Run(() => provider.GetMenuItems(result, nextHandle).ToList())
+                                                                                                                                                                                                                                           Task.Run(() => PluginPerformanceMonitor.Measure(provider,
+                                                                                                                                                                                                                                               () => provider.GetMenuItems(result, nextHandle)?.ToList() ?? new List<DynamicMenuItem>()))
                                                                                                                                                                                                                                                .ContinueWith(task => Application.Current.Dispatcher.BeginInvoke(() =>
                                                                                                                                                                                                                                                {
                                                                                                                                                                                                                                                    isLoading = false;

@@ -144,7 +144,7 @@ public partial class QuickLookWindow : Window
 
             // Priority-based selection stays authoritative: pick the winning provider first.
             var provider = PluginManager.Instance.FilePreviewProviders
-                .FirstOrDefault(p => p.CanPreview(path, isDir));
+                .FirstOrDefault(p => PluginPerformanceMonitor.Measure(p, () => p.CanPreview(path, isDir)));
 
             // Only reuse in place when the SAME provider wins again and its control can re-point itself.
             // This keeps the pool from bypassing a higher-priority (or third-party) provider that should
@@ -157,7 +157,7 @@ public partial class QuickLookWindow : Window
 
             if (provider != null)
             {
-                var content = provider.CreatePreview(path, isDir);
+                var content = PluginPerformanceMonitor.Measure(provider, () => provider.CreatePreview(path, isDir));
                 _currentProvider = provider;
                 _currentPreview = content;
                 if (content is HwndHost host)

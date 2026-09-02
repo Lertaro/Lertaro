@@ -1,6 +1,7 @@
 using System.IO;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
+using Lertaro.App.Services.Plugin;
 using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
@@ -238,7 +239,7 @@ internal sealed class QuickSearchLaunchSourceSupport
     {
         try
         {
-            return await provider.GetEntriesAsync(token);
+            return await PluginPerformanceMonitor.MeasureAsync(provider, () => provider.GetEntriesAsync(token));
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {

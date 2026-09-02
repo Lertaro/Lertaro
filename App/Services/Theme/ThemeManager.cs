@@ -23,7 +23,7 @@ public class ThemeManager
     private ThemeManager() => PluginSdk.Services.ThemeService.IsDarkThemeFunc = () => _activeTheme?.IsDark ?? false;
 
     public IEnumerable<PluginSdk.Abstractions.ITheme> GetAvailableThemes() => PluginManager.Instance.ThemeProviders
-            .SelectMany(p => p.GetThemes())
+            .SelectMany(p => PluginPerformanceMonitor.Measure(p, () => p.GetThemes()?.ToList() ?? new List<PluginSdk.Abstractions.ITheme>()))
             .GroupBy(t => t.Id)
             .Select(g => g.First()); // Avoid duplicates
 

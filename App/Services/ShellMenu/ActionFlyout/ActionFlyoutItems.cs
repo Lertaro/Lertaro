@@ -182,7 +182,7 @@ internal static class ActionFlyoutItems
         var registration = PluginManager.Instance.GetActionByRuntimeId(item.CommandId);
         if (registration != null)
         {
-            registration.Action.Execute(selection, view);
+            PluginPerformanceMonitor.Measure(registration.Action, () => registration.Action.Execute(selection, view));
             return;
         }
 
@@ -191,7 +191,7 @@ internal static class ActionFlyoutItems
             var hwnd = Application.Current.MainWindow != null
                 ? new WindowInteropHelper(Application.Current.MainWindow).Handle
                 : IntPtr.Zero;
-            provider.ExecuteCommand(selection, item.CommandId, hwnd);
+            PluginPerformanceMonitor.Measure(provider, () => provider.ExecuteCommand(selection, item.CommandId, hwnd));
         }
     }
 }

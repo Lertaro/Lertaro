@@ -20,7 +20,7 @@ internal static class QueryTokenDispatcher
         List<string>? extraHighlightTerms = null;
         foreach (var token in tokens)
         {
-            var provider = PluginManager.Instance.QueryTokenProviders.FirstOrDefault(p => p.CanHandle(token));
+            var provider = PluginManager.Instance.QueryTokenProviders.FirstOrDefault(p => PluginPerformanceMonitor.Measure(p, () => p.CanHandle(token)));
             if (provider == null)
                 // An unclaimed token reads as a typo'd/unsupported filter -- silently showing the
                 // un-narrowed file/directory results would look like it worked when it didn't, so the
@@ -28,9 +28,9 @@ internal static class QueryTokenDispatcher
                 // the rest of the UI (a "no results" placeholder, an unaffected instant-result row, ...).
                 return new List<AppSearchResult>();
 
-            current = await provider.ApplyAsync(token, current);
+            current = await PluginPerformanceMonitor.MeasureAsync(provider, () => provider.ApplyAsync(token, current));
 
-            var highlightText = provider.GetHighlightText(token);
+            var highlightText = PluginPerformanceMonitor.Measure(provider, () => provider.GetHighlightText(token));
             if (!string.IsNullOrWhiteSpace(highlightText))
                 (extraHighlightTerms ??= new List<string>()).Add(highlightText);
         }

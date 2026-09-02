@@ -13,6 +13,7 @@ using Application = System.Windows.Application;
 using MouseButtonEventHandler = System.Windows.Input.MouseButtonEventHandler;
 
 using Lertaro.App.Services.ShellIcons;
+using Lertaro.App.Services.Plugin;
 using Lertaro.App.Services.ShellMenu.QuickNav.RightClickActions;
 using Lertaro.App.Converters;
 namespace Lertaro.App.Services.ShellMenu.QuickNav;
@@ -240,7 +241,7 @@ internal static class QuickNavigationMenuContentExtensions
                     else if (!string.IsNullOrEmpty(itemPath))
                         QuickNavigationNavigator.NavigateOrOpen(itemPath, isDir: false, trigger);
                     else
-                        provider.ExecuteCommand(result, item.CommandId, IntPtr.Zero);
+                        PluginPerformanceMonitor.Measure(provider, () => provider.ExecuteCommand(result, item.CommandId, IntPtr.Zero));
                 }
             }), System.Windows.Threading.DispatcherPriority.Background);
         };

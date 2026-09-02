@@ -77,9 +77,10 @@ public static class QuickNavigationMenu
 
         foreach (var provider in PluginManager.Instance.QuickNavigationProviders)
         {
-            if (!provider.CanProvide(dummyResult)) continue;
-            provider.ClearSession();
-            var providerItems = provider.GetMenuItems(dummyResult, IntPtr.Zero).ToList();
+            if (!PluginPerformanceMonitor.Measure(provider, () => provider.CanProvide(dummyResult))) continue;
+            PluginPerformanceMonitor.Measure(provider, provider.ClearSession);
+            var providerItems = PluginPerformanceMonitor.Measure(provider,
+                () => provider.GetMenuItems(dummyResult, IntPtr.Zero)?.ToList() ?? new List<DynamicMenuItem>());
             if (providerItems.Count == 0) continue;
 
             // Shown even when this is the only active provider (by request) -- same "always label the
@@ -164,8 +165,10 @@ public static class QuickNavigationMenu
             // visual tree (matching QuickSearch's hide path); otherwise the GC still sees it referenced.
             if (generation == _sessionGeneration)
             {
-                foreach (var provider in PluginManager.Instance.QuickNavigationProviders) provider.ClearSession();
-                foreach (var provider in PluginManager.Instance.DynamicActionProviders) provider.ClearSession();
+                foreach (var provider in PluginManager.Instance.QuickNavigationProviders)
+                    PluginPerformanceMonitor.Measure(provider, provider.ClearSession);
+                foreach (var provider in PluginManager.Instance.DynamicActionProviders)
+                    PluginPerformanceMonitor.Measure(provider, provider.ClearSession);
                 _ = Task.Delay(100).ContinueWith(_ =>
                 {
                     try { ShellIconHelper.ClearCache(); } catch { }

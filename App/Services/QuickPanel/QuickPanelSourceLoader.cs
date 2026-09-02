@@ -106,11 +106,11 @@ public static class QuickPanelSourceLoader
 
             foreach (var token in filter.TokenFilters)
             {
-                var provider = PluginManager.Instance.QueryTokenProviders.FirstOrDefault(p => p.CanHandle(token));
+                var provider = PluginManager.Instance.QueryTokenProviders.FirstOrDefault(p => PluginPerformanceMonitor.Measure(p, () => p.CanHandle(token)));
                 if (provider == null)
                     continue; // entry did not fully match search syntax -- ignore it
 
-                var filtered = await provider.ApplyAsync(token, results);
+                var filtered = await PluginPerformanceMonitor.MeasureAsync(provider, () => provider.ApplyAsync(token, results));
                 foreach (var item in filtered)
                 {
                     if (item is SearchResult sr)

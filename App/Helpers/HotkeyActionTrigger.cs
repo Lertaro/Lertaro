@@ -58,10 +58,11 @@ public static class HotkeyActionTrigger
             {
                 if (key == hotkeyKey && modifiers == hotkeyMods)
                 {
-                    if (action.IsVisibleInMenu(selection, windowType) && action.CanExecute(selection))
+                    if (PluginPerformanceMonitor.Measure(action, () => action.IsVisibleInMenu(selection, windowType))
+                        && PluginPerformanceMonitor.Measure(action, () => action.CanExecute(selection)))
                     {
                         if (hideOnRun) view.HideWindow();
-                        action.Execute(selection, view);
+                        PluginPerformanceMonitor.Measure(action, () => action.Execute(selection, view));
                         return true;
                     }
                 }
@@ -71,7 +72,8 @@ public static class HotkeyActionTrigger
         // Also check dynamic providers (e.g. CustomActions plugin)
         foreach (var provider in PluginManager.Instance.DynamicActionProviders)
         {
-            foreach (var (hotkey, execute) in provider.GetHotkeyActions(selection))
+            foreach (var (hotkey, execute) in PluginPerformanceMonitor.Measure(provider,
+                         () => provider.GetHotkeyActions(selection)?.ToList() ?? new List<(string Hotkey, Action Execute)>()))
             {
                 if (ParseHotkey(hotkey, out var hotkeyKey, out var hotkeyMods)
                     && key == hotkeyKey && modifiers == hotkeyMods)

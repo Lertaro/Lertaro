@@ -70,7 +70,7 @@ public static class ShellIconHelper
 
         var isVirtualItem = path.StartsWith("::") || path.StartsWith("shell:");
         var isPhysicalPath = !isVirtualItem && (isDir ? Directory.Exists(path) : File.Exists(path));
-        var hasThumbnailProvider = !isDir && PluginManager.Instance.ThumbnailProviders.Any(p => p.CanProvideThumbnail(path, isDir));
+        var hasThumbnailProvider = !isDir && PluginManager.Instance.ThumbnailProviders.Any(p => PluginPerformanceMonitor.Measure(p, () => p.CanProvideThumbnail(path, isDir)));
 
         // All real physical files on disk, virtual items, and thumbnail provider targets use full path as cache key
         var isUniqueIconType = isPhysicalPath || isVirtualItem || hasThumbnailProvider;
@@ -146,7 +146,7 @@ public static class ShellIconHelper
         var checkPath = path;
         var isVirtualItem = checkPath.StartsWith("::") || checkPath.StartsWith("shell:");
         var isPhysicalPath = !isVirtualItem && (isDir ? Directory.Exists(checkPath) : File.Exists(checkPath));
-        var hasThumbnailProvider = !isDir && PluginManager.Instance.ThumbnailProviders.Any(p => p.CanProvideThumbnail(path, isDir));
+        var hasThumbnailProvider = !isDir && PluginManager.Instance.ThumbnailProviders.Any(p => PluginPerformanceMonitor.Measure(p, () => p.CanProvideThumbnail(path, isDir)));
 
         var isUniqueIconType = isPhysicalPath || isVirtualItem || hasThumbnailProvider;
         var cacheKey = isUniqueIconType ? path : ext;
@@ -157,12 +157,12 @@ public static class ShellIconHelper
         }
 
         // Check custom plugin thumbnail providers first
-        var thumbnailProvider = PluginManager.Instance.ThumbnailProviders.FirstOrDefault(p => p.CanProvideThumbnail(path, isDir));
+        var thumbnailProvider = PluginManager.Instance.ThumbnailProviders.FirstOrDefault(p => PluginPerformanceMonitor.Measure(p, () => p.CanProvideThumbnail(path, isDir)));
         if (thumbnailProvider != null)
         {
             try
             {
-                var thumb = thumbnailProvider.GetThumbnail(path, ShellImageListInterop.PreferredPixels());
+                var thumb = PluginPerformanceMonitor.Measure(thumbnailProvider, () => thumbnailProvider.GetThumbnail(path, ShellImageListInterop.PreferredPixels()));
                 if (thumb != null)
                 {
                     return CacheAndDeduplicateIcon(cacheKey, thumb);

@@ -108,4 +108,33 @@ public sealed class PluginManagementViewModelSortTests
 
         Assert.HasCount(1, plugins);
     }
+
+    [TestMethod]
+    public void SyncRuntimeStatusCollection_UnchangedOrder_DoesNotRaiseCollectionChanges()
+    {
+        var first = new PluginRuntimeStatusItemViewModel(MakePlugin("First"));
+        var second = new PluginRuntimeStatusItemViewModel(MakePlugin("Second"));
+        var statuses = new ObservableCollection<PluginRuntimeStatusItemViewModel> { first, second };
+        var changeCount = 0;
+        statuses.CollectionChanged += (_, _) => changeCount++;
+
+        PluginManagementViewModel.SyncRuntimeStatusCollection(statuses, [first, second]);
+
+        Assert.AreEqual(0, changeCount);
+    }
+
+    [TestMethod]
+    public void SyncRuntimeStatusCollection_NewOrder_MovesExistingRowsAndRemovesMissingRows()
+    {
+        var first = new PluginRuntimeStatusItemViewModel(MakePlugin("First"));
+        var second = new PluginRuntimeStatusItemViewModel(MakePlugin("Second"));
+        var replacement = new PluginRuntimeStatusItemViewModel(MakePlugin("Replacement"));
+        var statuses = new ObservableCollection<PluginRuntimeStatusItemViewModel> { first, second };
+
+        PluginManagementViewModel.SyncRuntimeStatusCollection(statuses, [second, replacement]);
+
+        Assert.HasCount(2, statuses);
+        Assert.AreSame(second, statuses[0]);
+        Assert.AreSame(replacement, statuses[1]);
+    }
 }

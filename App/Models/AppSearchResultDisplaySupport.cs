@@ -54,7 +54,7 @@ internal static class AppSearchResultDisplaySupport
 
     public static bool[]? GetHighlightMask(AppSearchResult owner, string text, string query) =>
         owner.SourceProvider is PluginSdk.Abstractions.Plugins.IInstantResultProvider provider
-            ? provider.GetHighlightMask(text, query)
+            ? PluginPerformanceMonitor.Measure(provider, () => provider.GetHighlightMask(text, query))
             : null;
 
     public static string GetColumnValue(AppSearchResult owner, string columnId)

@@ -1,6 +1,7 @@
 using System.IO;
 using Lertaro.Core;
 using Lertaro.App.Services;
+using Lertaro.App.Services.Plugin;
 
 namespace Lertaro.App.ViewModels.Search;
 
@@ -35,7 +36,7 @@ internal static class ExplorerJumpSuggestionHelper
         {
             foreach (var collector in PluginSdk.Registries.ActivePathCollectorRegistry.GetCollectors())
             {
-                if (collector.CanHandle(className, windowTitle))
+                if (PluginPerformanceMonitor.Measure(collector, () => collector.CanHandle(className, windowTitle)))
                 {
                     targetName = collector.TargetName;
                     break;

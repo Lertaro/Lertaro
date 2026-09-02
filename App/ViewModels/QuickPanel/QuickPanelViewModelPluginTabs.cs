@@ -1,5 +1,6 @@
 using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.App.Services.Plugin;
 
 namespace Lertaro.App.ViewModels.QuickPanel;
 
@@ -22,7 +23,7 @@ public partial class QuickPanelViewModel
         IReadOnlyList<PluginSdk.Abstractions.ISearchResult> entries;
         try
         {
-            entries = await provider.GetEntriesAsync(token).ConfigureAwait(true);
+            entries = await PluginPerformanceMonitor.MeasureAsync(provider, () => provider.GetEntriesAsync(token)).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
         {

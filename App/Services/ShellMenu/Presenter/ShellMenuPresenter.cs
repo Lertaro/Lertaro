@@ -73,7 +73,7 @@ public class ShellMenuPresenter : IDisposable
     public bool CanShowActionsMenu(IReadOnlyList<AppSearchResult> selection)
     {
         var tracker = InlineSearchManager.Instance.ExplorerTracker;
-        if (tracker.ActiveInlineAdapter != null && !tracker.ActiveInlineAdapter.CanEnterActionsMode(tracker.ActiveHwnd))
+        if (tracker.ActiveInlineAdapter != null && !PluginPerformanceMonitor.Measure(tracker.ActiveInlineAdapter, () => tracker.ActiveInlineAdapter.CanEnterActionsMode(tracker.ActiveHwnd)))
             return false;
 
         var items = selection?.Where(r => r != null && !r.IsSearchSectionHeader && !r.IsEmptyResult).ToList() ?? new List<AppSearchResult>();
@@ -115,7 +115,7 @@ public class ShellMenuPresenter : IDisposable
 
         foreach (var provider in PluginManager.Instance.DynamicActionProviders)
         {
-            provider.ClearSession();
+            PluginPerformanceMonitor.Measure(provider, provider.ClearSession);
             // Fired before anything else below (static actions render, then CanProvide/GetMenuItems run
             // on a background task, see step 2) so a provider's own one-time setup (e.g.
             // ShellMenuActionProvider's native worker warm-up) gets genuine lead time instead of racing
@@ -124,7 +124,7 @@ public class ShellMenuPresenter : IDisposable
             // each get their own), so without this static, process-wide guard, every window's first
             // actions-menu open would call Init() again.
             if (_initializedProviders.Add(provider))
-                provider.Init();
+                PluginPerformanceMonitor.Measure(provider, provider.Init);
         }
 
         // 1. Show the built-in (static) actions immediately — this part is instant, so a slow shell
@@ -243,7 +243,7 @@ public class ShellMenuPresenter : IDisposable
         _activeResult = null;
         foreach (var provider in PluginManager.Instance.DynamicActionProviders)
         {
-            provider.ClearSession();
+            PluginPerformanceMonitor.Measure(provider, provider.ClearSession);
         }
 
         _commandToProviderMap.Clear();
@@ -284,7 +284,7 @@ public class ShellMenuPresenter : IDisposable
     private System.Windows.Controls.TextBox GetActionSearchTextBox() =>
         _view.UsesFloatingActionsMenu ? _view.ActionsSearchTextBox : _view.SearchTextBox;
 
-    public void Dispose() { foreach (var p in PluginManager.Instance.DynamicActionProviders) p.ClearSession(); }
+    public void Dispose() { foreach (var provider in PluginManager.Instance.DynamicActionProviders) PluginPerformanceMonitor.Measure(provider, provider.ClearSession); }
 
     private SearchWindowType GetWindowType() =>
         _view.GetType().Name switch

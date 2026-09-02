@@ -19,7 +19,7 @@ public class FilteredResultColumnProvider : IResultColumnProvider
 
     public IEnumerable<ResultColumnDefinition> GetColumns()
     {
-        foreach (var col in _inner.GetColumns())
+        foreach (var col in PluginPerformanceMonitor.Measure(_inner, () => _inner.GetColumns()?.ToList() ?? new List<ResultColumnDefinition>()))
         {
             if (_manager.IsComponentEnabled(_dllName, PluginComponentType.ColumnProvider, col.ColumnId))
             {
@@ -28,5 +28,6 @@ public class FilteredResultColumnProvider : IResultColumnProvider
         }
     }
 
-    public string GetCellValue(ISearchResult result, string columnId) => _inner.GetCellValue(result, columnId);
+    public string GetCellValue(ISearchResult result, string columnId)
+        => PluginPerformanceMonitor.Measure(_inner, () => _inner.GetCellValue(result, columnId));
 }

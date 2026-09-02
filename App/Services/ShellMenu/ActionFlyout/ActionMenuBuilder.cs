@@ -91,10 +91,10 @@ internal static class ActionMenuBuilder
         foreach (var registration in PluginManager.Instance.Actions)
         {
             var action = registration.Action;
-            if (!action.IsVisibleInMenu(selection, windowType))
+            if (!PluginPerformanceMonitor.Measure(action, () => action.IsVisibleInMenu(selection, windowType)))
                 continue;
 
-            if (action.CanExecute(selection))
+            if (PluginPerformanceMonitor.Measure(action, () => action.CanExecute(selection)))
             {
                 var group = string.IsNullOrWhiteSpace(action.GroupName) ? builtinLabel : action.GroupName;
                 if (!groupedActions.TryGetValue(group, out var list))
@@ -173,13 +173,12 @@ internal static class ActionMenuBuilder
                 if (provider.Keywords.Count > 0)
                     continue;
 
-                if (!provider.IsVisibleInMenu(selection, windowType))
+                if (!PluginPerformanceMonitor.Measure(provider, () => provider.IsVisibleInMenu(selection, windowType)))
                     continue;
 
-                if (provider.CanProvide(selection))
+                if (PluginPerformanceMonitor.Measure(provider, () => provider.CanProvide(selection)))
                 {
-                    var dynamicItems = provider.GetMenuItems(selection, IntPtr.Zero);
-                    var dynamicItemsList = new List<DynamicMenuItem>(dynamicItems);
+                    var dynamicItemsList = PluginPerformanceMonitor.Measure(provider, () => provider.GetMenuItems(selection, IntPtr.Zero)?.ToList() ?? new List<DynamicMenuItem>());
 
                     if (dynamicItemsList.Count > 0)
                     {
@@ -231,7 +230,7 @@ internal static class ActionMenuBuilder
             // Submenu navigation: look up the owning dynamic provider.
             if (subMenuToProviderMap.TryGetValue(hMenu, out var provider))
             {
-                var dynamicItems = provider.GetMenuItems(selection, hMenu);
+                var dynamicItems = PluginPerformanceMonitor.Measure(provider, () => provider.GetMenuItems(selection, hMenu)?.ToList() ?? new List<DynamicMenuItem>());
                 foreach (var item in dynamicItems)
                 {
                     if (string.IsNullOrWhiteSpace(item.Text) && !item.IsSeparator)

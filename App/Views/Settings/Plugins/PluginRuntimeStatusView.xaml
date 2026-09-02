@@ -1,0 +1,112 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.Plugins.PluginRuntimeStatusView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
+                <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Style="{StaticResource SettingsSectionTitle}"
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RuntimeStatusTitle]}"/>
+            <Border Grid.Column="1" Width="260" Height="28" CornerRadius="{StaticResource CornerRadiusControl}"
+                    Background="{DynamicResource ControlBackground}"
+                    BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
+                    VerticalAlignment="Top">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                               Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,4,0"/>
+                    <Grid Grid.Column="1">
+                        <TextBox x:Name="RuntimeStatusSearchBox" Background="Transparent" BorderThickness="0" FontSize="12"
+                                 Foreground="{DynamicResource TextPrimary}"
+                                 CaretBrush="{DynamicResource TextPrimary}"
+                                 Padding="0,0,8,0" VerticalContentAlignment="Center"
+                                 Text="{Binding RuntimeStatusSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Margin="3,0,0,0" IsHitTestVisible="False" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RuntimeStatusSearchPlaceholder]}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding RuntimeStatusSearchText}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+        <TextBlock Grid.Row="1" Style="{StaticResource SettingsHintText}"
+                   Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RuntimeStatusHint]}"/>
+        <Border Grid.Row="2" Style="{StaticResource SettingsCard}" Padding="12" Margin="0,12,0,0">
+            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RuntimeStatusScopeNote]}"
+                       Foreground="{DynamicResource TextSecondary2}" TextWrapping="Wrap"/>
+        </Border>
+
+        <ListView x:Name="RuntimeStatusList" Grid.Row="3" Margin="0,12,0,0" ItemsSource="{Binding RuntimeStatuses}"
+                  Background="Transparent" BorderThickness="0"
+                  Foreground="{DynamicResource TextPrimary2}"
+                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                  VirtualizingPanel.IsVirtualizing="True"
+                  VirtualizingPanel.VirtualizationMode="Recycling"
+                  ItemContainerStyle="{StaticResource SearchResultItemStyle}"
+                  SelectionMode="Single"
+                  GridViewColumnHeader.Click="RuntimeStatusHeader_Click">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Width="280" DisplayMemberBinding="{Binding Name}">
+                        <GridViewColumn.Header><GridViewColumnHeader Tag="Name" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RuntimeStatusPlugin]}"/></GridViewColumn.Header>
+                    </GridViewColumn>
+                    <GridViewColumn Width="100" DisplayMemberBinding="{Binding InvocationCount, StringFormat={}{0:N0}}">
+                        <GridViewColumn.Header><GridViewColumnHeader Tag="InvocationCount" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RuntimeStatusCalls]}"/></GridViewColumn.Header>
+                    </GridViewColumn>
+                    <GridViewColumn Width="110" DisplayMemberBinding="{Binding AverageElapsedMilliseconds, StringFormat={}{0:F1} ms}">
+                        <GridViewColumn.Header><GridViewColumnHeader Tag="AverageElapsedMilliseconds" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RuntimeStatusAverage]}"/></GridViewColumn.Header>
+                    </GridViewColumn>
+                    <GridViewColumn Width="110" DisplayMemberBinding="{Binding LastElapsedMilliseconds, StringFormat={}{0:F1} ms}">
+                        <GridViewColumn.Header><GridViewColumnHeader Tag="LastElapsedMilliseconds" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RuntimeStatusLast]}"/></GridViewColumn.Header>
+                    </GridViewColumn>
+                    <GridViewColumn Width="110" DisplayMemberBinding="{Binding MaxElapsedMilliseconds, StringFormat={}{0:F1} ms}">
+                        <GridViewColumn.Header><GridViewColumnHeader Tag="MaxElapsedMilliseconds" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RuntimeStatusMax]}"/></GridViewColumn.Header>
+                    </GridViewColumn>
+                    <GridViewColumn Width="120" DisplayMemberBinding="{Binding AllocatedMegabytes, StringFormat={}{0:F2} MB}">
+                        <GridViewColumn.Header><GridViewColumnHeader Tag="AllocatedMegabytes" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RuntimeStatusAllocated]}"/></GridViewColumn.Header>
+                    </GridViewColumn>
+                    <GridViewColumn Width="80" DisplayMemberBinding="{Binding ExceptionCount, StringFormat={}{0:N0}}">
+                        <GridViewColumn.Header><GridViewColumnHeader Tag="ExceptionCount" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RuntimeStatusExceptions]}"/></GridViewColumn.Header>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+    </Grid>
+</UserControl>

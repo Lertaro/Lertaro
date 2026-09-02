@@ -2,6 +2,7 @@ using System.Text;
 using Native = Lertaro.Core.Hook.ExplorerNativeHooks;
 using PointNative = Lertaro.App.Views.InlineSearchWindow.Helpers.InlineSearchWindowNativeMethods;
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+using Lertaro.App.Services.Plugin;
 namespace Lertaro.App.Services.ShellMenu.QuickNav;
 
 // Decides whether the Quick Navigation popup should open for a double-click/middle-click in Explorer,
@@ -88,7 +89,7 @@ internal static class QuickNavigationTriggerGate
 
         var sbClass = new StringBuilder(256);
         Native.GetClassName(hwndUnderCursor, sbClass, sbClass.Capacity);
-        return adapter.CanShowQuickNav(hwndUnderCursor, sbClass.ToString());
+        return PluginPerformanceMonitor.Measure(adapter, () => adapter.CanShowQuickNav(hwndUnderCursor, sbClass.ToString()));
     }
 
     // An adapter component may still be disabled as a whole, but its EnableInlineSearch setting must not
@@ -98,7 +99,7 @@ internal static class QuickNavigationTriggerGate
     {
         foreach (var adapter in adapters)
         {
-            if (adapter.IsFileExplorer && adapter.CanRecognizeHost(hwnd, className, processName))
+            if (adapter.IsFileExplorer && PluginPerformanceMonitor.Measure(adapter, () => adapter.CanRecognizeHost(hwnd, className, processName)))
                 return adapter;
         }
         return null;

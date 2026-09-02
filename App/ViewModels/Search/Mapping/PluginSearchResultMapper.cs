@@ -58,7 +58,7 @@ public static class PluginSearchResultMapper
         {
             try
             {
-                var results = provider.GetInstantResults(query);
+                var results = PluginPerformanceMonitor.Measure(provider, () => provider.GetInstantResults(query)?.ToList());
                 if (results == null)
                     continue;
 

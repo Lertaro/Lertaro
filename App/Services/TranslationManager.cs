@@ -117,14 +117,14 @@ public class TranslationManager : INotifyPropertyChanged
                 IReadOnlyDictionary<string, string>? fallbackDict = null;
                 if (provider.SupportedCultures != null && provider.SupportedCultures.Count > 0)
                 {
-                    fallbackDict = provider.GetTranslations(provider.SupportedCultures[0]);
+                    fallbackDict = PluginPerformanceMonitor.Measure(provider, () => provider.GetTranslations(provider.SupportedCultures[0]));
                 }
 
                 // 2. Get English translations (middle priority fallback)
-                var engDict = provider.GetTranslations("en-US");
+                var engDict = PluginPerformanceMonitor.Measure(provider, () => provider.GetTranslations("en-US"));
 
                 // 3. Get target translations (highest priority)
-                var targetDict = provider.GetTranslations(_currentCulture);
+                var targetDict = PluginPerformanceMonitor.Measure(provider, () => provider.GetTranslations(_currentCulture));
 
                 // Merge them in order of increasing priority so higher priorities overwrite lower ones
                 if (fallbackDict != null)

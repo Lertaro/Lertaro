@@ -165,9 +165,11 @@ public class PluginManager : PluginRegistry
         _plugins.Add(plugin);
         if (plugin is PluginSdk.Abstractions.Plugins.IActionProvider actionProvider)
         {
-            foreach (var action in actionProvider.GetActions())
+            foreach (var action in PluginPerformanceMonitor.Measure(plugin,
+                         () => actionProvider.GetActions()?.ToList() ?? new List<PluginSdk.Abstractions.ISearchResultAction>()))
                 _actions.Add(new PluginActionRegistration(_nextRuntimeActionId++, plugin, action));
-            foreach (var provider in actionProvider.GetDynamicActionProviders())
+            foreach (var provider in PluginPerformanceMonitor.Measure(plugin,
+                         () => actionProvider.GetDynamicActionProviders()?.ToList() ?? new List<PluginSdk.Abstractions.Plugins.IDynamicActionProvider>()))
                 _dynamicActionProviders.Add(provider);
         }
     }
@@ -253,9 +255,9 @@ public class PluginManager : PluginRegistry
         foreach (var action in _actions)
         {
             if (action.Action.Keywords.Count == 0) continue;
-            if (!action.Action.IsVisibleInSearch(single, windowType)) continue;
+            if (!PluginPerformanceMonitor.Measure(action.Action, () => action.Action.IsVisibleInSearch(single, windowType))) continue;
             if (!_filter.IsEnabled(ComponentFilter.GetDllName(action.Plugin), PluginComponentType.Action, action.Action.GetType().Name)) continue;
-            if (!action.Action.CanExecute(single)) continue;
+            if (!PluginPerformanceMonitor.Measure(action.Action, () => action.Action.CanExecute(single))) continue;
 
             var match = KeywordMatcher.TryMatchKeyword(query, action.Action.Keywords);
             if (match == null) continue;

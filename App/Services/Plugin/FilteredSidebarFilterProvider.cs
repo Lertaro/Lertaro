@@ -27,7 +27,7 @@ public class FilteredSidebarFilterProvider : ISidebarFilterProvider
     public IEnumerable<SidebarFilterGroup> GetFilterGroups()
     {
         var index = 0;
-        foreach (var group in _inner.GetFilterGroups())
+        foreach (var group in PluginPerformanceMonitor.Measure(_inner, () => _inner.GetFilterGroups()?.ToList() ?? new List<SidebarFilterGroup>()))
         {
             if (_manager.IsComponentEnabled(_dllName, PluginComponentType.FilterProvider, $"{_inner.GetType().Name}_{index}"))
             {

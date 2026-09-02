@@ -81,7 +81,8 @@ internal static class PluginComponentBuilder
         foreach (var prov in manager.AllSidebarFilterProviders.Where(p => p.GetType().Assembly == assembly))
         {
             var index = 0;
-            foreach (var group in prov.GetFilterGroups())
+            foreach (var group in PluginPerformanceMonitor.Measure(prov,
+                         () => prov.GetFilterGroups()?.ToList() ?? new List<SidebarFilterGroup>()))
             {
                 var id = PluginLoaderHelper.MakeId(dllName, PluginComponentType.FilterProvider, $"{prov.GetType().Name}_{index}");
                 components.Add(new PluginComponentViewModel(id, PluginComponentType.FilterProvider, group.Header, !disabledSet.Contains(id), GetDescriptionWithFallback(prov)));
@@ -90,7 +91,8 @@ internal static class PluginComponentBuilder
         }
         foreach (var prov in manager.AllResultColumnProviders.Where(p => p.GetType().Assembly == assembly))
         {
-            foreach (var col in prov.GetColumns())
+            foreach (var col in PluginPerformanceMonitor.Measure(prov,
+                         () => prov.GetColumns()?.ToList() ?? new List<ResultColumnDefinition>()))
             {
                 var id = PluginLoaderHelper.MakeId(dllName, PluginComponentType.ColumnProvider, col.ColumnId);
                 components.Add(new PluginComponentViewModel(id, PluginComponentType.ColumnProvider, col.HeaderText, !disabledSet.Contains(id), GetDescriptionWithFallback(prov)));
@@ -127,7 +129,8 @@ internal static class PluginComponentBuilder
         foreach (var prov in manager.AllThemeProviders.Where(p => p.GetType().Assembly == assembly))
         {
             var id = PluginLoaderHelper.MakeId(dllName, PluginComponentType.ThemeProvider, prov.GetType().Name);
-            var themes = prov.GetThemes().ToList();
+            var themes = PluginPerformanceMonitor.Measure(prov,
+                () => prov.GetThemes()?.ToList() ?? new List<ITheme>());
             var displayName = themes.Count > 0
                 ? string.Join(", ", themes.Select(t => t.DisplayName))
                 : prov.Name;
