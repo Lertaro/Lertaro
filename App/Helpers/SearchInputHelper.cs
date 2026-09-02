@@ -45,6 +45,12 @@ public static class SearchInputHelper
         var noModifiers = Keyboard.Modifiers == ModifierKeys.None;
         var actionSearchBox = window?.UsesFloatingActionsMenu == true ? window.ActionsSearchTextBox : window?.SearchTextBox;
 
+        if (menuPresenter.TryExecuteActiveHotkey(e))
+        {
+            e.Handled = true;
+            return true;
+        }
+
         if (e.Key == Key.Escape && noModifiers)
         {
             HandleActionsEscape(window, menuPresenter);

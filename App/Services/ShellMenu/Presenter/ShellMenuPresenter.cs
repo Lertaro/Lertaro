@@ -60,6 +60,8 @@ public class ShellMenuPresenter : IDisposable
     }
     public bool IsInActionsMode => _isInActionsMode;
     public string SavedSearchQuery => _savedSearchQuery;
+    public bool TryExecuteActiveHotkey(System.Windows.Input.KeyEventArgs e) => _isInActionsMode && _activeResults.Count > 0
+        && Helpers.HotkeyActionTrigger.TryExecute(e, _activeResults, _view, GetWindowType(), GetWindowType() != SearchWindowType.Main);
     public void EnterActionsMode(AppSearchResult result) => EnterActionsMode(new[] { result });
 
     /// <summary>
