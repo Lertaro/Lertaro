@@ -25,8 +25,10 @@ public sealed class UsnServicePipeServer : IDisposable
 
     public void Stop()
     {
+        // Cancel only, no Dispose: the pipe loops still reference this token and will register on it
+        // again (Task.Delay in the listen loop), which throws ObjectDisposedException on a disposed
+        // CTS. A CTS without timers holds no unmanaged resources, so skipping Dispose is safe.
         _pipeCts?.Cancel();
-        _pipeCts?.Dispose();
         _pipeCts = null;
         _engine = null;
     }

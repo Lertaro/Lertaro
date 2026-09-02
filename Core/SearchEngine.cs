@@ -223,9 +223,10 @@ public class SearchEngine : IDisposable
 
         Task.Run(() =>
         {
-            // Cancel any active monitors
+            // Cancel any active monitors. Cancel only, no Dispose: loops still holding the old token
+            // register on it as they wind down, and a disposed CTS turns that into
+            // ObjectDisposedException (it holds no unmanaged resources, so skipping Dispose is safe).
             _cts?.Cancel();
-            _cts?.Dispose();
             _indexer.DisposeAllDriveMonitors();
             _cts = new CancellationTokenSource();
 
@@ -245,16 +246,16 @@ public class SearchEngine : IDisposable
     public void Dispose()
     {
         _idleTimer?.Dispose();
+        // Cancel without Dispose (see the restart path above): in-flight loops still reference
+        // these tokens while unwinding.
         _cts?.Cancel();
-        _cts?.Dispose();
         _indexer.DisposeAllDriveMonitors();
         lock (_searchLock)
         {
             _searchCts?.Cancel();
-            _searchCts?.Dispose();
             _searchDirCts?.Cancel();
-            _searchDirCts?.Dispose();
         }
+        _indexer.Dispose();
         GC.SuppressFinalize(this);
     }
 
