@@ -133,6 +133,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     ListBox ISearchWindow.LstActions => ResultsPanelControl.ActionsListBox;
     TextBox ISearchWindow.ActionsSearchTextBox => ResultsPanelControl.ActionsSearchTextBox;
     public bool UsesFloatingActionsMenu => true;
+    bool ISearchWindow.KeepWindowOpenAfterActionsHotkey => true;
     public string SearchText => SearchBox.SearchTextBox.Text;
     public TextBox SearchTextBox => SearchBox.SearchTextBox;
 

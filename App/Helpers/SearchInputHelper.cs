@@ -47,6 +47,11 @@ public static class SearchInputHelper
 
         if (menuPresenter.TryExecuteActiveHotkey(e))
         {
+            // Persistent hosts keep their window open after an action, but their floating actions panel
+            // must close just like the clicked-action path. Dismissible hosts already hide themselves
+            // inside HotkeyActionTrigger, so do not run their exit transition twice.
+            if (window?.KeepWindowOpenAfterActionsHotkey == true)
+                menuPresenter.ExitActionsMode();
             e.Handled = true;
             return true;
         }

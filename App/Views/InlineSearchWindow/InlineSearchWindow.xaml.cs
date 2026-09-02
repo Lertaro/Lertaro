@@ -193,6 +193,7 @@ public partial class InlineSearchWindow : Window, ISearchWindow
     public ListBox LstActions => ResultsPanelControl.LstActions;
     public System.Windows.Controls.TextBox ActionsSearchTextBox => ResultsPanelControl.ActionsSearchTextBox;
     public bool UsesFloatingActionsMenu => false;
+    bool ISearchWindow.KeepWindowOpenAfterActionsHotkey => false;
     public string SearchText => _searchText;
     public System.Windows.Controls.TextBox SearchTextBox => SearchBox.SearchTextBox;
 

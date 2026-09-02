@@ -12,6 +12,8 @@ internal sealed class QuickSearchLaunchActionsCoordinator
     private Visibility _resultsListVisibility;
     private AppSearchResult? _selectedResult;
 
+    internal bool IsActive => _isActive;
+
     internal QuickSearchLaunchActionsCoordinator(Lertaro.App.QuickSearchWindow window) => _window = window;
 
     internal void Enter(AppSearchResult result)

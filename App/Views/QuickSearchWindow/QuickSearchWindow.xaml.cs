@@ -85,6 +85,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public ListBox LstActions => ResultsPanelControl.ActionsListBox;
     public TextBox ActionsSearchTextBox => ResultsPanelControl.ActionsSearchTextBox;
     public bool UsesFloatingActionsMenu => true;
+    bool ISearchWindow.KeepWindowOpenAfterActionsHotkey => _launchActions.IsActive;
     internal void EnterLaunchPanelActions(AppSearchResult result) => _launchActions.Enter(result);
     public void UpdateActionsLayout()
     {
