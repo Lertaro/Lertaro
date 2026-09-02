@@ -133,8 +133,11 @@ public class KeyboardHookService : IDisposable
             // unconditionally here (not gated by shouldDisableAllHooks below), matching how the
             // independent mouse hook's own right-click detection is never gated either. F10 arrives as
             // WM_SYSKEYDOWN, which this outer condition already includes alongside WM_KEYDOWN.
+            // GetAsyncKeyState, not GetKeyState: the LL hook owner's thread has no per-thread key
+            // state of its own (same reasoning as the LLKHF_ALTDOWN comment in KeyboardNativeMethods),
+            // so only the async, process-global state answers usefully here.
             var isShiftF10 = vkCode == KeyboardNativeMethods.VK_F10
-                && (KeyboardNativeMethods.GetKeyState(KeyboardNativeMethods.VK_SHIFT) & 0x8000) != 0;
+                && (KeyboardNativeMethods.GetAsyncKeyState(KeyboardNativeMethods.VK_SHIFT) & 0x8000) != 0;
             if (vkCode == KeyboardNativeMethods.VK_APPS || isShiftF10)
             {
                 MarkPendingContextMenuTrigger(time);
