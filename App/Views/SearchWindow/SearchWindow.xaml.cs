@@ -63,7 +63,6 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
 
         _viewModel = new SearchViewModel(initialQuery);
         this.DataContext = _viewModel;
-
         QuickLookManager.Instance.Reset();
 
         this.Loaded += (s, e) =>
@@ -132,6 +131,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     Grid ISearchWindow.GridActions => ResultsPanelControl.ActionsGrid;
     TextBlock ISearchWindow.TxtActionsTarget => ResultsPanelControl.ActionsTargetTextBlock;
     ListBox ISearchWindow.LstActions => ResultsPanelControl.ActionsListBox;
+    TextBox ISearchWindow.ActionsSearchTextBox => ResultsPanelControl.ActionsSearchTextBox;
     public bool UsesFloatingActionsMenu => false;
     public string SearchText => SearchBox.SearchTextBox.Text;
     public TextBox SearchTextBox => SearchBox.SearchTextBox;

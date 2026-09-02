@@ -133,10 +133,11 @@
                     Visibility="{Binding ElementName=GridActions, Path=Visibility}">
                 <Border x:Name="ActionsClippingBorder" CornerRadius="8" helpers:RoundedClip.IsEnabled="True">
                     <Grid x:Name="GridActions" Visibility="Collapsed">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
                     <Border Grid.Row="0" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1"
                             Height="{Binding SelectedItem.ActionsHeaderHeight, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}" Padding="14,0,14,0" Background="{DynamicResource ActionsHeaderBg}">
                         <Grid>
@@ -155,8 +156,43 @@
                             <TextBlock Grid.Column="2" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_EscBack]}" Foreground="{DynamicResource TextSecondary}" FontSize="11" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
+                    <!-- Quick-window-only action filter. It keeps the main query untouched. -->
+                    <Border x:Name="ActionsSearchRow" Grid.Row="1" Margin="10,6,10,6" Visibility="Collapsed">
+                        <Grid>
+                            <TextBox x:Name="TxtActionsSearch"
+                                     Height="32"
+                                     Padding="28,0,10,0"
+                                     Style="{StaticResource ThemedTextBox}"
+                                     HorizontalContentAlignment="Left"/>
+                            <TextBlock Text="&#xE721;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,0,0"
+                                       IsHitTestVisible="False"/>
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_ActionsSearchPlaceholder]}"
+                                       Margin="28,0,10,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       IsHitTestVisible="False">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=TxtActionsSearch}" Value="">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+
                     <!-- Actions List -->
-                    <ListBox x:Name="LstActions" Grid.Row="1"
+                    <ListBox x:Name="LstActions" Grid.Row="2"
                              Background="Transparent"
                              BorderThickness="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -168,7 +204,7 @@
                              SelectionMode="Single"/>
 
                     <!-- Actions No Results Hint -->
-                    <TextBlock Grid.Row="1"
+                    <TextBlock Grid.Row="2"
                                Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_NoResult]}"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"

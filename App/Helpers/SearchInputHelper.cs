@@ -43,12 +43,13 @@ public static class SearchInputHelper
         // Nothing is bound to a modified Escape today, but guarding it anyway costs nothing and rules
         // the whole bug class out here rather than leaving one exception someone has to remember.
         var noModifiers = Keyboard.Modifiers == ModifierKeys.None;
+        var actionSearchBox = window?.UsesFloatingActionsMenu == true ? window.ActionsSearchTextBox : window?.SearchTextBox;
 
         if (e.Key == Key.Escape && noModifiers)
         {
-            if (window != null && !string.IsNullOrEmpty(window.SearchTextBox.Text))
+            if (actionSearchBox != null && !string.IsNullOrEmpty(actionSearchBox.Text))
             {
-                window.SearchTextBox.Clear();
+                actionSearchBox.Clear();
                 e.Handled = true;
                 return true;
             }
@@ -110,7 +111,7 @@ public static class SearchInputHelper
 
         if (e.Key == Key.Back && noModifiers)
         {
-            if (window != null && string.IsNullOrEmpty(window.SearchTextBox.Text))
+            if (actionSearchBox != null && string.IsNullOrEmpty(actionSearchBox.Text))
             {
                 menuPresenter.GoBackMenuOrExit();
                 e.Handled = true;

@@ -29,6 +29,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private readonly QuickSearchWindowResultExecutor _resultExecutor;
     private readonly QuickSearchWindowLifecycle _lifecycle;
     private readonly QuickSearchWindowDragSupport _dragSupport;
+    private bool _isInActionsMode;
     private Action? _scaleChangedHandler;
     internal QuickSearchKeywordHistoryController KeywordHistoryController { get; }
     // Must match QuickSearchWindow.xaml's root Border Margin ("24,40,24,24").
@@ -57,10 +58,11 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public string SearchText => TxtSearch.Text;
     public bool IsInActionsMode
     {
-        get => SearchBox.IsInActionsMode;
+        get => _isInActionsMode;
         set
         {
-            SearchBox.IsInActionsMode = value;
+            _isInActionsMode = value;
+            SearchBox.IsInActionsMode = value && !UsesFloatingActionsMenu;
             _viewModel.Search.IsActionsMode = value;
         }
     }
@@ -73,6 +75,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public Grid GridActions => ResultsPanelControl.ActionsGrid;
     public TextBlock TxtActionsTarget => ResultsPanelControl.ActionsTargetTextBlock;
     public ListBox LstActions => ResultsPanelControl.ActionsListBox;
+    public TextBox ActionsSearchTextBox => ResultsPanelControl.ActionsSearchTextBox;
     public bool UsesFloatingActionsMenu => true;
     public void UpdateActionsLayout() => _layoutManager.UpdateActionsLayout();
     internal void ExecuteFavorite(AppSearchResult result) => _resultExecutor.Execute(result);

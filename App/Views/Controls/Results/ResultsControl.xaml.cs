@@ -87,6 +87,7 @@ public partial class ResultsControl : System.Windows.Controls.UserControl
     public Grid ActionsGrid => GridActions;
     public TextBlock ActionsTargetTextBlock => TxtActionsTarget;
     public System.Windows.Controls.ListBox ActionsListBox => LstActions;
+    public System.Windows.Controls.TextBox ActionsSearchTextBox => TxtActionsSearch;
 
     public static readonly DependencyProperty UsesFloatingActionsLayoutProperty = DependencyProperty.Register(
         nameof(UsesFloatingActionsLayout), typeof(bool), typeof(ResultsControl),
@@ -107,6 +108,7 @@ public partial class ResultsControl : System.Windows.Controls.UserControl
     private void UpdateActionsLayoutMode()
     {
         var floating = UsesFloatingActionsLayout;
+        ActionsSearchRow.Visibility = floating ? Visibility.Visible : Visibility.Collapsed;
         Grid.SetColumn(ActionsFlyoutBorder, floating ? 1 : 0);
         Grid.SetRow(ActionsFlyoutBorder, floating ? 1 : 0);
         Grid.SetColumnSpan(ActionsFlyoutBorder, floating ? 1 : 2);

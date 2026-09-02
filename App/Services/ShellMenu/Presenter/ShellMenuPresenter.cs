@@ -22,18 +22,14 @@ public class ShellMenuPresenter : IDisposable
     private readonly ActionsMenuExecutor _executor;
     private readonly ShellMenuMouseInputHandler _mouseHandler;
     // Mappings to trace which provider owns which item/submenu at runtime
-
     private readonly Dictionary<uint, IDynamicActionProvider> _commandToProviderMap = new();
     private readonly Dictionary<IntPtr, IDynamicActionProvider> _subMenuToProviderMap = new();
-
     private string _savedSearchQuery = string.Empty;
     private List<ActionMenuItem> _currentRawItems = new();
     private int _actionsGeneration;
-
     // Process-wide (not per-instance/per-window) record of which providers have already had Init()
     // called -- see the comment at the call site in EnterActionsMode.
     private static readonly HashSet<IDynamicActionProvider> _initializedProviders = new();
-
     public ShellMenuPresenter(ISearchWindow view)
     {
         _view = view;
@@ -52,16 +48,15 @@ public class ShellMenuPresenter : IDisposable
             foreach (var added in e.AddedItems)
                 if (added is ActionMenuItem item) item.IsSelected = true;
         };
-        _view.SearchTextBox.TextChanged += (s, e) =>
+        GetActionSearchTextBox().TextChanged += (s, e) =>
         {
             if (_isInActionsMode)
             {
-                ApplyFilter(_view.SearchTextBox.Text);
+                ApplyFilter(GetActionSearchTextBox().Text);
                 _view.UpdateActionsLayout();
             }
         };
     }
-
     public bool IsInActionsMode => _isInActionsMode;
     public string SavedSearchQuery => _savedSearchQuery;
 
@@ -141,8 +136,14 @@ public class ShellMenuPresenter : IDisposable
 
         var generation = ++_actionsGeneration;
         _currentRawItems = ActionMenuBuilder.FinalizeItems(ActionMenuBuilder.BuildStatic(_activeResults, GetWindowType()));
+        var actionSearch = GetActionSearchTextBox();
+        actionSearch.Clear();
         ApplyFilter(string.Empty);
-        _view.SearchTextBox.Clear();
+        if (_view.UsesFloatingActionsMenu)
+        {
+            actionSearch.Focus();
+            Keyboard.Focus(actionSearch);
+        }
         _view.UpdateActionsLayout();
 
         // 2. Build the dynamic (potentially slow shell) group off the UI thread, capped at 2s. When it
@@ -186,7 +187,7 @@ public class ShellMenuPresenter : IDisposable
                 var merged = ActionMenuBuilder.BuildStatic(_activeResults, GetWindowType());
                 merged.AddRange(dynamicItems);
                 _currentRawItems = ActionMenuBuilder.FinalizeItems(merged);
-                ApplyFilter(_view.SearchTextBox.Text);
+                ApplyFilter(GetActionSearchTextBox().Text);
                 _view.UpdateActionsLayout();
             }));
         });
@@ -206,7 +207,7 @@ public class ShellMenuPresenter : IDisposable
             _subMenuToProviderMap
         );
         _currentRawItems = finalItems;
-        ApplyFilter(_view.SearchTextBox.Text);
+        ApplyFilter(GetActionSearchTextBox().Text);
         _view.UpdateActionsLayout();
     }
 
@@ -259,8 +260,13 @@ public class ShellMenuPresenter : IDisposable
         // this restoration as a no-op instead of mistaking it for new typing -- which would otherwise wipe
         // the results selection and re-run the search, losing exactly which result/scroll position the
         // user was on before entering the actions menu.
-        _view.SearchTextBox.Text = _savedSearchQuery;
-        _view.SearchTextBox.SelectAll();
+        if (_view.UsesFloatingActionsMenu)
+            GetActionSearchTextBox().Clear();
+        else
+        {
+            _view.SearchTextBox.Text = _savedSearchQuery;
+            _view.SearchTextBox.SelectAll();
+        }
 
         _isInActionsMode = false;
         _view.IsInActionsMode = false;
@@ -275,6 +281,9 @@ public class ShellMenuPresenter : IDisposable
     public void ExecuteSelectedAction() => _executor.Execute(_activeResult, _activeResults);
 
     public void HandleActionsPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e) => _mouseHandler.HandleActionsPreviewMouseLeftButtonUp(sender, e);
+
+    private System.Windows.Controls.TextBox GetActionSearchTextBox() =>
+        _view.UsesFloatingActionsMenu ? _view.ActionsSearchTextBox : _view.SearchTextBox;
 
     public void Dispose() { foreach (var p in PluginManager.Instance.DynamicActionProviders) p.ClearSession(); }
 

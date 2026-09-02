@@ -65,7 +65,6 @@ public partial class InlineSearchWindow : Window, ISearchWindow
         PreviewMouseLeftButtonUp += (_, _) => HasPendingMouseDown = false;
         _activeTimer = new DispatcherTimer(DispatcherPriority.Background);
         _activeTimer.Interval = TimeSpan.FromMilliseconds(100);
-
         _activeTimer.Tick += (s, e) =>
         {
             var tracker = _manager.ExplorerTracker;
@@ -192,6 +191,7 @@ public partial class InlineSearchWindow : Window, ISearchWindow
     public Grid GridActions => ResultsPanelControl.ActionsGrid;
     public TextBlock TxtActionsTarget => ResultsPanelControl.ActionsTargetTextBlock;
     public ListBox LstActions => ResultsPanelControl.LstActions;
+    public System.Windows.Controls.TextBox ActionsSearchTextBox => ResultsPanelControl.ActionsSearchTextBox;
     public bool UsesFloatingActionsMenu => false;
     public string SearchText => _searchText;
     public System.Windows.Controls.TextBox SearchTextBox => SearchBox.SearchTextBox;
