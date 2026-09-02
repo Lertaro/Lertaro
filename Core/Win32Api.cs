@@ -242,6 +242,12 @@ public static class Win32Api
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool SetProcessWorkingSetSize(IntPtr hProcess, IntPtr dwMinimumWorkingSetSize, IntPtr dwMaximumWorkingSetSize);
 
+    // Pseudo-handle for the current process (a constant, not a real handle) -- needs no closing, unlike
+    // Process.GetCurrentProcess().Handle which wraps a managed Process whose SafeProcessHandle then has
+    // to be finalized. Prefer this wherever only the current process's handle is needed.
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr GetCurrentProcess();
+
     // Non-consuming pipe status check -- unlike PipeStream.IsConnected (a managed flag only updated by
     // an actual Read/Write/Connect call), this queries the OS directly without touching the data stream,
     // so a background watchdog can detect a broken/disconnected pipe while no read or write is in
@@ -258,7 +264,7 @@ public static class Win32Api
             GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
             GC.WaitForPendingFinalizers();
             GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
-            SetProcessWorkingSetSize(System.Diagnostics.Process.GetCurrentProcess().Handle, -1, -1);
+            SetProcessWorkingSetSize(GetCurrentProcess(), -1, -1);
         }
         catch { }
     }

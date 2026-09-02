@@ -91,7 +91,9 @@ internal static class HookLaunchNativeMethods
     public static void EnableTcbPrivilege()
     {
         const uint TOKEN_ADJUST_PRIVILEGES = 0x0020, TOKEN_QUERY = 0x0008, SE_PRIVILEGE_ENABLED = 0x0002;
-        var process = System.Diagnostics.Process.GetCurrentProcess().Handle;
+        // Kernel32 pseudo-handle: a constant needing no close, unlike a managed Process object's
+        // SafeProcessHandle which would wait for a finalizer once the wrapper is dropped.
+        var process = Win32Api.GetCurrentProcess();
         if (!OpenProcessToken(process, TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, out var token))
             return;
         try
