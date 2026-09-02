@@ -282,7 +282,7 @@ public static class UsnIndexerExtensions
                 return;
         }
 
-        var cacheDir = Path.Combine(Logger.UserDataDir, "indexes");
+        var cacheDir = LocalDriveCacheLocator.DefaultCacheDir;
         try
         {
             live.Compact(LocalDriveCacheLocator.GetCachePath(cacheDir, drive), new CompactionStamp(metadata.JournalId, metadata.NextUsn), force: true);

@@ -5,7 +5,7 @@ namespace Lertaro.Core.DriveMonitoring;
 
 internal sealed class SearchEngineDriveMaintenance
 {
-    private static readonly string IndexCacheDir = Path.Combine(Logger.SharedDataDir, "indexes");
+    private static readonly string IndexCacheDir = LocalDriveCacheLocator.DefaultCacheDir;
     private readonly UsnIndexer _indexer;
     private readonly Func<MachineSettings> _settings;
     private readonly Func<CancellationToken> _token;

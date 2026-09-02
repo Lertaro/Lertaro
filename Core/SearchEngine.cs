@@ -19,7 +19,7 @@ public class SearchEngine : IDisposable
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _searchDirCts;
     private readonly object _searchLock = new();
-    private static readonly string IndexCacheDir = Path.Combine(Logger.SharedDataDir, "indexes");
+    private static readonly string IndexCacheDir = LocalDriveCacheLocator.DefaultCacheDir;
 
     private long _lastDriveDetectTime = 0;
     private const long IdleTrimAfterMs = 3000;
