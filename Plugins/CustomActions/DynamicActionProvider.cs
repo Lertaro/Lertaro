@@ -141,10 +141,16 @@ public class DynamicActionProvider : IDynamicActionProvider
         };
         if (!string.IsNullOrWhiteSpace(workDir) && Directory.Exists(workDir))
             psi.WorkingDirectory = workDir;
-        if (cmd.RunSilently) { psi.WindowStyle = ProcessWindowStyle.Hidden; psi.CreateNoWindow = true; }
+        if (cmd.RunSilently) psi.WindowStyle = ProcessWindowStyle.Hidden;
         if (cmd.RunAsAdmin) psi.Verb = "runas";
 
         try { Process.Start(psi); }
-        catch { }
+        catch (Exception ex)
+        {
+            // A vanished/moved/renamed action target fails silently otherwise -- the user clicks
+            // and nothing happens, with no trace. CreateNoWindow is not set here: it has no effect
+            // under UseShellExecute (WindowStyle.Hidden is the effective suppression).
+            PluginSdk.Logger.Log($"[CustomActions] Failed to launch '{cmd.Path}': {ex.Message}", PluginSdk.LogLevel.Error);
+        }
     }
 }

@@ -112,10 +112,16 @@ internal static class CommandRunner
         };
         if (!string.IsNullOrWhiteSpace(cmd.WorkingDir) && Directory.Exists(cmd.WorkingDir))
             psi.WorkingDirectory = cmd.WorkingDir;
-        if (cmd.RunSilently) { psi.WindowStyle = ProcessWindowStyle.Hidden; psi.CreateNoWindow = true; }
+        if (cmd.RunSilently) psi.WindowStyle = ProcessWindowStyle.Hidden;
         if (cmd.RunAsAdmin) psi.Verb = "runas";
 
         try { Process.Start(psi); }
-        catch { }
+        catch (Exception ex)
+        {
+            // A vanished/moved/renamed command target fails silently otherwise -- the user clicks
+            // and nothing happens, with no trace. CreateNoWindow is not set here: it has no effect
+            // under UseShellExecute (WindowStyle.Hidden is the effective suppression).
+            PluginSdk.Logger.Log($"[CustomCommands] Failed to launch '{cmd.Path}': {ex.Message}", PluginSdk.LogLevel.Error);
+        }
     }
 }
