@@ -58,74 +58,12 @@ public static class VolumeHelper
         return null;
     }
 
-    public static List<string> DetectSupportedDrives()
-    {
-        var detected = new List<string>();
-        var drives = DriveInfo.GetDrives();
-
-        foreach (var drive in drives)
-        {
-            if (!drive.IsReady) continue;
-            var driveLetter = drive.Name.Split(':')[0].ToUpper();
-
-            var volumeName = new StringBuilder(260);
-            var fileSystemName = new StringBuilder(260);
-
-            var success = Win32Api.GetVolumeInformationW(
-                drive.Name,
-                volumeName, (uint)volumeName.Capacity,
-                out _, out _, out _,
-                fileSystemName, (uint)fileSystemName.Capacity
-            );
-
-            if (success)
-            {
-                var fs = fileSystemName.ToString();
-                if (fs == "NTFS" || fs == "ReFS")
-                {
-                    detected.Add(driveLetter);
-                }
-            }
-        }
-        return detected;
-    }
-
     public static List<string> DetectIndexableLocalDrives() => DriveInfo.GetDrives()
         .Where(d => d.IsReady && d.DriveType != DriveType.Network && d.Name.Length >= 2)
         .Select(d => d.Name.Split(':')[0].ToUpperInvariant())
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .OrderBy(d => d, StringComparer.OrdinalIgnoreCase)
         .ToList();
-
-    public static List<string> DetectFolderIndexDrives()
-    {
-        var detected = new List<string>();
-        var drives = DriveInfo.GetDrives();
-        foreach (var drive in drives)
-        {
-            if (!drive.IsReady) continue;
-            var driveLetter = drive.Name.Split(':')[0].ToUpper();
-
-            var volumeName = new StringBuilder(260);
-            var fileSystemName = new StringBuilder(260);
-            var success = Win32Api.GetVolumeInformationW(
-                drive.Name,
-                volumeName, (uint)volumeName.Capacity,
-                out _, out _, out _,
-                fileSystemName, (uint)fileSystemName.Capacity
-            );
-
-            if (success)
-            {
-                var fs = fileSystemName.ToString();
-                if (fs != "NTFS" && fs != "ReFS")
-                {
-                    detected.Add(driveLetter);
-                }
-            }
-        }
-        return detected;
-    }
 
     public static string GetFileSystemType(string driveLetter)
     {

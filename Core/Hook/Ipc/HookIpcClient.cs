@@ -296,8 +296,10 @@ public sealed class HookIpcClient : IDisposable
     public void Dispose()
     {
         Stop();
+        // Cancel without Dispose: the receive loop still holds this token and registers on it while
+        // unwinding (a disposed CTS throws ObjectDisposedException there; it holds no unmanaged
+        // resources, so skipping Dispose is safe).
         _cts?.Cancel();
-        _cts?.Dispose();
         _cts = null;
         _launchBroker.Dispose();
     }

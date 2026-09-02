@@ -113,7 +113,7 @@ internal sealed class SchedulerQueueRunner
                 return;
             }
 
-            // Linked to _lifetimeCts (not a per-Configure()-call token): this drive only stops early if
+            // Tied to _lifetimeCts (not a per-Configure()-call token): this drive only stops early if
             // it's genuinely removed from config (StartRefresh cancels this specific entry) or the whole
             // Scheduler is disposed -- an unrelated Configure() call never touches it.
             active = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);

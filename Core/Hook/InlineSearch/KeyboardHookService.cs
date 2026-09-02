@@ -100,6 +100,22 @@ public class KeyboardHookService : IDisposable
     }
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
+        // Catch-all around the whole callback: an exception escaping a native low-level hook callback
+        // terminates the process (taking every global hook down with it). The body includes plugin
+        // reclassification and other fallible work -- log and let the keystroke pass through instead.
+        try
+        {
+            return HookCallbackCore(nCode, wParam, lParam);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[KeyboardHookService] Hook callback error: {ex.Message}", LogLevel.Error);
+            return KeyboardNativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);
+        }
+    }
+
+    private IntPtr HookCallbackCore(int nCode, IntPtr wParam, IntPtr lParam)
+    {
         if (nCode >= 0 && (wParam == (IntPtr)KeyboardNativeMethods.WM_KEYUP || wParam == (IntPtr)KeyboardNativeMethods.WM_SYSKEYUP))
         {
             var hookStruct = Marshal.PtrToStructure<KeyboardNativeMethods.KBDLLHOOKSTRUCT>(lParam);
@@ -117,8 +133,11 @@ public class KeyboardHookService : IDisposable
             // unconditionally here (not gated by shouldDisableAllHooks below), matching how the
             // independent mouse hook's own right-click detection is never gated either. F10 arrives as
             // WM_SYSKEYDOWN, which this outer condition already includes alongside WM_KEYDOWN.
+            // GetAsyncKeyState, not GetKeyState: the LL hook owner's thread has no per-thread key
+            // state of its own (same reasoning as the LLKHF_ALTDOWN comment in KeyboardNativeMethods),
+            // so only the async, process-global state answers usefully here.
             var isShiftF10 = vkCode == KeyboardNativeMethods.VK_F10
-                && (KeyboardNativeMethods.GetKeyState(KeyboardNativeMethods.VK_SHIFT) & 0x8000) != 0;
+                && (KeyboardNativeMethods.GetAsyncKeyState(KeyboardNativeMethods.VK_SHIFT) & 0x8000) != 0;
             if (vkCode == KeyboardNativeMethods.VK_APPS || isShiftF10)
             {
                 MarkPendingContextMenuTrigger(time);
@@ -206,7 +225,10 @@ public class KeyboardHookService : IDisposable
                         // lines below -- blindly deactivating here could clear that flag to false right
                         // before Quick Switch's own check saw it, on the keystroke that was supposed to
                         // trigger it in the first place.
-                        _explorerTracker.ReclassifyActiveWindow(fgHwnd);
+                        // Bounded variant: this runs inside the LL keyboard hook callback, where any
+                        // stall past LowLevelHooksTimeout gets the hook silently dropped -- see
+                        // ReclassifyActiveWindowBounded.
+                        _explorerTracker.ReclassifyActiveWindowBounded(fgHwnd);
                     }
                 }
             }

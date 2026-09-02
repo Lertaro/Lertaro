@@ -33,7 +33,8 @@ public class UsnService : ServiceBase
             // isn't slowed down. The pipe server handling search queries lives in this process too and
             // inherits the same priority, which is the right trade-off: a UI frame is more urgent than a
             // search reply that's already going through IPC latency regardless.
-            Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.BelowNormal;
+            using var currentProcess = Process.GetCurrentProcess();
+            currentProcess.PriorityClass = ProcessPriorityClass.BelowNormal;
 
             ServicePluginLoader.LoadForService();
             _engine = new SearchEngine();
