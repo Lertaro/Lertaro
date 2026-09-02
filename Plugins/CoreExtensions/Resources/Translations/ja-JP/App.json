@@ -457,6 +457,7 @@
   "Search_Total": "{0:N0} 件",
   "Search_StatusText": "MFT/USN ローカルドライブサービスに接続済み",
   "Search_HintKeyboard": "ダブルクリックで開く · Enter で開く · ↑↓ で選択",
+  "Search_SelectedItemsCount": "{0} 件を選択中",
   "QuickSearch_Placeholder": " 入力して検索...",
   "Search_BackTooltip": "クイック検索に戻る",
   "Search_HeaderName": "名前",

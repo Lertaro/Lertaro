@@ -32,7 +32,6 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     // selection handler and would close a preview opened any earlier.
     private bool _restorePreviewOnFirstResult;
     internal readonly string PowerWindowId = "full:" + Guid.NewGuid().ToString("N");
-
     public SearchWindow(string initialQuery = "", bool restorePreview = false)
     {
         InitializeComponent();
@@ -87,6 +86,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         // Bind list events
         var activeList = ResultsPanelControl.ActiveListBox;
         new SearchWindowHoverPreviewSupport(this, activeList);
+        new SearchWindowSelectionSummary(activeList, TxtSelectedResultCount, this);
         activeList.KeyDown += LstGridResults_KeyDown;
         activeList.MouseDoubleClick += LstGridResults_MouseDoubleClick;
         activeList.PreviewMouseRightButtonUp += LstGridResults_PreviewMouseRightButtonUp;

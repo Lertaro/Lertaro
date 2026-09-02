@@ -457,6 +457,7 @@
   "Search_Total": "{0:N0} elementos",
   "Search_StatusText": "Servicio de Unidad Local MFT/USN Conectado",
   "Search_HintKeyboard": "Doble clic para abrir · Intro para abrir · ↑↓ Seleccionar",
+  "Search_SelectedItemsCount": "{0} elementos seleccionados",
   "QuickSearch_Placeholder": " Escribe para buscar...",
   "Search_BackTooltip": "Volver a la Búsqueda Rápida",
   "Search_HeaderName": "Nombre",

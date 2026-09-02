@@ -237,6 +237,12 @@
                                        Foreground="{DynamicResource TextSecondary2}"
                                        
                                        VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtSelectedResultCount"
+                                       FontSize="12" FontWeight="Medium"
+                                       Foreground="{DynamicResource TextSecondary2}"
+                                       Visibility="Collapsed"
+                                       Margin="12,0,0,0"
+                                       VerticalAlignment="Center"/>
                         </StackPanel>
                         <!-- Keyboard hint -->
                         <TextBlock Grid.Column="2"
