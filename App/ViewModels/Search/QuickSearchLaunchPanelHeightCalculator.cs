@@ -2,8 +2,11 @@ namespace Lertaro.App.ViewModels.Search;
 
 internal static class QuickSearchLaunchPanelHeightCalculator
 {
-    private const double LaunchItemHeight = 92;
-    private const double LaunchItemVerticalMargin = 4;
+    // The item slot includes the launch card's 2-DIP margin plus the selection overlay's 2-DIP
+    // margin and padding on both vertical sides. The old estimate counted only the card margin,
+    // making the calculated panel height smaller than the rendered UniformGrid rows and showing a
+    // scrollbar even when all items technically fit.
+    private const double LaunchItemSlotHeight = 104;
     private const double ItemsVerticalPadding = 12;
     private const double SourceTabsHeight = 38;
     private const double SourceTabsBottomMargin = 2;
@@ -15,7 +18,7 @@ internal static class QuickSearchLaunchPanelHeightCalculator
 
         var maximumItemCount = sources.Max(source => source.Items.Count);
         var rows = Math.Max(1, (maximumItemCount + columns - 1) / columns);
-        var itemsHeight = rows * (LaunchItemHeight + LaunchItemVerticalMargin) + ItemsVerticalPadding;
+        var itemsHeight = rows * LaunchItemSlotHeight + ItemsVerticalPadding;
         var tabsHeight = sources.Count > 1 ? SourceTabsHeight + SourceTabsBottomMargin : 0;
         return Math.Min(maximumHeight, itemsHeight + tabsHeight);
     }

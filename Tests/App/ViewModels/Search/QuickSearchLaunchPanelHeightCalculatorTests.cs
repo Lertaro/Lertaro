@@ -16,7 +16,7 @@ public sealed class QuickSearchLaunchPanelHeightCalculatorTests
 
         var height = QuickSearchLaunchPanelHeightCalculator.Calculate(sources, 5, 522);
 
-        Assert.AreEqual(340, height);
+        Assert.AreEqual(364, height);
     }
 
     [TestMethod]
@@ -36,6 +36,6 @@ public sealed class QuickSearchLaunchPanelHeightCalculatorTests
 
         var height = QuickSearchLaunchPanelHeightCalculator.Calculate(new[] { source }, 5, 522);
 
-        Assert.AreEqual(108, height);
+        Assert.AreEqual(116, height);
     }
 }

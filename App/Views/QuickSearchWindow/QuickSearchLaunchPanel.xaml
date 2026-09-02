@@ -80,15 +80,12 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <ScrollViewer x:Name="LaunchItemsScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled"
-                          Padding="12,4,12,8"
-                          PreviewMouseWheel="LaunchItemsScrollViewer_PreviewMouseWheel">
-            <ListView x:Name="LaunchItemsListView" ItemsSource="{Binding LaunchPanelItems}"
+            <ListView x:Name="LaunchItemsListView" Grid.Row="0" ItemsSource="{Binding LaunchPanelItems}"
                      SelectedItem="{Binding SelectedLaunchPanelItem, Mode=TwoWay}"
                      ItemContainerStyle="{StaticResource LaunchItemContainerStyle}"
                      SelectionMode="Single" BorderThickness="0" Background="Transparent"
-                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                     Padding="12,4,12,8"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      ScrollViewer.CanContentScroll="False"
                      helpers:DragReorder.IsEnabled="{Binding IsManualLaunchSourceSelected}"
@@ -146,7 +143,6 @@
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
-            </ScrollViewer>
             <ctrl:TabStripScrollView Grid.Row="1" Height="38" Margin="8,0,8,2"
                                      Visibility="{Binding HasMultipleLaunchSources, Converter={StaticResource BoolToVis}}">
                 <ItemsControl ItemsSource="{Binding LaunchSources}" HorizontalAlignment="Center">
