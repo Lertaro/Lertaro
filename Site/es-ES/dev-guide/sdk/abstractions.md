@@ -92,4 +92,4 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 }
 ```
 
-El anfitrión llama a `GetFileResults` únicamente durante el renderizado final de la ventana de búsqueda completa. Devuelve una lista vacía cuando el plugin no gestiona la consulta. Cada `InstantResultItem` devuelto debe representar un archivo o carpeta existente para que las columnas de ruta, tamaño y tipo sigan siendo útiles. Este componente usa el mismo interruptor de activación y desactivación que el proveedor de resultados instantáneos del plugin.
+El anfitrión llama a `GetFileResults` únicamente durante el renderizado final de la ventana de búsqueda completa. Devuelve una lista vacía cuando el plugin no gestiona la consulta. Cada `InstantResultItem` devuelto debe representar un archivo o carpeta existente para que las columnas de ruta, tamaño y tipo sigan siendo útiles. Este componente tiene su propio interruptor de activación y desactivación en **Configuración → Plugins**, independiente del proveedor de resultados instantáneos del plugin.

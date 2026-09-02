@@ -61,6 +61,8 @@ Powered by the **Folder Cascader** plugin:
 3. **Custom Categories**: Configure nested submenus under **Settings → Plugins → Folder Cascader** (e.g. `Work/ProjectA`).
 4. **Quick Add Folder (`+` Button)**: Every submenu header features a small `+` button to save the currently browsed directory directly into that category.
 
+Category entries are navigation-only and expand without opening anything; a real folder or file entry can be clicked to navigate or open it directly.
+
 ## 4. Hardcoded Core Keys (Non-configurable)
 
 To ensure consistent and deterministic interaction, the following keys behave identically across all configurations:

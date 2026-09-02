@@ -140,5 +140,5 @@ public interface IDynamicActionProvider
 ## 4. 輔助資料結構
 
 - **`SearchableItem` / `InstantResultItem`**：包含 `Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（GDI 點陣圖控制代碼，宿主自動接管釋放）以及 `OnExecute` 執行委派。
-- **`DynamicMenuItem`**：包含 `Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsHeader`（設為 true 時轉譯為帶可選操作按鈕的分組標題行）。
+- **`DynamicMenuItem`**：包含 `Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`IsActionable`、`IsContinuation`、`OnExecute`、`IsHeader` 和 `ShortcutHint`。純分類節點只負責展開子功能表時應設定 `IsActionable = false`；真實資料夾節點可以保留預設值 `true`。`IsContinuation = true` 表示分頁子功能表的延續游標，主機會自動載入下一頁而不會轉譯可見的「載入更多」列。`IsHeader` 會將項目轉譯為帶可選操作按鈕的分組標題列。
 - **`SearchWindowType`**：列舉值包括 `Main`（主搜尋視窗）、`Quick`（置中快速浮動視窗）與 `Inline`（嵌入式檔案對話方塊）。

@@ -13,7 +13,7 @@ Lertaro 開発者向けリファレンスマニュアルへようこそ。Lertar
 
 | SDK カテゴリ | 主要インターフェイス・サービス | 主な機能 |
 | :--- | :--- | :--- |
-| **[検索コアとアクション](./sdk/core-search-actions)** | `ISearchableItemProvider`<br>`IInstantResultProvider`<br>`IAliasProvider`<br>`IQueryTokenProvider`<br>`ISearchResultAction`<br>`IDynamicActionProvider` | 静的インデックスソース、即時計算クエリ、非 ASCII エイリアス変換エンジン、末尾属性トークンハンドラー、静的・動的コンテキストメニュー。 |
+| **[検索コアとアクション](./sdk/core-search-actions)** | `ISearchableItemProvider`<br>`IInstantResultProvider`<br>`IFullSearchFileResultProvider`<br>`IAliasProvider`<br>`IQueryTokenProvider`<br>`ISearchResultAction`<br>`IDynamicActionProvider` | 静的インデックスソース、即時計算クエリ、フル検索ウィンドウのファイル結果、非 ASCII エイリアス変換エンジン、末尾属性トークンハンドラー、静的・動的コンテキストメニュー。 |
 | **[システムとダイアログの統合](./sdk/system-adapters)** | `IActivePathCollector`<br>`IFileDialogAdapter`<br>`IInlineSearchAdapter`<br>`IQuickNavigationProvider` | アクティブなファイラーのパス取得、標準ファイルダイアログのフック、インライン検索バーの埋め込みと双方向選択同期、クイックナビゲーションメニュー。 |
 | **[UI とプレビューの拡張](./sdk/ui-extensions)** | `ISidebarFilterProvider`<br>`IResultColumnProvider`<br>`IQuickPanelTabProvider`<br>`IFilePreviewProvider`<br>`IThumbnailProvider`<br>`IThemeProvider`<br>`ITranslationProvider` | サイドバーフィルターカテゴリ、テーブル列の拡張、クイックパネルの動的タブ、QuickLook プレビュー描画、サムネイル抽出、WPF テーマ、多言語 i18n。 |
 | **[共通データ構造と契約](./sdk/abstractions)** | `ISearchResult`<br>`FileMetadata`<br>`IPluginSearchWindow`<br>`IConfigurable` | 検索結果の読み取り専用モデル、高精度ファイルメタデータ、親ウィンドウの制御ハンドル、スキーマ駆動型ネイティブ設定フォーム。 |

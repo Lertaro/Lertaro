@@ -92,4 +92,4 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 }
 ```
 
-The host calls `GetFileResults` only during the full search window's final render. Return an empty list when the provider does not handle the query. Every returned `InstantResultItem` must represent an existing file or folder so the full window's path, size, and type columns remain meaningful. The component is managed by the same enable/disable switch as the plugin's instant-result provider.
+The host calls `GetFileResults` only during the full search window's final render. Return an empty list when the provider does not handle the query. Every returned `InstantResultItem` must represent an existing file or folder so the full window's path, size, and type columns remain meaningful. The component has its own enable/disable switch in **Settings → Plugins** and is independent of the plugin's instant-result provider.

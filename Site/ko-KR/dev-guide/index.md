@@ -13,7 +13,7 @@ Lertaro 개발자 참조 매뉴얼에 오신 것을 환영합니다. Lertaro는 
 
 | SDK 카테고리 | 핵심 인터페이스 및 서비스 | 주요 기능 설명 |
 | :--- | :--- | :--- |
-| **[검색 코어 및 액션](./sdk/core-search-actions)** | `ISearchableItemProvider`<br>`IInstantResultProvider`<br>`IAliasProvider`<br>`IQueryTokenProvider`<br>`ISearchResultAction`<br>`IDynamicActionProvider` | 정적 인덱스 소스, 실시간 연산 응답, 비 ASCII 별칭 변환 엔진, 쿼리 접미사 토큰 핸들러 및 정적/동적 컨텍스트 액션 메뉴. |
+| **[검색 코어 및 액션](./sdk/core-search-actions)** | `ISearchableItemProvider`<br>`IInstantResultProvider`<br>`IFullSearchFileResultProvider`<br>`IAliasProvider`<br>`IQueryTokenProvider`<br>`ISearchResultAction`<br>`IDynamicActionProvider` | 정적 인덱스 소스, 실시간 연산 응답, 전체 검색 창 파일 결과, 비 ASCII 별칭 변환 엔진, 쿼리 접미사 토큰 핸들러 및 정적/동적 컨텍스트 액션 메뉴. |
 | **[시스템 및 대화상자 어댑터](./sdk/system-adapters)** | `IActivePathCollector`<br>`IFileDialogAdapter`<br>`IInlineSearchAdapter`<br>`IQuickNavigationProvider` | 활성 파일 탐색기 경로 감지, 네이티브 파일 대화상자 후킹, 인라인 검색바 내장 및 양방향 선택 동기화, 퀵 내비게이션 메뉴. |
 | **[UI 및 미리보기 확장](./sdk/ui-extensions)** | `ISidebarFilterProvider`<br>`IResultColumnProvider`<br>`IQuickPanelTabProvider`<br>`IFilePreviewProvider`<br>`IThumbnailProvider`<br>`IThemeProvider`<br>`ITranslationProvider` | 사이드바 필터 카테고리, 테이블 뷰 커스텀 열, 퀵 패널 동적 탭, QuickLook 커스텀 미리보기 렌더러, 썸네일 추출, WPF 테마 리소스 딕셔너리, i18n 언어 팩. |
 | **[공유 추상화 계약](./sdk/abstractions)** | `ISearchResult`<br>`FileMetadata`<br>`IPluginSearchWindow`<br>`IConfigurable` | 검색 결과 읽기 전용 데이터 계약, 고정밀 파일 타임스탬프 및 크기 메타데이터, 호스트 윈도우 제어 핸들, 스키마 기반 네이티브 설정 폼. |
