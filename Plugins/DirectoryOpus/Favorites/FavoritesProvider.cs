@@ -178,6 +178,7 @@ public class FavoritesProvider : IQuickNavigationProvider
         _commandMap.Clear();
         _nextId = 0;
         _nextCmdId = 0;
+        FavoritesIcon.Invalidate();
     }
 
     private IntPtr AllocateHandle(FavoritesNode node)

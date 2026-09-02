@@ -32,23 +32,43 @@ internal static class FavoritesIcon
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DeleteObject(IntPtr hObject);
 
+    private static readonly object Sync = new();
     private static IntPtr _rootCached = IntPtr.Zero;
     private static IntPtr _menuGroupCached = IntPtr.Zero;
 
+    // Cache-and-reuse, never delete-on-replace: the provider builds every submenu row in ONE pass,
+    // and the host converts each row's HBITMAP only later, when the popup actually materializes.
+    // Deleting the previous handle on every GetMenuGroupHBitmap call invalidated all earlier rows'
+    // handles, leaving only the last-built row with a surviving icon (the same bug QuickNavIcon
+    // already fixed for CustomCommands). Invalidate() frees the handles once per popup session,
+    // which still lets a re-render track theme/accent changes between opens.
     public static IntPtr GetRootHBitmap()
     {
-        var fresh = Render(StarPath, viewBoxSize: 24);
-        if (_rootCached != IntPtr.Zero) DeleteObject(_rootCached);
-        _rootCached = fresh;
-        return _rootCached;
+        lock (Sync)
+        {
+            if (_rootCached == IntPtr.Zero) _rootCached = Render(StarPath, viewBoxSize: 24);
+            return _rootCached;
+        }
     }
 
     public static IntPtr GetMenuGroupHBitmap()
     {
-        var fresh = Render(MenuGroupPath, viewBoxSize: 24);
-        if (_menuGroupCached != IntPtr.Zero) DeleteObject(_menuGroupCached);
-        _menuGroupCached = fresh;
-        return _menuGroupCached;
+        lock (Sync)
+        {
+            if (_menuGroupCached == IntPtr.Zero) _menuGroupCached = Render(MenuGroupPath, viewBoxSize: 24);
+            return _menuGroupCached;
+        }
+    }
+
+    // Called from FavoritesProvider.ClearSession, once per popup session: no row from the just-closed
+    // or not-yet-built session can still rely on these handles.
+    public static void Invalidate()
+    {
+        lock (Sync)
+        {
+            if (_rootCached != IntPtr.Zero) { DeleteObject(_rootCached); _rootCached = IntPtr.Zero; }
+            if (_menuGroupCached != IntPtr.Zero) { DeleteObject(_menuGroupCached); _menuGroupCached = IntPtr.Zero; }
+        }
     }
 
     private static IntPtr RunOnSta(Func<IntPtr> render)

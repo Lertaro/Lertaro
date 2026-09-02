@@ -164,6 +164,7 @@ public class DirMenuProvider : IQuickNavigationProvider
         _commandMap.Clear();
         _nextId = 0;
         _nextCmdId = 0;
+        DirMenuIcon.Invalidate();
     }
 
     private IntPtr AllocateHandle(DirMenuNode node)
