@@ -9,7 +9,8 @@ public sealed class EverythingIpcServer : IDisposable
     private readonly object _lock = new();
     private Thread? _messageThread;
     private IntPtr _hwnd;
-    private bool _isRunning;
+    private volatile bool _isRunning;
+    private volatile bool _stopRequested;
     private int _disposed;
     private WndProcDelegate? _wndProc;
 
@@ -102,7 +103,7 @@ public sealed class EverythingIpcServer : IDisposable
     {
         lock (_lock)
         {
-            if (_isRunning || _disposed != 0) return true;
+            if (_disposed != 0 || _messageThread != null) return _isRunning;
 
             var startedEvent = new ManualResetEventSlim(false);
             _messageThread = new Thread(() => RunMessageLoop(startedEvent))
@@ -113,13 +114,11 @@ public sealed class EverythingIpcServer : IDisposable
             _messageThread.SetApartmentState(ApartmentState.STA);
             _messageThread.Start();
 
-            if (startedEvent.Wait(TimeSpan.FromSeconds(3)))
-            {
-                _isRunning = _hwnd != IntPtr.Zero;
-                return _isRunning;
-            }
-
-            return false;
+            // The thread itself reports readiness via _isRunning before signalling, so a timeout here
+            // only means "not ready YET": the thread may still complete creation moments later, and
+            // Stop/Dispose must then still be able to reclaim it (they no longer gate on _isRunning).
+            startedEvent.Wait(TimeSpan.FromSeconds(3));
+            return _isRunning;
         }
     }
 
@@ -178,9 +177,12 @@ public sealed class EverythingIpcServer : IDisposable
             Logger.Log($"[EverythingIpcServer] Failed to create window: {Marshal.GetLastWin32Error()}", LogLevel.Warn);
         }
 
+        _isRunning = _hwnd != IntPtr.Zero && !_stopRequested;
         startedEvent.Set();
 
-        while (GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
+        // _stopRequested checked so a Stop() that ran while the window was still being created
+        // exits immediately instead of settling into a message loop nobody will ever post to.
+        while (!_stopRequested && GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
         {
             TranslateMessage(ref msg);
             DispatchMessage(ref msg);
@@ -192,6 +194,7 @@ public sealed class EverythingIpcServer : IDisposable
             _hwnd = IntPtr.Zero;
         }
         UnregisterClass(className, hInstance);
+        _isRunning = false;
     }
 
     private IntPtr CustomWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam) => msg switch
@@ -205,7 +208,10 @@ public sealed class EverythingIpcServer : IDisposable
     {
         lock (_lock)
         {
-            if (!_isRunning) return;
+            // Unconditional: Start()'s 3s wait can time out while the thread goes on to finish window
+            // creation, and gating this on _isRunning would strand that thread plus its registered
+            // window class -- still answering Everything IPC -- for the life of the process.
+            _stopRequested = true;
             _isRunning = false;
 
             if (_hwnd != IntPtr.Zero)
