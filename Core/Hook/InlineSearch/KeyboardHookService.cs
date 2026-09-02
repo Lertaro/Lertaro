@@ -100,6 +100,22 @@ public class KeyboardHookService : IDisposable
     }
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
+        // Catch-all around the whole callback: an exception escaping a native low-level hook callback
+        // terminates the process (taking every global hook down with it). The body includes plugin
+        // reclassification and other fallible work -- log and let the keystroke pass through instead.
+        try
+        {
+            return HookCallbackCore(nCode, wParam, lParam);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[KeyboardHookService] Hook callback error: {ex.Message}", LogLevel.Error);
+            return KeyboardNativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);
+        }
+    }
+
+    private IntPtr HookCallbackCore(int nCode, IntPtr wParam, IntPtr lParam)
+    {
         if (nCode >= 0 && (wParam == (IntPtr)KeyboardNativeMethods.WM_KEYUP || wParam == (IntPtr)KeyboardNativeMethods.WM_SYSKEYUP))
         {
             var hookStruct = Marshal.PtrToStructure<KeyboardNativeMethods.KBDLLHOOKSTRUCT>(lParam);
@@ -206,7 +222,10 @@ public class KeyboardHookService : IDisposable
                         // lines below -- blindly deactivating here could clear that flag to false right
                         // before Quick Switch's own check saw it, on the keystroke that was supposed to
                         // trigger it in the first place.
-                        _explorerTracker.ReclassifyActiveWindow(fgHwnd);
+                        // Bounded variant: this runs inside the LL keyboard hook callback, where any
+                        // stall past LowLevelHooksTimeout gets the hook silently dropped -- see
+                        // ReclassifyActiveWindowBounded.
+                        _explorerTracker.ReclassifyActiveWindowBounded(fgHwnd);
                     }
                 }
             }

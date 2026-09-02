@@ -241,8 +241,11 @@ public sealed class HookProcess : IDisposable
     // Same gate as KeyboardHookService's shouldDisableAllHooks: a temporarily-disabled, blacklisted, or
     // fullscreen foreground app suppresses the quick-nav mouse triggers too, but still yields to an
     // active file dialog so FileDialogQuickNavGate's middle-click-in-dialogs support keeps working.
+    // Reads the hook service's cached settings rather than UserSettings.Load(): this runs inside the
+    // mouse hook callback, where a settings file I/O error (rethrown after persistence retries) would
+    // escape a native hook callback and terminate the process. ReloadSettings keeps the cache current.
     private bool ShouldSuppressQuickNavTrigger() => (_isHotkeysDisabledTemporarily
-                || ForegroundProcessGate.IsForegroundProcessBlacklisted(UserSettings.Load().BlacklistedProcesses)
+                || ForegroundProcessGate.IsForegroundProcessBlacklisted(_keyboardHook?._settings.BlacklistedProcesses ?? [])
                 || FullscreenHelper.IsForegroundWindowFullScreen())
                && !(_explorerTracker?.IsActiveWindowDialog ?? false);
 
