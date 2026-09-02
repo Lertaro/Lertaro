@@ -183,19 +183,26 @@ public static class ShellPathHelper
         var hdc = IntPtr.Zero;
         var hMemDC = IntPtr.Zero;
         var hBmp = IntPtr.Zero;
+        var hOld = IntPtr.Zero;
         try
         {
             hdc = GetDC(IntPtr.Zero);
             hMemDC = CreateCompatibleDC(hdc);
             hBmp = CreateCompatibleBitmap(hdc, size, size);
-            var hOld = SelectObject(hMemDC, hBmp);
+            hOld = SelectObject(hMemDC, hBmp);
             DrawIconEx(hMemDC, 0, 0, hIcon, size, size, 0, IntPtr.Zero, 0x0003 /* DI_NORMAL */);
             SelectObject(hMemDC, hOld);
             return hBmp;
         }
         catch
         {
-            if (hBmp != IntPtr.Zero) DeleteObject(hBmp);
+            // A bitmap still selected into its DC cannot be deleted -- DeleteObject would fail
+            // silently and leak the GDI object. Restore the old selection before deleting.
+            if (hBmp != IntPtr.Zero)
+            {
+                if (hMemDC != IntPtr.Zero && hOld != IntPtr.Zero) SelectObject(hMemDC, hOld);
+                DeleteObject(hBmp);
+            }
             return IntPtr.Zero;
         }
         finally
