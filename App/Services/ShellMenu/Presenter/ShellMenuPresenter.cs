@@ -37,6 +37,7 @@ public class ShellMenuPresenter : IDisposable
         _executor = new ActionsMenuExecutor(view, _commandToProviderMap, _navigator, ExitActionsMode);
         _mouseHandler = new ShellMenuMouseInputHandler(this, view);
         _view.LstActions.MouseMove += _mouseHandler.HandleActionsMouseMove;
+        _view.LstActions.PreviewMouseRightButtonUp += _mouseHandler.HandleActionsPreviewMouseRightButtonUp;
         // Drives the badge's own IsSelected-bound highlight (see ActionMenuItem.xaml's own comment) --
         // a plain data-bound flag kept in sync here instead of the ListBoxItem.IsSelected AncestorType
         // DataTrigger the results list's badge uses successfully, which rendered every action row's
@@ -59,7 +60,6 @@ public class ShellMenuPresenter : IDisposable
     }
     public bool IsInActionsMode => _isInActionsMode;
     public string SavedSearchQuery => _savedSearchQuery;
-
     public void EnterActionsMode(AppSearchResult result) => EnterActionsMode(new[] { result });
     public void HandleResultSelectionChanged(AppSearchResult? result)
     {

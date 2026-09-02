@@ -53,7 +53,7 @@ public static class SearchInputHelper
                 e.Handled = true;
                 return true;
             }
-            menuPresenter.ExitActionsMode();
+            menuPresenter.GoBackMenuOrExit();
             e.Handled = true;
             return true;
         }

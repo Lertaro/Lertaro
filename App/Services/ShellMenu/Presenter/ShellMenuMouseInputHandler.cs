@@ -44,6 +44,12 @@ internal sealed class ShellMenuMouseInputHandler
 
     public void ReseedHoverBaseline() => _lastHoverPos = Mouse.GetPosition(_view.LstActions);
 
+    public void HandleActionsPreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        _presenter.GoBackMenuOrExit();
+    }
+
     public void HandleActionsPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         var item = FindVisualParent<ListBoxItem>(e.OriginalSource as DependencyObject);

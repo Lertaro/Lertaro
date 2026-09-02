@@ -161,7 +161,7 @@
                         <Grid>
                             <TextBox x:Name="TxtActionsSearch"
                                      Height="32"
-                                     Padding="28,0,10,0"
+                                     Padding="24,0,10,0"
                                      Style="{StaticResource ThemedTextBox}"
                                      HorizontalContentAlignment="Left"/>
                             <TextBlock Text="&#xE721;"
@@ -173,7 +173,7 @@
                                        Margin="8,0,0,0"
                                        IsHitTestVisible="False"/>
                             <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_ActionsSearchPlaceholder]}"
-                                       Margin="28,0,10,0"
+                                       Margin="24,0,10,0"
                                        VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextSecondary}"
                                        IsHitTestVisible="False">
