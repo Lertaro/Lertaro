@@ -11,6 +11,8 @@
   "FlowLauncherBridge_Confirm": "確定",
   "FlowLauncherBridge_CommunityLoadingTitle": "正在取得 Flow 社群外掛程式清單...",
   "FlowLauncherBridge_CommunityLoadingDesc": "正在連線外掛程式倉庫，請稍候",
+  "FlowLauncherBridge_QueryPendingDesc": "Flow 外掛程式仍在回應，請繼續輸入或稍後重試",
+  "FlowLauncherBridge_QueryPendingTitle": "Flow: 正在查詢外掛程式...",
   "FlowLauncherBridge_CommunityInstalled": "已安裝",
   "FlowLauncherBridge_NoCommunityPlugins": "找不到相符的線上 Flow 外掛程式",
   "FlowLauncherBridge_Installing": "正在安裝...",

@@ -11,6 +11,8 @@
   "FlowLauncherBridge_Confirm": "确定",
   "FlowLauncherBridge_CommunityLoadingTitle": "正在获取 Flow 社区插件列表...",
   "FlowLauncherBridge_CommunityLoadingDesc": "正在连接插件仓库，请稍候",
+  "FlowLauncherBridge_QueryPendingDesc": "Flow 插件仍在响应，请继续输入或稍后重试",
+  "FlowLauncherBridge_QueryPendingTitle": "Flow: 正在查询插件...",
   "FlowLauncherBridge_CommunityInstalled": "已安装",
   "FlowLauncherBridge_NoCommunityPlugins": "未找到匹配的在线 Flow 插件",
   "FlowLauncherBridge_Installing": "正在安装...",

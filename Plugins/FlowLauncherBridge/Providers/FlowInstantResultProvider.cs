@@ -156,15 +156,39 @@ public class FlowInstantResultProvider : IInstantResultProvider
         return text.Contains(pattern, StringComparison.OrdinalIgnoreCase);
     }
 
+    // How long GetInstantResults may block the calling (UI) thread on a dispatch. In-process Flow
+    // plugins carry no internal timeout and script subprocesses cap at 15s -- without this bound a
+    // slow or wedged plugin froze the search window on every keystroke.
+    private const int DispatchTimeoutMs = 250;
+
     private IEnumerable<InstantResultItem> ExecuteDispatch(string q)
     {
         try
         {
-            var results = _dispatcher.DispatchQueryAsync(q).GetAwaiter().GetResult();
+            var results = _dispatcher
+                .DispatchQueryAsync(q)
+                .WaitAsync(TimeSpan.FromMilliseconds(DispatchTimeoutMs))
+                .GetAwaiter()
+                .GetResult();
             if (results == null || results.Count == 0)
                 return [];
 
             return FlowResultMapper.MapToInstantResults(results, _host);
+        }
+        catch (TimeoutException)
+        {
+            // The abandoned dispatch keeps running in the background; its results are dropped and
+            // the next keystroke re-dispatches. A short "querying" row replaces the frozen window
+            // this path used to produce.
+            return
+            [
+                new InstantResultItem
+                {
+                    Title = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_QueryPendingTitle"),
+                    Description = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_QueryPendingDesc"),
+                    ActionType = "None"
+                }
+            ];
         }
         catch
         {

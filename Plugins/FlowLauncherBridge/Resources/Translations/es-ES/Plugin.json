@@ -11,6 +11,8 @@
   "FlowLauncherBridge_Confirm": "Aceptar",
   "FlowLauncherBridge_CommunityLoadingTitle": "Obteniendo la lista de complementos de la comunidad Flow...",
   "FlowLauncherBridge_CommunityLoadingDesc": "Conectando al repositorio de complementos, por favor espera",
+  "FlowLauncherBridge_QueryPendingDesc": "Un complemento de Flow sigue respondiendo; sigue escribiendo o reintenta",
+  "FlowLauncherBridge_QueryPendingTitle": "Flow: consultando complementos...",
   "FlowLauncherBridge_CommunityInstalled": "Instalado",
   "FlowLauncherBridge_NoCommunityPlugins": "No se encontraron complementos de Flow en línea coincidentes",
   "FlowLauncherBridge_Installing": "Instalando...",
