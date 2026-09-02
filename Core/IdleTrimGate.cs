@@ -27,6 +27,8 @@ internal sealed class IdleTrimGate
     private readonly object _armLock = new();
 
     private long _lastActivityTicks;
+    // Guarded by _armLock, not Interlocked: the in-flight check inside ShouldTrim must be atomic with
+    // the arming decision, or a SearchStarted squeezing between them gets its trim granted anyway.
     private long _inFlight;
     private bool _armed;
 
@@ -46,8 +48,12 @@ internal sealed class IdleTrimGate
 
     public void SearchStarted(long nowTicks)
     {
-        Interlocked.Increment(ref _inFlight);
-        RecordActivity(nowTicks);
+        Interlocked.Exchange(ref _lastActivityTicks, nowTicks);
+        lock (_armLock)
+        {
+            _inFlight++;
+            _armed = true;
+        }
     }
 
     /// <summary>
@@ -56,8 +62,12 @@ internal sealed class IdleTrimGate
     /// </summary>
     public void SearchFinished(long nowTicks)
     {
-        Interlocked.Decrement(ref _inFlight);
-        RecordActivity(nowTicks);
+        Interlocked.Exchange(ref _lastActivityTicks, nowTicks);
+        lock (_armLock)
+        {
+            _inFlight--;
+            _armed = true;
+        }
     }
 
     /// <summary>
@@ -66,14 +76,16 @@ internal sealed class IdleTrimGate
     /// </summary>
     public bool ShouldTrim(long nowTicks)
     {
-        if (Interlocked.Read(ref _inFlight) > 0)
-            return false;
-
-        if (nowTicks - Interlocked.Read(ref _lastActivityTicks) <= _idleMs)
-            return false;
-
         lock (_armLock)
         {
+            // Same lock as SearchStarted/SearchFinished: the "never while a search is in flight"
+            // promise only holds if the in-flight count is read atomically with the arming decision.
+            if (_inFlight > 0)
+                return false;
+
+            if (nowTicks - Interlocked.Read(ref _lastActivityTicks) <= _idleMs)
+                return false;
+
             if (!_armed)
                 return false;
             _armed = false;
