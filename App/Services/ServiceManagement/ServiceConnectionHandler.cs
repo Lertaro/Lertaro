@@ -118,20 +118,33 @@ public class ServiceConnectionHandler : IDisposable
         // exit (up to 30s), so calling it synchronously from a Dispatcher poll tick would freeze the UI.
         _ = Task.Run(() =>
         {
-            var started = ServiceInstallManager.SilentInstall(() =>
-            {
-                var dispatcher = Application.Current?.Dispatcher;
-                if (dispatcher == null)
-                    return;
-                dispatcher.BeginInvoke(new Action(() =>
+            var result = ServiceInstallManager.SilentInstall(
+                onCompleted: () =>
                 {
-                    _globalAutoInstallingService = false;
-                    BeginServiceReconnectGracePeriod();
-                    NotifySubscribers(subscriber => subscriber._onServiceInstallCompleted());
-                }));
-            });
+                    var dispatcher = Application.Current?.Dispatcher;
+                    if (dispatcher == null)
+                        return;
+                    dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        _globalAutoInstallingService = false;
+                        BeginServiceReconnectGracePeriod();
+                        NotifySubscribers(subscriber => subscriber._onServiceInstallCompleted());
+                    }));
+                },
+                onFailed: ex =>
+                {
+                    var dispatcher = Application.Current?.Dispatcher;
+                    if (dispatcher == null)
+                        return;
+                    dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        _globalAutoInstallingService = false;
+                        BeginServiceReconnectGracePeriod();
+                        NotifySubscribers(subscriber => subscriber._onServiceFailedToStart());
+                    }));
+                });
 
-            if (!started)
+            if (result == ServiceInstallManager.SilentInstallResult.AlreadyRunning)
             {
                 Logger.Log("[ServiceConnectionHandler] Silent service install already running; waiting for reconnect.", LogLevel.Debug);
                 var dispatcher = Application.Current?.Dispatcher;
