@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Lertaro.App.Helpers;
 using Lertaro.App.Services.AppWindow;
 
 namespace Lertaro.App.Services.ShellMenu.Presenter;
@@ -47,7 +48,7 @@ internal sealed class ShellMenuMouseInputHandler
     public void HandleActionsPreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        _presenter.GoBackMenuOrExit();
+        SearchInputHelper.HandleActionsEscape(_view, _presenter);
     }
 
     public void HandleActionsPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)

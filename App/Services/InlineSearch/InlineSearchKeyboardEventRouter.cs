@@ -61,7 +61,7 @@ internal sealed class InlineSearchKeyboardEventRouter
             {
                 var window = _getWindow();
                 if (window != null && window.MenuPresenter.IsInActionsMode)
-                    window.MenuPresenter.ExitActionsMode();
+                    SearchInputHelper.HandleActionsEscape(window, window.MenuPresenter);
                 else
                     InlineSearchManager.Instance.CloseInlineSearch();
             }));

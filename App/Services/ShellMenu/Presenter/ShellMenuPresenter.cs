@@ -61,12 +61,6 @@ public class ShellMenuPresenter : IDisposable
     public bool IsInActionsMode => _isInActionsMode;
     public string SavedSearchQuery => _savedSearchQuery;
     public void EnterActionsMode(AppSearchResult result) => EnterActionsMode(new[] { result });
-    public void HandleResultSelectionChanged(AppSearchResult? result)
-    {
-        if (!_isInActionsMode) return;
-        if (result == null || !CanShowActionsMenu(new[] { result })) { ExitActionsMode(); return; }
-        if (!ReferenceEquals(_activeResult, result)) { ExitActionsMode(); EnterActionsMode(result); }
-    }
 
     /// <summary>
     /// Whether the actions menu is allowed to open for this selection right now. Scenarios that
@@ -96,7 +90,13 @@ public class ShellMenuPresenter : IDisposable
     public void EnterActionsMode(IReadOnlyList<AppSearchResult> selection)
     {
         if (!CanShowActionsMenu(selection))
+        {
+            // An explicit right-click or actions-hotkey on another result must dismiss the current
+            // menu when that result cannot provide actions; selection changes alone remain passive.
+            if (_isInActionsMode)
+                ExitActionsMode();
             return;
+        }
 
         // Keep only real, actionable results; the first is the primary (used for the header).
         var items = selection?.Where(r => r != null && !r.IsSearchSectionHeader && !r.IsEmptyResult).ToList() ?? new List<AppSearchResult>();
@@ -139,11 +139,8 @@ public class ShellMenuPresenter : IDisposable
         var actionSearch = GetActionSearchTextBox();
         actionSearch.Clear();
         ApplyFilter(string.Empty);
-        if (_view.UsesFloatingActionsMenu)
-        {
-            actionSearch.Focus();
-            Keyboard.Focus(actionSearch);
-        }
+        actionSearch.Focus();
+        Keyboard.Focus(actionSearch);
         _view.UpdateActionsLayout();
 
         // 2. Build the dynamic (potentially slow shell) group off the UI thread, capped at 2s. When it

@@ -47,13 +47,7 @@ public static class SearchInputHelper
 
         if (e.Key == Key.Escape && noModifiers)
         {
-            if (actionSearchBox != null && !string.IsNullOrEmpty(actionSearchBox.Text))
-            {
-                actionSearchBox.Clear();
-                e.Handled = true;
-                return true;
-            }
-            menuPresenter.GoBackMenuOrExit();
+            HandleActionsEscape(window, menuPresenter);
             e.Handled = true;
             return true;
         }
@@ -120,6 +114,22 @@ public static class SearchInputHelper
         }
 
         return false;
+    }
+
+    // Keep every actions-menu Escape entry point identical, including mouse right-click and the
+    // inline window's global keyboard hook. A non-empty action filter is cleared first; only the next
+    // Escape-equivalent input navigates back or exits the actions menu.
+    public static bool HandleActionsEscape(ISearchWindow? window, ShellMenuPresenter menuPresenter)
+    {
+        var actionSearchBox = window?.UsesFloatingActionsMenu == true ? window.ActionsSearchTextBox : window?.SearchTextBox;
+        if (actionSearchBox != null && !string.IsNullOrEmpty(actionSearchBox.Text))
+        {
+            actionSearchBox.Clear();
+            return true;
+        }
+
+        menuPresenter.GoBackMenuOrExit();
+        return true;
     }
 
     /// <summary>

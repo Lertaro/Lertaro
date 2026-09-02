@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using Lertaro.App.Services.AppWindow;
 using Lertaro.App.Helpers;
 
@@ -50,6 +51,7 @@ internal sealed class ActionsMenuNavigator
             _menuStack.Push(item.SubMenuHandle);
             _menuSelectedIndexStack.Push(_view.LstActions.SelectedIndex);
             _menuTitleStack.Push(item.Text);
+            FocusActionSearch();
             _loadMenuItems(item.SubMenuHandle);
         }
     }
@@ -61,6 +63,7 @@ internal sealed class ActionsMenuNavigator
             _menuStack.Pop();
             if (_menuTitleStack.Count > 0) _menuTitleStack.Pop();
             var parentMenu = _menuStack.Count > 0 ? _menuStack.Peek() : IntPtr.Zero;
+            FocusActionSearch();
             _loadMenuItems(parentMenu);
             if (_menuSelectedIndexStack.Count > 0)
             {
@@ -73,5 +76,13 @@ internal sealed class ActionsMenuNavigator
             }
         }
         else _exitActionsMode();
+    }
+
+    private void FocusActionSearch()
+    {
+        var searchBox = _view.UsesFloatingActionsMenu ? _view.ActionsSearchTextBox : _view.SearchTextBox;
+        searchBox.Clear();
+        searchBox.Focus();
+        Keyboard.Focus(searchBox);
     }
 }

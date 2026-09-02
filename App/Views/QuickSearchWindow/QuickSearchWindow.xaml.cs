@@ -141,7 +141,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         UiMetrics.ScaleChanged += _scaleChangedHandler;
         LstResults.SelectionChanged += (s, e) =>
         {
-            _menuPresenter.HandleResultSelectionChanged(LstResults.SelectedItem as AppSearchResult);
             if (LstResults.SelectedItem is AppSearchResult result && result.CanPreview)
             {
                 QuickLookManager.Instance.UpdateOrShow(this, result.FullPath);
