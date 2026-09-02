@@ -39,6 +39,16 @@ internal static class UiaPathAccessor
     {
         try
         {
+            // Sweep entries whose window is gone: only the per-hwnd lookup in
+            // FindNearestPaneElement removed them before, so a window that closed and was never
+            // queried again kept its AutomationElement (a UIA COM RCW) alive in this static
+            // dictionary for the process lifetime.
+            foreach (var cached in _focusAnchors)
+            {
+                if (!IsWindow(cached.Key))
+                    _focusAnchors.TryRemove(cached.Key, out _);
+            }
+
             var focused = AutomationElement.FocusedElement;
             if (focused != null)
                 _focusAnchors[hwnd] = focused;
