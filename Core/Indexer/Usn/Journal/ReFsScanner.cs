@@ -106,14 +106,25 @@ public static class ReFsScanner
                 await foreach (var dirId in channel.Reader.ReadAllAsync(token))
                 {
                     token.ThrowIfCancellationRequested();
-                    ProcessDir(volumeHandle, dirId, items, diffBaseline, checkpointState, onProgress, ref files, ref dirs, ref errorCount, subId =>
+                    try
                     {
-                        Interlocked.Increment(ref inFlight);
-                        channel.Writer.TryWrite(subId);
-                    });
-                    // Only one thread sees 0; it completes the channel, ending all ReadAllAsync loops.
-                    if (Interlocked.Decrement(ref inFlight) == 0)
-                        channel.Writer.TryComplete();
+                        ProcessDir(volumeHandle, dirId, items, diffBaseline, checkpointState, onProgress, ref files, ref dirs, ref errorCount, subId =>
+                        {
+                            Interlocked.Increment(ref inFlight);
+                            channel.Writer.TryWrite(subId);
+                        });
+                    }
+                    finally
+                    {
+                        // Only one thread sees 0; it completes the channel, ending all ReadAllAsync
+                        // loops. Must run in a finally: a non-cancellation exception out of
+                        // ProcessDir (checkpoint write I/O, a throwing progress callback) would
+                        // otherwise leave inFlight stuck above zero, the channel permanently open,
+                        // and every worker blocked in ReadAllAsync forever -- hanging the whole
+                        // scan past Task.WaitAll instead of failing it.
+                        if (Interlocked.Decrement(ref inFlight) == 0)
+                            channel.Writer.TryComplete();
+                    }
                 }
             }, token)).ToArray();
 
