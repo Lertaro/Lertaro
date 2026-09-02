@@ -10,7 +10,15 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
     private const string TranslateIcon = "M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53h2.93V4h-7V2H8v2H1v2h11.17c-.68 1.95-1.75 3.79-3.17 5.41-1.02-1.13-1.86-2.37-2.51-3.7H4.48a16.4 16.4 0 0 0 3.13 5.21l-5.09 5.03L3.93 19.36 9 14.34l3.16 3.16.71-2.43zM18.5 10h-2L12 22h2l1.12-3h4.25l1.13 3h2l-4-12zm-2.63 7 1.37-3.67L18.63 17h-2.76z";
 
     private static readonly TimeSpan DebounceDelay = TimeSpan.FromMilliseconds(150);
+    // A failed request is cached only briefly, so the same input is not re-fetched on every refresh
+    // of the query -- but a transient network error must not pin the input as failed forever. After
+    // the lifetime below the failure entry becomes invisible and the next keystroke retries.
+    private static readonly TimeSpan FailureCacheLifetime = TimeSpan.FromSeconds(30);
+    // ponytail: FIFO eviction keeps the cache bounded without an LRU structure; entries are small and
+    // the natural turnover (one per distinct input) makes a proper LRU upgrade an easy follow-up.
+    private const int MaxCacheEntries = 256;
     private static readonly Dictionary<string, TranslationCacheEntry> Cache = new(StringComparer.Ordinal);
+    private static readonly Queue<string> CacheInsertionOrder = new();
     private static readonly HashSet<string> PendingRequests = new(StringComparer.Ordinal);
     private static string? _cachedTrigger;
     private static string? _latestRequestKey;
@@ -86,7 +94,17 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
     private static bool TryGetCached(string key, out TranslationCacheEntry entry)
     {
         lock (Cache)
-            return Cache.TryGetValue(key, out entry);
+        {
+            if (!Cache.TryGetValue(key, out entry))
+                return false;
+
+            if (entry.Translation == null && DateTimeOffset.UtcNow - entry.CachedAtUtc >= FailureCacheLifetime)
+            {
+                Cache.Remove(key);
+                return false;
+            }
+            return true;
+        }
     }
 
     private static void EnsureFetchStarted(string key, string text, string targetLanguage, string trigger, string requestQuery)
@@ -112,11 +130,16 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
                 }
                 catch
                 {
-                    // A failed request is cached for this exact input to prevent retrying on every refresh.
+                    // translation stays null: cached as a short-lived failure (see FailureCacheLifetime).
                 }
 
                 lock (Cache)
-                    Cache[key] = new TranslationCacheEntry(translation);
+                {
+                    Cache[key] = new TranslationCacheEntry(translation, DateTimeOffset.UtcNow);
+                    CacheInsertionOrder.Enqueue(key);
+                    while (Cache.Count > MaxCacheEntries && CacheInsertionOrder.TryDequeue(out var oldest))
+                        Cache.Remove(oldest);
+                }
             }
             finally
             {
@@ -130,5 +153,5 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
         });
     }
 
-    private readonly record struct TranslationCacheEntry(TranslationResponse? Translation);
+    private readonly record struct TranslationCacheEntry(TranslationResponse? Translation, DateTimeOffset CachedAtUtc);
 }
