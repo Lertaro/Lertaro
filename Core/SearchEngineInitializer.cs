@@ -83,7 +83,6 @@ internal class SearchEngineInitializer
             if (loadedFromCache)
             {
                 // Catch up from the cached USN silently in background
-                var catchUpSuccess = true;
                 var updatedMetadata = new List<(string Drive, ulong JournalId, long NextUsn)>();
 
                 for (var i = 0; i < cachedMetadata.Count; i++)
@@ -108,38 +107,30 @@ internal class SearchEngineInitializer
 
                     if (newUsn < 0)
                     {
-                        Logger.Log($"[SearchEngineInitializer] Silent catch-up failed for drive {meta.Drive} (journal mismatch or error). Requiring full re-index.", LogLevel.Error);
-                        catchUpSuccess = false;
-                        break;
+                        // One drive's journal mismatch (journal recreated, drive letter reassigned, ...)
+                        // must not discard every OTHER drive's freshly loaded index: keep this drive out
+                        // of updatedMetadata so it lands in the per-drive rebuild set below, while the
+                        // rest keep serving search from their loaded caches. CatchUpDrive applies nothing
+                        // on failure (records only go in when the new USN is valid), so the stale index
+                        // stays consistent until its rebuild replaces it.
+                        Logger.Log($"[SearchEngineInitializer] Silent catch-up failed for drive {meta.Drive} (journal mismatch or error). Requiring a per-drive re-index.", LogLevel.Error);
+                        continue;
                     }
 
                     updatedMetadata.Add((meta.Drive, meta.JournalId, newUsn));
                 }
 
-                if (catchUpSuccess)
-                {
-                    Logger.Log("[SearchEngineInitializer] Silent background catch-up completed successfully.");
-                    monitorsToStart.AddRange(updatedMetadata);
-                    TrySaveDriveCache(updatedMetadata, "catch-up");
+                Logger.Log("[SearchEngineInitializer] Silent background catch-up completed.");
+                monitorsToStart.AddRange(updatedMetadata);
+                TrySaveDriveCache(updatedMetadata, "catch-up");
 
-                    var loadedDrives = new HashSet<string>(updatedMetadata.Select(m => m.Drive), StringComparer.OrdinalIgnoreCase);
-                    var missingDrives = supportedDrives.Where(d => !loadedDrives.Contains(d)).ToList();
-                    if (missingDrives.Count > 0)
-                    {
-                        Logger.Log($"[SearchEngineInitializer] Building missing/incomplete per-drive indices: {string.Join(", ", missingDrives)}");
-                        var missingMetadata = _indexer.BuildDrives(missingDrives, clearExisting: false, cacheDir: _indexCacheDir);
-                        monitorsToStart.AddRange(missingMetadata);
-                    }
-                }
-                else
+                var loadedDrives = new HashSet<string>(updatedMetadata.Select(m => m.Drive), StringComparer.OrdinalIgnoreCase);
+                var missingDrives = supportedDrives.Where(d => !loadedDrives.Contains(d)).ToList();
+                if (missingDrives.Count > 0)
                 {
-                    // Fallback to full reindex
-                    loadedFromCache = false;
-                    lock (_indexer.LockObj)
-                    {
-                        _indexer.Status.State = "indexing";
-                        _indexer.Status.Progress = 0;
-                    }
+                    Logger.Log($"[SearchEngineInitializer] Building missing/incomplete/failed per-drive indices: {string.Join(", ", missingDrives)}");
+                    var missingMetadata = _indexer.BuildDrives(missingDrives, clearExisting: false, cacheDir: _indexCacheDir);
+                    monitorsToStart.AddRange(missingMetadata);
                 }
             }
 
