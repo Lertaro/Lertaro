@@ -4,6 +4,7 @@
              xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
              xmlns:services="clr-namespace:Lertaro.App.Services"
              xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+             xmlns:converters="clr-namespace:Lertaro.App.Converters"
              MaxHeight="{Binding LaunchPanelMaxHeight}"
              Height="{Binding LaunchPanelHeight}"
              Background="Transparent"
@@ -17,7 +18,7 @@
                 <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
                 <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-        <Style x:Key="LaunchItemCardStyle" TargetType="Border">
+            <Style x:Key="LaunchItemCardStyle" TargetType="Border">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Margin" Value="2"/>
             <Setter Property="Height" Value="92"/>
@@ -111,7 +112,8 @@
                                     <ScrollViewer Width="94" Height="30" Margin="0,5,0,0"
                                                   HorizontalContentAlignment="Center"
                                                   HorizontalScrollBarVisibility="Hidden"
-                                                  VerticalScrollBarVisibility="Disabled" Focusable="False">
+                                                  VerticalScrollBarVisibility="Disabled" Focusable="False"
+                                                  converters:ScrollViewerHelper.BubbleMouseWheel="True">
                                         <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}"
                                                    FontSize="11" TextWrapping="NoWrap" TextTrimming="None"
                                                    HorizontalAlignment="Center" TextAlignment="Center"

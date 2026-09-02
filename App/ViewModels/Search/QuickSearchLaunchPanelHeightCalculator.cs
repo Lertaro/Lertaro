@@ -7,7 +7,9 @@ internal static class QuickSearchLaunchPanelHeightCalculator
     // making the calculated panel height smaller than the rendered UniformGrid rows and showing a
     // scrollbar even when all items technically fit.
     private const double LaunchItemSlotHeight = 104;
-    private const double ItemsVerticalPadding = 12;
+    // Keep a small bottom buffer for the ListView's content presenter so an exactly fitting last row
+    // does not become a fractional overflow and reveal the overlay scrollbar.
+    private const double ItemsVerticalPadding = 16;
     private const double SourceTabsHeight = 38;
     private const double SourceTabsBottomMargin = 2;
 
