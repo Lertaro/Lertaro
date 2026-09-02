@@ -67,6 +67,7 @@
 
             <!-- ═══════════ 4. Results Panel ═══════════ -->
             <results:ResultsControl x:Name="ResultsPanelControl" Grid.Row="2"
+                                  UsesFloatingActionsLayout="True"
                                   ItemsSource="{Binding Results}"
                                   SelectedItem="{Binding SelectedResult, Mode=TwoWay}"
                                   ViewMode="List"

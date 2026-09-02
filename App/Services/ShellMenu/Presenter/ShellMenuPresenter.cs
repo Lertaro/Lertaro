@@ -4,11 +4,9 @@ using System.Windows.Input;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.App.Services.AppWindow;
-
 using Lertaro.App.Services.Plugin;
 using Lertaro.App.Services.ShellMenu.ActionFlyout;
 namespace Lertaro.App.Services.ShellMenu.Presenter;
-
 /// <summary>
 /// Reusable shell context menu presenter that drives the Actions list view
 /// for any search window implementing ISearchWindow.
@@ -23,7 +21,6 @@ public class ShellMenuPresenter : IDisposable
     private readonly ActionsMenuNavigator _navigator;
     private readonly ActionsMenuExecutor _executor;
     private readonly ShellMenuMouseInputHandler _mouseHandler;
-
     // Mappings to trace which provider owns which item/submenu at runtime
 
     private readonly Dictionary<uint, IDynamicActionProvider> _commandToProviderMap = new();
@@ -69,6 +66,12 @@ public class ShellMenuPresenter : IDisposable
     public string SavedSearchQuery => _savedSearchQuery;
 
     public void EnterActionsMode(AppSearchResult result) => EnterActionsMode(new[] { result });
+    public void HandleResultSelectionChanged(AppSearchResult? result)
+    {
+        if (!_isInActionsMode) return;
+        if (result == null || !CanShowActionsMenu(new[] { result })) { ExitActionsMode(); return; }
+        if (!ReferenceEquals(_activeResult, result)) { ExitActionsMode(); EnterActionsMode(result); }
+    }
 
     /// <summary>
     /// Whether the actions menu is allowed to open for this selection right now. Scenarios that
@@ -131,7 +134,8 @@ public class ShellMenuPresenter : IDisposable
         //    context menu never delays the whole list appearing.
         _isInActionsMode = true;
         _view.IsInActionsMode = true;
-        _view.GridSearchResults.Visibility = Visibility.Collapsed;
+        if (!_view.UsesFloatingActionsMenu)
+            _view.GridSearchResults.Visibility = Visibility.Collapsed;
         _view.GridActions.Visibility = Visibility.Visible;
         _view.TxtActionsTarget.Text = Path.GetFileName(result.FullPath) + (items.Count > 1 ? $" (+{items.Count - 1})" : string.Empty);
 
@@ -191,17 +195,8 @@ public class ShellMenuPresenter : IDisposable
     private void LoadMenuItems(IntPtr hMenu)
     {
         if (_activeResult == null) return;
-        // Update header text based on current menu level
-
-        if (hMenu == IntPtr.Zero)
-        {
-            _view.TxtActionsTarget.Text = Path.GetFileName(_activeResult.FullPath);
-        }
-
-        else if (_navigator.CurrentSubMenuTitle is { } subMenuTitle)
-        {
-            _view.TxtActionsTarget.Text = subMenuTitle;
-        }
+        // The header always describes the original target; submenu titles belong to the menu items.
+        _view.TxtActionsTarget.Text = Path.GetFileName(_activeResult.FullPath) + (_activeResults.Count > 1 ? $" (+{_activeResults.Count - 1})" : string.Empty);
 
         var finalItems = ActionMenuBuilder.Build(
             _activeResults,
@@ -255,7 +250,8 @@ public class ShellMenuPresenter : IDisposable
         _subMenuToProviderMap.Clear();
         _navigator.Reset();
         _view.GridActions.Visibility = Visibility.Collapsed;
-        _view.GridSearchResults.Visibility = Visibility.Visible;
+        if (!_view.UsesFloatingActionsMenu)
+            _view.GridSearchResults.Visibility = Visibility.Visible;
         _view.UpdateActionsLayout();
 
         // Restore the saved query while IsInActionsMode is still true, so a host window's own

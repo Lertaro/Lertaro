@@ -182,7 +182,6 @@ public partial class InlineSearchWindow : Window, ISearchWindow
     }
 
     // ==========================================
-
     // Exposed Child Controls matching QuickSearchWindow for ShellMenuPresenter
 
     // ==========================================
@@ -193,6 +192,7 @@ public partial class InlineSearchWindow : Window, ISearchWindow
     public Grid GridActions => ResultsPanelControl.ActionsGrid;
     public TextBlock TxtActionsTarget => ResultsPanelControl.ActionsTargetTextBlock;
     public ListBox LstActions => ResultsPanelControl.LstActions;
+    public bool UsesFloatingActionsMenu => false;
     public string SearchText => _searchText;
     public System.Windows.Controls.TextBox SearchTextBox => SearchBox.SearchTextBox;
 

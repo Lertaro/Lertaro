@@ -122,7 +122,6 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     }
 
     // ==========================================
-
     // ISearchWindow Interface Implementation
 
     // ==========================================
@@ -133,6 +132,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     Grid ISearchWindow.GridActions => ResultsPanelControl.ActionsGrid;
     TextBlock ISearchWindow.TxtActionsTarget => ResultsPanelControl.ActionsTargetTextBlock;
     ListBox ISearchWindow.LstActions => ResultsPanelControl.ActionsListBox;
+    public bool UsesFloatingActionsMenu => false;
     public string SearchText => SearchBox.SearchTextBox.Text;
     public TextBox SearchTextBox => SearchBox.SearchTextBox;
 

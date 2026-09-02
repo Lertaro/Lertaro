@@ -73,6 +73,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public Grid GridActions => ResultsPanelControl.ActionsGrid;
     public TextBlock TxtActionsTarget => ResultsPanelControl.ActionsTargetTextBlock;
     public ListBox LstActions => ResultsPanelControl.ActionsListBox;
+    public bool UsesFloatingActionsMenu => true;
     public void UpdateActionsLayout() => _layoutManager.UpdateActionsLayout();
     internal void ExecuteFavorite(AppSearchResult result) => _resultExecutor.Execute(result);
     // Runs the results-panel height computation synchronously instead of through the normal deferred
@@ -137,6 +138,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         UiMetrics.ScaleChanged += _scaleChangedHandler;
         LstResults.SelectionChanged += (s, e) =>
         {
+            _menuPresenter.HandleResultSelectionChanged(LstResults.SelectedItem as AppSearchResult);
             if (LstResults.SelectedItem is AppSearchResult result && result.CanPreview)
             {
                 QuickLookManager.Instance.UpdateOrShow(this, result.FullPath);

@@ -19,6 +19,7 @@ public interface ISearchWindow : IPluginSearchWindow
     ListBox LstActions { get; }
     string SearchText { get; }
     System.Windows.Controls.TextBox SearchTextBox { get; }
+    bool UsesFloatingActionsMenu { get; }
     bool IsInActionsMode { get; set; }
     void UpdateActionsLayout();
     void FocusSearch();
