@@ -55,6 +55,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         SearchBox.IconLeftClicked += (_, _) => TrayIconService.Instance?.ShowMenuAt(SearchBox, hideShowWindow: true);
         SearchBox.IconMiddleClicked += () => SearchWindowStayOpenSupport.Toggle(this);
         this.PreviewKeyDown += Window_PreviewKeyDown;
+        this.PreviewMouseDown += (_, e) => _inputHandler.HandleWindowPreviewMouseDown(e);
         this.StateChanged += SearchWindow_StateChanged;
 
         // The maximized-size cap that keeps the window off the taskbar is applied per-monitor in
@@ -116,7 +117,6 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         };
 
         ResultsPanelControl.ActionsListBox.PreviewMouseLeftButtonUp += _menuPresenter.HandleActionsPreviewMouseLeftButtonUp;
-
         TxtSearchBoxControl.ContextMenuOpening += (s, e) => _inputHandler.HandleSearchBoxContextMenuOpening(e);
     }
 
@@ -132,7 +132,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     TextBlock ISearchWindow.TxtActionsTarget => ResultsPanelControl.ActionsTargetTextBlock;
     ListBox ISearchWindow.LstActions => ResultsPanelControl.ActionsListBox;
     TextBox ISearchWindow.ActionsSearchTextBox => ResultsPanelControl.ActionsSearchTextBox;
-    public bool UsesFloatingActionsMenu => false;
+    public bool UsesFloatingActionsMenu => true;
     public string SearchText => SearchBox.SearchTextBox.Text;
     public TextBox SearchTextBox => SearchBox.SearchTextBox;
 
@@ -141,7 +141,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         get => SearchBox.IsInActionsMode;
         set
         {
-            SearchBox.IsInActionsMode = value;
+            SearchBox.IsInActionsMode = value && !UsesFloatingActionsMenu;
             _viewModel?.IsActionsMode = value;
         }
     }

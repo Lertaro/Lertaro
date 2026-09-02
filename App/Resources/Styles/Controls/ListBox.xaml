@@ -1,6 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals">
+                    xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+                    xmlns:services="clr-namespace:Lertaro.App.Services">
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="../Tokens/Colors.xaml"/>
         <ResourceDictionary Source="../Tokens/Spacing.xaml"/>
@@ -166,6 +167,15 @@
             <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro">
                 <Setter Property="MinHeight" Value="{Binding ScaledItemHeight}"/>
             </DataTrigger>
+            <!-- Full window action rows use the normal list-item height so the floating panel does not
+                 look undersized beside the full-window result rows. Separators stay compact. -->
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=UseRoomyActionRows}" Value="True"/>
+                    <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="MinHeight" Value="{x:Static services:UiMetrics.ListItemHeight}"/>
+            </MultiDataTrigger>
         </Style.Triggers>
     </Style>
 
