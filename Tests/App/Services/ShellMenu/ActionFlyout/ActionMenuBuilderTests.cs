@@ -122,4 +122,31 @@ public sealed class ActionMenuBuilderTests
     [TestMethod]
     public void FinalizeItems_EmptyList_ReturnsEmpty() =>
         Assert.IsEmpty(ActionMenuBuilder.FinalizeItems(new List<ActionMenuItem>()));
+
+    [TestMethod]
+    public void PrependSubmenuGroupHeader_WithParentTitle_InsertsVirtualHeader()
+    {
+        var items = new List<ActionMenuItem> { Item("Open") };
+
+        ActionMenuBuilder.PrependSubmenuGroupHeader(items, "Send to");
+
+        Assert.HasCount(2, items);
+        Assert.IsTrue(items[0].IsSectionHeader);
+        Assert.AreEqual("Send to", items[0].SectionTitle);
+        Assert.AreEqual("Open", items[1].Text);
+    }
+
+    [TestMethod]
+    public void PrependSubmenuGroupHeader_WithoutItemsOrTitle_DoesNothing()
+    {
+        var emptyItems = new List<ActionMenuItem>();
+        var items = new List<ActionMenuItem> { Item("Open") };
+
+        ActionMenuBuilder.PrependSubmenuGroupHeader(emptyItems, "Send to");
+        ActionMenuBuilder.PrependSubmenuGroupHeader(items, " ");
+
+        Assert.IsEmpty(emptyItems);
+        Assert.HasCount(1, items);
+        Assert.AreEqual("Open", items[0].Text);
+    }
 }

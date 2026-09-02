@@ -192,7 +192,6 @@ public class ShellMenuPresenter : IDisposable
             }));
         });
     }
-
     private void LoadMenuItems(IntPtr hMenu)
     {
         if (_activeResult == null) return;
@@ -206,11 +205,12 @@ public class ShellMenuPresenter : IDisposable
             _commandToProviderMap,
             _subMenuToProviderMap
         );
+        if (hMenu != IntPtr.Zero)
+            ActionMenuBuilder.PrependSubmenuGroupHeader(finalItems, _navigator.CurrentSubMenuTitle);
         _currentRawItems = finalItems;
         ApplyFilter(GetActionSearchTextBox().Text);
         _view.UpdateActionsLayout();
     }
-
     private void ApplyFilter(string filter)
     {
         if (!_isInActionsMode) return;

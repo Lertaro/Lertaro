@@ -158,37 +158,40 @@
                     </Border>
                     <!-- Quick-window-only action filter. It keeps the main query untouched. -->
                     <Border x:Name="ActionsSearchRow" Grid.Row="1" Margin="10,6,10,6" Visibility="Collapsed">
-                        <Grid>
-                            <TextBox x:Name="TxtActionsSearch"
-                                     Height="32"
-                                     Padding="24,0,10,0"
-                                     Style="{StaticResource ThemedTextBox}"
-                                     HorizontalContentAlignment="Left"/>
-                            <TextBlock Text="&#xE721;"
-                                       FontFamily="Segoe MDL2 Assets"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource TextSecondary}"
-                                       HorizontalAlignment="Left"
-                                       VerticalAlignment="Center"
-                                       Margin="8,0,0,0"
-                                       IsHitTestVisible="False"/>
-                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_ActionsSearchPlaceholder]}"
-                                       Margin="24,0,10,0"
-                                       VerticalAlignment="Center"
-                                       Foreground="{DynamicResource TextSecondary}"
-                                       IsHitTestVisible="False">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding Text, ElementName=TxtActionsSearch}" Value="">
-                                                <Setter Property="Visibility" Value="Visible"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </Grid>
+                        <Border Height="32"
+                                CornerRadius="{StaticResource CornerRadiusControl}"
+                                Background="{DynamicResource ControlBackground}"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,4,0"/>
+                                <Grid Grid.Column="1">
+                                    <TextBox x:Name="TxtActionsSearch" Background="Transparent" BorderThickness="0" FontSize="12"
+                                             Foreground="{DynamicResource TextPrimary}"
+                                             CaretBrush="{DynamicResource TextPrimary}"
+                                             Padding="0,0,8,0" VerticalContentAlignment="Center"/>
+                                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_ActionsSearchPlaceholder]}"
+                                               IsHitTestVisible="False" FontSize="12" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondary}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=TxtActionsSearch}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </Grid>
+                        </Border>
                     </Border>
 
                     <!-- Actions List -->
