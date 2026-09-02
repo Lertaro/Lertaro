@@ -47,7 +47,8 @@ public class DirMenuProvider : IQuickNavigationProvider
                     Text = TranslationService.Get("Plugins_TotalCommander_DirMenu_RootLabel"),
                     HasSubMenu = true,
                     SubMenuHandle = AllocateHandle(new DirMenuNode { Children = parsed }),
-                    HBitmapItem = DirMenuIcon.GetRootHBitmap()
+                    HBitmapItem = DirMenuIcon.GetRootHBitmap(),
+                    IsActionable = false
                 }
             };
         }

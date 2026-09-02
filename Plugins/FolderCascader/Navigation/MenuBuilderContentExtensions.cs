@@ -48,7 +48,8 @@ internal static class MenuBuilderContentExtensions
                 Text = TranslationService.Get("FolderCascader_OpenedFolders"),
                 HasSubMenu = true,
                 SubMenuHandle = provider.AllocateHandle("foldercascader://opened-folders"),
-                HBitmapItem = IconBitmapCache.OpenedFoldersHBitmap
+                HBitmapItem = IconBitmapCache.OpenedFoldersHBitmap,
+                IsActionable = false
             });
             hasSupplementalMenu = true;
         }
@@ -74,7 +75,8 @@ internal static class MenuBuilderContentExtensions
                 Text = TranslationService.Get("FolderCascader_Favorites"),
                 HasSubMenu = true,
                 SubMenuHandle = provider.AllocateHandle("foldercascader://favorites"),
-                HBitmapItem = IconBitmapCache.FavoritesHBitmap
+                HBitmapItem = IconBitmapCache.FavoritesHBitmap,
+                IsActionable = false
             });
             hasSupplementalMenu = true;
         }
@@ -90,7 +92,8 @@ internal static class MenuBuilderContentExtensions
                 Text = TranslationService.Get("FolderCascader_History"),
                 HasSubMenu = true,
                 SubMenuHandle = provider.AllocateHandle("foldercascader://history"),
-                HBitmapItem = IconBitmapCache.HistoryHBitmap
+                HBitmapItem = IconBitmapCache.HistoryHBitmap,
+                IsActionable = false
             });
         }
 

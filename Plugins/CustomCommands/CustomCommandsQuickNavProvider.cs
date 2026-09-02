@@ -69,7 +69,8 @@ public class CustomCommandsQuickNavProvider : IQuickNavigationProvider
                 Text = category,
                 HasSubMenu = true,
                 SubMenuHandle = AllocateHandle(childPrefix),
-                HBitmapItem = QuickNavIcon.GetCategoryHBitmap()
+                HBitmapItem = QuickNavIcon.GetCategoryHBitmap(),
+                IsActionable = false
             };
         }
     }

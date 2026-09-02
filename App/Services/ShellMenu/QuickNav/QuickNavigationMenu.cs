@@ -92,10 +92,9 @@ public static class QuickNavigationMenu
                 contextMenu));
 
             foreach (var item in providerItems)
-                // Root entries are navigation categories (Favorites/History/configured folders/drives), so
-                // don't attach the right-click action flyout here, and clicking/Enter must not execute or
-                // navigate anywhere either -- only real files/folders in deeper levels do that.
-                contextMenu.Items.Add(item.IsSeparator ? CreateSeparator() : CreateMenuItem(item, dummyResult, provider, contextMenu, trigger, enableRightClick: false, isRootItem: true));
+                // Root entries never get the right-click action flyout. Pure categories mark themselves
+                // non-actionable, while actionable real directories can now use their normal click path.
+                contextMenu.Items.Add(item.IsSeparator ? CreateSeparator() : CreateMenuItem(item, dummyResult, provider, contextMenu, trigger, enableRightClick: false));
         }
 
         if (contextMenu.Items.Count == 0) return;
@@ -193,8 +192,8 @@ public static class QuickNavigationMenu
     internal static MenuItem CreateGroupHeader(string groupName, Action? headerAction, string? headerActionTooltip, ContextMenu contextMenu) =>
         QuickNavigationMenuContentExtensions.CreateGroupHeader(groupName, headerAction, headerActionTooltip, contextMenu);
 
-    internal static MenuItem CreateMenuItem(DynamicMenuItem item, ISearchResult result, IQuickNavigationProvider provider, ContextMenu contextMenu, QuickNavTriggerContext trigger, bool enableRightClick = true, bool isRootItem = false) =>
-        QuickNavigationMenuContentExtensions.CreateMenuItem(item, result, provider, contextMenu, trigger, enableRightClick, isRootItem);
+    internal static MenuItem CreateMenuItem(DynamicMenuItem item, ISearchResult result, IQuickNavigationProvider provider, ContextMenu contextMenu, QuickNavTriggerContext trigger, bool enableRightClick = true) =>
+        QuickNavigationMenuContentExtensions.CreateMenuItem(item, result, provider, contextMenu, trigger, enableRightClick);
 
     public static T? FindVisualParent<T>(DependencyObject? child) where T : DependencyObject
     {
