@@ -196,11 +196,25 @@ public class LocalDriveSettingsViewModel : ViewModelBase
             drive.State = TranslationManager.Instance["Local_StateIndexing"];
             drive.ItemCount = "-";
         }
-        await LocalDriveRebuildHelper.RebuildEnabledDrivesAsync(
-            _searchService,
-            LocalDrives,
-            drive => enabledDrives.Contains(drive),
-            drive => _pendingRowRebuilds.Add(drive));
+        try
+        {
+            await LocalDriveRebuildHelper.RebuildEnabledDrivesAsync(
+                _searchService,
+                LocalDrives,
+                drive => enabledDrives.Contains(drive),
+                drive => _pendingRowRebuilds.Add(drive));
+        }
+        catch (Exception ex)
+        {
+            // The rebuild request rides the service pipe; a service that is restarting or a dropped
+            // connection throws here. async void would turn that into the crash dialog -- fail in
+            // place instead and let the next status poll re-derive the real row states.
+            Logger.Log($"[LocalDriveSettings] Rebuild request failed: {ex.Message}", LogLevel.Error);
+            IndexSummary = string.Format(TranslationManager.Instance["About_ConfigActionFailed"], ex.Message);
+            _pendingRowRebuilds.Clear();
+            _observedRowRebuilds.Clear();
+            SetBusy(false);
+        }
         _onTriggerFastRefresh?.Invoke();
     }
 
@@ -217,37 +231,55 @@ public class LocalDriveSettingsViewModel : ViewModelBase
         if (_isBusy || !item.CanRunRowAction)
             return;
 
-        if (item.RowAction == LocalDriveRowAction.Rebuild)
+        // Every branch below is a pipe round trip; a restarting service throws out of the await.
+        // Report in place rather than letting async void route it into the crash dialog.
+        var busySet = false;
+        try
         {
-            SetBusy(true);
-            item.State = TranslationManager.Instance["Local_StateIndexing"];
-            item.ItemCount = "-";
-            IndexSummary = TranslationManager.Instance["Local_Rebuilding"];
-            _pendingRowRebuilds.Add(item.Drive);
-            _onTriggerFastRefresh?.Invoke();
-            if (!await _searchService.RebuildDriveIndexAsync(item.Drive))
+            if (item.RowAction == LocalDriveRowAction.Rebuild)
+            {
+                SetBusy(true);
+                busySet = true;
+                item.State = TranslationManager.Instance["Local_StateIndexing"];
+                item.ItemCount = "-";
+                IndexSummary = TranslationManager.Instance["Local_Rebuilding"];
+                _pendingRowRebuilds.Add(item.Drive);
+                _onTriggerFastRefresh?.Invoke();
+                if (!await _searchService.RebuildDriveIndexAsync(item.Drive))
+                {
+                    _pendingRowRebuilds.Remove(item.Drive);
+                    _observedRowRebuilds.Remove(item.Drive);
+                }
+            }
+            else if (item.RowAction == LocalDriveRowAction.Delete)
+            {
+                await _searchService.DeleteDriveIndexAsync(item.Drive);
+                var isUnavailable = item.State == TranslationManager.Instance["Local_DriveUnavailable"];
+                item.RowAction = LocalDriveRowAction.None;
+                item.State = isUnavailable ? TranslationManager.Instance["Local_DriveUnavailable"] : TranslationManager.Instance["Local_StateDisabled"];
+                item.ItemCount = "-";
+                item.CanRunRowAction = false;
+                item.CanEditEnabled = !isUnavailable && IsDriveCheckboxEnabled;
+            }
+            else if (item.RowAction == LocalDriveRowAction.Stop)
+            {
+                // Don't touch item.State/RowAction here -- the next status poll re-derives both from whatever
+                // CancelDriveRebuild actually settles the service on, mirroring the network tab's own Stop.
+                _pendingRowRebuilds.Remove(item.Drive);
+                _observedRowRebuilds.Remove(item.Drive);
+                await _searchService.CancelDriveIndexAsync(item.Drive);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[LocalDriveSettings] Drive action {item.RowAction} failed for {item.Drive}: {ex.Message}", LogLevel.Error);
+            IndexSummary = string.Format(TranslationManager.Instance["About_ConfigActionFailed"], ex.Message);
+            if (busySet)
             {
                 _pendingRowRebuilds.Remove(item.Drive);
                 _observedRowRebuilds.Remove(item.Drive);
+                SetBusy(false);
             }
-        }
-        else if (item.RowAction == LocalDriveRowAction.Delete)
-        {
-            await _searchService.DeleteDriveIndexAsync(item.Drive);
-            var isUnavailable = item.State == TranslationManager.Instance["Local_DriveUnavailable"];
-            item.RowAction = LocalDriveRowAction.None;
-            item.State = isUnavailable ? TranslationManager.Instance["Local_DriveUnavailable"] : TranslationManager.Instance["Local_StateDisabled"];
-            item.ItemCount = "-";
-            item.CanRunRowAction = false;
-            item.CanEditEnabled = !isUnavailable && IsDriveCheckboxEnabled;
-        }
-        else if (item.RowAction == LocalDriveRowAction.Stop)
-        {
-            // Don't touch item.State/RowAction here -- the next status poll re-derives both from whatever
-            // CancelDriveRebuild actually settles the service on, mirroring the network tab's own Stop.
-            _pendingRowRebuilds.Remove(item.Drive);
-            _observedRowRebuilds.Remove(item.Drive);
-            await _searchService.CancelDriveIndexAsync(item.Drive);
         }
 
         _onTriggerFastRefresh?.Invoke();
