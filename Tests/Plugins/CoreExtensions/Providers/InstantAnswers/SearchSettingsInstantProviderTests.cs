@@ -59,6 +59,18 @@ public sealed class SearchSettingsInstantProviderTests
     }
 
     [TestMethod]
+    public void GetInstantResults_TriggerWithNoTerm_CapsBrowseAllAtQuickSearchDisplayLimit()
+    {
+        ConfigureEntries(Enumerable.Range(0, 200)
+            .Select(index => new SettingsSearchEntryInfo($"Setting {index}", "Appearance", index))
+            .ToArray());
+
+        var results = new SearchSettingsInstantProvider().GetInstantResults("set ").ToList();
+
+        Assert.HasCount(50, results);
+    }
+
+    [TestMethod]
     public void GetInstantResults_TriggerIsCaseInsensitive()
     {
         ConfigureEntries(new SettingsSearchEntryInfo("Dark mode", "Appearance", 0));

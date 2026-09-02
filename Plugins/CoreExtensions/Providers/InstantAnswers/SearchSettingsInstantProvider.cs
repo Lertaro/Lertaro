@@ -12,6 +12,13 @@ public class SearchSettingsInstantProvider : IInstantResultProvider
     private const string PluginId = "Lertaro.Plugins.CoreExtensions";
     private const string DefaultTriggerWord = "set";
 
+    // Browse-all mode ("set ") used to emit every settings entry, including all plugin components and
+    // config fields. With a large installed plugin set that can be hundreds/thousands of rows; the
+    // quick search window itself caps ordinary results at roughly this same display budget. Capping here
+    // keeps one "set " keystroke cheap instead of mapping every settings row and handing all of them to
+    // the UI list.
+    private const int MaxBrowseAllResults = 50;
+
     static SearchSettingsInstantProvider() =>
         // Invalidate the cached trigger word as soon as the host reports this plugin's settings were
         // saved, so a changed trigger applies to the very next keystroke instead of requiring a restart.
@@ -41,7 +48,7 @@ public class SearchSettingsInstantProvider : IInstantResultProvider
         var term = query.Substring(trigger.Length).Trim();
         var browseAll = term.Length == 0;
 
-        var entries = SettingsSearchService.GetEntries();
+        IEnumerable<SettingsSearchEntryInfo> entries = SettingsSearchService.GetEntries();
         if (!browseAll)
         {
             entries = entries
@@ -49,10 +56,13 @@ public class SearchSettingsInstantProvider : IInstantResultProvider
                 .OrderByDescending(entry => FuzzyMatchService.GetMatchScore(entry.Label, term))
                 .ToList();
         }
+        else
+        {
+            entries = entries.Take(MaxBrowseAllResults);
+        }
 
         foreach (var entry in entries)
         {
-
             yield return new InstantResultItem
             {
                 Title = entry.Label,
