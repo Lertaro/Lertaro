@@ -12,6 +12,7 @@ using ListBox = System.Windows.Controls.ListBox;
 using Grid = System.Windows.Controls.Grid;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.App.Views.QuickSearchWindow.Helpers;
+using LaunchPanel = Lertaro.App.Views.QuickSearchWindow.QuickSearchLaunchPanel;
 using Lertaro.App.Services.AppWindow;
 using Lertaro.App.Services.Tray;
 using Lertaro.App.Services.Theme;
@@ -29,6 +30,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private readonly QuickSearchWindowResultExecutor _resultExecutor;
     private readonly QuickSearchWindowLifecycle _lifecycle;
     private readonly QuickSearchWindowDragSupport _dragSupport;
+    private readonly QuickSearchLaunchActionsCoordinator _launchActions;
     private bool _isInActionsMode;
     private Action? _scaleChangedHandler;
     internal QuickSearchKeywordHistoryController KeywordHistoryController { get; }
@@ -52,6 +54,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         _dragSupport = new QuickSearchWindowDragSupport(this);
         InitializeChildControls();
         KeywordHistoryController = new QuickSearchKeywordHistoryController(this);
+        _launchActions = new QuickSearchLaunchActionsCoordinator(this);
     }
     public ShellMenuPresenter? MenuPresenter => _menuPresenter;
     public QuickSearchViewModel ViewModel => _viewModel;
@@ -63,7 +66,11 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         {
             _isInActionsMode = value;
             SearchBox.IsInActionsMode = value && !UsesFloatingActionsMenu;
+            if (!value)
+                _launchActions.PrepareExit();
             _viewModel.Search.IsActionsMode = value;
+            if (!value)
+                _launchActions.FinishExit();
         }
     }
     public TextBox TxtSearch => SearchBox.SearchTextBox;
@@ -72,12 +79,19 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public UIElement ResultsPanel => ResultsPanelControl;
     public ListBox LstResults => ResultsPanelControl.ResultsListBox;
     public Grid GridSearchResults => ResultsPanelControl.SearchResultsGrid;
+    internal LaunchPanel LaunchPanel => LaunchPanelControl;
     public Grid GridActions => ResultsPanelControl.ActionsGrid;
     public TextBlock TxtActionsTarget => ResultsPanelControl.ActionsTargetTextBlock;
     public ListBox LstActions => ResultsPanelControl.ActionsListBox;
     public TextBox ActionsSearchTextBox => ResultsPanelControl.ActionsSearchTextBox;
     public bool UsesFloatingActionsMenu => true;
-    public void UpdateActionsLayout() => _layoutManager.UpdateActionsLayout();
+    internal void EnterLaunchPanelActions(AppSearchResult result) => _launchActions.Enter(result);
+    public void UpdateActionsLayout()
+    {
+        if (GridActions.Visibility != Visibility.Visible)
+            _launchActions.PrepareExit();
+        _layoutManager.UpdateActionsLayout();
+    }
     internal void ExecuteFavorite(AppSearchResult result) => _resultExecutor.Execute(result);
     // Runs the results-panel height computation synchronously instead of through the normal deferred
     // QueueResultsLayoutUpdate -- see QuickSearchWindowController.ShowWindow's own comment on why it needs

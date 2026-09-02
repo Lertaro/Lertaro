@@ -158,7 +158,7 @@
                     </Border>
                     <!-- Quick-window-only action filter. It keeps the main query untouched. -->
                     <Border x:Name="ActionsSearchRow" Grid.Row="1" Margin="10,6,10,6" Visibility="Collapsed">
-                        <Border Height="32"
+                        <Border Height="{Binding SelectedItem.ActionsHeaderHeight, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
                                 CornerRadius="{StaticResource CornerRadiusControl}"
                                 Background="{DynamicResource ControlBackground}"
                                 BorderBrush="{DynamicResource ControlBorderBrush}"

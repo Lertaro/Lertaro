@@ -5,7 +5,6 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Services.AppWindow;
-using Lertaro.App.Services.ShellMenu.ActionFlyout;
 using Lertaro.App.ViewModels.Search;
 using ContextMenu = System.Windows.Controls.ContextMenu;
 using MenuItem = System.Windows.Controls.MenuItem;
@@ -25,6 +24,17 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
     private int _sourceRevealGeneration;
 
     public QuickSearchLaunchPanel() => InitializeComponent();
+
+    internal void SetActionsModeHeight(bool expanded)
+    {
+        if (expanded)
+        {
+            Height = Services.UiMetrics.ScaledQuickSearchMaxResultHeight;
+            return;
+        }
+
+        ClearValue(HeightProperty);
+    }
 
     private void Panel_PreviewDragOver(object sender, WpfDragEventArgs e)
     {
@@ -258,12 +268,7 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
         if (Window.GetWindow(this) is not Lertaro.App.QuickSearchWindow window)
             return;
 
-        ActionFlyout.Show(
-            [result],
-            window,
-            window,
-            this,
-            System.Windows.Controls.Primitives.PlacementMode.MousePoint);
+        window.EnterLaunchPanelActions(result);
         e.Handled = true;
     }
 
