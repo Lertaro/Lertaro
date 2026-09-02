@@ -51,14 +51,13 @@ internal static class WindowThumbnailCache
     // picks up the fresh icon.
     public static IntPtr GetIconOrRefresh(IntPtr hwnd, Action onReady)
     {
-        Bitmap? cachedBitmap = null;
+        IntPtr result;
         bool shouldCapture;
 
         lock (Lock)
         {
             var hasCachedEntry = Cache.TryGetValue(hwnd, out var entry);
-            if (hasCachedEntry)
-                cachedBitmap = entry!.Bitmap;
+            var cachedBitmap = hasCachedEntry ? entry!.Bitmap : null;
 
             var isPending = Pending.Contains(hwnd);
             var ageMs = hasCachedEntry ? Environment.TickCount64 - entry!.CapturedAtMs : long.MaxValue;
@@ -69,6 +68,19 @@ internal static class WindowThumbnailCache
 
             if (!hasCachedEntry && Cache.Count >= SweepThreshold)
                 SweepClosedWindows();
+
+            // GetHbitmap must stay INSIDE the lock: the background recapture path and the
+            // closed-window sweep both dispose the previous Bitmap under this same lock, and GDI+
+            // does not tolerate a concurrent Dispose and GetHbitmap on the same native object --
+            // that races into a native access violation, not just a catchable exception. The call
+            // itself is cheap (it creates an independent new handle) and repeats safely.
+            if (cachedBitmap == null)
+                result = IntPtr.Zero;
+            else
+            {
+                try { result = cachedBitmap.GetHbitmap(); }
+                catch { result = IntPtr.Zero; }
+            }
         }
 
         if (shouldCapture)
@@ -101,19 +113,7 @@ internal static class WindowThumbnailCache
             });
         }
 
-        if (cachedBitmap == null)
-            return IntPtr.Zero;
-
-        try
-        {
-            // GetHbitmap always creates a brand new, independent GDI handle -- safe to call repeatedly
-            // on the same cached Bitmap without affecting it or any handle handed out by a previous call.
-            return cachedBitmap.GetHbitmap();
-        }
-        catch
-        {
-            return IntPtr.Zero;
-        }
+        return result;
     }
 
     // Caller must already hold Lock.
