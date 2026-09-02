@@ -44,7 +44,8 @@
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4"
                     Visibility="{Binding IsEmpty, Converter={StaticResource InvertBoolToVis}}">
             <StackPanel Margin="0,0,28,0">
-                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_TabManagement]}"
+                <Button x:Name="TabManagement"
+                        Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_TabManagement]}"
                         Command="{Binding ShowPluginManagementCommand}">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
@@ -70,7 +71,8 @@
                 </Border>
             </StackPanel>
             <StackPanel>
-                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_TabRuntimeStatus]}"
+                <Button x:Name="TabRuntimeStatus"
+                        Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_TabRuntimeStatus]}"
                         Command="{Binding ShowRuntimeStatusCommand}">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">

@@ -87,6 +87,28 @@ public sealed class SettingsSearchIndexTests
     }
 
     [TestMethod]
+    public void ThePluginRuntimeStatusTabIsSearchable()
+    {
+        var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "Plugins_TabRuntimeStatus");
+
+        Assert.IsNotNull(entry, "the plugin runtime status tab has no search index entry");
+        Assert.AreEqual("Plugins", entry!.Section);
+        Assert.AreEqual("TabRuntimeStatus", entry.TargetElementName);
+        Assert.IsNotNull(entry.Activate, "the plugin runtime status tab does not select itself");
+    }
+
+    [TestMethod]
+    public void ThePluginManagementTabIsSearchable()
+    {
+        var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "Plugins_TabManagement");
+
+        Assert.IsNotNull(entry, "the plugin management tab has no search index entry");
+        Assert.AreEqual("Plugins", entry!.Section);
+        Assert.AreEqual("TabManagement", entry.TargetElementName);
+        Assert.IsNotNull(entry.Activate, "the plugin management tab does not select itself");
+    }
+
+    [TestMethod]
     public void TheStayOpenHotkeyIsSearchable()
     {
         var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "Hotkeys_StayOpen");

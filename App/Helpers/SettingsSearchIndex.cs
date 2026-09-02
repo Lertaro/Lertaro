@@ -161,6 +161,8 @@ public static class SettingsSearchIndex
 
         // Plugins (component-level results come from the live Plugins model, see SettingsWindow.xaml.cs)
         new("Settings_Plugins", "Plugins"),
+        new("Plugins_TabManagement", "Plugins", vm => vm.Plugins.IsRuntimeStatusTab = false, "TabManagement"),
+        new("Plugins_TabRuntimeStatus", "Plugins", vm => vm.Plugins.IsRuntimeStatusTab = true, "TabRuntimeStatus"),
 
         // Favorites
         new("Settings_Favorites", "Favorites"),
