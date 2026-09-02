@@ -5,7 +5,6 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Services.AppWindow;
-using Lertaro.App.Services.ShellMenu.ActionFlyout;
 using Lertaro.App.ViewModels.Search;
 using ContextMenu = System.Windows.Controls.ContextMenu;
 using MenuItem = System.Windows.Controls.MenuItem;
@@ -273,12 +272,8 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
         if (Window.GetWindow(this) is not Lertaro.App.QuickSearchWindow window)
             return;
 
-        ActionFlyout.Show(
-            [result],
-            window,
-            window,
-            this,
-            System.Windows.Controls.Primitives.PlacementMode.MousePoint);
+        window.LstResults.SelectedItem = result;
+        window.MenuPresenter?.EnterActionsMode(result);
         e.Handled = true;
     }
 
