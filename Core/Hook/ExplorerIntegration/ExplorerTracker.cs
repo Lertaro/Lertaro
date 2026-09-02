@@ -137,6 +137,14 @@ public class ExplorerTracker : IDisposable
     // "foreground became nothing" transition Explorer can produce, which carries hwnd==0 and is dropped
     // by WinEventProc, leaving ActiveHwnd stale until the next real foreground window shows up).
     public void ReclassifyActiveWindow(IntPtr hwnd) => _classifier.CheckActiveWindow(hwnd);
+
+    // Bounded self-correction for LL hook threads: a reclassification that waits on the tracker lock
+    // (e.g. the WinEvent tracker thread is stuck inside a slow plugin read) or that runs slow plugin
+    // reads itself can stall the keyboard hook callback past LowLevelHooksTimeout, which gets the hook
+    // silently dropped by Windows. Skip on a contended lock -- the WinEvent-based tracker remains
+    // authoritative and will catch up -- and keep plugin reads to a fraction of a typical hook timeout.
+    public void ReclassifyActiveWindowBounded(IntPtr hwnd)
+        => _classifier.CheckActiveWindow(hwnd, lockWaitMs: 50, pluginTimeoutMs: 300);
     public void UpdatePath(string path, bool isDesktop)
     {
         if (PathNormalizer != null)

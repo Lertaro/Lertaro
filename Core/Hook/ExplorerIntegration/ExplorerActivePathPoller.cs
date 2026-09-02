@@ -65,7 +65,7 @@ internal sealed class ExplorerActivePathPoller : IDisposable
         {
             var dialogHwnd = tracker.ActiveHwnd;
             var dialogAdapter = tracker.ActiveAdapter;
-            var activePath = RunOnStaWithTimeout(() => dialogAdapter.GetCurrentPath(dialogHwnd), null, TimeSpan.FromSeconds(2));
+            var activePath = ExplorerStaInvoker.RunOnStaWithTimeout(() => dialogAdapter.GetCurrentPath(dialogHwnd), null, TimeSpan.FromSeconds(2));
             if (!IsObservedWindowStillActive(dialogHwnd, tracker.ActiveHwnd)) return;
             if (!string.IsNullOrEmpty(activePath) && activePath != tracker.LastPath)
             {
@@ -105,7 +105,7 @@ internal sealed class ExplorerActivePathPoller : IDisposable
 
                     if (focused == IntPtr.Zero) focused = collectorHwnd;
 
-                    var activePath = RunOnStaWithTimeout(() => collector.TryGetPath(focused, activeClassName, collectorHwnd, activeClass, tracker.GetProcessName(collectorHwnd)), null, TimeSpan.FromSeconds(2));
+                    var activePath = ExplorerStaInvoker.RunOnStaWithTimeout(() => collector.TryGetPath(focused, activeClassName, collectorHwnd, activeClass, tracker.GetProcessName(collectorHwnd)), null, TimeSpan.FromSeconds(2));
                     if (!IsObservedWindowStillActive(collectorHwnd, tracker.ActiveHwnd)) return;
                     if (!string.IsNullOrEmpty(activePath))
                     {
@@ -127,7 +127,7 @@ internal sealed class ExplorerActivePathPoller : IDisposable
         {
             var inlineHwnd = tracker.ActiveHwnd;
             var inlineAdapter = tracker.ActiveInlineAdapter;
-            var activePath = RunOnStaWithTimeout(() => inlineAdapter.GetSearchScope(inlineHwnd), null, TimeSpan.FromSeconds(2));
+            var activePath = ExplorerStaInvoker.RunOnStaWithTimeout(() => inlineAdapter.GetSearchScope(inlineHwnd), null, TimeSpan.FromSeconds(2));
             if (!IsObservedWindowStillActive(inlineHwnd, tracker.ActiveHwnd)) return;
             if (!string.IsNullOrEmpty(activePath))
             {
@@ -141,67 +141,6 @@ internal sealed class ExplorerActivePathPoller : IDisposable
                 tracker.UpdatePath(string.Empty, false);
             }
         }
-    }
-
-    // Each timed-out read abandons a background STA thread that stays parked inside the hung
-    // COM/shell call indefinitely. Cap the number of live abandoned threads so a wedged shell
-    // extension cannot leak threads without bound; while at the cap, reads fail fast to the
-    // fallback instead of spawning yet another thread. The count is conservative: a thread that
-    // completes only after its caller timed out may miss the decrement below, which just makes
-    // the cap trip slightly earlier.
-    private const int MaxAbandonedAdapterThreads = 8;
-    private static int _abandonedAdapterThreads;
-
-    private static T RunOnStaWithTimeout<T>(Func<T> func, T fallback, TimeSpan timeout)
-    {
-        if (Volatile.Read(ref _abandonedAdapterThreads) >= MaxAbandonedAdapterThreads)
-        {
-            Logger.Log("[ExplorerActivePathPoller] Adapter thread budget exhausted; skipping adapter read.", LogLevel.Warn);
-            return fallback;
-        }
-
-        var done = new ManualResetEventSlim(false);
-        Exception? error = null;
-        var result = fallback;
-        var abandoned = 0;
-        var thread = new Thread(() =>
-        {
-            try { result = func(); }
-            catch (Exception ex) { error = ex; }
-            finally
-            {
-                done.Set();
-                // Ownership rule: the waiter disposes `done` only when it observed the Set.
-                // On the timeout path the caller has already returned, so disposing here (in
-                // the thread that outlives the call) is the only safe place left.
-                if (Volatile.Read(ref abandoned) != 0)
-                {
-                    Interlocked.Decrement(ref _abandonedAdapterThreads);
-                    done.Dispose();
-                }
-            }
-        })
-        {
-            IsBackground = true,
-            Name = "ExplorerPathPollSta"
-        };
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-
-        if (!done.Wait(timeout))
-        {
-            Volatile.Write(ref abandoned, 1);
-            Interlocked.Increment(ref _abandonedAdapterThreads);
-            Logger.Log("[ExplorerActivePathPoller] Adapter read timed out; continuing without path.", LogLevel.Warn);
-        }
-        else
-        {
-            done.Dispose();
-            if (error != null)
-                Logger.Log($"[ExplorerActivePathPoller] Adapter read failed: {error.Message}", LogLevel.Warn);
-        }
-
-        return result;
     }
 
     internal static bool IsObservedWindowStillActive(IntPtr observedHwnd, IntPtr activeHwnd) =>
