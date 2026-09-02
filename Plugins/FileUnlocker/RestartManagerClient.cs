@@ -9,7 +9,10 @@ namespace Lertaro.Plugins.FileUnlocker;
 internal static class RestartManagerClient
 {
     private const int ErrorMoreData = 234;
-    private const int SessionKeyCapacity = 32;
+    // RmStartSession's session-key buffer must be at least CCH_RM_SESSION_KEY + 1 characters (the
+    // key plus its NUL terminator, restartmanager.h) -- 32 alone violates the documented contract
+    // and risks a 2-byte native overrun past the StringBuilder's buffer.
+    private const int SessionKeyCapacity = 32 + 1;
 
     internal static RestartManagerResult Query(string path)
     {
