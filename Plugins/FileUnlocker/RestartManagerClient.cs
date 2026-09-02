@@ -161,26 +161,30 @@ internal static class RestartManagerClient
     internal sealed record LockedProcess(string Name, int ProcessId, string ExecutablePath, string ApplicationType);
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct RM_UNIQUE_PROCESS
+    internal struct RM_UNIQUE_PROCESS
     {
         internal int dwProcessId;
         internal FILETIME ProcessStartTime;
     }
 
+    // Field order and layout must mirror restartmanager.h's RM_PROCESS_INFO exactly:
+    // RM_UNIQUE_PROCESS (id + FILETIME) first, then the two inline WCHAR arrays, then the scalars.
+    // The previous declaration carried a stray ProcessStartTime field and put the strings last,
+    // which shifted every record by 8 bytes -- multi-process results read back wrong PIDs, truncated
+    // app names and garbage application types.
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct RM_PROCESS_INFO
+    internal struct RM_PROCESS_INFO
     {
         internal RM_UNIQUE_PROCESS Process;
-        internal FILETIME ProcessStartTime;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] internal string strAppName;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] internal string strServiceShortName;
         internal RM_APP_TYPE ApplicationType;
         internal uint AppStatus;
         internal uint TSSessionId;
         [MarshalAs(UnmanagedType.Bool)] internal bool Restartable;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] internal string strAppName;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] internal string strServiceShortName;
     }
 
-    private enum RM_APP_TYPE
+    internal enum RM_APP_TYPE
     {
         Unknown,
         MainWindow,
