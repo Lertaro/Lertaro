@@ -1,8 +1,10 @@
 {
   "BrowserData_PluginName": "ブラウザーのブックマークと履歴",
   "BrowserData_ProviderName": "ブラウザーのブックマークと履歴",
-  "BrowserData_Config_TriggerKeywordLabel": "トリガーキーワード",
-  "BrowserData_Config_TriggerKeywordDesc": "このキーワード（後ろにスペースと検索語を続ける）を入力するとブックマーク・履歴検索が起動します。既定値は \"bm\" です。",
+  "BrowserData_Config_BookmarkTriggerKeywordLabel": "ブックマークのトリガーキーワード",
+  "BrowserData_Config_BookmarkTriggerKeywordDesc": "このキーワード（後ろにスペースと検索語を続ける）を入力するとブックマーク検索が起動します。既定値は \"bb\" です。",
+  "BrowserData_Config_HistoryTriggerKeywordLabel": "履歴のトリガーキーワード",
+  "BrowserData_Config_HistoryTriggerKeywordDesc": "このキーワード（後ろにスペースと検索語を続ける）を入力すると履歴検索が起動します。既定値は \"bh\" です。",
   "BrowserData_Config_IndexBookmarksLabel": "ブックマークを索引化",
   "BrowserData_Config_IndexHistoryLabel": "履歴を索引化",
   "BrowserData_Config_IndexHistoryDesc": "履歴はブックマークよりはるかに件数が多くなりがちです。オフにするとブックマークのみを検索対象にできます。",

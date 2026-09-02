@@ -1,8 +1,10 @@
 {
   "BrowserData_PluginName": "Browser Bookmarks & History",
   "BrowserData_ProviderName": "Browser Bookmarks & History",
-  "BrowserData_Config_TriggerKeywordLabel": "Trigger Keyword",
-  "BrowserData_Config_TriggerKeywordDesc": "Type this keyword (followed by a space and a search term) to trigger bookmark/history search, e.g. the default \"bm\".",
+  "BrowserData_Config_BookmarkTriggerKeywordLabel": "Bookmark Trigger Keyword",
+  "BrowserData_Config_BookmarkTriggerKeywordDesc": "Type this keyword (followed by a space and a search term) to search bookmarks, e.g. the default \"bb\".",
+  "BrowserData_Config_HistoryTriggerKeywordLabel": "History Trigger Keyword",
+  "BrowserData_Config_HistoryTriggerKeywordDesc": "Type this keyword (followed by a space and a search term) to search history, e.g. the default \"bh\".",
   "BrowserData_Config_IndexBookmarksLabel": "Index Bookmarks",
   "BrowserData_Config_IndexHistoryLabel": "Index History",
   "BrowserData_Config_IndexHistoryDesc": "History can grow much larger than bookmarks -- turn this off to search bookmarks only.",

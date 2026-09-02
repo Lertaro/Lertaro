@@ -1,8 +1,10 @@
 {
   "BrowserData_PluginName": "瀏覽器書籤與歷史",
   "BrowserData_ProviderName": "瀏覽器書籤與歷史",
-  "BrowserData_Config_TriggerKeywordLabel": "觸發詞",
-  "BrowserData_Config_TriggerKeywordDesc": "輸入此關鍵字（後跟一個空格加搜尋詞）來觸發書籤/歷史記錄搜尋，例如預設的 \"bm\"。",
+  "BrowserData_Config_BookmarkTriggerKeywordLabel": "書籤觸發詞",
+  "BrowserData_Config_BookmarkTriggerKeywordDesc": "輸入此關鍵字（後跟一個空格加搜尋詞）來搜尋書籤，例如預設的 \"bb\"。",
+  "BrowserData_Config_HistoryTriggerKeywordLabel": "歷史記錄觸發詞",
+  "BrowserData_Config_HistoryTriggerKeywordDesc": "輸入此關鍵字（後跟一個空格加搜尋詞）來搜尋歷史記錄，例如預設的 \"bh\"。",
   "BrowserData_Config_IndexBookmarksLabel": "索引書籤",
   "BrowserData_Config_IndexHistoryLabel": "索引歷史記錄",
   "BrowserData_Config_IndexHistoryDesc": "歷史記錄數量往往遠多於書籤——關閉此項可只搜尋書籤。",

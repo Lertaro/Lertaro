@@ -34,6 +34,7 @@
          relevant source files directly into this test assembly sidesteps that entirely: no
          InternalsVisibleTo needed either, since everything lands in the same assembly as the tests. -->
     <Compile Include="..\..\..\Plugins\BrowserData\BrowserEntry.cs" Link="Source\BrowserEntry.cs" />
+    <Compile Include="..\..\..\Plugins\BrowserData\BrowserDataQueryParser.cs" Link="Source\BrowserDataQueryParser.cs" />
     <Compile Include="..\..\..\Plugins\BrowserData\BrowserHistoryTime.cs" Link="Source\BrowserHistoryTime.cs" />
     <Compile Include="..\..\..\Plugins\BrowserData\BrowserDataPlugin.cs" Link="Source\BrowserDataPlugin.cs" />
     <Compile Include="..\..\..\Plugins\BrowserData\BrowserDataCache.cs" Link="Source\BrowserDataCache.cs" />

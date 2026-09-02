@@ -29,11 +29,20 @@ public class BrowserDataPlugin : IPlugin, IConfigurable
         {
             new PluginConfigField
             {
-                Key = "TriggerKeyword",
-                LabelKey = "BrowserData_Config_TriggerKeywordLabel",
-                DescriptionKey = "BrowserData_Config_TriggerKeywordDesc",
+                Key = "BookmarkTriggerKeyword",
+                LabelKey = "BrowserData_Config_BookmarkTriggerKeywordLabel",
+                DescriptionKey = "BrowserData_Config_BookmarkTriggerKeywordDesc",
                 FieldType = ConfigFieldType.Text,
-                DefaultValue = "bm",
+                DefaultValue = "bb",
+                RequireNonEmpty = true
+            },
+            new PluginConfigField
+            {
+                Key = "HistoryTriggerKeyword",
+                LabelKey = "BrowserData_Config_HistoryTriggerKeywordLabel",
+                DescriptionKey = "BrowserData_Config_HistoryTriggerKeywordDesc",
+                FieldType = ConfigFieldType.Text,
+                DefaultValue = "bh",
                 RequireNonEmpty = true
             },
             new PluginConfigField

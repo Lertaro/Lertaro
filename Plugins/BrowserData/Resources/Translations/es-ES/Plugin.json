@@ -1,8 +1,10 @@
 {
   "BrowserData_PluginName": "Marcadores e Historial del Navegador",
   "BrowserData_ProviderName": "Marcadores e Historial del Navegador",
-  "BrowserData_Config_TriggerKeywordLabel": "Palabra Clave de Activación",
-  "BrowserData_Config_TriggerKeywordDesc": "Escribe esta palabra clave (seguida de un espacio y un término de búsqueda) para activar la búsqueda de marcadores/historial, por ejemplo, la predeterminada \"bm\".",
+  "BrowserData_Config_BookmarkTriggerKeywordLabel": "Palabra Clave de Marcadores",
+  "BrowserData_Config_BookmarkTriggerKeywordDesc": "Escribe esta palabra clave (seguida de un espacio y un término de búsqueda) para buscar marcadores, por ejemplo, la predeterminada \"bb\".",
+  "BrowserData_Config_HistoryTriggerKeywordLabel": "Palabra Clave del Historial",
+  "BrowserData_Config_HistoryTriggerKeywordDesc": "Escribe esta palabra clave (seguida de un espacio y un término de búsqueda) para buscar el historial, por ejemplo, la predeterminada \"bh\".",
   "BrowserData_Config_IndexBookmarksLabel": "Indexar Marcadores",
   "BrowserData_Config_IndexHistoryLabel": "Indexar Historial",
   "BrowserData_Config_IndexHistoryDesc": "El historial puede llegar a ser mucho más voluminoso que los marcadores; desactiva esta opción para buscar solo en los marcadores.",

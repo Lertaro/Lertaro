@@ -1,8 +1,10 @@
 {
   "BrowserData_PluginName": "浏览器书签与历史",
   "BrowserData_ProviderName": "浏览器书签与历史",
-  "BrowserData_Config_TriggerKeywordLabel": "触发词",
-  "BrowserData_Config_TriggerKeywordDesc": "输入此关键字（后跟一个空格加搜索词）来触发书签/历史记录搜索，例如默认的 \"bm\"。",
+  "BrowserData_Config_BookmarkTriggerKeywordLabel": "书签触发词",
+  "BrowserData_Config_BookmarkTriggerKeywordDesc": "输入此关键字（后跟一个空格加搜索词）来搜索书签，例如默认的 \"bb\"。",
+  "BrowserData_Config_HistoryTriggerKeywordLabel": "历史记录触发词",
+  "BrowserData_Config_HistoryTriggerKeywordDesc": "输入此关键字（后跟一个空格加搜索词）来搜索历史记录，例如默认的 \"bh\"。",
   "BrowserData_Config_IndexBookmarksLabel": "索引书签",
   "BrowserData_Config_IndexHistoryLabel": "索引历史记录",
   "BrowserData_Config_IndexHistoryDesc": "历史记录数量往往远多于书签——关闭此项可只搜索书签。",
