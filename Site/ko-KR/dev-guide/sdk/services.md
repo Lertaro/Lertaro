@@ -15,7 +15,7 @@
 | **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | 백그라운드 서비스에 커스텀 폴더를 등록하여 자동 인덱싱 및 변경 감지; I/O 없는 스트림 열거 지원. |
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | 인메모리 인덱스로부터 지정 폴더 목록의 최근 수정 파일들을 밀리초 단위로 집계 추출. |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | 탐색기 및 모든 파일 대화상자에서 마지막으로 탐색된 활성 작업 디렉토리 경로 조회. |
-| **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | 플러그인 설정값 읽기 (사용자 설정값 > 스키마 기본값 > 폴백 기본값 순서). |
+| **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`bool IsComponentEnabled(string dllName, string componentType, string componentName)`<br>`event Action<string, string>? SettingChanged`<br>`event Action? ComponentEnablementChanged` | 플러그인 설정과 호스트가 저장한 컴포넌트별 활성화 상태를 읽습니다. |
 | **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()`<br>`void Invalidate()` | 호스트가 현재 제공하는 검색 가능한 설정 항목을 조회하고, 동적으로 제공되는 항목이 변경될 때 호스트의 캐시된 스냅샷을 갱신하도록 알립니다. |
 | **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | 테마가 적용된 설정 창을 표시하거나 검색 가능한 설정 항목으로 직접 이동하도록 호스트에 요청합니다. URI나 다른 프로세스를 실행하지 않습니다. |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | 비동기 작업 완료 후 일치하는 활성 검색 결과를 재평가하고 뷰를 갱신하도록 호스트에 알림. |
@@ -26,6 +26,10 @@
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 지정된 디렉터리를 열거나 파일을 탐색하며, 호스트에 구성된 서드파티 파일 관리자(또는 탐색기 탭)를 따르고 미설정 시 시스템 파일 탐색기로 대체합니다. |
 
 `SettingsSearchService.GetEntries()`가 반환하는 항목 인덱스는 현재 호스트 프로세스에서만 유효합니다. 항목을 그대로 `SettingsWindowService.ShowEntry(...)`에 전달하면 SDK가 호스트 콜백을 호출하며, `lertaro://` URI를 만들거나 실행하지 않습니다.
+
+### 컴포넌트 활성화 상태와 비용이 큰 런타임 상태
+
+`PluginSettingsService.IsComponentEnabled(...)`는 호스트가 관리하는 컴포넌트별 스위치를 읽습니다. 디렉터리 감시기, 백그라운드 작업자, 외부 런타임 또는 기타 비용이 큰 상태를 소유한 컴포넌트는 해당 상태를 초기화하기 전에 스위치를 확인하고, `ComponentEnablementChanged`를 구독하여 사용자가 스위치를 변경할 때 관련 런타임을 시작하거나 중지해야 합니다. 호스트 콜백이 등록되지 않았거나 콜백이 실패하면 이 메서드는 `true`를 반환하므로 완전한 호스트 외부에서도 플러그인을 사용할 수 있습니다.
 
 ## 2. Windows Shell 파일 작업 래퍼
 

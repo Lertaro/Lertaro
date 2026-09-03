@@ -15,7 +15,7 @@
 | **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | 允许插件向后台服务注册专属自定义目录以进行自动索引与变更监听；提供流式免 I/O 目录遍历。 |
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | 利用内存索引快速提取指定目录列表下的最新修改文件集合（毫秒级应答，不产生物理磁盘 I/O）。 |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | 获取用户最近一次在文件资源管理器或任意应用的文件选择对话框中浏览过的活动目录路径。 |
-| **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | 读取插件持久化的配置项（优先读取用户修改值，其次读取 Schema 默认值，最后回退 defaultValue）。 |
+| **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`bool IsComponentEnabled(string dllName, string componentType, string componentName)`<br>`event Action<string, string>? SettingChanged`<br>`event Action? ComponentEnablementChanged` | 读取插件持久化配置以及宿主保存的组件级启用状态。 |
 | **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()`<br>`void Invalidate()` | 读取宿主当前可搜索的设置条目，并在动态提供的条目发生变化时通知宿主刷新缓存快照。 |
 | **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | 请求宿主显示主题化设置窗口，或直接跳转到可搜索的设置条目，不启动 URI 或其他进程。 |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | 用于异步即时计算源完成后台数据获取后，通知宿主原地重跑当前匹配的搜索查询并刷新视图。 |
@@ -26,6 +26,10 @@
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 打开指定文件夹或定位指定文件，遵循宿主配置的第三方文件管理器（或资源管理器多标签页），未配置时回退到系统资源管理器。 |
 
 `SettingsSearchService.GetEntries()` 返回的条目索引只在当前宿主进程中有效。将条目直接传给 `SettingsWindowService.ShowEntry(...)`，SDK 会调用宿主回调，不会构造或启动 `lertaro://` URI。
+
+### 组件启用状态与高成本运行时
+
+`PluginSettingsService.IsComponentEnabled(...)` 用于读取宿主保存的组件级开关。拥有目录监听器、后台工作线程、外部运行时或其他高成本状态的组件，应在初始化这些状态前先检查该开关，并订阅 `ComponentEnablementChanged`，在用户切换开关后启动或停止对应运行时。如果宿主没有注册回调或回调失败，该方法返回 `true`，从而保证插件在未接入完整宿主时仍可用。
 
 ## 2. Shell 原生文件操作封装
 

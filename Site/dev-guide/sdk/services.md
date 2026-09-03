@@ -15,7 +15,7 @@ The `Lertaro.PluginSdk.Services` namespace provides high-performance static serv
 | **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | Registers custom folders for background indexing and change tracking; streams directory contents without disk I/O. |
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | Queries the memory index in sub-milliseconds to aggregate recent files across configured folders. |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | Retrieves the last directory browsed across File Explorer and all native file dialogs. |
-| **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | Reads persistent plugin settings (user value > schema default > fallback). |
+| **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`bool IsComponentEnabled(string dllName, string componentType, string componentName)`<br>`event Action<string, string>? SettingChanged`<br>`event Action? ComponentEnablementChanged` | Reads persistent plugin settings and the host's per-component enablement state. |
 | **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()`<br>`void Invalidate()` | Reads the host's current searchable settings entries and lets the host refresh its cached snapshot when dynamically contributed entries change. |
 | **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | Requests that the host show its themed Settings window or navigate directly to a searchable entry, without launching a URI or another process. |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | Notifies the host to re-evaluate matching active searches after asynchronous background operations complete. |
@@ -26,6 +26,10 @@ The `Lertaro.PluginSdk.Services` namespace provides high-performance static serv
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | Opens the specified directory or locates a file, respecting the host's configured third-party file manager (or Explorer tabs), with fallback to system Explorer. |
 
 `SettingsSearchService.GetEntries()` returns entries whose indexes are valid only during the current host process. Pass an entry directly to `SettingsWindowService.ShowEntry(...)`; the SDK invokes the host callback and does not construct or launch `lertaro://` URIs.
+
+### Component enablement and expensive runtime state
+
+`PluginSettingsService.IsComponentEnabled(...)` reads the host's per-component switch. Components that own directory watchers, background workers, external runtimes, or other expensive state should check it before initializing that state and subscribe to `ComponentEnablementChanged` to start or stop it when the user changes the switch. The method returns `true` when no host callback is registered or the callback fails, so plugins remain usable outside the full host.
 
 ## 2. Shell Native File Operations
 

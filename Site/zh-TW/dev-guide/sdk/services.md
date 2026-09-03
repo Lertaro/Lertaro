@@ -15,7 +15,7 @@
 | **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | 允許外掛模組向背景服務註冊專屬自訂目錄以進行自動索引與變更監聽；提供串流免 I/O 目錄周遊。 |
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | 利用記憶體索引快速擷取指定目錄清單下的最新修改檔案集合（毫秒級應答，不產生實體磁碟 I/O）。 |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | 獲取使用者最近一次在檔案總管或任意應用程式的檔案選取對話方塊中瀏覽過的活動目錄路徑。 |
-| **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | 讀取外掛模組持久化的設定項目（優先讀取使用者修改值，其次讀取 Schema 預設值，最後回復 defaultValue）。 |
+| **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`bool IsComponentEnabled(string dllName, string componentType, string componentName)`<br>`event Action<string, string>? SettingChanged`<br>`event Action? ComponentEnablementChanged` | 讀取外掛模組持久化的設定項目，以及宿主儲存的元件級啟用狀態。 |
 | **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()`<br>`void Invalidate()` | 讀取主機目前可搜尋的設定項目，並在動態提供的項目發生變更時通知主機重新整理快取快照。 |
 | **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | 請求主機顯示佈景主題化設定視窗，或直接跳轉到可搜尋的設定項目，不啟動 URI 或其他程序。 |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | 用於非同步即時計算來源完成背景資料獲取後，通知宿主原地重跑目前比對的搜尋查詢並重新整理檢視。 |
@@ -26,6 +26,10 @@
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 開啟指定資料夾或定位指定檔案，遵循宿主配置的第三方檔案管理員（或檔案總管分頁），未配置時回退至系統檔案總管。 |
 
 `SettingsSearchService.GetEntries()` 回傳的項目索引只在目前主機程序中有效。將項目直接傳給 `SettingsWindowService.ShowEntry(...)`，SDK 會呼叫主機回呼，不會建立或啟動 `lertaro://` URI。
+
+### 元件啟用狀態與高成本執行階段
+
+`PluginSettingsService.IsComponentEnabled(...)` 用於讀取宿主儲存的元件級開關。擁有目錄監聽器、背景工作執行緒、外部執行階段或其他高成本狀態的元件，應在初始化這些狀態前先檢查開關，並訂閱 `ComponentEnablementChanged`，在使用者切換開關後啟動或停止對應執行階段。如果宿主沒有註冊回調或回調失敗，此方法會返回 `true`，確保外掛模組在未接入完整宿主時仍可使用。
 
 ## 2. Shell 原生檔案操作封裝
 

@@ -15,7 +15,7 @@
 | **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | バックグラウンドサービスにカスタムディレクトリを登録して自動インデックス・監視；I/O なしのストリーム列挙を提供。 |
 | **`RecentFilesService`** | `Task<IReadOnlyList<ISearchResult>> GetRecentFilesAsync(IEnumerable<string> directories, int limit, int maxAgeMinutes, CancellationToken token)` | インメモリインデックスから指定フォルダー群の最新更新ファイルをミリ秒単位で集約抽出。 |
 | **`ExplorerPathService`** | `string? GetLastActivePath()` | エクスプローラーや各アプリのファイルダイアログで最後に開かれた作業ディレクトリパスを取得。 |
-| **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`event Action<string, string>? SettingChanged` | プラグイン設定の読み取り（ユーザー値 > スキーマ既定値 > フォールバック値の優先順位）。 |
+| **`PluginSettingsService`** | `T GetSetting<T>(string pluginId, string key, T defaultValue)`<br>`bool IsComponentEnabled(string dllName, string componentType, string componentName)`<br>`event Action<string, string>? SettingChanged`<br>`event Action? ComponentEnablementChanged` | プラグイン設定と、ホストが保存するコンポーネント単位の有効状態を読み取ります。 |
 | **`SettingsSearchService`** | `IReadOnlyList<SettingsSearchEntryInfo> GetEntries()`<br>`void Invalidate()` | ホストが現在提供している検索可能な設定項目を取得し、動的な項目が変化したときにホストのキャッシュ済みスナップショットを更新可能。 |
 | **`SettingsWindowService`** | `bool ShowWindow(string? targetSection = null)`<br>`bool ShowEntry(SettingsSearchEntryInfo? entry)` | テーマ対応の設定画面を表示するか、検索可能な設定項目へ直接移動するようホストに要求。URI や別プロセスは起動しません。 |
 | **`SearchRefreshService`** | `void RefreshIfMatches(Func<string, bool> queryMatches)` | 非同期処理の完了後に、一致するアクティブな検索結果の再評価とビューの即時更新をホストへ通知。 |
@@ -26,6 +26,10 @@
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 指定されたディレクトリを開くかファイルを特定し、ホスト設定のサードパーティ製ファイルマネージャー（またはエクスプローラーのタブ）を尊重します。未設定時はシステムのエクスプローラーにフォールバックします。 |
 
 `SettingsSearchService.GetEntries()` が返す項目のインデックスは、現在のホストプロセス内でのみ有効です。項目をそのまま `SettingsWindowService.ShowEntry(...)` に渡すと、SDK はホストのコールバックを呼び出し、`lertaro://` URI の生成や起動は行いません。
+
+### コンポーネントの有効状態と高コストなランタイム状態
+
+`PluginSettingsService.IsComponentEnabled(...)` はホストが管理するコンポーネント単位のスイッチを読み取ります。ディレクトリ監視、バックグラウンドワーカー、外部ランタイム、その他の高コストな状態を所有するコンポーネントは、その状態を初期化する前にスイッチを確認し、`ComponentEnablementChanged` を購読してユーザーがスイッチを変更したときに対応するランタイムを開始または停止してください。ホストのコールバックが登録されていない場合、またはコールバックが失敗した場合、このメソッドは `true` を返すため、完全なホストの外でもプラグインを利用できます。
 
 ## 2. Windows Shell ファイル操作ヘルパー
 
