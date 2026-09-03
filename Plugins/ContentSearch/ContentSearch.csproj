@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Lertaro.Plugins.ContentSearch</AssemblyName>
-    <Version>1.0.5</Version>
+    <Version>1.0.6</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <UseCurrentRuntimeIdentifier>true</UseCurrentRuntimeIdentifier>
     <SelfContained>false</SelfContained>
