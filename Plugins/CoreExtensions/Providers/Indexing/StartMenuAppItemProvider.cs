@@ -18,22 +18,26 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
 
     public event Action? ItemsChanged;
 
-    private readonly IDisposable _directoryWatch;
+    private readonly StartMenuAppRuntimeSupport _runtime;
 
     public StartMenuAppItemProvider()
     {
-        // Only this provider's own directories reach here, so there is nothing to check: the host knows
-        // whose registration a change fell under and calls the one that owns it.
-        _directoryWatch = DirectoryIndexerService.WatchDirectories(RegistrationId, () => ItemsChanged?.Invoke());
         PluginSettingsService.SettingChanged += OnSettingChanged;
-        RefreshDirectoryRegistrations();
+        _runtime = new StartMenuAppRuntimeSupport(this);
     }
+
+    private bool IsComponentEnabled => _runtime.IsComponentEnabled;
+
+    internal void NotifyItemsChanged() => ItemsChanged?.Invoke();
 
     private void OnSettingChanged(string pluginId, string key)
     {
         if (string.Equals(pluginId, "Lertaro.Plugins.CoreExtensions", StringComparison.OrdinalIgnoreCase)
             && string.Equals(key, "CustomFolders", StringComparison.OrdinalIgnoreCase))
         {
+            if (!IsComponentEnabled)
+                return;
+
             RefreshDirectoryRegistrations();
             ItemsChanged?.Invoke();
         }
@@ -41,18 +45,16 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
 
     public void Dispose()
     {
-        _directoryWatch.Dispose();
         PluginSettingsService.SettingChanged -= OnSettingChanged;
-        try
-        {
-            DirectoryIndexerService.UnregisterDirectories(RegistrationId);
-        }
-        catch { }
+        _runtime.Dispose();
         GC.SuppressFinalize(this);
     }
 
     public IEnumerable<SearchableItem> GetSearchableItems()
     {
+        if (!IsComponentEnabled)
+            return Array.Empty<SearchableItem>();
+
         var list = new List<SearchableItem>();
         var indexedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var entriesByName = new Dictionary<string, List<(string Name, string Path)>>(StringComparer.OrdinalIgnoreCase);
@@ -149,7 +151,7 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
         return list;
     }
 
-    private void RefreshDirectoryRegistrations()
+    internal void RefreshDirectoryRegistrations()
     {
         try
         {

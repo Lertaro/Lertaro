@@ -1,10 +1,18 @@
 using Microsoft.Data.Sqlite;
+using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.BrowserData.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class BrowserDataCacheTests
 {
+    [TestInitialize]
+    public void ResetBefore() => PluginSettingsService.IsComponentEnabledFunc = null;
+
+    [TestCleanup]
+    public void ResetAfter() => PluginSettingsService.IsComponentEnabledFunc = null;
+
     private sealed class TempDirectory : IDisposable
     {
         public string Path { get; } = Directory.CreateTempSubdirectory("lertaro-tests-").FullName;
@@ -35,6 +43,14 @@ public sealed class BrowserDataCacheTests
 
     private static List<BrowserProfileConfig> ProfileConfig(string path) =>
         new() { new BrowserProfileConfig { Name = "Test", Path = path } };
+
+    [TestMethod]
+    public void GetSnapshot_DisabledComponent_DoesNotLoadSnapshot()
+    {
+        PluginSettingsService.IsComponentEnabledFunc = (_, _, _) => false;
+
+        Assert.IsEmpty(BrowserDataCache.GetSnapshot());
+    }
 
     [TestMethod]
     public void LoadAll_BothEnabled_ReturnsBookmarksAndHistory()

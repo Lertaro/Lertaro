@@ -30,6 +30,7 @@ public sealed class FileFiltersSearchableItemProviderTests
     private void Reset()
     {
         PluginSettingsService.GetSettingFunc = null;
+        PluginSettingsService.IsComponentEnabledFunc = null;
         DirectoryIndexerService.EnumerateDirectoryFunc = null;
         _calls.Clear();
     }
@@ -50,6 +51,17 @@ public sealed class FileFiltersSearchableItemProviderTests
     private static void ConfigureFilters(List<FileFiltersSearchableItemProvider.FilterItem> filters) =>
         PluginSettingsService.GetSettingFunc = (pluginId, key, defaultValue) =>
             pluginId == PluginId && key == "Filters" ? filters : defaultValue;
+
+    [TestMethod]
+    public void GetSearchableItems_DisabledComponent_ReturnsEmptyWithoutLoadingFilters()
+    {
+        ConfigureFilters(new() { new() { Folders = { @"C:\Movies" } } });
+        PluginSettingsService.IsComponentEnabledFunc = (_, _, _) => false;
+
+        using var provider = new FileFiltersSearchableItemProvider();
+
+        Assert.IsEmpty(provider.GetSearchableItems());
+    }
 
     // Stands in for the host: records what was asked, answers with whatever `contents` holds for that
     // folder (nothing at all for a folder it doesn't know -- what the host returns for a path that is

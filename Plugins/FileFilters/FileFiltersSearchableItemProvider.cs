@@ -21,14 +21,45 @@ public class FileFiltersSearchableItemProvider : ISearchableItemProvider, IDispo
 
     private readonly List<FilterItem> _registeredFilters = new();
 
-    private readonly IDisposable _directoryWatch;
+    private readonly object _runtimeLock = new();
+    private IDisposable? _directoryWatch;
+    private bool _disposed;
 
     public FileFiltersSearchableItemProvider()
     {
-        // Only this plugin's own registered folders reach here -- no id to check.
-        _directoryWatch = DirectoryIndexerService.WatchDirectories("FileFilters", () => ItemsChanged?.Invoke());
         PluginSettingsService.SettingChanged += OnSettingChanged;
-        ReloadFilters();
+        PluginSettingsService.ComponentEnablementChanged += OnComponentEnablementChanged;
+        UpdateRuntimeState();
+    }
+
+    private bool IsComponentEnabled => PluginSettingsService.IsComponentEnabled(
+        Path.GetFileName(typeof(FileFiltersSearchableItemProvider).Assembly.Location),
+        "SearchableItemProvider", nameof(FileFiltersSearchableItemProvider));
+
+    private void OnComponentEnablementChanged() => UpdateRuntimeState();
+
+    private void UpdateRuntimeState()
+    {
+        lock (_runtimeLock)
+        {
+            if (_disposed)
+                return;
+
+            if (IsComponentEnabled)
+            {
+                if (_directoryWatch != null)
+                    return;
+
+                _directoryWatch = DirectoryIndexerService.WatchDirectories("FileFilters", () => ItemsChanged?.Invoke());
+                ReloadFilters();
+                return;
+            }
+
+            _directoryWatch?.Dispose();
+            _directoryWatch = null;
+            DirectoryIndexerService.UnregisterDirectories("FileFilters");
+            _registeredFilters.Clear();
+        }
     }
 
     private void OnSettingChanged(string pluginId, string key)
@@ -36,6 +67,9 @@ public class FileFiltersSearchableItemProvider : ISearchableItemProvider, IDispo
         if (string.Equals(pluginId, "Lertaro.Plugins.FileFilters", StringComparison.OrdinalIgnoreCase)
             && string.Equals(key, "Filters", StringComparison.OrdinalIgnoreCase))
         {
+            if (!IsComponentEnabled)
+                return;
+
             ReloadFilters();
             ItemsChanged?.Invoke();
         }
@@ -67,6 +101,9 @@ public class FileFiltersSearchableItemProvider : ISearchableItemProvider, IDispo
 
     public IEnumerable<SearchableItem> GetSearchableItems()
     {
+        if (!IsComponentEnabled)
+            return Array.Empty<SearchableItem>();
+
         var items = new List<SearchableItem>();
 
 
@@ -155,9 +192,20 @@ public class FileFiltersSearchableItemProvider : ISearchableItemProvider, IDispo
 
     public void Dispose()
     {
-        _directoryWatch.Dispose();
-        PluginSettingsService.SettingChanged -= OnSettingChanged;
-        DirectoryIndexerService.UnregisterDirectories("FileFilters");
+        lock (_runtimeLock)
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+            _directoryWatch?.Dispose();
+            _directoryWatch = null;
+            PluginSettingsService.SettingChanged -= OnSettingChanged;
+            PluginSettingsService.ComponentEnablementChanged -= OnComponentEnablementChanged;
+            DirectoryIndexerService.UnregisterDirectories("FileFilters");
+            _registeredFilters.Clear();
+        }
+
         GC.SuppressFinalize(this);
     }
 }

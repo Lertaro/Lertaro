@@ -10,7 +10,11 @@ public class BrowserDataInstantProvider : IInstantResultProvider
     // background reload right here means the first real "bm <query>" of the session doesn't land on
     // a still-empty snapshot. BrowserDataCache.Preload() reuses the same staleness-guarded reload path
     // GetSnapshot() already uses, so this is safe even if something ever constructs a second instance.
-    public BrowserDataInstantProvider() => BrowserDataCache.Preload();
+    public BrowserDataInstantProvider()
+    {
+        if (BrowserDataCache.IsComponentEnabled)
+            BrowserDataCache.Preload();
+    }
 
     public string Name => TranslationService.Get("BrowserData_ProviderName");
 

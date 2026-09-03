@@ -19,12 +19,18 @@ internal sealed class ProfileEntries
 // user-visible "loading" state, matching how other cached providers in this codebase behave.
 internal static class BrowserDataCache
 {
+    private const string PluginDllName = "Lertaro.Plugins.BrowserData.dll";
+    private const string ComponentType = "InstantProvider";
+    private const string ComponentName = "BrowserDataInstantProvider";
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(10);
     private static readonly object Lock = new();
     private static List<ProfileEntries> _snapshot = new();
     private static string _lastSignature = string.Empty;
     private static DateTime _lastLoadUtc = DateTime.MinValue;
     private static bool _loading;
+
+    internal static bool IsComponentEnabled => PluginSettingsService.IsComponentEnabled(
+        PluginDllName, ComponentType, ComponentName);
 
     // SqliteCopyReader's own snapshot copies are meant to live only for the duration of a single
     // ReadCopy call and delete themselves in a finally block -- but that delete is best-effort (a
@@ -48,6 +54,9 @@ internal static class BrowserDataCache
 
     public static IReadOnlyList<ProfileEntries> GetSnapshot()
     {
+        if (!IsComponentEnabled)
+            return Array.Empty<ProfileEntries>();
+
         MaybeTriggerReload();
         lock (Lock)
         {
@@ -62,6 +71,9 @@ internal static class BrowserDataCache
 
     private static void MaybeTriggerReload()
     {
+        if (!IsComponentEnabled)
+            return;
+
         var configured = PluginSettingsService.GetSetting<List<BrowserProfileConfig>>("Lertaro.Plugins.BrowserData", "Profiles", null!);
         var indexBookmarks = PluginSettingsService.GetSetting("Lertaro.Plugins.BrowserData", "IndexBookmarks", true);
         var indexHistory = PluginSettingsService.GetSetting("Lertaro.Plugins.BrowserData", "IndexHistory", true);
