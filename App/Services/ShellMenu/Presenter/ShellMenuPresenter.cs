@@ -280,9 +280,6 @@ public class ShellMenuPresenter : IDisposable
 
     public void HandleActionsPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e) => _mouseHandler.HandleActionsPreviewMouseLeftButtonUp(sender, e);
 
-    private System.Windows.Controls.TextBox GetActionSearchTextBox() =>
-        _view.UsesFloatingActionsMenu ? _view.ActionsSearchTextBox : _view.SearchTextBox;
-
     public void Dispose() { foreach (var provider in PluginManager.Instance.DynamicActionProviders) PluginPerformanceMonitor.Measure(provider, provider.ClearSession); }
 
     private SearchWindowType GetWindowType() =>

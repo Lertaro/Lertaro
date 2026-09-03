@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Threading;
-using Lertaro.Core;
 
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
 
