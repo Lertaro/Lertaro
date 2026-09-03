@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
-/// Helper responsible for SQLite table creation and PRAGMA configuration.
+/// Helper responsible for SQLite table creation, FTS5 schema, and PRAGMA configuration.
 /// </summary>
 public static class DatabaseSchemaHelper
 {
@@ -26,8 +26,6 @@ public static class DatabaseSchemaHelper
         // warning). If the corpus outgrows it, add:
         // CREATE INDEX idx_files_content_hash ON files(content_hash);
         //
-        // Full-text indexing lives in Lucene (see LuceneContentIndex); this table stores
-        // only file metadata, never searchable text.
         tableCmd.CommandText = """
                 CREATE TABLE IF NOT EXISTS files (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,6 +40,11 @@ public static class DatabaseSchemaHelper
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);
+
+                CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
+                    content,
+                    tokenize = 'trigram'
+                );
                 """;
         tableCmd.ExecuteNonQuery();
 

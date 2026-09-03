@@ -21,8 +21,6 @@
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <PackageReference Include="System.IO.Hashing" Version="10.0.9" />
     <PackageReference Include="PdfPig" Version="0.1.16" />
-    <PackageReference Include="Lucene.Net" Version="4.8.0-beta00018" />
-    <PackageReference Include="Lucene.Net.Analysis.Common" Version="4.8.0-beta00018" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Primitives" Version="8.0.0" />
   </ItemGroup>
@@ -45,9 +43,6 @@
       <ContentSearchOutput Include="$(TargetDir)SQLitePCLRaw.provider.e_sqlite3.dll" Condition="Exists('$(TargetDir)SQLitePCLRaw.provider.e_sqlite3.dll')" />
       <ContentSearchOutput Include="$(TargetDir)e_sqlite3.dll" Condition="Exists('$(TargetDir)e_sqlite3.dll')" />
       <ContentSearchOutput Include="$(TargetDir)System.IO.Hashing.dll" Condition="Exists('$(TargetDir)System.IO.Hashing.dll')" />
-      <ContentSearchOutput Include="$(TargetDir)J2N.dll" Condition="Exists('$(TargetDir)J2N.dll')" />
-      <ContentSearchOutput Include="$(TargetDir)Lucene.Net.dll" Condition="Exists('$(TargetDir)Lucene.Net.dll')" />
-      <ContentSearchOutput Include="$(TargetDir)Lucene.Net.Analysis.Common.dll" Condition="Exists('$(TargetDir)Lucene.Net.Analysis.Common.dll')" />
       <ContentSearchOutput Include="$(TargetDir)Microsoft.Extensions.Configuration.Abstractions.dll" Condition="Exists('$(TargetDir)Microsoft.Extensions.Configuration.Abstractions.dll')" />
       <ContentSearchOutput Include="$(TargetDir)Microsoft.Extensions.Primitives.dll" Condition="Exists('$(TargetDir)Microsoft.Extensions.Primitives.dll')" />
       <ContentSearchOutput Include="$(TargetDir)UglyToad.PdfPig.dll" Condition="Exists('$(TargetDir)UglyToad.PdfPig.dll')" />
@@ -77,9 +72,6 @@
       <ContentSearchPublishOutput Include="$(PublishDir)SQLitePCLRaw.provider.e_sqlite3.dll" Condition="Exists('$(PublishDir)SQLitePCLRaw.provider.e_sqlite3.dll')" />
       <ContentSearchPublishOutput Include="$(PublishDir)e_sqlite3.dll" Condition="Exists('$(PublishDir)e_sqlite3.dll')" />
       <ContentSearchPublishOutput Include="$(PublishDir)System.IO.Hashing.dll" Condition="Exists('$(PublishDir)System.IO.Hashing.dll')" />
-      <ContentSearchPublishOutput Include="$(PublishDir)J2N.dll" Condition="Exists('$(PublishDir)J2N.dll')" />
-      <ContentSearchPublishOutput Include="$(PublishDir)Lucene.Net.dll" Condition="Exists('$(PublishDir)Lucene.Net.dll')" />
-      <ContentSearchPublishOutput Include="$(PublishDir)Lucene.Net.Analysis.Common.dll" Condition="Exists('$(PublishDir)Lucene.Net.Analysis.Common.dll')" />
       <ContentSearchPublishOutput Include="$(PublishDir)Microsoft.Extensions.Configuration.Abstractions.dll" Condition="Exists('$(PublishDir)Microsoft.Extensions.Configuration.Abstractions.dll')" />
       <ContentSearchPublishOutput Include="$(PublishDir)Microsoft.Extensions.Primitives.dll" Condition="Exists('$(PublishDir)Microsoft.Extensions.Primitives.dll')" />
       <ContentSearchPublishOutput Include="$(PublishDir)UglyToad.PdfPig.dll" Condition="Exists('$(PublishDir)UglyToad.PdfPig.dll')" />

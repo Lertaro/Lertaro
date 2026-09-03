@@ -1,6 +1,6 @@
 {
   "ContentSearch_PluginName": "Búsqueda de Contenido",
-  "ContentSearch_PluginDesc": "Complemento de búsqueda rápida de texto completo en archivos locales con Lucene.Net",
+  "ContentSearch_PluginDesc": "Complemento de búsqueda rápida de texto completo en archivos locales con tecnología SQLite FTS5",
   "ContentSearch_ProviderName": "Búsqueda de Contenido",
   "ContentSearch_ProviderDesc": "Busca contenido en documentos mediante una palabra clave de activación",
   "ContentSearch_Config_TriggerLabel": "Palabra clave de activación",

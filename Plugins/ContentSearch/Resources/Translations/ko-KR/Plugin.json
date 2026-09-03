@@ -1,6 +1,6 @@
 {
   "ContentSearch_PluginName": "콘텐츠 검색",
-  "ContentSearch_PluginDesc": "Lucene.Net 기반의 로컬 파일 본문 고속 전체 텍스트 검색 플러그인",
+  "ContentSearch_PluginDesc": "SQLite FTS5 기반의 로컬 파일 본문 고속 전체 텍스트 검색 플러그인",
   "ContentSearch_ProviderName": "콘텐츠 검색",
   "ContentSearch_ProviderDesc": "트리거 키워드를 사용하여 문서 본문 검색",
   "ContentSearch_Config_TriggerLabel": "트리거 키워드",

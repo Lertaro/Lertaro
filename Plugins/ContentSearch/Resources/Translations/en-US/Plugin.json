@@ -1,6 +1,6 @@
 {
   "ContentSearch_PluginName": "Content Search",
-  "ContentSearch_PluginDesc": "Fast local file content full-text search plugin powered by Lucene.Net",
+  "ContentSearch_PluginDesc": "Fast local file content full-text search plugin powered by SQLite FTS5",
   "ContentSearch_ProviderName": "Content Search",
   "ContentSearch_ProviderDesc": "Search document content using a trigger keyword",
   "ContentSearch_Config_TriggerLabel": "Trigger Keyword",

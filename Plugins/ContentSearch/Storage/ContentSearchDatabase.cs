@@ -4,20 +4,14 @@ using Microsoft.Data.Sqlite;
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
-/// Manages SQLite storage, Lucene.Net full-text indexing, and search queries for documents.
+/// Manages SQLite storage, FTS5 full-text indexing, and search queries for documents.
 /// </summary>
-// ponytail: this file sits a few lines above the repo's 300-line guideline on purpose. The
-// only mechanical split (moving ClearAll/TryDelete helpers into DatabaseMaintenanceHelper)
-// would save ~10 lines at the cost of scattering one cohesive reset/fallback flow across two
-// files; if it grows further, extract the SQLite file-management section as a whole.
 public sealed class ContentSearchDatabase : IDisposable
 {
     private readonly string _dbPath;
     private readonly string _connectionString;
     private readonly object _writeLock = new();
     private bool _initialized;
-    private LuceneContentIndex? _lucene;
-
     private int _cachedTotalFiles;
     private int _cachedIndexedFiles;
 
@@ -59,15 +53,10 @@ public sealed class ContentSearchDatabase : IDisposable
             using var conn = OpenConnection();
             DatabaseSchemaHelper.InitializeSchema(conn);
             RefreshStatsInternal(conn);
-            // Lucene lives beside the database file; both stores together make up the index
-            // footprint that MaxIndexSizeBytes accounts for.
-            _lucene = new LuceneContentIndex(_dbPath + "-lucene");
             _initialized = true;
         }
     }
 
-    // Mirrors the write rule DatabaseWriterHelper documents: source rows with text go to the
-    // full-text index, a failed re-extraction drops the stale text, duplicates never enter it.
     public IReadOnlyDictionary<string, long> InsertOrUpdateBatch(IReadOnlyList<FileIndexBatchItem> items)
     {
         Initialize();
@@ -75,18 +64,15 @@ public sealed class ContentSearchDatabase : IDisposable
         {
             using var conn = OpenConnection();
             var result = DatabaseWriterHelper.InsertOrUpdateBatch(conn, items);
-            _lucene?.ApplyBatch(items);
             RefreshStatsInternal(conn);
             return result;
         }
     }
 
     public void InsertOrUpdateFile(string path, DateTime lastModifiedUtc, long fileSize, string content) =>
-        // Routed through the batch path so the Lucene sync happens exactly once, in one place.
         InsertOrUpdateBatch(new[] { new FileIndexBatchItem(path, lastModifiedUtc, fileSize, content) });
 
     public void DeleteFile(string path) =>
-        // Routed through the batch path so the Lucene sync happens exactly once, in one place.
         DeleteFilesBatch(new[] { path });
 
     public void DeleteFilesBatch(IEnumerable<string> paths)
@@ -98,7 +84,6 @@ public sealed class ContentSearchDatabase : IDisposable
         {
             using var conn = OpenConnection();
             DatabaseWriterHelper.DeleteFilesBatch(conn, pathList);
-            _lucene?.DeletePaths(pathList);
             RefreshStatsInternal(conn);
         }
     }
@@ -114,9 +99,6 @@ public sealed class ContentSearchDatabase : IDisposable
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = truncate ? "PRAGMA wal_checkpoint(TRUNCATE);" : "PRAGMA wal_checkpoint(PASSIVE);";
                 cmd.ExecuteNonQuery();
-                // Durability pairing: the SQLite rows of a batch are already committed when this
-                // runs, so the Lucene side must not stay uncommitted past the same point.
-                _lucene?.Commit();
             }
             catch { }
         }
@@ -131,9 +113,7 @@ public sealed class ContentSearchDatabase : IDisposable
             {
                 using var conn = OpenConnection();
                 using var cmd = conn.CreateCommand();
-                // Segment merging is Lucene's own background policy; only the SQLite side needs
-                // the explicit checkpoint now that Lucene handles segment merging.
-                cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+                cmd.CommandText = "INSERT INTO files_fts(files_fts) VALUES('optimize'); PRAGMA wal_checkpoint(TRUNCATE);";
                 cmd.ExecuteNonQuery();
             }
             catch { }
@@ -159,8 +139,7 @@ public sealed class ContentSearchDatabase : IDisposable
     }
 
     /// <summary>
-    /// Total on-disk footprint of the index: the SQLite file's pages plus the Lucene segments
-    /// beside it (both stores together are what MaxIndexSizeBytes budgets for).
+    /// Total on-disk footprint of the SQLite database, including its FTS5 pages.
     /// </summary>
     public long GetDatabasePageBytes()
     {
@@ -168,7 +147,7 @@ public sealed class ContentSearchDatabase : IDisposable
         try
         {
             using var conn = OpenConnection();
-            return DatabaseMaintenanceHelper.GetDatabasePageBytes(conn) + (_lucene?.GetBytes() ?? 0);
+            return DatabaseMaintenanceHelper.GetDatabasePageBytes(conn);
         }
         catch { return 0; }
     }
@@ -223,7 +202,8 @@ public sealed class ContentSearchDatabase : IDisposable
         Initialize();
 
         using var conn = OpenConnection();
-        return DatabaseSearchHelper.Search(conn, _lucene!, rawQuery, limit);
+        var ftsQuery = DatabaseFtsQueryHelper.BuildFtsQuery(rawQuery);
+        return DatabaseSearchHelper.Search(conn, rawQuery, ftsQuery, limit);
     }
 
     public (int TotalFiles, int TotalChunks) GetStats()
@@ -270,7 +250,6 @@ public sealed class ContentSearchDatabase : IDisposable
         {
             _cachedTotalFiles = 0;
             _cachedIndexedFiles = 0;
-            _lucene?.ClearAll();
 
             if (!File.Exists(_dbPath)) return;
 
@@ -279,6 +258,7 @@ public sealed class ContentSearchDatabase : IDisposable
                 using var conn = OpenConnection();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = """
+                    DELETE FROM files_fts;
                     DELETE FROM files;
                     VACUUM;
                     PRAGMA wal_checkpoint(TRUNCATE);
@@ -293,7 +273,6 @@ public sealed class ContentSearchDatabase : IDisposable
                     TryDeleteFile(_dbPath);
                     TryDeleteFile(_dbPath + "-wal");
                     TryDeleteFile(_dbPath + "-shm");
-                    TryDeleteDirectory(_dbPath + "-lucene");
                 }
                 catch { }
             }
@@ -308,17 +287,5 @@ public sealed class ContentSearchDatabase : IDisposable
         }
     }
 
-    private static void TryDeleteDirectory(string path)
-    {
-        if (Directory.Exists(path))
-        {
-            try { Directory.Delete(path, recursive: true); } catch { }
-        }
-    }
-
-    public void Dispose()
-    {
-        _lucene?.Dispose();
-        SqliteConnection.ClearAllPools();
-    }
+    public void Dispose() => SqliteConnection.ClearAllPools();
 }

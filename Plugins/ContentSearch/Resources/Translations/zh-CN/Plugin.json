@@ -1,6 +1,6 @@
 {
   "ContentSearch_PluginName": "内容搜索",
-  "ContentSearch_PluginDesc": "基于 Lucene.Net 的本地文件正文快速全文检索插件",
+  "ContentSearch_PluginDesc": "基于 SQLite FTS5 的本地文件正文快速全文检索插件",
   "ContentSearch_ProviderName": "内容搜索",
   "ContentSearch_ProviderDesc": "通过触发关键字检索文档内容",
   "ContentSearch_Config_TriggerLabel": "触发关键字",

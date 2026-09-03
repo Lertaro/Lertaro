@@ -19,9 +19,7 @@ public readonly record struct FileIndexBatchItem(
 );
 
 /// <summary>
-/// Handles atomic file-level row insertions and deletions in SQLite. Searchable text lives in
-/// the Lucene index (see LuceneContentIndex), which the database facade syncs after these
-/// transactions return.
+/// Handles atomic file-level row insertions, FTS5 indexing, and deletions in SQLite.
 /// </summary>
 public static class DatabaseWriterHelper
 {
@@ -43,6 +41,12 @@ public static class DatabaseWriterHelper
         findCmd.CommandText = "SELECT id FROM files WHERE path = @path LIMIT 1;";
         var pFindPath = findCmd.Parameters.Add("@path", SqliteType.Text);
         findCmd.Prepare();
+
+        using var delFtsCmd = conn.CreateCommand();
+        delFtsCmd.Transaction = tx;
+        delFtsCmd.CommandText = "DELETE FROM files_fts WHERE rowid = @file_id;";
+        var pDelFtsFileId = delFtsCmd.Parameters.Add("@file_id", SqliteType.Integer);
+        delFtsCmd.Prepare();
 
         using var delFileCmd = conn.CreateCommand();
         delFileCmd.Transaction = tx;
@@ -78,6 +82,13 @@ public static class DatabaseWriterHelper
         var pContentRef = insertFileCmd.Parameters.Add("@content_ref", SqliteType.Integer);
         insertFileCmd.Prepare();
 
+        using var insertFtsCmd = conn.CreateCommand();
+        insertFtsCmd.Transaction = tx;
+        insertFtsCmd.CommandText = "INSERT INTO files_fts (rowid, content) VALUES (@rowid, @content);";
+        var pFtsRowId = insertFtsCmd.Parameters.Add("@rowid", SqliteType.Integer);
+        var pFtsContent = insertFtsCmd.Parameters.Add("@content", SqliteType.Text);
+        insertFtsCmd.Prepare();
+
         long cascadeDeleted = 0;
 
         foreach (var item in items)
@@ -87,6 +98,9 @@ public static class DatabaseWriterHelper
             if (res != null && res != DBNull.Value)
             {
                 var fileId = (long)res;
+                pDelFtsFileId.Value = fileId;
+                delFtsCmd.ExecuteNonQuery();
+
                 pDelRefId.Value = fileId;
                 cascadeDeleted += delRefCmd.ExecuteNonQuery();
 
@@ -99,8 +113,7 @@ public static class DatabaseWriterHelper
             // mtime/size so discovery sees the file as already visited while unchanged, and
             // failed_at marks it as not indexed; the file is retried once mtime/size change.
             // An empty-content item WITH a reference is a duplicate: it reuses the source
-            // row's text and owns no searchable text of its own (the caller mirrors the same
-            // rule when syncing rows into the Lucene index).
+            // row's text and owns no FTS entry of its own.
             var failed = string.IsNullOrWhiteSpace(item.Content) && item.ContentRef is null;
             var lastModUnix = new DateTimeOffset(item.LastModifiedUtc).ToUnixTimeSeconds();
             pPath.Value = item.Path;
@@ -113,6 +126,13 @@ public static class DatabaseWriterHelper
 
             var newFileId = (long)(insertFileCmd.ExecuteScalar() ?? 0L);
             idByPath[item.Path] = newFileId;
+
+            if (!failed && item.ContentRef is null && !string.IsNullOrWhiteSpace(item.Content))
+            {
+                pFtsRowId.Value = newFileId;
+                pFtsContent.Value = item.Content;
+                insertFtsCmd.ExecuteNonQuery();
+            }
         }
 
         tx.Commit();
@@ -203,6 +223,7 @@ public static class DatabaseWriterHelper
         {
             delCmd.Transaction = tx;
             delCmd.CommandText = """
+                DELETE FROM files_fts WHERE rowid IN (SELECT id FROM files WHERE path IN (SELECT path FROM to_delete));
                 DELETE FROM files WHERE path IN (SELECT path FROM to_delete);
                 DROP TABLE to_delete;
                 """;

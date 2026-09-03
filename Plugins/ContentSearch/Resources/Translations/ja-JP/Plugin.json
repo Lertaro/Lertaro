@@ -1,6 +1,6 @@
 {
   "ContentSearch_PluginName": "コンテンツ検索",
-  "ContentSearch_PluginDesc": "Lucene.Net を活用したローカルファイル本文の高速全文検索プラグイン",
+  "ContentSearch_PluginDesc": "SQLite FTS5 を活用したローカルファイル本文の高速全文検索プラグイン",
   "ContentSearch_ProviderName": "コンテンツ検索",
   "ContentSearch_ProviderDesc": "トリガーキーワードを使用してドキュメントの本文を検索します",
   "ContentSearch_Config_TriggerLabel": "トリガーキーワード",

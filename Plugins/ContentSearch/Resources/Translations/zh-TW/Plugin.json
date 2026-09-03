@@ -1,6 +1,6 @@
 {
   "ContentSearch_PluginName": "內容搜尋",
-  "ContentSearch_PluginDesc": "基於 Lucene.Net 的本機檔案內文快速全文檢索外掛程式",
+  "ContentSearch_PluginDesc": "基於 SQLite FTS5 的本機檔案內文快速全文檢索外掛程式",
   "ContentSearch_ProviderName": "內容搜尋",
   "ContentSearch_ProviderDesc": "透過觸發關鍵字檢索文件內容",
   "ContentSearch_Config_TriggerLabel": "觸發關鍵字",
