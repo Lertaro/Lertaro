@@ -55,6 +55,9 @@ public sealed class JsonRpcResultItem
 
     [JsonPropertyName("AutoCompleteText")]
     public string? AutoCompleteText { get; set; }
+
+    [JsonPropertyName("Score")]
+    public int Score { get; set; }
 }
 
 /// <summary>

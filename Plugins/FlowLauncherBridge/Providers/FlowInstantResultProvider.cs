@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Flow.Launcher.Plugin;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.Plugins.FlowLauncherBridge.Engine;
@@ -156,44 +157,73 @@ public class FlowInstantResultProvider : IInstantResultProvider
         return text.Contains(pattern, StringComparison.OrdinalIgnoreCase);
     }
 
-    // How long GetInstantResults may block the calling (UI) thread on a dispatch. In-process Flow
-    // plugins carry no internal timeout and script subprocesses cap at 15s -- without this bound a
-    // slow or wedged plugin froze the search window on every keystroke.
-    private const int DispatchTimeoutMs = 250;
+    private readonly ConcurrentDictionary<string, (List<Result> Results, DateTimeOffset Timestamp)> _queryCache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Task<List<Result>>> _inFlightQueries = new(StringComparer.Ordinal);
+    private const int DispatchTimeoutMs = 300;
 
     private IEnumerable<InstantResultItem> ExecuteDispatch(string q)
     {
+        if (_queryCache.TryGetValue(q, out var cached) &&
+            (DateTimeOffset.UtcNow - cached.Timestamp).TotalSeconds < 15)
+        {
+            if (cached.Results.Count == 0)
+                return [];
+            return FlowResultMapper.MapToInstantResults(cached.Results, _host);
+        }
+
+        var task = _inFlightQueries.GetOrAdd(q, queryKey => Task.Run(async () =>
+        {
+            try
+            {
+                var res = await _dispatcher.DispatchQueryAsync(queryKey).ConfigureAwait(false);
+                var list = res ?? [];
+                _queryCache[queryKey] = (list, DateTimeOffset.UtcNow);
+
+                if (_queryCache.Count > 50)
+                {
+                    var expired = _queryCache
+                        .Where(kv => (DateTimeOffset.UtcNow - kv.Value.Timestamp).TotalSeconds > 30)
+                        .Select(kv => kv.Key)
+                        .ToList();
+                    foreach (var key in expired)
+                        _queryCache.TryRemove(key, out _);
+                }
+
+                PluginSdk.Services.SearchRefreshService.RefreshIfMatches(current =>
+                    string.Equals(current?.Trim(), queryKey.Trim(), StringComparison.OrdinalIgnoreCase));
+
+                return list;
+            }
+            finally
+            {
+                _inFlightQueries.TryRemove(queryKey, out _);
+            }
+        }));
+
         try
         {
-            var results = _dispatcher
-                .DispatchQueryAsync(q)
-                .WaitAsync(TimeSpan.FromMilliseconds(DispatchTimeoutMs))
-                .GetAwaiter()
-                .GetResult();
-            if (results == null || results.Count == 0)
-                return [];
-
-            return FlowResultMapper.MapToInstantResults(results, _host);
-        }
-        catch (TimeoutException)
-        {
-            // The abandoned dispatch keeps running in the background; its results are dropped and
-            // the next keystroke re-dispatches. A short "querying" row replaces the frozen window
-            // this path used to produce.
-            return
-            [
-                new InstantResultItem
-                {
-                    Title = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_QueryPendingTitle"),
-                    Description = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_QueryPendingDesc"),
-                    ActionType = "None"
-                }
-            ];
+            if (task.Wait(DispatchTimeoutMs))
+            {
+                var results = task.GetAwaiter().GetResult();
+                if (results.Count == 0)
+                    return [];
+                return FlowResultMapper.MapToInstantResults(results, _host);
+            }
         }
         catch
         {
             return [];
         }
+
+        return
+        [
+            new InstantResultItem
+            {
+                Title = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_QueryPendingTitle"),
+                Description = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_QueryPendingDesc"),
+                ActionType = "None"
+            }
+        ];
     }
 
     public bool[]? GetHighlightMask(string text, string query) =>

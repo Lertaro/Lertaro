@@ -6,129 +6,98 @@ using Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 namespace Lertaro.Plugins.FlowLauncherBridge.Tests.Engine.JsonRpc;
 
 [TestClass]
-public sealed class FlowProcessRunnerTests
+public sealed class FlowJsonRpcSessionTests
 {
     [TestMethod]
-    public void JsonRpcResponse_Deserialization_Works()
+    public void HandleFuzzySearch_WithValidParameters_InvokesApiFuzzySearch()
     {
-        const string json = "{\"result\":[{\"Title\":\"Hello\",\"SubTitle\":\"World\",\"IcoPath\":\"Images/app.png\",\"JsonRPCAction\":{\"method\":\"flow_open_url\",\"parameters\":[\"https://google.com\"]}}]}";
-        var response = JsonSerializer.Deserialize<JsonRpcResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        Assert.IsNotNull(response);
-        Assert.IsNotNull(response.Result);
-        Assert.HasCount(1, response.Result);
-        Assert.AreEqual("Hello", response.Result[0].Title);
-        Assert.AreEqual("World", response.Result[0].SubTitle);
-        var action = response.Result[0].JsonRPCAction;
-        Assert.IsNotNull(action);
-        Assert.AreEqual("flow_open_url", action.Method);
-    }
-
-    [TestMethod]
-    public void FlowProcessRunner_InjectsTriggerKeyword_IntoSettings()
-    {
-        var meta = new PluginMetadata { ID = "TEST_RPC", Name = "RpcPlugin", ActionKeyword = "tra" };
-        var runner = new FlowProcessRunner(meta, "non_existent_binary.exe");
-
-        var method = typeof(FlowProcessRunner).GetMethod("LoadPluginSettings", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var settings = method?.Invoke(runner, null) as IReadOnlyDictionary<string, object>;
-
-        Assert.IsNotNull(settings);
-        Assert.AreEqual("tra", settings["triggerKeyword"]?.ToString());
-        Assert.AreEqual("tra", settings["ActionKeyword"]?.ToString());
-    }
-
-    [TestMethod]
-    public async Task FlowProcessRunner_ExecuteActionAsync_ChangeQuery_InvokesApi()
-    {
-        var meta = new PluginMetadata { ID = "TEST_RPC", Name = "RpcPlugin" };
-        var runner = new FlowProcessRunner(meta, "non_existent_binary.exe");
-
-        string? capturedQuery = null;
-        bool? capturedRequery = null;
-        var fakeApi = new FakePublicApi((q, r) =>
+        string? passedQuery = null;
+        string? passedText = null;
+        var fakeApi = new FakePublicApi
         {
-            capturedQuery = q;
-            capturedRequery = r;
-        });
-
-        var action = new JsonRpcActionModel
-        {
-            Method = "Flow.Launcher.ChangeQuery",
-            Parameters = ["tra en>zh ", true],
-            DontHideAfterAction = true
+            FuzzySearchFunc = (q, t) =>
+            {
+                passedQuery = q;
+                passedText = t;
+                return new MatchResult(true, SearchPrecisionScore.Regular, [0, 1], 100);
+            }
         };
 
-        await runner.ExecuteActionAsync(action, fakeApi);
+        using var doc = JsonDocument.Parse("{\"id\":1,\"method\":\"FuzzySearch\",\"params\":[\"inzoi\",\"inZOI\"]}");
+        var matchResult = FlowJsonRpcSession.HandleFuzzySearch(doc.RootElement, fakeApi);
 
-        Assert.AreEqual("tra en>zh ", capturedQuery);
-        Assert.IsTrue(capturedRequery);
+        Assert.AreEqual("inzoi", passedQuery);
+        Assert.AreEqual("inZOI", passedText);
+        Assert.IsTrue(matchResult.Success);
+        Assert.AreEqual(100, matchResult.Score);
     }
 
     [TestMethod]
-    public void FlowProcessRunner_ParseResults_ParsesNestedV2Results()
+    public void HandleFuzzySearch_WithNullApi_ReturnsFalse()
     {
-        var meta = new PluginMetadata { ID = "TEST_RPC", Name = "RpcPlugin" };
-        var runner = new FlowProcessRunner(meta, "dummy.exe");
-        var fakeApi = new FakePublicApi((_, _) => { });
+        using var doc = JsonDocument.Parse("{\"id\":1,\"method\":\"FuzzySearch\",\"params\":[\"query\",\"text\"]}");
+        var matchResult = FlowJsonRpcSession.HandleFuzzySearch(doc.RootElement, null);
 
-        const string nestedJson = "{\"id\":1,\"result\":{\"result\":[{\"Title\":\"inZOI\",\"SubTitle\":\"Steam\",\"Score\":100}],\"debugMessage\":\"\"}}";
-        var parseMethod = typeof(FlowProcessRunner).GetMethod("ParseResults", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var results = parseMethod?.Invoke(runner, [nestedJson, fakeApi]) as List<Result>;
-
-        Assert.IsNotNull(results);
-        Assert.HasCount(1, results);
-        Assert.AreEqual("inZOI", results[0].Title);
-        Assert.AreEqual("Steam", results[0].SubTitle);
-        Assert.AreEqual(100, results[0].Score);
+        Assert.IsFalse(matchResult.Success);
+        Assert.AreEqual(SearchPrecisionScore.Regular, matchResult.SearchPrecision);
     }
 
     [TestMethod]
-    public void FlowProcessRunner_ParseResults_ParsesV1Results()
+    public void HandleOtherRpcCall_CopyToClipboard_InvokesApi()
     {
-        var meta = new PluginMetadata { ID = "TEST_RPC", Name = "RpcPlugin" };
-        var runner = new FlowProcessRunner(meta, "dummy.exe");
-        var fakeApi = new FakePublicApi((_, _) => { });
+        string? copied = null;
+        var fakeApi = new FakePublicApi
+        {
+            CopyToClipboardAction = t => copied = t
+        };
 
-        const string v1Json = "{\"result\":[{\"Title\":\"Sky\",\"SubTitle\":\"Game\",\"Score\":80}]}";
-        var parseMethod = typeof(FlowProcessRunner).GetMethod("ParseResults", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var results = parseMethod?.Invoke(runner, [v1Json, fakeApi]) as List<Result>;
+        using var doc = JsonDocument.Parse("{\"id\":2,\"method\":\"CopyToClipboard\",\"params\":[\"copied text\"]}");
+        FlowJsonRpcSession.HandleOtherRpcCall("CopyToClipboard", doc.RootElement, fakeApi);
 
-        Assert.IsNotNull(results);
-        Assert.HasCount(1, results);
-        Assert.AreEqual("Sky", results[0].Title);
-        Assert.AreEqual(80, results[0].Score);
+        Assert.AreEqual("copied text", copied);
     }
 
     [TestMethod]
-    public void FlowProcessRunner_ParseResults_ParsesRawArray()
+    public void HandleOtherRpcCall_OpenUrl_InvokesApi()
     {
-        var meta = new PluginMetadata { ID = "TEST_RPC", Name = "RpcPlugin" };
-        var runner = new FlowProcessRunner(meta, "dummy.exe");
-        var fakeApi = new FakePublicApi((_, _) => { });
+        string? opened = null;
+        var fakeApi = new FakePublicApi
+        {
+            OpenUrlAction = u => opened = u
+        };
 
-        const string arrayJson = "[{\"Title\":\"Raw\",\"SubTitle\":\"Array\",\"Score\":60}]";
-        var parseMethod = typeof(FlowProcessRunner).GetMethod("ParseResults", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var results = parseMethod?.Invoke(runner, [arrayJson, fakeApi]) as List<Result>;
+        using var doc = JsonDocument.Parse("{\"id\":3,\"method\":\"Flow.Launcher.OpenUrl\",\"params\":[\"https://playnite.link\"]}");
+        FlowJsonRpcSession.HandleOtherRpcCall("Flow.Launcher.OpenUrl", doc.RootElement, fakeApi);
 
-        Assert.IsNotNull(results);
-        Assert.HasCount(1, results);
-        Assert.AreEqual("Raw", results[0].Title);
-        Assert.AreEqual(60, results[0].Score);
+        Assert.AreEqual("https://playnite.link", opened);
     }
 
     private sealed class FakePublicApi : IPublicAPI
     {
-        private readonly Action<string, bool> _changeQuery;
-        public FakePublicApi(Action<string, bool> changeQuery) => _changeQuery = changeQuery;
+        public Func<string, string, MatchResult>? FuzzySearchFunc { get; set; }
+        public Action<string>? CopyToClipboardAction { get; set; }
+        public Action<string>? OpenUrlAction { get; set; }
 
         public event VisibilityChangedEventHandler? VisibilityChanged { add { } remove { } }
         public event ActualApplicationThemeChangedEventHandler? ActualApplicationThemeChanged { add { } remove { } }
         public event EventHandler? StringMatcherBehaviorChanged { add { } remove { } }
 
-        public void ChangeQuery(string query, bool requery = false) => _changeQuery(query, requery);
+        public MatchResult FuzzySearch(string query, string stringToCompare) =>
+            FuzzySearchFunc != null ? FuzzySearchFunc(query, stringToCompare) : new MatchResult(false, SearchPrecisionScore.Regular);
+
+        public void CopyToClipboard(string text, bool directCopy = false, bool showDefaultNotification = true) =>
+            CopyToClipboardAction?.Invoke(text);
+
+        public void OpenUrl(string url, bool? inPrivate = null) => OpenUrlAction?.Invoke(url);
+        public void OpenUrl(Uri url, bool? inPrivate = null) => OpenUrlAction?.Invoke(url.ToString());
+        public void OpenWebUrl(string url, bool? inPrivate = null) => OpenUrlAction?.Invoke(url);
+        public void OpenWebUrl(Uri url, bool? inPrivate = null) => OpenUrlAction?.Invoke(url.ToString());
+        public void OpenAppUri(string appUri) => OpenUrlAction?.Invoke(appUri);
+        public void OpenAppUri(Uri appUri) => OpenUrlAction?.Invoke(appUri.ToString());
+
+        public void ChangeQuery(string query, bool requery = false) { }
         public void RestartApp() { }
         public void ShellRun(string cmd, string filename = "cmd.exe") { }
-        public void CopyToClipboard(string text, bool directCopy = false, bool showDefaultNotification = true) { }
         public void SaveAppAllSettings() { }
         public void SavePluginSettings() { }
         public Task ReloadAllPluginData() => Task.CompletedTask;
@@ -163,16 +132,9 @@ public sealed class FlowProcessRunnerTests
         public List<PluginPair> GetAllPlugins() => [];
         public List<PluginPair> GetAllInitializedPlugins(bool includeFailed) => [];
         public void OpenDirectory(string DirectoryPath, string? FileNameOrFilePath = null) { }
-        public void OpenWebUrl(Uri url, bool? inPrivate = null) { }
-        public void OpenWebUrl(string url, bool? inPrivate = null) { }
-        public void OpenUrl(Uri url, bool? inPrivate = null) { }
-        public void OpenUrl(string url, bool? inPrivate = null) { }
-        public void OpenAppUri(Uri appUri) { }
-        public void OpenAppUri(string appUri) { }
         public List<ThemeData> GetAvailableThemes() => [];
         public ThemeData GetCurrentTheme() => new("Default", string.Empty);
         public bool SetCurrentTheme(ThemeData theme) => true;
-        public MatchResult FuzzySearch(string query, string stringToCompare) => new(false, SearchPrecisionScore.Regular);
         public Task<string> HttpGetStringAsync(string url, CancellationToken token = default) => Task.FromResult(string.Empty);
         public Task<Stream> HttpGetStreamAsync(string url, CancellationToken token = default) => Task.FromResult<Stream>(new MemoryStream());
         public Task HttpDownloadAsync(string url, string filePath, Action<double>? reportProgress = null, CancellationToken token = default) => Task.CompletedTask;

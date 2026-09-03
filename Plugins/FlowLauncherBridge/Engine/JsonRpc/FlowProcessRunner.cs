@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Text.Json;
 using Flow.Launcher.Plugin;
 using Lertaro.Plugins.FlowLauncherBridge.Engine.SettingsTemplate;
@@ -34,7 +32,7 @@ public class FlowProcessRunner
         };
 
         var json = JsonSerializer.Serialize(request);
-        var output = await RunProcessAsync(json, query.Search, cancellationToken).ConfigureAwait(false);
+        var output = await FlowJsonRpcSession.RunProcessAsync(_executable, _scriptPath, _metadata, json, api, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(output))
             return [];
 
@@ -110,7 +108,7 @@ public class FlowProcessRunner
         };
 
         var json = JsonSerializer.Serialize(request);
-        _ = await RunProcessAsync(json, null, CancellationToken.None).ConfigureAwait(false);
+        _ = await FlowJsonRpcSession.RunProcessAsync(_executable, _scriptPath, _metadata, json, api, CancellationToken.None).ConfigureAwait(false);
     }
 
     private IReadOnlyDictionary<string, object>? LoadPluginSettings()
@@ -146,107 +144,47 @@ public class FlowProcessRunner
         return dict.Count > 0 ? dict : null;
     }
 
-    private async Task<string> RunProcessAsync(string inputJson, string? cliQuery, CancellationToken cancellationToken)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = _executable,
-            WorkingDirectory = _metadata.PluginDirectory,
-            UseShellExecute = false,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            WindowStyle = ProcessWindowStyle.Hidden,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
-        };
-
-        if (!string.IsNullOrEmpty(_scriptPath))
-        {
-            psi.ArgumentList.Add(_scriptPath);
-        }
-
-        if (!string.IsNullOrEmpty(inputJson))
-        {
-            psi.ArgumentList.Add(inputJson);
-        }
-
-        psi.Environment["PYTHONIOENCODING"] = "utf-8";
-        psi.Environment["PYTHONDONTWRITEBYTECODE"] = "1";
-        psi.Environment["FLOW_VERSION"] = "1.19.0";
-        psi.Environment["FLOW_PROGRAM_DIRECTORY"] = _metadata.PluginDirectory;
-        psi.Environment["FLOW_APPLICATION_DIRECTORY"] = _metadata.PluginDirectory;
-        psi.Environment["FLOW_LAUNCHER_SETTINGS_PATH"] = _metadata.PluginSettingsDirectoryPath;
-
-        using var process = new Process { StartInfo = psi };
-        try
-        {
-            process.Start();
-        }
-        catch
-        {
-            return string.Empty;
-        }
-
-        try
-        {
-            if (!string.IsNullOrEmpty(inputJson))
-            {
-                await process.StandardInput.WriteLineAsync(inputJson).ConfigureAwait(false);
-                await process.StandardInput.FlushAsync().ConfigureAwait(false);
-            }
-            process.StandardInput.Close();
-        }
-        catch { }
-
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(15));
-
-        try
-        {
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
-            var completedTask = await Task.WhenAny(outputTask, Task.Delay(15000, cts.Token)).ConfigureAwait(false);
-            if (completedTask == outputTask)
-            {
-                return await outputTask.ConfigureAwait(false);
-            }
-
-            try { process.Kill(); } catch { }
-            return string.Empty;
-        }
-        catch
-        {
-            try { process.Kill(); } catch { }
-            return string.Empty;
-        }
-    }
-
     private List<Result> ParseResults(string output, IPublicAPI api)
     {
         var results = new List<Result>();
         try
         {
             var trimmed = output.Trim();
-            // JSON-RPC format could be {"result": [...]} or raw array [...]
-            if (trimmed.StartsWith("{"))
+            if (string.IsNullOrEmpty(trimmed))
+                return results;
+
+            using var doc = JsonDocument.Parse(trimmed);
+            var root = doc.RootElement;
+            JsonElement targetArray = default;
+
+            if (root.ValueKind == JsonValueKind.Array)
             {
-                var response = JsonSerializer.Deserialize<JsonRpcResponse>(trimmed, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (response?.Result != null)
+                targetArray = root;
+            }
+            else if (root.ValueKind == JsonValueKind.Object)
+            {
+                if (root.TryGetProperty("result", out var resElem) || root.TryGetProperty("Result", out resElem))
                 {
-                    foreach (var item in response.Result)
+                    if (resElem.ValueKind == JsonValueKind.Array)
                     {
-                        results.Add(MapResult(item, api));
+                        targetArray = resElem;
+                    }
+                    else if (resElem.ValueKind == JsonValueKind.Object &&
+                             (resElem.TryGetProperty("result", out var innerRes) || resElem.TryGetProperty("Result", out innerRes)) &&
+                             innerRes.ValueKind == JsonValueKind.Array)
+                    {
+                        targetArray = innerRes;
                     }
                 }
             }
-            else if (trimmed.StartsWith("["))
+
+            if (targetArray.ValueKind == JsonValueKind.Array)
             {
-                var items = JsonSerializer.Deserialize<List<JsonRpcResultItem>>(trimmed, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (items != null)
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                foreach (var elem in targetArray.EnumerateArray())
                 {
-                    foreach (var item in items)
+                    var item = elem.Deserialize<JsonRpcResultItem>(options);
+                    if (item != null)
                     {
                         results.Add(MapResult(item, api));
                     }
@@ -274,6 +212,7 @@ public class FlowProcessRunner
             Title = item.Title ?? string.Empty,
             SubTitle = item.SubTitle ?? string.Empty,
             IcoPath = icoPath ?? string.Empty,
+            Score = item.Score,
             AutoCompleteText = autoText,
             AsyncAction = async _ =>
             {
