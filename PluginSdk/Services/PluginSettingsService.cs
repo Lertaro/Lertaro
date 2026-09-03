@@ -21,6 +21,15 @@ public static class PluginSettingsService
     public static Action<string, string, object?>? SetSettingFunc { get; set; }
 
     /// <summary>
+    /// Delegate set by the host to query whether a plugin component is enabled. The component type
+    /// uses the host's stable enum name, and the assembly name includes its .dll extension.
+    /// </summary>
+    public static Func<string, string, string, bool>? IsComponentEnabledFunc { get; set; }
+
+    /// <summary>Raised by the host after the persisted plugin component enablement has changed.</summary>
+    public static event Action? ComponentEnablementChanged;
+
+    /// <summary>
     /// Event raised when a plugin setting is updated.
     /// Parameters: (pluginId, key)
     /// </summary>
@@ -39,6 +48,17 @@ public static class PluginSettingsService
     {
         SettingChanged?.Invoke(pluginId, key);
         SettingChangedWithValue?.Invoke(pluginId, key, value);
+    }
+
+    /// <summary>Notifies plugin runtimes that component enablement has been refreshed.</summary>
+    public static void NotifyComponentEnablementChanged() => ComponentEnablementChanged?.Invoke();
+
+    /// <summary>Returns whether the host currently allows a plugin component to run.</summary>
+    public static bool IsComponentEnabled(string dllName, string componentType, string componentName)
+    {
+        if (IsComponentEnabledFunc == null) return true;
+        try { return IsComponentEnabledFunc(dllName, componentType, componentName); }
+        catch { return true; }
     }
 
     /// <summary>

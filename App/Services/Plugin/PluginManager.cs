@@ -153,6 +153,7 @@ public class PluginManager : PluginRegistry
     {
         _filter.Refresh();
         ComponentsRefreshed?.Invoke();
+        PluginSdk.Services.PluginSettingsService.NotifyComponentEnablementChanged();
     }
 
     public bool IsComponentEnabled(string dllName, PluginComponentType type, string name)

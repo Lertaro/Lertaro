@@ -3,6 +3,7 @@ using Lertaro.Core.SearchIndex;
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services.AppWindow;
+using Lertaro.App.ViewModels.Settings.Plugins;
 namespace Lertaro.App.Services.Plugin;
 
 /// <summary>
@@ -25,6 +26,12 @@ internal static class PluginSdkBridge
         // Wire up the settings delegate for plugins using the in-memory UserSettings cache.
         PluginSdk.Services.PluginSettingsService.GetSettingFunc = manager.GetPluginSetting;
         PluginSdk.Services.PluginSettingsService.SetSettingFunc = manager.SetPluginSetting;
+        PluginSdk.Services.PluginSettingsService.IsComponentEnabledFunc = (dllName, componentType, componentName) =>
+        {
+            if (!Enum.TryParse<PluginComponentType>(componentType, out var parsedType))
+                return true;
+            return manager.IsComponentEnabled(dllName, parsedType, componentName);
+        };
         PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = () => Logger.UserDataDir;
         PluginSdk.Services.UserDataService.GetSharedDataDirectoryFunc = () => Logger.SharedDataDir;
         PluginSdk.Services.AppLifecycleService.RequestRestartFunc = AppLifecycle.AppRestartService.RequestRestart;

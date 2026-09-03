@@ -108,9 +108,12 @@ internal sealed class ContentIndexScanCoordinator : IDisposable
         }, ct);
     }
 
-    public void Dispose()
+    public void CancelPendingScan()
     {
-        _scanCts?.Cancel();
-        _scanCts?.Dispose();
+        var scanCts = Interlocked.Exchange(ref _scanCts, null);
+        scanCts?.Cancel();
+        scanCts?.Dispose();
     }
+
+    public void Dispose() => CancelPendingScan();
 }

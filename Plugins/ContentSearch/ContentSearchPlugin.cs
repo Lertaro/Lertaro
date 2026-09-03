@@ -13,34 +13,60 @@ namespace Lertaro.Plugins.ContentSearch;
 public sealed class ContentSearchPlugin : IPlugin, IConfigurable
 {
     private const string PluginId = "Lertaro.Plugins.ContentSearch";
+    private static readonly string PluginDllName = Path.GetFileName(typeof(ContentSearchPlugin).Assembly.Location);
+    private static readonly object RuntimeLock = new();
 
-    public static ContentSearchDatabase Database { get; }
-    public static ContentIndexScheduler Scheduler { get; }
+    public static ContentSearchDatabase? Database { get; private set; }
+    public static ContentIndexScheduler? Scheduler { get; private set; }
 
     static ContentSearchPlugin()
     {
-        var baseDir = UserDataService.GetUserDataDirectory();
-        var dataFolder = !string.IsNullOrEmpty(baseDir)
-            ? Path.Combine(baseDir, "ContentIndex")
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Lertaro", "ContentIndex");
-
-        var dbPath = Path.Combine(dataFolder, "content_index.db");
-        Database = new ContentSearchDatabase(dbPath);
-        Database.Initialize();
-
-        Scheduler = new ContentIndexScheduler(Database);
-        Scheduler.Start(LoadConfigFromSettings());
-        Scheduler.ProgressChanged += () =>
-            SearchRefreshService.RefreshIfMatches(ContentSearchInstantProvider.IsPlaceholderQuery);
-
+        PluginSettingsService.ComponentEnablementChanged += UpdateRuntimeState;
         PluginSettingsService.SettingChanged += (id, _) =>
         {
             if (string.Equals(id, PluginId, StringComparison.OrdinalIgnoreCase))
             {
-                Scheduler.UpdateConfig(LoadConfigFromSettings());
-                Scheduler.TriggerFullScan();
+                UpdateRuntimeState();
+                Scheduler?.UpdateConfig(LoadConfigFromSettings());
+                Scheduler?.TriggerFullScan();
             }
         };
+        UpdateRuntimeState();
+    }
+
+    private static void UpdateRuntimeState()
+    {
+        lock (RuntimeLock)
+        {
+            if (!ContentSearchEnablement.IsRuntimeEnabled(
+                    PluginSettingsService.IsComponentEnabled, PluginDllName))
+            {
+                // Keep an already-created database for reuse and to avoid disposing storage while a
+                // query may still be reading it; stopping the scheduler removes indexing CPU and
+                // directory-watch activity while the component is disabled.
+                Scheduler?.Stop();
+                Scheduler = null;
+                return;
+            }
+
+            if (Database == null)
+            {
+                var baseDir = UserDataService.GetUserDataDirectory();
+                var dataFolder = !string.IsNullOrEmpty(baseDir)
+                    ? Path.Combine(baseDir, "ContentIndex")
+                    : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Lertaro", "ContentIndex");
+                Database = new ContentSearchDatabase(Path.Combine(dataFolder, "content_index.db"));
+                Database.Initialize();
+            }
+
+            if (Scheduler == null)
+            {
+                Scheduler = new ContentIndexScheduler(Database);
+                Scheduler.ProgressChanged += () =>
+                    SearchRefreshService.RefreshIfMatches(ContentSearchInstantProvider.IsPlaceholderQuery);
+                Scheduler.Start(LoadConfigFromSettings());
+            }
+        }
     }
 
     public string Name => TranslationService.Get("ContentSearch_PluginName");
@@ -107,7 +133,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                 FieldType = ConfigFieldType.Button,
                 DefaultValue = string.Empty,
                 // Clear-only: unlike RebuildIndex, this does not trigger a full scan.
-                OnClick = () => Task.Run(() => Database.ClearAll())
+                OnClick = () => Task.Run(() => Database?.ClearAll())
             },
             new()
             {
@@ -119,15 +145,15 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                 // Off the UI thread: ClearAll runs DELETE + VACUUM, seconds on a large index.
                 OnClick = () => Task.Run(() =>
                 {
-                    Database.ClearAll();
-                    Scheduler.TriggerFullScan();
+                    Database?.ClearAll();
+                    Scheduler?.TriggerFullScan();
                 })
             }
         },
         OnSave = () =>
         {
-            Scheduler.UpdateConfig(LoadConfigFromSettings());
-            Scheduler.TriggerFullScan();
+            Scheduler?.UpdateConfig(LoadConfigFromSettings());
+            Scheduler?.TriggerFullScan();
         }
     };
 

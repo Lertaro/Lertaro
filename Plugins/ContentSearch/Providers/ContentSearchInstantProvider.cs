@@ -30,6 +30,8 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider, IFull
         var keyword = query[trigger.Length..].Trim();
         var db = ContentSearchPlugin.Database;
         var scheduler = ContentSearchPlugin.Scheduler;
+        if (db == null || scheduler == null)
+            yield break;
 
         if (keyword.Length == 0)
         {
@@ -69,7 +71,11 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider, IFull
         if (keyword.Length == 0)
             return Array.Empty<InstantResultItem>();
 
-        var hits = ContentSearchPlugin.Database.SearchFts(keyword, limit);
+        var database = ContentSearchPlugin.Database;
+        if (database == null)
+            return Array.Empty<InstantResultItem>();
+
+        var hits = database.SearchFts(keyword, limit);
         return ContentSearchResultBuilder.BuildResultItems(hits).ToList();
     }
 

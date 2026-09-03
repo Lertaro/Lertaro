@@ -62,6 +62,9 @@ public sealed class ContentIndexScheduler : IDisposable
 
     public void Start(ContentIndexConfig config)
     {
+        if (_workerTask != null)
+            return;
+
         UpdateConfig(config);
         _cts = new CancellationTokenSource();
         _workerTask = Task.Factory.StartNew(
@@ -81,6 +84,26 @@ public sealed class ContentIndexScheduler : IDisposable
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default);
         TriggerFullScan();
+    }
+
+    public void Stop()
+    {
+        _scanCoordinator.CancelPendingScan();
+        _cts?.Cancel();
+        _folderWatcher.UpdateFolders(Array.Empty<string>(), string.Empty);
+        try { _workerTask?.GetAwaiter().GetResult(); }
+        catch (OperationCanceledException) { }
+        catch { }
+
+        _workerTask = null;
+        _cts?.Dispose();
+        _cts = null;
+        while (_pendingFiles.TryDequeue(out _)) { }
+        lock (_queueLock)
+        {
+            _enqueuedPaths.Clear();
+            _inFlightPaths.Clear();
+        }
     }
 
     public void UpdateConfig(ContentIndexConfig config)
@@ -232,10 +255,8 @@ public sealed class ContentIndexScheduler : IDisposable
 
     public void Dispose()
     {
+        Stop();
         _scanCoordinator.Dispose();
-        _cts?.Cancel();
         _folderWatcher.Dispose();
-        try { _workerTask?.Wait(1000); } catch { }
-        _cts?.Dispose();
     }
 }
