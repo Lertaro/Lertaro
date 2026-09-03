@@ -128,8 +128,6 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
 
     public bool IsServiceConnected => Monitor.IsServiceConnected;
 
-    public string StatusText => Monitor.StatusText;
-
     public Visibility ErrorIconVisibility => Monitor.ErrorIconVisibility;
 
     public bool IsSearching => Search.IsSearching;
@@ -147,8 +145,6 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         get => Search.ResultsSeparatorVisibility;
         set => Search.ResultsSeparatorVisibility = value;
     }
-
-    public Visibility StatusBarVisibility => Monitor.StatusBarVisibility;
 
     public Visibility LoadingPanelVisibility => Monitor.LoadingPanelVisibility;
 

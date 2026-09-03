@@ -84,9 +84,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         TxtSearch.Focus();
         Keyboard.Focus(TxtSearch);
     }
-    public UIElement StatusBar => StatusBarControl;
-    public System.Windows.Shapes.Ellipse DotStatus => StatusBarControl.StatusDot;
-    public TextBlock TxtStatusInfo => StatusBarControl.StatusInfoTextBlock;
     private void InitializeChildControls()
     {
         _menuPresenter = new ShellMenuPresenter(this);
