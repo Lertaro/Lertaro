@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using Lertaro.PluginSdk.Helpers;
 using Lertaro.Plugins.ContentSearch.Storage;
 
@@ -8,10 +7,6 @@ namespace Lertaro.Plugins.ContentSearch.Indexing;
 /// <summary>
 /// Coordinates background indexing, file discovery, and incremental updates.
 /// </summary>
-// ponytail: this file sits slightly above the repo's 300-line guideline on purpose. The only
-// mechanical split (moving NormalizeFolderPath/IsFileInMonitoredFolders into a path helper)
-// would save ~35 lines but add a low-cohesion helper and touch five call sites for little
-// readability gain; if it grows further, extract the worker/scan loop instead.
 public sealed class ContentIndexScheduler : IDisposable
 {
     private const int WriteBatchSize = 50;
@@ -20,6 +15,7 @@ public sealed class ContentIndexScheduler : IDisposable
     private readonly ContentSearchDatabase _database;
     private readonly ContentFolderWatcher _folderWatcher;
     private readonly IndexBatchProcessor _batchProcessor;
+    private readonly ContentIndexScanCoordinator _scanCoordinator;
     private readonly ConcurrentQueue<string> _pendingFiles = new();
     private readonly HashSet<string> _enqueuedPaths = new(StringComparer.OrdinalIgnoreCase);
     // Files the worker has dequeued and is currently extracting/writing. A watcher-triggered
@@ -30,13 +26,13 @@ public sealed class ContentIndexScheduler : IDisposable
     private readonly SemaphoreSlim _scanGate = new(1, 1);
 
     private CancellationTokenSource? _cts;
-    private CancellationTokenSource? _scanCts;
     private Task? _workerTask;
     private long _lastProgressNotifyTick;
     private volatile ContentIndexConfig _config = new();
 
     public bool IsIndexing => !_pendingFiles.IsEmpty;
     public int PendingCount => _pendingFiles.Count;
+    internal ContentIndexConfig CurrentConfig => _config;
 
     // Raised from the scheduler's background thread when the visible indexing state
     // (queued count, committed rows) changes, throttled to ProgressNotifyIntervalMs
@@ -57,6 +53,7 @@ public sealed class ContentIndexScheduler : IDisposable
         _database = database;
         _batchProcessor = new IndexBatchProcessor(database);
         _folderWatcher = new ContentFolderWatcher(() => TriggerFullScan());
+        _scanCoordinator = new ContentIndexScanCoordinator(this, database);
         // Let the first progress notification go out immediately; later ones are
         // throttled to ProgressNotifyIntervalMs so indexing batches do not flood
         // the UI dispatcher with placeholder refresh requests.
@@ -118,107 +115,7 @@ public sealed class ContentIndexScheduler : IDisposable
     }
 
     public void TriggerFullScan()
-    {
-        var newCts = new CancellationTokenSource();
-        var oldCts = Interlocked.Exchange(ref _scanCts, newCts);
-        oldCts?.Cancel();
-        oldCts?.Dispose();
-
-        // Deliberately do NOT clear _pendingFiles/_enqueuedPaths here: the pending work is
-        // still valid, and clearing it is what let a watcher-triggered scan re-enqueue the
-        // same files (and made the "remaining" progress count jump). The worker still picks
-        // up config changes per file via ProcessSingleFileAsync.
-
-        var ct = newCts.Token;
-        Task.Run(async () =>
-        {
-            try { await _scanGate.WaitAsync(ct).ConfigureAwait(false); }
-            catch (OperationCanceledException) { return; }
-
-            try
-            {
-                if (ct.IsCancellationRequested) return;
-
-                if (_config.MonitoredFolders.Count == 0 || _config.AllowedExtensions.Count == 0)
-                {
-                    _database.ClearAll();
-                    return;
-                }
-
-                var scanStopwatch = Stopwatch.StartNew();
-
-                var existingMeta = _database.GetAllFileMetadata();
-                // Deliberately no size check here: lowering MaxFileSizeBytes does not
-                // prune already-indexed oversized rows, they keep serving their stale
-                // text until a full index rebuild (see FolderScanDiscoveryHelper for the
-                // enqueue side of the same trade-off).
-                var toDeleteImmediately = existingMeta.Keys
-                    .Where(p => !IsFileInMonitoredFolders(p) || !IsAllowedExtension(p) || _config.IsExcluded(p))
-                    .ToList();
-
-                if (toDeleteImmediately.Count > 0)
-                {
-                    _database.DeleteFilesBatch(toDeleteImmediately);
-                    foreach (var p in toDeleteImmediately)
-                        existingMeta.Remove(p);
-                }
-
-                var discovered = await FolderScanDiscoveryHelper.DiscoverFilesAsync(
-                    _config,
-                    existingMeta,
-                    EnqueueFile,
-                    ct).ConfigureAwait(false);
-
-                if (ct.IsCancellationRequested) return;
-
-                // A monitored NAS/share can be offline while the app keeps running. A scan
-                // while it is unreachable must not prune every file below it as "vanished":
-                // only prune paths whose monitored folder is currently reachable, so the
-                // offline share's content remains searchable from the local index.
-                var reachableFolders = _config.MonitoredFolders
-                    .Select(NormalizeFolderPath)
-                    .Where(folder => !string.IsNullOrEmpty(folder) && Directory.Exists(folder))
-                    .ToList();
-                var reachableConfig = new ContentIndexConfig
-                {
-                    MonitoredFolders = reachableFolders,
-                    AllowedExtensions = _config.AllowedExtensions,
-                    ExcludedPatterns = _config.ExcludedPatterns
-                };
-
-                var missingResult = MissingObservationHelper.ApplyRetention(
-                    _database,
-                    existingMeta,
-                    discovered,
-                    reachableConfig);
-
-                NotifyProgressChanged(force: _pendingFiles.IsEmpty);
-
-                _database.Optimize();
-                _database.VacuumIfBloat();
-
-                scanStopwatch.Stop();
-                // One info line per scan, only when there is actual indexing work: it tells the
-                // user how many files this scan queued without the folder-count noise or the
-                // per-scan completion bookkeeping that used to be logged here.
-                if (PendingCount > 0)
-                {
-                    PluginSdk.Logger.Log(
-                        $"[ContentSearch] Started scanning {PendingCount} file(s)",
-                        PluginSdk.LogLevel.Info);
-                }
-            }
-            catch (Exception ex)
-            {
-                PluginSdk.Logger.Log(
-                    $"[ContentSearch] Full scan failed: {ex.Message}", PluginSdk.LogLevel.Error);
-            }
-            finally
-            {
-                _scanGate.Release();
-            }
-        }, ct);
-    }
+        => _scanCoordinator.TriggerFullScan();
 
     public void EnqueueFile(string filePath)
     {
@@ -323,7 +220,7 @@ public sealed class ContentIndexScheduler : IDisposable
         }
     }
 
-    private void NotifyProgressChanged(bool force)
+    internal void NotifyProgressChanged(bool force)
     {
         var now = Environment.TickCount64;
         if (!force && now - _lastProgressNotifyTick < ProgressNotifyIntervalMs)
@@ -335,8 +232,7 @@ public sealed class ContentIndexScheduler : IDisposable
 
     public void Dispose()
     {
-        _scanCts?.Cancel();
-        _scanCts?.Dispose();
+        _scanCoordinator.Dispose();
         _cts?.Cancel();
         _folderWatcher.Dispose();
         try { _workerTask?.Wait(1000); } catch { }

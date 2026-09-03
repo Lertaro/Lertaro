@@ -19,7 +19,7 @@ public sealed class ContentIndexSchedulerTests
         _database.Initialize();
         _logLines.Clear();
         PluginSdk.Logger.LogAction = (message, level) => _logLines.Add($"{level}: {message}");
-        Lertaro.PluginSdk.Services.DirectoryIndexerService.EnumerateDirectoryFunc =
+        PluginSdk.Services.DirectoryIndexerService.EnumerateDirectoryFunc =
             TestSupport.LiveDirectoryEnumerator.EnumerateAsync;
     }
 
@@ -27,7 +27,7 @@ public sealed class ContentIndexSchedulerTests
     public void TearDown()
     {
         PluginSdk.Logger.LogAction = null;
-        Lertaro.PluginSdk.Services.DirectoryIndexerService.EnumerateDirectoryFunc = null;
+        PluginSdk.Services.DirectoryIndexerService.EnumerateDirectoryFunc = null;
         _database.Dispose();
         if (File.Exists(_tempDbPath))
         {

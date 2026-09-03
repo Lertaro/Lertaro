@@ -71,17 +71,23 @@ public static class ServiceInstallManager
                 return SilentInstallResult.Failed;
             }
 
-            if (!IsInstalledAtCurrentPath())
+            var isRegistered = IsInstalledAtCurrentPath();
+            var startSucceeded = isRegistered && TryStartWithoutElevation();
+            var result = ServiceInstallOutcomeHelper.DetermineResult(
+                installerSucceeded: true,
+                registeredAtCurrentPath: isRegistered,
+                serviceStarted: startSucceeded);
+            if (result == SilentInstallResult.Failed)
             {
-                Logger.Log("[ServiceInstallManager] Silent install finished but LertaroService is not registered at the current service path.", LogLevel.Error);
-                onFailed?.Invoke(new InvalidOperationException("LertaroService is not registered at the current service path after installation."));
-                return SilentInstallResult.Failed;
+                var message = !isRegistered
+                    ? "LertaroService is not registered at the current service path after installation."
+                    : "LertaroService was installed but could not be started.";
+                Logger.Log($"[ServiceInstallManager] {message}", LogLevel.Error);
+                onFailed?.Invoke(new InvalidOperationException(message));
+                return result;
             }
 
-            if (TryStartWithoutElevation())
-                Logger.Log("[ServiceInstallManager] LertaroService is registered at the current path and start command succeeded.");
-            else
-                Logger.Log("[ServiceInstallManager] LertaroService is registered at the current path but start command failed.", LogLevel.Warn);
+            Logger.Log("[ServiceInstallManager] LertaroService is registered at the current path and start command succeeded.");
         }
         catch (Exception ex)
         {

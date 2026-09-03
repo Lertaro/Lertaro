@@ -34,12 +34,11 @@ public sealed class FolderScanDiscoveryHelperTests
     }
 
     [TestMethod]
-    public async Task DiscoverFilesAsync_HostEnumerationSucceeds_TrustsHostWithoutRedundantWalk()
+    public async Task DiscoverFilesAsync_HostEnumerationSucceeds_ReconcilesFilesystem()
     {
-        // The host DirectoryIndexerService already falls back to a live filesystem walk when
-        // no index can answer, so a successful enumeration must be trusted as complete. Running
-        // our own raw walk here too would duplicate the traversal and re-queue files that the
-        // host already reported.
+        // A successful host enumeration can be a stale snapshot. The filesystem reconciliation
+        // must still discover files that the host did not report, while the HashSet deduplicates
+        // the file reported by both sources.
         var dir = CreateTempDirectory();
 
         try
@@ -64,9 +63,9 @@ public sealed class FolderScanDiscoveryHelperTests
                 enqueued.Add,
                 CancellationToken.None);
 
-            var expected = new[] { Path.Combine(dir, "a.txt") };
+            var expected = new[] { Path.Combine(dir, "a.txt"), Path.Combine(dir, "b.txt"), Path.Combine(dir, "c.txt") };
             CollectionAssert.AreEquivalent(expected, discovered.ToList());
-            Assert.HasCount(1, enqueued);
+            Assert.HasCount(3, enqueued);
         }
         finally
         {

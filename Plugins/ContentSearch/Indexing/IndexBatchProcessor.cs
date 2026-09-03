@@ -198,6 +198,14 @@ public sealed class IndexBatchProcessor
                 failedBatch.Add(MakeFailedItem(filePath, fileInfo));
                 return;
             }
+            catch (OperationCanceledException) when (IsFileTimeout(hardTimeoutCts.Token, ct))
+            {
+                PluginSdk.Logger.Log(
+                    $"[ContentSearch] Timed out extracting '{filePath}' after {hardTimeout.TotalSeconds:F0}s (hard cap)",
+                    PluginSdk.LogLevel.Warn);
+                failedBatch.Add(MakeFailedItem(filePath, fileInfo));
+                return;
+            }
 
             if (text is null)
             {
@@ -241,6 +249,9 @@ public sealed class IndexBatchProcessor
             }
         }
     }
+
+    internal static bool IsFileTimeout(CancellationToken fileTimeoutToken, CancellationToken batchToken) =>
+        fileTimeoutToken.IsCancellationRequested && !batchToken.IsCancellationRequested;
 
     private static FileIndexBatchItem MakeFailedItem(string filePath, FileInfo fileInfo) =>
         new(filePath, fileInfo.LastWriteTimeUtc, fileInfo.Length, string.Empty);

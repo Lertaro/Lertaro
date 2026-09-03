@@ -26,7 +26,6 @@ public static class FolderScanDiscoveryHelper
             if (string.IsNullOrEmpty(folder))
                 continue;
 
-            var hostEnumerationFailed = false;
             try
             {
                 await foreach (var item in DirectoryIndexerService.EnumerateDirectoryAsync(
@@ -75,16 +74,12 @@ public static class FolderScanDiscoveryHelper
             {
                 // Host enumeration unavailable (service down, pipe timeout): the filesystem
                 // walk below still covers the folder, so keep going instead of failing.
-                hostEnumerationFailed = true;
             }
 
-            // DirectoryIndexerService already falls back to a live filesystem walk whenever
-            // no host index can answer, so a successful enumeration is authoritative: running
-            // the raw filesystem walk again here would only duplicate that work for large or
-            // slow (network) trees. Only a failed enumeration needs the local fallback.
+            // The host index is an optimization, not a freshness guarantee. Reconcile with the
+            // filesystem on every full scan; the HashSet removes duplicates from the two sources.
             if (ct.IsCancellationRequested) return discovered;
-            if (hostEnumerationFailed)
-                ScanFilesystem(folder, config, existingMeta, discovered, onEnqueue, ct);
+            ScanFilesystem(folder, config, existingMeta, discovered, onEnqueue, ct);
         }
 
         return discovered;
