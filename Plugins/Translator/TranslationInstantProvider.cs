@@ -18,7 +18,11 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
     // the natural turnover (one per distinct input) makes a proper LRU upgrade an easy follow-up.
     private const int MaxCacheEntries = 256;
     private static readonly Dictionary<string, TranslationCacheEntry> Cache = new(StringComparer.Ordinal);
-    private static readonly Queue<string> CacheInsertionOrder = new();
+    // Insertion order for FIFO eviction, plus a node map so an expired entry (or a re-added key) can be
+    // removed from the order in O(1). A plain Queue<string> cannot remove a key, so an expired key that
+    // got re-fetched on the next keystroke accumulated one stale queue entry per retry forever.
+    private static readonly LinkedList<string> CacheInsertionOrder = new();
+    private static readonly Dictionary<string, LinkedListNode<string>> CacheInsertionNodes = new(StringComparer.Ordinal);
     private static readonly HashSet<string> PendingRequests = new(StringComparer.Ordinal);
     private static string? _cachedTrigger;
     private static string? _latestRequestKey;
@@ -101,6 +105,8 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
             if (entry.Translation == null && DateTimeOffset.UtcNow - entry.CachedAtUtc >= FailureCacheLifetime)
             {
                 Cache.Remove(key);
+                if (CacheInsertionNodes.Remove(key, out var node))
+                    CacheInsertionOrder.Remove(node);
                 return false;
             }
             return true;
@@ -135,10 +141,17 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
 
                 lock (Cache)
                 {
+                    if (CacheInsertionNodes.TryGetValue(key, out var existingNode))
+                        CacheInsertionOrder.Remove(existingNode);
+                    CacheInsertionNodes[key] = CacheInsertionOrder.AddLast(key);
                     Cache[key] = new TranslationCacheEntry(translation, DateTimeOffset.UtcNow);
-                    CacheInsertionOrder.Enqueue(key);
-                    while (Cache.Count > MaxCacheEntries && CacheInsertionOrder.TryDequeue(out var oldest))
-                        Cache.Remove(oldest);
+
+                    while (Cache.Count > MaxCacheEntries && CacheInsertionOrder.First is { } oldestNode)
+                    {
+                        CacheInsertionOrder.RemoveFirst();
+                        CacheInsertionNodes.Remove(oldestNode.Value);
+                        Cache.Remove(oldestNode.Value);
+                    }
                 }
             }
             finally
