@@ -11,6 +11,8 @@
   "FlowLauncherBridge_Confirm": "OK",
   "FlowLauncherBridge_CommunityLoadingTitle": "Fetching Flow community plugin list...",
   "FlowLauncherBridge_CommunityLoadingDesc": "Connecting to the plugin manifest repository, please wait",
+  "FlowLauncherBridge_QueryPendingDesc": "A Flow plugin is still responding; keep typing or retry",
+  "FlowLauncherBridge_QueryPendingTitle": "Flow: querying plugins...",
   "FlowLauncherBridge_CommunityInstalled": "Installed",
   "FlowLauncherBridge_NoCommunityPlugins": "No matching online Flow plugins found",
   "FlowLauncherBridge_Installing": "Installing...",

@@ -41,24 +41,20 @@ public sealed class QuickLaunchSettingsViewModelTests
     [TestMethod]
     public void AddPaths_AddsAllUniqueExistingPathsWithAutomaticNames()
     {
-        var first = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".exe");
-        var second = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".cmd");
-        File.WriteAllText(first, string.Empty);
-        File.WriteAllText(second, string.Empty);
-        try
-        {
-            var vm = new QuickLaunchSettingsViewModel(new UserSettings());
+        // Real system executables instead of fixture files: creating an *.exe/*.cmd in the temp
+        // directory trips antivirus real-time protection on some machines (UnauthorizedAccessException
+        // on CreateFile), and this test only needs paths that EXIST. The automatic-name behavior under
+        // test is extension-driven (known executable extensions get hidden), which System32 binaries
+        // exercise identically.
+        var first = Path.Combine(Environment.SystemDirectory, "notepad.exe");
+        var second = Path.Combine(Environment.SystemDirectory, "cmd.exe");
 
-            vm.AddPaths(new[] { first, second, first });
+        var vm = new QuickLaunchSettingsViewModel(new UserSettings());
 
-            Assert.HasCount(2, vm.Items);
-            Assert.AreEqual(Path.GetFileNameWithoutExtension(first), vm.Items[0].Name);
-            Assert.AreEqual(Path.GetFileNameWithoutExtension(second), vm.Items[1].Name);
-        }
-        finally
-        {
-            File.Delete(first);
-            File.Delete(second);
-        }
+        vm.AddPaths(new[] { first, second, first });
+
+        Assert.HasCount(2, vm.Items);
+        Assert.AreEqual(Path.GetFileNameWithoutExtension(first), vm.Items[0].Name);
+        Assert.AreEqual(Path.GetFileNameWithoutExtension(second), vm.Items[1].Name);
     }
 }

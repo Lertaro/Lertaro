@@ -54,7 +54,12 @@ public class ClassicFileDialogAdapter : IFileDialogAdapter
             remoteBuffer = VirtualAllocEx(hProcess, IntPtr.Zero, bufferBytes, MEM_COMMIT, PAGE_READWRITE);
             if (remoteBuffer == IntPtr.Zero) return null;
 
-            var copiedChars = SendMessage(hwnd, CDM_GETFOLDERPATH, (IntPtr)maxChars, remoteBuffer).ToInt64();
+            // SendMessageTimeout, not SendMessage: this runs on the hook process's polling thread,
+            // and a hung target dialog would otherwise park that thread forever. SMTO_ABORTIFHUNG
+            // degrades a wedged dialog to a failed read instead.
+            if (SendMessageTimeout(hwnd, CDM_GETFOLDERPATH, (IntPtr)maxChars, remoteBuffer, SMTO_ABORTIFHUNG, GetPathTimeoutMs, out var result) == IntPtr.Zero)
+                return null;
+            var copiedChars = result.ToInt64();
             if (copiedChars <= 0) return null;
 
             var localBuffer = new byte[bufferBytes];
@@ -183,6 +188,10 @@ public class ClassicFileDialogAdapter : IFileDialogAdapter
     private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, string lParam);
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);
+    private const uint SMTO_ABORTIFHUNG = 0x0002;
+    private const uint GetPathTimeoutMs = 500;
     [DllImport("user32.dll")]
     private static extern IntPtr GetParent(IntPtr hWnd);
     [DllImport("user32.dll")]

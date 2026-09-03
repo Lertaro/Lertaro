@@ -16,11 +16,8 @@ public sealed class ActionsMenuNavigatorTests
         public Grid GridActions { get; } = new();
         public TextBlock TxtActionsTarget { get; } = new();
         public ListBox LstActions { get; } = new();
-        public TextBox ActionsSearchTextBox { get; } = new();
         public string SearchText => "";
         public TextBox SearchTextBox { get; } = new();
-        public bool UsesFloatingActionsMenu => false;
-        public bool KeepWindowOpenAfterActionsHotkey => false;
         public bool IsInActionsMode { get; set; }
         public void UpdateActionsLayout() { }
         public void FocusSearch() { }

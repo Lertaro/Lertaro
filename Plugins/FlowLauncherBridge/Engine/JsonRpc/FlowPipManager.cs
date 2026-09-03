@@ -13,6 +13,10 @@ public static class FlowPipManager
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(3) };
     private static bool _pipChecked;
     private static readonly object Lock = new();
+    // Serializes requirements installs: a concurrent Ensure while one is running must not run a
+    // second pip over the same lib directory (check-then-act on the marker without this raced two
+    // pip processes into one target tree).
+    private static readonly SemaphoreSlim InstallGate = new(1, 1);
 
     public static string GetFlowDataDirectory()
     {
@@ -33,8 +37,17 @@ public static class FlowPipManager
 
         _ = Task.Run(async () =>
         {
-            await EnsurePipInstalledAsync(pythonExe).ConfigureAwait(false);
-            await InstallRequirementsAsync(pythonExe, pluginDir, reqFile, markerFile).ConfigureAwait(false);
+            if (!await InstallGate.WaitAsync(0).ConfigureAwait(false))
+                return;
+            try
+            {
+                await EnsurePipInstalledAsync(pythonExe).ConfigureAwait(false);
+                await InstallRequirementsAsync(pythonExe, pluginDir, reqFile, markerFile).ConfigureAwait(false);
+            }
+            finally
+            {
+                InstallGate.Release();
+            }
         });
     }
 
@@ -121,12 +134,19 @@ public static class FlowPipManager
             process.Start();
             process.StandardInput.Close();
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-            await process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+            // Drain both pipes WHILE waiting: pip writes far more output than the ~4KB pipe buffer
+            // holds, and a child blocked on a full stdout pipe never exits -- a wait-only version
+            // deadlocked here until the timeout killed pip mid-install, leaving a half-populated
+            // lib directory behind.
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            var exitTask = process.WaitForExitAsync(cts.Token);
+            await Task.WhenAll(exitTask, outputTask, errorTask).ConfigureAwait(false);
             return process.ExitCode == 0;
         }
         catch
         {
-            try { process.Kill(); } catch { }
+            try { process.Kill(entireProcessTree: true); } catch { }
             return false;
         }
     }

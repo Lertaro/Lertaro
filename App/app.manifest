@@ -9,4 +9,14 @@
       </requestedPrivileges>
     </security>
   </trustInfo>
+  <!-- Per-monitor V2 DPI awareness: the window positioning helpers multiply Win32 pixel rects
+       (GetWindowRect, GetDpiForMonitor) by a per-monitor scale, which is only correct when the
+       process itself sees per-monitor coordinates. Without this declaration the process falls
+       back to system-DPI virtualization and every mixed-DPI multi-monitor position lands wrong,
+       with blurry windows on secondary displays. -->
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+    </windowsSettings>
+  </application>
 </assembly>

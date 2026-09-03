@@ -129,14 +129,10 @@ public class BrowserDataInstantProvider : IInstantResultProvider
 
         var descriptionPrefix = !string.IsNullOrWhiteSpace(profile.Profile.Name) ? $"{profile.Profile.Name} · " : string.Empty;
 
-        var description = descriptionPrefix + entry.Url;
-        if (!entry.IsBookmark && entry.VisitTime is { } visitTime)
-            description = $"{BrowserHistoryTime.Format(visitTime)} · {description}";
-
         return new InstantResultItem
         {
             Title = entry.Title,
-            Description = description,
+            Description = descriptionPrefix + entry.Url,
             IconData = iconData,
             IconColor = "AccentBlue",
             ActionType = "Execute",

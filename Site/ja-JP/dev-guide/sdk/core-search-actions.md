@@ -140,5 +140,5 @@ public interface IDynamicActionProvider
 ## 4. 補助データ構造
 
 - **`SearchableItem` / `InstantResultItem`**：`Title`、`Description`、`IconData`、`IconColor`、`ActionType`、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（自動解放）、`OnExecute` 等を保持。
-- **`DynamicMenuItem`**：`Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`IsActionable`、`IsContinuation`、`OnExecute`、`IsHeader`、`ShortcutHint` を保持します。サブメニューを開くだけの純粋なカテゴリーノードでは `IsActionable = false` を設定し、実際のフォルダー項目は既定値 `true` のままにできます。`IsContinuation = true` はページ分割されたサブメニューの継続カーソルを示し、ホストが自動的に次ページを読み込むため、表示用の「さらに読み込む」行にはなりません。`IsHeader` は任意のアクションボタン付きグループヘッダーとして描画します。
+- **`DynamicMenuItem`**：`Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsHeader`（操作ボタン付きのグループヘッダー行として描画可能）を保持。
 - **`SearchWindowType`**：`Main`（メイン検索窓）、`Quick`（クイック検索バー）、`Inline`（インラインダイアログ）の列挙型。

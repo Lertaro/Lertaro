@@ -10,6 +10,16 @@ public static class ServiceInstallManager
     private const int StartTimeoutMs = 10000;
     private static int _silentInstallInFlight;
 
+    public enum SilentInstallResult
+    {
+        // The install/start sequence ran; onCompleted has fired.
+        Started,
+        // Another silent install is already in flight; no callbacks fired.
+        AlreadyRunning,
+        // The install or registration check failed; onFailed has fired.
+        Failed
+    }
+
     public static string GetServiceExePath()
     {
         var serviceExePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Lertaro.Service.exe");
@@ -38,12 +48,17 @@ public static class ServiceInstallManager
         }
     }
 
-    public static bool SilentInstall(Action onCompleted)
+    // Result-shape note: exactly one of onCompleted/onFailed fires when the result is Started or
+    // Failed, and neither fires for AlreadyRunning. The old bool return collapsed "installer failed"
+    // (UAC declined, nonzero exit, service not registered) into the same true as success, so callers
+    // could only tell "in flight" apart from everything else -- a failed install looked completed to
+    // the UI and only surfaced at the next failed ping.
+    public static SilentInstallResult SilentInstall(Action onCompleted, Action<Exception>? onFailed = null)
     {
         if (Interlocked.CompareExchange(ref _silentInstallInFlight, 1, 0) != 0)
         {
             Logger.Log("[ServiceInstallManager] Silent service installation already in progress.", LogLevel.Debug);
-            return false;
+            return SilentInstallResult.AlreadyRunning;
         }
 
         try
@@ -51,12 +66,16 @@ public static class ServiceInstallManager
             var serviceExePath = GetServiceExePath();
             Logger.Log($"[ServiceInstallManager] Attempting silent service installation: {serviceExePath}");
             if (!RunElevatedInstaller("Silent service installation", serviceExePath))
-                return true;
+            {
+                onFailed?.Invoke(new InvalidOperationException("Silent service installation did not complete successfully (declined, timed out, or failed)."));
+                return SilentInstallResult.Failed;
+            }
 
             if (!IsInstalledAtCurrentPath())
             {
                 Logger.Log("[ServiceInstallManager] Silent install finished but LertaroService is not registered at the current service path.", LogLevel.Error);
-                return true;
+                onFailed?.Invoke(new InvalidOperationException("LertaroService is not registered at the current service path after installation."));
+                return SilentInstallResult.Failed;
             }
 
             if (TryStartWithoutElevation())
@@ -67,14 +86,16 @@ public static class ServiceInstallManager
         catch (Exception ex)
         {
             Logger.Log($"[ServiceInstallManager] Silent service installation failed: {ex.Message}", LogLevel.Error);
+            onFailed?.Invoke(ex);
+            return SilentInstallResult.Failed;
         }
         finally
         {
             Interlocked.Exchange(ref _silentInstallInFlight, 0);
-            onCompleted?.Invoke();
         }
 
-        return true;
+        onCompleted?.Invoke();
+        return SilentInstallResult.Started;
     }
 
     private static bool RunElevatedInstaller(string operation, string serviceExePath)

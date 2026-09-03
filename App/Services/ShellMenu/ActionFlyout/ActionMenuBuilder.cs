@@ -1,11 +1,13 @@
 using System.Text.RegularExpressions;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+
 using Lertaro.App.Services.Plugin;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services.PluginManagerCore;
 using Lertaro.App.ViewModels.Settings.Plugins;
 namespace Lertaro.App.Services.ShellMenu.ActionFlyout;
+
 internal static class ActionMenuBuilder
 {
     // Windows shell menu text carries an access-key mnemonic Lertaro's own hotkey system never wires
@@ -13,6 +15,7 @@ internal static class ActionMenuBuilder
     // "&" left the parenthesized letter itself behind for the common localized layout ("Word(&D)" ->
     // "Word(D)"), showing a dead "(D)" hint that can never actually fire.
     private static readonly Regex MnemonicPattern = new(@"\(&.\)", RegexOptions.Compiled);
+
     private static string CleanMenuText(string? text) =>
         MnemonicPattern.Replace(text ?? "", "").Replace("&", "");
 
@@ -55,19 +58,6 @@ internal static class ActionMenuBuilder
         }
 
         return FinalizeItems(uiItems);
-    }
-
-    internal static void PrependSubmenuGroupHeader(List<ActionMenuItem> items, string? parentMenuTitle)
-    {
-        if (items.Count == 0 || string.IsNullOrWhiteSpace(parentMenuTitle))
-            return;
-
-        items.Insert(0, new ActionMenuItem
-        {
-            IsSectionHeader = true,
-            SectionTitle = parentMenuTitle,
-            ItemHeight = Math.Round(UiMetrics.ListItemHeight * UiMetrics.ActionMenuCompactRowScale)
-        });
     }
 
     // Builds ONLY the built-in (static) action items — the fast part of the menu. The presenter shows

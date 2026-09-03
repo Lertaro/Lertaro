@@ -4,7 +4,7 @@ Lertaro does more than find files at blazing speeds — it integrates a comprehe
 
 ## 1. Action Menu Deep Dive
 
-Press `Ctrl+O` or `→` on any search result (file, folder, application, or plugin entry) to expand the contextual action menu. In the Full Search Window, right-clicking a result opens the same menu for that result.
+Press `Ctrl+O` or `→` on any search result (file, folder, application, or plugin entry) to expand the contextual action menu.
 
 ### Built-in Core Actions Cheat Sheet
 
@@ -23,11 +23,8 @@ Press `Ctrl+O` or `→` on any search result (file, folder, application, or plug
 ### Action Menu Interaction & Filtering
 
 - **Type to Filter**: Once the action menu opens, type immediately to filter actions by name (e.g., typing `copy` narrows the list to copy-related actions).
-- **Independent Search Box**: The action menu has its own focused search box, so filtering actions never changes the main search query. Moving to another menu level clears the action filter and focuses the new level's search box.
-- **Floating Action Panel**: In the Quick Window, Quick Launch panel, and Full Search Window, actions appear in a floating panel anchored to the active result. The Quick Launch panel expands to the action menu's full working height and returns to its compact height when the menu closes.
-- **Hierarchical Navigation**: On items with submenus (such as "Send to"), press `→` or `Enter` to enter; press `←` or `Backspace` (when filter text is empty) to return to the parent level. In a nested menu, `Escape` and right-click return to the parent; at the root level they close the action menu.
-- **Click Away to Close**: Clicking outside a floating action panel closes it. Right-clicking another result replaces the current action target in place when the host supports it.
-- **Action Hotkeys**: Provider-defined action shortcuts work while the action panel is focused. Executing one closes the floating panel while keeping the Full Search Window or Quick Launch panel open.
+- **Hierarchical Navigation**: On items with submenus (such as "Send to"), press `→` or `Enter` to enter; press `←` or `Backspace` (when filter text is empty) to return to the parent level.
+- **Exit Menu**: Press `Escape` to close the action menu and return to the main search result list.
 
 ## 2. Full Window Results List Features
 
@@ -36,7 +33,6 @@ The Full Search Window (`Ctrl+F`) is designed for high-density file management a
 - **Double-click Path Column**: Double-clicking the **Name** column opens the file; double-clicking the **Path** column opens the containing parent folder directly.
 - **Infinite Streaming Results**: When scanning millions of items, results stream into the view incrementally without waiting for the full index scan to conclude. You can interact with rows immediately as they arrive.
 - **Wrap-around Navigation**: Pressing `↑` on the top row wraps around to the last item; pressing `↓` on the bottom row wraps back to the first.
-- **Selection Summary**: When multiple rows are selected, the status bar shows the selected item count next to the total result count.
 - **Window Dragging & Size Memory**: Drag the non-interactive top area of the window to reposition it; manually resized dimensions are automatically remembered across sessions.
 
 ## 3. Built-in QuickLook Instant Preview

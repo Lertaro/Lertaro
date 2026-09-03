@@ -140,5 +140,5 @@ public interface IDynamicActionProvider
 ## 4. Estructuras auxiliares
 
 - **`SearchableItem` / `InstantResultItem`**: Contiene `Title`, `Description`, `IconData`, `IconColor`, `ActionType`, `ActionArgument`, `TabCompletion`, `HBitmapIcon` (liberado automáticamente) y delegado `OnExecute`.
-- **`DynamicMenuItem`**: Contiene `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `IsActionable`, `IsContinuation`, `OnExecute`, `IsHeader` y `ShortcutHint`. Establece `IsActionable = false` para una categoría pura que solo abre un submenú; los nodos de carpetas accionables pueden conservar el valor predeterminado `true`. `IsContinuation = true` marca un cursor de paginación que el anfitrión carga automáticamente en lugar de mostrar una fila visible de «cargar más». `IsHeader` renderiza un encabezado de grupo con un botón de acción opcional.
+- **`DynamicMenuItem`**: Contiene `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute` e `IsHeader` (renderiza un encabezado de grupo con botón de acción opcional).
 - **`SearchWindowType`**: Enumerador con `Main` (Ventana principal), `Quick` (Ventana rápida) e `Inline` (Diálogo de archivos incrustado).

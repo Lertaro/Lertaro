@@ -9,18 +9,41 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 /// </summary>
 public static class FlowNpmManager
 {
+    // Serializes npm installs: a concurrent Ensure while one is running must not delete the
+    // node_modules being written or run a second npm over the same tree.
+    private static readonly SemaphoreSlim InstallGate = new(1, 1);
+
     public static void EnsureNpmAndPackagesBackground(string nodeExe, string pluginDir)
     {
         var packageJson = Path.Combine(pluginDir, "package.json");
         var markerFile = Path.Combine(pluginDir, ".npm_installed");
         var nodeModulesDir = Path.Combine(pluginDir, "node_modules");
 
-        if (!File.Exists(packageJson) || File.Exists(markerFile) || Directory.Exists(nodeModulesDir))
+        // The marker is the only "installed" signal. node_modules alone used to count as done too,
+        // which permanently masked a half-install left behind when npm was killed mid-run: the
+        // marker never got written, the directory existed, and every later load skipped the install.
+        if (!File.Exists(packageJson) || File.Exists(markerFile))
             return;
 
         _ = Task.Run(async () =>
         {
-            await InstallPackagesAsync(nodeExe, pluginDir, markerFile).ConfigureAwait(false);
+            if (!await InstallGate.WaitAsync(0).ConfigureAwait(false))
+                return;
+            try
+            {
+                // Leftover tree from a previous killed install: clear it so the reinstall starts
+                // clean instead of npm merging into a possibly corrupt dependency tree.
+                if (Directory.Exists(nodeModulesDir))
+                {
+                    try { Directory.Delete(nodeModulesDir, recursive: true); }
+                    catch { /* best-effort; npm reinstalls over what it can */ }
+                }
+                await InstallPackagesAsync(nodeExe, pluginDir, markerFile).ConfigureAwait(false);
+            }
+            finally
+            {
+                InstallGate.Release();
+            }
         });
     }
 
@@ -87,12 +110,19 @@ public static class FlowNpmManager
             process.Start();
             process.StandardInput.Close();
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
-            await process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+            // Drain both pipes WHILE waiting: npm writes far more progress output than the ~4KB
+            // pipe buffer holds, and a child blocked on a full stdout pipe never exits -- a
+            // wait-only version deadlocked here until the timeout killed npm mid-install, which
+            // is also what left half-written node_modules trees behind.
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            var exitTask = process.WaitForExitAsync(cts.Token);
+            await Task.WhenAll(exitTask, outputTask, errorTask).ConfigureAwait(false);
             return process.ExitCode == 0;
         }
         catch
         {
-            try { process.Kill(); } catch { }
+            try { process.Kill(entireProcessTree: true); } catch { }
             return false;
         }
     }

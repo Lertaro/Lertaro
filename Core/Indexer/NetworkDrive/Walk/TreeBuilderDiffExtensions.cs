@@ -111,10 +111,10 @@ internal static class TreeBuilderDiffExtensions
     // deletion side of the same coin, self-correcting even if mtime turns out unreliable on some filesystem.
     private static void ReconcileLiveEntries(TreeBuilder builder, WorkItem current, NetworkIgnoreRuleSet ignoreRules, Dictionary<string, FileRecord> previousByName, List<FileRecord> batch)
     {
-        IEnumerable<string> liveEntries;
+        IEnumerable<NativeFileEntry> liveEntries;
         try
         {
-            liveEntries = Directory.EnumerateFileSystemEntries(current.Path);
+            liveEntries = NativeFileEnumerator.Enumerate(current.Path);
         }
         catch
         {
@@ -126,11 +126,12 @@ internal static class TreeBuilderDiffExtensions
         {
             builder._token.ThrowIfCancellationRequested();
 
-            var name = Path.GetFileName(entry.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            if (string.IsNullOrEmpty(name) || previousByName.ContainsKey(name))
+            var name = entry.Name;
+            if (previousByName.ContainsKey(name))
                 continue;
 
-            var createResult = builder.TryCreateRecord(entry, current.LogicalPath, current.LocalId, out var record, out var isDirectory, out var logicalFullPath);
+            var entryPath = current.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar + name;
+            var createResult = builder.TryCreateRecord(entryPath, current.LogicalPath, current.LocalId, out var record, out var isDirectory, out var logicalFullPath);
             if (createResult != WalkRecordResult.Success)
             {
                 builder.CountCreateFailure(createResult);
@@ -153,7 +154,7 @@ internal static class TreeBuilderDiffExtensions
             if (isDirectory && builder._filter.ShouldDescend(logicalFullPath, record.Attributes, current.Depth + 1, ignoreRules))
             {
                 builder.FlushRecords(batch);
-                builder.EnqueueDirectory(entry, logicalFullPath, record.Id, current.Depth + 1, ignoreRules, current.Ancestors);
+                builder.EnqueueDirectory(entryPath, logicalFullPath, record.Id, current.Depth + 1, ignoreRules, current.Ancestors);
             }
 
             if (Interlocked.Increment(ref builder._countSinceProgress) >= TreeBuilder.ProgressBatchSize)

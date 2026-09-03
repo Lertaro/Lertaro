@@ -18,7 +18,6 @@ public sealed class MenuBuilderAddFolderItemsTests
 
         Assert.HasCount(1, items);
         Assert.AreEqual("Downloads", items[0].Text);
-        Assert.IsTrue(items[0].IsActionable);
         // A leaf item's SubMenuHandle is only ever allocated (non-zero) when the path actually exists
         // and HasSubMenu is set -- the two must never disagree.
         Assert.AreEqual(items[0].HasSubMenu, items[0].SubMenuHandle != IntPtr.Zero);

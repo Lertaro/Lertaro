@@ -39,6 +39,10 @@ public sealed class PdfExtractor : ITextExtractor
             {
                 timeoutCts.Token.ThrowIfCancellationRequested();
                 using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                // Disposing the stream from the timeout callback unblocks a parser that is
+                // stuck inside PdfDocument.Open or a page read on a hung network share:
+                // the abandoned extraction then throws and exits instead of running forever.
+                using var timeoutRegistration = timeoutCts.Token.Register(fileStream.Dispose);
                 using var document = PdfDocument.Open(fileStream);
 
                 var builder = new StringBuilder();
@@ -111,8 +115,21 @@ public sealed class PdfExtractor : ITextExtractor
                 return builder.ToString();
             }, timeoutCts.Token);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Timed out extracting PDF '{filePath}'",
+                PluginSdk.LogLevel.Warn);
+            return null;
+        }
+        catch (Exception) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            // The stream was disposed by the timeout callback above while PdfPig was
+            // still reading it; semantically this is a timeout, not a random parse error.
             PluginSdk.Logger.Log(
                 $"[ContentSearch] Timed out extracting PDF '{filePath}'",
                 PluginSdk.LogLevel.Warn);

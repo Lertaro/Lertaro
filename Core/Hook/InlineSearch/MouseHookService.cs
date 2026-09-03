@@ -88,39 +88,49 @@ public class MouseHookService : IDisposable
 
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0)
+        // Catch-all around the whole callback: an exception escaping a native low-level hook callback
+        // terminates the process (taking every global hook down with it), and the handlers invoked
+        // here include disk/IPC-adjacent work. Log and keep the hook chain flowing either way.
+        try
         {
-            if (wParam == (IntPtr)WM_LBUTTONDOWN)
+            if (nCode >= 0)
             {
-                var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
-                var clickTime = (int)hookStruct.time;
-                var doubleClickTime = (int)GetDoubleClickTime();
-                var dx = Math.Abs(hookStruct.pt.x - _lastClickX);
-                var dy = Math.Abs(hookStruct.pt.y - _lastClickY);
-
-                if (clickTime - _lastClickTime <= doubleClickTime &&
-                    dx <= GetSystemMetrics(SM_CXDOUBLECLK) &&
-                    dy <= GetSystemMetrics(SM_CYDOUBLECLK))
+                if (wParam == (IntPtr)WM_LBUTTONDOWN)
                 {
-                    OnMouseDoubleClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y);
-                }
+                    var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
+                    var clickTime = (int)hookStruct.time;
+                    var doubleClickTime = (int)GetDoubleClickTime();
+                    var dx = Math.Abs(hookStruct.pt.x - _lastClickX);
+                    var dy = Math.Abs(hookStruct.pt.y - _lastClickY);
 
-                _lastClickTime = clickTime;
-                _lastClickX = hookStruct.pt.x;
-                _lastClickY = hookStruct.pt.y;
-                OnMouseClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y);
+                    if (clickTime - _lastClickTime <= doubleClickTime &&
+                        dx <= GetSystemMetrics(SM_CXDOUBLECLK) &&
+                        dy <= GetSystemMetrics(SM_CYDOUBLECLK))
+                    {
+                        OnMouseDoubleClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y);
+                    }
+
+                    _lastClickTime = clickTime;
+                    _lastClickX = hookStruct.pt.x;
+                    _lastClickY = hookStruct.pt.y;
+                    OnMouseClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y);
+                }
+                else if (wParam == (IntPtr)WM_MBUTTONDOWN)
+                {
+                    var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
+                    OnMouseMiddleClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y);
+                }
+                else if (wParam == (IntPtr)WM_RBUTTONDOWN)
+                {
+                    var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
+                    OnRightButtonDown?.Invoke(hookStruct.time);
+                    OnMouseClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y);
+                }
             }
-            else if (wParam == (IntPtr)WM_MBUTTONDOWN)
-            {
-                var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
-                OnMouseMiddleClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y);
-            }
-            else if (wParam == (IntPtr)WM_RBUTTONDOWN)
-            {
-                var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
-                OnRightButtonDown?.Invoke(hookStruct.time);
-                OnMouseClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y);
-            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[MouseHookService] Hook callback error: {ex.Message}", LogLevel.Error);
         }
 
         return CallNextHookEx(_hookId, nCode, wParam, lParam);

@@ -37,7 +37,11 @@ internal static class AppStartupServiceBootstrapper
                                                           }
 
                                                           Logger.Log("[AppStartupServiceBootstrapper] Service unavailable on app startup. Attempting silent install/start.");
-                                                          ServiceInstallManager.SilentInstall(() => Logger.Log("[AppStartupServiceBootstrapper] Silent install/start attempt completed."));
+                                                          var installResult = ServiceInstallManager.SilentInstall(
+                                                              onCompleted: () => Logger.Log("[AppStartupServiceBootstrapper] Silent install/start attempt completed."),
+                                                              onFailed: ex => Logger.Log($"[AppStartupServiceBootstrapper] Silent install/start attempt failed: {ex.Message}", LogLevel.Warn));
+                                                          if (installResult == ServiceInstallManager.SilentInstallResult.AlreadyRunning)
+                                                              Logger.Log("[AppStartupServiceBootstrapper] Silent install already in flight; waiting for it.");
                                                       });
     }
 }

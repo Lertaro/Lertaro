@@ -15,10 +15,20 @@ public static class AppCrashHandler
     {
         var details = ex != null ? ex.ToString() : "Null exception object";
         Logger.Log($"CRITICAL CRASH ({source}):\n{details}", LogLevel.Error);
-        MessageBox.Show(
-            string.Format(TranslationManager.Instance["Crash_Message"], source, ex?.Message, Logger.LogDir),
-            TranslationManager.Instance["Crash_Title"],
-            MessageBoxButton.OK,
-            MessageBoxImage.Error);
+        try
+        {
+            MessageBox.Show(
+                string.Format(TranslationManager.Instance["Crash_Message"], source, ex?.Message, Logger.LogDir),
+                TranslationManager.Instance["Crash_Title"],
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        catch (Exception dialogEx)
+        {
+            // The crash dialog itself failed -- e.g. the crash originated in the dialog or
+            // translation path it depends on. Reporting must never escalate into another
+            // unhandled exception riding on a UI that is already broken.
+            Logger.Log($"CRITICAL CRASH ({source}): crash dialog failed: {dialogEx}", LogLevel.Error);
+        }
     }
 }

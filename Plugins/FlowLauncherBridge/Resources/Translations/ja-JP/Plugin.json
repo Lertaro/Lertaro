@@ -11,6 +11,8 @@
   "FlowLauncherBridge_Confirm": "OK",
   "FlowLauncherBridge_CommunityLoadingTitle": "Flow コミュニティプラグイン一覧を取得中...",
   "FlowLauncherBridge_CommunityLoadingDesc": "プラグインリポジトリに接続しています。しばらくお待ちください",
+  "FlowLauncherBridge_QueryPendingDesc": "Flow プラグインの応答を待っています。そのまま入力するか、再試行してください",
+  "FlowLauncherBridge_QueryPendingTitle": "Flow: プラグインを照会中...",
   "FlowLauncherBridge_CommunityInstalled": "インストール済み",
   "FlowLauncherBridge_NoCommunityPlugins": "一致するオンライン Flow プラグインが見つかりません",
   "FlowLauncherBridge_Installing": "インストール中...",

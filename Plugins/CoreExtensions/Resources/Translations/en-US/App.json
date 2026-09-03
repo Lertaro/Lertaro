@@ -457,7 +457,6 @@
   "Search_Total": "{0:N0} items",
   "Search_StatusText": "MFT/USN Local Drive Service Connected",
   "Search_HintKeyboard": "Double-click to open · Enter to open · ↑↓ Select",
-  "Search_SelectedItemsCount": "Selected {0} items",
   "QuickSearch_Placeholder": " Type to search...",
   "Search_BackTooltip": "Back to Quick Search",
   "Search_HeaderName": "Name",

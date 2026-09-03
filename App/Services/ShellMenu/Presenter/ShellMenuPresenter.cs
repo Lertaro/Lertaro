@@ -4,9 +4,11 @@ using System.Windows.Input;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.App.Services.AppWindow;
+
 using Lertaro.App.Services.Plugin;
 using Lertaro.App.Services.ShellMenu.ActionFlyout;
 namespace Lertaro.App.Services.ShellMenu.Presenter;
+
 /// <summary>
 /// Reusable shell context menu presenter that drives the Actions list view
 /// for any search window implementing ISearchWindow.
@@ -21,15 +23,20 @@ public class ShellMenuPresenter : IDisposable
     private readonly ActionsMenuNavigator _navigator;
     private readonly ActionsMenuExecutor _executor;
     private readonly ShellMenuMouseInputHandler _mouseHandler;
+
     // Mappings to trace which provider owns which item/submenu at runtime
+
     private readonly Dictionary<uint, IDynamicActionProvider> _commandToProviderMap = new();
     private readonly Dictionary<IntPtr, IDynamicActionProvider> _subMenuToProviderMap = new();
+
     private string _savedSearchQuery = string.Empty;
     private List<ActionMenuItem> _currentRawItems = new();
     private int _actionsGeneration;
+
     // Process-wide (not per-instance/per-window) record of which providers have already had Init()
     // called -- see the comment at the call site in EnterActionsMode.
     private static readonly HashSet<IDynamicActionProvider> _initializedProviders = new();
+
     public ShellMenuPresenter(ISearchWindow view)
     {
         _view = view;
@@ -37,7 +44,6 @@ public class ShellMenuPresenter : IDisposable
         _executor = new ActionsMenuExecutor(view, _commandToProviderMap, _navigator, ExitActionsMode);
         _mouseHandler = new ShellMenuMouseInputHandler(this, view);
         _view.LstActions.MouseMove += _mouseHandler.HandleActionsMouseMove;
-        _view.LstActions.PreviewMouseRightButtonUp += _mouseHandler.HandleActionsPreviewMouseRightButtonUp;
         // Drives the badge's own IsSelected-bound highlight (see ActionMenuItem.xaml's own comment) --
         // a plain data-bound flag kept in sync here instead of the ListBoxItem.IsSelected AncestorType
         // DataTrigger the results list's badge uses successfully, which rendered every action row's
@@ -49,19 +55,19 @@ public class ShellMenuPresenter : IDisposable
             foreach (var added in e.AddedItems)
                 if (added is ActionMenuItem item) item.IsSelected = true;
         };
-        GetActionSearchTextBox().TextChanged += (s, e) =>
+        _view.SearchTextBox.TextChanged += (s, e) =>
         {
             if (_isInActionsMode)
             {
-                ApplyFilter(GetActionSearchTextBox().Text);
+                ApplyFilter(_view.SearchTextBox.Text);
                 _view.UpdateActionsLayout();
             }
         };
     }
+
     public bool IsInActionsMode => _isInActionsMode;
     public string SavedSearchQuery => _savedSearchQuery;
-    public bool TryExecuteActiveHotkey(System.Windows.Input.KeyEventArgs e) => _isInActionsMode && _activeResults.Count > 0
-        && Helpers.HotkeyActionTrigger.TryExecute(e, _activeResults, _view, GetWindowType(), !_view.KeepWindowOpenAfterActionsHotkey);
+
     public void EnterActionsMode(AppSearchResult result) => EnterActionsMode(new[] { result });
 
     /// <summary>
@@ -92,13 +98,7 @@ public class ShellMenuPresenter : IDisposable
     public void EnterActionsMode(IReadOnlyList<AppSearchResult> selection)
     {
         if (!CanShowActionsMenu(selection))
-        {
-            // An explicit right-click or actions-hotkey on another result must dismiss the current
-            // menu when that result cannot provide actions; selection changes alone remain passive.
-            if (_isInActionsMode)
-                ExitActionsMode();
             return;
-        }
 
         // Keep only real, actionable results; the first is the primary (used for the header).
         var items = selection?.Where(r => r != null && !r.IsSearchSectionHeader && !r.IsEmptyResult).ToList() ?? new List<AppSearchResult>();
@@ -131,18 +131,14 @@ public class ShellMenuPresenter : IDisposable
         //    context menu never delays the whole list appearing.
         _isInActionsMode = true;
         _view.IsInActionsMode = true;
-        if (!_view.UsesFloatingActionsMenu)
-            _view.GridSearchResults.Visibility = Visibility.Collapsed;
+        _view.GridSearchResults.Visibility = Visibility.Collapsed;
         _view.GridActions.Visibility = Visibility.Visible;
         _view.TxtActionsTarget.Text = Path.GetFileName(result.FullPath) + (items.Count > 1 ? $" (+{items.Count - 1})" : string.Empty);
 
         var generation = ++_actionsGeneration;
         _currentRawItems = ActionMenuBuilder.FinalizeItems(ActionMenuBuilder.BuildStatic(_activeResults, GetWindowType()));
-        var actionSearch = GetActionSearchTextBox();
-        actionSearch.Clear();
         ApplyFilter(string.Empty);
-        actionSearch.Focus();
-        Keyboard.Focus(actionSearch);
+        _view.SearchTextBox.Clear();
         _view.UpdateActionsLayout();
 
         // 2. Build the dynamic (potentially slow shell) group off the UI thread, capped at 2s. When it
@@ -186,16 +182,26 @@ public class ShellMenuPresenter : IDisposable
                 var merged = ActionMenuBuilder.BuildStatic(_activeResults, GetWindowType());
                 merged.AddRange(dynamicItems);
                 _currentRawItems = ActionMenuBuilder.FinalizeItems(merged);
-                ApplyFilter(GetActionSearchTextBox().Text);
+                ApplyFilter(_view.SearchTextBox.Text);
                 _view.UpdateActionsLayout();
             }));
         });
     }
+
     private void LoadMenuItems(IntPtr hMenu)
     {
         if (_activeResult == null) return;
-        // The header always describes the original target; submenu titles belong to the menu items.
-        _view.TxtActionsTarget.Text = Path.GetFileName(_activeResult.FullPath) + (_activeResults.Count > 1 ? $" (+{_activeResults.Count - 1})" : string.Empty);
+        // Update header text based on current menu level
+
+        if (hMenu == IntPtr.Zero)
+        {
+            _view.TxtActionsTarget.Text = Path.GetFileName(_activeResult.FullPath);
+        }
+
+        else if (_navigator.CurrentSubMenuTitle is { } subMenuTitle)
+        {
+            _view.TxtActionsTarget.Text = subMenuTitle;
+        }
 
         var finalItems = ActionMenuBuilder.Build(
             _activeResults,
@@ -204,12 +210,11 @@ public class ShellMenuPresenter : IDisposable
             _commandToProviderMap,
             _subMenuToProviderMap
         );
-        if (hMenu != IntPtr.Zero)
-            ActionMenuBuilder.PrependSubmenuGroupHeader(finalItems, _navigator.CurrentSubMenuTitle);
         _currentRawItems = finalItems;
-        ApplyFilter(GetActionSearchTextBox().Text);
+        ApplyFilter(_view.SearchTextBox.Text);
         _view.UpdateActionsLayout();
     }
+
     private void ApplyFilter(string filter)
     {
         if (!_isInActionsMode) return;
@@ -250,8 +255,7 @@ public class ShellMenuPresenter : IDisposable
         _subMenuToProviderMap.Clear();
         _navigator.Reset();
         _view.GridActions.Visibility = Visibility.Collapsed;
-        if (!_view.UsesFloatingActionsMenu)
-            _view.GridSearchResults.Visibility = Visibility.Visible;
+        _view.GridSearchResults.Visibility = Visibility.Visible;
         _view.UpdateActionsLayout();
 
         // Restore the saved query while IsInActionsMode is still true, so a host window's own
@@ -259,13 +263,8 @@ public class ShellMenuPresenter : IDisposable
         // this restoration as a no-op instead of mistaking it for new typing -- which would otherwise wipe
         // the results selection and re-run the search, losing exactly which result/scroll position the
         // user was on before entering the actions menu.
-        if (_view.UsesFloatingActionsMenu)
-            GetActionSearchTextBox().Clear();
-        else
-        {
-            _view.SearchTextBox.Text = _savedSearchQuery;
-            _view.SearchTextBox.SelectAll();
-        }
+        _view.SearchTextBox.Text = _savedSearchQuery;
+        _view.SearchTextBox.SelectAll();
 
         _isInActionsMode = false;
         _view.IsInActionsMode = false;
@@ -280,9 +279,6 @@ public class ShellMenuPresenter : IDisposable
     public void ExecuteSelectedAction() => _executor.Execute(_activeResult, _activeResults);
 
     public void HandleActionsPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e) => _mouseHandler.HandleActionsPreviewMouseLeftButtonUp(sender, e);
-
-    private System.Windows.Controls.TextBox GetActionSearchTextBox() =>
-        _view.UsesFloatingActionsMenu ? _view.ActionsSearchTextBox : _view.SearchTextBox;
 
     public void Dispose() { foreach (var provider in PluginManager.Instance.DynamicActionProviders) PluginPerformanceMonitor.Measure(provider, provider.ClearSession); }
 

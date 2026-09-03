@@ -136,8 +136,8 @@ public class UsnMonitor
         {
             var nextUsn = BitConverter.ToInt64(outBuf, 0);
             var offset = 8;
-            var recordsProcessed = 0;
             var records = new List<ParsedUsnRecord>();
+            var failedRecords = 0;
 
             while (offset < returnedSize)
             {
@@ -152,10 +152,10 @@ public class UsnMonitor
                 try
                 {
                     records.Add(UsnRecordParser.ParseRecord(recordSpan));
-                    recordsProcessed++;
                 }
                 catch (Exception ex)
                 {
+                    failedRecords++;
                     Logger.Log($"[Monitor] Record parse error during monitoring on {_drive}: {ex}", LogLevel.Error);
                 }
 
@@ -167,16 +167,27 @@ public class UsnMonitor
             if (records.Count > 0)
             {
                 _indexer.ApplyUsnRecords(_drive, records);
+                if (failedRecords > 0)
+                {
+                    // Partial apply: the watermark must advance past the unreadable records (they would
+                    // fail deterministically on replay and wedge the monitor on the same batch), so
+                    // whatever changes they described are lost to the incremental index. Queue a rebuild
+                    // so a full scan recovers them -- rare enough (the parser handles every shipped USN
+                    // record version) that the rebuild cost is the right trade-off for silent gaps.
+                    Logger.Log($"[Monitor] {failedRecords} unreadable record(s) on {_drive}; queuing a rebuild to recover the skipped changes.", LogLevel.Error);
+                    _onReindexRequired?.Invoke(_drive);
+                }
                 _startUsn = nextUsn;
             }
-            else if (recordsProcessed == 0)
+            else
             {
+                // Empty batch (or nothing in it parsed): nothing to apply, just follow the journal.
                 _startUsn = nextUsn;
             }
 
             if (_startUsn == previousUsn)
                 await Task.Delay(1000, _token);
-            else if (recordsProcessed == 0)
+            else if (records.Count == 0)
                 await Task.Delay(200, _token);
             return;
         }

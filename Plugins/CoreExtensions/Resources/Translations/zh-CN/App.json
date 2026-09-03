@@ -457,7 +457,6 @@
   "Search_Total": "{0:N0} 个项目",
   "Search_StatusText": "MFT/USN 本地驱动器服务已连接",
   "Search_HintKeyboard": "双击打开 · Enter 打开 · ↑↓ 选择",
-  "Search_SelectedItemsCount": "已选择 {0} 项",
   "QuickSearch_Placeholder": " 输入以搜索...",
   "Search_BackTooltip": "返回快速搜索",
   "Search_HeaderName": "名称",

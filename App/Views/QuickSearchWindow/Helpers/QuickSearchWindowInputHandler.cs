@@ -1,11 +1,9 @@
-using System.Windows;
 using System.Windows.Input;
 using Lertaro.App.Services;
 using Lertaro.App.Helpers;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
-using ListBoxItem = System.Windows.Controls.ListBoxItem;
 using Lertaro.App.Services.Plugin;
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
 
@@ -14,20 +12,6 @@ public class QuickSearchWindowInputHandler
     private readonly Lertaro.App.QuickSearchWindow _window;
 
     public QuickSearchWindowInputHandler(Lertaro.App.QuickSearchWindow window) => _window = window;
-
-    public void HandleWindowPreviewMouseDown(MouseButtonEventArgs e)
-    {
-        if (_window.MenuPresenter?.IsInActionsMode != true
-            || _window.ResultsPanelControl.ActionsFlyoutHost.IsMouseOver)
-            return;
-
-        if (e.ChangedButton == MouseButton.Right
-            && Lertaro.App.QuickSearchWindow.FindVisualParentExternal<ListBoxItem>(e.OriginalSource as DependencyObject)?.Content is AppSearchResult result
-            && !result.IsEmptyResult && !result.IsSearchSectionHeader)
-            return;
-
-        _window.MenuPresenter.ExitActionsMode();
-    }
 
     public void HandleWindowPreviewKeyDown(KeyEventArgs e)
     {

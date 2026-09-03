@@ -17,6 +17,7 @@ public class TrayIconService : IDisposable
     private NotifyIcon? _notifyIcon;
     private IntPtr _hIcon;
     private bool _trayIconVisibleSetting = true;
+    private Action? _pendingBalloonClick;
 
     public static TrayIconService? Instance { get; private set; }
 
@@ -43,6 +44,16 @@ public class TrayIconService : IDisposable
             else if (e.Button == MouseButtons.Right)
                 _menu.ShowAtMouse();
         };
+        // One persistent click/closed pair, with the current balloon's action held in a field --
+        // per-notification subscriptions self-removed only when CLICKED, so a balloon that timed
+        // out left its closure attached to this long-lived icon forever (and a stale closure could
+        // even answer the next balloon's click).
+        _notifyIcon.BalloonTipClicked += (_, _) =>
+        {
+            var click = Interlocked.Exchange(ref _pendingBalloonClick, null);
+            click?.Invoke();
+        };
+        _notifyIcon.BalloonTipClosed += (_, _) => _pendingBalloonClick = null;
     }
 
     private void UpdateTrayIconThemeColor()
@@ -105,16 +116,7 @@ public class TrayIconService : IDisposable
     {
         if (_notifyIcon == null) return;
         _notifyIcon.Visible = true;
-        if (onClick != null)
-        {
-            EventHandler balloonClicked = null!;
-            balloonClicked = (_, _) =>
-            {
-                _notifyIcon.BalloonTipClicked -= balloonClicked;
-                onClick();
-            };
-            _notifyIcon.BalloonTipClicked += balloonClicked;
-        }
+        _pendingBalloonClick = onClick;
         _notifyIcon.ShowBalloonTip(5000, title, text, icon);
         ApplyTrayIconVisible();
     }

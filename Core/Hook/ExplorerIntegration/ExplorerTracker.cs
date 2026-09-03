@@ -117,16 +117,23 @@ public class ExplorerTracker : IDisposable
     }
     public void UpdateActiveWindow(IntPtr hwnd, string title, string className, bool isDesktop)
     {
-        ActiveHwnd = hwnd;
-        IsExplorerOrDesktopActive = true;
-        IsDesktop = isDesktop;
-        IsActiveWindowExplorer = ActiveInlineAdapter?.IsFileExplorer ?? false;
-        if (!IsActiveWindowDialog)
+        // Multi-field tracker mutations go through StateLock: the WinEvent tracker thread, the
+        // keyboard hook thread and (in the App process) the IPC mirror all touch these fields, and
+        // a torn combination -- new window's hwnd with the old window's dialog flag -- briefly
+        // pointed Quick Switch and inline search at the wrong window.
+        lock (StateLock)
         {
-            LastActiveExplorerClassName = className;
-            LastActiveExplorerWindowTitle = title;
+            ActiveHwnd = hwnd;
+            IsExplorerOrDesktopActive = true;
+            IsDesktop = isDesktop;
+            IsActiveWindowExplorer = ActiveInlineAdapter?.IsFileExplorer ?? false;
+            if (!IsActiveWindowDialog)
+            {
+                LastActiveExplorerClassName = className;
+                LastActiveExplorerWindowTitle = title;
+            }
+            RaiseExplorerActivated(hwnd, title, className, isDesktop);
         }
-        RaiseExplorerActivated(hwnd, title, className, isDesktop);
     }
     public void DeactivateWindow() => Deactivate();
     // Re-derives full state (IsActiveWindowDialog, ActiveAdapter, dialog/path tracking, ...) for
@@ -137,14 +144,25 @@ public class ExplorerTracker : IDisposable
     // "foreground became nothing" transition Explorer can produce, which carries hwnd==0 and is dropped
     // by WinEventProc, leaving ActiveHwnd stale until the next real foreground window shows up).
     public void ReclassifyActiveWindow(IntPtr hwnd) => _classifier.CheckActiveWindow(hwnd);
+
+    // Bounded self-correction for LL hook threads: a reclassification that waits on the tracker lock
+    // (e.g. the WinEvent tracker thread is stuck inside a slow plugin read) or that runs slow plugin
+    // reads itself can stall the keyboard hook callback past LowLevelHooksTimeout, which gets the hook
+    // silently dropped by Windows. Skip on a contended lock -- the WinEvent-based tracker remains
+    // authoritative and will catch up -- and keep plugin reads to a fraction of a typical hook timeout.
+    public void ReclassifyActiveWindowBounded(IntPtr hwnd)
+        => _classifier.CheckActiveWindow(hwnd, lockWaitMs: 50, pluginTimeoutMs: 300);
     public void UpdatePath(string path, bool isDesktop)
     {
         if (PathNormalizer != null)
             path = PathNormalizer(path) ?? string.Empty;
-        LastPath = path;
-        Logger.Log($"[ExplorerTracker] UpdatePath captured path: {path} (isDesktop={isDesktop})", LogLevel.Debug);
-        if (!IsActiveWindowDialog) _dialogTracker.SetLastActiveExplorerPath(path);
-        RaisePathCaptured(path, isDesktop);
+        lock (StateLock)
+        {
+            LastPath = path;
+            Logger.Log($"[ExplorerTracker] UpdatePath captured path: {path} (isDesktop={isDesktop})", LogLevel.Debug);
+            if (!IsActiveWindowDialog) _dialogTracker.SetLastActiveExplorerPath(path);
+            RaisePathCaptured(path, isDesktop);
+        }
     }
     public void MoveActiveWindow() => OnActiveWindowMoved?.Invoke();
     public void RaiseErrorExternal(string msg) => RaiseError(msg);
@@ -250,11 +268,15 @@ public class ExplorerTracker : IDisposable
     }
     internal void Deactivate()
     {
-        var wasActive = IsExplorerOrDesktopActive;
-        IsExplorerOrDesktopActive = IsDesktop = IsActiveWindowDialog = IsActiveWindowExplorer = false;
-        ActiveHwnd = LastActiveHwnd = IntPtr.Zero;
-        LastPath = null;
-        if (wasActive) OnExplorerDeactivated?.Invoke();
+        // Reentrant-safe: the classifier calls this while already holding StateLock.
+        lock (StateLock)
+        {
+            var wasActive = IsExplorerOrDesktopActive;
+            IsExplorerOrDesktopActive = IsDesktop = IsActiveWindowDialog = IsActiveWindowExplorer = false;
+            ActiveHwnd = LastActiveHwnd = IntPtr.Zero;
+            LastPath = null;
+            if (wasActive) OnExplorerDeactivated?.Invoke();
+        }
     }
     public void Dispose()
     {

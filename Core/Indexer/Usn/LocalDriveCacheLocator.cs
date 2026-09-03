@@ -3,6 +3,13 @@ namespace Lertaro.Core.Indexer.Usn;
 
 internal static class LocalDriveCacheLocator
 {
+    // Single source of truth for the local-drive index cache directory. Writers and readers of these
+    // .idx files (snapshot saves, cold-start restore, rebuilds, recovery) must all agree on one
+    // directory: the shared data dir, so the service and the app operate on the same cache files.
+    // (A per-user path here made the debounced folder-drive snapshot writer save where no reader
+    // ever looked, silently discarding increments across restarts.)
+    public static readonly string DefaultCacheDir = Path.Combine(Logger.SharedDataDir, "indexes");
+
     public static string GetCachePath(string cacheDir, string drive) => FileRecordStoreSerializer.GetBasePath(cacheDir, GetRequiredCacheKey(drive)) + ".idx";
 
     public static bool HasCache(string cacheDir, string drive)

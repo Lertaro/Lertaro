@@ -15,6 +15,10 @@ public sealed class RepositoryHygieneTests
     private static readonly string[] SkipDirectories =
     {
         "obj", "bin", "node_modules", ".git", ".vs", ".claude", "scratch", "TestResults", "packages",
+        // Local runtime/output directories: the app writes real settings (with this machine's own
+        // name in paths it recorded at runtime) under debug/, and dist/ is build output. Neither is
+        // source; scanning them only ever reports the machine to itself.
+        "debug", "dist",
     };
 
     private static readonly string[] ScannedExtensions = { ".cs", ".xaml", ".csproj", ".slnx", ".json" };
@@ -40,7 +44,17 @@ public sealed class RepositoryHygieneTests
             if (value.Equals("user", StringComparison.OrdinalIgnoreCase) || value.Equals("test", StringComparison.OrdinalIgnoreCase)
                 || value.Equals("admin", StringComparison.OrdinalIgnoreCase) || value.Equals("administrator", StringComparison.OrdinalIgnoreCase))
                 continue;
-            yield return (what, new Regex($@"\b{Regex.Escape(value)}\b", RegexOptions.IgnoreCase));
+
+            // The account name matches case-sensitively: a real account can be an ordinary dictionary
+            // word (see "admin"/"administrator" above for the same shape), and comments legitimately
+            // use those words lowercase ("a linked source", "single-linked stack") -- case-insensitive
+            // matching turned every such sentence into a false positive and made the check unrunnable
+            // on that machine. Windows preserves the account's casing in path segments, so the leaks
+            // this test exists for (C:\Users\<Account>\... copied from a live session) still match.
+            var options = what.Contains("account", StringComparison.Ordinal)
+                ? RegexOptions.None
+                : RegexOptions.IgnoreCase;
+            yield return (what, new Regex($@"\b{Regex.Escape(value)}\b", options));
         }
     }
 

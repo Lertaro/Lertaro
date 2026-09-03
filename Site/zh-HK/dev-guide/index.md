@@ -13,7 +13,7 @@
 
 | SDK 模組分類 | 核心介面與服務 | 關鍵功能說明 |
 | :--- | :--- | :--- |
-| **[核心檢索與動作](./sdk/core-search-actions)** | `ISearchableItemProvider`<br>`IInstantResultProvider`<br>`IFullSearchFileResultProvider`<br>`IAliasProvider`<br>`IQueryTokenProvider`<br>`ISearchResultAction`<br>`IDynamicActionProvider` | 貢獻靜態索引來源、高頻即時計算答案、完整搜尋視窗檔案結果、非 ASCII 別名轉寫引擎、尾部 Token 後綴處理器以及靜態/動態快顯動作選單。 |
+| **[核心檢索與動作](./sdk/core-search-actions)** | `ISearchableItemProvider`<br>`IInstantResultProvider`<br>`IAliasProvider`<br>`IQueryTokenProvider`<br>`ISearchResultAction`<br>`IDynamicActionProvider` | 貢獻靜態索引來源、高頻即時計算答案、非 ASCII 別名轉寫引擎、尾部 Token 後綴處理器以及靜態/動態快顯動作選單。 |
 | **[系統與對話方塊適配](./sdk/system-adapters)** | `IActivePathCollector`<br>`IFileDialogAdapter`<br>`IInlineSearchAdapter`<br>`IQuickNavigationProvider` | 探測前景管理器活動目錄、掛載原生檔案對話方塊、內嵌搜尋列並雙向同步選取狀態、貢獻滑鼠快速導覽級聯選單。 |
 | **[介面與預覽擴充](./sdk/ui-extensions)** | `ISidebarFilterProvider`<br>`IResultColumnProvider`<br>`IQuickPanelTabProvider`<br>`IFilePreviewProvider`<br>`IThumbnailProvider`<br>`IThemeProvider`<br>`ITranslationProvider` | 擴充側邊欄篩選分類、表格檢視自訂欄、快速面板動態工作區標籤、QuickLook 自訂轉譯器與縮圖擷取、WPF 資源字典主題包與多語言 i18n。 |
 | **[共用抽象契約](./sdk/abstractions)** | `ISearchResult`<br>`FileMetadata`<br>`IPluginSearchWindow`<br>`IConfigurable` | 檢索結果唯讀資料契約、奈秒級檔案時間戳記與大小中繼資料、宿主視窗安全控制控制代碼與基於架構驅動的原生設定表單。 |

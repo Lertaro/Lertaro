@@ -13,8 +13,7 @@ Clicking any plugin on the left displays its icon, name, version, and overview i
 
 ### Details Tab
 
-- **Component Grouping**: Lists all registered functional components (Search Sources, Full-Window File Results, Action Providers, Quick Navigation Providers, Preview Handlers, etc.).
-- **Independent Full-Window Result Switch**: `IFullSearchFileResultProvider` appears as its own component type and can be enabled or disabled without changing the plugin's instant-result provider.
+- **Component Grouping**: Lists all registered functional components (Search Sources, Action Providers, Quick Navigation Providers, Preview Handlers, etc.).
 - **Individual Component Switches**: Non-essential components feature an **Enable/Disable Checkbox**; mandatory system components display a lock icon and cannot be disabled.
 - **Select All / Deselect All**: Convenient links appear beside group headers containing multiple toggleable components.
 - **Component Tooltips**: Hover over the **(!)** icon next to any component to inspect its implementation details and activation triggers.

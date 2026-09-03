@@ -15,6 +15,7 @@ namespace Lertaro.Plugins.ContentSearch.Indexing;
 public sealed class ContentIndexScheduler : IDisposable
 {
     private const int WriteBatchSize = 50;
+    private const int ProgressNotifyIntervalMs = 3000;
 
     private readonly ContentSearchDatabase _database;
     private readonly ContentFolderWatcher _folderWatcher;
@@ -31,13 +32,15 @@ public sealed class ContentIndexScheduler : IDisposable
     private CancellationTokenSource? _cts;
     private CancellationTokenSource? _scanCts;
     private Task? _workerTask;
+    private long _lastProgressNotifyTick;
     private volatile ContentIndexConfig _config = new();
 
     public bool IsIndexing => !_pendingFiles.IsEmpty;
     public int PendingCount => _pendingFiles.Count;
 
-    // Raised from the scheduler's background thread whenever the visible indexing state
-    // (queued count, committed rows) changes. Subscribers must marshal to their own
+    // Raised from the scheduler's background thread when the visible indexing state
+    // (queued count, committed rows) changes, throttled to ProgressNotifyIntervalMs
+    // except for the final transition to idle. Subscribers must marshal to their own
     // thread; the host wires this to SearchRefreshService to refresh a visible "cs "
     // placeholder in place.
     public event Action? ProgressChanged;
@@ -54,6 +57,10 @@ public sealed class ContentIndexScheduler : IDisposable
         _database = database;
         _batchProcessor = new IndexBatchProcessor(database);
         _folderWatcher = new ContentFolderWatcher(() => TriggerFullScan());
+        // Let the first progress notification go out immediately; later ones are
+        // throttled to ProgressNotifyIntervalMs so indexing batches do not flood
+        // the UI dispatcher with placeholder refresh requests.
+        _lastProgressNotifyTick = Environment.TickCount64 - ProgressNotifyIntervalMs;
     }
 
     public void Start(ContentIndexConfig config)
@@ -185,7 +192,7 @@ public sealed class ContentIndexScheduler : IDisposable
                     discovered,
                     reachableConfig);
 
-                ProgressChanged?.Invoke();
+                NotifyProgressChanged(force: _pendingFiles.IsEmpty);
 
                 _database.Optimize();
                 _database.VacuumIfBloat();
@@ -296,7 +303,7 @@ public sealed class ContentIndexScheduler : IDisposable
                     }
                 }
 
-                ProgressChanged?.Invoke();
+                NotifyProgressChanged(force: _pendingFiles.IsEmpty);
                 if (ct.WaitHandle.WaitOne(20)) break;
             }
             catch (OperationCanceledException)
@@ -314,6 +321,16 @@ public sealed class ContentIndexScheduler : IDisposable
                     PluginSdk.LogLevel.Error);
             }
         }
+    }
+
+    private void NotifyProgressChanged(bool force)
+    {
+        var now = Environment.TickCount64;
+        if (!force && now - _lastProgressNotifyTick < ProgressNotifyIntervalMs)
+            return;
+
+        _lastProgressNotifyTick = now;
+        ProgressChanged?.Invoke();
     }
 
     public void Dispose()

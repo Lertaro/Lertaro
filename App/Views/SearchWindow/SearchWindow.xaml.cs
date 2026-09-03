@@ -32,6 +32,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     // selection handler and would close a preview opened any earlier.
     private bool _restorePreviewOnFirstResult;
     internal readonly string PowerWindowId = "full:" + Guid.NewGuid().ToString("N");
+
     public SearchWindow(string initialQuery = "", bool restorePreview = false)
     {
         InitializeComponent();
@@ -55,7 +56,6 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         SearchBox.IconLeftClicked += (_, _) => TrayIconService.Instance?.ShowMenuAt(SearchBox, hideShowWindow: true);
         SearchBox.IconMiddleClicked += () => SearchWindowStayOpenSupport.Toggle(this);
         this.PreviewKeyDown += Window_PreviewKeyDown;
-        this.PreviewMouseDown += (_, e) => _inputHandler.HandleWindowPreviewMouseDown(e);
         this.StateChanged += SearchWindow_StateChanged;
 
         // The maximized-size cap that keeps the window off the taskbar is applied per-monitor in
@@ -63,6 +63,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
 
         _viewModel = new SearchViewModel(initialQuery);
         this.DataContext = _viewModel;
+
         QuickLookManager.Instance.Reset();
 
         this.Loaded += (s, e) =>
@@ -87,7 +88,6 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         // Bind list events
         var activeList = ResultsPanelControl.ActiveListBox;
         new SearchWindowHoverPreviewSupport(this, activeList);
-        new SearchWindowSelectionSummary(activeList, TxtSelectedResultCount, this);
         activeList.KeyDown += LstGridResults_KeyDown;
         activeList.MouseDoubleClick += LstGridResults_MouseDoubleClick;
         activeList.PreviewMouseRightButtonUp += LstGridResults_PreviewMouseRightButtonUp;
@@ -117,10 +117,12 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         };
 
         ResultsPanelControl.ActionsListBox.PreviewMouseLeftButtonUp += _menuPresenter.HandleActionsPreviewMouseLeftButtonUp;
+
         TxtSearchBoxControl.ContextMenuOpening += (s, e) => _inputHandler.HandleSearchBoxContextMenuOpening(e);
     }
 
     // ==========================================
+
     // ISearchWindow Interface Implementation
 
     // ==========================================
@@ -131,9 +133,6 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     Grid ISearchWindow.GridActions => ResultsPanelControl.ActionsGrid;
     TextBlock ISearchWindow.TxtActionsTarget => ResultsPanelControl.ActionsTargetTextBlock;
     ListBox ISearchWindow.LstActions => ResultsPanelControl.ActionsListBox;
-    TextBox ISearchWindow.ActionsSearchTextBox => ResultsPanelControl.ActionsSearchTextBox;
-    public bool UsesFloatingActionsMenu => true;
-    bool ISearchWindow.KeepWindowOpenAfterActionsHotkey => true;
     public string SearchText => SearchBox.SearchTextBox.Text;
     public TextBox SearchTextBox => SearchBox.SearchTextBox;
 
@@ -142,7 +141,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         get => SearchBox.IsInActionsMode;
         set
         {
-            SearchBox.IsInActionsMode = value && !UsesFloatingActionsMenu;
+            SearchBox.IsInActionsMode = value;
             _viewModel?.IsActionsMode = value;
         }
     }

@@ -457,7 +457,6 @@
   "Search_Total": "{0:N0} 個項目",
   "Search_StatusText": "MFT/USN 本地磁碟機服務已連線",
   "Search_HintKeyboard": "雙擊開啟 · Enter 開啟 · ↑↓ 選擇",
-  "Search_SelectedItemsCount": "已選取 {0} 個項目",
   "QuickSearch_Placeholder": " 輸入以搜尋...",
   "Search_BackTooltip": "返回快速搜尋",
   "Search_HeaderName": "名稱",
