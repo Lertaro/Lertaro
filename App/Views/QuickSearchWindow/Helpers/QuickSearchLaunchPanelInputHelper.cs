@@ -17,9 +17,18 @@ internal static class QuickSearchLaunchPanelInputHelper
             || window.MenuPresenter?.IsInActionsMode == true)
             return false;
 
-        if (e.Key is Key.Up or Key.Down)
+        var (rowDelta, columnDelta) = e.Key switch
         {
-            window.ViewModel.MoveLaunchPanelSelection(e.Key == Key.Down ? 1 : -1);
+            Key.Up => (-1, 0),
+            Key.Down => (1, 0),
+            Key.Left => (0, -1),
+            Key.Right => (0, 1),
+            _ => (0, 0),
+        };
+        if (rowDelta != 0 || columnDelta != 0)
+        {
+            window.ViewModel.MoveLaunchPanelSelection(rowDelta, columnDelta);
+            window.LaunchPanel.ScrollSelectedItemIntoView(window.ViewModel.SelectedLaunchPanelItem);
             e.Handled = true;
             return true;
         }

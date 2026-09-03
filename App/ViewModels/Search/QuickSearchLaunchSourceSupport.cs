@@ -113,19 +113,55 @@ internal sealed class QuickSearchLaunchSourceSupport
         _notify(nameof(QuickSearchViewModel.SelectedLaunchPanelItem));
     }
 
-    public bool MoveItemSelection(int direction)
+    public bool MoveItemSelection(int rowDelta, int columnDelta, int columns)
     {
         var items = Selected?.Items;
         if (items == null || items.Count == 0)
             return false;
 
-        var next = ListSelectionNavigator.NextSelectable(
-            SelectedItem == null ? -1 : items.IndexOf(SelectedItem), direction, items.Count, _ => true);
+        var next = NextGridSelection(
+            SelectedItem == null ? -1 : items.IndexOf(SelectedItem), rowDelta, columnDelta, items.Count, columns);
         if (next < 0)
             return false;
 
         SelectItem(items[next]);
         return true;
+    }
+
+    /// <summary>Returns the item reached by a visual grid move, or -1 at a panel edge.</summary>
+    /// <remarks>
+    /// UniformGrid lays the launch items out row-major, so its column count is enough to resolve a
+    /// visual move without inspecting WPF elements. Vertical moves keep the current column and stop if
+    /// the target row has no item in that column. Deliberately does not wrap: reaching an edge should
+    /// leave the selection where the user can see it.
+    /// </remarks>
+    internal static int NextGridSelection(int currentIndex, int rowDelta, int columnDelta, int itemCount, int columns)
+    {
+        if (itemCount <= 0 || (rowDelta == 0 && columnDelta == 0))
+            return -1;
+
+        columns = Math.Max(1, columns);
+        if (currentIndex < 0 || currentIndex >= itemCount)
+            return rowDelta < 0 ? itemCount - 1 : 0;
+
+        var row = currentIndex / columns;
+        var column = currentIndex % columns;
+        if (rowDelta != 0)
+        {
+            var targetRow = row + rowDelta;
+            var targetStart = targetRow * columns;
+            if (targetRow < 0 || targetStart < 0 || targetStart >= itemCount)
+                return -1;
+
+            var target = targetStart + column;
+            return target < itemCount ? target : -1;
+        }
+
+        // Horizontal movement follows the visible reading order across row boundaries: the item after
+        // the last column is the first item on the next row, and vice versa. Unlike vertical movement,
+        // this never invents a position in a short final row.
+        var targetIndex = currentIndex + columnDelta;
+        return targetIndex >= 0 && targetIndex < itemCount ? targetIndex : -1;
     }
 
     public bool RemoveManualItem(AppSearchResult result)

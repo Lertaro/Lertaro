@@ -201,7 +201,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         => _launchSources.Selected?.Items ?? EmptyLaunchItems;
 
     public AppSearchResult? SelectedLaunchPanelItem { get => _launchSources.SelectedItem; set => _launchSources.SelectItem(value); }
-    public bool MoveLaunchPanelSelection(int direction) => _launchSources.MoveItemSelection(direction);
+    public bool MoveLaunchPanelSelection(int rowDelta, int columnDelta) => _launchSources.MoveItemSelection(rowDelta, columnDelta, LaunchPanelColumns);
 
     private static readonly ObservableCollection<AppSearchResult> EmptyLaunchItems = new();
 

@@ -42,18 +42,57 @@ public sealed class QuickSearchLaunchSourceSupportTests
     }
 
     [TestMethod]
-    public void MoveItemSelection_WrapsInBothDirections()
+    public void MoveItemSelection_UsesVisualGridAndStopsAtEdges()
     {
         var support = new QuickSearchLaunchSourceSupport(_ => { });
-        var first = new AppSearchResult { FullPath = "first" };
-        var second = new AppSearchResult { FullPath = "second" };
-        var source = new LaunchPanelSourceViewModel("source", "Source", new[] { first, second });
+        var items = Enumerable.Range(1, 6)
+            .Select(index => new AppSearchResult { FullPath = $"item-{index}" })
+            .ToArray();
+        var source = new LaunchPanelSourceViewModel("source", "Source", items);
         support.Sources.Add(source);
         support.Select(source);
 
-        Assert.IsTrue(support.MoveItemSelection(-1));
-        Assert.AreSame(second, support.SelectedItem);
-        Assert.IsTrue(support.MoveItemSelection(1));
-        Assert.AreSame(first, support.SelectedItem);
+        support.SelectItem(items[0]);
+        Assert.IsTrue(support.MoveItemSelection(0, 1, 3));
+        Assert.AreSame(items[1], support.SelectedItem);
+        Assert.IsTrue(support.MoveItemSelection(1, 0, 3));
+        Assert.AreSame(items[4], support.SelectedItem);
+        Assert.IsTrue(support.MoveItemSelection(0, 1, 3));
+        Assert.AreSame(items[5], support.SelectedItem);
+        Assert.IsFalse(support.MoveItemSelection(0, 1, 3));
+        Assert.AreSame(items[5], support.SelectedItem);
+        support.SelectItem(items[2]);
+        Assert.IsTrue(support.MoveItemSelection(0, 1, 3));
+        Assert.AreSame(items[3], support.SelectedItem);
+        Assert.IsTrue(support.MoveItemSelection(0, -1, 3));
+        Assert.AreSame(items[2], support.SelectedItem);
+        Assert.IsTrue(support.MoveItemSelection(-1, 0, 3));
+        Assert.AreSame(items[2], support.SelectedItem);
+        Assert.IsTrue(support.MoveItemSelection(0, -1, 3));
+        Assert.AreSame(items[1], support.SelectedItem);
+        Assert.IsTrue(support.MoveItemSelection(0, -1, 3));
+        Assert.AreSame(items[0], support.SelectedItem);
+        Assert.IsFalse(support.MoveItemSelection(0, -1, 3));
+        Assert.AreSame(items[0], support.SelectedItem);
+    }
+
+    [TestMethod]
+    public void MoveItemSelection_StopsWhenTargetRowHasNoMatchingColumn()
+    {
+        var support = new QuickSearchLaunchSourceSupport(_ => { });
+        var items = Enumerable.Range(1, 5)
+            .Select(index => new AppSearchResult { FullPath = $"item-{index}" })
+            .ToArray();
+        var source = new LaunchPanelSourceViewModel("source", "Source", items);
+        support.Sources.Add(source);
+        support.Select(source);
+
+        support.SelectItem(items[2]);
+        Assert.IsFalse(support.MoveItemSelection(1, 0, 3));
+        Assert.AreSame(items[2], support.SelectedItem);
+
+        support.SelectItem(items[4]);
+        Assert.IsTrue(support.MoveItemSelection(-1, 0, 3));
+        Assert.AreSame(items[1], support.SelectedItem);
     }
 }

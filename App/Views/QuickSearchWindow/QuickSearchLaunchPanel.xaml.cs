@@ -25,6 +25,12 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
 
     public QuickSearchLaunchPanel() => InitializeComponent();
 
+    internal void ScrollSelectedItemIntoView(AppSearchResult? item)
+    {
+        if (item != null)
+            LaunchItemsListView.ScrollIntoView(item);
+    }
+
     internal void SetActionsModeHeight(bool expanded)
     {
         if (expanded)
