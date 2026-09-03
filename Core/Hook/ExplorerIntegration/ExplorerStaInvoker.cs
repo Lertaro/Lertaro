@@ -30,9 +30,14 @@ internal static class ExplorerStaInvoker
         }
 
         var done = new ManualResetEventSlim(false);
+        // State transitions close the timeout/completion boundary race: a worker that finishes just
+        // as Wait(timeout) expires must know whether the caller already counted it as abandoned.
+        // 0 = pending, 1 = worker completed, 2 = caller timed out and counted the thread abandoned.
+        // The worker disposes the event and decrements the budget only when it observes state 2;
+        // otherwise the caller (who owns the event on the non-timeout path) disposes it.
+        var state = 0;
         Exception? error = null;
         var result = fallback;
-        var abandoned = 0;
         var thread = new Thread(() =>
         {
             try { result = func(); }
@@ -40,10 +45,7 @@ internal static class ExplorerStaInvoker
             finally
             {
                 done.Set();
-                // Ownership rule: the waiter disposes `done` only when it observed the Set.
-                // On the timeout path the caller has already returned, so disposing here (in
-                // the thread that outlives the call) is the only safe place left.
-                if (Volatile.Read(ref abandoned) != 0)
+                if (Interlocked.CompareExchange(ref state, 1, 0) == 2)
                 {
                     Interlocked.Decrement(ref _abandonedThreads);
                     done.Dispose();
@@ -59,10 +61,23 @@ internal static class ExplorerStaInvoker
 
         if (!done.Wait(timeout))
         {
-            Volatile.Write(ref abandoned, 1);
-            Interlocked.Increment(ref _abandonedThreads);
-            timedOut = true;
-            Logger.Log("[ExplorerStaInvoker] Plugin read timed out; continuing with fallback.", LogLevel.Warn);
+            var previous = Interlocked.CompareExchange(ref state, 2, 0);
+            if (previous == 0)
+            {
+                // Caller won the timeout claim: the worker has not recorded a completion yet, so it
+                // is genuinely abandoned and will release the budget/event when it eventually returns.
+                Interlocked.Increment(ref _abandonedThreads);
+                timedOut = true;
+                Logger.Log("[ExplorerStaInvoker] Plugin read timed out; continuing with fallback.", LogLevel.Warn);
+            }
+            else
+            {
+                // Worker already recorded completion (state == 1): this was a boundary artifact, not a
+                // real abandoned thread. The caller owns disposal because the worker did not.
+                done.Dispose();
+                timedOut = true;
+                Logger.Log("[ExplorerStaInvoker] Plugin read timed out at the completion boundary; continuing with fallback.", LogLevel.Warn);
+            }
         }
         else
         {
