@@ -150,7 +150,7 @@ internal static class QuickNavigationMenuContentExtensions
         return header;
     }
 
-    internal static MenuItem CreateMenuItem(DynamicMenuItem item, ISearchResult result, IQuickNavigationProvider provider, ContextMenu contextMenu, QuickNavTriggerContext trigger, bool enableRightClick = true, bool isRootItem = false)
+    internal static MenuItem CreateMenuItem(DynamicMenuItem item, ISearchResult result, IQuickNavigationProvider provider, ContextMenu contextMenu, QuickNavTriggerContext trigger, bool enableRightClick = true)
     {
         if (item.IsHeader)
         {
@@ -220,15 +220,10 @@ internal static class QuickNavigationMenuContentExtensions
 
         Action triggerAction = () =>
         {
-            // Root-level category entries (Favorites/History/configured folders) and any provider-marked
-            // non-actionable node (e.g. an ini-defined submenu group with no real target of its own) are
-            // pure navigation categories -- clicking/Enter must do nothing at all, not even close the menu.
-            // Their contents are still reachable via submenu expansion (hover/keyboard-focus/right-arrow),
-            // which is wired independently of this action below. Gated on HasSubMenu, not "isRootItem"
-            // alone: a provider can legitimately put a genuinely actionable LEAF at the root too (e.g.
-            // CustomCommandsQuickNavProvider's own commands with no configured submenu path), and those
-            // must still fire on click/Enter same as any nested leaf does.
-            if ((isRootItem && item.HasSubMenu) || !item.IsActionable) return;
+            // Pure navigation categories are marked non-actionable by their provider, while a real
+            // directory with an available path remains actionable even at the root level. Both paths
+            // still expand on hover/keyboard-focus/right-arrow; this gate only controls click/Enter.
+            if (!item.IsActionable || (item.HasSubMenu && !canNavigate)) return;
 
             contextMenu.IsOpen = false;
             (contextMenu.PlacementTarget as Window)?.Hide();

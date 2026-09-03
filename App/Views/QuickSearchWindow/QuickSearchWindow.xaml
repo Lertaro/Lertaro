@@ -44,6 +44,8 @@
                 <RowDefinition Height="Auto"/>
                 <!-- Results panel (grows with content) -->
                 <RowDefinition Height="Auto"/>
+                <!-- Status bar -->
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- ═══════════ 1. Search Bar ═══════════ -->
@@ -61,18 +63,22 @@
                  "Main Results Grid" (Background=ContentBg, a shade back from the outer CardBackground
                  chrome/search bar) so every window's results area reads the same instead of being flat
                  CardBackground everywhere with no depth. -->
-            <Border Grid.Row="2" Background="{DynamicResource ContentBg}"/>
+            <Border Grid.Row="2" Grid.RowSpan="2" Background="{DynamicResource ContentBg}"/>
+
+            <quick:QuickSearchLaunchPanel x:Name="LaunchPanelControl" Grid.Row="2"
+                                          Visibility="{Binding LaunchPanelVisibility}"/>
 
             <!-- ═══════════ 4. Results Panel ═══════════ -->
             <results:ResultsControl x:Name="ResultsPanelControl" Grid.Row="2"
+                                  UsesFloatingActionsLayout="True"
                                   ItemsSource="{Binding Results}"
                                   SelectedItem="{Binding SelectedResult, Mode=TwoWay}"
                                   ViewMode="List"
                                   Visibility="{Binding ResultsPanelVisibility}"/>
 
-            <quick:QuickSearchLaunchPanel Grid.Row="2"
-                                          Visibility="{Binding LaunchPanelVisibility}"/>
-
+            <!-- ═══════════ 5. Status bar (shown when loading or ready) ═══════════ -->
+            <local:StatusBarControl x:Name="StatusBarControl" Grid.Row="3"
+                                    Visibility="{Binding StatusBarVisibility}"/>
         </Grid>
             </Border>
         </Border>

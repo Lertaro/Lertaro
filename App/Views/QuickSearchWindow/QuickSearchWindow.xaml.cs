@@ -12,6 +12,7 @@ using ListBox = System.Windows.Controls.ListBox;
 using Grid = System.Windows.Controls.Grid;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.App.Views.QuickSearchWindow.Helpers;
+using LaunchPanel = Lertaro.App.Views.QuickSearchWindow.QuickSearchLaunchPanel;
 using Lertaro.App.Services.AppWindow;
 using Lertaro.App.Services.Tray;
 using Lertaro.App.Services.Theme;
@@ -29,6 +30,8 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private readonly QuickSearchWindowResultExecutor _resultExecutor;
     private readonly QuickSearchWindowLifecycle _lifecycle;
     private readonly QuickSearchWindowDragSupport _dragSupport;
+    private readonly QuickSearchLaunchActionsCoordinator _launchActions;
+    private bool _isInActionsMode;
     private Action? _scaleChangedHandler;
     internal QuickSearchKeywordHistoryController KeywordHistoryController { get; }
     // Must match QuickSearchWindow.xaml's root Border Margin ("24,40,24,24").
@@ -51,17 +54,23 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         _dragSupport = new QuickSearchWindowDragSupport(this);
         InitializeChildControls();
         KeywordHistoryController = new QuickSearchKeywordHistoryController(this);
+        _launchActions = new QuickSearchLaunchActionsCoordinator(this);
     }
     public ShellMenuPresenter? MenuPresenter => _menuPresenter;
     public QuickSearchViewModel ViewModel => _viewModel;
     public string SearchText => TxtSearch.Text;
     public bool IsInActionsMode
     {
-        get => SearchBox.IsInActionsMode;
+        get => _isInActionsMode;
         set
         {
-            SearchBox.IsInActionsMode = value;
+            _isInActionsMode = value;
+            SearchBox.IsInActionsMode = value && !UsesFloatingActionsMenu;
+            if (!value)
+                _launchActions.PrepareExit();
             _viewModel.Search.IsActionsMode = value;
+            if (!value)
+                _launchActions.FinishExit();
         }
     }
     public TextBox TxtSearch => SearchBox.SearchTextBox;
@@ -70,10 +79,20 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public UIElement ResultsPanel => ResultsPanelControl;
     public ListBox LstResults => ResultsPanelControl.ResultsListBox;
     public Grid GridSearchResults => ResultsPanelControl.SearchResultsGrid;
+    internal LaunchPanel LaunchPanel => LaunchPanelControl;
     public Grid GridActions => ResultsPanelControl.ActionsGrid;
     public TextBlock TxtActionsTarget => ResultsPanelControl.ActionsTargetTextBlock;
     public ListBox LstActions => ResultsPanelControl.ActionsListBox;
-    public void UpdateActionsLayout() => _layoutManager.UpdateActionsLayout();
+    public TextBox ActionsSearchTextBox => ResultsPanelControl.ActionsSearchTextBox;
+    public bool UsesFloatingActionsMenu => true;
+    bool ISearchWindow.KeepWindowOpenAfterActionsHotkey => _launchActions.IsActive;
+    internal void EnterLaunchPanelActions(AppSearchResult result) => _launchActions.Enter(result);
+    public void UpdateActionsLayout()
+    {
+        if (GridActions.Visibility != Visibility.Visible)
+            _launchActions.PrepareExit();
+        _layoutManager.UpdateActionsLayout();
+    }
     internal void ExecuteFavorite(AppSearchResult result) => _resultExecutor.Execute(result);
     // Runs the results-panel height computation synchronously instead of through the normal deferred
     // QueueResultsLayoutUpdate -- see QuickSearchWindowController.ShowWindow's own comment on why it needs
@@ -84,6 +103,9 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         TxtSearch.Focus();
         Keyboard.Focus(TxtSearch);
     }
+    public UIElement StatusBar => StatusBarControl;
+    public System.Windows.Shapes.Ellipse DotStatus => StatusBarControl.StatusDot;
+    public TextBlock TxtStatusInfo => StatusBarControl.StatusInfoTextBlock;
     private void InitializeChildControls()
     {
         _menuPresenter = new ShellMenuPresenter(this);
@@ -109,6 +131,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         PreviewMouseLeftButtonDown += (_, _) =>
             SearchBox.IsIconDraggable = ShouldAllowIconDrag(UserSettings.Load().SearchWindow.LockPosition);
         SearchBox.IconClickHint = TranslationManager.Instance["QuickSearch_LogoDragResetHint"];
+        PreviewMouseDown += (_, e) => _inputHandler.HandleWindowPreviewMouseDown(e);
         LstResults.PreviewMouseLeftButtonUp += (s, e) => _resultExecutor.HandlePreviewMouseLeftButtonUp(e);
         LstResults.PreviewMouseRightButtonUp += (s, e) => _resultExecutor.HandlePreviewMouseRightButtonUp(e);
         LstResults.AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler(OnResultsScrollChanged));

@@ -46,7 +46,7 @@ public class QuickSearchWindowLifecycle
 
     public void HandleLoaded()
     {
-        Logger.Log("[QuickSearchWindow] Window loaded. Applying Alt+Tab hiding, shell hooks and theme effects.", LogLevel.Debug);
+        Logger.Log("[QuickSearchWindow] Window loaded. Registering hotkey and triggering index build.", LogLevel.Debug);
 
         // Hide from Alt+Tab by setting WS_EX_TOOLWINDOW
         var hwnd = new WindowInteropHelper(_window).Handle;

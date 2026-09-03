@@ -4,6 +4,7 @@
              xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
              xmlns:services="clr-namespace:Lertaro.App.Services"
              xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+             xmlns:converters="clr-namespace:Lertaro.App.Converters"
              MaxHeight="{Binding LaunchPanelMaxHeight}"
              Height="{Binding LaunchPanelHeight}"
              Background="Transparent"
@@ -17,7 +18,7 @@
                 <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
                 <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-        <Style x:Key="LaunchItemCardStyle" TargetType="Border">
+            <Style x:Key="LaunchItemCardStyle" TargetType="Border">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Margin" Value="2"/>
             <Setter Property="Height" Value="92"/>
@@ -80,15 +81,12 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <ScrollViewer x:Name="LaunchItemsScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled"
-                          Padding="12,4,12,8"
-                          PreviewMouseWheel="LaunchItemsScrollViewer_PreviewMouseWheel">
-            <ListView x:Name="LaunchItemsListView" ItemsSource="{Binding LaunchPanelItems}"
+            <ListView x:Name="LaunchItemsListView" Grid.Row="0" ItemsSource="{Binding LaunchPanelItems}"
                      SelectedItem="{Binding SelectedLaunchPanelItem, Mode=TwoWay}"
                      ItemContainerStyle="{StaticResource LaunchItemContainerStyle}"
                      SelectionMode="Single" BorderThickness="0" Background="Transparent"
-                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                     Padding="12,4,12,8"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      ScrollViewer.CanContentScroll="False"
                      helpers:DragReorder.IsEnabled="{Binding IsManualLaunchSourceSelected}"
@@ -114,7 +112,8 @@
                                     <ScrollViewer Width="94" Height="30" Margin="0,5,0,0"
                                                   HorizontalContentAlignment="Center"
                                                   HorizontalScrollBarVisibility="Hidden"
-                                                  VerticalScrollBarVisibility="Disabled" Focusable="False">
+                                                  VerticalScrollBarVisibility="Disabled" Focusable="False"
+                                                  converters:ScrollViewerHelper.BubbleMouseWheel="True">
                                         <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}"
                                                    FontSize="11" TextWrapping="NoWrap" TextTrimming="None"
                                                    HorizontalAlignment="Center" TextAlignment="Center"
@@ -146,7 +145,6 @@
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
-            </ScrollViewer>
             <ctrl:TabStripScrollView Grid.Row="1" Height="38" Margin="8,0,8,2"
                                      Visibility="{Binding HasMultipleLaunchSources, Converter={StaticResource BoolToVis}}">
                 <ItemsControl ItemsSource="{Binding LaunchSources}" HorizontalAlignment="Center">

@@ -5,7 +5,6 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Services.AppWindow;
-using Lertaro.App.Services.ShellMenu.ActionFlyout;
 using Lertaro.App.ViewModels.Search;
 using ContextMenu = System.Windows.Controls.ContextMenu;
 using MenuItem = System.Windows.Controls.MenuItem;
@@ -25,6 +24,17 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
     private int _sourceRevealGeneration;
 
     public QuickSearchLaunchPanel() => InitializeComponent();
+
+    internal void SetActionsModeHeight(bool expanded)
+    {
+        if (expanded)
+        {
+            Height = Services.UiMetrics.ScaledQuickSearchMaxResultHeight;
+            return;
+        }
+
+        ClearValue(HeightProperty);
+    }
 
     private void Panel_PreviewDragOver(object sender, WpfDragEventArgs e)
     {
@@ -68,21 +78,6 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
 
         viewModel.CycleLaunchSource(e.Delta > 0 ? -1 : 1);
         PlaySelectedSourceReveal(viewModel);
-        e.Handled = true;
-    }
-
-    // A nested item control can mark MouseWheel handled before the outer viewer receives it. Handle the
-    // event at the launch-items viewer itself so icons, buttons, and the name viewport all scroll the
-    // panel consistently, matching QuickPanel's forwarding behavior.
-    private void LaunchItemsScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
-    {
-        if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0
-            || sender is not System.Windows.Controls.ScrollViewer scrollViewer
-            || scrollViewer.ScrollableHeight <= 0)
-            return;
-
-        if (e.Delta > 0) scrollViewer.LineUp();
-        else scrollViewer.LineDown();
         e.Handled = true;
     }
 
@@ -273,12 +268,7 @@ public partial class QuickSearchLaunchPanel : WpfUserControl
         if (Window.GetWindow(this) is not Lertaro.App.QuickSearchWindow window)
             return;
 
-        ActionFlyout.Show(
-            [result],
-            window,
-            window,
-            this,
-            System.Windows.Controls.Primitives.PlacementMode.MousePoint);
+        window.EnterLaunchPanelActions(result);
         e.Handled = true;
     }
 

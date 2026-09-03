@@ -85,8 +85,58 @@ public partial class ResultsControl : System.Windows.Controls.UserControl
     public System.Windows.Controls.ListBox ResultsListBox => LstResults;
     public Grid SearchResultsGrid => GridSearchResultsContainer;
     public Grid ActionsGrid => GridActions;
+    public UIElement ActionsFlyoutHost => ActionsFlyoutBorder;
     public TextBlock ActionsTargetTextBlock => TxtActionsTarget;
     public System.Windows.Controls.ListBox ActionsListBox => LstActions;
+    public System.Windows.Controls.TextBox ActionsSearchTextBox => TxtActionsSearch;
+    public bool UseRoomyActionRows { get; set; }
+
+    public static readonly DependencyProperty UsesFloatingActionsLayoutProperty = DependencyProperty.Register(
+        nameof(UsesFloatingActionsLayout), typeof(bool), typeof(ResultsControl),
+        new PropertyMetadata(false, OnUsesFloatingActionsLayoutChanged));
+
+    public bool UsesFloatingActionsLayout
+    {
+        get => (bool)GetValue(UsesFloatingActionsLayoutProperty);
+        set => SetValue(UsesFloatingActionsLayoutProperty, value);
+    }
+
+    private static void OnUsesFloatingActionsLayoutChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is ResultsControl control)
+            control.UpdateActionsLayoutMode();
+    }
+
+    private void UpdateActionsLayoutMode()
+    {
+        var floating = UsesFloatingActionsLayout;
+        ActionsSearchRow.Visibility = floating ? Visibility.Visible : Visibility.Collapsed;
+        Grid.SetColumn(ActionsFlyoutBorder, floating ? 1 : 0);
+        Grid.SetRow(ActionsFlyoutBorder, floating ? 1 : 0);
+        Grid.SetColumnSpan(ActionsFlyoutBorder, floating ? 1 : 2);
+        Grid.SetRowSpan(ActionsFlyoutBorder, floating ? 1 : 2);
+
+        if (floating)
+        {
+            ActionsFlyoutBorder.Margin = new Thickness(8);
+            ActionsFlyoutBorder.CornerRadius = new CornerRadius(8);
+            ActionsClippingBorder.CornerRadius = new CornerRadius(8);
+            ActionsFlyoutBorder.BorderThickness = new Thickness(1);
+            ActionsFlyoutBorder.SetResourceReference(Border.BackgroundProperty, "CardBackground");
+            ActionsFlyoutBorder.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
+            ActionsFlyoutBorder.SetResourceReference(EffectProperty, "Elevation3");
+        }
+        else
+        {
+            ActionsFlyoutBorder.Margin = new Thickness(0);
+            ActionsFlyoutBorder.CornerRadius = new CornerRadius(0);
+            ActionsClippingBorder.CornerRadius = new CornerRadius(0);
+            ActionsFlyoutBorder.BorderThickness = new Thickness(0);
+            ActionsFlyoutBorder.Background = System.Windows.Media.Brushes.Transparent;
+            ActionsFlyoutBorder.BorderBrush = System.Windows.Media.Brushes.Transparent;
+            ActionsFlyoutBorder.Effect = null;
+        }
+    }
 
     public System.Windows.Controls.ListBox ActiveListBox => ViewMode == ResultsViewMode.Grid ? (System.Windows.Controls.ListBox)LstGridResults : LstResults;
 

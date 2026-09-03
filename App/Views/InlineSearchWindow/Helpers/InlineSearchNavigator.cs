@@ -17,20 +17,10 @@ public static class InlineSearchNavigator
         var tracker = window.Manager.ExplorerTracker;
         if (tracker.IsExplorerOrDesktopActive && !tracker.IsDesktop && tracker.ActiveHwnd != IntPtr.Zero)
         {
-            // Captured on the UI thread; the ShellThread body must not re-read tracker state the
-            // tracker can be mutating concurrently.
-            var hwnd = tracker.ActiveHwnd;
-            // Off the UI thread: the locate routes poll Explorer windows and serialize behind
-            // FolderOpenGate, which can stall for seconds on a busy Explorer -- the same freeze the
-            // fallback chain below avoids. ShellThread is the app's designated home for shell work.
-            ShellThread.Run("InlineLocate", () =>
+            if (FileExecutor.TryLocateInExistingExplorer(path, tracker.ActiveHwnd))
             {
-                if (FileExecutor.TryLocateInExistingExplorer(path, hwnd))
-                    return;
-
-                FileExecutor.LocateInExplorer(path);
-            });
-            return;
+                return;
+            }
         }
 
         FileExecutor.LocateInExplorer(path);
@@ -157,8 +147,6 @@ public static class InlineSearchNavigator
     private static void RunFallbackChain(this Lertaro.App.InlineSearchWindow window, string path, bool asAdmin, bool? isDir, bool forceRealOpen = false)
     {
         var tracker = window.Manager.ExplorerTracker;
-        // Read once, on the UI thread: the ShellThread branches below must not touch UI state.
-        var searchText = window.SearchText;
 
         if (!forceRealOpen && path != "__SHOW_MORE__" && tracker.IsExplorerOrDesktopActive && tracker.IsActiveWindowDialog && tracker.ActiveHwnd != IntPtr.Zero)
         {
@@ -196,29 +184,15 @@ public static class InlineSearchNavigator
 
             && !tracker.IsDesktop
 
-            && tracker.ActiveHwnd != IntPtr.Zero)
+            && tracker.ActiveHwnd != IntPtr.Zero
+
+            && FileExecutor.TryLocateInExistingExplorer(path, tracker.ActiveHwnd))
         {
-            // Captured on the UI thread before any off-thread work; re-reading tracker state after the
-            // window hides would race the tracker's own re-evaluation.
-            var hwnd = tracker.ActiveHwnd;
-            // Off the UI thread: TryLocateInExistingExplorer's tab route serializes behind
-            // FolderOpenGate and polls for Explorer windows for up to seconds each -- the inline
-            // window used to freeze for that whole time before it even got to hide itself.
-            ShellThread.Run("InlineLocate", () =>
-            {
-                var located = FileExecutor.TryLocateInExistingExplorer(path, hwnd);
-                window.Dispatcher.BeginInvoke(window.HideWindow);
-                if (!located)
-                {
-                    if (asAdmin)
-                        FileExecutor.OpenFileOrFolderAsAdmin(path, searchText);
-                    else
-                        FileExecutor.OpenFileOrFolder(path, searchText);
-                }
-            });
+            window.HideWindow();
             return;
         }
 
+        var searchText = window.SearchText;
         if (path != "__SHOW_MORE__")
         {
             window.HideWindow();

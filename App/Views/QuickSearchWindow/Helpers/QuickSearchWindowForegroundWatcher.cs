@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Threading;
+using Lertaro.Core;
 
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
 
@@ -54,6 +55,13 @@ public class QuickSearchWindowForegroundWatcher
             GetClassName(hwnd, sbClass, sbClass.Capacity);
             var className = sbClass.ToString();
             GetWindowThreadProcessId(hwnd, out var activePid);
+            var procName = ShellOverlayDismissHelper.TryGetProcessName(activePid);
+
+            // TODO(issue #68): temporary diagnostic for "a system notification makes the search window
+            // disappear" -- couldn't reproduce with a plain WinRT toast fired under Explorer's AUMID, so
+            // logging every candidate here (skipped or not) to see what's actually triggering it for the
+            // reporter. Remove once root-caused.
+            Logger.Log($"[ForegroundHook] class='{className}' pid={activePid} proc='{procName}'", LogLevel.Info);
 
             // A preview provider may be hosting an out-of-process native handler (e.g. Office acting as
             // its own Preview Handler COM server), whose window can grab foreground on its own -- at

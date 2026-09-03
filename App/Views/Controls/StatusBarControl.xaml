@@ -1,0 +1,27 @@
+<UserControl x:Class="Lertaro.App.StatusBarControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             mc:Ignorable="d" 
+             d:DesignHeight="30" d:DesignWidth="600">
+
+
+    <Border x:Name="StatusBar"
+            Height="0" MaxHeight="0" Visibility="Collapsed"
+             BorderThickness="0" Padding="0" Margin="0">
+        <Grid Margin="12,4,12,4">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Ellipse x:Name="DotStatus" Width="6" Height="6" Fill="{DynamicResource SuccessBrush}"
+                         Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock x:Name="TxtStatusInfo"
+                           Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Status_Ready]}"
+                           FontSize="11"
+                           
+                           Foreground="{DynamicResource TextSecondary}"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

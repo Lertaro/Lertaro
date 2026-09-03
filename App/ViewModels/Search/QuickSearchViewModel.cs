@@ -36,6 +36,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(e.PropertyName);
             if (e.PropertyName == nameof(SelectedResult)) OnPropertyChanged(nameof(PathPreviewVisibility));
             if (e.PropertyName == nameof(SearchExecutionViewModel.IsActionsMode)) OnPropertyChanged(nameof(LaunchPanelVisibility));
+            if (e.PropertyName == nameof(ResultsPanelVisibility)) OnPropertyChanged(nameof(LaunchPanelVisibility));
         };
         Monitor.PropertyChanged += (s, e) => OnPropertyChanged(e.PropertyName);
 
@@ -128,6 +129,8 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
 
     public bool IsServiceConnected => Monitor.IsServiceConnected;
 
+    public string StatusText => Monitor.StatusText;
+
     public Visibility ErrorIconVisibility => Monitor.ErrorIconVisibility;
 
     public bool IsSearching => Search.IsSearching;
@@ -145,6 +148,8 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         get => Search.ResultsSeparatorVisibility;
         set => Search.ResultsSeparatorVisibility = value;
     }
+
+    public Visibility StatusBarVisibility => Monitor.StatusBarVisibility;
 
     public Visibility LoadingPanelVisibility => Monitor.LoadingPanelVisibility;
 
@@ -218,7 +223,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     public Visibility ClockVisibility => !IsInlineSearchContext && UserSettings.Load().SearchWindow.ShowClock ? Visibility.Visible : Visibility.Collapsed;
 
     public Visibility LaunchPanelVisibility => !IsInlineSearchContext
-        && !Search.IsActionsMode
+        && (!Search.IsActionsMode || ResultsPanelVisibility == Visibility.Visible)
         && string.IsNullOrWhiteSpace(SearchQuery)
         && UserSettings.Load().QuickLaunch.Enabled
         && LaunchSources.Count > 0

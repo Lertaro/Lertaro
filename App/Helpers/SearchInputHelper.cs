@@ -43,16 +43,22 @@ public static class SearchInputHelper
         // Nothing is bound to a modified Escape today, but guarding it anyway costs nothing and rules
         // the whole bug class out here rather than leaving one exception someone has to remember.
         var noModifiers = Keyboard.Modifiers == ModifierKeys.None;
+        var actionSearchBox = window?.UsesFloatingActionsMenu == true ? window.ActionsSearchTextBox : window?.SearchTextBox;
+
+        if (menuPresenter.TryExecuteActiveHotkey(e))
+        {
+            // Persistent hosts keep their window open after an action, but their floating actions panel
+            // must close just like the clicked-action path. Dismissible hosts already hide themselves
+            // inside HotkeyActionTrigger, so do not run their exit transition twice.
+            if (window?.KeepWindowOpenAfterActionsHotkey == true)
+                menuPresenter.ExitActionsMode();
+            e.Handled = true;
+            return true;
+        }
 
         if (e.Key == Key.Escape && noModifiers)
         {
-            if (window != null && !string.IsNullOrEmpty(window.SearchTextBox.Text))
-            {
-                window.SearchTextBox.Clear();
-                e.Handled = true;
-                return true;
-            }
-            menuPresenter.ExitActionsMode();
+            HandleActionsEscape(window, menuPresenter);
             e.Handled = true;
             return true;
         }
@@ -110,7 +116,7 @@ public static class SearchInputHelper
 
         if (e.Key == Key.Back && noModifiers)
         {
-            if (window != null && string.IsNullOrEmpty(window.SearchTextBox.Text))
+            if (actionSearchBox != null && string.IsNullOrEmpty(actionSearchBox.Text))
             {
                 menuPresenter.GoBackMenuOrExit();
                 e.Handled = true;
@@ -119,6 +125,22 @@ public static class SearchInputHelper
         }
 
         return false;
+    }
+
+    // Keep every actions-menu Escape entry point identical, including mouse right-click and the
+    // inline window's global keyboard hook. A non-empty action filter is cleared first; only the next
+    // Escape-equivalent input navigates back or exits the actions menu.
+    public static bool HandleActionsEscape(ISearchWindow? window, ShellMenuPresenter menuPresenter)
+    {
+        var actionSearchBox = window?.UsesFloatingActionsMenu == true ? window.ActionsSearchTextBox : window?.SearchTextBox;
+        if (actionSearchBox != null && !string.IsNullOrEmpty(actionSearchBox.Text))
+        {
+            actionSearchBox.Clear();
+            return true;
+        }
+
+        menuPresenter.GoBackMenuOrExit();
+        return true;
     }
 
     /// <summary>

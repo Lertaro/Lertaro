@@ -80,14 +80,12 @@ public static class UiMetrics
     public const double MaxPreviewWindowHeight = 1200;
 
     // Range for the user-configurable main SearchWindow default size (General settings page).
-    // Mins must stay in sync with SearchWindow.xaml's own MinWidth/MinHeight resize floor (800x480):
-    // a saved size below that floor gets clamped back up by the XAML the moment it is applied, so the
-    // stored and rendered sizes would disagree between opens.
+    // Min matches SearchWindow.xaml's own MinWidth/MinHeight resize floor.
     public const double DefaultMainWindowWidth = 854;
     public const double DefaultMainWindowHeight = 480;
-    public const double MinMainWindowWidth = 800;
+    public const double MinMainWindowWidth = 640;
     public const double MaxMainWindowWidth = 2000;
-    public const double MinMainWindowHeight = 480;
+    public const double MinMainWindowHeight = 400;
     public const double MaxMainWindowHeight = 1400;
 
     private static double _scale = 1.0;
@@ -131,18 +129,8 @@ public static class UiMetrics
     {
         if (searchBarHeight > 0)
         {
-            var scale = Math.Clamp(searchBarHeight / DefaultSearchBarHeight, 0.6, 1.8);
-            var flowRowScale = searchBarHeight / FlowRowReferenceSearchBarHeight;
-            var scaleUnchanged = scale == _scale;
-            var flowRowChanged = flowRowScale != _flowRowScale;
-            Scale = scale; // fires ScaleChanged itself when the clamped value moved
-            _flowRowScale = flowRowScale;
-            // The quick window's Scaled* bindings depend on BOTH factors. A height change near a
-            // clamp boundary can leave Scale pinned (no event from the setter) while _flowRowScale
-            // still moved -- fire the change event here too, or already-open windows keep stale row
-            // metrics until they happen to rebuild.
-            if (scaleUnchanged && flowRowChanged)
-                ScaleChanged?.Invoke();
+            Scale = searchBarHeight / DefaultSearchBarHeight;
+            _flowRowScale = searchBarHeight / FlowRowReferenceSearchBarHeight;
         }
     }
 
