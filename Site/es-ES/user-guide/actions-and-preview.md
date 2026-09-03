@@ -4,7 +4,7 @@ Lertaro no solo localiza archivos a velocidades ultrarrápidas, sino que integra
 
 ## 1. Menú de acciones en detalle
 
-Pulsa `Ctrl+O` o la flecha derecha `→` en cualquier resultado de búsqueda (archivo, carpeta, aplicación o elemento de plugin) para desplegar el menú de acciones contextuales.
+Pulsa `Ctrl+O` o la flecha derecha `→` en cualquier resultado de búsqueda (archivo, carpeta, aplicación o elemento de plugin) para desplegar el menú de acciones contextuales. En la Ventana principal, también puedes hacer clic derecho en un resultado para abrir el mismo menú para ese elemento.
 
 ### Tabla de acciones principales integradas
 
@@ -23,8 +23,11 @@ Pulsa `Ctrl+O` o la flecha derecha `→` en cualquier resultado de búsqueda (ar
 ### Interacción y filtrado en el Menú de acciones
 
 - **Escribir para filtrar**: Al abrir el menú de acciones, escribe directamente para filtrar por nombre (p. ej., teclear `copy` reduce la lista a las acciones de copiado).
-- **Navegación jerárquica**: En elementos con submenús (como "Enviar a"), pulsa `→` o `Enter` para entrar; pulsa `←` o `Backspace` (con el filtro vacío) para regresar al nivel superior.
-- **Cerrar menú**: Pulsa `Escape` para cerrar el menú de acciones y regresar a la lista de búsqueda.
+- **Cuadro de búsqueda independiente**: El menú de acciones tiene su propio cuadro de búsqueda, que recibe el foco automáticamente al abrirse. Filtrar acciones no cambia la consulta principal. Al cambiar de nivel se borra el filtro de acciones y el cuadro del nuevo nivel recibe el foco.
+- **Panel de acciones flotante**: En la Ventana rápida, el panel de Inicio rápido y la Ventana principal, las acciones aparecen en un panel flotante anclado al elemento activo. El panel de Inicio rápido se amplía temporalmente a la altura de trabajo completa de la lista de acciones y vuelve a su tamaño compacto al cerrarse.
+- **Navegación jerárquica**: En elementos con submenús (como "Enviar a"), pulsa `→` o `Enter` para entrar; pulsa `←` o `Backspace` (con el filtro vacío) para regresar al nivel superior. En un menú anidado, `Escape` o el clic derecho regresan al nivel superior; en la raíz cierran el menú de acciones.
+- **Cerrar al hacer clic fuera**: Al hacer clic fuera de un panel flotante, este se cierra. Si el anfitrión lo permite, hacer clic derecho en otro resultado mientras el panel está abierto reemplaza el objetivo en el mismo lugar.
+- **Atajos de acciones**: Mientras el panel tiene el foco puedes usar los atajos definidos por los proveedores. Al ejecutarlos se cierra el panel flotante, pero la Ventana principal o el panel de Inicio rápido permanecen abiertos.
 
 ## 2. Características de la lista de la Ventana principal
 
@@ -33,6 +36,7 @@ La Ventana principal de búsqueda (`Ctrl+F`) está diseñada para la gestión ma
 - **Doble clic en la columna Ruta**: Hacer doble clic en la columna **Nombre** abre el archivo; hacer doble clic en la columna **Ruta** abre directamente la carpeta que lo contiene.
 - **Carga continua de resultados en streaming**: Al escanear millones de elementos, los resultados se van añadiendo a la lista en tiempo real sin tener que esperar a que finalice el escaneo completo. Puedes interactuar con las filas al instante.
 - **Navegación en bucle**: Pulsar `↑` en la primera fila salta al último elemento; pulsar `↓` en la última fila vuelve al primero.
+- **Resumen de selección**: Al seleccionar varias filas, la barra de estado muestra el número de elementos seleccionados junto al total de resultados.
 - **Arrastre y memoria de tamaño**: Arrastra la barra superior para reubicar la ventana; las dimensiones ajustadas manualmente se recuerdan automáticamente entre sesiones.
 
 ## 3. Vista previa instantánea con QuickLook
