@@ -42,7 +42,12 @@ internal static class ChromiumHistoryReader
                     continue;
                 var title = reader.IsDBNull(1) ? url : reader.GetString(1);
                 var lastVisit = reader.IsDBNull(2) ? 0L : reader.GetInt64(2);
-                results.Add(new BrowserEntry(string.IsNullOrWhiteSpace(title) ? url : title, url, IsBookmark: false, SortKey: lastVisit));
+                results.Add(new BrowserEntry(
+                    string.IsNullOrWhiteSpace(title) ? url : title,
+                    url,
+                    IsBookmark: false,
+                    SortKey: lastVisit,
+                    VisitTime: BrowserHistoryTime.FromChromium(lastVisit)));
             }
             return results;
         });

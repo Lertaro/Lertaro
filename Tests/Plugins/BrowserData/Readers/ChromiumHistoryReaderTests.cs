@@ -88,5 +88,6 @@ public sealed class ChromiumHistoryReaderTests
         var entry = ChromiumHistoryReader.Read(dir.Path).Single();
 
         Assert.AreEqual(12345L, entry.SortKey);
+        Assert.AreEqual(BrowserHistoryTime.FromChromium(12345), entry.VisitTime);
     }
 }

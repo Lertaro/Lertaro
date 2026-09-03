@@ -85,6 +85,7 @@ public sealed class FirefoxPlacesReaderTests
 
         Assert.HasCount(1, bookmarks);
         Assert.AreEqual("My Bookmark", bookmarks[0].Title);
+        Assert.IsNull(bookmarks[0].VisitTime);
         Assert.IsEmpty(history);
     }
 
@@ -103,6 +104,7 @@ public sealed class FirefoxPlacesReaderTests
         Assert.IsEmpty(bookmarks);
         Assert.HasCount(1, history);
         Assert.AreEqual(12345L, history[0].SortKey);
+        Assert.AreEqual(BrowserHistoryTime.FromFirefox(12345), history[0].VisitTime);
     }
 
     [TestMethod]
