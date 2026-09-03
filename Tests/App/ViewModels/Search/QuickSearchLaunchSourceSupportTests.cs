@@ -66,7 +66,7 @@ public sealed class QuickSearchLaunchSourceSupportTests
         Assert.AreSame(items[3], support.SelectedItem);
         Assert.IsTrue(support.MoveItemSelection(0, -1, 3));
         Assert.AreSame(items[2], support.SelectedItem);
-        Assert.IsTrue(support.MoveItemSelection(-1, 0, 3));
+        Assert.IsFalse(support.MoveItemSelection(-1, 0, 3));
         Assert.AreSame(items[2], support.SelectedItem);
         Assert.IsTrue(support.MoveItemSelection(0, -1, 3));
         Assert.AreSame(items[1], support.SelectedItem);
