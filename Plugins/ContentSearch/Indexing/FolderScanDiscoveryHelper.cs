@@ -3,9 +3,8 @@ using Lertaro.PluginSdk.Services;
 namespace Lertaro.Plugins.ContentSearch.Indexing;
 
 /// <summary>
-/// Discovers modified files through the SDK host index, which already falls back to a live filesystem
-/// walk whenever no index can answer. A raw filesystem walk is only used here when the host enumeration
-/// itself fails, so a healthy host enumeration never pays for the same directory traversal twice.
+/// Discovers modified files through the SDK host index. The host owns the index-vs-filesystem routing;
+/// this plugin must not walk monitored directories itself.
 /// Split out purely to keep ContentIndexScheduler under the repository per-file line limit.
 /// </summary>
 public static class FolderScanDiscoveryHelper
@@ -70,78 +69,8 @@ public static class FolderScanDiscoveryHelper
                 }
             }
             catch (OperationCanceledException) { return discovered; }
-            catch
-            {
-                // Host enumeration unavailable (service down, pipe timeout): the filesystem
-                // walk below still covers the folder, so keep going instead of failing.
-            }
-
-            // The host index is an optimization, not a freshness guarantee. Reconcile with the
-            // filesystem on every full scan; the HashSet removes duplicates from the two sources.
-            if (ct.IsCancellationRequested) return discovered;
-            ScanFilesystem(folder, config, existingMeta, discovered, onEnqueue, ct);
         }
 
         return discovered;
-    }
-
-    private static void ScanFilesystem(
-        string folder,
-        ContentIndexConfig config,
-        Dictionary<string, (long LastModified, long FileSize, int MissingCount)> existingMeta,
-        HashSet<string> discovered,
-        Action<string> onEnqueue,
-        CancellationToken ct)
-    {
-        if (!Directory.Exists(folder)) return;
-        var dirQueue = new Queue<string>();
-        dirQueue.Enqueue(folder);
-
-        while (dirQueue.Count > 0)
-        {
-            if (ct.IsCancellationRequested) return;
-            var currentDir = dirQueue.Dequeue();
-
-            try
-            {
-                foreach (var file in Directory.EnumerateFiles(currentDir, "*.*", SearchOption.TopDirectoryOnly))
-                {
-                    if (ct.IsCancellationRequested) return;
-                    if (config.IsExcluded(file)) continue;
-
-                    var ext = Path.GetExtension(file);
-                    if (string.IsNullOrEmpty(ext) || !config.AllowedExtensions.Contains(ext))
-                        continue;
-
-                    // The host enumeration already reported (and possibly enqueued) this file;
-                    // keep the onEnqueue contract at "at most once per file".
-                    if (!discovered.Add(file))
-                        continue;
-
-                    try
-                    {
-                        var info = new FileInfo(file);
-                        var lastWriteUnix = new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeSeconds();
-                        if (!existingMeta.TryGetValue(file, out var meta) ||
-                            meta.LastModified != lastWriteUnix ||
-                            meta.FileSize != info.Length)
-                        {
-                            onEnqueue(file);
-                        }
-                    }
-                    catch { }
-                }
-
-                foreach (var subDir in Directory.EnumerateDirectories(currentDir, "*", SearchOption.TopDirectoryOnly))
-                {
-                    // A matching directory drops its entire subtree from the walk.
-                    if (!config.IsExcluded(subDir))
-                    {
-                        dirQueue.Enqueue(subDir);
-                    }
-                }
-            }
-            catch { }
-        }
     }
 }

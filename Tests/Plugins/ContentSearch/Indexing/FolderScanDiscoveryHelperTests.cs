@@ -34,11 +34,10 @@ public sealed class FolderScanDiscoveryHelperTests
     }
 
     [TestMethod]
-    public async Task DiscoverFilesAsync_HostEnumerationSucceeds_ReconcilesFilesystem()
+    public async Task DiscoverFilesAsync_HostEnumerationSucceeds_DoesNotWalkFilesystem()
     {
-        // A successful host enumeration can be a stale snapshot. The filesystem reconciliation
-        // must still discover files that the host did not report, while the HashSet deduplicates
-        // the file reported by both sources.
+        // The host is the sole discovery authority. Files that exist on disk but are absent from
+        // its result must not be found by a second raw filesystem walk in this plugin.
         var dir = CreateTempDirectory();
 
         try
@@ -63,9 +62,8 @@ public sealed class FolderScanDiscoveryHelperTests
                 enqueued.Add,
                 CancellationToken.None);
 
-            var expected = new[] { Path.Combine(dir, "a.txt"), Path.Combine(dir, "b.txt"), Path.Combine(dir, "c.txt") };
-            CollectionAssert.AreEquivalent(expected, discovered.ToList());
-            Assert.HasCount(3, enqueued);
+            CollectionAssert.AreEquivalent(new[] { Path.Combine(dir, "a.txt") }, discovered.ToList());
+            Assert.HasCount(1, enqueued);
         }
         finally
         {
@@ -74,7 +72,7 @@ public sealed class FolderScanDiscoveryHelperTests
     }
 
     [TestMethod]
-    public async Task DiscoverFilesAsync_HostEnumerationThrows_StillDiscoversFromDisk()
+    public async Task DiscoverFilesAsync_HostEnumerationThrows_DoesNotReadFromDisk()
     {
         var dir = CreateTempDirectory();
 
@@ -91,14 +89,13 @@ public sealed class FolderScanDiscoveryHelperTests
             };
             var enqueued = new List<string>();
 
-            var discovered = await FolderScanDiscoveryHelper.DiscoverFilesAsync(
+            await Assert.ThrowsAsync<IOException>(() => FolderScanDiscoveryHelper.DiscoverFilesAsync(
                 config,
                 new Dictionary<string, (long LastModified, long FileSize, int MissingCount)>(),
                 enqueued.Add,
-                CancellationToken.None);
+                CancellationToken.None));
 
-            CollectionAssert.AreEquivalent(new[] { Path.Combine(dir, "only.txt") }, discovered.ToList());
-            Assert.HasCount(1, enqueued);
+            Assert.IsEmpty(enqueued);
         }
         finally
         {
@@ -147,7 +144,7 @@ public sealed class FolderScanDiscoveryHelperTests
     }
 
     [TestMethod]
-    public async Task DiscoverFilesAsync_ExcludedFolder_SubtreeSkippedByFilesystemWalk()
+    public async Task DiscoverFilesAsync_HostEnumerationAppliesPluginExclusions()
     {
         var dir = CreateTempDirectory();
 
@@ -158,8 +155,11 @@ public sealed class FolderScanDiscoveryHelperTests
             Directory.CreateDirectory(backupDir);
             await File.WriteAllTextAsync(Path.Combine(backupDir, "old.txt"), "must not be indexed");
 
-            // Host enumeration unavailable: everything below comes from the raw walk.
-            DirectoryIndexerService.EnumerateDirectoryFunc = (_, _, _, _, _) => throw new IOException("service unreachable");
+            DirectoryIndexerService.EnumerateDirectoryFunc = (folder, recursive, pattern, limit, token) =>
+                EnumerateFake(
+                    Path.Combine(dir, "keep.txt"),
+                    new FileInfo(Path.Combine(dir, "keep.txt")).Length,
+                    FileInfoMetaModified(Path.Combine(dir, "keep.txt")));
 
             var config = new ContentIndexConfig
             {
