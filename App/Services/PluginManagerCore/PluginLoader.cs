@@ -183,6 +183,13 @@ internal static class PluginLoader
                     registry.AddQuickPanelTabProvider(provider);
                     Logger.Log($"[PluginManager] Loaded quick panel tab provider: '{type.Name}' from {fileName}");
                 }
+
+                if (typeof(PluginSdk.Abstractions.Plugins.ISearchScopeProvider).IsAssignableFrom(type))
+                {
+                    var provider = (PluginSdk.Abstractions.Plugins.ISearchScopeProvider)Activator.CreateInstance(type)!;
+                    registry.AddSearchScopeProvider(provider);
+                    Logger.Log($"[PluginManager] Loaded search scope provider: '{type.Name}' from {fileName}");
+                }
             }
         }
         catch (BadImageFormatException)

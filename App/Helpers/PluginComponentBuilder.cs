@@ -118,6 +118,11 @@ internal static class PluginComponentBuilder
             var id = PluginLoaderHelper.MakeId(dllName, PluginComponentType.QuickPanelTabProvider, prov.GetType().Name);
             components.Add(new PluginComponentViewModel(id, PluginComponentType.QuickPanelTabProvider, prov.Name, !disabledSet.Contains(id), GetDescriptionWithFallback(prov)));
         }
+        foreach (var prov in manager.AllSearchScopeProviders.Where(p => p.GetType().Assembly == assembly))
+        {
+            var id = PluginLoaderHelper.MakeId(dllName, PluginComponentType.SearchScopeProvider, prov.GetType().Name);
+            components.Add(new PluginComponentViewModel(id, PluginComponentType.SearchScopeProvider, prov.Name, !disabledSet.Contains(id), GetDescriptionWithFallback(prov)));
+        }
         foreach (var prov in manager.AllTranslationProviders.Where(p => p.GetType().Assembly == assembly))
         {
             var id = PluginLoaderHelper.MakeId(dllName, PluginComponentType.TranslationProvider, prov.GetType().Name);
@@ -164,6 +169,7 @@ internal static class PluginComponentBuilder
         if (component is IInlineSearchAdapter) return TranslationService.Get("Plugins_TypeDesc_IInlineSearchAdapter");
         if (component is IFilePreviewProvider) return TranslationService.Get("Plugins_TypeDesc_IFilePreviewProvider");
         if (component is IQueryTokenProvider) return TranslationService.Get("Plugins_TypeDesc_IQueryTokenProvider");
+        if (component is ISearchScopeProvider) return TranslationService.Get("Plugins_TypeDesc_ISearchScopeProvider");
         if (component is ITranslationProvider) return TranslationService.Get("Plugins_TypeDesc_ITranslationProvider");
         if (component is IThemeProvider) return TranslationService.Get("Plugins_TypeDesc_IThemeProvider");
         if (component is IThumbnailProvider) return TranslationService.Get("Plugins_TypeDesc_IThumbnailProvider");

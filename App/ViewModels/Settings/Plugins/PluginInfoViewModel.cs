@@ -26,6 +26,7 @@ public enum PluginComponentType
     ThumbnailProvider,
     QueryTokenProvider,
     QuickPanelTabProvider,
+    SearchScopeProvider,
     /// <summary>Translation providers are displayed read-only; they cannot be disabled.</summary>
     TranslationProvider,
     /// <summary>Theme providers are displayed read-only; they cannot be disabled.</summary>
