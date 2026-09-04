@@ -35,7 +35,7 @@ internal sealed class ExplorerWindowClassifier
     private const int DefaultPluginTimeoutMs = 2000;
 
     public void CheckActiveWindow(IntPtr hwnd)
-        => CheckActiveWindow(hwnd, System.Threading.Timeout.Infinite, DefaultPluginTimeoutMs);
+        => CheckActiveWindow(hwnd, Timeout.Infinite, DefaultPluginTimeoutMs);
 
     // lockWaitMs bounds how long the caller waits for the tracker lock; pluginTimeoutMs bounds each
     // plugin adapter/collector read inside. The LL keyboard hook thread uses both bounds: a stall past

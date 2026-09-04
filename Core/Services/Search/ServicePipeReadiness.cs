@@ -1,5 +1,3 @@
-using System.Threading;
-
 namespace Lertaro.Core.Services.Search;
 
 /// <summary>

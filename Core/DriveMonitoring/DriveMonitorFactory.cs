@@ -44,12 +44,10 @@ internal static class DriveMonitorFactory
         private readonly CancellationTokenSource _cts;
         public CancellationDisposable(CancellationTokenSource cts) => _cts = cts;
 
-        public void Dispose()
-        {
+        public void Dispose() =>
             // Cancel without Dispose: the monitor loop built on this token registers on it again
             // while winding down, and a disposed CTS turns that into ObjectDisposedException.
             // It holds no unmanaged resources, so skipping Dispose is safe.
             _cts.Cancel();
-        }
     }
 }
