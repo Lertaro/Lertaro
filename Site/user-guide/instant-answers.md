@@ -85,11 +85,11 @@ tr Hello, how are you today?
 
 ## 5. File Filters
 
-Under **Settings → Plugins → File Filters → Configure**, you can create isolated search scopes for specific folders and extensions:
+Under **Settings → Plugins → File Filters → Configure**, you can bind a trigger keyword to specific folders so a normal search can be scoped to them:
 
-- **Monitored Folders**: Recursively scan specific working directories (e.g. `D:\Engineering\Drawings`).
-- **Matching Rules**: Specify patterns such as `*.dwg;*.dxf` or `*.pdf;*.docx`.
-- **Trigger Keyword**: Assign an exclusive keyword (e.g. `cad`), allowing you to isolate searches (e.g. `cad bracket_assembly`).
+- **Target Folders**: One path per line (e.g. `D:\Engineering\Drawings`). Results come from the file index, so folders should be index-covered (an enabled local drive, or added under **Settings → Index → Folders**, which also accepts network shares); an uncovered folder is skipped with a warning in the log.
+- **Matching Rules**: File name patterns such as `*.dwg;*.dxf` (folders always included).
+- **Trigger Keyword**: Bind a prefix (e.g. `cad`), then typing `cad bracket_assembly` in the quick search window runs the normal index search -- filename fuzzy matching, pinyin aliases included -- restricted to the bound folders. Typing the keyword alone asks you to keep typing.
 
 ## 6. Custom Commands
 

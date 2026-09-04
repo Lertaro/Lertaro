@@ -273,6 +273,9 @@ Los caracteres coincidentes (incluidas las vocales acentuadas en el nombre origi
 
 ### Favoritos, no alias personalizados
 
-Lertaro no dispone de un sistema genérico de "alias/macros de búsqueda personalizados". La solución nativa más cercana es [**Favoritos**](./settings/favorites): fija cualquier archivo, carpeta o URL con un nombre de visualización personalizado y podrás buscarlo directamente por ese título (marcado con un icono ★ en los resultados).
+Lertaro no dispone de un sistema genérico de "alias/macros de búsqueda personalizados". Las soluciones nativas más cercanas:
+
+- [**Favoritos**](./settings/favorites): fija cualquier archivo, carpeta o URL con un nombre de visualización personalizado y podrás buscarlo directamente por ese título (marcado con un icono ★ en los resultados).
+- **Filtros de archivos** (consulta [**Respuestas instantáneas**](./instant-answers#filtros-de-archivos)): vincula una palabra clave a carpetas concretas y, al escribir `palabraclave término` en la ventana de búsqueda rápida, la búsqueda normal del índice quedará limitada a esas carpetas.
 
 Si deseas ejecutar programas o scripts mediante palabras clave personalizadas, consulta [**Comandos personalizados**](./instant-answers#comandos-personalizados).

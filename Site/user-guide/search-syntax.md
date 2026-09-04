@@ -273,6 +273,9 @@ Matched characters (including accented vowels in the original name) are accurate
 
 ### Favorites, not custom aliases
 
-Lertaro does not provide a generic "custom search alias/macro" mechanism. The closest native solution is [**Favorites**](./settings/favorites): pin any file, folder, or URL under a custom display name, making it searchable by that custom title (marked with a ★ icon in results).
+Lertaro does not provide a generic "custom search alias/macro" mechanism. The closest native solutions:
+
+- [**Favorites**](./settings/favorites): pin any file, folder, or URL under a custom display name, making it searchable by that custom title (marked with a ★ icon in results).
+- **File Filters** (see [**Instant Answers**](./instant-answers#file-filters)): bind a trigger keyword to chosen folders, then typing `keyword term` in the quick search window restricts a normal index search to those folders.
 
 If you want to trigger custom scripts or launch programs using custom keywords, see [**Custom Commands**](./instant-answers#custom-commands).
