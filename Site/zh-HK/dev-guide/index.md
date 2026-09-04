@@ -17,7 +17,7 @@
 | **[系統與對話方塊適配](./sdk/system-adapters)** | `IActivePathCollector`<br>`IFileDialogAdapter`<br>`IInlineSearchAdapter`<br>`IQuickNavigationProvider` | 探測前景管理器活動目錄、掛載原生檔案對話方塊、內嵌搜尋列並雙向同步選取狀態、貢獻滑鼠快速導覽級聯選單。 |
 | **[介面與預覽擴充](./sdk/ui-extensions)** | `ISidebarFilterProvider`<br>`IResultColumnProvider`<br>`IQuickPanelTabProvider`<br>`IFilePreviewProvider`<br>`IThumbnailProvider`<br>`IThemeProvider`<br>`ITranslationProvider` | 擴充側邊欄篩選分類、表格檢視自訂欄、快速面板動態工作區標籤、QuickLook 自訂轉譯器與縮圖擷取、WPF 資源字典主題包與多語言 i18n。 |
 | **[共用抽象契約](./sdk/abstractions)** | `ISearchResult`<br>`FileMetadata`<br>`IPluginSearchWindow`<br>`IConfigurable` | 檢索結果唯讀資料契約、奈秒級檔案時間戳記與大小中繼資料、宿主視窗安全控制控制代碼與基於架構驅動的原生設定表單。 |
-| **[宿主開放服務](./sdk/services)** | `FuzzyMatchService`<br>`TranslationService`<br>`IconService`<br>`FavoritesService`<br>`HistoryService`<br>`FileMetadataService`<br>`DirectoryIndexerService`<br>`RecentFilesService`<br>`ExplorerPathService`<br>`PluginSettingsService`<br>`SettingsSearchService`<br>`SettingsWindowService`<br>`SearchRefreshService`<br>`UserDataService`<br>`Logger` | 宿主暴露的高效能基礎設施：fzf 模糊比對與反白遮罩、多語言剖析、帶快取圖示擷取、收藏管理與歷程讀取、後台目錄索引代理、使用者資料目錄隔離及 Shell 原生檔案操作。 |
+| **[宿主開放服務](./sdk/services)** | `FuzzyMatchService`<br>`TranslationService`<br>`IconService`<br>`FavoritesService`<br>`HistoryService`<br>`FileMetadataService`<br>`DirectoryIndexerService`<br>`MemoryMaintenanceService`<br>`RecentFilesService`<br>`ExplorerPathService`<br>`PluginSettingsService`<br>`SettingsSearchService`<br>`SettingsWindowService`<br>`SearchRefreshService`<br>`UserDataService`<br>`Logger` | 宿主暴露的高效能基礎設施：fzf 模糊比對與反白遮罩、多語言剖析、帶快取圖示擷取、收藏管理與歷程讀取、後台目錄索引代理、延遲記憶體維護、使用者資料目錄隔離及 Shell 原生檔案操作。 |
 
 > [!NOTE]
 > 本手冊所有介面簽章、方法參數與行為契約均直接對照 `Lertaro.PluginSdk` 原始碼嚴格編寫並校驗。

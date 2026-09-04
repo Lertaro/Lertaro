@@ -14,7 +14,7 @@ The keyword must be followed by a space. Replace `cs` with another keyword in th
 
 ## What gets indexed
 
-- **Monitored folders**: The plugin scans the configured local folders recursively. Environment variables such as `%USERPROFILE%` are supported.
+- **Monitored folders**: The plugin registers the configured local folders with the host index service. Initial and incremental discovery is performed through the SDK's indexed directory enumeration and debounced directory-change notifications; environment variables such as `%USERPROFILE%` are supported.
 - **File extensions**: The default list includes `txt`, `md`, `pdf`, `docx`, `docm`, `pptx`, `pptm`, `xlsx`, `xlsm`, and `csv`. You can change the comma-separated list to suit your files.
 - **PDF files**: Searchable page text and saved values from fillable PDF form fields are included.
 - **File size**: Files larger than the configured per-file limit are skipped. The content index also has a separate size cap; set it to `0` for unlimited size.
@@ -26,7 +26,7 @@ Files are only searched after their text has been extracted successfully. Binary
 
 Type `cs` followed by a space and your keywords in the Quick Search Window. Matching files are shown with a text snippet and their containing folder; press `Enter` to open the selected file. When the query has results, the same file results are also available in the full search window when no type filter is active.
 
-While the index is being built, the `cs` placeholder shows the number of indexed files and any remaining work. New and changed files are processed in the background, so regular filename search remains available during indexing.
+While the index is being built, the `cs` placeholder shows the number of indexed files and any remaining work. New and changed directories are reported by the host watcher and processed in the background, so regular filename search remains available during indexing. The plugin does not run a recurring filesystem scan after indexing has settled.
 
 ## Clearing and rebuilding
 
