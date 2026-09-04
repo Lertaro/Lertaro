@@ -82,4 +82,12 @@ public sealed class QuickPanelArrowKeyTests
 
         Assert.AreEqual((1, 0), next);
     }
+
+    [TestMethod]
+    public void ThumbnailDown_FromAnyTileInTheFinalRow_CrossesWithoutLinearFallback()
+    {
+        var next = QuickPanelWindow.NextThumbnailPosition(new[] { 5, 2 }, new[] { 3, 2 }, 0, 3, 1, 0);
+
+        Assert.AreEqual((1, 0), next);
+    }
 }

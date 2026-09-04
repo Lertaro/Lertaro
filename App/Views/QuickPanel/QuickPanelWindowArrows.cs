@@ -233,7 +233,10 @@ public partial class QuickPanelWindow
             var targetRowStart = targetRow * listColumns;
             if (targetRow >= 0 && targetRowStart < counts[list]) return null;
 
-            return NextPosition(counts, list, item, Math.Sign(rowDelta));
+            // Force the existing group transition instead of taking one linear step within the current
+            // row. Otherwise Down from the first tile of the final row would land on that row's last
+            // tile before it could reach the next group.
+            return NextPosition(counts, list, rowDelta > 0 ? counts[list] - 1 : 0, Math.Sign(rowDelta));
         }
 
         var target = item + columnDelta;
