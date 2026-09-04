@@ -158,6 +158,7 @@ public partial class PluginFieldPromptWindow : Window
                     FieldType = f.FieldType,
                     DefaultValue = initial,
                     Choices = f.Choices,
+                    ChoiceOptions = f.ChoiceOptions,
                     SubFields = f.SubFields,
                     RequireModifier = f.RequireModifier,
                     RequireNonEmpty = f.RequireNonEmpty

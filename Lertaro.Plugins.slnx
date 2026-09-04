@@ -28,4 +28,5 @@
   <Project Path="Plugins/FlowLauncherBridge/FlowLauncherBridge.csproj" />
   <Project Path="Plugins/ContentSearch/ContentSearch.csproj" />
   <Project Path="Plugins/FileUnlocker/FileUnlocker.csproj" />
+  <Project Path="Plugins/AudioDeviceSelector/AudioDeviceSelector.csproj" />
 </Solution>

@@ -1,0 +1,45 @@
+using Lertaro.Plugins.AudioDeviceSelector.CoreAudio;
+
+namespace Lertaro.Plugins.AudioDeviceSelector.Tests;
+
+[TestClass]
+public sealed class AudioDeviceDisplayFormatterTests
+{
+    [TestMethod]
+    public void SplitFriendlyName_WithParenthesizedDescription_ReturnsBothParts()
+    {
+        var result = AudioDeviceDisplayFormatter.SplitFriendlyName("Speakers (USB Audio)");
+
+        Assert.AreEqual("Speakers", result.Name);
+        Assert.AreEqual("USB Audio", result.Description);
+    }
+
+    [TestMethod]
+    public void SplitFriendlyName_WithoutDescription_KeepsFullName()
+    {
+        var result = AudioDeviceDisplayFormatter.SplitFriendlyName("Speakers");
+
+        Assert.AreEqual("Speakers", result.Name);
+        Assert.AreEqual(string.Empty, result.Description);
+    }
+
+    [TestMethod]
+    public void Format_DeviceDescription_UsesDescriptionAsTitle()
+    {
+        var result = AudioDeviceDisplayFormatter.Format(
+            "Speakers (USB Audio)", AudioDeviceDisplayMode.DeviceDescription);
+
+        Assert.AreEqual("USB Audio", result.Title);
+        Assert.AreEqual("Speakers", result.Description);
+    }
+
+    [TestMethod]
+    public void TryParseQuery_OnlyAcceptsKeywordOrKeywordWithTerm()
+    {
+        Assert.IsTrue(AudioDeviceSelectorInstantProvider.TryParseQuery("ad", "ad", out var emptyTerm));
+        Assert.AreEqual(string.Empty, emptyTerm);
+        Assert.IsTrue(AudioDeviceSelectorInstantProvider.TryParseQuery("AD speakers", "ad", out var term));
+        Assert.AreEqual("speakers", term);
+        Assert.IsFalse(AudioDeviceSelectorInstantProvider.TryParseQuery("adapter", "ad", out _));
+    }
+}

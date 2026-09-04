@@ -1,0 +1,16 @@
+{
+  "AudioDeviceSelector_PluginName": "오디오 장치 선택기",
+  "AudioDeviceSelector_ProviderName": "오디오 장치 선택기",
+  "AudioDeviceSelector_PluginDesc": "기본 재생 장치를 빠르게 전환합니다.",
+  "AudioDeviceSelector_Config_TriggerKeywordLabel": "트리거 키워드",
+  "AudioDeviceSelector_Config_TriggerKeywordDesc": "이 키워드를 입력하면 선택적으로 장치 이름을 추가해 재생 장치를 표시할 수 있습니다.",
+  "AudioDeviceSelector_Config_DisplayModeLabel": "표시 모드",
+  "AudioDeviceSelector_Config_DisplayModeDesc": "결과 목록에 재생 장치를 표시할 방법을 선택합니다.",
+  "AudioDeviceSelector_Config_DisplayModeFriendlyName": "표시 이름",
+  "AudioDeviceSelector_Config_DisplayModeDeviceName": "장치 이름",
+  "AudioDeviceSelector_Config_DisplayModeDeviceDescription": "장치 설명",
+  "AudioDeviceSelector_EnumerationFailed": "재생 장치를 열거할 수 없습니다",
+  "AudioDeviceSelector_ChangeFailed": "기본 재생 장치를 변경할 수 없습니다.",
+  "Plugin_Comp_Desc_AudioDeviceSelectorInstantProvider": "활성 재생 장치를 나열하고 선택한 장치를 기본 장치로 설정합니다.",
+  "Plugin_Comp_Desc_AudioDeviceSelectorTranslationProvider": "오디오 장치 선택기 플러그인의 번역을 제공합니다."
+}

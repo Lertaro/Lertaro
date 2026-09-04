@@ -1,0 +1,16 @@
+{
+  "AudioDeviceSelector_PluginName": "Audio Device Selector",
+  "AudioDeviceSelector_ProviderName": "Audio Device Selector",
+  "AudioDeviceSelector_PluginDesc": "Quickly switch the default playback device.",
+  "AudioDeviceSelector_Config_TriggerKeywordLabel": "Trigger Keyword",
+  "AudioDeviceSelector_Config_TriggerKeywordDesc": "Type this keyword, optionally followed by a device name, to list playback devices.",
+  "AudioDeviceSelector_Config_DisplayModeLabel": "Display Mode",
+  "AudioDeviceSelector_Config_DisplayModeDesc": "Choose how playback devices are named in the result list.",
+  "AudioDeviceSelector_Config_DisplayModeFriendlyName": "Friendly name",
+  "AudioDeviceSelector_Config_DisplayModeDeviceName": "Device name",
+  "AudioDeviceSelector_Config_DisplayModeDeviceDescription": "Device description",
+  "AudioDeviceSelector_EnumerationFailed": "Could not enumerate playback devices",
+  "AudioDeviceSelector_ChangeFailed": "Could not change the default playback device.",
+  "Plugin_Comp_Desc_AudioDeviceSelectorInstantProvider": "Lists active playback devices and switches the default device when one is selected.",
+  "Plugin_Comp_Desc_AudioDeviceSelectorTranslationProvider": "Provides translations for the Audio Device Selector plugin."
+}

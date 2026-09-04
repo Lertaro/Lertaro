@@ -1,0 +1,16 @@
+{
+  "AudioDeviceSelector_PluginName": "オーディオデバイスセレクター",
+  "AudioDeviceSelector_ProviderName": "オーディオデバイスセレクター",
+  "AudioDeviceSelector_PluginDesc": "既定の再生デバイスをすばやく切り替えます。",
+  "AudioDeviceSelector_Config_TriggerKeywordLabel": "トリガーキーワード",
+  "AudioDeviceSelector_Config_TriggerKeywordDesc": "このキーワードを入力すると、必要に応じてデバイス名で再生デバイスを絞り込めます。",
+  "AudioDeviceSelector_Config_DisplayModeLabel": "表示モード",
+  "AudioDeviceSelector_Config_DisplayModeDesc": "結果一覧で再生デバイスを表示する方法を選択します。",
+  "AudioDeviceSelector_Config_DisplayModeFriendlyName": "フレンドリ名",
+  "AudioDeviceSelector_Config_DisplayModeDeviceName": "デバイス名",
+  "AudioDeviceSelector_Config_DisplayModeDeviceDescription": "デバイスの説明",
+  "AudioDeviceSelector_EnumerationFailed": "再生デバイスを列挙できませんでした",
+  "AudioDeviceSelector_ChangeFailed": "既定の再生デバイスを変更できませんでした。",
+  "Plugin_Comp_Desc_AudioDeviceSelectorInstantProvider": "アクティブな再生デバイスを一覧表示し、選択したデバイスを既定に設定します。",
+  "Plugin_Comp_Desc_AudioDeviceSelectorTranslationProvider": "オーディオデバイスセレクターの翻訳を提供します。"
+}

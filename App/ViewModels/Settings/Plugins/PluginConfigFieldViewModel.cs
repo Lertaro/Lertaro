@@ -31,6 +31,9 @@ public class PluginConfigFieldViewModel : ViewModelBase
     public string GroupName => ResolveText(GroupKey);
     public ConfigFieldType FieldType => SchemaField.FieldType;
     public List<string>? Choices => SchemaField.Choices?.Select(ResolveText).ToList();
+    public IReadOnlyList<PluginConfigChoiceItem> ChoiceItems => SchemaField.ChoiceOptions != null
+        ? SchemaField.ChoiceOptions.Select(choice => new PluginConfigChoiceItem(choice.Value, ResolveText(choice.LabelKey))).ToList()
+        : SchemaField.Choices?.Select(choice => new PluginConfigChoiceItem(choice, ResolveText(choice))).ToList() ?? [];
     public int MaxLength => SchemaField.MaxLength > 0 ? SchemaField.MaxLength : int.MaxValue;
     public bool IsSingleChar => SchemaField.MaxLength == 1;
     public double EditorWidth => IsSingleChar ? 48 : 180;
@@ -42,6 +45,7 @@ public class PluginConfigFieldViewModel : ViewModelBase
         OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(GroupName));
         OnPropertyChanged(nameof(Choices));
+        OnPropertyChanged(nameof(ChoiceItems));
     }
 
     public bool IsBoolean => FieldType == ConfigFieldType.Boolean;

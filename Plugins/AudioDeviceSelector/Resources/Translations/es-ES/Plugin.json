@@ -1,0 +1,16 @@
+{
+  "AudioDeviceSelector_PluginName": "Selector de dispositivos de audio",
+  "AudioDeviceSelector_ProviderName": "Selector de dispositivos de audio",
+  "AudioDeviceSelector_PluginDesc": "Cambia rápidamente el dispositivo de reproducción predeterminado.",
+  "AudioDeviceSelector_Config_TriggerKeywordLabel": "Palabra clave",
+  "AudioDeviceSelector_Config_TriggerKeywordDesc": "Escribe esta palabra clave, opcionalmente seguida del nombre de un dispositivo, para mostrar los dispositivos de reproducción.",
+  "AudioDeviceSelector_Config_DisplayModeLabel": "Modo de visualización",
+  "AudioDeviceSelector_Config_DisplayModeDesc": "Elige cómo se muestran los dispositivos de reproducción en la lista de resultados.",
+  "AudioDeviceSelector_Config_DisplayModeFriendlyName": "Nombre descriptivo",
+  "AudioDeviceSelector_Config_DisplayModeDeviceName": "Nombre del dispositivo",
+  "AudioDeviceSelector_Config_DisplayModeDeviceDescription": "Descripción del dispositivo",
+  "AudioDeviceSelector_EnumerationFailed": "No se pudieron enumerar los dispositivos de reproducción",
+  "AudioDeviceSelector_ChangeFailed": "No se pudo cambiar el dispositivo de reproducción predeterminado.",
+  "Plugin_Comp_Desc_AudioDeviceSelectorInstantProvider": "Muestra los dispositivos de reproducción activos y cambia el dispositivo predeterminado al seleccionar uno.",
+  "Plugin_Comp_Desc_AudioDeviceSelectorTranslationProvider": "Proporciona las traducciones del complemento selector de dispositivos de audio."
+}

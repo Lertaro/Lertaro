@@ -26,6 +26,8 @@ public class PluginConfigField
     public ConfigFieldType FieldType { get; set; }
     public object DefaultValue { get; set; } = null!;
     public List<string>? Choices { get; set; }
+    /// <summary>Choice values with separate persisted values and localized display labels.</summary>
+    public List<PluginConfigChoice>? ChoiceOptions { get; set; }
     public List<PluginConfigField>? SubFields { get; set; }
     /// <summary>For Hotkey fields: when true, single keys without modifier keys (Ctrl/Alt/Shift/Win) are rejected.</summary>
     public bool RequireModifier { get; set; }
@@ -44,6 +46,12 @@ public class PluginConfigField
     public Func<object?>? GetValue { get; set; }
     /// <summary>Custom setter delegate for external plugin settings.</summary>
     public Action<object?>? SetValue { get; set; }
+}
+
+public class PluginConfigChoice
+{
+    public string Value { get; set; } = string.Empty;
+    public string LabelKey { get; set; } = string.Empty;
 }
 
 public class PluginConfigSchema

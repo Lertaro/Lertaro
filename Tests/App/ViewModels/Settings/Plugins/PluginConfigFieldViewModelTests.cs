@@ -41,6 +41,24 @@ public sealed class PluginConfigFieldViewModelTests
     }
 
     [TestMethod]
+    public void ChoiceItems_UseLocalizedLabelsAndStableValues()
+    {
+        var field = Field(ConfigFieldType.Choice, "FriendlyName");
+        field.ChoiceOptions =
+        [
+            new PluginConfigChoice { Value = "FriendlyName", LabelKey = "Friendly name" },
+            new PluginConfigChoice { Value = "DeviceName", LabelKey = "Device name" }
+        ];
+
+        var vm = new PluginConfigFieldViewModel("plugin", field, new UserSettings(), null);
+
+        Assert.HasCount(2, vm.ChoiceItems);
+        Assert.AreEqual("FriendlyName", vm.ChoiceItems[0].Value);
+        Assert.AreEqual("Friendly name", vm.ChoiceItems[0].Label);
+        Assert.AreEqual("FriendlyName", vm.Value);
+    }
+
+    [TestMethod]
     public void IsObjectArray_ArrayWithSubFields_ReturnsTrueAndScalarArrayFalse()
     {
         var field = Field(ConfigFieldType.Array, new List<object>());
