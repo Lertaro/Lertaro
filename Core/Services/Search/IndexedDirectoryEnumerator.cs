@@ -152,7 +152,9 @@ public static class IndexedDirectoryEnumerator
         }
     }
 
-    private static string NormalizeIndexRoot(string drive)
+    // Shared with SearchScopeCoverage so the scope layer tests folder coverage against exactly the
+    // same root-matching rules the enumeration itself applies.
+    internal static string NormalizeIndexRoot(string drive)
     {
         var normalized = drive.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
         return normalized.Length == 1 && char.IsLetter(normalized[0])
@@ -160,7 +162,7 @@ public static class IndexedDirectoryEnumerator
             : normalized.EndsWith(Path.DirectorySeparatorChar) ? normalized : normalized + Path.DirectorySeparatorChar;
     }
 
-    private static bool IsUnderRoot(string path, string root)
+    internal static bool IsUnderRoot(string path, string root)
     {
         var normalizedPath = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
         var normalizedRoot = root.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
