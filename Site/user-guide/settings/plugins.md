@@ -50,13 +50,19 @@ Manage Flow plugins directly from the Lertaro search box:
 - **Deep Host Integration**: Flow plugins opening directories automatically respect the host's configured third-party file manager, message boxes render in host-native themed dialogs, and internal plugin logs flow directly into the Settings log viewer.
 - **Quick Overview**: Type `flow` into the search box to list all loaded Flow plugins and their action keywords; selecting a plugin opens its corresponding configuration group in Settings.
 
-## 4. Content Search
+## 4. Audio Device Selector
+
+The **Audio Device Selector** is a Windows-only native plugin. Type `ad` to list active playback devices and select one to make it the default multimedia playback device. You can append a device name after the trigger keyword to filter the results.
+
+Its settings let you change the trigger keyword and choose whether results show the friendly name, device name, or device description. It changes the default playback endpoint only; it does not control input devices, volume, mute state, or per-application audio routing.
+
+## 5. Content Search
 
 The **Content Search** plugin searches text inside configured local documents. Open its **Configure** tab to set the trigger keyword, monitored folders, indexed extensions, per-file size limit, index size cap, and excluded full-path regular expressions. The default trigger is `cs`, so `cs project plan` searches document content and shows matching files with snippets.
 
 The configuration also provides **Clear Index** and **Rebuild Index**. Clear removes only the content index, while Rebuild removes it and scans all monitored folders again. Neither action removes Lertaro's normal filename index.
 
-## 5. Plugin Runtime Status
+## 6. Plugin Runtime Status
 
 The **Runtime Status** tab under **Settings → Plugins** shows live host-side activity for installed plugins while Lertaro is running. The values are aggregated by plugin and refresh while the tab is open.
 

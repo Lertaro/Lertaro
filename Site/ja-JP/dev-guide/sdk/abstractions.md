@@ -71,7 +71,7 @@ public interface IConfigurable
 | **`Boolean`** | トグルスイッチまたはチェックボックス。 |
 | **`Text`** | テキストボックス。`RequireNonEmpty` を有効にすると、空欄時に `DefaultValue` へ自動フォールバック。 |
 | **`Integer`** | 最小値・最大値を指定可能な数値スピンボックス。 |
-| **`Choice`** | `Choices` 一覧から選ぶドロップダウンリスト。 |
+| **`Choice`** | `Choices` または `ChoiceOptions` の一覧から選ぶドロップダウンリスト。 |
 | **`Hotkey`** | キー入力登録コントロール（`RequireModifier = true` で修飾キーを必須化可能）。 |
 | **`FilePath` / `FolderPath`** | 参照ダイアログボタン付きのパス入力コントロール。 |
 | **`StringList`** | 項目の追加・削除・並び替えが可能な複数行リスト。 |
@@ -80,6 +80,27 @@ public interface IConfigurable
 | **`Button`** | 操作ボタンを表示し、フィールドの `OnClick` デリゲートを呼び出します。設定値は保存しません。 |
 
 `PluginConfigSchema` では `OnSave` や `OnRollback` デリゲートを設定し、保存や破棄時のカスタム処理をフックできます。
+
+### 選択肢のローカライズラベル
+
+ローカライズされたラベルを表示しながら安定した設定値を保存したい場合は、`ChoiceOptions` を使用します。`PluginConfigChoice.Value` がプラグイン設定に保存され、`LabelKey` が表示用テキストに解決されます。保存値と表示テキストが同じ場合は、従来の `Choices` コレクションを使用できます。
+
+```csharp
+new PluginConfigField
+{
+    Key = "DisplayMode",
+    FieldType = ConfigFieldType.Choice,
+    DefaultValue = "FriendlyName",
+    ChoiceOptions =
+    [
+        new PluginConfigChoice
+        {
+            Value = "FriendlyName",
+            LabelKey = "DisplayMode_FriendlyName"
+        }
+    ]
+}
+```
 
 ## 5. フル検索ウィンドウのファイル結果 `IFullSearchFileResultProvider`
 

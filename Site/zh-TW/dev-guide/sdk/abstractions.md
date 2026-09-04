@@ -71,7 +71,7 @@ public interface IConfigurable
 | **`Boolean`** | 切換開關（Toggle Switch）或核取方塊。 |
 | **`Text`** | 文字輸入框。支援設定 `RequireNonEmpty`，為空時自動回復為 `DefaultValue`。 |
 | **`Integer`** | 數字微調輸入框。支援設定最小值與最大值範圍。 |
-| **`Choice`** | 下拉式選單。透過 `Choices` 清單指定可選項目。 |
+| **`Choice`** | 下拉式選單。透過 `Choices` 或 `ChoiceOptions` 清單指定可選項目。 |
 | **`Hotkey`** | 專屬按鍵錄製框。可設定 `RequireModifier = true` 強制要求必須包含修飾鍵。 |
 | **`FilePath` / `FolderPath`** | 附帶「瀏覽...」檔案/資料夾原生選取器按鈕的路徑輸入框。 |
 | **`StringList`** | 支援多行編輯與項目增刪排序的多行清單方塊。 |
@@ -80,6 +80,27 @@ public interface IConfigurable
 | **`Button`** | 顯示操作按鈕並呼叫欄位的 `OnClick` 委派，不儲存設定值。 |
 
 `PluginConfigSchema` 亦支援設定 `OnSave` 與 `OnRollback` 生命週期委派，在使用者按一下確認提交或離開頁面放棄修改時執行自訂持久化或狀態復原。
+
+### 本地化選擇標籤
+
+當選項需要本地化標籤，同時仍要儲存穩定的設定值時，應使用 `ChoiceOptions`。`PluginConfigChoice.Value` 會寫入外掛模組設定，`LabelKey` 會解析為介面顯示文字；如果儲存值與顯示文字相同，繼續使用舊的 `Choices` 清單即可。
+
+```csharp
+new PluginConfigField
+{
+    Key = "DisplayMode",
+    FieldType = ConfigFieldType.Choice,
+    DefaultValue = "FriendlyName",
+    ChoiceOptions =
+    [
+        new PluginConfigChoice
+        {
+            Value = "FriendlyName",
+            LabelKey = "DisplayMode_FriendlyName"
+        }
+    ]
+}
+```
 
 ## 5. 完整搜尋視窗檔案結果 `IFullSearchFileResultProvider`
 

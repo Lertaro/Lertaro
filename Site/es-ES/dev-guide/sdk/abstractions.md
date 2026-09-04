@@ -71,7 +71,7 @@ public interface IConfigurable
 | **`Boolean`** | Interruptor de alternancia o casilla de verificación. |
 | **`Text`** | Campo de texto. Admite `RequireNonEmpty` para volver a `DefaultValue` si se vacía. |
 | **`Integer`** | Control numérico con límites mínimos y máximos. |
-| **`Choice`** | Selector desplegable basado en una colección `Choices`. |
+| **`Choice`** | Selector desplegable basado en una colección `Choices` o `ChoiceOptions`. |
 | **`Hotkey`** | Grabador de teclas con `RequireModifier = true` opcional. |
 | **`FilePath` / `FolderPath`** | Campo de texto con botón para abrir el diálogo nativo de Windows. |
 | **`StringList`** | Lista multilínea editable con adición, eliminación y reordenación. |
@@ -80,6 +80,27 @@ public interface IConfigurable
 | **`Button`** | Muestra un botón de acción e invoca el delegado `OnClick` del campo; no almacena ningún valor. |
 
 `PluginConfigSchema` admite delegados de ciclo de vida `OnSave` y `OnRollback` para gestionar la persistencia y la restauración personalizada.
+
+### Etiquetas localizadas para opciones
+
+Usa `ChoiceOptions` cuando una opción necesite una etiqueta localizada pero deba conservar un valor de configuración estable. `PluginConfigChoice.Value` se guarda en la configuración del plugin y `LabelKey` se resuelve como el texto mostrado. Si el valor guardado y el texto mostrado son iguales, puedes seguir usando la colección `Choices` existente.
+
+```csharp
+new PluginConfigField
+{
+    Key = "DisplayMode",
+    FieldType = ConfigFieldType.Choice,
+    DefaultValue = "FriendlyName",
+    ChoiceOptions =
+    [
+        new PluginConfigChoice
+        {
+            Value = "FriendlyName",
+            LabelKey = "DisplayMode_FriendlyName"
+        }
+    ]
+}
+```
 
 ## 5. Resultados de archivos en la búsqueda completa `IFullSearchFileResultProvider`
 

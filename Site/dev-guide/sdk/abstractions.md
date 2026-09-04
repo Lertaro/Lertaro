@@ -71,7 +71,7 @@ public interface IConfigurable
 | **`Boolean`** | Toggle switch or checkbox. |
 | **`Text`** | Text input box. Supports `RequireNonEmpty` to fall back to `DefaultValue` when cleared. |
 | **`Integer`** | Numeric stepper with minimum and maximum bounds. |
-| **`Choice`** | Dropdown selector backed by a `Choices` collection. |
+| **`Choice`** | Dropdown selector backed by a `Choices` or `ChoiceOptions` collection. |
 | **`Hotkey`** | Key recording box with optional `RequireModifier = true`. |
 | **`FilePath` / `FolderPath`** | Text box with native Windows file/folder browse dialog picker buttons. |
 | **`StringList`** | Editable multi-line list box supporting addition, deletion, and reordering. |
@@ -80,6 +80,27 @@ public interface IConfigurable
 | **`Button`** | Renders an action button and invokes the field's `OnClick` delegate; it stores no setting value. |
 
 `PluginConfigSchema` also supports `OnSave` and `OnRollback` lifecycle delegates to manage custom persistence and rollback workflows.
+
+### Localized choice labels
+
+Use `ChoiceOptions` when a choice needs a localized label while keeping a stable persisted value. `PluginConfigChoice.Value` is stored in the plugin settings, while `LabelKey` is resolved for display. The legacy `Choices` collection remains suitable when the stored value and displayed text are the same.
+
+```csharp
+new PluginConfigField
+{
+    Key = "DisplayMode",
+    FieldType = ConfigFieldType.Choice,
+    DefaultValue = "FriendlyName",
+    ChoiceOptions =
+    [
+        new PluginConfigChoice
+        {
+            Value = "FriendlyName",
+            LabelKey = "DisplayMode_FriendlyName"
+        }
+    ]
+}
+```
 
 ## 5. Full-search file results `IFullSearchFileResultProvider`
 
