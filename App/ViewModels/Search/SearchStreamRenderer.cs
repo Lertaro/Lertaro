@@ -1,5 +1,7 @@
+using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core;
+using Lertaro.Core.Services.Plugin.DirectoryIndex;
 using Lertaro.Core.Services.Search;
 
 namespace Lertaro.App.ViewModels.Search;
@@ -38,7 +40,8 @@ internal sealed class SearchStreamRenderer
         Action? onLocalServiceUnavailable = null,
         bool bypassExclusions = false,
         bool resultMapperConsumesBatches = false,
-        Action<int>? onReceivedCountUpdated = null)
+        Action<int>? onReceivedCountUpdated = null,
+        FileFilterScopeDirective? scopeDirective = null)
     {
         var streamedResponse = new List<SearchResult>();
         object responseLock = new();
@@ -47,6 +50,33 @@ internal sealed class SearchStreamRenderer
         // Quick and inline mappers still receive their complete snapshot on every render.
         var copiedCount = 0;
         var streamDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // Scoped searches answer from N per-folder engine queries fanned out concurrently, so the same
+        // file can arrive from two overlapping configured folders -- dedupe by path at accumulation.
+        var seenPaths = scopeDirective is { Folders.Count: > 0 } ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
+        var scopePatterns = scopeDirective is { Folders.Count: > 0 }
+            ? FilterPatternHelper.SplitOrNullIfMatchAll(scopeDirective.FilterPattern)
+            : null;
+
+        void Accumulate(SearchResult result)
+        {
+            token.ThrowIfCancellationRequested();
+            if (!SearchReachabilityGate.IsResultReachable(result))
+                return;
+
+            // The filter pattern constrains FILE names; a folder always passes (same semantics the
+            // pattern had when the filter plugin enumerated directories itself).
+            if (scopePatterns != null && !result.IsDir && !FilterPatternHelper.Matches(result.Name, scopePatterns))
+                return;
+
+            lock (responseLock)
+            {
+                if (seenPaths != null && !seenPaths.Add(result.Path))
+                    return;
+                streamedResponse.Add(result);
+                streamedCount++;
+            }
+        }
 
         async Task RenderSnapshotAsync(bool final, int take)
         {
@@ -173,22 +203,23 @@ internal sealed class SearchStreamRenderer
             if (globalSearchStartGate != null)
                 await globalSearchStartGate.ConfigureAwait(false);
 
-            await _searchService.SearchStreamingAsync(query, fileLimit, appLimit, searchScope, result =>
+            if (scopeDirective is { Folders.Count: > 0 })
             {
-                token.ThrowIfCancellationRequested();
-                if (!SearchReachabilityGate.IsResultReachable(result))
-                    return;
-
-                lock (responseLock)
+                await SearchScopedFoldersAsync(scopeDirective, query, fileLimit, appLimit, Accumulate,
+                    () => _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (!token.IsCancellationRequested && searchVersion == _getSearchVersion())
+                            onLocalServiceUnavailable?.Invoke();
+                    })), bypassExclusions, token).ConfigureAwait(false);
+            }
+            else
+            {
+                await _searchService.SearchStreamingAsync(query, fileLimit, appLimit, searchScope, Accumulate, token, () => _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    streamedResponse.Add(result);
-                    streamedCount++;
-                }
-            }, token, () => _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-            {
-                if (!token.IsCancellationRequested && searchVersion == _getSearchVersion())
-                    onLocalServiceUnavailable?.Invoke();
-            })), bypassExclusions).ConfigureAwait(false);
+                    if (!token.IsCancellationRequested && searchVersion == _getSearchVersion())
+                        onLocalServiceUnavailable?.Invoke();
+                })), bypassExclusions).ConfigureAwait(false);
+            }
 
             token.ThrowIfCancellationRequested();
             if (localSearchTask != null)
@@ -233,5 +264,47 @@ internal sealed class SearchStreamRenderer
         var start = copiedCount;
         copiedCount = end;
         return source.GetRange(start, end - start);
+    }
+
+    // One scoped engine query per configured folder, run concurrently and merged into the shared
+    // accumulator. Each call is a full SearchService.SearchStreamingAsync with that folder as its
+    // directoryFilter, so every source-specific behavior (local service index, in-process network/
+    // folder indexes, live-scan of partially indexed scopes, exclusion rules, fuzzy/alias settings)
+    // is exactly what an unscoped search already does -- just restricted per folder.
+    private async Task SearchScopedFoldersAsync(
+        FileFilterScopeDirective directive,
+        string query,
+        int fileLimit,
+        int appLimit,
+        Action<SearchResult> onResult,
+        Action onLocalSearchFailed,
+        bool bypassExclusions,
+        CancellationToken token)
+    {
+        var tasks = directive.Folders.Select(folder => Task.Run(async () =>
+        {
+            try
+            {
+                await _searchService.SearchStreamingAsync(query, fileLimit, appLimit, folder, onResult, token, onLocalSearchFailed, bypassExclusions).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[SearchStreamRenderer] Scoped search of '{folder}' failed: {ex.Message}", LogLevel.Warn);
+            }
+        }, token)).ToArray();
+
+        try
+        {
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded or window-closed: the engine's caller treats this as a silent stop, same as
+            // an unscoped search's cancellation.
+        }
     }
 }
