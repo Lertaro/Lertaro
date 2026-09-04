@@ -24,6 +24,7 @@ public readonly struct PipeResponse
 {
     public PipeResponseKind Kind { get; init; }
     public string Message { get; init; }
+    internal bool IsTransportError { get; init; }
     public UsnIndexer.IndexerStatus? Status { get; init; }
     /// <summary>Which of the subscriber's watched directories a change landed under.</summary>
     public List<string>? ChangedDirectories { get; init; }

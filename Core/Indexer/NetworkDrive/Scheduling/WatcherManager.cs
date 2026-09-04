@@ -80,25 +80,22 @@ internal class WatcherManager : IDisposable
     // Coalesces however many watcher events land on this drive within PublishDebounceMs into a single
     // publish -- resetting an existing pending timer rather than letting both fire, so a steady stream of
     // changes (e.g. a large copy in progress) never actually reaches the timer's due time until it stops.
-    // Every event folded into the pending publish contributes its directory, because the debounce means
+    // Every event folded into the pending publish contributes its affected directory, because the debounce means
     // one publish stands for all of them: dropping the ones that were coalesced away would tell a
     // subscriber only about the last file of a copy and leave it believing the rest never happened.
     private readonly Dictionary<string, HashSet<string>> _pendingDirectories = new(StringComparer.OrdinalIgnoreCase);
 
-    private void SchedulePublish(string drive, NetworkIndex index, params string[] changedPaths)
+    private void SchedulePublish(string drive, NetworkIndex index, params string?[] changedDirectories)
     {
         lock (_pendingDirectories)
         {
             if (!_pendingDirectories.TryGetValue(drive, out var pending))
                 _pendingDirectories[drive] = pending = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var path in changedPaths)
+            foreach (var path in changedDirectories)
             {
                 if (!string.IsNullOrEmpty(path))
                     pending.Add(path);
-                var directory = Path.GetDirectoryName(path);
-                if (!string.IsNullOrEmpty(directory))
-                    pending.Add(directory);
             }
         }
 
@@ -176,6 +173,7 @@ internal class WatcherManager : IDisposable
         try
         {
             var changed = false;
+            var isDirectory = false;
             var index = _getIndex(drive);
 
             if (index == null)
@@ -192,7 +190,7 @@ internal class WatcherManager : IDisposable
             else
             {
                 var exclusionRules = ExclusionRuleSet.From(UserSettings.Load());
-                var isDirectory = Directory.Exists(path);
+                isDirectory = Directory.Exists(path);
                 if (exclusionRules.IsExcludedPath(logicalPath, isDirectory))
                     changed = index.ApplyDeleted(logicalPath);
                 else
@@ -207,7 +205,7 @@ internal class WatcherManager : IDisposable
                 // own comment for why the late-only check could miss this drive's rescan finishing (and
                 // the missed flag with it) inside the debounce window.
                 if (!_markMissedIfRescanning(drive))
-                    SchedulePublish(drive, index, logicalPath);
+                    SchedulePublish(drive, index, GetChangedDirectory(logicalPath, isDirectory));
             }
         }
         catch (Exception ex)
@@ -241,7 +239,11 @@ internal class WatcherManager : IDisposable
             {
                 Logger.Log($"[WatcherManager] Incremental Rename applied on {drive}: {logicalOldPath} -> {logicalNewPath}; items={index.Count}", LogLevel.Debug);
                 if (!_markMissedIfRescanning(drive))
-                    SchedulePublish(drive, index, logicalOldPath, logicalNewPath);
+                    SchedulePublish(
+                        drive,
+                        index,
+                        Path.GetDirectoryName(logicalOldPath),
+                        GetChangedDirectory(logicalNewPath, newIsDirectory));
             }
         }
         catch (Exception ex)
@@ -250,6 +252,9 @@ internal class WatcherManager : IDisposable
             _queueRefresh(drive, "incremental rename failure");
         }
     }
+
+    private static string? GetChangedDirectory(string path, bool isDirectory)
+        => isDirectory ? path : Path.GetDirectoryName(path);
 
     public void Dispose()
     {

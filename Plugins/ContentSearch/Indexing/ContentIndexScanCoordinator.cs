@@ -19,7 +19,7 @@ internal sealed class ContentIndexScanCoordinator : IDisposable
         _database = database;
     }
 
-    public void TriggerFullScan()
+    public void TriggerFullScan(IReadOnlyList<string>? changedDirectories = null)
     {
         var newCts = new CancellationTokenSource();
         var oldCts = Interlocked.Exchange(ref _scanCts, newCts);
@@ -58,11 +58,13 @@ internal sealed class ContentIndexScanCoordinator : IDisposable
                         existingMeta.Remove(p);
                 }
 
+                var scanDirectories = changedDirectories?.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 var discovered = await FolderScanDiscoveryHelper.DiscoverFilesAsync(
                     config,
                     existingMeta,
                     _scheduler.EnqueueFile,
-                    ct).ConfigureAwait(false);
+                    ct,
+                    scanDirectories).ConfigureAwait(false);
 
                 if (ct.IsCancellationRequested) return;
 
@@ -83,7 +85,8 @@ internal sealed class ContentIndexScanCoordinator : IDisposable
                     _database,
                     existingMeta,
                     discovered,
-                    reachableConfig);
+                    reachableConfig,
+                    scanDirectories);
 
                 _scheduler.NotifyProgressChanged(force: _scheduler.PendingCount == 0);
                 _database.Optimize();

@@ -15,10 +15,13 @@ public static class MissingObservationHelper
         ContentSearchDatabase database,
         Dictionary<string, (long LastModified, long FileSize, int MissingCount)> existingMeta,
         HashSet<string> discovered,
-        ContentIndexConfig reachableConfig)
+        ContentIndexConfig reachableConfig,
+        IReadOnlyCollection<string>? observedDirectories = null)
     {
         var missingPaths = existingMeta.Keys
-            .Where(p => !discovered.Contains(p) && ContentIndexScheduler.IsFileInMonitoredFolders(p, reachableConfig))
+            .Where(p => !discovered.Contains(p)
+                && ContentIndexScheduler.IsFileInMonitoredFolders(p, reachableConfig)
+                && IsInObservedDirectories(p, observedDirectories))
             .ToList();
 
         var toDelete = new List<string>();
@@ -61,6 +64,24 @@ public static class MissingObservationHelper
         }
 
         return new MissingObservationResult(toDelete.Count, toUpdateMissing.Count);
+    }
+
+    private static bool IsInObservedDirectories(string path, IReadOnlyCollection<string>? observedDirectories)
+    {
+        if (observedDirectories == null)
+            return true;
+
+        foreach (var directory in observedDirectories)
+        {
+            if (string.IsNullOrWhiteSpace(directory))
+                continue;
+            var root = directory.EndsWith(Path.DirectorySeparatorChar) || directory.EndsWith(Path.AltDirectorySeparatorChar)
+                ? directory
+                : directory + Path.DirectorySeparatorChar;
+            if (path.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 }
 

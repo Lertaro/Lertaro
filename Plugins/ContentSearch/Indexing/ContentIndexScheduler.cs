@@ -52,7 +52,8 @@ public sealed class ContentIndexScheduler : IDisposable
     {
         _database = database;
         _batchProcessor = new IndexBatchProcessor(database);
-        _folderWatcher = new ContentFolderWatcher(() => TriggerFullScan());
+        _folderWatcher = new ContentFolderWatcher(changedDirectories =>
+            TriggerFullScan(changedDirectories.Count == 0 ? null : changedDirectories));
         _scanCoordinator = new ContentIndexScanCoordinator(this, database);
         // Let the first progress notification go out immediately; later ones are
         // throttled to ProgressNotifyIntervalMs so indexing batches do not flood
@@ -137,8 +138,8 @@ public sealed class ContentIndexScheduler : IDisposable
         }
     }
 
-    public void TriggerFullScan()
-        => _scanCoordinator.TriggerFullScan();
+    public void TriggerFullScan(IReadOnlyList<string>? changedDirectories = null)
+        => _scanCoordinator.TriggerFullScan(changedDirectories);
 
     public void EnqueueFile(string filePath)
     {

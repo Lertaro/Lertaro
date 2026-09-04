@@ -8,11 +8,16 @@ namespace Lertaro.Plugins.ContentSearch.Indexing;
 public sealed class ContentFolderWatcher : IDisposable
 {
     private const string PluginId = "Lertaro.Plugins.ContentSearch";
-    private readonly Action _onFoldersChanged;
+    private readonly Action<IReadOnlyList<string>> _onFoldersChanged;
     private IDisposable? _watchSubscription;
     private readonly object _lock = new();
 
     public ContentFolderWatcher(Action onFoldersChanged)
+        : this(_ => onFoldersChanged())
+    {
+    }
+
+    public ContentFolderWatcher(Action<IReadOnlyList<string>> onFoldersChanged)
     {
         _onFoldersChanged = onFoldersChanged;
         _watchSubscription = DirectoryIndexerService.WatchDirectories(PluginId, _onFoldersChanged);

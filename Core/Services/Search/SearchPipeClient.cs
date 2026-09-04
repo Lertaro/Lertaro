@@ -30,6 +30,18 @@ internal sealed class SearchPipeClient
         return new UsnIndexer.IndexerStatus { State = "error" };
     }
 
+    internal async Task<(bool Connected, UsnIndexer.IndexerStatus? Status)> GetStatusForReadinessAsync(
+        CancellationToken token = default)
+    {
+        var resp = await SendPipeCommandAsync(new SearchRequestMessage { Id = SearchRequestId.Status }, token).ConfigureAwait(false);
+        if (resp.Kind == PipeResponseKind.Status && resp.Status != null)
+            return (true, resp.Status);
+
+        if (!resp.IsTransportError)
+            Logger.Log($"[SearchService] STATUS failed: {resp.Message}", LogLevel.Error);
+        return (!resp.IsTransportError, null);
+    }
+
     public async Task<bool> PingAsync(CancellationToken token = default)
     {
         var resp = await SendPipeCommandAsync(new SearchRequestMessage { Id = SearchRequestId.Ping }, token).ConfigureAwait(false);
@@ -86,7 +98,7 @@ internal sealed class SearchPipeClient
                 ? LogLevel.Debug
                 : LogLevel.Warn;
             Logger.Log($"[PipeClient] SendPipeCommand failed for {msg.Id}: {ex.Message}", level);
-            return new PipeResponse { Kind = PipeResponseKind.Error, Message = ex.Message };
+            return new PipeResponse { Kind = PipeResponseKind.Error, Message = ex.Message, IsTransportError = true };
         }
     }
 

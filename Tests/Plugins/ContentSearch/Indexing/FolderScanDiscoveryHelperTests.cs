@@ -219,6 +219,45 @@ public sealed class FolderScanDiscoveryHelperTests
         }
     }
 
+    [TestMethod]
+    public async Task DiscoverFilesAsync_UsesChangedDirectoriesAsScope()
+    {
+        var root = CreateTempDirectory();
+        var changedDirectory = Path.Combine(root, "Changed");
+        Directory.CreateDirectory(changedDirectory);
+        var calls = new List<string>();
+
+        try
+        {
+            var filePath = Path.Combine(changedDirectory, "changed.txt");
+            await File.WriteAllTextAsync(filePath, "content");
+            DirectoryIndexerService.EnumerateDirectoryFunc = (folder, _, _, _, _) =>
+            {
+                calls.Add(folder);
+                return EnumerateFake(filePath, new FileInfo(filePath).Length, FileInfoMetaModified(filePath));
+            };
+
+            var config = new ContentIndexConfig
+            {
+                MonitoredFolders = new List<string> { root },
+                AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".txt" }
+            };
+            var discovered = await FolderScanDiscoveryHelper.DiscoverFilesAsync(
+                config,
+                new Dictionary<string, (long LastModified, long FileSize, int MissingCount)>(),
+                _ => { },
+                CancellationToken.None,
+                new[] { changedDirectory });
+
+            CollectionAssert.AreEquivalent(new[] { filePath }, discovered.ToList());
+            CollectionAssert.AreEqual(new[] { changedDirectory }, calls);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     private static string CreateTempDirectory()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"scan_test_{Guid.NewGuid():N}");

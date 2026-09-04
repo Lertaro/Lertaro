@@ -34,6 +34,7 @@ internal sealed class PluginDirectoryChangeNotifier : IDisposable
     private readonly KeyedDebouncer<string> _debouncer = new(QuietPeriodMs, StringComparer.OrdinalIgnoreCase);
     private readonly Func<IReadOnlyList<(string PluginId, string Path)>> _registrations;
     private readonly object _gate = new();
+    private readonly Dictionary<string, HashSet<string>?> _pendingChanges = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _localStatusCts;
     private bool _subscribedToNetwork;
 
@@ -41,8 +42,43 @@ internal sealed class PluginDirectoryChangeNotifier : IDisposable
         => _registrations = registrations;
 
     /// <summary>One notification for this plugin once its directories have been quiet for a moment.</summary>
-    public void Report(string pluginId)
-        => _debouncer.Schedule(pluginId, () => PluginSdk.Services.DirectoryIndexerService.NotifyDirectoryChanged(pluginId));
+    public void Report(string pluginId) => Report(pluginId, null);
+
+    /// <summary>Queues a precise directory scope, coalescing it with other changes in the quiet period.</summary>
+    public void Report(string pluginId, IReadOnlyCollection<string>? changedDirectories)
+    {
+        lock (_gate)
+        {
+            if (!_pendingChanges.TryGetValue(pluginId, out var pending))
+            {
+                _pendingChanges[pluginId] = changedDirectories == null
+                    ? null
+                    : new HashSet<string>(changedDirectories, StringComparer.OrdinalIgnoreCase);
+            }
+            else if (pending != null)
+            {
+                if (changedDirectories == null)
+                    _pendingChanges[pluginId] = null;
+                else
+                    pending.UnionWith(changedDirectories);
+            }
+        }
+
+        _debouncer.Schedule(pluginId, () => FlushReport(pluginId));
+    }
+
+    private void FlushReport(string pluginId)
+    {
+        IReadOnlyList<string> changedDirectories;
+        lock (_gate)
+        {
+            if (!_pendingChanges.Remove(pluginId, out var pending))
+                return;
+            changedDirectories = pending is null ? Array.Empty<string>() : pending.ToList();
+        }
+
+        PluginSdk.Services.DirectoryIndexerService.NotifyDirectoryChanged(pluginId, changedDirectories);
+    }
 
     /// <summary>
     /// Starts listening to the indexes, if not already. Called when a directory is registered rather
@@ -113,7 +149,7 @@ internal sealed class PluginDirectoryChangeNotifier : IDisposable
     {
         var registrations = _registrations();
         var watched = registrations.Select(r => r.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        OnWatchedDirectoriesChanged(WatchedDirectoryMatcher.Match(watched, changedDirectories));
+        OnWatchedDirectoriesChanged(WatchedDirectoryMatcher.MatchChangedDirectories(watched, changedDirectories));
     }
 
     // Holds the subscription open, re-establishing it whenever the service goes away (an upgrade, a
@@ -158,16 +194,23 @@ internal sealed class PluginDirectoryChangeNotifier : IDisposable
     private void OnWatchedDirectoriesChanged(IReadOnlyList<string> changed)
     {
         var registrations = _registrations();
-        var reported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var reported = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var directory in changed)
         {
             foreach (var (pluginId, path) in registrations)
             {
-                if (WatchedDirectoryMatcher.Touches(directory, path) && reported.Add(pluginId))
-                    Report(pluginId);
+                if (!WatchedDirectoryMatcher.Touches(directory, path))
+                    continue;
+
+                if (!reported.TryGetValue(pluginId, out var pluginChanges))
+                    reported[pluginId] = pluginChanges = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                pluginChanges.Add(directory);
             }
         }
+
+        foreach (var (pluginId, pluginChanges) in reported)
+            Report(pluginId, pluginChanges);
     }
 
     public void Dispose()

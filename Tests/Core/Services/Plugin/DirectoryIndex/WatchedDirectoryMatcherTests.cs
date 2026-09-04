@@ -91,4 +91,18 @@ public sealed class WatchedDirectoryMatcherTests
         Assert.IsTrue(WatchedDirectoryMatcher.Touches(@"//nas/media/music/albums", @"\\nas\media\music"));
         Assert.IsTrue(WatchedDirectoryMatcher.Touches(@"C:/Movies/Sub", @"C:\Movies"));
     }
+
+    [TestMethod]
+    public void PreciseMatchingKeepsChangedSubdirectories()
+        => CollectionAssert.AreEqual(
+            new[] { @"C:\Movies\Action" },
+            WatchedDirectoryMatcher.MatchChangedDirectories(
+                new[] { @"C:\Movies" },
+                new[] { @"C:\Movies\Action", @"C:\Other" }));
+
+    [TestMethod]
+    public void PreciseMatchingFallsBackToWatchedRootsWhenUnknown()
+        => CollectionAssert.AreEqual(
+            Watched,
+            WatchedDirectoryMatcher.MatchChangedDirectories(Watched, null));
 }

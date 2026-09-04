@@ -40,6 +40,26 @@ public static class WatchedDirectoryMatcher
     }
 
     /// <summary>
+    /// Returns the changed directories that fall under at least one watched directory. When the source
+    /// cannot identify the changed location, returns the watched roots as a safe broad-refresh scope.
+    /// </summary>
+    public static List<string> MatchChangedDirectories(
+        IReadOnlyCollection<string> watched,
+        IReadOnlyCollection<string>? changedDirectories)
+    {
+        if (watched.Count == 0)
+            return new List<string>();
+
+        if (changedDirectories == null)
+            return watched.ToList();
+
+        return changedDirectories
+            .Where(changed => watched.Any(watchedPath => Touches(changed, watchedPath)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>
     /// Whether a change in <paramref name="changedDirectory"/> concerns somebody watching
     /// <paramref name="watched"/>.
     /// </summary>

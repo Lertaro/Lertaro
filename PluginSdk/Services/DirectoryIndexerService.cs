@@ -29,7 +29,7 @@ public static class DirectoryIndexerService
     /// </summary>
     public static Func<string, bool, string, int, CancellationToken, IAsyncEnumerable<Abstractions.ISearchResult>>? EnumerateDirectoryFunc { get; set; }
 
-    private static readonly Dictionary<string, List<Action>> _watchers = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, List<Action<IReadOnlyList<string>>>> _watchers = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Calls <paramref name="onChanged"/> whenever something changes under a directory registered by
@@ -46,11 +46,19 @@ public static class DirectoryIndexerService
     /// settles, not one per file. Marshal to your own thread if you need to.
     /// </remarks>
     public static IDisposable WatchDirectories(string pluginId, Action onChanged)
+        => WatchDirectories(pluginId, _ => onChanged());
+
+    /// <summary>
+    /// Calls <paramref name="onChanged"/> with the directories affected by the change. An empty list
+    /// means the host could not identify a narrower scope and the plugin should refresh broadly.
+    /// Dispose the returned handle to stop listening.
+    /// </summary>
+    public static IDisposable WatchDirectories(string pluginId, Action<IReadOnlyList<string>> onChanged)
     {
         lock (_watchers)
         {
             if (!_watchers.TryGetValue(pluginId, out var handlers))
-                _watchers[pluginId] = handlers = new List<Action>();
+                _watchers[pluginId] = handlers = new List<Action<IReadOnlyList<string>>>();
             handlers.Add(onChanged);
         }
         return new Subscription(pluginId, onChanged);
@@ -60,8 +68,12 @@ public static class DirectoryIndexerService
     /// Tells the plugin that registered them that its directories changed. Host application only.
     /// </summary>
     public static void NotifyDirectoryChanged(string pluginId)
+        => NotifyDirectoryChanged(pluginId, Array.Empty<string>());
+
+    /// <summary>Notifies a plugin about the directories affected by a watched change.</summary>
+    public static void NotifyDirectoryChanged(string pluginId, IReadOnlyList<string> changedDirectories)
     {
-        Action[] handlers;
+        Action<IReadOnlyList<string>>[] handlers;
         lock (_watchers)
         {
             if (!_watchers.TryGetValue(pluginId, out var registered) || registered.Count == 0)
@@ -74,9 +86,7 @@ public static class DirectoryIndexerService
         foreach (var handler in handlers)
         {
             try
-            {
-                handler();
-            }
+            { handler(changedDirectories); }
             catch (Exception ex)
             {
                 Logger.Log($"[DirectoryIndexerService] A '{pluginId}' change handler threw: {ex.Message}", LogLevel.Error);
@@ -87,9 +97,9 @@ public static class DirectoryIndexerService
     private sealed class Subscription : IDisposable
     {
         private readonly string _pluginId;
-        private Action? _handler;
+        private Action<IReadOnlyList<string>>? _handler;
 
-        public Subscription(string pluginId, Action handler)
+        public Subscription(string pluginId, Action<IReadOnlyList<string>> handler)
         {
             _pluginId = pluginId;
             _handler = handler;

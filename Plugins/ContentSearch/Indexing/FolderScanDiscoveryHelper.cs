@@ -13,12 +13,14 @@ public static class FolderScanDiscoveryHelper
         ContentIndexConfig config,
         Dictionary<string, (long LastModified, long FileSize, int MissingCount)> existingMeta,
         Action<string> onEnqueue,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyCollection<string>? scanDirectories = null)
     {
         var discovered = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pattern = config.FilterPattern;
 
-        foreach (var rawFolder in config.MonitoredFolders)
+        var folders = scanDirectories ?? config.MonitoredFolders;
+        foreach (var rawFolder in folders)
         {
             if (ct.IsCancellationRequested) return discovered;
             var folder = ContentIndexScheduler.NormalizeFolderPath(rawFolder);
