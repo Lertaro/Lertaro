@@ -34,12 +34,36 @@ public partial class QuickPanelWindow
         // looking dead. The same guard Escape already carries, for the same reason.
         if (Services.ShellMenu.ActionFlyout.ActionFlyout.IsOpen) return false;
 
-        var delta = SelectionDeltaFor(e);
-        if (delta == 0) return false;
-
         var focusedList = Keyboard.FocusedElement is DependencyObject focused
             ? Helpers.Visuals.TreeWalk.Ancestor<ListBox>(focused)
             : null;
+
+        // Thumbnail groups are a visual grid, so handle all four bare arrows here instead of letting a
+        // ListBox apply its own focus navigation. The active list is used while the filter box has focus,
+        // which is the normal state immediately after the panel is summoned.
+        var thumbnailList = focusedList ?? _activeList;
+        if (thumbnailList != null && ThumbnailPanelFor(thumbnailList) != null
+            && Keyboard.Modifiers == ModifierKeys.None)
+        {
+            var key = Helpers.WpfUiHelper.GetActualKey(e);
+            var movement = key switch
+            {
+                Key.Up => (-1, 0),
+                Key.Down => (1, 0),
+                Key.Left => (0, -1),
+                Key.Right => (0, 1),
+                _ => (0, 0),
+            };
+            if (movement != (0, 0))
+            {
+                MoveThumbnailSelection(movement.Item1, movement.Item2, takeFocus: focusedList != null);
+                e.Handled = true;
+                return true;
+            }
+        }
+
+        var delta = SelectionDeltaFor(e);
+        if (delta == 0) return false;
 
         // A list has the keyboard and the key is one it moves on: its own answer first, this one only if
         // it had none. Left unhandled so the list still sees the key. A configured hotkey (Ctrl+N by
@@ -123,6 +147,36 @@ public partial class QuickPanelWindow
         return true;
     }
 
+    private bool MoveThumbnailSelection(int rowDelta, int columnDelta, bool takeFocus)
+    {
+        var lists = VisibleLists(this);
+        if (lists.Count == 0) return false;
+
+        var from = _activeList != null ? lists.IndexOf(_activeList) : -1;
+        var columns = lists.Select(list => ThumbnailPanelFor(list)?.Columns ?? 1).ToList();
+        var next = NextThumbnailPosition(
+            lists.Select(list => list.Items.Count).ToList(), columns, from,
+            from >= 0 ? lists[from].SelectedIndex : -1, rowDelta, columnDelta);
+        if (next == null) return false;
+
+        var (listIndex, itemIndex) = next.Value;
+        var target = lists[listIndex];
+        foreach (var other in lists)
+        {
+            if (!ReferenceEquals(other, target)) other.UnselectAll();
+        }
+
+        _activeList = target;
+        target.SelectedIndex = itemIndex;
+        if (target.ItemContainerGenerator.ContainerFromIndex(itemIndex) is FrameworkElement container)
+        {
+            container.BringIntoView();
+            if (takeFocus) (container as ListBoxItem)?.Focus();
+        }
+
+        return true;
+    }
+
     /// <summary>Where one step lands, over the groups' items taken as a single sequence.</summary>
     /// <remarks>
     /// Groups with nothing in them are stepped over rather than stopped in: a filter can leave a group
@@ -151,6 +205,40 @@ public partial class QuickPanelWindow
         }
 
         return null;
+    }
+
+    /// <summary>Where a visual-grid move lands while retaining the panel's existing group transitions.</summary>
+    /// <remarks>
+    /// Horizontal movement follows reading order, so it naturally enters the row above or below. A
+    /// vertical move preserves its column and stops at a short row, matching the launch panel's visual
+    /// navigation. Only crossing the first or last row invokes NextPosition, which keeps the existing
+    /// no-wrap transition to the neighboring non-empty group unchanged.
+    /// </remarks>
+    internal static (int List, int Item)? NextThumbnailPosition(
+        IReadOnlyList<int> counts, IReadOnlyList<int> columns, int list, int item, int rowDelta, int columnDelta)
+    {
+        if (counts.Count == 0 || (rowDelta == 0 && columnDelta == 0)) return null;
+        if (list < 0 || list >= counts.Count || item < 0 || item >= counts[list])
+            return NextPosition(counts, list, item, rowDelta != 0 ? Math.Sign(rowDelta) : Math.Sign(columnDelta));
+
+        var listColumns = list < columns.Count ? Math.Max(1, columns[list]) : 1;
+        if (rowDelta != 0)
+        {
+            var targetRow = item / listColumns + rowDelta;
+            var targetIndex = targetRow * listColumns + item % listColumns;
+            if (targetRow >= 0 && targetIndex >= 0 && targetIndex < counts[list])
+                return (list, targetIndex);
+
+            // A real row boundary crosses groups; a missing column in an existing short row does not.
+            var targetRowStart = targetRow * listColumns;
+            if (targetRow >= 0 && targetRowStart < counts[list]) return null;
+
+            return NextPosition(counts, list, item, Math.Sign(rowDelta));
+        }
+
+        var target = item + columnDelta;
+        if (target >= 0 && target < counts[list]) return (list, target);
+        return NextPosition(counts, list, item, Math.Sign(columnDelta));
     }
 
     private static (int List, int Item)? FirstNonEmpty(IReadOnlyList<int> counts, int from, int step)
@@ -184,6 +272,24 @@ public partial class QuickPanelWindow
 
             for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(node); i++)
                 Collect(System.Windows.Media.VisualTreeHelper.GetChild(node, i), into);
+        }
+    }
+
+    private static QuickPanelNumberedWrapPanel? ThumbnailPanelFor(ListBox list)
+    {
+        return Find(list);
+
+        static QuickPanelNumberedWrapPanel? Find(DependencyObject node)
+        {
+            if (node is QuickPanelNumberedWrapPanel panel) return panel;
+
+            for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(node); i++)
+            {
+                if (Find(System.Windows.Media.VisualTreeHelper.GetChild(node, i)) is { } found)
+                    return found;
+            }
+
+            return null;
         }
     }
 }

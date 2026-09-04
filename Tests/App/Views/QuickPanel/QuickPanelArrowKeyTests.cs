@@ -55,4 +55,31 @@ public sealed class QuickPanelArrowKeyTests
         Assert.IsNull(QuickPanelWindow.NextPosition(Array.Empty<int>(), list: -1, item: -1, delta: 1));
         Assert.IsNull(QuickPanelWindow.NextPosition(new[] { 0, 0 }, list: -1, item: -1, delta: 1));
     }
+
+    [TestMethod]
+    public void ThumbnailArrows_MoveVerticallyByColumnAndHorizontallyAcrossRows()
+    {
+        var counts = new[] { 6 };
+        var columns = new[] { 3 };
+
+        Assert.AreEqual((0, 3), QuickPanelWindow.NextThumbnailPosition(counts, columns, 0, 0, 1, 0));
+        Assert.AreEqual((0, 3), QuickPanelWindow.NextThumbnailPosition(counts, columns, 0, 2, 0, 1));
+        Assert.AreEqual((0, 1), QuickPanelWindow.NextThumbnailPosition(counts, columns, 0, 2, 0, -1));
+    }
+
+    [TestMethod]
+    public void ThumbnailDown_StopsAtMissingColumnInShortFinalRow()
+    {
+        var next = QuickPanelWindow.NextThumbnailPosition(new[] { 5 }, new[] { 3 }, 0, 2, 1, 0);
+
+        Assert.IsNull(next);
+    }
+
+    [TestMethod]
+    public void ThumbnailVerticalGroupBoundary_UsesExistingCrossGroupTransition()
+    {
+        var next = QuickPanelWindow.NextThumbnailPosition(new[] { 3, 2 }, new[] { 3, 2 }, 0, 2, 1, 0);
+
+        Assert.AreEqual((1, 0), next);
+    }
 }

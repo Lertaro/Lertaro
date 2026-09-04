@@ -18,6 +18,8 @@ internal sealed class QuickPanelNumberedWrapPanel : System.Windows.Controls.Pane
 
     public int MaximumItemCount { get => (int)GetValue(MaximumItemCountProperty); set => SetValue(MaximumItemCountProperty, value); }
 
+    internal int Columns => _columns;
+
     protected override System.Windows.Size MeasureOverride(System.Windows.Size availableSize)
     {
         CalculateLayout(availableSize.Width);
