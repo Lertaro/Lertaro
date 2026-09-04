@@ -47,9 +47,20 @@ public sealed class AudioDeviceDisplayFormatterTests
     public void DefaultDevice_UsesDistinctSuccessIcon()
     {
         Assert.AreNotEqual(
-            AudioDeviceSelectorInstantProvider.GetIconData(false),
-            AudioDeviceSelectorInstantProvider.GetIconData(true));
+            AudioDeviceSelectorInstantProvider.GetIconData(AudioDeviceDirection.Output, false),
+            AudioDeviceSelectorInstantProvider.GetIconData(AudioDeviceDirection.Output, true));
         Assert.AreEqual("SuccessBrush", AudioDeviceSelectorInstantProvider.GetIconColor(true));
         Assert.AreEqual("AccentBlue", AudioDeviceSelectorInstantProvider.GetIconColor(false));
+    }
+
+    [TestMethod]
+    public void InputDevice_UsesMicrophoneIcon()
+    {
+        Assert.AreNotEqual(
+            AudioDeviceSelectorInstantProvider.GetIconData(AudioDeviceDirection.Output, false),
+            AudioDeviceSelectorInstantProvider.GetIconData(AudioDeviceDirection.Input, false));
+        Assert.AreEqual(
+            AudioDeviceSelectorInstantProvider.GetIconData(AudioDeviceDirection.Output, true),
+            AudioDeviceSelectorInstantProvider.GetIconData(AudioDeviceDirection.Input, true));
     }
 }

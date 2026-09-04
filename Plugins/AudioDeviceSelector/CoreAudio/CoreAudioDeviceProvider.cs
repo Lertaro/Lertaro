@@ -4,14 +4,33 @@ namespace Lertaro.Plugins.AudioDeviceSelector.CoreAudio;
 
 internal sealed class CoreAudioDeviceProvider
 {
-    internal IReadOnlyList<AudioDeviceInfo> GetActiveRenderDevices()
+    internal IReadOnlyList<AudioDeviceInfo> GetActiveDevices()
     {
         var enumerator = (IAudioDeviceEnumerator)new AudioDeviceEnumeratorClass();
+        try
+        {
+            return
+            [
+                .. GetDevices(enumerator, DataFlow.Render, AudioDeviceDirection.Output),
+                .. GetDevices(enumerator, DataFlow.Capture, AudioDeviceDirection.Input)
+            ];
+        }
+        finally
+        {
+            NativeMethods.Release(enumerator);
+        }
+    }
+
+    private static IReadOnlyList<AudioDeviceInfo> GetDevices(
+        IAudioDeviceEnumerator enumerator,
+        DataFlow dataFlow,
+        AudioDeviceDirection direction)
+    {
         IAudioDeviceCollection? collection = null;
         try
         {
-            var defaultDeviceId = GetDefaultDeviceId(enumerator);
-            NativeMethods.ThrowIfFailed(enumerator.EnumAudioEndpoints(DataFlow.Render, DeviceState.Active, out collection));
+            var defaultDeviceId = GetDefaultDeviceId(enumerator, dataFlow);
+            NativeMethods.ThrowIfFailed(enumerator.EnumAudioEndpoints(dataFlow, DeviceState.Active, out collection));
             NativeMethods.ThrowIfFailed(collection.GetCount(out var count));
 
             var devices = new List<AudioDeviceInfo>((int)count);
@@ -21,7 +40,7 @@ internal sealed class CoreAudioDeviceProvider
                 try
                 {
                     NativeMethods.ThrowIfFailed(collection.Item(index, out device));
-                    var info = ReadDevice(device, defaultDeviceId);
+                    var info = ReadDevice(device, direction, defaultDeviceId);
                     if (info != null)
                         devices.Add(info);
                 }
@@ -36,7 +55,6 @@ internal sealed class CoreAudioDeviceProvider
         finally
         {
             NativeMethods.Release(collection);
-            NativeMethods.Release(enumerator);
         }
     }
 
@@ -53,13 +71,13 @@ internal sealed class CoreAudioDeviceProvider
         }
     }
 
-    private static string? GetDefaultDeviceId(IAudioDeviceEnumerator enumerator)
+    private static string? GetDefaultDeviceId(IAudioDeviceEnumerator enumerator, DataFlow dataFlow)
     {
         IAudioDevice? device = null;
         var idPointer = IntPtr.Zero;
         try
         {
-            if (enumerator.GetDefaultAudioEndpoint(DataFlow.Render, ERole.Multimedia, out device) < 0)
+            if (enumerator.GetDefaultAudioEndpoint(dataFlow, ERole.Multimedia, out device) < 0)
                 return null;
 
             NativeMethods.ThrowIfFailed(device.GetId(out idPointer));
@@ -73,7 +91,10 @@ internal sealed class CoreAudioDeviceProvider
         }
     }
 
-    private static AudioDeviceInfo? ReadDevice(IAudioDevice device, string? defaultDeviceId)
+    private static AudioDeviceInfo? ReadDevice(
+        IAudioDevice device,
+        AudioDeviceDirection direction,
+        string? defaultDeviceId)
     {
         NativeMethods.ThrowIfFailed(device.GetId(out var idPointer));
         IPropertyStore? propertyStore = null;
@@ -87,7 +108,11 @@ internal sealed class CoreAudioDeviceProvider
             var friendlyName = PropertyStoreReader.ReadString(propertyStore, PropertyKeys.DeviceFriendlyName);
             return string.IsNullOrWhiteSpace(friendlyName)
                 ? null
-                : new AudioDeviceInfo(id, friendlyName, string.Equals(id, defaultDeviceId, StringComparison.OrdinalIgnoreCase));
+                : new AudioDeviceInfo(
+                    id,
+                    friendlyName,
+                    direction,
+                    string.Equals(id, defaultDeviceId, StringComparison.OrdinalIgnoreCase));
         }
         finally
         {
