@@ -1,4 +1,3 @@
-using System.IO;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.Core;
 
@@ -60,28 +59,10 @@ public static class SearchableItemMapper
         var q = query?.Trim() ?? string.Empty;
         if (string.IsNullOrEmpty(q)) return candidates;
 
-        // Parse prefix keyword (e.g. "tf avsa") -> keyword = "tf", subQuery = "avsa"
-        var parts = q.Split(new[] { ' ' }, 2);
-        var keyword = parts[0].Trim().ToLowerInvariant();
-        var subQuery = parts.Length > 1 ? parts[1].Trim() : string.Empty;
-
-        var isKeywordSearch = parts.Length > 1 || (parts.Length == 1 && q.EndsWith(" ", StringComparison.Ordinal));
-        var targetFileFilterKind = $"FileFilter_{keyword}";
-
-        // A keyword search only enters a file-filter scope when the first word actually matches a
-        // registered filter keyword. Without this check, ANY space-containing query (e.g.
-        // "visual studio") would be treated as a filter prefix and wrongly hide general items
-        // such as Start Menu apps.
-        var isKnownFilterKeyword = isKeywordSearch && IsRegisteredFilterKeyword(targetFileFilterKind);
-
         // Every matched entry -- across ALL providers, not just within one -- gets ranked by the same
         // percentage*consecutiveness weight the file search hot path uses (FuzzyMatcher.
         // ComputeMatchWeight, against the entry's own title -- same text TextHighlighter shows),
-        // instead of a fixed match-kind bucket order capped PER PROVIDER. The old (and until-now
-        // still-present) per-provider Take(8) meant results were really just provider-enumeration-
-        // order chunks, each internally bucketed -- e.g. every Start Menu app ahead of every System
-        // Settings item regardless of which actually matched better, since apps and settings are
-        // different providers. Collecting across providers first and sorting/capping once fixes that.
+        // instead of a fixed match-kind bucket order capped PER PROVIDER.
         var matched = new List<(SearchableItemCache.CacheEntry Entry, double Weight, ISearchableItemProvider Provider, string ActiveQuery)>();
 
         foreach (var provider in PluginManager.Instance.SearchableItemProviders)
@@ -93,53 +74,15 @@ public static class SearchableItemMapper
 
             foreach (var entry in entries)
             {
-                var rKind = entry.Item.ResultKind ?? string.Empty;
-                var isFileFilterItem = rKind.StartsWith("FileFilter_", StringComparison.OrdinalIgnoreCase);
-
-                if (isFileFilterItem)
-                {
-                    // Case A: This item belongs to a File Filter rule.
-                    // We ONLY match it if user typed the corresponding keyword prefix (e.g. "tf ").
-                    if (!isKeywordSearch || !string.Equals(rKind, targetFileFilterKind, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue; // Skip: Does not match current prefix keyword search context
-                    }
-                }
-                else
-                {
-                    // Case B: This is a normal searchable item (like Start Menu apps).
-                    // Only hide it when the user is genuinely inside a file-filter scope, i.e. the
-                    // first word is a registered filter keyword (e.g. "tf ..."). A plain multi-word
-                    // query like "visual studio" is NOT a filter prefix and must keep showing apps.
-                    if (isKnownFilterKeyword)
-                    {
-                        continue; // Skip: user is focused on a filter's directory, don't show general apps
-                    }
-                }
-
-                // If user is searching with prefix "tf avsa", match the file name against "avsa" (subQuery)
-                var activeQuery = isFileFilterItem ? subQuery : q;
-
-                // Do not run fuzzy matches if active query is empty (e.g. just typed "tf " but no search term yet)
-                if (string.IsNullOrEmpty(activeQuery))
-                {
-                    if (isFileFilterItem)
-                    {
-                        // Return everything in the filter directory if user typed keyword with no query
-                        // -- no query text to weight against, so these just keep their enumeration order.
-                        matched.Add((entry, 1.0, provider, activeQuery));
-                    }
-                    continue;
-                }
-
                 // The standard match+weight contract (FuzzyMatcher.ComputeBestMatch): title first,
                 // then each curated alias, via the same FzfPattern.Parse Core's real file search uses
                 // -- a multi-word query like "gsh ypfq" correctly requires BOTH words to match
-                // somewhere, unlike the old title.StartsWith/.Contains/MarkFuzzyMatch chain, which
-                // treated the whole query (spaces included) as one literal/fuzzy string.
-                var (isMatch, weight) = FuzzyMatcher.ComputeBestMatch(activeQuery, entry.Item.Title, entry.Aliases);
+                // somewhere. (Keyword-scoped directory search used to live here as a FileFilter_
+                // ResultKind routing over materialized files; it is now a real scoped engine search --
+                // see FileFilterScopeResolver.)
+                var (isMatch, weight) = FuzzyMatcher.ComputeBestMatch(q, entry.Item.Title, entry.Aliases);
                 if (isMatch)
-                    matched.Add((entry, weight, provider, activeQuery));
+                    matched.Add((entry, weight, provider, q));
             }
         }
 
@@ -165,7 +108,6 @@ public static class SearchableItemMapper
         var isRealDir = false;
         var isApplication = false;
         var rKind = item.ResultKind ?? string.Empty;
-        var isFileFilterItem = rKind.StartsWith("FileFilter_", StringComparison.OrdinalIgnoreCase);
 
         if (rKind == "File")
         {
@@ -182,13 +124,6 @@ public static class SearchableItemMapper
             // so file actions (copy, locate in explorer, ...) have something to act on -- each
             // action's own CanExecute already handles a path that doesn't exist on disk.
             isApplication = true;
-        }
-        else if (isFileFilterItem)
-        {
-            // For FileFilter items, we infer they are files unless they have no extension, then fallback safely to Folder type
-            var ext = Path.GetExtension(item.ActionArgument);
-            if (!string.IsNullOrEmpty(ext)) isRealFile = true;
-            else isRealDir = true;
         }
 
         if (entry.Icon != null)
@@ -250,6 +185,4 @@ public static class SearchableItemMapper
             SourceProvider = provider
         }, weight);
     }
-
-    private static bool IsRegisteredFilterKeyword(string targetFileFilterKind) => SearchableItemCache.IsRegisteredFilterKeyword(targetFileFilterKind);
 }
