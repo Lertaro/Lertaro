@@ -78,16 +78,24 @@ public sealed class QuickPanelArrowKeyTests
     [TestMethod]
     public void ThumbnailVerticalGroupBoundary_UsesExistingCrossGroupTransition()
     {
-        var next = QuickPanelWindow.NextThumbnailPosition(new[] { 3, 2 }, new[] { 3, 2 }, 0, 2, 1, 0);
+        var next = QuickPanelWindow.NextThumbnailPosition(new[] { 3, 3 }, new[] { 3, 3 }, 0, 2, 1, 0);
 
-        Assert.AreEqual((1, 0), next);
+        Assert.AreEqual((1, 2), next);
     }
 
     [TestMethod]
     public void ThumbnailDown_FromAnyTileInTheFinalRow_CrossesWithoutLinearFallback()
     {
-        var next = QuickPanelWindow.NextThumbnailPosition(new[] { 5, 2 }, new[] { 3, 2 }, 0, 3, 1, 0);
+        var next = QuickPanelWindow.NextThumbnailPosition(new[] { 5, 3 }, new[] { 3, 3 }, 0, 3, 1, 0);
 
         Assert.AreEqual((1, 0), next);
+    }
+
+    [TestMethod]
+    public void ThumbnailUp_FromTheFirstRow_UsesTheSameColumnInThePreviousGroup()
+    {
+        var next = QuickPanelWindow.NextThumbnailPosition(new[] { 6, 3 }, new[] { 3, 3 }, 1, 0, -1, 0);
+
+        Assert.AreEqual((0, 3), next);
     }
 }

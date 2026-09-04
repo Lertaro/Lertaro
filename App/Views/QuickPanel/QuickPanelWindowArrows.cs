@@ -207,13 +207,7 @@ public partial class QuickPanelWindow
         return null;
     }
 
-    /// <summary>Where a visual-grid move lands while retaining the panel's existing group transitions.</summary>
-    /// <remarks>
-    /// Horizontal movement follows reading order, so it naturally enters the row above or below. A
-    /// vertical move preserves its column and stops at a short row, matching the launch panel's visual
-    /// navigation. Only crossing the first or last row invokes NextPosition, which keeps the existing
-    /// no-wrap transition to the neighboring non-empty group unchanged.
-    /// </remarks>
+    /// <summary>Where a visual-grid move lands without changing the panel's group traversal.</summary>
     internal static (int List, int Item)? NextThumbnailPosition(
         IReadOnlyList<int> counts, IReadOnlyList<int> columns, int list, int item, int rowDelta, int columnDelta)
     {
@@ -233,17 +227,24 @@ public partial class QuickPanelWindow
             var targetRowStart = targetRow * listColumns;
             if (targetRow >= 0 && targetRowStart < counts[list]) return null;
 
-            // Force the existing group transition instead of taking one linear step within the current
-            // row. Otherwise Down from the first tile of the final row would land on that row's last
-            // tile before it could reach the next group.
-            return NextPosition(counts, list, rowDelta > 0 ? counts[list] - 1 : 0, Math.Sign(rowDelta));
+            var step = Math.Sign(rowDelta);
+            var column = item % listColumns;
+            for (var i = list + step; i >= 0 && i < counts.Count; i += step)
+            {
+                if (counts[i] == 0) continue;
+                var targetColumns = i < columns.Count ? Math.Max(1, columns[i]) : 1;
+                var targetGroupRow = step > 0 ? 0 : (counts[i] - 1) / targetColumns;
+                var targetGroupIndex = targetGroupRow * targetColumns + column;
+                return targetGroupIndex < counts[i] ? (i, targetGroupIndex) : null;
+            }
+
+            return null;
         }
 
         var target = item + columnDelta;
         if (target >= 0 && target < counts[list]) return (list, target);
         return NextPosition(counts, list, item, Math.Sign(columnDelta));
     }
-
     private static (int List, int Item)? FirstNonEmpty(IReadOnlyList<int> counts, int from, int step)
     {
         for (var i = from; i >= 0 && i < counts.Count; i += step)
