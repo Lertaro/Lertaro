@@ -206,7 +206,6 @@ public partial class QuickPanelWindow
 
         return null;
     }
-
     /// <summary>Where a visual-grid move lands without changing the panel's group traversal.</summary>
     internal static (int List, int Item)? NextThumbnailPosition(
         IReadOnlyList<int> counts, IReadOnlyList<int> columns, int list, int item, int rowDelta, int columnDelta)
@@ -214,33 +213,34 @@ public partial class QuickPanelWindow
         if (counts.Count == 0 || (rowDelta == 0 && columnDelta == 0)) return null;
         if (list < 0 || list >= counts.Count || item < 0 || item >= counts[list])
             return NextPosition(counts, list, item, rowDelta != 0 ? Math.Sign(rowDelta) : Math.Sign(columnDelta));
-
         var listColumns = list < columns.Count ? Math.Max(1, columns[list]) : 1;
         if (rowDelta != 0)
         {
-            var targetRow = item / listColumns + rowDelta;
-            var targetIndex = targetRow * listColumns + item % listColumns;
-            if (targetRow >= 0 && targetIndex >= 0 && targetIndex < counts[list])
-                return (list, targetIndex);
-
-            // A real row boundary crosses groups; a missing column in an existing short row does not.
-            var targetRowStart = targetRow * listColumns;
-            if (targetRow >= 0 && targetRowStart < counts[list]) return null;
-
             var step = Math.Sign(rowDelta);
             var column = item % listColumns;
+            var row = item / listColumns + step;
+            var rows = QuickPanelLineNumberLayout.RowsFor(counts[list], listColumns);
+            for (; row >= 0 && row < rows; row += step)
+            {
+                var targetIndex = row * listColumns + column;
+                if (targetIndex < counts[list]) return (list, targetIndex);
+            }
+
             for (var i = list + step; i >= 0 && i < counts.Count; i += step)
             {
                 if (counts[i] == 0) continue;
                 var targetColumns = i < columns.Count ? Math.Max(1, columns[i]) : 1;
-                var targetGroupRow = step > 0 ? 0 : (counts[i] - 1) / targetColumns;
-                var targetGroupIndex = targetGroupRow * targetColumns + column;
-                return targetGroupIndex < counts[i] ? (i, targetGroupIndex) : null;
+                var targetRows = QuickPanelLineNumberLayout.RowsFor(counts[i], targetColumns);
+                var targetRow = step > 0 ? 0 : targetRows - 1;
+                for (; targetRow >= 0 && targetRow < targetRows; targetRow += step)
+                {
+                    var targetIndex = targetRow * targetColumns + column;
+                    if (targetIndex < counts[i]) return (i, targetIndex);
+                }
             }
 
             return null;
         }
-
         var target = item + columnDelta;
         if (target >= 0 && target < counts[list]) return (list, target);
         return NextPosition(counts, list, item, Math.Sign(columnDelta));

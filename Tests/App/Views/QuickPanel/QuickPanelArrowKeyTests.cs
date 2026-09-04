@@ -76,6 +76,14 @@ public sealed class QuickPanelArrowKeyTests
     }
 
     [TestMethod]
+    public void ThumbnailDown_FromMissingColumn_ContinuesIntoTheNextGroup()
+    {
+        var next = QuickPanelWindow.NextThumbnailPosition(new[] { 6, 3 }, new[] { 5, 3 }, 0, 1, 1, 0);
+
+        Assert.AreEqual((1, 1), next);
+    }
+
+    [TestMethod]
     public void ThumbnailVerticalGroupBoundary_UsesExistingCrossGroupTransition()
     {
         var next = QuickPanelWindow.NextThumbnailPosition(new[] { 3, 3 }, new[] { 3, 3 }, 0, 2, 1, 0);
@@ -94,8 +102,16 @@ public sealed class QuickPanelArrowKeyTests
     [TestMethod]
     public void ThumbnailUp_FromTheFirstRow_UsesTheSameColumnInThePreviousGroup()
     {
-        var next = QuickPanelWindow.NextThumbnailPosition(new[] { 6, 3 }, new[] { 3, 3 }, 1, 0, -1, 0);
+        var next = QuickPanelWindow.NextThumbnailPosition(new[] { 4, 3 }, new[] { 3, 3 }, 1, 2, -1, 0);
 
-        Assert.AreEqual((0, 3), next);
+        Assert.AreEqual((0, 2), next);
+    }
+
+    [TestMethod]
+    public void ThumbnailVerticalMove_SkipsGroupsWithoutTheRequestedColumn()
+    {
+        var next = QuickPanelWindow.NextThumbnailPosition(new[] { 3, 2, 3 }, new[] { 3, 3, 3 }, 0, 2, 1, 0);
+
+        Assert.AreEqual((2, 2), next);
     }
 }
