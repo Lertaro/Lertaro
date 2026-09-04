@@ -35,6 +35,7 @@ internal static class PluginSdkBridge
         PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = () => Logger.UserDataDir;
         PluginSdk.Services.UserDataService.GetSharedDataDirectoryFunc = () => Logger.SharedDataDir;
         PluginSdk.Services.AppLifecycleService.RequestRestartFunc = AppLifecycle.AppRestartService.RequestRestart;
+        PluginSdk.Services.MemoryMaintenanceService.RequestTrimAction = IdleWorkingSetTrimmer.RequestTrim;
         PluginSdk.Services.SettingsWindowService.ShowWindowFunc = targetSection =>
         {
             if (System.Windows.Application.Current == null) return false;

@@ -118,6 +118,28 @@ public sealed class IdleWorkingSetTrimGateTests
     }
 
     [TestMethod]
+    public void RequestTrim_ArmsATrimWhenNoWindowIsShowing()
+    {
+        var gate = Gate();
+
+        gate.RequestTrim(100);
+
+        Assert.IsFalse(gate.ShouldTrim(100 + IdleMs - 1));
+        Assert.IsTrue(gate.ShouldTrim(100 + IdleMs));
+    }
+
+    [TestMethod]
+    public void RequestTrim_DoesNotTrimWhileAWindowIsShowing()
+    {
+        var gate = Gate();
+        gate.WindowShowing();
+
+        gate.RequestTrim(100);
+
+        Assert.IsFalse(gate.ShouldTrim(100 + IdleMs));
+    }
+
+    [TestMethod]
     public void BackgroundSearchFinished_DoesNotTrimWhileAWindowIsShowing()
     {
         var gate = Gate();

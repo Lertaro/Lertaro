@@ -25,6 +25,13 @@ internal static class IdleWorkingSetTrimmer
     /// <summary>Called at the very start of a summon, before anything touches the window.</summary>
     public static void WindowShowing() => Gate.WindowShowing();
 
+    /// <summary>Requests a deferred trim after a plugin finishes a burst of background work.</summary>
+    public static void RequestTrim()
+    {
+        Gate.RequestTrim(Environment.TickCount64);
+        EnsureTimer();
+    }
+
     /// <summary>Marks a CLI request routed through the App's search pipe as active.</summary>
     public static void BackgroundSearchStarted()
     {

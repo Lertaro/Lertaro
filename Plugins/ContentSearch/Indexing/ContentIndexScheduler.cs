@@ -199,6 +199,7 @@ public sealed class ContentIndexScheduler : IDisposable
                             _database.Optimize();
                             hasPendingOptimizations = false;
                             idleCycles = 0;
+                            PluginSdk.Services.MemoryMaintenanceService.RequestTrim();
                         }
                     }
                     if (ct.WaitHandle.WaitOne(200)) break;

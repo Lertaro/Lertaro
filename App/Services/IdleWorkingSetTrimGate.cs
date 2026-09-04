@@ -77,6 +77,13 @@ internal sealed class IdleWorkingSetTrimGate
         }
     }
 
+    /// <summary>Arms a trim request when no interactive or background work is using the process.</summary>
+    public void RequestTrim(long nowTicks)
+    {
+        lock (_gate)
+            ArmIfIdle(nowTicks);
+    }
+
     /// <summary>
     /// Whether to trim now. True at most once per hide, and never until the window has stayed hidden for
     /// the whole idle window.
