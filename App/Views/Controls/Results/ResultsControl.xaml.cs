@@ -124,7 +124,6 @@ public partial class ResultsControl : System.Windows.Controls.UserControl
             ActionsFlyoutBorder.BorderThickness = new Thickness(1);
             ActionsFlyoutBorder.SetResourceReference(Border.BackgroundProperty, "CardBackground");
             ActionsFlyoutBorder.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
-            ActionsFlyoutBorder.SetResourceReference(EffectProperty, "Elevation3");
         }
         else
         {

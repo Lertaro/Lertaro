@@ -119,7 +119,7 @@
         </Grid>
         <!-- Actions View: the quick window places this in the lower-right portion of the result area;
              the other windows switch this host back to a full-area panel in ResultsControl.xaml.cs. -->
-        <Grid x:Name="ActionsOverlayHost" Panel.ZIndex="10">
+        <Grid x:Name="ActionsOverlayHost" Panel.ZIndex="10" UseLayoutRounding="True" SnapsToDevicePixels="True">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="3*"/>
                 <ColumnDefinition Width="7*"/>
@@ -130,7 +130,8 @@
             </Grid.RowDefinitions>
             <Border x:Name="ActionsFlyoutBorder" Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" Grid.RowSpan="2"
                     Background="Transparent" BorderBrush="Transparent" BorderThickness="0"
-                    Visibility="{Binding ElementName=GridActions, Path=Visibility}">
+                    Visibility="{Binding ElementName=GridActions, Path=Visibility}"
+                    UseLayoutRounding="True" SnapsToDevicePixels="True">
                 <Border x:Name="ActionsClippingBorder" CornerRadius="8" helpers:RoundedClip.IsEnabled="True">
                     <Grid x:Name="GridActions" Visibility="Collapsed">
                         <Grid.RowDefinitions>
