@@ -42,4 +42,14 @@ public sealed class AudioDeviceDisplayFormatterTests
         Assert.AreEqual("speakers", term);
         Assert.IsFalse(AudioDeviceSelectorInstantProvider.TryParseQuery("adapter", "ad", out _));
     }
+
+    [TestMethod]
+    public void DefaultDevice_UsesDistinctSuccessIcon()
+    {
+        Assert.AreNotEqual(
+            AudioDeviceSelectorInstantProvider.GetIconData(false),
+            AudioDeviceSelectorInstantProvider.GetIconData(true));
+        Assert.AreEqual("SuccessBrush", AudioDeviceSelectorInstantProvider.GetIconColor(true));
+        Assert.AreEqual("AccentBlue", AudioDeviceSelectorInstantProvider.GetIconColor(false));
+    }
 }

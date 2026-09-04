@@ -10,6 +10,7 @@ internal sealed class CoreAudioDeviceProvider
         IAudioDeviceCollection? collection = null;
         try
         {
+            var defaultDeviceId = GetDefaultDeviceId(enumerator);
             NativeMethods.ThrowIfFailed(enumerator.EnumAudioEndpoints(DataFlow.Render, DeviceState.Active, out collection));
             NativeMethods.ThrowIfFailed(collection.GetCount(out var count));
 
@@ -20,7 +21,7 @@ internal sealed class CoreAudioDeviceProvider
                 try
                 {
                     NativeMethods.ThrowIfFailed(collection.Item(index, out device));
-                    var info = ReadDevice(device);
+                    var info = ReadDevice(device, defaultDeviceId);
                     if (info != null)
                         devices.Add(info);
                 }
@@ -52,7 +53,27 @@ internal sealed class CoreAudioDeviceProvider
         }
     }
 
-    private static AudioDeviceInfo? ReadDevice(IAudioDevice device)
+    private static string? GetDefaultDeviceId(IAudioDeviceEnumerator enumerator)
+    {
+        IAudioDevice? device = null;
+        var idPointer = IntPtr.Zero;
+        try
+        {
+            if (enumerator.GetDefaultAudioEndpoint(DataFlow.Render, ERole.Multimedia, out device) < 0)
+                return null;
+
+            NativeMethods.ThrowIfFailed(device.GetId(out idPointer));
+            return Marshal.PtrToStringUni(idPointer);
+        }
+        finally
+        {
+            NativeMethods.Release(device);
+            if (idPointer != IntPtr.Zero)
+                Marshal.FreeCoTaskMem(idPointer);
+        }
+    }
+
+    private static AudioDeviceInfo? ReadDevice(IAudioDevice device, string? defaultDeviceId)
     {
         NativeMethods.ThrowIfFailed(device.GetId(out var idPointer));
         IPropertyStore? propertyStore = null;
@@ -64,7 +85,9 @@ internal sealed class CoreAudioDeviceProvider
 
             NativeMethods.ThrowIfFailed(device.OpenPropertyStore(StorageAccessMode.Read, out propertyStore));
             var friendlyName = PropertyStoreReader.ReadString(propertyStore, PropertyKeys.DeviceFriendlyName);
-            return string.IsNullOrWhiteSpace(friendlyName) ? null : new AudioDeviceInfo(id, friendlyName);
+            return string.IsNullOrWhiteSpace(friendlyName)
+                ? null
+                : new AudioDeviceInfo(id, friendlyName, string.Equals(id, defaultDeviceId, StringComparison.OrdinalIgnoreCase));
         }
         finally
         {
