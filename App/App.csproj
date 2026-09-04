@@ -13,7 +13,7 @@
     <RetainVM>false</RetainVM>
     <AssemblyName>Lertaro.App</AssemblyName>
     <RootNamespace>Lertaro.App</RootNamespace>
-    <Version>5.2.7</Version>
+    <Version>5.2.8</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
