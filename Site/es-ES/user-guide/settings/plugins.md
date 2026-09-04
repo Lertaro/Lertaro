@@ -52,9 +52,9 @@ Gestiona plugins de Flow directamente con comandos en la barra de búsqueda:
 
 ## 4. Selector de dispositivos de audio
 
-El **Selector de dispositivos de audio** es un plugin nativo exclusivo para Windows. Escribe `ad` para mostrar los dispositivos de reproducción activos y selecciona uno para convertirlo en el dispositivo de reproducción multimedia predeterminado. También puedes añadir el nombre de un dispositivo después de la palabra clave para filtrar los resultados.
+El **Selector de dispositivos de audio** es un plugin nativo exclusivo para Windows. Escribe `ad` para mostrar los dispositivos activos de salida y entrada, y selecciona uno para convertirlo en el dispositivo multimedia predeterminado correspondiente. También puedes añadir el nombre de un dispositivo después de la palabra clave para filtrar los resultados.
 
-En su configuración puedes cambiar la palabra clave activadora y elegir si los resultados muestran el nombre descriptivo, el nombre del dispositivo o su descripción. Solo cambia el punto final de reproducción predeterminado; no controla dispositivos de entrada, volumen, silencio ni el enrutamiento de audio por aplicación.
+En su configuración puedes cambiar la palabra clave activadora y elegir si los resultados muestran el nombre descriptivo, el nombre del dispositivo o su descripción. Cambia el punto final predeterminado de salida o entrada, pero no controla el volumen, el silencio ni el enrutamiento de audio por aplicación.
 
 ## 5. Búsqueda de contenido
 

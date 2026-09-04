@@ -52,9 +52,9 @@ Manage Flow plugins directly from the Lertaro search box:
 
 ## 4. Audio Device Selector
 
-The **Audio Device Selector** is a Windows-only native plugin. Type `ad` to list active playback devices and select one to make it the default multimedia playback device. You can append a device name after the trigger keyword to filter the results.
+The **Audio Device Selector** is a Windows-only native plugin. Type `ad` to list active output and input devices, and select one to make it the corresponding default multimedia device. You can append a device name after the trigger keyword to filter the results.
 
-Its settings let you change the trigger keyword and choose whether results show the friendly name, device name, or device description. It changes the default playback endpoint only; it does not control input devices, volume, mute state, or per-application audio routing.
+Its settings let you change the trigger keyword and choose whether results show the friendly name, device name, or device description. It changes the default output or input endpoint; it does not control volume, mute state, or per-application audio routing.
 
 ## 5. Content Search
 
