@@ -1,6 +1,7 @@
 using Lertaro.Core;
 using Lertaro.App.Services;
 using Lertaro.Core.Services.Search;
+using Lertaro.App.ViewModels.Search.Dispatch;
 
 using Lertaro.App.ViewModels.Search.Mapping;
 
@@ -34,7 +35,8 @@ internal sealed class SearchExecutionEngine : IDisposable
         Func<bool>? shouldEmitInstantResults = null,
         bool bypassExclusions = false,
         bool resultMapperConsumesBatches = false,
-        Action<int>? onReceivedCountUpdated = null)
+        Action<int>? onReceivedCountUpdated = null,
+        FileFilterScopeDirective? scopeDirective = null)
     {
         _debounceCts?.Cancel();
         _debounceCts?.Dispose();
@@ -44,7 +46,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 150 : 30);
         if (delay == 0)
         {
-            PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated);
+            PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective);
             return;
         }
 
@@ -53,7 +55,7 @@ internal sealed class SearchExecutionEngine : IDisposable
             if (t.IsCanceled)
                 return;
             _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated)));
+                PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective)));
         }, cts.Token);
     }
 
@@ -70,7 +72,8 @@ internal sealed class SearchExecutionEngine : IDisposable
         Func<bool>? shouldEmitInstantResults = null,
         bool bypassExclusions = false,
         bool resultMapperConsumesBatches = false,
-        Action<int>? onReceivedCountUpdated = null)
+        Action<int>? onReceivedCountUpdated = null,
+        FileFilterScopeDirective? scopeDirective = null)
     {
         Logger.Log($"[SearchExecutionEngine] Performing search: '{query}', scope: '{searchScope}'", LogLevel.Debug);
         CancelPendingSearch();
@@ -114,7 +117,7 @@ internal sealed class SearchExecutionEngine : IDisposable
                 var streamingContextDirectory = isInlineSearchContext
                     ? (!string.IsNullOrWhiteSpace(searchScope) ? searchScope : tracker.ActivePath ?? tracker.LastActiveExplorerPath)
                     : tracker.LastActiveExplorerPath;
-                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated).ConfigureAwait(false);
+                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

@@ -11,7 +11,7 @@
   "FileFilters_Config_FoldersDesc": "1行に1つのパスを入力します。ネットワークドライブとローカルドライブに対応しています。",
   "FileFilters_Config_FilterPatternLabel": "拡張子 / パターン",
   "FileFilters_Config_FilterPatternDesc": "フィルターする拡張子または検索パターン（例: '*.exe;*.lnk' や '*'）。",
-  "FileFilters_PluginDesc": "カスタムディレクトリのワイルドカードフィルタリング・インデックス化プラグイン。特定のフォルダーと拡張子のフィルタールールをインデックス用に設定できます。",
-  "Plugin_Comp_Desc_FileFiltersSearchableItemProvider": "ユーザーが設定したカスタムディレクトリ内で、ワイルドカードパターン（例: *.pdf）に一致するファイルとすべてのサブフォルダーをスキャンしてインデックス化し、メイン検索インデックスに公開します。",
+  "FileFilters_PluginDesc": "カスタムディレクトリスコープ検索プラグイン。フォルダーと拡張子のフィルタールールを設定し、キーワードのプレフィックスで特定のフォルダー内を検索できます。",
+  "Plugin_Comp_Desc_FileFiltersScopeProvider": "キーワードで起動するディレクトリスコープ（設定フォルダーを表す「tf」など）を公開し、「tf 語」の入力でそれらのフォルダー内だけをクイック検索できるようにします。",
   "Plugin_Comp_Desc_FileFiltersTranslationProvider": "ファイルフィルター用の翻訳と言語リソースマッピングを提供します。"
 }

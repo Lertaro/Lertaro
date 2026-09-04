@@ -24,4 +24,5 @@ internal interface PluginRegistry
     void AddThumbnailProvider(IThumbnailProvider provider);
     void AddQueryTokenProvider(IQueryTokenProvider provider);
     void AddQuickPanelTabProvider(IQuickPanelTabProvider provider);
+    void AddSearchScopeProvider(ISearchScopeProvider provider);
 }

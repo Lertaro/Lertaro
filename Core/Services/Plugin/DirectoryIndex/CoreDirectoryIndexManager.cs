@@ -30,8 +30,10 @@ public sealed class CoreDirectoryIndexManager
 
     /// <summary>
     /// Searches files within all directories registered by the given plugin.
-    /// Uses USN Service for local directories and live directory scans (exempt from exclusion rules if search query matches)
-    /// for network drives/unc folders.
+    /// Answered from the host's indexes only: the USN Service for local directories and the
+    /// in-process indexes for network/WSL/folder roots -- a directory no index covers contributes
+    /// nothing. Matching is the host's fuzzy, alias-aware matching; results are not filtered by the
+    /// user's exclusion rules.
     /// </summary>
     public async Task<List<SearchResult>> SearchPluginDirectoriesAsync(string pluginId, string query, CancellationToken token)
     {
@@ -44,8 +46,10 @@ public sealed class CoreDirectoryIndexManager
 
     /// <summary>
     /// Lists one directory (any directory, registered or not) out of the index, streaming entries as
-    /// they arrive. See <see cref="IndexedDirectoryEnumerator"/> for the index-vs-live-walk routing;
-    /// this only adapts its callback into the async sequence the SDK hands to plugins.
+    /// they arrive. Index-only: see <see cref="IndexedDirectoryEnumerator"/> for how the covering
+    /// source (service USN index vs in-process network/WSL/folder index) is picked, and for what
+    /// happens when none covers the path (an empty sequence, no live walk); this only adapts its
+    /// callback into the async sequence the SDK hands to plugins.
     /// </summary>
     public async IAsyncEnumerable<SearchResult> EnumerateDirectoryAsync(string directoryPath, bool recursive, string filterPattern, int limit,
         [EnumeratorCancellation] CancellationToken token = default)

@@ -1,6 +1,7 @@
 using System.IO;
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
+using Lertaro.App.ViewModels.Search.Dispatch;
 
 namespace Lertaro.App.ViewModels.Search.Mapping;
 
@@ -12,7 +13,7 @@ public static class SearchResultMapper
     // silently drops the token's real matches whenever they don't also happen to be in the top ~50 by
     // plain filename weight (e.g. a common substring like "1080" already fills that cap with unrelated
     // files before the directory filter gets a chance to run at all).
-    public static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false)
+    public static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null)
     {
         var uiResults = new List<AppSearchResult>();
         // Instant-result plugins get the untouched raw text (keyword + any " :xxx" token suffix) rather
@@ -34,6 +35,16 @@ public static class SearchResultMapper
                     && !string.Equals(normalizedPath, normalizedScope, StringComparison.OrdinalIgnoreCase);
             });
         }
+
+        // A file-filter scope needs no per-result path check: its folders were already handed to the
+        // engine as the per-folder directoryFilter (see SearchStreamRenderer's fan-out), so every
+        // streamed result is inside the scope by construction. What still needs scoping here are the
+        // candidate tiers that bypass the engine -- history and favorites -- plus keeping general
+        // searchable items (apps, settings) out of what is now a deliberately file-scoped result set.
+        List<string>? normalizedScopeFolders = fileFilterScope?.Folders.Select(f => SearchResultHelper.NormalizePath(f)).ToList();
+        bool InFileFilterScope(string normalizedPath) => normalizedScopeFolders != null && normalizedScopeFolders.Any(f =>
+            SearchResultHelper.IsPathInsideScope(normalizedPath, f)
+            && !string.Equals(normalizedPath, f, StringComparison.OrdinalIgnoreCase));
 
         // Plugin actions keep their own grouped-by-GroupName display (unlike everything below, these
         // are explicit keyword triggers the user deliberately typed, not fuzzy-guessed candidates, so
@@ -80,7 +91,12 @@ public static class SearchResultMapper
         // Inline results enter Global Search here; its separately scoped Current Folder tier wins the
         // downstream path dedupe. An explicit type trigger retains its strict result domain.
         if (triggeredTypeId == null)
-            candidates.AddRange(HistorySearchCandidateMapper.Collect(query, scope));
+        {
+            var historyCandidates = HistorySearchCandidateMapper.Collect(query, scope);
+            if (normalizedScopeFolders != null)
+                historyCandidates = historyCandidates.Where(c => InFileFilterScope(c.NormalizedPath)).ToList();
+            candidates.AddRange(historyCandidates);
+        }
 
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -99,6 +115,8 @@ public static class SearchResultMapper
                 // favorite from anything else (IsCurated already does), so it's given the Files id here
                 // simply as the closest match to what a favorited path actually is.
                 var normalizedFavPath = Helpers.FavoritePathResolver.NormalizeForComparison(fav.Path);
+                if (normalizedScopeFolders != null && !InFileFilterScope(normalizedFavPath))
+                    continue;
                 var priority = historySnapshot.TryGetValue(normalizedFavPath, out var hp) ? hp : int.MaxValue;
                 candidates.Add(new RankedCandidate(
                     FavoriteSearchHelper.CreateFavoriteUiResult(fav, query, 0),
@@ -110,27 +128,33 @@ public static class SearchResultMapper
             }
         }
 
-        foreach (var (result, weight) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow))
+        // Searchable items (Start Menu apps, settings, ...) take part in ordinary searches only -- a
+        // file-filter scope is by definition about files inside its folders, and the old FileFilter
+        // routing hid these too (its "Case B").
+        if (fileFilterScope == null)
         {
-            var typeId = result.SourceProvider is PluginSdk.Abstractions.Plugins.ISearchableItemProvider provider
-                ? SearchResultTypePriority.GetProviderTypeId(provider)
-                : SearchResultTypePriority.FilesTypeId;
-            if (triggeredTypeId != null && typeId != triggeredTypeId)
-                continue;
+            foreach (var (result, weight) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow))
+            {
+                var typeId = result.SourceProvider is PluginSdk.Abstractions.Plugins.ISearchableItemProvider provider
+                    ? SearchResultTypePriority.GetProviderTypeId(provider)
+                    : SearchResultTypePriority.FilesTypeId;
+                if (triggeredTypeId != null && typeId != triggeredTypeId)
+                    continue;
 
-            // An application's FullPath can be a virtual shell:AppsFolder\{AUMID} id (packaged apps) --
-            // Path.GetFullPath (inside NormalizePath) would mangle that, and SearchHistoryStore itself
-            // never runs it through NormalizePath either (see SearchHistoryStore.RecordCore), so the
-            // lookup key has to skip it here too or an app's history priority would never resolve.
-            var lookupPath = result.IsApplication ? result.FullPath.Trim() : SearchResultHelper.NormalizePath(result.FullPath);
-            var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
-            candidates.Add(new RankedCandidate(
-                result,
-                IsCurated: hasHistory,
-                hasHistory ? priority : int.MaxValue,
-                SearchResultTypePriority.Rank(typeId, typeOrder),
-                weight,
-                SearchResultHelper.NormalizePath(result.FullPath)));
+                // An application's FullPath can be a virtual shell:AppsFolder\{AUMID} id (packaged apps) --
+                // Path.GetFullPath (inside NormalizePath) would mangle that, and SearchHistoryStore itself
+                // never runs it through NormalizePath either (see SearchHistoryStore.RecordCore), so the
+                // lookup key has to skip it here too or an app's history priority would never resolve.
+                var lookupPath = result.IsApplication ? result.FullPath.Trim() : SearchResultHelper.NormalizePath(result.FullPath);
+                var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
+                candidates.Add(new RankedCandidate(
+                    result,
+                    IsCurated: hasHistory,
+                    hasHistory ? priority : int.MaxValue,
+                    SearchResultTypePriority.Rank(typeId, typeOrder),
+                    weight,
+                    SearchResultHelper.NormalizePath(result.FullPath)));
+            }
         }
 
         // Only entered when nothing is triggered, or "Files" itself is the triggered type -- fileResults

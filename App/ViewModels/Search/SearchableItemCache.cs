@@ -192,20 +192,4 @@ internal static class SearchableItemCache
 
     [System.Runtime.InteropServices.DllImport("gdi32.dll")]
     private static extern bool DeleteObject(IntPtr hObject);
-
-    // True when `targetFileFilterKind` (e.g. "FileFilter_tf") corresponds to an actually-registered
-    // file filter, i.e. some loaded provider has an item with that ResultKind. Used to decide whether
-    // a keyword search is a real filter prefix that should hide general items.
-    public static bool IsRegisteredFilterKeyword(string targetFileFilterKind)
-    {
-        foreach (var provider in PluginManager.Instance.SearchableItemProviders)
-        {
-            if (TryGetEntries(provider.GetType().Name, out var entries) &&
-                entries.Any(e => string.Equals(e.Item.ResultKind, targetFileFilterKind, StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
 }

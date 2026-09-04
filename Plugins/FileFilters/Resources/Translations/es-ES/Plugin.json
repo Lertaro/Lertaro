@@ -11,7 +11,7 @@
   "FileFilters_Config_FoldersDesc": "Una ruta por línea. Admite unidades de red y locales.",
   "FileFilters_Config_FilterPatternLabel": "Extensiones / Patrón",
   "FileFilters_Config_FilterPatternDesc": "Extensión de filtro o patrón de búsqueda (por ejemplo, '*.exe;*.lnk' o '*').",
-  "FileFilters_PluginDesc": "Complemento de filtrado e indexación mediante comodines en directorios personalizados. Permite a los usuarios configurar reglas de filtrado por carpeta y extensión de archivo específicas para la indexación.",
-  "Plugin_Comp_Desc_FileFiltersSearchableItemProvider": "Escanea e indexa los archivos que coincidan con un patrón comodín (por ejemplo, *.pdf), además de todas las subcarpetas, en los directorios personalizados configurados por el usuario, exponiéndolos al índice de búsqueda principal.",
+  "FileFilters_PluginDesc": "Complemento de búsqueda por ámbitos de directorio personalizados. Configura carpetas y filtros por extensión de archivo, y busca dentro de ellas con un prefijo de palabra clave.",
+  "Plugin_Comp_Desc_FileFiltersScopeProvider": "Publica ámbitos de directorios activados por palabra clave (p. ej., 'tf' para las carpetas configuradas), de modo que al escribir 'tf término' la búsqueda se limite a esas carpetas.",
   "Plugin_Comp_Desc_FileFiltersTranslationProvider": "Ofrece traducción y asignación de recursos de idioma para Filtros de Archivos."
 }

@@ -66,6 +66,15 @@ internal sealed class SearchDispatchController
         var (strippedClean, triggeredTypeId) = _resultTypeTrigger.StripTrigger(value, cleanQuery);
         cleanQuery = strippedClean;
 
+        // File-filter scope keyword ("tf report" -> search "report" only inside the tf filter's
+        // folders): quick window only, and never stacked on a per-type trigger (an Applications-only
+        // trigger over a scoped file search serves neither feature).
+        var scopedQuery = cleanQuery;
+        var scopeDirective = triggeredTypeId == null && !_getIsInlineSearchContext()
+            ? FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery)
+            : null;
+        var searchQuery = scopeDirective != null ? scopedQuery : cleanQuery;
+
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
             _engine.CancelPendingSearch();
@@ -78,7 +87,16 @@ internal sealed class SearchDispatchController
             return;
         }
 
-        RunEngineSearch(_engine.QueueSearch, value, cleanQuery);
+        // A scope keyword typed with no term after it ("tf ") has nothing to search against yet --
+        // the same "keep typing" situation as a token-only query, and preferable to both an
+        // unprompted global result set and a silent no-op.
+        if (scopeDirective != null && searchQuery.Length == 0)
+        {
+            ClearForTokenOnlyQuery();
+            return;
+        }
+
+        RunEngineSearch(_engine.QueueSearch, value, searchQuery, scopeDirective);
     }
 
     // An operator typed with no keyword after it yet -- a token-only query (e.g. "::foo" with no
@@ -104,9 +122,10 @@ internal sealed class SearchDispatchController
     // DispatchSearch (debounced) and PerformSearch (blocking) both resolve to the same set of
     // search parameters -- only which SearchExecutionEngine method runs them differs.
     private void RunEngineSearch(
-        Action<string, string?, bool, int, int, Func<List<SearchResult>?, string?, List<AppSearchResult>>, Action<bool>, Action<List<AppSearchResult>, string, bool>, Action?, Func<bool>?, bool, bool, Action<int>?> engineCall,
+        Action<string, string?, bool, int, int, Func<List<SearchResult>?, string?, List<AppSearchResult>>, Action<bool>, Action<List<AppSearchResult>, string, bool>, Action?, Func<bool>?, bool, bool, Action<int>?, FileFilterScopeDirective?> engineCall,
         string originalValue,
-        string cleanQuery)
+        string searchQuery,
+        FileFilterScopeDirective? scopeDirective)
     {
         // A query token (e.g. "::bzsc") filters/reorders whatever candidate set it's handed in
         // ComposeAndApplyAsync, AFTER this search already ran -- the usual 51/51 quick-window budget
@@ -117,24 +136,30 @@ internal sealed class SearchDispatchController
         // reach the token filter -- reported as "quick window returns nothing, main window finds 84".
         // Widening the budget to match the main SearchWindow's own (already-proven-viable) limit, and
         // skipping BuildQuickResults' display cap, only costs anything on the less-common token path.
+        // A file-filter scope needs the same widening: its FilterPattern (a name wildcard) is applied
+        // to the streamed candidates after each per-folder search, so the in-pattern matches must
+        // reach the accumulator in the first place. Apps are dropped from a scoped search entirely
+        // (a folder scope says nothing about applications), so no app budget is needed at all.
         var hasTokens = _queryTokens.Count > 0;
-        var fileLimit = hasTokens ? SearchViewModel.TokenQuickSearchFileLimit : 51;
-        var appLimit = hasTokens ? SearchViewModel.FullSearchAppLimit : 51;
+        var hasScope = scopeDirective != null;
+        var fileLimit = hasTokens || hasScope ? SearchViewModel.TokenQuickSearchFileLimit : 51;
+        var appLimit = hasScope ? 0 : hasTokens ? SearchViewModel.FullSearchAppLimit : 51;
 
         engineCall(
-            cleanQuery,
-            _getSearchScope(),
+            searchQuery,
+            hasScope ? null : _getSearchScope(),
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, cleanQuery, _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens),
+            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope, fileFilterScope: scopeDirective),
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, results, status, final),
             HandleLocalServiceUnavailable,
             () => _getResultsCount() == 0,
             _bypassExclusions,
             false,
-            null
+            null,
+            scopeDirective
         );
     }
 
@@ -183,6 +208,12 @@ internal sealed class SearchDispatchController
         var (strippedClean, triggeredTypeId) = _resultTypeTrigger.StripTrigger(query, cleanQuery);
         cleanQuery = strippedClean;
 
+        var scopedQuery = cleanQuery;
+        var scopeDirective = triggeredTypeId == null && !_getIsInlineSearchContext()
+            ? FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery)
+            : null;
+        var searchQuery = scopeDirective != null ? scopedQuery : cleanQuery;
+
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
             if (triggeredTypeId != null)
@@ -192,7 +223,13 @@ internal sealed class SearchDispatchController
             return;
         }
 
-        RunEngineSearch(_engine.PerformSearch, query, cleanQuery);
+        if (scopeDirective != null && searchQuery.Length == 0)
+        {
+            ClearForTokenOnlyQuery();
+            return;
+        }
+
+        RunEngineSearch(_engine.PerformSearch, query, searchQuery, scopeDirective);
     }
 
     private void HandleLocalServiceUnavailable() => _mainVm.TriggerIndexBuild();

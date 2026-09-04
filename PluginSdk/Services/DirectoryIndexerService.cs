@@ -146,9 +146,11 @@ public static class DirectoryIndexerService
     /// <summary>
     /// Lists a directory's contents from the host's file index instead of the filesystem: for a local
     /// drive the host indexes (the usual case) this costs no disk I/O at all, which is the whole point
-    /// of preferring it over <c>Directory.EnumerateFileSystemEntries</c>. A directory no index covers
-    /// (an unconfigured network share, a drive indexing is disabled for) is walked live instead, so a
-    /// caller never has to decide which of the two applies.
+    /// of preferring it over <c>Directory.EnumerateFileSystemEntries</c>. There is deliberately NO
+    /// live filesystem fallback here: a directory no index covers (an unconfigured network share, a
+    /// folder on a drive indexing is disabled for) yields an empty sequence, so callers must keep
+    /// their directories index-covered. The search path -- not this enumeration -- is where live
+    /// scanning of uncovered locations exists.
     /// <para>
     /// Results stream as they are produced. <paramref name="filterPattern"/> is a FILE pattern -- one
     /// or more Win32 wildcards separated by ';' or ',' (e.g. <c>"*.exe;*.lnk"</c>, default <c>"*"</c>)
