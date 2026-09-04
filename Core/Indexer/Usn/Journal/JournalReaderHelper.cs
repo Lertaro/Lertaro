@@ -5,7 +5,7 @@ namespace Lertaro.Core.Indexer.Usn.Journal;
 
 public static class JournalReaderHelper
 {
-    public static long CatchUpDrive(string drive, ulong journalId, long startUsn, Action<ParsedUsnRecord> onRecord)
+    public static long CatchUpDrive(string drive, ulong journalId, long startUsn, Func<ParsedUsnRecord, bool> onRecord)
     {
         Logger.Log($"[JournalReaderHelper] Catching up drive {drive} from USN {startUsn}...");
         var volumePath = $"\\\\.\\{drive}:";
@@ -112,7 +112,11 @@ public static class JournalReaderHelper
                 {
                     var record = UsnRecordParser.ParseRecord(recordSpan);
                     changeCount++;
-                    onRecord(record);
+                    if (!onRecord(record))
+                    {
+                        Logger.Log($"[JournalReaderHelper] Catch-up stopped by caller for drive {drive}.", LogLevel.Warn);
+                        return -1;
+                    }
                 }
                 catch (Exception ex)
                 {

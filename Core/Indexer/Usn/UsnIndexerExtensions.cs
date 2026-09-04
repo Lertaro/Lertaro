@@ -19,16 +19,6 @@ public static class UsnIndexerExtensions
         | Win32Api.USN_REASON_DATA_EXTEND | Win32Api.USN_REASON_DATA_OVERWRITE | Win32Api.USN_REASON_DATA_TRUNCATION
         | Win32Api.USN_REASON_BASIC_INFO_CHANGE | Win32Api.USN_REASON_COMPRESSION_CHANGE | Win32Api.USN_REASON_ENCRYPTION_CHANGE;
     private const uint AttributeRefreshReasons = Win32Api.USN_REASON_BASIC_INFO_CHANGE | Win32Api.USN_REASON_COMPRESSION_CHANGE | Win32Api.USN_REASON_ENCRYPTION_CHANGE;
-    public static long CatchUpDrive(this UsnIndexer indexer, string drive, ulong journalId, long startUsn)
-    {
-        var changes = new List<ParsedUsnRecord>();
-        var nextUsn = indexer._reader.CatchUpDrive(drive, journalId, startUsn, changes.Add);
-        if (nextUsn >= 0 && changes.Count > 0)
-            indexer.ApplyUsnRecords(drive, changes);
-
-        return nextUsn;
-    }
-
     public static void ApplyUsnRecord(this UsnIndexer indexer, string drive, ParsedUsnRecord record)
         => indexer.ApplyUsnRecords(drive, new[] { record });
 

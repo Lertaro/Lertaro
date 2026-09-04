@@ -109,5 +109,5 @@ public class JournalReader
         return mftResult;
     }
 
-    public long CatchUpDrive(string drive, ulong journalId, long startUsn, Action<ParsedUsnRecord> onRecord) => JournalReaderHelper.CatchUpDrive(drive, journalId, startUsn, onRecord);
+    public long CatchUpDrive(string drive, ulong journalId, long startUsn, Func<ParsedUsnRecord, bool> onRecord) => JournalReaderHelper.CatchUpDrive(drive, journalId, startUsn, onRecord);
 }
