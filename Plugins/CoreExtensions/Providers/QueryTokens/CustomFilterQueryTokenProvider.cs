@@ -16,7 +16,7 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
 
     public bool CanHandle(string token)
     {
-        var prefix = GetPrefix();
+        var prefix = GetConfiguredPrefix();
         return token.Length > prefix.Length && token.StartsWith(prefix);
     }
 
@@ -25,7 +25,7 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
         if (results == null || results.Count == 0)
             return Task.FromResult<IReadOnlyList<ISearchResult>>(Array.Empty<ISearchResult>());
 
-        var prefix = GetPrefix();
+        var prefix = GetConfiguredPrefix();
         if (token.Length <= prefix.Length || !token.StartsWith(prefix))
             return Task.FromResult(results);
 
@@ -33,8 +33,7 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
         if (rawKeywords.Length == 0)
             return Task.FromResult(results);
 
-        var configured = PluginSettingsService.GetSetting<List<CustomFilterItem>>(PluginId, SettingKey, null!);
-        var filters = configured != null && configured.Count > 0 ? configured : DefaultFilters();
+        var filters = GetConfiguredFilters();
 
         var matchedRules = new List<string>();
         foreach (var kw in rawKeywords)
@@ -42,7 +41,9 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
             var match = filters.FirstOrDefault(f => f.Enabled && string.Equals(f.Keyword?.Trim(), kw, StringComparison.OrdinalIgnoreCase));
             if (match != null && !string.IsNullOrWhiteSpace(match.Rule))
             {
-                matchedRules.Add(match.Rule);
+                var expandedRule = CustomFilterRuleResolver.Expand(match.Rule, filters, prefix);
+                if (!string.IsNullOrWhiteSpace(expandedRule))
+                    matchedRules.Add(expandedRule);
             }
         }
 
@@ -50,7 +51,7 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
             return Task.FromResult<IReadOnlyList<ISearchResult>>(Array.Empty<ISearchResult>());
 
         var combinedRule = string.Join("; ", matchedRules);
-        var filtered = ApplyRule(combinedRule, results);
+        var filtered = ApplyRule(combinedRule, results, filters, prefix);
         return Task.FromResult(filtered);
     }
 
@@ -74,11 +75,18 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
         new Dictionary<string, object> { ["Enabled"] = true, ["Keyword"] = "zip", ["Rule"] = "*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd" }
     };
 
-    public static IReadOnlyList<ISearchResult> ApplyRule(string rule, IReadOnlyList<ISearchResult> results)
+    public static IReadOnlyList<ISearchResult> ApplyRule(string rule, IReadOnlyList<ISearchResult> results) => ApplyRule(rule, results, GetConfiguredFilters(), GetConfiguredPrefix());
+
+    public static Func<ISearchResult, bool> BuildPredicate(
+        string rule,
+        IReadOnlyList<CustomFilterItem> filters,
+        string? prefix = null,
+        bool allowDisabledReferences = false)
     {
-        var rawTokens = rule.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var expandedRule = ExpandRule(rule, filters, prefix, allowDisabledReferences);
+        var rawTokens = expandedRule.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (rawTokens.Length == 0)
-            return results;
+            return _ => false;
 
         var subRules = new List<Func<ISearchResult, bool>>();
         foreach (var t in rawTokens)
@@ -104,13 +112,36 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
             }
         }
 
-        if (subRules.Count == 0)
-            return results;
-
-        return results.Where(r => subRules.Any(ruleFunc => ruleFunc(r))).ToList();
+        return result => subRules.Any(ruleFunc => ruleFunc(result));
     }
 
-    private static string GetPrefix()
+    public static IReadOnlyList<ISearchResult> ApplyRule(
+        string rule,
+        IReadOnlyList<ISearchResult> results,
+        IReadOnlyList<CustomFilterItem> filters,
+        string? prefix = null,
+        bool allowDisabledReferences = false)
+    {
+        if (string.IsNullOrWhiteSpace(ExpandRule(rule, filters, prefix, allowDisabledReferences)))
+            return results;
+
+        var predicate = BuildPredicate(rule, filters, prefix, allowDisabledReferences);
+        return results.Where(predicate).ToList();
+    }
+
+    public static List<CustomFilterItem> GetConfiguredFilters()
+    {
+        var configured = PluginSettingsService.GetSetting<List<CustomFilterItem>>(PluginId, SettingKey, null!);
+        return configured != null && configured.Count > 0 ? configured : DefaultFilters();
+    }
+
+    public static string ExpandRule(
+        string rule,
+        IReadOnlyList<CustomFilterItem> filters,
+        string? prefix = null,
+        bool allowDisabledReferences = false) => CustomFilterRuleResolver.Expand(rule, filters, prefix ?? GetConfiguredPrefix(), allowDisabledReferences);
+
+    public static string GetConfiguredPrefix()
     {
         var prefix = PluginSettingsService.GetSetting(PluginId, PrefixSettingKey, "@");
         return string.IsNullOrEmpty(prefix) ? "@" : prefix;

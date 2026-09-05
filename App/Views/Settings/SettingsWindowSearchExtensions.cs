@@ -63,7 +63,11 @@ internal static class SettingsWindowSearchExtensions
             {
                 foreach (var field in fields)
                 {
-                    var currentGroup = field.IsGroup ? field : ownerGroup;
+                    // Keep the top-level tab as the reveal target even when the schema nests a
+                    // second Group inside it. The nested group is only a visual section, not one of
+                    // PluginInfoViewModel.ConfigGroups, so targeting it would leave the wrong tab
+                    // selected after a settings search result is activated.
+                    var currentGroup = field.IsGroup && ownerGroup == null ? field : ownerGroup;
                     var label = field.Label;
                     if (!string.IsNullOrWhiteSpace(label))
                     {

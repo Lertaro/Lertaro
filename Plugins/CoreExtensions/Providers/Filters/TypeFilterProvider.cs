@@ -1,4 +1,6 @@
 using System.IO;
+using Lertaro.Plugins.CoreExtensions.Models;
+using Lertaro.Plugins.CoreExtensions.Providers.QueryTokens;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Services;
 
@@ -6,6 +8,12 @@ namespace Lertaro.Plugins.CoreExtensions.Providers.Filters;
 
 public class TypeFilterProvider : ISidebarFilterProvider
 {
+    public const string PluginId = "Lertaro.Plugins.CoreExtensions";
+    public const string DocumentFilterEnabledKey = "TypeFilter_DocumentEnabled";
+    public const string ImageFilterEnabledKey = "TypeFilter_ImageEnabled";
+    public const string VideoFilterEnabledKey = "TypeFilter_VideoEnabled";
+    public const string SidebarCustomFiltersKey = "SidebarCustomFilters";
+
     public int SortOrder => 1;
 
     private static readonly HashSet<string> DocExts = new(StringComparer.OrdinalIgnoreCase)
@@ -48,7 +56,8 @@ public class TypeFilterProvider : ISidebarFilterProvider
             MatchPredicate = res => !res.IsApplication && !res.IsDir
         });
 
-        group.Items.Add(new SidebarFilterItem
+        if (IsFilterEnabled(DocumentFilterEnabledKey))
+            group.Items.Add(new SidebarFilterItem
         {
             Id = "Type_Doc",
             DisplayName = TranslationService.Get("Filter_TypeDoc"),
@@ -56,7 +65,8 @@ public class TypeFilterProvider : ISidebarFilterProvider
             MatchPredicate = res => !res.IsApplication && !res.IsDir && DocExts.Contains(Path.GetExtension(res.FullPath))
         });
 
-        group.Items.Add(new SidebarFilterItem
+        if (IsFilterEnabled(ImageFilterEnabledKey))
+            group.Items.Add(new SidebarFilterItem
         {
             Id = "Type_Image",
             DisplayName = TranslationService.Get("Filter_TypeImage"),
@@ -64,7 +74,8 @@ public class TypeFilterProvider : ISidebarFilterProvider
             MatchPredicate = res => !res.IsApplication && !res.IsDir && ImageExts.Contains(Path.GetExtension(res.FullPath))
         });
 
-        group.Items.Add(new SidebarFilterItem
+        if (IsFilterEnabled(VideoFilterEnabledKey))
+            group.Items.Add(new SidebarFilterItem
         {
             Id = "Type_Video",
             DisplayName = TranslationService.Get("Filter_TypeVideo"),
@@ -72,6 +83,35 @@ public class TypeFilterProvider : ISidebarFilterProvider
             MatchPredicate = res => !res.IsApplication && !res.IsDir && VideoExts.Contains(Path.GetExtension(res.FullPath))
         });
 
+        AddCustomFilters(group);
         return new[] { group };
     }
+
+    private static void AddCustomFilters(SidebarFilterGroup group)
+    {
+        var sidebarFilters = PluginSettingsService.GetSetting<List<CustomFilterItem>>(PluginId, SidebarCustomFiltersKey, []);
+        var referencedFilters = CustomFilterQueryTokenProvider.GetConfiguredFilters();
+        var prefix = CustomFilterQueryTokenProvider.GetConfiguredPrefix();
+        for (var i = 0; i < sidebarFilters.Count; i++)
+        {
+            var filter = sidebarFilters[i];
+            if (!filter.Enabled)
+                continue;
+
+            var name = filter.Keyword?.Trim();
+            var rule = CustomFilterRuleResolver.Expand(filter.Rule, referencedFilters, prefix, allowDisabledReferences: true);
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(rule))
+                continue;
+
+            group.Items.Add(new SidebarFilterItem
+            {
+                Id = $"Type_Custom_{i}",
+                DisplayName = name,
+                IconData = string.IsNullOrWhiteSpace(filter.Icon) ? null : filter.Icon.Trim(),
+                MatchPredicate = CustomFilterQueryTokenProvider.BuildPredicate(filter.Rule, referencedFilters, prefix, allowDisabledReferences: true)
+            });
+        }
+    }
+
+    private static bool IsFilterEnabled(string key) => PluginSettingsService.GetSetting(PluginId, key, true);
 }

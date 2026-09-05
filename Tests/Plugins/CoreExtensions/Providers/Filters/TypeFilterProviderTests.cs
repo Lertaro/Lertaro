@@ -1,11 +1,19 @@
 using Lertaro.PluginSdk.Abstractions;
+using Lertaro.PluginSdk.Services;
+using Lertaro.Plugins.CoreExtensions.Models;
 using Lertaro.Plugins.CoreExtensions.Providers.Filters;
+using Lertaro.Plugins.CoreExtensions.Providers.QueryTokens;
 
 namespace Lertaro.Plugins.CoreExtensions.Tests.Providers.Filters;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class TypeFilterProviderTests
 {
+    [TestInitialize]
+    [TestCleanup]
+    public void ResetSettings() => PluginSettingsService.GetSettingFunc = null;
+
     private sealed class FakeResult : ISearchResult
     {
         public string Name { get; init; } = "";
@@ -45,6 +53,97 @@ public sealed class TypeFilterProviderTests
 
     [TestMethod]
     public void TypeVideo_Mp4Extension_IsIncluded() => Assert.IsTrue(GetPredicate("Type_Video")(new FakeResult { FullPath = @"C:\clip.mp4" }));
+
+    [TestMethod]
+    public void GetFilterGroups_DisabledBuiltInFilter_IsOmitted()
+    {
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) =>
+            key == TypeFilterProvider.ImageFilterEnabledKey ? false : fallback;
+
+        var ids = new TypeFilterProvider().GetFilterGroups().Single().Items.Select(i => i.Id).ToList();
+
+        Assert.DoesNotContain("Type_Image", ids);
+        Assert.Contains("Type_Doc", ids);
+        Assert.Contains("Type_Video", ids);
+    }
+
+    [TestMethod]
+    public void GetFilterGroups_CustomFilter_ExpandsRuleAndKeepsIcon()
+    {
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == TypeFilterProvider.SidebarCustomFiltersKey
+            ? new List<CustomFilterItem>
+            {
+                new() { Keyword = "executables", Rule = "*.ps1; *.exe", Icon = "M1 2" }
+            }
+            : fallback;
+
+        var items = new TypeFilterProvider().GetFilterGroups().Single().Items;
+        var item = items.Single(i => i.Id == "Type_Custom_0");
+
+        Assert.AreEqual("executables", item.DisplayName);
+        Assert.AreEqual("M1 2", item.IconData);
+        Assert.IsTrue(item.MatchPredicate(new FakeResult { Name = "build.ps1" }));
+        Assert.IsTrue(item.MatchPredicate(new FakeResult { Name = "tool.exe" }));
+        Assert.IsFalse(item.MatchPredicate(new FakeResult { Name = "readme.txt" }));
+    }
+
+    [TestMethod]
+    public void GetFilterGroups_CustomFilterReference_UsesDisabledQueryFilter()
+    {
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key switch
+        {
+            TypeFilterProvider.SidebarCustomFiltersKey => new List<CustomFilterItem>
+            {
+                new() { Keyword = "executables", Rule = "@scripts; *.exe" }
+            },
+            CustomFilterQueryTokenProvider.SettingKey => new List<CustomFilterItem>
+            {
+                new() { Enabled = false, Keyword = "scripts", Rule = "*.ps1" }
+            },
+            _ => fallback
+        };
+
+        var item = new TypeFilterProvider().GetFilterGroups().Single().Items.Single(i => i.Id == "Type_Custom_0");
+
+        Assert.IsTrue(item.MatchPredicate(new FakeResult { Name = "build.ps1" }));
+        Assert.IsTrue(item.MatchPredicate(new FakeResult { Name = "tool.exe" }));
+    }
+
+    [TestMethod]
+    public void GetFilterGroups_CustomFilterWithMissingRuleReference_IsOmitted()
+    {
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == TypeFilterProvider.SidebarCustomFiltersKey
+            ? new List<CustomFilterItem> { new() { Keyword = "missing", Rule = "@unknown" } }
+            : fallback;
+
+        var ids = new TypeFilterProvider().GetFilterGroups().Single().Items.Select(i => i.Id).ToList();
+
+        Assert.DoesNotContain("Type_Custom_0", ids);
+    }
+
+    [TestMethod]
+    public void GetFilterGroups_CustomFilterWithEmptyName_IsOmitted()
+    {
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == TypeFilterProvider.SidebarCustomFiltersKey
+            ? new List<CustomFilterItem> { new() { Keyword = "  ", Rule = "*.exe" } }
+            : fallback;
+
+        var ids = new TypeFilterProvider().GetFilterGroups().Single().Items.Select(item => item.Id);
+
+        Assert.DoesNotContain("Type_Custom_0", ids);
+    }
+
+    [TestMethod]
+    public void GetFilterGroups_DisabledSidebarFilter_IsHidden()
+    {
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == TypeFilterProvider.SidebarCustomFiltersKey
+            ? new List<CustomFilterItem> { new() { Enabled = false, Keyword = "scripts", Rule = "*.ps1" } }
+            : fallback;
+
+        var ids = new TypeFilterProvider().GetFilterGroups().Single().Items.Select(item => item.Id);
+
+        Assert.DoesNotContain("Type_Custom_0", ids);
+    }
 
     [TestMethod]
     public void GetFilterGroups_ReturnsAllFiveTypeCategories()

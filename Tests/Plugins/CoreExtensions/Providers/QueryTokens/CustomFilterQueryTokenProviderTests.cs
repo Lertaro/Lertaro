@@ -1,4 +1,5 @@
 using Lertaro.Plugins.CoreExtensions.Providers.QueryTokens;
+using Lertaro.Plugins.CoreExtensions.Models;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Services;
 
@@ -83,6 +84,32 @@ public class CustomFilterQueryTokenProviderTests
         Assert.HasCount(2, filtered);
         Assert.IsTrue(filtered.Any(r => r.Name == "report.docx"));
         Assert.IsTrue(filtered.Any(r => r.Name == "photo.jpg"));
+    }
+
+    [TestMethod]
+    public void ExpandRule_ResolvesReferencesAndRemovesDuplicatePatterns()
+    {
+        var filters = new List<CustomFilterItem>
+        {
+            new() { Keyword = "scripts", Rule = "*.exe; *.cmd" },
+            new() { Keyword = "tools", Rule = "*.cmd; *.bat" }
+        };
+
+        var expanded = CustomFilterQueryTokenProvider.ExpandRule("@scripts; @tools; *.exe", filters);
+
+        Assert.AreEqual("*.exe; *.cmd; *.bat", expanded);
+    }
+
+    [TestMethod]
+    public void ExpandRule_UnknownOrCyclicReferenceContributesNoRule()
+    {
+        var filters = new List<CustomFilterItem>
+        {
+            new() { Keyword = "a", Rule = "@b" },
+            new() { Keyword = "b", Rule = "@a" }
+        };
+
+        Assert.AreEqual(string.Empty, CustomFilterQueryTokenProvider.ExpandRule("@missing; @a", filters));
     }
 
     [TestMethod]

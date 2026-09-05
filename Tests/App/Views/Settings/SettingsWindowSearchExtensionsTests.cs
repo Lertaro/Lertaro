@@ -98,6 +98,48 @@ public sealed class SettingsWindowSearchExtensionsTests
     }
 
     [TestMethod]
+    public void ActivateResult_SelectsTopLevelTab_WhenFieldBelongsToNestedGroup()
+    {
+        var settings = new UserSettings();
+        var nestedField = new PluginConfigField { Key = "nested", LabelKey = "NestedKey", FieldType = ConfigFieldType.Text, DefaultValue = "" };
+        var nestedGroup = new PluginConfigField
+        {
+            Key = "nestedGroup",
+            LabelKey = "NestedGroupKey",
+            FieldType = ConfigFieldType.Group,
+            DefaultValue = "",
+            SubFields = new List<PluginConfigField> { nestedField }
+        };
+        var topLevelGroup = new PluginConfigField
+        {
+            Key = "topLevelGroup",
+            LabelKey = "TopLevelGroupKey",
+            FieldType = ConfigFieldType.Group,
+            DefaultValue = "",
+            SubFields = new List<PluginConfigField> { nestedGroup }
+        };
+        var topLevelGroupVm = new PluginConfigFieldViewModel("test_plugin", topLevelGroup, settings);
+
+        var pluginVm = new PluginInfoViewModel(
+            name: "TestPlugin",
+            version: "1.0.0",
+            dllFileName: "TestPlugin.dll",
+            sdkVersion: "1.5.0",
+            components: new List<PluginComponentViewModel>(),
+            configFields: new List<PluginConfigFieldViewModel> { topLevelGroupVm },
+            description: "Test plugin description");
+        var settingsVm = new SettingsViewModel();
+        settingsVm.Plugins.Plugins.Clear();
+        settingsVm.Plugins.Plugins.Add(pluginVm);
+
+        var results = SettingsWindowSearchExtensions.BuildAllEntries(vm: settingsVm);
+        var nestedItem = results.Single(result => result.Label == "NestedKey");
+        nestedItem.Activate?.Invoke(settingsVm);
+
+        Assert.AreEqual(topLevelGroupVm, pluginVm.SelectedConfigGroup);
+    }
+
+    [TestMethod]
     public void ActivateResult_SwitchesToDetailsTab_WhenComponentIsRevealed()
     {
         var settings = new UserSettings();

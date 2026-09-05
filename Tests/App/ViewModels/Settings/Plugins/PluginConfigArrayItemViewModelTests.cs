@@ -85,6 +85,21 @@ public sealed class PluginConfigArrayItemViewModelTests
     }
 
     [TestMethod]
+    public void BadgeField_IconSubField_IsNotUsedAsBadge()
+    {
+        var parent = ArrayField(new List<PluginConfigField>
+        {
+            new() { Key = "name", FieldType = ConfigFieldType.Text, DefaultValue = "" },
+            new() { Key = "Icon", FieldType = ConfigFieldType.Text, DefaultValue = "" },
+            new() { Key = "rule", FieldType = ConfigFieldType.Text, DefaultValue = "" },
+        });
+
+        var item = new PluginConfigArrayItemViewModel(parent, new Dictionary<string, object>(), () => { });
+
+        Assert.AreEqual("rule", item.BadgeField?.SchemaField.Key);
+    }
+
+    [TestMethod]
     public void GetValue_ScalarItem_ReturnsSimpleValue()
     {
         var parent = ArrayField(null);

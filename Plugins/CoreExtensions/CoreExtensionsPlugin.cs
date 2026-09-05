@@ -138,6 +138,7 @@ public class CoreExtensionsPlugin : IPlugin, IActionProvider, IConfigurable
                     }
                 }
             },
+            Providers.Filters.SearchFiltersConfigSchema.Create(),
             new PluginConfigField
             {
                 Key = "QueryTokensGroup",
