@@ -458,6 +458,7 @@
   "Update_SigVerificationFailedMessage": "다운로드한 업데이트 패키지가 보안 서명 검증에 실패했습니다!\n시스템 보호를 위해 업데이트 과정이 중단되었습니다.",
   "Search_Title": "Lertaro 검색",
   "Search_Total": "{0:N0}개 항목",
+  "Search_SelectedItemsCount": "{0}개 선택됨",
   "Search_StatusText": "MFT/USN 로컬 드라이브 서비스 연결됨",
   "Search_HintKeyboard": "더블클릭하여 열기 · Enter로 열기 · ↑↓ 선택",
   "QuickSearch_Placeholder": " 입력하여 검색...",

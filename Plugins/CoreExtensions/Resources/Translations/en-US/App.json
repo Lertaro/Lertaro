@@ -458,6 +458,7 @@
   "Update_SigVerificationFailedMessage": "The downloaded update package failed security signature verification!\nThe update process has been aborted to protect your system.",
   "Search_Title": "Lertaro Search",
   "Search_Total": "{0:N0} items",
+  "Search_SelectedItemsCount": "Selected {0} items",
   "Search_StatusText": "MFT/USN Local Drive Service Connected",
   "Search_HintKeyboard": "Double-click to open · Enter to open · ↑↓ Select",
   "QuickSearch_Placeholder": " Type to search...",

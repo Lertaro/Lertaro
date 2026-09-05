@@ -75,4 +75,30 @@ public sealed class SidebarFilterCountAccumulatorTests
 
         Assert.AreEqual(0, accumulator.Counts[0]);
     }
+
+    [TestMethod]
+    public void ReplaceResults_DropsRowsRemovedByFinalSearchFiltering()
+    {
+        var accumulator = new SidebarFilterCountAccumulator(new IReadOnlyList<Func<ISearchResult, bool>>[]
+        {
+            new Func<ISearchResult, bool>[] { result => !result.IsDir }
+        });
+
+        accumulator.AddBatch(new ISearchResult[]
+        {
+            new FakeResult { IsDir = false },
+            new FakeResult { IsDir = false }
+        });
+        accumulator.ReplaceResults(new ISearchResult[]
+        {
+            new FakeResult { IsDir = false }
+        });
+
+        accumulator.Calculate(new IReadOnlyList<Func<ISearchResult, bool>>[]
+        {
+            Array.Empty<Func<ISearchResult, bool>>()
+        });
+
+        Assert.AreEqual(1, accumulator.Counts[0]);
+    }
 }

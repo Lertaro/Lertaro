@@ -48,6 +48,13 @@ internal sealed class SearchSidebarCountHelper
             PublishCounts();
     }
 
+    public void Replace(IReadOnlyList<AppSearchResult> results)
+    {
+        _accumulator.ReplaceResults(results);
+        _hasResults = true;
+        PublishCounts();
+    }
+
     private void PublishCounts()
     {
         var selectedPredicates = _groups.Select(group =>

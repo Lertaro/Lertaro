@@ -31,6 +31,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
     private readonly SearchExecutionEngine _searchEngine;
     private readonly SearchServiceStatusViewModel _serviceStatus;
     private readonly SearchQueryDispatchController _dispatcher;
+    private readonly SearchViewResultRenderer _resultRenderer;
 
     private string _advancedQuery = string.Empty;
     private List<AppSearchResult> _allResults = new();
@@ -58,6 +59,16 @@ public class SearchViewModel : ViewModelBase, IDisposable
 
         _serviceStatus = new SearchServiceStatusViewModel(this, _searchService);
         _serviceStatus.PropertyChanged += (s, e) => OnPropertyChanged(e.PropertyName);
+        _resultRenderer = new SearchViewResultRenderer(
+            FilteredResults,
+            () => _renderExtendsContent,
+            finalResults => ReferenceEquals(finalResults, _allResults) ? _renderUnchangedPrefix : 0,
+            count => ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count),
+            () =>
+            {
+                OnPropertyChanged(nameof(ShowNoResultsHint));
+                OnPropertyChanged(nameof(ShowWelcomeHint));
+            });
 
         _dispatcher = new SearchQueryDispatchController(
             _searchEngine,
@@ -73,6 +84,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
                     ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count);
             },
             updateSidebarCounts: (batch, final) => _sidebarCountHelper?.Update(batch, final),
+            replaceSidebarCounts: results => _sidebarCountHelper?.Replace(results),
             applyFiltersAndRender: ApplyFiltersAndRender,
             isTypeFilterSelected: () => IsTypeFilterSelected);
 
@@ -110,16 +122,11 @@ public class SearchViewModel : ViewModelBase, IDisposable
         if (string.IsNullOrEmpty(e.PropertyName) || e.PropertyName == "Item[]")
         {
             OnPropertyChanged(nameof(WindowTitle));
-            // "N results" was formatted once with the old language's template string and never
-            // recomputed until the next search/filter/sort -- refresh it here too so it isn't stuck
-            // showing a stale language until the user happens to trigger one of those.
+            // Refresh the formatted count too; it was created with the previous language's template.
             ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], FilteredResults.Count);
             DynamicSidebarTranslationHelper.Refresh(DynamicSidebarGroups);
         }
     }
-
-    // Properties
-    // ==========================================
 
     public ObservableRangeCollection<AppSearchResult> FilteredResults { get; }
     public ObservableCollection<DynamicSidebarGroupViewModel> DynamicSidebarGroups { get; } = new();
@@ -167,10 +174,6 @@ public class SearchViewModel : ViewModelBase, IDisposable
         get => _resultCountText;
         private set => SetProperty(ref _resultCountText, value);
     }
-
-    // ==========================================
-    // Service status properties delegation
-    // ==========================================
 
     public bool IsSearchBoxEnabled
     {
@@ -265,25 +268,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
             v => IsSearching = v);
     }
 
-    private void RenderFinal(List<AppSearchResult> finalResults)
-    {
-        // ReplaceRange's single Reset notification makes WPF discard and regenerate every LstGridResults
-        // container from the top on every keystroke -- Quick/Inline hit this same cost long ago and fixed
-        // it via SearchResultsReconciler.Replace (row-by-row Replace/Add/Remove, recycling containers
-        // instead of tearing them down); this had never been ported to the full window's own render path.
-        // No selection-preserving currentSelection/setSelection pair like that reconciler uses: this
-        // window has no VM-level "selected result" property to preserve in the first place (ResultsControl
-        // .xaml.cs's own shared OnCollectionChanged already resets ActiveListBox.SelectedIndex on every
-        // change here, same as it always has).
-        // The unchanged-prefix promise only holds if nothing reordered or removed rows on the way here.
-        // A column sort or a sidebar filter produces a different list object than the one the
-        // accumulator built the promise about, which is exactly the signal that it no longer applies.
-        var unchangedPrefix = ReferenceEquals(finalResults, _allResults) ? _renderUnchangedPrefix : 0;
-        FilteredResults.ReconcileTo(finalResults, SearchResultsReconciler.ItemsEqual, _renderExtendsContent, unchangedPrefix);
-        ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], finalResults.Count);
-        OnPropertyChanged(nameof(ShowNoResultsHint));
-        OnPropertyChanged(nameof(ShowWelcomeHint));
-    }
+    private void RenderFinal(List<AppSearchResult> finalResults) => _resultRenderer.Render(finalResults);
 
     private bool _isActionsMode;
     public bool IsActionsMode

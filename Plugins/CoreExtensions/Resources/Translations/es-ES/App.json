@@ -458,6 +458,7 @@
   "Update_SigVerificationFailedMessage": "¡El paquete de actualización descargado no superó la verificación de la firma de seguridad!\nEl proceso de actualización se ha cancelado para proteger tu sistema.",
   "Search_Title": "Búsqueda de Lertaro",
   "Search_Total": "{0:N0} elementos",
+  "Search_SelectedItemsCount": "{0} elementos seleccionados",
   "Search_StatusText": "Servicio de Unidad Local MFT/USN Conectado",
   "Search_HintKeyboard": "Doble clic para abrir · Intro para abrir · ↑↓ Seleccionar",
   "QuickSearch_Placeholder": " Escribe para buscar...",

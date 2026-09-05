@@ -26,6 +26,12 @@ internal sealed class SidebarFilterCountAccumulator
 
     public void AddBatch(IReadOnlyList<ISearchResult> results) => _results.AddRange(results);
 
+    public void ReplaceResults(IReadOnlyList<ISearchResult> results)
+    {
+        _results.Clear();
+        _results.AddRange(results);
+    }
+
     public IReadOnlyList<int> Calculate(IReadOnlyList<IReadOnlyList<Func<ISearchResult, bool>>> selectedPredicatesByGroup)
     {
         Array.Clear(_counts, 0, _counts.Length);

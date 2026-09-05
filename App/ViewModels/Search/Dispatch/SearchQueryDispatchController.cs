@@ -21,6 +21,7 @@ internal sealed class SearchQueryDispatchController
     private readonly Action<bool> _setIsSearchBoxEnabled;
     private readonly Action<int> _setReceivedCount;
     private readonly Action<IReadOnlyList<AppSearchResult>, bool> _updateSidebarCounts;
+    private readonly Action<IReadOnlyList<AppSearchResult>> _replaceSidebarCounts;
     private readonly Func<bool> _isTypeFilterSelected;
     // bool: whether this render extends what is already on screen (a later paint of a search still
     // streaming) rather than replacing it with a different result set.
@@ -40,6 +41,7 @@ internal sealed class SearchQueryDispatchController
         Action<bool> setIsSearchBoxEnabled,
         Action<int> setReceivedCount,
         Action<IReadOnlyList<AppSearchResult>, bool> updateSidebarCounts,
+        Action<IReadOnlyList<AppSearchResult>> replaceSidebarCounts,
         Action<bool, int> applyFiltersAndRender,
         Func<bool> isTypeFilterSelected)
     {
@@ -52,6 +54,7 @@ internal sealed class SearchQueryDispatchController
         _setIsSearchBoxEnabled = setIsSearchBoxEnabled;
         _setReceivedCount = setReceivedCount;
         _updateSidebarCounts = updateSidebarCounts;
+        _replaceSidebarCounts = replaceSidebarCounts;
         _applyFiltersAndRender = applyFiltersAndRender;
         _isTypeFilterSelected = isTypeFilterSelected;
     }
@@ -122,7 +125,10 @@ internal sealed class SearchQueryDispatchController
                     ? results.FindAll(r => !r.IsEmptyResult)
                     : results;
                 var extendsContent = rendersSoFar++ > 0;
-                _updateSidebarCounts(accumulator?.LastBatchRows ?? Array.Empty<AppSearchResult>(), final);
+                if (final)
+                    _replaceSidebarCounts(filteredResults);
+                else
+                    _updateSidebarCounts(accumulator?.LastBatchRows ?? Array.Empty<AppSearchResult>(), false);
                 // Token providers (e.g. the built-in ":[SCMA]"/".ext"/"::expr" sort+filter+match
                 // plugin) render via a follow-up ApplyFiltersAndRender inside
                 // RefreshAfterTokenDispatchAsync instead of the call below -- a provider with no

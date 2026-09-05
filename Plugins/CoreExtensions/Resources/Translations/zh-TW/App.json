@@ -458,6 +458,7 @@
   "Update_SigVerificationFailedMessage": "下載的更新檔未能透過安全簽名校驗！\n為了您的系統安全，已中止更新。",
   "Search_Title": "Lertaro 搜尋",
   "Search_Total": "{0:N0} 個項目",
+  "Search_SelectedItemsCount": "已選取 {0} 個項目",
   "Search_StatusText": "MFT/USN 本地磁碟機服務已連線",
   "Search_HintKeyboard": "雙擊開啟 · Enter 開啟 · ↑↓ 選擇",
   "QuickSearch_Placeholder": " 輸入以搜尋...",

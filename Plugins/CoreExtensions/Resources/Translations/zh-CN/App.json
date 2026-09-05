@@ -458,6 +458,7 @@
   "Update_SigVerificationFailedMessage": "下载的更新包未能通过安全签名校验！\n为了您的系统安全，已中止更新。",
   "Search_Title": "Lertaro 搜索",
   "Search_Total": "{0:N0} 个项目",
+  "Search_SelectedItemsCount": "已选择 {0} 项",
   "Search_StatusText": "MFT/USN 本地驱动器服务已连接",
   "Search_HintKeyboard": "双击打开 · Enter 打开 · ↑↓ 选择",
   "QuickSearch_Placeholder": " 输入以搜索...",
