@@ -11,6 +11,10 @@ namespace Lertaro.Plugins.FileUnlocker;
 
 public partial class FileOccupationView : UserControl
 {
+    private const double BaseMarqueeSpeed = 40.0;
+    private const double MaximumMarqueeSpeed = 240.0;
+    private const double SpeedGrowthPerOverflowPixel = 0.2;
+
     private readonly string _path;
     private bool _busy;
     private bool _pathIsHovered;
@@ -86,7 +90,7 @@ public partial class FileOccupationView : UserControl
             return;
         }
 
-        const double speed = 40;
+        var speed = CalculateMarqueeSpeed(overflow);
         var durationSeconds = overflow / speed;
         var animation = new DoubleAnimationUsingKeyFrames
         {
@@ -96,9 +100,12 @@ public partial class FileOccupationView : UserControl
         animation.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
         animation.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.8))));
         animation.KeyFrames.Add(new LinearDoubleKeyFrame(-overflow, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.8 + durationSeconds))));
-        animation.KeyFrames.Add(new LinearDoubleKeyFrame(-overflow, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.8 + durationSeconds + 1.0))));
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(-overflow, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.8 + durationSeconds + 0.6))));
         PathTransform.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, animation);
     }
+
+    internal static double CalculateMarqueeSpeed(double overflow)
+        => Math.Clamp(BaseMarqueeSpeed + Math.Max(0, overflow) * SpeedGrowthPerOverflowPixel, BaseMarqueeSpeed, MaximumMarqueeSpeed);
 
     private void StopPathMarquee()
     {

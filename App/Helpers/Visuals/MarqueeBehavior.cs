@@ -13,6 +13,10 @@ namespace Lertaro.App.Helpers.Visuals;
 /// </summary>
 public static class MarqueeBehavior
 {
+    private const double BaseMarqueeSpeed = 40.0;
+    private const double MaximumMarqueeSpeed = 240.0;
+    private const double SpeedGrowthPerOverflowPixel = 0.2;
+
     public static readonly DependencyProperty EnableMarqueeProperty =
         DependencyProperty.RegisterAttached("EnableMarquee", typeof(bool), typeof(MarqueeBehavior),
             new PropertyMetadata(false, OnEnableMarqueeChanged));
@@ -161,7 +165,7 @@ public static class MarqueeBehavior
 
         if (shouldAnimate)
         {
-            var speed = 40.0; // pixels per second
+            var speed = CalculateMarqueeSpeed(overflow);
             var durationSeconds = overflow / speed;
 
             var keyFrameAnimation = new DoubleAnimationUsingKeyFrames
@@ -173,7 +177,7 @@ public static class MarqueeBehavior
             keyFrameAnimation.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
             keyFrameAnimation.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.8))));
             keyFrameAnimation.KeyFrames.Add(new LinearDoubleKeyFrame(-overflow, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.8 + durationSeconds))));
-            keyFrameAnimation.KeyFrames.Add(new LinearDoubleKeyFrame(-overflow, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.8 + durationSeconds + 1.0))));
+            keyFrameAnimation.KeyFrames.Add(new LinearDoubleKeyFrame(-overflow, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.8 + durationSeconds + 0.6))));
 
             translate.BeginAnimation(TranslateTransform.XProperty, keyFrameAnimation);
         }
@@ -183,6 +187,9 @@ public static class MarqueeBehavior
             translate.X = 0;
         }
     }
+
+    internal static double CalculateMarqueeSpeed(double overflow)
+        => Math.Clamp(BaseMarqueeSpeed + Math.Max(0, overflow) * SpeedGrowthPerOverflowPixel, BaseMarqueeSpeed, MaximumMarqueeSpeed);
 
     private static T? FindVisualAncestor<T>(DependencyObject? obj) where T : DependencyObject
     {
