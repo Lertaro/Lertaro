@@ -20,9 +20,25 @@ internal static class LocalDriveCacheLocator
 
     public static void Delete(string cacheDir, string drive)
     {
+        var normalizedDrive = NormalizeDrive(drive);
         var key = GetCacheKey(drive);
         if (key != null)
-            TryDelete(FileRecordStoreSerializer.GetBasePath(cacheDir, key) + ".idx");
+        {
+            var path = FileRecordStoreSerializer.GetBasePath(cacheDir, key) + ".idx";
+            if (File.Exists(path))
+            {
+                TryDelete(path);
+                if (!File.Exists(path))
+                    return;
+            }
+        }
+
+        // An unavailable drive cannot provide a live volume identity. Use the path found by reading
+        // the snapshot header so deleting an unplugged drive still removes its cached index.
+        var cachedEntry = ListCachedDrives(cacheDir).FirstOrDefault(entry =>
+            entry.Drive.Equals(normalizedDrive, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrEmpty(cachedEntry.Path))
+            TryDelete(cachedEntry.Path);
     }
 
     // Drive letter + the actual on-disk cache file path that was found for it. GetCachePath can't be

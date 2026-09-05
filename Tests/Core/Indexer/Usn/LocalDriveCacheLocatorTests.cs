@@ -46,6 +46,18 @@ public sealed class LocalDriveCacheLocatorTests
         Assert.IsEmpty(result);
     }
 
+    [TestMethod]
+    public void Delete_UnavailableDrive_DeletesCacheUsingSnapshotPath()
+    {
+        using var dir = new TempDirectory();
+        var path = Path.Combine(dir.Path, "somekey.idx");
+        SnapshotWriter.Write(BuildStore("Z", FileRecordSourceKind.LocalMft), path);
+
+        LocalDriveCacheLocator.Delete(dir.Path, "Z");
+
+        Assert.IsFalse(File.Exists(path));
+    }
+
     private static FileRecordStore BuildStore(string sourceKey, FileRecordSourceKind sourceKind)
     {
         var store = new FileRecordStore
