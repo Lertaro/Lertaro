@@ -41,7 +41,7 @@ public static class SearchResultMapper
         // streamed result is inside the scope by construction. What still needs scoping here are the
         // candidate tiers that bypass the engine -- history and favorites -- plus keeping general
         // searchable items (apps, settings) out of what is now a deliberately file-scoped result set.
-        List<string>? normalizedScopeFolders = fileFilterScope?.Folders.Select(f => SearchResultHelper.NormalizePath(f)).ToList();
+        var normalizedScopeFolders = fileFilterScope?.Folders.Select(f => SearchResultHelper.NormalizePath(f)).ToList();
         bool InFileFilterScope(string normalizedPath) => normalizedScopeFolders != null && normalizedScopeFolders.Any(f =>
             SearchResultHelper.IsPathInsideScope(normalizedPath, f)
             && !string.Equals(normalizedPath, f, StringComparison.OrdinalIgnoreCase));
