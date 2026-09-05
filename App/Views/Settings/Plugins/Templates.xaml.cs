@@ -3,6 +3,7 @@ using System.Windows.Threading;
 using Microsoft.Win32;
 using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Settings.Plugins;
+using Lertaro.App.Views.Controls;
 using Lertaro.App.Views.Controls.Dialogs;
 
 namespace Lertaro.App.Views.Settings.Plugins;
@@ -13,6 +14,20 @@ namespace Lertaro.App.Views.Settings.Plugins;
 // doesn't depend on PluginConfigWindow's own state.
 public partial class PluginConfigTemplates : ResourceDictionary
 {
+    private void ArrayInlineEditorHost_EditCompleted(object sender, RoutedEventArgs e)
+    {
+        if (sender is not InlineEditorHost { DataContext: PluginConfigFieldViewModel { IsIconField: true } field } host
+            || SvgIconInputHelper.IsValidPathData(field.Value?.ToString()))
+            return;
+
+        field.Value = string.Empty;
+        var owner = Window.GetWindow(host);
+        var message = TranslationManager.Instance["Plugins_IconConversionError"];
+        var caption = TranslationManager.Instance["Plugins_IconConversionErrorTitle"];
+        host.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            CustomMessageBox.Show(owner, message, caption, MessageBoxButton.OK, MessageBoxImage.Error)));
+    }
+
     private void IconTextBox_OnPasting(object sender, DataObjectPastingEventArgs e)
     {
         if (sender is not System.Windows.Controls.TextBox textBox || textBox.DataContext is not PluginConfigFieldViewModel { IsIconField: true })

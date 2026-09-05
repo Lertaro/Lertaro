@@ -97,27 +97,40 @@ public partial class InlineEditorHost : UserControl
         {
             textBox.ClearValue(PendingProperty);
             if (IsLoaded && !IsEditing && textBox.IsKeyboardFocusWithin && IsTextOverflowing(textBox))
-                BeginEditing();
+                BeginEditing(textBox);
         }));
     }
 
-    private void BeginEditing()
+    private void BeginEditing(TextBox source)
     {
         if (IsEditing) return;
 
+        var selectionStart = source.SelectionStart;
+        var selectionLength = source.SelectionLength;
         EditorContent = DataContext;
         IsEditing = true;
         _editingWindow = Window.GetWindow(this);
         _editingWindow?.PreviewMouseDown += OnWindowPreviewMouseDown;
 
-        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+        Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+            FocusEditorWhenReady(selectionStart, selectionLength)));
+    }
+
+    private void FocusEditorWhenReady(int selectionStart, int selectionLength)
+    {
+        if (!IsEditing) return;
+        if (FindVisibleTextBox(this) is not { } editor)
         {
-            if (!IsEditing) return;
-            var editor = FindVisibleTextBox(this);
-            if (editor == null) return;
-            editor.Focus();
-            editor.CaretIndex = editor.Text.Length;
-        }));
+            Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+                FocusEditorWhenReady(selectionStart, selectionLength)));
+            return;
+        }
+
+        editor.Focus();
+        Keyboard.Focus(editor);
+        var safeStart = Math.Clamp(selectionStart, 0, editor.Text.Length);
+        var safeLength = Math.Min(selectionLength, editor.Text.Length - safeStart);
+        editor.Select(safeStart, safeLength);
     }
 
     private void OnWindowPreviewMouseDown(object? sender, MouseButtonEventArgs e)
@@ -160,7 +173,7 @@ public partial class InlineEditorHost : UserControl
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is TextBox textBox && textBox.Visibility == Visibility.Visible)
+            if (child is TextBox textBox && textBox.IsVisible)
                 return textBox;
 
             var nested = FindVisibleTextBox(child);

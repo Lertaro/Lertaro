@@ -11,7 +11,6 @@
         <ResourceDictionary Source="../../../Resources/Styles/Windows/SearchWindow.xaml"/>
         <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
     </ResourceDictionary.MergedDictionaries>
-
     <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
     <conv:BoolToVisibilityConverter x:Key="InvertBoolToVis" Invert="True"/>
     <conv:NullToVisibilityConverter x:Key="NullToVis"/>
@@ -213,7 +212,6 @@
             </Setter.Value>
         </Setter>
     </Style>
-
     <!-- Move Up/Down: same look as the delete button above, narrower since the master list column
          is tight on space, and each row already carries three of these plus a title. -->
     <!-- Add, on the list's own header rather than pinned under it. Same icon button as the row
@@ -244,7 +242,6 @@
         <Setter Property="Width" Value="22"/>
         <Setter Property="Margin" Value="4,0,0,0"/>
     </Style>
-
     <!-- Label-above-editor row for an array item's detail panel. The window is wide enough
          now (resizable) that the shared label-left/editor-right row below would leave an
          awkward gap between them; stacking keeps each field readable at any window width. -->
@@ -254,7 +251,14 @@
                        TextWrapping="Wrap" Margin="0,0,0,4" Visibility="{Binding Label, Converter={StaticResource StringToVis}}"/>
             <TextBlock Text="{Binding Description}" FontSize="10" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"
                        Margin="0,0,0,6" Visibility="{Binding Description, Converter={StaticResource StringToVis}}"/>
-            <ContentControl Content="{Binding}" HorizontalAlignment="Left" Focusable="False" Style="{StaticResource FieldValueEditorStyle}"/>
+            <ctrl:InlineEditorHost AutoExpandEnabled="{Binding SupportsInlineEditing}"
+                                   EditorTemplate="{StaticResource PluginInlineEditorTemplate}"
+                                   EditCompleted="ArrayInlineEditorHost_EditCompleted"
+                                   HorizontalAlignment="Stretch">
+                <ctrl:InlineEditorHost.NormalContent>
+                    <ContentControl Content="{Binding}" HorizontalAlignment="Left" Focusable="False" Style="{StaticResource FieldValueEditorStyle}"/>
+                </ctrl:InlineEditorHost.NormalContent>
+            </ctrl:InlineEditorHost>
         </StackPanel>
     </DataTemplate>
 
