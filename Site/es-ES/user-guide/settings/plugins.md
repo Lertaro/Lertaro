@@ -24,6 +24,12 @@ Al seleccionar un plugin a la izquierda, el panel derecho muestra su icono, nomb
 - **Campos de icono**: Los campos de texto con la clave de esquema `Icon` muestran una vista previa y admiten WPF Path Data. Al pegar un documento SVG/XML completo, sus datos de ruta se extraen y combinan automáticamente; el contenido no válido se borra y se notifica mediante un cuadro de diálogo con el tema de Lertaro.
 - **Guardado seguro y restauración**: Los cambios se conservan en memoria hasta pulsar **Aceptar**; cambiar de plugin o salir de la página restaura los valores anteriores automáticamente.
 
+### Filtros de tipo de búsqueda de CoreExtensions
+
+En **Configuración → Plugins → CoreExtensions → Configurar → Filtros de búsqueda** puedes controlar los filtros de tipo que aparecen a la izquierda de la ventana de búsqueda completa. Los archivos y las carpetas siempre están disponibles; los filtros de documentos, imágenes y vídeos se pueden desactivar por separado.
+
+La lista **Filtros personalizados de la barra lateral** añade filtros con un nombre visible, un icono WPF Path Data opcional y una regla con comodines. Los nombres vacíos o las reglas que quedan vacías tras la expansión se ocultan, y un icono vacío usa el icono predeterminado. El nombre solo se muestra y no es una referencia `@`. Las referencias `@` solo son válidas en el campo Regla: `@palabra-clave` expande una palabra clave coincidente de la lista existente **Filtros personalizados**, aunque ese filtro esté deshabilitado. Las referencias se expanden de forma recursiva y los patrones duplicados se eliminan; las referencias desconocidas o cíclicas no producen reglas coincidentes.
+
 ## 3. Soporte del ecosistema de plugins de Flow Launcher
 
 Además de los plugins nativos de `Lertaro.PluginSdk`, el módulo integrado **Flow Launcher Bridge** ofrece compatibilidad total con el extenso catálogo de Flow Launcher.

@@ -24,6 +24,12 @@ Clicking any plugin on the left displays its icon, name, version, and overview i
 - **Icon Input Fields**: Text fields using the schema key `Icon` show an icon preview and accept WPF Path Data. Pasting a complete SVG/XML document automatically extracts and combines its path data; invalid icon content is cleared and reported in a themed dialog.
 - **Safe Staging & Rollback**: Modifications are kept in memory until **OK** is clicked; switching plugins or navigating away automatically rolls uncommitted edits back to their saved state.
 
+### CoreExtensions Search Type Filters
+
+Under **Settings → Plugins → CoreExtensions → Configure → Search Filters**, you can control the type filters shown in the left side of the full search window. File and Folder are always available; Document, Image, and Video can be disabled individually.
+
+The **Custom Sidebar Filters** list adds extra filters with a display name, an optional WPF Path Data icon, and a wildcard rule. Empty names or rules that become empty after expansion are hidden, and an empty icon uses the default icon. The name is display-only and is not an `@` reference. `@` references are valid only inside the Rule field: `@keyword` expands a matching keyword from the existing **Custom Filters** list, even if that filter is disabled. References are recursively expanded and duplicate patterns are removed; unknown or cyclic references produce no matching rule.
+
 ## 3. Flow Launcher Community Ecosystem Bridge
 
 In addition to native plugins built against `Lertaro.PluginSdk`, Lertaro includes a built-in **Flow Launcher Bridge** providing native-grade compatibility for the expansive Flow Launcher plugin community.

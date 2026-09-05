@@ -175,7 +175,9 @@ Aplica rápidamente reglas preestablecidas de extensión de archivo, admitiendo 
 - `wallpaper :@img`: Busca "wallpaper" entre imágenes.
 - `clip :@video|audio`: Busca "clip" entre vídeos o archivos de audio.
 
-Puedes personalizar reglas o añadir nuevas categorías en **Configuración → Plugins → CoreExtensions**.
+Puedes personalizar las reglas o añadir nuevas categorías en **Configuración → Plugins → CoreExtensions**.
+
+La barra lateral de filtros de tipo de la ventana de búsqueda completa se configura por separado en el grupo **Filtros de búsqueda** del mismo plugin. Los nombres de los filtros de la barra lateral solo sirven para mostrar texto; las referencias `@palabra-clave` solo se procesan dentro de una regla de filtro lateral y apuntan a palabras clave de la lista **Filtros personalizados**, incluidos los filtros deshabilitados.
 
 ### Filtros por extensión específica (`:.ext` o `:.ext1.ext2`)
 

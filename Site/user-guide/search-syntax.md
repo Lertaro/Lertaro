@@ -177,6 +177,8 @@ Quickly apply preset file extension category rules, supporting `|` combinations:
 
 You can customize rules or add new categories under **Settings → Plugins → CoreExtensions**.
 
+The full search window's left type-filter sidebar is configured separately in the same plugin's **Search Filters** group. Sidebar filter names are display-only; `@keyword` references are parsed only inside a sidebar filter rule and refer to keywords from the **Custom Filters** list, including disabled custom filters.
+
 ### Specific Extension Filters (`:.ext` or `:.ext1.ext2`)
 
 Use a dot prefix to specify one or more file extensions (automatically excludes folders):
