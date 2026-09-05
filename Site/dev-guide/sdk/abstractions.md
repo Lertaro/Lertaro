@@ -79,6 +79,10 @@ public interface IConfigurable
 | **`CustomControl`** | Mounts a custom WPF `UIElement` control directly. |
 | **`Button`** | Renders an action button and invokes the field's `OnClick` delegate; it stores no setting value. |
 
+### Icon fields
+
+A text field whose schema key is `Icon` is rendered with an icon preview. It accepts WPF Path Data directly; when a complete SVG/XML document is pasted, the host extracts every `<path d>` value, combines them, and stores only the resulting WPF Path Data. Invalid icon content is cleared and reported with a themed error dialog. Empty values remain valid when no icon is desired.
+
 `PluginConfigSchema` also supports `OnSave` and `OnRollback` lifecycle delegates to manage custom persistence and rollback workflows.
 
 ### Localized choice labels

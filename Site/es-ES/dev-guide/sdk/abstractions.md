@@ -79,6 +79,10 @@ public interface IConfigurable
 | **`CustomControl`** | Inserta directamente un control WPF `UIElement` personalizado. |
 | **`Button`** | Muestra un botón de acción e invoca el delegado `OnClick` del campo; no almacena ningún valor. |
 
+### Campos de icono
+
+Un campo de texto cuya clave de esquema es `Icon` se muestra con una vista previa del icono. Admite WPF Path Data directamente; al pegar un documento SVG/XML completo, el anfitrión extrae y combina todos los valores `<path d>` y guarda únicamente el WPF Path Data resultante. El contenido no válido se borra y se notifica mediante un cuadro de diálogo de error con el tema de Lertaro. Los valores vacíos siguen siendo válidos cuando no se desea ningún icono.
+
 `PluginConfigSchema` admite delegados de ciclo de vida `OnSave` y `OnRollback` para gestionar la persistencia y la restauración personalizada.
 
 ### Etiquetas localizadas para opciones

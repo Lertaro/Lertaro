@@ -79,6 +79,10 @@ public interface IConfigurable
 | **`CustomControl`** | 允许插件直接挂载一个自定义的 WPF `UIElement` 控件实例。 |
 | **`Button`** | 渲染操作按钮并调用字段的 `OnClick` 委托，不存储设置值。 |
 
+### 图标字段
+
+将字段的 Schema 键设为 `Icon` 并使用 `Text` 类型时，宿主会显示图标预览并支持直接输入 WPF Path Data。粘贴完整 SVG/XML 文档时，宿主会提取并合并所有 `<path d>` 值，只保存转换后的 WPF Path Data；图标内容无效时会清空并通过主题化错误对话框提示。不需要图标时，空值仍然有效。
+
 `PluginConfigSchema` 亦支持配置 `OnSave` 与 `OnRollback` 生命周期委托，在用户点击确认提交或离开页面放弃修改时执行自定义持久化或状态复原。
 
 ### 本地化选择标签

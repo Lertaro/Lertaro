@@ -21,6 +21,7 @@ Clicking any plugin on the left displays its icon, name, version, and overview i
 ### Configure Tab
 
 - **Embedded Configuration Forms**: Custom settings are rendered directly within the settings pane without opening modal dialogs. Supports text boxes, numerical steppers, toggles, dropdowns, and grouped sub-tabs.
+- **Icon Input Fields**: Text fields using the schema key `Icon` show an icon preview and accept WPF Path Data. Pasting a complete SVG/XML document automatically extracts and combines its path data; invalid icon content is cleared and reported in a themed dialog.
 - **Safe Staging & Rollback**: Modifications are kept in memory until **OK** is clicked; switching plugins or navigating away automatically rolls uncommitted edits back to their saved state.
 
 ## 3. Flow Launcher Community Ecosystem Bridge
