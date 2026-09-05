@@ -74,7 +74,7 @@ public interface IConfigurable
 | **`Choice`** | `Choices` 또는 `ChoiceOptions` 목록에서 선택하는 드롭다운. |
 | **`Hotkey`** | 키 녹화 컨트롤(`RequireModifier = true`로 수식키 필수화 가능). |
 | **`FilePath` / `FolderPath`** | 찾아보기 대화상자 버튼이 포함된 경로 입력 컨트롤. |
-| **`StringList`** | 항목 추가, 삭제, 순서 변경이 가능한 다중 행 목록 상자. |
+| **`StringList`** | 항목 추가, 삭제, 순서 변경 및 자동 줄바꿈을 지원하는 여러 줄 목록 상자이며, 실제 줄바꿈은 시각적 표시로만 나타나고 설정 값에는 포함되지 않습니다. |
 | **`Group`** | 접을 수 있는 카드 형태의 하위 필드 그룹(`SubFields`). |
 | **`CustomControl`** | 커스텀 WPF `UIElement` 컨트롤을 직접 임베드. |
 | **`Button`** | 작업 버튼을 표시하고 필드의 `OnClick` 델리게이트를 호출하며 설정 값은 저장하지 않습니다. |

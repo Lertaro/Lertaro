@@ -74,7 +74,7 @@ public interface IConfigurable
 | **`Choice`** | Selector desplegable basado en una colección `Choices` o `ChoiceOptions`. |
 | **`Hotkey`** | Grabador de teclas con `RequireModifier = true` opcional. |
 | **`FilePath` / `FolderPath`** | Campo de texto con botón para abrir el diálogo nativo de Windows. |
-| **`StringList`** | Lista multilínea editable con adición, eliminación y reordenación. |
+| **`StringList`** | Lista multilínea editable con adición, eliminación, reordenación y ajuste de línea visual; los saltos reales se marcan en pantalla, pero las marcas no forman parte del valor de configuración. |
 | **`Group`** | Agrupación en tarjeta plegable con campos secundarios (`SubFields`). |
 | **`CustomControl`** | Inserta directamente un control WPF `UIElement` personalizado. |
 | **`Button`** | Muestra un botón de acción e invoca el delegado `OnClick` del campo; no almacena ningún valor. |

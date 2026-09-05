@@ -22,6 +22,7 @@ Al seleccionar un plugin a la izquierda, el panel derecho muestra su icono, nomb
 
 - **Formularios incrustados**: Las opciones personalizadas del plugin se muestran en el panel derecho sin cuadros de diálogo adicionales (campos de texto, números, selectores, pestañas, etc.).
 - **Campos de icono**: Los campos de texto con la clave de esquema `Icon` muestran una vista previa y admiten WPF Path Data. Al pegar un documento SVG/XML completo, sus datos de ruta se extraen y combinan automáticamente; el contenido no válido se borra y se notifica mediante un cuadro de diálogo con el tema de Lertaro.
+- **Editores de configuración multilínea**: Los campos `StringList` usan ajuste de línea visual en el editor ampliado. Los saltos de línea reales muestran un marcador tenue `↵` para distinguirlos; el marcador es solo visual y nunca se guarda ni se incluye al copiar el texto.
 - **Guardado seguro y restauración**: Los cambios se conservan en memoria hasta pulsar **Aceptar**; cambiar de plugin o salir de la página restaura los valores anteriores automáticamente.
 
 ### Filtros de tipo de búsqueda de CoreExtensions

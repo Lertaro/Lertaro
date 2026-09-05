@@ -74,7 +74,7 @@ public interface IConfigurable
 | **`Choice`** | 下拉式選單。透過 `Choices` 或 `ChoiceOptions` 清單指定可選項目。 |
 | **`Hotkey`** | 專屬按鍵錄製框。可設定 `RequireModifier = true` 強制要求必須包含修飾鍵。 |
 | **`FilePath` / `FolderPath`** | 附帶「瀏覽...」檔案/資料夾原生選取器按鈕的路徑輸入框。 |
-| **`StringList`** | 支援多行編輯與項目增刪排序的多行清單方塊。 |
+| **`StringList`** | 支援多行編輯、項目增刪排序與自動換行的多行清單方塊；實際換行只以視覺標記顯示，不會寫入設定值。 |
 | **`Group`** | 包含子欄位清單（`SubFields`）的可折疊卡片分組。 |
 | **`CustomControl`** | 允許外掛模組直接掛載一個自訂的 WPF `UIElement` 控制項執行個體。 |
 | **`Button`** | 顯示操作按鈕並呼叫欄位的 `OnClick` 委派，不儲存設定值。 |

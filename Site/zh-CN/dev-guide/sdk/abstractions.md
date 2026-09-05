@@ -74,7 +74,7 @@ public interface IConfigurable
 | **`Choice`** | 下拉选择框。通过 `Choices` 或 `ChoiceOptions` 列表指定可选条目。 |
 | **`Hotkey`** | 专属按键录制框。可配置 `RequireModifier = true` 强制要求必须包含修饰键。 |
 | **`FilePath` / `FolderPath`** | 附带“浏览...”文件/文件夹原生选择器按钮的路径输入框。 |
-| **`StringList`** | 支持多行编辑与条目增删排序的多行列表框。 |
+| **`StringList`** | 支持多行编辑、条目增删排序与自动折行的多行列表框；真实换行仅以视觉标记显示，不会写入配置值。 |
 | **`Group`** | 包含子字段列表（`SubFields`）的可折叠卡片分组。 |
 | **`CustomControl`** | 允许插件直接挂载一个自定义的 WPF `UIElement` 控件实例。 |
 | **`Button`** | 渲染操作按钮并调用字段的 `OnClick` 委托，不存储设置值。 |

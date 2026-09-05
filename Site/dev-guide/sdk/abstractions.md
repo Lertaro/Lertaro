@@ -74,7 +74,7 @@ public interface IConfigurable
 | **`Choice`** | Dropdown selector backed by a `Choices` or `ChoiceOptions` collection. |
 | **`Hotkey`** | Key recording box with optional `RequireModifier = true`. |
 | **`FilePath` / `FolderPath`** | Text box with native Windows file/folder browse dialog picker buttons. |
-| **`StringList`** | Editable multi-line list box supporting addition, deletion, and reordering. |
+| **`StringList`** | Editable multi-line list box supporting addition, deletion, reordering, and soft wrapping. Real line breaks are marked visually, but the markers are not part of the setting value. |
 | **`Group`** | Collapsible card grouping containing nested `SubFields`. |
 | **`CustomControl`** | Mounts a custom WPF `UIElement` control directly. |
 | **`Button`** | Renders an action button and invokes the field's `OnClick` delegate; it stores no setting value. |

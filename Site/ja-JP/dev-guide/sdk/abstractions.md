@@ -74,7 +74,7 @@ public interface IConfigurable
 | **`Choice`** | `Choices` または `ChoiceOptions` の一覧から選ぶドロップダウンリスト。 |
 | **`Hotkey`** | キー入力登録コントロール（`RequireModifier = true` で修飾キーを必須化可能）。 |
 | **`FilePath` / `FolderPath`** | 参照ダイアログボタン付きのパス入力コントロール。 |
-| **`StringList`** | 項目の追加・削除・並び替えが可能な複数行リスト。 |
+| **`StringList`** | 項目の追加・削除・並び替えと自動折り返しに対応した複数行リスト。実際の改行は表示上のマーカーで示され、設定値には含まれません。 |
 | **`Group`** | 折りたたみ可能なカード形式のサブフィールドグループ（`SubFields`）。 |
 | **`CustomControl`** | プラグインが作成したカスタム WPF `UIElement` を直接埋め込み。 |
 | **`Button`** | 操作ボタンを表示し、フィールドの `OnClick` デリゲートを呼び出します。設定値は保存しません。 |
