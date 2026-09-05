@@ -3,6 +3,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
                     xmlns:conv="clr-namespace:Lertaro.App.Converters"
+                    xmlns:services="clr-namespace:Lertaro.App.Services"
                     xmlns:local="clr-namespace:Lertaro.App.Views.Settings.Plugins">
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
@@ -77,6 +78,22 @@
         </StackPanel>
     </DataTemplate>
 
+    <DataTemplate x:Key="IconTextFieldTemplate">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="{Binding EditorWidth}" TextAlignment="{Binding TextAlignment}" Height="26" DataObject.Pasting="IconTextBox_OnPasting" LostFocus="IconTextBox_OnLostFocus">
+                <TextBox.ToolTip>
+                    <ToolTip>
+                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_IconInputTooltip]}" TextWrapping="Wrap" MaxWidth="360"/>
+                    </ToolTip>
+                </TextBox.ToolTip>
+            </TextBox>
+            <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" Visibility="{Binding IsIconField, Converter={StaticResource InvertBoolToVis}}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+            <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Visibility="{Binding IsIconField, Converter={StaticResource BoolToVis}}" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Path Data="{Binding Value}" Fill="{DynamicResource DefaultPluginIconColor}" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+            </Border>
+        </StackPanel>
+    </DataTemplate>
+
     <!-- Implicit ComboBox styling to match SettingsComboBox -->
     <Style TargetType="ComboBox" BasedOn="{StaticResource SettingsComboBox}">
         <Setter Property="Height" Value="26"/>
@@ -110,6 +127,10 @@
                         </DataTemplate>
                     </Setter.Value>
                 </Setter>
+            </DataTrigger>
+            <!-- Icon text fields get the SVG/XML paste converter directly. -->
+            <DataTrigger Binding="{Binding IsIconField}" Value="True">
+                <Setter Property="ContentTemplate" Value="{StaticResource IconTextFieldTemplate}"/>
             </DataTrigger>
             <!-- StringList fields -->
             <DataTrigger Binding="{Binding IsStringList}" Value="True">
