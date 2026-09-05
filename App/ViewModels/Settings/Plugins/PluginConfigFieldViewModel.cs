@@ -65,7 +65,7 @@ public class PluginConfigFieldViewModel : ViewModelBase
     public bool IsHotkey => FieldType == ConfigFieldType.Hotkey;
     public bool IsFilePath => FieldType == ConfigFieldType.FilePath;
     public bool IsFolderPath => FieldType == ConfigFieldType.FolderPath;
-    public bool SupportsInlineEditing => !HasLengthLimit && (IsText || IsStringList || IsFilePath || IsFolderPath);
+    public bool SupportsInlineEditing => IsText || IsInteger || IsStringList || IsFilePath || IsFolderPath;
     public bool IsCustomControl => FieldType == ConfigFieldType.CustomControl;
     public object? CustomControl => SchemaField.CustomControl;
     public bool IsButton => FieldType == ConfigFieldType.Button;

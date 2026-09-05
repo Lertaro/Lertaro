@@ -31,6 +31,9 @@ public partial class InlineEditorHost : UserControl
     public static readonly DependencyProperty IsEditingProperty = DependencyProperty.Register(
         nameof(IsEditing), typeof(bool), typeof(InlineEditorHost));
 
+    public static readonly DependencyProperty EditorReadOnlyProperty = DependencyProperty.Register(
+        nameof(EditorReadOnly), typeof(bool), typeof(InlineEditorHost));
+
     private Window? _editingWindow;
     private bool _closing;
 
@@ -64,6 +67,12 @@ public partial class InlineEditorHost : UserControl
         private set => SetValue(IsEditingProperty, value);
     }
 
+    public bool EditorReadOnly
+    {
+        get => (bool)GetValue(EditorReadOnlyProperty);
+        private set => SetValue(EditorReadOnlyProperty, value);
+    }
+
     public event RoutedEventHandler? EditCompleted;
 
     public InlineEditorHost()
@@ -88,7 +97,7 @@ public partial class InlineEditorHost : UserControl
 
     private void ScheduleExpansion(TextBox textBox)
     {
-        if (!AutoExpandEnabled || IsEditing || !textBox.IsKeyboardFocusWithin || textBox.IsReadOnly
+        if (!AutoExpandEnabled || IsEditing || !textBox.IsKeyboardFocusWithin
             || string.IsNullOrEmpty(textBox.Text) || (bool)textBox.GetValue(PendingProperty))
             return;
 
@@ -108,6 +117,7 @@ public partial class InlineEditorHost : UserControl
         var selectionStart = source.SelectionStart;
         var selectionLength = source.SelectionLength;
         EditorContent = DataContext;
+        EditorReadOnly = source.IsReadOnly;
         IsEditing = true;
         _editingWindow = Window.GetWindow(this);
         _editingWindow?.PreviewMouseDown += OnWindowPreviewMouseDown;
@@ -149,6 +159,7 @@ public partial class InlineEditorHost : UserControl
         _editingWindow = null;
 
         IsEditing = false;
+        EditorReadOnly = false;
         EditorContent = null;
         _closing = false;
         EditCompleted?.Invoke(this, new RoutedEventArgs());

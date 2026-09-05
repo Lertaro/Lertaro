@@ -17,7 +17,6 @@
     <local:EmptyStringToPlaceholderConverter x:Key="EmptyOrPlaceholder"/>
     <conv:ReferenceEqualsConverter x:Key="RefEquals"/>
     <local:BadgeFieldToVisibilityConverter x:Key="BadgeFieldToVis"/>
-
     <!-- Selectable row container for the array master list -->
     <Style x:Key="ArrayMasterListItemStyle" TargetType="ListBoxItem">
         <Setter Property="Padding" Value="0"/>
@@ -48,7 +47,6 @@
             </Setter.Value>
         </Setter>
     </Style>
-
     <!-- Plugin editors keep their compact dimensions while inheriting the app-wide TextBox chrome. -->
     <Style TargetType="TextBox" BasedOn="{StaticResource ThemedTextBox}">
         <Setter Property="Padding" Value="6,2"/>
@@ -57,8 +55,9 @@
     </Style>
     <DataTemplate x:Key="PluginInlineEditorTemplate">
         <Grid>
-            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" TextWrapping="Wrap"
-                     VerticalContentAlignment="Top" Padding="10,8" DataObject.Pasting="IconTextBox_OnPasting">
+            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}"
+                     IsReadOnly="{Binding EditorReadOnly, RelativeSource={RelativeSource AncestorType={x:Type ctrl:InlineEditorHost}}}"
+                     TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="10,8" DataObject.Pasting="IconTextBox_OnPasting">
                 <TextBox.Style>
                     <Style TargetType="TextBox" BasedOn="{StaticResource ThemedTextBox}">
                         <Style.Triggers>
@@ -67,7 +66,9 @@
                     </Style>
                 </TextBox.Style>
             </TextBox>
-            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" AcceptsReturn="True" AcceptsTab="True"
+            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}"
+                     IsReadOnly="{Binding EditorReadOnly, RelativeSource={RelativeSource AncestorType={x:Type ctrl:InlineEditorHost}}}"
+                     AcceptsReturn="True" AcceptsTab="True"
                      TextWrapping="NoWrap" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                      VerticalContentAlignment="Top" Padding="10,8" FontFamily="Cascadia Mono, Consolas">
                 <TextBox.Style>
@@ -86,7 +87,6 @@
                                     RequireModifier="{Binding HotkeyRequireModifier}"
                                     Width="180" Height="26"/>
     </DataTemplate>
-
     <DataTemplate x:Key="FilePathFieldTemplate">
         <StackPanel Orientation="Horizontal">
             <TextBox x:Name="PathEditor" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="150" Height="26"/>

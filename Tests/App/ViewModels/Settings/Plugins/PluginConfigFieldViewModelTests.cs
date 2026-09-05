@@ -52,7 +52,7 @@ public sealed class PluginConfigFieldViewModelTests
     }
 
     [TestMethod]
-    public void SupportsInlineEditing_ExcludesLimitedAndNonTextFields()
+    public void SupportsInlineEditing_AllowsLimitedTextAndIntegerFields()
     {
         var text = new PluginConfigFieldViewModel("plugin", Field(ConfigFieldType.Text, ""), new UserSettings(), () => { });
         var limited = Field(ConfigFieldType.Text, "");
@@ -61,8 +61,8 @@ public sealed class PluginConfigFieldViewModelTests
         var limitedText = new PluginConfigFieldViewModel("plugin", limited, new UserSettings(), () => { });
 
         Assert.IsTrue(text.SupportsInlineEditing);
-        Assert.IsFalse(limitedText.SupportsInlineEditing);
-        Assert.IsFalse(integer.SupportsInlineEditing);
+        Assert.IsTrue(limitedText.SupportsInlineEditing);
+        Assert.IsTrue(integer.SupportsInlineEditing);
     }
 
     [TestMethod]
