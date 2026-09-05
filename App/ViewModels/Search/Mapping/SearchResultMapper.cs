@@ -1,4 +1,3 @@
-using System.IO;
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 using Lertaro.App.ViewModels.Search.Dispatch;
@@ -274,51 +273,21 @@ public static class SearchResultMapper
     // record (hence the synthetic all-zero modified date some callers render for it), so every caller
     // that lists a directory's contents by path needs this same strip, not just the quick/inline windows.
     public static void RemoveQueriedDirectoryItself(List<SearchResult>? fileResults, string query)
-    {
-        if (fileResults == null)
-            return;
-
-        var normalizedQuery = GetQueriedDirectoryNormalized(query);
-        if (normalizedQuery == null)
-            return;
-
-        fileResults.RemoveAll(x => string.Equals(SearchResultHelper.NormalizePath(x.Path), normalizedQuery, StringComparison.OrdinalIgnoreCase));
-    }
+        => SearchResultDirectoryHelper.RemoveQueriedDirectoryItself(fileResults, query);
 
     // Single-result variant for streaming callers (e.g. AppSearchPipeService's per-item pipe callback)
     // that can't buffer into a list to RemoveAll from -- same rule, applied inline before a result is
     // ever handed to the caller.
     public static bool IsQueriedDirectoryItself(string path, string query)
-    {
-        var normalizedQuery = GetQueriedDirectoryNormalized(query);
-        return normalizedQuery != null && string.Equals(SearchResultHelper.NormalizePath(path), normalizedQuery, StringComparison.OrdinalIgnoreCase);
-    }
+        => SearchResultDirectoryHelper.IsQueriedDirectoryItself(path, query);
 
     // Same rule again, but resolved ONCE for a caller that then tests many results against it.
     // IsQueriedDirectoryItself re-derives this per call, and deriving it can hit the disk
     // (Directory.Exists) -- fine for the handful of results a streaming pipe callback sees, ruinous for
     // a caller filtering hundreds of thousands. Returns null when the query isn't a directory path at
     // all, which is the common case and means there is nothing to strip.
-    internal static string? GetQueriedDirectory(string query) => GetQueriedDirectoryNormalized(query);
+    internal static string? GetQueriedDirectory(string query) => SearchResultDirectoryHelper.GetQueriedDirectory(query);
 
     internal static bool IsQueriedDirectory(string path, string? normalizedQueriedDirectory) =>
-        normalizedQueriedDirectory != null &&
-        string.Equals(SearchResultHelper.NormalizePath(path), normalizedQueriedDirectory, StringComparison.OrdinalIgnoreCase);
-
-    private static string? GetQueriedDirectoryNormalized(string query)
-    {
-        if (string.IsNullOrWhiteSpace(query))
-            return null;
-        try
-        {
-            var trimmed = query.Trim();
-            var endsWithSeparator = trimmed.EndsWith("\\") || trimmed.EndsWith("/");
-            if (trimmed.EndsWith(":\\") || trimmed.EndsWith(":/") ||
-                (endsWithSeparator && (WslPath.IsPath(trimmed) || Directory.Exists(trimmed))))
-                return SearchResultHelper.NormalizePath(trimmed);
-        }
-        catch { }
-
-        return null;
-    }
+        SearchResultDirectoryHelper.IsQueriedDirectory(path, normalizedQueriedDirectory);
 }
