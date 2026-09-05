@@ -14,7 +14,7 @@ The keyword must be followed by a space. Replace `cs` with another keyword in th
 
 ## What gets indexed
 
-- **Monitored folders**: The plugin registers the configured local folders with the host index service. Initial and incremental discovery is performed through the SDK's indexed directory enumeration and debounced directory-change notifications; environment variables such as `%USERPROFILE%` are supported.
+- **Monitored folders**: The plugin registers the configured local folders with the host index service. Initial and incremental discovery is performed through the SDK's indexed directory enumeration and debounced directory-change notifications; each folder must be covered by a host local-drive or folder index, otherwise enumeration returns no files. Environment variables such as `%USERPROFILE%` are supported.
 - **File extensions**: The default list includes `txt`, `md`, `pdf`, `docx`, `docm`, `pptx`, `pptm`, `xlsx`, `xlsm`, and `csv`. You can change the comma-separated list to suit your files.
 - **PDF files**: Searchable page text and saved values from fillable PDF form fields are included.
 - **File size**: Files larger than the configured per-file limit are skipped. The content index also has a separate size cap; set it to `0` for unlimited size.

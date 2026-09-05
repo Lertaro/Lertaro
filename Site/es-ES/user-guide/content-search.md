@@ -14,7 +14,7 @@ La palabra clave debe ir seguida de un espacio. Si `cs` entra en conflicto con t
 
 ## Qué se indexa
 
-- **Carpetas supervisadas**: El plugin registra las carpetas locales configuradas en el servicio de índices del anfitrión. La detección inicial e incremental usa la enumeración de directorios indexados del SDK y notificaciones agrupadas de cambios de directorio; también admite variables de entorno como `%USERPROFILE%`.
+- **Carpetas supervisadas**: El plugin registra las carpetas locales configuradas en el servicio de índices del anfitrión. La detección inicial e incremental usa la enumeración de directorios indexados del SDK y notificaciones agrupadas de cambios de directorio; cada carpeta debe estar cubierta por un índice de unidad local o de carpeta del anfitrión, de lo contrario la enumeración no devuelve archivos. También admite variables de entorno como `%USERPROFILE%`.
 - **Extensiones**: De forma predeterminada se incluyen `txt`, `md`, `pdf`, `docx`, `docm`, `pptx`, `pptm`, `xlsx`, `xlsm` y `csv`. Puedes modificar la lista separada por comas.
 - **Archivos PDF**: Se busca tanto el texto extraíble de las páginas como los valores guardados de los campos de formularios PDF rellenables.
 - **Tamaño de archivo**: Los archivos que superen el límite por archivo se omiten. El índice de contenido tiene además un límite independiente; `0` significa sin límite.
