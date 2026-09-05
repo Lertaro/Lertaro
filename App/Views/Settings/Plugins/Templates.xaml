@@ -66,20 +66,20 @@
                     </Style>
                 </TextBox.Style>
             </TextBox>
-            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}"
+            <ctrl:LineBreakMarkerTextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}"
                      IsReadOnly="{Binding EditorReadOnly, RelativeSource={RelativeSource AncestorType={x:Type ctrl:InlineEditorHost}}}"
                      AcceptsReturn="True" AcceptsTab="True"
-                     TextWrapping="NoWrap" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                     TextWrapping="Wrap" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                      VerticalContentAlignment="Top" Padding="10,8" FontFamily="Cascadia Mono, Consolas">
-                <TextBox.Style>
-                    <Style TargetType="TextBox" BasedOn="{StaticResource ThemedTextBox}">
+                <ctrl:LineBreakMarkerTextBox.Style>
+                    <Style TargetType="{x:Type ctrl:LineBreakMarkerTextBox}" BasedOn="{StaticResource ThemedTextBox}">
                         <Setter Property="Visibility" Value="Collapsed"/>
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsStringList}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                         </Style.Triggers>
                     </Style>
-                </TextBox.Style>
-            </TextBox>
+                </ctrl:LineBreakMarkerTextBox.Style>
+            </ctrl:LineBreakMarkerTextBox>
         </Grid>
     </DataTemplate>
     <DataTemplate x:Key="HotkeyFieldTemplate">
