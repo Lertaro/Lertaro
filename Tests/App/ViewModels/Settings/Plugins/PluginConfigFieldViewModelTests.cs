@@ -41,6 +41,31 @@ public sealed class PluginConfigFieldViewModelTests
     }
 
     [TestMethod]
+    public void HasLengthLimit_ReflectsSchemaLimit()
+    {
+        var unlimited = Field(ConfigFieldType.Text, "");
+        var limited = Field(ConfigFieldType.Text, "");
+        limited.MaxLength = 1;
+
+        Assert.IsFalse(new PluginConfigFieldViewModel("plugin", unlimited, new UserSettings(), () => { }).HasLengthLimit);
+        Assert.IsTrue(new PluginConfigFieldViewModel("plugin", limited, new UserSettings(), () => { }).HasLengthLimit);
+    }
+
+    [TestMethod]
+    public void SupportsInlineEditing_ExcludesLimitedAndNonTextFields()
+    {
+        var text = new PluginConfigFieldViewModel("plugin", Field(ConfigFieldType.Text, ""), new UserSettings(), () => { });
+        var limited = Field(ConfigFieldType.Text, "");
+        limited.MaxLength = 1;
+        var integer = new PluginConfigFieldViewModel("plugin", Field(ConfigFieldType.Integer, 0), new UserSettings(), () => { });
+        var limitedText = new PluginConfigFieldViewModel("plugin", limited, new UserSettings(), () => { });
+
+        Assert.IsTrue(text.SupportsInlineEditing);
+        Assert.IsFalse(limitedText.SupportsInlineEditing);
+        Assert.IsFalse(integer.SupportsInlineEditing);
+    }
+
+    [TestMethod]
     public void ChoiceItems_UseLocalizedLabelsAndStableValues()
     {
         var field = Field(ConfigFieldType.Choice, "FriendlyName");

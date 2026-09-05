@@ -56,8 +56,32 @@
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="FontSize" Value="12"/>
     </Style>
-
-
+    <DataTemplate x:Key="PluginInlineEditorTemplate">
+        <Grid>
+            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" TextWrapping="Wrap"
+                     VerticalContentAlignment="Top" Padding="10,8" DataObject.Pasting="IconTextBox_OnPasting">
+                <TextBox.Style>
+                    <Style TargetType="TextBox" BasedOn="{StaticResource ThemedTextBox}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsStringList}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBox.Style>
+            </TextBox>
+            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" AcceptsReturn="True" AcceptsTab="True"
+                     TextWrapping="NoWrap" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                     VerticalContentAlignment="Top" Padding="10,8" FontFamily="Cascadia Mono, Consolas">
+                <TextBox.Style>
+                    <Style TargetType="TextBox" BasedOn="{StaticResource ThemedTextBox}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsStringList}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBox.Style>
+            </TextBox>
+        </Grid>
+    </DataTemplate>
     <DataTemplate x:Key="HotkeyFieldTemplate">
         <ctrl:HotkeyRecorderControl Value="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                     RequireModifier="{Binding HotkeyRequireModifier}"
@@ -66,14 +90,14 @@
 
     <DataTemplate x:Key="FilePathFieldTemplate">
         <StackPanel Orientation="Horizontal">
-            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="150" Height="26"/>
+            <TextBox x:Name="PathEditor" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="150" Height="26"/>
             <Button Content="..." Style="{StaticResource SettingsButton}" MinWidth="0" Padding="4,0" Width="28" Height="26" Margin="4,0,0,0" Tag="File" Click="BrowsePath_Click"/>
         </StackPanel>
     </DataTemplate>
 
     <DataTemplate x:Key="FolderPathFieldTemplate">
         <StackPanel Orientation="Horizontal">
-            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="150" Height="26"/>
+            <TextBox x:Name="PathEditor" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="150" Height="26"/>
             <Button Content="..." Style="{StaticResource SettingsButton}" MinWidth="0" Padding="4,0" Width="28" Height="26" Margin="4,0,0,0" Tag="Folder" Click="BrowsePath_Click"/>
         </StackPanel>
     </DataTemplate>

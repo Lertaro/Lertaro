@@ -35,6 +35,7 @@ public class PluginConfigFieldViewModel : ViewModelBase
         ? SchemaField.ChoiceOptions.Select(choice => new PluginConfigChoiceItem(choice.Value, ResolveText(choice.LabelKey))).ToList()
         : SchemaField.Choices?.Select(choice => new PluginConfigChoiceItem(choice, ResolveText(choice))).ToList() ?? [];
     public int MaxLength => SchemaField.MaxLength > 0 ? SchemaField.MaxLength : int.MaxValue;
+    public bool HasLengthLimit => SchemaField.MaxLength > 0;
     public bool IsSingleChar => SchemaField.MaxLength == 1;
     public double EditorWidth => IsSingleChar ? 48 : 180;
     public System.Windows.TextAlignment TextAlignment => IsSingleChar ? System.Windows.TextAlignment.Center : System.Windows.TextAlignment.Left;
@@ -64,6 +65,7 @@ public class PluginConfigFieldViewModel : ViewModelBase
     public bool IsHotkey => FieldType == ConfigFieldType.Hotkey;
     public bool IsFilePath => FieldType == ConfigFieldType.FilePath;
     public bool IsFolderPath => FieldType == ConfigFieldType.FolderPath;
+    public bool SupportsInlineEditing => !HasLengthLimit && (IsText || IsStringList || IsFilePath || IsFolderPath);
     public bool IsCustomControl => FieldType == ConfigFieldType.CustomControl;
     public object? CustomControl => SchemaField.CustomControl;
     public bool IsButton => FieldType == ConfigFieldType.Button;

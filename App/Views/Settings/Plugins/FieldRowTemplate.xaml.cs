@@ -1,5 +1,10 @@
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
+using Lertaro.App.Services;
+using Lertaro.App.ViewModels.Settings.Plugins;
+using Lertaro.App.Views.Controls;
+using Lertaro.App.Views.Controls.Dialogs;
 
 namespace Lertaro.App.Views.Settings.Plugins;
 
@@ -9,6 +14,20 @@ namespace Lertaro.App.Views.Settings.Plugins;
 // depend on PluginConfigWindow's own state.
 public partial class PluginConfigFieldRowTemplate : ResourceDictionary
 {
+    private void InlineEditorHost_EditCompleted(object sender, RoutedEventArgs e)
+    {
+        if (sender is not InlineEditorHost { DataContext: PluginConfigFieldViewModel { IsIconField: true } field } host
+            || SvgIconInputHelper.IsValidPathData(field.Value?.ToString()))
+            return;
+
+        field.Value = string.Empty;
+        var owner = Window.GetWindow(host);
+        var message = TranslationManager.Instance["Plugins_IconConversionError"];
+        var caption = TranslationManager.Instance["Plugins_IconConversionErrorTitle"];
+        host.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            CustomMessageBox.Show(owner, message, caption, MessageBoxButton.OK, MessageBoxImage.Error)));
+    }
+
     // Brings the newly-added (and newly-selected) row into view when the master list has more
     // items than fit -- otherwise Add silently appends off-screen below the visible scroll area.
     private void ArrayMasterList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -112,7 +131,7 @@ public partial class PluginConfigFieldRowTemplate : ResourceDictionary
 
     private static void TriggerWindowResizeToFit(object sender)
     {
-        if (sender is FrameworkElement element && Window.GetWindow(element) is Controls.Dialogs.PluginFieldPromptWindow promptWindow)
+        if (sender is FrameworkElement element && Window.GetWindow(element) is PluginFieldPromptWindow promptWindow)
         {
             promptWindow.ResizeToFit();
         }
@@ -124,7 +143,7 @@ public partial class PluginConfigFieldRowTemplate : ResourceDictionary
         if (VisualTreeHelper.GetParent(detailPanel) is not System.Windows.Controls.Grid parentGrid) return;
 
         var masterGrid = parentGrid.Children.OfType<System.Windows.Controls.Grid>()
-            .FirstOrDefault(g => g.Name == "ArrayMasterListGrid");
+            .FirstOrDefault(g => System.Windows.Controls.Grid.GetColumn(g) == 0);
         if (masterGrid == null) return;
 
         // An empty array has no selected item, so the detail panel collapses to zero height. Don't

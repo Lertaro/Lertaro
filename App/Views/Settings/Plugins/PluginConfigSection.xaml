@@ -9,11 +9,6 @@
              xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
              mc:Ignorable="d"
              d:DesignHeight="300" d:DesignWidth="620">
-    <!-- The plugin config editor, lifted out of the modal PluginConfigWindow it used to be the body of
-         so it can render inline in the plugin's own card instead. Nothing about the fields themselves
-         changed: they are still the recursive, schema-driven rows from FieldRowTemplate.xaml, which
-         PluginFieldPromptWindow also uses. What changed is only the host, and with it the two bindings
-         that used to reach for an ancestor Window. -->
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -28,6 +23,7 @@
                  of the same stateless converter. -->
             <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
             <conv:BoolToVisibilityConverter x:Key="InvertBoolToVis" Invert="True"/>
+            <conv:NullToVisibilityConverter x:Key="NullToVis"/>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -103,15 +99,10 @@
             <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,12"/>
         </StackPanel>
 
-        <!-- Scrollable content area: also contains non-group fields when no sub-tabs exist. -->
-        <ScrollViewer Grid.Row="2" Margin="0,4,0,0"
-                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer Grid.Row="2" Margin="0,4,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
-                <!-- 2+ top-level Groups: active group's children -->
                 <ItemsControl ItemsSource="{Binding ActiveConfigGroupChildren}"
                               Visibility="{Binding HasMultipleConfigGroups, Converter={StaticResource BoolToVis}}"/>
-
-                <!-- 0 or 1 Groups: flat group rendering (includes non-group fields and group flat) -->
                 <ItemsControl ItemsSource="{Binding FlatConfigFields}"
                               Visibility="{Binding HasMultipleConfigGroups, Converter={StaticResource InvertBoolToVis}}"/>
             </StackPanel>

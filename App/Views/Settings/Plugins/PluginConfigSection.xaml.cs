@@ -3,8 +3,7 @@ using UserControl = System.Windows.Controls.UserControl;
 
 namespace Lertaro.App.Views.Settings.Plugins;
 
-// The plugin config editor as it appears inside a plugin's card. All of the behavior lives in the
-// XAML's bindings and in FieldRowTemplate's own handlers, so there is nothing here but the load.
+// Hosts the schema-driven plugin configuration field list.
 public partial class PluginConfigSection : UserControl
 {
     public PluginConfigSection() => InitializeComponent();

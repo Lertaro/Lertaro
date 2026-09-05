@@ -3,7 +3,8 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:services="clr-namespace:Lertaro.App.Services"
                     xmlns:vm="clr-namespace:Lertaro.App.ViewModels.Settings.Plugins"
-                    xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals">
+                    xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+                    xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls">
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="Templates.xaml"/>
         <ResourceDictionary Source="CustomControlStyles.xaml"/>
@@ -11,6 +12,10 @@
 
     <!-- Implicit DataTemplate for recursive/nested plugin config fields rendering -->
     <DataTemplate DataType="{x:Type vm:PluginConfigFieldViewModel}">
+        <ctrl:InlineEditorHost AutoExpandEnabled="{Binding SupportsInlineEditing}"
+                               EditorTemplate="{StaticResource PluginInlineEditorTemplate}"
+                               EditCompleted="InlineEditorHost_EditCompleted">
+        <ctrl:InlineEditorHost.NormalContent>
         <Border Style="{StaticResource SettingsRow}" Padding="8,6" Margin="0,0,0,6">
             <Grid>
                 <Grid.RowDefinitions>
@@ -99,11 +104,11 @@
                          re-inflating the nested descriptions this whole change was about. MinWidth
                          is what keeps it scrollable rather than squeezed once the pane drops below
                          the column total. -->
-                    <ScrollViewer x:Name="ArrayScroll" Margin="8,0,0,0"
+                    <ScrollViewer Margin="8,0,0,0"
                                   HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                                   PreviewMouseWheel="ArrayScroll_PreviewMouseWheel"
                                   Visibility="{Binding IsObjectArray, Converter={StaticResource BoolToVis}}">
-                    <Grid MinWidth="496" Width="{Binding ViewportWidth, ElementName=ArrayScroll}">
+                    <Grid MinWidth="496" Width="{Binding ViewportWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
                         <!-- Both sides are proportional so extra pane width is shared rather than
                              landing entirely on the detail panel, which is what a fixed master
                              column did. The detail side still grows faster: it holds labelled
@@ -121,7 +126,7 @@
                              in sync from code-behind, see ArrayDetailPanel_Loaded) so only the
                              ListBox itself scrolls. Add sits on the list's header, where it stays put
                              as the list grows, rather than under a list whose bottom edge moves. -->
-                        <Grid x:Name="ArrayMasterListGrid" Grid.Column="0">
+                        <Grid Grid.Column="0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
@@ -211,7 +216,7 @@
                              then mirrors onto ArrayMasterListGrid: a pure Grid-Auto-row approach
                              here creates a feedback loop where a tall item list on the left drags
                              this panel's height up with it instead of staying at its own size. -->
-                        <Border x:Name="ArrayDetailPanel" Grid.Column="2" VerticalAlignment="Top" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="1,0,0,0" Padding="12,0,0,0"
+                        <Border Grid.Column="2" VerticalAlignment="Top" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="1,0,0,0" Padding="12,0,0,0"
                                 Visibility="{Binding SelectedArrayItem, Converter={StaticResource NullToVis}}"
                                 Loaded="ArrayDetailPanel_Loaded" SizeChanged="ArrayDetailPanel_SizeChanged">
                             <StackPanel DataContext="{Binding SelectedArrayItem}">
@@ -246,5 +251,7 @@
                 </StackPanel>
             </Grid>
         </Border>
+        </ctrl:InlineEditorHost.NormalContent>
+        </ctrl:InlineEditorHost>
     </DataTemplate>
 </ResourceDictionary>
