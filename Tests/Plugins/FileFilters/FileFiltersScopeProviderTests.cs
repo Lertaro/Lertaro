@@ -151,4 +151,18 @@ public sealed class FileFiltersScopeProviderTests
 
         Assert.AreEqual(1, _settingReads);
     }
+
+    [TestMethod]
+    public void Dispose_UnsubscribesFromSettingChanges()
+    {
+        ConfigureFilters(new() { new() { Keyword = "tf", Folders = { @"C:\Movies" } } });
+        using var provider = new FileFiltersScopeProvider();
+        _ = provider.GetSearchScopes();
+
+        ConfigureFilters(new() { new() { Keyword = "doc", Folders = { @"D:\Docs" } } });
+        provider.Dispose();
+        PluginSettingsService.NotifySettingChanged(PluginId, "Filters");
+
+        Assert.AreEqual("tf", provider.GetSearchScopes().Single().Keyword);
+    }
 }

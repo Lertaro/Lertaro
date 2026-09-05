@@ -40,7 +40,7 @@ public class SearchService : IDisposable
     // covers results that are already indexed -- content that was never indexed in the first place (an
     // excluded/unconfigured network or WSL root, or a local drive not enabled for indexing) has nothing
     // to unfilter here; recovering that is CheckNeedsLiveSearch's live-scan fallback's job instead.
-    public async Task<bool> SearchStreamingAsync(string query, int maxResults, int maxAppResults, string? directoryFilter, Action<SearchResult> onResult, CancellationToken token = default, Action? onLocalSearchFailed = null, bool bypassExclusions = false)
+    public async Task<bool> SearchStreamingAsync(string query, int maxResults, int maxAppResults, string? directoryFilter, Action<SearchResult> onResult, CancellationToken token = default, Action? onLocalSearchFailed = null, bool bypassExclusions = false, string? fileNameFilter = null)
     {
         var settings = UserSettings.Load();
         var exclusionRules = ExclusionRuleSet.From(settings);
@@ -60,7 +60,8 @@ public class SearchService : IDisposable
             ExactMatch = !settings.EnableFuzzyMatch,
             DisabledAliasComponents = settings.DisabledPluginComponents
                 .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))
-                .ToList()
+                .ToList(),
+            FileNameFilter = fileNameFilter
         };
 
         HashSet<byte>? disabledIds = null;
@@ -130,7 +131,7 @@ public class SearchService : IDisposable
         {
             try
             {
-                return SearchServiceHelper.SearchNetworkDrives(query, fileCandidateLimit, directoryFilter, exclusionRules, effectiveBypassExclusions, uniqueOnResult, token);
+                return SearchServiceHelper.SearchNetworkDrives(query, fileCandidateLimit, directoryFilter, exclusionRules, effectiveBypassExclusions, uniqueOnResult, token, fileNameFilter);
             }
             catch (OperationCanceledException)
             {

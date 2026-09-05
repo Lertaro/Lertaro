@@ -10,8 +10,17 @@ namespace Lertaro.Core.Services.Search;
 // SearchService.cs under the repo's per-file line limit.
 public static class SearchServiceManagementExtensions
 {
-    public static void RefreshNetworkIndexes(this SearchService service) => UserNetworkDriveSearch.Refresh();
-    public static void ConfigureNetworkIndexes(this SearchService service) => UserNetworkDriveSearch.Configure();
+    public static void RefreshNetworkIndexes(this SearchService service)
+    {
+        UserNetworkDriveSearch.Refresh();
+        SearchScopeCoverage.Invalidate();
+    }
+
+    public static void ConfigureNetworkIndexes(this SearchService service)
+    {
+        UserNetworkDriveSearch.Configure();
+        SearchScopeCoverage.Invalidate();
+    }
     public static bool RefreshNetworkDriveIndex(this SearchService service, string drive) => UserNetworkDriveSearch.RefreshDrive(drive);
     public static bool CancelNetworkDriveIndex(this SearchService service, string drive) => UserNetworkDriveSearch.CancelDrive(drive);
     public static IReadOnlyList<NetworkIndexStatus> GetNetworkIndexStatuses(this SearchService service) => UserNetworkDriveSearch.GetStatuses();
@@ -64,6 +73,7 @@ public static class SearchServiceManagementExtensions
     public static async Task<bool> SaveMachineSettingsAsync(this SearchService service, MachineSettings settings, CancellationToken token = default)
     {
         var resp = await service.SendPipeCommandAsync(new SearchRequestMessage { Id = SearchRequestId.SetMachineSettings, MachineSettings = settings }, token).ConfigureAwait(false);
+        SearchScopeCoverage.Invalidate();
         return resp.Kind == PipeResponseKind.Ok;
     }
 

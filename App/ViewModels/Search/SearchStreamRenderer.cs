@@ -51,8 +51,8 @@ internal sealed class SearchStreamRenderer
         var copiedCount = 0;
         var streamDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        // Scoped searches answer from N per-folder engine queries fanned out concurrently, so the same
-        // file can arrive from two overlapping configured folders -- dedupe by path at accumulation.
+        // Scoped searches answer from N per-folder engine queries, so the same file can arrive from two
+        // overlapping configured folders -- dedupe by path at accumulation.
         var seenPaths = scopeDirective is { Folders.Count: > 0 } ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
         var scopePatterns = scopeDirective is { Folders.Count: > 0 }
             ? FilterPatternHelper.SplitOrNullIfMatchAll(scopeDirective.FilterPattern)
@@ -205,7 +205,7 @@ internal sealed class SearchStreamRenderer
 
             if (scopeDirective is { Folders.Count: > 0 })
             {
-                await SearchScopedFoldersAsync(scopeDirective, query, fileLimit, appLimit, Accumulate,
+                await ScopedSearchRunner.RunAsync(_searchService, scopeDirective, query, fileLimit, appLimit, Accumulate,
                     () => _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                     {
                         if (!token.IsCancellationRequested && searchVersion == _getSearchVersion())
@@ -266,45 +266,4 @@ internal sealed class SearchStreamRenderer
         return source.GetRange(start, end - start);
     }
 
-    // One scoped engine query per configured folder, run concurrently and merged into the shared
-    // accumulator. Each call is a full SearchService.SearchStreamingAsync with that folder as its
-    // directoryFilter, so every source-specific behavior (local service index, in-process network/
-    // folder indexes, live-scan of partially indexed scopes, exclusion rules, fuzzy/alias settings)
-    // is exactly what an unscoped search already does -- just restricted per folder.
-    private async Task SearchScopedFoldersAsync(
-        FileFilterScopeDirective directive,
-        string query,
-        int fileLimit,
-        int appLimit,
-        Action<SearchResult> onResult,
-        Action onLocalSearchFailed,
-        bool bypassExclusions,
-        CancellationToken token)
-    {
-        var tasks = directive.Folders.Select(folder => Task.Run(async () =>
-        {
-            try
-            {
-                await _searchService.SearchStreamingAsync(query, fileLimit, appLimit, folder, onResult, token, onLocalSearchFailed, bypassExclusions).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Logger.Log($"[SearchStreamRenderer] Scoped search of '{folder}' failed: {ex.Message}", LogLevel.Warn);
-            }
-        }, token)).ToArray();
-
-        try
-        {
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            // Superseded or window-closed: the engine's caller treats this as a silent stop, same as
-            // an unscoped search's cancellation.
-        }
-    }
 }

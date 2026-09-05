@@ -2,6 +2,7 @@ using Lertaro.Core.SearchIndex.Fzf;
 
 using Lertaro.Core.IndexV2.Search.PathMode;
 using Lertaro.Core.SearchIndex.Query;
+using Lertaro.Core.Services.Plugin.DirectoryIndex;
 namespace Lertaro.Core.IndexV2.Search;
 
 // Top-level search entry point for a single drive's LiveIndex, mirroring Searcher.SearchStreaming's
@@ -10,7 +11,7 @@ namespace Lertaro.Core.IndexV2.Search;
 // the whole search sees one consistent (Snapshot, DeltaOverlay) pair.
 public static class IndexV2Searcher
 {
-    public static void SearchStreaming(LiveIndex index, string query, int limit, Action<SearchResult> onResult, CancellationToken token, string? directoryFilter = null)
+    public static void SearchStreaming(LiveIndex index, string query, int limit, Action<SearchResult> onResult, CancellationToken token, string? directoryFilter = null, string? fileNameFilter = null)
     {
         if (limit <= 0 || string.IsNullOrWhiteSpace(query))
             return;
@@ -29,7 +30,8 @@ public static class IndexV2Searcher
             }
 
             var pattern = FzfPattern.Parse(query);
-            NameSearch.SearchStreaming(snapshot, delta, pattern, limit, onResult, token, directoryFilterLower);
+            NameSearch.SearchStreaming(snapshot, delta, pattern, limit, onResult, token, directoryFilterLower,
+                FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter));
             return null;
         });
     }

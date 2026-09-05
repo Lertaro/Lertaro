@@ -10,7 +10,8 @@ internal static class SearchServiceHelper
         ExclusionRuleSet exclusionRules,
         bool bypassExclusions,
         Action<SearchResult> onResult,
-        CancellationToken token)
+        CancellationToken token,
+        string? fileNameFilter = null)
     {
         try
         {
@@ -23,7 +24,7 @@ internal static class SearchServiceHelper
                     Interlocked.Increment(ref found);
                     onResult(result);
                 }
-            }, token, directoryFilter);
+            }, token, directoryFilter, fileNameFilter);
 
             return found > 0;
         }

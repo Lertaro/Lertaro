@@ -24,9 +24,12 @@ public sealed class SearchScopeCoverageTests
     }
 
     [TestMethod]
-    public void LocalPath_NeedsAnEnabledDrive_AndIgnoresInProcessRoots()
+    public void LocalPath_IsCoveredByAnInProcessFolderRoot() => Assert.IsTrue(SearchScopeCoverage.DecideCovered(isWsl: false, isNetworkSource: false, hasInProcessRoot: true, isLocalDriveEnabled: false));
+
+    [TestMethod]
+    public void LocalPath_WithoutFolderRoot_NeedsAnEnabledDrive()
     {
-        Assert.IsTrue(SearchScopeCoverage.DecideCovered(isWsl: false, isNetworkSource: false, hasInProcessRoot: true, isLocalDriveEnabled: true));
-        Assert.IsFalse(SearchScopeCoverage.DecideCovered(isWsl: false, isNetworkSource: false, hasInProcessRoot: true, isLocalDriveEnabled: false), "an in-process folder root must not vouch for a local path");
+        Assert.IsTrue(SearchScopeCoverage.DecideCovered(isWsl: false, isNetworkSource: false, hasInProcessRoot: false, isLocalDriveEnabled: true));
+        Assert.IsFalse(SearchScopeCoverage.DecideCovered(isWsl: false, isNetworkSource: false, hasInProcessRoot: false, isLocalDriveEnabled: false));
     }
 }

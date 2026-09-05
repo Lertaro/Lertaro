@@ -25,7 +25,8 @@ public sealed class SearchRequestBinarySerializerTests
                 DirectoryFilter = @"C:\docs",
                 Limit = 51,
                 AppLimit = 51,
-                ExactMatch = true
+                ExactMatch = true,
+                FileNameFilter = "*.exe;*.lnk"
             });
 
             Assert.IsTrue(result.ExactMatch, $"{id} lost the flag");
@@ -33,6 +34,7 @@ public sealed class SearchRequestBinarySerializerTests
             // whatever precedes it rather than only the flag itself.
             Assert.AreEqual("report", result.Query);
             Assert.AreEqual(51, result.Limit);
+            Assert.AreEqual("*.exe;*.lnk", result.FileNameFilter);
         }
     }
 

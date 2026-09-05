@@ -1,12 +1,10 @@
 using System.Runtime.InteropServices;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Fzf;
-
 using Lertaro.Core.IndexV2.Delta;
-
 using Lertaro.Core.IndexV2.Persistence;
+using Lertaro.Core.Services.Plugin.DirectoryIndex;
 namespace Lertaro.Core.IndexV2.Search;
-
 // Name-mode search: phase A matches unique names (SearchMatcher) + delta rows (renamed/added, matched
 // individually since they aren't folded into the unique table until compaction); phase B fans each
 // matched unique out through the uid->rows CSR and ranks everything with FzfTopN. Delta rows rank
@@ -16,7 +14,6 @@ namespace Lertaro.Core.IndexV2.Search;
 internal static class NameSearch
 {
     private static readonly FzfPatternResult EmptyPatternMatch = new(0, int.MaxValue, int.MaxValue, 0, false);
-
     // The scan keeps a WIDER unweighted top-N than what gets displayed, and only that headroom set gets
     // refined with the real percentage*consecutiveness weight (HighlightMask.ComputeWeight) afterward.
     // The weight is far too expensive to compute per candidate inside the hot scan -- it is dominated by
@@ -25,7 +22,7 @@ internal static class NameSearch
     private const int RefinementHeadroomFactor = 5;
 
     public static void SearchStreaming(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, int limit,
-        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower)
+        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, string[]? fileNamePatterns = null)
     {
         if (!DriveAdmits(snapshot, pattern, out var matchAll))
             return;
@@ -48,7 +45,7 @@ internal static class NameSearch
             ? keep
             : (int)Math.Min((long)keep * RefinementHeadroomFactor, everything);
         var topN = new FzfTopN(Math.Max(scanKeep, 1));
-        CollectRanks(snapshot, delta, pattern, matchAll, directoryContext, topN, token);
+        CollectRanks(snapshot, delta, pattern, matchAll, directoryContext, topN, token, fileNamePatterns);
 
         var ranks = topN.Finish(scanKeep);
         if (!matchAll && !pattern.IsEmpty)
@@ -176,7 +173,7 @@ internal static class NameSearch
         return delta.GetFullPath(row).StartsWith(ctx.FilterLower, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void CollectRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, CancellationToken token)
+    private static void CollectRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, CancellationToken token, string[]? fileNamePatterns)
     {
         var membership = ctx.FilterLower != null ? new Dictionary<int, bool>() : null;
 
@@ -200,12 +197,18 @@ internal static class NameSearch
                 var utf8 = snapshot.UniqueNameUtf8(uid);
                 if (utf8.Length == 0)
                     continue;
+                if (fileNamePatterns != null
+                    && !FilterPatternHelper.Matches(snapshot.GetUniqueName(uid), fileNamePatterns)
+                    && !SearchMatcher.HasDirectoryRow(snapshot, uid))
+                    continue;
                 var sortKey = MatchAllSortKey(snapshot, uid, worker, utf8);
                 foreach (var row in snapshot.RowsForUid(uid))
                 {
                     if ((flags[row] & deletedFlag) != 0 || (mayBeSuperseded && delta.IsSuperseded(row)))
                         continue;
                     if (membership != null && !RowMatchesFilter(snapshot, delta, row, ctx, membership))
+                        continue;
+                    if (!MatchesFileScope(snapshot, delta, row, fileNamePatterns))
                         continue;
                     topN.Add(new FzfRank(row, 0, sortKey));
                 }
@@ -215,7 +218,7 @@ internal static class NameSearch
         else
         {
             var hits = SearchMatcher.RentHitList();
-            SearchMatcher.MatchUniques(snapshot, pattern, hits, token);
+            SearchMatcher.MatchUniques(snapshot, pattern, hits, token, fileNamePatterns);
             foreach (var m in hits)
             {
                 foreach (var row in snapshot.RowsForUid(m.Uid))
@@ -223,6 +226,8 @@ internal static class NameSearch
                     if ((flags[row] & deletedFlag) != 0 || (mayBeSuperseded && delta.IsSuperseded(row)))
                         continue;
                     if (membership != null && !RowMatchesFilter(snapshot, delta, row, ctx, membership))
+                        continue;
+                    if (!MatchesFileScope(snapshot, delta, row, fileNamePatterns))
                         continue;
                     // The per-unique sort key applies verbatim to every row of that unique --
                     // EntryIndex isn't packed into the key, so nothing is recomputed per row.
@@ -232,8 +237,18 @@ internal static class NameSearch
             SearchMatcher.ReturnHitList(hits);
         }
 
-        MatchDeltaRows(snapshot, delta, pattern, matchAll, ctx, topN);
+        MatchDeltaRows(snapshot, delta, pattern, matchAll, ctx, topN, fileNamePatterns);
     }
+
+    private static bool MatchesFileScope(Snapshot snapshot, DeltaOverlay delta, int row, string[]? patterns)
+        => patterns == null || IsDirectory(snapshot, delta, row) || FilterPatternHelper.Matches(delta.NameOf(row), patterns);
+    private static bool IsDirectory(Snapshot snapshot, DeltaOverlay delta, int row)
+        => delta.BaseOverrides.TryGetValue(row, out var record)
+            ? (record.Flags & (ushort)FileRecordFlags.Directory) != 0
+            : snapshot.IsDirectory(row);
+
+    private static bool MatchesFileScope(string name, ushort flags, string[]? patterns)
+        => patterns == null || (flags & (ushort)FileRecordFlags.Directory) != 0 || FilterPatternHelper.Matches(name, patterns);
 
     private static ulong MatchAllSortKey(Snapshot snapshot, int uid, SearchMatcher.Worker worker, ReadOnlySpan<byte> utf8)
     {
@@ -248,7 +263,7 @@ internal static class NameSearch
     // Delta churn is always small (live USN/watcher batches, not bulk scans), so both loops just check
     // the row's own full path against the filter prefix -- correct for renamed/moved/added rows alike,
     // unlike the row-index ancestor cache above (a snapshot-only optimization for the hot base-row path).
-    private static void MatchDeltaRows(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN)
+    private static void MatchDeltaRows(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, string[]? fileNamePatterns)
     {
         var slab = new FzfSlab();
         var queryLen = pattern.GetTotalTermLength();
@@ -256,6 +271,8 @@ internal static class NameSearch
         foreach (var (row, record) in delta.BaseOverrides)
         {
             if (record.Name.Length == 0)
+                continue;
+            if (!MatchesFileScope(record.Name, record.Flags, fileNamePatterns))
                 continue;
             var match = EmptyPatternMatch;
             if (!matchAll && !SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, queryLen, slab, out match))
@@ -268,6 +285,8 @@ internal static class NameSearch
         {
             var record = delta.Added[i];
             if (record.Removed || record.Name.Length == 0)
+                continue;
+            if (!MatchesFileScope(record.Name, record.Flags, fileNamePatterns))
                 continue;
             var match = EmptyPatternMatch;
             if (!matchAll && !SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, queryLen, slab, out match))

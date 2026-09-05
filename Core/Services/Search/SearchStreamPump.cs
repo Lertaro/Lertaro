@@ -85,7 +85,8 @@ public static class SearchStreamPump
                     var directory = msg.Id == SearchRequestId.SearchDir ? msg.DirectoryFilter : null;
 
                     engine?.SearchStreaming(msg.Query ?? string.Empty, msg.Limit, msg.AppLimit, directory,
-                        result => channel.Writer.WriteAsync(result, queryToken).AsTask().GetAwaiter().GetResult(), queryToken);
+                        result => channel.Writer.WriteAsync(result, queryToken).AsTask().GetAwaiter().GetResult(), queryToken,
+                        msg.FileNameFilter);
                     channel.Writer.TryComplete();
                 }
                 catch (Exception ex)

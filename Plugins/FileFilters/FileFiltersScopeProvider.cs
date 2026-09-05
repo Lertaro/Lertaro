@@ -8,7 +8,7 @@ namespace Lertaro.Plugins.FileFilters;
 // Deliberately no filesystem access at all -- no registration, no watcher, no enumeration: the
 // host's index answers scoped searches at query time (see FileFilterScopeResolver on the App side),
 // which is what keeps a scope's memory flat no matter how big its folders are.
-public class FileFiltersScopeProvider : ISearchScopeProvider
+public class FileFiltersScopeProvider : ISearchScopeProvider, IDisposable
 {
     public string Name => TranslationService.Get("FileFilters_ProviderName");
     public string Description => TranslationService.Get("Plugin_Comp_Desc_FileFiltersScopeProvider");
@@ -17,6 +17,7 @@ public class FileFiltersScopeProvider : ISearchScopeProvider
     // changes through PluginSettingsService (invalidation below). A torn read across threads costs
     // at most one redundant rebuild, so no lock.
     private IReadOnlyList<SearchScope>? _scopes;
+    private int _disposed;
 
     public FileFiltersScopeProvider() => PluginSettingsService.SettingChanged += OnSettingChanged;
 
@@ -66,6 +67,13 @@ public class FileFiltersScopeProvider : ISearchScopeProvider
         if (string.Equals(pluginId, "Lertaro.Plugins.FileFilters", StringComparison.OrdinalIgnoreCase)
             && string.Equals(key, "Filters", StringComparison.OrdinalIgnoreCase))
             _scopes = null;
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            PluginSettingsService.SettingChanged -= OnSettingChanged;
+        GC.SuppressFinalize(this);
     }
 
     // Mirrors the config schema in FileFiltersPlugin.cs; the shape is what the settings UI's generic

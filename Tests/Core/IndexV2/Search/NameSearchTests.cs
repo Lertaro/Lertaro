@@ -24,4 +24,22 @@ public sealed class NameSearchTests
 
         Assert.IsLessThan(0, SearchResultRankComparer.Instance.Compare(wholeName, ancestorCompleted));
     }
+
+    [TestMethod]
+    public void SearchStreaming_FileNameFilterIsAppliedBeforeTheCandidateLimit()
+    {
+        using var fixture = LiveIndexFixture.Build("Z", new[]
+        {
+            LiveIndexFixture.Root(),
+            new FileRecord(2, 1, "Archive.txt", FileRecordFlags.None),
+            new FileRecord(3, 1, "Archive.md", FileRecordFlags.None),
+        });
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, "archive", 1, results.Add, CancellationToken.None,
+            fileNameFilter: "*.md");
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual("Archive.md", results[0].Name);
+    }
 }

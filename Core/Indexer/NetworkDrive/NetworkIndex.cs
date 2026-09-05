@@ -173,13 +173,13 @@ internal sealed class NetworkIndex : IDisposable
         _live.Compact(path, stamp, force: true);
     }
 
-    public void SearchStreaming(ParsedSearchQuery parsed, string rawQuery, string? directoryFilterLower, int limit, Action<SearchResult> onResult, CancellationToken token)
+    public void SearchStreaming(ParsedSearchQuery parsed, string rawQuery, string? directoryFilterLower, int limit, Action<SearchResult> onResult, CancellationToken token, string? fileNameFilter = null)
     {
         if (_live == null)
             return;
         try
         {
-            IndexV2Searcher.SearchStreaming(_live, rawQuery, limit, onResult, token, directoryFilterLower);
+            IndexV2Searcher.SearchStreaming(_live, rawQuery, limit, onResult, token, directoryFilterLower, fileNameFilter);
         }
         catch (ObjectDisposedException)
         {

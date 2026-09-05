@@ -40,7 +40,7 @@ public static class UserNetworkDriveSearch
     public static void ClearAllCaches() => NetworkIndexer.ClearAllCaches();
 
 
-    public static void SearchStreaming(string query, int limit, Action<SearchResult> onResult, CancellationToken token = default, string? directoryFilter = null) => NetworkIndexer.SearchStreaming(query, limit, onResult, token, directoryFilter);
+    public static void SearchStreaming(string query, int limit, Action<SearchResult> onResult, CancellationToken token = default, string? directoryFilter = null, string? fileNameFilter = null) => NetworkIndexer.SearchStreaming(query, limit, onResult, token, directoryFilter, fileNameFilter);
 
     // In-process counterpart of SearchEngine.EnumerateDirectory (which only ever sees local drives):
     // lists a directory out of whichever network/WSL/folder index holds it. False = none of them does.

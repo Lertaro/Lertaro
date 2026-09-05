@@ -10,7 +10,8 @@ public static class NetworkIndexerSearchExtensions
         int limit,
         Action<SearchResult> onResult,
         CancellationToken token = default,
-        string? directoryFilter = null)
+        string? directoryFilter = null,
+        string? fileNameFilter = null)
     {
         indexer.EnsureConfigured();
         if (limit <= 0 || string.IsNullOrWhiteSpace(query))
@@ -48,7 +49,7 @@ public static class NetworkIndexerSearchExtensions
                     {
                         onResult(result);
                     }
-                }, token);
+                }, token, fileNameFilter);
             });
     }
 

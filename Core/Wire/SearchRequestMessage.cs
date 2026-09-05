@@ -51,6 +51,8 @@ public struct SearchRequestMessage
     // Target directories for GetRecentFiles -- distinct from FilePaths above (individual file paths
     // for GetFileMetadata) since the two requests take different kinds of list.
     public List<string>? Directories { get; set; }
+    // Search/SearchDir: optional FILE-name wildcard filtering for index-backed scoped searches.
+    public string? FileNameFilter { get; set; }
     // GetRecentFiles' max-age cutoff, in minutes.
     public int MaxAgeMinutes { get; set; }
     // LaunchHook: whether the caller wants the hook elevated (only honored if that session's user is

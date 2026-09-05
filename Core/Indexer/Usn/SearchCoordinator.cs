@@ -18,7 +18,8 @@ internal static class SearchCoordinator
         int limit,
         Action<SearchResult> onResult,
         CancellationToken token,
-        string? directoryFilter)
+        string? directoryFilter,
+        string? fileNameFilter = null)
     {
         LiveIndex[] drives;
         lock (lockObj)
@@ -31,7 +32,7 @@ internal static class SearchCoordinator
 
         if (drives.Length == 1)
         {
-            IndexV2Searcher.SearchStreaming(drives[0], query, limit, onResult, token, directoryFilter);
+            IndexV2Searcher.SearchStreaming(drives[0], query, limit, onResult, token, directoryFilter, fileNameFilter);
             return;
         }
 
@@ -55,7 +56,7 @@ internal static class SearchCoordinator
                         token.ThrowIfCancellationRequested();
                         onResult(result);
                     }
-                }, token, directoryFilter);
+                }, token, directoryFilter, fileNameFilter);
             });
     }
 

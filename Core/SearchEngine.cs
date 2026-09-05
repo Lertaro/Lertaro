@@ -116,7 +116,8 @@ public class SearchEngine : IDisposable
         int appLimit,
         string? directoryFilter,
         Action<SearchResult> onResult,
-        CancellationToken requestToken = default)
+        CancellationToken requestToken = default,
+        string? fileNameFilter = null)
     {
         // Marked in flight for the duration, and stamped again on the way out: this method blocks until
         // the whole search is done, so a query taking longer than the idle window would otherwise look
@@ -124,7 +125,7 @@ public class SearchEngine : IDisposable
         _idleTrim.SearchStarted(Environment.TickCount64);
         try
         {
-            return SearchStreamingCore(query, fileLimit, appLimit, directoryFilter, onResult, requestToken);
+            return SearchStreamingCore(query, fileLimit, appLimit, directoryFilter, onResult, requestToken, fileNameFilter);
         }
         finally
         {
@@ -138,7 +139,8 @@ public class SearchEngine : IDisposable
         int appLimit,
         string? directoryFilter,
         Action<SearchResult> onResult,
-        CancellationToken requestToken)
+        CancellationToken requestToken,
+        string? fileNameFilter)
     {
         if (string.IsNullOrWhiteSpace(query))
             return true;
@@ -184,7 +186,7 @@ public class SearchEngine : IDisposable
         {
             searchToken.ThrowIfCancellationRequested();
             onResult(result);
-        }, searchToken, directoryFilter);
+        }, searchToken, directoryFilter, fileNameFilter);
 
         return true;
     }

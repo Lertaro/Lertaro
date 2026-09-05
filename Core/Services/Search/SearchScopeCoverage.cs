@@ -14,13 +14,21 @@ namespace Lertaro.Core.Services.Search;
 public static class SearchScopeCoverage
 {
     // Scoped searches re-resolve on every keystroke, but the underlying facts (drive enablement,
-    // configured roots) only change when the user applies settings -- a one-minute cache keeps the
-    // repeated checks free while still picking up an Apply without needing any invalidation hook.
+    // configured roots) are stable between status/settings changes -- a one-minute cache keeps the
+    // repeated checks free, while the explicit invalidation hooks pick up changes immediately.
     private const int TtlMs = 60_000;
 
     private sealed record Verdict(bool Covered, long CheckedAtMs);
     private static readonly ConcurrentDictionary<string, Verdict> _cache = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly HashSet<string> _warned = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, byte> _warned = new(StringComparer.OrdinalIgnoreCase);
+
+    static SearchScopeCoverage() => UserNetworkDriveSearch.StatusesChanged += _ => Invalidate();
+
+    public static void Invalidate()
+    {
+        _cache.Clear();
+        _warned.Clear();
+    }
 
     public static bool IsIndexed(string directoryPath)
     {
@@ -34,16 +42,16 @@ public static class SearchScopeCoverage
 
         var covered = ComputeCovered(path);
         _cache[path] = new Verdict(covered, now);
-        if (!covered && _warned.Add(path))
+        if (!covered && _warned.TryAdd(path, 0))
             Logger.Log($"[SearchScopeCoverage] '{directoryPath}' is not covered by any index (no folder index, its local drive is not enabled, or the network/WSL root is not configured); that scope folder is skipped until it is indexed.", LogLevel.Warn);
         return covered;
     }
 
     // The routing decision over precomputed facts, kept pure for tests: WSL counts as covered on its
-    // own; a network/UNC source needs a containing in-process root; anything else is a local drive
-    // that must be enabled for indexing.
+    // own; an in-process index root covers any path below it, including a fixed-drive folder index;
+    // anything else is a local drive that must be enabled for indexing.
     internal static bool DecideCovered(bool isWsl, bool isNetworkSource, bool hasInProcessRoot, bool isLocalDriveEnabled)
-        => isWsl || (isNetworkSource ? hasInProcessRoot : isLocalDriveEnabled);
+        => isWsl || hasInProcessRoot || !isNetworkSource && isLocalDriveEnabled;
 
     private static bool ComputeCovered(string path)
     {
@@ -70,17 +78,14 @@ public static class SearchScopeCoverage
                 }
             }
 
-            if (isNetworkSource)
-            {
-                // UNC and mapped network paths are answered from the in-process indexes only; some
-                // configured root (network drive, folder index, WSL distro) must contain the folder.
-                var hasInProcessRoot = UserNetworkDriveSearch.GetStatuses()
-                    .Any(item => IndexedDirectoryEnumerator.IsUnderRoot(path, IndexedDirectoryEnumerator.NormalizeIndexRoot(item.Drive)));
-                return DecideCovered(isWsl: false, isNetworkSource: true, hasInProcessRoot, isLocalDriveEnabled: false);
-            }
-
+            // Network, WSL and explicitly configured folder indexes are all represented by opaque
+            // in-process roots. This check must also run for fixed-drive paths: a folder index such as
+            // D:\Projects is valid even when the whole D: local drive is disabled.
+            var hasInProcessRoot = UserNetworkDriveSearch.GetStatuses()
+                .Any(item => DirectoryIndexReadiness.IsInProcessReady(item)
+                    && IndexedDirectoryEnumerator.IsUnderRoot(path, IndexedDirectoryEnumerator.NormalizeIndexRoot(item.Drive)));
             var driveLetter = path.Length > 0 ? path.Substring(0, 1) : string.Empty;
-            return DecideCovered(isWsl: false, isNetworkSource: false, hasInProcessRoot: false, MachineSettings.Load().IsLocalDriveEnabled(VolumeHelper.GetVolumeId(driveLetter)));
+            return DecideCovered(isWsl: false, isNetworkSource, hasInProcessRoot, MachineSettings.Load().IsLocalDriveEnabled(VolumeHelper.GetVolumeId(driveLetter)));
         }
         catch
         {

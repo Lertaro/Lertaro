@@ -6,6 +6,7 @@ using System.Runtime.Intrinsics.X86;
 using System.Text;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Fzf;
+using Lertaro.Core.Services.Plugin.DirectoryIndex;
 
 using Lertaro.Core.IndexV2.Persistence;
 namespace Lertaro.Core.IndexV2.Search;
@@ -127,7 +128,7 @@ internal static class SearchMatcher
         HitListPool.Add(list);
     }
 
-    internal static void MatchUniques(Snapshot snapshot, FzfPattern pattern, List<UniqueMatch> merged, CancellationToken token = default)
+    internal static void MatchUniques(Snapshot snapshot, FzfPattern pattern, List<UniqueMatch> merged, CancellationToken token = default, string[]? fileNamePatterns = null)
     {
         var ctx = BuildContext(pattern);
         merged.Clear();
@@ -166,13 +167,13 @@ internal static class SearchMatcher
                         for (var lane = 0; lane < 4; lane++)
                         {
                             if ((bits & (1u << lane)) != 0 && PassesOrSets(masks[i + lane], ctx.OrSetMasks))
-                                MatchOne(snapshot, ctx, i + lane, worker);
+                                MatchOne(snapshot, ctx, i + lane, worker, fileNamePatterns);
                         }
                     }
                     for (; i < end; i++)
                     {
                         if ((masks[i] & ctx.RequiredMask) == ctx.RequiredMask && PassesOrSets(masks[i], ctx.OrSetMasks))
-                            MatchOne(snapshot, ctx, i, worker);
+                            MatchOne(snapshot, ctx, i, worker, fileNamePatterns);
                     }
                 }
                 else
@@ -181,7 +182,7 @@ internal static class SearchMatcher
                     {
                         if (ctx.CanFilter && ((masks[uid] & ctx.RequiredMask) != ctx.RequiredMask || !PassesOrSets(masks[uid], ctx.OrSetMasks)))
                             continue;
-                        MatchOne(snapshot, ctx, uid, worker);
+                        MatchOne(snapshot, ctx, uid, worker, fileNamePatterns);
                     }
                 }
                 return worker;
@@ -196,10 +197,14 @@ internal static class SearchMatcher
             });
     }
 
-    private static void MatchOne(Snapshot snapshot, QueryContext ctx, int uid, Worker worker)
+    private static void MatchOne(Snapshot snapshot, QueryContext ctx, int uid, Worker worker, string[]? fileNamePatterns)
     {
         var utf8 = snapshot.UniqueNameUtf8(uid);
         if (utf8.Length == 0)
+            return;
+        if (fileNamePatterns != null
+            && !FilterPatternHelper.Matches(snapshot.GetUniqueName(uid), fileNamePatterns)
+            && !HasDirectoryRow(snapshot, uid))
             return;
 
         // Pure-ASCII name: bytes ARE the chars (same values, same offsets) -- match with zero decode.
@@ -232,6 +237,16 @@ internal static class SearchMatcher
         {
             worker.Hits.Add(new UniqueMatch(uid, mixedBest, FzfResultRank.ForDefaultScheme(uid, name, mixedBest).SortKey));
         }
+    }
+
+    internal static bool HasDirectoryRow(Snapshot snapshot, int uid)
+    {
+        foreach (var row in snapshot.RowsForUid(uid))
+        {
+            if (snapshot.IsDirectory(row))
+                return true;
+        }
+        return false;
     }
 
     // Zero-copy alias fallback, also called directly by SearchMatcherPath: forwards to

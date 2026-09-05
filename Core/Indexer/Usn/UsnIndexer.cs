@@ -49,7 +49,7 @@ public partial class UsnIndexer : IDisposable
     }
 
 
-    public void SearchStreaming(string query, int limit, Action<SearchResult> onResult, CancellationToken token = default, string? directoryFilter = null) => SearchCoordinator.SearchStreaming(_recordIndexes, LockObj, query, limit, onResult, token, directoryFilter);
+    public void SearchStreaming(string query, int limit, Action<SearchResult> onResult, CancellationToken token = default, string? directoryFilter = null, string? fileNameFilter = null) => SearchCoordinator.SearchStreaming(_recordIndexes, LockObj, query, limit, onResult, token, directoryFilter, fileNameFilter);
 
     public bool EnumerateDirectory(string path, bool recursive, string[]? patterns, int limit, Action<SearchResult> onResult, CancellationToken token = default)
         => SearchCoordinator.EnumerateDirectory(_recordIndexes, LockObj, path, recursive, patterns, limit, onResult, token);
