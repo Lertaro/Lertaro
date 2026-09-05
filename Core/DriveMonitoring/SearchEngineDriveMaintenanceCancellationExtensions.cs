@@ -20,4 +20,18 @@ internal static class SearchEngineDriveMaintenanceCancellationExtensions
         cts.Cancel();
         return true;
     }
+
+    public static void QueueDriveRebuildAfterRemoval(this SearchEngineDriveMaintenance maintenance, string drive)
+    {
+        drive = DriveMaintenanceHelper.NormalizeDrive(drive);
+        lock (maintenance._pendingDriveRebuilds)
+        {
+            if (maintenance._pendingDriveRebuilds.Contains(drive))
+            {
+                maintenance._rebuildAfterRemoval.Add(drive);
+                return;
+            }
+        }
+        maintenance.QueueDriveRebuild(drive);
+    }
 }

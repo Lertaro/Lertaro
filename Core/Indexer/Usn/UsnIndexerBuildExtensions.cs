@@ -1,5 +1,6 @@
 using Lertaro.Core.IndexV2;
 
+using Lertaro.Core.DriveMonitoring;
 using Lertaro.Core.IndexV2.Persistence;
 using Lertaro.Core.Indexer.Usn.Journal;
 namespace Lertaro.Core.Indexer.Usn;
@@ -20,7 +21,8 @@ public static class UsnIndexerBuildExtensions
         bool clearExisting,
         string? cacheDir = null,
         Func<string, CancellationToken>? getToken = null,
-        Action<string>? onDriveCancelled = null)
+        Action<string>? onDriveCancelled = null,
+        Func<string, CancellationToken, DriveIndexRemovalScope?>? createDriveRemovalScope = null)
     {
         lock (indexer.LockObj)
         {
@@ -103,7 +105,8 @@ public static class UsnIndexerBuildExtensions
             // ReFsScanner's own mid-walk checkpoint -- reuses the same publisher the non-USN local-drive
             // path above does (PublishLocalDriveCheckpoint doesn't care about SourceKind/IdKind, only about
             // writing a store and swapping a fresh LiveIndex in). A no-op for NTFS/$MFT (see JournalReader).
-            (drive, checkpointStore, _, token) => indexer.PublishLocalDriveCheckpoint(cacheDir, drive, checkpointStore, token)
+            (drive, checkpointStore, _, token) => indexer.PublishLocalDriveCheckpoint(cacheDir, drive, checkpointStore, token),
+            createDriveRemovalScope
         );
     }
 

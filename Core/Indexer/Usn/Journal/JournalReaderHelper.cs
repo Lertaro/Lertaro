@@ -5,7 +5,7 @@ namespace Lertaro.Core.Indexer.Usn.Journal;
 
 public static class JournalReaderHelper
 {
-    public static long CatchUpDrive(string drive, ulong journalId, long startUsn, Func<ParsedUsnRecord, bool> onRecord)
+    public static long CatchUpDrive(string drive, ulong journalId, long startUsn, Func<ParsedUsnRecord, bool> onRecord, CancellationToken token = default)
     {
         Logger.Log($"[JournalReaderHelper] Catching up drive {drive} from USN {startUsn}...");
         var volumePath = $"\\\\.\\{drive}:";
@@ -18,6 +18,8 @@ public static class JournalReaderHelper
             0,
             IntPtr.Zero
         );
+        using var cancellationRegistration = token.Register(handle.Dispose);
+        token.ThrowIfCancellationRequested();
 
         if (handle.IsInvalid)
         {
@@ -65,6 +67,7 @@ public static class JournalReaderHelper
 
         while (currentUsn < currentNextUsn)
         {
+            token.ThrowIfCancellationRequested();
             var input = new Win32Api.READ_USN_JOURNAL_DATA_V0
             {
                 StartUsn = currentUsn,
@@ -100,6 +103,7 @@ public static class JournalReaderHelper
 
             while (offset < returnedSize)
             {
+                token.ThrowIfCancellationRequested();
                 if (offset + 4 > returnedSize)
                     break;
 

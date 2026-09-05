@@ -4,7 +4,7 @@ using Lertaro.Core.Indexer.Usn;
 
 namespace Lertaro.Core.DriveMonitoring;
 
-public class UsnMonitor
+public class UsnMonitor : IDisposable
 {
     private readonly string _drive;
     private readonly ulong _journalId;
@@ -12,6 +12,8 @@ public class UsnMonitor
     private readonly UsnIndexer _indexer;
     private readonly CancellationToken _token;
     private readonly Action<string>? _onReindexRequired;
+    private readonly UsnMonitorHandleState _handleState = new();
+    private int _disposed;
 
     public UsnMonitor(
         string drive,
@@ -27,6 +29,12 @@ public class UsnMonitor
         _indexer = indexer;
         _token = token;
         _onReindexRequired = onReindexRequired;
+    }
+
+    public void Dispose()
+    {
+        Interlocked.Exchange(ref _disposed, 1);
+        _handleState.Dispose();
     }
 
     public void Start() => Task.Run(async () =>
@@ -56,6 +64,12 @@ public class UsnMonitor
             handle.Dispose();
             return;
         }
+        if (Volatile.Read(ref _disposed) != 0)
+        {
+            handle.Dispose();
+            return;
+        }
+        _handleState.Set(handle);
 
         var outBuf = new byte[64 * 1024];
         var consecutiveUnexpectedErrors = 0;
@@ -124,6 +138,7 @@ public class UsnMonitor
         }
         finally
         {
+            _handleState.Clear(handle);
             handle.Dispose();
         }
 
@@ -197,7 +212,6 @@ public class UsnMonitor
 
         await Task.Delay(500, _token);
     }
-
     private static SafeFileHandle OpenVolume(string volumePath) => Win32Api.CreateFileW(
         volumePath,
         Win32Api.GENERIC_READ,
@@ -210,6 +224,7 @@ public class UsnMonitor
     private async Task<SafeFileHandle> RecoverVolumeHandle(string volumePath, SafeFileHandle oldHandle, int lastError)
     {
         oldHandle.Dispose();
+        _handleState.Clear(oldHandle);
 
         if (!IsRecoverableVolumeError(lastError))
         {
@@ -229,12 +244,15 @@ public class UsnMonitor
                 continue;
             }
 
+            _handleState.Set(handle);
+
             var journal = QueryJournal(handle);
             if (journal.HasValue && journal.Value.JournalId == _journalId)
             {
                 if (_startUsn < journal.Value.LowestValidUsn || _startUsn > journal.Value.NextUsn)
                 {
                     handle.Dispose();
+                    _handleState.Clear(handle);
                     Logger.Log($"[Monitor] USN {_startUsn} on drive {_drive} is outside journal range {journal.Value.LowestValidUsn}..{journal.Value.NextUsn}. Stopping monitor for re-index.", LogLevel.Error);
                     _onReindexRequired?.Invoke(_drive);
                     return new SafeFileHandle(IntPtr.Zero, ownsHandle: true);
@@ -245,6 +263,7 @@ public class UsnMonitor
             }
 
             handle.Dispose();
+            _handleState.Clear(handle);
             if (journal.HasValue)
             {
                 Logger.Log($"[Monitor] Journal ID changed on drive {_drive}. Stopping monitor for re-index.", LogLevel.Error);
@@ -259,7 +278,6 @@ public class UsnMonitor
 
     private static bool IsRecoverableVolumeError(int err) =>
         err is Win32Api.ERROR_NOT_READY or Win32Api.ERROR_INVALID_HANDLE or Win32Api.ERROR_DEVICE_NOT_CONNECTED;
-
     private static bool IsJournalReindexError(int err) =>
         err is Win32Api.ERROR_JOURNAL_DELETE_IN_PROGRESS or Win32Api.ERROR_JOURNAL_NOT_ACTIVE or Win32Api.ERROR_JOURNAL_ENTRY_DELETED;
 

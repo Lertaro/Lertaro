@@ -19,35 +19,89 @@ internal static class DriveMonitorFactory
         ulong journalId,
         long nextUsn,
         CancellationToken parentToken,
-        Action<string>? onReindexRequired)
+        Action<string>? onReindexRequired,
+        Action<string>? onRemovalRequested = null,
+        Action<string>? onReindexAfterRemoval = null)
     {
         var fs = VolumeHelper.GetFileSystemType(drive);
         if (VolumeHelper.IsJournalCapableFileSystem(fs))
         {
-            // UsnMonitor has no per-instance stop of its own -- it only ever checks the CancellationToken
-            // it was constructed with (see its own MonitorLoop). A linked source lets RegisterDriveMonitor
-            // stop just THIS instance (Cancel) without touching the app-wide parent token every other
-            // drive's monitor also derives from.
+            // Keep a linked source per monitor so disposal stops only THIS instance. UsnMonitor.Dispose
+            // closes the volume handle immediately; cancellation then lets its loop unwind cleanly.
             var cts = CancellationTokenSource.CreateLinkedTokenSource(parentToken);
-            new UsnMonitor(drive, journalId, nextUsn, indexer, cts.Token, onReindexRequired).Start();
-            indexer.RegisterDriveMonitor(drive, new CancellationDisposable(cts));
+            var monitor = new UsnMonitor(drive, journalId, nextUsn, indexer, cts.Token, onReindexRequired);
+            var removal = RegisterRemovalMonitor(indexer, drive, parentToken, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
+            indexer.RegisterDriveMonitor(drive, new DriveMonitorRegistration(new CancellationDisposable(monitor, cts), removal));
+            monitor.Start();
             return;
         }
 
-        var monitor = new FolderDriveMonitor(drive, (changeType, path, oldPath) => indexer.ApplyFolderChange(drive, changeType, path, oldPath), parentToken);
-        monitor.Start();
-        indexer.RegisterDriveMonitor(drive, monitor);
+        var folderMonitor = new FolderDriveMonitor(drive, (changeType, path, oldPath) => indexer.ApplyFolderChange(drive, changeType, path, oldPath), parentToken);
+        var folderRemoval = RegisterRemovalMonitor(indexer, drive, parentToken, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
+        indexer.RegisterDriveMonitor(drive, new DriveMonitorRegistration(folderMonitor, folderRemoval));
+        folderMonitor.Start();
+    }
+
+    private static DriveDeviceRemovalMonitor? RegisterRemovalMonitor(
+        UsnIndexer indexer,
+        string drive,
+        CancellationToken parentToken,
+        Action<string>? onReindexRequired,
+        Action<string>? onRemovalRequested,
+        Action<string>? onReindexAfterRemoval) =>
+        CreateRemovalMonitor(indexer, drive, parentToken, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
+
+    private static DriveDeviceRemovalMonitor? CreateRemovalMonitor(
+        UsnIndexer indexer,
+        string drive,
+        CancellationToken parentToken,
+        Action<string>? onReindexRequired,
+        Action<string>? onRemovalRequested,
+        Action<string>? onReindexAfterRemoval)
+    {
+        void ReleaseDriveMonitor()
+        {
+            onRemovalRequested?.Invoke(drive);
+            indexer.ReleaseDriveMonitor(drive);
+            indexer.DropDriveFromRuntime(drive);
+            indexer.SetDriveState(drive, "unavailable");
+        }
+
+        void ReleaseDrive()
+        {
+            indexer.RemoveDriveMonitor(drive);
+            indexer.DropDriveFromRuntime(drive);
+            indexer.SetDriveState(drive, "unavailable");
+        }
+
+        return DriveDeviceRemovalMonitor.Register(
+            drive,
+            ReleaseDriveMonitor,
+            () => (onReindexAfterRemoval ?? onReindexRequired)?.Invoke(drive),
+            () =>
+            {
+                ReleaseDrive();
+                DriveReattachWaiter.Start(drive, parentToken, () => (onReindexAfterRemoval ?? onReindexRequired)?.Invoke(drive));
+            });
     }
 
     private sealed class CancellationDisposable : IDisposable
     {
+        private readonly UsnMonitor _monitor;
         private readonly CancellationTokenSource _cts;
-        public CancellationDisposable(CancellationTokenSource cts) => _cts = cts;
+        public CancellationDisposable(UsnMonitor monitor, CancellationTokenSource cts)
+        {
+            _monitor = monitor;
+            _cts = cts;
+        }
 
-        public void Dispose() =>
+        public void Dispose()
+        {
+            _monitor.Dispose();
             // Cancel without Dispose: the monitor loop built on this token registers on it again
             // while winding down, and a disposed CTS turns that into ObjectDisposedException.
             // It holds no unmanaged resources, so skipping Dispose is safe.
             _cts.Cancel();
+        }
     }
 }

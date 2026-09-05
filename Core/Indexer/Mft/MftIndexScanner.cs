@@ -16,8 +16,9 @@ internal static class MftIndexScanner
 {
     private const int NtfsRootRecordIndex = 5; // $Root; already added by CreateEmptyStore.
 
-    public static UsnDriveIndexResult? ScanDrive(string drive, SafeFileHandle handle, UInt128 rootFrn, ulong journalId, long nextUsn, Action<int, int>? onProgress)
+    public static UsnDriveIndexResult? ScanDrive(string drive, SafeFileHandle handle, UInt128 rootFrn, ulong journalId, long nextUsn, Action<int, int>? onProgress, CancellationToken token = default)
     {
+        token.ThrowIfCancellationRequested();
         var vd = new byte[512];
         if (!Win32Api.DeviceIoControl(handle, Win32Api.FSCTL_GET_NTFS_VOLUME_DATA, IntPtr.Zero, 0, vd, (uint)vd.Length, out _, IntPtr.Zero))
         {
@@ -35,7 +36,10 @@ internal static class MftIndexScanner
 
         var rec0 = new byte[recordSize];
         if (!ReadAt(handle, mftStartLcn * bytesPerCluster, rec0, (int)recordSize))
+        {
+            token.ThrowIfCancellationRequested();
             return null;
+        }
         MftParser.ApplyFixup(rec0, bytesPerSector, 0, (int)recordSize);
         var extents = MftParser.ParseDataRuns(rec0);
 
@@ -52,6 +56,8 @@ internal static class MftIndexScanner
                     MftParser.ApplyFixup(extRec, bytesPerSector, 0, (int)recordSize);
                     MftParser.ParseDataRunsInto(extRec, extents);
                 }
+                else
+                    token.ThrowIfCancellationRequested();
             }
         }
 
@@ -77,18 +83,23 @@ internal static class MftIndexScanner
 
         foreach (var (lcn, clusters) in extents)
         {
+            token.ThrowIfCancellationRequested();
             if (remainingMftBytes <= 0)
                 break;
             var extBytes = LimitExtentBytes(clusters * bytesPerCluster, remainingMftBytes);
             var off = lcn * bytesPerCluster;
             while (extBytes > 0)
             {
+                token.ThrowIfCancellationRequested();
                 var chunk = (int)Math.Min(ChunkBytes, extBytes);
                 chunk -= chunk % (int)recordSize;
                 if (chunk <= 0)
                     break;
                 if (!ReadAt(handle, off, buf, chunk))
-                    break;
+                {
+                    token.ThrowIfCancellationRequested();
+                    return null;
+                }
 
                 for (var r = 0; r + recordSize <= chunk; r += (int)recordSize)
                 {
@@ -168,6 +179,7 @@ internal static class MftIndexScanner
             }
         }
 
+        token.ThrowIfCancellationRequested();
         Logger.Log($"[MftIndexScanner] Drive {drive} $MFT scan complete: {records.Count - 1} rows (files={files}, dirs={dirs}).");
         // Unlike TreeBuilder/ReFsScanner, this scan has no partial/checkpoint output at all -- it's a
         // single-pass sequential parse that either returns a fully-finished store or null (see the

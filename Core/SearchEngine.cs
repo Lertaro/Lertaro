@@ -232,7 +232,9 @@ public class SearchEngine : IDisposable
             _indexer.DisposeAllDriveMonitors();
             _cts = new CancellationTokenSource();
 
-            var initializer = new SearchEngineInitializer(_indexer, IndexCacheDir, _drives.QueueDriveRebuild);
+            var initializer = new SearchEngineInitializer(_indexer, IndexCacheDir, _drives.QueueDriveRebuild,
+                drive => _drives.CancelDriveRebuild(drive),
+                drive => _drives.QueueDriveRebuildAfterRemoval(drive));
             initializer.Run(forceRebuild, _cts, isRebuilding =>
             {
                 lock (_startLock)

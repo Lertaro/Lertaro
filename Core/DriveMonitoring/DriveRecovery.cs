@@ -10,7 +10,9 @@ internal static class DriveRecovery
         string drive,
         CancellationToken token,
         Action<string>? onReindexRequired,
-        CancellationToken rebuildToken = default)
+        CancellationToken rebuildToken = default,
+        Action<string>? onRemovalRequested = null,
+        Action<string>? onReindexAfterRemoval = null)
     {
         Logger.Log($"[SearchEngine] Restoring newly available drive {drive} from cache if possible.");
         var cached = indexer.TryLoadDriveFromCache(cacheDir, drive);
@@ -23,32 +25,32 @@ internal static class DriveRecovery
         {
             if (!VolumeHelper.SupportsUsnJournal(drive))
             {
-                TrySaveDriveCache(indexer, cacheDir, new() { (drive, cached.Value.JournalId, cached.Value.NextUsn) }, drive, "folder restore");
-                DriveMonitorFactory.EnsureMonitor(indexer, drive, cached.Value.JournalId, cached.Value.NextUsn, token, onReindexRequired);
-                Logger.Log($"[SearchEngine] Restored folder-scan drive {drive} from cache.");
-                return;
+                // A folder watcher cannot observe changes made while the volume was detached. Keep the
+                // loaded snapshot as the scan baseline, but run the scan before starting a new watcher.
+                Logger.Log($"[SearchEngine] Folder-scan drive {drive} returned; refreshing its cached index.");
             }
-
-            var nextUsn = indexer.CatchUpDrive(drive, cached.Value.JournalId, cached.Value.NextUsn);
-            if (nextUsn >= 0)
+            else
             {
-                TrySaveDriveCache(indexer, cacheDir, new() { (drive, cached.Value.JournalId, nextUsn) }, drive, "USN catch-up");
-                DriveMonitorFactory.EnsureMonitor(indexer, drive, cached.Value.JournalId, nextUsn, token, onReindexRequired);
-                Logger.Log($"[SearchEngine] Restored drive {drive} from cache and USN catch-up.");
-                return;
-            }
+                var nextUsn = indexer.CatchUpDrive(drive, cached.Value.JournalId, cached.Value.NextUsn, rebuildToken);
+                if (nextUsn >= 0)
+                {
+                    TrySaveDriveCache(indexer, cacheDir, new() { (drive, cached.Value.JournalId, nextUsn) }, drive, "USN catch-up");
+                    DriveMonitorFactory.EnsureMonitor(indexer, drive, cached.Value.JournalId, nextUsn, token, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
+                    Logger.Log($"[SearchEngine] Restored drive {drive} from cache and USN catch-up.");
+                    return;
+                }
 
-            // Catch-up failed (journal mismatch/error) -- this cache can't be trusted even as a diff
-            // baseline, unlike the "merely incomplete" case above, so drop it before rebuilding.
-            indexer.DropDriveFromRuntime(drive);
+                // Catch-up failed (journal mismatch/error) -- this cache can't be trusted even as a diff
+                // baseline, unlike the "merely incomplete" case above, so drop it before rebuilding.
+                indexer.DropDriveFromRuntime(drive);
+            }
         }
 
         Logger.Log($"[SearchEngine] Cache restore unavailable for drive {drive}; rebuilding this drive only.");
-        // Only a journal-backed drive's monitor needs stopping before its own rebuild starts -- see
-        // UsnIndexer.RemoveDriveMonitor's own comment on why a non-journal drive deliberately does NOT do
-        // this instead.
+        // Stop only the live watcher before rebuilding. Keep the device notification registered so a
+        // physical removal during this rebuild can cancel its scan and schedule recovery.
         if (VolumeHelper.SupportsUsnJournal(drive))
-            indexer.RemoveDriveMonitor(drive);
+            indexer.ReleaseDriveMonitor(drive);
         var wasCancelled = false;
         var metadata = indexer.BuildDrives(new[] { drive }, clearExisting: false, cacheDir: cacheDir,
             getToken: _ => rebuildToken, onDriveCancelled: _ => wasCancelled = true);
@@ -56,12 +58,13 @@ internal static class DriveRecovery
         {
             // A Stop request reverts to "cached" (mirrors NetworkIndexer's own CancelDrive), not "failed"
             // -- the user asked for this, it isn't an error.
-            indexer.SetDriveState(drive, wasCancelled ? "cached" : "failed");
+            var present = VolumeHelper.DetectIndexableLocalDrives().Contains(drive, StringComparer.OrdinalIgnoreCase);
+            indexer.SetDriveState(drive, wasCancelled ? (present ? "cached" : "unavailable") : "failed");
             return;
         }
 
         foreach (var (builtDrive, journalId, nextUsn) in metadata)
-            DriveMonitorFactory.EnsureMonitor(indexer, builtDrive, journalId, nextUsn, token, onReindexRequired);
+            DriveMonitorFactory.EnsureMonitor(indexer, builtDrive, journalId, nextUsn, token, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
 
         // The drive's own monitor stayed alive throughout the rebuild (see
         // UsnIndexerExtensions.ApplyFolderChange); if it detected a change it couldn't persist against

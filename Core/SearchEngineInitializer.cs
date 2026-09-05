@@ -8,15 +8,21 @@ internal class SearchEngineInitializer
     private readonly UsnIndexer _indexer;
     private readonly string _indexCacheDir;
     private readonly Action<string>? _onReindexRequired;
+    private readonly Action<string>? _onRemovalRequested;
+    private readonly Action<string>? _onReindexAfterRemoval;
 
     public SearchEngineInitializer(
         UsnIndexer indexer,
         string indexCacheDir,
-        Action<string>? onReindexRequired = null)
+        Action<string>? onReindexRequired = null,
+        Action<string>? onRemovalRequested = null,
+        Action<string>? onReindexAfterRemoval = null)
     {
         _indexer = indexer;
         _indexCacheDir = indexCacheDir;
         _onReindexRequired = onReindexRequired;
+        _onRemovalRequested = onRemovalRequested;
+        _onReindexAfterRemoval = onReindexAfterRemoval;
     }
 
     private void EnsureDriveStatuses(IReadOnlyList<string> detectedDrives, IReadOnlyList<string> enabledDrives)
@@ -36,6 +42,26 @@ internal class SearchEngineInitializer
 
     public void Run(bool forceRebuild, CancellationTokenSource cts, Action<bool> onComplete)
     {
+        var deferredRebuilds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var deferredGate = new object();
+        var initializationComplete = false;
+        void RequestRebuild(string drive)
+        {
+            lock (deferredGate)
+            {
+                if (!initializationComplete)
+                {
+                    deferredRebuilds.Add(drive);
+                    return;
+                }
+            }
+            _onReindexRequired?.Invoke(drive);
+        }
+
+        DriveIndexRemovalScope CreateRemovalScope(string drive, CancellationToken parentToken) =>
+            DriveIndexRemovalScope.Register(drive, parentToken,
+                () => _indexer.SetDriveState(drive, "unavailable"), RequestRebuild);
+
         try
         {
             var machineSettings = MachineSettings.Load();
@@ -103,21 +129,29 @@ internal class SearchEngineInitializer
                         continue;
                     }
 
-                    var newUsn = _indexer.CatchUpDrive(meta.Drive, meta.JournalId, meta.NextUsn);
-
-                    if (newUsn < 0)
+                    try
                     {
-                        // One drive's journal mismatch (journal recreated, drive letter reassigned, ...)
-                        // must not discard every OTHER drive's freshly loaded index: keep this drive out
-                        // of updatedMetadata so it lands in the per-drive rebuild set below, while the
-                        // rest keep serving search from their loaded caches. CatchUpDrive applies nothing
-                        // on failure (records only go in when the new USN is valid), so the stale index
-                        // stays consistent until its rebuild replaces it.
-                        Logger.Log($"[SearchEngineInitializer] Silent catch-up failed for drive {meta.Drive} (journal mismatch or error). Requiring a per-drive re-index.", LogLevel.Error);
-                        continue;
-                    }
+                        using var removalScope = DriveIndexRemovalScope.Register(meta.Drive, cts.Token,
+                            () => _indexer.SetDriveState(meta.Drive, "unavailable"), RequestRebuild);
+                        var newUsn = _indexer.CatchUpDrive(meta.Drive, meta.JournalId, meta.NextUsn, removalScope.Token);
+                        if (newUsn < 0)
+                        {
+                            // One drive's journal mismatch (journal recreated, drive letter reassigned, ...)
+                            // must not discard every OTHER drive's freshly loaded index: keep this drive out
+                            // of updatedMetadata so it lands in the per-drive rebuild set below, while the
+                            // rest keep serving search from their loaded caches. CatchUpDrive applies nothing
+                            // on failure (records only go in when the new USN is valid), so the stale index
+                            // stays consistent until its rebuild replaces it.
+                            Logger.Log($"[SearchEngineInitializer] Silent catch-up failed for drive {meta.Drive} (journal mismatch or error). Requiring a per-drive re-index.", LogLevel.Error);
+                            continue;
+                        }
 
-                    updatedMetadata.Add((meta.Drive, meta.JournalId, newUsn));
+                        updatedMetadata.Add((meta.Drive, meta.JournalId, newUsn));
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Logger.Log($"[SearchEngineInitializer] Silent catch-up cancelled for drive {meta.Drive}.", LogLevel.Warn);
+                    }
                 }
 
                 Logger.Log("[SearchEngineInitializer] Silent background catch-up completed.");
@@ -129,7 +163,8 @@ internal class SearchEngineInitializer
                 if (missingDrives.Count > 0)
                 {
                     Logger.Log($"[SearchEngineInitializer] Building missing/incomplete/failed per-drive indices: {string.Join(", ", missingDrives)}");
-                    var missingMetadata = _indexer.BuildDrives(missingDrives, clearExisting: false, cacheDir: _indexCacheDir);
+                    var missingMetadata = _indexer.BuildDrives(missingDrives, clearExisting: false, cacheDir: _indexCacheDir,
+                        getToken: _ => cts.Token, createDriveRemovalScope: CreateRemovalScope);
                     monitorsToStart.AddRange(missingMetadata);
                 }
             }
@@ -137,7 +172,8 @@ internal class SearchEngineInitializer
             if (!loadedFromCache)
             {
                 Logger.Log("[SearchEngineInitializer] Building new index from scratch...");
-                var newMetadata = _indexer.BuildDrives(supportedDrives, clearExisting: true, cacheDir: _indexCacheDir);
+                var newMetadata = _indexer.BuildDrives(supportedDrives, clearExisting: true, cacheDir: _indexCacheDir,
+                    getToken: _ => cts.Token, createDriveRemovalScope: CreateRemovalScope);
                 monitorsToStart = newMetadata;
                 lock (_indexer.LockObj)
                 {
@@ -169,6 +205,15 @@ internal class SearchEngineInitializer
         finally
         {
             onComplete(false);
+            List<string> pending;
+            lock (deferredGate)
+            {
+                initializationComplete = true;
+                pending = deferredRebuilds.ToList();
+                deferredRebuilds.Clear();
+            }
+            foreach (var drive in pending)
+                _onReindexRequired?.Invoke(drive);
         }
     }
 
@@ -187,5 +232,6 @@ internal class SearchEngineInitializer
     }
 
     private void StartMonitor(string drive, ulong journalId, long nextUsn, CancellationToken token) =>
-        DriveMonitorFactory.EnsureMonitor(_indexer, drive, journalId, nextUsn, token, _onReindexRequired);
+        DriveMonitorFactory.EnsureMonitor(_indexer, drive, journalId, nextUsn, token, _onReindexRequired,
+            _onRemovalRequested, _onReindexAfterRemoval);
 }

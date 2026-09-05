@@ -6,7 +6,7 @@ namespace Lertaro.Core.Indexer.Usn;
 // policy and application are independent concerns from live USN record mutation.
 public static class UsnIndexerCatchUpExtensions
 {
-    public static long CatchUpDrive(this UsnIndexer indexer, string drive, ulong journalId, long startUsn)
+    public static long CatchUpDrive(this UsnIndexer indexer, string drive, ulong journalId, long startUsn, CancellationToken token = default)
     {
         var changes = new List<ParsedUsnRecord>();
         var limitReached = false;
@@ -20,7 +20,7 @@ public static class UsnIndexerCatchUpExtensions
 
             changes.Add(record);
             return true;
-        });
+        }, token);
         if (limitReached)
         {
             Logger.Log($"[UsnIndexer] Catch-up for drive {drive} exceeded {UsnCatchUpPolicy.MaxRecords} records; requiring a full re-index.", LogLevel.Warn);

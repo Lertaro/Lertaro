@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Lertaro.Core.DriveMonitoring;
 using Lertaro.Core.Indexer.NetworkDrive.Walk;
 
 namespace Lertaro.Core.Indexer.Usn.Journal;
@@ -17,7 +18,8 @@ internal static class IndexBuilder
         Func<string, CancellationToken>? getToken = null,
         Action<string>? onDriveCancelled = null,
         Func<string, FileRecordStore?>? getPreviousStore = null,
-        Action<string, FileRecordStore, NetworkDriveWalkStats, CancellationToken>? onDriveCheckpoint = null)
+        Action<string, FileRecordStore, NetworkDriveWalkStats, CancellationToken>? onDriveCheckpoint = null,
+        Func<string, CancellationToken, DriveIndexRemovalScope?>? createDriveRemovalScope = null)
     {
         getToken ??= _ => CancellationToken.None;
         getPreviousStore ??= _ => null;
@@ -32,7 +34,9 @@ internal static class IndexBuilder
         {
             var drive = drives[i];
             Logger.Log($"[UsnIndexer] Indexing drive {drive} in parallel ({i + 1}/{drives.Count})");
-            var token = getToken(drive);
+            var parentToken = getToken(drive);
+            using var removalScope = createDriveRemovalScope?.Invoke(drive, parentToken);
+            var token = removalScope?.Token ?? parentToken;
             try
             {
                 var fs = VolumeHelper.GetFileSystemType(drive);

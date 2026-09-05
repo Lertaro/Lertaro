@@ -1,8 +1,6 @@
 using Lertaro.Core.Indexer.Usn;
-
 using Lertaro.Core.IndexV2.Persistence;
 namespace Lertaro.Core.DriveMonitoring;
-
 internal sealed class SearchEngineDriveMaintenance
 {
     private static readonly string IndexCacheDir = LocalDriveCacheLocator.DefaultCacheDir;
@@ -18,6 +16,7 @@ internal sealed class SearchEngineDriveMaintenance
     // drive's own rebuild without touching the app-wide lifetime token (_token()) every other drive's
     // monitor also derives from. internal rather than private so that extension method can reach it.
     internal readonly Dictionary<string, CancellationTokenSource> _activeRebuildCts = new(StringComparer.OrdinalIgnoreCase);
+    internal readonly HashSet<string> _rebuildAfterRemoval = new(StringComparer.OrdinalIgnoreCase);
     public bool HasPendingRebuilds { get { lock (_pendingDriveRebuilds) return _pendingDriveRebuilds.Count > 0; } }
 
     public SearchEngineDriveMaintenance(
@@ -33,7 +32,6 @@ internal sealed class SearchEngineDriveMaintenance
         _isRebuilding = isRebuilding;
         _onActivityCompleted = onActivityCompleted;
     }
-
     public void RefreshDrivesInStatus()
     {
         try
@@ -48,7 +46,6 @@ internal sealed class SearchEngineDriveMaintenance
             var enabled = new HashSet<string>(supported, StringComparer.OrdinalIgnoreCase);
             var disabled = visible.Where(d => !enabled.Contains(d)).ToList();
             var drivesToBuild = new List<string>();
-
             lock (_indexer.LockObj)
             {
                 var current = _indexer.Status.Drives.ToDictionary(d => d.Drive, StringComparer.OrdinalIgnoreCase);
@@ -57,7 +54,6 @@ internal sealed class SearchEngineDriveMaintenance
                     next.Add(DriveMaintenanceHelper.UpdateStatus(drive, detectedSet.Contains(drive), enabled.Contains(drive), IndexCacheDir, current, drivesToBuild, cachedPaths));
                 _indexer.Status.Drives = next;
             }
-
             foreach (var drive in disabled)
             {
                 _indexer.RemoveDriveMonitor(drive);
@@ -71,7 +67,6 @@ internal sealed class SearchEngineDriveMaintenance
             Logger.Log($"[SearchEngine] Failed to refresh drive statuses: {ex.Message}", LogLevel.Error);
         }
     }
-
     public UsnIndexer.IndexerStatus BuildStatusSnapshot()
     {
         RefreshDrivesInStatus();
@@ -85,26 +80,21 @@ internal sealed class SearchEngineDriveMaintenance
         // in the UI as the item count flickering up and down during a rebuild instead of only increasing.
         return _indexer.SnapshotStatus();
     }
-
     public bool RebuildDriveIndex(string drive)
     {
         drive = DriveMaintenanceHelper.NormalizeDrive(drive);
         if (drive.Length == 0)
             return false;
-
         var driveId = VolumeHelper.GetVolumeId(drive) ?? string.Empty;
         if (!_settings().IsLocalDriveEnabled(driveId))
             return false;
-
         return QueueDriveRebuild(drive, forceRebuild: true);
     }
-
     public bool DeleteDriveIndex(string drive)
     {
         drive = DriveMaintenanceHelper.NormalizeDrive(drive);
         if (drive.Length == 0)
             return false;
-
         LocalDriveCacheLocator.Delete(IndexCacheDir, drive);
         _indexer.DropDriveFromRuntime(drive);
         var detected = VolumeHelper.DetectIndexableLocalDrives();
@@ -127,7 +117,6 @@ internal sealed class SearchEngineDriveMaintenance
         _indexer.RaiseDirectoriesChanged(drive, null);
         return true;
     }
-
     public void QueueDriveRebuild(string drive) => QueueDriveRebuild(drive, forceRebuild: false);
 
     private bool QueueDriveRebuild(string drive, bool forceRebuild)
@@ -155,6 +144,7 @@ internal sealed class SearchEngineDriveMaintenance
     private void RebuildDrive(string drive, bool forceRebuild)
     {
         var cts = CancellationTokenSource.CreateLinkedTokenSource(_token());
+        var retryAfterRemoval = false;
         lock (_pendingDriveRebuilds)
             _activeRebuildCts[drive] = cts;
         try
@@ -162,7 +152,13 @@ internal sealed class SearchEngineDriveMaintenance
             if (forceRebuild)
                 ForceRebuildDrive(drive, cts.Token);
             else
-                DriveRecovery.RestoreOrRebuild(_indexer, IndexCacheDir, drive, _token(), QueueDriveRebuild, cts.Token);
+                DriveRecovery.RestoreOrRebuild(_indexer, IndexCacheDir, drive, _token(), QueueDriveRebuild, cts.Token,
+                    driveName => this.CancelDriveRebuild(driveName), driveName => this.QueueDriveRebuildAfterRemoval(driveName));
+        }
+        catch (OperationCanceledException)
+        {
+            var present = VolumeHelper.DetectIndexableLocalDrives().Contains(drive, StringComparer.OrdinalIgnoreCase);
+            _indexer.SetDriveState(drive, present ? "cached" : "unavailable");
         }
         catch (Exception ex)
         {
@@ -176,10 +172,13 @@ internal sealed class SearchEngineDriveMaintenance
                 _pendingDriveRebuilds.Remove(drive);
                 if (_activeRebuildCts.Remove(drive, out var current) && ReferenceEquals(current, cts))
                     cts.Dispose();
+                retryAfterRemoval = _rebuildAfterRemoval.Remove(drive);
             }
             UpdateMaintenanceBusyState();
             _onActivityCompleted();
         }
+        if (retryAfterRemoval)
+            QueueDriveRebuild(drive);
     }
 
     private void ForceRebuildDrive(string drive, CancellationToken token)
@@ -192,11 +191,10 @@ internal sealed class SearchEngineDriveMaintenance
             _indexer.Status.ActiveDrives = new List<string> { drive };
         }
         _indexer.SetDriveState(drive, "indexing");
-        // Only a journal-backed drive's monitor needs stopping before its own rebuild starts -- see
-        // UsnIndexer.RemoveDriveMonitor's own comment on why a non-journal drive deliberately does NOT do
-        // this instead.
+        // Stop only the live watcher before rebuilding. Keep the device notification registered so a
+        // physical removal during this rebuild can cancel its scan and schedule recovery.
         if (VolumeHelper.SupportsUsnJournal(drive))
-            _indexer.RemoveDriveMonitor(drive);
+            _indexer.ReleaseDriveMonitor(drive);
         var wasCancelled = false;
         var metadata = _indexer.BuildDrives(new[] { drive }, clearExisting: false, cacheDir: IndexCacheDir,
             getToken: _ => token, onDriveCancelled: _ => wasCancelled = true);
@@ -204,7 +202,8 @@ internal sealed class SearchEngineDriveMaintenance
         {
             // A Stop request reverts to "cached" (mirrors NetworkIndexer's own CancelDrive), not "failed"
             // -- the user asked for this, it isn't an error.
-            _indexer.SetDriveState(drive, wasCancelled ? "cached" : "failed");
+            var present = VolumeHelper.DetectIndexableLocalDrives().Contains(drive, StringComparer.OrdinalIgnoreCase);
+            _indexer.SetDriveState(drive, wasCancelled ? (present ? "cached" : "unavailable") : "failed");
             return;
         }
 
@@ -218,7 +217,8 @@ internal sealed class SearchEngineDriveMaintenance
     }
 
     private void EnsureDriveMonitor(string drive, ulong journalId, long nextUsn) =>
-        DriveMonitorFactory.EnsureMonitor(_indexer, drive, journalId, nextUsn, _token(), QueueDriveRebuild);
+        DriveMonitorFactory.EnsureMonitor(_indexer, drive, journalId, nextUsn, _token(), QueueDriveRebuild,
+            driveName => this.CancelDriveRebuild(driveName), driveName => this.QueueDriveRebuildAfterRemoval(driveName));
 
     private void PopulateCountsFromCache()
     {

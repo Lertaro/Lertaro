@@ -7,10 +7,8 @@ namespace Lertaro.Core.Indexer.Usn.Journal;
 
 public class JournalReader
 {
-    // token, previousStore, and onCheckpoint only apply to the ReFS branch below -- MftIndexScanner (raw
-    // $MFT parse, not a walk) has no natural interruption point and no diff-reuse/checkpoint capability,
-    // all out of scope for the same reason: it's not a walk. A Stop request, a previous store's baseline,
-    // or mid-walk checkpoint publishing are all no-ops for NTFS.
+    // previousStore and onCheckpoint only apply to the ReFS branch below. The NTFS $MFT parser is a
+    // sequential scan, so it observes token cancellation between read chunks rather than checkpoints.
     internal UsnDriveIndexResult? IndexDrive(
         string drive,
         FileRecordStore? previousStore = null,
@@ -28,6 +26,8 @@ public class JournalReader
             Win32Api.OPEN_EXISTING,
             0,
             IntPtr.Zero);
+        using var cancellationRegistration = token.Register(handle.Dispose);
+        token.ThrowIfCancellationRequested();
         if (handle.IsInvalid)
         {
             Logger.Log($"[JournalReader] Failed to open drive {drive} handle.", LogLevel.Error);
@@ -103,11 +103,11 @@ public class JournalReader
         }
 
         // NTFS: parse the raw $MFT so hard links are fully indexed (one row per link).
-        var mftResult = MftIndexScanner.ScanDrive(drive, handle, rootFrn.Value, journalId, nextUsn, onProgress);
+        var mftResult = MftIndexScanner.ScanDrive(drive, handle, rootFrn.Value, journalId, nextUsn, onProgress, token);
         if (mftResult == null)
             Logger.Log($"[JournalReader] $MFT scan failed on {drive}; drive not indexed.", LogLevel.Error);
         return mftResult;
     }
 
-    public long CatchUpDrive(string drive, ulong journalId, long startUsn, Func<ParsedUsnRecord, bool> onRecord) => JournalReaderHelper.CatchUpDrive(drive, journalId, startUsn, onRecord);
+    public long CatchUpDrive(string drive, ulong journalId, long startUsn, Func<ParsedUsnRecord, bool> onRecord, CancellationToken token = default) => JournalReaderHelper.CatchUpDrive(drive, journalId, startUsn, onRecord, token);
 }

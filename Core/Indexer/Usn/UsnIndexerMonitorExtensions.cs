@@ -1,3 +1,5 @@
+using Lertaro.Core.DriveMonitoring;
+
 namespace Lertaro.Core.Indexer.Usn;
 
 // Drive-monitor lifecycle for UsnIndexer, as extension methods (matching UsnIndexerExtensions/
@@ -38,6 +40,18 @@ internal static class UsnIndexerMonitorExtensions
         lock (indexer.LockObj)
             indexer._driveMonitors.Remove(drive, out old);
         old?.Dispose();
+    }
+
+    // Releases only the live filesystem watcher while keeping the PnP notification registered until
+    // Windows reports whether the removal completed or was rejected.
+    internal static void ReleaseDriveMonitor(this UsnIndexer indexer, string drive)
+    {
+        DriveMonitorRegistration? registration;
+        lock (indexer.LockObj)
+            registration = indexer._driveMonitors.TryGetValue(drive, out var monitor)
+                ? monitor as DriveMonitorRegistration
+                : null;
+        registration?.DisposeMonitor();
     }
 
     // Stops every currently-registered monitor -- a full rebuild-from-scratch tearing down and restarting
