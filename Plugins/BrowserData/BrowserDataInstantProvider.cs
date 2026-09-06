@@ -132,10 +132,11 @@ public class BrowserDataInstantProvider : IInstantResultProvider
             : entry.IsBookmark ? DefaultBookmarkIcon : DefaultHistoryIcon;
 
         var descriptionPrefix = !string.IsNullOrWhiteSpace(profile.Profile.Name) ? $"{profile.Profile.Name} · " : string.Empty;
-
         var description = descriptionPrefix + entry.Url;
-        if (!entry.IsBookmark && entry.VisitTime is { } visitTime)
-            description = $"{BrowserHistoryTime.Format(visitTime)} · {description}";
+        if (!entry.IsBookmark && entry.VisitTime is { } vt)
+        {
+            description = $"{BrowserHistoryTime.Format(vt)} · {description}";
+        }
 
         return new InstantResultItem
         {

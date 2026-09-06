@@ -6,6 +6,7 @@ namespace Lertaro.Plugins.BrowserData;
 internal sealed class ProfileEntries
 {
     public required BrowserProfileConfig Profile { get; init; }
+    public BrowserFamily Family { get; init; }
     public List<BrowserEntry> Bookmarks { get; init; } = new();
     public List<BrowserEntry> History { get; init; } = new();
 }
@@ -28,6 +29,11 @@ internal static class BrowserDataCache
     private static string _lastSignature = string.Empty;
     private static DateTime _lastLoadUtc = DateTime.MinValue;
     private static bool _loading;
+
+    private static readonly string[] MonitoredFileNames =
+    [
+        "Bookmarks", "History", "History-wal", "places.sqlite", "places.sqlite-wal"
+    ];
 
     internal static bool IsComponentEnabled => PluginSettingsService.IsComponentEnabled(
         PluginDllName, ComponentType, ComponentName);
@@ -82,9 +88,16 @@ internal static class BrowserDataCache
         var signature = (configured != null ? System.Text.Json.JsonSerializer.Serialize(configured) : string.Empty)
             + $"|{indexBookmarks}|{indexHistory}";
 
-        var needsReload = signature != _lastSignature || DateTime.UtcNow - _lastLoadUtc > RefreshInterval;
-        if (!needsReload)
+        var isConfigChanged = signature != _lastSignature;
+        var isStale = DateTime.UtcNow - _lastLoadUtc > RefreshInterval;
+        if (!isConfigChanged && !isStale)
             return;
+
+        if (!isConfigChanged && !HaveProfileFilesChanged(configured, _lastLoadUtc))
+        {
+            _lastLoadUtc = DateTime.UtcNow;
+            return;
+        }
 
         lock (Lock)
         {
@@ -106,6 +119,7 @@ internal static class BrowserDataCache
                 {
                     _snapshot = loaded;
                 }
+                MemoryMaintenanceService.RequestTrim();
             }
             catch (Exception ex)
             {
@@ -119,6 +133,35 @@ internal static class BrowserDataCache
                 }
             }
         });
+    }
+
+    internal static bool HaveProfileFilesChanged(List<BrowserProfileConfig>? profiles, DateTime lastLoadUtc)
+    {
+        if (profiles == null || profiles.Count == 0 || lastLoadUtc == DateTime.MinValue)
+            return true;
+
+        foreach (var profile in profiles)
+        {
+            if (string.IsNullOrWhiteSpace(profile.Path))
+                continue;
+
+            var dir = Environment.ExpandEnvironmentVariables(profile.Path);
+            if (!Directory.Exists(dir))
+                continue;
+
+            foreach (var fileName in MonitoredFileNames)
+            {
+                var filePath = Path.Combine(dir, fileName);
+                try
+                {
+                    if (File.Exists(filePath) && File.GetLastWriteTimeUtc(filePath) > lastLoadUtc)
+                        return true;
+                }
+                catch { }
+            }
+        }
+
+        return false;
     }
 
     internal static List<ProfileEntries> LoadAll(List<BrowserProfileConfig> profiles, bool indexBookmarks, bool indexHistory)
@@ -143,7 +186,7 @@ internal static class BrowserDataCache
             try
             {
                 var family = BrowserFamilyDetector.Detect(expandedPath);
-                var entries = new ProfileEntries { Profile = profile };
+                var entries = new ProfileEntries { Profile = profile, Family = family };
                 switch (family)
                 {
                     case BrowserFamily.Chromium:
@@ -167,7 +210,7 @@ internal static class BrowserDataCache
                     default:
                         PluginSdk.Logger.Log($"[BrowserData] '{expandedPath}' doesn't look like a Chrome/Firefox profile folder (no Bookmarks/History/places.sqlite found), skipping.", PluginSdk.LogLevel.Warn);
                         continue;
-                }
+                    }
                 result.Add(entries);
             }
             catch (Exception ex)

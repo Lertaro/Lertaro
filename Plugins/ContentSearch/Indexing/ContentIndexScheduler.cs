@@ -9,7 +9,7 @@ namespace Lertaro.Plugins.ContentSearch.Indexing;
 /// </summary>
 public sealed class ContentIndexScheduler : IDisposable
 {
-    private const int WriteBatchSize = 50;
+    private const int WriteBatchSize = 25;
     private const int ProgressNotifyIntervalMs = 3000;
 
     private readonly ContentSearchDatabase _database;
@@ -177,6 +177,7 @@ public sealed class ContentIndexScheduler : IDisposable
     {
         var hasPendingOptimizations = false;
         var idleCycles = 0;
+        var processedBatches = 0;
 
         while (!ct.IsCancellationRequested)
         {
@@ -215,6 +216,12 @@ public sealed class ContentIndexScheduler : IDisposable
                     // thread, and the parallel extraction lanes run on thread-pool threads.
                     _batchProcessor.ProcessBatchAsync(batch, _config, ct).GetAwaiter().GetResult();
                     _database.Checkpoint(truncate: false);
+                    processedBatches++;
+                    if (processedBatches % 10 == 0)
+                    {
+                        _database.Optimize();
+                        PluginSdk.Services.MemoryMaintenanceService.RequestTrim();
+                    }
                 }
                 finally
                 {

@@ -30,8 +30,7 @@ public sealed class ContentSearchDatabase : IDisposable
         var builder = new SqliteConnectionStringBuilder
         {
             DataSource = dbPath,
-            Mode = SqliteOpenMode.ReadWriteCreate,
-            Cache = SqliteCacheMode.Shared
+            Mode = SqliteOpenMode.ReadWriteCreate
         };
         _connectionString = builder.ToString();
     }
@@ -113,8 +112,9 @@ public sealed class ContentSearchDatabase : IDisposable
             {
                 using var conn = OpenConnection();
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = "INSERT INTO files_fts(files_fts) VALUES('optimize'); PRAGMA wal_checkpoint(TRUNCATE);";
+                cmd.CommandText = "INSERT INTO files_fts(files_fts) VALUES('optimize'); PRAGMA wal_checkpoint(TRUNCATE); PRAGMA shrink_memory;";
                 cmd.ExecuteNonQuery();
+                SqliteConnection.ClearAllPools();
             }
             catch { }
         }

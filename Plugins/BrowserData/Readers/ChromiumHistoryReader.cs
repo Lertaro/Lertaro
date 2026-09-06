@@ -45,9 +45,8 @@ internal static class ChromiumHistoryReader
                 results.Add(new BrowserEntry(
                     string.IsNullOrWhiteSpace(title) ? url : title,
                     url,
-                    IsBookmark: false,
-                    SortKey: lastVisit,
-                    VisitTime: BrowserHistoryTime.FromChromium(lastVisit)));
+                    isBookmark: false,
+                    sortKey: lastVisit));
             }
             return results;
         });

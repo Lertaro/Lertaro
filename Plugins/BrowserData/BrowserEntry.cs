@@ -1,13 +1,32 @@
+using Lertaro.Plugins.BrowserData.Readers;
+
 namespace Lertaro.Plugins.BrowserData;
 
-// SortKey is a history entry's last-visit timestamp (higher = more recent, epoch/units don't matter
-// since it's only ever compared to other entries from the same source) or a bookmark's insertion order.
-internal readonly record struct BrowserEntry(
-    string Title,
-    string Url,
-    bool IsBookmark,
-    long SortKey,
-    DateTimeOffset? VisitTime = null);
+// Lightweight reference type representing a bookmark or history item. Stored as a class (not a large struct)
+// so internal List<BrowserEntry> arrays hold 8-byte references, keeping them well below the 85,000-byte LOH
+// threshold even for profiles with tens of thousands of items.
+internal sealed class BrowserEntry
+{
+    public string Title { get; }
+    public string Url { get; }
+    public bool IsBookmark { get; }
+    public long SortKey { get; }
+    public BrowserFamily Family { get; }
+
+    public DateTimeOffset? VisitTime =>
+        SortKey == 0 ? null : (Family == BrowserFamily.Firefox
+            ? BrowserHistoryTime.FromFirefox(SortKey)
+            : BrowserHistoryTime.FromChromium(SortKey));
+
+    public BrowserEntry(string title, string url, bool isBookmark, long sortKey, BrowserFamily family = BrowserFamily.Chromium)
+    {
+        Title = title;
+        Url = url;
+        IsBookmark = isBookmark;
+        SortKey = sortKey;
+        Family = family;
+    }
+}
 
 internal static class BrowserEntryFilter
 {

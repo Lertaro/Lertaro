@@ -15,21 +15,16 @@ public static class SnippetGenerator
         if (string.IsNullOrWhiteSpace(content))
             return string.Empty;
 
-        var normalizedContent = NormalizeWhitespace(content);
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            var len = Math.Min(normalizedContent.Length, maxLength);
-            return normalizedContent.Substring(0, len).Trim();
-        }
-
-        var tokens = query.Split(new[] { ' ', '+', '"' }, StringSplitOptions.RemoveEmptyEntries);
+        var tokens = string.IsNullOrWhiteSpace(query)
+            ? Array.Empty<string>()
+            : query.Split(new[] { ' ', '+', '"' }, StringSplitOptions.RemoveEmptyEntries);
 
         var firstMatchIndex = -1;
         var matchedTokenLength = 0;
 
         foreach (var token in tokens)
         {
-            var idx = normalizedContent.IndexOf(token, StringComparison.OrdinalIgnoreCase);
+            var idx = content.IndexOf(token, StringComparison.OrdinalIgnoreCase);
             if (idx >= 0 && (firstMatchIndex < 0 || idx < firstMatchIndex))
             {
                 firstMatchIndex = idx;
@@ -37,9 +32,12 @@ public static class SnippetGenerator
             }
         }
 
-        if (firstMatchIndex < 0)
+        if (firstMatchIndex < 0 && !string.IsNullOrWhiteSpace(query))
         {
-            var mask = FuzzyMatchService.GetHighlightMask(normalizedContent, query);
+            // Bounded probe for fuzzy match to avoid allocating large arrays on LOH for multi-MB content
+            var probeLen = Math.Min(content.Length, 1000);
+            var probe = content.Substring(0, probeLen);
+            var mask = FuzzyMatchService.GetHighlightMask(probe, query);
             if (mask != null)
             {
                 for (var i = 0; i < mask.Length; i++)
@@ -56,24 +54,44 @@ public static class SnippetGenerator
 
         if (firstMatchIndex < 0)
         {
-            var len = Math.Min(normalizedContent.Length, maxLength);
-            return normalizedContent.Substring(0, len).Trim();
+            var probeLen = Math.Min(content.Length, maxLength * 2);
+            var norm = NormalizeWhitespace(content.Substring(0, probeLen));
+            var len = Math.Min(norm.Length, maxLength);
+            return norm.Substring(0, len).Trim();
         }
 
         var contextBefore = Math.Max(0, (maxLength - matchedTokenLength) / 3);
-        var start = Math.Max(0, firstMatchIndex - contextBefore);
-        var end = Math.Min(normalizedContent.Length, start + maxLength);
+        var rawStart = Math.Max(0, firstMatchIndex - contextBefore);
+        var rawEnd = Math.Min(content.Length, rawStart + maxLength * 2);
 
-        var snippet = normalizedContent.Substring(start, end - start).Trim();
-        var prefix = start > 0 ? "..." : "";
-        var suffix = end < normalizedContent.Length ? "..." : "";
+        var rawSlice = content.Substring(rawStart, rawEnd - rawStart);
+        var normSlice = NormalizeWhitespace(rawSlice);
+
+        var tokenToFind = tokens.Length > 0 ? tokens[0] : query;
+        var tokenInNorm = normSlice.IndexOf(tokenToFind, StringComparison.OrdinalIgnoreCase);
+        string snippet;
+        if (tokenInNorm >= 0)
+        {
+            var sStart = Math.Max(0, tokenInNorm - contextBefore);
+            var sLen = Math.Min(normSlice.Length - sStart, maxLength);
+            snippet = normSlice.Substring(sStart, sLen).Trim();
+        }
+        else
+        {
+            var sLen = Math.Min(normSlice.Length, maxLength);
+            snippet = normSlice.Substring(0, sLen).Trim();
+        }
+
+        var prefix = rawStart > 0 ? "..." : "";
+        var suffix = rawEnd < content.Length ? "..." : "";
 
         return $"{prefix}{snippet}{suffix}";
     }
 
-    private static string NormalizeWhitespace(string text)
+    public static string NormalizeWhitespace(string text)
     {
-        var sb = new StringBuilder(text.Length);
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        var sb = new StringBuilder(Math.Min(text.Length, 1024));
         var prevWasSpace = false;
         foreach (var ch in text)
         {

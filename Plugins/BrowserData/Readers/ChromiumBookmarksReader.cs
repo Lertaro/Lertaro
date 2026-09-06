@@ -54,7 +54,7 @@ internal static class ChromiumBookmarksReader
             if (string.IsNullOrWhiteSpace(url) || !BrowserEntryFilter.IsHttpUrl(url))
                 return;
             var name = node.TryGetProperty("name", out var n) ? n.GetString() : null;
-            results.Add(new BrowserEntry(string.IsNullOrWhiteSpace(name) ? url : name, url, IsBookmark: true, SortKey: results.Count));
+            results.Add(new BrowserEntry(string.IsNullOrWhiteSpace(name) ? url : name, url, isBookmark: true, sortKey: results.Count));
             return;
         }
 

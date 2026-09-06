@@ -43,7 +43,12 @@ internal static class FirefoxPlacesReader
                     if (string.IsNullOrWhiteSpace(url) || !BrowserEntryFilter.IsHttpUrl(url))
                         continue;
                     var title = reader.IsDBNull(1) ? url : reader.GetString(1);
-                    results.Add(new BrowserEntry(string.IsNullOrWhiteSpace(title) ? url : title, url, IsBookmark: true, SortKey: order++));
+                    results.Add(new BrowserEntry(
+                        string.IsNullOrWhiteSpace(title) ? url : title, 
+                        url, 
+                        isBookmark: true, 
+                        sortKey: order++, 
+                        family: BrowserFamily.Firefox));
                 }
             }
 
@@ -66,9 +71,9 @@ internal static class FirefoxPlacesReader
                     results.Add(new BrowserEntry(
                         string.IsNullOrWhiteSpace(title) ? url : title,
                         url,
-                        IsBookmark: false,
-                        SortKey: lastVisit,
-                        VisitTime: BrowserHistoryTime.FromFirefox(lastVisit)));
+                        isBookmark: false,
+                        sortKey: lastVisit,
+                        family: BrowserFamily.Firefox));
                 }
             }
 

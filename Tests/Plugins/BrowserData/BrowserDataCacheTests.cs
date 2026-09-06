@@ -105,4 +105,32 @@ public sealed class BrowserDataCacheTests
 
         Assert.IsEmpty(result);
     }
+
+    [TestMethod]
+    public void HaveProfileFilesChanged_UnchangedFiles_ReturnsFalse()
+    {
+        using var dir = new TempDirectory();
+        WriteBookmarksFile(dir.Path);
+        var bookmarkPath = Path.Combine(dir.Path, "Bookmarks");
+        File.SetLastWriteTimeUtc(bookmarkPath, new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+
+        var changed = BrowserDataCache.HaveProfileFilesChanged(
+            ProfileConfig(dir.Path), new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.IsFalse(changed);
+    }
+
+    [TestMethod]
+    public void HaveProfileFilesChanged_ModifiedFile_ReturnsTrue()
+    {
+        using var dir = new TempDirectory();
+        WriteBookmarksFile(dir.Path);
+        var bookmarkPath = Path.Combine(dir.Path, "Bookmarks");
+        File.SetLastWriteTimeUtc(bookmarkPath, new DateTime(2025, 1, 3, 0, 0, 0, DateTimeKind.Utc));
+
+        var changed = BrowserDataCache.HaveProfileFilesChanged(
+            ProfileConfig(dir.Path), new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.IsTrue(changed);
+    }
 }
