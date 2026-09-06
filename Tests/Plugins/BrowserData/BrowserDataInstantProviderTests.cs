@@ -60,7 +60,6 @@ public sealed class BrowserDataInstantProviderTests
     [TestMethod]
     public void FormatDescription_HistoryWithTimeAndProfileName_ReturnsTimeProfileAndUrl()
     {
-        // Chromium timestamp for 2026-01-01 00:00:00 UTC (microseconds since 1601-01-01)
         var chromiumTicks = (new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) - new DateTimeOffset(1601, 1, 1, 0, 0, 0, TimeSpan.Zero)).Ticks / 10;
         var entry = new BrowserEntry("Example", "https://example.com", isBookmark: false, sortKey: chromiumTicks);
         var profile = CreateProfile("Chrome", entry);
@@ -76,7 +75,7 @@ public sealed class BrowserDataInstantProviderTests
     {
         var entry = new BrowserEntry("GitHub", "https://example.com", isBookmark: true, sortKey: 100);
         var profile = CreateProfile("Chrome", entry);
-        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, int Tier)>();
+        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, string Description, int Tier)>();
 
         BrowserDataInstantProvider.CollectMatches(new List<BrowserEntry> { entry }, profile, "G", matches);
 
@@ -85,24 +84,61 @@ public sealed class BrowserDataInstantProviderTests
     }
 
     [TestMethod]
-    public void CollectMatches_SingleCharacter_MatchesUrlAtTierOne()
+    public void CollectMatches_TitleFuzzyMatch_ReturnsTierOne()
     {
-        var entry = new BrowserEntry("Sample", "https://google.com", isBookmark: true, sortKey: 100);
-        var profile = CreateProfile("Chrome", entry);
-        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, int Tier)>();
+        var entry = new BrowserEntry("Visual Studio Code", "https://example.com", isBookmark: true, sortKey: 100);
+        var profile = CreateProfile("Browser", entry);
+        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, string Description, int Tier)>();
 
-        BrowserDataInstantProvider.CollectMatches(new List<BrowserEntry> { entry }, profile, "g", matches);
+        FuzzyMatchService.IsMatchFunc = (pattern, text) => pattern == "vsc" && text == "Visual Studio Code";
+
+        BrowserDataInstantProvider.CollectMatches(new List<BrowserEntry> { entry }, profile, "vsc", matches);
 
         Assert.HasCount(1, matches);
         Assert.AreEqual(1, matches[0].Tier);
     }
 
     [TestMethod]
-    public void CollectMatches_ProfileNameMatches_ReturnsTierTwo()
+    public void CollectMatches_MultiWordFuzzyAcrossTimeAndUrl_ReturnsTierTwo()
     {
-        var entry = new BrowserEntry("Foo", "https://bar.com", isBookmark: true, sortKey: 100);
+        var chromiumTicks = (new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) - new DateTimeOffset(1601, 1, 1, 0, 0, 0, TimeSpan.Zero)).Ticks / 10;
+        var entry = new BrowserEntry("Internal", "https://lan.example.internal/ui/#/proxies", isBookmark: false, sortKey: chromiumTicks);
         var profile = CreateProfile("Chrome", entry);
-        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, int Tier)>();
+        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, string Description, int Tier)>();
+
+        // Simulates fzf multi-word matching where "2026" and "01" are separated by space
+        FuzzyMatchService.IsMatchFunc = (pattern, text) =>
+            pattern == "2026 01" && text.Contains("2026") && text.Contains("01");
+
+        BrowserDataInstantProvider.CollectMatches(new List<BrowserEntry> { entry }, profile, "2026 01", matches);
+
+        Assert.HasCount(1, matches);
+        Assert.AreEqual(2, matches[0].Tier);
+    }
+
+    [TestMethod]
+    public void CollectMatches_CrossLineTitleAndSourceMatch_ReturnsTierTwo()
+    {
+        var entry = new BrowserEntry("Proxy Settings", "https://example.com", isBookmark: true, sortKey: 100);
+        var profile = CreateProfile("Chrome", entry);
+        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, string Description, int Tier)>();
+
+        // Simulates matching title "Proxy" and source "Chrome" simultaneously
+        FuzzyMatchService.IsMatchFunc = (pattern, text) =>
+            pattern == "Chrome Proxy" && text.Contains("Chrome") && text.Contains("Proxy");
+
+        BrowserDataInstantProvider.CollectMatches(new List<BrowserEntry> { entry }, profile, "Chrome Proxy", matches);
+
+        Assert.HasCount(1, matches);
+        Assert.AreEqual(2, matches[0].Tier);
+    }
+
+    [TestMethod]
+    public void CollectMatches_LiteralSubstringInDescription_ReturnsTierTwo()
+    {
+        var entry = new BrowserEntry("Dashboard", "https://corp.internal", isBookmark: true, sortKey: 100);
+        var profile = CreateProfile("Chrome", entry);
+        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, string Description, int Tier)>();
 
         BrowserDataInstantProvider.CollectMatches(new List<BrowserEntry> { entry }, profile, "Chrome", matches);
 
@@ -111,44 +147,12 @@ public sealed class BrowserDataInstantProviderTests
     }
 
     [TestMethod]
-    public void CollectMatches_HistoryTimeStringMatches_ReturnsTierTwo()
-    {
-        var chromiumTicks = (new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) - new DateTimeOffset(1601, 1, 1, 0, 0, 0, TimeSpan.Zero)).Ticks / 10;
-        var entry = new BrowserEntry("Portal", "https://corp.internal", isBookmark: false, sortKey: chromiumTicks);
-        var profile = CreateProfile("Default", entry);
-        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, int Tier)>();
-
-        var formattedTime = BrowserHistoryTime.Format(entry.VisitTime!.Value);
-        var searchPart = formattedTime.Substring(0, 7); // e.g. "2026/01"
-
-        BrowserDataInstantProvider.CollectMatches(new List<BrowserEntry> { entry }, profile, searchPart, matches);
-
-        Assert.HasCount(1, matches);
-        Assert.AreEqual(2, matches[0].Tier);
-    }
-
-    [TestMethod]
-    public void CollectMatches_FuzzyMatchFallback_ReturnsTierThree()
-    {
-        var entry = new BrowserEntry("Visual Studio Code", "https://example.com", isBookmark: true, sortKey: 100);
-        var profile = CreateProfile("Browser", entry);
-        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, int Tier)>();
-
-        FuzzyMatchService.IsMatchFunc = (pattern, text) => pattern == "vsc" && text == "Visual Studio Code";
-
-        BrowserDataInstantProvider.CollectMatches(new List<BrowserEntry> { entry }, profile, "vsc", matches);
-
-        Assert.HasCount(1, matches);
-        Assert.AreEqual(3, matches[0].Tier);
-    }
-
-    [TestMethod]
     public void CollectMatches_EmptyQuery_MatchesAllWithTierZero()
     {
         var e1 = new BrowserEntry("A", "https://a.com", isBookmark: true, sortKey: 10);
         var e2 = new BrowserEntry("B", "https://b.com", isBookmark: true, sortKey: 20);
         var profile = CreateProfile("Chrome", e1, e2);
-        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, int Tier)>();
+        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, string Description, int Tier)>();
 
         BrowserDataInstantProvider.CollectMatches(new List<BrowserEntry> { e1, e2 }, profile, string.Empty, matches);
 

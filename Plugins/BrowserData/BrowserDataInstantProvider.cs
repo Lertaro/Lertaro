@@ -52,7 +52,7 @@ public class BrowserDataInstantProvider : IInstantResultProvider
         if (snapshot.Count == 0)
             return Array.Empty<InstantResultItem>();
 
-        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, int Tier)>();
+        var matches = new List<(BrowserEntry Entry, ProfileEntries Profile, string Description, int Tier)>();
         foreach (var profile in snapshot)
         {
             var entries = parsed.Scope == BrowserDataSearchScope.Bookmarks ? profile.Bookmarks : profile.History;
@@ -64,7 +64,7 @@ public class BrowserDataInstantProvider : IInstantResultProvider
             .OrderBy(m => m.Tier)
             .ThenByDescending(m => m.Entry.SortKey)
             .Take(limit)
-            .Select(m => ToInstantResult(m.Entry, m.Profile))
+            .Select(m => ToInstantResult(m.Entry, m.Profile, m.Description))
             .ToList();
     }
 
@@ -83,45 +83,44 @@ public class BrowserDataInstantProvider : IInstantResultProvider
         return FuzzyMatchService.GetHighlightMask(text, parsed.SearchTerm) ?? new bool[text.Length];
     }
 
-    // Cheap literal substring checks first (Title -> URL -> full Description including source and time)
-    // cover typing recognizable keywords without running the more expensive fuzzy matcher. Tier 0 is
-    // Title (Line 1), Tier 1 is URL (Line 2 fast-path without string formatting), Tier 2 is full Description
-    // (Line 2 source profile name or formatted history timestamp), and Tier 3 is Title fuzzy matching.
-    internal static void CollectMatches(List<BrowserEntry> entries, ProfileEntries profile, string query, List<(BrowserEntry Entry, ProfileEntries Profile, int Tier)> matches)
+    // Matches Line 1 (Title) and Line 2 (Description: Time + Source Profile + URL) simultaneously.
+    // Tier 0 is exact Title literal match. Tier 1 is Title fuzzy/pinyin match. Tier 2 is full-item match
+    // across both lines combined, supporting multi-word queries (e.g. "2026 09", "Chrome proxies") as well
+    // as fuzzy/pinyin matching against any part of the record.
+    internal static void CollectMatches(
+        List<BrowserEntry> entries,
+        ProfileEntries profile,
+        string query,
+        List<(BrowserEntry Entry, ProfileEntries Profile, string Description, int Tier)> matches)
     {
-        // Empty query (a bare trigger alone): everything matches, same tier -- skip the Contains/fuzzy checks
-        // below entirely rather than let them all trivially match, since Contains("", ...) is a
-        // needless scan and FuzzyMatchService.IsMatch isn't designed for an empty pattern anyway.
+        // Empty query (a bare trigger alone): everything matches, same tier -- skip checks entirely.
         if (query.Length == 0)
         {
             foreach (var entry in entries)
-                matches.Add((entry, profile, 0));
+                matches.Add((entry, profile, FormatDescription(entry, profile), 0));
             return;
         }
 
-        var profileNameMatches = !string.IsNullOrWhiteSpace(profile.Profile.Name)
-            && profile.Profile.Name.Contains(query, StringComparison.OrdinalIgnoreCase);
-
         foreach (var entry in entries)
         {
+            var description = FormatDescription(entry, profile);
+            var fullText = $"{entry.Title} {description}";
+
             if (entry.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
             {
-                matches.Add((entry, profile, 0));
+                matches.Add((entry, profile, description, 0));
                 continue;
             }
-            if (entry.Url.Contains(query, StringComparison.OrdinalIgnoreCase))
-            {
-                matches.Add((entry, profile, 1));
-                continue;
-            }
-            if (profileNameMatches || FormatDescription(entry, profile).Contains(query, StringComparison.OrdinalIgnoreCase))
-            {
-                matches.Add((entry, profile, 2));
-                continue;
-            }
+
             if (FuzzyMatchService.IsMatch(query, entry.Title))
             {
-                matches.Add((entry, profile, 3));
+                matches.Add((entry, profile, description, 1));
+                continue;
+            }
+
+            if (fullText.Contains(query, StringComparison.OrdinalIgnoreCase) || FuzzyMatchService.IsMatch(query, fullText))
+            {
+                matches.Add((entry, profile, description, 2));
             }
         }
     }
@@ -138,7 +137,7 @@ public class BrowserDataInstantProvider : IInstantResultProvider
         return description;
     }
 
-    private static InstantResultItem ToInstantResult(BrowserEntry entry, ProfileEntries profile)
+    private static InstantResultItem ToInstantResult(BrowserEntry entry, ProfileEntries profile, string description)
     {
         var iconData = !string.IsNullOrWhiteSpace(profile.Profile.Icon)
             ? profile.Profile.Icon
@@ -147,7 +146,7 @@ public class BrowserDataInstantProvider : IInstantResultProvider
         return new InstantResultItem
         {
             Title = entry.Title,
-            Description = FormatDescription(entry, profile),
+            Description = description,
             IconData = iconData,
             IconColor = "AccentBlue",
             ActionType = "Execute",
