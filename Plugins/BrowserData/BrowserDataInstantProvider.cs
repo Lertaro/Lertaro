@@ -47,12 +47,6 @@ public class BrowserDataInstantProvider : IInstantResultProvider
             return Array.Empty<InstantResultItem>();
 
         var q = parsed.SearchTerm;
-        // A single character matches almost anything in a large history and is expensive to fully
-        // scan for very little payoff -- same tradeoff already established for Core's own file search.
-        // An EMPTY remaining term (just the bookmark trigger alone) is deliberately not blocked here, unlike length 1:
-        // it lists everything instead of matching nothing, mirroring ProcessManager's "ps" alone.
-        if (q.Length == 1)
-            return Array.Empty<InstantResultItem>();
 
         var snapshot = BrowserDataCache.GetSnapshot();
         if (snapshot.Count == 0)
@@ -89,12 +83,11 @@ public class BrowserDataInstantProvider : IInstantResultProvider
         return FuzzyMatchService.GetHighlightMask(text, parsed.SearchTerm) ?? new bool[text.Length];
     }
 
-    // Cheap literal substring check first (no fzf-pattern parsing) covers the common case of typing a
-    // recognizable piece of a title/URL -- only entries that don't literally contain the query anywhere
-    // pay for the more expensive fuzzy-match fallback below. With a couple of profiles' worth of
-    // bookmarks + up to a few thousand history entries scanned on every keystroke, this tiering keeps
-    // the common case fast instead of running the fuzzy matcher over the whole cache every time.
-    private static void CollectMatches(List<BrowserEntry> entries, ProfileEntries profile, string query, List<(BrowserEntry, ProfileEntries, int)> matches)
+    // Cheap literal substring checks first (Title -> URL -> full Description including source and time)
+    // cover typing recognizable keywords without running the more expensive fuzzy matcher. Tier 0 is
+    // Title (Line 1), Tier 1 is URL (Line 2 fast-path without string formatting), Tier 2 is full Description
+    // (Line 2 source profile name or formatted history timestamp), and Tier 3 is Title fuzzy matching.
+    internal static void CollectMatches(List<BrowserEntry> entries, ProfileEntries profile, string query, List<(BrowserEntry Entry, ProfileEntries Profile, int Tier)> matches)
     {
         // Empty query (a bare trigger alone): everything matches, same tier -- skip the Contains/fuzzy checks
         // below entirely rather than let them all trivially match, since Contains("", ...) is a
@@ -105,6 +98,9 @@ public class BrowserDataInstantProvider : IInstantResultProvider
                 matches.Add((entry, profile, 0));
             return;
         }
+
+        var profileNameMatches = !string.IsNullOrWhiteSpace(profile.Profile.Name)
+            && profile.Profile.Name.Contains(query, StringComparison.OrdinalIgnoreCase);
 
         foreach (var entry in entries)
         {
@@ -118,11 +114,28 @@ public class BrowserDataInstantProvider : IInstantResultProvider
                 matches.Add((entry, profile, 1));
                 continue;
             }
-            if (FuzzyMatchService.IsMatch(query, entry.Title))
+            if (profileNameMatches || FormatDescription(entry, profile).Contains(query, StringComparison.OrdinalIgnoreCase))
             {
                 matches.Add((entry, profile, 2));
+                continue;
+            }
+            if (FuzzyMatchService.IsMatch(query, entry.Title))
+            {
+                matches.Add((entry, profile, 3));
             }
         }
+    }
+
+    internal static string FormatDescription(BrowserEntry entry, ProfileEntries profile)
+    {
+        var descriptionPrefix = !string.IsNullOrWhiteSpace(profile.Profile.Name) ? $"{profile.Profile.Name} · " : string.Empty;
+        var description = descriptionPrefix + entry.Url;
+        if (!entry.IsBookmark && entry.VisitTime is { } vt)
+        {
+            description = $"{BrowserHistoryTime.Format(vt)} · {description}";
+        }
+
+        return description;
     }
 
     private static InstantResultItem ToInstantResult(BrowserEntry entry, ProfileEntries profile)
@@ -131,17 +144,10 @@ public class BrowserDataInstantProvider : IInstantResultProvider
             ? profile.Profile.Icon
             : entry.IsBookmark ? DefaultBookmarkIcon : DefaultHistoryIcon;
 
-        var descriptionPrefix = !string.IsNullOrWhiteSpace(profile.Profile.Name) ? $"{profile.Profile.Name} · " : string.Empty;
-        var description = descriptionPrefix + entry.Url;
-        if (!entry.IsBookmark && entry.VisitTime is { } vt)
-        {
-            description = $"{BrowserHistoryTime.Format(vt)} · {description}";
-        }
-
         return new InstantResultItem
         {
             Title = entry.Title,
-            Description = description,
+            Description = FormatDescription(entry, profile),
             IconData = iconData,
             IconColor = "AccentBlue",
             ActionType = "Execute",
