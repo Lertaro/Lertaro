@@ -4,7 +4,6 @@
         <ResourceDictionary Source="Styles/Tokens/Colors.xaml"/>
         <ResourceDictionary Source="Styles/Tokens/Spacing.xaml"/>
         <ResourceDictionary Source="Styles/Tokens/Motion.xaml"/>
-        <ResourceDictionary Source="Styles/Tokens/Elevation.xaml"/>
         <ResourceDictionary Source="Styles/Controls/ScrollBar.xaml"/>
         <ResourceDictionary Source="Styles/Controls/ListBox.xaml"/>
         <ResourceDictionary Source="Styles/Controls/Button.xaml"/>

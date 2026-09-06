@@ -52,9 +52,6 @@
     <Border CornerRadius="10" Background="{DynamicResource ContentBg}"
             helpers:PluginWindowClip.IsEnabled="True"
             BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="20" ShadowDepth="2" Opacity="0.2" Color="{DynamicResource ShadowColor}"/>
-        </Border.Effect>
         <Border CornerRadius="10" helpers:PluginWindowClip.IsEnabled="True">
             <Grid>
                 <Grid.RowDefinitions>

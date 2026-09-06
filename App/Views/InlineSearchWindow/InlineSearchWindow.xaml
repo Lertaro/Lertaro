@@ -22,8 +22,7 @@
         <!-- Main card - inverted layout: results on top, search box at bottom -->
         <Border x:Name="MainBorder" Margin="12" CornerRadius="8"
                 Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
-                VerticalAlignment="Bottom"
-                Effect="{StaticResource Elevation3}">
+                VerticalAlignment="Bottom">
             <!-- ClipToBounds lives on this separate inner Border, not MainBorder itself: putting it on
                  the same element as Effect clips the drop shadow's own soft blur to a plain rectangle,
                  leaving a hard square remnant right at the rounded corners instead of a smooth fade. Same

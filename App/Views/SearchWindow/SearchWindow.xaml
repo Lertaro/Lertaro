@@ -25,8 +25,7 @@
     </Window.Resources>
     <!-- Main border with shadow -->
     <Border x:Name="MainBorder" CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource ContentBg}"
-            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8"
-            Effect="{StaticResource Elevation2}">
+            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
         <!-- ClipToBounds ignores CornerRadius (a WPF limitation, not a bug here): helpers:RoundedClip
              builds a real rounded-rect Clip instead: child content flush to the edge would otherwise show
              square corners poking past this Border's own rounded paint. -->

@@ -22,11 +22,6 @@
     <Border x:Name="WindowBorder" CornerRadius="{StaticResource CornerRadiusWindow}" BorderThickness="1.5"
             Margin="12"
             Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource CardBorderBrush}">
-        <!-- Not Elevation2: this floats directly over arbitrary preview content (photos/video), so it
-             keeps a deliberately stronger 0.5 opacity for contrast rather than the shared window tier's 0.2. -->
-        <Border.Effect>
-            <DropShadowEffect Color="{DynamicResource ShadowColor}" BlurRadius="20" ShadowDepth="2" Opacity="0.5"/>
-        </Border.Effect>
         <Grid Margin="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>

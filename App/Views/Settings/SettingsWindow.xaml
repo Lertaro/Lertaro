@@ -28,8 +28,7 @@
     </Window.Resources>
 
     <Border x:Name="MainBorder" CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource ContentBg}"
-            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8"
-            Effect="{StaticResource Elevation2}">
+            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
         <!-- ClipToBounds ignores CornerRadius (a WPF limitation, not a bug here): helpers:RoundedClip
              builds a real rounded-rect Clip instead: child content flush to the edge would otherwise show
              square corners poking past this Border's own rounded paint. -->
@@ -115,8 +114,7 @@
                        Placement="Bottom" Width="320" VerticalOffset="4" StaysOpen="True" AllowsTransparency="True"
                        PopupAnimation="Fade">
                     <Border Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource WindowBorderBrush}"
-                            BorderThickness="1" CornerRadius="{StaticResource CornerRadiusPopover}" Padding="0,4"
-                            Effect="{StaticResource Elevation1}">
+                            BorderThickness="1" CornerRadius="{StaticResource CornerRadiusPopover}" Padding="0,4">
                         <StackPanel>
                             <ListBox x:Name="LstSearchResults" MaxHeight="400"
                                      BorderThickness="0" Background="Transparent"

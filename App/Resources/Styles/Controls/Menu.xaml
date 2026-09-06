@@ -5,7 +5,6 @@
         <ResourceDictionary Source="../Tokens/Colors.xaml"/>
         <ResourceDictionary Source="../Tokens/Spacing.xaml"/>
         <ResourceDictionary Source="../Tokens/Motion.xaml"/>
-        <ResourceDictionary Source="../Tokens/Elevation.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
     <!-- ═══════════ Modern ContextMenu Styles ═══════════ -->
@@ -23,8 +22,7 @@
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="{StaticResource CornerRadiusPopover}"
-                            Padding="{TemplateBinding Padding}"
-                            Effect="{StaticResource Elevation1}">
+                            Padding="{TemplateBinding Padding}">
                         <ScrollViewer x:Name="SubMenuScrollViewer" Focusable="false"
                                       VerticalScrollBarVisibility="Auto"
                                       CanContentScroll="True"
@@ -107,8 +105,7 @@
                                     BorderThickness="1"
                                     CornerRadius="{StaticResource CornerRadiusPopover}"
                                     Padding="4"
-                                    SnapsToDevicePixels="True"
-                                    Effect="{StaticResource Elevation1}">
+                                    SnapsToDevicePixels="True">
                                 <ScrollViewer x:Name="SubMenuScrollViewer" Focusable="false"
                                               VerticalScrollBarVisibility="Auto"
                                               CanContentScroll="True"

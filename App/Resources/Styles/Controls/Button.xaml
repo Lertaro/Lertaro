@@ -4,7 +4,6 @@
         <ResourceDictionary Source="../Tokens/Colors.xaml"/>
         <ResourceDictionary Source="../Tokens/Spacing.xaml"/>
         <ResourceDictionary Source="../Tokens/Motion.xaml"/>
-        <ResourceDictionary Source="../Tokens/Elevation.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
     <!-- ═══════════ Settings Button Styles ═══════════ -->

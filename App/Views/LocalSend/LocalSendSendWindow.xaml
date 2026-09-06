@@ -20,7 +20,6 @@
         <WindowChrome CaptionHeight="36" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0"/>
     </WindowChrome.WindowChrome>
     <Border CornerRadius="12" Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
-        <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="3" Opacity="0.25" Color="{DynamicResource ShadowColor}"/></Border.Effect>
         <Border CornerRadius="12" helpers:RoundedClip.IsEnabled="True">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="*"/></Grid.RowDefinitions>

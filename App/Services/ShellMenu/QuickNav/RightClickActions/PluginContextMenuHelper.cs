@@ -140,7 +140,6 @@ public static class PluginContextMenuHelper
             border.SetResourceReference(Border.BackgroundProperty, "MenuBackground");
             border.SetResourceReference(Border.BorderBrushProperty, "MenuBorderBrush");
             border.SetResourceReference(Border.CornerRadiusProperty, "CornerRadiusPopover");
-            border.SetResourceReference(UIElement.EffectProperty, "Elevation1");
 
             _currentRightClickPopup = new Popup
             {

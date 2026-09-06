@@ -29,8 +29,7 @@
                 BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
                 MouseLeftButtonDown="Border_MouseLeftButtonDown"
                 MouseMove="Border_MouseMove"
-                MouseLeftButtonUp="Border_MouseLeftButtonUp"
-                Effect="{StaticResource Elevation3}">
+                MouseLeftButtonUp="Border_MouseLeftButtonUp">
 
             <!-- ClipToBounds ignores CornerRadius (a WPF limitation, not a bug here): helpers:RoundedClip
                  builds a real rounded-rect Clip instead: child content flush to the edge would otherwise show
