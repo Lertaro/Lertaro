@@ -19,6 +19,8 @@ public partial class FileOccupationView : UserControl
     private bool _busy;
     private bool _pathIsHovered;
     private bool _hasProcesses;
+    private Window? _containingWindow;
+    private EventHandler? _windowActivationHandler;
     private Button? _releaseButton;
     private string? _sortProperty;
     private ListSortDirection _sortDirection = ListSortDirection.Ascending;
@@ -55,7 +57,31 @@ public partial class FileOccupationView : UserControl
         window.Footer.Children.Add(release);
     }
 
-    private async void Window_Loaded(object sender, RoutedEventArgs e) => await RefreshAsync();
+    private async void Window_Loaded(object sender, RoutedEventArgs e)
+    {
+        _containingWindow = Window.GetWindow(this);
+        if (_containingWindow != null)
+        {
+            _windowActivationHandler = (s, args) => UpdatePathMarquee();
+            _containingWindow.Activated += _windowActivationHandler;
+            _containingWindow.Deactivated += _windowActivationHandler;
+        }
+
+        await RefreshAsync();
+    }
+
+    private void Window_Unloaded(object sender, RoutedEventArgs e)
+    {
+        if (_containingWindow != null && _windowActivationHandler != null)
+        {
+            _containingWindow.Activated -= _windowActivationHandler;
+            _containingWindow.Deactivated -= _windowActivationHandler;
+        }
+
+        _containingWindow = null;
+        _windowActivationHandler = null;
+        StopPathMarquee();
+    }
 
     private void PathViewport_MouseEnter(object sender, MouseEventArgs e)
     {
@@ -77,7 +103,8 @@ public partial class FileOccupationView : UserControl
     {
         var availableWidth = PathViewport.ActualWidth;
         var elementWidth = PathText.ActualWidth;
-        if (!_pathIsHovered || availableWidth <= 0 || elementWidth <= 0)
+        if (!_pathIsHovered || (_containingWindow != null && !_containingWindow.IsActive)
+            || availableWidth <= 0 || elementWidth <= 0)
         {
             StopPathMarquee();
             return;

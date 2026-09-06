@@ -72,11 +72,13 @@ public static class MarqueeBehavior
         // hover/select/highlight state so every overflowing row doesn't scroll at once.
         var listBoxItem = FindVisualAncestor<ListBoxItem>(element);
         var menuItem = listBoxItem == null ? FindVisualAncestor<MenuItem>(element) : null;
-        Func<bool> isActive = listBoxItem != null
+        var containingWindow = Window.GetWindow(element);
+        Func<bool> isContainerActive = listBoxItem != null
             ? () => listBoxItem.IsMouseOver || listBoxItem.IsSelected
             : menuItem != null
                 ? () => menuItem.IsHighlighted
                 : () => true;
+        Func<bool> isActive = () => (containingWindow == null || containingWindow.IsActive) && isContainerActive();
 
         if (element.RenderTransform is not TranslateTransform)
         {
@@ -88,6 +90,7 @@ public static class MarqueeBehavior
         DependencyPropertyDescriptor? isHighlightedDescriptor = null;
         var watchedContainer = (DependencyObject?)listBoxItem ?? menuItem;
         EventHandler? handler = null;
+        EventHandler? windowActivationHandler = null;
 
         if (listBoxItem != null)
         {
@@ -108,6 +111,13 @@ public static class MarqueeBehavior
             isHighlightedDescriptor?.AddValueChanged(menuItem, handler);
         }
 
+        if (containingWindow != null)
+        {
+            windowActivationHandler = (s, e) => UpdateMarqueeAnimation(element, isActive);
+            containingWindow.Activated += windowActivationHandler;
+            containingWindow.Deactivated += windowActivationHandler;
+        }
+
         element.SizeChanged += (s, e) => UpdateMarqueeAnimation(element, isActive);
 
         if (VisualTreeHelper.GetParent(element) is FrameworkElement parent)
@@ -121,7 +131,9 @@ public static class MarqueeBehavior
             IsMouseOverDescriptor = isMouseOverDescriptor,
             IsSelectedDescriptor = isSelectedDescriptor,
             IsHighlightedDescriptor = isHighlightedDescriptor,
-            Handler = handler
+            Handler = handler,
+            ContainingWindow = containingWindow,
+            WindowActivationHandler = windowActivationHandler
         };
         SetMarqueeState(element, state);
 
@@ -139,6 +151,13 @@ public static class MarqueeBehavior
                 state.IsSelectedDescriptor?.RemoveValueChanged(state.WatchedContainer, state.Handler);
                 state.IsHighlightedDescriptor?.RemoveValueChanged(state.WatchedContainer, state.Handler);
             }
+
+            if (state.ContainingWindow != null && state.WindowActivationHandler != null)
+            {
+                state.ContainingWindow.Activated -= state.WindowActivationHandler;
+                state.ContainingWindow.Deactivated -= state.WindowActivationHandler;
+            }
+
             SetMarqueeState(element, null);
         }
 
@@ -214,5 +233,7 @@ public static class MarqueeBehavior
         public DependencyPropertyDescriptor? IsSelectedDescriptor { get; set; }
         public DependencyPropertyDescriptor? IsHighlightedDescriptor { get; set; }
         public EventHandler? Handler { get; set; }
+        public Window? ContainingWindow { get; set; }
+        public EventHandler? WindowActivationHandler { get; set; }
     }
 }
