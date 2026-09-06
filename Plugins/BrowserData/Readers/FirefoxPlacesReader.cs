@@ -15,17 +15,16 @@ internal static class FirefoxPlacesReader
         if (!File.Exists(sourcePath))
             return (new List<BrowserEntry>(), new List<BrowserEntry>());
 
-        // Both queries run against the same temp copy -- combined into one list here (tagged via
-        // IsBookmark) since SqliteCopyReader's copy/cleanup is scoped to a single read callback.
-        var combined = SqliteCopyReader.ReadCopy(sourcePath, tempPath =>
+        try
         {
-            var results = new List<BrowserEntry>();
+            var bookmarks = new List<BrowserEntry>();
+            var history = new List<BrowserEntry>();
 
-            // Pooling=false: Microsoft.Data.Sqlite's default connection pool keeps the native file
-            // handle open after Dispose() in case the same connection string gets reused -- it never
-            // does here (tempPath is a fresh GUID every call), so pooling only left the temp file
-            // locked open by this very process, making SqliteCopyReader's own delete-after-use fail.
-            using var conn = new SqliteConnection($"Data Source={tempPath};Mode=ReadOnly;Pooling=false");
+            // immutable=1 bypasses SQLite's OS file-locking layer (LockFileEx), allowing direct
+            // read-only queries against live browser files without colliding with Firefox's active locks
+            // or copying tens of megabytes to %TEMP% (eliminating SSD write amplification).
+            var connectionString = $"Data Source=file:///{sourcePath.Replace('\\', '/')}?immutable=1;Mode=ReadOnly;Pooling=false";
+            using var conn = new SqliteConnection(connectionString);
             conn.Open();
 
             using (var cmd = conn.CreateCommand())
@@ -43,11 +42,11 @@ internal static class FirefoxPlacesReader
                     if (string.IsNullOrWhiteSpace(url) || !BrowserEntryFilter.IsHttpUrl(url))
                         continue;
                     var title = reader.IsDBNull(1) ? url : reader.GetString(1);
-                    results.Add(new BrowserEntry(
-                        string.IsNullOrWhiteSpace(title) ? url : title, 
-                        url, 
-                        isBookmark: true, 
-                        sortKey: order++, 
+                    bookmarks.Add(new BrowserEntry(
+                        string.IsNullOrWhiteSpace(title) ? url : title,
+                        url,
+                        isBookmark: true,
+                        sortKey: order++,
                         family: BrowserFamily.Firefox));
                 }
             }
@@ -68,7 +67,7 @@ internal static class FirefoxPlacesReader
                         continue;
                     var title = reader.IsDBNull(1) ? url : reader.GetString(1);
                     var lastVisit = reader.IsDBNull(2) ? 0L : reader.GetInt64(2);
-                    results.Add(new BrowserEntry(
+                    history.Add(new BrowserEntry(
                         string.IsNullOrWhiteSpace(title) ? url : title,
                         url,
                         isBookmark: false,
@@ -77,11 +76,12 @@ internal static class FirefoxPlacesReader
                 }
             }
 
-            return results;
-        });
-
-        var bookmarks = combined.Where(e => e.IsBookmark).ToList();
-        var history = combined.Where(e => !e.IsBookmark).ToList();
-        return (bookmarks, history);
+            return (bookmarks, history);
+        }
+        catch (Exception ex)
+        {
+            PluginSdk.Logger.Log($"[BrowserData] Failed to read '{sourcePath}': {ex.Message}", PluginSdk.LogLevel.Warn);
+            return (new List<BrowserEntry>(), new List<BrowserEntry>());
+        }
     }
 }

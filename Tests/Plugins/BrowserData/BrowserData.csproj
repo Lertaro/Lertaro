@@ -41,7 +41,6 @@
     <Compile Include="..\..\..\Plugins\BrowserData\BrowserDataCache.cs" Link="Source\BrowserDataCache.cs" />
     <Compile Include="..\..\..\Plugins\BrowserData\Readers\BrowserFamilyDetector.cs" Link="Source\Readers\BrowserFamilyDetector.cs" />
     <Compile Include="..\..\..\Plugins\BrowserData\Readers\ChromiumBookmarksReader.cs" Link="Source\Readers\ChromiumBookmarksReader.cs" />
-    <Compile Include="..\..\..\Plugins\BrowserData\Readers\SqliteCopyReader.cs" Link="Source\Readers\SqliteCopyReader.cs" />
     <Compile Include="..\..\..\Plugins\BrowserData\Readers\ChromiumHistoryReader.cs" Link="Source\Readers\ChromiumHistoryReader.cs" />
     <Compile Include="..\..\..\Plugins\BrowserData\Readers\FirefoxPlacesReader.cs" Link="Source\Readers\FirefoxPlacesReader.cs" />
     <Compile Include="**\*.cs" Exclude="bin\**;obj\**" />

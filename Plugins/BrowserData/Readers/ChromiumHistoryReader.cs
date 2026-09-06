@@ -17,14 +17,14 @@ internal static class ChromiumHistoryReader
         if (!File.Exists(sourcePath))
             return new List<BrowserEntry>();
 
-        return SqliteCopyReader.ReadCopy(sourcePath, tempPath =>
+        try
         {
             var results = new List<BrowserEntry>();
-            // Pooling=false: Microsoft.Data.Sqlite's default connection pool keeps the native file
-            // handle open after Dispose() in case the same connection string gets reused -- it never
-            // does here (tempPath is a fresh GUID every call), so pooling only left the temp file
-            // locked open by this very process, making SqliteCopyReader's own delete-after-use fail.
-            using var conn = new SqliteConnection($"Data Source={tempPath};Mode=ReadOnly;Pooling=false");
+            // immutable=1 bypasses SQLite's OS file-locking layer (LockFileEx), allowing direct
+            // read-only queries against live browser files without colliding with Chrome's active locks
+            // or copying tens of megabytes to %TEMP% (eliminating SSD write amplification).
+            var connectionString = $"Data Source=file:///{sourcePath.Replace('\\', '/')}?immutable=1;Mode=ReadOnly;Pooling=false";
+            using var conn = new SqliteConnection(connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
             // Filtered in SQL (not just after reading) so the LIMIT budget -- the most-recent MaxEntries
@@ -49,6 +49,11 @@ internal static class ChromiumHistoryReader
                     sortKey: lastVisit));
             }
             return results;
-        });
+        }
+        catch (Exception ex)
+        {
+            PluginSdk.Logger.Log($"[BrowserData] Failed to read '{sourcePath}': {ex.Message}", PluginSdk.LogLevel.Warn);
+            return new List<BrowserEntry>();
+        }
     }
 }
