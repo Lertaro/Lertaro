@@ -110,6 +110,22 @@ public sealed class PluginManagementViewModelSortTests
     }
 
     [TestMethod]
+    public void MovePluginForDisabledState_UsesSingleMoveNotification()
+    {
+        var moving = MakePlugin("Moving", hasToggleable: true);
+        var active = MakePlugin("Active", hasToggleable: true);
+        var plugins = new ObservableCollection<PluginInfoViewModel> { moving, active };
+        var actions = new List<System.Collections.Specialized.NotifyCollectionChangedAction>();
+        plugins.CollectionChanged += (_, e) => actions.Add(e.Action);
+
+        moving.RawComponents.Single().IsEnabled = false;
+        PluginManagementViewModel.MovePluginForDisabledState(plugins, moving);
+
+        CollectionAssert.AreEqual(
+            new[] { System.Collections.Specialized.NotifyCollectionChangedAction.Move }, actions);
+    }
+
+    [TestMethod]
     public void SyncRuntimeStatusCollection_UnchangedOrder_DoesNotRaiseCollectionChanges()
     {
         var first = new PluginRuntimeStatusItemViewModel(MakePlugin("First"));

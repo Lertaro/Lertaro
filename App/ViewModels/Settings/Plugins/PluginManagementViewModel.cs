@@ -172,22 +172,24 @@ public class PluginManagementViewModel : ViewModelBase
         var currentIndex = plugins.IndexOf(plugin);
         if (currentIndex < 0) return;
 
-        // Remove first, then re-insert at the first position that sorts after the moved plugin:
-        // that is exactly where SortForDisplay would have put it, in the disabled tail as well
-        // as back among the active band. No position found means it belongs at the end.
-        plugins.RemoveAt(currentIndex);
-
-        var insertAt = plugins.Count;
+        // Find the first position that sorts after the moved plugin: that is exactly where
+        // SortForDisplay would have put it, in the disabled tail as well as back among the active
+        // band. No position found means it belongs at the end.
+        var insertAt = plugins.Count - 1;
         for (var i = 0; i < plugins.Count; i++)
         {
+            if (i == currentIndex) continue;
+
             if (CompareDisplayOrder(plugins[i], plugin) > 0)
             {
-                insertAt = i;
+                insertAt = i < currentIndex ? i : i - 1;
                 break;
             }
         }
 
-        plugins.Insert(insertAt, plugin);
+        // Move emits one collection change instead of the remove/add pair. WPF can therefore keep
+        // the selected item bound to this same VM while its row changes position.
+        plugins.Move(currentIndex, insertAt);
     }
 
     private static int CompareDisplayOrder(PluginInfoViewModel left, PluginInfoViewModel right)
