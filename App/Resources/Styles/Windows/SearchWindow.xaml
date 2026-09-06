@@ -180,13 +180,13 @@
                         <!-- Resize Gripper -->
                         <Thumb x:Name="PART_HeaderGripper"
                                HorizontalAlignment="Right"
-                               Width="10"
-                               Margin="0,0,-5,0"
+                               Width="18"
+                               Margin="0,0,-9,0"
                                Cursor="SizeWE">
                             <Thumb.Template>
                                 <ControlTemplate TargetType="Thumb">
-                                    <Border Background="Transparent" Width="10">
-                                        <Rectangle Width="1" Fill="{DynamicResource SeparatorBrush}" HorizontalAlignment="Center" Margin="0,4,0,4"/>
+                                    <Border Background="Transparent" Width="18">
+                                        <Rectangle Width="2" Fill="{DynamicResource SeparatorBrush}" HorizontalAlignment="Center" Margin="0,4,0,4"/>
                                     </Border>
                                 </ControlTemplate>
                             </Thumb.Template>
