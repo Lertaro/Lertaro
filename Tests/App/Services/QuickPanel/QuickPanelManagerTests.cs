@@ -59,4 +59,18 @@ public sealed class QuickPanelManagerTests
         Assert.AreEqual(4325.0, left * 1.5, 0.001);
         Assert.AreEqual(385.0, top * 1.5, 0.001);
     }
+
+    [TestMethod]
+    public void CalculatePhysicalDockPosition_SameDpi_ComputesCorrectPhysicalCoordinates()
+    {
+        var (width, height, physLeft, physTop) = QuickPanelManager.CalculatePhysicalDockPosition(
+            hostLeft: 100, hostTop: 100, hostRight: 900, hostBottom: 700,
+            hostDpi: 96,
+            waLeft: 0, waTop: 0, waWidth: 1920, waHeight: 1080);
+
+        Assert.AreEqual(400.0, width, 0.001);
+        Assert.AreEqual(300.0, height, 0.001);
+        Assert.AreEqual(488.0, physLeft, 0.001);
+        Assert.AreEqual(388.0, physTop, 0.001);
+    }
 }

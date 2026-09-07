@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
-using System.Windows.Media;
 using Lertaro.Core;
 
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
@@ -9,12 +8,20 @@ public class QuickSearchWindowPositioner
 {
     [DllImport("Shcore.dll")] private static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT { public int X; public int Y; }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+
     private const int MDT_EFFECTIVE_DPI = 0;
     private const uint MONITOR_DEFAULTTONEAREST = 2;
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;
 
     private readonly Lertaro.App.QuickSearchWindow _window;
     private readonly Func<IntPtr> _getLastActiveHwnd;
@@ -30,32 +37,36 @@ public class QuickSearchWindowPositioner
         // Target monitor and placement must come from the monitor the mouse cursor is currently on.
         var mousePos = Control.MousePosition;
         var targetMonitor = MonitorFromPoint(new POINT { X = mousePos.X, Y = mousePos.Y }, MONITOR_DEFAULTTONEAREST);
-        var (dpiScaleX, _) = GetMonitorDpiScale(targetMonitor);
-        var targetDpiFactorX = dpiScaleX > 0 ? 1.0 / dpiScaleX : 1.0;
+        var (targetDpiScaleX, targetDpiScaleY) = GetMonitorDpiScale(targetMonitor);
 
         var screen = Screen.FromPoint(mousePos);
         var wa = screen.WorkingArea;
         var settings = UserSettings.Load();
         var windowWidth = settings.SearchWindow.SearchBarWidth + 48;
 
-        // WPF applies Window.Left/Top by multiplying the DIP value by the window's CURRENT monitor DPI scale.
-        // When moving across monitors with different DPIs, we must compensate using the window's current DPI scale
-        // so the underlying Win32 SetWindowPos receives the exact target physical coordinates.
-        var currentDpi = VisualTreeHelper.GetDpi(_window);
-        var (left, top) = CalculatePosition(
+        var (targetPhysX, targetPhysY) = CalculatePhysicalPosition(
             wa.Left, wa.Top, wa.Width, wa.Height,
-            windowWidth, targetDpiFactorX,
-            currentDpi.DpiScaleX, currentDpi.DpiScaleY,
+            windowWidth, targetDpiScaleX,
             settings.SearchWindow.RelativeLeft, settings.SearchWindow.RelativeTop);
 
-        _window.Left = left;
-        _window.Top = top;
+        // Explicitly move the underlying HWND to physical coordinates on the target monitor first.
+        // Under PerMonitorV2, this attaches the HWND directly to the target monitor's DPI context.
+        var hwnd = new WindowInteropHelper(_window).Handle;
+        if (hwnd != IntPtr.Zero)
+        {
+            SetWindowPos(hwnd, IntPtr.Zero,
+                (int)Math.Round(targetPhysX), (int)Math.Round(targetPhysY), 0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+
+        // Set WPF DIP properties in sync with target monitor scale so WPF internal layouts remain consistent.
+        _window.Left = targetPhysX / targetDpiScaleX;
+        _window.Top = targetPhysY / targetDpiScaleY;
     }
 
-    internal static (double Left, double Top) CalculatePosition(
+    internal static (double PhysX, double PhysY) CalculatePhysicalPosition(
         int waLeft, int waTop, int waWidth, int waHeight,
-        double windowDipWidth, double targetDpiFactorX,
-        double currentDpiScaleX, double currentDpiScaleY,
+        double windowDipWidth, double targetDpiScaleX,
         double? relativeLeft, double? relativeTop)
     {
         double targetPhysX;
@@ -70,14 +81,26 @@ public class QuickSearchWindowPositioner
         }
         else
         {
-            var targetPhysWidth = windowDipWidth * targetDpiFactorX;
+            var targetPhysWidth = windowDipWidth * targetDpiScaleX;
             targetPhysX = waLeft + (waWidth - targetPhysWidth) / 2.0;
             targetPhysY = waTop + waHeight * 0.22;
         }
 
-        var scaleX = currentDpiScaleX > 0 ? currentDpiScaleX : 1.0;
-        var scaleY = currentDpiScaleY > 0 ? currentDpiScaleY : 1.0;
-        return (targetPhysX / scaleX, targetPhysY / scaleY);
+        return (targetPhysX, targetPhysY);
+    }
+
+    internal static (double Left, double Top) CalculatePosition(
+        int waLeft, int waTop, int waWidth, int waHeight,
+        double windowDipWidth, double targetDpiScaleX, double targetDpiScaleY,
+        double? relativeLeft, double? relativeTop)
+    {
+        var (physX, physY) = CalculatePhysicalPosition(
+            waLeft, waTop, waWidth, waHeight,
+            windowDipWidth, targetDpiScaleX,
+            relativeLeft, relativeTop);
+        var scaleX = targetDpiScaleX > 0 ? targetDpiScaleX : 1.0;
+        var scaleY = targetDpiScaleY > 0 ? targetDpiScaleY : 1.0;
+        return (physX / scaleX, physY / scaleY);
     }
 
     // Wired to QuickSearchWindow's drag handler right after a drag finishes moving the window.
@@ -93,16 +116,12 @@ public class QuickSearchWindowPositioner
         if (wa.Width <= 0 || wa.Height <= 0)
             return;
 
-        var currentDpi = VisualTreeHelper.GetDpi(_window);
-        var scaleX = currentDpi.DpiScaleX > 0 ? currentDpi.DpiScaleX : 1.0;
-        var scaleY = currentDpi.DpiScaleY > 0 ? currentDpi.DpiScaleY : 1.0;
-
-        var physLeft = _window.Left * scaleX;
-        var physTop = _window.Top * scaleY;
+        if (!GetWindowRect(hwnd, out var rect))
+            return;
 
         var settings = UserSettings.Load();
-        settings.SearchWindow.RelativeLeft = (physLeft - wa.Left) / wa.Width;
-        settings.SearchWindow.RelativeTop = (physTop - wa.Top) / wa.Height;
+        settings.SearchWindow.RelativeLeft = (double)(rect.Left - wa.Left) / wa.Width;
+        settings.SearchWindow.RelativeTop = (double)(rect.Top - wa.Top) / wa.Height;
         settings.Save();
     }
 
@@ -118,7 +137,7 @@ public class QuickSearchWindowPositioner
     private static (double x, double y) GetMonitorDpiScale(IntPtr hMonitor)
     {
         if (hMonitor != IntPtr.Zero && GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, out var dpiX, out var dpiY) == 0 && dpiX > 0 && dpiY > 0)
-            return (96.0 / dpiX, 96.0 / dpiY);
+            return (dpiX / 96.0, dpiY / 96.0);
         return (1.0, 1.0);
     }
 }

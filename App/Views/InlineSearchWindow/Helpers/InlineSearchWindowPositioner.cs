@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
+using System.Windows.Interop;
 using System.Windows.Threading;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
@@ -99,9 +99,7 @@ public class InlineSearchWindowPositioner
             : tracker.ActiveHwnd != IntPtr.Zero
                 ? MonitorFromWindow(tracker.ActiveHwnd, MONITOR_DEFAULTTONEAREST)
                 : IntPtr.Zero;
-        var (dpiScaleX, dpiScaleY) = GetMonitorDpiScale(targetMonitor);
-        var targetDpiFactorX = dpiScaleX > 0 ? 1.0 / dpiScaleX : 1.0;
-        var targetDpiFactorY = dpiScaleY > 0 ? 1.0 / dpiScaleY : 1.0;
+        var (targetDpiScaleX, targetDpiScaleY) = GetMonitorDpiScale(targetMonitor);
 
         const double xamlMargin = 12;
         const double visibleMargin = 0;
@@ -110,19 +108,19 @@ public class InlineSearchWindowPositioner
         if (hasValidRect && tracker.IsActiveWindowDialog)
         {
             var screen = Screen.FromHandle(tracker.ActiveHwnd);
-            var spaceBelow = (screen.WorkingArea.Bottom * dpiScaleY) - (rect.Bottom * dpiScaleY);
-            if (spaceBelow >= (visibleHeight - xamlMargin))
+            var spaceBelow = screen.WorkingArea.Bottom - rect.Bottom;
+            if (spaceBelow >= (visibleHeight - xamlMargin) * targetDpiScaleY)
                 useDialogMode = true;
         }
 
         ApplyLayoutMode(useDialogMode, isResultsVisible);
 
-        var physWindowWidth = windowWidth * targetDpiFactorX;
-        var physWindowHeight = windowHeight * targetDpiFactorY;
-        var physXamlMargin = xamlMargin * targetDpiFactorX;
-        var physVisibleMargin = visibleMargin * targetDpiFactorX;
-        var physXamlMarginY = xamlMargin * targetDpiFactorY;
-        var physVisibleMarginY = visibleMargin * targetDpiFactorY;
+        var physWindowWidth = windowWidth * targetDpiScaleX;
+        var physWindowHeight = windowHeight * targetDpiScaleY;
+        var physXamlMargin = xamlMargin * targetDpiScaleX;
+        var physVisibleMargin = visibleMargin * targetDpiScaleX;
+        var physXamlMarginY = xamlMargin * targetDpiScaleY;
+        var physVisibleMarginY = visibleMargin * targetDpiScaleY;
 
         double targetPhysLeft = 0;
         double targetPhysTop = 0;
@@ -152,7 +150,7 @@ public class InlineSearchWindowPositioner
                     var winWidth = rect.Right - rect.Left;
                     targetPhysLeft = rect.Left + (winWidth - physWindowWidth) / 2.0;
                     var searchBoxHeight = _window.SearchBoxBorder.ActualHeight > 0 ? _window.SearchBoxBorder.ActualHeight : 48.0;
-                    targetPhysTop = rect.Bottom - physWindowHeight + physXamlMarginY + searchBoxHeight * targetDpiFactorY;
+                    targetPhysTop = rect.Bottom - physWindowHeight + physXamlMarginY + searchBoxHeight * targetDpiScaleY;
                 }
                 else
                 {
@@ -169,12 +167,12 @@ public class InlineSearchWindowPositioner
 
                 if (useDialogMode)
                 {
-                    var maxDialogModeTop = workingArea.Bottom - visibleHeight * targetDpiFactorY;
+                    var maxDialogModeTop = workingArea.Bottom - visibleHeight * targetDpiScaleY;
                     targetPhysTop = Math.Clamp(targetPhysTop, minTop, Math.Max(minTop, maxDialogModeTop));
                 }
                 else if (tracker.IsActiveWindowDialog)
                 {
-                    var minDialogModeTop = workingArea.Top - physWindowHeight + visibleHeight * targetDpiFactorY;
+                    var minDialogModeTop = workingArea.Top - physWindowHeight + visibleHeight * targetDpiScaleY;
                     targetPhysTop = Math.Clamp(targetPhysTop, minDialogModeTop, Math.Max(minDialogModeTop, maxTop));
                 }
                 else
@@ -189,12 +187,16 @@ public class InlineSearchWindowPositioner
             }
         }
 
-        var currentDpi = VisualTreeHelper.GetDpi(_window);
-        var currentScaleX = currentDpi.DpiScaleX > 0 ? currentDpi.DpiScaleX : 1.0;
-        var currentScaleY = currentDpi.DpiScaleY > 0 ? currentDpi.DpiScaleY : 1.0;
+        var hwnd = new WindowInteropHelper(_window).Handle;
+        if (hwnd != IntPtr.Zero)
+        {
+            InlineSearchWindowNativeMethods.SetWindowPos(hwnd, IntPtr.Zero,
+                (int)Math.Round(targetPhysLeft), (int)Math.Round(targetPhysTop), 0, 0,
+                InlineSearchWindowNativeMethods.SWP_NOSIZE | InlineSearchWindowNativeMethods.SWP_NOZORDER | InlineSearchWindowNativeMethods.SWP_NOACTIVATE);
+        }
 
-        var targetLeft = targetPhysLeft / currentScaleX;
-        var targetTop = targetPhysTop / currentScaleY;
+        var targetLeft = targetPhysLeft / targetDpiScaleX;
+        var targetTop = targetPhysTop / targetDpiScaleY;
 
         if (Math.Abs(_window.Left - targetLeft) > 0.5) _window.Left = targetLeft;
         if (Math.Abs(_window.Top - targetTop) > 0.5) _window.Top = targetTop;
@@ -251,7 +253,7 @@ public class InlineSearchWindowPositioner
     private static (double x, double y) GetMonitorDpiScale(IntPtr hMonitor)
     {
         if (hMonitor != IntPtr.Zero && GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, out var dpiX, out var dpiY) == 0 && dpiX > 0 && dpiY > 0)
-            return (96.0 / dpiX, 96.0 / dpiY);
+            return (dpiX / 96.0, dpiY / 96.0);
         return (1.0, 1.0);
     }
 }

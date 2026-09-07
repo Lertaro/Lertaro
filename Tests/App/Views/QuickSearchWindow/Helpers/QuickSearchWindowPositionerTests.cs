@@ -6,55 +6,63 @@ namespace Lertaro.App.Tests.Views.QuickSearchWindow.Helpers;
 public sealed class QuickSearchWindowPositionerTests
 {
     [TestMethod]
-    public void CalculatePosition_SameDpi_CentersCorrectly()
+    public void CalculatePhysicalPosition_SameDpi_CentersCorrectly()
     {
-        var (left, top) = QuickSearchWindowPositioner.CalculatePosition(
+        var (physX, physY) = QuickSearchWindowPositioner.CalculatePhysicalPosition(
             waLeft: 0, waTop: 0, waWidth: 1920, waHeight: 1080,
-            windowDipWidth: 600, targetDpiFactorX: 1.0,
-            currentDpiScaleX: 1.0, currentDpiScaleY: 1.0,
+            windowDipWidth: 600, targetDpiScaleX: 1.0,
             relativeLeft: null, relativeTop: null);
 
-        Assert.AreEqual(660.0, left, 0.001);
-        Assert.AreEqual(237.6, top, 0.001);
+        Assert.AreEqual(660.0, physX, 0.001);
+        Assert.AreEqual(237.6, physY, 0.001);
     }
 
     [TestMethod]
-    public void CalculatePosition_MixedDpiCrossMonitor_CompensatesCorrectly()
+    public void CalculatePhysicalPosition_MixedDpiCrossMonitor_CentersCorrectly()
     {
-        // Target display: 125% DPI (1.25x), 1080p secondary screen at X=3840
-        // Window currently on 150% DPI display (1.5x)
-        var (left, top) = QuickSearchWindowPositioner.CalculatePosition(
+        // Target display: 125% DPI (1.25x), 1080p secondary screen at physical X=3840
+        var (physX, physY) = QuickSearchWindowPositioner.CalculatePhysicalPosition(
             waLeft: 3840, waTop: 0, waWidth: 1920, waHeight: 1080,
-            windowDipWidth: 648, targetDpiFactorX: 1.25,
-            currentDpiScaleX: 1.5, currentDpiScaleY: 1.5,
+            windowDipWidth: 648, targetDpiScaleX: 1.25,
             relativeLeft: null, relativeTop: null);
 
         // Target physical width = 648 * 1.25 = 810px
         // Target physical X = 3840 + (1920 - 810) / 2 = 4395px
         // Target physical Y = 1080 * 0.22 = 237.6px
-        // Compensated for WPF 1.5x scale: Left = 4395 / 1.5 = 2930, Top = 237.6 / 1.5 = 158.4
-        Assert.AreEqual(2930.0, left, 0.001);
-        Assert.AreEqual(158.4, top, 0.001);
-
-        // When WPF applies 1.5x on the underlying HWND, it hits exactly 4395 and 237.6 physical pixels
-        Assert.AreEqual(4395.0, left * 1.5, 0.001);
-        Assert.AreEqual(237.6, top * 1.5, 0.001);
+        Assert.AreEqual(4395.0, physX, 0.001);
+        Assert.AreEqual(237.6, physY, 0.001);
     }
 
     [TestMethod]
-    public void CalculatePosition_RelativePercentage_PreservedAcrossMixedDpi()
+    public void CalculatePosition_MixedDpi_ReturnsSynchronizedDipCoordinates()
     {
+        // Target display: 125% DPI (1.25x), 1080p secondary screen at X=3840
         var (left, top) = QuickSearchWindowPositioner.CalculatePosition(
             waLeft: 3840, waTop: 0, waWidth: 1920, waHeight: 1080,
-            windowDipWidth: 648, targetDpiFactorX: 1.25,
-            currentDpiScaleX: 1.5, currentDpiScaleY: 1.5,
+            windowDipWidth: 648, targetDpiScaleX: 1.25, targetDpiScaleY: 1.25,
+            relativeLeft: null, relativeTop: null);
+
+        // Target physical coordinates: (4395, 237.6)
+        // WPF DIP values: Left = 4395 / 1.25 = 3516, Top = 237.6 / 1.25 = 190.08
+        Assert.AreEqual(3516.0, left, 0.001);
+        Assert.AreEqual(190.08, top, 0.001);
+
+        // When WPF multiplies by target DPI scale (1.25), it hits exact target physical pixels
+        Assert.AreEqual(4395.0, left * 1.25, 0.001);
+        Assert.AreEqual(237.6, top * 1.25, 0.001);
+    }
+
+    [TestMethod]
+    public void CalculatePhysicalPosition_RelativePercentage_PreservedAcrossMixedDpi()
+    {
+        var (physX, physY) = QuickSearchWindowPositioner.CalculatePhysicalPosition(
+            waLeft: 3840, waTop: 0, waWidth: 1920, waHeight: 1080,
+            windowDipWidth: 648, targetDpiScaleX: 1.25,
             relativeLeft: 0.2, relativeTop: 0.1);
 
         // Target physical X = 3840 + 0.2 * 1920 = 4224px
         // Target physical Y = 0 + 0.1 * 1080 = 108px
-        Assert.AreEqual(4224.0 / 1.5, left, 0.001);
-        Assert.AreEqual(108.0 / 1.5, top, 0.001);
-        Assert.AreEqual(4224.0, left * 1.5, 0.001);
-        Assert.AreEqual(108.0, top * 1.5, 0.001);
+        Assert.AreEqual(4224.0, physX, 0.001);
+        Assert.AreEqual(108.0, physY, 0.001);
     }
 }

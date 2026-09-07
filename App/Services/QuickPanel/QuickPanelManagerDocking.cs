@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Windows.Media;
 
 namespace Lertaro.App.Services.QuickPanel;
 
@@ -13,66 +12,80 @@ public sealed partial class QuickPanelManager
     private const double MinPanelWidth = 280;
     private const double MinPanelHeight = 200;
 
-    [DllImport("user32.dll")]
-    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+    [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+    [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+    [DllImport("Shcore.dll")] private static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct RECT
-    {
-        public int Left, Top, Right, Bottom;
-    }
+    private struct POINT { public int X; public int Y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT { public int Left, Top, Right, Bottom; }
+
+    private const int MDT_EFFECTIVE_DPI = 0;
+    private const uint MONITOR_DEFAULTTONEAREST = 2;
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;
 
     /// <summary>Docks the panel inside the host window's bottom-right corner.</summary>
     private void PositionAgainst(IntPtr host)
     {
         if (_window == null) return;
 
-        var currentDpi = VisualTreeHelper.GetDpi(_window);
-        var currentScaleX = currentDpi.DpiScaleX > 0 ? currentDpi.DpiScaleX : 1.0;
-        var currentScaleY = currentDpi.DpiScaleY > 0 ? currentDpi.DpiScaleY : 1.0;
+        double width;
+        double height;
+        double targetPhysLeft;
+        double targetPhysTop;
+        double targetDpiScale;
 
         if (host != IntPtr.Zero && GetWindowRect(host, out var rect))
         {
             var dpi = GetDpiForWindow(host);
             var screen = Screen.FromHandle(host);
             var wa = screen.WorkingArea;
+            targetDpiScale = dpi > 0 ? dpi / 96.0 : 1.0;
 
-            var (width, height, left, top) = CalculateDockPosition(
+            (width, height, targetPhysLeft, targetPhysTop) = CalculatePhysicalDockPosition(
                 rect.Left, rect.Top, rect.Right, rect.Bottom,
                 dpi,
-                wa.Left, wa.Top, wa.Width, wa.Height,
-                currentScaleX, currentScaleY);
+                wa.Left, wa.Top, wa.Width, wa.Height);
+        }
+        else
+        {
+            var mousePos = Control.MousePosition;
+            var mouseScreen = Screen.FromPoint(mousePos);
+            var mouseWa = mouseScreen.WorkingArea;
+            var targetMonitor = MonitorFromPoint(new POINT { X = mousePos.X, Y = mousePos.Y }, MONITOR_DEFAULTTONEAREST);
+            var dpi = GetMonitorDpi(targetMonitor);
+            targetDpiScale = dpi > 0 ? dpi / 96.0 : 1.0;
 
-            _window.Width = width;
-            _window.Height = height;
-            _window.Left = left;
-            _window.Top = top;
-            return;
+            (width, height, targetPhysLeft, targetPhysTop) = CalculatePhysicalDockPosition(
+                mouseWa.Left, mouseWa.Top, mouseWa.Right, mouseWa.Bottom,
+                dpi,
+                mouseWa.Left, mouseWa.Top, mouseWa.Width, mouseWa.Height);
         }
 
-        var mouseScreen = Screen.FromPoint(Control.MousePosition);
-        var mouseWa = mouseScreen.WorkingArea;
-        var fallbackDpi = (uint)currentDpi.PixelsPerInchX;
-        var (fbWidth, fbHeight, fbLeft, fbTop) = CalculateDockPosition(
-            mouseWa.Left, mouseWa.Top, mouseWa.Right, mouseWa.Bottom,
-            fallbackDpi,
-            mouseWa.Left, mouseWa.Top, mouseWa.Width, mouseWa.Height,
-            currentScaleX, currentScaleY);
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(_window).EnsureHandle();
+        if (hwnd != IntPtr.Zero)
+        {
+            SetWindowPos(hwnd, IntPtr.Zero,
+                (int)Math.Round(targetPhysLeft), (int)Math.Round(targetPhysTop), 0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
 
-        _window.Width = fbWidth;
-        _window.Height = fbHeight;
-        _window.Left = fbLeft;
-        _window.Top = fbTop;
+        _window.Width = width;
+        _window.Height = height;
+        _window.Left = targetPhysLeft / targetDpiScale;
+        _window.Top = targetPhysTop / targetDpiScale;
     }
 
-    internal static (double Width, double Height, double Left, double Top) CalculateDockPosition(
+    internal static (double Width, double Height, double PhysLeft, double PhysTop) CalculatePhysicalDockPosition(
         int hostLeft, int hostTop, int hostRight, int hostBottom,
         uint hostDpi,
-        int waLeft, int waTop, int waWidth, int waHeight,
-        double currentDpiScaleX, double currentDpiScaleY)
+        int waLeft, int waTop, int waWidth, int waHeight)
     {
         const double margin = 12.0;
         var hostScale = hostDpi > 0 ? hostDpi / 96.0 : 1.0;
@@ -96,9 +109,30 @@ public sealed partial class QuickPanelManager
             targetPhysTop = Math.Clamp(targetPhysTop, waTop, waTop + waHeight - physPanelHeight);
         }
 
+        return (panelWidthDip, panelHeightDip, targetPhysLeft, targetPhysTop);
+    }
+
+    internal static (double Width, double Height, double Left, double Top) CalculateDockPosition(
+        int hostLeft, int hostTop, int hostRight, int hostBottom,
+        uint hostDpi,
+        int waLeft, int waTop, int waWidth, int waHeight,
+        double currentDpiScaleX, double currentDpiScaleY)
+    {
+        var (width, height, physLeft, physTop) = CalculatePhysicalDockPosition(
+            hostLeft, hostTop, hostRight, hostBottom,
+            hostDpi,
+            waLeft, waTop, waWidth, waHeight);
+
         var scaleX = currentDpiScaleX > 0 ? currentDpiScaleX : 1.0;
         var scaleY = currentDpiScaleY > 0 ? currentDpiScaleY : 1.0;
 
-        return (panelWidthDip, panelHeightDip, targetPhysLeft / scaleX, targetPhysTop / scaleY);
+        return (width, height, physLeft / scaleX, physTop / scaleY);
+    }
+
+    private static uint GetMonitorDpi(IntPtr hMonitor)
+    {
+        if (hMonitor != IntPtr.Zero && GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, out var dpiX, out var dpiY) == 0 && dpiX > 0)
+            return dpiX;
+        return 96;
     }
 }
