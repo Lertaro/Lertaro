@@ -34,6 +34,9 @@ internal static class UiaPathAccessor
     // thread is running an IInlineSearchAdapter call -- each ExecuteItem/etc. gets its own dedicated STA
     // thread (see InlineAdapterCommandHandler.RunOnSta), so a read here can genuinely race a write.
     private static readonly ConcurrentDictionary<IntPtr, AutomationElement> _focusAnchors = new();
+    // Keep this cache across focus refreshes: the active-path poller can refresh the anchor concurrently
+    // with ExecuteItem, and clearing it there would put the slow UIA tree search back on the click path.
+    private static readonly ConcurrentDictionary<IntPtr, AutomationElement> _currentPathSetElements = new();
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -70,7 +73,14 @@ internal static class UiaPathAccessor
 
     public static string? GetCurrentPath(IntPtr hwnd)
     {
-        var element = FindNearestPaneElement(hwnd, "CurrentPathGet");
+        // Locate both controls while the host still has focus. ExecuteItem runs after focus has moved to
+        // Lertaro, so retaining the exact write control avoids repeating the expensive cross-process UIA
+        // ancestor/subtree search on every selected result.
+        var elements = FindNearestPaneElements(hwnd);
+        if (elements.SetElement != null)
+            _currentPathSetElements[hwnd] = elements.SetElement;
+
+        var element = elements.GetElement;
         if (element == null) return null;
         try
         {
@@ -112,17 +122,95 @@ internal static class UiaPathAccessor
 
     public static bool SetCurrentPath(IntPtr hwnd, string path)
     {
-        var element = FindNearestPaneElement(hwnd, "CurrentPathSet");
+        var usedCache = _currentPathSetElements.TryGetValue(hwnd, out var element);
+        if (!usedCache)
+            element = FindNearestPaneElement(hwnd, "CurrentPathSet");
         if (element == null) return false;
+
         try
         {
-            if (!element.TryGetCurrentPattern(ValuePattern.Pattern, out var patternObj)) return false;
+            if (!element.TryGetCurrentPattern(ValuePattern.Pattern, out var patternObj))
+            {
+                if (usedCache)
+                {
+                    _currentPathSetElements.TryRemove(hwnd, out _);
+                    return SetCurrentPath(hwnd, path);
+                }
+
+                return false;
+            }
+
             ((ValuePattern)patternObj).SetValue(path);
             return true;
         }
         catch
         {
+            if (usedCache)
+            {
+                // UIA elements can become stale when Files recreates a pane or tab. Remove only this
+                // window's cached control and retry the original scoped lookup once.
+                _currentPathSetElements.TryRemove(hwnd, out _);
+                return SetCurrentPath(hwnd, path);
+            }
+
             return false;
+        }
+    }
+
+    private static (AutomationElement? GetElement, AutomationElement? SetElement) FindNearestPaneElements(IntPtr hwnd)
+    {
+        try
+        {
+            var root = AutomationElement.FromHandle(hwnd);
+            var condition = new OrCondition(
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "CurrentPathGet"),
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "CurrentPathSet"));
+
+            if (_focusAnchors.TryGetValue(hwnd, out var anchor))
+            {
+                var walker = TreeWalker.RawViewWalker;
+                var node = anchor;
+                AutomationElement? getElement = null;
+                AutomationElement? setElement = null;
+                for (var depth = 0; depth < 25 && node != null; depth++)
+                {
+                    try
+                    {
+                        var matches = node.FindAll(TreeScope.Subtree, condition);
+                        for (var index = 0; index < matches.Count; index++)
+                        {
+                            var match = matches[index];
+                            switch (match.Current.AutomationId)
+                            {
+                                case "CurrentPathGet":
+                                    getElement ??= match;
+                                    break;
+                                case "CurrentPathSet":
+                                    setElement ??= match;
+                                    break;
+                            }
+                        }
+                    }
+                    catch { }
+
+                    if (getElement != null && setElement != null)
+                        return (getElement, setElement);
+
+                    var isRoot = false;
+                    try { isRoot = System.Windows.Automation.Automation.Compare(node, root); } catch { }
+                    if (isRoot) break;
+
+                    try { node = walker.GetParent(node); } catch { node = null; }
+                }
+            }
+
+            return (
+                root.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "CurrentPathGet")),
+                root.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "CurrentPathSet")));
+        }
+        catch
+        {
+            return (null, null);
         }
     }
 
