@@ -73,4 +73,8 @@ public sealed class QuickPanelManagerTests
         Assert.AreEqual(488.0, physLeft, 0.001);
         Assert.AreEqual(388.0, physTop, 0.001);
     }
+
+    [TestMethod]
+    public void IsDesktopOrShellWindow_ZeroHwnd_ReturnsTrue() =>
+        Assert.IsTrue(QuickPanelManager.IsDesktopOrShellWindow(IntPtr.Zero));
 }

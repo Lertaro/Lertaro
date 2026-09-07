@@ -16,6 +16,8 @@ public sealed partial class QuickPanelManager
     [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr hwnd);
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+    [DllImport("user32.dll")] private static extern IntPtr GetDesktopWindow();
+    [DllImport("user32.dll")] private static extern IntPtr GetShellWindow();
     [DllImport("Shcore.dll")] private static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -30,7 +32,25 @@ public sealed partial class QuickPanelManager
     private const uint SWP_NOZORDER = 0x0004;
     private const uint SWP_NOACTIVATE = 0x0010;
 
-    /// <summary>Docks the panel inside the host window's bottom-right corner.</summary>
+    internal static bool IsDesktopOrShellWindow(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero) return true;
+        if (hwnd == GetDesktopWindow() || hwnd == GetShellWindow()) return true;
+
+        if (InlineSearchManager.Instance?.ExplorerTracker?.IsDesktop == true &&
+            InlineSearchManager.Instance.ExplorerTracker.ActiveHwnd == hwnd)
+        {
+            return true;
+        }
+
+        if (Core.Hook.ExplorerNativeHooks.IsDesktopWindow(hwnd, out var className))
+            return true;
+
+        return className.Equals("Shell_TrayWnd", StringComparison.OrdinalIgnoreCase) ||
+               className.Equals("Shell_SecondaryTrayWnd", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Docks the panel inside the host window's bottom-right corner, or the active monitor on desktop.</summary>
     private void PositionAgainst(IntPtr host)
     {
         if (_window == null) return;
@@ -41,7 +61,9 @@ public sealed partial class QuickPanelManager
         double targetPhysTop;
         double targetDpiScale;
 
-        if (host != IntPtr.Zero && GetWindowRect(host, out var rect))
+        var isDesktop = IsDesktopOrShellWindow(host);
+
+        if (!isDesktop && host != IntPtr.Zero && GetWindowRect(host, out var rect) && (rect.Right - rect.Left > 100 && rect.Bottom - rect.Top > 100))
         {
             var dpi = GetDpiForWindow(host);
             var screen = Screen.FromHandle(host);
