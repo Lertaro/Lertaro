@@ -8,6 +8,7 @@ public class QuickSearchWindowPositioner
 {
     [DllImport("Shcore.dll")] private static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+    [DllImport("user32.dll")] private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
@@ -34,12 +35,25 @@ public class QuickSearchWindowPositioner
 
     public void PositionWindow()
     {
-        // Target monitor and placement must come from the monitor the mouse cursor is currently on.
-        var mousePos = Control.MousePosition;
-        var targetMonitor = MonitorFromPoint(new POINT { X = mousePos.X, Y = mousePos.Y }, MONITOR_DEFAULTTONEAREST);
-        var (targetDpiScaleX, targetDpiScaleY) = GetMonitorDpiScale(targetMonitor);
+        var hwnd = new WindowInteropHelper(_window).Handle;
+        Screen screen;
+        IntPtr targetMonitor;
 
-        var screen = Screen.FromPoint(mousePos);
+        // When the window is already visible (e.g. pinned / handling DpiChanged), preserve placement on its current monitor.
+        // When summoning (not yet visible), target the monitor under the mouse cursor.
+        if (_window.IsVisible && hwnd != IntPtr.Zero)
+        {
+            screen = Screen.FromHandle(hwnd);
+            targetMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        }
+        else
+        {
+            var mousePos = Control.MousePosition;
+            screen = Screen.FromPoint(mousePos);
+            targetMonitor = MonitorFromPoint(new POINT { X = mousePos.X, Y = mousePos.Y }, MONITOR_DEFAULTTONEAREST);
+        }
+
+        var (targetDpiScaleX, targetDpiScaleY) = GetMonitorDpiScale(targetMonitor);
         var wa = screen.WorkingArea;
         var settings = UserSettings.Load();
         var windowWidth = settings.SearchWindow.SearchBarWidth + 48;
@@ -49,19 +63,19 @@ public class QuickSearchWindowPositioner
             windowWidth, targetDpiScaleX,
             settings.SearchWindow.RelativeLeft, settings.SearchWindow.RelativeTop);
 
-        // Explicitly move the underlying HWND to physical coordinates on the target monitor first.
-        // Under PerMonitorV2, this attaches the HWND directly to the target monitor's DPI context.
-        var hwnd = new WindowInteropHelper(_window).Handle;
+        // Set WPF DIP properties first so WPF's internal logical coordinates are updated.
+        // If WPF's internal DPI scale is temporarily stale (e.g. while hidden across different DPI monitors),
+        // WPF's Left/Top setter may calculate an incorrect physical position; calling Win32 SetWindowPos
+        // afterwards ensures the HWND is authoritatively placed at the exact target physical coordinates.
+        _window.Left = targetPhysX / targetDpiScaleX;
+        _window.Top = targetPhysY / targetDpiScaleY;
+
         if (hwnd != IntPtr.Zero)
         {
             SetWindowPos(hwnd, IntPtr.Zero,
                 (int)Math.Round(targetPhysX), (int)Math.Round(targetPhysY), 0, 0,
                 SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
         }
-
-        // Set WPF DIP properties in sync with target monitor scale so WPF internal layouts remain consistent.
-        _window.Left = targetPhysX / targetDpiScaleX;
-        _window.Top = targetPhysY / targetDpiScaleY;
     }
 
     internal static (double PhysX, double PhysY) CalculatePhysicalPosition(

@@ -16,6 +16,7 @@ public sealed partial class QuickPanelManager
     [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr hwnd);
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+    [DllImport("user32.dll")] private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
     [DllImport("user32.dll")] private static extern IntPtr GetDesktopWindow();
     [DllImport("user32.dll")] private static extern IntPtr GetShellWindow();
     [DllImport("Shcore.dll")] private static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
@@ -31,6 +32,9 @@ public sealed partial class QuickPanelManager
     private const uint SWP_NOSIZE = 0x0001;
     private const uint SWP_NOZORDER = 0x0004;
     private const uint SWP_NOACTIVATE = 0x0010;
+
+    private IntPtr _lastHost;
+    private bool _dpiSubscribed;
 
     internal static bool IsDesktopOrShellWindow(IntPtr hwnd)
     {
@@ -55,6 +59,14 @@ public sealed partial class QuickPanelManager
     {
         if (_window == null) return;
 
+        _lastHost = host;
+        if (!_dpiSubscribed)
+        {
+            _dpiSubscribed = true;
+            _window.DpiChanged += (_, _) => { if (_window != null && _window.IsVisible) PositionAgainst(_lastHost); };
+            _window.Closed += (_, _) => _dpiSubscribed = false;
+        }
+
         double width;
         double height;
         double targetPhysLeft;
@@ -77,10 +89,22 @@ public sealed partial class QuickPanelManager
         }
         else
         {
-            var mousePos = Control.MousePosition;
-            var mouseScreen = Screen.FromPoint(mousePos);
+            Screen mouseScreen;
+            IntPtr targetMonitor;
+            var curHwnd = new System.Windows.Interop.WindowInteropHelper(_window).Handle;
+            if (_window.IsVisible && curHwnd != IntPtr.Zero)
+            {
+                mouseScreen = Screen.FromHandle(curHwnd);
+                targetMonitor = MonitorFromWindow(curHwnd, MONITOR_DEFAULTTONEAREST);
+            }
+            else
+            {
+                var mousePos = Control.MousePosition;
+                mouseScreen = Screen.FromPoint(mousePos);
+                targetMonitor = MonitorFromPoint(new POINT { X = mousePos.X, Y = mousePos.Y }, MONITOR_DEFAULTTONEAREST);
+            }
+
             var mouseWa = mouseScreen.WorkingArea;
-            var targetMonitor = MonitorFromPoint(new POINT { X = mousePos.X, Y = mousePos.Y }, MONITOR_DEFAULTTONEAREST);
             var dpi = GetMonitorDpi(targetMonitor);
             targetDpiScale = dpi > 0 ? dpi / 96.0 : 1.0;
 
@@ -90,6 +114,11 @@ public sealed partial class QuickPanelManager
                 mouseWa.Left, mouseWa.Top, mouseWa.Width, mouseWa.Height);
         }
 
+        _window.Width = width;
+        _window.Height = height;
+        _window.Left = targetPhysLeft / targetDpiScale;
+        _window.Top = targetPhysTop / targetDpiScale;
+
         var hwnd = new System.Windows.Interop.WindowInteropHelper(_window).EnsureHandle();
         if (hwnd != IntPtr.Zero)
         {
@@ -97,11 +126,6 @@ public sealed partial class QuickPanelManager
                 (int)Math.Round(targetPhysLeft), (int)Math.Round(targetPhysTop), 0, 0,
                 SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
         }
-
-        _window.Width = width;
-        _window.Height = height;
-        _window.Left = targetPhysLeft / targetDpiScale;
-        _window.Top = targetPhysTop / targetDpiScale;
     }
 
     internal static (double Width, double Height, double PhysLeft, double PhysTop) CalculatePhysicalDockPosition(

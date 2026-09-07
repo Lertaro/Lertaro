@@ -64,6 +64,7 @@ internal sealed class QuickSearchWindowShowSupport
         fadeContent?.Opacity = 0;
         window.Show();
         window.WindowState = WindowState.Normal;
+        _controller.PositionWindow();
 
         if (fadeContent != null)
         {

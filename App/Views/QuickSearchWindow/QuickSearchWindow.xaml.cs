@@ -55,6 +55,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         InitializeChildControls();
         KeywordHistoryController = new QuickSearchKeywordHistoryController(this);
         _launchActions = new QuickSearchLaunchActionsCoordinator(this);
+        this.DpiChanged += (_, _) => { if (IsVisible) PositionWindow(); };
     }
     public ShellMenuPresenter? MenuPresenter => _menuPresenter;
     public QuickSearchViewModel ViewModel => _viewModel;

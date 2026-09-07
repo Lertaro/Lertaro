@@ -94,8 +94,11 @@ public class InlineSearchWindowPositioner
             return;
         }
 
+        var hwnd = new WindowInteropHelper(_window).Handle;
         var targetMonitor = tracker.IsDesktop
-            ? MonitorFromPoint(ToPoint(mousePosition), MONITOR_DEFAULTTONEAREST)
+            ? (_window.IsVisible && hwnd != IntPtr.Zero
+                ? MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
+                : MonitorFromPoint(ToPoint(mousePosition), MONITOR_DEFAULTTONEAREST))
             : tracker.ActiveHwnd != IntPtr.Zero
                 ? MonitorFromWindow(tracker.ActiveHwnd, MONITOR_DEFAULTTONEAREST)
                 : IntPtr.Zero;
@@ -127,7 +130,7 @@ public class InlineSearchWindowPositioner
 
         if (tracker.IsDesktop)
         {
-            var screen = Screen.FromPoint(mousePosition);
+            var screen = _window.IsVisible && hwnd != IntPtr.Zero ? Screen.FromHandle(hwnd) : Screen.FromPoint(mousePosition);
             var workingArea = screen.WorkingArea;
             targetPhysLeft = workingArea.Right - physWindowWidth + physXamlMargin - physVisibleMargin;
             targetPhysTop = workingArea.Bottom - physWindowHeight + physXamlMarginY - physVisibleMarginY;
@@ -187,19 +190,18 @@ public class InlineSearchWindowPositioner
             }
         }
 
-        var hwnd = new WindowInteropHelper(_window).Handle;
+        var targetLeft = targetPhysLeft / targetDpiScaleX;
+        var targetTop = targetPhysTop / targetDpiScaleY;
+
+        if (Math.Abs(_window.Left - targetLeft) > 0.5) _window.Left = targetLeft;
+        if (Math.Abs(_window.Top - targetTop) > 0.5) _window.Top = targetTop;
+
         if (hwnd != IntPtr.Zero)
         {
             InlineSearchWindowNativeMethods.SetWindowPos(hwnd, IntPtr.Zero,
                 (int)Math.Round(targetPhysLeft), (int)Math.Round(targetPhysTop), 0, 0,
                 InlineSearchWindowNativeMethods.SWP_NOSIZE | InlineSearchWindowNativeMethods.SWP_NOZORDER | InlineSearchWindowNativeMethods.SWP_NOACTIVATE);
         }
-
-        var targetLeft = targetPhysLeft / targetDpiScaleX;
-        var targetTop = targetPhysTop / targetDpiScaleY;
-
-        if (Math.Abs(_window.Left - targetLeft) > 0.5) _window.Left = targetLeft;
-        if (Math.Abs(_window.Top - targetTop) > 0.5) _window.Top = targetTop;
 
         _hasCachedInputs = true;
         _cachedActiveHwnd = tracker.ActiveHwnd;
