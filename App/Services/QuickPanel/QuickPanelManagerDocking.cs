@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using System.Windows;
+using System.Windows.Media;
 
 namespace Lertaro.App.Services.QuickPanel;
 
@@ -8,10 +8,6 @@ namespace Lertaro.App.Services.QuickPanel;
 // that is about geometry rather than lifetime.
 public sealed partial class QuickPanelManager
 {
-    // Floors for the quarter-of-the-host sizing: a panel docked to a small window still needs enough
-    // room for a row to read as a row.
-    // A quarter of the host's AREA, which is half of each side rather than a quarter: a quarter per
-    // side would come to a sixteenth of the window, which is what it looked like.
     private const double PanelSideFactor = 0.5;
 
     private const double MinPanelWidth = 280;
@@ -30,42 +26,79 @@ public sealed partial class QuickPanelManager
     }
 
     /// <summary>Docks the panel inside the host window's bottom-right corner.</summary>
-    /// <remarks>
-    /// GetWindowRect is in physical pixels while WPF's Left/Top are in device-independent units, so the
-    /// rect is scaled by the host's own DPI rather than this window's: on a mixed-DPI setup the two can
-    /// differ, and it is the host's corner being aimed at. Falls back to the working area's corner when
-    /// there is no usable foreground window, which is what happens if the panel is triggered from the
-    /// desktop itself.
-    /// </remarks>
     private void PositionAgainst(IntPtr host)
     {
         if (_window == null) return;
 
-        var margin = 12.0;
+        var currentDpi = VisualTreeHelper.GetDpi(_window);
+        var currentScaleX = currentDpi.DpiScaleX > 0 ? currentDpi.DpiScaleX : 1.0;
+        var currentScaleY = currentDpi.DpiScaleY > 0 ? currentDpi.DpiScaleY : 1.0;
 
         if (host != IntPtr.Zero && GetWindowRect(host, out var rect))
         {
             var dpi = GetDpiForWindow(host);
-            var scale = dpi > 0 ? 96.0 / dpi : 1.0;
+            var screen = Screen.FromHandle(host);
+            var wa = screen.WorkingArea;
 
-            var right = rect.Right * scale;
-            var bottom = rect.Bottom * scale;
-            var hostWidth = (rect.Right - rect.Left) * scale;
-            var hostHeight = (rect.Bottom - rect.Top) * scale;
+            var (width, height, left, top) = CalculateDockPosition(
+                rect.Left, rect.Top, rect.Right, rect.Bottom,
+                dpi,
+                wa.Left, wa.Top, wa.Width, wa.Height,
+                currentScaleX, currentScaleY);
 
-            // A quarter of the window it docks to, floored so it stays usable against a small host.
-            // Both axes, as asked: the panel is a quarter of the window it docks to. Fewer rows than fit
-            // simply leave the rest of the panel empty, which is what a fixed proportion means.
-            _window.Width = Math.Max(MinPanelWidth, hostWidth * PanelSideFactor);
-            _window.Height = Math.Max(MinPanelHeight, hostHeight * PanelSideFactor);
-
-            _window.Left = right - _window.Width - margin;
-            _window.Top = bottom - _window.Height - margin;
+            _window.Width = width;
+            _window.Height = height;
+            _window.Left = left;
+            _window.Top = top;
             return;
         }
 
-        var work = SystemParameters.WorkArea;
-        _window.Left = work.Right - _window.Width - margin;
-        _window.Top = work.Bottom - _window.Height - margin;
+        var mouseScreen = Screen.FromPoint(Control.MousePosition);
+        var mouseWa = mouseScreen.WorkingArea;
+        var fallbackDpi = (uint)currentDpi.PixelsPerInchX;
+        var (fbWidth, fbHeight, fbLeft, fbTop) = CalculateDockPosition(
+            mouseWa.Left, mouseWa.Top, mouseWa.Right, mouseWa.Bottom,
+            fallbackDpi,
+            mouseWa.Left, mouseWa.Top, mouseWa.Width, mouseWa.Height,
+            currentScaleX, currentScaleY);
+
+        _window.Width = fbWidth;
+        _window.Height = fbHeight;
+        _window.Left = fbLeft;
+        _window.Top = fbTop;
+    }
+
+    internal static (double Width, double Height, double Left, double Top) CalculateDockPosition(
+        int hostLeft, int hostTop, int hostRight, int hostBottom,
+        uint hostDpi,
+        int waLeft, int waTop, int waWidth, int waHeight,
+        double currentDpiScaleX, double currentDpiScaleY)
+    {
+        const double margin = 12.0;
+        var hostScale = hostDpi > 0 ? hostDpi / 96.0 : 1.0;
+
+        var hostWidthDip = (hostRight - hostLeft) / hostScale;
+        var hostHeightDip = (hostBottom - hostTop) / hostScale;
+
+        var panelWidthDip = Math.Max(MinPanelWidth, hostWidthDip * PanelSideFactor);
+        var panelHeightDip = Math.Max(MinPanelHeight, hostHeightDip * PanelSideFactor);
+
+        var physPanelWidth = panelWidthDip * hostScale;
+        var physPanelHeight = panelHeightDip * hostScale;
+        var physMargin = margin * hostScale;
+
+        var targetPhysLeft = hostRight - physPanelWidth - physMargin;
+        var targetPhysTop = hostBottom - physPanelHeight - physMargin;
+
+        if (waWidth > 0 && waHeight > 0)
+        {
+            targetPhysLeft = Math.Clamp(targetPhysLeft, waLeft, waLeft + waWidth - physPanelWidth);
+            targetPhysTop = Math.Clamp(targetPhysTop, waTop, waTop + waHeight - physPanelHeight);
+        }
+
+        var scaleX = currentDpiScaleX > 0 ? currentDpiScaleX : 1.0;
+        var scaleY = currentDpiScaleY > 0 ? currentDpiScaleY : 1.0;
+
+        return (panelWidthDip, panelHeightDip, targetPhysLeft / scaleX, targetPhysTop / scaleY);
     }
 }
