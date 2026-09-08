@@ -173,7 +173,7 @@ internal class SearchEngineInitializer
             {
                 Logger.Log("[SearchEngineInitializer] Building new index from scratch...");
                 var newMetadata = _indexer.BuildDrives(supportedDrives, clearExisting: true, cacheDir: _indexCacheDir,
-                    getToken: _ => cts.Token, createDriveRemovalScope: CreateRemovalScope);
+                    getToken: _ => cts.Token, createDriveRemovalScope: CreateRemovalScope, forceFullScan: forceRebuild);
                 monitorsToStart = newMetadata;
                 lock (_indexer.LockObj)
                 {

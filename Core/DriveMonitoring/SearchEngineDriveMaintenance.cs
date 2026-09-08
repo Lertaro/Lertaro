@@ -197,7 +197,7 @@ internal sealed class SearchEngineDriveMaintenance
             _indexer.ReleaseDriveMonitor(drive);
         var wasCancelled = false;
         var metadata = _indexer.BuildDrives(new[] { drive }, clearExisting: false, cacheDir: IndexCacheDir,
-            getToken: _ => token, onDriveCancelled: _ => wasCancelled = true);
+            getToken: _ => token, onDriveCancelled: _ => wasCancelled = true, forceFullScan: true);
         if (metadata.Count == 0)
         {
             // A Stop request reverts to "cached" (mirrors NetworkIndexer's own CancelDrive), not "failed"

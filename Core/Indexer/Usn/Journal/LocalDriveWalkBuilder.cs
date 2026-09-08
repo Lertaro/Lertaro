@@ -31,6 +31,7 @@ internal static class LocalDriveWalkBuilder
         FileRecordStore? previousStore,
         Action<int, int> onProgress,
         CancellationToken token,
+        bool forceFullScan = false,
         Action<FileRecordStore, NetworkDriveWalkStats>? onCheckpoint = null)
     {
         const ulong rootId = 1;
@@ -54,7 +55,7 @@ internal static class LocalDriveWalkBuilder
             FileRecordFlags.Directory | FileRecordFlags.SourceRoot,
             lastWriteTimeUnixSeconds: rootLastWriteTime));
 
-        var diffBaseline = TreeDiffBaseline.From(previousStore);
+        var diffBaseline = forceFullScan ? null : TreeDiffBaseline.From(previousStore);
         var builder = new TreeBuilder(store, root, root, NoFiltering, token, onProgress, onCheckpoint, diffBaseline, recheckExclusions: false);
         var stats = builder.Run();
 

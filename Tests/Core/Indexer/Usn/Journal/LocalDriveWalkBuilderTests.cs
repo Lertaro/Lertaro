@@ -66,6 +66,25 @@ public sealed class LocalDriveWalkBuilderTests
     }
 
     [TestMethod]
+    public void Build_ForceFullScan_DoesNotReuseCachedDirectoryChildren()
+    {
+        using var dir = new TempDirectory();
+        var subDir = Path.Combine(dir.Path, "sub");
+        Directory.CreateDirectory(subDir);
+        File.WriteAllText(Path.Combine(subDir, "real.txt"), "x");
+
+        var firstPass = LocalDriveWalkBuilder.Build("Z", dir.Path, previousStore: null, (_, _) => { }, CancellationToken.None);
+
+        var subRecord = firstPass.Records.Single(r => r.Name == "sub");
+        firstPass.Records.Add(new FileRecord((UInt128)999, subRecord.Id, "ghost.txt", FileRecordFlags.None));
+
+        var secondPass = LocalDriveWalkBuilder.Build("Z", dir.Path, firstPass, (_, _) => { }, CancellationToken.None, forceFullScan: true);
+
+        Assert.IsFalse(secondPass.Records.Any(r => r.Name == "ghost.txt"));
+        CollectionAssert.Contains(secondPass.Records.Select(r => r.Name).ToList(), "real.txt");
+    }
+
+    [TestMethod]
     public void Build_ProducedCache_StillSurfacesInLocalDriveCacheLocatorListing()
     {
         using var dir = new TempDirectory();

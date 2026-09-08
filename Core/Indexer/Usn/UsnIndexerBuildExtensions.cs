@@ -22,7 +22,8 @@ public static class UsnIndexerBuildExtensions
         string? cacheDir = null,
         Func<string, CancellationToken>? getToken = null,
         Action<string>? onDriveCancelled = null,
-        Func<string, CancellationToken, DriveIndexRemovalScope?>? createDriveRemovalScope = null)
+        Func<string, CancellationToken, DriveIndexRemovalScope?>? createDriveRemovalScope = null,
+        bool forceFullScan = false)
     {
         lock (indexer.LockObj)
         {
@@ -65,6 +66,15 @@ public static class UsnIndexerBuildExtensions
             return new List<(string, ulong, long)>();
         }
 
+        FileRecordStore? GetPreviousStore(string drive)
+        {
+            if (forceFullScan)
+                return null;
+
+            lock (indexer.LockObj)
+                return indexer._recordIndexes.TryGetValue(drive, out var live) ? live.ToStore() : null;
+        }
+
         return IndexBuilder.BuildDrives(
             indexer._reader,
             drives,
@@ -72,10 +82,9 @@ public static class UsnIndexerBuildExtensions
             indexer.UpdateDriveProgress,
             (drive, onProgress, token) =>
             {
-                FileRecordStore? previousStore;
-                lock (indexer.LockObj)
-                    previousStore = indexer._recordIndexes.TryGetValue(drive, out var live) ? live.ToStore() : null;
+                var previousStore = GetPreviousStore(drive);
                 return LocalDriveWalkBuilder.Build(drive, $"{drive}:\\", previousStore, onProgress ?? ((_, _) => { }), token,
+                    forceFullScan,
                     onCheckpoint: (checkpointStore, _) => indexer.PublishLocalDriveCheckpoint(cacheDir, drive, checkpointStore, token));
             },
             (drive, result, progress, index) => OnDriveCompleted(indexer, cacheDir, drive, result, progress),
@@ -97,11 +106,7 @@ public static class UsnIndexerBuildExtensions
             onDriveCancelled,
             // Feeds ReFsScanner's own diff-reuse (see JournalReader.IndexDrive) -- a no-op for NTFS/$MFT
             // and never called for a non-journal drive (that's buildFolderDrive's own inline lookup above).
-            drive =>
-            {
-                lock (indexer.LockObj)
-                    return indexer._recordIndexes.TryGetValue(drive, out var live) ? live.ToStore() : null;
-            },
+            GetPreviousStore,
             // ReFsScanner's own mid-walk checkpoint -- reuses the same publisher the non-USN local-drive
             // path above does (PublishLocalDriveCheckpoint doesn't care about SourceKind/IdKind, only about
             // writing a store and swapping a fresh LiveIndex in). A no-op for NTFS/$MFT (see JournalReader).
