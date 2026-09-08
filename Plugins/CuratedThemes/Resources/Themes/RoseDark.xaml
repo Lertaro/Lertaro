@@ -91,9 +91,9 @@
     <SolidColorBrush x:Key="ArchiveIconColor" Color="#C084FC"/>
     <SolidColorBrush x:Key="DefaultPluginIconColor" Color="#EB6F92"/>
 
-    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#4A3C52"/>
-    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#5C4B66"/>
-    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#705C7D"/>
+    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#675472"/>
+    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#796486"/>
+    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#8C749B"/>
     <SolidColorBrush x:Key="CloseButtonHoverBg" Color="#E81123"/>
     <SolidColorBrush x:Key="CalculatorIconColor" Color="#34D399"/>
 
