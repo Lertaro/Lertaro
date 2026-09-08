@@ -25,6 +25,8 @@ internal class SearchEngineInitializer
         _onReindexAfterRemoval = onReindexAfterRemoval;
     }
 
+    internal static bool CanUseCachedUsnCatchUp(bool isComplete, bool supportsUsnJournal) => isComplete && supportsUsnJournal;
+
     private void EnsureDriveStatuses(IReadOnlyList<string> detectedDrives, IReadOnlyList<string> enabledDrives)
     {
         var enabled = new HashSet<string>(enabledDrives, StringComparer.OrdinalIgnoreCase);
@@ -120,14 +122,8 @@ internal class SearchEngineInitializer
                     // same as NetworkIndexer.Configure's own IsComplete-gated resume for network drives.
                     // Its LiveIndex stays in _recordIndexes (nothing here drops it), so that rebuild picks
                     // it up as a TreeDiffBaseline resume point instead of starting fully from scratch.
-                    if (!_indexer.IsDriveIndexComplete(meta.Drive))
+                    if (!CanUseCachedUsnCatchUp(_indexer.IsDriveIndexComplete(meta.Drive), VolumeHelper.SupportsUsnJournal(meta.Drive)))
                         continue;
-
-                    if (!VolumeHelper.SupportsUsnJournal(meta.Drive))
-                    {
-                        updatedMetadata.Add(meta);
-                        continue;
-                    }
 
                     try
                     {
@@ -164,7 +160,7 @@ internal class SearchEngineInitializer
                 {
                     Logger.Log($"[SearchEngineInitializer] Building missing/incomplete/failed per-drive indices: {string.Join(", ", missingDrives)}");
                     var missingMetadata = _indexer.BuildDrives(missingDrives, clearExisting: false, cacheDir: _indexCacheDir,
-                        getToken: _ => cts.Token, createDriveRemovalScope: CreateRemovalScope);
+                        getToken: _ => cts.Token, createDriveRemovalScope: CreateRemovalScope, forceFullScan: true);
                     monitorsToStart.AddRange(missingMetadata);
                 }
             }
