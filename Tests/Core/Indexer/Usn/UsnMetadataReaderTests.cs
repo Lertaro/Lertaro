@@ -74,4 +74,25 @@ public sealed class UsnMetadataReaderTests
         var standard = new byte[24]; BinaryPrimitives.WriteInt64LittleEndian(standard.AsSpan(8), -1);
         Assert.Throws<InvalidDataException>(() => UsnMetadataReader.Decode(new byte[40], standard));
     }
+
+    [TestMethod]
+    public void ClassifiesTransientOpenFailuresWithoutTreatingThemAsDeletion()
+    {
+        Assert.IsTrue(UsnMetadataReader.IsUnavailableError(5));
+        Assert.IsTrue(UsnMetadataReader.IsUnavailableError(32));
+        Assert.IsTrue(UsnMetadataReader.IsUnavailableError(33));
+        Assert.IsFalse(UsnMetadataReader.IsUnavailableError(2));
+        Assert.IsFalse(UsnMetadataReader.IsUnavailableError(87));
+    }
+
+    [TestMethod]
+    public void RecognizesAllNtfsRootMetadataAndExtendSubtree()
+    {
+        Assert.IsTrue(UsnMetadataReader.IsNtfsInternalPath(@"D:\$Mft"));
+        Assert.IsTrue(UsnMetadataReader.IsNtfsInternalPath(@"D:\$Bitmap"));
+        Assert.IsTrue(UsnMetadataReader.IsNtfsInternalPath(@"D:\$Extend\$Deleted\0001"));
+        Assert.IsTrue(UsnMetadataReader.IsNtfsInternalPath(@"D:\$Extend\$RmMetadata\$TxfLog\$Tops\0002"));
+        Assert.IsFalse(UsnMetadataReader.IsNtfsInternalPath(@"D:\Users\test\$Extend\$Deleted\file.txt"));
+        Assert.IsFalse(UsnMetadataReader.IsNtfsInternalPath(@"D:\Documents\report.txt"));
+    }
 }

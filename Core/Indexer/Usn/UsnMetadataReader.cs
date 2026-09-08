@@ -10,7 +10,15 @@ namespace Lertaro.Core.Indexer.Usn;
 // Keeps handle-bound metadata I/O separate from delta routing and below the per-file line limit.
 internal static class UsnMetadataReader
 {
+    private static readonly string[] NtfsRootMetadataNames =
+    {
+        "$Mft", "$MftMirr", "$LogFile", "$Volume", "$AttrDef", "$Bitmap", "$Boot", "$BadClus",
+        "$Secure", "$UpCase", "$Extend"
+    };
+
     internal readonly record struct Metadata(long Size, uint Created, uint Modified, uint Accessed, FileRecordFlags Flags);
+    internal enum MetadataReadStatus { Missing, Present, Unavailable }
+    internal readonly record struct MetadataReadResult(MetadataReadStatus Status, Metadata Value, int ErrorCode);
 
     internal static Metadata? Read(string path, UInt128 expectedId)
     {
@@ -33,6 +41,36 @@ internal static class UsnMetadataReader
         return Decode(basic, standard);
     }
 
+    internal static MetadataReadResult TryRead(string path, UInt128 expectedId)
+    {
+        try
+        {
+            var value = Read(path, expectedId);
+            return value.HasValue
+                ? new(MetadataReadStatus.Present, value.Value, 0)
+                : new(MetadataReadStatus.Missing, default, 0);
+        }
+        catch (Win32Exception ex) when (IsUnavailableError(ex.NativeErrorCode))
+        {
+            // An inaccessible item is not a deletion. Preserve its existing metadata and let the
+            // namespace delta remain usable, otherwise one protected path can abort drive startup.
+            return new(MetadataReadStatus.Unavailable, default, ex.NativeErrorCode);
+        }
+    }
+
+    internal static bool IsUnavailableError(int errorCode) => errorCode is 5 or 32 or 33;
+
+    internal static bool IsNtfsInternalPath(string path)
+    {
+        var root = Path.GetPathRoot(path);
+        if (string.IsNullOrEmpty(root) || path.Length <= root.Length)
+            return false;
+
+        var separator = path.IndexOf('\\', root.Length);
+        var firstName = separator < 0 ? path[root.Length..] : path[root.Length..separator];
+        return NtfsRootMetadataNames.Any(name => name.Equals(firstName, StringComparison.OrdinalIgnoreCase));
+    }
+
     internal static Metadata Decode(ReadOnlySpan<byte> basic, ReadOnlySpan<byte> standard)
     {
         if (basic.Length < 40 || standard.Length < 24) throw new InvalidDataException("Truncated file metadata.");
@@ -48,16 +86,25 @@ internal static class UsnMetadataReader
 
     internal static void Refresh(LiveIndex live, HashSet<UInt128> ids)
     {
-        var paths = live.Read((snapshot, delta) =>
+        var (isNtfs, paths) = live.Read((snapshot, delta) =>
         {
             var found = new Dictionary<UInt128, string>();
             foreach (var id in ids)
                 if (delta.TryGetPathForFrn(id, out var path)) found.Add(id, path);
-            return found;
+            return (snapshot.FileSystemType.Equals("NTFS", StringComparison.OrdinalIgnoreCase), found);
         });
         var values = new Dictionary<UInt128, Metadata>();
         foreach (var (id, path) in paths)
-            if (Read(path, id) is { } metadata) values.Add(id, metadata);
+        {
+            if (isNtfs && IsNtfsInternalPath(path))
+                continue;
+
+            var result = TryRead(path, id);
+            if (result.Status == MetadataReadStatus.Present)
+                values.Add(id, result.Value);
+            else if (result.Status == MetadataReadStatus.Unavailable)
+                Logger.Log($"[UsnMetadataReader] Metadata unavailable for object {id:X} at '{path}'; preserving existing values (Win32 {result.ErrorCode}).", LogLevel.Warn);
+        }
         live.Mutate((snapshot, delta) =>
         {
             foreach (var (id, metadata) in values)
