@@ -46,6 +46,7 @@ public static class Win32Api
     public const uint USN_REASON_HARD_LINK_CHANGE = 0x00010000;
     public const uint USN_REASON_COMPRESSION_CHANGE = 0x00020000;
     public const uint USN_REASON_ENCRYPTION_CHANGE = 0x00040000;
+    public const uint USN_REASON_REPARSE_POINT_CHANGE = 0x00100000;
 
     // ==========================================
     // Win32 Structures

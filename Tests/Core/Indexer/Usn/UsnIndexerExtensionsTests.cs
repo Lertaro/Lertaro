@@ -12,6 +12,23 @@ namespace Lertaro.Core.Tests.Indexer.Usn;
 public sealed class UsnIndexerExtensionsTests
 {
     [TestMethod]
+    public void ApplyUsnRecords_CreateThenReparseSetup_UpdatesExistingLinkFlags()
+    {
+        using var tempDir = new TempDirectory();
+        using var fixture = LiveIndexFixture.Build(tempDir.Path, new[] { LiveIndexFixture.Root() });
+        var indexer = new UsnIndexer(); indexer._recordIndexes[tempDir.Path] = fixture.Index;
+        indexer.ApplyUsnRecords(tempDir.Path, new[]
+        {
+            new ParsedUsnRecord { FileReferenceNumber = 2, ParentFileReferenceNumber = 1, FileName = "link",
+                FileAttributes = 0x10, Reason = Win32Api.USN_REASON_FILE_CREATE },
+            new ParsedUsnRecord { FileReferenceNumber = 2, ParentFileReferenceNumber = 1, FileName = "link",
+                FileAttributes = 0x410, Reason = Win32Api.USN_REASON_REPARSE_POINT_CHANGE },
+        });
+        var record = fixture.Index.ToStore().Records.Single(x => x.Id == 2);
+        Assert.AreEqual(FileRecordFlagsHelper.FromAttributes(FileAttributes.Directory | FileAttributes.ReparsePoint), record.Flags);
+    }
+
+    [TestMethod]
     public void ApplyUsnRecord_BasicInfoChange_UpdatesFileAttributes()
     {
         using var fixture = LiveIndexFixture.Build("C", new[]

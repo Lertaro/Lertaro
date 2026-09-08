@@ -60,6 +60,7 @@ public static class JournalReaderHelper
         }
 
         var currentUsn = startUsn;
+        var recordVersion = UsnJournalRead.RecordVersion(new DriveInfo(drive).DriveFormat);
         var bufSize = 256 * 1024;
         var outBuf = new byte[bufSize];
 
@@ -68,24 +69,7 @@ public static class JournalReaderHelper
         while (currentUsn < currentNextUsn)
         {
             token.ThrowIfCancellationRequested();
-            var input = new Win32Api.READ_USN_JOURNAL_DATA_V0
-            {
-                StartUsn = currentUsn,
-                ReasonMask = 0xFFFFFFFF,
-                ReturnOnlyOnClose = 0,
-                Timeout = 0,
-                BytesToWaitFor = 0,
-                UsnJournalID = journalId
-            };
-
-            success = Win32Api.DeviceIoControl(
-                handle,
-                Win32Api.FSCTL_READ_USN_JOURNAL,
-                ref input, (uint)Marshal.SizeOf<Win32Api.READ_USN_JOURNAL_DATA_V0>(),
-                outBuf, (uint)outBuf.Length,
-                out bytesReturned,
-                IntPtr.Zero
-            );
+            success = UsnJournalRead.Read(handle, currentUsn, journalId, recordVersion, outBuf, out bytesReturned);
 
             if (!success)
             {

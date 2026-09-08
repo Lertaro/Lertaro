@@ -17,8 +17,9 @@ public static class UsnIndexerExtensions
     // the Unix epoch" and filters out of every age-windowed query.
     private const uint MetadataRefreshReasons = Win32Api.USN_REASON_FILE_CREATE | Win32Api.USN_REASON_RENAME_NEW_NAME
         | Win32Api.USN_REASON_DATA_EXTEND | Win32Api.USN_REASON_DATA_OVERWRITE | Win32Api.USN_REASON_DATA_TRUNCATION
-        | Win32Api.USN_REASON_BASIC_INFO_CHANGE | Win32Api.USN_REASON_COMPRESSION_CHANGE | Win32Api.USN_REASON_ENCRYPTION_CHANGE;
-    private const uint AttributeRefreshReasons = Win32Api.USN_REASON_BASIC_INFO_CHANGE | Win32Api.USN_REASON_COMPRESSION_CHANGE | Win32Api.USN_REASON_ENCRYPTION_CHANGE;
+        | Win32Api.USN_REASON_BASIC_INFO_CHANGE | Win32Api.USN_REASON_COMPRESSION_CHANGE | Win32Api.USN_REASON_ENCRYPTION_CHANGE
+        | Win32Api.USN_REASON_HARD_LINK_CHANGE | Win32Api.USN_REASON_REPARSE_POINT_CHANGE;
+    private const uint AttributeRefreshReasons = MetadataRefreshReasons;
     public static void ApplyUsnRecord(this UsnIndexer indexer, string drive, ParsedUsnRecord record)
         => indexer.ApplyUsnRecords(drive, new[] { record });
 
@@ -35,13 +36,14 @@ public static class UsnIndexerExtensions
 
         var namePool = new FileRecordNamePool();
         var pendingMetadataFrns = new HashSet<UInt128>();
+        var hardLinks = new List<ParsedUsnRecord>();
         // Collected here rather than derived afterwards from the delta: the record names its parent
         // directly, so this costs a hash insert per record and no path work at all for the (many)
         // batches that turn out to be several changes in the same folder.
         var changedParentFrns = new HashSet<UInt128>();
 
-        // One Mutate call for the whole batch -- LiveIndex's write lock makes the batch atomic with
-        // respect to concurrent searches on this drive (a search never sees half the batch applied).
+        // Apply the journal's explicit namespace changes under one write lock. Ambiguous hard-link
+        // events and metadata are reconciled afterward, keeping filesystem I/O outside that lock.
         live.Mutate((snapshot, delta) =>
         {
             foreach (var record in records)
@@ -59,7 +61,7 @@ public static class UsnIndexerExtensions
                 if ((record.Reason & Win32Api.USN_REASON_HARD_LINK_CHANGE) != 0
                     && (record.Reason & (Win32Api.USN_REASON_FILE_CREATE | Win32Api.USN_REASON_FILE_DELETE)) == 0)
                 {
-                    DeltaLinkOps.ToggleLink(delta, frn, parentFrn, linkName, linkFlags);
+                    hardLinks.Add(record);
                 }
                 else if ((record.Reason & Win32Api.USN_REASON_RENAME_OLD_NAME) != 0)
                 {
@@ -89,6 +91,10 @@ public static class UsnIndexerExtensions
             }
         });
 
+        UsnHardLinkReconciler.Apply(live, hardLinks);
+        // Child changes also update parent directory metadata without a separate parent USN record.
+        pendingMetadataFrns.UnionWith(changedParentFrns);
+
         // Resolved before taking LockObj, never inside it: reading a path takes the LiveIndex's own
         // lock, and taking the two in this order here and the other order anywhere else is a deadlock.
         var changedDirectories = UsnIndexerChangedDirectories.Resolve(live, changedParentFrns);
@@ -107,53 +113,9 @@ public static class UsnIndexerExtensions
         // files in one 64KB journal buffer, and holding a lock for that many disk stats would serialize
         // this drive's searches/updates behind the whole batch.
         if (pendingMetadataFrns.Count > 0)
-            RefreshMetadata(live, pendingMetadataFrns);
+            UsnMetadataReader.Refresh(live, pendingMetadataFrns);
 
         indexer.PublishStatusChanged();
-    }
-
-    private static void RefreshMetadata(LiveIndex live, HashSet<UInt128> frns)
-    {
-        // Path lookups need the read lock (DeltaOverlay's dictionaries aren't safe to read without it,
-        // unlike the old engine's bespoke concurrent collections) -- but that's cheap; the disk I/O
-        // below runs with no lock held at all.
-        var paths = live.Read((snapshot, delta) =>
-        {
-            var map = new Dictionary<UInt128, string>(frns.Count);
-            foreach (var frn in frns)
-                if (delta.TryGetPathForFrn(frn, out var path))
-                    map[frn] = path;
-            return map;
-        });
-
-        var results = new List<(UInt128 Frn, long Size, uint CreationTimeUtc, uint LastWriteTimeUtc, uint LastAccessTimeUtc)>(paths.Count);
-        foreach (var (frn, path) in paths)
-        {
-            FileInfo info;
-            try
-            {
-                info = new FileInfo(path);
-                if (!info.Exists)
-                    continue;
-            }
-            catch
-            {
-                continue;
-            }
-
-            var isDirectory = (info.Attributes & FileAttributes.Directory) != 0;
-            results.Add((frn, isDirectory ? 0 : info.Length,
-                FileTimeHelper.ToUnixSeconds(info.CreationTimeUtc), FileTimeHelper.ToUnixSeconds(info.LastWriteTimeUtc), FileTimeHelper.ToUnixSeconds(info.LastAccessTimeUtc)));
-        }
-
-        if (results.Count == 0)
-            return;
-
-        live.Mutate((snapshot, delta) =>
-        {
-            foreach (var result in results)
-                DeltaLinkOps.UpdateMetadata(delta, result.Frn, result.Size, result.CreationTimeUtc, result.LastWriteTimeUtc, result.LastAccessTimeUtc);
-        });
     }
 
     public static void ApplyFolderChange(this UsnIndexer indexer, string drive, WatcherChangeTypes changeType, string path, string? oldPath = null)

@@ -90,8 +90,18 @@ public static class DeltaLinkOps
         AddLink(delta, frn, parentFrn, name, flags);
     }
 
-    // Per-FRN metadata refresh, mirroring UsnIndexerExtensions.RefreshMetadata: hard links share one
-    // $STANDARD_INFORMATION, so a single stat is authoritative for EVERY row of the FRN -- live base
+    internal static void SetLinkPresence(DeltaOverlay delta, UInt128 frn, UInt128 parentFrn, string name, FileRecordFlags flags, bool exists)
+    {
+        if (exists)
+        {
+            AddLink(delta, frn, parentFrn, name, flags);
+            UpdateFlags(delta, frn, flags);
+        }
+        else RemoveLink(delta, frn, parentFrn, name);
+    }
+
+    // Per-FRN metadata refresh, used by UsnMetadataReader.Refresh: hard links share file metadata,
+    // so a single handle query is authoritative for EVERY row of the FRN -- live base
     // rows get a metadata overlay, override/added records are patched in place.
     public static void UpdateMetadata(DeltaOverlay delta, UInt128 frn, long size, uint creation, uint lastWrite, uint lastAccess)
     {

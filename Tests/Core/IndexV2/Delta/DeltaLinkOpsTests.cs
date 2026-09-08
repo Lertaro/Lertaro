@@ -5,6 +5,21 @@ namespace Lertaro.Core.Tests.IndexV2.Delta;
 [TestClass]
 public sealed class DeltaLinkOpsTests
 {
+    [TestMethod]
+    public void SetLinkPresence_ReplaysWithoutTogglingOrRemovingSibling()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((snapshot, delta) =>
+        {
+            for (var i = 0; i < 2; i++) DeltaLinkOps.SetLinkPresence(delta, 3, 2, "other.txt", FileRecordFlags.Hidden, true);
+            Assert.HasCount(1, delta.Added.Where(x => !x.Removed));
+            Assert.IsFalse(delta.IsVisiblyDeleted(snapshot.FirstRowForId(3)));
+            for (var i = 0; i < 2; i++) DeltaLinkOps.SetLinkPresence(delta, 3, 2, "other.txt", FileRecordFlags.None, false);
+            Assert.IsFalse(delta.Added.Any(x => !x.Removed));
+            Assert.IsFalse(delta.IsVisiblyDeleted(snapshot.FirstRowForId(3)));
+        });
+    }
+
     private static LiveIndexFixture BuildSampleDrive() => LiveIndexFixture.Build("C", new[]
     {
         LiveIndexFixture.Root(),

@@ -57,6 +57,7 @@ public class UsnMonitor : IDisposable
     {
         Logger.Log($"[Monitor] Started real-time monitoring on drive {_drive} from USN {_startUsn}...");
         var volumePath = $"\\\\.\\{_drive}:";
+        var recordVersion = UsnJournalRead.RecordVersion(new DriveInfo(_drive).DriveFormat);
         var handle = OpenVolume(volumePath);
         if (handle.IsInvalid)
         {
@@ -81,23 +82,7 @@ public class UsnMonitor : IDisposable
                 try
                 {
                     var previousUsn = _startUsn;
-                    var input = new Win32Api.READ_USN_JOURNAL_DATA_V0
-                    {
-                        StartUsn = _startUsn,
-                        ReasonMask = 0xFFFFFFFF,
-                        ReturnOnlyOnClose = 0,
-                        Timeout = 0,
-                        BytesToWaitFor = 0,
-                        UsnJournalID = _journalId
-                    };
-
-                    var success = Win32Api.DeviceIoControl(
-                        handle,
-                        Win32Api.FSCTL_READ_USN_JOURNAL,
-                        ref input, (uint)Marshal.SizeOf<Win32Api.READ_USN_JOURNAL_DATA_V0>(),
-                        outBuf, (uint)outBuf.Length,
-                        out var bytesReturned,
-                        IntPtr.Zero);
+                    var success = UsnJournalRead.Read(handle, _startUsn, _journalId, recordVersion, outBuf, out var bytesReturned);
 
                     if (!success)
                     {
