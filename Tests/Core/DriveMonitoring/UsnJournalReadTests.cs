@@ -12,19 +12,21 @@ public sealed class UsnJournalReadTests
         Assert.AreEqual((ushort)3, UsnJournalRead.RecordVersion("ReFS"));
         Assert.AreEqual((ushort)2, UsnJournalRead.RecordVersion("ntfs"));
         Assert.Throws<NotSupportedException>(() => UsnJournalRead.RecordVersion("exFAT"));
-        var request = UsnJournalRead.Create(123, 456, 3);
-        Assert.AreEqual(123L, request.StartUsn);
-        Assert.AreEqual(456UL, request.UsnJournalId);
-        Assert.AreEqual(uint.MaxValue, request.ReasonMask);
-        Assert.AreEqual((ushort)3, request.MinMajorVersion);
-        Assert.AreEqual((ushort)3, request.MaxMajorVersion);
+        var v0 = UsnJournalRead.CreateV0(123, 456);
+        Assert.AreEqual(123L, v0.StartUsn);
+        Assert.AreEqual(456UL, v0.UsnJournalId);
+        Assert.AreEqual(uint.MaxValue, v0.ReasonMask);
+        var v1 = new UsnJournalRead.RequestV1 { MinMajorVersion = 3, MaxMajorVersion = 3 };
+        Assert.AreEqual((ushort)3, v1.MinMajorVersion);
+        Assert.AreEqual((ushort)3, v1.MaxMajorVersion);
     }
 
     [TestMethod]
     public void NativeRequestHasVersionFieldsAtV1Offsets()
     {
-        Assert.AreEqual(48, Marshal.SizeOf<UsnJournalRead.Request>());
-        Assert.AreEqual((IntPtr)40, Marshal.OffsetOf<UsnJournalRead.Request>(nameof(UsnJournalRead.Request.MinMajorVersion)));
-        Assert.AreEqual((IntPtr)42, Marshal.OffsetOf<UsnJournalRead.Request>(nameof(UsnJournalRead.Request.MaxMajorVersion)));
+        Assert.AreEqual(40, Marshal.SizeOf<UsnJournalRead.RequestV0>());
+        Assert.AreEqual(48, Marshal.SizeOf<UsnJournalRead.RequestV1>());
+        Assert.AreEqual((IntPtr)40, Marshal.OffsetOf<UsnJournalRead.RequestV1>(nameof(UsnJournalRead.RequestV1.MinMajorVersion)));
+        Assert.AreEqual((IntPtr)42, Marshal.OffsetOf<UsnJournalRead.RequestV1>(nameof(UsnJournalRead.RequestV1.MaxMajorVersion)));
     }
 }
