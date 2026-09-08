@@ -13,7 +13,21 @@ internal static class HistorySearchCandidateMapper
     private const int MaxCandidates = 50;
 
     public static List<SearchResultMapper.RankedCandidate> Collect(string query, string? scope) =>
-        Collect(query, scope, SearchHistoryStore.GetEntries(), File.Exists, Directory.Exists);
+        Collect(query, scope, SearchHistoryStore.GetEntries(), SafeFileExists, SafeDirectoryExists);
+
+    private static bool SafeFileExists(string path)
+    {
+        if (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
+            return SearchReachabilityGate.IsPathReachable(path);
+        return File.Exists(path);
+    }
+
+    private static bool SafeDirectoryExists(string path)
+    {
+        if (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
+            return SearchReachabilityGate.IsPathReachable(path);
+        return Directory.Exists(path);
+    }
 
     internal static List<SearchResultMapper.RankedCandidate> Collect(
         string query,

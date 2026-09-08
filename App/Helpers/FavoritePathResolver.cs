@@ -59,6 +59,9 @@ public static class FavoritePathResolver
                 : virtualPathExists(expanded);
         }
 
+        if (fileExists == null && directoryExists == null && expanded.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
+            return ViewModels.Search.SearchReachabilityGate.IsPathReachable(expanded);
+
         return (fileExists ?? File.Exists)(expanded) || (directoryExists ?? Directory.Exists)(expanded);
     }
 

@@ -108,6 +108,49 @@ public sealed class SearchReachabilityGateTests
         Assert.IsFalse(SearchReachabilityGate.IsNetworkSourceReachable(path, new HashSet<string>(), new List<string>()));
     }
 
+    [TestMethod]
+    public void IsPathReachable_NullOrEmpty_ReturnsTrue()
+    {
+        var unreachable = new HashSet<string> { @"\\remote-server\share" };
+
+        Assert.IsTrue(SearchReachabilityGate.IsPathReachable(null, unreachable));
+        Assert.IsTrue(SearchReachabilityGate.IsPathReachable("", unreachable));
+        Assert.IsTrue(SearchReachabilityGate.IsPathReachable("   ", unreachable));
+    }
+
+    [TestMethod]
+    public void IsPathReachable_EmptyUnreachableSet_ReturnsTrue()
+    {
+        var unreachable = new HashSet<string>();
+
+        Assert.IsTrue(SearchReachabilityGate.IsPathReachable(@"\\remote-server\share\file.txt", unreachable));
+    }
+
+    [TestMethod]
+    public void IsPathReachable_PathUnderUnreachablePrefix_ReturnsFalse()
+    {
+        var unreachable = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { @"\\remote-server\share" };
+
+        Assert.IsFalse(SearchReachabilityGate.IsPathReachable(@"\\remote-server\share\subfolder\file.txt", unreachable));
+    }
+
+    [TestMethod]
+    public void IsPathReachable_PathUnderDifferentServer_ReturnsTrue()
+    {
+        var unreachable = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { @"\\remote-server\share" };
+
+        Assert.IsTrue(SearchReachabilityGate.IsPathReachable(@"\\other-server\share\file.txt", unreachable));
+    }
+
+    [TestMethod]
+    public void IsPathReachable_DriveLetterRoot_MatchesPathStartingWithDrive()
+    {
+        var unreachable = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Z" };
+
+        Assert.IsFalse(SearchReachabilityGate.IsPathReachable(@"Z:\folder\file.txt", unreachable));
+        Assert.IsTrue(SearchReachabilityGate.IsPathReachable(@"C:\folder\file.txt", unreachable));
+    }
+
     private sealed class TempDirectory : IDisposable
     {
         public string Path { get; } = Directory.CreateTempSubdirectory("lertaro-tests-").FullName;

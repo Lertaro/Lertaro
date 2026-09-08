@@ -37,8 +37,25 @@ internal static class SearchReachabilityGate
 
     public static bool IsResultReachable(SearchResult result) => IsResultReachable(result.Drive, _unreachable);
 
+    public static bool IsPathReachable(string path) => IsPathReachable(path, _unreachable);
+
     internal static bool IsResultReachable(string? drive, IReadOnlySet<string> unreachable)
         => string.IsNullOrEmpty(drive) || !unreachable.Contains(drive);
+
+    internal static bool IsPathReachable(string? path, IReadOnlySet<string> unreachable)
+    {
+        if (string.IsNullOrWhiteSpace(path) || unreachable.Count == 0)
+            return true;
+
+        foreach (var root in unreachable)
+        {
+            if (path.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                return false;
+            if (root.Length == 1 && path.Length >= 2 && path[1] == ':' && char.ToUpperInvariant(path[0]) == char.ToUpperInvariant(root[0]))
+                return false;
+        }
+        return true;
+    }
 
     private static async Task ProbeAsync(long version)
     {
@@ -113,6 +130,19 @@ internal static class SearchReachabilityGate
             var distroName = NetworkDriveSettingsHelper.GetWslDistroName(cacheKey);
             return wslDistros.Contains(distroName, StringComparer.OrdinalIgnoreCase);
         }
-        return Directory.Exists(cacheKey);
+        return CheckNetworkDirectoryWithTimeout(cacheKey, 1500);
+    }
+
+    private static bool CheckNetworkDirectoryWithTimeout(string path, int timeoutMs)
+    {
+        try
+        {
+            var task = Task.Run(() => Directory.Exists(path));
+            return task.Wait(timeoutMs) && task.Result;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

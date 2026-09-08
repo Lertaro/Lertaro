@@ -50,6 +50,14 @@ public static class ShellIconHelper
         return icon;
     }
 
+    private static bool IsUniqueIconExtension(string ext) =>
+        ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".lnk", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".ico", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".msc", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".cpl", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".url", StringComparison.OrdinalIgnoreCase);
+
     public static ImageSource? GetIconFromCacheOnly(string path, bool isDir, out bool needsLoad)
     {
         needsLoad = false;
@@ -69,11 +77,8 @@ public static class ShellIconHelper
         }
 
         var isVirtualItem = path.StartsWith("::") || path.StartsWith("shell:");
-        var isPhysicalPath = !isVirtualItem && (isDir ? Directory.Exists(path) : File.Exists(path));
         var hasThumbnailProvider = !isDir && PluginManager.Instance.ThumbnailProviders.Any(p => PluginPerformanceMonitor.Measure(p, () => p.CanProvideThumbnail(path, isDir)));
-
-        // All real physical files on disk, virtual items, and thumbnail provider targets use full path as cache key
-        var isUniqueIconType = isPhysicalPath || isVirtualItem || hasThumbnailProvider;
+        var isUniqueIconType = isDir || isVirtualItem || hasThumbnailProvider || IsUniqueIconExtension(ext);
         var cacheKey = isUniqueIconType ? path : ext;
 
         if (_iconCache.TryGetValue(cacheKey, out var cachedIcon))
@@ -85,7 +90,7 @@ public static class ShellIconHelper
         {
             needsLoad = true;
 
-            if (!isDir && hasThumbnailProvider)
+            if (!isDir && (hasThumbnailProvider || IsUniqueIconExtension(ext)))
             {
                 // Return specific file type icon as placeholder instead of generic unknown icon
                 var extPlaceholderKey = $"::placeholder:{ext}::";
@@ -116,11 +121,14 @@ public static class ShellIconHelper
             }
             return fetchedPlaceholder;
         }
-        else
+
+        // Standard document types share one static extension icon resolved via USEFILEATTRIBUTES
+        var sharedExtIcon = GetIconForPath("dummy" + ext, false);
+        if (sharedExtIcon != null)
         {
-            // Non-physical/fallback types can be resolved synchronously
-            return GetIconForPath(path, isDir);
+            _iconCache[ext] = sharedExtIcon;
         }
+        return sharedExtIcon;
     }
 
     public static ImageSource? GetIconForPath(this string path, bool isDir)
@@ -145,7 +153,9 @@ public static class ShellIconHelper
 
         var checkPath = path;
         var isVirtualItem = checkPath.StartsWith("::") || checkPath.StartsWith("shell:");
-        var isPhysicalPath = !isVirtualItem && (isDir ? Directory.Exists(checkPath) : File.Exists(checkPath));
+        var isDummyPath = checkPath.StartsWith("dummy", StringComparison.OrdinalIgnoreCase);
+        var isUnreachableNetwork = checkPath.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase) && !ViewModels.Search.SearchReachabilityGate.IsPathReachable(checkPath);
+        var isPhysicalPath = !isVirtualItem && !isDummyPath && !isUnreachableNetwork && (isDir ? Directory.Exists(checkPath) : File.Exists(checkPath));
         var hasThumbnailProvider = !isDir && PluginManager.Instance.ThumbnailProviders.Any(p => PluginPerformanceMonitor.Measure(p, () => p.CanProvideThumbnail(path, isDir)));
 
         var isUniqueIconType = isPhysicalPath || isVirtualItem || hasThumbnailProvider;

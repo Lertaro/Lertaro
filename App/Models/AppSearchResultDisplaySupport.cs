@@ -94,6 +94,9 @@ internal static class AppSearchResultDisplaySupport
         var isDirectory = owner.IsDir;
         LazyBackgroundLoader.Start(IconSemaphore, () =>
         {
+            if (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase) && !ViewModels.Search.SearchReachabilityGate.IsPathReachable(path))
+                return Task.CompletedTask;
+
             var icon = ShellIconHelper.GetIconForPath(path, isDirectory);
             if (icon != null)
             {
@@ -113,6 +116,9 @@ internal static class AppSearchResultDisplaySupport
         var isDirectory = owner.IsDir;
         LazyBackgroundLoader.Start(DateModifiedSemaphore, () =>
         {
+            if (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase) && !ViewModels.Search.SearchReachabilityGate.IsPathReachable(path))
+                return Task.CompletedTask;
+
             var modified = DateTime.MinValue;
             try
             {

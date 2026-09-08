@@ -152,6 +152,17 @@ public sealed class HistorySearchCandidateMapperTests
         Assert.IsLessThan(priorities[@"C:\Apps\Other.exe"], priorities[@"C:\Apps\BCompare.exe"]);
     }
 
+    [TestMethod]
+    public void Collect_UncPathUsesLexicalPathAndChecksExistence()
+    {
+        var entries = new[] { Entry("report", @"\\remote-server\share\report.docx", HistoryEntryKind.File) };
+
+        var results = HistorySearchCandidateMapper.Collect("rep", null, entries, _ => true, _ => false);
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual(@"\\remote-server\share\report.docx", results[0].Result.FullPath);
+    }
+
     private static HistoryEntry Entry(string keyword, string path, HistoryEntryKind kind) =>
         new(keyword, path, kind, 100);
 }

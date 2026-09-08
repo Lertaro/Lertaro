@@ -103,9 +103,8 @@ public static class SearchResultMapper
             for (var i = 0; i < favorites.Count; i++)
             {
                 var fav = favorites[i];
-                if (!Helpers.FavoritePathResolver.IsPathAvailable(fav.Path)) continue;
                 var (isMatch, weight) = FavoriteSearchHelper.ComputeMatch(fav, query);
-                if (!isMatch)
+                if (!isMatch || !Helpers.FavoritePathResolver.IsPathAvailable(fav.Path))
                     continue;
 
                 // A favorite is curated by the user regardless of whether it also has USAGE history --

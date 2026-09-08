@@ -121,8 +121,9 @@ public static class PluginSearchResultMapper
                     if (item.ActionType == "Execute" && !string.IsNullOrWhiteSpace(targetPath))
                     {
                         // WSL targets stay opaque until the user explicitly opens them; probing here
-                        // would wake the distro merely because a plugin result was displayed.
-                        if (!WslPath.IsPath(targetPath))
+                        // would wake the distro merely because a plugin result was displayed. UNC paths
+                        // are likewise skipped to prevent blocking the search thread on dead network shares.
+                        if (!WslPath.IsPath(targetPath) && !targetPath.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
                         {
                             if (File.Exists(targetPath)) isRealFile = true;
                             else if (Directory.Exists(targetPath)) isRealDir = true;
