@@ -91,4 +91,5 @@ public sealed class DriveMaintenanceHelperTests
         string state,
         bool expected) =>
         Assert.AreEqual(expected, DriveMaintenanceHelper.ShouldRestoreAfterEnable(wasEnabled, isEnabled, state));
+
 }

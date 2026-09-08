@@ -32,6 +32,6 @@ internal static class SearchEngineDriveMaintenanceCancellationExtensions
                 return;
             }
         }
-        maintenance.QueueDriveRebuild(drive);
+        maintenance.QueueDriveRebuild(drive, forceRebuild: true);
     }
 }

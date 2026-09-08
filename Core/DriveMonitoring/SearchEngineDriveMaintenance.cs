@@ -45,13 +45,13 @@ internal sealed class SearchEngineDriveMaintenance
             var supported = detected.Where(d => settings.IsLocalDriveEnabled(VolumeHelper.GetVolumeId(d))).ToList();
             var enabled = new HashSet<string>(supported, StringComparer.OrdinalIgnoreCase);
             var disabled = visible.Where(d => !enabled.Contains(d)).ToList();
-            var drivesToBuild = new List<string>();
+            var drivesToBuild = new List<string>(); var forceRebuildDrives = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             lock (_indexer.LockObj)
             {
                 var current = _indexer.Status.Drives.ToDictionary(d => d.Drive, StringComparer.OrdinalIgnoreCase);
                 var next = new List<UsnIndexer.DriveIndexStatus>();
                 foreach (var drive in visible)
-                    next.Add(DriveMaintenanceHelper.UpdateStatus(drive, detectedSet.Contains(drive), enabled.Contains(drive), IndexCacheDir, current, drivesToBuild, cachedPaths));
+                    next.Add(DriveMaintenanceHelper.UpdateStatus(drive, detectedSet.Contains(drive), enabled.Contains(drive), IndexCacheDir, current, drivesToBuild, cachedPaths, forceRebuildDrives));
                 _indexer.Status.Drives = next;
             }
             foreach (var drive in disabled)
@@ -60,7 +60,7 @@ internal sealed class SearchEngineDriveMaintenance
                 _indexer.DropDriveFromRuntime(drive);
             }
             foreach (var drive in drivesToBuild)
-                QueueDriveRebuild(drive);
+                QueueDriveRebuild(drive, forceRebuildDrives.Contains(drive));
         }
         catch (Exception ex)
         {
@@ -119,7 +119,7 @@ internal sealed class SearchEngineDriveMaintenance
     }
     public void QueueDriveRebuild(string drive) => QueueDriveRebuild(drive, forceRebuild: false);
 
-    private bool QueueDriveRebuild(string drive, bool forceRebuild)
+    internal bool QueueDriveRebuild(string drive, bool forceRebuild)
     {
         lock (_pendingDriveRebuilds)
         {
@@ -178,7 +178,7 @@ internal sealed class SearchEngineDriveMaintenance
             _onActivityCompleted();
         }
         if (retryAfterRemoval)
-            QueueDriveRebuild(drive);
+            QueueDriveRebuild(drive, forceRebuild: true);
     }
 
     private void ForceRebuildDrive(string drive, CancellationToken token)

@@ -13,7 +13,8 @@ internal static class DriveMaintenanceHelper
         string indexCacheDir,
         Dictionary<string, UsnIndexer.DriveIndexStatus> current,
         List<string> drivesToBuild,
-        IReadOnlyDictionary<string, string> cachedPaths)
+        IReadOnlyDictionary<string, string> cachedPaths,
+        ISet<string>? forceRebuildDrives = null)
     {
         // GetCachePath derives the filename from a live volume identity query, which only works while
         // the drive is actually mounted -- a not-present drive (unplugged) has no way to re-derive that
@@ -42,6 +43,7 @@ internal static class DriveMaintenanceHelper
             {
                 existing.State = "pending";
                 drivesToBuild.Add(drive);
+                forceRebuildDrives?.Add(drive);
             }
             return existing;
         }
