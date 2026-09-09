@@ -15,6 +15,7 @@
         ShowInTaskbar="False"
         Topmost="True"
         Loaded="Window_Loaded"
+        Activated="Window_Activated"
         PreviewKeyDown="Window_PreviewKeyDown">
 
     <!-- MaxWidth above doubles as the wrap width. SizeToContent still shrinks a short prompt to its

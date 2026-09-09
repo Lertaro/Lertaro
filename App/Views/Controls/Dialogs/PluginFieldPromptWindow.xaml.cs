@@ -43,6 +43,7 @@ public partial class PluginFieldPromptWindow : Window
     }
 
     private bool _isSaved;
+    private bool _initialEditorFocused;
 
     /// <summary>
     /// Re-fits the window after its content changed height, and recentres it on its owner.
@@ -92,6 +93,37 @@ public partial class PluginFieldPromptWindow : Window
                 Top = Owner.Top + (Owner.ActualHeight - ActualHeight) / 2;
             }
         }), System.Windows.Threading.DispatcherPriority.ContextIdle);
+
+    private void Window_Activated(object? sender, EventArgs e)
+    {
+        if (_initialEditorFocused) return;
+
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle, new Action(() =>
+        {
+            if (!IsActive || _initialEditorFocused) return;
+
+            var editor = FindVisualChildren<System.Windows.Controls.TextBox>(FieldsControl)
+                .FirstOrDefault(textBox => textBox.DataContext is PluginConfigFieldViewModel { SelectionLength: > 0 });
+            if (editor?.DataContext is not PluginConfigFieldViewModel field) return;
+
+            var start = Math.Clamp(field.SelectionStart, 0, editor.Text.Length);
+            var length = Math.Clamp(field.SelectionLength, 0, editor.Text.Length - start);
+            editor.Focus();
+            Keyboard.Focus(editor);
+            editor.Select(start, length);
+            _initialEditorFocused = true;
+        }));
+    }
+
+    private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+            if (child is T match) yield return match;
+            foreach (var descendant in FindVisualChildren<T>(child)) yield return descendant;
+        }
+    }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -184,6 +216,12 @@ public partial class PluginFieldPromptWindow : Window
         var win = new PluginFieldPromptWindow(title, fieldViewModels);
 
         win.Owner = OwnedDialog.ResolveOwner(win);
+        // QuickSearchWindow starts a deferred hide before running a plugin action. When that action
+        // opens this prompt, the hide's delayed focus restoration would otherwise move keyboard input
+        // back to the window behind the prompt. The prompt remains the active owner while the quick
+        // window is hidden, so only suppress that stale restoration.
+        if (win.Owner is Lertaro.App.QuickSearchWindow quickOwner)
+            quickOwner.SuppressNextForegroundRestore();
         win.WindowStartupLocation = win.Owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen;
 
         // Not win.ShowDialog(): see OwnedDialog.ShowModal for what an owner closing underneath a modal
