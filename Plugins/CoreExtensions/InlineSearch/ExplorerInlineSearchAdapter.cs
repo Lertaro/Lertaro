@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -67,7 +66,7 @@ public class ExplorerInlineSearchAdapter : IInlineSearchAdapter
             // the one that mapped any network drive letters, so a perfectly valid mapped-drive path would
             // otherwise silently resolve to "doesn't exist". The caller already knows and encodes it as a
             // trailing separator (see InlineAdapterIpcCoordinator.ExecuteItem); stripped back off here so
-            // the path passed to Navigate2/ProcessStartInfo is unchanged from before.
+            // the path passed to Navigate2 is unchanged from before.
             var isDir = Path.EndsInDirectorySeparator(path);
             var cleanPath = isDir ? Path.TrimEndingDirectorySeparator(path) : path;
 
@@ -80,14 +79,12 @@ public class ExplorerInlineSearchAdapter : IInlineSearchAdapter
 
             var alwaysOpen = PluginSettingsService.GetSetting("Lertaro.Plugins.CoreExtensions", "InlineSearchAlwaysOpen", true);
 
-            // The desktop isn't an Explorer pane to navigate within -- acting on an item from there means
-            // opening it directly. If InlineSearchAlwaysOpen is enabled, files open directly while folders
-            // still navigate in-place in the active Explorer window.
-            if (isDesktop || (!isDir && alwaysOpen))
-            {
-                Process.Start(new ProcessStartInfo { FileName = cleanPath, UseShellExecute = true });
-                return true;
-            }
+            // The adapter runs in the elevated Hook process. Defer every direct-open case to the App so
+            // the target process inherits the interactive user's normal token instead of the Hook's
+            // elevation. The App fallback still opens the same path, while in-place Explorer navigation
+            // remains handled here.
+            if (ShouldDeferDirectOpenToApp(isDesktop, isDir, alwaysOpen))
+                return false;
 
             // Land on the item in an existing Explorer window -- navigate into a folder, or navigate to a
             // file's parent and select it -- rather than running it, matching every other file-manager
@@ -101,10 +98,9 @@ public class ExplorerInlineSearchAdapter : IInlineSearchAdapter
 
             if (isDir)
             {
-                // No existing window to reuse -- ShellExecute on a folder just opens/navigates into it,
-                // same net effect as the locate call above would have had.
-                Process.Start(new ProcessStartInfo { FileName = cleanPath, UseShellExecute = true });
-                return true;
+                // Let the App perform the normal shell open if in-place navigation failed. The Hook is
+                // elevated, so even this last-resort folder launch must not happen here.
+                return false;
             }
 
             // A file must never be launched here -- fall back to the shell's own "open/reuse an Explorer
@@ -196,6 +192,9 @@ public class ExplorerInlineSearchAdapter : IInlineSearchAdapter
     }
 
     public bool CanEnterActionsMode(IntPtr hwnd) => true;
+
+    internal static bool ShouldDeferDirectOpenToApp(bool isDesktop, bool isDir, bool alwaysOpen)
+        => isDesktop || (!isDir && alwaysOpen);
 
     private bool TryLocateInExistingExplorer(string path, bool isDir, IntPtr explorerHwnd)
     {
