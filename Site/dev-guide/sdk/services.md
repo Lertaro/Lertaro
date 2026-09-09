@@ -55,6 +55,12 @@ public static class ShellDeleteHelper
     public static void DeleteAsync(IEnumerable<string> paths, bool permanent = false);
 }
 
+// Rename one existing file or folder
+public static class ShellRenameHelper
+{
+    public static void RenameAsync(string path, string newName);
+}
+
 // Virtual file extraction from drag-and-drop streams
 public static class VirtualFileExtractor
 {

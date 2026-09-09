@@ -18,6 +18,7 @@ Press `Ctrl+O` or `→` on any search result (file, folder, application, or plug
 | **Paste into Folder** | `Ctrl+V` | When a folder is highlighted, pastes clipboard files directly into that directory. |
 | **Delete (Recycle Bin)** | `Delete` | Safely moves the selected file or directory to the Windows Recycle Bin. |
 | **Permanent Delete** | `Shift+Delete` | Permanently deletes the selected item (prompts for confirmation; cannot be recovered). |
+| **Rename** | — | Renames one existing file or folder through the Windows Shell. The dialog preselects the filename portion for convenient replacement. |
 | **Windows Context Menu** | — | Expands the full native Windows Explorer context menu with third-party extensions and "Send to". |
 
 ### Action Menu Interaction & Filtering
@@ -77,3 +78,7 @@ The official **File Occupation Release** plugin adds a single-selection action f
 ## 7. Add to Favorites
 
 CoreExtensions provides an **Add to Favorites** action for one existing file or folder. It opens a themed dialog for the display name and hides the action when the same path is already a favorite.
+
+## 8. Rename
+
+CoreExtensions provides a **Rename** action for one existing file or folder. The themed dialog shows the full current name and preselects the filename portion: for `report.pdf`, only `report` is selected, while folders and names without an extension are selected in full. Press `Enter` to confirm or `Esc` to cancel. After confirmation, the actual rename is delegated to the Windows Shell.

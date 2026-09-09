@@ -55,6 +55,12 @@ public static class ShellDeleteHelper
     public static void DeleteAsync(IEnumerable<string> paths, bool permanent = false);
 }
 
+// Cambiar el nombre de un único archivo o carpeta existente
+public static class ShellRenameHelper
+{
+    public static void RenameAsync(string path, string newName);
+}
+
 // Extracción de archivos virtuales a partir de flujos arrastrados
 public static class VirtualFileExtractor
 {

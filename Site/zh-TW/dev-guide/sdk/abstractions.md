@@ -70,6 +70,7 @@ public interface IConfigurable
 | :--- | :--- |
 | **`Boolean`** | 切換開關（Toggle Switch）或核取方塊。 |
 | **`Text`** | 文字輸入框。支援設定 `RequireNonEmpty`，為空時自動回復為 `DefaultValue`。 |
+| **文字選取** | `SelectionStart` 和 `SelectionLength` 用於指定 `Text` 欄位輸入對話方塊中從 0 開始計算的初始選取範圍。 |
 | **`Integer`** | 數字微調輸入框。支援設定最小值與最大值範圍。 |
 | **`Choice`** | 下拉式選單。透過 `Choices` 或 `ChoiceOptions` 清單指定可選項目。 |
 | **`Hotkey`** | 專屬按鍵錄製框。可設定 `RequireModifier = true` 強制要求必須包含修飾鍵。 |

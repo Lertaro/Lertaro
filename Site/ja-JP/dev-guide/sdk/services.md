@@ -55,6 +55,12 @@ public static class ShellDeleteHelper
     public static void DeleteAsync(IEnumerable<string> paths, bool permanent = false);
 }
 
+// 存在するファイルまたはフォルダー 1 件の名前を変更
+public static class ShellRenameHelper
+{
+    public static void RenameAsync(string path, string newName);
+}
+
 // ドラッグ＆ドロップされた仮想ファイルストリームの抽出
 public static class VirtualFileExtractor
 {

@@ -70,6 +70,7 @@ public interface IConfigurable
 | :--- | :--- |
 | **`Boolean`** | 토글 스위치 또는 체크박스. |
 | **`Text`** | 텍스트 입력 상자. `RequireNonEmpty` 활성화 시 빈 문자열일 때 `DefaultValue`로 자동 폴백. |
+| **텍스트 선택** | `SelectionStart`와 `SelectionLength`로 `Text` 필드 입력 대화상자의 0부터 시작하는 초기 선택 범위를 지정합니다. |
 | **`Integer`** | 최솟값과 최댓값을 지정할 수 있는 숫자 조절 상자. |
 | **`Choice`** | `Choices` 또는 `ChoiceOptions` 목록에서 선택하는 드롭다운. |
 | **`Hotkey`** | 키 녹화 컨트롤(`RequireModifier = true`로 수식키 필수화 가능). |

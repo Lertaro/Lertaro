@@ -70,6 +70,7 @@ public interface IConfigurable
 | :--- | :--- |
 | **`Boolean`** | Interruptor de alternancia o casilla de verificación. |
 | **`Text`** | Campo de texto. Admite `RequireNonEmpty` para volver a `DefaultValue` si se vacía. |
+| **Selección de texto** | `SelectionStart` y `SelectionLength` especifican la selección inicial, basada en cero, en el editor de diálogo de un campo `Text`. |
 | **`Integer`** | Control numérico con límites mínimos y máximos. |
 | **`Choice`** | Selector desplegable basado en una colección `Choices` o `ChoiceOptions`. |
 | **`Hotkey`** | Grabador de teclas con `RequireModifier = true` opcional. |

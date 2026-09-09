@@ -70,6 +70,7 @@ public interface IConfigurable
 | :--- | :--- |
 | **`Boolean`** | トグルスイッチまたはチェックボックス。 |
 | **`Text`** | テキストボックス。`RequireNonEmpty` を有効にすると、空欄時に `DefaultValue` へ自動フォールバック。 |
+| **テキスト選択** | `SelectionStart` と `SelectionLength` で、`Text` フィールドの入力ダイアログにおける 0 始まりの初期選択範囲を指定します。 |
 | **`Integer`** | 最小値・最大値を指定可能な数値スピンボックス。 |
 | **`Choice`** | `Choices` または `ChoiceOptions` の一覧から選ぶドロップダウンリスト。 |
 | **`Hotkey`** | キー入力登録コントロール（`RequireModifier = true` で修飾キーを必須化可能）。 |

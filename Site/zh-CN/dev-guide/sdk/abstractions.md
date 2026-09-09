@@ -70,6 +70,7 @@ public interface IConfigurable
 | :--- | :--- |
 | **`Boolean`** | 切换开关（Toggle Switch）或复选框。 |
 | **`Text`** | 文本输入框。支持配置 `RequireNonEmpty`，为空时自动回退为 `DefaultValue`。 |
+| **文本选择** | `SelectionStart` 和 `SelectionLength` 用于指定 `Text` 字段输入对话框中从 0 开始计算的初始选中范围。 |
 | **`Integer`** | 数字微调输入框。支持配置最小值与最大值范围。 |
 | **`Choice`** | 下拉选择框。通过 `Choices` 或 `ChoiceOptions` 列表指定可选条目。 |
 | **`Hotkey`** | 专属按键录制框。可配置 `RequireModifier = true` 强制要求必须包含修饰键。 |

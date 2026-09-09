@@ -55,6 +55,12 @@ public static class ShellDeleteHelper
     public static void DeleteAsync(IEnumerable<string> paths, bool permanent = false);
 }
 
+// 존재하는 파일 또는 폴더 하나의 이름 변경
+public static class ShellRenameHelper
+{
+    public static void RenameAsync(string path, string newName);
+}
+
 // 드래그 앤 드롭 가상 파일 스트림 추출
 public static class VirtualFileExtractor
 {

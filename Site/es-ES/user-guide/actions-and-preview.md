@@ -18,6 +18,7 @@ Pulsa `Ctrl+O` o la flecha derecha `→` en cualquier resultado de búsqueda (ar
 | **Pegar en esta carpeta** | `Ctrl+V` | Si el elemento seleccionado es una carpeta, pega los archivos del portapapeles en su interior. |
 | **Eliminar (Papelera de reciclaje)** | `Delete` | Mueve el archivo o carpeta seleccionado a la Papelera de reciclaje de Windows de forma segura. |
 | **Eliminación permanente** | `Shift+Delete` | Elimina permanentemente el elemento (solicita confirmación; no se puede recuperar). |
+| **Cambiar nombre** | — | Cambia el nombre de un único archivo o carpeta existente mediante Windows Shell. El diálogo selecciona de antemano la parte del nombre para facilitar su sustitución. |
 | **Menú contextual de Windows** | — | Despliega el menú contextual nativo completo de Windows Explorer (incluyendo opciones de terceros y "Enviar a"). |
 
 ### Interacción y filtrado en el Menú de acciones
@@ -77,3 +78,7 @@ El plugin oficial **Liberar ocupación de archivos** añade una acción disponib
 ## 7. Añadir a Favoritos
 
 CoreExtensions ofrece la acción **Añadir a Favoritos** para un único archivo o carpeta existente. Abre un diálogo con el tema del anfitrión para introducir el nombre visible y oculta la acción si la misma ruta ya está en Favoritos.
+
+## 8. Cambiar nombre
+
+CoreExtensions ofrece la acción **Cambiar nombre** para un único archivo o carpeta existente. El diálogo con el tema del anfitrión muestra el nombre completo actual y selecciona de antemano la parte del nombre: en `report.pdf` solo se selecciona `report`, mientras que en carpetas y nombres sin extensión se selecciona todo el nombre. Pulsa `Enter` para confirmar o `Esc` para cancelar. Tras la confirmación, Windows Shell realiza el cambio de nombre.

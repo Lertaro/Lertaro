@@ -70,6 +70,7 @@ public interface IConfigurable
 | :--- | :--- |
 | **`Boolean`** | Toggle switch or checkbox. |
 | **`Text`** | Text input box. Supports `RequireNonEmpty` to fall back to `DefaultValue` when cleared. |
+| **Text selection** | `SelectionStart` and `SelectionLength` specify the zero-based initial selection in a `Text` field's prompt editor. |
 | **`Integer`** | Numeric stepper with minimum and maximum bounds. |
 | **`Choice`** | Dropdown selector backed by a `Choices` or `ChoiceOptions` collection. |
 | **`Hotkey`** | Key recording box with optional `RequireModifier = true`. |

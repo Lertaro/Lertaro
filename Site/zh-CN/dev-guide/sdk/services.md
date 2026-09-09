@@ -55,6 +55,12 @@ public static class ShellDeleteHelper
     public static void DeleteAsync(IEnumerable<string> paths, bool permanent = false);
 }
 
+// 重命名单个已存在的文件或文件夹
+public static class ShellRenameHelper
+{
+    public static void RenameAsync(string path, string newName);
+}
+
 // 虚拟文件与网页拖拽流提取
 public static class VirtualFileExtractor
 {

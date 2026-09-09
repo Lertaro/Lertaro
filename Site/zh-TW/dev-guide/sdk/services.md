@@ -55,6 +55,12 @@ public static class ShellDeleteHelper
     public static void DeleteAsync(IEnumerable<string> paths, bool permanent = false);
 }
 
+// 重新命名單一已存在的檔案或資料夾
+public static class ShellRenameHelper
+{
+    public static void RenameAsync(string path, string newName);
+}
+
 // 虛擬檔案與網頁拖曳串流擷取
 public static class VirtualFileExtractor
 {
