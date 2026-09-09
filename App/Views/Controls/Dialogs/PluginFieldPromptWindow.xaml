@@ -14,7 +14,8 @@
         TextElement.Foreground="{DynamicResource TextPrimary}"
         ShowInTaskbar="False"
         Topmost="True"
-        Loaded="Window_Loaded">
+        Loaded="Window_Loaded"
+        PreviewKeyDown="Window_PreviewKeyDown">
 
     <!-- MaxWidth above doubles as the wrap width. SizeToContent still shrinks a short prompt to its
          own content, but a field with a long description has no reason to stop before the cap, so the
@@ -84,11 +85,8 @@
                      PluginConfigWindow's own IsSaved-defaults-false semantics, so a separate Cancel
                      button next to OK would just be a second way to do the same thing.
 
-                     Escape is deliberately not wired up to cancel as well. Reaching the fields ahead
-                     of the focused editor means handling it in the tunnelling pass, which is exactly
-                     where an editor that wants the key for itself would be waiting for it: a hotkey
-                     recorder field takes Escape to clear what it is recording, and a window-level
-                     handler would swallow that before the field ever saw it. -->
+                     Escape closes the prompt without setting the saved marker, so it has the same
+                     cancel semantics as the title-bar close button. -->
                 <Border Grid.Row="2" Background="{DynamicResource StatusBarBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
                     <Grid Margin="12,0">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">

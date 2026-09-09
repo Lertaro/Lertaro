@@ -111,6 +111,14 @@ public partial class PluginFieldPromptWindow : Window
         }
     }
 
+    private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape) return;
+
+        e.Handled = true;
+        Close();
+    }
+
     private void BtnOK_Click(object sender, RoutedEventArgs e)
     {
         _isSaved = true;
