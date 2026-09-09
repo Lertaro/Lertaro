@@ -24,6 +24,7 @@ public class CoreExtensionsPlugin : IPlugin, IActionProvider, IConfigurable
             new PasteFileAction(),
             new DeleteFileAction(),
             new PermanentDeleteFileAction(),
+            new RenameAction(),
             new OpenCommandPromptAction(),
             new OpenAdminCommandPromptAction(),
             new TouchAction(),

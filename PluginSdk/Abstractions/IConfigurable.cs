@@ -37,6 +37,10 @@ public class PluginConfigField
     public bool RequireNonEmpty { get; set; }
     /// <summary>For Text fields: maximum character length (0 or unset means no length restriction).</summary>
     public int MaxLength { get; set; }
+    /// <summary>For Text fields: zero-based initial selection start in the prompt editor.</summary>
+    public int SelectionStart { get; set; }
+    /// <summary>For Text fields: initial selection length in the prompt editor.</summary>
+    public int SelectionLength { get; set; }
     /// <summary>For CustomControl fields: custom UI element/control hosted directly by the application.</summary>
     public object? CustomControl { get; set; }
     /// <summary>For Button fields: invoked when the button is clicked. A Button field stores no value;

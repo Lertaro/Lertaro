@@ -35,6 +35,8 @@ public class PluginConfigFieldViewModel : ViewModelBase
         ? SchemaField.ChoiceOptions.Select(choice => new PluginConfigChoiceItem(choice.Value, ResolveText(choice.LabelKey))).ToList()
         : SchemaField.Choices?.Select(choice => new PluginConfigChoiceItem(choice, ResolveText(choice))).ToList() ?? [];
     public int MaxLength => SchemaField.MaxLength > 0 ? SchemaField.MaxLength : int.MaxValue;
+    public int SelectionStart => SchemaField.SelectionStart;
+    public int SelectionLength => SchemaField.SelectionLength;
     public bool HasLengthLimit => SchemaField.MaxLength > 0;
     public bool IsSingleChar => SchemaField.MaxLength == 1;
     public double EditorWidth => IsSingleChar ? 48 : 180;

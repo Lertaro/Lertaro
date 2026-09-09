@@ -161,7 +161,10 @@ public partial class PluginFieldPromptWindow : Window
                     ChoiceOptions = f.ChoiceOptions,
                     SubFields = f.SubFields,
                     RequireModifier = f.RequireModifier,
-                    RequireNonEmpty = f.RequireNonEmpty
+                    RequireNonEmpty = f.RequireNonEmpty,
+                    MaxLength = f.MaxLength,
+                    SelectionStart = f.SelectionStart,
+                    SelectionLength = f.SelectionLength
                 };
             }
             // onValueChanged non-null puts the field VM in "detached" mode: LocalValueStore starts

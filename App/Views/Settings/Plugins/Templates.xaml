@@ -55,7 +55,7 @@
     </Style>
     <DataTemplate x:Key="PluginInlineEditorTemplate">
         <Grid>
-            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}"
+            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" local:PluginConfigTemplates.ApplyInitialSelection="True"
                      IsReadOnly="{Binding EditorReadOnly, RelativeSource={RelativeSource AncestorType={x:Type ctrl:InlineEditorHost}}}"
                      TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="10,8" DataObject.Pasting="IconTextBox_OnPasting">
                 <TextBox.Style>
@@ -141,7 +141,7 @@
                     <Setter.Value>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="{Binding EditorWidth}" TextAlignment="{Binding TextAlignment}" Height="26"/>
+                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" local:PluginConfigTemplates.ApplyInitialSelection="True" Width="{Binding EditorWidth}" TextAlignment="{Binding TextAlignment}" Height="26"/>
                                 <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" Visibility="{Binding IsIconField, Converter={StaticResource InvertBoolToVis}}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Visibility="{Binding IsIconField, Converter={StaticResource BoolToVis}}" VerticalAlignment="Center" HorizontalAlignment="Center">
                                     <Path Data="{Binding Value}" Fill="{DynamicResource DefaultPluginIconColor}" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"/>

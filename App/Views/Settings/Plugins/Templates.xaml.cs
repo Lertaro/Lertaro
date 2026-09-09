@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using Lertaro.App.Services;
@@ -14,6 +15,39 @@ namespace Lertaro.App.Views.Settings.Plugins;
 // doesn't depend on PluginConfigWindow's own state.
 public partial class PluginConfigTemplates : ResourceDictionary
 {
+    public static readonly DependencyProperty ApplyInitialSelectionProperty = DependencyProperty.RegisterAttached(
+        "ApplyInitialSelection", typeof(bool), typeof(PluginConfigTemplates),
+        new PropertyMetadata(false, OnApplyInitialSelectionChanged));
+
+    public static void SetApplyInitialSelection(DependencyObject element, bool value) =>
+        element.SetValue(ApplyInitialSelectionProperty, value);
+
+    public static bool GetApplyInitialSelection(DependencyObject element) =>
+        (bool)element.GetValue(ApplyInitialSelectionProperty);
+
+    private static void OnApplyInitialSelectionChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.TextBox textBox && e.NewValue is true)
+            textBox.Loaded += TextEditor_Loaded;
+    }
+
+    private static void TextEditor_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.TextBox textBox
+            || textBox.DataContext is not PluginConfigFieldViewModel field
+            || field.SelectionLength <= 0)
+            return;
+
+        textBox.Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+        {
+            var start = Math.Clamp(field.SelectionStart, 0, textBox.Text.Length);
+            var length = Math.Clamp(field.SelectionLength, 0, textBox.Text.Length - start);
+            textBox.Focus();
+            Keyboard.Focus(textBox);
+            textBox.Select(start, length);
+        }));
+    }
+
     private void ArrayInlineEditorHost_EditCompleted(object sender, RoutedEventArgs e)
     {
         if (sender is not InlineEditorHost { DataContext: PluginConfigFieldViewModel { IsIconField: true } field } host
