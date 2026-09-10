@@ -49,9 +49,6 @@ if "%errorlevel%"=="0" (
 :: Copy new files to destination directory, overwriting existing files
 xcopy "%SRC_DIR%\*" "%DST_DIR%\" /E /Y /Q /R
 
-:: Re-start the background service
-sc start LertaroService >nul 2>&1
-
 :: Run Lertaro.App.exe as standard user via explorer.exe to avoid running App as administrator
 start "" explorer.exe "%DST_DIR%\Lertaro.App.exe"
 
