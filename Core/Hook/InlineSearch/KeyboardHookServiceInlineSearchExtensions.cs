@@ -103,7 +103,7 @@ internal static class KeyboardHookServiceInlineSearchExtensions
     private static bool HandleInlineSearchTriggerKey(this KeyboardHookService service, int vkCode, KeyboardNativeMethods.KBDLLHOOKSTRUCT hookStruct, IntPtr fgHwnd)
     {
         var isIndexModifierDown = !string.IsNullOrEmpty(service._settings.Hotkeys.SelectJumpModifier)
-            && KeyboardUtils.CheckModifiersMatchOnly(service._settings.Hotkeys.SelectJumpModifier, service._hotkeyDetector.IsWindowsKeyDown);
+            && service._hotkeyDetector.CheckModifiersMatchOnly(service._settings.Hotkeys.SelectJumpModifier);
         if (isIndexModifierDown && service.IsInlineSearchVisible)
         {
             var num = -1;
@@ -118,11 +118,7 @@ internal static class KeyboardHookServiceInlineSearchExtensions
                 return true; // Consume
             }
         }
-        var ctrlDown = (KeyboardNativeMethods.GetKeyState(0x11) & 0x8000) != 0;
-        var altDown = (KeyboardNativeMethods.GetKeyState(0x12) & 0x8000) != 0;
-        var winDown = (KeyboardNativeMethods.GetKeyState(0x5B) & 0x8000) != 0 ||
-                       (KeyboardNativeMethods.GetKeyState(0x5C) & 0x8000) != 0;
-        if (ctrlDown || altDown || winDown)
+        if (service._hotkeyDetector.HasControlAltOrWindowsDown)
         {
             return false;
         }

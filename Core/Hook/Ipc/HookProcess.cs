@@ -191,13 +191,11 @@ public sealed class HookProcess : IDisposable
             _keyboardHook.OnDoubleCtrl += () =>
             {
                 Logger.Log("[HookProcess] Double-Ctrl detected, sending ACTIVATE.", LogLevel.Debug);
-                // Set this here, synchronously, in the same hook callback that detected the toggle --
-                // don't wait for the App to show its window and round-trip an IPC confirmation back.
-                // That round trip (App.ShowWindow -> IPC -> HookCommandHandler -> here) can still be
-                // in flight when the user's very next keystroke arrives at HookCallback; until this
-                // flag is true, HookCallback keeps routing keys through the inline-search path instead
-                // of just letting them through for whatever window is about to own focus (see #121).
-                _keyboardHook.IsQuickSearchWindowVisible = true;
+                // Docked inline search handles this activation by focusing its existing search bar. It
+                // must not be mistaken for the separate quick window, or the hook will pass through all
+                // following keys while the inline window is still on screen.
+                var inlineWindowIsActive = _keyboardHook.IsInlineSearchVisible || _keyboardHook.IsInlineWindowOnScreen;
+                _keyboardHook.IsQuickSearchWindowVisible = !inlineWindowIsActive;
                 if (_appProcessId != 0)
                 {
                     AllowSetForegroundWindow((int)_appProcessId);

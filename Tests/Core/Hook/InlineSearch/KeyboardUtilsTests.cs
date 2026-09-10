@@ -103,4 +103,19 @@ public sealed class KeyboardUtilsTests
 
     [TestMethod]
     public void IsModifierKey_NullModifier_DefaultsToControl() => Assert.IsTrue(KeyboardUtils.IsModifierKey(0x11, null!));
+
+    [TestMethod]
+    public void CheckModifiersMatch_UsesHookOwnedModifierState()
+    {
+        var state = new ModifierKeyState();
+        state.OnKeyDown(0xA2);
+        state.OnKeyDown(0xA4);
+
+        Assert.IsTrue(KeyboardUtils.CheckModifiersMatch("Ctrl+Alt", state, "NONE"));
+        Assert.IsFalse(KeyboardUtils.CheckModifiersMatch("Ctrl", state, "NONE"));
+
+        state.OnKeyUp(0xA4);
+
+        Assert.IsTrue(KeyboardUtils.CheckModifiersMatch("Ctrl", state, "NONE"));
+    }
 }

@@ -7,7 +7,7 @@ public sealed class GlobalHotkeyDetector
 
     private readonly ModifierDoubleTapDetector _toggleWindowTapDetector = new();
     private readonly ModifierDoubleTapDetector _quickSwitchTapDetector = new();
-    private readonly WindowsKeyState _windowsKeyState = new();
+    private readonly ModifierKeyState _modifierKeyState = new();
 
     public GlobalHotkeyDetector(UserSettings settings, ExplorerTracker explorerTracker)
     {
@@ -15,19 +15,20 @@ public sealed class GlobalHotkeyDetector
         _explorerTracker = explorerTracker;
     }
 
-    public void OnKeyDown(int vkCode) => _windowsKeyState.OnKeyDown(vkCode);
+    public void OnKeyDown(int vkCode) => _modifierKeyState.OnKeyDown(vkCode);
 
-    // Exposed so KeyboardHookServiceInlineSearchExtensions.HandleInlineSearchTriggerKey can pass the
-    // same tracked state into CheckModifiersMatchOnly (SelectJumpModifier) that CheckToggleWindowHotkey/
-    // CheckAndHandleQuickSwitch already pass into CheckModifiersMatch above -- otherwise "jump to result
-    // N" configured with Win as its modifier would still be exposed to the exact GetKeyState-inside-a-
-    // low-level-hook staleness CheckModifiersMatch's own trackedWindowsKeyDown parameter exists to fix.
-    public bool IsWindowsKeyDown => _windowsKeyState.IsDown;
+    internal bool HasControlAltOrWindowsDown => _modifierKeyState.HasControlAltOrWindowsDown;
+
+    internal bool CheckModifiersMatch(string expectedModifier) =>
+        KeyboardUtils.CheckModifiersMatch(expectedModifier, _modifierKeyState, "NONE");
+
+    internal bool CheckModifiersMatchOnly(string expectedModifier) =>
+        KeyboardUtils.CheckModifiersMatch(expectedModifier, _modifierKeyState, "CONTROL");
 
     /// <summary>Call on WM_KEYUP / WM_SYSKEYUP to reset the "was released" flags.</summary>
     public void OnKeyUp(int vkCode)
     {
-        _windowsKeyState.OnKeyUp(vkCode);
+        _modifierKeyState.OnKeyUp(vkCode);
         if (HotkeyStringFormat.IsBareModifier(_settings.Hotkeys.ToggleWindowHotkey, out var toggleModifier) &&
             KeyboardUtils.IsModifierKey(vkCode, toggleModifier))
         {
@@ -62,7 +63,7 @@ public sealed class GlobalHotkeyDetector
             var targetVk = KeyboardUtils.GetKeyVirtualCode(key);
             if (targetVk != 0 && vkCode == targetVk)
             {
-                if (KeyboardUtils.CheckModifiersMatch(modifier, _windowsKeyState.IsDown))
+                if (CheckModifiersMatch(modifier))
                 {
                     triggered = true;
                     consumeKey = true;
@@ -90,7 +91,7 @@ public sealed class GlobalHotkeyDetector
         HotkeyStringFormat.ParseCombo(_settings.Hotkeys.QuickPanelHotkey, out var modifier, out var key);
         var targetVk = KeyboardUtils.GetKeyVirtualCode(key);
         if (targetVk == 0 || vkCode != targetVk) return false;
-        if (!KeyboardUtils.CheckModifiersMatch(modifier, _windowsKeyState.IsDown)) return false;
+        if (!CheckModifiersMatch(modifier)) return false;
 
         consumeKey = true;
         return true;
@@ -117,7 +118,7 @@ public sealed class GlobalHotkeyDetector
             var targetVk = KeyboardUtils.GetKeyVirtualCode(key);
             if (targetVk != 0 && vkCode == targetVk)
             {
-                if (KeyboardUtils.CheckModifiersMatch(modifier, _windowsKeyState.IsDown))
+                if (CheckModifiersMatch(modifier))
                 {
                     triggered = true;
                 }

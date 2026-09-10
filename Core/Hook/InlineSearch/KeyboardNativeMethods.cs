@@ -20,9 +20,6 @@ internal static class KeyboardNativeMethods
     [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
     public static extern IntPtr GetModuleHandle(string? lpModuleName);
 
-    [DllImport("user32.dll")]
-    public static extern short GetKeyState(int nVirtKey);
-
     // Unlike GetKeyState (per-thread synchronized state, meaningless on the hook owner's thread --
     // see the LLKHF_ALTDOWN comment below), GetAsyncKeyState reports the physical, process-global
     // key state and is the standard way for a low-level hook callback to ask about a modifier that
