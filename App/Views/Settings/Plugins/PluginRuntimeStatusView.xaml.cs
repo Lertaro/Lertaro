@@ -24,7 +24,26 @@ public partial class PluginRuntimeStatusView : System.Windows.Controls.UserContr
             Interval = TimeSpan.FromSeconds(1)
         };
         _refreshTimer.Tick += RefreshTimer_Tick;
-        Loaded += (_, _) => _refreshTimer.Start();
+        // Keyed to actual visibility, not Loaded/Unloaded. This view sits in the tree permanently and its
+        // tab starts collapsed, and WPF raises Loaded for a collapsed element (and never raises Unloaded
+        // when it merely collapses) -- so starting on Loaded left a 1-second timer re-notifying every
+        // plugin row on the UI thread the whole time the page was open, including on the management tab
+        // the user was actually looking at. That recurring churn is part of the page's general lag.
+        IsVisibleChanged += (_, _) =>
+        {
+            if (IsVisible)
+            {
+                // Rows are built lazily (see EnsureRuntimeStatusesBuilt); becoming visible is the first
+                // point they are actually needed.
+                if (DataContext is ViewModels.Settings.Plugins.PluginManagementViewModel viewModel)
+                    viewModel.EnsureRuntimeStatusesBuilt();
+                _refreshTimer.Start();
+            }
+            else
+            {
+                _refreshTimer.Stop();
+            }
+        };
         Unloaded += (_, _) => _refreshTimer.Stop();
     }
 

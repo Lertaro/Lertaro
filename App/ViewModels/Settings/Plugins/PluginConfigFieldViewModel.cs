@@ -11,11 +11,15 @@ public class PluginConfigFieldViewModel : ViewModelBase
 {
     private readonly Action? _onValueChanged;
     private readonly PluginConfigArrayFieldSupport _arraySupport;
+    private readonly PluginConfigFieldLoadSupport _loadSupport;
     private object? _localValueStore;
 
     public string PluginId { get; }
     public PluginConfigField SchemaField { get; }
     public UserSettings Settings { get; }
+
+    internal bool HasValueChangedCallback => _onValueChanged != null;
+    internal PluginConfigArrayFieldSupport ArraySupport => _arraySupport;
 
     private static string ResolveText(string? keyOrText)
     {
@@ -76,8 +80,14 @@ public class PluginConfigFieldViewModel : ViewModelBase
     public bool IsIconField => SchemaField.Key.Equals("Icon", StringComparison.OrdinalIgnoreCase);
     public bool IsSimpleField => (IsBoolean || IsText || IsInteger || IsChoice || IsStringList || IsHotkey || IsFilePath || IsFolderPath || IsButton) && !IsCustomControl;
 
-    public ObservableCollection<PluginConfigFieldViewModel> Children { get; } = new();
-    public ObservableCollection<PluginConfigArrayItemViewModel> ArrayItems { get; } = new();
+    // Children/ArrayItems are populated on first access rather than in the constructor -- see
+    // PluginConfigFieldLoadSupport for why, and for the load itself. The collections it hands back are
+    // the same instances throughout, so XAML bindings stay valid across the load.
+    public ObservableCollection<PluginConfigFieldViewModel> Children => _loadSupport.Children;
+    public ObservableCollection<PluginConfigArrayItemViewModel> ArrayItems => _loadSupport.ArrayItems;
+
+    /// <summary>Discards staged child/array state so the next access re-reads it from settings.</summary>
+    public void ResetChildrenAndArrayItems() => _loadSupport.Reset();
 
     // The array item shown in the master/detail editor's right-hand panel.
     private PluginConfigArrayItemViewModel? _selectedArrayItem;
@@ -159,14 +169,12 @@ public class PluginConfigFieldViewModel : ViewModelBase
         Settings = settings;
         _onValueChanged = onValueChanged;
         _arraySupport = new PluginConfigArrayFieldSupport(this);
+        _loadSupport = new PluginConfigFieldLoadSupport(this);
         AddCommand = new RelayCommand(_arraySupport.AddArrayItem);
         DuplicateCommand = new RelayCommand(_arraySupport.DuplicateArrayItem, () => SelectedArrayItem != null);
         ButtonClickCommand = new RelayCommand(() => SchemaField.OnClick?.Invoke());
-
-        if (_onValueChanged == null)
-        {
-            LoadChildrenAndArrayItems();
-        }
+        // No eager child/array build here -- see Children/ArrayItems. The constructor is now cheap, which
+        // is what lets the whole plugin list be built without paying for every plugin's config tree.
     }
 
     public void Commit()
@@ -234,30 +242,8 @@ public class PluginConfigFieldViewModel : ViewModelBase
     public void Reload()
     {
         _localValueStore = null;
-        Children.Clear();
-        ArrayItems.Clear();
-        LoadChildrenAndArrayItems();
+        ResetChildrenAndArrayItems();
         OnPropertyChanged(nameof(Value));
-    }
-
-    private void LoadChildrenAndArrayItems()
-    {
-        if (IsGroup && SchemaField.SubFields != null)
-        {
-            foreach (var sf in SchemaField.SubFields)
-            {
-                var childVM = new PluginConfigFieldViewModel(PluginId, sf, Settings, null);
-                Children.Add(childVM);
-            }
-        }
-        else if (IsObject && SchemaField.SubFields != null)
-        {
-            _arraySupport.LoadObjectChildren();
-        }
-        else if (IsArray)
-        {
-            _arraySupport.LoadArrayItems();
-        }
     }
 
     public void OnChildChanged()

@@ -208,6 +208,13 @@
                           Margin="0,16,0,0"/>
                 <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SearchWindowSingleInstanceHint]}"
                            Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+                <CheckBox x:Name="RowSearchWindowCloseOnRepeatHotkey"
+                          Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SearchWindowCloseOnRepeatHotkey]}"
+                          IsChecked="{Binding General.MainWindow.CloseOnRepeatHotkey, Mode=TwoWay}"
+                          Margin="0,12,0,0"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SearchWindowCloseOnRepeatHotkeyHint]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
             </StackPanel>
         </Border>
 

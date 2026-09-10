@@ -150,12 +150,12 @@
         <Border Style="{StaticResource SettingsCard}" Margin="0,12,0,0">
             <StackPanel>
                 <CheckBox x:Name="RowDefaultFileManagerEnabled" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerEnabled]}"
-                           IsChecked="{Binding General.DefaultFileManagerEnabled, Mode=TwoWay}"
+                           IsChecked="{Binding General.FileManager.Enabled, Mode=TwoWay}"
                            Margin="0,4"/>
                 <TextBlock Style="{StaticResource SettingsHintText}" Margin="0,0,0,8"
                             Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerHint]}"/>
 
-                <StackPanel x:Name="GroupDefaultFileManagerFields" Visibility="{Binding General.DefaultFileManagerEnabled, Converter={StaticResource BoolToVis}}">
+                <StackPanel x:Name="GroupDefaultFileManagerFields" Visibility="{Binding General.FileManager.Enabled, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerPath]}" Margin="0,4,0,4"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -164,10 +164,10 @@
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="RowDefaultFileManagerPath" Grid.Column="0"
                                  Style="{StaticResource SettingsTextBox}"
-                                 Text="{Binding General.DefaultFileManagerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                 Text="{Binding General.FileManager.Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         <Button Grid.Column="1" Content="&#xE8A5;" Style="{StaticResource BrowseIconButton}"
                                 ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerBrowseTooltip]}"
-                                Command="{Binding General.BrowseDefaultFileManagerPathCommand}"/>
+                                Command="{Binding General.FileManager.BrowsePathCommand}"/>
                     </Grid>
 
                     <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerParameter]}" Margin="0,12,0,4"/>
@@ -175,7 +175,7 @@
                                 Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultFileManagerParameterHint]}"/>
                     <TextBox x:Name="RowDefaultFileManagerParameter"
                              Style="{StaticResource SettingsTextBox}"
-                             Text="{Binding General.DefaultFileManagerParameter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                             Text="{Binding General.FileManager.Parameter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
             </StackPanel>
         </Border>

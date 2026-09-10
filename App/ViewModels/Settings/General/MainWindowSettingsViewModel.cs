@@ -15,6 +15,7 @@ public class MainWindowSettingsViewModel : ViewModelBase
     private double _width;
     private double _height;
     private bool _singleInstance;
+    private bool _closeOnRepeatHotkey;
 
     public MainWindowSettingsViewModel(UserSettings userSettings)
     {
@@ -22,6 +23,7 @@ public class MainWindowSettingsViewModel : ViewModelBase
         _width = UiMetrics.RoundWindowSize(userSettings.MainWindow.Width);
         _height = UiMetrics.RoundWindowSize(userSettings.MainWindow.Height);
         _singleInstance = userSettings.MainWindow.SingleInstance;
+        _closeOnRepeatHotkey = userSettings.MainWindow.CloseOnRepeatHotkey;
     }
 
     public double Width
@@ -60,6 +62,14 @@ public class MainWindowSettingsViewModel : ViewModelBase
         set => SetProperty(ref _singleInstance, value);
     }
 
+    // Not folded into Reset: that command is about the window's geometry ("Reset Search Window
+    // Settings"), and silently flipping a behaviour a user deliberately opted into would be a surprise.
+    public bool CloseOnRepeatHotkey
+    {
+        get => _closeOnRepeatHotkey;
+        set => SetProperty(ref _closeOnRepeatHotkey, value);
+    }
+
     public ICommand ResetCommand => new RelayCommand(Reset);
 
     private void Reset()
@@ -73,6 +83,7 @@ public class MainWindowSettingsViewModel : ViewModelBase
         _userSettings.MainWindow.Width = _width;
         _userSettings.MainWindow.Height = _height;
         _userSettings.MainWindow.SingleInstance = _singleInstance;
+        _userSettings.MainWindow.CloseOnRepeatHotkey = _closeOnRepeatHotkey;
         UiMetrics.ApplyScaleFromSettings();
     }
 }

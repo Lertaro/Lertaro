@@ -13,6 +13,22 @@ namespace Lertaro.App.Helpers;
 
 public static class PluginLoaderHelper
 {
+    // assembly -> its types. GetTypes() forces every type in the assembly to load and is the single
+    // most expensive call in this class, and BuildPluginList asked for it per assembly twice
+    // (GetPluginDisplayName and ResolveConfigurable) -- plus once more in BuildSchemaDefaultsMap.
+    // A loaded assembly's type set never changes, so this is safe to keep for the process lifetime.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Assembly, Type[]> TypesCache = new();
+
+    internal static Type[] GetCachedTypes(Assembly assembly) =>
+        TypesCache.GetOrAdd(assembly, static a =>
+        {
+            try { return a.GetTypes(); }
+            // ReflectionTypeLoadException is what a plugin whose own dependency is missing throws; the
+            // types that DID load are still usable, and dropping the whole plugin here would hide it from
+            // the page entirely instead of showing what it does provide.
+            catch (ReflectionTypeLoadException ex) { return ex.Types.Where(t => t != null).ToArray()!; }
+        });
+
     public static List<PluginInfoViewModel> BuildPluginList(UserSettings userSettings)
     {
         var result = new List<PluginInfoViewModel>();
@@ -108,7 +124,7 @@ public static class PluginLoaderHelper
     private static string GetPluginDisplayName(Assembly assembly, PluginManager manager, out IPlugin? pluginInstance)
     {
         var defaultName = Path.GetFileNameWithoutExtension(assembly.Location);
-        var pluginType = assembly.GetTypes().FirstOrDefault(t => typeof(IPlugin).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
+        var pluginType = GetCachedTypes(assembly).FirstOrDefault(t => typeof(IPlugin).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
         pluginInstance = pluginType != null ? manager.Plugins.FirstOrDefault(p => p.GetType() == pluginType) : null;
         return pluginInstance != null ? pluginInstance.Name : FallbackPluginName(assembly, defaultName);
     }
@@ -158,7 +174,7 @@ public static class PluginLoaderHelper
     /// throwaway instance just to call GetConfigSchema().</summary>
     private static IConfigurable? ResolveConfigurable(Assembly assembly, IPlugin? pluginInstance)
     {
-        var configurableType = assembly.GetTypes()
+        var configurableType = GetCachedTypes(assembly)
             .FirstOrDefault(t => typeof(IConfigurable).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
         if (configurableType == null)
             return null;
@@ -196,7 +212,7 @@ public static class PluginLoaderHelper
                 if (dllName.Equals("Lertaro.PluginSdk.dll", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                var pluginType = assembly.GetTypes().FirstOrDefault(t => typeof(IPlugin).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
+                var pluginType = GetCachedTypes(assembly).FirstOrDefault(t => typeof(IPlugin).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
                 var pluginInstance = pluginType != null ? manager.Plugins.FirstOrDefault(p => p.GetType() == pluginType) : null;
 
                 var configurableInstance = ResolveConfigurable(assembly, pluginInstance);

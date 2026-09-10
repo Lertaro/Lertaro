@@ -78,6 +78,16 @@ public sealed class SettingsSearchIndexTests
     }
 
     [TestMethod]
+    public void TheCloseOnRepeatHotkeySettingIsSearchable()
+    {
+        var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "General_SearchWindowCloseOnRepeatHotkey");
+
+        Assert.IsNotNull(entry, "the close-on-repeat-hotkey setting has no search index entry");
+        Assert.AreEqual("TabSearchWindow/RowSearchWindowCloseOnRepeatHotkey", entry!.TargetElementName);
+        Assert.IsNotNull(entry.Activate, "the entry does not select the Full Search Window tab");
+    }
+
+    [TestMethod]
     public void TheExplorerTabsSettingIsSearchable()
     {
         var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "General_OpenFoldersInNewExplorerTabs");

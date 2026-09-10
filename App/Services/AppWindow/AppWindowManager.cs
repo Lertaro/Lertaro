@@ -94,29 +94,63 @@ public static class AppWindowManager
     }
 
     /// <summary>
-    /// Shows or refocuses the full SearchWindow for the global hotkey when "open full panel by default"
-    /// is on. Unlike the quick window's visibility toggle, this shortcut is a summon-only action once
-    /// the full window is already open.
+    /// The global summon hotkey's decision, shared by every route that can have opened the full window.
     /// </summary>
-    public static void ToggleSearchWindow()
+    /// <remarks>
+    /// A visible full window is handled ahead of the "open full panel by default" setting on purpose: the
+    /// full window is reachable with that setting off (the quick window's expand, "show more", and
+    /// ReopenAsFullWindowOnRepeatHotkey), and the summon key must mean the same thing there. Handled here
+    /// rather than at the call site because routing it at the call site let that third press fall through
+    /// to the QUICK window's own visibility toggle -- the full window stayed on screen, so the key read as
+    /// doing nothing.
+    /// </remarks>
+    public static void HandleGlobalSummonHotkey()
     {
         if (System.Windows.Application.Current == null) return;
 
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
+            var settings = UserSettings.Load();
             var visible = System.Windows.Application.Current.Windows.OfType<SearchWindow>().FirstOrDefault(w => w.IsVisible);
-            if (visible != null)
+            switch (DetermineSearchWindowHotkeyAction(visible != null, visible?.IsActive == true, settings.MainWindow.CloseOnRepeatHotkey))
             {
-                if (visible.IsActive)
-                    visible.Close();
-                else
-                    BringSearchWindowToFront(visible);
-                return;
+                case SearchWindowHotkeyAction.CloseFullWindow:
+                    // Opt-in alternative to the return below: the user treats the full window as an
+                    // ordinary window, so the key that summoned it also puts it away.
+                    visible!.Close();
+                    return;
+                case SearchWindowHotkeyAction.ReturnToQuickSearch:
+                    // Already focused on the full window: the second press is the user asking to go back
+                    // where they came from, carrying the query over.
+                    visible!.ReturnToQuickSearch();
+                    return;
+                case SearchWindowHotkeyAction.BringToFront:
+                    BringSearchWindowToFront(visible!);
+                    return;
             }
 
-            ShowSearchWindowCore(bringToFront: true);
+            if (settings.Hotkeys.OpenFullWindowByDefault)
+                ShowSearchWindowCore(bringToFront: true);
+            else
+                (System.Windows.Application.Current.MainWindow as QuickSearchWindow)?.ToggleVisibility();
         });
     }
+
+    internal enum SearchWindowHotkeyAction { NoFullWindowOnScreen, BringToFront, ReturnToQuickSearch, CloseFullWindow }
+
+    // Pulled out of the I/O above so the hotkey's decision tree can be unit tested without a live window,
+    // mirroring QuickSearchWindowController.DetermineToggleAction. NoFullWindowOnScreen is deliberately not
+    // "show the full window": whether the key then opens the full or the quick window is the "open full
+    // panel by default" setting's business, so that branch is left to the caller.
+    //
+    // closeOnRepeatHotkey only distinguishes the two things a focused press can mean. A visible but
+    // UNFOCUSED full window stays "bring it to front" either way: there the key means "come back to it",
+    // and closing a window the user is trying to return to would be the opposite of what they asked.
+    internal static SearchWindowHotkeyAction DetermineSearchWindowHotkeyAction(bool isVisible, bool isActive, bool closeOnRepeatHotkey) =>
+        !isVisible ? SearchWindowHotkeyAction.NoFullWindowOnScreen
+        : !isActive ? SearchWindowHotkeyAction.BringToFront
+        : closeOnRepeatHotkey ? SearchWindowHotkeyAction.CloseFullWindow
+        : SearchWindowHotkeyAction.ReturnToQuickSearch;
 
     private static void ShowSearchWindowCore(bool bringToFront)
     {
@@ -185,7 +219,7 @@ public static class AppWindowManager
     }
 
     // A visible but inactive full window is still on screen, so the global shortcut refocuses it. An
-    // active full window is handled by ToggleSearchWindow as a deliberate close instead.
+    // active full window is handled by HandleGlobalSummonHotkey as a return to the quick window instead.
     private static void BringSearchWindowToFront(SearchWindow window)
     {
         ShellOverlayDismissHelper.DismissOverlayIfForeground();

@@ -162,9 +162,16 @@
                      ItemContainerStyle="{StaticResource PluginListItemStyle}"
                      SelectionChanged="PluginsList_SelectionChanged"
                      BorderThickness="0" Background="Transparent" Margin="0,0,8,0"
-                     ScrollViewer.CanContentScroll="False"
                      ScrollViewer.VerticalScrollBarVisibility="Auto"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     VirtualizingPanel.IsVirtualizing="True"
+                     VirtualizingPanel.VirtualizationMode="Recycling">
+                <!-- Item-based scrolling (CanContentScroll left at its default of True) is deliberate:
+                     setting it false forces physical scrolling, which disables virtualization entirely,
+                     so every plugin row's full template realized up front and the list cost scaled with
+                     the plugin count instead of with what is actually on screen. Recycling keeps the
+                     realized containers for reuse while scrolling, since these rows rebuild from scratch
+                     otherwise. -->
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Grid Margin="0,2">
@@ -252,14 +259,15 @@
 
             <Border Grid.Column="1" Width="1" Background="{DynamicResource BorderColor}"/>
 
-            <!-- The detail pane (PluginCard) handles header fixing and internal content scrolling on its own. -->
-            <ContentControl Grid.Column="2" Margin="8,0,0,0" Content="{Binding SelectedPlugin}" Focusable="False">
-                <ContentControl.ContentTemplate>
-                    <DataTemplate>
-                        <local:PluginCard/>
-                    </DataTemplate>
-                </ContentControl.ContentTemplate>
-            </ContentControl>
+            <!-- The detail pane (PluginCard) handles header fixing and internal content scrolling on its own.
+                 One card instance whose DataContext is swapped, rather than a ContentControl with a
+                 ContentTemplate: a template re-instantiates the whole PluginCard (its three merged
+                 resource dictionaries, the nested component ItemsControls, and an eagerly built
+                 PluginConfigSection) on every selection. The card's bindings are all to the plugin it is
+                 given, so re-pointing DataContext is all a switch actually needs. -->
+            <local:PluginCard Grid.Column="2" Margin="8,0,0,0" Focusable="False"
+                              DataContext="{Binding SelectedPlugin}"
+                              Visibility="{Binding DataContext.IsEmpty, RelativeSource={RelativeSource AncestorType={x:Type local:PluginManagementSettingsPage}}, Converter={StaticResource InvertBoolToVis}}"/>
         </Grid>
 
         <local:PluginRuntimeStatusView Grid.Row="1" Grid.RowSpan="2" Margin="0,12,0,0"

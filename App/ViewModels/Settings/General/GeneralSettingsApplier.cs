@@ -25,10 +25,7 @@ internal static class GeneralSettingsApplier
         bool hideTrayIcon,
         bool openFoldersInNewExplorerTabs,
         string globalTokenPrefix,
-        string logLevel,
-        bool defaultFileManagerEnabled,
-        string defaultFileManagerPath,
-        string defaultFileManagerParameter)
+        string logLevel)
     {
         var logLevelChanged = userSettings.LogLevel != logLevel;
         var everythingIpcChanged = userSettings.EnableEverythingIpc != enableEverythingIpc;
@@ -46,9 +43,8 @@ internal static class GeneralSettingsApplier
         userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs = openFoldersInNewExplorerTabs;
         userSettings.GlobalTokenPrefix = string.IsNullOrWhiteSpace(globalTokenPrefix) ? ":" : globalTokenPrefix;
         userSettings.LogLevel = logLevel;
-        userSettings.DefaultFileManager.Enabled = defaultFileManagerEnabled;
-        userSettings.DefaultFileManager.Path = defaultFileManagerPath;
-        userSettings.DefaultFileManager.Parameter = defaultFileManagerParameter;
+        // The third-party-file-manager fields are owned by their own sub-VM now; see vm.FileManager.Save
+        // below rather than a copy of them threaded through this signature.
 
         StartupManager.SetEnabled(startWithWindows);
         (System.Windows.Application.Current.MainWindow as QuickSearchWindow)?.ApplyTrayIconVisibility(hideTrayIcon);
@@ -69,6 +65,7 @@ internal static class GeneralSettingsApplier
         vm.Layout.Save();
         vm.PreviewWindow.Save();
         vm.MainWindow.Save();
+        vm.FileManager.Save();
         vm.QuickNavigationOrder.Save();
         vm.ResultTypeOrder.Save();
         vm.SidebarGroupOrder.Save();

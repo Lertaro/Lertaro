@@ -397,6 +397,8 @@
   "General_SearchWindowReset": "Restablecer Configuración de la Ventana de Búsqueda",
   "General_SearchWindowSingleInstance": "Permitir solo una ventana de búsqueda completa",
   "General_SearchWindowSingleInstanceHint": "Al activarlo, volver a abrir la ventana de búsqueda completa activará la ventana existente en lugar de crear otra.",
+  "General_SearchWindowCloseOnRepeatHotkey": "Cerrar la ventana completa al pulsar de nuevo el atajo",
+  "General_SearchWindowCloseOnRepeatHotkeyHint": "Al activarlo, pulsar de nuevo el atajo global con la ventana de búsqueda completa en primer plano la cierra directamente en lugar de volver a la ventana de búsqueda rápida. Si la ventana completa está visible pero no tiene el foco, el atajo solo la trae de vuelta al frente.",
   "General_SidebarGroupOrderTitle": "Orden de Filtros de la Barra Lateral",
   "General_SidebarGroupOrderHint": "Reordena los grupos de filtro (Tipo, Fecha de Modificación y cualquier grupo añadido por complementos) que se muestran en la barra lateral de la ventana completa.",
   "General_ColumnOrderTitle": "Orden de Columnas de la Cuadrícula de Resultados",

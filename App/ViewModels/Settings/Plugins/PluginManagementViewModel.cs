@@ -5,7 +5,6 @@ using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
-using Lertaro.Core.Wire;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.App.ViewModels.Settings.Plugins;
@@ -24,7 +23,6 @@ public class PluginManagementViewModel : ViewModelBase
     {
         _userSettings = userSettings;
         Plugins = new ObservableCollection<PluginInfoViewModel>(PluginLoaderHelper.BuildPluginList(_userSettings));
-        RebuildRuntimeStatuses();
         SaveConfigCommand = new RelayCommand<PluginInfoViewModel>(SaveConfig);
         ShowPluginManagementCommand = new RelayCommand(() => IsRuntimeStatusTab = false);
         ShowRuntimeStatusCommand = new RelayCommand(() => IsRuntimeStatusTab = true);
@@ -41,7 +39,9 @@ public class PluginManagementViewModel : ViewModelBase
             Plugins.Clear();
             foreach (var p in newList)
                 Plugins.Add(p);
-            RebuildRuntimeStatuses();
+            // Rebuild only if the runtime tab has actually been opened (see EnsureRuntimeStatusesBuilt);
+            // otherwise the next time it is shown rebuilds from the new list anyway.
+            if (_runtimeStatusesBuilt) RebuildRuntimeStatuses();
             SelectedPlugin = Plugins.FirstOrDefault(p => p.DllFileName == selectedDll) ?? Plugins.FirstOrDefault();
             AttachFullyDisabledWatch();
             OnPropertyChanged(nameof(IsEmpty));
@@ -61,8 +61,9 @@ public class PluginManagementViewModel : ViewModelBase
         get => _runtimeStatusSearchText;
         set
         {
-            if (SetProperty(ref _runtimeStatusSearchText, value))
-                RebuildRuntimeStatuses();
+            if (!SetProperty(ref _runtimeStatusSearchText, value)) return;
+            EnsureRuntimeStatusesBuilt();
+            ApplyRuntimeStatusFilterAndSort();
         }
     }
 
@@ -70,7 +71,18 @@ public class PluginManagementViewModel : ViewModelBase
     {
         _allRuntimeStatuses.Clear();
         _allRuntimeStatuses.AddRange(Plugins.Select(static p => new PluginRuntimeStatusItemViewModel(p)));
+        _runtimeStatusesBuilt = true;
         ApplyRuntimeStatusFilterAndSort();
+    }
+
+    // The tab is hidden by default and building a VM per plugin (each reading a performance snapshot)
+    // was pure cost for a page the user may never open, so it is deferred to the first actual display.
+    private bool _runtimeStatusesBuilt;
+
+    /// <summary>Builds the runtime-status rows if they have not been built yet.</summary>
+    public void EnsureRuntimeStatusesBuilt()
+    {
+        if (!_runtimeStatusesBuilt) RebuildRuntimeStatuses();
     }
 
     internal void SortRuntimeStatuses(string column)
@@ -143,8 +155,10 @@ public class PluginManagementViewModel : ViewModelBase
         get => _isRuntimeStatusTab;
         set
         {
-            if (SetProperty(ref _isRuntimeStatusTab, value))
-                OnPropertyChanged(nameof(IsPluginManagementTab));
+            if (!SetProperty(ref _isRuntimeStatusTab, value)) return;
+            // Build on first display, not at construction -- see EnsureRuntimeStatusesBuilt.
+            if (value) EnsureRuntimeStatusesBuilt();
+            OnPropertyChanged(nameof(IsPluginManagementTab));
         }
     }
 
@@ -154,6 +168,7 @@ public class PluginManagementViewModel : ViewModelBase
 
     public void RefreshRuntimeStatus()
     {
+        EnsureRuntimeStatusesBuilt();
         foreach (var status in _allRuntimeStatuses)
             status.Refresh();
         ApplyRuntimeStatusFilterAndSort();
@@ -238,23 +253,13 @@ public class PluginManagementViewModel : ViewModelBase
         }
     }
 
-    /// <summary>The config tab's OK button: writes the fields the user edited.</summary>
+    /// <summary>
+    /// The config tab's own Save Config button. The Settings window's Apply/OK reaches the same commit
+    /// through Save() below, so this stays as a second way in rather than the only one.
+    /// </summary>
     public ICommand SaveConfigCommand { get; }
 
-    // Same three steps the modal's OK did: commit every field, persist once through the settings object
-    // they share, and tell the hook process to re-read what just changed.
-    private void SaveConfig(PluginInfoViewModel? plugin)
-    {
-        if (plugin == null || plugin.ConfigFields.Count == 0) return;
-
-        foreach (var field in plugin.ConfigFields)
-            field.Commit();
-
-        plugin.ConfigFields[0].Settings.Save();
-        plugin.OnSave?.Invoke();
-        InlineSearchManager.Instance.ExplorerTracker.RefreshActiveWindowAdapters();
-        App.HookClient?.SendMessage(new IpcMessage { Id = IpcMessageId.ReloadSettings });
-    }
+    private static void SaveConfig(PluginInfoViewModel? plugin) => PluginConfigCommitSupport.Commit(plugin);
 
     public bool IsEmpty => Plugins.Count == 0;
 
@@ -283,6 +288,10 @@ public class PluginManagementViewModel : ViewModelBase
         }
 
         _userSettings.DisabledPluginComponents = disabled.ToList();
+
+        // An open config the user edited is written here too, so Apply/OK saves it without the plugin
+        // page's own Save Config button having to be pressed first. The button stays as another way in.
+        PluginConfigCommitSupport.Commit(PluginConfigCommitSupport.PendingOnSettingsApply(SelectedPlugin));
     }
 
     public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;

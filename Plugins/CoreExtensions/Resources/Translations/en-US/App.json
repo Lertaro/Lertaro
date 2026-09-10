@@ -397,6 +397,8 @@
   "General_SearchWindowReset": "Reset Search Window Settings",
   "General_SearchWindowSingleInstance": "Only allow one full search window",
   "General_SearchWindowSingleInstanceHint": "When enabled, opening the full search window again activates the existing window instead of creating another one.",
+  "General_SearchWindowCloseOnRepeatHotkey": "Close the full window when the hotkey is pressed again",
+  "General_SearchWindowCloseOnRepeatHotkeyHint": "When enabled, pressing the global hotkey again while the full search window has focus closes it outright instead of returning to the quick search window. While the full window is visible but unfocused, the hotkey still only brings it back to the front.",
   "General_SidebarGroupOrderTitle": "Sidebar Filter Order",
   "General_SidebarGroupOrderHint": "Reorder the filter groups (Type, Date Modified, and any plugin-added groups) shown in the full window's sidebar.",
   "General_ColumnOrderTitle": "Results Grid Column Order",

@@ -40,6 +40,7 @@ Configura las dimensiones predeterminadas y la vista de tabla para la ventana pr
 
 - **Ancho / Alto de la ventana (Píxeles)**: Ancho `640–2000px` (por defecto `854px`), alto `400–1400px` (por defecto `480px`).
 - **Permitir solo una ventana principal**: Al volver a abrir la ventana principal, enfoca la existente en lugar de duplicarla.
+- **Cerrar al repetir el atajo**: Desactivado por defecto, pulsar de nuevo el atajo global con la ventana completa en primer plano vuelve a la ventana de búsqueda rápida manteniendo la consulta actual, alternando entre ambas ventanas hasta pulsar `Esc`. Si se activa, al pulsarlo de nuevo se cierra directamente la ventana completa. En ambos casos, si la ventana completa está visible pero sin foco, el atajo solo la trae de vuelta al frente.
 - **Restablecer configuración de ventana**: Vuelve a los tamaños predeterminados de fábrica.
 - **Orden de columnas en la tabla**: Personaliza el orden de las columnas (Nombre, Ruta, Fecha de modificación, etc.).
 - **Orden de filtros en la barra lateral**: Reordena las categorías laterales; cada una muestra en tiempo real el recuento de coincidencias activas.
