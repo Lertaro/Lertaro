@@ -22,6 +22,10 @@ Lertaro embraces a keyboard-first interaction philosophy while offering rich mou
 | **Pin Window (Keep Visible)** | `Ctrl+T` | Temporarily locks the window open when losing focus (ideal for pasting multi-part queries). |
 | **Toggle Quick Panel** | `Ctrl+F2` | Docks the quick panel beside the current active window for recent files, favorites, and workspaces. |
 
+### Empty Inline Search in File Dialogs
+
+When an inline search box is embedded in a native file dialog and the query is empty, the list shows the **Previous Directory** group first, followed by a **Currently Open Folders** group collected from supported file managers. The dialog's current folder is omitted, duplicate paths are removed, empty groups stay hidden, and group headers do not receive shortcut badges. This behavior applies only to inline search in file dialogs; Quick and Full Windows are unchanged.
+
 ## 2. Search Box Icon & Mouse Gestures
 
 The small logo inside the search box is not just an indicator — it provides several quick mouse gestures:

@@ -22,6 +22,10 @@ Lertaro adopta una filosofía de interacción centrada en el teclado, complement
 | **Fijar ventana (Mantener visible)** | `Ctrl+T` | Bloquea la ventana abierta al perder el foco (ideal para pegar búsquedas de varias fuentes). |
 | **Mostrar/Ocultar Panel rápido** | `Ctrl+F2` | Acopla el panel rápido junto a la ventana activa con archivos recientes, favoritos y espacios de trabajo. |
 
+### Búsqueda en línea vacía en diálogos de archivos
+
+Cuando un cuadro de búsqueda en línea está integrado en un diálogo de archivos nativo y la consulta está vacía, la lista muestra primero el grupo **Directorio anterior** y después el grupo **Carpetas abiertas actualmente**, recopilado desde los exploradores compatibles. Se excluye la carpeta actual del diálogo, las rutas duplicadas se unifican, los grupos vacíos permanecen ocultos y los encabezados de grupo no muestran insignias de atajos. Este comportamiento solo se aplica a la búsqueda en línea de los diálogos de archivos; las ventanas Rápida y Completa no cambian.
+
 ## 2. Icono de búsqueda y gestos de ratón
 
 El pequeño logotipo en la barra de búsqueda no es solo estético: ofrece múltiples gestos rápidos:
