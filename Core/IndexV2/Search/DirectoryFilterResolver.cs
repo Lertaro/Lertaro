@@ -40,6 +40,8 @@ internal static class DirectoryFilterResolver
         if (current < 0)
             return false;
 
+        var deltaChildren = delta == null ? null : DeltaChildLookup.Build(snapshot, delta);
+
         var start = sourceRootLower.Length;
         while (start < pathLower.Length)
         {
@@ -56,7 +58,7 @@ internal static class DirectoryFilterResolver
                 remainder = segment;
                 break;
             }
-            if (!TryFindChildDirectory(snapshot, delta, current, segment, out var child))
+            if (!TryFindChildDirectory(snapshot, delta, deltaChildren, current, segment, out var child))
             {
                 remainder = segment;
                 break;
@@ -123,8 +125,15 @@ internal static class DirectoryFilterResolver
         return -1;
     }
 
-    private static bool TryFindChildDirectory(Snapshot snapshot, DeltaOverlay? delta, int parentRow, string nameLower, out int childRow)
+    private static bool TryFindChildDirectory(Snapshot snapshot, DeltaOverlay? delta, DeltaChildLookup? deltaChildren,
+        int parentRow, string nameLower, out int childRow)
     {
+        if (parentRow >= snapshot.Count)
+        {
+            childRow = -1;
+            return false;
+        }
+
         foreach (var child in snapshot.ChildrenOf(parentRow))
         {
             if (delta != null && delta.IsSuperseded(child))
@@ -136,6 +145,24 @@ internal static class DirectoryFilterResolver
                 return true;
             }
         }
+
+        if (deltaChildren != null)
+        {
+            foreach (var child in deltaChildren.ChildrenOfRow(parentRow))
+            {
+                if (child >= snapshot.Count || delta!.IsVisiblyDeleted(child))
+                    continue;
+                if (!delta.BaseOverrides.TryGetValue(child, out var overridden))
+                    continue;
+                if ((overridden.Flags & (ushort)FileRecordFlags.Directory) != 0
+                    && overridden.Name.Equals(nameLower, StringComparison.OrdinalIgnoreCase))
+                {
+                    childRow = child;
+                    return true;
+                }
+            }
+        }
+
         childRow = -1;
         return false;
     }

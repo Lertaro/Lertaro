@@ -88,6 +88,23 @@ public sealed class DirectoryFilterResolverTests
     }
 
     [TestMethod]
+    public void TryResolve_OverriddenDirectory_ResolvesUsingItsLiveName()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((_, delta) => delta.Upsert(4, 2, "renamed", FileRecordFlags.Directory, 0, 0, 0, 0));
+
+        fixture.Index.Read((snapshot, delta) =>
+        {
+            var resolved = DirectoryFilterResolver.TryResolve(snapshot, delta, @"c:\projects\renamed\", false, out var row, out var remainder);
+
+            Assert.IsTrue(resolved);
+            Assert.AreEqual(string.Empty, remainder);
+            Assert.AreEqual(snapshot.FirstRowForId(4), row);
+            return 0;
+        });
+    }
+
+    [TestMethod]
     public void TryResolve_PathOutsideSourceRoot_ReturnsFalse()
     {
         using var fixture = BuildSampleDrive();
