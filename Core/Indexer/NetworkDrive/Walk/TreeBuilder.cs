@@ -138,14 +138,15 @@ internal sealed class TreeBuilder
 
     private void WalkDirectory(WorkItem current)
     {
-        if (_diffBaseline != null && this.TryReuseUnchangedDirectory(current))
+        IReadOnlyList<NativeFileEntry>? liveEntries = null;
+        if (_diffBaseline != null && this.TryReuseUnchangedDirectory(current, out liveEntries))
             return;
 
         var ignoreRules = _filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules);
         var stopwatch = Stopwatch.StartNew();
-        IEnumerable<NativeFileEntry> children = null!;
-        var success = false;
-        for (var attempt = 0; attempt < 3; attempt++)
+        IEnumerable<NativeFileEntry> children = liveEntries ?? null!;
+        var success = liveEntries != null;
+        for (var attempt = 0; !success && attempt < 3; attempt++)
         {
             try { children = NativeFileEnumerator.Enumerate(current.Path); success = true; break; }
             catch when (attempt < 2 && !_token.IsCancellationRequested) { Thread.Sleep(100 * (attempt + 1)); }
@@ -159,7 +160,7 @@ internal sealed class TreeBuilder
             _token.ThrowIfCancellationRequested();
 
             var childPath = current.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar + child.Name;
-            var createResult = this.TryCreateRecord(childPath, current.LogicalPath, current.LocalId, out var record, out var isDirectory, out var logicalFullPath);
+            var createResult = this.TryCreateRecord(child, current.LogicalPath, current.LocalId, out var record, out var isDirectory, out var logicalFullPath);
             if (createResult != WalkRecordResult.Success)
             {
                 this.CountCreateFailure(createResult);

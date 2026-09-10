@@ -46,7 +46,7 @@ public sealed class LocalDriveWalkBuilderTests
     }
 
     [TestMethod]
-    public void Build_SecondPassWithUnchangedTree_ReusesCachedDirectoryInsteadOfRelistingFromDisk()
+    public void Build_SecondPass_DoesNotReuseStaleCachedChildren()
     {
         using var dir = new TempDirectory();
         var subDir = Path.Combine(dir.Path, "sub");
@@ -55,14 +55,16 @@ public sealed class LocalDriveWalkBuilderTests
 
         var firstPass = LocalDriveWalkBuilder.Build("Z", dir.Path, previousStore: null, (_, _) => { }, CancellationToken.None);
 
-        // Splice in a record that has no backing file on disk -- if the second pass re-lists "sub" from
-        // disk (rather than reusing firstPass's cached children), this record simply won't appear.
+        // A cached child that is absent from the live native listing must invalidate reuse. The second
+        // pass then rebuilds the directory and drops this stale record.
         var subRecord = firstPass.Records.Single(r => r.Name == "sub");
         firstPass.Records.Add(new FileRecord((UInt128)999, subRecord.Id, "ghost.txt", FileRecordFlags.None));
 
         var secondPass = LocalDriveWalkBuilder.Build("Z", dir.Path, firstPass, (_, _) => { }, CancellationToken.None);
 
-        CollectionAssert.Contains(secondPass.Records.Select(r => r.Name).ToList(), "ghost.txt");
+        var names = secondPass.Records.Select(r => r.Name).ToList();
+        Assert.DoesNotContain("ghost.txt", names);
+        CollectionAssert.Contains(names, "real.txt");
     }
 
     [TestMethod]

@@ -67,20 +67,18 @@ public sealed class TreeBuilderDiffExtensionsTests
     }
 
     [TestMethod]
-    public void TryReuseUnchangedDirectory_MtimeUnchanged_CopiesCachedChildrenAndMarksListed()
+    public void TryReuseUnchangedDirectory_UnchangedMetadata_CopiesCachedChildrenAndMarksListed()
     {
         using var root = new TempDirectory();
         var reuseDir = Path.Combine(root.Path, "reuseDir");
         Directory.CreateDirectory(reuseDir);
         File.WriteAllText(Path.Combine(reuseDir, "keep1.txt"), "a");
         File.WriteAllText(Path.Combine(reuseDir, "keep2.txt"), "b");
-        var liveMtime = FileTimeHelper.ToUnixSeconds(Directory.GetLastWriteTimeUtc(reuseDir));
-
         var previousStore = new FileRecordStore();
         previousStore.Records.Add(new FileRecord(1, 1, "", FileRecordFlags.Directory | FileRecordFlags.SourceRoot));
-        previousStore.Records.Add(new FileRecord(10, 1, "reuseDir", FileRecordFlags.Directory | FileRecordFlags.Listed, lastWriteTimeUnixSeconds: liveMtime));
-        previousStore.Records.Add(new FileRecord(11, 10, "keep1.txt", FileRecordFlags.None));
-        previousStore.Records.Add(new FileRecord(12, 10, "keep2.txt", FileRecordFlags.None));
+        previousStore.Records.Add(new FileRecord(10, 1, "reuseDir", FileRecordFlags.Directory | FileRecordFlags.Listed));
+        previousStore.Records.Add(ReadLiveRecord(reuseDir, "keep1.txt", 10, 11));
+        previousStore.Records.Add(ReadLiveRecord(reuseDir, "keep2.txt", 10, 12));
         var baseline = TreeDiffBaseline.From(previousStore);
 
         var builder = CreateBuilder(root.Path, baseline, recheckExclusions: false);
@@ -99,14 +97,15 @@ public sealed class TreeBuilderDiffExtensionsTests
     }
 
     [TestMethod]
-    public void TryReuseUnchangedDirectory_MtimeChanged_ReturnsFalseAndAddsNothing()
+    public void TryReuseUnchangedDirectory_NewLiveEntry_ReturnsFalseAndAddsNothing()
     {
         using var root = new TempDirectory();
         var reuseDir = Path.Combine(root.Path, "reuseDir");
         Directory.CreateDirectory(reuseDir);
+        File.WriteAllText(Path.Combine(reuseDir, "new.txt"), "new");
 
         var previousStore = new FileRecordStore();
-        previousStore.Records.Add(new FileRecord(10, 1, "reuseDir", FileRecordFlags.Directory | FileRecordFlags.Listed, lastWriteTimeUnixSeconds: 1));
+        previousStore.Records.Add(new FileRecord(10, 1, "reuseDir", FileRecordFlags.Directory | FileRecordFlags.Listed));
         var baseline = TreeDiffBaseline.From(previousStore);
 
         var builder = CreateBuilder(root.Path, baseline);
@@ -121,6 +120,32 @@ public sealed class TreeBuilderDiffExtensionsTests
     }
 
     [TestMethod]
+    public void TryReuseUnchangedDirectory_ChangedMetadata_ReturnsFalseAndAddsNothing()
+    {
+        using var root = new TempDirectory();
+        var reuseDir = Path.Combine(root.Path, "reuseDir");
+        Directory.CreateDirectory(reuseDir);
+        var filePath = Path.Combine(reuseDir, "file.txt");
+        File.WriteAllText(filePath, "old");
+
+        var previousStore = new FileRecordStore();
+        previousStore.Records.Add(new FileRecord(10, 1, "reuseDir", FileRecordFlags.Directory | FileRecordFlags.Listed));
+        previousStore.Records.Add(ReadLiveRecord(reuseDir, "file.txt", 10, 11));
+        var baseline = TreeDiffBaseline.From(previousStore);
+        File.AppendAllText(filePath, "changed");
+
+        var builder = CreateBuilder(root.Path, baseline);
+        builder._store.Records.Add(new FileRecord(10, 1, "reuseDir", FileRecordFlags.Directory));
+        builder.RegisterDirectoryIndices(0, builder._store.Records);
+        var current = new WorkItem(reuseDir, "reuseDir", 10, 1, NetworkIgnoreRuleSet.Empty);
+
+        var reused = builder.TryReuseUnchangedDirectory(current);
+
+        Assert.IsFalse(reused);
+        Assert.HasCount(1, builder._store.Records);
+    }
+
+    [TestMethod]
     public void TryReuseUnchangedDirectory_RecheckExclusions_PicksUpNewLiveEntryNotInCache()
     {
         using var root = new TempDirectory();
@@ -128,11 +153,9 @@ public sealed class TreeBuilderDiffExtensionsTests
         Directory.CreateDirectory(reuseDir);
         File.WriteAllText(Path.Combine(reuseDir, "cached.txt"), "a");
         File.WriteAllText(Path.Combine(reuseDir, "newfile.txt"), "b"); // exists live, absent from the cached snapshot
-        var liveMtime = FileTimeHelper.ToUnixSeconds(Directory.GetLastWriteTimeUtc(reuseDir));
-
         var previousStore = new FileRecordStore();
-        previousStore.Records.Add(new FileRecord(10, 1, "reuseDir", FileRecordFlags.Directory | FileRecordFlags.Listed, lastWriteTimeUnixSeconds: liveMtime));
-        previousStore.Records.Add(new FileRecord(11, 10, "cached.txt", FileRecordFlags.None));
+        previousStore.Records.Add(new FileRecord(10, 1, "reuseDir", FileRecordFlags.Directory | FileRecordFlags.Listed));
+        previousStore.Records.Add(ReadLiveRecord(reuseDir, "cached.txt", 10, 11));
         var baseline = TreeDiffBaseline.From(previousStore);
 
         var builder = CreateBuilder(root.Path, baseline, recheckExclusions: true);
@@ -146,6 +169,20 @@ public sealed class TreeBuilderDiffExtensionsTests
         var names = builder._store.Records.Select(r => r.Name).ToList();
         CollectionAssert.Contains(names, "cached.txt");
         CollectionAssert.Contains(names, "newfile.txt");
+    }
+
+    private static FileRecord ReadLiveRecord(string directory, string name, UInt128 parentId, UInt128 id)
+    {
+        var entry = NativeFileEnumerator.Enumerate(directory).Single(e => e.Name == name);
+        return new FileRecord(
+            id,
+            parentId,
+            name,
+            FileRecordFlagsHelper.FromAttributes(entry.Attributes),
+            entry.IsDirectory ? 0 : entry.Size,
+            entry.CreationTimeUnixSeconds,
+            entry.LastWriteTimeUnixSeconds,
+            entry.LastAccessTimeUnixSeconds);
     }
 
     private sealed class TempDirectory : IDisposable

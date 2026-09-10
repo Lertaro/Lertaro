@@ -5,6 +5,30 @@ namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 // TreeBuilder.cs under the project's line limit.
 internal static class TreeBuilderRecordExtensions
 {
+    public static WalkRecordResult TryCreateRecord(this TreeBuilder builder, NativeFileEntry entry, string logicalParentPath, UInt128 parentId, out NetworkWalkRecord record, out bool isDirectory, out string fullPath)
+    {
+        record = default;
+        isDirectory = entry.IsDirectory;
+        fullPath = string.Empty;
+
+        if ((entry.Attributes & FileAttributes.ReparsePoint) != 0)
+            return WalkRecordResult.ReparsePoint;
+
+        var logicalPath = Path.Combine(logicalParentPath, entry.Name);
+        fullPath = PathHelpers.NormalizePath(logicalPath, isDirectory);
+        var fileRecord = new FileRecord(
+            PathHelpers.HashPath64(fullPath),
+            parentId,
+            builder._namePool.Get(entry.Name),
+            FileRecordFlagsHelper.FromAttributes(entry.Attributes),
+            isDirectory ? 0 : entry.Size,
+            entry.CreationTimeUnixSeconds,
+            entry.LastWriteTimeUnixSeconds,
+            entry.LastAccessTimeUnixSeconds);
+        record = new NetworkWalkRecord(fileRecord, entry.Attributes);
+        return WalkRecordResult.Success;
+    }
+
     public static WalkRecordResult TryCreateRecord(this TreeBuilder builder, string child, string logicalParentPath, UInt128 parentId, out NetworkWalkRecord record, out bool isDirectory, out string fullPath)
     {
         record = default;

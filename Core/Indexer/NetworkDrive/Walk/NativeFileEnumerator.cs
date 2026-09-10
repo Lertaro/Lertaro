@@ -7,9 +7,8 @@ namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 // .NET 10's FileSystemEnumerator crashes with a CLR error on the exFAT drives this app indexes
 // (the crash reproduces with a bare Directory.EnumerateFileSystemEntries recursion, and a plain
 // string-concat loop over the same drives does not), so enumeration goes straight to
-// FindFirstFileEx/FindNextFile here. The entry returned is deliberately just the NAME plus
-// attributes: callers build full paths with plain string concatenation, which has been verified
-// safe on the affected drives.
+// FindFirstFileEx/FindNextFile here. The native result also supplies the metadata needed to compare
+// a live direct child with its cached record, avoiding one managed FileInfo stat per entry.
 internal static class NativeFileEnumerator
 {
     private const int ErrorNoMoreFiles = 18;
@@ -45,7 +44,18 @@ internal static class NativeFileEnumerator
             {
                 var name = findData.cFileName;
                 if (name.Length > 0 && name != "." && name != "..")
-                    yield return new NativeFileEntry(name, (FileAttributes)findData.dwFileAttributes);
+                {
+                    var attributes = (FileAttributes)findData.dwFileAttributes;
+                    var rawSize = ((ulong)findData.nFileSizeHigh << 32) | findData.nFileSizeLow;
+                    var size = rawSize > long.MaxValue ? long.MaxValue : (long)rawSize;
+                    yield return new NativeFileEntry(
+                        name,
+                        attributes,
+                        size,
+                        FileTimeHelper.FileTimeToUnixSeconds(ToFileTime(findData.ftCreationTime)),
+                        FileTimeHelper.FileTimeToUnixSeconds(ToFileTime(findData.ftLastWriteTime)),
+                        FileTimeHelper.FileTimeToUnixSeconds(ToFileTime(findData.ftLastAccessTime)));
+                }
 
                 if (!FindNextFile(handle, out findData))
                 {
@@ -61,6 +71,9 @@ internal static class NativeFileEnumerator
             FindClose(handle);
         }
     }
+
+    private static long ToFileTime(System.Runtime.InteropServices.ComTypes.FILETIME value) =>
+        ((long)(uint)value.dwHighDateTime << 32) | (uint)value.dwLowDateTime;
 
     private enum FindexInfoLevels
     {
@@ -105,7 +118,13 @@ internal static class NativeFileEnumerator
     private static extern bool FindClose(IntPtr hFindFile);
 }
 
-internal readonly record struct NativeFileEntry(string Name, FileAttributes Attributes)
+internal readonly record struct NativeFileEntry(
+    string Name,
+    FileAttributes Attributes,
+    long Size,
+    uint CreationTimeUnixSeconds,
+    uint LastWriteTimeUnixSeconds,
+    uint LastAccessTimeUnixSeconds)
 {
     public bool IsDirectory => (Attributes & FileAttributes.Directory) != 0;
 }

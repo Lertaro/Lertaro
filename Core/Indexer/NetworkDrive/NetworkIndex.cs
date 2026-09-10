@@ -128,8 +128,8 @@ internal sealed class NetworkIndex : IDisposable
         var diffBaseline = TreeDiffBaseline.From(previousStore);
         // No previous store at all means this is a first-ever scan -- nothing to recheck, the normal fresh
         // walk already covers everything. Otherwise, a fingerprint mismatch is the only thing that can make
-        // a reused (mtime-unchanged) directory's recorded children incomplete under the *current* rules --
-        // see TryReuseUnchangedDirectory's add/remove diff.
+        // a reused directory's recorded children incomplete under the *current* rules -- see
+        // TryReuseUnchangedDirectory's live-entry diff.
         var recheckExclusions = previousStore != null && previousStore.ExclusionRulesFingerprint != fingerprint;
         var builder = new TreeBuilder(store, root, physicalRoot, options, token, onProgress, onCheckpoint, diffBaseline, recheckExclusions);
         var stats = builder.Run();

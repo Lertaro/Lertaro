@@ -66,6 +66,31 @@ public sealed class TreeDiffBaselineTests
     }
 
     [TestMethod]
+    public void TryGetListedChildren_ListedDirectory_ReturnsSnapshotChildren()
+    {
+        var store = new FileRecordStore();
+        store.Records.Add(new FileRecord(1, 1, "", FileRecordFlags.Directory | FileRecordFlags.Listed));
+        store.Records.Add(new FileRecord(2, 1, "child.txt", FileRecordFlags.None));
+
+        var baseline = TreeDiffBaseline.From(store)!;
+        var found = baseline.TryGetListedChildren(1, out var children);
+
+        Assert.IsTrue(found);
+        CollectionAssert.AreEqual(new[] { "child.txt" }, children.Select(c => c.Name).ToList());
+    }
+
+    [TestMethod]
+    public void TryGetListedChildren_UnlistedDirectory_ReturnsFalse()
+    {
+        var store = new FileRecordStore();
+        store.Records.Add(new FileRecord(1, 1, "", FileRecordFlags.Directory));
+
+        var baseline = TreeDiffBaseline.From(store)!;
+
+        Assert.IsFalse(baseline.TryGetListedChildren(1, out _));
+    }
+
+    [TestMethod]
     public void TryGetUnchangedChildren_UnknownDirectoryId_ReturnsFalse()
     {
         var store = new FileRecordStore();

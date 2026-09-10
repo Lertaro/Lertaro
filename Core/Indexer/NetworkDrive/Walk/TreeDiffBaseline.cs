@@ -2,10 +2,9 @@ namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 
 // Wraps a previously-saved FileRecordStore (a completed index, or an interrupted checkpoint) as a lookup
 // baseline for TreeBuilder's diff-aware walk. A directory's cached children are only trusted when it was
-// fully enumerated last time (FileRecordFlags.Listed) AND its own LastWriteTimeUnixSeconds still matches
-// live -- meaning nothing was added, removed, or renamed directly under it since. This does NOT guarantee
-// deeper descendants are unchanged (a directory's own mtime never reflects grandchild changes), so the
-// caller still recurses into and individually checks every cached child directory.
+// fully enumerated last time (FileRecordFlags.Listed); TreeBuilder compares the current direct children
+// and their metadata with the cached records before reusing them. This does NOT guarantee deeper
+// descendants are unchanged, so the caller still recurses into every cached child directory.
 //
 // Indexes by position into the caller's own previousStore.Records rather than copying FileRecord values
 // into these dictionaries -- for a multi-million-record NAS this is the difference between a few bytes of
@@ -70,6 +69,26 @@ internal sealed class TreeDiffBaseline
         }
 
         return TryGetUnchangedChildren(directoryId, liveMtime, out children);
+    }
+
+    public bool TryGetListedChildren(UInt128 directoryId, out IReadOnlyList<FileRecord> children)
+    {
+        children = Array.Empty<FileRecord>();
+        if (!_indexById.TryGetValue(directoryId, out var recordIndex))
+            return false;
+
+        var record = _records[recordIndex];
+        if (!record.IsDirectory || (record.Flags & FileRecordFlags.Listed) == 0)
+            return false;
+
+        if (!_childIndicesByParent.TryGetValue(directoryId, out var indices))
+            return true;
+
+        var result = new List<FileRecord>(indices.Count);
+        foreach (var index in indices)
+            result.Add(_records[index]);
+        children = result;
+        return true;
     }
 
     // Path-free overload for callers that already know a directory's live mtime some other way than

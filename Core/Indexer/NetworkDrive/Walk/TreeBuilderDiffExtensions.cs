@@ -40,24 +40,73 @@ internal static class TreeBuilderDiffExtensions
     // into every cached child directory individually -- a directory's own LastWriteTime only reflects its
     // direct children, never anything deeper -- so this only ever skips ONE level of listing per call, not
     // an entire subtree at once.
-    public static bool TryReuseUnchangedDirectory(this TreeBuilder builder, WorkItem current)
+    public static bool TryReuseUnchangedDirectory(this TreeBuilder builder, WorkItem current) =>
+        builder.TryReuseUnchangedDirectory(current, out _);
+
+    public static bool TryReuseUnchangedDirectory(this TreeBuilder builder, WorkItem current, out IReadOnlyList<NativeFileEntry>? liveEntries)
     {
-        if (!builder._diffBaseline!.TryGetUnchangedChildren(current.Path, current.LocalId, out var previousChildren))
+        liveEntries = null;
+        if (!builder._diffBaseline!.TryGetListedChildren(current.LocalId, out var previousChildren))
             return false;
+
+        try { liveEntries = NativeFileEnumerator.Enumerate(current.Path).ToList(); }
+        catch
+        {
+            liveEntries = null;
+            return false;
+        }
+
+        var ignoreRules = builder._filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules);
+        var previousByName = new Dictionary<string, FileRecord>(StringComparer.OrdinalIgnoreCase);
+        foreach (var child in previousChildren)
+        {
+            if (!previousByName.TryAdd(child.Name, child))
+                return false;
+        }
+
+        var matchedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in liveEntries)
+        {
+            if ((entry.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                if (previousByName.ContainsKey(entry.Name))
+                    return false;
+                continue;
+            }
+
+            var logicalFullPath = PathHelpers.NormalizePath(Path.Combine(current.LogicalPath, entry.Name), entry.IsDirectory);
+            if (!builder._filter.ShouldIndex(logicalFullPath, entry.Name, entry.IsDirectory, entry.Attributes, ignoreRules))
+                continue;
+
+            if (!previousByName.TryGetValue(entry.Name, out var previous))
+            {
+                if (!builder._recheckExclusions)
+                    return false;
+                continue;
+            }
+
+            if (!matchedNames.Add(entry.Name) || !MatchesMetadata(entry, previous))
+                return false;
+        }
+
+        foreach (var previous in previousChildren)
+        {
+            if (matchedNames.Contains(previous.Name))
+                continue;
+
+            var logicalFullPath = PathHelpers.NormalizePath(Path.Combine(current.LogicalPath, previous.Name), previous.IsDirectory);
+            var attributes = FileRecordFlagsHelper.ToAttributes(previous.Flags);
+            if (builder._filter.ShouldIndex(logicalFullPath, previous.Name, previous.IsDirectory, attributes, ignoreRules))
+                return false;
+        }
 
         Interlocked.Increment(ref builder._reusedDirectories);
 
-        var ignoreRules = builder._filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules);
         var batch = new List<FileRecord>(TreeBuilder.RecordBatchSize);
-        // Only populated when a recheck is actually needed -- ReconcileLiveEntries below uses it to tell
-        // "already accounted for from cache" apart from "new to us", without a second full pass over
-        // previousChildren.
-        var previousByName = builder._recheckExclusions ? new Dictionary<string, FileRecord>(StringComparer.OrdinalIgnoreCase) : null;
 
         foreach (var child in previousChildren)
         {
             builder._token.ThrowIfCancellationRequested();
-            previousByName?.TryAdd(child.Name, child);
 
             var isDirectory = child.IsDirectory;
             var attributes = FileRecordFlagsHelper.ToAttributes(child.Flags);
@@ -94,8 +143,8 @@ internal static class TreeBuilderDiffExtensions
             builder.MaybeCheckpoint(indexedItems);
         }
 
-        if (previousByName != null)
-            ReconcileLiveEntries(builder, current, ignoreRules, previousByName, batch);
+        if (builder._recheckExclusions)
+            ReconcileLiveEntries(builder, current, ignoreRules, previousByName, liveEntries, batch);
 
         builder.FlushRecords(batch);
         builder.MarkListed(current.LocalId);
@@ -103,25 +152,14 @@ internal static class TreeBuilderDiffExtensions
     }
 
     // Only reached when exclusion rules may have changed since this directory was last fully listed (see
-    // _recheckExclusions). Lists the directory once -- one round trip, cheap next to a per-item stat -- and
+    // _recheckExclusions). It uses the single live listing already performed by the comparison above and
     // processes only the names the cache-driven pass above didn't already account for: something the old
     // rules excluded and the new ones don't (or, defensively, a name that's genuinely new despite the
     // parent's unchanged mtime -- shouldn't happen if mtime is reliable, but costs nothing extra to allow
     // for). Anything cached that no longer shows up here just silently isn't re-added to batch -- the
     // deletion side of the same coin, self-correcting even if mtime turns out unreliable on some filesystem.
-    private static void ReconcileLiveEntries(TreeBuilder builder, WorkItem current, NetworkIgnoreRuleSet ignoreRules, Dictionary<string, FileRecord> previousByName, List<FileRecord> batch)
+    private static void ReconcileLiveEntries(TreeBuilder builder, WorkItem current, NetworkIgnoreRuleSet ignoreRules, Dictionary<string, FileRecord> previousByName, IReadOnlyList<NativeFileEntry> liveEntries, List<FileRecord> batch)
     {
-        IEnumerable<NativeFileEntry> liveEntries;
-        try
-        {
-            liveEntries = NativeFileEnumerator.Enumerate(current.Path);
-        }
-        catch
-        {
-            builder.CountError(ref builder._enumerateErrors);
-            return;
-        }
-
         foreach (var entry in liveEntries)
         {
             builder._token.ThrowIfCancellationRequested();
@@ -131,7 +169,7 @@ internal static class TreeBuilderDiffExtensions
                 continue;
 
             var entryPath = current.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar + name;
-            var createResult = builder.TryCreateRecord(entryPath, current.LogicalPath, current.LocalId, out var record, out var isDirectory, out var logicalFullPath);
+            var createResult = builder.TryCreateRecord(entry, current.LogicalPath, current.LocalId, out var record, out var isDirectory, out var logicalFullPath);
             if (createResult != WalkRecordResult.Success)
             {
                 builder.CountCreateFailure(createResult);
@@ -165,5 +203,17 @@ internal static class TreeBuilderDiffExtensions
 
             builder.MaybeCheckpoint(indexedItems);
         }
+    }
+
+    private static bool MatchesMetadata(NativeFileEntry live, FileRecord previous)
+    {
+        var previousFlags = previous.Flags & ~FileRecordFlags.Listed;
+        var liveFlags = FileRecordFlagsHelper.FromAttributes(live.Attributes);
+        return string.Equals(live.Name, previous.Name, StringComparison.Ordinal)
+            && liveFlags == previousFlags
+            && previous.Size == (live.IsDirectory ? 0 : live.Size)
+            && previous.CreationTimeUnixSeconds == live.CreationTimeUnixSeconds
+            && previous.LastWriteTimeUnixSeconds == live.LastWriteTimeUnixSeconds
+            && previous.LastAccessTimeUnixSeconds == live.LastAccessTimeUnixSeconds;
     }
 }
