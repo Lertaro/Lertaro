@@ -129,47 +129,79 @@ public static class TextHighlighter
         // through Core's real FzfPattern-based term splitting, so display highlighting is
         // provably the same computation the ranking weight scores against (HighlightMask).
         var normalizedHighlight = NormalizePathSeparators(highlight.Trim()).ToLowerInvariant();
+        var plan = PlanFor(normalizedHighlight);
 
-        if (ContainsPathSeparator(normalizedHighlight))
-        {
-            var term = TryNormalizeDrivePath(normalizedHighlight, out var pathDrive, out var normalizedDrivePath)
-                ? normalizedDrivePath
-                : normalizedHighlight;
+        var highlights = new bool[fullText.Length];
+        foreach (var part in plan.Parts)
+            OrInto(highlights, part.HighlightMask(fullText));
 
-            // Drop the drive before splitting, so a query that names one produces the same terms as one
-            // that doesn't. Left on, the directory part reached FzfPattern.Parse still looking like a
-            // drive filter, and "t:\projects" would mark "\Projects" -- separator included -- where
-            // "projects\..." marked just "Projects".
-            if (pathDrive is { Length: > 0 } && term.Length >= 2 && term[1] == Path.VolumeSeparatorChar)
-                term = term[2..].TrimStart(Path.DirectorySeparatorChar);
+        MarkDrivePrefix(highlights, fullText, plan.Drive);
+        return highlights;
+    }
 
-            // Mirrors Core's real path-mode split (PathSearchFuzzy.SearchStreaming): everything
-            // after the LAST separator is the file-part query (its own multi-term match against a
-            // name), everything before is the directory-part query (matched against ancestor
-            // segments). Treating the whole term -- separators and all -- as one literal string
-            // almost never matched anything (e.g. "soft \ rename fz" has no literal "\" inside any
-            // real file/folder name), so a real path-mode match ranked correctly but highlighted
-            // nothing at all. Both parts are tried against whatever text this call is for (Name or
-            // Path column) and unioned -- the file part naturally lights up the Name column, the
-            // directory part the Path column.
-            var lastSep = term.LastIndexOf(Path.DirectorySeparatorChar);
-            var dirPart = lastSep >= 0 ? term[..lastSep].Trim() : string.Empty;
-            var filePart = (lastSep >= 0 ? term[(lastSep + 1)..] : term).Trim();
+    // What a highlight string resolves to once: the term(s) to light up and the drive filter (if any).
+    private readonly record struct MaskPlan(FuzzyQuery[] Parts, string? Drive);
 
-            var highlights = new bool[fullText.Length];
-            if (!string.IsNullOrEmpty(filePart))
-                OrInto(highlights, FuzzyMatcher.ComputeHighlightMask(fullText, filePart));
-            if (!string.IsNullOrEmpty(dirPart))
-                OrInto(highlights, FuzzyMatcher.ComputeHighlightMask(fullText, dirPart));
+    // One parsed plan per distinct highlight string, per thread.
+    //
+    // This runs once per RENDERED ROW (the list has a TextBlock for each name and each path), while the
+    // highlight string is identical for every row of a search. Parsing it consulted every alias provider
+    // each time, so painting a page re-parsed the same query dozens of times -- measured as the dominant
+    // cost of a keystroke. Caching the plan collapses that to one parse per query.
+    //
+    // ThreadStatic rather than a shared cache: this runs on the UI thread, needs no lock, and must never
+    // hand a test thread (or another search's) query a plan built from a different one -- the key check
+    // below is what guarantees that.
+    [ThreadStatic] private static string? _planKey;
+    [ThreadStatic] private static MaskPlan? _plan;
 
-            MarkDrivePrefix(highlights, fullText, pathDrive);
-            return highlights;
-        }
+    private static MaskPlan PlanFor(string normalizedHighlight)
+    {
+        if (_planKey == normalizedHighlight && _plan is { } cached)
+            return cached;
 
-        var drive = FindDriveFilter(normalizedHighlight);
-        var mask = FuzzyMatcher.ComputeHighlightMask(fullText, normalizedHighlight);
-        MarkDrivePrefix(mask, fullText, drive);
-        return mask;
+        var plan = BuildPlan(normalizedHighlight);
+        _planKey = normalizedHighlight;
+        _plan = plan;
+        return plan;
+    }
+
+    private static MaskPlan BuildPlan(string normalizedHighlight)
+    {
+        if (!ContainsPathSeparator(normalizedHighlight))
+            return new MaskPlan(new[] { FuzzyQuery.Parse(normalizedHighlight) }, FindDriveFilter(normalizedHighlight));
+
+        var term = TryNormalizeDrivePath(normalizedHighlight, out var pathDrive, out var normalizedDrivePath)
+            ? normalizedDrivePath
+            : normalizedHighlight;
+
+        // Drop the drive before splitting, so a query that names one produces the same terms as one
+        // that doesn't. Left on, the directory part reached FzfPattern.Parse still looking like a
+        // drive filter, and "t:\projects" would mark "\Projects" -- separator included -- where
+        // "projects\..." marked just "Projects".
+        if (pathDrive is { Length: > 0 } && term.Length >= 2 && term[1] == Path.VolumeSeparatorChar)
+            term = term[2..].TrimStart(Path.DirectorySeparatorChar);
+
+        // Mirrors Core's real path-mode split (PathSearchFuzzy.SearchStreaming): everything
+        // after the LAST separator is the file-part query (its own multi-term match against a
+        // name), everything before is the directory-part query (matched against ancestor
+        // segments). Treating the whole term -- separators and all -- as one literal string
+        // almost never matched anything (e.g. "soft \ rename fz" has no literal "\" inside any
+        // real file/folder name), so a real path-mode match ranked correctly but highlighted
+        // nothing at all. Both parts are tried against whatever text this call is for (Name or
+        // Path column) and unioned -- the file part naturally lights up the Name column, the
+        // directory part the Path column.
+        var lastSep = term.LastIndexOf(Path.DirectorySeparatorChar);
+        var dirPart = lastSep >= 0 ? term[..lastSep].Trim() : string.Empty;
+        var filePart = (lastSep >= 0 ? term[(lastSep + 1)..] : term).Trim();
+
+        var parts = new List<FuzzyQuery>(2);
+        if (!string.IsNullOrEmpty(filePart))
+            parts.Add(FuzzyQuery.Parse(filePart));
+        if (!string.IsNullOrEmpty(dirPart))
+            parts.Add(FuzzyQuery.Parse(dirPart));
+
+        return new MaskPlan(parts.ToArray(), pathDrive);
     }
 
     // Mirrors FzfPattern.Parse's own scan: a whitespace-separated token beginning "<letter>:" is a drive

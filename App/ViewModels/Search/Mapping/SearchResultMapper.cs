@@ -85,13 +85,19 @@ public static class SearchResultMapper
         // every file regardless of which one actually matched the query text better.
         var candidates = new List<RankedCandidate>();
 
+        // Parsed once for this whole result set. The file loop below runs once per file result (thousands
+        // on a broad query), and the string-based ComputeMatchRank re-parsed the query on every one of
+        // them -- Parse re-consults every alias provider's GetQueryForms, so with pinyin loaded that was
+        // the dominant per-keystroke cost in this mapper.
+        var fuzzy = FuzzyQuery.Parse(query);
+
         // The history entry already remembers which query opened its path. Re-introduce existing paths
         // whose learned keyword matches this query even when the index's bounded first page omitted them.
         // Inline results enter Global Search here; its separately scoped Current Folder tier wins the
         // downstream path dedupe. An explicit type trigger retains its strict result domain.
         if (triggeredTypeId == null)
         {
-            var historyCandidates = HistorySearchCandidateMapper.Collect(query, scope);
+            var historyCandidates = HistorySearchCandidateMapper.Collect(fuzzy, scope);
             if (normalizedScopeFolders != null)
                 historyCandidates = historyCandidates.Where(c => InFileFilterScope(c.NormalizedPath)).ToList();
             candidates.AddRange(historyCandidates);
@@ -103,8 +109,8 @@ public static class SearchResultMapper
             for (var i = 0; i < favorites.Count; i++)
             {
                 var fav = favorites[i];
-                var (isMatch, weight) = FavoriteSearchHelper.ComputeMatch(fav, query);
-                if (!isMatch || !Helpers.FavoritePathResolver.IsPathAvailable(fav.Path))
+                var match = FavoriteSearchHelper.ComputeMatch(fav, fuzzy);
+                if (!match.IsMatch || !Helpers.FavoritePathResolver.IsPathAvailable(fav.Path))
                     continue;
 
                 // A favorite is curated by the user regardless of whether it also has USAGE history --
@@ -121,7 +127,7 @@ public static class SearchResultMapper
                     IsCurated: true,
                     priority,
                     SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
-                    weight,
+                    match,
                     normalizedFavPath));
             }
         }
@@ -131,7 +137,7 @@ public static class SearchResultMapper
         // routing hid these too (its "Case B").
         if (fileFilterScope == null)
         {
-            foreach (var (result, weight) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow))
+            foreach (var (result, match) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow))
             {
                 var typeId = result.SourceProvider is PluginSdk.Abstractions.Plugins.ISearchableItemProvider provider
                     ? SearchResultTypePriority.GetProviderTypeId(provider)
@@ -150,7 +156,7 @@ public static class SearchResultMapper
                     IsCurated: hasHistory,
                     hasHistory ? priority : int.MaxValue,
                     SearchResultTypePriority.Rank(typeId, typeOrder),
-                    weight,
+                    match,
                     SearchResultHelper.NormalizePath(result.FullPath)));
             }
         }
@@ -170,13 +176,12 @@ public static class SearchResultMapper
                     IsCurated: hasHistory,
                     hasHistory ? priority : int.MaxValue,
                     SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
-                    FuzzyMatcher.ComputeMatchWeight(result.Name, query),
+                    fuzzy.Rank(result.Name),
                     SearchResultHelper.NormalizePath(result.Path)));
             }
         }
 
         var ranked = RankAndDedupe(candidates);
-
         // Capped here (not deferred to the caller) because this display cap has to respect whatever
         // header/grouping layout the caller (or InlineListSearchHelper.MergeLocalMatches, downstream)
         // builds around these rows -- e.g. the inline window's "Current Folder"/"Global Search" split
@@ -220,34 +225,20 @@ public static class SearchResultMapper
         return uiResults;
     }
 
-    // TypeRank: this candidate's position in UserSettings.ResultTypeOrder (see SearchResultTypePriority),
-    // int.MaxValue for the inline window and for any type the user hasn't ordered -- a plain, uniform
-    // tiebreaker that leaves Weight fully in control until the user actually orders something.
-    internal readonly record struct RankedCandidate(AppSearchResult Result, bool IsCurated, int Priority, int TypeRank, double Weight, string NormalizedPath);
+    // TypeRank: this candidate's position in UserSettings.ResultTypeOrder -- see RankedCandidateOrdering,
+    // which owns the ordering ladder these candidates are fed through.
+    internal readonly record struct RankedCandidate(AppSearchResult Result, bool IsCurated, int Priority, int TypeRank, MatchRank Match, string NormalizedPath);
 
     // Shared by both search groups the inline window shows (its own "Current Folder" matches via
-    // ExplorerSearchHelper, and this "Global Search" tier below) so a file scores the same way
-    // regardless of which of the two it happens to land in: favorites/history-matched entries (an
-    // explicit "you use/opened this" signal) outrank everything else, then the user's own type-priority
-    // order (e.g. Applications over Files, quick window only), then match-quality weight, then shorter
-    // path, then alphabetically.
+    // ExplorerSearchHelper, and this "Global Search" tier below) so a file scores the same way regardless
+    // of which of the two it happens to land in. The ladder itself lives in RankedCandidateOrdering.
     internal static List<AppSearchResult> RankAndDedupe(List<RankedCandidate> candidates)
-    {
-        var usedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var ranked = new List<AppSearchResult>();
-        foreach (var candidate in candidates
-                     .OrderByDescending(c => c.IsCurated)
-                     .ThenBy(c => c.Priority)
-                     .ThenBy(c => c.TypeRank)
-                     .ThenByDescending(c => c.Weight)
-                     .ThenBy(c => c.NormalizedPath.Length)
-                     .ThenBy(c => c.NormalizedPath, StringComparer.OrdinalIgnoreCase))
-        {
-            if (usedPaths.Add(candidate.NormalizedPath))
-                ranked.Add(candidate.Result);
-        }
-        return ranked;
-    }
+        => RankedCandidateOrdering.Order(candidates).Select(c => c.Result).ToList();
+
+    // The same ordering, keeping the rank alongside each row -- for callers that need to consult it again
+    // after ordering (the inline window's directory-proximity pass does).
+    internal static List<RankedCandidate> RankCandidates(List<RankedCandidate> candidates)
+        => RankedCandidateOrdering.Order(candidates);
 
     public static AppSearchResult CreateUiResult(SearchResult item, string query, int index, bool isApplication, string? scope)
         => SearchResultHelper.CreateUiResult(item, query, index, isApplication, scope);

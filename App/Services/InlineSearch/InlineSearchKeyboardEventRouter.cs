@@ -1,5 +1,6 @@
 using Application = System.Windows.Application;
 using Lertaro.App.Helpers;
+using Lertaro.App.Views.InlineSearchWindow.Helpers;
 
 namespace Lertaro.App.Services;
 
@@ -93,16 +94,11 @@ internal sealed class InlineSearchKeyboardEventRouter
                     return;
                 }
 
-                if (window.LstResults.SelectedItem is AppSearchResult result)
-                {
-                    window.ExecuteSearchResult(result);
-                }
-                else if (window.LstResults.Items.Count > 0)
-                {
-                    window.LstResults.SelectedIndex = 0;
-                    if (window.LstResults.SelectedItem is AppSearchResult firstResult)
-                        window.ExecuteSearchResult(firstResult);
-                }
+                var target = InlineResultTargetResolver.ResolveEnterTarget(
+                    window.LstResults.Items.OfType<AppSearchResult>().ToList(),
+                    window.LstResults.SelectedIndex);
+                if (target != null)
+                    window.ExecuteSearchResult(target);
             }));
 
         _keyboardHook.OnUpPressed += () => Application.Current.Dispatcher.BeginInvoke(new Action(() =>
@@ -147,5 +143,9 @@ internal sealed class InlineSearchKeyboardEventRouter
 
         window.LstResults.SelectedIndex = next;
         window.LstResults.ScrollIntoView(window.LstResults.SelectedItem);
+
+        // A deliberate arrow key must move the host file manager's own selection too, even while a
+        // streamed refresh has the automatic sync suspended (see the handler's own method).
+        window.InputHandler.SyncExplorerSelectionAfterNavigation();
     }
 }

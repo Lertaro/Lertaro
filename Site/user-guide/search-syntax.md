@@ -2,7 +2,7 @@
 
 Lertaro's search bar supports far more than simple plain-text search. Equipped with a blazing-fast matching algorithm, it supports fuzzy jump matching, boolean logic, word boundary operators, drive and path scoping, secondary filtering query tokens, and multilingual aliases. All syntaxes can be freely mixed within the same query.
 
-## 1. Basic Matching & Case Sensitivity
+## 1. Basic Matching & Case
 
 ### Fuzzy matching (default)
 
@@ -16,10 +16,19 @@ Lertaro enables Fuzzy Matching by default. Simply enter any characters in order,
 
 Turn this off under **Settings → General → System → Enable fuzzy matching** and plain search terms (without operators) will require a contiguous substring — `abc` will only match names containing contiguous `abc`, no longer matching `a-b-c`. This toggle only affects bare terms; all operators described below maintain their exact behaviors either way.
 
-### Smart Case Sensitivity
+### Case Insensitivity
 
-- **All-lowercase queries**: Case-insensitive by default. For example, `myfile` matches `myfile`, `MyFile`, `MYFILE`, etc.
-- **Queries with uppercase letters**: Once a term contains any uppercase letter, it automatically becomes **case-sensitive**. For example, `MyFile` matches `MyFile`, but not lowercase `myfile`.
+Matching always ignores case, in both directions — the case you type never changes what matches, and the case of the file name never does either. `myfile`, `MyFile` and `MYFILE` all match each other.
+
+There is no case-sensitive mode: typing a capital no longer narrows a term to exact-case matches.
+
+### Pinyin Aliases & Ranking
+
+Chinese names are searchable by pinyin, in two forms: the **initials** (one letter per character — `ex` for 恶性) and the **full reading** (every syllable spelled out — `zhengshu` for 证书).
+
+**Ranking: match position > coverage > English > initials > full pinyin.** A match starting further left wins first; then a tighter, fuller match; English/initials/full-pinyin only separate results that already agree on both of those. So an English match no longer automatically outranks a pinyin one — it does when the two are equally well placed and equally tight. A partial last syllable still matches, so `zhengsh` keeps finding 证书 while you are still typing.
+
+**With fuzzy matching off**, pinyin matches must line up with word starts. `ex` finds 恶性 (initials of two characters) but not 学习 (which would have to splice the end of `xue` onto the start of `xi`). With fuzzy matching on, that loose reading is what you asked for and remains available.
 
 ## 2. Multiple Terms & Boolean Logic
 

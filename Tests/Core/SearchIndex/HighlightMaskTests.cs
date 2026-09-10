@@ -90,4 +90,35 @@ public sealed class HighlightMaskTests
 
         Assert.IsGreaterThan(scattered, contiguous);
     }
+
+    // Weight is coverage*contiguity only. Left-side match priority is a SEPARATE, higher-ranked tier
+    // reported alongside it (MatchRank.Start / HighlightMask.ComputeRank), precisely because coverage
+    // alone structurally favours the shorter candidate: here "iwxfe.mp" (2/8) keeps the larger weight
+    // even though its match starts a character later than "wxfef.doc" (2/9).
+    [TestMethod]
+    public void ComputeRank_WeightIgnoresPosition_AndStartReportsTheLeftmostIndex()
+    {
+        var atStart = HighlightMask.ComputeRank("wxfef.doc", FzfPattern.Parse("wx"));
+        var oneIn = HighlightMask.ComputeRank("iwxfe.mp", FzfPattern.Parse("wx"));
+
+        Assert.AreEqual(0, atStart.Start);
+        Assert.AreEqual(1, oneIn.Start);
+        Assert.IsGreaterThan(atStart.Weight, oneIn.Weight);
+    }
+
+    [TestMethod]
+    public void ComputeRank_NoMatch_IsNotAMatch()
+    {
+        var rank = HighlightMask.ComputeRank("readme", FzfPattern.Parse("xyz"));
+
+        Assert.IsFalse(rank.IsMatch);
+        Assert.AreEqual(0, rank.Weight);
+    }
+
+    [TestMethod]
+    public void ComputeRank_StartAtZero_KeepsThePlainCoverageValue()
+    {
+        // 2 matched characters out of 4, fully contiguous, starting at index 0: 0.5 * 1.
+        Assert.AreEqual(0.5, HighlightMask.ComputeRank("abcd", FzfPattern.Parse("ab")).Weight);
+    }
 }

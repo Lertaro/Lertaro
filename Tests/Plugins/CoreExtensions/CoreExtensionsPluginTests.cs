@@ -33,6 +33,23 @@ public sealed class CoreExtensionsPluginTests
         Assert.IsTrue((bool)field.DefaultValue!, "InlineSearchAlwaysOpen must default to true.");
     }
 
+    // The inline window's shortcut-command opt-out lives in this plugin's inline section because it applies
+    // to the inline window ONLY (see PluginSearchResultMapper): the key and its default are part of that
+    // contract, and the App reads them by literal string.
+    [TestMethod]
+    public void GetConfigSchema_InlineSearchGroup_HasSearchActionsToggleEnabledByDefault()
+    {
+        var group = new CoreExtensionsPlugin().GetConfigSchema().Fields
+            .Single(field => field.Key == "InlineSearchGroup");
+
+        var field = group.SubFields?.FirstOrDefault(f => f.Key == "InlineSearchEnableSearchActions");
+        Assert.IsNotNull(field, "InlineSearchGroup must contain InlineSearchEnableSearchActions field.");
+        Assert.AreEqual(ConfigFieldType.Boolean, field.FieldType);
+        Assert.IsTrue((bool)field.DefaultValue!, "the toggle must default to true so an upgrade changes nothing");
+        Assert.IsNotNull(field.LabelKey);
+        Assert.IsNotNull(field.DescriptionKey);
+    }
+
     [TestMethod]
     public void GetConfigSchema_SearchFiltersGroupContainsBuiltInTogglesAndCustomList()
     {

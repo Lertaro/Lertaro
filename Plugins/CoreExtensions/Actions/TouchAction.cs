@@ -8,6 +8,8 @@ namespace Lertaro.Plugins.CoreExtensions.Actions;
 
 public class TouchAction : ISearchResultAction
 {
+    private const string NameFieldKey = "TouchName";
+
     public string GroupName => TranslationService.Get("Action_GroupName_Cmd");
 
     public string DisplayName => TranslationService.Get("Action_Touch");
@@ -29,14 +31,20 @@ public class TouchAction : ISearchResultAction
     public void Execute(IReadOnlyList<ISearchResult> results, IPluginSearchWindow view)
     {
         var result = results[0];
-        if (string.IsNullOrWhiteSpace(result.FullPath))
+
+        // See CommandKeywordPrompt: a keyword-only query ("touch" with nothing after it) already lists
+        // this command, so the argument arrives empty and used to make Enter look like a no-op.
+        var name = result.FullPath?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
         {
-            return;
+            name = CommandKeywordPrompt.Ask(NameFieldKey, "Action_Touch", "Action_Touch_NameLabel");
+            if (string.IsNullOrWhiteSpace(name))
+                return;
         }
 
         try
         {
-            var targetPath = Path.Combine(result.ContextDirectory, result.FullPath.Trim());
+            var targetPath = Path.Combine(result.ContextDirectory, name);
             var dir = Path.GetDirectoryName(targetPath);
             if (!string.IsNullOrEmpty(dir))
             {

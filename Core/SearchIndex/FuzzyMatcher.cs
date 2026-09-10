@@ -28,6 +28,17 @@ public static class FuzzyMatcher
         if (fzf.IsEmpty)
             return false;
 
+        return IsMatch(fzf, text);
+    }
+
+    // Overload for callers that already hold the parsed pattern -- avoids re-parsing (and re-running
+    // every registered alias provider's GetQueryForms) per candidate when the same query is tested
+    // against many texts. The empty-pattern guard above stays on the string overload: a caller holding
+    // a pattern is responsible for its own empty-pattern semantics, which differ per call site.
+    internal static bool IsMatch(FzfPattern fzf, string text)
+    {
+        if (fzf.IsEmpty || string.IsNullOrEmpty(text))
+            return false;
         if (fzf.TryMatch(text, out _, FzfScoringScheme.Default))
             return true;
 
@@ -48,6 +59,11 @@ public static class FuzzyMatcher
             foreach (var alias in provider.GetAliases(text))
             {
                 if (!fzf.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default))
+                    continue;
+
+                // A precise query must not match a full transliteration mid-syllable -- see
+                // AliasMatchRules, and the same check the core index scan applies.
+                if (!AliasMatchRules.AllowsMatch(fzf.RequiresAlignedAliases, provider.SyllableSeparator, alias, aliasMatch.MinBegin))
                     continue;
 
                 // Same quality bar the core index scan applies to its own alias fallback (see
@@ -96,8 +112,13 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(query))
             return new bool[text.Length];
 
-        return HighlightMask.Compute(text, FzfPattern.Parse(query));
+        return ComputeHighlightMask(text, FzfPattern.Parse(query));
     }
+
+    // Parsed-pattern overload: callers that test MANY texts against ONE query hit this instead of the
+    // string overload, which re-parses (and re-runs every alias provider's GetQueryForms) per text.
+    internal static bool[] ComputeHighlightMask(string? text, FzfPattern pattern)
+        => string.IsNullOrEmpty(text) ? Array.Empty<bool>() : HighlightMask.Compute(text, pattern);
 
     // The same percentage*consecutiveness ranking weight the file-search hot path uses (see
     // FzfResultRank.ApplyWeight), exposed for callers outside Core that rank their own candidates by
@@ -113,39 +134,84 @@ public static class FuzzyMatcher
         return HighlightMask.ComputeWeight(text, FzfPattern.Parse(query));
     }
 
+    // The same "does it match, where does it start, how well" measure the two windows rank by -- start
+    // position first, then weight (see MatchRank). Exposed alongside ComputeMatchWeight so callers that
+    // only need the weight are not forced to pay for the extra field.
+    public static MatchRank ComputeMatchRank(string text, string query)
+    {
+        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(query))
+            return MatchRank.NoMatch;
+
+        return HighlightMask.ComputeRank(text, FzfPattern.Parse(query));
+    }
+
+    // Parsed-pattern overload -- same reason as ComputeHighlightMask's: the per-candidate string form
+    // re-parses the query on every call, which measured over 6x slower across a candidate set once an
+    // alias provider (pinyin) is registered, because Parse consults every provider's GetQueryForms.
+    internal static MatchRank ComputeMatchRank(string? text, FzfPattern pattern)
+        => string.IsNullOrEmpty(text) ? MatchRank.NoMatch : HighlightMask.ComputeRank(text, pattern);
+
     // The standard "does this match, and how well" contract for App-side candidate sources that judge
     // a match against more than one text representation of the same item -- a favorite's display name
     // and its path, a searchable item's title and its curated aliases, and so on. Checks `primaryText`
-    // first, then each of `alternateTexts` in order, taking whichever matched with the highest weight
-    // (mirrors HighlightMask never scoring an intermediate alias string higher than what actually
-    // produced the match). Every candidate source should call this rather than re-deriving its own
-    // literal-substring/DP-fallback matching, so a multi-word query is always split into independently-
-    // required terms the same way Core's own file search splits it.
-    public static (bool IsMatch, double Weight) ComputeBestMatch(string query, string primaryText, IEnumerable<string>? alternateTexts = null)
+    // first, then each of `alternateTexts` in order, taking the strongest match (see IsStronger); mirrors
+    // HighlightMask never scoring an intermediate alias string higher than what actually produced the
+    // match. Every candidate source should call this rather than re-deriving its own literal-substring/
+    // DP-fallback matching, so a multi-word query is always split into independently-required terms the
+    // same way Core's own file search splits it.
+    public static MatchRank ComputeBestMatch(string query, string primaryText, IEnumerable<string>? alternateTexts = null)
     {
         if (string.IsNullOrEmpty(query))
-            return (false, 0);
+            return MatchRank.NoMatch;
 
-        var isMatch = false;
-        var weight = 0.0;
+        return ComputeBestMatch(FzfPattern.Parse(query), primaryText, alternateTexts);
+    }
 
-        if (!string.IsNullOrEmpty(primaryText) && IsMatch(query, primaryText))
-        {
-            isMatch = true;
-            weight = ComputeMatchWeight(primaryText, query);
-        }
+    // Parsed-pattern overload: this is the shape a per-candidate catalog scan uses (SearchableItemMapper
+    // over every Start Menu/settings entry, HistorySearchCandidateMapper over the history list), and each
+    // candidate can hand several texts (name plus aliases). The string overload used to re-parse the same
+    // query once per IsMatch AND again per ComputeRank per text -- 2+ parses per text, thousands of texts
+    // per keystroke. One parse, reused across every text and candidate, is what this overload removes.
+    internal static MatchRank ComputeBestMatch(FzfPattern pattern, string? primaryText, IEnumerable<string>? alternateTexts = null)
+    {
+        var best = MatchRank.NoMatch;
+
+        if (!string.IsNullOrEmpty(primaryText) && IsMatch(pattern, primaryText))
+            best = Hit(pattern, primaryText);
 
         if (alternateTexts != null)
         {
             foreach (var text in alternateTexts)
             {
-                if (string.IsNullOrEmpty(text) || !IsMatch(query, text))
+                if (string.IsNullOrEmpty(text) || !IsMatch(pattern, text))
                     continue;
-                isMatch = true;
-                weight = Math.Max(weight, ComputeMatchWeight(text, query));
+                var rank = Hit(pattern, text);
+                if (IsStronger(rank, best))
+                    best = rank;
             }
         }
 
-        return (isMatch, weight);
+        return best;
     }
+
+    // Stronger match wins, in the same order the windows rank by (see SearchResultRelevance): start
+    // position first, then quality weight, then tier last. Tier being weakest means 英文 > 简拼 > 全拼 only
+    // separates texts that already agree on where and how tightly they matched -- a tighter full-pinyin hit
+    // beats a looser literal one, which is the requested global weighting.
+    internal static bool IsStronger(MatchRank candidate, MatchRank incumbent)
+    {
+        if (!candidate.IsMatch)
+            return false;
+        if (!incumbent.IsMatch)
+            return true;
+
+        if (candidate.Start != incumbent.Start)
+            return candidate.Start < incumbent.Start;
+        if (candidate.Weight != incumbent.Weight)
+            return candidate.Weight > incumbent.Weight;
+        return candidate.Tier < incumbent.Tier;
+    }
+
+    // A text already known to match: rank it without re-testing the match.
+    private static MatchRank Hit(FzfPattern pattern, string text) => HighlightMask.ComputeRank(text, pattern);
 }

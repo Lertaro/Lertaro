@@ -52,4 +52,24 @@ internal static class ListSelectionNavigator
 
         return -1;
     }
+
+    /// <summary>
+    /// The index of the first selectable row, or -1 when the list holds none.
+    /// </summary>
+    /// <remarks>
+    /// Used to put the selection back on a REAL result after the results are replaced. The row at index 0
+    /// is not that result -- the inline window's list opens with a section header ("Current Folder"), so a
+    /// caller that just checks "is anything selected" sees the header, believes the selection is already
+    /// where it belongs, and leaves it there. That silently breaks live host syncing, which needs a real
+    /// file path to mirror.
+    /// </remarks>
+    public static int FirstSelectable(int count, Func<int, bool> isSelectable)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            if (isSelectable(i))
+                return i;
+        }
+        return -1;
+    }
 }

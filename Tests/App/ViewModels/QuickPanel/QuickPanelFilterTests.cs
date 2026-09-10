@@ -85,15 +85,15 @@ public sealed class QuickPanelFilterTests
         CollectionAssert.AreEqual(new[] { "report.docx" }, vm.Groups[0].Items.Select(i => i.Name).ToList());
     }
 
-    // fzf's own smart case, which is what every other box in this app does: a lower-case query ignores
-    // case, and typing a capital is how you ask for one.
+    // Matching ignores case in both directions, like the main search box does now: typing a capital
+    // no longer switches the box to case-sensitive matching.
     [TestMethod]
-    public async Task Filter_LowerCaseQuery_IgnoresCase()
+    public async Task Filter_QueryCase_IsIgnored()
     {
         var vm = await Loaded();
 
         vm.SearchQuery = "REPORT";
-        Assert.IsFalse(vm.Groups[0].HasMatches, "a capital in the query makes it case-sensitive");
+        CollectionAssert.AreEqual(new[] { "report.docx" }, vm.Groups[0].Items.Select(i => i.Name).ToList());
 
         vm.SearchQuery = "report";
         CollectionAssert.AreEqual(new[] { "report.docx" }, vm.Groups[0].Items.Select(i => i.Name).ToList());

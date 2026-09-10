@@ -12,6 +12,19 @@ public sealed class FuzzyMatcherTests
     [TestMethod]
     public void IsMatch_SubsequenceMatch_ReturnsTrue() => Assert.IsTrue(FuzzyMatcher.IsMatch("rdm", "readme.md"));
 
+    // Case is ignored in both directions: the query's own case never changes what matches, and the
+    // candidate's case never does either. This replaces fzf's smart-case rule, under which a capital
+    // anywhere in the query made it case-sensitive and "WX" stopped matching "wxfef.doc".
+    [TestMethod]
+    public void IsMatch_UpperCaseQuery_MatchesLowerCaseText() => Assert.IsTrue(FuzzyMatcher.IsMatch("WX", "wxfef.doc"));
+
+    [TestMethod]
+    public void IsMatch_LowerCaseQuery_MatchesUpperCaseText() => Assert.IsTrue(FuzzyMatcher.IsMatch("wx", "WXFEF.DOC"));
+
+    [TestMethod]
+    public void ComputeMatchWeight_UpperCaseQuery_MatchesLowerCaseText() =>
+        Assert.AreEqual(FuzzyMatcher.ComputeMatchWeight("wxfef.doc", "wx"), FuzzyMatcher.ComputeMatchWeight("wxfef.doc", "WX"));
+
     [TestMethod]
     public void IsMatch_NoSubsequence_ReturnsFalse() => Assert.IsFalse(FuzzyMatcher.IsMatch("xyz", "readme.md"));
 
@@ -66,39 +79,52 @@ public sealed class FuzzyMatcherTests
         Assert.IsLessThan(full, partial);
     }
 
+    // Weight is pure coverage*contiguity -- position is a separate, higher tier (see ComputeMatchRank /
+    // MatchRank_PositionOutranksWeight). This documents why they are separate: the shorter name keeps the
+    // larger weight even though it matches later, so ranking by weight alone would invert the intended
+    // left-side-first order.
+    [TestMethod]
+    public void ComputeMatchWeight_DoesNotFoldInPosition()
+    {
+        var atStart = FuzzyMatcher.ComputeMatchWeight("wxfef.doc", "wx");
+        var oneIn = FuzzyMatcher.ComputeMatchWeight("iwxfe.mp", "wx");
+
+        Assert.IsGreaterThan(atStart, oneIn);
+    }
+
     [TestMethod]
     public void ComputeBestMatch_EmptyQuery_ReturnsNoMatch()
     {
-        var (isMatch, weight) = FuzzyMatcher.ComputeBestMatch("", "readme");
+        var match = FuzzyMatcher.ComputeBestMatch("", "readme");
 
-        Assert.IsFalse(isMatch);
-        Assert.AreEqual(0, weight);
+        Assert.IsFalse(match.IsMatch);
+        Assert.AreEqual(0, match.Weight);
     }
 
     [TestMethod]
     public void ComputeBestMatch_PrimaryTextMatches_ReturnsMatch()
     {
-        var (isMatch, weight) = FuzzyMatcher.ComputeBestMatch("read", "readme.md");
+        var match = FuzzyMatcher.ComputeBestMatch("read", "readme.md");
 
-        Assert.IsTrue(isMatch);
-        Assert.IsGreaterThan(0, weight);
+        Assert.IsTrue(match.IsMatch);
+        Assert.IsGreaterThan(0, match.Weight);
     }
 
     [TestMethod]
     public void ComputeBestMatch_OnlyAlternateTextMatches_ReturnsMatch()
     {
-        var (isMatch, _) = FuzzyMatcher.ComputeBestMatch("read", "notes.txt", new[] { "readme.md" });
+        var match = FuzzyMatcher.ComputeBestMatch("read", "notes.txt", new[] { "readme.md" });
 
-        Assert.IsTrue(isMatch);
+        Assert.IsTrue(match.IsMatch);
     }
 
     [TestMethod]
     public void ComputeBestMatch_NeitherPrimaryNorAlternateMatches_ReturnsNoMatch()
     {
-        var (isMatch, weight) = FuzzyMatcher.ComputeBestMatch("xyz", "notes.txt", new[] { "readme.md" });
+        var match = FuzzyMatcher.ComputeBestMatch("xyz", "notes.txt", new[] { "readme.md" });
 
-        Assert.IsFalse(isMatch);
-        Assert.AreEqual(0, weight);
+        Assert.IsFalse(match.IsMatch);
+        Assert.AreEqual(0, match.Weight);
     }
 
     [TestMethod]
@@ -106,10 +132,40 @@ public sealed class FuzzyMatcherTests
     {
         // Alternate text 2 ("read.txt") is a tighter, higher-weight match for "read" than the noisier
         // primary text -- ComputeBestMatch must take the max weight, not just the first match found.
-        var (isMatch, weight) = FuzzyMatcher.ComputeBestMatch(
+        var match = FuzzyMatcher.ComputeBestMatch(
             "read", "r_e_a_d_noisy", new[] { "unrelated", "read.txt" });
 
-        Assert.IsTrue(isMatch);
-        Assert.AreEqual(FuzzyMatcher.ComputeMatchWeight("read.txt", "read"), weight);
+        Assert.IsTrue(match.IsMatch);
+        Assert.AreEqual(FuzzyMatcher.ComputeMatchWeight("read.txt", "read"), match.Weight);
+    }
+
+    // Start position is reported so the windows can rank "left-side match priority" above weight.
+    [TestMethod]
+    public void ComputeMatchRank_ReportsLeftmostMatchedIndex()
+    {
+        Assert.AreEqual(0, FuzzyMatcher.ComputeMatchRank("wxfef.doc", "wx").Start);
+        Assert.AreEqual(1, FuzzyMatcher.ComputeMatchRank("iwxfe.mp", "wx").Start);
+    }
+
+    [TestMethod]
+    public void ComputeMatchRank_NoMatch_HasSentinelStartAndIsNotAMatch()
+    {
+        var rank = FuzzyMatcher.ComputeMatchRank("readme.md", "xyz");
+
+        Assert.IsFalse(rank.IsMatch);
+        Assert.AreEqual(0, rank.Weight);
+    }
+
+    // The same shorter-name case that defeated a multiplicative position factor: start position is
+    // compared on its own, so "wxfef.doc" (start 0) beats "iwxfe.mp" (start 1) even though the shorter
+    // name has the larger coverage share.
+    [TestMethod]
+    public void MatchRank_PositionOutranksWeight()
+    {
+        var leftmost = FuzzyMatcher.ComputeMatchRank("wxfef.doc", "wx");
+        var later = FuzzyMatcher.ComputeMatchRank("iwxfe.mp", "wx");
+
+        Assert.IsGreaterThan(leftmost.Weight, later.Weight, "precondition: the shorter name has the larger weight");
+        Assert.IsLessThan(later.Start, leftmost.Start, "the leftmost match must win on position");
     }
 }

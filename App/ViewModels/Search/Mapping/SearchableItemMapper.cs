@@ -27,7 +27,7 @@ public static class SearchableItemMapper
             if (entry == null)
                 continue;
 
-            result = BuildCandidate(entry, provider, query, 0).Result;
+            result = BuildCandidate(entry, provider, query, MatchRank.NoMatch).Result;
             return true;
         }
 
@@ -47,23 +47,28 @@ public static class SearchableItemMapper
         remove => SearchableItemCache.ProviderLoaded -= value;
     }
 
-    // Returns candidates (with their ranking weight) instead of appending directly to a results list --
-    // the caller (SearchResultMapper.BuildQuickResults) merges these into one globally weight-sorted
-    // list alongside favorites/history-matched files/file-search results, rather than always showing
-    // every searchable item ahead of every file result regardless of which actually matched better.
-    public static List<(AppSearchResult Result, double Weight)> CollectSearchableItemResults(string query, bool isInlineWindow)
+    // Returns candidates (with their ranking MatchRank) instead of appending directly to a results list --
+    // the caller (SearchResultMapper.BuildQuickResults) merges these into one globally sorted list
+    // alongside favorites/history-matched files/file-search results, rather than always showing every
+    // searchable item ahead of every file result regardless of which actually matched better.
+    public static List<(AppSearchResult Result, MatchRank Match)> CollectSearchableItemResults(string query, bool isInlineWindow)
     {
-        var candidates = new List<(AppSearchResult Result, double Weight)>();
+        var candidates = new List<(AppSearchResult Result, MatchRank Match)>();
         if (isInlineWindow) return candidates;
 
         var q = query?.Trim() ?? string.Empty;
         if (string.IsNullOrEmpty(q)) return candidates;
 
+        // Parsed ONCE for the whole catalog scan. The per-entry string API re-parsed the query for every
+        // title and every alias (2+ parses per text, and Parse re-runs each alias provider's
+        // GetQueryForms), which dominated this loop's cost on a single keystroke.
+        var fuzzy = FuzzyQuery.Parse(q);
+
         // Every matched entry -- across ALL providers, not just within one -- gets ranked by the same
-        // percentage*consecutiveness weight the file search hot path uses (FuzzyMatcher.
-        // ComputeMatchWeight, against the entry's own title -- same text TextHighlighter shows),
-        // instead of a fixed match-kind bucket order capped PER PROVIDER.
-        var matched = new List<(SearchableItemCache.CacheEntry Entry, double Weight, ISearchableItemProvider Provider, string ActiveQuery)>();
+        // match rank the file search hot path uses (FuzzyMatcher.ComputeBestMatch, against the entry's
+        // own title -- same text TextHighlighter shows), instead of a fixed match-kind bucket order capped
+        // PER PROVIDER.
+        var matched = new List<(SearchableItemCache.CacheEntry Entry, MatchRank Match, ISearchableItemProvider Provider, string ActiveQuery)>();
 
         foreach (var provider in PluginManager.Instance.SearchableItemProviders)
         {
@@ -74,24 +79,28 @@ public static class SearchableItemMapper
 
             foreach (var entry in entries)
             {
-                // The standard match+weight contract (FuzzyMatcher.ComputeBestMatch): title first,
-                // then each curated alias, via the same FzfPattern.Parse Core's real file search uses
+                // The standard match contract (FuzzyMatcher.ComputeBestMatch): title first,
+                // then each curated alias, via the same FzfPattern Parse Core's real file search uses
                 // -- a multi-word query like "gsh ypfq" correctly requires BOTH words to match
                 // somewhere. (Keyword-scoped directory search used to live here as a FileFilter_
                 // ResultKind routing over materialized files; it is now a real scoped engine search --
                 // see FileFilterScopeResolver.)
-                var (isMatch, weight) = FuzzyMatcher.ComputeBestMatch(q, entry.Item.Title, entry.Aliases);
-                if (isMatch)
-                    matched.Add((entry, weight, provider, q));
+                var match = fuzzy.BestMatch(entry.Item.Title, entry.Aliases);
+                if (match.IsMatch)
+                    matched.Add((entry, match, provider, q));
             }
         }
 
         // Generous safety cap only -- the real top-N selection happens after this merges with the
-        // other candidate categories in BuildQuickResults.
-        var matches = matched.OrderByDescending(m => m.Weight).Take(50);
-        foreach (var (entry, weight, provider, activeQuery) in matches)
+        // other candidate categories in BuildQuickResults. Same primary key as the final ranking (match
+        // start, then weight) so the cap cannot drop a candidate the merge would have ranked higher.
+        var matches = matched
+            .OrderBy(m => m.Match.Start)
+            .ThenByDescending(m => m.Match.Weight)
+            .Take(50);
+        foreach (var (entry, match, provider, activeQuery) in matches)
         {
-            candidates.Add(BuildCandidate(entry, provider, activeQuery, weight));
+            candidates.Add(BuildCandidate(entry, provider, activeQuery, match));
         }
 
         return candidates;
@@ -99,7 +108,7 @@ public static class SearchableItemMapper
 
     // Split out of the matches loop below purely to keep this file's per-method length down -- no
     // other caller.
-    private static (AppSearchResult Result, double Weight) BuildCandidate(SearchableItemCache.CacheEntry entry, ISearchableItemProvider provider, string activeQuery, double weight)
+    private static (AppSearchResult Result, MatchRank Match) BuildCandidate(SearchableItemCache.CacheEntry entry, ISearchableItemProvider provider, string activeQuery, MatchRank match)
     {
         var item = entry.Item;
         System.Windows.Media.ImageSource? iconOverride = null;
@@ -183,6 +192,6 @@ public static class SearchableItemMapper
             InstantResultOnExecuteFunc = item.OnExecuteFunc,
             TabCompletion = item.TabCompletion,
             SourceProvider = provider
-        }, weight);
+        }, match);
     }
 }

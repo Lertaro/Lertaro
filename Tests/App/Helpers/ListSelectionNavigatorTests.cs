@@ -90,6 +90,34 @@ public class ListSelectionNavigatorTests
     [TestMethod]
     public void ADirectionOfZeroMovesNowhere() => Assert.AreEqual(-1, ListSelectionNavigator.NextSelectable(0, 0, 3, _ => true));
 
+    // The auto-select pass uses this to put the selection back on a real result after the list is
+    // replaced. It must skip the leading section header: seeing index 0 selected and calling that
+    // "already selected" is what left the header selected during typing, so the host had no real path to
+    // mirror and live syncing never happened.
+    [TestMethod]
+    public void FirstSelectable_SkipsLeadingHeaders()
+    {
+        Assert.AreEqual(1, ListSelectionNavigator.FirstSelectable(3, i => "-ss"[i] == 's'));
+        Assert.AreEqual(2, ListSelectionNavigator.FirstSelectable(3, i => "--s"[i] == 's'));
+    }
+
+    [TestMethod]
+    public void FirstSelectable_ReturnsZeroWhenTheFirstRowIsSelectable()
+    {
+        Assert.AreEqual(0, ListSelectionNavigator.FirstSelectable(3, i => "sss"[i] == 's'));
+    }
+
+    [TestMethod]
+    public void FirstSelectable_NothingSelectable_ReturnsMinusOne()
+    {
+        Assert.AreEqual(-1, ListSelectionNavigator.FirstSelectable(3, _ => false));
+        Assert.AreEqual(-1, ListSelectionNavigator.FirstSelectable(0, _ => true));
+    }
+
+    [TestMethod]
+    public void FirstSelectable_EmptyListReturnsMinusOne() =>
+        Assert.AreEqual(-1, ListSelectionNavigator.FirstSelectable(0, _ => true));
+
     [TestMethod]
     public void NeverTestsMoreRowsThanTheListHolds()
     {

@@ -17,6 +17,32 @@ internal sealed class FzfPattern
     public FzfTermSet[] TermSets { get; }
     public bool IsEmpty => TermSets.Length == 0;
 
+    // True when every term was matched as a PRECISE run rather than as a scattered subsequence -- the
+    // ordinary "fuzzy matching is switched off" query, and also an all-explicit-operator one. Alias
+    // fallback then has to respect the provider's syllable boundaries (see AliasMatchRules), which is what
+    // stops "ex" being read as the tail of "xue" plus the head of "xi".
+    //
+    // Keyed off the terms rather than SearchContext.FuzzyMatchEnabled so a term that explicitly flips
+    // itself back to a subsequence ("'jtqin", under fuzzy-off) stays exempt: for that term the user did ask
+    // for a loose match, and applying the boundary rule would contradict what the operator means.
+    public bool RequiresAlignedAliases
+    {
+        get
+        {
+            foreach (var set in TermSets)
+            {
+                foreach (var term in set.Terms)
+                {
+                    if (term.Inverse)
+                        continue;
+                    if (term.Kind == FzfTermKind.Fuzzy)
+                        return false;
+                }
+            }
+            return true;
+        }
+    }
+
     // How much text the user actually typed, which is what the alias-fallback quality gate scales its
     // thresholds against (see IsAcceptableAliasMatch). A term set holds ALTERNATIVES -- one OR branch,
     // or one of the spellings an alias provider offers for the same term -- so only one of them can
@@ -83,9 +109,9 @@ internal sealed class FzfPattern
     // Skipped for an inverse term. "!x" means "reject anything matching x", and an OR set is satisfied
     // by ANY alternative, so adding spellings there would widen what gets excluded rather than what
     // gets found -- the opposite of the intent.
-    private static void AddAliasQueryForms(List<FzfTerm> current, string lower, FzfTermKind kind, bool inverse, bool caseSensitive)
+    private static void AddAliasQueryForms(List<FzfTerm> current, string lower, FzfTermKind kind, bool inverse)
     {
-        if (inverse || caseSensitive || lower.Length == 0)
+        if (inverse || lower.Length == 0)
             return;
 
         foreach (var provider in AliasProviderRegistry.GetActiveProviders())
@@ -295,10 +321,13 @@ internal sealed class FzfPattern
                 current.Clear();
             }
 
+            // Matching is always case-insensitive, in both directions: the query's own case is folded
+            // away, and every candidate is compared the same way. This replaces fzf's smart-case rule
+            // (a capital anywhere in the typed text used to make that term case-SENSITIVE, so "WX"
+            // matched only names containing a literal "WX" and missed "wxfef.doc" entirely).
             var lower = token.ToLowerInvariant();
-            var caseSensitive = token != lower;
-            current.Add(new FzfTerm(kind, inverse, caseSensitive ? token : lower, caseSensitive));
-            AddAliasQueryForms(current, lower, kind, inverse, caseSensitive);
+            current.Add(new FzfTerm(kind, inverse, lower, CaseSensitive: false));
+            AddAliasQueryForms(current, lower, kind, inverse);
             switchSet = true;
         }
 

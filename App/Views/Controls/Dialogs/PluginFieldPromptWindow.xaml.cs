@@ -81,7 +81,20 @@ public partial class PluginFieldPromptWindow : Window
     // every nested element's own Loaded/layout pass has settled first) -- switching to Star now lets
     // the scroll area actually fill the window's height, and recenters against Owner since
     // WindowStartupLocation="CenterOwner" positioned this using a stale/placeholder size.
-    private void Window_Loaded(object sender, RoutedEventArgs e) =>
+    private void Window_Loaded(object sender, RoutedEventArgs e)
+    {
+        // Take the OS foreground, not merely WPF focus. Keys pressed while the inline window is up travel
+        // through the HOOK process, which decides whether a keystroke is inline-search input by asking which
+        // window is FOREGROUND. Opened over Explorer/DOpus, this dialog would leave them foreground, so every
+        // character typed into the box below was ALSO forwarded to the App as a search character and re-ran
+        // the search behind the dialog. Reuses the same elevated handoff the quick/inline windows rely on to
+        // beat Windows' foreground-lock (see QuickSearchWindowNative.ForceForeground); deliberately here in
+        // Loaded rather than before ShowModal, since a window that is not yet visible cannot be made
+        // foreground.
+        var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (handle != IntPtr.Zero)
+            _ = Task.Run(() => QuickSearchWindow.Helpers.QuickSearchWindowNative.ForceForeground(handle));
+
         Dispatcher.BeginInvoke(new Action(() =>
         {
             UpdateLayout();
@@ -93,6 +106,7 @@ public partial class PluginFieldPromptWindow : Window
                 Top = Owner.Top + (Owner.ActualHeight - ActualHeight) / 2;
             }
         }), System.Windows.Threading.DispatcherPriority.ContextIdle);
+    }
 
     private void Window_Activated(object? sender, EventArgs e)
     {
@@ -102,15 +116,29 @@ public partial class PluginFieldPromptWindow : Window
         {
             if (!IsActive || _initialEditorFocused) return;
 
-            var editor = FindVisualChildren<System.Windows.Controls.TextBox>(FieldsControl)
-                .FirstOrDefault(textBox => textBox.DataContext is PluginConfigFieldViewModel { SelectionLength: > 0 });
-            if (editor?.DataContext is not PluginConfigFieldViewModel field) return;
+            // Prefer the field that asked for a selection (RenameAction preselects the name so typing
+            // replaces it), but fall back to the FIRST editable field. Requiring a selection meant a
+            // prompt whose field has none -- "mkdir"/"touch" asking for a new name -- focused nothing at
+            // all, so the dialog opened with the caret nowhere and the user had to click before typing.
+            var editors = FindVisualChildren<System.Windows.Controls.TextBox>(FieldsControl).ToList();
+            var editor = editors.FirstOrDefault(textBox => textBox.DataContext is PluginConfigFieldViewModel { SelectionLength: > 0 })
+                         ?? editors.FirstOrDefault();
+            if (editor is null) return;
 
-            var start = Math.Clamp(field.SelectionStart, 0, editor.Text.Length);
-            var length = Math.Clamp(field.SelectionLength, 0, editor.Text.Length - start);
             editor.Focus();
             Keyboard.Focus(editor);
-            editor.Select(start, length);
+            if (editor.DataContext is PluginConfigFieldViewModel { SelectionLength: > 0 } field)
+            {
+                var start = Math.Clamp(field.SelectionStart, 0, editor.Text.Length);
+                var length = Math.Clamp(field.SelectionLength, 0, editor.Text.Length - start);
+                editor.Select(start, length);
+            }
+            else
+            {
+                // Nothing to preselect: put the caret at the end so typing appends to a prefilled default
+                // rather than silently overwriting it.
+                editor.CaretIndex = editor.Text.Length;
+            }
             _initialEditorFocused = true;
         }));
     }

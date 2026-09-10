@@ -27,14 +27,14 @@ public static class FavoriteSearchHelper
         return fav.Path;
     }
 
-    // The standard match+weight contract (FuzzyMatcher.ComputeBestMatch), matched against the display
+    // The standard match contract (FuzzyMatcher.ComputeBestMatch), matched against the display
     // name only -- matching against the raw path too used to let unrelated path segments (a parent
     // folder like "Program Files" fuzzy-contributing letters to an unrelated query) surface a favorite
     // with no real relevance to what was typed, and rank it above genuinely-matching favorites and other
     // results. A favorite is something the user deliberately named or picked; searching for it should
     // only need to match what it's actually called.
-    internal static (bool IsMatch, double Weight) ComputeMatch(FavoriteItemSetting fav, string query)
-        => FuzzyMatcher.ComputeBestMatch(query, GetDisplayName(fav));
+    internal static MatchRank ComputeMatch(FavoriteItemSetting fav, FuzzyQuery fuzzy)
+        => fuzzy.BestMatch(GetDisplayName(fav));
 
     public static AppSearchResult CreateFavoriteUiResult(FavoriteItemSetting fav, string query, int index)
     {

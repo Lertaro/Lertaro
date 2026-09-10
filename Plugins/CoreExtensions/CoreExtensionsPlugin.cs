@@ -136,6 +136,19 @@ public class CoreExtensionsPlugin : IPlugin, IActionProvider, IConfigurable
                         DescriptionKey = "CoreExtensions_Config_InlineSearchAlwaysOpenDesc",
                         FieldType = ConfigFieldType.Boolean,
                         DefaultValue = true
+                    },
+                    // Inline-search only: those windows are the one place a plugin action is inserted ahead
+                    // of the file results AND takes the default selection, so Enter runs the command instead
+                    // of opening the file the user matched. The quick and full windows keep their actions
+                    // either way -- which is why this belongs in this plugin's inline section rather than in
+                    // the app-wide general settings.
+                    new PluginConfigField
+                    {
+                        Key = "InlineSearchEnableSearchActions",
+                        LabelKey = "CoreExtensions_Config_InlineSearchSearchActionsLabel",
+                        DescriptionKey = "CoreExtensions_Config_InlineSearchSearchActionsDesc",
+                        FieldType = ConfigFieldType.Boolean,
+                        DefaultValue = true
                     }
                 }
             },

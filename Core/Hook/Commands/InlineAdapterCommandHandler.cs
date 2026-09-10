@@ -23,24 +23,23 @@ namespace Lertaro.Core.Hook.Commands;
 // thread) keeps working for every other window and adapter regardless.
 internal static class InlineAdapterCommandHandler
 {
-    // Each InlineSelectionChanged gets its own throwaway thread (see RunOnSta below), so rapid
-    // selection changes can have several calls in flight at once with no ordering guarantee between
-    // them -- a slower, older call finishing after a faster, newer one would silently revert Explorer's
-    // highlighted item back to a stale selection. InlineSelectionChanged fires on far more than just
-    // arrow-key navigation -- the App re-selects each new result set's first item on every keystroke
-    // while typing, so this message arrives roughly once per character during normal use, not just
-    // during deliberate navigation.
+    // Selection mirroring is coalesced rather than dropped. Each InlineSelectionChanged updates the
+    // LATEST path/version and (if not already running) starts one STA worker that syncs the newest value
+    // at most once per SelectionDebounceMs, then exits once nothing newer arrives.
     //
-    // This counter gives each call a sequence number assigned in arrival order (IPC messages are
-    // handled one at a time, so the assignment itself is race-free). Each dispatched call first waits
-    // SelectionDebounceMs before doing anything, then bails out if a newer call has been assigned in
-    // the meantime -- so a burst of rapid changes (continuous typing, or holding an arrow key) produces
-    // at most one real sync, for wherever the user actually settles, instead of racing a COM call per
-    // intermediate keystroke (which starved out almost every call during active typing -- an earlier,
-    // debounce-less version of this fix that only checked staleness immediately at thread-start made
-    // auto-select feel completely broken while typing, since a newer keystroke's message almost always
-    // arrived before the current thread even got scheduled).
-    private static long _selectionSequence;
+    // This replaces a per-message "sleep, then bail if superseded" debounce. That version discarded every
+    // intermediate change, and InlineSelectionChanged fires on far more than arrow keys -- the App
+    // re-selects each result set's first item on every keystroke, so a burst of typing superseded every
+    // call and NOTHING was mirrored until the user paused. It also swallowed genuine arrow-key presses
+    // that happened to land inside the burst. Coalescing keeps the original goal (never race one COM call
+    // per keystroke) while guaranteeing the host follows the search as it refines, not only after it
+    // settles.
+    private static readonly object _selectionSyncGate = new();
+    private static long _selectionVersion;
+    private static long _selectionProcessed;
+    private static string? _latestSelectionPath;
+    private static IntPtr _latestSelectionHwnd;
+    private static int _selectionWorkerRunning;
     private const int SelectionDebounceMs = 120;
 
     public static void Handle(HookProcess process, IpcMessage msg)
@@ -74,19 +73,15 @@ internal static class InlineAdapterCommandHandler
                 break;
 
             case IpcMessageId.InlineSelectionChanged:
-                var selectedPath = msg.StringVal1 ?? string.Empty;
-                var mySequence = Interlocked.Increment(ref _selectionSequence);
-                RunOnSta(() =>
+                // Record the newest request first (IPC messages are handled one at a time, so the version
+                // increment itself is race-free), then make sure a worker is draining it.
+                lock (_selectionSyncGate)
                 {
-                    try
-                    {
-                        Thread.Sleep(SelectionDebounceMs);
-                        if (Interlocked.Read(ref _selectionSequence) != mySequence)
-                            return; // superseded during the debounce wait; this one is stale
-                        ResolveAdapter(process, hwnd)?.OnSelectionChanged(hwnd, selectedPath);
-                    }
-                    catch (Exception ex) { Logger.Log($"[InlineAdapterCommandHandler] OnSelectionChanged threw: {ex.Message}", LogLevel.Error); }
-                });
+                    _latestSelectionPath = msg.StringVal1 ?? string.Empty;
+                    _latestSelectionHwnd = hwnd;
+                    Interlocked.Increment(ref _selectionVersion);
+                }
+                StartSelectionWorker(process);
                 break;
 
             case IpcMessageId.InlineSearchFinished:
@@ -97,6 +92,63 @@ internal static class InlineAdapterCommandHandler
                     catch (Exception ex) { Logger.Log($"[InlineAdapterCommandHandler] OnSearchFinished threw: {ex.Message}", LogLevel.Error); }
                 });
                 break;
+        }
+    }
+
+    // Ensures exactly one worker is draining selection changes at a time; a call that finds one already
+    // running just leaves its value for that worker to pick up.
+    private static void StartSelectionWorker(HookProcess process)
+    {
+        if (Interlocked.CompareExchange(ref _selectionWorkerRunning, 1, 0) != 0)
+            return;
+        RunOnSta(() => DrainSelectionChanges(process));
+    }
+
+    // Syncs the newest (hwnd, path) once per SelectionDebounceMs and exits when nothing newer arrives.
+    // Every iteration re-reads the latest values, so a burst collapses to a steady follow rather than one
+    // COM call per keystroke -- and, unlike the old supersede-and-drop debounce, it always converges on
+    // wherever the user actually is instead of discarding the whole burst until typing stops.
+    private static void DrainSelectionChanges(HookProcess process)
+    {
+        try
+        {
+            while (true)
+            {
+                var version = Interlocked.Read(ref _selectionVersion);
+                Thread.Sleep(SelectionDebounceMs);
+
+                string? path;
+                IntPtr hwnd;
+                lock (_selectionSyncGate)
+                {
+                    path = _latestSelectionPath;
+                    hwnd = _latestSelectionHwnd;
+                }
+
+                // Marked handled whether or not there is a target to send: an empty/hwnd-less request is
+                // still "the newest thing we have seen", and leaving it unmarked would make the finally
+                // below restart the worker forever, re-reading the same empty value every 120ms.
+                Interlocked.Exchange(ref _selectionProcessed, version);
+
+                if (!string.IsNullOrEmpty(path) && hwnd != IntPtr.Zero)
+                {
+                    try { ResolveAdapter(process, hwnd)?.OnSelectionChanged(hwnd, path); }
+                    catch (Exception ex) { Logger.Log($"[InlineAdapterCommandHandler] OnSelectionChanged threw: {ex.Message}", LogLevel.Error); }
+                }
+
+                // Nothing newer arrived while we were working: the burst has settled.
+                if (Interlocked.Read(ref _selectionVersion) == version)
+                    break;
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _selectionWorkerRunning, 0);
+
+            // A change can land between the loop's last read and the flag reset above; without this the
+            // burst would settle with a stale highlight and no further message would arrive to fix it.
+            if (Interlocked.Read(ref _selectionVersion) != Interlocked.Read(ref _selectionProcessed))
+                StartSelectionWorker(process);
         }
     }
 

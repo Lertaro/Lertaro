@@ -1,5 +1,6 @@
 using System.IO;
 using Lertaro.Core;
+using Lertaro.Core.SearchIndex;
 using Lertaro.App.ViewModels.Search.Mapping;
 
 namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
@@ -15,8 +16,10 @@ public sealed class RankAndDedupeTests
         int priority = int.MaxValue,
         int typeRank = int.MaxValue,
         double weight = 0,
-        string? normalizedPath = null) =>
-        new(Result(path), isCurated, priority, typeRank, weight, normalizedPath ?? path);
+        string? normalizedPath = null,
+        int start = 0,
+        int tier = MatchRank.TierName) =>
+        new(Result(path), isCurated, priority, typeRank, new MatchRank(tier, start, weight), normalizedPath ?? path);
 
     [TestMethod]
     public void RankAndDedupe_CuratedBeatsUncuratedRegardlessOfWeight()
@@ -72,6 +75,72 @@ public sealed class RankAndDedupeTests
         var ranked = SearchResultMapper.RankAndDedupe(candidates);
 
         Assert.AreEqual(@"C:\highWeight", ranked[0].FullPath);
+    }
+
+    // Left-side match priority sits ABOVE weight, so a match beginning earlier wins even when the
+    // competing (shorter-named) match has the larger coverage weight -- the same rule the full window's
+    // relevance key applies.
+    [TestMethod]
+    public void RankAndDedupe_EarlierStartBeatsHigherWeight()
+    {
+        var candidates = new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\iwxfe.mp", start: 1, weight: 0.25),
+            Candidate(@"C:\wxfef.doc", start: 0, weight: 0.22),
+        };
+
+        var ranked = SearchResultMapper.RankAndDedupe(candidates);
+
+        Assert.AreEqual(@"C:\wxfef.doc", ranked[0].FullPath);
+    }
+
+    // Tier is the WEAKEST key: an earlier start wins even when a later match was found through a better
+    // tier (英文 > 简拼 > 全拼 only separates rows that already agree on position and coverage).
+    [TestMethod]
+    public void RankAndDedupe_EarlierStartBeatsBetterTier()
+    {
+        var candidates = new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\later-literal", tier: MatchRank.TierName, start: 5, weight: 0.1),
+            Candidate(@"C:\earlier-full", tier: MatchRank.TierFull, start: 0, weight: 0.1),
+        };
+
+        var ranked = SearchResultMapper.RankAndDedupe(candidates);
+
+        Assert.AreEqual(@"C:\earlier-full", ranked[0].FullPath);
+    }
+
+    // Same start, so weight decides -- again before tier.
+    [TestMethod]
+    public void RankAndDedupe_HigherWeightBeatsBetterTier()
+    {
+        var candidates = new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\weak-literal", tier: MatchRank.TierName, start: 0, weight: 0.1),
+            Candidate(@"C:\tight-full", tier: MatchRank.TierFull, start: 0, weight: 0.9),
+        };
+
+        var ranked = SearchResultMapper.RankAndDedupe(candidates);
+
+        Assert.AreEqual(@"C:\tight-full", ranked[0].FullPath);
+    }
+
+    // With start and weight equal, tier finally separates: literal > initials > full pinyin.
+    [TestMethod]
+    public void RankAndDedupe_TierBreaksTiesOnEqualStartAndWeight()
+    {
+        var candidates = new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\alias-full", tier: MatchRank.TierFull, start: 0, weight: 1.0),
+            Candidate(@"C:\alias-initials", tier: MatchRank.TierInitials, start: 0, weight: 1.0),
+            Candidate(@"C:\literal", tier: MatchRank.TierName, start: 0, weight: 1.0),
+        };
+
+        var ranked = SearchResultMapper.RankAndDedupe(candidates);
+
+        CollectionAssert.AreEqual(
+            new[] { @"C:\literal", @"C:\alias-initials", @"C:\alias-full" },
+            ranked.Select(r => r.FullPath).ToArray());
     }
 
     [TestMethod]

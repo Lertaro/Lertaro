@@ -12,8 +12,8 @@ internal static class HistorySearchCandidateMapper
 {
     private const int MaxCandidates = 50;
 
-    public static List<SearchResultMapper.RankedCandidate> Collect(string query, string? scope) =>
-        Collect(query, scope, SearchHistoryStore.GetEntries(), SafeFileExists, SafeDirectoryExists);
+    public static List<SearchResultMapper.RankedCandidate> Collect(FuzzyQuery fuzzy, string? scope) =>
+        Collect(fuzzy, scope, SearchHistoryStore.GetEntries(), SafeFileExists, SafeDirectoryExists);
 
     private static bool SafeFileExists(string path)
     {
@@ -30,19 +30,21 @@ internal static class HistorySearchCandidateMapper
     }
 
     internal static List<SearchResultMapper.RankedCandidate> Collect(
-        string query,
+        FuzzyQuery fuzzy,
         string? scope,
         IEnumerable<HistoryEntry> entries,
         Func<string, bool> fileExists,
         Func<string, bool> directoryExists)
     {
-        if (string.IsNullOrWhiteSpace(query))
+        if (fuzzy.IsEmpty)
             return [];
 
+        var query = fuzzy.Text;
         var matches = entries
-            .Select(entry => (Entry: entry, Match: FuzzyMatcher.ComputeBestMatch(query, entry.Keyword)))
+            .Select(entry => (Entry: entry, Match: fuzzy.BestMatch(entry.Keyword)))
             .Where(candidate => candidate.Match.IsMatch)
-            .OrderByDescending(candidate => candidate.Match.Weight)
+            .OrderBy(candidate => candidate.Match.Start)
+            .ThenByDescending(candidate => candidate.Match.Weight)
             .ThenByDescending(candidate => candidate.Entry.Time);
         var candidates = new List<SearchResultMapper.RankedCandidate>(MaxCandidates);
         var candidatePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -63,7 +65,7 @@ internal static class HistorySearchCandidateMapper
                 IsCurated: true,
                 Priority: candidates.Count - MaxCandidates,
                 TypeRank: int.MaxValue,
-                Weight: match.Weight,
+                Match: match,
                 NormalizedPath: normalizedPath));
         }
 

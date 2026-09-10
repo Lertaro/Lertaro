@@ -146,7 +146,10 @@ internal sealed class PathGate
 
         // Baked-alias fallback: deliberately UNGATED (no IsAcceptableAliasMatch) and first-match-wins,
         // preserving the old TryMatchSegmentWithAlias semantics -- which regenerated pinyin LIVE per
-        // candidate; the same aliases now come zero-copy from the snapshot.
+        // candidate; the same aliases now come zero-copy from the snapshot. Syllable alignment is still
+        // applied (see AliasMatchRules): it is a correctness rule about which characters the user's query
+        // can describe, not a quality bar, and without it a precise query reaches a full reading
+        // mid-syllable on the path side even though the name side refuses it.
         var disabledIds = SearchContext.DisabledAliasIds;
         var (start, end) = _snapshot.AliasEntryRange(uid);
         for (var e = start; e < end; e++)
@@ -156,9 +159,11 @@ internal sealed class PathGate
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;
+            var separator = AliasProviderRegistry.GetSyllableSeparator(_snapshot.AliasProviderId(e));
             if (Ascii.IsValid(aliasUtf8))
             {
-                if (_segmentBytePatterns[q].TryMatchSegmented(aliasUtf8, out var aliasMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers))
+                if (_segmentBytePatterns[q].TryMatchSegmented(aliasUtf8, out var aliasMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
+                    && AliasMatchRules.AllowsMatchUtf8(_segmentPatterns[q], separator, aliasUtf8, aliasMatch.MinBegin))
                 {
                     score = aliasMatch.Score;
                     return true;
@@ -169,7 +174,8 @@ internal sealed class PathGate
                 if (worker.AliasScratch.Length < aliasUtf8.Length)
                     worker.AliasScratch = new char[Math.Max(aliasUtf8.Length, worker.AliasScratch.Length * 2)];
                 var written = Encoding.UTF8.GetChars(aliasUtf8, worker.AliasScratch);
-                if (_segmentPatterns[q].TryMatch(worker.AliasScratch.AsSpan(0, written), out var aliasMatch, FzfScoringScheme.Default, worker.Slab))
+                if (_segmentPatterns[q].TryMatch(worker.AliasScratch.AsSpan(0, written), out var aliasMatch, FzfScoringScheme.Default, worker.Slab)
+                    && AliasMatchRules.AllowsMatch(_segmentPatterns[q], separator, worker.AliasScratch.AsSpan(0, written), aliasMatch.MinBegin))
                 {
                     score = aliasMatch.Score;
                     return true;
@@ -202,11 +208,13 @@ internal sealed class PathGate
                     continue;
                 foreach (var alias in provider.GetAliases(segment))
                 {
-                    if (_segmentPatterns[q].TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, worker.Slab))
-                    {
-                        score = aliasMatch.Score;
-                        return true;
-                    }
+                    if (!_segmentPatterns[q].TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, worker.Slab))
+                        continue;
+                    if (!AliasMatchRules.AllowsMatch(_segmentPatterns[q], provider.SyllableSeparator, alias, aliasMatch.MinBegin))
+                        continue;
+
+                    score = aliasMatch.Score;
+                    return true;
                 }
             }
             catch

@@ -120,7 +120,7 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
 
             var scope = GetSearchScope(hwnd);
             var parent = Path.GetDirectoryName(cleanPath);
-            var isInCurrentFolder = !string.IsNullOrEmpty(scope) && string.Equals(parent?.TrimEnd('\\'), scope.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+            var isInCurrentFolder = IsInFolder(scope, cleanPath);
 
             if (isDir)
             {
@@ -131,10 +131,9 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
             }
             else
             {
-                var filename = Path.GetFileName(cleanPath);
                 if (isInCurrentFolder)
                 {
-                    RunDopusCommandViaCopyData($"Select \"{filename}\" DESELECTNOMATCH SETFOCUS");
+                    SelectByFileName(cleanPath, focus: true);
                     return true;
                 }
                 else if (parent != null)
@@ -144,7 +143,7 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
                         _ = Task.Run(async () =>
                         {
                             await Task.Delay(200);
-                            RunDopusCommandViaCopyData($"Select \"{filename}\" DESELECTNOMATCH SETFOCUS");
+                            SelectByFileName(cleanPath, focus: true);
                         });
                         return true;
                     }
@@ -158,20 +157,54 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
         return false;
     }
 
+    // Selects one item in the lister's currently open folder without navigating. MAKEVISIBLE is what
+    // scrolls the item into view: without it the file is selected but can sit outside the visible rows, so
+    // a live sync looks like it did nothing. DESELECTNOMATCH makes this a replace-selection rather than an
+    // add.
+    //
+    // SETFOCUS is deliberately NOT here. It moves the file display's keyboard focus onto the item, and the
+    // live mirror fires WHILE the user is still typing in the search box (see
+    // InlineExplorerSelectionSync) -- so a keystroke could land in Directory Opus's file display instead,
+    // where its own type-ahead "quick find" picks it up and jumps the listing. Explorer's adapter has no
+    // equivalent because it only ever sets the selection, never the focus.
+    internal const string SelectArguments = "DESELECTNOMATCH MAKEVISIBLE";
+
+    // The commit path (ExecuteItem) DOES want focus moved: the inline window is already hidden by then and
+    // the user asked to land on this item in Directory Opus, so handing it the focus is the point.
+    internal const string SelectAndFocusArguments = SelectArguments + " SETFOCUS";
+
+    private static void SelectByFileName(string path, bool focus = false)
+    {
+        var filename = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        if (!string.IsNullOrEmpty(filename))
+            RunDopusCommandViaCopyData($"Select \"{filename}\" {(focus ? SelectAndFocusArguments : SelectArguments)}");
+    }
+
+    // Whether `path` is an item sitting directly in `scope` (the folder the lister has open), rather than
+    // something in a subfolder or another drive entirely.
+    //
+    // The trailing separator matters here and must be trimmed BEFORE GetDirectoryName: the sender appends
+    // one to mark a directory (see InlineSearchWindowInputHandler.SyncExplorerSelection), and
+    // GetDirectoryName does not read that as "the parent of this folder" -- it returns
+    // "C:\Root\Sub" for both "C:\Root\Sub" AND "C:\Root\Sub\", i.e. the folder itself for the trailing
+    // form. Comparing that against the open folder never matched, so FOLDER results never mirrored while
+    // files (which carry no trailing separator) did.
+    internal static bool IsInFolder(string? scope, string path)
+    {
+        if (string.IsNullOrEmpty(scope))
+            return false;
+        var cleanPath = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var parent = Path.GetDirectoryName(cleanPath);
+        return string.Equals(parent?.TrimEnd('\\'), scope.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+    }
+
     public void OnSelectionChanged(IntPtr hwnd, string path)
     {
         if (hwnd == IntPtr.Zero || string.IsNullOrEmpty(path)) return;
-        var scope = GetSearchScope(hwnd);
-        var parent = Path.GetDirectoryName(path);
-        var isInCurrentFolder = !string.IsNullOrEmpty(scope) && string.Equals(parent?.TrimEnd('\\'), scope.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
 
-        if (isInCurrentFolder)
+        if (IsInFolder(GetSearchScope(hwnd), path))
         {
-            var filename = Path.GetFileName(path);
-            if (!string.IsNullOrEmpty(filename))
-            {
-                RunDopusCommandViaCopyData($"Select \"{filename}\" DESELECTNOMATCH SETFOCUS");
-            }
+            SelectByFileName(path);
         }
     }
 
