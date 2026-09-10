@@ -689,6 +689,7 @@
   "Blacklist_EditTooltip": "編輯該處理程序名稱",
   "Search_LocalFolderHeader": "當前資料夾",
   "Search_GlobalSearchHeader": "全域搜尋",
+  "Search_OpenedFoldersHeader": "目前開啟的資料夾",
   "About_TutorialTitle": "新手引導教程",
   "About_TutorialHint": "透過一步步的互動引導，快速掌握 Lertaro 的核心效率特性",
   "About_TutorialBtn": "開始引導",

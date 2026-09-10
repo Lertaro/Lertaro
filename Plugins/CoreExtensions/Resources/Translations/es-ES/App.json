@@ -689,6 +689,7 @@
   "Blacklist_EditTooltip": "Editar el nombre de este proceso",
   "Search_LocalFolderHeader": "Carpeta Actual",
   "Search_GlobalSearchHeader": "Búsqueda Global",
+  "Search_OpenedFoldersHeader": "Carpetas Abiertas Actualmente",
   "About_TutorialTitle": "Tutorial Interactivo",
   "About_TutorialHint": "Aprende y domina paso a paso las funciones principales de alta eficiencia de Lertaro",
   "About_TutorialBtn": "Iniciar Guía",

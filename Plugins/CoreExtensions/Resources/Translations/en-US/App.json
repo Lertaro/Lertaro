@@ -689,6 +689,7 @@
   "Blacklist_EditTooltip": "Edit this process name",
   "Search_LocalFolderHeader": "Current Folder",
   "Search_GlobalSearchHeader": "Global Search",
+  "Search_OpenedFoldersHeader": "Currently Open Folders",
   "About_TutorialTitle": "Interactive Tutorial",
   "About_TutorialHint": "Learn and master the core high-efficiency features of Lertaro step-by-step",
   "About_TutorialBtn": "Start Guide",

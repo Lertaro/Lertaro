@@ -7,7 +7,6 @@ using ListBox = System.Windows.Controls.ListBox;
 using Lertaro.App.Views.InlineSearchWindow.Helpers;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.App.Services.AppWindow;
-
 using Lertaro.App.Services.Theme;
 using Lertaro.App.Services.ShellMenu.Presenter;
 using Lertaro.App.Helpers.Visuals;
@@ -110,6 +109,7 @@ public partial class InlineSearchWindow : Window, ISearchWindow
         _manager.ExplorerTracker.OnActiveWindowMoved += HandleActiveWindowMoved;
 
         InlineSearchWindowQuickNavWiring.Attach(this);
+        InlineOpenedFoldersRefreshHelper.Attach(this);
 
         this.IsVisibleChanged += (s, e) =>
         {

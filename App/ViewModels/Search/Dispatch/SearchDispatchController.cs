@@ -1,7 +1,7 @@
 using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services;
-
+using Lertaro.PluginSdk.Services;
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
 namespace Lertaro.App.ViewModels.Search.Dispatch;
@@ -22,7 +22,6 @@ internal sealed class SearchDispatchController
     private readonly Action<IEnumerable<AppSearchResult>> _replaceResults;
     private readonly Func<int> _getResultsCount;
     private readonly ResultTypeTriggerHandler _resultTypeTrigger;
-
     private IReadOnlyList<string> _queryTokens = Array.Empty<string>();
     private bool _bypassExclusions;
 
@@ -55,7 +54,6 @@ internal sealed class SearchDispatchController
             setResultsSeparatorVisibility,
             replaceResults);
     }
-
     public void DispatchSearch(string value)
     {
         var globalPrefixChar = GetGlobalTokenPrefixChar();
@@ -65,7 +63,6 @@ internal sealed class SearchDispatchController
         _bypassExclusions = bypassExclusions;
         var (strippedClean, triggeredTypeId) = _resultTypeTrigger.StripTrigger(value, cleanQuery);
         cleanQuery = strippedClean;
-
         // File-filter scope keyword ("tf report" -> search "report" only inside the tf filter's
         // folders): quick window only, and never stacked on a per-type trigger (an Applications-only
         // trigger over a scoped file search serves neither feature).
@@ -74,7 +71,6 @@ internal sealed class SearchDispatchController
             ? FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery)
             : null;
         var searchQuery = scopeDirective != null ? scopedQuery : cleanQuery;
-
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
             _engine.CancelPendingSearch();
@@ -86,7 +82,6 @@ internal sealed class SearchDispatchController
                 ClearForTokenOnlyQuery();
             return;
         }
-
         // A scope keyword typed with no term after it ("tf ") has nothing to search against yet --
         // the same "keep typing" situation as a token-only query, and preferable to both an
         // unprompted global result set and a silent no-op.
@@ -95,10 +90,8 @@ internal sealed class SearchDispatchController
             ClearForTokenOnlyQuery();
             return;
         }
-
         RunEngineSearch(_engine.QueueSearch, value, searchQuery, scopeDirective);
     }
-
     // An operator typed with no keyword after it yet -- a token-only query (e.g. "::foo" with no
     // keyword before it), or a bare "*" (bypass exclusion rules) -- strips down to an empty clean
     // query, but the search box itself isn't empty -- unlike a genuinely empty box, this must not
@@ -118,7 +111,6 @@ internal sealed class SearchDispatchController
         _setResultsPanelVisibility(Visibility.Visible);
         _setResultsSeparatorVisibility(Visibility.Visible);
     }
-
     // DispatchSearch (debounced) and PerformSearch (blocking) both resolve to the same set of
     // search parameters -- only which SearchExecutionEngine method runs them differs.
     private void RunEngineSearch(
@@ -144,7 +136,6 @@ internal sealed class SearchDispatchController
         var hasScope = scopeDirective != null;
         var fileLimit = hasTokens || hasScope ? SearchViewModel.TokenQuickSearchFileLimit : 51;
         var appLimit = hasScope ? 0 : hasTokens ? SearchViewModel.FullSearchAppLimit : 51;
-
         engineCall(
             searchQuery,
             hasScope ? null : _getSearchScope(),
@@ -162,22 +153,24 @@ internal sealed class SearchDispatchController
             scopeDirective
         );
     }
-
     public void PerformSearch(string query)
     {
         if (string.IsNullOrWhiteSpace(query))
         {
             _engine.CancelPendingSearch();
             _setIsSearching(false);
-
-            // An empty box shows nothing but the one suggestion the active Explorer window earns, if it
-            // earns one. It used to also raise the startup panel here, which is what that panel was:
-            // the empty-query state of this window. The quick panel took over what it offered and is
-            // reached by its own key, so an empty box is simply empty again.
             var suggestion = ExplorerJumpSuggestionHelper.TryBuildSuggestion(_getIsInlineSearchContext(), _getSearchScope());
-            if (suggestion != null)
+            var openedFolderPaths = _getIsInlineSearchContext() && InlineSearchManager.Instance.ExplorerTracker.IsActiveWindowDialog
+                ? ExplorerPathService.GetOpenedFolderPaths()
+                : Array.Empty<string>();
+            var emptyStateResults = InlineEmptyStateResultHelper.Build(
+                suggestion,
+                _getSearchScope(),
+                openedFolderPaths,
+                TranslationManager.Instance["Search_OpenedFoldersHeader"]);
+            if (emptyStateResults.Count > 0)
             {
-                _replaceResults(new[] { suggestion });
+                _replaceResults(emptyStateResults);
                 _setResultsPanelVisibility(Visibility.Visible);
                 _setResultsSeparatorVisibility(Visibility.Visible);
             }
@@ -187,7 +180,6 @@ internal sealed class SearchDispatchController
                 _setResultsPanelVisibility(Visibility.Collapsed);
                 _setResultsSeparatorVisibility(Visibility.Collapsed);
             }
-
             if (_mainVm.Monitor.IsIndexReady)
             {
                 _mainVm.Monitor.StatusBarVisibility = Visibility.Visible;
@@ -199,7 +191,6 @@ internal sealed class SearchDispatchController
             }
             return;
         }
-
         var globalPrefixChar = GetGlobalTokenPrefixChar();
         var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
         _queryTokens = tokens;
@@ -207,13 +198,11 @@ internal sealed class SearchDispatchController
         _bypassExclusions = bypassExclusions;
         var (strippedClean, triggeredTypeId) = _resultTypeTrigger.StripTrigger(query, cleanQuery);
         cleanQuery = strippedClean;
-
         var scopedQuery = cleanQuery;
         var scopeDirective = triggeredTypeId == null && !_getIsInlineSearchContext()
             ? FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery)
             : null;
         var searchQuery = scopeDirective != null ? scopedQuery : cleanQuery;
-
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
             if (triggeredTypeId != null)
@@ -222,23 +211,19 @@ internal sealed class SearchDispatchController
                 ClearForTokenOnlyQuery();
             return;
         }
-
         if (scopeDirective != null && searchQuery.Length == 0)
         {
             ClearForTokenOnlyQuery();
             return;
         }
-
         RunEngineSearch(_engine.PerformSearch, query, searchQuery, scopeDirective);
     }
-
     private void HandleLocalServiceUnavailable() => _mainVm.TriggerIndexBuild();
 
     private void ApplySearchResults(string query, List<AppSearchResult> uiResults, string statusText, bool final)
     {
         if (_getSearchQuery() != query)
             return;
-
         if (_queryTokens.Count == 0)
         {
             // No active token -- render exactly what SearchResultMapper/InlineListSearchHelper already
