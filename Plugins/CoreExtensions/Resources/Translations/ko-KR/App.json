@@ -689,6 +689,7 @@
   "Blacklist_EditTooltip": "이 프로세스 이름 편집",
   "Search_LocalFolderHeader": "현재 폴더",
   "Search_GlobalSearchHeader": "전체 검색",
+  "Search_LastDirectoryHeader": "마지막 디렉터리",
   "Search_OpenedFoldersHeader": "현재 열려 있는 폴더",
   "About_TutorialTitle": "대화형 튜토리얼",
   "About_TutorialHint": "Lertaro의 핵심 고효율 기능을 단계별로 배우고 익히세요",

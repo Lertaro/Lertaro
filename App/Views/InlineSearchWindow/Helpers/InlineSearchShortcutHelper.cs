@@ -17,7 +17,7 @@ public static class InlineSearchShortcutHelper
         // of a derived ratio, but the row height itself is unchanged (36).
         var rowHeight = UiMetrics.InlineRowHeight;
         var firstVisible = WpfUiHelper.GetFirstVisibleIndex(scrollViewer, rowHeight);
-        var shortcutIndex = 1;
+        var shortcutIndex = window.LstResults.Items.OfType<AppSearchResult>().Any(item => item.IsJumpToExplorerPath) ? 2 : 1;
 
         var selectMod = "Ctrl";
         var quickSwitchHint = "Ctrl+G";

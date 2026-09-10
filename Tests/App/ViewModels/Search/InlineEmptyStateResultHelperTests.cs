@@ -14,13 +14,16 @@ public sealed class InlineEmptyStateResultHelperTests
             recent,
             null,
             new[] { @"C:\opened" },
+            "Last directory",
             "Opened folders");
 
-        Assert.AreSame(recent, result[0]);
-        Assert.AreEqual("SectionHeader", result[1].ResultKind);
-        Assert.AreEqual("Opened folders", result[1].Name);
-        Assert.AreEqual(@"C:\opened", result[2].FullPath);
-        Assert.AreEqual("OpenedFolder", result[2].ResultKind);
+        Assert.AreEqual("SectionHeader", result[0].ResultKind);
+        Assert.AreEqual("Last directory", result[0].Name);
+        Assert.AreSame(recent, result[1]);
+        Assert.AreEqual("SectionHeader", result[2].ResultKind);
+        Assert.AreEqual("Opened folders", result[2].Name);
+        Assert.AreEqual(@"C:\opened", result[3].FullPath);
+        Assert.AreEqual("OpenedFolder", result[3].ResultKind);
     }
 
     [TestMethod]
@@ -32,6 +35,7 @@ public sealed class InlineEmptyStateResultHelperTests
             recent,
             @"C:\current\",
             new[] { @"C:\recent", @"C:\CURRENT\", @"C:\other", @"C:\other\", "" },
+            "Last directory",
             "Opened folders");
 
         Assert.AreEqual(1, result.Count(r => r.ResultKind == "OpenedFolder"));
@@ -45,6 +49,7 @@ public sealed class InlineEmptyStateResultHelperTests
             null,
             null,
             new[] { @"C:\one", @"C:\two" },
+            "Last directory",
             "Opened folders");
 
         for (var index = 0; index < result.Count; index++)

@@ -5,7 +5,6 @@ using Lertaro.PluginSdk.Services;
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
 namespace Lertaro.App.ViewModels.Search.Dispatch;
-
 // Owns query-token parsing, dispatching a search (debounced/quick vs. blocking), and rendering the
 // resulting rows on behalf of SearchExecutionViewModel -- extracted into its own class (composition,
 // not a partial class) purely to keep SearchExecutionViewModel.cs under the repo's per-file line limit.
@@ -167,6 +166,7 @@ internal sealed class SearchDispatchController
                 suggestion,
                 _getSearchScope(),
                 openedFolderPaths,
+                TranslationManager.Instance["Search_LastDirectoryHeader"],
                 TranslationManager.Instance["Search_OpenedFoldersHeader"]);
             if (emptyStateResults.Count > 0)
             {

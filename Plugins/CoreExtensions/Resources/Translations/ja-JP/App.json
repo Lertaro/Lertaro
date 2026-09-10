@@ -689,6 +689,7 @@
   "Blacklist_EditTooltip": "このプロセス名を編集",
   "Search_LocalFolderHeader": "現在のフォルダー",
   "Search_GlobalSearchHeader": "グローバル検索",
+  "Search_LastDirectoryHeader": "前回のディレクトリ",
   "Search_OpenedFoldersHeader": "現在開いているフォルダー",
   "About_TutorialTitle": "インタラクティブチュートリアル",
   "About_TutorialHint": "Lertaro の中核となる高効率機能を、段階を追って学び習得できます",

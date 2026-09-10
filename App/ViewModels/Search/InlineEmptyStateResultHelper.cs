@@ -10,11 +10,15 @@ internal static class InlineEmptyStateResultHelper
         AppSearchResult? recentSuggestion,
         string? currentScope,
         IEnumerable<string> openedFolderPaths,
+        string recentFoldersHeader,
         string openedFoldersHeader)
     {
         var results = new List<AppSearchResult>();
         if (recentSuggestion != null)
+        {
+            SearchResultHelper.AddSectionHeader(results, recentFoldersHeader, string.Empty);
             results.Add(recentSuggestion);
+        }
 
         var excludedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         AddExcludedPath(excludedPaths, recentSuggestion?.FullPath);
