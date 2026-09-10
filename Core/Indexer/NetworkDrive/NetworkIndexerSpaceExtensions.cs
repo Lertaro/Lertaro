@@ -7,6 +7,8 @@ internal static class NetworkIndexerSpaceExtensions
 {
     public static List<SpaceIndexEntry> GetSpaceEntries(this NetworkIndexer indexer, string? directory)
     {
+        indexer.EnsureConfigured();
+
         NetworkIndex[] indexes;
         lock (indexer.Gate)
             indexes = indexer._indexes.Values.ToArray();
