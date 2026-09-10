@@ -44,7 +44,7 @@ public sealed class InlineSearchWindowLayoutManager
             Interlocked.Exchange(ref _layoutUpdateQueued, 0);
             if (!_window.IsVisible) return;
 
-            // Sums each of the first 9 rows' own InlineItemHeight instead of measuring the real ListBox
+            // Sums each of the first 9 physical rows' own InlineItemHeight instead of measuring the real ListBox
             // (what this used to do -- see git log on this file for the several rounds that predated it).
             // The old hand-summed predictions drifted out of sync with what WPF actually rendered because
             // a normal row's true container height used to come from ResultItemStyle's MinHeight, a

@@ -210,6 +210,7 @@ public static class UiMetrics
     // Math.Max to enforce it).
     public const double InlineRowHeight = 36;
     public const double InlineIconSize = 27;
+    public const double InlineContentHeight = InlineRowHeight - ResultRowVerticalMargin;
 
     // ── Scaled metrics — consumed ONLY by the quick window (opted in via window title),
     //    so the inline/full windows never scale with the search-bar height. ──

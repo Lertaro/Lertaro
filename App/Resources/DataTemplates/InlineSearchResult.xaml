@@ -20,10 +20,11 @@
                 <!-- Shortcut badge -->
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <!-- Height explicitly matches a normal row's own InlineItemHeight (rather than leaving it to
+            <!-- Height explicitly matches the row's content height (rather than leaving it to
                  this text's natural size + the container's MinHeight, whose interaction wasn't reliably
                  producing the same number): this is the one thing everything else in the row is
-                 collapsed for when IsSearchSectionHeader is true, so its own height IS the row's height;
+                 collapsed for when IsSearchSectionHeader is true, so its content height plus the template
+                 margin completes the row height;
                  letting it diverge from what InlineSearchWindowLayoutManager's own height-sum assumes for
                  every row (including this one) is what left stray blank space at the bottom of the list.
                  Height lives on this wrapping Border rather than the TextBlock itself: a TextBlock given
@@ -31,7 +32,7 @@
                  its own VerticalAlignment (that property positions the TextBlock's own box within ITS
                  parent, not the text within the box): wrapping it is what lets VerticalAlignment="Center"
                  on the TextBlock actually center the text within the now-taller row. -->
-            <Border Grid.ColumnSpan="3" Height="{Binding InlineItemHeight}">
+            <Border Grid.ColumnSpan="3" Height="{x:Static services:UiMetrics.InlineContentHeight}">
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="Visibility" Value="Collapsed"/>

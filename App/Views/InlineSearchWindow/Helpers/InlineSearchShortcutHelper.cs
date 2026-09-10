@@ -14,10 +14,12 @@ public static class InlineSearchShortcutHelper
         // InlineSearchWindowLayoutManager's constructor), unlike the quick window's per-pass dynamic
         // toggle -- reading it through the same mode-aware helper the quick window needs is one less
         // thing to keep in sync if that ever changes. InlineRowHeight is now a literal constant instead
-        // of a derived ratio, but the row height itself is unchanged (36).
+        // of a derived ratio, and it represents the complete outer row including its template margin.
         var rowHeight = UiMetrics.InlineRowHeight;
         var firstVisible = WpfUiHelper.GetFirstVisibleIndex(scrollViewer, rowHeight);
-        var shortcutIndex = window.LstResults.Items.OfType<AppSearchResult>().Any(item => item.IsJumpToExplorerPath) ? 2 : 1;
+        // Shortcut numbers are relative to the current viewport. Ctrl+G occupies slot 1 only while its
+        // row is visible; after scrolling past it, the first visible opened-folder row starts at Ctrl+1.
+        var shortcutIndex = 1;
 
         var selectMod = "Ctrl";
         var quickSwitchHint = "Ctrl+G";
@@ -60,6 +62,8 @@ public static class InlineSearchShortcutHelper
                 {
                     item.ShortcutHint = quickSwitchHint;
                     item.ShortcutVisibility = string.IsNullOrEmpty(quickSwitchHint) ? Visibility.Collapsed : Visibility.Visible;
+                    if (i >= firstVisible)
+                        shortcutIndex++;
                     continue;
                 }
 

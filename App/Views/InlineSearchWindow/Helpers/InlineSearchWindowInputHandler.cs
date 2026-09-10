@@ -3,7 +3,6 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using Lertaro.Core;
 using Lertaro.App.Helpers;
-using Lertaro.App.Services;
 
 using Lertaro.Core.Wire;
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
@@ -158,29 +157,7 @@ public class InlineSearchWindowInputHandler
 
     public void UpdatePathPreviewVisibility() => _layoutManager.UpdatePathPreviewVisibility();
 
-    public void LaunchByShortcutIndex(int num)
-    {
-        if (num < 1 || num > 9) return;
-        var scrollViewer = _layoutManager.GetScrollViewer(_window.LstResults);
-        // Mode-aware (see InlineSearchShortcutHelper's own comment) -- this is the separate
-        // execution-side lookup that maps the pressed digit back to an actual result.
-        var rowHeight = Math.Round(UiMetrics.SearchResultItemHeight * 0.7);
-        var firstVisible = WpfUiHelper.GetFirstVisibleIndex(scrollViewer, rowHeight);
-        var shortcutIndex = 1;
-        for (var i = firstVisible; i < _window.LstResults.Items.Count; i++)
-        {
-            if (_window.LstResults.Items[i] is AppSearchResult item && !item.IsEmptyResult && !item.IsSearchSectionHeader)
-            {
-                if (shortcutIndex == num)
-                {
-                    _window.ExecuteSearchResult(item);
-                    return;
-                }
-
-                shortcutIndex++;
-            }
-        }
-    }
+    public void LaunchByShortcutIndex(int num) => InlineSearchShortcutLauncher.Launch(_window, _layoutManager, num);
 
     public void SyncExplorerSelection()
     {
