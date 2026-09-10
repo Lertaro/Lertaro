@@ -13,7 +13,6 @@ public sealed class HookIpcClient : IDisposable
     private CancellationTokenSource? _cts;
     private Task? _listenTask;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
-
     public int ServiceProcessId { get; private set; }
     // False during cold-start or hook downtime, so IPC-bound calls fail fast instead of waiting for an unreachable reply.
     public bool IsConnected => _cmdPipe != null && _cmdPipe.IsConnected;
@@ -64,11 +63,10 @@ public sealed class HookIpcClient : IDisposable
     public event Action<int, int>? OnMouseMiddleClick;
     public event Action<IntPtr, string, string, bool>? OnExplorerActivated;
     public event Action? OnExplorerDeactivated;
-    public event Action<string, bool>? OnPathCaptured;
+    public event Action<string, bool, bool>? OnPathCaptured;
     public event Action<IReadOnlyList<string>>? OnOpenedFoldersCaptured;
     public event Action? OnActiveWindowMoved;
     public event Action<string>? OnError;
-
     public HookIpcClient() { }
 
     public void Start()
@@ -77,16 +75,13 @@ public sealed class HookIpcClient : IDisposable
         _cts = new CancellationTokenSource();
         _listenTask = Task.Run(() => RunLoop(_cts.Token));
     }
-
     public void Stop()
     {
         _cts?.Cancel();
         SendMessage(new IpcMessage { Id = IpcMessageId.Stop });
         _ = ClosePipesAsync();
     }
-
     public void SendMessage(IpcMessage msg) => _ = SendMessageAsync(msg);
-
     private async Task SendMessageAsync(IpcMessage msg)
     {
         try
@@ -110,7 +105,6 @@ public sealed class HookIpcClient : IDisposable
             Logger.Log($"[HookIpcClient] Failed to send IPC message {msg.Id}: {ex.Message}", LogLevel.Warn);
         }
     }
-
     private async Task RunLoop(CancellationToken token)
     {
         while (!token.IsCancellationRequested)
@@ -265,7 +259,7 @@ public sealed class HookIpcClient : IDisposable
                     break;
 
                 case IpcMessageId.PathCaptured:
-                    OnPathCaptured?.Invoke(msg.StringVal1 ?? string.Empty, msg.IsDesktop);
+                    OnPathCaptured?.Invoke(msg.StringVal1 ?? string.Empty, msg.IsDesktop, msg.IsDialog);
                     break;
 
                 case IpcMessageId.OpenedFoldersCaptured:

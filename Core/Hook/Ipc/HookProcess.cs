@@ -129,11 +129,12 @@ public sealed class HookProcess : IDisposable
                             try { Win32Api.TrimWorkingSet(); } catch { }
                         });
                     };
-                    _explorerTracker.OnPathCaptured += (path, isDesktop) => _ipcServer.SendMessage(new IpcMessage
+                    _explorerTracker.OnPathCaptured += (path, isDesktop, isDialog) => _ipcServer.SendMessage(new IpcMessage
                     {
                         Id = IpcMessageId.PathCaptured,
                         StringVal1 = path,
-                        IsDesktop = isDesktop
+                        IsDesktop = isDesktop,
+                        IsDialog = isDialog
                     });
                     _explorerTracker.OnActiveWindowMoved += () => _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.ActiveWindowMoved });
                     _explorerTracker.OnError += (msg) => _ipcServer.SendMessage(new IpcMessage

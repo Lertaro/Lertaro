@@ -22,4 +22,16 @@ public sealed class ExplorerActivePathPollerTests
 
         Assert.AreEqual(string.Empty, tracker.ActivePath);
     }
+
+    [TestMethod]
+    public void UpdatePath_DialogSource_DoesNotReplaceLastExplorerPath()
+    {
+        using var tracker = new ExplorerTracker();
+
+        tracker.UpdatePath(@"C:\Workspace", isDesktop: false, isDialog: false);
+        tracker.UpdatePath(@"D:\Downloads", isDesktop: false, isDialog: true);
+
+        Assert.AreEqual(@"C:\Workspace", tracker.LastActiveExplorerPath);
+        Assert.AreEqual(@"D:\Downloads", tracker.ActivePath);
+    }
 }

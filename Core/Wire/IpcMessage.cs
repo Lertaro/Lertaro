@@ -63,4 +63,5 @@ public struct IpcMessage
     public string? StringVal2 { get; set; }
     public IReadOnlyList<string>? StringList { get; set; }
     public bool IsDesktop { get; set; }
+    public bool IsDialog { get; set; }
 }

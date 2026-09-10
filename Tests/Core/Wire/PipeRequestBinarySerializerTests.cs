@@ -88,6 +88,26 @@ public sealed class PipeRequestBinarySerializerTests
     }
 
     [TestMethod]
+    public async Task WriteMessageAsync_PathCaptured_RoundTripsSourceFlags()
+    {
+        using var stream = new MemoryStream();
+        await PipeRequestBinarySerializer.WriteMessageAsync(stream, new IpcMessage
+        {
+            Id = IpcMessageId.PathCaptured,
+            StringVal1 = @"D:\Downloads",
+            IsDesktop = false,
+            IsDialog = true
+        });
+        stream.Position = 0;
+
+        var result = await PipeRequestBinarySerializer.ReadMessageAsync(stream);
+
+        Assert.AreEqual(@"D:\Downloads", result.StringVal1);
+        Assert.IsFalse(result.IsDesktop);
+        Assert.IsTrue(result.IsDialog);
+    }
+
+    [TestMethod]
     public async Task WriteMessageAsync_MultipleMessages_RoundTripInOrderOnSameStream()
     {
         using var stream = new MemoryStream();

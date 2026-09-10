@@ -58,7 +58,7 @@ internal sealed class ExplorerWindowClassifier
                 _tracker.Deactivate();
             }
 
-            if (IsFocusChangeIgnored(hwnd))
+            if (ExplorerFocusChangeFilter.IsIgnored(_tracker, hwnd))
                 return;
 
             var dialogHwnd = FindMatchingDialogWindow(hwnd, out var adapter);
@@ -218,35 +218,6 @@ internal sealed class ExplorerWindowClassifier
         }
     }
 
-    private bool IsFocusChangeIgnored(IntPtr hwnd)
-    {
-        var sbClass = new StringBuilder(256);
-        ExplorerNativeHooks.GetClassName(hwnd, sbClass, sbClass.Capacity);
-        var className = sbClass.ToString();
-        if (className.Contains("InputSwitch", StringComparison.OrdinalIgnoreCase)) return true;
-        ExplorerNativeHooks.GetWindowThreadProcessId(hwnd, out var activePid);
-        if (activePid == Environment.ProcessId || (activePid != 0 && activePid == _tracker.AppProcessId))
-        {
-            if (className.Equals("#32770", StringComparison.OrdinalIgnoreCase)) return false;
-            var rootHwnd = ExplorerNativeHooks.GetAncestor(hwnd, ExplorerNativeHooks.GA_ROOTOWNER);
-            if (rootHwnd == IntPtr.Zero) rootHwnd = hwnd;
-            var processName = _tracker.GetProcessName(rootHwnd);
-            if (ActivePathCollectorRegistry.GetCollectors()
-                .Any(collector => collector.CanHandle(rootHwnd, className, processName))) return false;
-            return true;
-        }
-        if (_tracker.ActiveHwnd != IntPtr.Zero)
-        {
-            var rootHwnd = ExplorerNativeHooks.GetAncestor(hwnd, ExplorerNativeHooks.GA_ROOTOWNER);
-            if (rootHwnd == IntPtr.Zero) rootHwnd = hwnd;
-            if (rootHwnd == _tracker.ActiveHwnd)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private void TrackFileDialogWindow(IntPtr mainDialog, bool previousWasPathProvider, TimeSpan pluginReadTimeout)
     {
         _tracker.IsExplorerOrDesktopActive = true;
@@ -280,7 +251,7 @@ internal sealed class ExplorerWindowClassifier
             _tracker.RaiseExplorerActivated(mainDialog, windowTitle.ToString(), sbCls2.ToString(), false);
         }
 
-        _tracker.RaisePathCaptured(_tracker.LastPath, false);
+        _tracker.RaisePathCaptured(_tracker.LastPath, false, true);
     }
 
     private IntPtr FindMatchingDialogWindow(IntPtr hwnd, out IFileDialogAdapter? adapter)

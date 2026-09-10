@@ -2,12 +2,10 @@ using System.Windows.Threading;
 using Lertaro.Core;
 using Lertaro.Core.Hook;
 using Application = System.Windows.Application;
-using Lertaro.App.ViewModels.Search;
 using Lertaro.App.Views.InlineSearchWindow.Helpers;
 
 using Lertaro.App.Services.ShellIcons;
 using Lertaro.Core.Wire;
-using Lertaro.Core.Hook.InlineSearch;
 namespace Lertaro.App.Services;
 
 /// <summary>
@@ -23,6 +21,7 @@ public class InlineSearchManager : IDisposable
     private readonly ExplorerTracker _explorerTracker;
     private readonly KeyboardHookService _keyboardHook;
     private readonly MouseHookService _mouseHook;
+    private readonly InlineSearchWindowCreationSupport _windowCreation;
     private string _searchText = string.Empty;
     private IntPtr _currentHostHwnd = IntPtr.Zero;
 
@@ -30,18 +29,21 @@ public class InlineSearchManager : IDisposable
     public KeyboardHookService KeyboardHook => _keyboardHook;
     public MouseHookService MouseHook => _mouseHook;
     public string SearchText => _searchText;
+    internal InlineSearchWindow? Window { get => _window; set => _window = value; }
+    internal IntPtr CurrentHostHwnd { get => _currentHostHwnd; set => _currentHostHwnd = value; }
 
     private InlineSearchManager()
     {
         _explorerTracker = new ExplorerTracker();
         _keyboardHook = new KeyboardHookService(_explorerTracker);
         _mouseHook = new MouseHookService(IsPointInsideWindow);
+        _windowCreation = new InlineSearchWindowCreationSupport(this);
 
         if (App.HookClient != null)
         {
             App.HookClient.OnExplorerActivated += (hwnd, title, className, isDesktop) => _explorerTracker.UpdateActiveWindow(hwnd, title, className, isDesktop);
             App.HookClient.OnExplorerDeactivated += () => _explorerTracker.DeactivateWindow();
-            App.HookClient.OnPathCaptured += (path, isDesktop) => _explorerTracker.UpdatePath(path, isDesktop);
+            App.HookClient.OnPathCaptured += (path, isDesktop, isDialog) => _explorerTracker.UpdatePath(path, isDesktop, isDialog);
             App.HookClient.OnActiveWindowMoved += () => _explorerTracker.MoveActiveWindow();
             App.HookClient.OnError += msg => _explorerTracker.RaiseErrorExternal(msg);
         }
@@ -88,7 +90,7 @@ public class InlineSearchManager : IDisposable
 
         _explorerTracker.OnError += (msg) => Logger.Log($"[InlineSearchManager] ExplorerTracker error: {msg}", LogLevel.Error);
 
-        _explorerTracker.OnPathCaptured += (path, isDesktop) => Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+        _explorerTracker.OnPathCaptured += (path, _, _) => Application.Current.Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (_window != null)
                 {
@@ -144,100 +146,7 @@ public class InlineSearchManager : IDisposable
         router.Wire();
     }
 
-    private void EnsureWindowCreated()
-    {
-        // As early as possible, before Show() -- see PowerThrottlingHelper's own comment. Idempotent, so
-        // it's harmless to call this even on the (common) already-created short-circuit below.
-        PowerThrottlingHelper.WindowShowing("inline");
-
-        if (_window != null) return;
-
-        var viewModel = new QuickSearchViewModel();
-        var scope = _explorerTracker.ActivePath;
-        if (string.IsNullOrEmpty(scope) && _explorerTracker.ActiveHwnd != IntPtr.Zero)
-        {
-            // ActiveInlineAdapter is always null for a plain IFileDialogAdapter host (WinRAR's Extract
-            // dialog, Explorer's classic/folder-browser dialogs, ...) -- only ActiveAdapter applies there.
-            // Falling back to ActivePath's own poller cycle alone meant SearchScope stayed empty for
-            // every window recreated between polls (the window gets torn down and rebuilt on every
-            // SetInlineSearchVisible toggle), which in turn broke ExplorerJumpSuggestionHelper's own
-            // "already scoped here, don't suggest jumping" check for the entire gap.
-            if (_explorerTracker.ActiveInlineAdapter != null)
-                scope = _explorerTracker.ActiveInlineAdapter.GetSearchScope(_explorerTracker.ActiveHwnd);
-            else if (_explorerTracker.ActiveAdapter != null)
-                scope = _explorerTracker.ActiveAdapter.GetCurrentPath(_explorerTracker.ActiveHwnd);
-        }
-        viewModel.SearchScope = scope;
-        viewModel.IsInlineSearchContext = true;
-
-        _window = new InlineSearchWindow(viewModel, this);
-        _currentHostHwnd = _explorerTracker.ActiveHwnd;
-        _keyboardHook.IsInlineSearchVisible = true;
-        // Set alongside it here but, unlike it, not cleared when the window takes focus below: this one
-        // tracks the window being on screen, which both of those paths leave true.
-        _keyboardHook.IsInlineWindowOnScreen = true;
-        _mouseHook.Start();
-
-        // Force the native HWND into existence now (still invisible -- EnsureHandle doesn't set
-        // WS_VISIBLE) rather than letting Show() create it implicitly. PositionWindowImmediate needs a
-        // real PresentationSource to read the correct per-monitor DPI from; called any earlier, it falls
-        // back to VisualTreeHelper.GetDpi on a windowless visual, which isn't reliably the DPI of
-        // whatever monitor this window is actually about to land on (especially across monitors with
-        // different scaling) -- computing the right logical position with the wrong DPI still produces a
-        // visibly wrong physical-pixel position, just a different wrong one than leaving Left/Top
-        // untouched entirely.
-        new System.Windows.Interop.WindowInteropHelper(_window).EnsureHandle();
-        _window.Positioner.PositionWindowImmediate();
-        _window.Show();
-        _window.ViewModel.EnsureServiceMonitoringActive();
-
-        var fgHwnd = ExplorerNativeHooks.GetForegroundWindow();
-        var isTextInputFocused = fgHwnd != IntPtr.Zero && InputFocusEvaluator.IsForegroundTextInputFocused(fgHwnd);
-
-        if (!isTextInputFocused && !_explorerTracker.IsActiveWindowDialog)
-        {
-            // Try to activate and focus synchronously first while we are still in the input/hook processing thread context
-            if (_window.ActivateAndFocusSearchBox())
-            {
-                _keyboardHook.IsInlineSearchVisible = false;
-                _keyboardHook.Stop();
-            }
-            else
-            {
-                _window.Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    if (_window == null || !_window.IsVisible)
-                    {
-                        return;
-                    }
-
-                    if (_window.ActivateAndFocusSearchBox())
-                    {
-                        _keyboardHook.IsInlineSearchVisible = false;
-                        _keyboardHook.Stop();
-                    }
-                }), DispatcherPriority.Input);
-            }
-        }
-        else
-        {
-            // If a text input is already focused, show the window without stealing focus,
-            // and restore focus to the edit box.
-            var dialogHwnd = _explorerTracker.ActiveHwnd;
-            _window.Dispatcher.BeginInvoke(new Action(() =>
-            {
-                if (dialogHwnd != IntPtr.Zero)
-                {
-                    ExplorerNativeHooks.SetForegroundWindow(dialogHwnd);
-                    var editBox = ExplorerNativeHooks.FindSubEditBox(dialogHwnd);
-                    if (editBox != IntPtr.Zero)
-                        ExplorerNativeHooks.SetFocus(editBox);
-                }
-            }), DispatcherPriority.Input);
-        }
-
-        Logger.Log($"[InlineSearchManager] Created and shown new InlineSearchWindow. Scope: {viewModel.SearchScope}", LogLevel.Debug);
-    }
+    private void EnsureWindowCreated() => _windowCreation.EnsureWindowCreated();
 
     public bool IsExecuting { get; set; }
 

@@ -97,13 +97,13 @@ public class ExplorerTracker : IDisposable
         ExplorerNativeHooks.GetClassName(_activeHwnd, sbClass, sbClass.Capacity);
         RaiseExplorerActivated(_activeHwnd, windowTitle.ToString(), sbClass.ToString(), IsDesktop);
         if (!string.IsNullOrEmpty(LastPath))
-            RaisePathCaptured(LastPath, IsDesktop);
+            RaisePathCaptured(LastPath, IsDesktop, IsActiveWindowDialog);
     }
     public string? ActivePath => LastPath;
     public uint AppProcessId { get; set; }
     public event Action<IntPtr, string, string, bool>? OnExplorerActivated;
     public event Action? OnExplorerDeactivated;
-    public event Action<string, bool>? OnPathCaptured;
+    public event Action<string, bool, bool>? OnPathCaptured;
     public event Action? OnActiveWindowMoved;
     public event Action<string>? OnError;
     // ExplorerActivePathPoller calls this for the foreground window on every system-wide WinEvent it
@@ -152,7 +152,7 @@ public class ExplorerTracker : IDisposable
     // authoritative and will catch up -- and keep plugin reads to a fraction of a typical hook timeout.
     public void ReclassifyActiveWindowBounded(IntPtr hwnd)
         => _classifier.CheckActiveWindow(hwnd, lockWaitMs: 50, pluginTimeoutMs: 300);
-    public void UpdatePath(string path, bool isDesktop)
+    public void UpdatePath(string path, bool isDesktop, bool? isDialog = null)
     {
         if (PathNormalizer != null)
             path = PathNormalizer(path) ?? string.Empty;
@@ -160,14 +160,15 @@ public class ExplorerTracker : IDisposable
         {
             LastPath = path;
             Logger.Log($"[ExplorerTracker] UpdatePath captured path: {path} (isDesktop={isDesktop})", LogLevel.Debug);
-            if (!IsActiveWindowDialog) _dialogTracker.SetLastActiveExplorerPath(path);
-            RaisePathCaptured(path, isDesktop);
+            var pathIsDialog = isDialog ?? IsActiveWindowDialog;
+            if (!pathIsDialog) _dialogTracker.SetLastActiveExplorerPath(path);
+            RaisePathCaptured(path, isDesktop, pathIsDialog);
         }
     }
     public void MoveActiveWindow() => OnActiveWindowMoved?.Invoke();
     public void RaiseErrorExternal(string msg) => RaiseError(msg);
     internal void RaiseExplorerActivated(IntPtr hwnd, string title, string cls, bool isDesktop) => OnExplorerActivated?.Invoke(hwnd, title, cls, isDesktop);
-    internal void RaisePathCaptured(string path, bool isDesktop) => OnPathCaptured?.Invoke(path, isDesktop);
+    internal void RaisePathCaptured(string path, bool isDesktop, bool isDialog) => OnPathCaptured?.Invoke(path, isDesktop, isDialog);
     internal void RaiseError(string msg) => OnError?.Invoke(msg);
     public ExplorerTracker()
     {
