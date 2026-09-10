@@ -35,9 +35,9 @@ internal static class PathSearch
         var keep = (int)Math.Min((long)Math.Max(limit, 8) * 8, snapshot.Count + delta.Added.Count);
         var matches = new FzfTopN(keep);
 
-        if (childPrefix.Length == 0 && !delta.IsSuperseded(current))
+        if (childPrefix.Length == 0 && !DirectoryFilterResolver.IsVisiblyDeleted(snapshot, delta, current))
         {
-            matches.Add(FzfResultRank.ForDefaultScheme(current, delta.NameOf(current), new FzfPatternResult(0, 0, 0, 0, false)));
+            matches.Add(FzfResultRank.ForDefaultScheme(current, DirectoryFilterResolver.GetName(snapshot, delta, current), new FzfPatternResult(0, 0, 0, 0, false)));
         }
 
         var pattern = childPrefix.Length == 0 ? null : FzfPattern.ParseText(childPrefix);
@@ -45,38 +45,55 @@ internal static class PathSearch
         var slab = new FzfSlab();
         var aliasScratch = new List<(string Alias, byte ProviderId)>();
 
-        foreach (var child in snapshot.ChildrenOf(current))
+        if (current < snapshot.Count)
         {
-            if (snapshot.IsDeleted(child) || delta.IsSuperseded(child))
-                continue;
+            foreach (var child in snapshot.ChildrenOf(current))
+            {
+                if (snapshot.IsDeleted(child) || delta.IsSuperseded(child))
+                    continue;
+                AddBaseMatch(child);
+            }
+        }
+
+        var deltaChildren = DeltaChildLookup.Build(snapshot, delta);
+        if (deltaChildren != null)
+        {
+            var children = current < snapshot.Count
+                ? deltaChildren.ChildrenOfRow(current)
+                : deltaChildren.ChildrenOfFrn(delta.Added[current - snapshot.Count].Id);
+            foreach (var child in children)
+            {
+                if (DirectoryFilterResolver.IsSuperseded(snapshot, delta, child))
+                    continue;
+                AddDeltaMatch(child);
+            }
+        }
+
+        void AddBaseMatch(int child)
+        {
             if (pattern == null)
             {
                 matches.Add(FzfResultRank.ForDefaultScheme(child, snapshot.GetName(child), new FzfPatternResult(0, 0, 0, 0, false)));
-                continue;
+                return;
             }
-            if (!SearchMatcherRow.MatchRow(snapshot, child, pattern, queryLen, slab, aliasScratch, out var name, out var match))
-                continue;
-            matches.Add(FzfResultRank.ForDefaultScheme(child, name, match));
+            if (SearchMatcherRow.MatchRow(snapshot, child, pattern, queryLen, slab, aliasScratch, out var name, out var match))
+                matches.Add(FzfResultRank.ForDefaultScheme(child, name, match));
         }
 
-        // Rows the base CSR wouldn't show yet: renamed-in/moved-in overrides and freshly added children.
-        foreach (var (row, record) in delta.BaseOverrides)
+        void AddDeltaMatch(int child)
         {
-            if (record.ParentBaseRow != current || record.Name.Length == 0)
-                continue;
-            if (pattern != null && !SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, queryLen, slab, out var match))
-                continue;
-            matches.Add(FzfResultRank.ForDefaultScheme(row, record.Name, new FzfPatternResult(0, 0, 0, 0, false)));
-        }
-        var currentFrn = snapshot.Ids[current];
-        for (var i = 0; i < delta.Added.Count; i++)
-        {
-            var record = delta.Added[i];
-            if (record.Removed || record.ParentFrn != currentFrn || record.Name.Length == 0)
-                continue;
-            if (pattern != null && !SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, queryLen, slab, out _))
-                continue;
-            matches.Add(FzfResultRank.ForDefaultScheme(snapshot.Count + i, record.Name, new FzfPatternResult(0, 0, 0, 0, false)));
+            var name = DirectoryFilterResolver.GetName(snapshot, delta, child);
+            if (name.Length == 0)
+                return;
+            if (pattern != null)
+            {
+                var record = child >= snapshot.Count ? delta.Added[child - snapshot.Count] : delta.BaseOverrides[child];
+                if (!SearchMatcherRow.TryMatchNameOrAliases(pattern, name, record.Aliases, record.ProviderIds, queryLen, slab, out var match))
+                    return;
+                matches.Add(FzfResultRank.ForDefaultScheme(child, name, match));
+                return;
+            }
+            matches.Add(FzfResultRank.ForDefaultScheme(child, name, new FzfPatternResult(0, 0, 0, 0, false)));
         }
 
         var seen = new HashSet<int>();

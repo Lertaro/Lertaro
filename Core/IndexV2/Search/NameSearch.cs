@@ -153,9 +153,12 @@ internal static class NameSearch
         var ancestorRow = -1;
         if (DirectoryFilterResolver.TryResolve(snapshot, delta, directoryFilterLower, forceLastSegmentAsQuery: false, out var resolved, out var remainder))
         {
-            if (remainder.Length == 0)
+            // IsUnderCached only accepts snapshot rows. Keep an added directory as a path-prefix
+            // filter so its live path still scopes both base and delta rows without indexing a
+            // synthetic entry into the snapshot-only ancestor cache.
+            if (remainder.Length == 0 && resolved < snapshot.Count)
                 rootFilterRow = resolved;
-            else
+            else if (resolved < snapshot.Count)
                 ancestorRow = resolved;
         }
         return new DirectoryContext(false, rootFilterRow, ancestorRow, directoryFilterLower);

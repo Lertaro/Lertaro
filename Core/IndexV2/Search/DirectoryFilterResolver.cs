@@ -128,34 +128,31 @@ internal static class DirectoryFilterResolver
     private static bool TryFindChildDirectory(Snapshot snapshot, DeltaOverlay? delta, DeltaChildLookup? deltaChildren,
         int parentRow, string nameLower, out int childRow)
     {
-        if (parentRow >= snapshot.Count)
+        if (parentRow < snapshot.Count)
         {
-            childRow = -1;
-            return false;
-        }
-
-        foreach (var child in snapshot.ChildrenOf(parentRow))
-        {
-            if (delta != null && delta.IsSuperseded(child))
-                continue;
-            if (!snapshot.IsDeleted(child) && snapshot.IsDirectory(child)
-                && snapshot.GetName(child).Equals(nameLower, StringComparison.OrdinalIgnoreCase))
+            foreach (var child in snapshot.ChildrenOf(parentRow))
             {
-                childRow = child;
-                return true;
+                if (delta != null && delta.IsSuperseded(child))
+                    continue;
+                if (!snapshot.IsDeleted(child) && snapshot.IsDirectory(child)
+                    && snapshot.GetName(child).Equals(nameLower, StringComparison.OrdinalIgnoreCase))
+                {
+                    childRow = child;
+                    return true;
+                }
             }
         }
 
         if (deltaChildren != null)
         {
-            foreach (var child in deltaChildren.ChildrenOfRow(parentRow))
+            var children = parentRow < snapshot.Count
+                ? deltaChildren.ChildrenOfRow(parentRow)
+                : deltaChildren.ChildrenOfFrn(delta!.Added[parentRow - snapshot.Count].Id);
+            foreach (var child in children)
             {
-                if (child >= snapshot.Count || delta!.IsVisiblyDeleted(child))
+                if (IsVisiblyDeleted(snapshot, delta!, child) || !IsDirectory(snapshot, delta!, child))
                     continue;
-                if (!delta.BaseOverrides.TryGetValue(child, out var overridden))
-                    continue;
-                if ((overridden.Flags & (ushort)FileRecordFlags.Directory) != 0
-                    && overridden.Name.Equals(nameLower, StringComparison.OrdinalIgnoreCase))
+                if (GetName(snapshot, delta!, child).Equals(nameLower, StringComparison.OrdinalIgnoreCase))
                 {
                     childRow = child;
                     return true;
@@ -166,4 +163,20 @@ internal static class DirectoryFilterResolver
         childRow = -1;
         return false;
     }
+
+    internal static string GetName(Snapshot snapshot, DeltaOverlay delta, int entry)
+        => entry < snapshot.Count ? delta.NameOf(entry) : delta.Added[entry - snapshot.Count].Name;
+
+    internal static ushort GetFlags(Snapshot snapshot, DeltaOverlay delta, int entry)
+        => entry >= snapshot.Count ? delta.Added[entry - snapshot.Count].Flags
+            : delta.BaseOverrides.TryGetValue(entry, out var record) ? record.Flags : snapshot.Flags[entry];
+
+    internal static bool IsDirectory(Snapshot snapshot, DeltaOverlay delta, int entry)
+        => (GetFlags(snapshot, delta, entry) & (ushort)FileRecordFlags.Directory) != 0;
+
+    internal static bool IsSuperseded(Snapshot snapshot, DeltaOverlay delta, int entry)
+        => entry < snapshot.Count ? delta.IsSuperseded(entry) : delta.Added[entry - snapshot.Count].Removed;
+
+    internal static bool IsVisiblyDeleted(Snapshot snapshot, DeltaOverlay delta, int entry)
+        => entry < snapshot.Count ? delta.IsVisiblyDeleted(entry) : delta.Added[entry - snapshot.Count].Removed;
 }

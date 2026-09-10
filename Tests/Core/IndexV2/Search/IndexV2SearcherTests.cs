@@ -140,6 +140,38 @@ public sealed class IndexV2SearcherTests
         CollectionAssert.AreEquivalent(new[] { "Projects", "notes.md", "readme.txt" }, names);
     }
 
+    [TestMethod]
+    public void SearchStreaming_PathModeQuery_ListsChildrenOfAnAddedDirectory()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((_, delta) =>
+        {
+            delta.Upsert(100, 2, "newdir", FileRecordFlags.Directory, 0, 0, 0, 0);
+            delta.Upsert(101, 100, "inner.txt", FileRecordFlags.None, 0, 0, 0, 0);
+        });
+        var results = Search(fixture, @"c:\projects\newdir\");
+
+        CollectionAssert.AreEquivalent(new[] { "newdir", "inner.txt" }, results.Select(r => r.Name).ToArray());
+    }
+
+    [TestMethod]
+    public void SearchStreaming_DirectoryFilter_UsesAnAddedDirectoryPath()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((_, delta) =>
+        {
+            delta.Upsert(100, 2, "newdir", FileRecordFlags.Directory, 0, 0, 0, 0);
+            delta.Upsert(101, 100, "inner.txt", FileRecordFlags.None, 0, 0, 0, 0);
+        });
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, "inner", 10, results.Add, CancellationToken.None,
+            directoryFilter: @"C:\Projects\newdir");
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual(@"C:\Projects\newdir\inner.txt", results[0].Path);
+    }
+
     private static List<SearchResult> Search(LiveIndexFixture fixture, string query)
     {
         var results = new List<SearchResult>();

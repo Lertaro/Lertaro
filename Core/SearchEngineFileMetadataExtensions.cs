@@ -1,5 +1,7 @@
 using Lertaro.Core.IndexV2;
 
+using Lertaro.Core.IndexV2.Delta;
+
 using Lertaro.Core.IndexV2.Search;
 
 namespace Lertaro.Core;
@@ -43,7 +45,9 @@ public static class SearchEngineFileMetadataExtensions
             {
                 if (!DirectoryFilterResolver.TryResolve(snapshot, delta, pathLower, forceLastSegmentAsQuery: false, out var row, out var remainder) || remainder.Length > 0)
                     return (FileMetadataEntry?)null;
-                var (size, creation, lastWrite, lastAccess) = delta.MetadataOf(row);
+                var (size, creation, lastWrite, lastAccess) = row < snapshot.Count
+                    ? delta.MetadataOf(row)
+                    : GetAddedMetadata(delta.Added[row - snapshot.Count]);
                 return new FileMetadataEntry(size, creation, lastWrite, lastAccess);
             });
 
@@ -52,4 +56,7 @@ public static class SearchEngineFileMetadataExtensions
         }
         return result;
     }
+
+    private static (long Size, uint Creation, uint LastWrite, uint LastAccess) GetAddedMetadata(DeltaOverlay.DeltaRecord record)
+        => (record.Size, record.Creation, record.LastWrite, record.LastAccess);
 }

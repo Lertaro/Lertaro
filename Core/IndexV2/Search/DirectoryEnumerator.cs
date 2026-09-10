@@ -39,7 +39,7 @@ internal static class DirectoryEnumerator
         if (!DirectoryFilterResolver.TryResolve(snapshot, delta, pathLower, forceLastSegmentAsQuery: false, out var root, out var remainder)
             || remainder.Length != 0)
             return false;
-        if (delta.IsVisiblyDeleted(root) || !IsDirectory(snapshot, delta, root))
+        if (DirectoryFilterResolver.IsVisiblyDeleted(snapshot, delta, root) || !DirectoryFilterResolver.IsDirectory(snapshot, delta, root))
             return false;
 
         var lookup = DeltaChildLookup.Build(snapshot, delta);
@@ -114,8 +114,4 @@ internal static class DirectoryEnumerator
     private static DeltaOverlay.DeltaRecord RecordFor(Snapshot snapshot, DeltaOverlay delta, int entry)
         => entry >= snapshot.Count ? delta.Added[entry - snapshot.Count] : delta.BaseOverrides[entry];
 
-    private static bool IsDirectory(Snapshot snapshot, DeltaOverlay delta, int row)
-        => delta.BaseOverrides.TryGetValue(row, out var overridden)
-            ? (overridden.Flags & (ushort)FileRecordFlags.Directory) != 0
-            : snapshot.IsDirectory(row);
 }

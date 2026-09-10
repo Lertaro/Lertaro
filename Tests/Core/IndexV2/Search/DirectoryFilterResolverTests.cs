@@ -105,6 +105,63 @@ public sealed class DirectoryFilterResolverTests
     }
 
     [TestMethod]
+    public void TryResolve_AddedDirectoryAndNestedDirectory_ResolveByFullPath()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((_, delta) =>
+        {
+            delta.Upsert(100, 2, "newdir", FileRecordFlags.Directory, 0, 0, 0, 0);
+            delta.Upsert(101, 100, "nested", FileRecordFlags.Directory, 0, 0, 0, 0);
+        });
+
+        fixture.Index.Read((snapshot, delta) =>
+        {
+            var resolved = DirectoryFilterResolver.TryResolve(snapshot, delta, @"c:\projects\newdir\nested\", false, out var row, out var remainder);
+
+            Assert.IsTrue(resolved);
+            Assert.AreEqual(string.Empty, remainder);
+            Assert.IsGreaterThanOrEqualTo(snapshot.Count, row);
+            Assert.AreEqual("nested", DirectoryFilterResolver.GetName(snapshot, delta, row));
+            return 0;
+        });
+    }
+
+    [TestMethod]
+    public void Enumerate_DirectoryAddedByTheOverlay_CanBeOpenedByItsFullPath()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((_, delta) =>
+        {
+            delta.Upsert(200, 2, "newdir", FileRecordFlags.Directory, 0, 0, 0, 0);
+            delta.Upsert(201, 200, "inner.txt", FileRecordFlags.None, 10, 0, 0, 0);
+        });
+        var results = new List<SearchResult>();
+
+        var resolved = IndexV2Searcher.EnumerateDirectory(fixture.Index, @"C:\Projects\newdir", false, null, 0,
+            results.Add, CancellationToken.None);
+
+        Assert.IsTrue(resolved);
+        CollectionAssert.AreEqual(new[] { @"C:\Projects\newdir\inner.txt" }, results.Select(r => r.Path).ToArray());
+    }
+
+    [TestMethod]
+    public void TryResolve_DeletedDirectory_DoesNotResolveItsOldPath()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((_, delta) => delta.Remove(4));
+
+        fixture.Index.Read((snapshot, delta) =>
+        {
+            var resolved = DirectoryFilterResolver.TryResolve(snapshot, delta, @"c:\projects\sub\", false, out var row, out var remainder);
+
+            Assert.IsTrue(resolved);
+            Assert.AreEqual("sub", remainder);
+            Assert.AreEqual("Projects", snapshot.GetName(row));
+            return 0;
+        });
+    }
+
+    [TestMethod]
     public void TryResolve_PathOutsideSourceRoot_ReturnsFalse()
     {
         using var fixture = BuildSampleDrive();

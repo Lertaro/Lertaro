@@ -17,43 +17,46 @@ public static class RecentFilesV2
     public static void CollectFromDirectory(Snapshot snapshot, DeltaOverlay delta, string dirLower, string drive, uint cutoffUtc, List<SearchResult> candidates)
     {
         if (!DirectoryFilterResolver.TryResolve(snapshot, delta, dirLower, forceLastSegmentAsQuery: false, out var rootRow, out var remainder)
-            || remainder.Length > 0 || !snapshot.IsDirectory(rootRow) || delta.IsSuperseded(rootRow))
+            || remainder.Length > 0 || !DirectoryFilterResolver.IsDirectory(snapshot, delta, rootRow)
+            || DirectoryFilterResolver.IsVisiblyDeleted(snapshot, delta, rootRow))
             return;
 
+        var lookup = DeltaChildLookup.Build(snapshot, delta);
         var stack = new Stack<int>();
         stack.Push(rootRow);
         var scanned = 0;
         while (stack.Count > 0 && scanned < MaxScannedPerDirectory)
         {
             var current = stack.Pop();
-            foreach (var child in snapshot.ChildrenOf(current))
+            if (current < snapshot.Count)
             {
-                if (snapshot.IsDeleted(child) || delta.IsSuperseded(child))
-                    continue;
-                scanned++;
-                if (snapshot.IsDirectory(child))
-                    stack.Push(child);
-                Emit(snapshot, delta, child, drive, cutoffUtc, candidates);
+                foreach (var child in snapshot.ChildrenOf(current))
+                {
+                    if (snapshot.IsDeleted(child) || delta.IsSuperseded(child))
+                        continue;
+                    scanned++;
+                    if (DirectoryFilterResolver.IsDirectory(snapshot, delta, child))
+                        stack.Push(child);
+                    Emit(snapshot, delta, child, drive, cutoffUtc, candidates);
+                }
             }
-            foreach (var (row, record) in delta.BaseOverrides)
+            if (lookup != null)
             {
-                if (record.ParentBaseRow != current)
-                    continue;
-                scanned++;
-                if ((record.Flags & (ushort)FileRecordFlags.Directory) != 0)
-                    stack.Push(row);
-                EmitOverride(delta, row, record, drive, cutoffUtc, candidates);
-            }
-            var currentFrn = snapshot.Ids[current];
-            foreach (var record in delta.Added)
-            {
-                if (record.Removed || record.ParentFrn != currentFrn)
-                    continue;
-                scanned++;
-                var isDirectory = (record.Flags & (ushort)FileRecordFlags.Directory) != 0;
-                var flags = (FileRecordFlags)record.Flags;
-                if (!isDirectory && record.LastWrite >= cutoffUtc && !IsHiddenOrSystem(flags))
-                    candidates.Add(ToResult(record.Name, delta.GetFullPath(record), flags, drive, record.LastWrite));
+                var children = current < snapshot.Count
+                    ? lookup.ChildrenOfRow(current)
+                    : lookup.ChildrenOfFrn(delta.Added[current - snapshot.Count].Id);
+                foreach (var entry in children)
+                {
+                    if (DirectoryFilterResolver.IsVisiblyDeleted(snapshot, delta, entry))
+                        continue;
+                    scanned++;
+                    if (DirectoryFilterResolver.IsDirectory(snapshot, delta, entry))
+                        stack.Push(entry);
+                    else if (entry >= snapshot.Count)
+                        EmitAdded(delta.Added[entry - snapshot.Count], delta, drive, cutoffUtc, candidates);
+                    else
+                        Emit(snapshot, delta, entry, drive, cutoffUtc, candidates);
+                }
             }
         }
     }
@@ -72,7 +75,7 @@ public static class RecentFilesV2
     /// </remarks>
     private static void Emit(Snapshot snapshot, DeltaOverlay delta, int row, string drive, uint cutoffUtc, List<SearchResult> candidates)
     {
-        if (snapshot.IsDirectory(row))
+        if (DirectoryFilterResolver.IsDirectory(snapshot, delta, row))
             return;
         var flags = delta.BaseOverrides.TryGetValue(row, out var overridden)
             ? (FileRecordFlags)overridden.Flags
@@ -95,6 +98,14 @@ public static class RecentFilesV2
         if (record.LastWrite < cutoffUtc)
             return;
         candidates.Add(ToResult(record.Name, delta.GetFullPath(row), flags, drive, record.LastWrite));
+    }
+
+    private static void EmitAdded(DeltaOverlay.DeltaRecord record, DeltaOverlay delta, string drive, uint cutoffUtc, List<SearchResult> candidates)
+    {
+        var flags = (FileRecordFlags)record.Flags;
+        if (record.LastWrite < cutoffUtc || IsHiddenOrSystem(flags))
+            return;
+        candidates.Add(ToResult(record.Name, delta.GetFullPath(record), flags, drive, record.LastWrite));
     }
 
     private static bool IsHiddenOrSystem(FileRecordFlags flags)

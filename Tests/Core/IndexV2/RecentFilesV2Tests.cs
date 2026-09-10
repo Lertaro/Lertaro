@@ -136,6 +136,27 @@ public sealed class RecentFilesV2Tests
     }
 
     [TestMethod]
+    public void CollectFromDirectory_CanStartAtAnAddedDirectory()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((_, delta) =>
+        {
+            delta.Upsert(200, 2, "fresh-folder", FileRecordFlags.Directory, 0, 0, 0, 0);
+            delta.Upsert(201, 200, "fresh.txt", FileRecordFlags.None, 1, 0, 3000, 0);
+        });
+
+        fixture.Index.Read((snapshot, delta) =>
+        {
+            var candidates = new List<SearchResult>();
+            RecentFilesV2.CollectFromDirectory(snapshot, delta, @"c:\projects\fresh-folder\", "C", 500, candidates);
+
+            Assert.HasCount(1, candidates);
+            Assert.AreEqual("fresh.txt", candidates[0].Name);
+            return 0;
+        });
+    }
+
+    [TestMethod]
     public void CollectFromDirectory_UnresolvableDirectory_ReturnsEmpty()
     {
         using var fixture = BuildSampleDrive();
