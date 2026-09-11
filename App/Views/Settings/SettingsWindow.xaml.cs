@@ -48,6 +48,7 @@ public partial class SettingsWindow : Window
     private Views.Settings.LocalSend.LocalSendSettingsPage? _pageLocalSend;
     private AboutSettingsPage? _pageAbout;
     private FrameworkElement? _currentPage;
+    private readonly SettingsPagePrewarmer _pagePrewarmer;
 
     internal ServiceSettingsPage PageService => _pageService ??= AddPage(new ServiceSettingsPage());
     internal IndexSettingsPage PageIndex => _pageIndex ??= AddPage(new IndexSettingsPage());
@@ -87,16 +88,18 @@ public partial class SettingsWindow : Window
         ThemedWindowIconHelper.Apply(TitleBarLogo, this);
         var vm = new SettingsViewModel();
         DataContext = vm;
+        _pagePrewarmer = new SettingsPagePrewarmer(this);
         Loaded += (_, _) =>
         {
             UpdateSidebarLayout(ActualWidth);
             if (LstSections.SelectedItem == null && LstSectionsBottom.SelectedItem == null) LstSections.SelectedIndex = 0;
             FocusSearchBox();
             // Now that the window and its first page are up, fill in the tabs the user has not visited.
-            new SettingsPagePrewarmer(this).Begin();
+            _pagePrewarmer.Begin();
         };
         Closed += (_, _) =>
         {
+            _pagePrewarmer.Stop();
             vm.Cleanup();
             // Release cached bitmaps and trim the working set on close, like the search windows.
             ShellIconHelper.ClearCache();

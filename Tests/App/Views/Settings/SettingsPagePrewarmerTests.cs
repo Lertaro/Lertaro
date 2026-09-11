@@ -64,6 +64,27 @@ public sealed class SettingsPagePrewarmerTests
     }
 
     [TestMethod]
+    public void PrewarmingStopsWhenTheWindowCloses()
+    {
+        var prewarmer = Source("App/Views/Settings/SettingsPagePrewarmer.cs");
+        var window = Source("App/Views/Settings/SettingsWindow.xaml.cs");
+
+        Assert.Contains("internal void Stop()", prewarmer,
+            "the idle chain needs an explicit shutdown path");
+        Assert.Contains("_stopped || pending.Count == 0", prewarmer,
+            "a queued callback must stop before touching the closed window");
+        Assert.Contains("if (!_stopped)", prewarmer,
+            "the callback must not queue another idle callback after shutdown");
+        Assert.Contains("_pagePrewarmer.Stop()", window,
+            "the owning window must stop prewarming before cleanup");
+
+        var stopAt = window.IndexOf("_pagePrewarmer.Stop()", StringComparison.Ordinal);
+        var cleanupAt = window.IndexOf("vm.Cleanup()", StringComparison.Ordinal);
+        Assert.IsLessThan(cleanupAt, stopAt,
+            "prewarming must stop before the settings ViewModel is cleaned up");
+    }
+
+    [TestMethod]
     public void PrewarmingActuallyBuildsTheVisualTreeNotJustTheObjects()
     {
         // Constructing a page is NOT enough: pages are parented Collapsed (SettingsWindow.AddPage), and

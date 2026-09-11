@@ -72,9 +72,11 @@ public sealed class FlowInstantResultProviderTests
         var matchedQuery = string.Empty;
         PluginSdk.Services.SearchRefreshService.RefreshMatchingFunc = predicate =>
         {
-            Interlocked.Increment(ref refreshCalls);
             if (predicate("dev"))
-                matchedQuery = "dev";
+            {
+                Volatile.Write(ref matchedQuery, "dev");
+                Interlocked.Increment(ref refreshCalls);
+            }
         };
 
         var dispatcher = new FlowQueryDispatcher(host);
@@ -91,7 +93,37 @@ public sealed class FlowInstantResultProviderTests
             Thread.Sleep(50);
 
         Assert.AreEqual(1, Volatile.Read(ref refreshCalls), "the late dispatch must ask for exactly one refresh");
-        Assert.AreEqual("dev", matchedQuery, "and it must match the query it was dispatched for");
+        Assert.AreEqual("dev", Volatile.Read(ref matchedQuery), "and it must match the query it was dispatched for");
+    }
+
+    [TestMethod]
+    public void GetInstantResults_WhenTheSameDispatchTimesOutTwice_RequestsOneRefresh()
+    {
+        var storage = new FlowSettingsStorage(Path.GetTempPath());
+        var host = new FlowPluginHost(storage, []);
+        host.RegisterPlugin(new PluginPair
+        {
+            Metadata = new PluginMetadata { ID = "slow", Name = "Slow", ActionKeyword = "*" },
+            Plugin = new SlowFlowPlugin(TimeSpan.FromMilliseconds(1500))
+        });
+
+        var refreshCalls = 0;
+        PluginSdk.Services.SearchRefreshService.RefreshMatchingFunc = _ => Interlocked.Increment(ref refreshCalls);
+
+        var dispatcher = new FlowQueryDispatcher(host);
+        var provider = new FlowInstantResultProvider(dispatcher);
+        var callers = Enumerable.Range(0, 2)
+            .Select(_ => Task.Run(() => provider.GetInstantResults("same").ToList()))
+            .ToArray();
+
+        Task.WaitAll(callers);
+
+        var deadline = Environment.TickCount64 + 4000;
+        while (Volatile.Read(ref refreshCalls) == 0 && Environment.TickCount64 < deadline)
+            Thread.Sleep(50);
+
+        Assert.AreEqual(1, Volatile.Read(ref refreshCalls),
+            "callers sharing one slow dispatch must schedule only one host refresh");
     }
 
     private sealed class SlowFlowPlugin(TimeSpan delay) : IAsyncPlugin

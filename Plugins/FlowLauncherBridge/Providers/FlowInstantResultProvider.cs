@@ -159,6 +159,7 @@ public class FlowInstantResultProvider : IInstantResultProvider
 
     private readonly ConcurrentDictionary<string, (List<Result> Results, DateTimeOffset Timestamp)> _queryCache = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Task<List<Result>>> _inFlightQueries = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, byte> _refreshScheduledQueries = new(StringComparer.Ordinal);
     private const int DispatchTimeoutMs = 300;
 
     private IEnumerable<InstantResultItem> ExecuteDispatch(string q)
@@ -218,18 +219,33 @@ public class FlowInstantResultProvider : IInstantResultProvider
         // unconditionally there re-ran the whole search even on the fast path that already returned these
         // results to the caller -- and Flow usually answers within the timeout, so that fired on every
         // keystroke, doubling the search cost for nothing.
-        _ = task.ContinueWith(
-            completed =>
-            {
-                // Only a successful dispatch has written the cache entry this refresh exists to surface.
-                // A faulted/cancelled one left the cache empty, and asking the host to re-run then would
-                // dispatch again and re-timeout, spinning on a search that can never resolve.
-                if (!completed.IsCompletedSuccessfully)
-                    return;
-                PluginSdk.Services.SearchRefreshService.RefreshIfMatches(current =>
-                    string.Equals(current?.Trim(), q.Trim(), StringComparison.OrdinalIgnoreCase));
-            },
-            TaskScheduler.Default);
+        // Several callers can time out while they are all waiting on this same in-flight dispatch. Only the
+        // first one needs to arrange the host refresh; otherwise one completed dispatch produces one refresh
+        // per timed-out caller and re-runs the same query repeatedly.
+        if (_refreshScheduledQueries.TryAdd(q, 0))
+        {
+            _ = task.ContinueWith(
+                completed =>
+                {
+                    try
+                    {
+                        // Only a successful dispatch has written the cache entry this refresh exists to
+                        // surface. A faulted/cancelled one left the cache empty, and asking the host to
+                        // re-run then would dispatch again and re-timeout, spinning on a search that can
+                        // never resolve.
+                        if (completed.IsCompletedSuccessfully)
+                        {
+                            PluginSdk.Services.SearchRefreshService.RefreshIfMatches(current =>
+                                string.Equals(current?.Trim(), q.Trim(), StringComparison.OrdinalIgnoreCase));
+                        }
+                    }
+                    finally
+                    {
+                        _refreshScheduledQueries.TryRemove(q, out _);
+                    }
+                },
+                TaskScheduler.Default);
+        }
 
         return
         [

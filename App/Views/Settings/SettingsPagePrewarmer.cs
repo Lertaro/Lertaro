@@ -17,6 +17,7 @@ internal sealed class SettingsPagePrewarmer
     private const string HeaviestSection = "Plugins";
 
     private readonly SettingsWindow _window;
+    private bool _stopped;
 
     internal SettingsPagePrewarmer(SettingsWindow window) => _window = window;
 
@@ -58,19 +59,23 @@ internal sealed class SettingsPagePrewarmer
 
         void PrewarmNext()
         {
-            if (pending.Count == 0) return;
+            if (_stopped || pending.Count == 0) return;
 
             var section = pending[0];
             pending.RemoveAt(0);
 
             BuildVisualTree(section);
 
-            _window.Dispatcher.BeginInvoke(new Action(PrewarmNext), DispatcherPriority.ApplicationIdle);
+            if (!_stopped)
+                _window.Dispatcher.BeginInvoke(new Action(PrewarmNext), DispatcherPriority.ApplicationIdle);
         }
 
         // One hop of its own so the page the user is looking at actually paints before this starts.
         _window.Dispatcher.BeginInvoke(new Action(PrewarmNext), DispatcherPriority.ApplicationIdle);
     }
+
+    /// <summary>Stops queued idle work when the owning window is closing.</summary>
+    internal void Stop() => _stopped = true;
 
     /// <summary>
     /// Constructs the page AND runs a layout pass over it, so the tab is genuinely ready to show.
