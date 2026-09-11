@@ -209,21 +209,41 @@ internal sealed class InlineCardSizingSupport
         _window.InputHandler.QueueResultsLayoutUpdate();
     }
 
-    /// <summary>The card's height: the row area, the path banner when shown, and the chrome.</summary>
+    /// <summary>The card's height: stable result/path reserves, natural content, and chrome.</summary>
     /// <remarks>
     /// Separated and taking the row count so the arithmetic is testable without a laid-out window. The
     /// The search bar and path banner are measured when WPF has not produced their arranged heights yet.
     ///
-    /// The banner is ADDED to the card rather than given room taken from the list. The results area is a
-    /// star row inside the card, so an extra Auto row above it would shrink the list by the banner's height
-    /// -- which showed up as the list losing half a row and the search box shifting down. Counting it here
-    /// instead grows the card upward (it is bottom-anchored), leaving both where they were.
+    /// When result content or the path preview is visible, the shell reserves the full result budget and a
+    /// five-line path estimate. This keeps the bottom-anchored search bar and native window position stable
+    /// while content is changing. The path banner is still measured naturally, so a path longer than the
+    /// estimate grows the shell instead of being clipped.
     /// </remarks>
     internal double CardHeight(int rows)
     {
         var searchBox = SearchBoxHeight();
         var separator = _window.ResultsSeparator.ActualHeight > 0 ? _window.ResultsSeparator.ActualHeight : 1.0;
-        return InlineCardMetrics.ResultsAreaHeight(rows) + searchBox + separator + PathBannerHeight();
+        var pathHeight = PathBannerHeight();
+        var hasVisibleContent = _window.ResultsPanelControl.Visibility == Visibility.Visible
+            || _window.PathPreviewBorder.Visibility == Visibility.Visible;
+        if (hasVisibleContent)
+        {
+            rows = Math.Max(rows, InlineCardMetrics.DefaultRows);
+            pathHeight = Math.Max(pathHeight, EstimatedPathPreviewHeight());
+        }
+
+        return InlineCardMetrics.ResultsAreaHeight(rows) + searchBox + separator + pathHeight;
+    }
+
+    private double EstimatedPathPreviewHeight()
+    {
+        var lineHeight = _window.PathPreviewTextBlock.LineHeight;
+        if (double.IsNaN(lineHeight) || lineHeight <= 0)
+            lineHeight = _window.PathPreviewTextBlock.FontSize;
+
+        var padding = _window.PathPreviewBorder.Padding.Top + _window.PathPreviewBorder.Padding.Bottom;
+        var border = _window.PathPreviewBorder.BorderThickness.Top + _window.PathPreviewBorder.BorderThickness.Bottom;
+        return lineHeight * InlineCardMetrics.PathPreviewReservedRows + padding + border;
     }
 
     /// <summary>Measures the search bar at its natural height for the current card width.</summary>

@@ -129,6 +129,14 @@ public sealed class InlineSearchStaysOneSearchTests
         var layout = Source("App/Views/InlineSearchWindow/Helpers/InlineSearchWindowLayoutManager.cs");
         Assert.Contains("PathPreviewTextBlock.Text != pathText", layout,
             "a longer replacement path must trigger a new natural-height pass");
+
+        var metrics = Source("App/Views/InlineSearchWindow/Helpers/InlineCardMetrics.cs");
+        Assert.Contains("PathPreviewReservedRows = 5", metrics,
+            "the shell should reserve a five-line path estimate");
+        Assert.Contains("Math.Max(rows, InlineCardMetrics.DefaultRows)", sizing,
+            "the shell should reserve the complete nine-row result budget while content is visible");
+        Assert.Contains("EstimatedPathPreviewHeight()", sizing,
+            "the path reserve must be an estimate rather than a fixed banner height");
     }
 
     [TestMethod]

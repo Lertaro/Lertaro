@@ -12,6 +12,11 @@ internal static class InlineCardMetrics
     // card bounded: section titles are rows in the list and cannot make a tenth row appear.
     internal const int DefaultRows = 9;
 
+    // The shell reserves this many wrapped path lines so selecting ordinary long paths does not move the
+    // bottom-anchored search bar. This is only an estimate for the shell; the path banner itself remains
+    // naturally sized and can grow beyond it when the complete path needs more lines.
+    internal const int PathPreviewReservedRows = 5;
+
     /// <summary>What the results area should occupy right now.</summary>
     /// <param name="ShownItems">Bound items to occupy with real rows, including any section titles.</param>
     /// <param name="AreaRows">Total rows the area is sized to, including any placeholder rows.</param>
