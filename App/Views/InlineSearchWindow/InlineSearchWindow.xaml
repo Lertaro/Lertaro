@@ -47,19 +47,26 @@
                     <Grid x:Name="ResultsContainerWrapper" Grid.Row="0" Background="{DynamicResource ContentBg}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Top Path Preview Banner -->
+                        <!-- Top Path Preview Banner. A FIXED single-line height, set explicitly rather than
+                             left to its content: the card's own height is computed from this element's
+                             Height, and a Collapsed element reports ActualHeight 0, so the value has to be
+                             knowable before it is shown. 33 = 8 + 8 vertical padding + 16 line + 1 bottom
+                             border; keep those in step with the sizes below. -->
                         <Border x:Name="PathPreviewBorder" Grid.Row="0" Background="{DynamicResource ActionsHeaderBg}"
                                 BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1"
                                 CornerRadius="7,7,0,0"
+                                Height="33"
                                 Padding="14,8,14,8"
                                 Visibility="Collapsed">
                             <TextBlock x:Name="PathPreviewTextBlock"
                                        Foreground="{DynamicResource TextSecondary2}"
                                        FontSize="12"
-                                       TextWrapping="Wrap"
+                                       TextWrapping="NoWrap"
+                                       TextTrimming="CharacterEllipsis"
                                        LineHeight="16"/>
                         </Border>
 
@@ -68,6 +75,27 @@
                                               SelectedItem="{Binding SelectedResult, Mode=TwoWay}"
                                               ViewMode="List"
                                               Visibility="{Binding ResultsPanelVisibility}"/>
+
+                        <!-- Skeleton rows for the slots the card is still waiting on. ALWAYS as many as
+                             there are unfilled slots, not only while searching: a card that showed them
+                             only during a search would shrink the moment the search settled, which is the
+                             resize churn this whole change exists to remove. The animation (started and
+                             stopped from code, see RefreshPlaceholderPulse) is what says "still loading";
+                             the rows themselves are just the card's empty space.
+                             Deliberately NOT part of the results list: keeping them out of the collection
+                             leaves selection, Enter, Ctrl+1..9 and de-duplication untouched. -->
+                        <ItemsControl x:Name="PlaceholderSlots" Grid.Row="2" IsHitTestVisible="False"
+                                      Opacity="0.16">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Height="36" Margin="14,0,14,0">
+                                        <Border Height="10" CornerRadius="5" Width="150"
+                                                HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                Background="{DynamicResource TextSecondary2}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </Grid>
                     <!-- ═══════════ 2. Separator ═══════════ -->
                     <Rectangle x:Name="ResultsSeparator" Grid.Row="1" Height="1" Fill="{DynamicResource SeparatorBrush}"

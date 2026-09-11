@@ -98,11 +98,8 @@ public static class WpfUiHelper
 
     /// <summary>
     /// Same purpose as GetFirstVisibleIndexFromPixelOffset, but reads the ScrollViewer's OWN current
-    /// CanContentScroll instead of assuming a fixed scrolling mode -- QuickSearchWindowLayoutManager now
-    /// toggles LstResults between item-based (virtualized, the WPF default -- VerticalOffset is ALREADY an
-    /// item index) and pixel-based (VerticalOffset needs the conversion above) depending on whether this
-    /// particular layout pass needs to clip a partial row. A caller that assumed one mode unconditionally
-    /// would silently read the wrong unit the moment the OTHER mode is active.
+    /// CanContentScroll instead of assuming a fixed scrolling mode -- a caller that assumed one mode
+    /// unconditionally would silently read the wrong unit the moment the other mode is active.
     /// </summary>
     public static int GetFirstVisibleIndex(ScrollViewer? scrollViewer, double rowHeight)
     {

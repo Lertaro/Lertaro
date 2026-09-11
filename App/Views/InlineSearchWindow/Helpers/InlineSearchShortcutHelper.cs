@@ -10,11 +10,12 @@ public static class InlineSearchShortcutHelper
 {
     public static void UpdateShortcutHints(Lertaro.App.InlineSearchWindow window, ScrollViewer? scrollViewer)
     {
-        // LstResults here is pinned to pixel-based scrolling for the window's whole lifetime (see
-        // InlineSearchWindowLayoutManager's constructor), unlike the quick window's per-pass dynamic
-        // toggle -- reading it through the same mode-aware helper the quick window needs is one less
-        // thing to keep in sync if that ever changes. InlineRowHeight is now a literal constant instead
-        // of a derived ratio, and it represents the complete outer row including its template margin.
+        // LstResults here is pinned to ITEM-based scrolling for the window's whole lifetime (see
+        // InlineSearchWindowLayoutManager's constructor) so the list virtualizes. Reading the mode through
+        // the same mode-aware helper the quick window uses -- instead of assuming one unit -- keeps this
+        // correct regardless of the mode, which matters because the two windows deliberately differ.
+        // InlineRowHeight is a literal constant rather than a derived ratio, and it represents the complete
+        // outer row including its template margin.
         var rowHeight = UiMetrics.InlineRowHeight;
         var firstVisible = WpfUiHelper.GetFirstVisibleIndex(scrollViewer, rowHeight);
         // Shortcut numbers are relative to the current viewport. Ctrl+G occupies slot 1 only while its

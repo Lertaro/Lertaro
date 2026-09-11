@@ -162,6 +162,11 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
 
     public void CancelPendingSearch() => _engine.CancelPendingSearch();
 
+    // The inline window pre-warms its folder listing the moment its scope is known, i.e. before the user
+    // has typed -- see DirectChildrenListingCache for why that is the difference between a first character
+    // that matches instantly and one that waits for a whole folder walk.
+    public void PrewarmDirectoryListing(string? directory) => _engine.PrewarmDirectoryListing(directory);
+
     public void Dispose()
     {
         SearchableItemMapper.ProviderLoaded -= OnSearchableItemProviderLoaded;
