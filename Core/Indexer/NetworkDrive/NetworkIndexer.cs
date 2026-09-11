@@ -114,7 +114,7 @@ public sealed class NetworkIndexer : IDisposable
 
         lock (_gate)
         {
-            changedRoots = NetworkIndexerHelper.FindChangedRoots(_refreshModes.Keys, enabledDrives);
+            changedRoots = NetworkIndexerHelper.FindConfigurationChangedRoots(_refreshModes.Keys, enabledDrives);
             foreach (var removed in _indexes.Keys.Except(enabledDrives, StringComparer.OrdinalIgnoreCase).ToList())
             {
                 if (_indexes.Remove(removed, out var removedIndex))

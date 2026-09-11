@@ -11,6 +11,16 @@ internal static class NetworkIndexerHelper
         return changed.OrderBy(root => root, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    public static List<string> FindConfigurationChangedRoots(IEnumerable<string> previous, IEnumerable<string> current)
+    {
+        var previousRoots = previous.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (previousRoots.Count == 0)
+            return new List<string>();
+
+        previousRoots.SymmetricExceptWith(current);
+        return previousRoots.OrderBy(root => root, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
     public static string ResolveDriveFromId(string id)
     {
         if (string.IsNullOrWhiteSpace(id))

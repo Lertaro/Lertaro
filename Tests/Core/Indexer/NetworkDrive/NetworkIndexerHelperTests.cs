@@ -20,6 +20,22 @@ public sealed class NetworkIndexerHelperTests
     }
 
     [TestMethod]
+    public void FindConfigurationChangedRoots_DoesNotNotifyInitialRoots()
+        => CollectionAssert.AreEqual(
+            Array.Empty<string>(),
+            NetworkIndexerHelper.FindConfigurationChangedRoots(
+                Array.Empty<string>(),
+                new[] { "Z" }));
+
+    [TestMethod]
+    public void FindConfigurationChangedRoots_ReportsChangesAfterInitialization()
+        => CollectionAssert.AreEqual(
+            new[] { "C", "Z" },
+            NetworkIndexerHelper.FindConfigurationChangedRoots(
+                new[] { "C", "D" },
+                new[] { "D", "Z" }));
+
+    [TestMethod]
     public void CreateStatus_NoIndexNoCurrent_UsesZeroDefaults()
     {
         var status = NetworkIndexerHelper.CreateStatus("Z", "Idle", 0, index: null, current: null);
