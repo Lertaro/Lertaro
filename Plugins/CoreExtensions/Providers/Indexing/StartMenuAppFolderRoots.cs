@@ -16,7 +16,9 @@ internal static class StartMenuAppFolderRoots
         Func<string, string>? resolveVirtualPath = null)
     {
         var roots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var resolve = resolveVirtualPath ?? ShellPathHelper.TryResolveVirtualPath;
+        // The resolver owns both steps (expand "%VAR%", then resolve "shell:..."), so the injected one
+        // takes the raw candidate too -- the tests' fake is a plain string substitution.
+        var resolve = resolveVirtualPath ?? (path => UserPathResolver.Resolve(path));
         Add(builtInRoots);
         if (customRoots != null)
             Add(customRoots);
@@ -29,8 +31,7 @@ internal static class StartMenuAppFolderRoots
                 if (string.IsNullOrWhiteSpace(candidate))
                     continue;
 
-                var path = Environment.ExpandEnvironmentVariables(candidate.Trim());
-                path = resolve(path);
+                var path = resolve(candidate);
                 if (!directoryExists(path))
                     continue;
 

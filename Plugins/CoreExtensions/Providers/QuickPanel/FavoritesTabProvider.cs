@@ -22,9 +22,8 @@ public class FavoritesTabProvider : IQuickPanelTabProvider
             .Where(favorite => !string.IsNullOrWhiteSpace(favorite.Path))
             .Select(favorite =>
             {
-                var resolved = ShellPathHelper.TryResolveVirtualPath(Environment.ExpandEnvironmentVariables(favorite.Path.Trim()));
-                var isDirectory = favorite.Path.StartsWith("::")
-                    || favorite.Path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase)
+                var resolved = UserPathResolver.Resolve(favorite.Path);
+                var isDirectory = UserPathResolver.IsVirtualPath(favorite.Path)
                     || Directory.Exists(resolved);
                 return (ISearchResult)new PanelResultItem(favorite.Path, favorite.Name, isDirectory: isDirectory);
             })
