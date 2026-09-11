@@ -119,4 +119,49 @@ public sealed class WatchedDirectoryMatcherTests
             new[] { @"D:\Projects\Lertaro" },
             WatchedDirectoryMatcher.MatchChangedDirectories(watched, null, "D"));
     }
+
+    [TestMethod]
+    public void UnknownMatchingStaysUnderTheSourceRoot()
+    {
+        var watched = new[]
+        {
+            @"C:\Users\testuser\Desktop\abc",
+            @"C:\Users\testuser\Desktop\other",
+            @"D:\Projects\Lertaro",
+        };
+
+        CollectionAssert.AreEqual(
+            new[] { @"C:\Users\testuser\Desktop\abc" },
+            WatchedDirectoryMatcher.MatchChangedDirectories(
+                watched,
+                changedDirectories: null,
+                sourceRoot: @"C:\Users\testuser\Desktop\abc"));
+    }
+
+    [TestMethod]
+    public void UnknownMatchingDoesNotCrossSourceRootPrefix()
+        => CollectionAssert.AreEqual(
+            new[] { @"C:\Data\Archive" },
+            WatchedDirectoryMatcher.MatchChangedDirectories(
+                new[] { @"C:\Data\Archive", @"C:\Data\ArchiveOld" },
+                changedDirectories: null,
+                sourceRoot: @"C:\Data\Archive"));
+
+    [TestMethod]
+    public void UnknownMatchingIncludesAWatchedParentOfTheSourceRoot()
+        => CollectionAssert.AreEqual(
+            new[] { @"C:\Data" },
+            WatchedDirectoryMatcher.MatchChangedDirectories(
+                new[] { @"C:\Data", @"C:\Other" },
+                changedDirectories: null,
+                sourceRoot: @"C:\Data\Archive"));
+
+    [TestMethod]
+    public void PreciseMatchingAlsoRejectsChangesOutsideTheSourceRoot()
+        => CollectionAssert.AreEqual(
+            new[] { @"C:\Data\Archive\Reports" },
+            WatchedDirectoryMatcher.MatchChangedDirectories(
+                new[] { @"C:\Data\Archive\Reports" },
+                new[] { @"C:\Data\Archive\Reports", @"C:\Data\ArchiveOld\Reports" },
+                sourceRoot: @"C:\Data\Archive"));
 }

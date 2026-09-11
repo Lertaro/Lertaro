@@ -6,21 +6,10 @@ namespace Lertaro.Core.Services.Plugin.DirectoryIndex;
 
 /// <summary>
 /// Turns "something under a plugin's registered directory changed" into at most one notification per
-/// quiet period, from two kinds of source at once: the per-directory FileSystemWatcher this registry
-/// already runs, and the indexes themselves reporting that they just took an update in.
+/// quiet period, from the indexes reporting that they just took an update in.
 /// <para>
-/// The index half exists because a watcher event and the index are not in step: a watcher fires the
-/// instant the filesystem changes, while the USN journal is read on a poll, so a plugin that re-listed
-/// immediately could read an index that has not caught up yet and miss the file that triggered it. An
-/// index signal cannot be early by construction -- it IS the index having changed -- and the debounce
-/// below settles the two into one refresh. It also covers a stretch where the watcher itself was down
-/// (buffer overflow, share disconnected), which today is only noticed on its next reconnect.
-/// </para>
-/// <para>
-/// The watcher half stays because it is the only signal for a directory no index covers -- a drive
-/// indexing is off for, an unconfigured share, a path that does not exist yet. Everywhere else the
-/// index sees every kind of change, edits to a file's contents included: those refresh its size and
-/// timestamps (see UsnIndexerExtensions' metadata pass) and bump the drive's revision like any other.
+/// The notification is emitted after the index has changed, so a plugin re-listing its directory sees
+/// the updated index rather than racing the USN or network-index update.
 /// </para>
 /// </summary>
 internal sealed class PluginDirectoryChangeNotifier : IDisposable
@@ -149,7 +138,8 @@ internal sealed class PluginDirectoryChangeNotifier : IDisposable
     {
         var registrations = _registrations();
         var watched = registrations.Select(r => r.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        OnWatchedDirectoriesChanged(WatchedDirectoryMatcher.MatchChangedDirectories(watched, changedDirectories));
+        OnWatchedDirectoriesChanged(
+            WatchedDirectoryMatcher.MatchChangedDirectories(watched, changedDirectories, drive));
     }
 
     // Holds the subscription open, re-establishing it whenever the service goes away (an upgrade, a
@@ -162,7 +152,10 @@ internal sealed class PluginDirectoryChangeNotifier : IDisposable
             try
             {
                 var watched = _registrations().Select(r => r.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                await DirectoryChangeStream.SubscribeAsync(watched, OnWatchedDirectoriesChanged, token).ConfigureAwait(false);
+                await DirectoryChangeStream.SubscribeAsync(
+                    watched,
+                    changed => OnWatchedDirectoriesChanged(changed),
+                    token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

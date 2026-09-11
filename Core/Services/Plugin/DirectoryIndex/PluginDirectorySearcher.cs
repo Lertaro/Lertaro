@@ -7,8 +7,8 @@ namespace Lertaro.Core.Services.Plugin.DirectoryIndex;
 /// Answers a plugin's directory search: lists each registered directory out of the index (see
 /// <see cref="IndexedDirectoryEnumerator"/>, which also decides when a real filesystem walk is needed)
 /// and keeps the entries whose name matches the query. Kept separate from
-/// <see cref="PluginDirectoryWatchRegistry"/>, which owns registration and FileSystemWatcher lifecycle
-/// -- answering "what matches this query" is a different concern from "watch for changes."
+/// <see cref="PluginDirectoryWatchRegistry"/>, which owns registration; answering "what matches this
+/// query" is a different concern from "watch for changes."
 /// <para>
 /// There is deliberately no local-versus-network split here any more. There used to be one, and the two
 /// halves quietly disagreed on everything that mattered: the local half ignored both the

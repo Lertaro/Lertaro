@@ -10,17 +10,13 @@ internal sealed class MonitoredDir
 }
 
 /// <summary>
-/// Owns plugin directory registration and the FileSystemWatcher lifecycle backing it (create, retry on
-/// disconnect/error, teardown on unregister). Kept separate from <see cref="PluginDirectorySearcher"/>,
-/// which owns the actual local-vs-network query routing -- watching for changes and answering a search
-/// are different responsibilities that only share the registration list.
+/// Owns plugin directory registration. Change notifications come from the host indexes through
+/// <see cref="PluginDirectoryChangeNotifier"/>; a second FileSystemWatcher per plugin registration would
+/// duplicate the host's USN, network-drive, WSL, and folder-index monitoring.
 /// </summary>
 internal sealed class PluginDirectoryWatchRegistry
 {
     private readonly ConcurrentDictionary<string, List<MonitoredDir>> _registrations = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, List<FileSystemWatcher>> _watchers = new(StringComparer.OrdinalIgnoreCase);
-    // Every "this changed" from either a watcher below or an index goes through here, so a burst becomes
-    // one notification and it lands after the index has caught up rather than before.
     private readonly PluginDirectoryChangeNotifier _notifier;
 
     public PluginDirectoryWatchRegistry() => _notifier = new PluginDirectoryChangeNotifier(AllRegistrations);
@@ -54,10 +50,7 @@ internal sealed class PluginDirectoryWatchRegistry
                 var includeSubdirectories = existing.Recursive || recursive;
                 existing.FilterPattern = FilterPatternHelper.Combine(existing.FilterPattern, filterPattern);
                 if (includeSubdirectories != existing.Recursive)
-                {
                     existing.Recursive = true;
-                    UpdateWatcherRecursion(pluginId, fullPath, recursive: true);
-                }
                 return;
             }
 
@@ -69,9 +62,7 @@ internal sealed class PluginDirectoryWatchRegistry
             });
             Logger.Log($"[IndexManager] Plugin '{pluginId}' registered directory: '{fullPath}' (Recursive={recursive}, Filter={filterPattern})");
 
-            // Set up FileSystemWatcher for monitoring changes and alerting the plugin via SDK event
-            CreateWatcher(pluginId, fullPath, recursive, filterPattern);
-            // Only worth listening to the indexes once somebody has a directory in them.
+            // Only worth listening to the indexes once somebody has a directory registered.
             if (!_notifier.EnsureIndexSubscriptions())
                 _notifier.RefreshLocalIndexSubscription();
         }
@@ -81,16 +72,6 @@ internal sealed class PluginDirectoryWatchRegistry
     {
         if (_registrations.TryRemove(pluginId, out _))
         {
-            if (_watchers.TryRemove(pluginId, out var watcherList))
-            {
-                lock (watcherList)
-                {
-                    foreach (var w in watcherList)
-                    {
-                        try { w.Dispose(); } catch { }
-                    }
-                }
-            }
             Logger.Log($"[IndexManager] Unregistered all directories for plugin '{pluginId}'.");
             if (_registrations.IsEmpty)
                 _notifier.StopIndexSubscriptions();
@@ -119,145 +100,5 @@ internal sealed class PluginDirectoryWatchRegistry
         return string.Equals(fullPath, root, StringComparison.OrdinalIgnoreCase)
             ? fullPath
             : Path.TrimEndingDirectorySeparator(fullPath);
-    }
-
-    private void CreateWatcher(string pluginId, string fullPath, bool recursive, string filterPattern)
-    {
-        if (!Directory.Exists(fullPath))
-        {
-            // If the folder is missing (disconnected drive), start reconnect loop
-            _ = Task.Run(() => TryRecreateWatcherAsync(pluginId, fullPath, recursive, filterPattern));
-            return;
-        }
-
-        try
-        {
-            var watcher = new FileSystemWatcher(fullPath)
-            {
-                IncludeSubdirectories = recursive,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite,
-                EnableRaisingEvents = true
-            };
-            // Watch every name, then decide in the event handler whether a LastWrite fits the file
-            // patterns. A watcher filter cannot express "all directories plus only matching files":
-            // filtering it to *.mkv would silently miss creation, deletion and renaming of directories.
-            watcher.Filters.Add("*");
-
-            // Reported, not notified: a single file write raises several events on its own, and a bulk
-            // copy raises thousands -- each of which used to invalidate the plugin's item cache and buy
-            // a full re-listing of every directory it registered.
-            FileSystemEventHandler handler = (s, e) =>
-            {
-                if (ShouldReportChange(pluginId, fullPath, e))
-                {
-                    var changedDirectory = PluginDirectoryChangePathHelper.ResolveChangedDirectory(e.FullPath, e.ChangeType);
-                    if (string.IsNullOrEmpty(changedDirectory))
-                        _notifier.Report(pluginId);
-                    else
-                        _notifier.Report(pluginId, new[] { changedDirectory });
-                }
-            };
-            RenamedEventHandler renamedHandler = (s, e) =>
-            {
-                var changedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                PluginDirectoryChangePathHelper.AddChangedDirectory(changedDirectories, e.FullPath, WatcherChangeTypes.Created);
-                PluginDirectoryChangePathHelper.AddChangedDirectory(changedDirectories, e.OldFullPath, WatcherChangeTypes.Deleted);
-                if (changedDirectories.Count == 0)
-                    _notifier.Report(pluginId);
-                else
-                    _notifier.Report(pluginId, changedDirectories);
-            };
-
-            watcher.Created += handler;
-            watcher.Deleted += handler;
-            watcher.Changed += handler;
-            watcher.Renamed += renamedHandler;
-
-            // Handle disconnection error by starting recovery loop
-            watcher.Error += (s, e) =>
-            {
-                Logger.Log($"[IndexManager] Watcher error for '{fullPath}' (Plugin: {pluginId}): {e.GetException().Message}. Retrying...", LogLevel.Warn);
-                RemoveWatcher(pluginId, watcher);
-                _ = Task.Run(() => TryRecreateWatcherAsync(pluginId, fullPath, recursive, filterPattern));
-            };
-
-            var watcherList = _watchers.GetOrAdd(pluginId, _ => new List<FileSystemWatcher>());
-            lock (watcherList)
-            {
-                watcherList.Add(watcher);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.Log($"[IndexManager] Failed to start watcher for '{fullPath}': {ex.Message}", LogLevel.Warn);
-            _ = Task.Run(() => TryRecreateWatcherAsync(pluginId, fullPath, recursive, filterPattern));
-        }
-    }
-
-    private void RemoveWatcher(string pluginId, FileSystemWatcher watcher)
-    {
-        try { watcher.Dispose(); } catch { }
-        if (_watchers.TryGetValue(pluginId, out var watcherList))
-        {
-            lock (watcherList)
-            {
-                watcherList.Remove(watcher);
-            }
-        }
-    }
-
-    private void UpdateWatcherRecursion(string pluginId, string fullPath, bool recursive)
-    {
-        if (!_watchers.TryGetValue(pluginId, out var watcherList))
-            return;
-
-        lock (watcherList)
-        {
-            foreach (var watcher in watcherList.Where(w => string.Equals(w.Path, fullPath, StringComparison.OrdinalIgnoreCase)))
-                watcher.IncludeSubdirectories = recursive;
-        }
-    }
-
-    private bool ShouldReportChange(string pluginId, string fullPath, FileSystemEventArgs change)
-    {
-        if (change.ChangeType != WatcherChangeTypes.Changed || string.IsNullOrEmpty(change.Name))
-            return true;
-
-        if (!_registrations.TryGetValue(pluginId, out var registrations))
-            return true;
-
-        lock (registrations)
-        {
-            var filterPattern = registrations.FirstOrDefault(d => string.Equals(d.Path, fullPath, StringComparison.OrdinalIgnoreCase))?.FilterPattern;
-            var patterns = FilterPatternHelper.SplitOrNullIfMatchAll(filterPattern);
-            return patterns == null || FilterPatternHelper.Matches(Path.GetFileName(change.Name), patterns);
-        }
-    }
-
-    private async Task TryRecreateWatcherAsync(string pluginId, string fullPath, bool recursive, string filterPattern)
-    {
-        // Periodic check to self-heal when U-drives or network NAS comes back online
-        while (true)
-        {
-            await Task.Delay(15000).ConfigureAwait(false); // Check every 15 seconds
-
-            // Check if the plugin registration still exists (do not reconnect if unregistered)
-            if (!_registrations.TryGetValue(pluginId, out var list))
-                return;
-
-            lock (list)
-            {
-                if (!list.Any(d => string.Equals(d.Path, fullPath, StringComparison.OrdinalIgnoreCase)))
-                    return;
-            }
-
-            if (Directory.Exists(fullPath))
-            {
-                Logger.Log($"[IndexManager] Directory '{fullPath}' resolved back online. Re-creating FileSystemWatcher.");
-                CreateWatcher(pluginId, fullPath, recursive, filterPattern);
-                _notifier.Report(pluginId); // Force load newly connected drive contents
-                return;
-            }
-        }
     }
 }
