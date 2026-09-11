@@ -28,6 +28,26 @@ public interface IAliasProvider : IPluginComponent
     IReadOnlyList<(char Start, char End)> OutputRanges { get; }
 
     /// <summary>
+    /// The character this provider places between syllables inside a generated alias, or <c>'\0'</c>
+    /// (the default) when its aliases carry no internal structure.
+    /// </summary>
+    /// <remarks>
+    /// Lets the host enforce "a precise (non-fuzzy) match must begin on a syllable boundary" without
+    /// knowing anything about the writing system: the provider already knows where its own boundaries
+    /// fall, and the host only has to ask which character marks them.
+    ///
+    /// What this fixes: pinyin full readings are concatenated with a boundary between syllables, and a
+    /// query that is itself a valid syllable sequence gets split to match them. "ex" splits into
+    /// "e" + "x", and without a boundary rule "e" matches the TAIL of one syllable while "x" matches the
+    /// HEAD of the next -- so 学习 (xue + xi) and 人行道 (ren + xing) were reached by letters that never
+    /// belong to the same sound, while the user typing "ex" meant the initials of two characters. The
+    /// initials alias ("ex") is deliberately structure-free and stays unaffected.
+    ///
+    /// A provider returning <c>'\0'</c> keeps matching exactly as it did before.
+    /// </remarks>
+    char SyllableSeparator => '\0';
+
+    /// <summary>
     /// Generates aliases for the given text.
     /// </summary>
     /// <param name="text">The original text.</param>

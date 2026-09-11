@@ -229,11 +229,15 @@ public class InlineSearchManager : IDisposable
         win.Close();
         PowerThrottlingHelper.WindowHidden("inline");
 
-        // Inline search closes whenever you leave Explorer; release the icon cache and trim the working
-        // set each time, matching QuickSearch's hide behavior, so inline-only users reclaim memory too.
+        // Inline search closes whenever you leave Explorer, so release the icon cache and let the working
+        // set be handed back -- but through the same IDLE path the quick window already uses, not a trim
+        // here. Trimming eagerly forces two blocking full GCs on the Enter-to-open path, and its own gate
+        // documents the deeper cost: evicted pages must fault back in on the next summon, which measured
+        // as most of that summon's time (see IdleWorkingSetTrimGate). WindowHidden arms the trim for once
+        // the process actually goes quiet, and a summon cancels it.
         ShellIconHelper.ClearCache();
         PathCacheMaintenance.ClearAllPathCaches();
-        Win32Api.TrimWorkingSet();
+        IdleWorkingSetTrimmer.WindowHidden();
 
         Logger.Log($"[InlineSearchManager] InlineSearchWindow closed and destroyed. Reason: {reason}", LogLevel.Debug);
     }

@@ -161,10 +161,14 @@ public static class LiveDirectorySearcher
         if (aliases == null)
             return false;
 
-        foreach (var alias in aliases)
+        foreach (var (alias, separator) in aliases)
         {
-            if (pattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab)
-                && pattern.IsAcceptableAliasMatch(aliasMatch, pattern.GetTotalTermLength(), alias, FzfScoringScheme.Default, slab))
+            if (!pattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
+                continue;
+            // Same syllable-alignment rule the index scan applies (see AliasMatchRules).
+            if (!AliasMatchRules.AllowsMatch(pattern, separator, alias, aliasMatch.MinBegin))
+                continue;
+            if (pattern.IsAcceptableAliasMatch(aliasMatch, pattern.GetTotalTermLength(), alias, FzfScoringScheme.Default, slab))
             {
                 return true;
             }
@@ -173,28 +177,33 @@ public static class LiveDirectorySearcher
         return false;
     }
 
-    private static string[]? GenerateAliases(string text)
+    // Each alias travels with its own provider's syllable separator: the alignment rule needs to know
+    // where that provider's boundaries fall, and doing it here (the provider is in hand) saves looking the
+    // provider up again per alias later.
+    private static List<(string Alias, char Separator)>? GenerateAliases(string text)
     {
         if (string.IsNullOrEmpty(text) || AliasProviderRegistry.HasInvalidUtf16(text) || !AliasProviderRegistry.HasNonAscii(text))
             return null;
 
-        var list = new List<string>();
+        var list = new List<(string, char)>();
         foreach (var provider in AliasProviderRegistry.GetActiveProviders())
         {
             try
             {
                 var aliases = provider.GetAliases(text);
-                if (aliases != null)
-                {
-                    list.AddRange(aliases);
-                }
+                if (aliases == null)
+                    continue;
+
+                var separator = provider.SyllableSeparator;
+                foreach (var alias in aliases)
+                    list.Add((alias, separator));
             }
             catch
             {
                 // Ignore plugin errors
             }
         }
-        return list.Count > 0 ? list.ToArray() : null;
+        return list.Count > 0 ? list : null;
     }
 
     public static (string DirectoryToScan, string FilterQuery) ResolvePathModeSearch(string exactPathLower)

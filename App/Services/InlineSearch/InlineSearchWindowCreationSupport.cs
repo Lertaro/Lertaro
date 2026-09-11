@@ -17,6 +17,10 @@ internal sealed class InlineSearchWindowCreationSupport
     public void EnsureWindowCreated()
     {
         PowerThrottlingHelper.WindowShowing("inline");
+        // Cancels any idle trim armed by CloseInlineSearch: trimming just before a summon is strictly
+        // worse than not trimming, since those pages are about to be needed again. Mirrors the quick
+        // window's own WindowShowing call.
+        IdleWorkingSetTrimmer.WindowShowing();
         if (_manager.Window != null) return;
 
         var tracker = _manager.ExplorerTracker;

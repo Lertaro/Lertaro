@@ -31,6 +31,10 @@ Under **Settings → Plugins → CoreExtensions → Configure → Search Filters
 
 The **Custom Sidebar Filters** list adds extra filters with a display name, an optional WPF Path Data icon, and a wildcard rule. Empty names or rules that become empty after expansion are hidden, and an empty icon uses the default icon. The name is display-only and is not an `@` reference. `@` references are valid only inside the Rule field: `@keyword` expands a matching keyword from the existing **Custom Filters** list, even if that filter is disabled. References are recursively expanded and duplicate patterns are removed; unknown or cyclic references produce no matching rule.
 
+
+### CoreExtensions Inline Search Window
+
+In **Settings → Plugins → CoreExtensions → Configure → Explorer Inline Window**, you can turn **Show shortcut commands in the inline window** off. The inline window is the one place a plugin shortcut command (the "快捷命令" group and the like) is listed ahead of the file results and takes the default selection, so Enter runs the command instead of opening the matched file; disabling it keeps inline searches purely about files. The quick and full windows are unaffected.
 ## 3. Flow Launcher Community Ecosystem Bridge
 
 In addition to native plugins built against `Lertaro.PluginSdk`, Lertaro includes a built-in **Flow Launcher Bridge** providing native-grade compatibility for the expansive Flow Launcher plugin community.

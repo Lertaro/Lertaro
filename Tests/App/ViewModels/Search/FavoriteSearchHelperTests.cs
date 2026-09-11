@@ -1,5 +1,6 @@
 using Lertaro.Core;
 using Lertaro.App.ViewModels.Search;
+using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.App.Tests.ViewModels.Search;
 
@@ -12,9 +13,9 @@ public sealed class FavoriteSearchHelperTests
     {
         var fav = new FavoriteItemSetting { Name = "My Docs", Path = @"C:\Documents" };
 
-        var (isMatch, _) = FavoriteSearchHelper.ComputeMatch(fav, "docs");
+        var match = FavoriteSearchHelper.ComputeMatch(fav, FuzzyQuery.Parse("docs"));
 
-        Assert.IsTrue(isMatch);
+        Assert.IsTrue(match.IsMatch);
     }
 
     [TestMethod]
@@ -22,9 +23,9 @@ public sealed class FavoriteSearchHelperTests
     {
         var fav = new FavoriteItemSetting { Name = "", Path = @"C:\Projects\Lertaro" };
 
-        var (isMatch, _) = FavoriteSearchHelper.ComputeMatch(fav, "lertaro");
+        var match = FavoriteSearchHelper.ComputeMatch(fav, FuzzyQuery.Parse("lertaro"));
 
-        Assert.IsTrue(isMatch);
+        Assert.IsTrue(match.IsMatch);
     }
 
     [TestMethod]
@@ -32,9 +33,9 @@ public sealed class FavoriteSearchHelperTests
     {
         var fav = new FavoriteItemSetting { Name = "My Docs", Path = @"C:\Documents" };
 
-        var (isMatch, _) = FavoriteSearchHelper.ComputeMatch(fav, "zzz_completely_unrelated_zzz");
+        var match = FavoriteSearchHelper.ComputeMatch(fav, FuzzyQuery.Parse("zzz_completely_unrelated_zzz"));
 
-        Assert.IsFalse(isMatch);
+        Assert.IsFalse(match.IsMatch);
     }
 
     [TestMethod]
@@ -45,9 +46,9 @@ public sealed class FavoriteSearchHelperTests
         // must not surface it (this used to match via the raw path being searched as a fallback).
         var fav = new FavoriteItemSetting { Name = "", Path = @"C:\Program Files\SomeApp\readme.txt" };
 
-        var (isMatch, _) = FavoriteSearchHelper.ComputeMatch(fav, "program");
+        var match = FavoriteSearchHelper.ComputeMatch(fav, FuzzyQuery.Parse("program"));
 
-        Assert.IsFalse(isMatch);
+        Assert.IsFalse(match.IsMatch);
     }
 
     [TestMethod]
@@ -55,9 +56,9 @@ public sealed class FavoriteSearchHelperTests
     {
         var fav = new FavoriteItemSetting { Name = "My Docs", Path = @"C:\Program Files\Documents" };
 
-        var (isMatch, _) = FavoriteSearchHelper.ComputeMatch(fav, "program");
+        var match = FavoriteSearchHelper.ComputeMatch(fav, FuzzyQuery.Parse("program"));
 
-        Assert.IsFalse(isMatch);
+        Assert.IsFalse(match.IsMatch);
     }
 
     [TestMethod]
@@ -65,9 +66,9 @@ public sealed class FavoriteSearchHelperTests
     {
         var fav = new FavoriteItemSetting { Name = "", Path = "https://example.com/docs" };
 
-        var (isMatch, _) = FavoriteSearchHelper.ComputeMatch(fav, "example.com");
+        var match = FavoriteSearchHelper.ComputeMatch(fav, FuzzyQuery.Parse("example.com"));
 
-        Assert.IsTrue(isMatch);
+        Assert.IsTrue(match.IsMatch);
     }
 
     [TestMethod]
@@ -152,8 +153,8 @@ public sealed class FavoriteSearchHelperTests
         try
         {
             var fav = new FavoriteItemSetting { Name = "", Path = @"%TEST_SEARCH_FAV%" };
-            var (isMatch, _) = FavoriteSearchHelper.ComputeMatch(fav, "special");
-            Assert.IsTrue(isMatch);
+            var match = FavoriteSearchHelper.ComputeMatch(fav, FuzzyQuery.Parse("special"));
+            Assert.IsTrue(match.IsMatch);
         }
         finally
         {

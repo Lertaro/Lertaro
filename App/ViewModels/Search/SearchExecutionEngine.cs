@@ -1,4 +1,5 @@
 using Lertaro.Core;
+using Lertaro.Core.SearchIndex;
 using Lertaro.App.Services;
 using Lertaro.Core.Services.Search;
 using Lertaro.App.ViewModels.Search.Dispatch;
@@ -179,7 +180,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         bool bypassExclusions)
     {
         var localMatches = new List<AppSearchResult>();
-        var learnedLocalMatches = HistorySearchCandidateMapper.Collect(query, contextDirectory);
+        var learnedLocalMatches = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse(query), contextDirectory);
         var localUpdateVersion = learnedLocalMatches.Count > 0 ? 1 : 0;
         void OnLocalMatchesChanged() => Interlocked.Increment(ref localUpdateVersion);
 
@@ -194,8 +195,7 @@ internal sealed class SearchExecutionEngine : IDisposable
             {
                 snapshot = new List<AppSearchResult>(localMatches);
             }
-            var prioritized = ExplorerSearchHelper.CreatePrioritizedSnapshot(snapshot, query, contextDirectory);
-            return HistorySearchCandidateMapper.MergeRows(learnedLocalMatches, prioritized);
+            return ExplorerSearchHelper.CreateLocalSnapshot(snapshot, learnedLocalMatches, query, contextDirectory);
         }
 
         int GetLocalMatchCount()

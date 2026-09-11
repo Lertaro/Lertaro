@@ -162,13 +162,25 @@ public sealed class FzfPatternTests
         Assert.IsFalse(pattern.TryMatch("r-e-a-d.md", out _, FzfScoringScheme.Default));
     }
 
+    // Matching ignores case in both directions -- the query's case never makes a term case-sensitive.
+    // This used to be fzf's smart case: a capital in the typed text made that term exact-case, so
+    // "README" stopped matching "readme.md".
     [TestMethod]
-    public void TryMatch_MixedCaseTerm_IsCaseSensitive()
+    public void TryMatch_UpperCaseTerm_IsCaseInsensitive()
     {
         var pattern = FzfPattern.Parse("README");
 
         Assert.IsTrue(pattern.TryMatch("README.md", out _, FzfScoringScheme.Default));
-        Assert.IsFalse(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
+        Assert.IsTrue(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
+    }
+
+    [TestMethod]
+    public void TryMatch_MixedCaseTerm_IsCaseInsensitive()
+    {
+        var pattern = FzfPattern.Parse("ReAdMe");
+
+        Assert.IsTrue(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
+        Assert.IsTrue(pattern.TryMatch("README.MD", out _, FzfScoringScheme.Default));
     }
 
     [TestMethod]

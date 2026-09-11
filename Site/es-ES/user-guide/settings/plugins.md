@@ -31,6 +31,10 @@ En **Configuración → Plugins → CoreExtensions → Configurar → Filtros de
 
 La lista **Filtros personalizados de la barra lateral** añade filtros con un nombre visible, un icono WPF Path Data opcional y una regla con comodines. Los nombres vacíos o las reglas que quedan vacías tras la expansión se ocultan, y un icono vacío usa el icono predeterminado. El nombre solo se muestra y no es una referencia `@`. Las referencias `@` solo son válidas en el campo Regla: `@palabra-clave` expande una palabra clave coincidente de la lista existente **Filtros personalizados**, aunque ese filtro esté deshabilitado. Las referencias se expanden de forma recursiva y los patrones duplicados se eliminan; las referencias desconocidas o cíclicas no producen reglas coincidentes.
 
+
+### Ventana integrada de CoreExtensions
+
+En **Configuración → Plugins → CoreExtensions → Configurar → Ventana integrada del Explorador** puedes desactivar **Mostrar comandos rápidos en la ventana integrada**. La ventana integrada es el único sitio donde un comando rápido de un plugin (el grupo "快捷命令" y similares) aparece antes que los resultados de archivos y queda seleccionado por defecto, así que Enter ejecuta el comando en lugar de abrir el archivo coincidente; al desactivarlo, la búsqueda integrada se centra solo en archivos. Las ventanas rápida y principal no se ven afectadas.
 ## 3. Soporte del ecosistema de plugins de Flow Launcher
 
 Además de los plugins nativos de `Lertaro.PluginSdk`, el módulo integrado **Flow Launcher Bridge** ofrece compatibilidad total con el extenso catálogo de Flow Launcher.

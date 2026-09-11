@@ -17,6 +17,11 @@ public static class AliasProviderRegistry
     private static readonly ConcurrentDictionary<IAliasProvider, byte> IdByInstance = new(ReferenceEqualityComparer.Instance);
     private static byte _nextId = 0;
 
+    // Provider id -> the syllable separator that provider declares (see IAliasProvider.SyllableSeparator).
+    // Baked aliases are stored as bare bytes with only their provider id, so the alignment rule has no
+    // provider instance to ask at match time and needs this lookup instead.
+    private static readonly ConcurrentDictionary<byte, char> SeparatorById = new();
+
     public static Func<IAliasProvider, bool> FilterFunc { get; set; } = _ => true;
 
     public static void Register(IAliasProvider provider)
@@ -27,8 +32,12 @@ public static class AliasProviderRegistry
         var componentId = GetComponentId(provider);
         var id = ProviderIdMap.GetOrAdd(componentId, _ => _nextId++);
         IdByInstance[provider] = id;
+        SeparatorById[id] = provider.SyllableSeparator;
         Logger.Log($"[AliasProviderRegistry] Registered alias provider: {provider.Name} with ID: {id} ({componentId})");
     }
+
+    /// <summary>The syllable separator the provider with this id declares, or '\0' when it declares none.</summary>
+    public static char GetSyllableSeparator(byte providerId) => SeparatorById.TryGetValue(providerId, out var separator) ? separator : '\0';
 
     public static byte GetProviderId(IAliasProvider provider)
         => IdByInstance.TryGetValue(provider, out var cached) ? cached

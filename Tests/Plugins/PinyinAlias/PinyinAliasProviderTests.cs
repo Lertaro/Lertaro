@@ -119,4 +119,44 @@ public sealed class PinyinAliasProviderTests
 
         CollectionAssert.AreEquivalent(expected, decoded);
     }
+
+    // The host derives "is this the full reading or the initials shorthand" purely from which alias
+    // carries the declared separator (see AliasMatchRules.TierFor). That makes the two facts asserted here
+    // a CONTRACT, not an implementation detail: if the initials alias ever gained a separator, every
+    // initials match would be scored as a full reading and the ranking would silently invert.
+    [TestMethod]
+    public void DeclaresTheSyllableSeparatorItsFullReadingActuallyUses()
+    {
+        Assert.AreEqual(PinyinAliasFormat.SyllableSeparator, Provider.SyllableSeparator);
+        Assert.AreNotEqual('\0', Provider.SyllableSeparator, "the host reads '\\0' as 'this provider has no structure'");
+    }
+
+    [TestMethod]
+    public void InitialsAliasCarriesNoSeparator_FullReadingDoes()
+    {
+        var aliases = Provider.GetAliases("证书").ToList();
+
+        // The full reading marks every syllable boundary; the initials alias is one letter per character.
+        var full = aliases.Single(a => a.Contains(PinyinAliasFormat.SyllableSeparator));
+        Assert.Contains(PinyinAliasFormat.SyllableSeparator, full);
+
+        var initials = aliases.Except(new[] { full }).ToList();
+        Assert.IsNotEmpty(initials, "the provider must also offer an initials alias");
+        foreach (var alias in initials)
+            Assert.DoesNotContain(PinyinAliasFormat.SyllableSeparator, alias);
+    }
+
+    [TestMethod]
+    public void InitialsAliasIsExactlyOneCharacterPerSourceCharacter()
+    {
+        // Same fact from the other side: that shape is what makes every position in it a boundary.
+        var text = "证书";
+        var initials = Provider.GetAliases(text)
+            .Where(a => !a.Contains(PinyinAliasFormat.SyllableSeparator))
+            .ToList();
+
+        Assert.IsNotEmpty(initials);
+        foreach (var alias in initials)
+            Assert.HasCount(text.Length, alias);
+    }
 }

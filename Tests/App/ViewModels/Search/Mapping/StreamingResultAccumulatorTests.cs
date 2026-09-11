@@ -1,5 +1,6 @@
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core;
+using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 
@@ -170,7 +171,7 @@ public sealed class StreamingResultAccumulatorTests
             ResultKind = "Application"
         };
         var seed = new SearchResultMapper.RankedCandidate(
-            row, true, -50, int.MaxValue, 1, @"D:\Apps\BCompare.exe");
+            row, true, -50, int.MaxValue, new MatchRank(MatchRank.TierName, 0, 1), @"D:\Apps\BCompare.exe");
         var history = new Dictionary<string, int> { [@"D:\Apps\BCompare.exe"] = -50 };
         var accumulator = new StreamingResultAccumulator("bc", history, new[] { seed });
 

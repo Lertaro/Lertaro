@@ -178,10 +178,27 @@ public static class PluginActionExecutor
             return false;
         }
 
+        // Logged because this branch is the only place a shortcut command actually runs, and its outcome
+        // (ran / threw / silently did nothing because the argument was empty) was otherwise invisible: the
+        // window is hidden before Execute, so a failure leaves a vanished window and no visible reason.
+        // The argument matters because several commands act on it -- the filename half of "touch <name>" --
+        // and an empty one is a legitimate no-op inside those actions, so it is worth knowing which it was.
+        Logger.Log($"[PluginActionExecutor] Running shortcut command '{registration.Action.GetType().Name}' keyword='{registration.Action.Keywords.FirstOrDefault()}' argument='{result.PluginActionArgumentText}' context='{result.ContextDirectory}'", LogLevel.Info);
+
         view.HideWindow();
 
-        PluginPerformanceMonitor.Measure(registration.Action, () => registration.Action.Execute(
-            new[] { new PluginSearchResult(result.Name, result.PluginActionArgumentText, result.ContextDirectory) }, view));
+        // Guarded: these actions are third-party-plugin-authored, and an exception escaping here travels up
+        // through the WPF input handler as an unhandled dispatcher exception -- a crash dialog, rather than
+        // a command that simply failed.
+        try
+        {
+            PluginPerformanceMonitor.Measure(registration.Action, () => registration.Action.Execute(
+                new[] { new PluginSearchResult(result.Name, result.PluginActionArgumentText, result.ContextDirectory) }, view));
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[PluginActionExecutor] Shortcut command '{registration.Action.GetType().Name}' threw: {ex.Message}", LogLevel.Error);
+        }
         return true;
     }
 }

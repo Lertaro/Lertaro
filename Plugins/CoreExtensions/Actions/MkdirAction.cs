@@ -8,6 +8,8 @@ namespace Lertaro.Plugins.CoreExtensions.Actions;
 
 public class MkdirAction : ISearchResultAction
 {
+    private const string NameFieldKey = "MkdirName";
+
     public string GroupName => TranslationService.Get("Action_GroupName_Cmd");
 
     public string DisplayName => TranslationService.Get("Action_Mkdir");
@@ -29,14 +31,22 @@ public class MkdirAction : ISearchResultAction
     public void Execute(IReadOnlyList<ISearchResult> results, IPluginSearchWindow view)
     {
         var result = results[0];
-        if (string.IsNullOrWhiteSpace(result.FullPath))
+
+        // A keyword-only query ("mkdir" with nothing typed after it) still lists this command, so the
+        // argument is routinely empty here. Returning silently used to make Enter look broken -- the
+        // window closed and nothing happened. Ask for the missing name instead, the same way
+        // RenameAction/AddFavoriteAction collect theirs.
+        var name = result.FullPath?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
         {
-            return;
+            name = CommandKeywordPrompt.Ask(NameFieldKey, "Action_Mkdir", "Action_Mkdir_NameLabel");
+            if (string.IsNullOrWhiteSpace(name))
+                return;
         }
 
         try
         {
-            var targetPath = Path.Combine(result.ContextDirectory, result.FullPath.Trim());
+            var targetPath = Path.Combine(result.ContextDirectory, name);
             Directory.CreateDirectory(targetPath);
         }
         catch

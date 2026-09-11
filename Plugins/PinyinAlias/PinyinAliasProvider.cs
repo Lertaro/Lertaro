@@ -19,6 +19,12 @@ public class PinyinAliasProvider : IAliasProvider, ITranslationProvider
 
     public IReadOnlyList<(char Start, char End)> OutputRanges { get; } = new[] { ('a', 'z') };
 
+    // Only the FULL-pinyin alias carries syllable boundaries; the initials alias is one character per
+    // source character and has no internal structure (see PinyinAliasFormat). Core uses this to reject a
+    // precise match that begins mid-syllable, which is what stops "ex" being read as the tail of "xue"
+    // plus the head of "xi".
+    public char SyllableSeparator => PinyinAliasFormat.SyllableSeparator;
+
     private static readonly Dictionary<string, Dictionary<string, string>> Cache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly object LockObj = new();
 

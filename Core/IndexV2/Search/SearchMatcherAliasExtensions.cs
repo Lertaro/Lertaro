@@ -76,7 +76,8 @@ internal static class SearchMatcherAliasExtensions
             FzfPatternResult aliasMatch;
             bool hit;
             var decodedLength = -1; // -1: not decoded to chars yet (the ASCII/byte fast path below skips it)
-            if (Ascii.IsValid(aliasUtf8))
+            var isAsciiAlias = Ascii.IsValid(aliasUtf8);
+            if (isAsciiAlias)
             {
                 hit = ctx.BytePattern.TryMatchSegmented(aliasUtf8, out aliasMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers);
             }
@@ -90,6 +91,16 @@ internal static class SearchMatcherAliasExtensions
 
             if (hit)
             {
+                // A precise query must not match a full transliteration mid-syllable (see AliasMatchRules).
+                // The alias's own provider is the only one that knows where its boundaries fall, and for a
+                // baked alias that provider is reachable only by its id.
+                var separator = AliasProviderRegistry.GetSyllableSeparator(snapshot.AliasProviderId(e));
+                var aligned = isAsciiAlias
+                    ? AliasMatchRules.AllowsMatchUtf8(ctx.Pattern, separator, aliasUtf8, aliasMatch.MinBegin)
+                    : AliasMatchRules.AllowsMatch(ctx.Pattern, separator, worker.AliasScratch.AsSpan(0, decodedLength), aliasMatch.MinBegin);
+                if (!aligned)
+                    continue;
+
                 var acceptable = ctx.Pattern.IsAcceptableAliasMatch(aliasMatch, ctx.QueryLen);
                 if (!acceptable)
                 {

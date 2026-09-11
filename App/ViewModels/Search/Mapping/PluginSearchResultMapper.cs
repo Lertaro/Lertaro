@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using Lertaro.Core;
 using Lertaro.App.Services;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Services;
 
 using Lertaro.App.Services.Plugin;
 using Lertaro.App.Services.ShellIcons;
@@ -204,8 +205,19 @@ public static class PluginSearchResultMapper
                     });
                     }
 
+    // Key of the CoreExtensions plugin setting that hides shortcut commands in the inline window only.
+    // Declared by that plugin's own config schema (see CoreExtensionsPlugin); this is only the read site.
+    private const string CoreExtensionsPluginId = "Lertaro.Plugins.CoreExtensions";
+    private const string InlineSearchActionsSettingKey = "InlineSearchEnableSearchActions";
+
     public static bool AddPluginSearchActionResults(List<AppSearchResult> uiResults, string query, string? contextDirectory, bool isInlineWindow)
     {
+        // Inline-only opt-out. The inline window is the one surface where an action row sits ahead of the
+        // file results AND takes the default selection, so Enter runs the command instead of opening the
+        // matched file. The quick and full windows are deliberately unaffected.
+        if (isInlineWindow && !PluginSettingsService.GetSetting(CoreExtensionsPluginId, InlineSearchActionsSettingKey, true))
+            return false;
+
         string? currentGroup = null;
         var added = false;
         var windowType = isInlineWindow ? PluginSdk.Abstractions.SearchWindowType.Inline : PluginSdk.Abstractions.SearchWindowType.Main;
