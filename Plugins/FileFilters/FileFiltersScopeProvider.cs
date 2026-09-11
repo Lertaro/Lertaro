@@ -1,13 +1,16 @@
+using Lertaro.PluginSdk;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.FileFilters;
 
 // Publishes the user-configured filters (keyword + folders + file pattern) as search scopes for the
 // host's quick search: typing "<keyword> <term>" restricts a normal index search to those folders.
-// Deliberately no filesystem access at all -- no registration, no watcher, no enumeration: the
-// host's index answers scoped searches at query time (see FileFilterScopeResolver on the App side),
-// which is what keeps a scope's memory flat no matter how big its folders are.
+// Deliberately no enumeration and no watcher -- the host's index answers scoped searches at query time
+// (see FileFilterScopeResolver on the App side), which is what keeps a scope's memory flat no matter
+// how big its folders are. The one thing a rebuild does touch is the shell, to turn configured entries
+// into real paths (see ResolveFolder), and only when the config changes, never per keystroke.
 public class FileFiltersScopeProvider : ISearchScopeProvider, IDisposable
 {
     public string Name => TranslationService.Get("FileFilters_ProviderName");
@@ -36,7 +39,7 @@ public class FileFiltersScopeProvider : ISearchScopeProvider, IDisposable
             {
                 var keyword = filter.Keyword?.Trim() ?? string.Empty;
                 var folders = (filter.Folders ?? new List<string>())
-                    .Select(f => f?.Trim() ?? string.Empty)
+                    .Select(ResolveFolder)
                     .Where(f => f.Length > 0)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
@@ -60,6 +63,32 @@ public class FileFiltersScopeProvider : ISearchScopeProvider, IDisposable
 
         _scopes = scopes;
         return _scopes;
+    }
+
+    // The folder list is typed by hand, so it accepts the same two conveniences the rest of the app's
+    // path fields do: "%VAR%" environment references, and Windows shell virtual folders ("shell:Downloads",
+    // "::..."). Both have to be resolved here, because everything downstream -- the host's index-coverage
+    // check and the engine's own directory filter -- works on a real path, and it normalizes one with
+    // Path.GetFullPath: a "shell:" entry would become "<current directory>\shell:Downloads" instead of the
+    // folder the user meant. ContentSearch's own NormalizeFolderPath does the same two steps for its
+    // monitored folders.
+    // Returns an empty string for an entry that is not a usable folder: blanks, and virtual paths the
+    // shell could not turn into a physical folder (a non-filesystem one such as "shell:AppsFolder", or a
+    // typo) -- no index can ever cover those, so passing one on would only make the host report it as a
+    // "not covered by any index" folder, which is not what actually went wrong.
+    internal static string ResolveFolder(string? folder)
+    {
+        var trimmed = folder?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0)
+            return string.Empty;
+
+        var resolved = ShellPathHelper.TryResolveVirtualPath(Environment.ExpandEnvironmentVariables(trimmed));
+        if (!resolved.StartsWith("::", StringComparison.Ordinal)
+            && !resolved.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
+            return resolved;
+
+        Logger.Log($"[FileFilters] Folder '{trimmed}' could not be resolved to a real folder and is skipped.", LogLevel.Warn);
+        return string.Empty;
     }
 
     private void OnSettingChanged(string pluginId, string key)
