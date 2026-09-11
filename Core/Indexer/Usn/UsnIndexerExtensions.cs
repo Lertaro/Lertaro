@@ -20,6 +20,7 @@ public static class UsnIndexerExtensions
         | Win32Api.USN_REASON_BASIC_INFO_CHANGE | Win32Api.USN_REASON_COMPRESSION_CHANGE | Win32Api.USN_REASON_ENCRYPTION_CHANGE
         | Win32Api.USN_REASON_HARD_LINK_CHANGE | Win32Api.USN_REASON_REPARSE_POINT_CHANGE;
     private const uint AttributeRefreshReasons = MetadataRefreshReasons;
+    private const uint DirectoryChangeReasons = MetadataRefreshReasons | Win32Api.USN_REASON_RENAME_OLD_NAME;
     public static void ApplyUsnRecord(this UsnIndexer indexer, string drive, ParsedUsnRecord record)
         => indexer.ApplyUsnRecords(drive, new[] { record });
 
@@ -54,9 +55,12 @@ public static class UsnIndexerExtensions
                 var parentFrn = record.ParentFileReferenceNumber;
                 var linkName = namePool.Get(record.FileName);
                 var linkFlags = FileRecordFlagsHelper.FromAttributes((FileAttributes)record.FileAttributes);
-                changedParentFrns.Add(parentFrn);
-                if ((record.FileAttributes & (uint)FileAttributes.Directory) != 0)
-                    changedParentFrns.Add(frn);
+                if ((record.Reason & DirectoryChangeReasons) != 0)
+                {
+                    changedParentFrns.Add(parentFrn);
+                    if ((record.FileAttributes & (uint)FileAttributes.Directory) != 0)
+                        changedParentFrns.Add(frn);
+                }
 
                 if ((record.Reason & Win32Api.USN_REASON_HARD_LINK_CHANGE) != 0
                     && (record.Reason & (Win32Api.USN_REASON_FILE_CREATE | Win32Api.USN_REASON_FILE_DELETE)) == 0)
@@ -106,8 +110,11 @@ public static class UsnIndexerExtensions
         }
         // Outside the lock: a subscriber matching this against its own watch list has no business
         // holding up the next batch, which is typically microseconds away.
-        indexer.RaiseDirectoriesChanged(drive, changedDirectories);
-        SearchCoordinator.ClearCaches();
+        if (changedDirectories == null || changedDirectories.Count > 0)
+        {
+            indexer.RaiseDirectoriesChanged(drive, changedDirectories);
+            SearchCoordinator.ClearCaches();
+        }
 
         // Stat outside any lock: a write-heavy burst (build, bulk copy) can touch hundreds of distinct
         // files in one 64KB journal buffer, and holding a lock for that many disk stats would serialize

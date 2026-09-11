@@ -94,6 +94,31 @@ public sealed class UsnIndexerExtensionsTests
         });
     }
 
+    [TestMethod]
+    public void ApplyUsnRecords_CloseOnlyRecord_DoesNotNotifyChangedDirectory()
+    {
+        using var fixture = LiveIndexFixture.Build("C", new[]
+        {
+            LiveIndexFixture.Root(),
+            new FileRecord(2, 1, "Projects", FileRecordFlags.Directory),
+            new FileRecord(3, 2, "readme.txt", FileRecordFlags.None),
+        });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+        var notifications = 0;
+        indexer.DirectoriesChanged += (_, _) => notifications++;
+
+        indexer.ApplyUsnRecord("C", new ParsedUsnRecord
+        {
+            FileReferenceNumber = 3,
+            ParentFileReferenceNumber = 2,
+            FileName = "readme.txt",
+            Reason = Win32Api.USN_REASON_CLOSE,
+        });
+
+        Assert.AreEqual(0, notifications);
+    }
+
     // Regression coverage for the local-drive counterpart of the network-drive rescan race: a
     // non-journaled drive's FolderDriveMonitor now stays alive for the whole rebuild (see
     // ApplyFolderChange's own comment on why), so a change landing mid-rebuild must be recorded as
