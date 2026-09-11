@@ -42,14 +42,19 @@ public class InlineSearchWindowInputHandler
         if (e.Key == Key.Escape && noModifiers)
         {
             e.Handled = true;
-            if (_window.Manager.ExplorerTracker.IsActiveWindowDialog)
-            {
-                _window.ResetInlineSearchAndFocusDialog();
-            }
-            else
-            {
-                _window.HideWindow();
-            }
+            ExitSearch();
+            return;
+        }
+
+        // Backspace in an already-empty box: same "leave the search" intent as Escape. Nothing would be
+        // edited (there is no text to delete), so the key is free to mean "exit" instead of doing nothing.
+        // Deliberately IsNullOrEmpty and not IsNullOrWhiteSpace: a lone space IS editable content, so
+        // backspace on " " must still delete it rather than exit. Placed after HandleCommonSearchKeys above
+        // so an open actions menu keeps treating Backspace as "go back a level" first.
+        if (e.Key == Key.Back && noModifiers && string.IsNullOrEmpty(_window.SearchTextBox.Text))
+        {
+            e.Handled = true;
+            ExitSearch();
             return;
         }
 
@@ -58,6 +63,17 @@ public class InlineSearchWindowInputHandler
         if (actualKey == Key.Enter)
         {
             e.Handled = true;
+
+            // An empty box shows the current folder's contents as a browsing list, not search results,
+            // so there is no top match for Enter to "open" -- running whichever child happens to be
+            // selected is not what pressing Enter on nothing means. Exit the search instead, exactly as
+            // Escape does. Same emptiness test as SearchDispatchController's, so whitespace-only counts
+            // as empty here just like it does when deciding whether to run a search at all.
+            if (string.IsNullOrWhiteSpace(_window.SearchTextBox.Text))
+            {
+                ExitSearch();
+                return;
+            }
 
             var result = InlineResultTargetResolver.ResolveEnterTarget(
                 _window.LstResults.Items.OfType<AppSearchResult>().ToList(),
@@ -145,8 +161,18 @@ public class InlineSearchWindowInputHandler
     }
 
     public void QueueResultsLayoutUpdate() => _layoutManager.QueueResultsLayoutUpdate();
-
     public void UpdateActionsLayout() => _layoutManager.UpdateActionsLayout();
+
+    // Shared by Escape and by Enter-on-empty-box: leaving the search means the same thing in both cases,
+    // so they must not drift apart. Inside an Explorer file dialog the window stays up (the dialog is the
+    // thing the user was typing into) and focus simply returns to it; otherwise the inline window closes.
+    private void ExitSearch()
+    {
+        if (_window.Manager.ExplorerTracker.IsActiveWindowDialog)
+            _window.ResetInlineSearchAndFocusDialog();
+        else
+            _window.HideWindow();
+    }
 
     public void UpdateShortcutHints() => _layoutManager.UpdateShortcutHints();
 

@@ -9,8 +9,24 @@ namespace Lertaro.App.ViewModels.Search;
 // Split from SearchExecutionEngine solely to keep that orchestration class under the repository's per-file limit.
 internal sealed class SearchStreamRenderer
 {
-    private const int FirstRenderDelayMs = 40;
-    private const int ProgressiveRenderIntervalMs = 150;
+    // The first paint is held back only long enough for a few rows to exist -- see
+    // ProgressiveRenderPlan.MinimumFirstRender, which is what actually decides whether a paint happens.
+    // This is a floor on top of that, so it is kept to about one frame at 60Hz: it used to be 40ms, which
+    // was 24ms of pure waiting on every search's first visible row, and the thing the user feels most
+    // directly while typing.
+    private const int FirstRenderDelayMs = 16;
+
+    // Tick period while a snapshot-style search (quick, inline) is still streaming. The duty-cycle rule in
+    // ProgressiveRenderPlan is what protects the UI thread from expensive paints, so this does not have to
+    // be conservative -- and at 150ms it was a hard floor between updates: any query whose results arrived
+    // over more than a moment showed them in 150ms steps.
+    private const int SnapshotProgressiveRenderIntervalMs = 50;
+
+    // The full window renders whole batches and can be showing hundreds of thousands of rows, so its own
+    // paints are expensive by nature and are deliberately spaced out. Kept separate from the snapshot
+    // interval above rather than lowered for everyone.
+    private const int BatchProgressiveRenderIntervalMs = 150;
+
     private const int DrainRenderIntervalMs = 25;
 
     private readonly SearchService _searchService;
@@ -34,9 +50,7 @@ internal sealed class SearchStreamRenderer
         CancellationToken token,
         Func<List<AppSearchResult>>? getLocalSnapshot = null,
         Func<int>? getLocalUpdateVersion = null,
-        Func<int>? getLocalMatchCount = null,
         Task? localSearchTask = null,
-        Task? globalSearchStartGate = null,
         Action? onLocalServiceUnavailable = null,
         bool bypassExclusions = false,
         bool resultMapperConsumesBatches = false,
@@ -93,8 +107,11 @@ internal sealed class SearchStreamRenderer
 
             var uiResults = resultMapper(snapshot, contextDirectory);
             var localMatches = getLocalSnapshot?.Invoke();
-            if (localMatches is { Count: > 0 })
-                uiResults = InlineListSearchHelper.MergeLocalMatches(uiResults, localMatches, query);
+            // Not just when the folder contributed rows: the global results still have to be re-ordered so
+            // the folder's subfolders come before the rest of the drive. getLocalSnapshot is non-null
+            // exactly for the inline window, which is the only one that groups by proximity.
+            if (localMatches != null)
+                uiResults = InlineListSearchHelper.MergeLocalMatches(uiResults, localMatches, query, contextDirectory);
 
             if (final && uiResults.Count == 0)
                 uiResults.Add(SearchResultMapper.CreateNoResultsResult(query));
@@ -118,12 +135,14 @@ internal sealed class SearchStreamRenderer
         var pump = Task.Run(async () =>
         {
             var plan = new ProgressiveRenderPlan();
+            var progressiveInterval = resultMapperConsumesBatches
+                ? BatchProgressiveRenderIntervalMs
+                : SnapshotProgressiveRenderIntervalMs;
             var interval = FirstRenderDelayMs;
             var sinceLastPaint = System.Diagnostics.Stopwatch.StartNew();
             // Local enumeration can produce its first matches before this pump starts. Begin at zero so
             // that already-arrived matches still trigger the first merged render, including its header.
             var renderedLocalVersion = 0;
-            long firstSmallLocalUpdateMs = -1;
             try
             {
                 while (true)
@@ -146,26 +165,9 @@ internal sealed class SearchStreamRenderer
 
                     var take = plan.NextRenderSize(received, sinceLastPaint.ElapsedMilliseconds);
 
-                    // A tiny Current Folder section followed immediately by its Global Search section makes
-                    // the inline card resize twice. Give the global phase a short chance to finish so the
-                    // common small-result case paints once; a slow global search still shows local matches
-                    // promptly after the bounded delay.
-                    if (take == 0 && localChanged && !finished && getLocalMatchCount != null)
-                    {
-                        if (firstSmallLocalUpdateMs < 0)
-                            firstSmallLocalUpdateMs = sinceLastPaint.ElapsedMilliseconds;
-
-                        var elapsed = sinceLastPaint.ElapsedMilliseconds - firstSmallLocalUpdateMs;
-                        if (InlineSmallResultRenderDelay.ShouldDelay(getLocalMatchCount(), elapsed))
-                        {
-                            interval = Math.Max(1, InlineSmallResultRenderDelay.SettleDelayMs - (int)elapsed);
-                            continue;
-                        }
-                    }
-
                     // The final render below contains the latest local snapshot, so an under-threshold
                     // completed stream never needs a visibly transient local-only paint first.
-                    if (finished && take == 0 && getLocalMatchCount != null && (localSearchTask?.IsCompleted ?? true))
+                    if (finished && take == 0 && localSearchTask?.IsCompleted == true)
                         return;
 
                     if (take == 0 && !localChanged)
@@ -180,15 +182,14 @@ internal sealed class SearchStreamRenderer
                         }
                         if (finished)
                             return;
-                        interval = ProgressiveRenderIntervalMs;
+                        interval = progressiveInterval;
                         continue;
                     }
 
-                    interval = finished ? DrainRenderIntervalMs : ProgressiveRenderIntervalMs;
+                    interval = finished ? DrainRenderIntervalMs : progressiveInterval;
                     var paintClock = System.Diagnostics.Stopwatch.StartNew();
                     await RenderSnapshotAsync(final: false, take).ConfigureAwait(false);
                     renderedLocalVersion = getLocalUpdateVersion?.Invoke() ?? renderedLocalVersion;
-                    firstSmallLocalUpdateMs = -1;
                     plan.PaintCompleted(paintClock.ElapsedMilliseconds);
                     sinceLastPaint.Restart();
                 }
@@ -200,8 +201,6 @@ internal sealed class SearchStreamRenderer
 
         try
         {
-            if (globalSearchStartGate != null)
-                await globalSearchStartGate.ConfigureAwait(false);
 
             if (scopeDirective is { Folders.Count: > 0 })
             {

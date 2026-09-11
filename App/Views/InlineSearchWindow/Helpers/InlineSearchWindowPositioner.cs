@@ -198,9 +198,17 @@ public class InlineSearchWindowPositioner
 
         if (hwnd != IntPtr.Zero)
         {
+            // Size AND position in one native call, deliberately. Resizing the window is anchored at its
+            // top-left, so a height change on its own would leave the bottom edge (and with it the search
+            // box) sitting at the old spot until the reposition below caught up -- and when the two land in
+            // different frames that shows as the card visibly snapping upward before settling. Handing
+            // Windows both at once removes the frame where they disagree. SWP_NOZORDER/NOACTIVATE keep the
+            // rest of the window's state untouched, and this only ever runs from the layout path that has
+            // just set Height/Left/Top, so the values are the ones WPF is about to render anyway.
             InlineSearchWindowNativeMethods.SetWindowPos(hwnd, IntPtr.Zero,
-                (int)Math.Round(targetPhysLeft), (int)Math.Round(targetPhysTop), 0, 0,
-                InlineSearchWindowNativeMethods.SWP_NOSIZE | InlineSearchWindowNativeMethods.SWP_NOZORDER | InlineSearchWindowNativeMethods.SWP_NOACTIVATE);
+                (int)Math.Round(targetPhysLeft), (int)Math.Round(targetPhysTop),
+                (int)Math.Round(_window.Width * targetDpiScaleX), (int)Math.Round(_window.Height * targetDpiScaleY),
+                InlineSearchWindowNativeMethods.SWP_NOZORDER | InlineSearchWindowNativeMethods.SWP_NOACTIVATE);
         }
 
         _hasCachedInputs = true;

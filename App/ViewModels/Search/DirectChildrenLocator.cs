@@ -24,26 +24,74 @@ internal static class DirectChildrenLocator
     // same alias-aware matcher the rest of the app uses), as a plain SearchResult for the caller to map.
     // Hidden/system entries are skipped to match the engine's own always-on filter. Returns the number
     // emitted; `maxMatches` bounds both the emitted count and the work on a broad query.
-    public static int MatchInto(string directory, string query, int maxMatches, Action<SearchResult> onMatch, CancellationToken token)
+    //
+    // Matches against a LISTING the caller already has, rather than walking the folder itself: the walk is
+    // the part that grows with the folder's size, and this is called once per keystroke (and per streaming
+    // paint). See DirectChildrenListingCache, which owns the walk and hands the same listing to every call
+    // for one folder.
+    public static int MatchInto(IReadOnlyList<Entry> entries, string directory, string query, int maxMatches, Action<SearchResult> onMatch, CancellationToken token)
     {
-        if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(query) || maxMatches <= 0)
-            return 0;
-
-        // A virtual path that is not a real directory simply has no direct children to list.
-        if (!Directory.Exists(directory))
+        if (entries.Count == 0 || string.IsNullOrWhiteSpace(query) || maxMatches <= 0)
             return 0;
 
         var emitted = 0;
-        var examined = 0;
         var drive = Path.GetPathRoot(directory) ?? string.Empty;
-        // Parsed once for the whole directory listing: every entry would otherwise re-parse the query.
+        // Parsed once for the whole listing: every entry would otherwise re-parse the query.
         var fuzzy = FuzzyQuery.Parse(query);
 
+        foreach (var entry in entries)
+        {
+            if (token.IsCancellationRequested || emitted >= maxMatches)
+                break;
+            if (!fuzzy.IsMatch(entry.Name))
+                continue;
+
+            onMatch(new SearchResult
+            {
+                Name = entry.Name,
+                Path = entry.Path,
+                IsDir = entry.IsDir,
+                Drive = drive,
+                Attributes = entry.Attributes
+            });
+            emitted++;
+        }
+
+        return emitted;
+    }
+
+    // Convenience for callers that have no listing to reuse: walk, then match. The inline search goes
+    // through the listing overload instead, so its walk is not repeated per keystroke.
+    public static int MatchInto(string directory, string query, int maxMatches, Action<SearchResult> onMatch, CancellationToken token) =>
+        MatchInto(Enumerate(directory, token), directory, query, maxMatches, onMatch, token);
+
+    /// <summary>One name from a folder listing -- everything a match needs, without a SearchResult.</summary>
+    internal readonly record struct Entry(string Name, string Path, bool IsDir, FileAttributes Attributes);
+
+    /// <summary>
+    /// Walks one level of <paramref name="directory"/>, returning its visible entries.
+    /// </summary>
+    /// <remarks>
+    /// This is the folder-size-dependent half, kept separate from matching so it can be done once per
+    /// folder instead of once per keystroke. Still bounded by <see cref="MaxExaminedEntries"/> so a
+    /// directory with an absurd number of entries cannot stall the caller.
+    /// </remarks>
+    public static List<Entry> Enumerate(string directory, CancellationToken token)
+    {
+        var entries = new List<Entry>();
+        if (string.IsNullOrWhiteSpace(directory))
+            return entries;
+
+        // A virtual path that is not a real directory simply has no direct children to list.
+        if (!Directory.Exists(directory))
+            return entries;
+
+        var examined = 0;
         try
         {
             foreach (var entry in new DirectoryInfo(directory).EnumerateFileSystemInfos())
             {
-                if (token.IsCancellationRequested || emitted >= maxMatches || examined >= MaxExaminedEntries)
+                if (token.IsCancellationRequested || examined >= MaxExaminedEntries)
                     break;
                 examined++;
 
@@ -51,18 +99,8 @@ internal static class DirectChildrenLocator
                 try { attributes = entry.Attributes; } catch { continue; }
                 if (FileSystemItemFilter.IsHiddenOrSystem(attributes))
                     continue;
-                if (!fuzzy.IsMatch(entry.Name))
-                    continue;
 
-                onMatch(new SearchResult
-                {
-                    Name = entry.Name,
-                    Path = entry.FullName,
-                    IsDir = attributes.HasFlag(FileAttributes.Directory),
-                    Drive = drive,
-                    Attributes = attributes
-                });
-                emitted++;
+                entries.Add(new Entry(entry.Name, entry.FullName, attributes.HasFlag(FileAttributes.Directory), attributes));
             }
         }
         catch
@@ -71,6 +109,6 @@ internal static class DirectChildrenLocator
             // virtual path) simply contributes nothing here; the scoped search still covers it.
         }
 
-        return emitted;
+        return entries;
     }
 }

@@ -189,9 +189,6 @@ public class FlowInstantResultProvider : IInstantResultProvider
                         _queryCache.TryRemove(key, out _);
                 }
 
-                PluginSdk.Services.SearchRefreshService.RefreshIfMatches(current =>
-                    string.Equals(current?.Trim(), queryKey.Trim(), StringComparison.OrdinalIgnoreCase));
-
                 return list;
             }
             finally
@@ -214,6 +211,25 @@ public class FlowInstantResultProvider : IInstantResultProvider
         {
             return [];
         }
+
+        // The synchronous wait gave up, so a "query pending" placeholder is what is actually on screen.
+        // Ask the host to re-run this query ONCE the dispatch lands (the cache write above then serves it
+        // instantly). Deliberately attached here rather than called from inside the task body: doing it
+        // unconditionally there re-ran the whole search even on the fast path that already returned these
+        // results to the caller -- and Flow usually answers within the timeout, so that fired on every
+        // keystroke, doubling the search cost for nothing.
+        _ = task.ContinueWith(
+            completed =>
+            {
+                // Only a successful dispatch has written the cache entry this refresh exists to surface.
+                // A faulted/cancelled one left the cache empty, and asking the host to re-run then would
+                // dispatch again and re-timeout, spinning on a search that can never resolve.
+                if (!completed.IsCompletedSuccessfully)
+                    return;
+                PluginSdk.Services.SearchRefreshService.RefreshIfMatches(current =>
+                    string.Equals(current?.Trim(), q.Trim(), StringComparison.OrdinalIgnoreCase));
+            },
+            TaskScheduler.Default);
 
         return
         [

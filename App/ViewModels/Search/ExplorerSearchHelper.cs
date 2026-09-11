@@ -1,5 +1,4 @@
 using Lertaro.Core;
-using Lertaro.Core.Services.Search;
 using Lertaro.Core.SearchIndex;
 using Lertaro.App.ViewModels.Search.Mapping;
 
@@ -7,32 +6,41 @@ namespace Lertaro.App.ViewModels.Search;
 
 public static class ExplorerSearchHelper
 {
-    public static Task SearchLocalMatchesAsync(
-        SearchService searchService,
+    // Fills `localMatches` with the window folder's own files whose names match the query.
+    //
+    // This is deliberately the ONLY thing the inline window does beyond the ordinary global search, and
+    // it is a filesystem listing rather than an engine search. It used to also run a directory-scoped
+    // engine search for the subtree, which was the inline window's dominant per-keystroke cost for no
+    // benefit: a scoped search walks the whole drive's unique-name table exactly like an unscoped one
+    // (the directory filter is applied to rows afterwards), so it cost as much as the global search and
+    // then had to be waited for. The subtree is now covered by the global results themselves, which the
+    // merge re-orders so this folder's descendants come first (see InlineListSearchHelper).
+    //
+    // What this listing still buys is a guarantee the global window cannot give: the files sitting
+    // directly in the folder the user is looking at are always present, even when other matches fill the
+    // global result budget. The listing is cached per window and prewarmed when the folder is first known
+    // -- see DirectChildrenListingCache -- so by the time a character is typed there is usually nothing
+    // left to read here.
+    internal static Task LoadDirectChildrenAsync(
         string query,
         int fileLimit,
-        int appLimit,
         string contextDirectory,
         List<AppSearchResult> localMatches,
         CancellationToken token,
         Action? onMatchesChanged = null,
-        bool bypassExclusions = false) => Task.Run(async () =>
+        DirectChildrenListingCache? listingCache = null) => Task.Run(async () =>
     {
-        Logger.Log($"[ExplorerSearchHelper] Starting local search for query: '{query}' in scope: '{contextDirectory}'", LogLevel.Debug);
-        var matchCount = 0;
-
-        // The window's own folder first, from a direct one-level listing: this is the cheapest and
-        // most reliable source for "files right here", and running it before the subtree search means
-        // they appear immediately instead of waiting behind (and possibly losing the candidate cap to)
-        // deeper results. Duplicates with the scoped search below collapse in RankAndDedupe.
         try
         {
-            DirectChildrenLocator.MatchInto(contextDirectory, query, fileLimit, result =>
+            var entries = listingCache != null
+                ? await listingCache.GetAsync(contextDirectory).ConfigureAwait(false)
+                : DirectChildrenLocator.Enumerate(contextDirectory, token);
+
+            DirectChildrenLocator.MatchInto(entries, contextDirectory, query, fileLimit, result =>
             {
                 lock (localMatches)
                 {
                     localMatches.Add(SearchResultMapper.CreateUiResult(result, query, localMatches.Count, isApplication: false, contextDirectory));
-                    matchCount++;
                 }
                 onMatchesChanged?.Invoke();
             }, token);
@@ -43,27 +51,6 @@ public static class ExplorerSearchHelper
         catch (Exception ex)
         {
             Logger.Log($"[ExplorerSearchHelper] Direct-child locate failed: {ex.Message}", LogLevel.Error);
-        }
-
-        try
-        {
-            await searchService.SearchStreamingAsync(query, fileLimit, appLimit, contextDirectory, result =>
-            {
-                lock (localMatches)
-                {
-                    localMatches.Add(SearchResultMapper.CreateUiResult(result, query, localMatches.Count, isApplication: false, contextDirectory));
-                    matchCount++;
-                }
-                onMatchesChanged?.Invoke();
-            }, token, bypassExclusions: bypassExclusions);
-            Logger.Log($"[ExplorerSearchHelper] Descendant search completed. Matches count: {matchCount}", LogLevel.Debug);
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
-            Logger.Log($"[ExplorerSearchHelper] Descendant search failed: {ex.Message}", LogLevel.Error);
         }
     }, token);
 

@@ -27,12 +27,19 @@ public partial class InlineSearchWindow : Window, ISearchWindow
     private readonly InlineSearchWindowPositioner _positioner;
     private readonly DispatcherTimer _activeTimer;
     private string _searchText = string.Empty;
-    private IntPtr _originalLayout = IntPtr.Zero;
+    private readonly InlineCardSizingSupport _sizing;
+    private readonly InlineSearchFocusSupport _focusSupport;
     public ShellMenuPresenter MenuPresenter => _menuPresenter;
     public QuickSearchViewModel ViewModel => _viewModel;
     public InlineSearchManager Manager => _manager;
     public InlineSearchWindowInputHandler InputHandler => _inputHandler;
     public InlineSearchWindowPositioner Positioner => _positioner;
+
+    /// <summary>Rebuilds the skeleton rows that fill the card's not-yet-filled slots.</summary>
+    internal void UpdatePlaceholderSlots() => _sizing.UpdatePlaceholderSlots();
+
+    /// <summary>The card's own sizing: its row count, its height, and the skeleton rows.</summary>
+    internal InlineCardSizingSupport CardSizing => _sizing;
 
     // Window-wide (not just the results ListBox -- see ResultsDragDropHelper's own down/up tracking,
     // which is scoped to just that control) record of "a left-button press landed somewhere in this
@@ -60,6 +67,10 @@ public partial class InlineSearchWindow : Window, ISearchWindow
         SearchBox.SearchTextBox.PreviewKeyDown += (_, e) => _isImeComposing = e.Key == Key.Escape ? false : _isImeComposing;
         SearchBox.SearchTextBox.LostKeyboardFocus += (_, _) => _isImeComposing = false;
         _positioner = new InlineSearchWindowPositioner(this);
+
+        _sizing = new InlineCardSizingSupport(this);
+        _sizing.Attach();
+        _focusSupport = new InlineSearchFocusSupport(this);
         PreviewMouseLeftButtonDown += (_, _) => HasPendingMouseDown = true;
         PreviewMouseLeftButtonUp += (_, _) => HasPendingMouseDown = false;
         _activeTimer = new DispatcherTimer(DispatcherPriority.Background);
@@ -207,46 +218,7 @@ public partial class InlineSearchWindow : Window, ISearchWindow
         }
     }
 
-    public bool ActivateAndFocusSearchBox()
-    {
-        _viewModel.EnsureServiceMonitoringActive();
-        var foreground = InlineSearchWindowNativeMethods.GetForegroundWindow();
-        var currentThread = InlineSearchWindowNativeMethods.GetCurrentThreadId();
-
-        var foregroundThread = foreground != IntPtr.Zero
-
-            ? InlineSearchWindowNativeMethods.GetWindowThreadProcessId(foreground, out _)
-
-            : 0;
-        var attached = false;
-
-        try
-        {
-            if (foregroundThread != 0 && foregroundThread != currentThread)
-                attached = InlineSearchWindowNativeMethods.AttachThreadInput(currentThread, foregroundThread, true);
-            Activate();
-            SearchBox.SearchTextBox.Focus();
-            Keyboard.Focus(SearchBox.SearchTextBox);
-            SearchBox.SearchTextBox.CaretIndex = SearchBox.SearchTextBox.Text.Length;
-            if (foreground != IntPtr.Zero && foregroundThread != 0)
-            {
-                _originalLayout = InlineSearchWindowNativeMethods.GetKeyboardLayout(currentThread);
-                var layout = InlineSearchWindowNativeMethods.GetKeyboardLayout(foregroundThread);
-                if (layout != IntPtr.Zero)
-                {
-                    InlineSearchWindowNativeMethods.ActivateKeyboardLayout(layout, 0);
-                }
-            }
-
-            return IsActive && SearchBox.SearchTextBox.IsKeyboardFocusWithin;
-        }
-
-        finally
-        {
-            if (attached)
-                InlineSearchWindowNativeMethods.AttachThreadInput(currentThread, foregroundThread, false);
-        }
-    }
+    public bool ActivateAndFocusSearchBox() => _focusSupport.ActivateAndFocus();
 
     public void HideWindow() => _manager.CloseInlineSearch();
 
@@ -289,11 +261,7 @@ public partial class InlineSearchWindow : Window, ISearchWindow
         // Cancel the in-flight search and release the per-session search service (this window's
         // view model is its own instance), matching the quick/full search windows.
         _viewModel.Dispose();
-        if (_originalLayout != IntPtr.Zero)
-        {
-            InlineSearchWindowNativeMethods.ActivateKeyboardLayout(_originalLayout, 0);
-            _originalLayout = IntPtr.Zero;
-        }
+        _focusSupport.RestoreLayout();
         base.OnClosed(e);
     }
 }

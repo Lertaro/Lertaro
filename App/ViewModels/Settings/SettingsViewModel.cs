@@ -24,29 +24,34 @@ public class SettingsViewModel : ViewModelBase
 
     public SettingsViewModel()
     {
+        // The rest stay EAGER: their constructors are just command/field wiring and in-memory copies, and
+        // ApplyUiState (every 5s, plus up to ~10 status pushes a second while a drive indexes) reads
+        // several of them -- deferring those would trade one open cost for a recurring one.
         Service = new ServiceSettingsViewModel(_searchService, RefreshLists);
-        Log = new ServiceLogViewModel(_searchService);
-
         LocalDrive = new LocalDriveSettingsViewModel(_searchService, RefreshLists);
-
         NetworkDrive = new NetworkDriveSettingsViewModel(_searchService, RefreshLists);
         General = new GeneralSettingsViewModel(_userSettings);
-        Appearance = new ThemeSettingsViewModel(_userSettings);
         Exclusions = new ExclusionSettingsViewModel(_userSettings);
         Blacklist = new BlacklistSettingsViewModel(_userSettings);
         Hotkeys = new HotkeySettingsViewModel(_userSettings, Blacklist);
-        History = new HistorySettingsViewModel(_userSettings);
         Favorites = new FavoritesSettingsViewModel(_userSettings);
         QuickLaunch = new QuickLaunchSettingsViewModel(_userSettings);
         QuickPanel = new QuickPanel.QuickPanelSettingsViewModel(_userSettings);
         LocalSend = new LocalSend.LocalSendSettingsViewModel(_userSettings);
         RefreshCommand = new RelayCommand(Refresh);
         ApplyCommand = new RelayCommand(Apply, () => CanApply);
-
+        _deferred = new DeferredSettingsViewModels(_userSettings, _searchService);
         _statusMonitor = new SettingsStatusMonitor(_searchService, ApplyUiState);
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;
         RefreshLists();
     }
+
+    // The three DEFERRED sub-VMs (log reader, themes, history lists) live in their own holder -- see
+    // DeferredSettingsViewModels for what each costs and why they are not built here.
+    private readonly DeferredSettingsViewModels _deferred;
+    public ServiceLogViewModel Log => _deferred.Log;
+    public ThemeSettingsViewModel Appearance => _deferred.Appearance;
+    public HistorySettingsViewModel History => _deferred.History;
 
     // The Quick Panel page is nudged from here rather than subscribing itself: its labels are built in
     // code (the kind dropdown's options, a plugin tab's name) instead of bound through the XAML
@@ -59,11 +64,9 @@ public class SettingsViewModel : ViewModelBase
     }
 
     public ServiceSettingsViewModel Service { get; }
-    public ServiceLogViewModel Log { get; }
     public LocalDriveSettingsViewModel LocalDrive { get; }
     public NetworkDriveSettingsViewModel NetworkDrive { get; }
     public GeneralSettingsViewModel General { get; }
-    public ThemeSettingsViewModel Appearance { get; }
     public ExclusionSettingsViewModel Exclusions { get; }
 
     // Lazy, not built alongside the other sub-VMs above -- issue #186: PluginManagementViewModel's ctor
@@ -79,7 +82,6 @@ public class SettingsViewModel : ViewModelBase
 
     public HotkeySettingsViewModel Hotkeys { get; }
     public BlacklistSettingsViewModel Blacklist { get; }
-    public HistorySettingsViewModel History { get; }
     public FavoritesSettingsViewModel Favorites { get; }
     public QuickLaunchSettingsViewModel QuickLaunch { get; }
     public LocalSend.LocalSendSettingsViewModel LocalSend { get; }
@@ -107,10 +109,11 @@ public class SettingsViewModel : ViewModelBase
     {
         _statusMonitor.Dispose();
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
-        Log.Dispose();
+        // Null-conditional: a window closed without visiting these tabs must not construct them to dispose.
+        _deferred.ExistingLog?.Dispose();
         _searchService.Dispose();
         General.Cleanup();
-        Appearance.Cleanup();
+        _deferred.ExistingAppearance?.Cleanup();
         LocalDrive.Cleanup();
         NetworkDrive.Cleanup();
         Hotkeys.Cleanup();
@@ -188,7 +191,10 @@ public class SettingsViewModel : ViewModelBase
         _plugins?.Save();
         Hotkeys.Apply();
         Blacklist.Save();
-        History.Save();
+        // _history, not History: an untouched History tab was never constructed, so there is nothing
+        // staged to save -- going through the property would construct it (loading both history files)
+        // purely to write back what it already read.
+        _deferred.ExistingHistory?.Save();
         Favorites.Save();
         QuickLaunch.Save();
         QuickPanel.Save();
@@ -285,7 +291,7 @@ public class SettingsViewModel : ViewModelBase
         // would read and save is stale or empty -- only an unreachable service does (RefreshLists()
         // falls back to an empty MachineSettings() in that case).
         IsServiceReady = isServiceReady;
-        Log.IsServiceReady = isServiceReady;
+        _deferred.ExistingLog?.IsServiceReady = isServiceReady;
         IsBusy = !isServiceReady;
         CanApply = isServiceReady;
     }

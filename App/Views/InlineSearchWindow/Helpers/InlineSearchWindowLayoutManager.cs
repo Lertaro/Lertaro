@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Lertaro.App.Services;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
@@ -14,24 +15,23 @@ public sealed class InlineSearchWindowLayoutManager
     {
         _window = window ?? throw new ArgumentNullException(nameof(window));
 
-        // LstResults is the same shared ResultsControl.xaml markup Quick/Inline/Full all use.
-        // Pixel-based scrolling, pinned for this window's whole lifetime. Tried switching this to
-        // item-based (logical) scrolling alongside QueueResultsLayoutUpdate's move to a row-height SUM
-        // below -- reasoning being that InlineRowHeight is now a literal constant every row genuinely
-        // renders at (see ListBox.xaml's Style.Trigger for a "Lertaro Inline"-titled window), so a
-        // 9-row sum is an exact whole multiple of it by construction, which is what item-based scrolling
-        // needs to render without a leftover gap. Confirmed by testing that this ISN'T enough: a query
-        // short enough to fit without scrolling (exactly 9 results) never showed the gap, but any query
-        // that actually needs to scroll (more than 9 results, e.g. "dev") reproduced it 100% of the time
-        // -- item-based scrolling estimates how many rows fit its own viewport from a container height IT
-        // measures internally, not from the number this class hands it, and that internal estimate can
-        // still round down by one row independent of how exact our own sum is. Pixel-based scrolling has
-        // no such estimation step -- it just clips whatever doesn't fit -- so it's the only one of the two
-        // that's actually robust here, which is why 78ddae91/74c73cf1 landed on it after this exact same
-        // idea was tried and reverted before. QueueResultsLayoutUpdate's move away from measuring the real
-        // ListBox to a direct height sum is still worth keeping independent of this -- it avoids
-        // force-realizing every bound row just to measure a total, regardless of scrolling mode.
-        ScrollViewer.SetCanContentScroll(_window.LstResults, false);
+        // Item-based scrolling ENABLES virtualization; pixel-based (CanContentScroll=false) disables it
+        // outright in WPF, realizing and rendering EVERY bound row even though the card only ever shows
+        // about nine of them. That was the whole cost: measured on a large folder, the UI-thread time of a
+        // paint tracked the number of bound rows rather than the number visible (0.6ms at 2 rows, 119.8ms
+        // at 103), which is why a result-rich folder felt heavy here while the quick window -- virtualizing
+        // all along -- stayed smooth. Verified that this really does virtualize: a 100-row list realizes 17
+        // containers, not 100.
+        //
+        // ScrollUnit is deliberately NOT set alongside this: it is an attached property on the ItemsControl,
+        // but its value does not reach the internal VirtualizingStackPanel that actually scrolls (measured:
+        // setting Pixel on the ListBox leaves the panel on Item), so it would look like a safeguard while
+        // doing nothing. Item-based scrolling is also what the inline list wants now -- the row area is a
+        // fixed whole number of rows (InlineCardMetrics.ComputeLayout) at a constant row height, so there is
+        // no partial row left for pixel scrolling to clip. That partial row is the reason this was pinned to
+        // pixel scrolling before; it was a real problem when the height was a sum over however many results
+        // had arrived, and it no longer exists.
+        ScrollViewer.SetCanContentScroll(_window.LstResults, true);
     }
 
     public void QueueResultsLayoutUpdate()
@@ -44,33 +44,28 @@ public sealed class InlineSearchWindowLayoutManager
             Interlocked.Exchange(ref _layoutUpdateQueued, 0);
             if (!_window.IsVisible) return;
 
-            // Sums each of the first 9 physical rows' own InlineItemHeight instead of measuring the real ListBox
-            // (what this used to do -- see git log on this file for the several rounds that predated it).
-            // The old hand-summed predictions drifted out of sync with what WPF actually rendered because
-            // a normal row's true container height used to come from ResultItemStyle's MinHeight, a
-            // SEPARATE number (ItemHeight, the full-size 51px main-window metric) from what the sum
-            // assumed -- headers being unified to InlineItemHeight alone was never enough to fix it. Now
-            // that ResultItemStyle's own Style.Trigger already binds MinHeight to this SAME InlineItemHeight
-            // for a "Lertaro Inline"-titled window (see ListBox.xaml), and InlineItemHeight itself is a
-            // literal UiMetrics constant instead of a derived ratio, this sum and the real render are
-            // reading the exact same number for every row -- there's no separate formula left to drift.
+            // The results area is a CONSTANT height -- the configured row count times the row height --
+            // instead of a sum over however many results have arrived. Growing the card as results
+            // streamed in is what made it feel restless while typing, and it also invalidated the
+            // positioner's cached inputs on every result count change, so a settled height is cheaper too.
+            // The row height itself is still the same literal UiMetrics constant the ListBox's own
+            // Style.Trigger binds MinHeight to for a "Lertaro Inline"-titled window (see ListBox.xaml), so
+            // this height and the rendered rows cannot drift apart.
             var results = _window.ViewModel.Results;
             var count = results.Count;
-            var visibleCount = Math.Min(count, 9);
-            double resultsHeight = 0;
-            for (var i = 0; i < visibleCount; i++)
-                resultsHeight += results[i].InlineItemHeight;
+            // One source of truth for the split. The result budget is 9 regardless of the titles, and the
+            // titles ride on top of it -- see InlineCardMetrics.ComputeLayout. That is what makes the number
+            // of visible results the same whether both "Current Folder" and "Global Search" are showing or
+            // neither is, instead of dropping to 7 whenever both appear.
+            var layout = _window.CardSizing.CurrentLayout();
 
-            // PathPreviewBorder (the truncated-path banner above the list, Grid.Row sibling of
-            // ResultsPanelControl -- see InlineSearchWindow.xaml) is never counted into this 9-row sum:
-            // unlike the quick window (which sizes itself via SizeToContent and so needs its tab-strip
-            // case to land on the exact same total height as its bannerless/tabstrip-less case, see
-            // QuickSearchWindowLayoutManager's own ceiling), this window's shell is a fixed 550px that
-            // already has headroom for content to grow inside it (see InlineSearchWindowPositioner's own
-            // comment on that) -- there's no bannerless sibling state it needs to visually match, so the
-            // banner can simply add its own height on top of a full, uncompromised 9-row list.
-            _window.LstResults.Height = resultsHeight;
-            _window.ResultsPanelControl.Height = resultsHeight;
+            // The list is only as tall as the items that exist, and the skeleton rows underneath it fill
+            // the rest of the fixed area -- together they are always the whole area, which is what keeps
+            // the card's height constant while a search is still filling in. Sizing the list to the whole
+            // area instead would put the skeleton rows BELOW it and grow the card.
+            _window.LstResults.Height = layout.ShownItems * UiMetrics.InlineRowHeight;
+            _window.ResultsPanelControl.Height = layout.ShownItems * UiMetrics.InlineRowHeight;
+            _window.UpdatePlaceholderSlots();
             // Forces layout to actually run right now, synchronously, instead of leaving WPF free to
             // repaint the ListBox with whatever's now bound to ItemsSource at its next opportunity
             // (which could win the race against this callback and render new content at the stale
@@ -91,48 +86,24 @@ public sealed class InlineSearchWindowLayoutManager
     {
         if (_window.ResultsPanelControl.ActionsGrid.Visibility == Visibility.Visible)
         {
-            _window.PathPreviewBorder?.Visibility = Visibility.Collapsed;
+            SetPathBannerVisible(false);
 
-            if (_window.LstActions.ItemsSource is System.Collections.IList items)
-            {
-                double totalHeight = 0;
-                for (var i = 0; i < items.Count; i++)
-                {
-                    if (items[i] is ActionMenuItem item)
-                    {
-                        totalHeight += item.ItemHeight;
-                    }
-                }
+            // The actions panel lives in the same fixed results area the list uses, so opening or closing it
+            // cannot change the card's height -- that was half of the resize churn this window is rid of. It
+            // does NOT size itself to its own content either: the panel scrolls inside the area.
+            //
+            // Sized from the ROW BUDGET, not from CurrentLayout(): that helper reads the RESULTS collection,
+            // which is the wrong list here (the results list is hidden while the actions panel is up, so its
+            // item count is meaningless for how tall the panel should be). Reading it would size the panel
+            // to whatever the hidden list happened to contain -- a one-row panel whenever the search had
+            // been cleared -- and the fixed area's own height would no longer match it.
+            var actionsAreaHeight = InlineCardMetrics.ResultsAreaHeight(InlineCardMetrics.DefaultRows);
+            _window.LstActions.Height = double.NaN;
+            _window.ResultsPanelControl.Height = actionsAreaHeight;
 
-                double actionsHeaderHeight = 28;
-                if (_window.LstResults.SelectedItem is AppSearchResult selectedResult)
-                {
-                    actionsHeaderHeight = selectedResult.ActionsHeaderHeight;
-                }
-
-                double actualActionsHeight;
-                if (items.Count == 0)
-                {
-                    actualActionsHeight = 40;
-                }
-                else
-                {
-                    // Not reduced by actionsHeaderHeight: that's the panel's own top banner (its target
-                    // filename), additional content stacked above the action rows, not something sharing
-                    // a fixed total budget with them -- see QueueResultsLayoutUpdate's own comment on the
-                    // exact same fix for the results list's path-preview banner. Subtracting it here left
-                    // the actions list unable to ever reach the same 9-row height the results list gets.
-                    var maxAvailableHeight = 9 * Math.Round(Services.UiMetrics.SearchResultItemHeight * 0.7);
-                    actualActionsHeight = Math.Max(0.0, Math.Min(totalHeight, maxAvailableHeight));
-                }
-                _window.LstActions.Height = double.NaN;
-                _window.ResultsPanelControl.Height = actualActionsHeight + actionsHeaderHeight;
-            }
-            else
-            {
-                _window.LstActions.Height = 40;
-                _window.ResultsPanelControl.Height = 40 + 28;
-            }
+            // No skeleton slots behind the actions panel: the placeholder rows are for results still
+            // arriving, and the panel is not a half-full result list.
+            _window.UpdatePlaceholderSlots();
         }
         else
         {
@@ -185,11 +156,7 @@ public sealed class InlineSearchWindowLayoutManager
                                                       {
                                                           if (_window.LstResults.SelectedItem is not AppSearchResult activeResult)
                                                           {
-                                                              if (_window.PathPreviewBorder != null && _window.PathPreviewBorder.Visibility != Visibility.Collapsed)
-                                                              {
-                                                                  _window.PathPreviewBorder.Visibility = Visibility.Collapsed;
-                                                                  QueueResultsLayoutUpdate();
-                                                              }
+                                                              SetPathBannerVisible(false);
                                                               return;
                                                           }
 
@@ -208,21 +175,32 @@ public sealed class InlineSearchWindowLayoutManager
                                                                             !activeResult.IsInstantResult &&
                                                                             (!string.IsNullOrEmpty(activeResult.FullPath) || isShowMore);
 
-                                                          var targetVisibility = shouldShow ? Visibility.Visible : Visibility.Collapsed;
-                                                          if (_window.PathPreviewBorder != null)
+                                                          if (shouldShow)
                                                           {
-                                                              if (shouldShow)
-                                                              {
-                                                                  _window.PathPreviewTextBlock.Text = isShowMore ? activeResult.Name : ViewModels.Search.SearchResultHelper.FormatWslPath(activeResult.FullPath);
-                                                              }
-
-                                                              if (_window.PathPreviewBorder.Visibility != targetVisibility)
-                                                              {
-                                                                  _window.PathPreviewBorder.Visibility = targetVisibility;
-                                                                  QueueResultsLayoutUpdate();
-                                                              }
+                                                              _window.PathPreviewTextBlock.Text = isShowMore ? activeResult.Name : ViewModels.Search.SearchResultHelper.FormatWslPath(activeResult.FullPath);
                                                           }
+
+                                                          SetPathBannerVisible(shouldShow);
                                                       }), DispatcherPriority.Loaded);
+
+    // The single place that changes the banner's visibility, because the card's height is computed from it.
+    // The banner is ADDED to the card's height, so showing it has to re-size the window shell -- not just
+    // re-run the list layout. Leaving the individual call sites to set Visibility themselves is exactly how
+    // it ended up taking its height out of the results area instead, squeezing the list by half a row.
+    private void SetPathBannerVisible(bool visible)
+    {
+        var border = _window.PathPreviewBorder;
+        if (border == null) return;
+
+        var target = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (border.Visibility == target) return;
+
+        border.Visibility = target;
+        // Deferred, like every other height change: ApplyCardHeight runs UpdateLayout synchronously, and
+        // this is reached from a selection change that can land while the list's items are being
+        // reconciled. See InlineCardSizingSupport.RequestCardHeight.
+        _window.CardSizing.RequestCardHeight();
+    }
 
     private bool CheckIfResultIsTruncated(AppSearchResult result)
     {

@@ -12,6 +12,8 @@ internal sealed class SearchExecutionEngine : IDisposable
 {
     private readonly SearchService _searchService;
     private readonly SearchStreamRenderer _streamRenderer;
+    // Per-engine, and the engine lives exactly as long as its window -- see DirectChildrenListingCache.
+    private readonly DirectChildrenListingCache _directChildrenListing = new();
     private readonly object _searchCtsLock = new();
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _debounceCts;
@@ -141,9 +143,18 @@ internal sealed class SearchExecutionEngine : IDisposable
         }, token);
     }
 
+    /// <summary>
+    /// Starts reading the given folder's one-level listing now, so a later inline search finds it warm.
+    /// </summary>
+    /// <remarks>
+    /// Called when the window learns its scope -- navigating Explorer, activating a file dialog -- which is
+    /// before the user has typed. The walk it starts is the part that scales with the folder's size, and
+    /// doing it here is what stops the first keystroke from paying for it.
+    /// </remarks>
+    public void PrewarmDirectoryListing(string? directory) => _directChildrenListing.Prewarm(directory);
+
     public void CancelPendingSearch()
-    {
-        try
+    {        try
         {
             _debounceCts?.Cancel();
             _debounceCts?.Dispose();
@@ -184,28 +195,42 @@ internal sealed class SearchExecutionEngine : IDisposable
         var localUpdateVersion = learnedLocalMatches.Count > 0 ? 1 : 0;
         void OnLocalMatchesChanged() => Interlocked.Increment(ref localUpdateVersion);
 
-        var localSearchTask = ExplorerSearchHelper.SearchLocalMatchesAsync(
-            _searchService, query, fileLimit, appLimit, contextDirectory, localMatches, token, OnLocalMatchesChanged, bypassExclusions: true);
-        var globalSearchStartGate = InlineGlobalSearchGate.WaitForLocalSearchAsync(localSearchTask, token);
+        // The one thing the inline window does beyond the ordinary global search: list the window folder's
+        // own files, so they are guaranteed present even when the global result budget is spent elsewhere.
+        // Cheap and cached -- see ExplorerSearchHelper.LoadDirectChildrenAsync. There is deliberately no
+        // gate before the global search below: the global search IS the result list now, and holding it
+        // back behind this listing is what made the inline window lag the quick window.
+        var localSearchTask = ExplorerSearchHelper.LoadDirectChildrenAsync(
+            query, fileLimit, contextDirectory, localMatches, token, OnLocalMatchesChanged, _directChildrenListing);
+
+        // Memoized: CreateLocalSnapshot copies the whole history-priority dictionary and re-ranks every
+        // local match, and the renderer asks for this snapshot on EVERY paint -- of which one keystroke can
+        // produce several as results stream in. Nothing about the answer changes unless the local matches
+        // changed (localUpdateVersion) or the query did, so rebuilding it per paint was repeated work that
+        // grew with the user's history size.
+        List<AppSearchResult>? cachedLocalSnapshot = null;
+        var cachedLocalVersion = -1;
 
         List<AppSearchResult> GetLocalSnapshot()
         {
+            var version = Volatile.Read(ref localUpdateVersion);
+            if (cachedLocalSnapshot != null && cachedLocalVersion == version)
+                return cachedLocalSnapshot;
+
             List<AppSearchResult> snapshot;
             lock (localMatches)
             {
                 snapshot = new List<AppSearchResult>(localMatches);
             }
-            return ExplorerSearchHelper.CreateLocalSnapshot(snapshot, learnedLocalMatches, query, contextDirectory);
-        }
 
-        int GetLocalMatchCount()
-        {
-            lock (localMatches)
-                return Math.Min(50, learnedLocalMatches.Count + localMatches.Count);
+            var built = ExplorerSearchHelper.CreateLocalSnapshot(snapshot, learnedLocalMatches, query, contextDirectory);
+            cachedLocalSnapshot = built;
+            cachedLocalVersion = version;
+            return built;
         }
 
         await _streamRenderer.RenderAsync(query, null, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token,
-            GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), GetLocalMatchCount, localSearchTask, globalSearchStartGate, onLocalServiceUnavailable, bypassExclusions).ConfigureAwait(false);
+            GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), localSearchTask, onLocalServiceUnavailable, bypassExclusions).ConfigureAwait(false);
     }
 
     private void EmitInstantResults(

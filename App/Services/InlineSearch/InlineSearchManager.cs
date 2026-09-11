@@ -79,6 +79,9 @@ public class InlineSearchManager : IDisposable
                     CloseInlineSearch("ExplorerActivated (Dialog)");
                     EnsureWindowCreated();
                     _window?.UpdateSearchDisplay(string.Empty);
+                    // The window exists and knows its folder, but the user has not typed yet -- start
+                    // reading that folder now so the first character does not have to wait for the walk.
+                    PrewarmActiveFolderListing();
                 }
                 else
                 {
@@ -109,7 +112,21 @@ public class InlineSearchManager : IDisposable
                     EnsureWindowCreated();
                     _window?.UpdateSearchDisplay(string.Empty);
                 }
+
+                // Covers both branches above: a scope just changed, or a window was just created for a
+                // dialog host. Either way the folder is known before anything is typed.
+                PrewarmActiveFolderListing();
             }));
+    }
+
+    // Starts reading the inline window's current folder so its first keystroke matches a warm listing
+    // instead of walking the folder (see DirectChildrenListingCache). Best-effort: with no window there is
+    // nothing to warm, and the empty-query search that also runs here does no listing work of its own.
+    private void PrewarmActiveFolderListing()
+    {
+        var scope = _window?.ViewModel.SearchScope;
+        if (!string.IsNullOrEmpty(scope))
+            _window!.ViewModel.Search.PrewarmDirectoryListing(scope);
     }
 
     private void WireUpMouseEvents() => _mouseHook.OnClickOutside += () => Application.Current.Dispatcher.BeginInvoke(new Action(() =>

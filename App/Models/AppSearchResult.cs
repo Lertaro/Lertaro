@@ -129,7 +129,24 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     // True for rows contributed by IFullSearchFileResultProvider (e.g. ContentSearch hits in the
     // full search window). The full window excludes these rows whenever a type filter is selected.
     public bool IsFullSearchFileResult { get; set; }
-    public string SearchQuery { get; set; } = string.Empty;
+
+    private string _searchQuery = string.Empty;
+
+    // The query this row's highlighting is drawn from (TextHighlighter binds to it). Notifies, unlike the
+    // plain properties around it, because a row can now OUTLIVE the query it was built for:
+    // SearchResultsReconciler.ItemsEqual treats equal path/name/kind as the same row and keeps the
+    // existing instance, so typing another character no longer replaces every row. A surviving row must
+    // be told the new query or its highlight would freeze at the previous keystroke's query.
+    public string SearchQuery
+    {
+        get => _searchQuery;
+        set
+        {
+            if (string.Equals(_searchQuery, value, StringComparison.Ordinal)) return;
+            _searchQuery = value;
+            OnPropertyChanged(nameof(SearchQuery));
+        }
+    }
     public bool IsApplication => ResultKind == "Application";
     public bool IsPluginSearchAction => ResultKind == "PluginAction";
     public bool IsSearchSectionHeader => ResultKind == "SectionHeader";
@@ -188,23 +205,10 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
         set => Extras.PluginActionArgumentText = value;
     }
 
-    public System.Windows.Media.ImageSource? IconOverride
-    {
-        get => _extras?.IconOverride;
-        set => Extras.IconOverride = value;
-    }
-
-    public string InstantResultActionType
-    {
-        get => _extras?.InstantResultActionType ?? "Copy";
-        set => Extras.InstantResultActionType = value;
-    }
-
-    public string InstantResultActionArgument
-    {
-        get => _extras?.InstantResultActionArgument ?? string.Empty;
-        set => Extras.InstantResultActionArgument = value;
-    }
+    // One-liners to match the Extras-forwarding properties just below, which already use this shape.
+    public System.Windows.Media.ImageSource? IconOverride { get => _extras?.IconOverride; set => Extras.IconOverride = value; }
+    public string InstantResultActionType { get => _extras?.InstantResultActionType ?? "Copy"; set => Extras.InstantResultActionType = value; }
+    public string InstantResultActionArgument { get => _extras?.InstantResultActionArgument ?? string.Empty; set => Extras.InstantResultActionArgument = value; }
 
     public Action? InstantResultOnExecute { get => _extras?.InstantResultOnExecute; set => Extras.InstantResultOnExecute = value; }
     public Func<bool>? InstantResultOnExecuteFunc { get => _extras?.InstantResultOnExecuteFunc; set => Extras.InstantResultOnExecuteFunc = value; }

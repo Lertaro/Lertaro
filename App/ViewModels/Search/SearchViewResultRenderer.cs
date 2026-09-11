@@ -34,6 +34,10 @@ internal sealed class SearchViewResultRenderer
         // original accumulator list and no sort or filter created a different list object.
         var unchangedPrefix = _getEffectiveUnchangedPrefix(finalResults);
         _filteredResults.ReconcileTo(finalResults, SearchResultsReconciler.ItemsEqual, _getExtendsContent(), unchangedPrefix);
+        // Same reason as the streaming path's own call: ItemsEqual keeps a row whose content matches, so
+        // the kept instance still holds the previous query and has to be told this one for its highlight
+        // to follow along (see SearchResultsReconciler.SyncMutableDisplayState).
+        SearchResultsReconciler.SyncMutableDisplayState(_filteredResults, finalResults);
         _setResultCount(finalResults.Count);
         _refreshHints();
     }
