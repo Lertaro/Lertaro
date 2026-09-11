@@ -88,7 +88,7 @@ public class FlowSettingsStorage
 
     public void SaveSetting<T>(string pluginId) where T : new()
     {
-        // Defer disk write until SaveAll is called by the host upon clicking Save Settings
+        // Defer disk write until SaveAll is called by the host during configuration commit.
         lock (_lock)
         {
             var cacheKey = $"{pluginId}_{typeof(T).FullName}";

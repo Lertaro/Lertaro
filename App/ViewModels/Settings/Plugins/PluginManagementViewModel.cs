@@ -23,7 +23,6 @@ public class PluginManagementViewModel : ViewModelBase
     {
         _userSettings = userSettings;
         Plugins = new ObservableCollection<PluginInfoViewModel>(PluginLoaderHelper.BuildPluginList(_userSettings));
-        SaveConfigCommand = new RelayCommand<PluginInfoViewModel>(SaveConfig);
         ShowPluginManagementCommand = new RelayCommand(() => IsRuntimeStatusTab = false);
         ShowRuntimeStatusCommand = new RelayCommand(() => IsRuntimeStatusTab = true);
         _selectedPlugin = Plugins.FirstOrDefault();
@@ -253,14 +252,6 @@ public class PluginManagementViewModel : ViewModelBase
         }
     }
 
-    /// <summary>
-    /// The config tab's own Save Config button. The Settings window's Apply/OK reaches the same commit
-    /// through Save() below, so this stays as a second way in rather than the only one.
-    /// </summary>
-    public ICommand SaveConfigCommand { get; }
-
-    private static void SaveConfig(PluginInfoViewModel? plugin) => PluginConfigCommitSupport.Commit(plugin);
-
     public bool IsEmpty => Plugins.Count == 0;
 
     public string HostSdkVersion { get; } = typeof(IPlugin).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
@@ -289,8 +280,8 @@ public class PluginManagementViewModel : ViewModelBase
 
         _userSettings.DisabledPluginComponents = disabled.ToList();
 
-        // An open config the user edited is written here too, so Apply/OK saves it without the plugin
-        // page's own Save Config button having to be pressed first. The button stays as another way in.
+        // An open config the user edited is written here too, so the Settings window's Apply/OK is the
+        // single persistence route for plugin configuration.
         PluginConfigCommitSupport.Commit(PluginConfigCommitSupport.PendingOnSettingsApply(SelectedPlugin));
     }
 

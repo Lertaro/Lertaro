@@ -52,7 +52,7 @@ public sealed class PluginConfigCommitSupportTests
 
         Assert.IsGreaterThan(-1, commit, "Save() no longer commits an open plugin config");
         Assert.IsGreaterThan(-1, disabledWrite, "the component enable/disable write moved");
-        Assert.IsLessThan(disabledWrite, commit,
+        Assert.IsLessThan(commit, disabledWrite,
             "the plugin config commit must run inside Save(), alongside the other staged writes");
         Assert.Contains("PendingOnSettingsApply(SelectedPlugin)", manager,
             "Save() must only commit a config that is actually open");

@@ -593,7 +593,6 @@
   "Plugins_DevGuideUrl": "https://lertaro.github.io/zh-CN/dev-guide/",
   "Plugins_VisitWebsite": "访问网站",
   "Plugins_ConfigurationTitle": "插件配置",
-  "Plugins_SaveConfig": "保存配置",
   "Plugins_NoPlugins": "未安装任何插件。",
   "Plugins_Version": "版本",
   "Plugins_DllSource": "来源文件",

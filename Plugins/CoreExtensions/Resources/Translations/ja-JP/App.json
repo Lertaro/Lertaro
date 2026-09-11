@@ -593,7 +593,6 @@
   "Plugins_DevGuideUrl": "https://lertaro.github.io/dev-guide/",
   "Plugins_VisitWebsite": "Webサイトにアクセス",
   "Plugins_ConfigurationTitle": "プラグイン設定",
-  "Plugins_SaveConfig": "設定を保存",
   "Plugins_NoPlugins": "プラグインはインストールされていません。",
   "Plugins_Version": "バージョン",
   "Plugins_DllSource": "ソースファイル",

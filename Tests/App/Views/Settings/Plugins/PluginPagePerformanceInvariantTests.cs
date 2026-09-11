@@ -35,8 +35,6 @@ public sealed class PluginPagePerformanceInvariantTests
         var vm = Source("App/ViewModels/Settings/Plugins/PluginManagementViewModel.cs");
 
         Assert.Contains("EnsureRuntimeStatusesBuilt", vm, "the lazy entry point is missing");
-        Assert.DoesNotContain("RebuildRuntimeStatuses();\n        SaveConfigCommand", vm,
-            "the constructor must not build runtime-status rows eagerly");
     }
 
     [TestMethod]

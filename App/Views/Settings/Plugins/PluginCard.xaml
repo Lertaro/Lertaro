@@ -83,13 +83,11 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Details / Config tabs header row. The Save Configuration button sits on the far right of this row
-                 and is visible only when the Config tab is active. -->
+            <!-- Details / Config tabs header row. -->
             <Grid Grid.Row="1" Margin="0,16,0,0" Visibility="{Binding HasConfigFields, Converter={StaticResource BoolToVis}}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
@@ -147,15 +145,6 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Save Configuration button positioned to the right of the Config tab -->
-                <Button Grid.Column="2"
-                        Style="{StaticResource PrimarySettingsButton}"
-                        MinWidth="80"
-                        VerticalAlignment="Center"
-                        Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_SaveConfig]}"
-                        Command="{Binding DataContext.SaveConfigCommand, RelativeSource={RelativeSource AncestorType={x:Type local:PluginManagementSettingsPage}}}"
-                        CommandParameter="{Binding}"
-                        Visibility="{Binding IsConfigTab, Converter={StaticResource BoolToVis}}"/>
             </Grid>
 
             <!-- Fixed hairline divider line below the tab header row -->
