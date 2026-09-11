@@ -8,7 +8,7 @@
   "FileFilters_Config_KeywordLabel": "触发关键字",
   "FileFilters_Config_KeywordDesc": "输入框触发此前置过滤的前缀关键字（如 'exe' 或 'doc'）。",
   "FileFilters_Config_FoldersLabel": "范围文件夹列表",
-  "FileFilters_Config_FoldersDesc": "一行一个，支持本地磁盘与网络共享盘。",
+  "FileFilters_Config_FoldersDesc": "一行一个，支持本地磁盘、网络共享盘、环境变量（如 %TEMP%）与系统虚拟路径（如 shell:Downloads）。",
   "FileFilters_Config_FilterPatternLabel": "匹配后缀",
   "FileFilters_Config_FilterPatternDesc": "文件匹配规则或过滤后缀（如 '*.exe;*.lnk'，默认 '*' 匹配所有）。",
   "FileFilters_PluginDesc": "自定义目录范围检索插件。配置文件夹与后缀过滤规则，通过前缀关键字在指定文件夹范围内检索。",

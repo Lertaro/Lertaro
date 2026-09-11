@@ -8,7 +8,7 @@
   "FileFilters_Config_KeywordLabel": "ショートカットキーワード",
   "FileFilters_Config_KeywordDesc": "このファイルフィルターを有効にするキーワードのプレフィックス（例: 'exe' や 'doc'）。",
   "FileFilters_Config_FoldersLabel": "対象フォルダー",
-  "FileFilters_Config_FoldersDesc": "1行に1つのパスを入力します。ネットワークドライブとローカルドライブに対応しています。",
+  "FileFilters_Config_FoldersDesc": "1行に1つのパスを入力します。ローカルドライブ、ネットワークドライブ、環境変数（例: %TEMP%）、シェルの仮想パス（例: shell:Downloads）に対応しています。",
   "FileFilters_Config_FilterPatternLabel": "拡張子 / パターン",
   "FileFilters_Config_FilterPatternDesc": "フィルターする拡張子または検索パターン（例: '*.exe;*.lnk' や '*'）。",
   "FileFilters_PluginDesc": "カスタムディレクトリスコープ検索プラグイン。フォルダーと拡張子のフィルタールールを設定し、キーワードのプレフィックスで特定のフォルダー内を検索できます。",

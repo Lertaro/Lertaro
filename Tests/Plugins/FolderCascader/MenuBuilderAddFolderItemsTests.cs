@@ -134,6 +134,27 @@ public sealed class MenuBuilderAddFolderItemsTests
     }
 
     [TestMethod]
+    public void AddFolderItems_ResolvableVirtualFolder_AllocatesThePhysicalFolder()
+    {
+        // A virtual folder that does have one ("shell:Personal") is resolved before the handle is
+        // allocated, because the submenu expansion behind that handle walks a real directory. A virtual
+        // folder that has none (the "This PC" case below) keeps its token instead.
+        var provider = new Provider();
+        var items = new List<DynamicMenuItem>();
+        var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        Assert.IsFalse(string.IsNullOrEmpty(documents), "the test account has no Documents folder to resolve to");
+        var folders = new List<FolderCascaderPlugin.FolderConfigItem>
+        {
+            Folder("Documents", "shell:Personal")
+        };
+
+        MenuBuilder.AddFolderItems(items, folders, Array.Empty<string>(), provider);
+
+        Assert.IsTrue(items[0].HasSubMenu);
+        Assert.AreEqual(documents, GetPath(provider, items[0].SubMenuHandle), ignoreCase: true);
+    }
+
+    [TestMethod]
     public void AddFolderItems_InvalidVirtualFolder_DisablesItem()
     {
         var provider = new Provider();

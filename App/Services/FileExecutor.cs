@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services.AppWindow;
+using Lertaro.PluginSdk.Helpers;
 using MessageBox = Lertaro.App.Views.Controls.Dialogs.CustomMessageBox;
 namespace Lertaro.App.Services;
 
@@ -53,7 +54,7 @@ public static class FileExecutor
             return;
         }
 
-        path = Environment.ExpandEnvironmentVariables(path);
+        path = UserPathResolver.Expand(path);
 
         // Everything below can block for seconds on a slow or heavily-indexed network share
         // (File.Exists/Directory.Exists have no timeout) -- run it off the UI thread so launching
@@ -72,9 +73,12 @@ public static class FileExecutor
         {
             // Favorite targets are stored raw (e.g. %USERPROFILE%\Desktop); expand variables before
             // the File.Exists/Directory.Exists checks below so those paths launch correctly.
-            path = Environment.ExpandEnvironmentVariables(path);
+            path = UserPathResolver.Expand(path);
 
-            var isVirtual = IsVirtualPath(path);
+            // A "::{CLSID}"/"shell:..." token names a virtual shell namespace item (e.g. Control Panel,
+            // This PC) rather than a real path -- File.Exists/Directory.Exists just return false for it,
+            // so it is treated as openable and handed to the shell, which resolves the token itself.
+            var isVirtual = UserPathResolver.IsVirtualPath(path);
             if (isVirtual || File.Exists(path) || Directory.Exists(path))
             {
                 var isFile = !isVirtual && File.Exists(path);
@@ -165,11 +169,6 @@ public static class FileExecutor
     // location caller supplies the documented first-window operation so it can select the item.
     internal static bool TryLocateInNewExplorerTab(string path, Func<bool>? openFirstWindow = null, IntPtr preferredExplorerWindow = default) =>
         TryUseExplorerTabs(() => ExplorerTabLocator.TryLocateInNewTab(path, preferredExplorerWindow), openFirstWindow);
-
-    // A "::{CLSID}"/"shell:..." token names a virtual shell namespace item (e.g. Control Panel, This PC)
-    // rather than a real filesystem path -- File.Exists/Directory.Exists would just return false for it.
-    internal static bool IsVirtualPath(string path) =>
-        path.StartsWith("::") || path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase);
 
     // Extensions the shell will actually elevate directly via the "runas" verb; anything else is a
     // document, which needs its associated program elevated instead (see BuildStartInfo).

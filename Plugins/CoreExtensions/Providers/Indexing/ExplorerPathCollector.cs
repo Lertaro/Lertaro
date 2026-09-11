@@ -1,6 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Services;
 
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
@@ -170,8 +171,7 @@ public class ExplorerPathCollector : IActivePathCollector
 
     private static bool IsReportedFilesystemPath(string? path) =>
         !string.IsNullOrWhiteSpace(path) &&
-        !path.StartsWith("::", StringComparison.Ordinal) &&
-        !path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) &&
+        !UserPathResolver.IsVirtualPath(path) &&
         !path.Contains("::{", StringComparison.Ordinal) &&
         Path.IsPathRooted(path);
 

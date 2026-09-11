@@ -8,7 +8,7 @@
   "FileFilters_Config_KeywordLabel": "Shortcut Keyword",
   "FileFilters_Config_KeywordDesc": "Keyword prefix to activate this file filter (e.g. 'exe' or 'doc').",
   "FileFilters_Config_FoldersLabel": "Target Folders",
-  "FileFilters_Config_FoldersDesc": "One path per line. Supports network and local drives.",
+  "FileFilters_Config_FoldersDesc": "One path per line. Supports local and network drives, environment variables (e.g. %TEMP%) and shell virtual paths (e.g. shell:Downloads).",
   "FileFilters_Config_FilterPatternLabel": "Extensions / Pattern",
   "FileFilters_Config_FilterPatternDesc": "Filter extension or search pattern (e.g. '*.exe;*.lnk' or '*').",
   "FileFilters_PluginDesc": "Custom directory scope search plugin. Configure folders and file extension filters, then search inside them with a keyword prefix.",

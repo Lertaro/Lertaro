@@ -3,26 +3,9 @@ using Lertaro.Core;
 
 namespace Lertaro.App.Tests.Services;
 
-[TestClass]
-public sealed class IsVirtualPathTests
-{
-    [TestMethod]
-    public void IsVirtualPath_ClsidToken_ReturnsTrue() =>
-        Assert.IsTrue(FileExecutor.IsVirtualPath(@"::{20D04FE0-3AEA-1069-A2D8-08002B30309D}"));
-
-    [TestMethod]
-    public void IsVirtualPath_ShellPrefix_ReturnsTrue() =>
-        Assert.IsTrue(FileExecutor.IsVirtualPath("shell:RecycleBinFolder"));
-
-    [TestMethod]
-    public void IsVirtualPath_ShellPrefixIsCaseInsensitive() =>
-        Assert.IsTrue(FileExecutor.IsVirtualPath("SHELL:RecycleBinFolder"));
-
-    [TestMethod]
-    public void IsVirtualPath_RealFilePath_ReturnsFalse() =>
-        Assert.IsFalse(FileExecutor.IsVirtualPath(@"C:\folder\file.txt"));
-}
-
+// FileExecutor's own IsVirtualPath moved to the shared UserPathResolver (see
+// Tests/App/Helpers/FavoritePathResolverTests for its cases, which now cover the one implementation
+// both App-side callers and plugins use).
 [TestClass]
 public sealed class IsElevatableExecutableTests
 {

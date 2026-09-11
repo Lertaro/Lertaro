@@ -52,7 +52,7 @@ public class HistorySettingsViewModel : ViewModelBase
 
     private static HistoryEntryViewModel<HistoryEntry> MapSearchEntry(HistoryEntry entry)
     {
-        var isVirtual = entry.Path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) || entry.Path.StartsWith("::", StringComparison.Ordinal);
+        var isVirtual = UserPathResolver.IsVirtualPath(entry.Path);
         var primary = isVirtual
             ? ShellPathHelper.GetVirtualFolderDisplayName(entry.Path, entry.Path)
             : (Path.GetFileName(entry.Path) is { Length: > 0 } name ? name : entry.Path);

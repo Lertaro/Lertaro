@@ -8,6 +8,7 @@ using System.Windows.Media.Imaging;
 
 using Lertaro.App.Services.Plugin;
 using Lertaro.Core;
+using Lertaro.PluginSdk.Helpers;
 namespace Lertaro.App.Services.ShellIcons;
 
 public static class ShellIconHelper
@@ -76,7 +77,7 @@ public static class ShellIconHelper
             ext = "::unknown::";
         }
 
-        var isVirtualItem = path.StartsWith("::") || path.StartsWith("shell:");
+        var isVirtualItem = UserPathResolver.IsVirtualPath(path);
         var hasThumbnailProvider = !isDir && PluginManager.Instance.ThumbnailProviders.Any(p => PluginPerformanceMonitor.Measure(p, () => p.CanProvideThumbnail(path, isDir)));
         var isUniqueIconType = isDir || isVirtualItem || hasThumbnailProvider || IsUniqueIconExtension(ext);
         var cacheKey = isUniqueIconType ? path : ext;
@@ -152,7 +153,7 @@ public static class ShellIconHelper
         }
 
         var checkPath = path;
-        var isVirtualItem = checkPath.StartsWith("::") || checkPath.StartsWith("shell:");
+        var isVirtualItem = UserPathResolver.IsVirtualPath(checkPath);
         var isDummyPath = checkPath.StartsWith("dummy", StringComparison.OrdinalIgnoreCase);
         var isUnreachableNetwork = checkPath.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase) && !ViewModels.Search.SearchReachabilityGate.IsPathReachable(checkPath);
         var isPhysicalPath = !isVirtualItem && !isDummyPath && !isUnreachableNetwork && (isDir ? Directory.Exists(checkPath) : File.Exists(checkPath));

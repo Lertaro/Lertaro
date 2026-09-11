@@ -8,7 +8,7 @@
   "FileFilters_Config_KeywordLabel": "Palabra Clave de Acceso Directo",
   "FileFilters_Config_KeywordDesc": "Prefijo de palabra clave para activar este filtro de archivos (por ejemplo, 'exe' o 'doc').",
   "FileFilters_Config_FoldersLabel": "Carpetas de Destino",
-  "FileFilters_Config_FoldersDesc": "Una ruta por línea. Admite unidades de red y locales.",
+  "FileFilters_Config_FoldersDesc": "Una ruta por línea. Admite unidades locales y de red, variables de entorno (p. ej. %TEMP%) y rutas virtuales del shell (p. ej. shell:Downloads).",
   "FileFilters_Config_FilterPatternLabel": "Extensiones / Patrón",
   "FileFilters_Config_FilterPatternDesc": "Extensión de filtro o patrón de búsqueda (por ejemplo, '*.exe;*.lnk' o '*').",
   "FileFilters_PluginDesc": "Complemento de búsqueda por ámbitos de directorio personalizados. Configura carpetas y filtros por extensión de archivo, y busca dentro de ellas con un prefijo de palabra clave.",

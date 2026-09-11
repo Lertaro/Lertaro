@@ -165,4 +165,53 @@ public sealed class FileFiltersScopeProviderTests
 
         Assert.AreEqual("tf", provider.GetSearchScopes().Single().Keyword);
     }
+
+    [TestMethod]
+    public void EnvironmentVariableFolder_IsExpanded()
+    {
+        ConfigureFilters(new() { new() { Keyword = "tf", Folders = { @" %SystemRoot% " } } });
+        var provider = new FileFiltersScopeProvider();
+
+        var folder = provider.GetSearchScopes().Single().Folders.Single();
+
+        Assert.AreEqual(Environment.ExpandEnvironmentVariables("%SystemRoot%"), folder, ignoreCase: true);
+    }
+
+    [TestMethod]
+    public void FoldersThatExpandToTheSamePath_Collapse()
+    {
+        ConfigureFilters(new() { new() { Keyword = "tf", Folders = { "%SystemRoot%", "%SYSTEMROOT%" } } });
+        var provider = new FileFiltersScopeProvider();
+
+        Assert.HasCount(1, provider.GetSearchScopes().Single().Folders, "duplicate detection runs on the resolved paths, not on the raw entries");
+    }
+
+    [TestMethod]
+    public void ShellVirtualFolder_ResolvesToItsPhysicalPath()
+    {
+        ConfigureFilters(new() { new() { Keyword = "tf", Folders = { "shell:Personal" } } });
+        var provider = new FileFiltersScopeProvider();
+
+        var folder = provider.GetSearchScopes().Single().Folders.Single();
+
+        Assert.AreEqual(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), folder, ignoreCase: true);
+    }
+
+    [TestMethod]
+    public void UnresolvableVirtualFolder_IsDropped()
+    {
+        ConfigureFilters(new() { new() { Keyword = "tf", Folders = { @"C:\Movies", "shell:DefinitelyMissingFolder" } } });
+        var provider = new FileFiltersScopeProvider();
+
+        CollectionAssert.AreEqual(new[] { @"C:\Movies" }, provider.GetSearchScopes().Single().Folders.ToList());
+    }
+
+    [TestMethod]
+    public void FilterWhoseEveryFolderIsUnresolvable_ProducesNoScope()
+    {
+        ConfigureFilters(new() { new() { Keyword = "tf", Folders = { "shell:DefinitelyMissingFolder" } } });
+        var provider = new FileFiltersScopeProvider();
+
+        Assert.IsEmpty(provider.GetSearchScopes());
+    }
 }

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.Plugins.CoreExtensions.InlineSearch;
 
@@ -50,9 +51,8 @@ internal static class ExplorerInlineSearchListItems
                             dynamic dFi = fi;
                             var path = (string)dFi.Path;
                             if (string.IsNullOrWhiteSpace(path)) continue;
-                            if (path.StartsWith("::", StringComparison.Ordinal)
-                             || path.Contains("::{", StringComparison.Ordinal)
-                             || path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
+                            if (UserPathResolver.IsVirtualPath(path)
+                             || path.Contains("::{", StringComparison.Ordinal))
                                 continue;
 
                             paths.Add(path);

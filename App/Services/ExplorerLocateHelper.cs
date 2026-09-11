@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using Lertaro.Core;
+using Lertaro.PluginSdk.Helpers;
 using MessageBox = Lertaro.App.Views.Controls.Dialogs.CustomMessageBox;
 using MessageBoxButton = System.Windows.MessageBoxButton;
 using MessageBoxImage = System.Windows.MessageBoxImage;
@@ -18,13 +19,16 @@ internal static class ExplorerLocateHelper
     /// the shell work runs on a ShellThread, which is where the reasoning for that lives.
     /// </summary>
     public static void LocateInExplorer(string path) =>
-        ShellThread.Run("ExplorerLocate", () => LocateInExplorerCore(string.IsNullOrWhiteSpace(path) ? path : Environment.ExpandEnvironmentVariables(path)));
+        ShellThread.Run("ExplorerLocate", () => LocateInExplorerCore(string.IsNullOrWhiteSpace(path) ? path : UserPathResolver.Expand(path)));
 
     private static void LocateInExplorerCore(string path)
     {
         // Expand environment variables first so "locate in Explorer" sees the same resolved path
-        // that FileExecutor.LaunchExistingPath already uses for opening favorites.
-        path = Environment.ExpandEnvironmentVariables(path);
+        // that FileExecutor.LaunchExistingPath already uses for opening favorites. A virtual path is
+        // deliberately left virtual here rather than resolved like FileExecutor's own callers do:
+        // SHParseDisplayName further down takes the token as-is, and Path.GetDirectoryName("shell:...")
+        // is empty, which is exactly what routes a virtual item to the shell-locate fallback.
+        path = UserPathResolver.Expand(path);
 
         // A user-configured default file manager (see GitHub issue #180, FileExecutor.
         // TryBuildDefaultFileManagerStartInfo) takes over "open containing folder" too -- it can only open
