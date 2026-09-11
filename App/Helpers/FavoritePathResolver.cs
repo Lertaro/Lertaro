@@ -5,29 +5,18 @@ using Lertaro.PluginSdk.Helpers;
 namespace Lertaro.App.Helpers;
 
 // Central resolution for favorite target paths: raw user input is kept everywhere for display and
-// persistence, while backend navigation/search code resolves it through this helper. Environment
-// variables are expanded first; shell virtual paths ("shell:..." / "::...") are then resolved via the
-// ShellPathHelper (or an injected resolver in tests, since the real one is COM-backed).
+// persistence, while backend navigation/search code resolves it through this helper. The two parsing
+// steps it is built from -- "%VAR%" expansion and shell virtual paths ("shell:..." / "::...") -- live in
+// UserPathResolver, which is the plugin-visible half of the same rule (plugins cannot reference this
+// App-side class); what stays here are the favorites-specific policies layered on top of them.
 public static class FavoritePathResolver
 {
-    public static string Expand(string? rawPath)
-        => string.IsNullOrWhiteSpace(rawPath)
-            ? (rawPath ?? string.Empty)
-            : Environment.ExpandEnvironmentVariables(rawPath.Trim());
+    public static string Expand(string? rawPath) => UserPathResolver.Expand(rawPath);
 
-    public static bool IsVirtualPath(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path)) return false;
-        var trimmed = path.Trim();
-        return trimmed.StartsWith("::", StringComparison.Ordinal)
-            || trimmed.StartsWith("shell:", StringComparison.OrdinalIgnoreCase);
-    }
+    public static bool IsVirtualPath(string? path) => UserPathResolver.IsVirtualPath(path);
 
     public static string Resolve(string? rawPath, Func<string, string>? virtualPathResolver = null)
-    {
-        var expanded = Expand(rawPath);
-        return (virtualPathResolver ?? ShellPathHelper.TryResolveVirtualPath)(expanded);
-    }
+        => UserPathResolver.Resolve(rawPath, virtualPathResolver);
 
     public static string GetDisplayName(string? rawPath)
     {
