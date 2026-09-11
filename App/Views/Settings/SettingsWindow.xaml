@@ -275,7 +275,7 @@
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <Button Style="{StaticResource PrimarySettingsButton}"
                                     Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_OK]}"
-                                    Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApply}" Click="BtnClose_Click"/>
+                                    IsEnabled="{Binding CanApply}" Click="BtnOk_Click"/>
                             <Button Style="{StaticResource SettingsButton}"
                                     Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Cancel]}"
                                     Click="BtnClose_Click"/>
