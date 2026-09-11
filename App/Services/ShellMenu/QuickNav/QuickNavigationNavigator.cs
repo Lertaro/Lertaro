@@ -5,6 +5,7 @@ using Lertaro.App.Views.InlineSearchWindow.Helpers;
 using Lertaro.Core;
 using Lertaro.Core.Wire;
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.Core.Hook.Commands;
 namespace Lertaro.App.Services.ShellMenu.QuickNav;
 
@@ -31,9 +32,11 @@ public static class QuickNavigationNavigator
             return;
         }
 
-        // Expand environment variables before any dialog/adapter/Explorer logic so favorites stored
-        // raw (e.g. %USERPROFILE%\Desktop) navigate to the real filesystem path.
-        path = Environment.ExpandEnvironmentVariables(path);
+        // Resolve before any dialog/adapter/Explorer logic: favorites are stored raw (e.g.
+        // %USERPROFILE%\Desktop, or a virtual "shell:Downloads"), and the adapters below only understand
+        // a real filesystem path. A virtual token the shell cannot turn into a folder comes back as it
+        // is, which leaves the existing virtual-item handling to the adapter that supports it.
+        path = UserPathResolver.Resolve(path);
 
         if (trigger.DialogHwnd != IntPtr.Zero)
         {
