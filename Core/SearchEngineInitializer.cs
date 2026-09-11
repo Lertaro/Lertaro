@@ -110,7 +110,10 @@ internal class SearchEngineInitializer
 
             if (loadedFromCache)
             {
-                // Catch up from the cached USN silently in background
+                // Catch up from the cached USN silently in background. Subscribers are released only
+                // after every cached drive has caught up and any fallback rebuild has completed, so a
+                // plugin cannot start scanning against an index that is still being replayed.
+                using var deferredDirectoryNotifications = _indexer.SuspendDirectoryChangeNotifications();
                 var updatedMetadata = new List<(string Drive, ulong JournalId, long NextUsn)>();
 
                 for (var i = 0; i < cachedMetadata.Count; i++)

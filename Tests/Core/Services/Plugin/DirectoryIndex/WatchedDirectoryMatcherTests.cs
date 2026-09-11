@@ -105,4 +105,18 @@ public sealed class WatchedDirectoryMatcherTests
         => CollectionAssert.AreEqual(
             Watched,
             WatchedDirectoryMatcher.MatchChangedDirectories(Watched, null));
+
+    [TestMethod]
+    public void UnknownMatchingStaysOnTheSourceDrive()
+    {
+        var watched = new[]
+        {
+            @"C:\Movies",
+            @"D:\Projects\Lertaro",
+        };
+
+        CollectionAssert.AreEqual(
+            new[] { @"D:\Projects\Lertaro" },
+            WatchedDirectoryMatcher.MatchChangedDirectories(watched, null, "D"));
+    }
 }

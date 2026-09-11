@@ -214,6 +214,35 @@ public sealed class DeltaOverlay
         return false;
     }
 
+    // A deleted parent can still be the directory named by a later USN record in the same batch. Its
+    // last snapshot path is still useful for notification matching, even though it must not be used
+    // for metadata reads or live search results.
+    internal bool TryGetHistoricalPathForFrn(UInt128 frn, out string path)
+    {
+        if (TryFindBaseRow(frn, out var anyRow))
+        {
+            var ids = Snapshot.Ids;
+            var first = anyRow;
+            while (first > 0 && ids[first - 1] == frn)
+                first--;
+            if (first < Snapshot.Count && ids[first] == frn)
+            {
+                path = GetFullPath(first);
+                return true;
+            }
+        }
+        foreach (var record in Added)
+        {
+            if (record.Id == frn)
+            {
+                path = GetFullPath(record);
+                return true;
+            }
+        }
+        path = string.Empty;
+        return false;
+    }
+
     internal bool TryFindLiveBaseDirectory(UInt128 frn, out int row)
     {
         if (TryFindBaseRow(frn, out var anyRow))

@@ -26,9 +26,34 @@ public partial class UsnIndexer : IDisposable
     // drive -- see UsnIndexerExtensions.ApplyFolderChange (sets it) and ConsumeMissedFolderChangeDuringRebuild
     // (consumes it to queue one follow-up refresh once the rebuild finishes).
     internal readonly HashSet<string> _missedFolderChangeDuringRebuild = new(StringComparer.OrdinalIgnoreCase);
+    private readonly DirectoryChangeNotificationGate _directoryChangeNotificationGate;
+
+    public UsnIndexer() => _directoryChangeNotificationGate = new DirectoryChangeNotificationGate(RaiseDirectoriesChangedImmediately);
 
     public IndexerStatus Status { get; } = new();
     public object LockObj => _lockObj;
+
+    internal IDisposable SuspendDirectoryChangeNotifications() => _directoryChangeNotificationGate.Begin();
+
+    internal void PublishDirectoryChange(string drive, IReadOnlyCollection<string>? changedDirectories)
+    {
+        if (_directoryChangeNotificationGate.TryDefer(drive, changedDirectories))
+            return;
+
+        RaiseDirectoriesChangedImmediately(drive, changedDirectories);
+    }
+
+    private void RaiseDirectoriesChangedImmediately(string drive, IReadOnlyCollection<string>? changedDirectories)
+    {
+        try
+        {
+            DirectoriesChanged?.Invoke(drive, changedDirectories);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[UsnIndexer] A directory-change subscriber threw: {ex.Message}", LogLevel.Error);
+        }
+    }
 
     // JournalId/NextUsn here are the LIVE catch-up position, updated on every USN batch; a LiveIndex's
     // own Snapshot.JournalId/NextUsn only reflect the position as of its last compaction. The other

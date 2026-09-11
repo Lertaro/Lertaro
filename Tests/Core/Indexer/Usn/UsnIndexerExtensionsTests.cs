@@ -119,6 +119,27 @@ public sealed class UsnIndexerExtensionsTests
         Assert.AreEqual(0, notifications);
     }
 
+    [TestMethod]
+    public void DirectoryChangeNotifications_AreMergedUntilCatchUpEnds()
+    {
+        var indexer = new UsnIndexer();
+        var notifications = new List<(string Drive, IReadOnlyCollection<string>? Directories)>();
+        indexer.DirectoriesChanged += (drive, directories) => notifications.Add((drive, directories));
+
+        using (indexer.SuspendDirectoryChangeNotifications())
+        {
+            indexer.RaiseDirectoriesChanged("C", new[] { @"C:\one" });
+            indexer.RaiseDirectoriesChanged("C", new[] { @"C:\two" });
+            indexer.RaiseDirectoriesChanged("D", null);
+            Assert.IsEmpty(notifications);
+        }
+
+        Assert.HasCount(2, notifications);
+        CollectionAssert.AreEquivalent(new[] { @"C:\one", @"C:\two" }, notifications[0].Directories!.ToArray());
+        Assert.AreEqual("D", notifications[1].Drive);
+        Assert.IsNull(notifications[1].Directories);
+    }
+
     // Regression coverage for the local-drive counterpart of the network-drive rescan race: a
     // non-journaled drive's FolderDriveMonitor now stays alive for the whole rebuild (see
     // ApplyFolderChange's own comment on why), so a change landing mid-rebuild must be recorded as

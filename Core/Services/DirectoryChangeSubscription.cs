@@ -32,7 +32,7 @@ internal static class DirectoryChangeSubscription
 
         void OnChanged(string drive, IReadOnlyCollection<string>? changedDirectories)
         {
-            var hits = WatchedDirectoryMatcher.MatchChangedDirectories(watchList, changedDirectories);
+            var hits = WatchedDirectoryMatcher.MatchChangedDirectories(watchList, changedDirectories, drive);
             if (hits.Count == 0)
                 return;
 

@@ -231,6 +231,14 @@ public static class Win32Api
         uint dwFlagsAndAttributes
     );
 
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    public static extern uint GetFinalPathNameByHandleW(
+        SafeFileHandle hFile,
+        StringBuilder lpszFilePath,
+        uint cchFilePath,
+        uint dwFlags
+    );
+
     [DllImport("shell32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     public static extern IntPtr ShellExecuteW(
         IntPtr hwnd,

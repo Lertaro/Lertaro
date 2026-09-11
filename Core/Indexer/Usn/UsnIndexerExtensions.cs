@@ -101,7 +101,7 @@ public static class UsnIndexerExtensions
 
         // Resolved before taking LockObj, never inside it: reading a path takes the LiveIndex's own
         // lock, and taking the two in this order here and the other order anywhere else is a deadlock.
-        var changedDirectories = UsnIndexerChangedDirectories.Resolve(live, changedParentFrns);
+        var changedDirectories = UsnIndexerChangedDirectories.Resolve(live, changedParentFrns, drive);
 
         lock (indexer.LockObj)
         {

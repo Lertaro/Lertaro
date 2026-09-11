@@ -73,15 +73,5 @@ public partial class UsnIndexer
     public event Action<string, IReadOnlyCollection<string>?>? DirectoriesChanged;
 
     internal void RaiseDirectoriesChanged(string drive, IReadOnlyCollection<string>? changedDirectories)
-    {
-        try
-        {
-            DirectoriesChanged?.Invoke(drive, changedDirectories);
-        }
-        catch (Exception ex)
-        {
-            // A subscriber that throws must not take the indexer's apply loop down with it.
-            Logger.Log($"[UsnIndexer] A directory-change subscriber threw: {ex.Message}", LogLevel.Error);
-        }
-    }
+        => PublishDirectoryChange(drive, changedDirectories);
 }

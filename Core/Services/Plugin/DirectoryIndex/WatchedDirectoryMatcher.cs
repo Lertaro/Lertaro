@@ -12,9 +12,8 @@ public static class WatchedDirectoryMatcher
 {
     /// <summary>
     /// The watched directories affected by <paramref name="changedDirectories"/>. Null there means the
-    /// change could not be pinned down, and every watched directory is returned: losing precision costs
-    /// a re-listing nobody needed, while assuming nothing happened costs a subscriber the change it was
-    /// waiting for, and only one of those is recoverable.
+    /// change could not be pinned down. When the source drive is known, only watched directories on that
+    /// drive are returned; without a source drive, every watched directory is returned as the safe fallback.
     /// </summary>
     public static List<string> Match(IReadOnlyCollection<string> watched, IReadOnlyCollection<string>? changedDirectories)
     {
@@ -45,13 +44,16 @@ public static class WatchedDirectoryMatcher
     /// </summary>
     public static List<string> MatchChangedDirectories(
         IReadOnlyCollection<string> watched,
-        IReadOnlyCollection<string>? changedDirectories)
+        IReadOnlyCollection<string>? changedDirectories,
+        string? sourceDrive = null)
     {
         if (watched.Count == 0)
             return new List<string>();
 
         if (changedDirectories == null)
-            return watched.ToList();
+            return string.IsNullOrWhiteSpace(sourceDrive)
+                ? watched.ToList()
+                : watched.Where(path => IsOnDrive(path, sourceDrive)).ToList();
 
         return changedDirectories
             .Where(changed => watched.Any(watchedPath => Touches(changed, watchedPath)))
@@ -83,5 +85,14 @@ public static class WatchedDirectoryMatcher
     {
         var normalized = value.Replace('/', Path.DirectorySeparatorChar);
         return normalized.EndsWith(Path.DirectorySeparatorChar) ? normalized : normalized + Path.DirectorySeparatorChar;
+    }
+
+    private static bool IsOnDrive(string path, string sourceDrive)
+    {
+        var drive = sourceDrive.Trim().TrimEnd(':', '\\', '/');
+        return drive.Length == 1
+            && path.Length >= 2
+            && path[1] == Path.VolumeSeparatorChar
+            && char.ToUpperInvariant(path[0]) == char.ToUpperInvariant(drive[0]);
     }
 }

@@ -12,6 +12,7 @@ public class SearchEngine : IDisposable
     private CancellationTokenSource? _cts;
     private readonly object _startLock = new();
     private bool _isRebuilding = false;
+    private readonly ManualResetEventSlim _initializationReady = new(initialState: true);
     private MachineSettings _machineSettings = MachineSettings.Load();
     private readonly SearchEngineDriveMaintenance _drives;
 
@@ -198,6 +199,10 @@ public class SearchEngine : IDisposable
     // index holds that path, so the caller has to walk the filesystem itself.
     public bool EnumerateDirectory(string path, bool recursive, string filterPattern, int limit, Action<SearchResult> onResult, CancellationToken token = default)
     {
+        // A loaded cache is intentionally exposed for search during USN catch-up, but directory
+        // enumeration must not return that stale view. Wait until startup replay and any fallback
+        // rebuild have finished; cancellation still lets a client abandon the request immediately.
+        _initializationReady.Wait(token);
         _idleTrim.SearchStarted(Environment.TickCount64);
         try
         {
@@ -215,6 +220,7 @@ public class SearchEngine : IDisposable
         {
             if (_isRebuilding) return;
             _isRebuilding = true;
+            _initializationReady.Reset();
         }
         lock (_indexer.LockObj)
         {
@@ -242,7 +248,10 @@ public class SearchEngine : IDisposable
                     _isRebuilding = isRebuilding;
                 }
                 if (!isRebuilding)
+                {
+                    _initializationReady.Set();
                     TryReleaseRuntimeAfterActivity();
+                }
             });
         });
     }
@@ -250,6 +259,7 @@ public class SearchEngine : IDisposable
     public void Dispose()
     {
         _idleTimer?.Dispose();
+        _initializationReady.Set();
         // Cancel without Dispose (see the restart path above): in-flight loops still reference
         // these tokens while unwinding.
         _cts?.Cancel();

@@ -138,6 +138,22 @@ public sealed class DeltaOverlayTests
     }
 
     [TestMethod]
+    public void DeletedDirectoryRetainsHistoricalPathForNotifications()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((snapshot, delta) =>
+        {
+            var sub = snapshot.FirstRowForId(4);
+            delta.Remove(4);
+
+            Assert.IsFalse(delta.TryGetPathForFrn(4, out _));
+            Assert.IsTrue(delta.TryGetHistoricalPathForFrn(4, out var path));
+            Assert.AreEqual(@"C:\Projects\sub", path);
+            Assert.IsTrue(delta.IsVisiblyDeleted(sub));
+        });
+    }
+
+    [TestMethod]
     public void AddedThenRemoved_NoLongerExists()
     {
         using var fixture = BuildSampleDrive();

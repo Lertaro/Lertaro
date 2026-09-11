@@ -8,13 +8,9 @@ namespace Lertaro.Core.Indexer.Usn;
 // the change was rather than about the index itself.
 internal static class UsnIndexerChangedDirectories
 {
-    // Past this, a batch is bulk activity rather than something a subscriber could be told precisely.
-    private const int MaxDirectoriesPerBatch = 64;
-
     /// <summary>
     /// The distinct directories the parents of a batch's records name, or null when the batch cannot
-    /// be pinned down -- too many distinct parents to be worth carrying, or a parent the index cannot
-    /// resolve to a path.
+    /// be pinned down because a parent cannot be resolved to a path.
     /// </summary>
     /// <remarks>
     /// Parents rather than the records themselves, because that is the level a watcher is interested
@@ -27,31 +23,44 @@ internal static class UsnIndexerChangedDirectories
     /// Returning null instead makes that batch say "somewhere, unknown", which every reader is
     /// already required to treat as "assume it was you".
     /// </remarks>
-    public static List<string>? Resolve(LiveIndex live, HashSet<UInt128> parentFrns)
+    public static List<string>? Resolve(
+        LiveIndex live,
+        HashSet<UInt128> parentFrns,
+        string? drive = null)
     {
         if (parentFrns.Count == 0)
             return new List<string>();
 
-        // A batch this wide is bulk activity across the volume. Resolving every parent would cost more
-        // than a subscriber can act on, and "somewhere, unknown" is the honest answer -- anyone
-        // watching a directory has to assume it was touched either way.
-        if (parentFrns.Count > MaxDirectoriesPerBatch)
-            return null;
-
-        List<string>? directories = new(parentFrns.Count);
+        List<string> directories = new(parentFrns.Count);
+        List<UInt128> unresolvedFrns = new();
         live.Read((_, delta) =>
         {
             foreach (var frn in parentFrns)
             {
                 if (!delta.TryGetPathForFrn(frn, out var path) || string.IsNullOrEmpty(path))
                 {
-                    directories = null;
-                    return false;
+                    if (delta.TryGetHistoricalPathForFrn(frn, out path))
+                    {
+                        directories.Add(path);
+                        continue;
+                    }
+                    unresolvedFrns.Add(frn);
+                    continue;
                 }
                 directories.Add(path);
             }
             return true;
         });
+
+        foreach (var frn in unresolvedFrns)
+        {
+            if (!string.IsNullOrWhiteSpace(drive) && UsnFilePathResolver.TryResolve(drive, frn, out var path))
+            {
+                directories.Add(path);
+                continue;
+            }
+            return null;
+        }
 
         return directories;
     }
