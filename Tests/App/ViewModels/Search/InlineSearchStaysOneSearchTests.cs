@@ -105,6 +105,33 @@ public sealed class InlineSearchStaysOneSearchTests
     }
 
     [TestMethod]
+    public void TheInlinePathBannerUsesNaturalHeightForTheCompletePath()
+    {
+        var xaml = Source("App/Views/InlineSearchWindow/InlineSearchWindow.xaml");
+        var banner = Between(xaml, "<Border x:Name=\"PathPreviewBorder\"", "</Border>");
+        var bannerOpeningTag = Between(banner, "<Border", ">") + ">";
+
+        Assert.DoesNotContain("Height=", bannerOpeningTag, "the path panel must size itself from the complete path");
+        Assert.Contains("TextWrapping=\"Wrap\"", banner, "long paths should use wrapped lines");
+        Assert.DoesNotContain("TextTrimming=", banner, "the complete path must not be replaced by an ellipsis");
+        Assert.Contains("PathPreviewBorder\" Grid.Row=\"0\"", xaml,
+            "the path panel must be a sibling of the result container");
+        Assert.Contains("ResultsContainerWrapper\" Grid.Row=\"1\"", xaml,
+            "the result container must have its own layout row");
+
+        var sizing = Source("App/Views/InlineSearchWindow/Helpers/InlineCardSizingSupport.cs");
+        Assert.Contains("PathPreviewBorder.Measure", sizing,
+            "the path height must be measured from the current text before resizing the window");
+        Assert.Contains("DesiredSize.Height", sizing,
+            "the card height must use natural content height rather than stale arranged height");
+        Assert.DoesNotContain("MinHeight=", bannerOpeningTag, "the path panel must not use a fixed minimum height");
+        Assert.DoesNotContain("MinHeight=\"48\"", xaml, "the search bar must use its natural measured height");
+        var layout = Source("App/Views/InlineSearchWindow/Helpers/InlineSearchWindowLayoutManager.cs");
+        Assert.Contains("PathPreviewTextBlock.Text != pathText", layout,
+            "a longer replacement path must trigger a new natural-height pass");
+    }
+
+    [TestMethod]
     public void NothingResizesTheCardSynchronouslyFromInsideACollectionChange()
     {
         // This crashed the app: a results-collection handler called ApplyCardHeight, which sets the window
@@ -160,6 +187,8 @@ public sealed class InlineSearchStaysOneSearchTests
             "the skip must happen BEFORE anything is resized or repositioned, or it saves nothing");
         Assert.Contains("Math.Abs(_window.Height - shellHeight)", apply,
             "the skip must be decided by comparing against the current height");
+        Assert.Contains("if (_window.ViewModel.IsSearching) return;", apply,
+            "an in-flight search must not briefly resize to the full row budget");
     }
 
     [TestMethod]

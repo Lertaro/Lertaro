@@ -152,7 +152,7 @@ public class InlineSearchWindowPositioner
                 {
                     var winWidth = rect.Right - rect.Left;
                     targetPhysLeft = rect.Left + (winWidth - physWindowWidth) / 2.0;
-                    var searchBoxHeight = _window.SearchBoxBorder.ActualHeight > 0 ? _window.SearchBoxBorder.ActualHeight : 48.0;
+                    var searchBoxHeight = _window.CardSizing.SearchBoxHeight();
                     targetPhysTop = rect.Bottom - physWindowHeight + physXamlMarginY + searchBoxHeight * targetDpiScaleY;
                 }
                 else
@@ -233,8 +233,7 @@ public class InlineSearchWindowPositioner
             Grid.SetRow(_window.SearchBoxBorder, 0);
             Grid.SetRow(_window.ResultsSeparator, 1);
             Grid.SetRow(_window.ResultsContainerWrapper, 2);
-            Grid.SetRow(_window.PathPreviewBorder, 1);
-            Grid.SetRow(_window.ResultsPanelControl, 0);
+            Grid.SetRow(_window.PathPreviewBorder, 3);
             _window.PathPreviewBorder.BorderThickness = new Thickness(0, 1, 0, 0);
             _window.PathPreviewBorder.CornerRadius = new CornerRadius(0, 0, 7, 7);
             _window.MainBorder.CornerRadius = new CornerRadius(0, 0, 8, 8);
@@ -245,11 +244,10 @@ public class InlineSearchWindowPositioner
         {
             _window.RootGrid.VerticalAlignment = VerticalAlignment.Bottom;
             _window.MainBorder.VerticalAlignment = VerticalAlignment.Bottom;
-            Grid.SetRow(_window.ResultsContainerWrapper, 0);
-            Grid.SetRow(_window.ResultsSeparator, 1);
-            Grid.SetRow(_window.SearchBoxBorder, 2);
             Grid.SetRow(_window.PathPreviewBorder, 0);
-            Grid.SetRow(_window.ResultsPanelControl, 1);
+            Grid.SetRow(_window.ResultsContainerWrapper, 1);
+            Grid.SetRow(_window.ResultsSeparator, 2);
+            Grid.SetRow(_window.SearchBoxBorder, 3);
             _window.PathPreviewBorder.BorderThickness = new Thickness(0, 0, 0, 1);
             _window.PathPreviewBorder.CornerRadius = new CornerRadius(7, 7, 0, 0);
             _window.MainBorder.CornerRadius = new CornerRadius(8);

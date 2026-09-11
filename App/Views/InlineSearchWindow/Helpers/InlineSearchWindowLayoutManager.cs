@@ -78,7 +78,9 @@ public sealed class InlineSearchWindowLayoutManager
             }
 
             UpdateShortcutHints();
-            _window.Positioner.PositionWindow();
+            // Content refreshes must not reposition the native window. CardSizing owns the one deferred
+            // resize after a search settles; moving here as well creates a second layout pass and exposes
+            // the intermediate large-list arrangement for one frame.
         }), DispatcherPriority.Render);
     }
 
@@ -177,7 +179,14 @@ public sealed class InlineSearchWindowLayoutManager
 
                                                           if (shouldShow)
                                                           {
-                                                              _window.PathPreviewTextBlock.Text = isShowMore ? activeResult.Name : ViewModels.Search.SearchResultHelper.FormatWslPath(activeResult.FullPath);
+                                                              var pathText = isShowMore ? activeResult.Name : ViewModels.Search.SearchResultHelper.FormatWslPath(activeResult.FullPath);
+                                                              if (_window.PathPreviewTextBlock.Text != pathText)
+                                                              {
+                                                                  _window.PathPreviewTextBlock.Text = pathText;
+                                                                  // Visibility can stay unchanged while a newly selected path needs more wrapped lines. Queue
+                                                                  // the same deferred height pass for that content-only change as well.
+                                                                  _window.CardSizing.RequestCardHeight();
+                                                              }
                                                           }
 
                                                           SetPathBannerVisible(shouldShow);
