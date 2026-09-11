@@ -162,6 +162,10 @@
             </Setter.Value>
         </Setter>
         <Style.Triggers>
+            <!-- Inline actions use the same 36 DIP row as the inline result list. -->
+            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro Inline">
+                <Setter Property="MinHeight" Value="{x:Static services:UiMetrics.InlineRowHeight}"/>
+            </DataTrigger>
             <!-- Quick window only: action rows scale with the configured search box height. -->
             <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro">
                 <Setter Property="MinHeight" Value="{Binding ScaledItemHeight}"/>

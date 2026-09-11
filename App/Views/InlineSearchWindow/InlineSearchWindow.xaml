@@ -71,6 +71,7 @@
                                               ItemsSource="{Binding Results}"
                                               SelectedItem="{Binding SelectedResult, Mode=TwoWay}"
                                               ViewMode="List"
+                                              UseInlineActionRows="True"
                                               Visibility="{Binding ResultsPanelVisibility}"/>
 
                     </Grid>

@@ -145,6 +145,30 @@ public sealed class InlineSearchStaysOneSearchTests
     }
 
     [TestMethod]
+    public void TheInlineActionsListIsLimitedToNineActionRows()
+    {
+        var layout = Source("App/Views/InlineSearchWindow/Helpers/InlineSearchWindowLayoutManager.cs");
+
+        Assert.Contains("var actionsListHeight", layout,
+            "the action list needs its own row-height limit because action rows are shorter than result rows");
+        Assert.Contains("actionRowHeight * InlineCardMetrics.DefaultRows", layout,
+            "the action list must use the same nine-row budget");
+        Assert.Contains("_window.LstActions.Height = actionsListHeight", layout,
+            "the ListBox itself must be constrained, not only its outer panel");
+        var styles = Source("App/Resources/Styles/Controls/ListBox.xaml");
+        Assert.Contains("Value=\"{x:Static services:UiMetrics.InlineRowHeight}\"", styles,
+            "inline action rows must use the same height as inline result rows");
+        var inlineXaml = Source("App/Views/InlineSearchWindow/InlineSearchWindow.xaml");
+        Assert.Contains("UseInlineActionRows=\"True\"", inlineXaml,
+            "the inline action header must use the inline result header height");
+        var resultsControl = Source("App/Views/Controls/Results/ResultsControl.xaml");
+        Assert.Contains("UseInlineActionRows", resultsControl,
+            "the shared action header needs an inline-specific height switch");
+        Assert.Contains("Value=\"{x:Static services:UiMetrics.InlineRowHeight}\"", resultsControl,
+            "the inline action header must use the same 36 DIP row height");
+    }
+
+    [TestMethod]
     public void NothingResizesTheCardSynchronouslyFromInsideACollectionChange()
     {
         // This crashed the app: a results-collection handler called ApplyCardHeight, which sets the window

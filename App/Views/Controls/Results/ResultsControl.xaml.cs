@@ -90,6 +90,7 @@ public partial class ResultsControl : System.Windows.Controls.UserControl
     public System.Windows.Controls.ListBox ActionsListBox => LstActions;
     public System.Windows.Controls.TextBox ActionsSearchTextBox => TxtActionsSearch;
     public bool UseRoomyActionRows { get; set; }
+    public bool UseInlineActionRows { get; set; }
 
     public static readonly DependencyProperty UsesFloatingActionsLayoutProperty = DependencyProperty.Register(
         nameof(UsesFloatingActionsLayout), typeof(bool), typeof(ResultsControl),

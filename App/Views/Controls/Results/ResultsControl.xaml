@@ -140,7 +140,17 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                     <Border Grid.Row="0" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1"
-                            Height="{Binding SelectedItem.ActionsHeaderHeight, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}" Padding="14,0,14,0" Background="{DynamicResource ActionsHeaderBg}">
+                            Padding="14,0,14,0" Background="{DynamicResource ActionsHeaderBg}">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Height" Value="{Binding SelectedItem.ActionsHeaderHeight, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding UseInlineActionRows, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}" Value="True">
+                                        <Setter Property="Height" Value="{x:Static services:UiMetrics.InlineRowHeight}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
