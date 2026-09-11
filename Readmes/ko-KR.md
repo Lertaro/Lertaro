@@ -7,7 +7,7 @@
 [English](../README.md) | [简体中文](zh-CN.md) | [繁體中文（香港）](zh-HK.md) | [繁體中文（台灣）](zh-TW.md) | [日本語](ja-JP.md) | 한국어 | [Español](es-ES.md)
 
 > [!CAUTION]
-> **보안 경고: 공식 소스에서만 Lertaro를 다운로드하세요.** 저장소 `github.com/adelmagical742/Lertaro` 및 웹사이트 `adelmagical742.github.io`는 Lertaro를 사칭한 비공식 소스입니다. 해당 주소에서 파일을 다운로드하거나 실행하지 마세요. 유일한 공식 저장소는 [Lertaro/Lertaro](https://github.com/Lertaro/Lertaro)이며, 공식 웹사이트는 [lertaro.github.io](https://lertaro.github.io/), 공식 바이너리는 [GitHub Releases](https://github.com/Lertaro/Lertaro/releases)를 통해서만 배포됩니다.
+> **보안 경고: 공식 소스에서만 Lertaro를 다운로드하세요.** 안전을 위해 Lertaro는 공식 저장소, 공식 웹사이트 및 [GitHub Releases](https://github.com/Lertaro/Lertaro/releases)에서만 다운로드하세요. 확인되지 않은 소스나 저장소의 파일은 다운로드하거나 실행하지 마세요.
 
 Lertaro는 **.NET 10 (WPF)** 기반으로 제작된 초경량, 고성능, 확장형 Windows 전역 파일 검색 및 생산성 런처 도구입니다. **Listary**와 **Everything**의 모던한 오픈소스 대안으로서, NTFS **USN 저널** 및 $MFT를 직접 파싱하여 적은 리소스 점유율로 밀리초 단위의 즉각적인 검색을 제공합니다.
 

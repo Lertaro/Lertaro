@@ -7,7 +7,7 @@
 [English](../README.md) | 简体中文 | [繁體中文（香港）](zh-HK.md) | [繁體中文（台灣）](zh-TW.md) | [日本語](ja-JP.md) | [한국어](ko-KR.md) | [Español](es-ES.md)
 
 > [!CAUTION]
-> **安全警告：请仅从官方来源下载 Lertaro。** 仓库 `github.com/adelmagical742/Lertaro` 和网站 `adelmagical742.github.io` 正在冒充 Lertaro 并传播恶意下载。请勿下载或运行来自这些地址的任何文件。唯一官方仓库是 [Lertaro/Lertaro](https://github.com/Lertaro/Lertaro)，唯一官方网站是 [lertaro.github.io](https://lertaro.github.io/)，官方程序仅通过 [GitHub Releases](https://github.com/Lertaro/Lertaro/releases) 发布。即使文件名或内容发生变化，也请始终将上述假冒来源视为不可信。
+> **安全警告：请仅从官方来源下载 Lertaro。** 为确保安全，请仅从官方仓库、官方网站和 [GitHub Releases](https://github.com/Lertaro/Lertaro/releases) 下载 Lertaro。请勿下载或运行来自未经验证的来源或仓库的文件。
 
 Lertaro 是一款基于 **.NET 10 (WPF)** 打造的超轻量、极速、高度可扩展的 Windows 全局搜索与效率启动工具，是 **Listary** 和 **Everything** 的现代化开源替代——通过读取 NTFS **USN 日志** 与 $MFT 直接索引本地磁盘，实现毫秒级、低资源占用的检索体验。
 

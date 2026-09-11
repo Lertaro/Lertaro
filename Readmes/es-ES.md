@@ -7,7 +7,7 @@
 [English](../README.md) | [简体中文](zh-CN.md) | [繁體中文（香港）](zh-HK.md) | [繁體中文（台灣）](zh-TW.md) | [日本語](ja-JP.md) | [한국어](ko-KR.md) | Español
 
 > [!CAUTION]
-> **Aviso de seguridad: descarga Lertaro únicamente desde fuentes oficiales.** El repositorio `github.com/adelmagical742/Lertaro` y el sitio web `adelmagical742.github.io` suplantan a Lertaro y distribuyen descargas no autorizadas. No descargues ni ejecutes ningún archivo proveniente de ellos. El único repositorio oficial es [Lertaro/Lertaro](https://github.com/Lertaro/Lertaro), el único sitio web oficial es [lertaro.github.io](https://lertaro.github.io/), y los ejecutables oficiales se publican exclusivamente mediante [GitHub Releases](https://github.com/Lertaro/Lertaro/releases).
+> **Aviso de seguridad: descarga Lertaro únicamente desde fuentes oficiales.** Por tu seguridad, descarga Lertaro únicamente desde el repositorio oficial, el sitio web oficial y [GitHub Releases](https://github.com/Lertaro/Lertaro/releases). No descargues ni ejecutes archivos provenientes de fuentes o repositorios no verificados.
 
 Lertaro es un buscador y lanzador de productividad global ultraligero, de alto rendimiento y extensible para Windows, construido sobre **.NET 10 (WPF)**. Es una alternativa moderna y de código abierto a **Listary** y **Everything**, que indexa unidades locales mediante el **USN Journal** y $MFT de NTFS para búsquedas instantáneas con un consumo mínimo de recursos.
 
