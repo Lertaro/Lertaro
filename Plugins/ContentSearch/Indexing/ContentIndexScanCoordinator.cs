@@ -89,8 +89,6 @@ internal sealed class ContentIndexScanCoordinator : IDisposable
                     scanDirectories);
 
                 _scheduler.NotifyProgressChanged(force: _scheduler.PendingCount == 0);
-                _database.Optimize();
-                _database.VacuumIfBloat();
 
                 if (_scheduler.PendingCount > 0)
                 {

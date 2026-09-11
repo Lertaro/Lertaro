@@ -48,6 +48,9 @@ public sealed class ContentIndexScheduler : IDisposable
     internal static int GetExtractorParallelism(int processorCount) =>
         Math.Clamp(processorCount / 2, 1, 4);
 
+    internal static bool ShouldRunIdleMaintenance(bool hasPendingOptimizations, int idleCycles) =>
+        hasPendingOptimizations && idleCycles >= 15;
+
     public ContentIndexScheduler(ContentSearchDatabase database)
     {
         _database = database;
@@ -138,8 +141,8 @@ public sealed class ContentIndexScheduler : IDisposable
         }
     }
 
-    public void TriggerFullScan(IReadOnlyList<string>? changedDirectories = null)
-        => _scanCoordinator.TriggerFullScan(changedDirectories);
+    public void TriggerFullScan(IReadOnlyList<string>? changedDirectories = null) =>
+        _scanCoordinator.TriggerFullScan(changedDirectories);
 
     public void EnqueueFile(string filePath)
     {
@@ -177,7 +180,6 @@ public sealed class ContentIndexScheduler : IDisposable
     {
         var hasPendingOptimizations = false;
         var idleCycles = 0;
-        var processedBatches = 0;
 
         while (!ct.IsCancellationRequested)
         {
@@ -195,9 +197,10 @@ public sealed class ContentIndexScheduler : IDisposable
                     if (hasPendingOptimizations)
                     {
                         idleCycles++;
-                        if (idleCycles >= 15) // ~3 seconds of idle time
+                        if (ShouldRunIdleMaintenance(hasPendingOptimizations, idleCycles)) // ~3 seconds of idle time
                         {
                             _database.Optimize();
+                            _database.VacuumIfBloat();
                             hasPendingOptimizations = false;
                             idleCycles = 0;
                             PluginSdk.Services.MemoryMaintenanceService.RequestTrim();
@@ -209,19 +212,12 @@ public sealed class ContentIndexScheduler : IDisposable
 
                 idleCycles = 0;
                 hasPendingOptimizations = true;
-
                 try
                 {
                     // Blocking wait is fine here: this is the dedicated below-normal scheduler
                     // thread, and the parallel extraction lanes run on thread-pool threads.
                     _batchProcessor.ProcessBatchAsync(batch, _config, ct).GetAwaiter().GetResult();
                     _database.Checkpoint(truncate: false);
-                    processedBatches++;
-                    if (processedBatches % 10 == 0)
-                    {
-                        _database.Optimize();
-                        PluginSdk.Services.MemoryMaintenanceService.RequestTrim();
-                    }
                 }
                 finally
                 {
