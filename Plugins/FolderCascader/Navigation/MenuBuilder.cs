@@ -39,11 +39,12 @@ public static class MenuBuilder
     internal static string GetDisplayName(string path, string customName)
     {
         if (!string.IsNullOrWhiteSpace(customName)) return customName;
-        var expanded = Environment.ExpandEnvironmentVariables(path);
+        var expanded = UserPathResolver.Expand(path);
         // "shell:" covers both the "shell:::{CLSID}" virtual-folder form and "shell:AppsFolder\{AUMID}"
-        // (packaged apps) -- not just the CLSID form -- matching the isVirtual check already used for
-        // favorites above.
-        if (expanded.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) || expanded.StartsWith("::", StringComparison.OrdinalIgnoreCase))
+        // (packaged apps) -- not just the CLSID form. A virtual folder stays virtual all the way through
+        // here on purpose: its friendly name is only reachable through the token, so this asks the shell
+        // for that name instead of resolving to a path first.
+        if (UserPathResolver.IsVirtualPath(expanded))
             return ShellPathHelper.GetVirtualFolderDisplayName(expanded, path);
         try
         {
@@ -166,7 +167,10 @@ public static class MenuBuilder
                 continue;
             }
             if (string.IsNullOrWhiteSpace(folder.Path)) continue;
-            var expandedPath = Environment.ExpandEnvironmentVariables(folder.Path);
+            // Resolved, not just expanded: a configured entry may be a virtual folder ("shell:Downloads"),
+            // and the handle allocated here is what a later submenu expansion (FolderBrowseMenuBuilder)
+            // walks -- which needs the physical folder behind it.
+            var expandedPath = UserPathResolver.Resolve(folder.Path);
             var pathExists = PathAvailability.IsFolderAvailable(expandedPath);
             items.Add(new DynamicMenuItem
             {

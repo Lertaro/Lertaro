@@ -8,7 +8,7 @@
   "FileFilters_Config_KeywordLabel": "觸發關鍵字",
   "FileFilters_Config_KeywordDesc": "輸入框觸發此前置過濾的字首關鍵字（如 'exe' 或 'doc'）。",
   "FileFilters_Config_FoldersLabel": "範圍資料夾列表",
-  "FileFilters_Config_FoldersDesc": "一行一個，支援本地磁碟與網路共享盤。",
+  "FileFilters_Config_FoldersDesc": "一行一個，支援本機磁碟、網路共享盤、環境變數（如 %TEMP%）與系統虛擬路徑（如 shell:Downloads）。",
   "FileFilters_Config_FilterPatternLabel": "匹配副檔名",
   "FileFilters_Config_FilterPatternDesc": "檔案匹配規則或過濾副檔名（如 '*.exe;*.lnk'，預設 '*' 匹配所有）。",
   "FileFilters_PluginDesc": "自訂目錄範圍搜尋外掛。配置資料夾與副檔名過濾規則，透過字首關鍵字在指定資料夾範圍內搜尋。",

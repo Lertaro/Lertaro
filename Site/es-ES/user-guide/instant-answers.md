@@ -87,7 +87,7 @@ tr Hello, how are you today?
 
 En **Configuración → Plugins → Filtros de archivos → Configurar**, puedes vincular una palabra clave activadora a carpetas concretas para limitar una búsqueda normal a ellas:
 
-- **Carpetas de destino**: una ruta por línea (p. ej. `D:\Ingenieria\Planos`). Los resultados provienen del índice de archivos, así que las carpetas deben estar cubiertas por el índice (una unidad local habilitada, o añadidas en **Configuración → Índice → Carpetas**, que también acepta rutas de red); una carpeta sin cobertura de índice se omite con una advertencia en el registro.
+- **Carpetas de destino**: una ruta por línea (p. ej. `D:\Ingenieria\Planos`); también se admiten variables de entorno (p. ej. `%TEMP%`) y rutas virtuales del shell (p. ej. `shell:Downloads`), y una entrada que no se resuelva se omite. Los resultados provienen del índice de archivos, así que las carpetas deben estar cubiertas por el índice (una unidad local habilitada, o añadidas en **Configuración → Índice → Carpetas**, que también acepta rutas de red); una carpeta sin cobertura de índice se omite con una advertencia en el registro.
 - **Reglas de coincidencia**: patrones de nombre de archivo como `*.dwg;*.dxf` (las carpetas siempre se incluyen).
 - **Palabra clave activadora**: tras vincular un prefijo (p. ej. `cad`), al escribir `cad plano_pieza` en la ventana de búsqueda rápida la búsqueda normal del índice (coincidencia difusa por nombre de archivo, alias pinyin incluidos) se limita a las carpetas vinculadas. Si solo escribes la palabra clave, se te pedirá seguir escribiendo.
 

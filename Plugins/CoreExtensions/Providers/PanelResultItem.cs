@@ -42,7 +42,7 @@ internal sealed class PanelResultItem : ISearchResult
         // A packaged app's path is a virtual shell:AppsFolder\{AUMID} id, not a real filename --
         // Path.GetFileName on it would surface the raw AUMID, so resolve the shell's own friendly
         // display name instead (same fallback Favorites already uses for shell:/:: paths).
-        if (path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) || path.StartsWith("::", StringComparison.Ordinal))
+        if (UserPathResolver.IsVirtualPath(path))
             return ShellPathHelper.GetVirtualFolderDisplayName(path, path);
 
         var name = Path.GetFileName(path.TrimEnd('\\', '/'));

@@ -19,7 +19,7 @@ internal static class FolderBrowseMenuBuilder
             {
                 AddPhysicalFolderPage(items, scanPath, offset, provider);
             }
-            else if (IsVirtualPath(scanPath))
+            else if (UserPathResolver.IsVirtualPath(scanPath))
             {
                 ShellEnumerator.EnumerateShellFolder(scanPath, items, provider);
             }
@@ -69,13 +69,8 @@ internal static class FolderBrowseMenuBuilder
 
     private static string ResolvePhysicalPath(string path)
     {
-        var expanded = Environment.ExpandEnvironmentVariables(path);
-        if (!IsVirtualPath(expanded)) return expanded;
-
-        var resolved = ShellPathHelper.TryResolveVirtualPath(expanded);
+        var expanded = UserPathResolver.Expand(path);
+        var resolved = UserPathResolver.Resolve(expanded);
         return Directory.Exists(resolved) ? resolved : expanded;
     }
-
-    private static bool IsVirtualPath(string path) =>
-        path.StartsWith("::", StringComparison.Ordinal) || path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase);
 }

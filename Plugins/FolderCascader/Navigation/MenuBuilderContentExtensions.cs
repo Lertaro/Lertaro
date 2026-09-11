@@ -186,9 +186,8 @@ internal static class MenuBuilderContentExtensions
         Func<string, bool>? virtualPathExists = null) => favorites.Any(favorite =>
         {
             if (string.IsNullOrWhiteSpace(favorite.Path)) return false;
-            var expanded = Environment.ExpandEnvironmentVariables(favorite.Path);
-            if (expanded.StartsWith("::", StringComparison.Ordinal)
-                || expanded.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
+            var expanded = UserPathResolver.Expand(favorite.Path);
+            if (UserPathResolver.IsVirtualPath(expanded))
             {
                 return virtualPathExists != null
                     ? virtualPathExists(expanded)
@@ -208,8 +207,8 @@ internal static class MenuBuilderContentExtensions
         foreach (var favItem in favoritesList)
         {
             var rawPath = favItem.Path;
-            var favPath = Environment.ExpandEnvironmentVariables(rawPath);
-            var isVirtual = favPath.StartsWith("::") || favPath.StartsWith("shell:", StringComparison.OrdinalIgnoreCase);
+            var favPath = UserPathResolver.Expand(rawPath);
+            var isVirtual = UserPathResolver.IsVirtualPath(favPath);
             if (!MenuBuilder.IsWebUrl(favPath) && !PathAvailability.IsAvailable(favPath))
             {
                 continue;

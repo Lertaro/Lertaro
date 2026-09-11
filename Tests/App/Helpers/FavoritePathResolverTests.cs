@@ -28,8 +28,16 @@ public sealed class FavoritePathResolverTests
         => Assert.IsTrue(FavoritePathResolver.IsVirtualPath("shell:Downloads"));
 
     [TestMethod]
+    public void IsVirtualPath_ShellPrefixIsCaseInsensitive_True()
+        => Assert.IsTrue(FavoritePathResolver.IsVirtualPath("SHELL:RecycleBinFolder"));
+
+    [TestMethod]
     public void IsVirtualPath_ClsidToken_True()
         => Assert.IsTrue(FavoritePathResolver.IsVirtualPath("::{20D04FE0-3AEA-1069-A2D8-08002B30309D}"));
+
+    [TestMethod]
+    public void IsVirtualPath_SurroundingWhitespace_IsIgnored()
+        => Assert.IsTrue(FavoritePathResolver.IsVirtualPath("  shell:Downloads  "));
 
     [TestMethod]
     public void IsVirtualPath_RealPath_False()

@@ -118,13 +118,10 @@ public sealed class ContentIndexScheduler : IDisposable
 
     public static string NormalizeFolderPath(string rawFolder)
     {
-        var folder = Environment.ExpandEnvironmentVariables(rawFolder).Trim();
-        if (string.IsNullOrWhiteSpace(folder)) return string.Empty;
-
-        // Whitelist entries may use Windows shell virtual paths (e.g. "shell:Personal"); these
-        // must be resolved to their physical folder before any filesystem/Path operations,
-        // which would otherwise fail or mangle the "shell:" prefix.
-        folder = ShellPathHelper.TryResolveVirtualPath(folder);
+        // Whitelist entries may use "%VAR%" and Windows shell virtual paths (e.g. "shell:Personal"); both
+        // are resolved here, before any filesystem/Path operation below, which would otherwise fail or
+        // mangle the "shell:" prefix into a relative path under the current directory.
+        var folder = UserPathResolver.Resolve(rawFolder);
         if (string.IsNullOrWhiteSpace(folder)) return string.Empty;
 
         if (folder.Length == 2 && char.IsLetter(folder[0]) && folder[1] == ':')

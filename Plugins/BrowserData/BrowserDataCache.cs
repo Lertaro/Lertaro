@@ -1,4 +1,5 @@
 using Lertaro.Plugins.BrowserData.Readers;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.BrowserData;
@@ -124,7 +125,7 @@ internal static class BrowserDataCache
             if (string.IsNullOrWhiteSpace(profile.Path))
                 continue;
 
-            var dir = Environment.ExpandEnvironmentVariables(profile.Path);
+            var dir = UserPathResolver.Resolve(profile.Path);
             if (!Directory.Exists(dir))
                 continue;
 
@@ -154,11 +155,11 @@ internal static class BrowserDataCache
             if (string.IsNullOrWhiteSpace(profile.Path))
                 continue;
 
-            // %LOCALAPPDATA%-style Windows env vars, expanded here (not stored expanded) so the schema
-            // default in BrowserDataPlugin.cs can point at a fixed browser install location without
-            // baking in a specific username, and so the settings UI keeps showing the readable
-            // "%LOCALAPPDATA%\..." form rather than one particular machine's resolved absolute path.
-            var expandedPath = Environment.ExpandEnvironmentVariables(profile.Path);
+            // %LOCALAPPDATA%-style Windows env vars (and shell virtual folders), resolved here (never
+            // stored resolved) so the schema default in BrowserDataPlugin.cs can point at a fixed browser
+            // install location without baking in a specific username, and so the settings UI keeps showing
+            // the readable "%LOCALAPPDATA%\..." form rather than one particular machine's absolute path.
+            var expandedPath = UserPathResolver.Resolve(profile.Path);
             if (!Directory.Exists(expandedPath))
                 continue;
 
