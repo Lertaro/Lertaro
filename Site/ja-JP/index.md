@@ -9,7 +9,7 @@ hero:
     alt: Lertaro Logo
 securityWarning:
   title: "セキュリティ警告：公式ソースのみをご利用ください"
-  details: "リポジトリ github.com/adelmagical742/Lertaro および adelmagical742.github.io は Lertaro を偽装した非公式サイトです。これらのサイトからファイルをダウンロードしないでください。必ず下記の公式リンクをご利用ください。"
+  details: "安全のため、Lertaro は下記の公式リンクからのみダウンロードしてください。未確認のソースやリポジトリから入手したファイルは実行しないでください。"
 features:
   - icon: 💡
     title: Listary のオープンソース代替
