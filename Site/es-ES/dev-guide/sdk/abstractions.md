@@ -119,3 +119,15 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 ```
 
 El anfitrión llama a `GetFileResults` únicamente durante el renderizado final de la ventana de búsqueda completa. Devuelve una lista vacía cuando el plugin no gestiona la consulta. Cada `InstantResultItem` devuelto debe representar un archivo o carpeta existente para que las columnas de ruta, tamaño y tipo sigan siendo útiles. Este componente usa el mismo interruptor de activación y desactivación que el proveedor de resultados instantáneos del plugin.
+
+## 6. Resolución de rutas configuradas por el usuario `UserPathResolver`
+
+Cuando un plugin acepta una ruta introducida por el usuario o guardada en su configuración, usa `Lertaro.PluginSdk.Helpers.UserPathResolver` para aplicar las mismas reglas de variables de entorno y rutas virtuales de Windows Shell antes de llamar a las API del sistema de archivos:
+
+```csharp
+string expanded = UserPathResolver.Expand(rawPath);
+bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
+string resolved = UserPathResolver.Resolve(rawPath);
+```
+
+`Expand` recorta los espacios exteriores y expande variables como `%USERPROFILE%`. `Resolve` realiza esa expansión y después intenta convertir tokens como `shell:Downloads` o `::{CLSID}` en una ruta física. Si Shell no puede resolver un token, `Resolve` lo devuelve sin cambios; comprueba el resultado con `IsVirtualPath` antes de pasarlo a las API del sistema de archivos. Las API de indexación de directorios solo pueden enumerar una ruta cuando se resuelve en una carpeta real cubierta por el índice.

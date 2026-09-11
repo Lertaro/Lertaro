@@ -7,7 +7,7 @@ Favoritos te permite fijar carpetas, archivos, scripts o URLs web de uso frecuen
 En el formulario superior:
 
 - **Nombre para mostrar**: Alias personalizado opcional. Si se deja en blanco y el destino es local, Lertaro utiliza automáticamente el nombre del archivo o carpeta.
-- **Ruta de destino**: Admite rutas absolutas locales o URLs completas que comiencen por `http://` / `https://`.
+- **Ruta de destino**: Admite rutas absolutas locales, variables de entorno como `%USERPROFILE%`, rutas virtuales de Windows Shell como `shell:Downloads` o URLs completas que comiencen por `http://` / `https://`.
 - **Examinar**: Pulsa **Examinar carpeta** o **Examinar archivo** para abrir el selector nativo de Windows.
 - **Añadir**: Pulsa **Añadir** una vez introducida una ruta válida para guardarla.
 

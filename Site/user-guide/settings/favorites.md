@@ -7,7 +7,7 @@ Favorites allows you to pin frequently accessed folders, files, scripts, or web 
 Using the form at the top:
 
 - **Display Name**: Optional custom alias. If left empty and the target is a local path, Lertaro automatically uses the target folder or filename.
-- **Target Path**: Accepts absolute local file/directory paths or full URLs starting with `http://` / `https://`.
+- **Target Path**: Accepts absolute local file/directory paths, environment variables such as `%USERPROFILE%`, Windows Shell virtual paths such as `shell:Downloads`, or full URLs starting with `http://` / `https://`.
 - **Browse Picker**: Click **Browse Folder** or **Browse File** to open native selection dialogs.
 - **Add**: Click **Add** once a valid path is entered to save the item.
 

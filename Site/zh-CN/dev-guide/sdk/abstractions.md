@@ -119,3 +119,15 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 ```
 
 宿主只会在完整搜索窗口的最终渲染阶段调用 `GetFileResults`。插件不处理当前查询时应返回空列表。返回的每个 `InstantResultItem` 都必须对应一个实际存在的文件或文件夹，这样完整窗口的路径、大小和类型列才有意义。该组件与插件的即时结果提供者共用同一个启用/禁用开关。
+
+## 6. 用户配置路径解析 `UserPathResolver`
+
+当插件接受用户输入或配置中的路径时，应使用 `Lertaro.PluginSdk.Helpers.UserPathResolver`，在调用文件系统 API 前统一处理环境变量和 Windows Shell 虚拟路径：
+
+```csharp
+string expanded = UserPathResolver.Expand(rawPath);
+bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
+string resolved = UserPathResolver.Resolve(rawPath);
+```
+
+`Expand` 会去除首尾空白并展开 `%USERPROFILE%` 等环境变量。`Resolve` 会先展开环境变量，再尽可能将 `shell:Downloads` 或 `::{CLSID}` 等标记解析为物理路径。如果 Shell 无法解析某个标记，`Resolve` 会原样返回；传给文件系统 API 前应使用 `IsVirtualPath` 检查结果。目录索引 API 只有在路径解析为真实且被索引覆盖的文件夹后才能枚举内容。

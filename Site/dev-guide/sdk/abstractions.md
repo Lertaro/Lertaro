@@ -119,3 +119,15 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 ```
 
 The host calls `GetFileResults` only during the full search window's final render. Return an empty list when the provider does not handle the query. Every returned `InstantResultItem` must represent an existing file or folder so the full window's path, size, and type columns remain meaningful. The component is managed by the same enable/disable switch as the plugin's instant-result provider.
+
+## 6. User-configured path resolution `UserPathResolver`
+
+Use `Lertaro.PluginSdk.Helpers.UserPathResolver` whenever a plugin accepts a path from the user or its settings. It applies the same rules for environment variables and Windows Shell virtual paths before filesystem APIs are called:
+
+```csharp
+string expanded = UserPathResolver.Expand(rawPath);
+bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
+string resolved = UserPathResolver.Resolve(rawPath);
+```
+
+`Expand` trims the input and expands references such as `%USERPROFILE%`. `Resolve` performs that expansion and resolves tokens such as `shell:Downloads` or `::{CLSID}` to a physical path when possible. If the Shell cannot resolve a token, `Resolve` returns it unchanged; test the result with `IsVirtualPath` before passing it to filesystem APIs. Directory indexing APIs can only enumerate a path after it resolves to a real, index-covered folder.

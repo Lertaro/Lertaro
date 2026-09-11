@@ -119,3 +119,15 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 ```
 
 ホストはフル検索ウィンドウの最終描画時だけ `GetFileResults` を呼び出します。現在のクエリを処理しない場合は空のリストを返してください。返す各 `InstantResultItem` は実在するファイルまたはフォルダーを表す必要があります。これにより、フル検索ウィンドウのパス、サイズ、種類の列を正しく表示できます。このコンポーネントは、プラグインのインスタント結果プロバイダーと同じ有効化・無効化スイッチで管理されます。
+
+## 6. ユーザー設定パスの解決 `UserPathResolver`
+
+ユーザーが入力したパスや設定に保存されたパスを受け取るプラグインは、ファイルシステム API を呼び出す前に `Lertaro.PluginSdk.Helpers.UserPathResolver` を使用して、環境変数と Windows Shell 仮想パスを同じ規則で処理してください。
+
+```csharp
+string expanded = UserPathResolver.Expand(rawPath);
+bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
+string resolved = UserPathResolver.Resolve(rawPath);
+```
+
+`Expand` は前後の空白を取り除き、`%USERPROFILE%` などの環境変数を展開します。`Resolve` は展開後、`shell:Downloads` や `::{CLSID}` などのトークンを可能な場合に物理パスへ解決します。Shell が解決できないトークンはそのまま返されるため、ファイルシステム API に渡す前に `IsVirtualPath` で結果を確認してください。ディレクトリインデックス API で列挙できるのは、実在し、インデックス対象になっているフォルダーへ解決されたパスだけです。

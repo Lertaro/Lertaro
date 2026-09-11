@@ -119,3 +119,15 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 ```
 
 호스트는 전체 검색 창의 최종 렌더링 단계에서만 `GetFileResults`를 호출합니다. 현재 쿼리를 처리하지 않을 때는 빈 목록을 반환하세요. 반환하는 각 `InstantResultItem`은 실제로 존재하는 파일 또는 폴더를 나타내야 전체 검색 창의 경로, 크기, 유형 열을 의미 있게 표시할 수 있습니다. 이 구성 요소는 플러그인의 즉시 결과 제공자와 동일한 활성화/비활성화 스위치로 관리됩니다.
+
+## 6. 사용자 설정 경로 확인 `UserPathResolver`
+
+플러그인이 사용자가 입력했거나 설정에 저장된 경로를 받을 때는 파일 시스템 API를 호출하기 전에 `Lertaro.PluginSdk.Helpers.UserPathResolver`를 사용하여 환경 변수와 Windows 셸 가상 경로를 동일한 규칙으로 처리하세요.
+
+```csharp
+string expanded = UserPathResolver.Expand(rawPath);
+bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
+string resolved = UserPathResolver.Resolve(rawPath);
+```
+
+`Expand`는 앞뒤 공백을 제거하고 `%USERPROFILE%` 같은 환경 변수를 확장합니다. `Resolve`는 확장 후 `shell:Downloads` 또는 `::{CLSID}` 같은 토큰을 가능한 경우 실제 경로로 확인합니다. 셸에서 토큰을 확인하지 못하면 변경하지 않고 반환하므로 파일 시스템 API에 전달하기 전에 `IsVirtualPath`로 결과를 확인하세요. 디렉터리 인덱싱 API는 실제 폴더로 확인되고 호스트 인덱스 대상인 경로만 열거할 수 있습니다.
