@@ -267,7 +267,6 @@ public sealed class StreamingResultAccumulatorTests
         var accumulator = new StreamingResultAccumulator("a", NoHistory);
         var growing = Arrivals(@"D:\a", @"D:\aa");
         accumulator.Absorb(growing);
-
         accumulator.Absorb(growing);
 
         Assert.AreEqual(2, accumulator.FirstChangedIndex);
