@@ -98,7 +98,7 @@ public class QuickSearchWindowController
         FileExecutor.OpenFileOrFolder("__SHOW_MORE__", query, () => HideWindow(restoreFocus: false));
     }
 
-    public void ShowWindow(string? initialQuery = null) => _showSupport.ShowWindow(initialQuery);
+    public void ShowWindow(string? initialQuery = null, bool caretAtEnd = false) => _showSupport.ShowWindow(initialQuery, caretAtEnd);
 
     // Set by the Stay Open hotkey, cleared by the next real hide (see FinishHide), so it only ever
     // covers the summon it was pressed in.
@@ -150,7 +150,7 @@ public class QuickSearchWindowController
 
     // The activation half of a summon, shared with ShowWindow so the two cannot drift apart.
     internal void ActivateAndFocus() => ActivateAndFocus(false);
-    internal void ActivateAndFocus(bool selectSearchText) => _window.Dispatcher.BeginInvoke(new Action(() =>
+    internal void ActivateAndFocus(bool selectSearchText, bool caretAtEnd = false) => _window.Dispatcher.BeginInvoke(new Action(() =>
     {
         var hwnd = new WindowInteropHelper(_window).Handle;
         if (hwnd != IntPtr.Zero) QuickSearchWindowNative.ForceForeground(hwnd);
@@ -158,7 +158,7 @@ public class QuickSearchWindowController
         _window.Activate();
         _window.Focus();
 
-        _focusHelper.FocusWhenForeground(hwnd, selectSearchText);
+        _focusHelper.FocusWhenForeground(hwnd, selectSearchText, caretAtEnd);
     }), DispatcherPriority.Input);
 
     /// <summary>

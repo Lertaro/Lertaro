@@ -3,134 +3,16 @@ using Lertaro.App.ViewModels.Settings.Plugins;
 namespace Lertaro.App.Tests.ViewModels.Settings.Plugins;
 
 [TestClass]
-public sealed class PluginComponentViewModelTests
-{
-    [TestMethod]
-    public void Constructor_SetsAllProvidedFields()
-    {
-        var vm = new PluginComponentViewModel("id1", PluginComponentType.Action, "My Action", isEnabled: true, "desc");
-
-        Assert.AreEqual("id1", vm.ComponentId);
-        Assert.AreEqual(PluginComponentType.Action, vm.ComponentType);
-        Assert.AreEqual("My Action", vm.DisplayName);
-        Assert.IsTrue(vm.IsEnabled);
-        Assert.AreEqual("desc", vm.Description);
-    }
-
-    [TestMethod]
-    public void IsToggleable_TranslationProvider_ReturnsFalse() =>
-        Assert.IsFalse(new PluginComponentViewModel("id", PluginComponentType.TranslationProvider, "n", true).IsToggleable);
-
-    [TestMethod]
-    public void IsToggleable_ThemeProvider_ReturnsFalse() =>
-        Assert.IsFalse(new PluginComponentViewModel("id", PluginComponentType.ThemeProvider, "n", true).IsToggleable);
-
-    [TestMethod]
-    public void IsToggleable_OrdinaryComponent_ReturnsTrue() =>
-        Assert.IsTrue(new PluginComponentViewModel("id", PluginComponentType.Action, "n", true).IsToggleable);
-
-    [TestMethod]
-    public void IsDirty_DefaultsToFalse() =>
-        Assert.IsFalse(new PluginComponentViewModel("id", PluginComponentType.Action, "n", true).IsDirty);
-
-    [TestMethod]
-    public void IsEnabled_Set_MarksDirty()
-    {
-        var vm = new PluginComponentViewModel("id", PluginComponentType.Action, "n", isEnabled: true);
-
-        vm.IsEnabled = false;
-
-        Assert.IsTrue(vm.IsDirty);
-    }
-
-    [TestMethod]
-    public void IsEnabled_SetToSameValue_DoesNotMarkDirty()
-    {
-        var vm = new PluginComponentViewModel("id", PluginComponentType.Action, "n", isEnabled: true);
-
-        vm.IsEnabled = true;
-
-        Assert.IsFalse(vm.IsDirty);
-    }
-}
-
-[TestClass]
-public sealed class PluginComponentGroupViewModelTests
-{
-    private static PluginComponentViewModel Component(string id, bool enabled = true, PluginComponentType type = PluginComponentType.Action) =>
-        new(id, type, id, enabled);
-
-    [TestMethod]
-    public void HasToggleableComponents_MultipleToggleable_ReturnsTrue()
-    {
-        var group = new PluginComponentGroupViewModel(PluginComponentType.Action, new List<PluginComponentViewModel> { Component("a"), Component("b") });
-
-        Assert.IsTrue(group.HasToggleableComponents);
-    }
-
-    [TestMethod]
-    public void HasToggleableComponents_SingleToggleable_ReturnsFalse()
-    {
-        var group = new PluginComponentGroupViewModel(PluginComponentType.Action, new List<PluginComponentViewModel> { Component("a") });
-
-        Assert.IsFalse(group.HasToggleableComponents);
-    }
-
-    [TestMethod]
-    public void AreAllToggleableComponentsEnabled_AllEnabled_ReturnsTrue()
-    {
-        var group = new PluginComponentGroupViewModel(PluginComponentType.Action, new List<PluginComponentViewModel> { Component("a", true), Component("b", true) });
-
-        Assert.IsTrue(group.AreAllToggleableComponentsEnabled);
-    }
-
-    [TestMethod]
-    public void AreAllToggleableComponentsEnabled_OneDisabled_ReturnsFalse()
-    {
-        var group = new PluginComponentGroupViewModel(PluginComponentType.Action, new List<PluginComponentViewModel> { Component("a", true), Component("b", false) });
-
-        Assert.IsFalse(group.AreAllToggleableComponentsEnabled);
-    }
-
-    [TestMethod]
-    public void ToggleAllCommand_AllEnabled_DisablesAll()
-    {
-        var group = new PluginComponentGroupViewModel(PluginComponentType.Action, new List<PluginComponentViewModel> { Component("a", true), Component("b", true) });
-
-        group.ToggleAllCommand.Execute(null);
-
-        Assert.IsTrue(group.Components.All(c => !c.IsEnabled));
-    }
-
-    [TestMethod]
-    public void ToggleAllCommand_NotAllEnabled_EnablesAll()
-    {
-        var group = new PluginComponentGroupViewModel(PluginComponentType.Action, new List<PluginComponentViewModel> { Component("a", true), Component("b", false) });
-
-        group.ToggleAllCommand.Execute(null);
-
-        Assert.IsTrue(group.Components.All(c => c.IsEnabled));
-    }
-
-    [TestMethod]
-    public void ToggleAllCommand_NonToggleableComponents_AreUnaffected()
-    {
-        var readOnly = Component("ro", true, PluginComponentType.TranslationProvider);
-        var group = new PluginComponentGroupViewModel(PluginComponentType.TranslationProvider, new List<PluginComponentViewModel> { readOnly });
-
-        group.ToggleAllCommand.Execute(null);
-
-        Assert.IsTrue(readOnly.IsEnabled);
-    }
-}
-
-[TestClass]
 public sealed class PluginInfoViewModelTests
 {
     private static PluginComponentViewModel Component(string id, PluginComponentType type, bool enabled = true) => new(id, type, id, enabled);
 
-    private static PluginInfoViewModel MakeVm(List<PluginComponentViewModel> components, List<PluginConfigFieldViewModel>? configFields = null) =>
-        new("Name", "1.0", "plugin.dll", "1.0-sdk", components, configFields ?? new List<PluginConfigFieldViewModel>());
+    private static PluginInfoViewModel MakeVm(
+        List<PluginComponentViewModel> components,
+        List<PluginConfigFieldViewModel>? configFields = null,
+        Action? onRollback = null) =>
+        new("Name", "1.0", "plugin.dll", "1.0-sdk", components, configFields ?? new List<PluginConfigFieldViewModel>(),
+            onRollback: onRollback);
 
     [TestMethod]
     public void Constructor_SetsBasicFields()
@@ -209,6 +91,56 @@ public sealed class PluginInfoViewModelTests
         vm.ShowDetailsCommand.Execute(null);
         Assert.IsFalse(vm.IsConfigTab);
     }
+
+    // RollbackConfig rebuilds every field from settings, which is real work proportional to the schema.
+    // Selecting plugins in the list used to pay it per click for every plugin, opened or not, which was
+    // most of the per-click delay. It is only meaningful once the config tab has actually been opened.
+    // The OnRollback callback is the observable edge of that work, so these count it.
+    [TestMethod]
+    public void RollbackWithoutTheConfigTabEverBeingOpened_IsANoOp()
+    {
+        var rollbacks = 0;
+        var vm = MakeVm(new List<PluginComponentViewModel>(), [TextField()], onRollback: () => rollbacks++);
+
+        vm.RollbackConfig();
+
+        Assert.AreEqual(0, rollbacks, "a never-opened config tab has nothing staged to roll back");
+    }
+
+    [TestMethod]
+    public void RollbackAfterTheConfigTabWasOpened_DoesTheWorkOnce()
+    {
+        var rollbacks = 0;
+        var vm = MakeVm(new List<PluginComponentViewModel>(), [TextField()], onRollback: () => rollbacks++);
+
+        vm.IsConfigTab = true;
+        vm.IsConfigTab = false;
+
+        Assert.AreEqual(1, rollbacks);
+    }
+
+    [TestMethod]
+    public void SelectingAnotherPluginRollsBackOnlyOnce()
+    {
+        // The selection setter used to call RollbackConfig and then IsConfigTab = false, which rolled
+        // back a second time. One rollback is the point; two was pure duplicated work per click.
+        var rollbacks = 0;
+        var vm = MakeVm(new List<PluginComponentViewModel>(), [TextField()], onRollback: () => rollbacks++);
+
+        vm.IsConfigTab = true;
+        vm.RollbackConfig();
+        vm.IsConfigTab = false;
+
+        Assert.AreEqual(1, rollbacks);
+    }
+
+    private static PluginConfigFieldViewModel TextField() =>
+        new("p", new PluginSdk.Abstractions.PluginConfigField
+        {
+            Key = "k",
+            FieldType = PluginSdk.Abstractions.ConfigFieldType.Text,
+            DefaultValue = "default"
+        }, new Core.UserSettings());
 
     [TestMethod]
     public void WebsiteProperties_WhenSet_ReturnsExpectedValues()

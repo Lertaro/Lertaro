@@ -40,6 +40,7 @@ Configures default window geometry, columns, and sidebars for the main search wi
 
 - **Window Width / Height (Pixels)**: Width range `640–2000px` (default `854px`), height range `400–1400px` (default `480px`).
 - **Single Instance Only**: When enabled, invoking the Full Window focuses the existing instance instead of spawning duplicate windows.
+- **Close on Hotkey Repeat**: Off by default, so pressing the global hotkey again cycles back to the Quick Search Window carrying the current query. When enabled, pressing it again while the Full Window has focus closes the window outright instead. A visible but unfocused Full Window is brought back to the front either way.
 - **Reset Search Window Settings**: Reverts default dimensions to factory settings.
 - **Result Table Column Order**: Customize the display order of columns (Name, Path, Date Modified, etc.) in the tabular view.
 - **Sidebar Filter Order**: Reorder filter groups in the left sidebar; each category dynamically displays live matching item counts.

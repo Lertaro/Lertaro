@@ -14,13 +14,21 @@ public sealed class MainWindowSettingsViewModelTests
         settings.MainWindow.Width = 900;
         settings.MainWindow.Height = 600;
         settings.MainWindow.SingleInstance = true;
+        settings.MainWindow.CloseOnRepeatHotkey = true;
 
         var vm = new MainWindowSettingsViewModel(settings);
 
         Assert.AreEqual(900, vm.Width);
         Assert.AreEqual(600, vm.Height);
         Assert.IsTrue(vm.SingleInstance);
+        Assert.IsTrue(vm.CloseOnRepeatHotkey);
     }
+
+    [TestMethod]
+    public void CloseOnRepeatHotkey_DefaultsOff() =>
+        // Off has to stay the default: it is the cycling behaviour existing users already have, so an
+        // upgrade must not silently start closing their full window instead.
+        Assert.IsFalse(new MainWindowSettingsViewModel(new UserSettings()).CloseOnRepeatHotkey);
 
     [TestMethod]
     public void Width_WithinRange_SetsValue()
@@ -78,13 +86,26 @@ public sealed class MainWindowSettingsViewModelTests
     public void Save_WritesStagedValuesToUserSettings()
     {
         var settings = new UserSettings();
-        var vm = new MainWindowSettingsViewModel(settings) { Width = 950, Height = 650, SingleInstance = true };
+        var vm = new MainWindowSettingsViewModel(settings) { Width = 950, Height = 650, SingleInstance = true, CloseOnRepeatHotkey = true };
 
         vm.Save();
 
         Assert.AreEqual(950, settings.MainWindow.Width);
         Assert.AreEqual(650, settings.MainWindow.Height);
         Assert.IsTrue(settings.MainWindow.SingleInstance);
+        Assert.IsTrue(settings.MainWindow.CloseOnRepeatHotkey);
+    }
+
+    [TestMethod]
+    public void ResetCommand_LeavesTheCloseOnRepeatHotkeySettingAlone()
+    {
+        // That command is "Reset Search Window Settings" -- geometry. Clearing a behaviour the user
+        // deliberately opted into would be a surprise hidden behind a button about window size.
+        var vm = new MainWindowSettingsViewModel(new UserSettings()) { CloseOnRepeatHotkey = true, Width = UiMetrics.MinMainWindowWidth };
+
+        vm.ResetCommand.Execute(null);
+
+        Assert.IsTrue(vm.CloseOnRepeatHotkey);
     }
 }
 

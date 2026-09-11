@@ -120,11 +120,11 @@ public partial class App : Application
             {
                 InlineSearchManager.Instance.FocusSearchBox();
             }
-            else if (UserSettings.Load().Hotkeys.OpenFullWindowByDefault)
-                AppWindowManager.ToggleSearchWindow();
             else
             {
-                (Current.MainWindow as QuickSearchWindow)?.ToggleVisibility();
+                // The manager decides, not a settings check here: the full window is reachable even with
+                // the "open full panel by default" option off, so it has to be considered before it.
+                AppWindowManager.HandleGlobalSummonHotkey();
             }
         }));
         HookClient.OnQuickPanelHotkey += () => Dispatcher.BeginInvoke(

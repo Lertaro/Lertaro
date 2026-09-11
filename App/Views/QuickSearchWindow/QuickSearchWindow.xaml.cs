@@ -181,7 +181,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     // regardless of the tray icon's state.
     public void ApplyTrayIconVisibility(bool hideTrayIcon) => _trayService?.SetTrayIconVisible(!hideTrayIcon);
     public void ShowWindow() => _controller.ShowWindow(null);
-    public void ShowWindow(string? initialQuery) => _controller.ShowWindow(initialQuery);
+    public void ShowWindow(string? initialQuery, bool caretAtEnd = false) => _controller.ShowWindow(initialQuery, caretAtEnd);
     public void PositionWindow() => _controller.PositionWindow();
     public void HideWindow() => _controller.HideWindow(true);
     public void HideWindowNoRestore() => _controller.HideWindow(false);

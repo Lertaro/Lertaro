@@ -24,9 +24,6 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _enableEverythingIpc;
     private bool _hideTrayIcon;
     private bool _openFoldersInNewExplorerTabs;
-    private bool _defaultFileManagerEnabled;
-    private string _defaultFileManagerPath;
-    private string _defaultFileManagerParameter;
     private string _globalTokenPrefix;
 
     // Tab navigation for the System/Layout/Preview Window split of this page.
@@ -46,6 +43,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         Layout = new SearchBarLayoutSettingsViewModel(userSettings);
         PreviewWindow = new PreviewWindowSettingsViewModel(userSettings);
         MainWindow = new MainWindowSettingsViewModel(userSettings);
+        FileManager = new DefaultFileManagerSettingsViewModel(userSettings);
         QuickNavigationOrder = new QuickNavigationOrderViewModel(userSettings);
         ResultTypeOrder = new ResultTypeOrderViewModel(userSettings);
         SidebarGroupOrder = new SidebarGroupOrderViewModel(userSettings);
@@ -63,9 +61,6 @@ public class GeneralSettingsViewModel : ViewModelBase
         _enableEverythingIpc = userSettings.EnableEverythingIpc;
         _hideTrayIcon = userSettings.HideTrayIcon;
         _openFoldersInNewExplorerTabs = userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs;
-        _defaultFileManagerEnabled = userSettings.DefaultFileManager.Enabled;
-        _defaultFileManagerPath = userSettings.DefaultFileManager.Path;
-        _defaultFileManagerParameter = userSettings.DefaultFileManager.Parameter;
         _globalTokenPrefix = userSettings.GlobalTokenPrefix;
 
         _selectedLogLevel = LogLevelOptions.FirstOrDefault(o => o.Value == SettingsOptionGenerator.NormalizeLogLevel(_userSettings.LogLevel))
@@ -201,36 +196,6 @@ public class GeneralSettingsViewModel : ViewModelBase
         }
     }
 
-    // See GitHub issue #180 -- redirects "open a folder" (and "open containing folder") to a
-    // user-configured third-party file manager instead of the shell's own association.
-    public bool DefaultFileManagerEnabled
-    {
-        get => _defaultFileManagerEnabled;
-        set => SetProperty(ref _defaultFileManagerEnabled, value);
-    }
-
-    public string DefaultFileManagerPath
-    {
-        get => _defaultFileManagerPath;
-        set => SetProperty(ref _defaultFileManagerPath, value);
-    }
-
-    public string DefaultFileManagerParameter
-    {
-        get => _defaultFileManagerParameter;
-        set => SetProperty(ref _defaultFileManagerParameter, value);
-    }
-
-    private ICommand? _browseDefaultFileManagerPathCommand;
-    public ICommand BrowseDefaultFileManagerPathCommand => _browseDefaultFileManagerPathCommand ??= new RelayCommand(BrowseDefaultFileManagerPath);
-
-    private void BrowseDefaultFileManagerPath()
-    {
-        var dialog = new Microsoft.Win32.OpenFileDialog { Filter = $"{TranslationManager.Instance["General_DefaultFileManagerBrowseFilter"]}|*.exe" };
-        if (dialog.ShowDialog() == true)
-            DefaultFileManagerPath = dialog.FileName;
-    }
-
     public string LogLevel => SettingsOptionGenerator.NormalizeLogLevel(_selectedLogLevel?.Value ?? _userSettings.LogLevel);
 
     public string PreferredLanguage
@@ -266,14 +231,12 @@ public class GeneralSettingsViewModel : ViewModelBase
         _hideTrayIcon,
         _openFoldersInNewExplorerTabs,
         _globalTokenPrefix,
-        LogLevel,
-        _defaultFileManagerEnabled,
-        _defaultFileManagerPath,
-        _defaultFileManagerParameter);
+        LogLevel);
 
     public SearchBarLayoutSettingsViewModel Layout { get; }
     public PreviewWindowSettingsViewModel PreviewWindow { get; }
     public MainWindowSettingsViewModel MainWindow { get; }
+    public DefaultFileManagerSettingsViewModel FileManager { get; }
     public QuickNavigationOrderViewModel QuickNavigationOrder { get; }
     public ResultTypeOrderViewModel ResultTypeOrder { get; }
     public SidebarGroupOrderViewModel SidebarGroupOrder { get; }

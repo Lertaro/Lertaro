@@ -397,6 +397,8 @@
   "General_SearchWindowReset": "重置搜索窗口设置",
   "General_SearchWindowSingleInstance": "仅允许一个完整搜索窗口",
   "General_SearchWindowSingleInstanceHint": "启用后，再次打开完整搜索窗口会激活现有窗口，而不会创建新窗口。",
+  "General_SearchWindowCloseOnRepeatHotkey": "再次按下快捷键时关闭完整窗口",
+  "General_SearchWindowCloseOnRepeatHotkeyHint": "开启后，在完整搜索窗口已获得焦点的状态下再次按下全局呼出热键，将直接关闭完整窗口，而不是返回快速搜索窗口。完整窗口可见但未获得焦点时，按下热键仍只会将其拉回前台。",
   "General_SidebarGroupOrderTitle": "侧边栏筛选顺序",
   "General_SidebarGroupOrderHint": "调整完整窗口侧边栏中筛选分组（类型、修改时间，以及插件新增的分组）的显示顺序。",
   "General_ColumnOrderTitle": "结果表格列顺序",

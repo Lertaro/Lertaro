@@ -183,39 +183,12 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     private void BtnMaximize_Click(object sender, RoutedEventArgs e) => _chromeHandler.ToggleMaximize();
     private void BtnClose_Click(object sender, RoutedEventArgs e) => _chromeHandler.Close();
 
-    private void BtnBackToQuickSearch_Click(object sender, RoutedEventArgs e)
-    {
-        var quickSearchWindow = System.Windows.Application.Current.MainWindow as QuickSearchWindow;
-        if (quickSearchWindow == null)
-        {
-            foreach (Window win in System.Windows.Application.Current.Windows)
-            {
-                if (win is QuickSearchWindow qsw)
-                {
-                    quickSearchWindow = qsw;
-                    break;
-                }
-            }
-        }
+    private void BtnBackToQuickSearch_Click(object sender, RoutedEventArgs e) => SearchWindowQuickReturnSupport.ReturnToQuickSearch(this);
 
-        if (quickSearchWindow != null)
-        {
-            string? query = null;
-            if (!string.IsNullOrWhiteSpace(SearchBox.SearchText))
-            {
-                query = SearchBox.SearchText;
-            }
-
-            else
-            {
-                query = quickSearchWindow.ViewModel.SearchQuery;
-            }
-
-            quickSearchWindow.ShowWindow(query);
-        }
-
-        this.Close();
-    }
+    // Same move, reachable from the global summon hotkey when this window already holds foreground (see
+    // AppWindowManager.DetermineSearchWindowHotkeyAction). One implementation behind both routes keeps
+    // them from drifting apart.
+    internal void ReturnToQuickSearch() => SearchWindowQuickReturnSupport.ReturnToQuickSearch(this);
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e) => _inputHandler.HandleWindowPreviewKeyDown(e);
 

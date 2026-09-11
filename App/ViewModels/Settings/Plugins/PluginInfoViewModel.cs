@@ -206,6 +206,13 @@ public class PluginInfoViewModel : ViewModelBase
 
     private bool _isConfigTab;
 
+    // Whether this plugin's config tab has ever been opened this session. RollbackConfig rebuilds every
+    // field from settings, which is real work proportional to the schema's whole tree -- and edits are
+    // only possible while the tab is open, so for a plugin the user never configured that rebuild would
+    // reproduce values that are already current. Selecting plugins in the list used to pay it on every
+    // click, for every plugin, which is what made clicking one feel delayed.
+    private bool _configOpened;
+
     /// <summary>
     /// Which of the pane's two tabs is showing: false for the plugin's details, true for its config.
     /// </summary>
@@ -223,6 +230,7 @@ public class PluginInfoViewModel : ViewModelBase
         set
         {
             if (_isConfigTab == value) return;
+            if (value) _configOpened = true;
             if (!value) RollbackConfig();
             SetProperty(ref _isConfigTab, value);
         }
@@ -233,6 +241,12 @@ public class PluginInfoViewModel : ViewModelBase
 
     public void RollbackConfig()
     {
+        // Nothing was ever staged, so the rebuild below would only re-read the values already in place.
+        // See _configOpened. This also folds away the old double call: selecting a different plugin ran
+        // RollbackConfig and then IsConfigTab = false, which ran it a second time.
+        if (!_configOpened) return;
+        _configOpened = false;
+
         foreach (var field in ConfigFields)
             field.Reload();
         _selectedConfigGroup = ConfigGroups.FirstOrDefault();

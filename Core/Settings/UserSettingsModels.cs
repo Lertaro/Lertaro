@@ -188,4 +188,12 @@ public class MainWindowSettings
     public double Width { get; set; } = 854;
     public double Height { get; set; } = 480;
     public bool SingleInstance { get; set; } = false;
+
+    /// <summary>
+    /// What the global summon hotkey does while the full window already holds the foreground. Off (the
+    /// default) hands the query back to the quick window, keeping the hotkey cycling between the two;
+    /// on closes the full window outright, for users who treat it as an ordinary window to dismiss.
+    /// Mirror image of the quick window's <see cref="SearchWindowSettings.ReopenAsFullWindowOnRepeatHotkey"/>.
+    /// </summary>
+    public bool CloseOnRepeatHotkey { get; set; } = false;
 }

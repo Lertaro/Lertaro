@@ -18,7 +18,7 @@ internal sealed class QuickSearchWindowShowSupport
 
     internal QuickSearchWindowShowSupport(QuickSearchWindowController controller) => _controller = controller;
 
-    internal void ShowWindow(string? initialQuery)
+    internal void ShowWindow(string? initialQuery, bool caretAtEnd = false)
     {
         _controller.VisibilityOperationToken++;
         PowerThrottlingHelper.WindowShowing("quick");
@@ -77,6 +77,6 @@ internal sealed class QuickSearchWindowShowSupport
         }
 
         _controller.ForegroundWatcher.Start();
-        _controller.ActivateAndFocus(useClipboardText);
+        _controller.ActivateAndFocus(useClipboardText, caretAtEnd);
     }
 }
