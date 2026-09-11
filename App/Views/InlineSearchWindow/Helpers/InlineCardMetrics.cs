@@ -19,12 +19,8 @@ internal static class InlineCardMetrics
 
     /// <summary>What the results area should occupy right now.</summary>
     /// <param name="ShownItems">Bound items to occupy with real rows, including any section titles.</param>
-    /// <param name="AreaRows">Total rows the area is sized to, including any placeholder rows.</param>
-    internal readonly record struct CardLayout(int ShownItems, int AreaRows)
-    {
-        /// <summary>Rows still waiting on a search to fill them.</summary>
-        internal int UnfilledSlots => Math.Max(0, AreaRows - ShownItems);
-    }
+    /// <param name="AreaRows">Rows reserved by the result area while a search is running.</param>
+    internal readonly record struct CardLayout(int ShownItems, int AreaRows);
 
     /// <summary>
     /// Works out what the results area should show, from the shape of the item list and whether a search is
@@ -35,9 +31,8 @@ internal static class InlineCardMetrics
     /// after <paramref name="resultBudget"/> LIST ROWS, and keeps everything before the last included result
     /// so a trailing title is not shown without a result beneath it.
     ///
-    /// While searching the area stays at the full list-row budget, with the remainder as placeholder rows;
-    /// once settled it shrinks to exactly what is there. Neither ever grows with the number of results, so
-    /// a streaming search does not resize the card.
+    /// While searching the area stays at the full list-row budget for sizing stability; once settled it
+    /// shrinks to exactly what is there. No synthetic rows are rendered for the reserved space.
     /// </remarks>
     internal static CardLayout ComputeLayout(IReadOnlyList<bool> isHeader, bool isSearching, int resultBudget = DefaultRows)
     {
@@ -54,7 +49,7 @@ internal static class InlineCardMetrics
         // means the settled card cannot retain an empty category at the bottom of the bounded list.
         var shownItems = lastIncludedResult + 1;
 
-        // While searching, placeholders occupy every unused list row. Once settled, the area is exactly
+        // While searching, the area keeps the full budget for sizing stability. Once settled, it is exactly
         // the bounded list contents.
         var areaRows = isSearching ? budget : shownItems;
         return new CardLayout(shownItems, areaRows);

@@ -137,6 +137,11 @@ public sealed class InlineSearchStaysOneSearchTests
             "the shell should reserve the complete nine-row result budget while content is visible");
         Assert.Contains("EstimatedPathPreviewHeight()", sizing,
             "the path reserve must be an estimate rather than a fixed banner height");
+
+        Assert.DoesNotContain("PlaceholderSlots", xaml,
+            "the no-results view must not render synthetic placeholder rows");
+        Assert.DoesNotContain("UpdatePlaceholderSlots", sizing,
+            "placeholder row maintenance should be removed with the placeholder visuals");
     }
 
     [TestMethod]

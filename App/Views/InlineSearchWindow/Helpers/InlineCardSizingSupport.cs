@@ -1,10 +1,8 @@
 using System.Windows;
-using System.Windows.Media.Animation;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
-// Owns the inline card's geometry and its skeleton rows: how many rows it shows, how tall the window shell
-// has to be, which slots are still unfilled, and the pulse that marks a search as still running.
+// Owns the inline card's geometry: how many rows it shows and how tall the window shell has to be.
 //
 // The card is sized from settled content only. While a search is running, its current result area is
 // frozen and intermediate snapshots cannot expand or shrink the window. Once the search settles, the card
@@ -19,7 +17,6 @@ internal sealed class InlineCardSizingSupport
     private const double CardMargin = 12;
 
     private readonly Lertaro.App.InlineSearchWindow _window;
-    private DoubleAnimation? _pulse;
     private int? _searchAreaRows;
 
     internal InlineCardSizingSupport(Lertaro.App.InlineSearchWindow window) => _window = window;
@@ -78,7 +75,7 @@ internal sealed class InlineCardSizingSupport
     /// <remarks>
     /// Derived from the collection's actual contents (which items are section titles) rather than from
     /// counts, because the titles are not always present and which of them show decides how many results
-    /// fit. Both the card's height and the list/skeleton split come from this one answer.
+    /// fit. Both the card's height and the visible list height come from this one answer.
     /// </remarks>
     internal InlineCardMetrics.CardLayout CurrentLayout()
     {
@@ -127,50 +124,7 @@ internal sealed class InlineCardSizingSupport
         return InlineCardMetrics.ComputeLayout(isHeader, isSearching);
     }
 
-    /// <summary>Rebuilds the skeleton rows that fill the card's not-yet-filled slots.</summary>
-    internal void UpdatePlaceholderSlots()
-    {
-        var slots = CurrentLayout().UnfilledSlots;
-
-        // Bound to nothing: every slot looks identical, so the list is rebuilt from a count. Rebuilt only
-        // when that count changes, which keeps this off the per-paint path.
-        if (_window.PlaceholderSlots.Items.Count != slots)
-        {
-            _window.PlaceholderSlots.Items.Clear();
-            for (var i = 0; i < slots; i++)
-                _window.PlaceholderSlots.Items.Add(i);
-        }
-
-        RefreshPlaceholderPulse();
-    }
-
-    // The breathing pulse is the "still searching" signal. One animation on the whole block rather than one
-    // per row: every slot breathes together and the cost does not scale with the row count.
-    internal void RefreshPlaceholderPulse()
-    {
-        var slots = _window.PlaceholderSlots;
-        if (!_window.ViewModel.IsSearching)
-        {
-            slots.BeginAnimation(UIElement.OpacityProperty, null);
-            slots.Opacity = 0.16;
-            return;
-        }
-
-        _pulse ??= BuildPulse();
-        slots.BeginAnimation(UIElement.OpacityProperty, _pulse);
-    }
-
-    private static DoubleAnimation BuildPulse() => new()
-    {
-        From = 0.10,
-        To = 0.26,
-        Duration = new Duration(TimeSpan.FromSeconds(1.1)),
-        AutoReverse = true,
-        RepeatBehavior = RepeatBehavior.Forever,
-        EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
-    };
-
-    /// <summary>Sizes the window shell to the settled row count, then re-runs the list/skeleton split.</summary>
+    /// <summary>Sizes the window shell to the settled row count.</summary>
     /// <remarks>
     /// The shell must be at least as tall as the card, and the card is bottom-anchored, so sizing the shell
     /// is what lets a taller card extend upward within it (the positioner pins the card's bottom edge; see
@@ -179,8 +133,8 @@ internal sealed class InlineCardSizingSupport
     /// </remarks>
     internal void ApplyCardHeight()
     {
-        // Searching produces intermediate result snapshots. Their full-budget placeholder layout is not a
-        // stable size, so wait for IsSearching=false and resize once from the settled result set.
+        // Searching produces intermediate result snapshots. Their full-budget layout is not a stable size,
+        // so wait for IsSearching=false and resize once from the settled result set.
         if (_window.ViewModel.IsSearching) return;
 
         // Card plus its margin on both sides, plus a further margin so the drop shadow above the card is

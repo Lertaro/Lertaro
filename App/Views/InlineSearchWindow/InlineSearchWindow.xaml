@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Lertaro.App"
         xmlns:results="clr-namespace:Lertaro.App.Views.Controls.Results"
-        xmlns:services="clr-namespace:Lertaro.App.Services"
         xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
         Title="Lertaro Inline"
         Width="465" Height="550" SizeToContent="Manual"
@@ -35,7 +34,7 @@
                     <Grid.RowDefinitions>
                         <!-- Path preview has its own row and cannot take space from the result list. -->
                         <RowDefinition Height="Auto"/>
-                        <!-- Results list and its loading slots. -->
+                        <!-- Results list. -->
                         <RowDefinition Height="Auto"/>
                         <!-- Separator -->
                         <RowDefinition Height="Auto"/>
@@ -66,7 +65,6 @@
                     <Grid x:Name="ResultsContainerWrapper" Grid.Row="1" Background="{DynamicResource ContentBg}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <results:ResultsControl x:Name="ResultsPanelControl" Grid.Row="0"
@@ -75,25 +73,6 @@
                                               ViewMode="List"
                                               Visibility="{Binding ResultsPanelVisibility}"/>
 
-                        <!-- Skeleton rows for the slots the card is still waiting on. During a search the
-                             visible result area is frozen at its pre-search size, so these rows never make
-                             the window expand for an intermediate snapshot. The animation (started and
-                             stopped from code, see RefreshPlaceholderPulse) is what says "still loading";
-                             the rows themselves are just the card's empty space.
-                             Deliberately NOT part of the results list: keeping them out of the collection
-                             leaves selection, Enter, Ctrl+1..9 and de-duplication untouched. -->
-                        <ItemsControl x:Name="PlaceholderSlots" Grid.Row="1" IsHitTestVisible="False"
-                                      Opacity="0.16">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Height="{x:Static services:UiMetrics.InlineRowHeight}" Margin="14,0,14,0">
-                                        <Border Height="10" CornerRadius="5" Width="150"
-                                                HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                Background="{DynamicResource TextSecondary2}"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
                     </Grid>
                     <!-- 3. Separator -->
                     <Rectangle x:Name="ResultsSeparator" Grid.Row="2" Height="1" Fill="{DynamicResource SeparatorBrush}"

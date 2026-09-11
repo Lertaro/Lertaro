@@ -59,13 +59,10 @@ public sealed class InlineSearchWindowLayoutManager
             // neither is, instead of dropping to 7 whenever both appear.
             var layout = _window.CardSizing.CurrentLayout();
 
-            // The list is only as tall as the items that exist, and the skeleton rows underneath it fill
-            // the rest of the fixed area -- together they are always the whole area, which is what keeps
-            // the card's height constant while a search is still filling in. Sizing the list to the whole
-            // area instead would put the skeleton rows BELOW it and grow the card.
+            // The list is only as tall as the real items that exist. The shell reserves extra space without
+            // rendering fake rows, so an intermediate result snapshot cannot create a misleading list.
             _window.LstResults.Height = layout.ShownItems * UiMetrics.InlineRowHeight;
             _window.ResultsPanelControl.Height = layout.ShownItems * UiMetrics.InlineRowHeight;
-            _window.UpdatePlaceholderSlots();
             // Forces layout to actually run right now, synchronously, instead of leaving WPF free to
             // repaint the ListBox with whatever's now bound to ItemsSource at its next opportunity
             // (which could win the race against this callback and render new content at the stale
@@ -103,9 +100,6 @@ public sealed class InlineSearchWindowLayoutManager
             _window.LstActions.Height = double.NaN;
             _window.ResultsPanelControl.Height = actionsAreaHeight;
 
-            // No skeleton slots behind the actions panel: the placeholder rows are for results still
-            // arriving, and the panel is not a half-full result list.
-            _window.UpdatePlaceholderSlots();
         }
         else
         {

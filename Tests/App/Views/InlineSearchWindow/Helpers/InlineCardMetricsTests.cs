@@ -23,7 +23,6 @@ public sealed class InlineCardMetricsTests
 
         Assert.AreEqual(3, layout.ShownItems);
         Assert.AreEqual(9, layout.AreaRows, "the area keeps the full result budget while searching");
-        Assert.AreEqual(6, layout.UnfilledSlots);
     }
 
     [TestMethod]
@@ -35,7 +34,6 @@ public sealed class InlineCardMetricsTests
 
         Assert.AreEqual(9, layout.AreaRows);
         Assert.AreEqual(6, layout.ShownItems, "all five results plus their title");
-        Assert.AreEqual(3, layout.UnfilledSlots, "the remaining list slots are placeholders");
     }
 
     [TestMethod]
@@ -65,7 +63,6 @@ public sealed class InlineCardMetricsTests
 
         Assert.AreEqual(2, layout.ShownItems);
         Assert.AreEqual(2, layout.AreaRows);
-        Assert.AreEqual(0, layout.UnfilledSlots, "a settled search has nothing left to wait for");
     }
 
     [TestMethod]
@@ -114,9 +111,7 @@ public sealed class InlineCardMetricsTests
             var layout = InlineCardMetrics.ComputeLayout(items, isSearching: true);
 
             Assert.IsLessThanOrEqualTo(InlineCardMetrics.DefaultRows, layout.AreaRows);
-            Assert.IsGreaterThanOrEqualTo(0, layout.UnfilledSlots);
-            Assert.AreEqual(layout.AreaRows, layout.ShownItems + layout.UnfilledSlots,
-                "the bound rows and the placeholders together are exactly the area");
+            Assert.IsGreaterThanOrEqualTo(layout.ShownItems, layout.AreaRows);
         }
     }
 

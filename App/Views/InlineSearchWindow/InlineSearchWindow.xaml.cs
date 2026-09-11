@@ -35,10 +35,7 @@ public partial class InlineSearchWindow : Window, ISearchWindow
     public InlineSearchWindowInputHandler InputHandler => _inputHandler;
     public InlineSearchWindowPositioner Positioner => _positioner;
 
-    /// <summary>Rebuilds the skeleton rows that fill the card's not-yet-filled slots.</summary>
-    internal void UpdatePlaceholderSlots() => _sizing.UpdatePlaceholderSlots();
-
-    /// <summary>The card's own sizing: its row count, its height, and the skeleton rows.</summary>
+    /// <summary>The card's own sizing and row count.</summary>
     internal InlineCardSizingSupport CardSizing => _sizing;
 
     // Window-wide (not just the results ListBox -- see ResultsDragDropHelper's own down/up tracking,
