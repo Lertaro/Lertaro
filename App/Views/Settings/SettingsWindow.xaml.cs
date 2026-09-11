@@ -92,6 +92,8 @@ public partial class SettingsWindow : Window
             UpdateSidebarLayout(ActualWidth);
             if (LstSections.SelectedItem == null && LstSectionsBottom.SelectedItem == null) LstSections.SelectedIndex = 0;
             FocusSearchBox();
+            // Now that the window and its first page are up, fill in the tabs the user has not visited.
+            new SettingsPagePrewarmer(this).Begin();
         };
         Closed += (_, _) =>
         {
