@@ -65,13 +65,11 @@ public class FileFiltersScopeProvider : ISearchScopeProvider, IDisposable
         return _scopes;
     }
 
-    // The folder list is typed by hand, so it accepts the same two conveniences the rest of the app's
-    // path fields do: "%VAR%" environment references, and Windows shell virtual folders ("shell:Downloads",
-    // "::..."). Both have to be resolved here, because everything downstream -- the host's index-coverage
-    // check and the engine's own directory filter -- works on a real path, and it normalizes one with
-    // Path.GetFullPath: a "shell:" entry would become "<current directory>\shell:Downloads" instead of the
-    // folder the user meant. ContentSearch's own NormalizeFolderPath does the same two steps for its
-    // monitored folders.
+    // The folder list is typed by hand, so it goes through the shared resolver: "%VAR%" references and
+    // Windows shell virtual folders ("shell:Downloads", "::...") both have to become a real path here,
+    // because everything downstream -- the host's index-coverage check and the engine's own directory
+    // filter -- works on one, and normalizes it with Path.GetFullPath (which would turn a "shell:" entry
+    // into "<current directory>\shell:Downloads" instead of the folder the user meant).
     // Returns an empty string for an entry that is not a usable folder: blanks, and virtual paths the
     // shell could not turn into a physical folder (a non-filesystem one such as "shell:AppsFolder", or a
     // typo) -- no index can ever cover those, so passing one on would only make the host report it as a
@@ -82,9 +80,8 @@ public class FileFiltersScopeProvider : ISearchScopeProvider, IDisposable
         if (trimmed.Length == 0)
             return string.Empty;
 
-        var resolved = ShellPathHelper.TryResolveVirtualPath(Environment.ExpandEnvironmentVariables(trimmed));
-        if (!resolved.StartsWith("::", StringComparison.Ordinal)
-            && !resolved.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
+        var resolved = UserPathResolver.Resolve(trimmed);
+        if (!UserPathResolver.IsVirtualPath(resolved))
             return resolved;
 
         Logger.Log($"[FileFilters] Folder '{trimmed}' could not be resolved to a real folder and is skipped.", LogLevel.Warn);
