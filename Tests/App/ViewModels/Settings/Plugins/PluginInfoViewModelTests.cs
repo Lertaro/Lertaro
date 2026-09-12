@@ -92,10 +92,10 @@ public sealed class PluginInfoViewModelTests
         Assert.IsFalse(vm.IsConfigTab);
     }
 
-    // RollbackConfig rebuilds every field from settings, which is real work proportional to the schema.
-    // Selecting plugins in the list used to pay it per click for every plugin, opened or not, which was
-    // most of the per-click delay. It is only meaningful once the config tab has actually been opened.
-    // The OnRollback callback is the observable edge of that work, so these count it.
+    // RollbackConfig discards staged edits and rebuilds every field from settings, which is real work
+    // proportional to the schema. It is only meaningful once the config tab has actually been opened --
+    // edits are only possible while it was, so a never-opened plugin has nothing to discard. The
+    // OnRollback callback is the observable edge of that work, so these count it.
     [TestMethod]
     public void RollbackWithoutTheConfigTabEverBeingOpened_IsANoOp()
     {
@@ -114,24 +114,62 @@ public sealed class PluginInfoViewModelTests
         var vm = MakeVm(new List<PluginComponentViewModel>(), [TextField()], onRollback: () => rollbacks++);
 
         vm.IsConfigTab = true;
-        vm.IsConfigTab = false;
+        vm.RollbackConfig();
 
         Assert.AreEqual(1, rollbacks);
     }
 
+    // Leaving the config tab (or switching to another plugin) must NOT discard staged edits: the
+    // Settings window's Apply/OK is the one commit point, so a user who steps away to check something
+    // and comes back has to still find what they typed. Only Cancel discards, through RollbackConfig.
     [TestMethod]
-    public void SelectingAnotherPluginRollsBackOnlyOnce()
+    public void LeavingTheConfigTab_KeepsStagedEdits()
     {
-        // The selection setter used to call RollbackConfig and then IsConfigTab = false, which rolled
-        // back a second time. One rollback is the point; two was pure duplicated work per click.
         var rollbacks = 0;
         var vm = MakeVm(new List<PluginComponentViewModel>(), [TextField()], onRollback: () => rollbacks++);
 
         vm.IsConfigTab = true;
-        vm.RollbackConfig();
         vm.IsConfigTab = false;
 
-        Assert.AreEqual(1, rollbacks);
+        Assert.AreEqual(0, rollbacks, "navigating away must not roll staged edits back");
+    }
+
+    [TestMethod]
+    public void SelectingAnotherPlugin_DoesNotDiscardStagedEdits()
+    {
+        // The selection setter used to call RollbackConfig, which is exactly what lost a user's edits
+        // when they glanced at another plugin. It still releases the rebuildable rows, but must leave
+        // any actually-edited tree (and therefore the edit) alone.
+        var rollbacks = 0;
+        var vm = MakeVm(new List<PluginComponentViewModel>(), [TextField()], onRollback: () => rollbacks++);
+
+        vm.IsConfigTab = true;
+        vm.CloseConfigRowsForSelectionChange();
+
+        Assert.AreEqual(0, rollbacks);
+    }
+
+    [TestMethod]
+    public void HasPendingConfigEdits_AfterEditingAField_IsTrue()
+    {
+        var vm = MakeVm(new List<PluginComponentViewModel>(), [TextField()]);
+
+        Assert.IsFalse(vm.HasPendingConfigEdits, "a freshly loaded plugin has nothing staged");
+
+        vm.ConfigFields[0].Value = "typed";
+
+        Assert.IsTrue(vm.HasPendingConfigEdits);
+    }
+
+    [TestMethod]
+    public void HasPendingConfigEdits_AfterCommit_IsFalse()
+    {
+        var vm = MakeVm(new List<PluginComponentViewModel>(), [TextField()]);
+        vm.ConfigFields[0].Value = "typed";
+
+        vm.ConfigFields[0].Commit();
+
+        Assert.IsFalse(vm.HasPendingConfigEdits, "a committed plugin has nothing left to save");
     }
 
     private static PluginConfigFieldViewModel TextField() =>

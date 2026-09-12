@@ -84,7 +84,7 @@ public interface IConfigurable
 
 將欄位的 Schema 鍵設為 `Icon` 並使用 `Text` 類型時，宿主會顯示圖示預覽並支援直接輸入 WPF Path Data。貼上完整 SVG/XML 文件時，宿主會擷取並合併所有 `<path d>` 值，只儲存轉換後的 WPF Path Data；圖示內容無效時會清空並透過主題化錯誤對話方塊提示。不需要圖示時，空值仍然有效。
 
-`PluginConfigSchema` 亦支援設定 `OnSave` 與 `OnRollback` 生命週期委派，在使用者按一下確認提交或離開頁面放棄修改時執行自訂持久化或狀態復原。
+`PluginConfigSchema` 亦支援設定 `OnSave` 與 `OnRollback` 生命週期委派：使用者按下**確定/套用**提交時觸發 `OnSave` 執行自訂持久化，取消或回復時觸發 `OnRollback` 復原狀態。
 
 ### 本地化選擇標籤
 

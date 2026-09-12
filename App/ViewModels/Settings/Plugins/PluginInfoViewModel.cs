@@ -158,6 +158,12 @@ public class PluginInfoViewModel : ViewModelBase
     public bool HasConfigFields => ConfigFields.Count > 0;
     public bool HasNoComponents => RawComponents.Count == 0;
 
+    /// <summary>
+    /// Whether this plugin's config holds edits the user staged and has not had applied yet -- kept
+    /// across plugin switches, since the Settings window's Apply/OK is the one commit point.
+    /// </summary>
+    public bool HasPendingConfigEdits => ConfigFields.Any(f => f.IsDirty);
+
     // Plugin-wide select-all/deselect-all, toggling every component across every group at once --
     // separate from each PluginComponentGroupViewModel's own per-group toggle. Same single-item
     // exception as the per-group button.
@@ -204,16 +210,12 @@ public class PluginInfoViewModel : ViewModelBase
 
     /// <summary>
     /// Which of the pane's two tabs is showing: false for the plugin's details, true for its config.
+    /// Starts on details, so selecting a plugin shows what it provides rather than dropping into a form.
+    /// Leaving the config tab no longer rolls its fields back: edits stay staged until the Settings
+    /// window's Apply/OK writes them, so flipping to Details (or another plugin) and back must still show
+    /// what the user typed. Cancel discards, via SettingsViewModel.Cleanup; the rows are still dropped
+    /// cheaply on the way out and rebuilt on the next open (see PluginConfigTabState).
     /// </summary>
-    /// <remarks>
-    /// Starts on details, so selecting a plugin shows what it is and what it provides rather than
-    /// dropping straight into a form.
-    ///
-    /// Leaving the config tab rolls its fields back, which is what closing the old modal window did.
-    /// Edits are only written by the tab's own OK button; anything abandoned by navigating away must not
-    /// survive in the view models, or a later OK would write values the user thought they had discarded.
-    /// See PluginConfigTabState for why the rollback is split into a cheap drop plus a deferred rebuild.
-    /// </remarks>
     public bool IsConfigTab
     {
         get => _isConfigTab;
@@ -222,7 +224,7 @@ public class PluginInfoViewModel : ViewModelBase
             if (_isConfigTab == value) return;
 
             if (value) _configTabState.Opened();
-            else RollbackConfig();
+            else _configTabState.Closed();
             SetProperty(ref _isConfigTab, value);
         }
     }
@@ -230,22 +232,27 @@ public class PluginInfoViewModel : ViewModelBase
     public Action? OnSave { get; }
     public Action? OnRollback { get; }
 
-    /// <summary>
-    /// Discards config the user staged and did not save, because the config tab is no longer shown.
-    /// </summary>
-    /// <remarks>
-    /// Also folds away the old double call -- selecting another plugin ran RollbackConfig and then
-    /// IsConfigTab = false, which ran it a second time.
-    /// </remarks>
+    /// <summary>Discards every staged config edit on this plugin, returning its fields to persisted values.</summary>
+    /// <remarks>Used by Cancel (SettingsViewModel.Cleanup) and by tests.</remarks>
     public void RollbackConfig()
     {
-        if (!_configTabState.Closed()) return;
+        if (!_configTabState.DiscardStagedEdits()) return;
 
         _selectedConfigGroup = ConfigGroups.FirstOrDefault();
         OnPropertyChanged(nameof(SelectedConfigGroup));
         OnPropertyChanged(nameof(ActiveConfigGroupChildren));
         OnPropertyChanged(nameof(FlatConfigFields));
         OnRollback?.Invoke();
+    }
+
+    /// <summary>
+    /// Releases the rebuildable config rows of fields with no staged edit when this plugin stops being
+    /// selected -- the selection path's replacement for the old rollback that lost the user's edits.
+    /// </summary>
+    internal void CloseConfigRowsForSelectionChange()
+    {
+        if (_isConfigTab) IsConfigTab = false;
+        else _configTabState.Closed();
     }
 
     private ICommand? _showDetailsCommand;

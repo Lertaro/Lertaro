@@ -86,7 +86,17 @@ public class PluginConfigFieldViewModel : ViewModelBase
     public ObservableCollection<PluginConfigFieldViewModel> Children => _loadSupport.Children;
     public ObservableCollection<PluginConfigArrayItemViewModel> ArrayItems => _loadSupport.ArrayItems;
 
-    /// <summary>Discards staged child/array state so the next access re-reads it from settings.</summary>
+    /// <summary>
+    /// Whether this field (or, for a container, any of its rows) holds an edit the user made since the
+    /// last commit. Sorting out "was it ever shown" is the load support's job -- see its own docs for why
+    /// this must not materialize an unbuilt tree.
+    /// </summary>
+    internal bool IsDirty => _loadSupport.IsDirty;
+
+    /// <summary>Clears this field's own staged flag without touching its value.</summary>
+    internal void ClearDirty() => _loadSupport.ClearDirty();
+
+    /// <summary>Drops staged child/array state so the next access re-reads it from settings.</summary>
     public void ResetChildrenAndArrayItems() => _loadSupport.Reset();
 
     /// <summary>
@@ -96,20 +106,52 @@ public class PluginConfigFieldViewModel : ViewModelBase
     internal bool HasLoadedChildren => _loadSupport.HasLoadedChildren;
 
     /// <summary>
-    /// Drops staged edits without rebuilding the rows, for when the fields are not on screen.
+    /// Discards staged edits and drops the rows. Used by Cancel (and any rollback), where the staged
+    /// values must not survive; a later access rebuilds the rows lazily from settings.
     /// </summary>
-    /// <remarks>
-    /// This is the cheap half of a rollback, and the one the selection path uses. Rebuilding here is what
-    /// made switching away from a plugin whose config had ever been opened cost the whole schema's worth
-    /// of work -- while nothing was displaying it. <see cref="Reload"/> is the rebuilding variant, used
-    /// just before the fields are shown again (see PluginInfoViewModel.IsConfigTab).
-    /// </remarks>
     internal void Discard()
     {
         _localValueStore = null;
         ResetChildrenAndArrayItems();
     }
 
+    /// <summary>
+    /// Drops the rows when this field holds no staged edit, keeping them otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Used when the config tab is left. The rows are the only place staged edits live, so a field the
+    /// user actually edited must keep its tree -- dropping it there would lose the edit that this whole
+    /// change exists to preserve. A clean field's tree carries nothing the lazy getters cannot rebuild
+    /// identically, so it is dropped to keep the "visited but untouched" plugins cheap.
+    /// </remarks>
+    internal void DiscardRowsIfClean()
+    {
+        if (IsDirty) return;
+        Discard();
+    }
+
+    /// <summary>
+    /// Re-materializes this field's rows when they were dropped and no edit is staged, for when the
+    /// config tab is shown again.
+    /// </summary>
+    /// <remarks>
+    /// A dropped field's bound control does not re-read the (stable) collection property, so the rows
+    /// have to be rebuilt before they are shown again. A field that IS dirty is skipped: its rows were
+    /// deliberately kept (see <see cref="DiscardRowsIfClean"/>), and rebuilding would recreate them from
+    /// settings and throw the staged edit away -- the exact loss this change exists to prevent.
+    /// </remarks>
+    internal void RebuildRowsIfClean()
+    {
+        if (IsDirty) return;
+        Reload();
+    }
+
+    /// <summary>
+    /// Discards staged state AND rebuilds whatever had been loaded, for when the fields are about to be
+    /// shown again (and for a rollback of a still-visible tab). <see cref="Discard"/> alone leaves the
+    /// (stable) collections empty, and a control already bound to them does not re-read the property, so
+    /// the rebuild has to happen before showing.
+    /// </summary>
     public void Reload()
     {
         _localValueStore = null;
@@ -186,6 +228,10 @@ public class PluginConfigFieldViewModel : ViewModelBase
                 LocalValueStore = strVal.Split('\n').Select(s => s.TrimEnd('\r').Trim()).ToList();
             else
                 LocalValueStore = ConfigValueHelper.ConvertValue(value, FieldType);
+            // Only the public Value setter is the user-edit path (XAML two-way bindings and the clear
+            // buttons); the load paths write LocalValueStore directly, so staging a value this way is
+            // what marks the field (and therefore its plugin) as having something to save.
+            _loadSupport.MarkDirty();
             if (_onValueChanged == null) OnPropertyChanged();
         }
     }
@@ -205,70 +251,22 @@ public class PluginConfigFieldViewModel : ViewModelBase
         // is what lets the whole plugin list be built without paying for every plugin's config tree.
     }
 
-    public void Commit()
-    {
-        // Nothing to store for a non-value row: a custom control is hosted UI, and a button runs
-        // its OnClick delegate directly -- persisting either would write meaningless settings keys.
-        if (IsCustomControl || IsButton) return;
-        if (IsGroup)
-        {
-            foreach (var child in Children)
-            {
-                child.Commit();
-            }
-            return;
-        }
-        if (IsObject)
-        {
-            var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-            foreach (var child in Children)
-            {
-                child.Commit();
-                dict[child.SchemaField.Key] = child.LocalValueStore;
-            }
-            _localValueStore = dict;
-        }
-        else if (IsArray)
-        {
-            var list = new List<object?>();
-            foreach (var item in ArrayItems)
-            {
-                list.Add(item.GetValue());
-            }
-            _localValueStore = list;
-        }
+    public void Commit() => PluginConfigFieldCommitSupport.Commit(this);
 
-        if (_onValueChanged == null)
-        {
-            if (SchemaField.SetValue != null)
-            {
-                SchemaField.SetValue(LocalValueStore);
-            }
-            else if (IsStringList && LocalValueStore is System.Collections.IEnumerable en && !(LocalValueStore is string))
-            {
-                var cleaned = new List<string>();
-                foreach (var item in en) { var s = item?.ToString()?.Trim(); if (!string.IsNullOrEmpty(s)) cleaned.Add(s); }
-                Settings.SetPluginSetting(PluginId, SchemaField.Key, cleaned);
-            }
-            else
-            {
-                // A RequireNonEmpty field (e.g. a trigger keyword) left blank in the UI would otherwise
-                // persist as "", silently making whatever depends on it unreachable rather than falling
-                // back to a sane default -- force the schema's own DefaultValue back in at save time.
-                var toSave = LocalValueStore;
-                if (SchemaField.RequireNonEmpty && (toSave == null || (toSave is string s && string.IsNullOrWhiteSpace(s))))
-                {
-                    toSave = SchemaField.DefaultValue;
-                    _localValueStore = toSave;
-                    OnPropertyChanged(nameof(Value));
-                }
-                Settings.SetPluginSetting(PluginId, SchemaField.Key, toSave);
-            }
-        }
-    }
+    /// <summary>
+    /// Sets the staged value without the Value setter's change notification or dirty-marking, for
+    /// PluginConfigFieldCommitSupport re-serializing an Object/Array field's rows back into it.
+    /// </summary>
+    internal void SetRawLocalValue(object? value) => _localValueStore = value;
+
+    /// <summary>Raises the Value notification for PluginConfigFieldCommitSupport's RequireNonEmpty fixup.</summary>
+    internal void NotifyValueChanged() => OnPropertyChanged(nameof(Value));
 
     public void OnChildChanged()
     {
+        // A child row edited inside an Object/Array container is an edit to this container, which the
+        // parent plugin tracks through this field's IsDirty.
+        _loadSupport.MarkDirty();
         if (IsArray) _arraySupport.SaveArrayFromChildren();
         else if (IsObject) _arraySupport.SaveObjectFromChildren();
         else _onValueChanged?.Invoke();
