@@ -30,6 +30,16 @@ public sealed class QuickSearchLaunchPanelHeightCalculatorTests
     }
 
     [TestMethod]
+    public void CalculateItemScale_FitsWholeRowsInsideMaximumHeight()
+    {
+        var source = new LaunchPanelSourceViewModel("large", "Large", Enumerable.Repeat(new AppSearchResult(), 100));
+
+        var scale = QuickSearchLaunchPanelHeightCalculator.CalculateItemScale(new[] { source }, 5, 522);
+
+        Assert.AreEqual(506d / (5 * 104), scale, 0.0001);
+    }
+
+    [TestMethod]
     public void Calculate_DoesNotReserveTabHeightForOneSource()
     {
         var source = new LaunchPanelSourceViewModel("single", "Single", Enumerable.Repeat(new AppSearchResult(), 1));

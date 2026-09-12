@@ -24,4 +24,24 @@ internal static class QuickSearchLaunchPanelHeightCalculator
         var tabsHeight = sources.Count > 1 ? SourceTabsHeight + SourceTabsBottomMargin : 0;
         return Math.Min(maximumHeight, itemsHeight + tabsHeight);
     }
+
+    public static double CalculateItemScale(IReadOnlyCollection<LaunchPanelSourceViewModel> sources, int columns,
+        double maximumHeight)
+    {
+        if (sources.Count == 0 || columns <= 0 || maximumHeight <= 0)
+            return 1;
+
+        var maximumItemCount = sources.Max(source => source.Items.Count);
+        var rows = Math.Max(1, (maximumItemCount + columns - 1) / columns);
+        var itemsHeight = rows * LaunchItemSlotHeight + ItemsVerticalPadding;
+        var tabsHeight = sources.Count > 1 ? SourceTabsHeight + SourceTabsBottomMargin : 0;
+        if (itemsHeight + tabsHeight <= maximumHeight)
+            return 1;
+
+        // When the panel reaches its maximum height, shrink each item so the viewport contains whole
+        // rows while still using all available space. The outer panel height remains unchanged.
+        var availableItemsHeight = maximumHeight - tabsHeight - ItemsVerticalPadding;
+        var visibleRows = Math.Max(1, (int)Math.Ceiling(availableItemsHeight / LaunchItemSlotHeight));
+        return Math.Max(0.1, availableItemsHeight / (visibleRows * LaunchItemSlotHeight));
+    }
 }

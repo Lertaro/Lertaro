@@ -49,6 +49,15 @@ internal static class QuickSearchLaunchPanelInputHelper
             return true;
         }
 
+        if (!string.IsNullOrEmpty(hotkeys.SelectJumpModifier)
+            && Keyboard.Modifiers == WpfUiHelper.GetWpfModifier(hotkeys.SelectJumpModifier)
+            && window.LaunchPanel.GetShortcutItem(actualKey) is { } shortcutItem)
+        {
+            window.ExecuteFavorite(shortcutItem);
+            e.Handled = true;
+            return true;
+        }
+
         if (e.Key == Key.Enter && window.ViewModel.SelectedLaunchPanelItem is { } item)
         {
             window.ExecuteFavorite(item);

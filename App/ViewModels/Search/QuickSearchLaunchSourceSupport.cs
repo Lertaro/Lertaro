@@ -38,6 +38,7 @@ internal sealed class QuickSearchLaunchSourceSupport
         _notify(nameof(QuickSearchViewModel.LaunchPanelItems));
         _notify(nameof(QuickSearchViewModel.SelectedLaunchPanelItem));
         _notify(nameof(QuickSearchViewModel.LaunchPanelHeight));
+        _notify(nameof(QuickSearchViewModel.LaunchPanelItemScale));
         _notify(nameof(QuickSearchViewModel.HasMultipleLaunchSources));
         _notify(nameof(QuickSearchViewModel.CanAcceptLaunchPanelDrops));
         var settings = UserSettings.Load().QuickLaunch;
@@ -85,6 +86,7 @@ internal sealed class QuickSearchLaunchSourceSupport
         _notify(nameof(QuickSearchViewModel.LaunchPanelVisibility));
         _notify(nameof(QuickSearchViewModel.LaunchPanelItems));
         _notify(nameof(QuickSearchViewModel.LaunchPanelHeight));
+        _notify(nameof(QuickSearchViewModel.LaunchPanelItemScale));
         _notify(nameof(QuickSearchViewModel.HasMultipleLaunchSources));
         _notify(nameof(QuickSearchViewModel.CanAcceptLaunchPanelDrops));
         _notify(nameof(QuickSearchViewModel.IsManualLaunchSourceSelected));

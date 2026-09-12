@@ -20,16 +20,23 @@ namespace Lertaro.App.Views.QuickSearchWindow;
 public partial class QuickSearchLaunchPanel : WpfUserControl
 {
     private const double SourceSlotWidth = 32;
+    private readonly Helpers.QuickSearchLaunchShortcutSupport _shortcutSupport;
     private DispatcherTimer? _sourceRevealTimer;
     private int _sourceRevealGeneration;
 
-    public QuickSearchLaunchPanel() => InitializeComponent();
+    public QuickSearchLaunchPanel()
+    {
+        InitializeComponent();
+        _shortcutSupport = new Helpers.QuickSearchLaunchShortcutSupport(LaunchItemsListView, () => (DataContext as QuickSearchViewModel)?.LaunchPanelItems, () => (DataContext as QuickSearchViewModel)?.LaunchPanelColumns ?? 1, () => (DataContext as QuickSearchViewModel)?.LaunchPanelItemScale ?? 1);
+    }
 
     internal void ScrollSelectedItemIntoView(AppSearchResult? item)
     {
         if (item != null)
             LaunchItemsListView.ScrollIntoView(item);
     }
+
+    internal AppSearchResult? GetShortcutItem(Key key) => _shortcutSupport.GetItem(key);
 
     internal void SetActionsModeHeight(bool expanded)
     {

@@ -202,7 +202,6 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
 
     public AppSearchResult? SelectedLaunchPanelItem { get => _launchSources.SelectedItem; set => _launchSources.SelectItem(value); }
     public bool MoveLaunchPanelSelection(int rowDelta, int columnDelta) => _launchSources.MoveItemSelection(rowDelta, columnDelta, LaunchPanelColumns);
-
     private static readonly ObservableCollection<AppSearchResult> EmptyLaunchItems = new();
 
     public void CycleLaunchSource(int direction) => _launchSources.Cycle(direction);
@@ -214,6 +213,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     public int LaunchPanelColumns => Services.UiMetrics.GetLaunchPanelColumns(SearchBarWidth);
     public double LaunchPanelHeight => QuickSearchLaunchPanelHeightCalculator.Calculate(
         LaunchSources, LaunchPanelColumns, LaunchPanelMaxHeight);
+    public double LaunchPanelItemScale => QuickSearchLaunchPanelHeightCalculator.CalculateItemScale(LaunchSources, LaunchPanelColumns, LaunchPanelMaxHeight);
     public bool HasMultipleLaunchSources => LaunchSources.Count > 1;
 
     // Quick window only: InlineSearchWindow shares this same ViewModel class (see
@@ -276,7 +276,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(LaunchPanelColumns));
         OnPropertyChanged(nameof(ClockVisibility));
         OnPropertyChanged(nameof(LaunchPanelMaxHeight));
-        OnPropertyChanged(nameof(LaunchPanelHeight));
+        OnPropertyChanged(nameof(LaunchPanelHeight)); OnPropertyChanged(nameof(LaunchPanelItemScale));
         UpdateClockText();
 
         // Result rows persist as long-lived objects across searches, unlike a freshly-typed search's own

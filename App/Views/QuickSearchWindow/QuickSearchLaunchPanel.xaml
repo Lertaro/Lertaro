@@ -53,6 +53,12 @@
             <Setter Property="Margin" Value="0"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="LayoutTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="{Binding DataContext.LaunchPanelItemScale, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                    ScaleY="{Binding DataContext.LaunchPanelItemScale, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"/>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListViewItem">
@@ -106,8 +112,19 @@
                             <Grid>
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Border Width="56" Height="56" Padding="4">
-                                        <Image Source="{Binding Icon}" Stretch="Uniform"
-                                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                                        <Grid>
+                                            <Image Source="{Binding Icon}" Stretch="Uniform"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                            <Border Visibility="{Binding ShortcutVisibility}"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                                                    Margin="0" CornerRadius="4"
+                                                    Background="{DynamicResource HoverBackground}"
+                                                    Panel.ZIndex="1" IsHitTestVisible="False">
+                                                <TextBlock Text="{Binding ShortcutHint}" Padding="4,1"
+                                                           Foreground="{DynamicResource ShortcutColor}"
+                                                           FontSize="9" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </Grid>
                                     </Border>
                                     <ScrollViewer Width="94" Height="30" Margin="0,5,0,0"
                                                   HorizontalContentAlignment="Center"
