@@ -13,6 +13,14 @@ public class HistorySettingsViewModel : ViewModelBase
     private string _selectedTab = "Search";
     private ICommand? _selectTabCommand;
 
+    // Debounces the two stores' Changed events: Record can fire several times in quick succession
+    // (e.g. opening a folder then a file from it in one burst), and rebuilding both lists every time
+    // churns the UI. One short timer collapses the burst into a single refresh.
+    private readonly System.Windows.Threading.DispatcherTimer _refreshDebounce = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(150)
+    };
+
     public HistorySettingsViewModel(UserSettings userSettings)
     {
         _userSettings = userSettings;
@@ -23,11 +31,38 @@ public class HistorySettingsViewModel : ViewModelBase
             () => _userSettings.EnableHistory,
             v => _userSettings.EnableHistory = v);
 
-        KeywordHistory = new HistoryListViewModel<string>(
-            KeywordHistoryStore.GetEntries,
+        KeywordHistory = new HistoryListViewModel<KeywordHistoryEntry>(
+            KeywordHistoryStore.GetCountedEntries,
             MapKeywordEntry,
             () => _userSettings.EnableKeywordHistory,
             v => _userSettings.EnableKeywordHistory = v);
+
+        // Live counts: the store raises Changed on every Record/Save/Delete, so the visible rows stay
+        // in step with what the user just opened in any search window -- no manual refresh needed.
+        // Record runs on a background thread (SearchHistoryStore.Record's Task.Run), so the refresh
+        // must hop onto the UI thread before touching the bound ObservableCollection.
+        _refreshDebounce.Tick += (_, _) =>
+        {
+            _refreshDebounce.Stop();
+            SearchHistory.RefreshFromStore();
+            KeywordHistory.RefreshFromStore();
+        };
+        SearchHistoryStore.Changed += OnStoreChanged;
+        KeywordHistoryStore.Changed += OnStoreChanged;
+    }
+
+    private void OnStoreChanged()
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null)
+            return;
+
+        // Restart the timer on the UI thread; the burst settles before the single rebuild runs.
+        dispatcher.BeginInvoke(new Action(() =>
+        {
+            _refreshDebounce.Stop();
+            _refreshDebounce.Start();
+        }));
     }
 
     public string SelectedTab
@@ -39,7 +74,7 @@ public class HistorySettingsViewModel : ViewModelBase
     public ICommand SelectTabCommand => _selectTabCommand ??= new RelayCommand<string>(tab => SelectedTab = tab);
 
     public HistoryListViewModel<HistoryEntry> SearchHistory { get; }
-    public HistoryListViewModel<string> KeywordHistory { get; }
+    public HistoryListViewModel<KeywordHistoryEntry> KeywordHistory { get; }
 
     // Segoe MDL2 Assets glyphs (U+E160 Page2, U+E8B7 Folder, U+E737 AppIconDefault, U+E81C). These are
     // private-use-area characters, invisible in a plain-text diff/editor view -- a hand-retyped edit
@@ -68,21 +103,30 @@ public class HistorySettingsViewModel : ViewModelBase
             RawValue = entry,
             Primary = primary,
             Secondary = entry.Path,
-            IconGlyph = iconGlyph
+            IconGlyph = iconGlyph,
+            UsageCount = entry.Count
         };
     }
 
-    private static HistoryEntryViewModel<string> MapKeywordEntry(string keyword) => new()
+    private static HistoryEntryViewModel<KeywordHistoryEntry> MapKeywordEntry(KeywordHistoryEntry entry) => new()
     {
-        RawValue = keyword,
-        Primary = keyword,
+        RawValue = entry,
+        Primary = entry.Keyword,
         Secondary = string.Empty,
-        IconGlyph = KeywordIconGlyph
+        IconGlyph = KeywordIconGlyph,
+        UsageCount = entry.Count
     };
 
     public void Save()
     {
         SearchHistoryStore.SaveEntries(SearchHistory.GetEntriesToSave());
         KeywordHistoryStore.SaveEntries(KeywordHistory.GetEntriesToSave());
+    }
+
+    public void Cleanup()
+    {
+        _refreshDebounce.Stop();
+        SearchHistoryStore.Changed -= OnStoreChanged;
+        KeywordHistoryStore.Changed -= OnStoreChanged;
     }
 }

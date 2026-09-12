@@ -215,6 +215,7 @@
   "Settings_History_Tab_Search": "搜索记录",
   "Settings_History_Tab_Keyword": "关键字记录",
   "Settings_History_Enable": "启用历史记录",
+  "Settings_History_Clear_Below": "清除少于等于{0}次的记录",
   "Settings_History_Clear_All": "清空全部记录",
   "Settings_SaveTip": "更改会在应用后保存到本地配置。",
   "Settings_Cancel": "取消",

@@ -215,6 +215,7 @@
   "Settings_History_Tab_Search": "Historial de Búsqueda",
   "Settings_History_Tab_Keyword": "Historial de Palabras Clave",
   "Settings_History_Enable": "Activar Historial",
+  "Settings_History_Clear_Below": "Borrar con como máximo {0} usos",
   "Settings_History_Clear_All": "Borrar Todo el Historial",
   "Settings_SaveTip": "Los cambios se guardarán en la configuración local después de aplicarlos.",
   "Settings_Cancel": "Cancelar",

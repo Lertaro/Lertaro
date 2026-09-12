@@ -215,6 +215,7 @@
   "Settings_History_Tab_Search": "検索履歴",
   "Settings_History_Tab_Keyword": "キーワード履歴",
   "Settings_History_Enable": "履歴を有効化",
+  "Settings_History_Clear_Below": "使用回数が{0}回以下をクリア",
   "Settings_History_Clear_All": "履歴をすべてクリア",
   "Settings_SaveTip": "変更内容は適用後にローカル設定へ保存されます。",
   "Settings_Cancel": "キャンセル",

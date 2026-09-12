@@ -13,7 +13,6 @@ namespace Lertaro.Core;
 // to it wins, so a path is never duplicated across groups.
 public static class SearchHistoryStore
 {
-    private const int MaxEntriesPerKeyword = 20;
     private static readonly object Gate = new();
     private static Dictionary<string, List<StoredEntry>>? _buckets;
     private static Dictionary<string, int>? _priorityCache;
@@ -27,10 +26,14 @@ public static class SearchHistoryStore
     internal readonly record struct StoredEntry(
         [property: JsonPropertyName("path")] string Path,
         [property: JsonPropertyName("type")] HistoryEntryKind Kind,
-        [property: JsonPropertyName("time")] long Time);
+        [property: JsonPropertyName("time")] long Time,
+        [property: JsonPropertyName("count")] int Count = 1);
 
     public static string HistoryPath => Path.Combine(Logger.UserDataDir, "search-history.json");
     private static string BackupPath => HistoryPath + ".bak";
+
+    /// <summary>Raised after the store changes, so the settings list can refresh its counts live.</summary>
+    public static event Action? Changed;
 
     /// <param name="keyword">The search box text at the time this was opened. Nothing is recorded if
     /// this is empty -- opening something directly from a Startup Panel tab (no query typed) isn't
@@ -62,28 +65,37 @@ public static class SearchHistoryStore
 
             // A path belongs to at most one keyword -- drop it from wherever it currently lives
             // (including its own bucket, if it's already there) before re-adding it under the keyword
-            // it was JUST opened with.
-            RemovePathFromAllBuckets(buckets, normalizedPath);
+            // it was JUST opened with. Its previous open count is carried forward so a repeatedly
+            // opened item accumulates rather than resetting to one on every open.
+            var previousCount = RemovePathFromAllBuckets(buckets, normalizedPath);
 
             if (!buckets.TryGetValue(keyword, out var list))
                 buckets[keyword] = list = new List<StoredEntry>();
 
-            list.Insert(0, new StoredEntry(normalizedPath, kind, DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
-            if (list.Count > MaxEntriesPerKeyword)
-                list.RemoveRange(MaxEntriesPerKeyword, list.Count - MaxEntriesPerKeyword);
+            list.Insert(0, new StoredEntry(normalizedPath, kind, DateTimeOffset.UtcNow.ToUnixTimeSeconds(), previousCount + 1));
+            if (list.Count > SearchHistoryBucketSupport.MaxEntriesPerKeyword)
+                list.RemoveRange(SearchHistoryBucketSupport.MaxEntriesPerKeyword, list.Count - SearchHistoryBucketSupport.MaxEntriesPerKeyword);
 
             PersistNoLock();
             _priorityCache = BuildPriorityCache(buckets);
         }
+
+        Changed?.Invoke();
     }
 
     // Removes any existing record of `path` from every keyword bucket, pruning a bucket entirely once
     // it's left empty so a keyword that no longer points to anything doesn't linger in the JSON file.
-    private static void RemovePathFromAllBuckets(Dictionary<string, List<StoredEntry>> buckets, string path)
+    // Returns the open count the removed record carried (0 when the path was not recorded before), so
+    // Record can continue the count instead of restarting it.
+    private static int RemovePathFromAllBuckets(Dictionary<string, List<StoredEntry>> buckets, string path)
     {
+        var previousCount = 0;
         List<string>? emptied = null;
         foreach (var (keyword, list) in buckets)
         {
+            var removed = list.Find(e => e.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+            if (removed != default)
+                previousCount = removed.Count;
             list.RemoveAll(e => e.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
             if (list.Count == 0)
                 (emptied ??= new List<string>()).Add(keyword);
@@ -91,6 +103,7 @@ public static class SearchHistoryStore
         if (emptied != null)
             foreach (var keyword in emptied)
                 buckets.Remove(keyword);
+        return previousCount;
     }
 
     /// <summary>Ranking boost lookup -- keyed by the bare target path, regardless of which keyword it's recorded under.</summary>
@@ -133,7 +146,7 @@ public static class SearchHistoryStore
             if (!ExistsForKind(normalizedPath, entry.Kind, File.Exists, Directory.Exists))
                 continue;
 
-            validated.Add((entry.Keyword?.Trim() ?? string.Empty, new StoredEntry(normalizedPath, entry.Kind, entry.Time)));
+            validated.Add((entry.Keyword?.Trim() ?? string.Empty, new StoredEntry(normalizedPath, entry.Kind, entry.Time, entry.Count)));
         }
 
         lock (Gate)
@@ -142,6 +155,8 @@ public static class SearchHistoryStore
             PersistNoLock();
             _priorityCache = BuildPriorityCache(_buckets);
         }
+
+        Changed?.Invoke();
     }
 
     public static IReadOnlyDictionary<string, int> Snapshot()
@@ -223,24 +238,7 @@ public static class SearchHistoryStore
     // a keyword whose only candidate loses to an earlier duplicate under a different keyword must not
     // linger as an empty bucket.
     private static Dictionary<string, List<StoredEntry>> BuildBuckets(IEnumerable<(string Keyword, StoredEntry Entry)> mostRecentFirst)
-    {
-        var buckets = new Dictionary<string, List<StoredEntry>>(StringComparer.OrdinalIgnoreCase);
-        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (keyword, entry) in mostRecentFirst)
-        {
-            if (seenPaths.Contains(entry.Path))
-                continue; // a more recent occurrence under some keyword already claimed this path
-
-            if (buckets.TryGetValue(keyword, out var existing) && existing.Count >= MaxEntriesPerKeyword)
-                continue; // this keyword is full -- an older duplicate under a different, non-full keyword may still fit
-
-            seenPaths.Add(entry.Path);
-            if (!buckets.TryGetValue(keyword, out var list))
-                buckets[keyword] = list = new List<StoredEntry>();
-            list.Add(entry);
-        }
-        return buckets;
-    }
+        => SearchHistoryBucketSupport.BuildBuckets(mostRecentFirst);
 
     private static void PersistNoLock()
     {
@@ -256,29 +254,12 @@ public static class SearchHistoryStore
     }
 
     private static List<HistoryEntry> Flatten(Dictionary<string, List<StoredEntry>> buckets)
-    {
-        var all = new List<HistoryEntry>();
-        foreach (var (keyword, list) in buckets)
-            foreach (var e in list)
-                all.Add(new HistoryEntry(keyword, e.Path, e.Kind, e.Time));
-
-        all.Sort((a, b) => b.Time.CompareTo(a.Time));
-        return all;
-    }
+        => SearchHistoryBucketSupport.Flatten(buckets);
 
     // Global rank per distinct path (lowest = most recently relevant). Paths no longer span multiple
     // buckets, but this stays dedup-safe regardless.
     private static Dictionary<string, int> BuildPriorityCache(Dictionary<string, List<StoredEntry>> buckets)
-    {
-        var flat = Flatten(buckets);
-        var priorities = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        for (var i = 0; i < flat.Count; i++)
-        {
-            if (!priorities.ContainsKey(flat[i].Path))
-                priorities[flat[i].Path] = i;
-        }
-        return priorities;
-    }
+        => SearchHistoryBucketSupport.BuildPriorityCache(buckets);
 
     internal static string NormalizePath(string path)
     {

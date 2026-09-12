@@ -215,6 +215,7 @@
   "Settings_History_Tab_Search": "검색 기록",
   "Settings_History_Tab_Keyword": "키워드 기록",
   "Settings_History_Enable": "기록 사용",
+  "Settings_History_Clear_Below": "{0}회 이하 사용 기록 지우기",
   "Settings_History_Clear_All": "모든 기록 지우기",
   "Settings_SaveTip": "변경 사항은 적용 후 로컬 설정에 저장됩니다.",
   "Settings_Cancel": "취소",

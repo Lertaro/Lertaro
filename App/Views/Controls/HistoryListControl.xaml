@@ -63,6 +63,7 @@
                             <ColumnDefinition Width="24"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
                         <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Text="{Binding IconGlyph}"
@@ -86,7 +87,12 @@
                             </TextBlock>
                         </StackPanel>
 
-                        <Button Grid.Column="2" Content="&#xE74D;"
+                        <!-- Usage count, right-aligned, immediately left of the delete button. -->
+                        <TextBlock Grid.Column="2" Text="{Binding UsageCount}" FontSize="12"
+                                   Foreground="{DynamicResource TextSecondary2}" VerticalAlignment="Center"
+                                   Margin="12,0,6,0" HorizontalAlignment="Right"/>
+
+                        <Button Grid.Column="3" Content="&#xE74D;"
                                 Style="{StaticResource HistoryRowIconButton}"
                                 Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                 CommandParameter="{Binding}"/>
@@ -135,9 +141,33 @@
                     </TextBlock.Style>
                 </TextBlock>
 
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="320">
-                    <ItemsControl ItemsSource="{Binding FilteredItems}" ItemTemplate="{StaticResource HistoryEntryTemplate}"/>
-                </ScrollViewer>
+                <!-- Virtualized ListBox: the keyword tab can hold thousands of rows, and a plain
+                     ItemsControl realized every row up front the first time the tab was shown. The
+                     ListBox scrolls itself (no outer ScrollViewer, which would disable virtualization),
+                     so only the rows actually in view are built. -->
+                <ListBox Grid.Row="1" ItemsSource="{Binding FilteredItems}" ItemTemplate="{StaticResource HistoryEntryTemplate}"
+                         MaxHeight="320" BorderThickness="0" Background="Transparent"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         Focusable="False"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <ContentPresenter/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
             </Grid>
         </Border>
 
@@ -145,8 +175,16 @@
                   IsChecked="{Binding IsHistoryEnabled, Mode=TwoWay}"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,12,0,0"/>
 
-        <Button x:Name="BtnClearAll" Grid.Row="1" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_Clear_All]}"
-                Style="{StaticResource SettingsButton}" HorizontalAlignment="Right" Margin="0,12,0,0"
-                Command="{Binding ClearAllCommand}"/>
+        <!-- Clear-below-N: a small numeric box (coerced to 1..99) and button, left of Clear All. -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <ComboBox Width="52" Height="30" MinWidth="0" Margin="0,0,4,0" Style="{StaticResource SettingsComboBox}"
+                      ItemsSource="{Binding UsageThresholds}" SelectedItem="{Binding UsageThreshold}"/>
+            <Button Content="{Binding ClearBelowButtonLabel}"
+                    Style="{StaticResource SettingsButton}"
+                    Command="{Binding ClearBelowCommand}" Margin="0,0,8,0"/>
+            <Button x:Name="BtnClearAll" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_Clear_All]}"
+                    Style="{StaticResource SettingsButton}"
+                    Command="{Binding ClearAllCommand}"/>
+        </StackPanel>
     </Grid>
 </UserControl>

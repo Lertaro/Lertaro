@@ -96,6 +96,32 @@ public sealed class SearchHistoryStoreTests
     }
 
     [TestMethod]
+    public void TryLoadFile_EntryWithoutCountDefaultsToOne()
+    {
+        // A JSON written before the count field existed deserializes to the record's default of 1,
+        // so an upgraded store never shows an entry as zero-use.
+        var path = MainPath;
+        File.WriteAllText(path, """{ "kw": [ { "path": "C:\\path\\file.txt", "type": "File", "time": 123 } ] }""");
+
+        var buckets = SearchHistoryStore.TryLoadFile(path);
+
+        Assert.IsNotNull(buckets);
+        Assert.AreEqual(1, buckets["kw"][0].Count);
+    }
+
+    [TestMethod]
+    public void TryLoadFile_EntryWithCountPreservesIt()
+    {
+        var path = MainPath;
+        File.WriteAllText(path, """{ "kw": [ { "path": "C:\\path\\file.txt", "type": "File", "time": 123, "count": 5 } ] }""");
+
+        var buckets = SearchHistoryStore.TryLoadFile(path);
+
+        Assert.IsNotNull(buckets);
+        Assert.AreEqual(5, buckets["kw"][0].Count);
+    }
+
+    [TestMethod]
     public void TryLoadFile_CorruptJson_ReturnsNull()
     {
         var path = MainPath;
