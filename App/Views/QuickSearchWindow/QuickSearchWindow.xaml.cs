@@ -95,6 +95,10 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         _layoutManager.UpdateActionsLayout();
     }
     internal void ExecuteFavorite(AppSearchResult result) => _resultExecutor.Execute(result);
+    internal void RecordKeywordHistory()
+    {
+        try { KeywordHistoryStore.Record(_viewModel.SearchQuery); } catch { }
+    }
     // Runs the results-panel height computation synchronously instead of through the normal deferred
     // QueueResultsLayoutUpdate -- see QuickSearchWindowController.ShowWindow's own comment on why it needs
     // this rather than waiting for that callback's usual Send-priority-deferred pass.
@@ -188,8 +192,16 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public void SuppressNextForegroundRestore() => _controller.SuppressNextRestore();
     public void ToggleStayOpen() => _controller.ToggleStayOpen();
     public void ToggleVisibility() => _controller.ToggleVisibility();
-    public void OpenFileOrFolderExternal(string path) => FileExecutor.OpenFileOrFolder(path, TxtSearch.Text, HideWindow);
-    public void OpenFileOrFolderAsAdminExternal(string path) => FileExecutor.OpenFileOrFolderAsAdmin(path, TxtSearch.Text, HideWindow);
+    public void OpenFileOrFolderExternal(string path)
+    {
+        RecordKeywordHistory();
+        FileExecutor.OpenFileOrFolder(path, TxtSearch.Text, HideWindow);
+    }
+    public void OpenFileOrFolderAsAdminExternal(string path)
+    {
+        RecordKeywordHistory();
+        FileExecutor.OpenFileOrFolderAsAdmin(path, TxtSearch.Text, HideWindow);
+    }
     public void LocateInExplorerExternal(string path) => FileExecutor.LocateInExplorer(path);
     public static T? FindVisualParentExternal<T>(DependencyObject? child) where T : DependencyObject => FindVisualParent<T>(child);
     private void Window_Deactivated(object sender, EventArgs e)
@@ -248,7 +260,11 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private void ShowTrayMenu()
     {
         var queryText = (IsInActionsMode && _menuPresenter != null) ? _menuPresenter.SavedSearchQuery : TxtSearch.Text;
-        _trayService?.ShowMenuAt(RootGrid, () => FileExecutor.OpenFileOrFolder("__SHOW_MORE__", SearchResultTypePriority.StripLeadingTrigger(queryText), HideWindowNoRestore));
+        _trayService?.ShowMenuAt(RootGrid, () =>
+        {
+            RecordKeywordHistory();
+            FileExecutor.OpenFileOrFolder("__SHOW_MORE__", SearchResultTypePriority.StripLeadingTrigger(queryText), HideWindowNoRestore);
+        });
     }
     private static T? FindVisualParent<T>(DependencyObject? child) where T : DependencyObject
     {

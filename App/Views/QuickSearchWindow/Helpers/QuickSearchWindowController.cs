@@ -95,6 +95,7 @@ public class QuickSearchWindowController
     private void ReopenAsFullWindow()
     {
         var query = SearchResultTypePriority.StripLeadingTrigger(_window.ViewModel.SearchQuery);
+        _window.RecordKeywordHistory();
         FileExecutor.OpenFileOrFolder("__SHOW_MORE__", query, () => HideWindow(restoreFocus: false));
     }
 
@@ -198,7 +199,6 @@ public class QuickSearchWindowController
         // window to that unrelated file instead of closing alongside this window.
         QuickLookManager.Instance.Reset();
 
-        try { KeywordHistoryStore.Record(_window.ViewModel.SearchQuery); } catch { }
         _window.KeywordHistoryController.Reset();
 
         // Everything below this point (the SearchQuery reset onward) reads as the window's "closed"

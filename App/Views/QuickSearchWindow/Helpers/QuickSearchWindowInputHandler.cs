@@ -102,6 +102,7 @@ public class QuickSearchWindowInputHandler
             // same query-carrying behavior ShowTrayMenu gets to via its "Show Main Window" item. The full
             // window has no concept of a per-type trigger, so one is stripped before it ever gets there.
             var queryText = (_window.IsInActionsMode && _window.MenuPresenter != null) ? _window.MenuPresenter.SavedSearchQuery : _window.TxtSearch.Text;
+            _window.RecordKeywordHistory();
             FileExecutor.OpenFileOrFolder("__SHOW_MORE__", SearchResultTypePriority.StripLeadingTrigger(queryText), _window.HideWindowNoRestore);
             e.Handled = true;
             return;
@@ -234,6 +235,7 @@ public class QuickSearchWindowInputHandler
     {
         if (result.IsEmptyResult || result.IsSearchSectionHeader)
             return;
+        _window.RecordKeywordHistory();
         if (!result.IsPluginSearchAction && !result.IsInstantResult)
         {
             SearchHistoryStore.Record(_window.TxtSearch.Text, result.FullPath, SearchResultHelper.HistoryKindOf(result));

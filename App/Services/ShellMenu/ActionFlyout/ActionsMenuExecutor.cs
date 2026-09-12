@@ -39,6 +39,7 @@ internal sealed class ActionsMenuExecutor
         // 0. Direct delegate (e.g. CustomActions dynamic provider)
         if (item.OnExecute != null)
         {
+            RecordQuickSearchKeyword();
             _view.HideWindow();
             item.OnExecute();
             return;
@@ -51,6 +52,7 @@ internal sealed class ActionsMenuExecutor
         {
             if (activeResult != null)
             {
+                RecordQuickSearchKeyword();
                 if (!_view.GetType().Name.Equals("SearchWindow", StringComparison.Ordinal))
                 {
                     _view.HideWindow();
@@ -77,6 +79,7 @@ internal sealed class ActionsMenuExecutor
         {
             if (activeResult != null)
             {
+                RecordQuickSearchKeyword();
                 var hwnd = new WindowInteropHelper(_view as Window ?? System.Windows.Application.Current.MainWindow).Handle;
                 PluginPerformanceMonitor.Measure(provider, () => provider.ExecuteCommand(activeResults, item.CommandId, hwnd));
                 if (!_view.GetType().Name.Equals("SearchWindow", StringComparison.Ordinal))
@@ -87,5 +90,11 @@ internal sealed class ActionsMenuExecutor
 
             _exitActionsMode();
         }
+    }
+
+    private void RecordQuickSearchKeyword()
+    {
+        if (_view is QuickSearchWindow quickSearchWindow)
+            quickSearchWindow.RecordKeywordHistory();
     }
 }
