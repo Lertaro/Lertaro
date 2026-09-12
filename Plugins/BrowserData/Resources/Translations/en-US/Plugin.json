@@ -8,6 +8,8 @@
   "BrowserData_Config_IndexBookmarksLabel": "Index Bookmarks",
   "BrowserData_Config_IndexHistoryLabel": "Index History",
   "BrowserData_Config_IndexHistoryDesc": "History can grow much larger than bookmarks -- turn this off to search bookmarks only.",
+  "BrowserData_Config_BlacklistLabel": "Blacklist",
+  "BrowserData_Config_BlacklistDesc": "Hide any bookmark or history entry whose title or URL contains one of these strings. Enter one string per line. Matching is case-insensitive literal text; fuzzy matching is not used.",
   "BrowserData_Config_ProfilesLabel": "Browser Profile Directories",
   "BrowserData_Config_ProfilesDesc": "Manually add browser profile folders to index. Supports Chrome-family (Chrome/Edge/Brave/...) and Firefox-family browsers. You can add multiple entries.",
   "BrowserData_Config_NameLabel": "Name",

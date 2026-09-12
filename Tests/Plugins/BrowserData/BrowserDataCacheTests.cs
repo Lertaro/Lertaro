@@ -67,6 +67,21 @@ public sealed class BrowserDataCacheTests
     }
 
     [TestMethod]
+    public void LoadAll_BlacklistFiltersBookmarkAndHistoryEntries()
+    {
+        using var dir = new TempDirectory();
+        WriteBookmarksFile(dir.Path);
+        WriteHistoryDb(dir.Path);
+
+        var result = BrowserDataCache.LoadAll(
+            ProfileConfig(dir.Path), indexBookmarks: true, indexHistory: true, blacklist: ["example.com"]);
+
+        var entries = result.Single();
+        Assert.IsEmpty(entries.Bookmarks);
+        Assert.HasCount(1, entries.History);
+    }
+
+    [TestMethod]
     public void LoadAll_BookmarksDisabled_SkipsBookmarksButKeepsHistory()
     {
         using var dir = new TempDirectory();

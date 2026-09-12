@@ -8,6 +8,8 @@
   "BrowserData_Config_IndexBookmarksLabel": "ブックマークを索引化",
   "BrowserData_Config_IndexHistoryLabel": "履歴を索引化",
   "BrowserData_Config_IndexHistoryDesc": "履歴はブックマークよりはるかに件数が多くなりがちです。オフにするとブックマークのみを検索対象にできます。",
+  "BrowserData_Config_BlacklistLabel": "ブラックリスト",
+  "BrowserData_Config_BlacklistDesc": "タイトルまたは URL に指定した文字列を含むブックマークや履歴を非表示にします。1行に1つの文字列を入力してください。大文字と小文字を区別しない文字列の包含検索で、あいまい検索は使用しません。",
   "BrowserData_Config_ProfilesLabel": "ブラウザープロファイルディレクトリ",
   "BrowserData_Config_ProfilesDesc": "索引化するブラウザーのプロファイルフォルダーを手動で追加します。Chrome 系（Chrome/Edge/Brave など）と Firefox 系のブラウザーに対応しています。複数追加できます。",
   "BrowserData_Config_NameLabel": "名前",

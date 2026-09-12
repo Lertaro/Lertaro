@@ -8,6 +8,8 @@
   "BrowserData_Config_IndexBookmarksLabel": "索引书签",
   "BrowserData_Config_IndexHistoryLabel": "索引历史记录",
   "BrowserData_Config_IndexHistoryDesc": "历史记录数量往往远多于书签——关闭此项可只搜索书签。",
+  "BrowserData_Config_BlacklistLabel": "黑名单",
+  "BrowserData_Config_BlacklistDesc": "隐藏标题或网址包含任一黑名单字符串的书签或历史记录。每行输入一个字符串。匹配不区分大小写，按字面包含匹配，不使用模糊匹配。",
   "BrowserData_Config_ProfilesLabel": "浏览器用户目录列表",
   "BrowserData_Config_ProfilesDesc": "手动添加要索引的浏览器用户资料目录（Profile 文件夹），支持 Chrome 系（Chrome/Edge/Brave 等）和 Firefox 系浏览器，可添加多个。",
   "BrowserData_Config_NameLabel": "名称",

@@ -64,10 +64,12 @@ internal static class BrowserDataCache
         var configured = PluginSettingsService.GetSetting<List<BrowserProfileConfig>>("Lertaro.Plugins.BrowserData", "Profiles", null!);
         var indexBookmarks = PluginSettingsService.GetSetting("Lertaro.Plugins.BrowserData", "IndexBookmarks", true);
         var indexHistory = PluginSettingsService.GetSetting("Lertaro.Plugins.BrowserData", "IndexHistory", true);
+        var blacklist = BrowserEntryFilter.NormalizeBlacklist(PluginSettingsService.GetSetting(
+            "Lertaro.Plugins.BrowserData", "Blacklist", new List<string>()));
         // Bookmarks/history toggles folded into the same reload signature as Profiles -- flipping either
         // one should take effect on the next query, not wait for the up-to-10-minute staleness timer.
         var signature = (configured != null ? System.Text.Json.JsonSerializer.Serialize(configured) : string.Empty)
-            + $"|{indexBookmarks}|{indexHistory}";
+            + $"|{indexBookmarks}|{indexHistory}|{System.Text.Json.JsonSerializer.Serialize(blacklist)}";
 
         var isConfigChanged = signature != _lastSignature;
         var isStale = DateTime.UtcNow - _lastLoadUtc > RefreshInterval;
@@ -94,7 +96,7 @@ internal static class BrowserDataCache
         {
             try
             {
-                var loaded = LoadAll(configured ?? new List<BrowserProfileConfig>(), indexBookmarks, indexHistory);
+                var loaded = LoadAll(configured ?? new List<BrowserProfileConfig>(), indexBookmarks, indexHistory, blacklist);
                 lock (Lock)
                 {
                     _snapshot = loaded;
@@ -144,11 +146,17 @@ internal static class BrowserDataCache
         return false;
     }
 
-    internal static List<ProfileEntries> LoadAll(List<BrowserProfileConfig> profiles, bool indexBookmarks, bool indexHistory)
+    internal static List<ProfileEntries> LoadAll(
+        List<BrowserProfileConfig> profiles,
+        bool indexBookmarks,
+        bool indexHistory,
+        IReadOnlyList<string>? blacklist = null)
     {
         var result = new List<ProfileEntries>();
         if (!indexBookmarks && !indexHistory)
             return result;
+
+        var normalizedBlacklist = BrowserEntryFilter.NormalizeBlacklist(blacklist);
 
         foreach (var profile in profiles)
         {
@@ -190,7 +198,10 @@ internal static class BrowserDataCache
                     default:
                         PluginSdk.Logger.Log($"[BrowserData] '{expandedPath}' doesn't look like a Chrome/Firefox profile folder (no Bookmarks/History/places.sqlite found), skipping.", PluginSdk.LogLevel.Warn);
                         continue;
-                    }
+                }
+
+                entries.Bookmarks.RemoveAll(entry => BrowserEntryFilter.IsBlacklisted(entry, normalizedBlacklist));
+                entries.History.RemoveAll(entry => BrowserEntryFilter.IsBlacklisted(entry, normalizedBlacklist));
                 result.Add(entries);
             }
             catch (Exception ex)

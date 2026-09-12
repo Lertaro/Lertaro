@@ -62,6 +62,14 @@ public class BrowserDataPlugin : IPlugin, IConfigurable
             },
             new PluginConfigField
             {
+                Key = "Blacklist",
+                LabelKey = "BrowserData_Config_BlacklistLabel",
+                DescriptionKey = "BrowserData_Config_BlacklistDesc",
+                FieldType = ConfigFieldType.StringList,
+                DefaultValue = new List<string>()
+            },
+            new PluginConfigField
+            {
                 Key = "Profiles",
                 LabelKey = "BrowserData_Config_ProfilesLabel",
                 DescriptionKey = "BrowserData_Config_ProfilesDesc",

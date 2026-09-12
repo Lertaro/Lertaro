@@ -20,4 +20,37 @@ public sealed class BrowserEntryFilterTests
 
     [TestMethod]
     public void IsHttpUrl_AboutUrl_ReturnsFalse() => Assert.IsFalse(BrowserEntryFilter.IsHttpUrl("about:blank"));
+
+    [TestMethod]
+    public void NormalizeBlacklist_TrimsDropsEmptyAndDeduplicatesIgnoringCase()
+    {
+        var rules = BrowserEntryFilter.NormalizeBlacklist([" example.com ", "", "EXAMPLE.COM", "   "]);
+
+        Assert.HasCount(1, rules);
+        Assert.AreEqual("example.com", rules[0]);
+    }
+
+    [TestMethod]
+    public void IsBlacklisted_TitleContainsRuleIgnoringCase_ReturnsTrue()
+    {
+        var entry = new BrowserEntry("Example Dashboard", "https://other.test", isBookmark: true, sortKey: 0);
+
+        Assert.IsTrue(BrowserEntryFilter.IsBlacklisted(entry, ["dashboard"]));
+    }
+
+    [TestMethod]
+    public void IsBlacklisted_UrlContainsRule_ReturnsTrue()
+    {
+        var entry = new BrowserEntry("Home", "https://example.com/private", isBookmark: true, sortKey: 0);
+
+        Assert.IsTrue(BrowserEntryFilter.IsBlacklisted(entry, ["EXAMPLE.COM"]));
+    }
+
+    [TestMethod]
+    public void IsBlacklisted_DoesNotUseFuzzyMatching_ReturnsFalse()
+    {
+        var entry = new BrowserEntry("Example", "https://example.com", isBookmark: true, sortKey: 0);
+
+        Assert.IsFalse(BrowserEntryFilter.IsBlacklisted(entry, ["exampel"]));
+    }
 }

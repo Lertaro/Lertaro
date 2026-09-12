@@ -8,6 +8,8 @@
   "BrowserData_Config_IndexBookmarksLabel": "索引書籤",
   "BrowserData_Config_IndexHistoryLabel": "索引歷史記錄",
   "BrowserData_Config_IndexHistoryDesc": "歷史記錄數量往往遠多於書籤——關閉此項可只搜尋書籤。",
+  "BrowserData_Config_BlacklistLabel": "黑名單",
+  "BrowserData_Config_BlacklistDesc": "隱藏標題或網址包含任一黑名單字串的書籤或歷史記錄。每行輸入一個字串。比對不區分大小寫，使用字面包含比對，不使用模糊比對。",
   "BrowserData_Config_ProfilesLabel": "瀏覽器使用者目錄列表",
   "BrowserData_Config_ProfilesDesc": "手動新增要索引的瀏覽器使用者資料目錄（Profile 資料夾），支援 Chrome 系（Chrome/Edge/Brave 等）和 Firefox 系瀏覽器，可新增多個。",
   "BrowserData_Config_NameLabel": "名稱",

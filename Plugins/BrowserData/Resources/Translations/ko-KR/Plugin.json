@@ -8,6 +8,8 @@
   "BrowserData_Config_IndexBookmarksLabel": "북마크 색인화",
   "BrowserData_Config_IndexHistoryLabel": "방문 기록 색인화",
   "BrowserData_Config_IndexHistoryDesc": "방문 기록은 북마크보다 훨씬 많아질 수 있습니다 -- 이 옵션을 끄면 북마크만 검색합니다.",
+  "BrowserData_Config_BlacklistLabel": "차단 목록",
+  "BrowserData_Config_BlacklistDesc": "제목 또는 URL에 지정한 문자열이 포함된 북마크나 방문 기록을 숨깁니다. 한 줄에 하나의 문자열을 입력합니다. 대소문자를 구분하지 않는 리터럴 포함 검색이며 퍼지 매칭은 사용하지 않습니다.",
   "BrowserData_Config_ProfilesLabel": "브라우저 프로필 디렉터리",
   "BrowserData_Config_ProfilesDesc": "색인화할 브라우저 프로필 폴더를 수동으로 추가합니다. Chrome 계열(Chrome/Edge/Brave/...) 및 Firefox 계열 브라우저를 지원합니다. 여러 항목을 추가할 수 있습니다.",
   "BrowserData_Config_NameLabel": "이름",

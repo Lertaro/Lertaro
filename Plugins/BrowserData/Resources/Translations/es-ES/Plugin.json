@@ -8,6 +8,8 @@
   "BrowserData_Config_IndexBookmarksLabel": "Indexar Marcadores",
   "BrowserData_Config_IndexHistoryLabel": "Indexar Historial",
   "BrowserData_Config_IndexHistoryDesc": "El historial puede llegar a ser mucho más voluminoso que los marcadores; desactiva esta opción para buscar solo en los marcadores.",
+  "BrowserData_Config_BlacklistLabel": "Lista de bloqueo",
+  "BrowserData_Config_BlacklistDesc": "Oculta cualquier favorito o entrada del historial cuyo título o URL contenga una de estas cadenas. Introduce una cadena por línea. La coincidencia es literal y no distingue mayúsculas y minúsculas; no se usa coincidencia difusa.",
   "BrowserData_Config_ProfilesLabel": "Directorios de Perfiles del Navegador",
   "BrowserData_Config_ProfilesDesc": "Añade manualmente las carpetas de perfil del navegador que quieras indexar. Compatible con navegadores de la familia Chrome (Chrome/Edge/Brave/...) y de la familia Firefox. Puedes añadir varias entradas.",
   "BrowserData_Config_NameLabel": "Nombre",
