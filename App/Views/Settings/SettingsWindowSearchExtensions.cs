@@ -44,6 +44,7 @@ internal static class SettingsWindowSearchExtensions
             var capturedPlugin = plugin;
             void RevealPlugin(SettingsViewModel settings)
             {
+                settings.Plugins.IsRuntimeStatusTab = false;
                 settings.Plugins.SelectedPlugin = capturedPlugin;
                 capturedPlugin.IsConfigTab = false;
             }
@@ -78,6 +79,7 @@ internal static class SettingsWindowSearchExtensions
                         var capturedGroup = currentGroup;
                         void RevealPluginConfig(SettingsViewModel settings)
                         {
+                            settings.Plugins.IsRuntimeStatusTab = false;
                             settings.Plugins.SelectedPlugin = capturedPlugin;
                             capturedPlugin.IsConfigTab = true;
                             if (capturedGroup != null && capturedPlugin.ConfigGroups.Contains(capturedGroup))

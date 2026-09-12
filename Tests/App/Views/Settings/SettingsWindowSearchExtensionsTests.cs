@@ -85,6 +85,7 @@ public sealed class SettingsWindowSearchExtensionsTests
         var settingsVm = new SettingsViewModel();
         settingsVm.Plugins.Plugins.Clear();
         settingsVm.Plugins.Plugins.Add(pluginVm);
+        settingsVm.Plugins.IsRuntimeStatusTab = true;
 
         var results = SettingsWindowSearchExtensions.BuildAllEntries(vm: settingsVm);
         var sub2Item = results.FirstOrDefault(r => r.Label == "Sub2Key");
@@ -94,6 +95,8 @@ public sealed class SettingsWindowSearchExtensionsTests
 
         Assert.AreEqual(pluginVm, settingsVm.Plugins.SelectedPlugin);
         Assert.IsTrue(pluginVm.IsConfigTab);
+        Assert.IsFalse(settingsVm.Plugins.IsRuntimeStatusTab,
+            "plugin configuration search results must switch away from the runtime status tab");
         Assert.AreEqual(g2Vm, pluginVm.SelectedConfigGroup);
     }
 
@@ -158,6 +161,7 @@ public sealed class SettingsWindowSearchExtensionsTests
         var settingsVm = new SettingsViewModel();
         settingsVm.Plugins.Plugins.Clear();
         settingsVm.Plugins.Plugins.Add(pluginVm);
+        settingsVm.Plugins.IsRuntimeStatusTab = true;
 
         var results = SettingsWindowSearchExtensions.BuildAllEntries(vm: settingsVm);
         var componentItem = results.FirstOrDefault(r => r.Label == "MyComponent");
@@ -167,6 +171,8 @@ public sealed class SettingsWindowSearchExtensionsTests
 
         Assert.AreEqual(pluginVm, settingsVm.Plugins.SelectedPlugin);
         Assert.IsFalse(pluginVm.IsConfigTab, "Expected IsConfigTab to be false when revealing a component.");
+        Assert.IsFalse(settingsVm.Plugins.IsRuntimeStatusTab,
+            "plugin component search results must switch away from the runtime status tab");
     }
 
     [TestMethod]
