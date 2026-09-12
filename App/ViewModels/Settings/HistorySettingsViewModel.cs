@@ -123,6 +123,12 @@ public class HistorySettingsViewModel : ViewModelBase
         KeywordHistoryStore.SaveEntries(KeywordHistory.GetEntriesToSave());
     }
 
+    public void NotifyLanguageChanged()
+    {
+        SearchHistory.NotifyLanguageChanged();
+        KeywordHistory.NotifyLanguageChanged();
+    }
+
     public void Cleanup()
     {
         _refreshDebounce.Stop();

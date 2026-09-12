@@ -79,6 +79,8 @@ public class HistoryListViewModel<T> : ViewModelBase
         TranslationManager.Instance["Settings_History_Clear_Below"],
         UsageThreshold);
 
+    public void NotifyLanguageChanged() => OnPropertyChanged(nameof(ClearBelowButtonLabel));
+
     public string SearchText
     {
         get => _searchText;

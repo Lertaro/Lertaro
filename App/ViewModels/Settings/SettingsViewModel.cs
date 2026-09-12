@@ -61,6 +61,7 @@ public class SettingsViewModel : ViewModelBase
         ApplyUiState();
         QuickPanel.NotifyLanguageChanged();
         QuickLaunch.NotifyLanguageChanged();
+        _deferred.ExistingHistory?.NotifyLanguageChanged();
     }
 
     public ServiceSettingsViewModel Service { get; }
@@ -296,5 +297,4 @@ public class SettingsViewModel : ViewModelBase
         IsBusy = !isServiceReady;
         CanApply = isServiceReady;
     }
-
 }
