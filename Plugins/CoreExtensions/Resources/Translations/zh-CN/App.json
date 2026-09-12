@@ -594,6 +594,8 @@
   "Plugins_VisitWebsite": "访问网站",
   "Plugins_ConfigurationTitle": "插件配置",
   "Plugins_NoPlugins": "未安装任何插件。",
+  "Plugins_ColumnEnabled": "启用",
+  "Plugins_ColumnName": "名称",
   "Plugins_Version": "版本",
   "Plugins_DllSource": "来源文件",
   "Plugins_ComponentsTitle": "功能组件",

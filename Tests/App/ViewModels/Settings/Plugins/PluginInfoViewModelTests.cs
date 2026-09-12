@@ -236,31 +236,24 @@ public sealed class PluginInfoViewModelTests
     }
 
     [TestMethod]
-    public void IsFullyDisabled_TogglingLastComponentOn_FlipsToFalseAndRaisesEvent()
+    public void IsFullyDisabled_TogglingLastComponentOn_FlipsToFalse()
     {
         var a1 = Component("a1", PluginComponentType.Action, enabled: false);
         var vm = MakeVm(new List<PluginComponentViewModel> { a1 });
-        var raised = new List<PluginInfoViewModel>();
-        vm.FullyDisabledChanged += raised.Add;
 
         a1.IsEnabled = true;
 
         Assert.IsFalse(vm.IsFullyDisabled);
-        Assert.HasCount(1, raised);
-        Assert.AreSame(vm, raised[0]);
     }
 
     [TestMethod]
-    public void IsFullyDisabled_TogglingLastComponentOff_FlipsToTrueAndRaisesEvent()
+    public void IsFullyDisabled_TogglingLastComponentOff_FlipsToTrue()
     {
         var a1 = Component("a1", PluginComponentType.Action, enabled: true);
         var vm = MakeVm(new List<PluginComponentViewModel> { a1 });
-        var raised = 0;
-        vm.FullyDisabledChanged += _ => raised++;
 
         a1.IsEnabled = false;
 
         Assert.IsTrue(vm.IsFullyDisabled);
-        Assert.AreEqual(1, raised);
     }
 }

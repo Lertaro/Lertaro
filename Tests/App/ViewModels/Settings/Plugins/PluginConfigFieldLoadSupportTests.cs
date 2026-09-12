@@ -79,11 +79,32 @@ public sealed class PluginConfigFieldLoadSupportTests
     }
 
     [TestMethod]
+    public void Discard_DropsTheRowsWithoutRebuildingThem()
+    {
+        // Discard is what leaving the config tab uses. Rebuilding there was the cost: the schema tree of a
+        // plugin whose config had ever been opened was re-created on every later switch away from it,
+        // while nothing was showing it (measured ~45ms for the 54-component plugin). The rows must
+        // therefore be dropped and NOT rebuilt, and a later access must still produce them.
+        //
+        // Checked through HasLoadedChildren, not Children: the getter builds on demand, so reading it would
+        // hide exactly the difference being asserted.
+        var vm = Vm(Group(TextField("child", "value")));
+        Assert.HasCount(1, vm.Children, "precondition: the tree is loaded");
+        Assert.IsTrue(vm.HasLoadedChildren);
+
+        vm.Discard();
+
+        Assert.IsFalse(vm.HasLoadedChildren, "Discard must not rebuild what it just dropped");
+
+        Assert.HasCount(1, vm.Children, "and the next access must build it again");
+        Assert.AreEqual("value", vm.Children[0].Value);
+    }
+
+    [TestMethod]
     public void Reload_LeavesANeverLoadedTreeLoadable()
     {
-        // Reload is called per field whenever a config tab closes. A tree nobody opened has nothing to
-        // discard, and building it there would put the per-plugin cost back into the selection path the
-        // laziness exists to keep cheap -- but it must still be correct when later opened.
+        // Reload is the rebuilding variant, used when the fields are about to be shown again. A tree
+        // nobody opened has nothing to discard, and it must still be correct when later opened.
         var vm = Vm(Group(TextField("child", "value")));
 
         vm.Reload();

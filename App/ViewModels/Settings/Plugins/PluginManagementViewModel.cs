@@ -26,7 +26,9 @@ public class PluginManagementViewModel : ViewModelBase
         ShowPluginManagementCommand = new RelayCommand(() => IsRuntimeStatusTab = false);
         ShowRuntimeStatusCommand = new RelayCommand(() => IsRuntimeStatusTab = true);
         _selectedPlugin = Plugins.FirstOrDefault();
-        AttachFullyDisabledWatch();
+        // The default sort is "enabled" (disabled sink to the bottom), so reconcile the freshly built
+        // list to it once here -- BuildPluginList only returns rank-then-name order.
+        ApplyPluginSort();
 
         // Dynamically refresh the plugin list when language changes to dynamically apply localized plugin names
         _translationHandler = (s, e) =>
@@ -42,7 +44,7 @@ public class PluginManagementViewModel : ViewModelBase
             // otherwise the next time it is shown rebuilds from the new list anyway.
             if (_runtimeStatusesBuilt) RebuildRuntimeStatuses();
             SelectedPlugin = Plugins.FirstOrDefault(p => p.DllFileName == selectedDll) ?? Plugins.FirstOrDefault();
-            AttachFullyDisabledWatch();
+            ApplyPluginSort();
             OnPropertyChanged(nameof(IsEmpty));
             OnPropertyChanged(nameof(DevGuideUri));
         };
@@ -173,49 +175,53 @@ public class PluginManagementViewModel : ViewModelBase
         ApplyRuntimeStatusFilterAndSort();
     }
 
-    // Toggling a plugin's last components off (or back on) moves its card to its sorted position
-    // in place, instead of waiting for the next rebuild.
-    private void AttachFullyDisabledWatch()
+    // Single sortable column: it toggles between the default rank order and "disabled sink to the
+    // bottom". The header text follows the mode. TogglePluginSort is the header's click handler;
+    // ApplyPluginSort reorders Plugins in place with Move so the selected row keeps its VM and stays
+    // selected. Defaults to "enabled" (disabled sink to the bottom), matching the upstream ordering.
+    private bool _disabledLast = true;
+
+    /// <summary>The column header text for the current sort rule: "name" while in the default rank
+    /// order, "enabled" while disabled plugins are sunk to the bottom.</summary>
+    public string PluginSortLabel => TranslationManager.Instance[_disabledLast ? "Plugins_ColumnEnabled" : "Plugins_ColumnName"];
+
+    /// <summary>Raised after the list is reordered, so the view can scroll the selection back into view.</summary>
+    public event Action? PluginsReordered;
+
+    public void TogglePluginSort()
     {
-        foreach (var plugin in Plugins)
-            plugin.FullyDisabledChanged += p => MovePluginForDisabledState(Plugins, p);
+        _disabledLast = !_disabledLast;
+        OnPropertyChanged(nameof(PluginSortLabel));
+        ApplyPluginSort();
     }
 
-    internal static void MovePluginForDisabledState(ObservableCollection<PluginInfoViewModel> plugins, PluginInfoViewModel plugin)
+    /// <summary>Pure ordering for the plugin list: default rank order, or rank with disabled sunk last.</summary>
+    internal static List<PluginInfoViewModel> SortPluginsList(
+        IReadOnlyList<PluginInfoViewModel> plugins, bool disabledLast)
     {
-        var currentIndex = plugins.IndexOf(plugin);
-        if (currentIndex < 0) return;
+        // Disabled plugins sink below every active one (IsFullyDisabled false < true); within each side
+        // the rank bands then name still apply. In the default order there is no disabled split.
+        var ordered = disabledLast
+            ? plugins.OrderBy(p => p.IsFullyDisabled)
+            : (IOrderedEnumerable<PluginInfoViewModel>)plugins.OrderBy(_ => 0);
 
-        // Find the first position that sorts after the moved plugin: that is exactly where
-        // SortForDisplay would have put it, in the disabled tail as well as back among the active
-        // band. No position found means it belongs at the end.
-        var insertAt = plugins.Count - 1;
-        for (var i = 0; i < plugins.Count; i++)
+        return ordered
+            .ThenBy(p => PluginLoaderHelper.DisplayRank(p.HasConfigFields, p.RawComponents.Any(c => c.IsToggleable)))
+            .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+    }
+
+    private void ApplyPluginSort()
+    {
+        var sorted = SortPluginsList(Plugins, _disabledLast);
+        for (var i = 0; i < sorted.Count; i++)
         {
-            if (i == currentIndex) continue;
-
-            if (CompareDisplayOrder(plugins[i], plugin) > 0)
-            {
-                insertAt = i < currentIndex ? i : i - 1;
-                break;
-            }
+            var current = Plugins.IndexOf(sorted[i]);
+            if (current != i)
+                Plugins.Move(current, i);
         }
 
-        // Move emits one collection change instead of the remove/add pair. WPF can therefore keep
-        // the selected item bound to this same VM while its row changes position.
-        plugins.Move(currentIndex, insertAt);
-    }
-
-    private static int CompareDisplayOrder(PluginInfoViewModel left, PluginInfoViewModel right)
-    {
-        var byDisabled = left.IsFullyDisabled.CompareTo(right.IsFullyDisabled);
-        if (byDisabled != 0) return byDisabled;
-
-        var byRank = PluginLoaderHelper.DisplayRank(left.HasConfigFields, left.RawComponents.Any(c => c.IsToggleable))
-            .CompareTo(PluginLoaderHelper.DisplayRank(right.HasConfigFields, right.RawComponents.Any(c => c.IsToggleable)));
-        if (byRank != 0) return byRank;
-
-        return string.Compare(left.Name, right.Name, StringComparison.CurrentCultureIgnoreCase);
+        PluginsReordered?.Invoke();
     }
 
     private PluginInfoViewModel? _selectedPlugin;
@@ -283,6 +289,10 @@ public class PluginManagementViewModel : ViewModelBase
         // An open config the user edited is written here too, so the Settings window's Apply/OK is the
         // single persistence route for plugin configuration.
         PluginConfigCommitSupport.Commit(PluginConfigCommitSupport.PendingOnSettingsApply(SelectedPlugin));
+
+        // Toggling a component deliberately does not reorder the list live (that read as jumping); the
+        // position is reconciled here, on Apply/OK, against the currently selected sort rule.
+        ApplyPluginSort();
     }
 
     public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;

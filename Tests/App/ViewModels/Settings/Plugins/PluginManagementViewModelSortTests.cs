@@ -7,6 +7,7 @@ namespace Lertaro.App.Tests.ViewModels.Settings.Plugins;
 [TestClass]
 public sealed class PluginManagementViewModelSortTests
 {
+    // Rank bands (configurable > switchable > inert) and disabled state, without a live plugin dir.
     private static PluginInfoViewModel MakePlugin(
         string name,
         bool fullyDisabled = false,
@@ -36,93 +37,52 @@ public sealed class PluginManagementViewModelSortTests
     }
 
     [TestMethod]
-    public void SortForDisplay_FullyDisabledPlugins_SinkBelowAllActiveOnes()
+    public void SortForDisplay_DefaultOrder_IsRankThenName()
     {
-        var disabledConfigurable = MakePlugin("DisabledConfig", fullyDisabled: true, hasConfigFields: false, hasToggleable: true);
-        var activePlain = MakePlugin("ActivePlain", hasToggleable: true);
-        var readOnly = MakePlugin("ReadOnly", hasToggleable: false);
-        var disabledPlain = MakePlugin("ADisabled", fullyDisabled: true, hasToggleable: true);
+        var inert = MakePlugin("Inert", hasToggleable: false);
+        var plain = MakePlugin("Plain");
+        var configurable = MakePlugin("Config", hasConfigFields: true);
+        var disabled = MakePlugin("Disabled", fullyDisabled: true);
 
-        var sorted = PluginLoaderHelper.SortForDisplay(new List<PluginInfoViewModel> { disabledConfigurable, activePlain, readOnly, disabledPlain });
+        var sorted = PluginLoaderHelper.SortForDisplay(new List<PluginInfoViewModel> { inert, disabled, plain, configurable });
 
-        // Every active plugin precedes every fully-disabled one; rank and name order intact within each.
-        Assert.AreEqual("ActivePlain", sorted[0].Name);
-        Assert.AreEqual("ReadOnly", sorted[1].Name);
-        Assert.AreEqual("ADisabled", sorted[2].Name);
-        Assert.AreEqual("DisabledConfig", sorted[3].Name);
+        // Disabled state does NOT sink a plugin in the default order: configurable first, then
+        // switchable, then inert -- alphabetical within each band.
+        CollectionAssert.AreEqual(new[] { "Config", "Disabled", "Plain", "Inert" }, sorted.Select(p => p.Name).ToList());
     }
 
     [TestMethod]
-    public void SortForDisplay_NoDisabledPlugins_KeepsRankAndNameOrder()
+    public void SortPluginsList_Default_IsRankThenName()
     {
-        var plain = MakePlugin("BPlain", hasToggleable: true);
-        var configurable = MakePlugin("AConfig", hasConfigFields: true);
+        var plugins = new List<PluginInfoViewModel>
+        {
+            MakePlugin("Zed", hasToggleable: false),
+            MakePlugin("Alpha"),
+            MakePlugin("Mid", fullyDisabled: true),
+            MakePlugin("ACfg", hasConfigFields: true),
+        };
 
-        var sorted = PluginLoaderHelper.SortForDisplay(new List<PluginInfoViewModel> { plain, configurable });
+        var sorted = PluginManagementViewModel.SortPluginsList(plugins, disabledLast: false);
 
-        // Configurable plugins are still the most actionable band, alphabetical inside it.
-        Assert.AreEqual("AConfig", sorted[0].Name);
-        Assert.AreEqual("BPlain", sorted[1].Name);
+        CollectionAssert.AreEqual(new[] { "ACfg", "Alpha", "Mid", "Zed" }, sorted.Select(p => p.Name).ToList());
     }
 
     [TestMethod]
-    public void MovePluginForDisabledState_LastToggleTurnedOff_MovesIntoSortedDisabledTail()
+    public void SortPluginsList_DisabledLast_SinksDisabledBelowActive()
     {
-        var active = MakePlugin("Active", hasToggleable: true);
-        var other = MakePlugin("Beta", fullyDisabled: true, hasToggleable: true);
-        var moving = MakePlugin("Moving", hasToggleable: true);
-        var plugins = new ObservableCollection<PluginInfoViewModel> { moving, active, other };
+        var plugins = new List<PluginInfoViewModel>
+        {
+            MakePlugin("Zed", hasToggleable: false),
+            MakePlugin("DisabledB", fullyDisabled: true),
+            MakePlugin("Alpha"),
+            MakePlugin("DisabledA", fullyDisabled: true),
+        };
 
-        // Turning the moving plugin's last component off crosses the fully-disabled boundary;
-        // it must land after "Beta" (alphabetical inside the disabled tail), not bluntly last.
-        moving.RawComponents.Single().IsEnabled = false;
-        PluginManagementViewModel.MovePluginForDisabledState(plugins, moving);
+        var sorted = PluginManagementViewModel.SortPluginsList(plugins, disabledLast: true);
 
-        CollectionAssert.AreEquivalent(new[] { "Active", "Beta", "Moving" }, plugins.Select(p => p.Name).ToList());
-        Assert.AreEqual(2, plugins.IndexOf(moving));
-    }
-
-    [TestMethod]
-    public void MovePluginForDisabledState_Reenabled_ReturnsToAlphabeticalActivePosition()
-    {
-        var active = MakePlugin("Active", hasToggleable: true);
-        var disabled = MakePlugin("Zed", fullyDisabled: true, hasToggleable: true);
-        var reenabling = MakePlugin("Mid", fullyDisabled: true, hasToggleable: true);
-        var plugins = new ObservableCollection<PluginInfoViewModel> { active, disabled, reenabling };
-
-        // Reactivating inserts before the first still-disabled plugin ("Zed"), not bluntly last.
-        reenabling.RawComponents.Single().IsEnabled = true;
-        PluginManagementViewModel.MovePluginForDisabledState(plugins, reenabling);
-
-        CollectionAssert.AreEquivalent(new[] { "Active", "Mid", "Zed" }, plugins.Select(p => p.Name).ToList());
-        Assert.AreEqual(1, plugins.IndexOf(reenabling));
-    }
-
-    [TestMethod]
-    public void MovePluginForDisabledState_PluginNotInList_NoOperation()
-    {
-        var plugins = new ObservableCollection<PluginInfoViewModel> { MakePlugin("Active", hasToggleable: true) };
-        var stranger = MakePlugin("Stranger", hasToggleable: true);
-
-        PluginManagementViewModel.MovePluginForDisabledState(plugins, stranger);
-
-        Assert.HasCount(1, plugins);
-    }
-
-    [TestMethod]
-    public void MovePluginForDisabledState_UsesSingleMoveNotification()
-    {
-        var moving = MakePlugin("Moving", hasToggleable: true);
-        var active = MakePlugin("Active", hasToggleable: true);
-        var plugins = new ObservableCollection<PluginInfoViewModel> { moving, active };
-        var actions = new List<System.Collections.Specialized.NotifyCollectionChangedAction>();
-        plugins.CollectionChanged += (_, e) => actions.Add(e.Action);
-
-        moving.RawComponents.Single().IsEnabled = false;
-        PluginManagementViewModel.MovePluginForDisabledState(plugins, moving);
-
+        // Active first (rank then name), then the disabled tail (rank then name).
         CollectionAssert.AreEqual(
-            new[] { System.Collections.Specialized.NotifyCollectionChangedAction.Move }, actions);
+            new[] { "Alpha", "Zed", "DisabledA", "DisabledB" }, sorted.Select(p => p.Name).ToList());
     }
 
     [TestMethod]

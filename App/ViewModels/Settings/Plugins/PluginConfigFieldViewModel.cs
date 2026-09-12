@@ -89,6 +89,34 @@ public class PluginConfigFieldViewModel : ViewModelBase
     /// <summary>Discards staged child/array state so the next access re-reads it from settings.</summary>
     public void ResetChildrenAndArrayItems() => _loadSupport.Reset();
 
+    /// <summary>
+    /// Whether this field's child rows are currently materialized, checked WITHOUT building them (see
+    /// PluginConfigFieldLoadSupport.HasLoadedChildren for why the Children getter cannot answer this).
+    /// </summary>
+    internal bool HasLoadedChildren => _loadSupport.HasLoadedChildren;
+
+    /// <summary>
+    /// Drops staged edits without rebuilding the rows, for when the fields are not on screen.
+    /// </summary>
+    /// <remarks>
+    /// This is the cheap half of a rollback, and the one the selection path uses. Rebuilding here is what
+    /// made switching away from a plugin whose config had ever been opened cost the whole schema's worth
+    /// of work -- while nothing was displaying it. <see cref="Reload"/> is the rebuilding variant, used
+    /// just before the fields are shown again (see PluginInfoViewModel.IsConfigTab).
+    /// </remarks>
+    internal void Discard()
+    {
+        _localValueStore = null;
+        ResetChildrenAndArrayItems();
+    }
+
+    public void Reload()
+    {
+        _localValueStore = null;
+        _loadSupport.Reload();
+        OnPropertyChanged(nameof(Value));
+    }
+
     // The array item shown in the master/detail editor's right-hand panel.
     private PluginConfigArrayItemViewModel? _selectedArrayItem;
     public PluginConfigArrayItemViewModel? SelectedArrayItem
@@ -237,13 +265,6 @@ public class PluginConfigFieldViewModel : ViewModelBase
                 Settings.SetPluginSetting(PluginId, SchemaField.Key, toSave);
             }
         }
-    }
-
-    public void Reload()
-    {
-        _localValueStore = null;
-        ResetChildrenAndArrayItems();
-        OnPropertyChanged(nameof(Value));
     }
 
     public void OnChildChanged()

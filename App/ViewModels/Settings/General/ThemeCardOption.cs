@@ -52,6 +52,33 @@ public sealed class ThemeCardOption
         AccentText = ResolveBrush(res, "PrimaryButtonText");
     }
 
+    /// <summary>
+    /// The theme's brush for <paramref name="key"/>, as a frozen copy.
+    /// </summary>
+    /// <remarks>
+    /// Frozen matters, and not for thread-safety: an unfrozen Freezable used as a dependency-property
+    /// value (every one of these becomes a <c>Fill</c>/<c>Background</c> on the preview card) gets an
+    /// InheritanceContext back to the element holding it. That edge runs brush -> element, so as long as
+    /// the brush itself is reachable, so is the whole visual tree it was painted into. These brushes are
+    /// owned by the ThemeCardOption, which WPF's binding tables keep alive well past the settings
+    /// window's own close -- so each preview card leaked its entire window (measured: one window per open,
+    /// ~20MB each, never reclaimed until restart). A frozen Freezable has no inheritance context, so the
+    /// edge does not exist and the window is collectable again.
+    ///
+    /// A copy rather than freezing the theme's own brush: those are shared with the rest of the UI, and
+    /// freezing an object someone else may still mutate would throw. These values never change, so a
+    /// frozen snapshot is all the preview card needs.
+    /// </remarks>
     private static Brush ResolveBrush(System.Windows.ResourceDictionary res, string key)
-        => res.Contains(key) && res[key] is Brush brush ? brush : Brushes.Gray;
+    {
+        if (!res.Contains(key) || res[key] is not Brush brush)
+            return Brushes.Gray;
+
+        if (brush.IsFrozen)
+            return brush;
+
+        var frozenCopy = brush.Clone();
+        frozenCopy.Freeze();
+        return frozenCopy;
+    }
 }
