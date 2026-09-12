@@ -86,7 +86,9 @@ public class InlineSearchWindowInputHandler
             if (result != null)
             {
                 var asAdmin = Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift);
-                ExecuteResult(result, asAdmin: asAdmin);
+                var current = SearchResultExecutionHelper.ResolveCurrent(result, _window.SearchTextBox.Text, isInlineWindow: true);
+                if (current != null)
+                    ExecuteResult(current, asAdmin);
             }
             return;
         }

@@ -126,14 +126,12 @@ public class QuickSearchWindowInputHandler
             {
                 return;
             }
-
             var result = _window.LstResults.SelectedItem as AppSearchResult;
             if (result == null && _window.LstResults.Items.Count > 0)
             {
                 _window.LstResults.SelectedIndex = 0;
                 result = _window.LstResults.SelectedItem as AppSearchResult;
             }
-
             // File/folder results are handled earlier by HotkeyActionTrigger (Ctrl+Enter locate,
             // Ctrl+Shift+Enter open-as-admin) and never reach here. What reaches here on those chords
             // is a result with no matching file action — notably an application — so honor
@@ -141,7 +139,9 @@ public class QuickSearchWindowInputHandler
             if (result != null)
             {
                 var asAdmin = Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift);
-                ExecuteResult(result, asAdmin: asAdmin);
+                var current = SearchResultExecutionHelper.ResolveCurrent(result, _window.TxtSearch.Text, isInlineWindow: false);
+                if (current != null)
+                    ExecuteResult(current, asAdmin);
             }
             e.Handled = true;
             return;

@@ -72,9 +72,17 @@ internal static class SearchResultsReconciler
                 continue;
 
             // SearchQuery notifies (it is bound), so a no-op assignment is already filtered out by its
-            // own setter. The other two are plain fields -- no notification, no cost.
+            // own setter. The execution payloads are plain fields, but they must follow the fresh row:
+            // instant providers can derive them from the query even when the row identity stays equal.
             live[i].SearchQuery = target[i].SearchQuery;
             live[i].Index = target[i].Index;
+            live[i].PluginActionId = target[i].PluginActionId;
+            live[i].PluginActionArgumentText = target[i].PluginActionArgumentText;
+            live[i].InstantResultActionType = target[i].InstantResultActionType;
+            live[i].InstantResultActionArgument = target[i].InstantResultActionArgument;
+            live[i].InstantResultOnExecute = target[i].InstantResultOnExecute;
+            live[i].InstantResultOnExecuteFunc = target[i].InstantResultOnExecuteFunc;
+            live[i].TabCompletion = target[i].TabCompletion;
             // Read by the full window's type filter, from the freshly-built list rather than from the
             // displayed one, so a stale value here is currently benign -- kept in step anyway so a future
             // reader of a retained row cannot be handed the previous search's answer.

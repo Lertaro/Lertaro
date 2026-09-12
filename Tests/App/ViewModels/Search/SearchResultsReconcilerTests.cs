@@ -109,6 +109,22 @@ public sealed class SearchResultsReconcilerTests
     }
 
     [TestMethod]
+    public void Replace_SameInstantResultUnderANewQuery_UpdatesExecutionPayload()
+    {
+        var before = Result("__INSTANT_RESULT__:CustomCommands:Run", name: "Run", kind: "InstantResult", query: "run old");
+        before.InstantResultActionArgument = "tool.exe old";
+        var results = new ObservableRangeCollection<AppSearchResult> { before };
+        var after = Result("__INSTANT_RESULT__:CustomCommands:Run", name: "Run", kind: "InstantResult", query: "run new");
+        after.InstantResultActionArgument = "tool.exe new";
+
+        SearchResultsReconciler.Replace(results, new[] { after }, null, _ => { });
+
+        Assert.AreSame(before, results[0]);
+        Assert.AreEqual("tool.exe new", before.InstantResultActionArgument,
+            "a retained instant-result row must execute the latest provider payload");
+    }
+
+    [TestMethod]
     public void Replace_SameRowUnderANewQuery_NotifiesSoHighlightingRepaints()
     {
         var before = Result(@"C:\a", query: "a");
