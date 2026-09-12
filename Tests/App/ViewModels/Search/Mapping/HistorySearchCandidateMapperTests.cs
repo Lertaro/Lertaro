@@ -21,6 +21,36 @@ public sealed class HistorySearchCandidateMapperTests
     }
 
     [TestMethod]
+    public void Collect_HistoryMatchesWithEqualQualityPreferHigherCount()
+    {
+        var entries = new[]
+        {
+            Entry("bcomp", @"C:\Apps\LessUsed.exe", HistoryEntryKind.File, count: 2),
+            Entry("bcomp", @"C:\Apps\MoreUsed.exe", HistoryEntryKind.File, count: 5)
+        };
+
+        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"), null, entries, _ => true, _ => false);
+
+        CollectionAssert.AreEqual(
+            new[] { @"C:\Apps\MoreUsed.exe", @"C:\Apps\LessUsed.exe" },
+            results.Select(result => result.Result.FullPath).ToList());
+    }
+
+    [TestMethod]
+    public void Collect_HistoryMatchesPreferCountBeforeMatchWeight()
+    {
+        var entries = new[]
+        {
+            Entry("bc", @"C:\Apps\Exact.exe", HistoryEntryKind.File, count: 1),
+            Entry("bcomp", @"C:\Apps\Frequent.exe", HistoryEntryKind.File, count: 5)
+        };
+
+        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"), null, entries, _ => true, _ => false);
+
+        Assert.AreEqual(@"C:\Apps\Frequent.exe", results[0].Result.FullPath);
+    }
+
+    [TestMethod]
     public void Collect_UnrelatedKeyword_DoesNotAddPath()
     {
         var entries = new[] { Entry("other", @"C:\Apps\BCompare.exe", HistoryEntryKind.File) };
@@ -162,6 +192,6 @@ public sealed class HistorySearchCandidateMapperTests
         Assert.AreEqual(@"\\remote-server\share\report.docx", results[0].Result.FullPath);
     }
 
-    private static HistoryEntry Entry(string keyword, string path, HistoryEntryKind kind) =>
-        new(keyword, path, kind, 100);
+    private static HistoryEntry Entry(string keyword, string path, HistoryEntryKind kind, int count = 1) =>
+        new(keyword, path, kind, 100, count);
 }

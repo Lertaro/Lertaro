@@ -44,8 +44,9 @@ internal static class HistorySearchCandidateMapper
             .Select(entry => (Entry: entry, Match: fuzzy.BestMatch(entry.Keyword)))
             .Where(candidate => candidate.Match.IsMatch)
             .OrderBy(candidate => candidate.Match.Start)
-            .ThenByDescending(candidate => candidate.Match.Weight)
-            .ThenByDescending(candidate => candidate.Entry.Time);
+            .ThenByDescending(candidate => candidate.Entry.Count)
+            .ThenByDescending(candidate => candidate.Entry.Time)
+            .ThenByDescending(candidate => candidate.Match.Weight);
         var candidates = new List<SearchResultMapper.RankedCandidate>(MaxCandidates);
         var candidatePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var normalizedScope = string.IsNullOrEmpty(scope) ? null : SearchResultHelper.NormalizePath(scope);
@@ -59,7 +60,8 @@ internal static class HistorySearchCandidateMapper
                 continue;
 
             // Negative priorities put a learned keyword match ahead of ordinary global history, whose
-            // priorities start at zero. Match quality and recency determined this list's order above.
+            // priorities start at zero. Match position, usage count, recency, and match quality determine
+            // this list's order above.
             candidates.Add(new SearchResultMapper.RankedCandidate(
                 result,
                 IsCurated: true,
