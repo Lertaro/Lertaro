@@ -97,6 +97,18 @@ public sealed class GlobalHotkeyDetector
         return true;
     }
 
+    /// <summary>The global shortcut for opening Quick Navigation in desktop mode.</summary>
+    public bool CheckQuickNavigationHotkey(int vkCode, out bool consumeKey)
+    {
+        consumeKey = false;
+        HotkeyStringFormat.ParseCombo(_settings.Hotkeys.QuickNavigationHotkey, out var modifier, out var key);
+        var targetVk = KeyboardUtils.GetKeyVirtualCode(key);
+        if (targetVk == 0 || vkCode != targetVk || !CheckModifiersMatch(modifier)) return false;
+
+        consumeKey = true;
+        return true;
+    }
+
     public bool CheckAndHandleQuickSwitch(int vkCode, uint time, out bool consumeKey)
     {
         consumeKey = false;

@@ -27,7 +27,6 @@ public static class QuickNavigationMenu
 
     public static void Show(int mouseX, int mouseY)
     {
-        var generation = ++_sessionGeneration;
         var tracker = InlineSearchManager.Instance.ExplorerTracker;
 
         // Captured now, before anything below (the helper window grabbing foreground, the popup sitting
@@ -43,6 +42,29 @@ public static class QuickNavigationMenu
         if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
             path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
+        ShowCore(mouseX, mouseY, trigger, path);
+    }
+
+    public static void ShowFromKeyboard()
+    {
+        var point = Cursor.Position;
+        var tracker = InlineSearchManager.Instance.ExplorerTracker;
+        if (!tracker.IsDesktop && (tracker.IsActiveWindowDialog || tracker.ActiveInlineAdapter?.IsFileExplorer == true))
+        {
+            Show(point.X, point.Y);
+            return;
+        }
+
+        ShowCore(
+            point.X,
+            point.Y,
+            new QuickNavTriggerContext(IntPtr.Zero, IntPtr.Zero, null, IsDesktop: true),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+    }
+
+    private static void ShowCore(int mouseX, int mouseY, QuickNavTriggerContext trigger, string path)
+    {
+        var generation = ++_sessionGeneration;
         _ = ShowAsync(mouseX, mouseY, generation, trigger, path);
     }
 

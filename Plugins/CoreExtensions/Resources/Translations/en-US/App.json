@@ -679,6 +679,7 @@
   "Hotkeys_QuickNavTitle": "Quick Navigation Trigger",
   "Hotkeys_QuickNavDoubleClick": "Double left click in empty space of supported windows",
   "Hotkeys_QuickNavMiddleClick": "Middle click in empty space of supported windows",
+  "Hotkeys_QuickNavHotkey": "Quick Navigation Menu",
   "Settings_Blacklist": "Process Blacklist",
   "Blacklist_Hint": "Add process executable names here that should bypass the keyboard hook. When these processes are in the foreground, Lertaro global hotkeys and typing interception will be direct pass-through.",
   "Blacklist_GlobalTitle": "All hotkeys",

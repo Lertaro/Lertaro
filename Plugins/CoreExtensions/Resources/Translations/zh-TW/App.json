@@ -679,6 +679,7 @@
   "Hotkeys_QuickNavTitle": "快捷導航觸發",
   "Hotkeys_QuickNavDoubleClick": "在支援的視窗空白處雙擊左鍵喚出",
   "Hotkeys_QuickNavMiddleClick": "在支援的視窗空白處點選中鍵喚出",
+  "Hotkeys_QuickNavHotkey": "快速導航選單",
   "Settings_Blacklist": "處理程序黑名單",
   "Blacklist_Hint": "在此新增需要放行鍵盤鉤子（hook）的處理程序可執行檔名稱。當這些處理程序處於前臺活動狀態時，Lertaro 的全域雙擊喚醒快捷鍵及字元輸入攔截將直接被放行而不生效。",
   "Blacklist_GlobalTitle": "全部快速鍵",

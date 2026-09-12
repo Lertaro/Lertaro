@@ -111,7 +111,6 @@ public partial class App : Application
         HookClient = new HookIpcClient();
         PluginSdkBridge.ConfigureExplorerPathTracking();
         HookClient.OnOpenedFoldersCaptured += PluginSdkBridge.UpdateOpenedFolders;
-
         QuickNavigationHookHandlers.AttachTo(HookClient, Dispatcher);
 
         HookClient.OnActivated += () => Dispatcher.BeginInvoke(new Action(() =>
@@ -129,7 +128,8 @@ public partial class App : Application
         }));
         HookClient.OnQuickPanelHotkey += () => Dispatcher.BeginInvoke(
             new Action(() => _quickPanelManager?.Toggle()));
-
+        HookClient.OnQuickNavigationHotkey += () => Dispatcher.BeginInvoke(
+            new Action(QuickNavigationMenu.ShowFromKeyboard));
         HookClient.Start();
         // Set up the quick panel. Built here rather than lazily on the first hotkey so the handler above always
         // has something to call; it creates no window of its own until it is first opened.

@@ -49,6 +49,7 @@ public sealed class HookIpcClient : IDisposable
 
     public event Action? OnActivated;
     public event Action? OnQuickPanelHotkey;
+    public event Action? OnQuickNavigationHotkey;
     public event Action<char>? OnCharacterTyped;
     public event Action? OnBackspacePressed;
     public event Action? OnEscapePressed;
@@ -225,6 +226,7 @@ public sealed class HookIpcClient : IDisposable
             {
                 case IpcMessageId.Activate: OnActivated?.Invoke(); break;
                 case IpcMessageId.QuickPanelHotkey: OnQuickPanelHotkey?.Invoke(); break;
+                case IpcMessageId.QuickNavigationHotkey: OnQuickNavigationHotkey?.Invoke(); break;
                 case IpcMessageId.KeyBackspace: OnBackspacePressed?.Invoke(); break;
                 case IpcMessageId.KeyEscape: OnEscapePressed?.Invoke(); break;
                 case IpcMessageId.KeyEnter: OnEnterPressed?.Invoke(); break;
@@ -237,15 +239,12 @@ public sealed class HookIpcClient : IDisposable
                 case IpcMessageId.KeyChar:
                     OnCharacterTyped?.Invoke(msg.CharVal);
                     break;
-
                 case IpcMessageId.KeyCtrlNumber:
                     OnCtrlNumberPressed?.Invoke(msg.IntVal);
                     break;
-
                 case IpcMessageId.MouseClick:
                     OnMouseClick?.Invoke(msg.MouseX, msg.MouseY);
                     break;
-
                 case IpcMessageId.MouseDoubleClick:
                     OnMouseDoubleClick?.Invoke(msg.MouseX, msg.MouseY);
                     break;

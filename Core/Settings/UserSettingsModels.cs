@@ -77,11 +77,10 @@ public class HotkeyPageSettings
     public string ToggleWindowHotkey { get; set; } = "Ctrl";
 
     /// <summary>
-    /// By default, the global hotkeys (this one, Quick Switch, and inline-search activation) are let
-    /// through untouched while the foreground window is genuinely full-screen, so they don't fight with
-    /// fullscreen games -- see KeyboardHookService's shouldDisableAllHooks gate. Opting in here removes
-    /// that exemption for a user whose configured combo won't collide with anything the fullscreen app
-    /// itself uses (see #118).
+    /// By default, global hotkeys are let through untouched while the foreground window is genuinely
+    /// full-screen, so they don't fight with fullscreen games -- see KeyboardHookService's gate. Opting
+    /// in here removes that exemption for a user whose configured combos won't collide with anything the
+    /// fullscreen app itself uses (see #118).
     /// </summary>
     public bool AllowHotkeysInFullscreen { get; set; }
 
@@ -132,6 +131,9 @@ public class HotkeyPageSettings
     // Global, not window-level like StayOpen above: the panel docks onto whatever window is in front,
     // so it has to be reachable while that window has focus, which means the hook service detects it.
     public string QuickPanelHotkey { get; set; } = "Ctrl+F2";
+
+    /// <summary>Global shortcut for opening Quick Navigation in desktop mode.</summary>
+    public string QuickNavigationHotkey { get; set; } = string.Empty;
 
     /// <summary>
     /// User overrides for plugin action hotkeys, keyed by plugin ID (the DLL file name without its

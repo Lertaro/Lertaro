@@ -24,14 +24,18 @@
 
     <StackPanel>
         <!-- Group: Global Hotkeys -->
-        <TextBlock x:Name="RowGroupGlobal" Style="{StaticResource SettingsGroupTitle}" Margin="0,0,0,10"
-                   Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_GroupGlobal]}"/>
+        <StackPanel x:Name="RowGroupGlobal" Orientation="Horizontal">
+            <TextBlock Style="{StaticResource SettingsGroupTitle}" Margin="0,0,16,8"
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_GroupGlobal]}"/>
+            <CheckBox x:Name="RowAllowHotkeysInFullscreen" VerticalAlignment="Center" Margin="0,0,0,8"
+                      Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_AllowInFullscreen]}"
+                      IsChecked="{Binding AllowHotkeysInFullscreen, Mode=TwoWay}"/>
+        </StackPanel>
 
         <Grid x:Name="RowToggleHotkey" Margin="0,4,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" SharedSizeGroup="HotkeyLabel"/>
                 <ColumnDefinition Width="200"/>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_ToggleLabel]}" Margin="0,0,16,0" VerticalAlignment="Center"/>
@@ -51,9 +55,6 @@
                     </Style>
                 </TextBlock.Style>
             </TextBlock>
-            <CheckBox x:Name="RowAllowHotkeysInFullscreen" Grid.Column="3" VerticalAlignment="Center" Margin="16,0,0,0"
-                      Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_AllowInFullscreen]}"
-                      IsChecked="{Binding AllowHotkeysInFullscreen, Mode=TwoWay}"/>
         </Grid>
 
         <CheckBox x:Name="RowOpenFullWindowByDefault" Margin="0,6,0,0"
@@ -69,6 +70,17 @@
             <ctrl:HotkeyRecorderControl Grid.Column="1" Width="200" Height="26"
                 Value="{Binding QuickSwitchComboHotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                 RequireModifier="True" DefaultValue="Ctrl+G"/>
+        </Grid>
+
+        <Grid x:Name="RowQuickNavHotkey" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" SharedSizeGroup="HotkeyLabel"/>
+                <ColumnDefinition Width="200"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_QuickNavHotkey]}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+            <ctrl:HotkeyRecorderControl Grid.Column="1" Width="200" Height="26"
+                Value="{Binding QuickNavigationHotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                RequireModifier="True" DefaultValue=""/>
         </Grid>
 
         <TextBlock x:Name="RowSelectionTitle" Style="{StaticResource SettingsSubHeading}" FontSize="15"

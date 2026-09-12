@@ -58,11 +58,11 @@ public static class PipeRequestBinarySerializer
             case IpcMessageId.KeyEnter:
             case IpcMessageId.KeyUp:
             case IpcMessageId.QuickPanelHotkey:
+            case IpcMessageId.QuickNavigationHotkey:
             case IpcMessageId.KeyDown:
             case IpcMessageId.KeyLeft:
             case IpcMessageId.KeyRight:
                 break;
-
             case IpcMessageId.SetAppProcessId:
             case IpcMessageId.KillProcess:
                 writer.Write(msg.ProcessId);
@@ -168,6 +168,7 @@ public static class PipeRequestBinarySerializer
             case IpcMessageId.KeyEnter:
             case IpcMessageId.KeyUp:
             case IpcMessageId.QuickPanelHotkey:
+            case IpcMessageId.QuickNavigationHotkey:
             case IpcMessageId.KeyDown:
             case IpcMessageId.KeyLeft:
             case IpcMessageId.KeyRight:

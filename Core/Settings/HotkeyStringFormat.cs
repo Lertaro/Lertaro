@@ -1,8 +1,9 @@
 namespace Lertaro.Core;
 
 /// <summary>
-/// Shared parsing for the flat hotkey string format used by <see cref="HotkeyPageSettings.ToggleWindowHotkey"/>
-/// and <see cref="HotkeyPageSettings.QuickSwitchHotkey"/>: a bare modifier token ("Ctrl"/"Alt"/"Shift"/"Win")
+/// Shared parsing for the flat hotkey string format used by global hotkeys such as
+/// <see cref="HotkeyPageSettings.ToggleWindowHotkey"/> and <see cref="HotkeyPageSettings.QuickNavigationHotkey"/>:
+/// a bare modifier token ("Ctrl"/"Alt"/"Shift"/"Win")
 /// means double-tap that modifier; anything else ("Mod+Key" or a bare key) is a literal key combo.
 /// </summary>
 public static class HotkeyStringFormat

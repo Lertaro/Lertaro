@@ -679,6 +679,7 @@
   "Hotkeys_QuickNavTitle": "Activador de Navegación Rápida",
   "Hotkeys_QuickNavDoubleClick": "Doble clic izquierdo en un espacio vacío de las ventanas compatibles",
   "Hotkeys_QuickNavMiddleClick": "Clic central en un espacio vacío de las ventanas compatibles",
+  "Hotkeys_QuickNavHotkey": "Menú de Navegación Rápida",
   "Settings_Blacklist": "Lista Negra de Procesos",
   "Blacklist_Hint": "Añade aquí los nombres de los ejecutables de proceso que deben omitir el hook de teclado. Cuando estos procesos están en primer plano, los atajos de teclado globales de Lertaro y la interceptación de escritura pasarán directamente sin interferencia.",
   "Blacklist_GlobalTitle": "Todos los atajos",

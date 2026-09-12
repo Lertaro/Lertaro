@@ -23,6 +23,7 @@ public class KeyboardHookService : IDisposable
 
     public event Action? OnDoubleCtrl;
     public event Action? OnQuickPanelHotkey;
+    public event Action? OnQuickNavigationHotkey;
     public event Action<char>? OnCharacterTyped;
     public event Action? OnBackspacePressed;
     public event Action? OnEscapePressed;
@@ -177,7 +178,6 @@ public class KeyboardHookService : IDisposable
             var isFullscreenBlocking = !_settings.Hotkeys.AllowHotkeysInFullscreen && FullscreenHelper.IsForegroundWindowFullScreen();
             var shouldDisableAllHooks = (IsHotkeysDisabledTemporarily || ForegroundProcessGate.IsForegroundProcessBlacklisted(_settings.BlacklistedProcesses) || isFullscreenBlocking)
                                          && !_explorerTracker.IsActiveWindowDialog;
-
             // The quick panel first: a plain combination with no bare-modifier form, so nothing below
             // is waiting to see whether this key turns out to be part of a tap.
             if (!shouldDisableAllHooks && _hotkeyDetector.CheckQuickPanelHotkey(vkCode, out var consumeQuickPanel))
@@ -185,7 +185,6 @@ public class KeyboardHookService : IDisposable
                 OnQuickPanelHotkey?.Invoke();
                 if (consumeQuickPanel) return (IntPtr)1;
             }
-
             if (!shouldDisableAllHooks && _hotkeyDetector.CheckToggleWindowHotkey(vkCode, time, out var consumeToggleKey, OnDoubleCtrl))
             {
                 if (consumeToggleKey)
@@ -231,6 +230,15 @@ public class KeyboardHookService : IDisposable
                         _explorerTracker.ReclassifyActiveWindowBounded(fgHwnd);
                     }
                 }
+            }
+
+            // File dialogs and recognized file managers remain eligible even when their process is on the
+            // blacklist or the window is fullscreen. Other foreground processes honor both protections.
+            var shouldDisableQuickNavigation = QuickNavigationHotkeyGate.ShouldSuppress(_explorerTracker, _settings, IsHotkeysDisabledTemporarily, isFullscreenBlocking);
+            if (!shouldDisableQuickNavigation && _hotkeyDetector.CheckQuickNavigationHotkey(vkCode, out var consumeQuickNavigation))
+            {
+                OnQuickNavigationHotkey?.Invoke();
+                if (consumeQuickNavigation) return (IntPtr)1;
             }
             // 3. Detect and handle Quick Switch Hotkey
             if (!shouldDisableAllHooks && _hotkeyDetector.CheckAndHandleQuickSwitch(vkCode, time, out var consumeQuickSwitchKey))

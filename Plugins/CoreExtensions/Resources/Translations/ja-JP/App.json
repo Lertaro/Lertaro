@@ -679,6 +679,7 @@
   "Hotkeys_QuickNavTitle": "クイックナビゲーションのトリガー",
   "Hotkeys_QuickNavDoubleClick": "対応ウィンドウの空白部分をダブルクリック",
   "Hotkeys_QuickNavMiddleClick": "対応ウィンドウの空白部分を中クリック",
+  "Hotkeys_QuickNavHotkey": "クイックナビゲーションメニュー",
   "Settings_Blacklist": "プロセスブラックリスト",
   "Blacklist_Hint": "キーボードフックを迂回させたいプロセスの実行ファイル名をここに追加します。これらのプロセスが前面にある間、Lertaro のグローバルホットキーと入力インターセプトはそのまま素通しされます。",
   "Blacklist_GlobalTitle": "すべてのホットキー",

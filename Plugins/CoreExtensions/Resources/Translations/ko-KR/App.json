@@ -679,6 +679,7 @@
   "Hotkeys_QuickNavTitle": "빠른 탐색 트리거",
   "Hotkeys_QuickNavDoubleClick": "지원되는 창의 빈 공간에서 왼쪽 버튼 더블클릭",
   "Hotkeys_QuickNavMiddleClick": "지원되는 창의 빈 공간에서 가운데 버튼 클릭",
+  "Hotkeys_QuickNavHotkey": "빠른 탐색 메뉴",
   "Settings_Blacklist": "프로세스 차단 목록",
   "Blacklist_Hint": "키보드 후크를 우회할 프로세스 실행 파일 이름을 여기에 추가하세요. 이러한 프로세스가 포그라운드에 있을 때 Lertaro의 전역 단축키와 입력 가로채기가 그대로 통과됩니다.",
   "Blacklist_GlobalTitle": "모든 단축키",

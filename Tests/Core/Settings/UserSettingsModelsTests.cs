@@ -12,6 +12,10 @@ public sealed class UserSettingsModelsTests
         Assert.IsFalse(new HotkeyPageSettings().QuickNavTriggerOnDoubleClick);
 
     [TestMethod]
+    public void HotkeyPageSettings_LeavesQuickNavigationHotkeyUnassignedByDefault() =>
+        Assert.IsEmpty(new HotkeyPageSettings().QuickNavigationHotkey);
+
+    [TestMethod]
     public void MainWindowSettings_AllowsMultipleInstancesByDefault() =>
         Assert.IsFalse(new MainWindowSettings().SingleInstance);
 

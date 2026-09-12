@@ -39,6 +39,7 @@ public class HotkeySettingsViewModel : ViewModelBase
         _localSendSendWindowHotkey = hotkeys.LocalSendSendWindowHotkey;
         _stayOpenHotkey = hotkeys.StayOpenHotkey;
         _quickPanelHotkey = hotkeys.QuickPanelHotkey;
+        _quickNavigationHotkey = hotkeys.QuickNavigationHotkey;
 
         PluginActionGroups = HotkeyPluginActionGroupBuilder.Build(hotkeys.PluginActionHotkeys);
 
@@ -210,6 +211,13 @@ public class HotkeySettingsViewModel : ViewModelBase
         set => SetProperty(ref _quickPanelHotkey, value);
     }
 
+    private string _quickNavigationHotkey;
+    public string QuickNavigationHotkey
+    {
+        get => _quickNavigationHotkey;
+        set => SetProperty(ref _quickNavigationHotkey, value);
+    }
+
     private string _stayOpenHotkey;
     public string StayOpenHotkey
     {
@@ -249,6 +257,7 @@ public class HotkeySettingsViewModel : ViewModelBase
         hotkeys.LocalSendSendWindowHotkey = LocalSendSendWindowHotkey;
         hotkeys.StayOpenHotkey = StayOpenHotkey;
         hotkeys.QuickPanelHotkey = QuickPanelHotkey;
+        hotkeys.QuickNavigationHotkey = QuickNavigationHotkey;
 
         var pluginActionHotkeys = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var group in PluginActionGroups)

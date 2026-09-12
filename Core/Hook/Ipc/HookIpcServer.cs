@@ -53,6 +53,7 @@ public sealed class HookIpcServer : IDisposable
 
     public void SendActivate() => SendMessage(new IpcMessage { Id = IpcMessageId.Activate });
     public void SendQuickPanelHotkey() => SendMessage(new IpcMessage { Id = IpcMessageId.QuickPanelHotkey });
+    public void SendQuickNavigationHotkey() => SendMessage(new IpcMessage { Id = IpcMessageId.QuickNavigationHotkey });
 
     private async Task ProcessWriteQueueAsync(NamedPipeServerStream pipe, CancellationToken token)
     {

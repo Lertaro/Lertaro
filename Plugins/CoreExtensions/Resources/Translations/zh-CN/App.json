@@ -679,6 +679,7 @@
   "Hotkeys_QuickNavTitle": "快捷导航触发",
   "Hotkeys_QuickNavDoubleClick": "在支持的窗口空白处双击左键呼出",
   "Hotkeys_QuickNavMiddleClick": "在支持的窗口空白处点击中键呼出",
+  "Hotkeys_QuickNavHotkey": "快速导航菜单",
   "Settings_Blacklist": "进程黑名单",
   "Blacklist_Hint": "在此添加需要放行键盘钩子（hook）的进程可执行文件名称。当这些进程处于前台活动状态时，Lertaro 的全局双击唤醒快捷键及字符输入拦截将直接被放行而不生效。",
   "Blacklist_GlobalTitle": "全部快捷键",

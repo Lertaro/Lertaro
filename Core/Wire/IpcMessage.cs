@@ -45,6 +45,7 @@ public enum IpcMessageId : byte
     // foreground window itself, which has to be the one in front at that moment rather than whatever
     // the hook happened to see.
     QuickPanelHotkey = 36,
+    QuickNavigationHotkey = 42,
     ExecuteInlineItemResponse = 40,
     OpenedFoldersCaptured = 41
 }
