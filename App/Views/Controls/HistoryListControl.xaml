@@ -144,13 +144,18 @@
                 <!-- Virtualized ListBox: the keyword tab can hold thousands of rows, and a plain
                      ItemsControl realized every row up front the first time the tab was shown. The
                      ListBox scrolls itself (no outer ScrollViewer, which would disable virtualization),
-                     so only the rows actually in view are built. -->
+                     so only the rows actually in view are built. ScrollUnit=Pixel keeps virtualization
+                     while scrolling by pixel (matching the plugin list), which is what lets the app-wide
+                     smooth-wheel glide target this list without realizing every row. -->
                 <ListBox Grid.Row="1" ItemsSource="{Binding FilteredItems}" ItemTemplate="{StaticResource HistoryEntryTemplate}"
                          MaxHeight="320" BorderThickness="0" Background="Transparent"
                          ScrollViewer.VerticalScrollBarVisibility="Auto"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          Focusable="False"
                          VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.ScrollUnit="Pixel"
+                         VirtualizingPanel.CacheLength="8"
+                         VirtualizingPanel.CacheLengthUnit="Item"
                          VirtualizingPanel.VirtualizationMode="Recycling">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">

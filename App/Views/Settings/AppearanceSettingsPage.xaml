@@ -46,6 +46,12 @@
             <Style x:Key="ThemeCardListBox" TargetType="ListBox">
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Background" Value="Transparent"/>
+                <!-- The card grid is static while the page scrolls (it only changes when the user picks
+                     a theme), so caching the whole list to a bitmap makes the outer ScrollViewer pan one
+                     pre-rendered surface instead of re-laying out about twenty nested drop-shadow cards
+                     every frame: the difference between smooth and visibly stuttering scroll. WPF
+                     invalidates the cache on the rare content change (selection, mode switch). -->
+                <Setter Property="CacheMode" Value="BitmapCache"/>
                 <Setter Property="ItemContainerStyle" Value="{StaticResource ThemeCardContainerStyle}"/>
                 <Setter Property="ItemTemplate" Value="{StaticResource ThemeCardTemplate}"/>
                 <Setter Property="SelectedValuePath" Value="Id"/>
