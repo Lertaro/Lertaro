@@ -80,7 +80,6 @@ public class PluginComponentGroupViewModel : ViewModelBase
 /// </summary>
 public class PluginInfoViewModel : ViewModelBase
 {
-
     public PluginInfoViewModel(
         string name,
         string version,
@@ -100,6 +99,7 @@ public class PluginInfoViewModel : ViewModelBase
         SdkVersion = sdkVersion;
         RawComponents = components;
         ConfigFields = new ObservableCollection<PluginConfigFieldViewModel>(configFields);
+        _configTabState = new PluginConfigTabState(this);
         Description = description;
         OnSave = onSave;
         OnRollback = onRollback;
@@ -115,6 +115,11 @@ public class PluginInfoViewModel : ViewModelBase
             .ToList();
 
         ComponentGroups = new ObservableCollection<PluginComponentGroupViewModel>(groups);
+
+        // Flat "group header, then its rows" list for the virtualized ListBox (only visible rows built).
+        ComponentRows = groups
+            .SelectMany(g => new object[] { g }.Concat(g.Components))
+            .ToList();
 
         // TranslationProvider/ThemeProvider components have no checkbox at all (see IsToggleable),
         // so there's nothing for the plugin-wide select-all button to toggle for those.
@@ -147,6 +152,7 @@ public class PluginInfoViewModel : ViewModelBase
 
     public List<PluginComponentViewModel> RawComponents { get; }
     public ObservableCollection<PluginComponentGroupViewModel> ComponentGroups { get; }
+    public IReadOnlyList<object> ComponentRows { get; }
     public ObservableCollection<PluginConfigFieldViewModel> ConfigFields { get; }
 
     public bool HasConfigFields => ConfigFields.Count > 0;
@@ -161,27 +167,16 @@ public class PluginInfoViewModel : ViewModelBase
 
     public ICommand ToggleAllComponentsCommand { get; }
 
-    /// <summary>
-    /// Raised when the plugin crosses the fully-disabled boundary (every toggleable component
-    /// off, or back on again), so the owning list can move the card to its new sort position.
-    /// </summary>
-    public event Action<PluginInfoViewModel>? FullyDisabledChanged;
-
     private bool _isFullyDisabled;
 
     /// <summary>
     /// Whether every toggleable component of this plugin is currently disabled. A plugin with no
     /// toggleable components at all (translation/theme-only) can never be "fully disabled" --
-    /// there is nothing the user turned off. Fully-disabled plugins sort after all others.
+    /// there is nothing the user turned off.
     /// </summary>
     public bool IsFullyDisabled
     {
-        get => _isFullyDisabled;
-        private set
-        {
-            if (SetProperty(ref _isFullyDisabled, value))
-                FullyDisabledChanged?.Invoke(this);
-        }
+        get => _isFullyDisabled; private set => SetProperty(ref _isFullyDisabled, value);
     }
 
     private bool ComputeFullyDisabled()
@@ -205,13 +200,7 @@ public class PluginInfoViewModel : ViewModelBase
     }
 
     private bool _isConfigTab;
-
-    // Whether this plugin's config tab has ever been opened this session. RollbackConfig rebuilds every
-    // field from settings, which is real work proportional to the schema's whole tree -- and edits are
-    // only possible while the tab is open, so for a plugin the user never configured that rebuild would
-    // reproduce values that are already current. Selecting plugins in the list used to pay it on every
-    // click, for every plugin, which is what made clicking one feel delayed.
-    private bool _configOpened;
+    private readonly PluginConfigTabState _configTabState;
 
     /// <summary>
     /// Which of the pane's two tabs is showing: false for the plugin's details, true for its config.
@@ -223,6 +212,7 @@ public class PluginInfoViewModel : ViewModelBase
     /// Leaving the config tab rolls its fields back, which is what closing the old modal window did.
     /// Edits are only written by the tab's own OK button; anything abandoned by navigating away must not
     /// survive in the view models, or a later OK would write values the user thought they had discarded.
+    /// See PluginConfigTabState for why the rollback is split into a cheap drop plus a deferred rebuild.
     /// </remarks>
     public bool IsConfigTab
     {
@@ -230,8 +220,9 @@ public class PluginInfoViewModel : ViewModelBase
         set
         {
             if (_isConfigTab == value) return;
-            if (value) _configOpened = true;
-            if (!value) RollbackConfig();
+
+            if (value) _configTabState.Opened();
+            else RollbackConfig();
             SetProperty(ref _isConfigTab, value);
         }
     }
@@ -239,16 +230,17 @@ public class PluginInfoViewModel : ViewModelBase
     public Action? OnSave { get; }
     public Action? OnRollback { get; }
 
+    /// <summary>
+    /// Discards config the user staged and did not save, because the config tab is no longer shown.
+    /// </summary>
+    /// <remarks>
+    /// Also folds away the old double call -- selecting another plugin ran RollbackConfig and then
+    /// IsConfigTab = false, which ran it a second time.
+    /// </remarks>
     public void RollbackConfig()
     {
-        // Nothing was ever staged, so the rebuild below would only re-read the values already in place.
-        // See _configOpened. This also folds away the old double call: selecting a different plugin ran
-        // RollbackConfig and then IsConfigTab = false, which ran it a second time.
-        if (!_configOpened) return;
-        _configOpened = false;
+        if (!_configTabState.Closed()) return;
 
-        foreach (var field in ConfigFields)
-            field.Reload();
         _selectedConfigGroup = ConfigGroups.FirstOrDefault();
         OnPropertyChanged(nameof(SelectedConfigGroup));
         OnPropertyChanged(nameof(ActiveConfigGroupChildren));

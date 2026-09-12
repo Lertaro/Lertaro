@@ -96,11 +96,11 @@ public static class PluginLoaderHelper
         return SortForDisplay(result);
     }
 
-    /// <summary>Final display order of the plugin list: fully-disabled plugins sink to the end
-    /// (they are the least actionable), then the actionable-first DisplayRank bands, then name.</summary>
+    /// <summary>Final display order of the plugin list: the actionable-first rank bands, then name.
+    /// Fully-disabled plugins stay in place here -- sinking them is a separate toggle on the page, not
+    /// part of the load order (a plugin must not jump just because its last component was toggled).</summary>
     internal static List<PluginInfoViewModel> SortForDisplay(IEnumerable<PluginInfoViewModel> plugins) => plugins
-        .OrderBy(p => p.IsFullyDisabled)
-        .ThenBy(p => DisplayRank(p.HasConfigFields, p.RawComponents.Any(c => c.IsToggleable)))
+        .OrderBy(p => DisplayRank(p.HasConfigFields, p.RawComponents.Any(c => c.IsToggleable)))
         .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
         .ToList();
 

@@ -155,13 +155,33 @@
                 <ColumnDefinition Width="3*" MinWidth="360"/>
             </Grid.ColumnDefinitions>
 
+            <!-- Left pane: a sortable column header row over the plugin list. -->
+            <Grid Grid.Column="0" Margin="0,0,8,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Single column header: the whole row is clickable and toggles between the default
+                     rank order and "disabled sink to the bottom"; its text follows the current rule. -->
+                <Grid Grid.Row="0" Margin="8,0,8,4" Background="Transparent"
+                      Cursor="Hand" MouseLeftButtonUp="PluginColumnHeader_Click">
+                    <StackPanel Orientation="Horizontal" IsHitTestVisible="False">
+                        <TextBlock Text="↑↓" FontSize="10"
+                                   Foreground="{DynamicResource TextSecondary2}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock Text="{Binding PluginSortLabel}"
+                                   FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary2}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
             <!-- PluginListItemStyle is SidebarItemStyle with tighter sides (see Resources above), so this
                  list still reads as the settings window nav list one level in, not a raw ListBox. -->
-            <ListBox x:Name="PluginsList" Grid.Column="0" ItemsSource="{Binding Plugins}"
+            <ListBox x:Name="PluginsList" Grid.Row="1" ItemsSource="{Binding Plugins}"
                      SelectedItem="{Binding SelectedPlugin, Mode=TwoWay}"
                      ItemContainerStyle="{StaticResource PluginListItemStyle}"
                      SelectionChanged="PluginsList_SelectionChanged"
-                     BorderThickness="0" Background="Transparent" Margin="0,0,8,0"
+                     BorderThickness="0" Background="Transparent"
                      ScrollViewer.VerticalScrollBarVisibility="Auto"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      VirtualizingPanel.IsVirtualizing="True"
@@ -174,31 +194,27 @@
                      otherwise. -->
                 <ListBox.ItemTemplate>
                     <DataTemplate>
+                        <!-- Single column: icon + name + version pill, faded to 35% while disabled. -->
                         <Grid Margin="0,2">
+                            <Grid.Style>
+                                <Style TargetType="Grid">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsFullyDisabled}" Value="True">
+                                            <Setter Property="Opacity" Value="0.35"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- The detail pane's icon tile at list scale. Same neutral tile and same
-                                 fallback glyph, because there is no per-plugin icon to draw: a plugin
-                                 does not supply one, so both places show the one mark that stands for
-                                 "a plugin" and the row is identifiable by its name.
-
-                                 Layered like the version pill below, and for the same reason: the tile
-                                 in the detail pane can be a flat fill because it sits on a card that
-                                 never changes colour, but here it sits on a row that tints itself when
-                                 selected, and a flat fill would sink into that tint and leave the glyph
-                                 floating on its own. -->
-                            <!-- Taller than the name and version stacked beside it, deliberately: with
-                                 the tile the shorter of the two it was the tile that ended up centred
-                                 against the text, which reads as the text leading the row. Being the
-                                 tallest thing here makes it set the row's height and the text centre
-                                 against it instead. -->
-                            <Grid Grid.Column="0" Width="42" Height="42" Margin="0,0,8,0" VerticalAlignment="Center">
-                                <Border CornerRadius="10" IsHitTestVisible="False"
+                            <!-- Icon tile at 80% of its former height so the rows sit tighter. -->
+                            <Grid Grid.Column="0" Width="34" Height="34" Margin="0,0,8,0" VerticalAlignment="Center">
+                                <Border CornerRadius="8" IsHitTestVisible="False"
                                         Background="{DynamicResource HoverBackground}" Opacity="0.5"/>
-                                <Border CornerRadius="10" IsHitTestVisible="False">
+                                <Border CornerRadius="8" IsHitTestVisible="False">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
@@ -212,23 +228,12 @@
                                     </Border.Style>
                                 </Border>
                                 <TextBlock Text="&#xE71D;" FontFamily="Segoe MDL2 Assets"
-                                           FontSize="19" Foreground="{DynamicResource AccentBlue}"
+                                           FontSize="16" Foreground="{DynamicResource AccentBlue}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Grid>
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Name}" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                <!-- The quick window's shortcut pill (ShortcutHintBadge.xaml) rather
-                                     than the header's SDK badge: one badge in a header reads as a
-                                     highlight, but those colours repeated down every row out-shout the
-                                     plugin names, which are what this list is for.
-
-                                     Built the same way that pill is, both layers included. The second
-                                     one is the point: a single fill sits on a row that carries its own
-                                     selection tint, so on the selected row the badge and the row behind
-                                     it end up the same colour and the badge disappears. The accent
-                                     overlay is what separates them again, and it is keyed off the row's
-                                     own IsSelected so the two can never drift apart. -->
                                 <Border CornerRadius="4" BorderThickness="1" BorderBrush="Transparent"
                                         Margin="0,3,0,0" HorizontalAlignment="Left">
                                     <Grid>
@@ -256,6 +261,7 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
+            </Grid>
 
             <Border Grid.Column="1" Width="1" Background="{DynamicResource BorderColor}"/>
 

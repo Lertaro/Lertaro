@@ -22,6 +22,13 @@ internal sealed class PluginConfigFieldLoadSupport
 
     internal PluginConfigFieldLoadSupport(PluginConfigFieldViewModel field) => _field = field;
 
+    /// <summary>
+    /// Whether the child rows are currently materialized. Read without triggering a load, so a test (or a
+    /// diagnostic) can tell "dropped, waiting for a rebuild" from "never built" -- the public Children
+    /// getter builds on demand and so cannot distinguish them.
+    /// </summary>
+    internal bool HasLoadedChildren => _childrenLoaded;
+
     internal ObservableCollection<PluginConfigFieldViewModel> Children
     {
         get
@@ -80,19 +87,30 @@ internal sealed class PluginConfigFieldLoadSupport
     }
 
     /// <summary>
-    /// Drops everything loaded so the next access re-reads it from settings, which is what makes
-    /// <see cref="PluginConfigFieldViewModel.Reload"/> still mean "discard staged edits". Rebuilds only
-    /// what had actually been built: a tree nobody opened has nothing to discard, and re-populating it
-    /// here would put the per-plugin cost straight back into the selection path the laziness keeps clear.
+    /// Drops everything loaded so the next access re-reads it from settings -- the cheap half of
+    /// discarding staged edits. It deliberately does NOT repopulate: the collections are stable
+    /// instances, so rebuilding here is only visible if something re-reads them, and the whole point is
+    /// to keep that cost off the path that does not display the fields.
     /// </summary>
     internal void Reset()
     {
         _children.Clear();
         _arrayItems.Clear();
-        var hadChildren = _childrenLoaded;
-        var hadArrayItems = _arrayItemsLoaded;
         _childrenLoaded = false;
         _arrayItemsLoaded = false;
+    }
+
+    /// <summary>
+    /// Discards staged state AND rebuilds whatever had been loaded, for when the fields are about to be
+    /// shown again. <see cref="Reset"/> alone leaves the (stable) collections empty, and a control already
+    /// bound to them does not re-read the property, so the rebuild has to happen before showing.
+    /// </summary>
+    internal void Reload()
+    {
+        var hadChildren = _childrenLoaded;
+        var hadArrayItems = _arrayItemsLoaded;
+
+        Reset();
 
         if (hadChildren) EnsureChildrenLoaded();
         if (hadArrayItems) EnsureArrayItemsLoaded();

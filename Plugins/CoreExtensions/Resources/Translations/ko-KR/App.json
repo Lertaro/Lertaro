@@ -594,6 +594,8 @@
   "Plugins_VisitWebsite": "웹사이트 방문",
   "Plugins_ConfigurationTitle": "플러그인 설정",
   "Plugins_NoPlugins": "설치된 플러그인이 없습니다.",
+  "Plugins_ColumnEnabled": "사용",
+  "Plugins_ColumnName": "이름",
   "Plugins_Version": "버전",
   "Plugins_DllSource": "소스 파일",
   "Plugins_ComponentsTitle": "구성 요소",

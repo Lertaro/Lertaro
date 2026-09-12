@@ -594,6 +594,8 @@
   "Plugins_VisitWebsite": "Visit website",
   "Plugins_ConfigurationTitle": "Plugin Configuration",
   "Plugins_NoPlugins": "No plugins installed.",
+  "Plugins_ColumnEnabled": "Enabled",
+  "Plugins_ColumnName": "Name",
   "Plugins_Version": "Version",
   "Plugins_DllSource": "Source File",
   "Plugins_ComponentsTitle": "Components",

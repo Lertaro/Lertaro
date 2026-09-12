@@ -594,6 +594,8 @@
   "Plugins_VisitWebsite": "造訪網站",
   "Plugins_ConfigurationTitle": "外掛程式設定",
   "Plugins_NoPlugins": "未安裝任何外掛程式。",
+  "Plugins_ColumnEnabled": "啟用",
+  "Plugins_ColumnName": "名稱",
   "Plugins_Version": "版本",
   "Plugins_DllSource": "來源檔案",
   "Plugins_ComponentsTitle": "功能元件",
