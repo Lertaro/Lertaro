@@ -185,13 +185,12 @@
                      ScrollViewer.VerticalScrollBarVisibility="Auto"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      VirtualizingPanel.IsVirtualizing="True"
+                     VirtualizingPanel.ScrollUnit="Pixel"
                      VirtualizingPanel.VirtualizationMode="Recycling">
-                <!-- Item-based scrolling (CanContentScroll left at its default of True) is deliberate:
-                     setting it false forces physical scrolling, which disables virtualization entirely,
-                     so every plugin row's full template realized up front and the list cost scaled with
-                     the plugin count instead of with what is actually on screen. Recycling keeps the
-                     realized containers for reuse while scrolling, since these rows rebuild from scratch
-                     otherwise. -->
+                <!-- Keep virtualization enabled while using pixel scrolling. Setting CanContentScroll to
+                     False would also produce pixel scrolling, but it disables the virtualizing panel and
+                     realizes every plugin row up front. ScrollUnit changes only the scroll granularity,
+                     while recycling keeps realized containers reusable. -->
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <!-- Single column: icon + name + version pill, faded to 35% while disabled. -->

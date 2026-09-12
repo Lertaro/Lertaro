@@ -23,6 +23,8 @@ public sealed class PluginPagePerformanceInvariantTests
         Assert.DoesNotContain("CanContentScroll=\"False\"", list,
             "the plugin list must not opt out of virtualization");
         Assert.Contains("VirtualizingPanel.IsVirtualizing=\"True\"", list, "virtualization must stay on");
+        Assert.Contains("VirtualizingPanel.ScrollUnit=\"Pixel\"", list,
+            "the plugin list should scroll by pixels without disabling virtualization");
         Assert.Contains("VirtualizingPanel.VirtualizationMode=\"Recycling\"", list,
             "recycling avoids rebuilding each realized row from scratch while scrolling");
     }
