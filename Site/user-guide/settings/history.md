@@ -16,7 +16,7 @@ Search History tracks items and applications you have actually launched, binding
 
 ## 2. Keyword History
 
-Keyword History specifically remembers the **raw query strings** typed into the Quick Window:
+Keyword History remembers the **raw query strings** that were actually used to execute a result or action, or to open the Full Window. Merely typing a query and dismissing or leaving the Quick Window does not add it:
 
 - **Hotkey Navigation**: Inside the Quick Window, press **`Alt+Up`** / **`Alt+Down`** to cycle backward and forward through recent queries. Press **`Ctrl+Delete`** to delete the currently active term.
 - **Independent Maintenance**: Includes its own **Enable History** toggle, search filter, single-entry deletion, and **Clear All History** button.

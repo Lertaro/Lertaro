@@ -8,6 +8,7 @@ Lertaro embraces a keyboard-first interaction philosophy while offering rich mou
 | :--- | :--- | :--- |
 | **Toggle Quick Window** | Double-tap `Ctrl` | Can be set to a double-tap mode or standard key combinations (e.g. `Alt+Space`, `Win+Space`). When **Open full panel by default** is enabled, this shortcut opens the Full Window instead: it is brought to the foreground once when first shown, refocused when visible but inactive, and closed when already active. It is not automatically kept topmost. |
 | **Quick Jump** | `Ctrl+G` | Jumps file dialogs directly to the directory most recently browsed in a supported file manager or Quick Panel. |
+| **Quick Navigation Menu** | No default | An optional global shortcut opens the cascading Quick Navigation menu. From the desktop or an ordinary app it uses desktop context; in File Explorer and native file dialogs it uses the active window context. File managers and file dialogs remain allowed even when ordinary foreground protections suppress global hotkeys. |
 | **Select Next Item** | `Ctrl+N` or `↓` | Moves highlight down. Navigates seamlessly across groups in the Quick Panel. In Quick Launch, the arrow keys follow the visible grid; **←** and **→** cross row boundaries, while **↑** and **↓** seek the nearest item in the same column, including across groups. If that column has no item anywhere in the adjacent direction, selection stays where it is. When Quick Launch is visible with an empty query, `Ctrl+N` cycles to the next data source and wraps at the end. |
 | **Select Previous Item** | `Ctrl+P` or `↑` | Moves highlight up. Navigates seamlessly across groups in the Quick Panel. In Quick Launch, the arrow keys follow the visible grid; **←** and **→** cross row boundaries, while **↑** and **↓** seek the nearest item in the same column, including across groups. If that column has no item anywhere in the adjacent direction, selection stays where it is. When Quick Launch is visible with an empty query, `Ctrl+P` cycles to the previous data source and wraps at the beginning. |
 | **Jump to Results 1–9** | `Ctrl` + `1`–`9` | Modifier is customizable. Number badges appear next to visible items for instant activation. |
@@ -48,6 +49,8 @@ The small logo inside the search box is not just an indicator — it provides se
 ## 3. Quick Navigation (Mouse Triggers)
 
 Quick Navigation lets you access frequently used directories and recent files with mouse clicks alone without typing.
+
+You can also assign an optional global keyboard shortcut under [**Settings → Hotkeys**](./settings/hotkeys-page). From the desktop or an ordinary app it opens the menu in desktop context; in File Explorer and native file dialogs it uses the active window context.
 
 ### Triggering Environments
 

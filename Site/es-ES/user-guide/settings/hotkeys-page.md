@@ -10,6 +10,7 @@ La página de Atajos de teclado centraliza la gestión de atajos de invocación 
 - **Abrir el panel principal de forma predeterminada**: Casilla (desactivada por defecto). Al activarla, el atajo global abre la Ventana principal en lugar de la Ventana rápida. La primera vez solo la lleva al primer plano y le da el foco; si está visible pero inactiva la vuelve a activar, y si ya está activa la cierra al pulsar de nuevo. No se mantiene automáticamente siempre encima.
 - **Responder al enfocar aplicaciones a pantalla completa**: Casilla (desactivada por defecto). Permite responder a los atajos incluso con juegos o reproductores a pantalla completa; si está desactivada, los atajos se omiten para no interrumpir.
 - **Salto rápido (Quick Jump)**: Por defecto `Ctrl+G`. En diálogos de archivos, salta a la carpeta navegada recientemente en exploradores compatibles.
+- **Menú de Navegación rápida**: No tiene atajo predeterminado. Puedes asignar un atajo global opcional para abrir el menú en cascada. Desde el escritorio o una aplicación normal usa el contexto del escritorio; en el Explorador de archivos y los cuadros de diálogo nativos usa el contexto de la ventana actual. Los exploradores y los cuadros de diálogo siguen permitidos aunque la protección normal de primer plano suprima los atajos globales.
 
 ### Teclas de función y navegación
 

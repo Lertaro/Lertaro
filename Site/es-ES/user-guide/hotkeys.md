@@ -8,6 +8,7 @@ Lertaro adopta una filosofía de interacción centrada en el teclado, complement
 | :--- | :--- | :--- |
 | **Mostrar/Ocultar Ventana rápida** | Doble pulsación de `Ctrl` | Configurable en modo doble pulsación o combinación estándar (p. ej. `Alt+Space`, `Win+Space`). Si se activa **Abrir el panel principal de forma predeterminada**, este atajo abre la Ventana principal: al mostrarla por primera vez solo la lleva al primer plano y le da el foco una vez; si está visible pero inactiva la vuelve a activar, y si ya está activa la cierra al pulsar de nuevo. No se mantiene automáticamente siempre encima. |
 | **Salto rápido (Quick Jump)** | `Ctrl+G` | En cuadros de diálogo, salta directamente a la carpeta consultada recientemente en exploradores o en el Panel rápido. |
+| **Menú de Navegación rápida** | Sin valor predeterminado | Un atajo global opcional abre el menú de Navegación rápida en cascada. Desde el escritorio o una aplicación normal usa el contexto del escritorio; en el Explorador de archivos y los cuadros de diálogo nativos usa el contexto de la ventana activa. Los exploradores y los cuadros de diálogo siguen permitidos aunque la protección normal de primer plano suprima los atajos globales. |
 | **Seleccionar elemento siguiente** | `Ctrl+N` o `↓` | Mueve el resaltado hacia abajo. En el Panel rápido se desplaza fluidamente entre grupos. En el Panel de inicio rápido, las flechas siguen la cuadrícula visible: **←** y **→** atraviesan los límites de las filas, mientras **↑** y **↓** buscan el elemento más cercano de la misma columna en la dirección correspondiente, incluso entre grupos. Si no existe ningún elemento de esa columna en toda la dirección adyacente, la selección permanece donde está. Con el Panel de inicio rápido visible y la consulta vacía, `Ctrl+N` recorre la siguiente fuente y vuelve a la primera al llegar al final. |
 | **Seleccionar elemento anterior** | `Ctrl+P` o `↑` | Mueve el resaltado hacia arriba. En el Panel rápido también se desplaza entre grupos. En el Panel de inicio rápido, las flechas siguen la cuadrícula visible: **←** y **→** atraviesan los límites de las filas, mientras **↑** y **↓** buscan el elemento más cercano de la misma columna en la dirección correspondiente, incluso entre grupos. Si no existe ningún elemento de esa columna en toda la dirección adyacente, la selección permanece donde está. Con el Panel de inicio rápido visible y la consulta vacía, `Ctrl+P` recorre la fuente anterior y vuelve a la última al llegar al principio. |
 | **Saltar a resultados 1–9** | `Ctrl` + `1`–`9` | Modificador personalizable. Aparecen distintivos numéricos junto a los resultados para apertura instantánea. |
@@ -48,6 +49,8 @@ El pequeño logotipo en la barra de búsqueda no es solo estético: ofrece múlt
 ## 3. Navegación rápida (Activadores de ratón)
 
 La Navegación rápida te permite acceder a directorios frecuentes y archivos recientes únicamente con clics de ratón, sin teclear.
+
+También puedes asignar un atajo de teclado global opcional en [**Configuración → Atajos de teclado**](./settings/hotkeys-page). Desde el escritorio o una aplicación normal abre el menú con el contexto del escritorio; en el Explorador de archivos y los cuadros de diálogo nativos usa el contexto de la ventana activa.
 
 ### Entornos compatibles
 

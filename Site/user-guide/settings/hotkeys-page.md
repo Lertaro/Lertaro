@@ -10,6 +10,7 @@ The Hotkeys settings page centralizes management of global summon hotkeys, in-ap
 - **Open full panel by default**: Checkbox (default disabled). When enabled, the global summon hotkey opens the Full Window instead of the Quick Window. The first summon brings it to the foreground once; pressing the hotkey while it is visible but inactive refocuses it, while pressing it again when it is active closes it. The window is not automatically kept topmost.
 - **Respond when focused on full-screen applications**: Checkbox (default disabled). When enabled, Lertaro responds to hotkeys even when an exclusive fullscreen game or media player is active; when disabled, keys are bypassed silently to protect gameplay.
 - **Quick Jump**: Default `Ctrl+G`. In file dialogs, jumps immediately to the directory most recently browsed in supported file managers.
+- **Quick Navigation Menu**: No shortcut is assigned by default. You can assign an optional global shortcut to open the cascading menu. From the desktop or an ordinary app it uses desktop context; in File Explorer and native file dialogs it uses the current window context. File managers and file dialogs remain allowed even when ordinary foreground protections suppress global hotkeys.
 
 ### Navigation & Function Keys Group
 
