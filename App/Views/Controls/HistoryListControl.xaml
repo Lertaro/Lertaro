@@ -16,7 +16,7 @@
 
             <Style x:Key="HistorySearchTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
                 <Setter Property="Height" Value="34"/>
-                <Setter Property="Padding" Value="10,6"/>
+                <Setter Property="Padding" Value="10,0"/>
                 <Setter Property="FontSize" Value="13"/>
                 <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
@@ -117,7 +117,7 @@
                      established pattern rather than a new one. PlaceholderText comes from the
                      UserControl's own DP (see code-behind), not DataContext, since the Search/Keyword
                      tabs share this one control with different History DataContexts. -->
-                <TextBlock Grid.Row="0" Margin="11,0,0,8"
+                <TextBlock Grid.Row="0" Margin="10,0,0,8"
                            Foreground="{DynamicResource TextSecondary}"
                            FontSize="13"
                            VerticalAlignment="Center" HorizontalAlignment="Left"
