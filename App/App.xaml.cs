@@ -63,6 +63,10 @@ public partial class App : Application
 
         Logger.Initialize("app.log", overwrite: true);
 
+        // App-wide smooth wheel scrolling, keyed off ScrollViewer.CanContentScroll so virtualized lists
+        // stay item-based while pixel-scrolling lists get the glide (see SmoothWheelScrollBehavior).
+        Helpers.Visuals.SmoothWheelScrollBehavior.EnableGlobally();
+
         // Global exception handlers, registered as early as possible: anything thrown before the old
         // registration point (UserSettings.Load, hook client startup, ...) crashed with no log at all.
         AppDomain.CurrentDomain.UnhandledException += (s, args) => Helpers.App.AppCrashHandler.LogException("AppDomain UnhandledException", args.ExceptionObject as Exception);

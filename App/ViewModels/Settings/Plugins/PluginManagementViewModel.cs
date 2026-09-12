@@ -25,10 +25,12 @@ public class PluginManagementViewModel : ViewModelBase
         Plugins = new ObservableCollection<PluginInfoViewModel>(PluginLoaderHelper.BuildPluginList(_userSettings));
         ShowPluginManagementCommand = new RelayCommand(() => IsRuntimeStatusTab = false);
         ShowRuntimeStatusCommand = new RelayCommand(() => IsRuntimeStatusTab = true);
-        _selectedPlugin = Plugins.FirstOrDefault();
         // The default sort is "enabled" (disabled sink to the bottom), so reconcile the freshly built
-        // list to it once here -- BuildPluginList only returns rank-then-name order.
+        // list to it once here -- BuildPluginList only returns rank-then-name order. Selecting happens
+        // AFTER the sort, so the initial selection lands on the first enabled plugin, not whatever
+        // happened to sort first by name.
         ApplyPluginSort();
+        _selectedPlugin = Plugins.FirstOrDefault();
 
         // Dynamically refresh the plugin list when language changes to dynamically apply localized plugin names
         _translationHandler = (s, e) =>
@@ -43,8 +45,8 @@ public class PluginManagementViewModel : ViewModelBase
             // Rebuild only if the runtime tab has actually been opened (see EnsureRuntimeStatusesBuilt);
             // otherwise the next time it is shown rebuilds from the new list anyway.
             if (_runtimeStatusesBuilt) RebuildRuntimeStatuses();
-            SelectedPlugin = Plugins.FirstOrDefault(p => p.DllFileName == selectedDll) ?? Plugins.FirstOrDefault();
             ApplyPluginSort();
+            SelectedPlugin = Plugins.FirstOrDefault(p => p.DllFileName == selectedDll) ?? Plugins.FirstOrDefault();
             OnPropertyChanged(nameof(IsEmpty));
             OnPropertyChanged(nameof(DevGuideUri));
         };

@@ -186,6 +186,8 @@
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      VirtualizingPanel.IsVirtualizing="True"
                      VirtualizingPanel.ScrollUnit="Pixel"
+                     VirtualizingPanel.CacheLength="8"
+                     VirtualizingPanel.CacheLengthUnit="Item"
                      VirtualizingPanel.VirtualizationMode="Recycling">
                 <!-- Keep virtualization enabled while using pixel scrolling. Setting CanContentScroll to
                      False would also produce pixel scrolling, but it disables the virtualizing panel and
