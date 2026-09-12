@@ -141,9 +141,33 @@
                     </TextBlock.Style>
                 </TextBlock>
 
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="320">
-                    <ItemsControl ItemsSource="{Binding FilteredItems}" ItemTemplate="{StaticResource HistoryEntryTemplate}"/>
-                </ScrollViewer>
+                <!-- Virtualized ListBox: the keyword tab can hold thousands of rows, and a plain
+                     ItemsControl realized every row up front the first time the tab was shown. The
+                     ListBox scrolls itself (no outer ScrollViewer, which would disable virtualization),
+                     so only the rows actually in view are built. -->
+                <ListBox Grid.Row="1" ItemsSource="{Binding FilteredItems}" ItemTemplate="{StaticResource HistoryEntryTemplate}"
+                         MaxHeight="320" BorderThickness="0" Background="Transparent"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         Focusable="False"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <ContentPresenter/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
             </Grid>
         </Border>
 
