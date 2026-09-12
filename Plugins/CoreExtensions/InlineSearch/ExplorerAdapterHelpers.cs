@@ -13,6 +13,13 @@ internal static class ExplorerAdapterHelpers
     [DllImport("user32.dll")]
     public static extern IntPtr GetParent(IntPtr hWnd);
 
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string? lpszClass, string? lpszWindow);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumChildWindows(IntPtr hwndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
     [DllImport("user32.dll")]
     public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
@@ -135,6 +142,29 @@ internal static class ExplorerAdapterHelpers
         }
     }
 
+    /// <summary>Finds the active Explorer tab's file-list view, which is the actual inline-search host.</summary>
+    public static IntPtr FindContentView(IntPtr explorerHwnd)
+    {
+        if (explorerHwnd == IntPtr.Zero) return IntPtr.Zero;
+
+        var activeTab = FindWindowEx(explorerHwnd, IntPtr.Zero, "ShellTabWindowClass", null);
+        var searchRoot = activeTab != IntPtr.Zero ? activeTab : explorerHwnd;
+        var contentView = IntPtr.Zero;
+        EnumChildWindows(searchRoot, (childHwnd, _) =>
+        {
+            var className = new StringBuilder(64);
+            GetClassName(childHwnd, className, className.Capacity);
+            if (className.ToString().Equals("SHELLDLL_DefView", StringComparison.OrdinalIgnoreCase))
+            {
+                contentView = childHwnd;
+                return false;
+            }
+
+            return true;
+        }, IntPtr.Zero);
+        return contentView;
+    }
+
     // Synchronous (Thread.Sleep, not await Task.Delay) and meant to be called from the same dedicated STA
     // thread InlineAdapterCommandHandler.RunOnSta already spins up per call -- these Shell.Application COM
     // objects are STA-affine, and that thread never pumps a message loop (no Application.Run/Dispatcher.Run
@@ -208,9 +238,5 @@ internal static class ExplorerAdapterHelpers
     }
 
     private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool EnumChildWindows(IntPtr hwndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
     #endregion
 }

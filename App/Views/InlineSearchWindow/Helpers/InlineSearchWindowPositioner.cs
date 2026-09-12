@@ -8,6 +8,9 @@ namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
 public class InlineSearchWindowPositioner
 {
+    private const double DefaultWindowWidth = 465;
+    private const double DockedWidthRatio = 0.5;
+
     [DllImport("Shcore.dll")]
     private static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
 
@@ -60,15 +63,6 @@ public class InlineSearchWindowPositioner
         _window.UpdateLayout();
         var tracker = _window.Manager.ExplorerTracker;
 
-        var windowHeight = double.IsNaN(_window.Height) || _window.Height <= 0
-            ? (_window.ActualHeight > 0 ? _window.ActualHeight : 550.0)
-            : _window.Height;
-        var windowWidth = _window.Width;
-
-        var visibleHeight = _window.MainBorder.ActualHeight > 0
-            ? _window.MainBorder.ActualHeight
-            : windowHeight;
-
         var isResultsVisible = _window.ResultsPanelControl.Visibility == Visibility.Visible;
 
         var hasValidRect = false;
@@ -78,6 +72,34 @@ public class InlineSearchWindowPositioner
             hasValidRect = tracker.TryGetActiveWindowRect(out rect) && (rect.Right - rect.Left > 100 && rect.Bottom - rect.Top > 100);
         }
         var mousePosition = System.Windows.Forms.Control.MousePosition;
+
+        var hwnd = new WindowInteropHelper(_window).Handle;
+        var targetMonitor = tracker.IsDesktop
+            ? (_window.IsVisible && hwnd != IntPtr.Zero
+                ? MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
+                : MonitorFromPoint(ToPoint(mousePosition), MONITOR_DEFAULTTONEAREST))
+            : tracker.ActiveHwnd != IntPtr.Zero
+                ? MonitorFromWindow(tracker.ActiveHwnd, MONITOR_DEFAULTTONEAREST)
+                : IntPtr.Zero;
+        var (targetDpiScaleX, targetDpiScaleY) = GetMonitorDpiScale(targetMonitor);
+
+        var desiredWidth = hasValidRect && !tracker.IsDesktop
+            ? CalculateDockedWidth((rect.Right - rect.Left) / targetDpiScaleX)
+            : DefaultWindowWidth;
+        if (Math.Abs(_window.Width - desiredWidth) > 0.5)
+        {
+            _window.Width = desiredWidth;
+            _window.UpdateLayout();
+        }
+
+        var windowHeight = double.IsNaN(_window.Height) || _window.Height <= 0
+            ? (_window.ActualHeight > 0 ? _window.ActualHeight : 550.0)
+            : _window.Height;
+        var windowWidth = _window.Width;
+
+        var visibleHeight = _window.MainBorder.ActualHeight > 0
+            ? _window.MainBorder.ActualHeight
+            : windowHeight;
 
         if (_hasCachedInputs
             && _cachedActiveHwnd == tracker.ActiveHwnd
@@ -93,16 +115,6 @@ public class InlineSearchWindowPositioner
         {
             return;
         }
-
-        var hwnd = new WindowInteropHelper(_window).Handle;
-        var targetMonitor = tracker.IsDesktop
-            ? (_window.IsVisible && hwnd != IntPtr.Zero
-                ? MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
-                : MonitorFromPoint(ToPoint(mousePosition), MONITOR_DEFAULTTONEAREST))
-            : tracker.ActiveHwnd != IntPtr.Zero
-                ? MonitorFromWindow(tracker.ActiveHwnd, MONITOR_DEFAULTTONEAREST)
-                : IntPtr.Zero;
-        var (targetDpiScaleX, targetDpiScaleY) = GetMonitorDpiScale(targetMonitor);
 
         const double xamlMargin = 12;
         const double visibleMargin = 0;
@@ -257,6 +269,8 @@ public class InlineSearchWindowPositioner
     }
 
     private static POINT ToPoint(System.Drawing.Point p) => new() { X = p.X, Y = p.Y };
+
+    internal static double CalculateDockedWidth(double targetWindowWidth) => targetWindowWidth * DockedWidthRatio;
 
     private static (double x, double y) GetMonitorDpiScale(IntPtr hMonitor)
     {

@@ -174,6 +174,14 @@ public class ExplorerInlineSearchAdapter : IInlineSearchAdapter
     {
         rect = default;
         if (hwnd == IntPtr.Zero) return false;
+
+        var contentView = ExplorerAdapterHelpers.FindContentView(hwnd);
+        if (contentView != IntPtr.Zero && ExplorerAdapterHelpers.GetWindowRect(contentView, out var contentRect))
+        {
+            rect = new AdapterRect { Left = contentRect.Left, Top = contentRect.Top, Right = contentRect.Right, Bottom = contentRect.Bottom };
+            return true;
+        }
+
         var nativeRect = new ExplorerAdapterHelpers.RECT();
         var result = ExplorerAdapterHelpers.DwmGetWindowAttribute(hwnd, ExplorerAdapterHelpers.DWMWA_EXTENDED_FRAME_BOUNDS, out nativeRect, Marshal.SizeOf<ExplorerAdapterHelpers.RECT>());
         if (result == 0)
