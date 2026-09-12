@@ -177,7 +177,7 @@
 
         <!-- Clear-below-N: a small numeric box (coerced to 1..99) and button, left of Clear All. -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-            <ComboBox Width="52" Height="30" MinWidth="0" Margin="0,0,4,0" Style="{StaticResource SettingsComboBox}"
+            <ComboBox Height="30" MinWidth="52" Margin="0,0,4,0" Style="{StaticResource SettingsComboBox}"
                       ItemsSource="{Binding UsageThresholds}" SelectedItem="{Binding UsageThreshold}"/>
             <Button Content="{Binding ClearBelowButtonLabel}"
                     Style="{StaticResource SettingsButton}"
