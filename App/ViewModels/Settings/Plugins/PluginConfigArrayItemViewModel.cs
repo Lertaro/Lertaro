@@ -26,6 +26,20 @@ public class PluginConfigArrayItemViewModel : ViewModelBase
         .FirstOrDefault();
     public PluginConfigFieldViewModel? IconField => Children.FirstOrDefault(c => c.IsIconField);
 
+    /// <summary>
+    /// Whether any sub-field of this row has been edited since the last commit. The row itself is only
+    /// materialized when its array field is shown, so an unbuilt row holds nothing staged.
+    /// </summary>
+    internal bool IsDirty => SimpleValueViewModel?.IsDirty == true || Children.Any(c => c.IsDirty);
+
+    /// <summary>Clears the staged flags after the row's value has been written by Commit.</summary>
+    internal void ClearDirty()
+    {
+        SimpleValueViewModel?.ClearDirty();
+        foreach (var child in Children)
+            child.ClearDirty();
+    }
+
     public PluginConfigArrayItemViewModel(PluginConfigFieldViewModel parent, object? initialValue, Action onDelete, Action? onMoveUp = null, Action? onMoveDown = null)
     {
         _parent = parent;

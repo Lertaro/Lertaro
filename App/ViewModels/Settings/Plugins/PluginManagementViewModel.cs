@@ -234,9 +234,11 @@ public class PluginManagementViewModel : ViewModelBase
     /// there is nothing left for a card to expand INTO, so the concept went rather than being kept as a
     /// second, redundant way to say "this is the one I am looking at".
     ///
-    /// Switching away rolls back any config the previous plugin had open and unsaved: the section is
-    /// gone from view either way, and leaving edits staged in a view model nobody can see is how they
-    /// end up written by a later OK that meant something else.
+    /// Switching away keeps any config the previous plugin had staged. Edits are only written by the
+    /// Settings window's Apply/OK, and a user looking at another plugin in between must not lose what
+    /// they typed -- so the pane just changes hands, and the previous plugin's rows are dropped only if
+    /// it had no actual edit (see PluginConfigTabState.Closed). Cancel is what reverts, via
+    /// SettingsViewModel.Cleanup.
     /// </remarks>
     public PluginInfoViewModel? SelectedPlugin
     {
@@ -245,14 +247,8 @@ public class PluginManagementViewModel : ViewModelBase
         {
             if (ReferenceEquals(_selectedPlugin, value)) return;
 
-            // Setting this back rolls the config fields back with it (see IsConfigTab), so a plugin
-            // left mid-edit does not keep those edits staged while out of view.
-            if (_selectedPlugin != null)
-            {
-                _selectedPlugin.RollbackConfig();
-                if (_selectedPlugin.IsConfigTab)
-                    _selectedPlugin.IsConfigTab = false;
-            }
+            // Drops the outgoing plugin's rows where that is safe (no staged edit); never its edits.
+            _selectedPlugin?.CloseConfigRowsForSelectionChange();
 
             SetProperty(ref _selectedPlugin, value);
         }
@@ -286,9 +282,10 @@ public class PluginManagementViewModel : ViewModelBase
 
         _userSettings.DisabledPluginComponents = disabled.ToList();
 
-        // An open config the user edited is written here too, so the Settings window's Apply/OK is the
-        // single persistence route for plugin configuration.
-        PluginConfigCommitSupport.Commit(PluginConfigCommitSupport.PendingOnSettingsApply(SelectedPlugin));
+        // Every plugin the user edited is written here, not just the one on screen: staged edits survive
+        // switching plugins (see SelectedPlugin), so the Settings window's Apply/OK is the one commit
+        // point for all of them.
+        PluginConfigCommitSupport.CommitPending(Plugins);
 
         // Toggling a component deliberately does not reorder the list live (that read as jumping); the
         // position is reconciled here, on Apply/OK, against the currently selected sort rule.

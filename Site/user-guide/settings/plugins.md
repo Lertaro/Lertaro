@@ -23,7 +23,7 @@ Clicking any plugin on the left displays its icon, name, version, and overview i
 - **Embedded Configuration Forms**: Custom settings are rendered directly within the settings pane without opening modal dialogs. Supports text boxes, numerical steppers, toggles, dropdowns, and grouped sub-tabs.
 - **Icon Input Fields**: Text fields using the schema key `Icon` show an icon preview and accept WPF Path Data. Pasting a complete SVG/XML document automatically extracts and combines its path data; invalid icon content is cleared and reported in a themed dialog.
 - **Multiline Configuration Editors**: `StringList` fields use soft wrapping in the expanded editor. Actual line breaks show a subtle `↵` marker for readability; the marker is visual only and is never saved or included in copied text.
-- **Safe Staging & Rollback**: Modifications are kept in memory until they are saved; switching plugins or navigating away automatically rolls uncommitted edits back to their saved state. The Settings window's **Apply**/**OK** writes the currently open plugin config before the window closes.
+- **Safe Staging & Rollback**: Modifications are staged in memory and survive switching to another plugin or leaving the page, so nothing is lost while you compare plugins. The Settings window's **Apply**/**OK** saves the configuration of every plugin you edited in one go before the window closes; **Cancel** (or closing the window without applying) restores the previously saved values.
 
 ### CoreExtensions Search Type Filters
 
