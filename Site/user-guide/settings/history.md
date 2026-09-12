@@ -7,6 +7,7 @@ The History settings page manages usage traces and adaptive recall rankings. Top
 Search History tracks items and applications you have actually launched, binding the search query to the target physical path:
 
 - **Adaptive Prioritized Recall**: When you type characters related to past queries, Lertaro prioritizes previously opened items at the top of results. For instance, if you launched `BCompare.exe` by searching `bcomp`, future searches for `bc` will still boost it to the top.
+- **Usage-Aware Ordering**: Within history matches, Lertaro sorts by match start position, usage count, most recent opening time, and fuzzy match weight, in that order. This affects only history candidates; other result categories keep their existing ordering.
 - **Inline Window Grouping**: Inside file dialogs, matching historical items within the active folder appear under "Current Folder", while others appear under "Global Search".
 - **Dead Link Filtering**: If an indexed path is moved or deleted, Lertaro automatically skips missing entries, guaranteeing unique rows.
 - **Management Controls**:

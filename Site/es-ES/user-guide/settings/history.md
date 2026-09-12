@@ -7,6 +7,7 @@ La página de Historial gestiona los registros de uso y las prioridades de reape
 Registra los resultados ejecutados asociando el término de búsqueda con la ruta física del elemento:
 
 - **Reapertura adaptativa priorizada**: Al escribir caracteres similares a consultas anteriores, Lertaro prioriza los elementos abiertos previamente en la parte superior. Por ejemplo, si abriste `BCompare.exe` buscando `bcomp`, una búsqueda futura de `bc` lo destacará al inicio.
+- **Orden según el uso**: Dentro de las coincidencias del historial, Lertaro ordena por posición inicial de la coincidencia, número de usos descendente, apertura más reciente descendente y peso de coincidencia difusa, en ese orden. Solo afecta a los candidatos del historial; las demás categorías conservan su ordenación.
 - **Agrupación en la Ventana incrustada**: En los diálogos de archivos, las coincidencias del historial dentro de la carpeta activa se clasifican en "Carpeta actual" y las demás en "Búsqueda global".
 - **Filtrado de rutas inexistentes**: Si un archivo ha sido eliminado o movido externamente, se omite de forma automática, evitando enlaces rotos y resultados duplicados.
 - **Opciones de gestión**:
