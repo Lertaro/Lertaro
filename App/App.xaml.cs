@@ -18,7 +18,6 @@ using Lertaro.Core.Services.Installation;
 using Lertaro.Core.Services;
 using Application = System.Windows.Application;
 namespace Lertaro.App;
-
 public partial class App : Application
 {
     [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -27,7 +26,6 @@ public partial class App : Application
 
     [System.Runtime.InteropServices.DllImport("shell32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
     private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
-
     private Mutex? _appMutex;
     public static HookIpcClient? HookClient { get; private set; }
 
@@ -60,7 +58,6 @@ public partial class App : Application
         Thread.CurrentThread.Priority = ThreadPriority.Highest;
 
         // Initialize logger first so we can log elevation decisions and issues
-
         Logger.Initialize("app.log", overwrite: true);
 
         // App-wide smooth wheel scrolling, keyed off ScrollViewer.CanContentScroll so virtualized lists
@@ -102,7 +99,6 @@ public partial class App : Application
                 }
             }
             catch { }
-
             // Send activation command to the already running process and then exit immediately.
             // A lertaro:// launch arg is forwarded as-is so the running instance can route it;
             // anything else (a plain second launch) falls back to the bare activate signal.

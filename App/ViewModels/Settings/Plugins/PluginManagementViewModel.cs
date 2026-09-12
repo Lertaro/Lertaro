@@ -51,7 +51,6 @@ public class PluginManagementViewModel : ViewModelBase
             OnPropertyChanged(nameof(DevGuideUri));
         };
         TranslationManager.Instance.PropertyChanged += _translationHandler;
-
     }
 
     public ObservableCollection<PluginInfoViewModel> Plugins { get; }
@@ -125,7 +124,6 @@ public class PluginManagementViewModel : ViewModelBase
         };
         SyncRuntimeStatusCollection(RuntimeStatuses, filtered.ToList());
     }
-
     internal static void SyncRuntimeStatusCollection(
         ObservableCollection<PluginRuntimeStatusItemViewModel> current,
         IReadOnlyList<PluginRuntimeStatusItemViewModel> desired)

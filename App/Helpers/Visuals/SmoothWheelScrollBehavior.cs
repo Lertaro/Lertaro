@@ -93,15 +93,7 @@ public static class SmoothWheelScrollBehavior
         private double _lastSeconds;
         private bool _running;
 
-        public Glide(ScrollViewer scrollViewer)
-        {
-            _scrollViewer = scrollViewer;
-            // The CompositionTarget.Rendering subscription holds this Glide (and therefore the
-            // ScrollViewer) alive as long as it is running; if the viewer is torn down mid-glide (the
-            // user switches a settings tab), stop immediately so the static render loop does not keep a
-            // detached visual alive and spin for nothing.
-            scrollViewer.Unloaded += OnScrollViewerUnloaded;
-        }
+        public Glide(ScrollViewer scrollViewer) => _scrollViewer = scrollViewer;
 
         private void OnScrollViewerUnloaded(object sender, RoutedEventArgs e) => Stop();
 
@@ -111,6 +103,9 @@ public static class SmoothWheelScrollBehavior
 
             if (!_running)
             {
+                // Reattach for every glide: Stop detaches this handler, and the same viewer can be
+                // unloaded and loaded again before the user scrolls it next time.
+                _scrollViewer.Unloaded += OnScrollViewerUnloaded;
                 _running = true;
                 _offset = _scrollViewer.VerticalOffset;
                 _clock.Restart();
