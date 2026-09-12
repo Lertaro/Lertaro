@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using Lertaro.Core;
+using Lertaro.Core.Hook;
 using Lertaro.PluginSdk.Helpers;
 using MessageBox = Lertaro.App.Views.Controls.Dialogs.CustomMessageBox;
 using MessageBoxButton = System.Windows.MessageBoxButton;
@@ -14,6 +16,10 @@ namespace Lertaro.App.Services;
 // it respects the user's default file manager instead of always opening explorer.exe.
 internal static class ExplorerLocateHelper
 {
+    private const string ExplorerTabClass = "ShellTabWindowClass";
+    private static readonly Guid ShellBrowserService = new("4C96BE40-915C-11CF-99D3-00AA004AE837");
+    private static readonly Guid ShellBrowserInterface = new("000214E2-0000-0000-C000-000000000046");
+
     /// <summary>
     /// Opens the folder holding <paramref name="path"/> with that item selected. Returns immediately;
     /// the shell work runs on a ShellThread, which is where the reasoning for that lives.
@@ -124,6 +130,7 @@ internal static class ExplorerLocateHelper
 
     private static dynamic? FindExplorerWindow(IntPtr explorerHwnd)
     {
+        var activeTabHwnd = FindActiveTab(explorerHwnd);
         object? shellWindows = null;
         try
         {
@@ -145,6 +152,17 @@ internal static class ExplorerLocateHelper
                     dynamic dWindow = window;
                     if ((IntPtr)dWindow.HWND == explorerHwnd)
                     {
+                        // ShellWindows exposes one COM item per Explorer tab, but all items can carry
+                        // the same top-level HWND. Matching only that HWND therefore returns the first
+                        // tab in enumeration order instead of the tab the user is currently viewing.
+                        // Resolve the candidate's IShellBrowser tab HWND and require it to match the
+                        // active ShellTabWindowClass child before accepting the item.
+                        if (activeTabHwnd != IntPtr.Zero &&
+                            (!TryGetTabHandle(window, out var candidateTabHwnd) || candidateTabHwnd != activeTabHwnd))
+                        {
+                            continue;
+                        }
+
                         match = window;
                         window = null;
                         break;
@@ -162,6 +180,58 @@ internal static class ExplorerLocateHelper
         finally
         {
             ReleaseComObject(shellWindows);
+        }
+    }
+
+    private static IntPtr FindActiveTab(IntPtr explorerHwnd)
+    {
+        var activeTabHwnd = IntPtr.Zero;
+        EnumChildWindows(explorerHwnd, (childHwnd, _) =>
+        {
+            var className = new StringBuilder(64);
+            ExplorerNativeHooks.GetClassName(childHwnd, className, className.Capacity);
+            if (className.ToString().Equals(ExplorerTabClass, StringComparison.OrdinalIgnoreCase))
+            {
+                activeTabHwnd = childHwnd;
+                return false;
+            }
+
+            return true;
+        }, IntPtr.Zero);
+        return activeTabHwnd;
+    }
+
+    private static bool TryGetTabHandle(object window, out IntPtr tabHwnd)
+    {
+        tabHwnd = IntPtr.Zero;
+        if (window is not IComServiceProvider serviceProvider)
+        {
+            return false;
+        }
+
+        var serviceGuid = ShellBrowserService;
+        var interfaceGuid = ShellBrowserInterface;
+        if (serviceProvider.QueryService(ref serviceGuid, ref interfaceGuid, out var shellBrowserPtr) != 0 ||
+            shellBrowserPtr == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            var shellBrowser = (IShellBrowser)Marshal.GetObjectForIUnknown(shellBrowserPtr);
+            try
+            {
+                return shellBrowser.GetWindow(out tabHwnd) == 0 && tabHwnd != IntPtr.Zero;
+            }
+            finally
+            {
+                Marshal.ReleaseComObject(shellBrowser);
+            }
+        }
+        finally
+        {
+            Marshal.Release(shellBrowserPtr);
         }
     }
 
@@ -235,4 +305,28 @@ internal static class ExplorerLocateHelper
             // Best-effort cleanup; the RCW will still be reclaimed by the GC finalizer.
         }
     }
+
+    [ComImport]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("6D5140C1-7436-11CE-8034-00AA006009FA")]
+    private interface IComServiceProvider
+    {
+        [PreserveSig]
+        int QueryService(ref Guid serviceGuid, ref Guid interfaceGuid, out IntPtr service);
+    }
+
+    [ComImport]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("000214E2-0000-0000-C000-000000000046")]
+    private interface IShellBrowser
+    {
+        [PreserveSig]
+        int GetWindow(out IntPtr hwnd);
+    }
+
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumChildWindows(IntPtr hwndParent, EnumWindowsProc callback, IntPtr lParam);
 }

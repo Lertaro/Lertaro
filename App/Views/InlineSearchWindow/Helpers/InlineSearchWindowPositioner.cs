@@ -10,6 +10,7 @@ public class InlineSearchWindowPositioner
 {
     private const double DefaultWindowWidth = 465;
     private const double DockedWidthRatio = 0.5;
+    private const double DesktopWidthRatio = 0.2;
 
     [DllImport("Shcore.dll")]
     private static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
@@ -83,9 +84,14 @@ public class InlineSearchWindowPositioner
                 : IntPtr.Zero;
         var (targetDpiScaleX, targetDpiScaleY) = GetMonitorDpiScale(targetMonitor);
 
+        var desktopWidth = tracker.IsDesktop
+            ? (_window.IsVisible && hwnd != IntPtr.Zero ? Screen.FromHandle(hwnd) : Screen.FromPoint(mousePosition)).WorkingArea.Width / targetDpiScaleX
+            : 0;
         var desiredWidth = hasValidRect && !tracker.IsDesktop
             ? CalculateDockedWidth((rect.Right - rect.Left) / targetDpiScaleX)
-            : DefaultWindowWidth;
+            : desktopWidth > 0
+                ? CalculateDesktopWidth(desktopWidth)
+                : DefaultWindowWidth;
         if (Math.Abs(_window.Width - desiredWidth) > 0.5)
         {
             _window.Width = desiredWidth;
@@ -271,6 +277,8 @@ public class InlineSearchWindowPositioner
     private static POINT ToPoint(System.Drawing.Point p) => new() { X = p.X, Y = p.Y };
 
     internal static double CalculateDockedWidth(double targetWindowWidth) => targetWindowWidth * DockedWidthRatio;
+
+    internal static double CalculateDesktopWidth(double desktopWidth) => desktopWidth * DesktopWidthRatio;
 
     private static (double x, double y) GetMonitorDpiScale(IntPtr hMonitor)
     {

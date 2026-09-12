@@ -10,4 +10,7 @@ public sealed class InlineSearchWindowPositionerTests
 
     [TestMethod]
     public void CalculateDockedWidth_DoesNotApplyMinimumWidth() => Assert.AreEqual(400, InlineSearchWindowPositioner.CalculateDockedWidth(800));
+
+    [TestMethod]
+    public void CalculateDesktopWidth_UsesTwentyPercentOfWorkingArea() => Assert.AreEqual(384, InlineSearchWindowPositioner.CalculateDesktopWidth(1920));
 }
