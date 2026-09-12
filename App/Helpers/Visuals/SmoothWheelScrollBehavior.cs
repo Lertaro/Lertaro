@@ -89,6 +89,21 @@ public static class SmoothWheelScrollBehavior
     internal static double SelectPunch(double currentVelocity) =>
         VelocityPerNotch + AccelerationGain * Math.Abs(currentVelocity);
 
+    // Acceleration is useful only when the new notch continues the current direction; a reversal should
+    // bleed the old velocity away at the lone-notch rate instead of turning it into a reverse fling.
+    internal static double SelectPunchForDirection(double currentVelocity, double notchDirection) =>
+        currentVelocity != 0 && Math.Sign(currentVelocity) != Math.Sign(notchDirection)
+            ? SelectPunch(0)
+            : SelectPunch(currentVelocity);
+
+    // MouseWheel Delta can contain multiple 120-unit notches in one event, so count the whole batch when
+    // deciding whether the glide is a spin that should use stop friction.
+    internal static int AccumulateNotchCount(int previousCount, double millisecondsSinceLastNotch, double notches)
+    {
+        var batchCount = Math.Max(1, (int)Math.Ceiling(Math.Abs(notches)));
+        return (millisecondsSinceLastNotch <= SpinWindowMilliseconds ? Math.Max(0, previousCount) : 0) + batchCount;
+    }
+
     /// <summary>
     /// The friction to integrate with right now: the stopping value once a spin has gone quiet, else the
     /// precise lone-notch value.
@@ -207,13 +222,13 @@ public static class SmoothWheelScrollBehavior
             // Counted for the friction decision (see SelectFriction) -- the punch itself no longer depends
             // on it, since the feedback in SelectPunch already handles acceleration smoothly.
             var now = Environment.TickCount64;
-            _notchCount = now - _lastNotchTicks <= SpinWindowMilliseconds ? _notchCount + 1 : 1;
+            _notchCount = AccumulateNotchCount(_notchCount, now - _lastNotchTicks, notches);
             _lastNotchTicks = now;
 
             // Punch scales with the speed already built, so a spin ramps smoothly instead of jumping: see
             // SelectPunch. Capped as it stacks: see MaxVelocity. A lone notch from rest gets exactly the
             // lone punch and so stays at the precise NotchPixels.
-            _velocity = ClampVelocity(_velocity + notches * SelectPunch(_velocity));
+            _velocity = ClampVelocity(_velocity + notches * SelectPunchForDirection(_velocity, notches));
 
             if (!_running)
             {

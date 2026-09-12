@@ -115,6 +115,22 @@ public sealed class SmoothWheelScrollBehaviorTests
             SmoothWheelScrollBehavior.SelectPunch(1000.0),
             "a notch at speed must feed in more than a notch at rest");
 
+    [TestMethod]
+    public void ReverseDirectionDoesNotInheritTheOldAcceleration() =>
+        Assert.AreEqual(
+            SmoothWheelScrollBehavior.SelectPunch(0),
+            SmoothWheelScrollBehavior.SelectPunchForDirection(1000, -1),
+            1e-9,
+            "a reversing notch should cancel existing motion instead of being amplified by it");
+
+    [TestMethod]
+    public void CompoundWheelDeltaCountsEveryNotchForSpinFriction()
+    {
+        Assert.AreEqual(2, SmoothWheelScrollBehavior.AccumulateNotchCount(0, 1000, 2));
+        Assert.AreEqual(5, SmoothWheelScrollBehavior.AccumulateNotchCount(3, 100, 2));
+        Assert.AreEqual(2, SmoothWheelScrollBehavior.AccumulateNotchCount(3, 151, 2));
+    }
+
     // -- Stopping and the state selection. --
 
     [TestMethod]
