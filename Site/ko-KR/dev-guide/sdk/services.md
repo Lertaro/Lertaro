@@ -10,7 +10,7 @@
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 다국어 동적 파싱 및 런타임 언어 변경 브로드캐스트. `GetCurrentCulture()`는 OS 언어가 아닌 설정 센터에서 선택된 UI 언어 코드(예: `"ko-KR"`)를 반환하며, `CultureChanged`를 구독하여 UI 언어 변경 시 사전 재로드 및 내부 상태를 갱신할 수 있습니다. |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | 메모리 및 디스크 캐시가 적용된 Windows Shell 파일 아이콘 및 썸네일 추출. |
 | **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | 즐겨찾기 목록 조회, 경로의 등록 여부 확인, 호스트 브리지를 통한 즐겨찾기 추가를 제공합니다. |
-| **`HistoryService`** | `IReadOnlyList<HistoryEntry> GetHistoryEntries()` | 최근 열어본 순서대로 정렬된 검색 기록(키워드 및 파일 유형 포함) 조회. |
+| **`HistoryService`** | `IEnumerable<HistoryEntry> GetHistoryEntries()` | 최근 열어본 순서대로 정렬된 검색 기록(키워드, 파일 유형 및 항목별 사용 횟수 포함)을 조회합니다. 동일한 실제 경로는 가장 최근에 연 키워드 아래에 최대 한 번만 표시됩니다. |
 | **`FileMetadataService`** | `Task<IReadOnlyDictionary<string, FileMetadata>> GetMetadataAsync(IEnumerable<string> paths)` | 현재 검색 결과에 포함되지 않은 외부 경로의 파일 크기 및 타임스탬프 일괄 조회. |
 | **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IDisposable WatchDirectories(string pluginId, Action<IReadOnlyList<string>> onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | 호스트의 인덱스 검색과 변경 감지를 위해 사용자 지정 폴더를 등록합니다. 열거는 호스트 파일 인덱스만 읽어 스트리밍으로 반환하며, 인덱스가 포함하지 않는 폴더는 빈 시퀀스를 반환하므로 로컬 드라이브, 네트워크 또는 폴더 인덱스가 해당 경로를 포함해야 합니다. 호스트는 파일 시스템을 직접 스캔하지 않습니다. 감시 알림은 디바운스되며 변경된 디렉터리를 포함할 수 있고, 빈 목록은 더 좁은 범위를 확인할 수 없음을 뜻합니다. |
 | **`MemoryMaintenanceService`** | `void RequestTrim()` | 플러그인이 임시 메모리를 많이 사용하는 백그라운드 작업을 마친 후 호스트에 지연된 작업 집합 정리를 요청합니다. 요청은 병합되거나 무시될 수 있으며 사용 중인 캐시는 해제하지 않습니다. |
@@ -27,6 +27,8 @@
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 지정된 디렉터리를 열거나 파일을 탐색하며, 호스트에 구성된 서드파티 파일 관리자(또는 탐색기 탭)를 따르고 미설정 시 시스템 파일 탐색기로 대체합니다. |
 
 `SettingsSearchService.GetEntries()`가 반환하는 항목 인덱스는 현재 호스트 프로세스에서만 유효합니다. 항목을 그대로 `SettingsWindowService.ShowEntry(...)`에 전달하면 SDK가 호스트 콜백을 호출하며, `lertaro://` URI를 만들거나 실행하지 않습니다.
+
+`HistoryEntry`는 `Keyword`, `Path`, `Kind`, `Time`(Unix 초), `Count`(항목을 연 횟수)를 제공합니다. `HistoryService.GetHistoryEntries()`는 최근에 연 항목부터 반환합니다.
 
 ### 컴포넌트 활성화 상태와 비용이 큰 런타임 상태
 

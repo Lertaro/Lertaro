@@ -10,7 +10,7 @@
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 多言語動的解決と実行時言語変更ブロードキャスト。`GetCurrentCulture()` は OS の言語ではなく設定画面で明示的に選択されている言語コード（例: `"ja-JP"`）を返却；`CultureChanged` を購読することで UI 言語変更時に内部状態の更新や辞書の再読み込みが可能。 |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | メモリおよびディスクキャッシュ付きの Windows Shell ファイルアイコン・サムネイル抽出。 |
 | **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | お気に入り一覧の取得、パスの登録済み確認、ホストブリッジ経由でのお気に入り追加を提供。 |
-| **`HistoryService`** | `IReadOnlyList<HistoryEntry> GetHistoryEntries()` | 最近のアクセス順に並んだ履歴項目（検索キーワード、ファイル種別を含む）の読み取り。 |
+| **`HistoryService`** | `IEnumerable<HistoryEntry> GetHistoryEntries()` | 最近のアクセス順に並んだ履歴項目（検索キーワード、ファイル種別、項目ごとの使用回数を含む）を読み取ります。同じ物理パスは、最後に開いたときのキーワードの下に最大 1 件だけ表示されます。 |
 | **`FileMetadataService`** | `Task<IReadOnlyDictionary<string, FileMetadata>> GetMetadataAsync(IEnumerable<string> paths)` | 検索結果セットに含まれない外部パスのファイルサイズやタイムスタンプを一括取得。 |
 | **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IDisposable WatchDirectories(string pluginId, Action<IReadOnlyList<string>> onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | ホスト側のインデックス検索と変更監視のためにカスタムディレクトリを登録します。列挙はホストのファイルインデックスだけを読み取り、ストリームで返します。対象となるインデックスがないディレクトリは空のシーケンスになるため、ローカルドライブ、ネットワーク、またはフォルダーインデックスで対象にする必要があります。ホストはファイルシステムを直接スキャンしません。監視通知はデバウンスされ、影響を受けたディレクトリを含められます。空のリストは、より狭い範囲を特定できなかったことを示します。 |
 | **`MemoryMaintenanceService`** | `void RequestTrim()` | 一時メモリを大量に使用するバックグラウンド処理の完了後、ホストに遅延したワーキングセット整理を要求します。要求はまとめられるか無視される場合があり、使用中のキャッシュは解放しません。 |
@@ -27,6 +27,8 @@
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 指定されたディレクトリを開くかファイルを特定し、ホスト設定のサードパーティ製ファイルマネージャー（またはエクスプローラーのタブ）を尊重します。未設定時はシステムのエクスプローラーにフォールバックします。 |
 
 `SettingsSearchService.GetEntries()` が返す項目のインデックスは、現在のホストプロセス内でのみ有効です。項目をそのまま `SettingsWindowService.ShowEntry(...)` に渡すと、SDK はホストのコールバックを呼び出し、`lertaro://` URI の生成や起動は行いません。
+
+`HistoryEntry` は `Keyword`、`Path`、`Kind`、`Time`（Unix 秒）、`Count`（項目を開いた回数）を公開します。`HistoryService.GetHistoryEntries()` は最後に開いた項目から順に返します。
 
 ### コンポーネントの有効状態と高コストなランタイム状態
 

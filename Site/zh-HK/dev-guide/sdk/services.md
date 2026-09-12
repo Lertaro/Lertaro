@@ -10,7 +10,7 @@
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 多語言動態剖析與執行階段變更廣播。`GetCurrentCulture()` 返回使用者在設定中心顯式選取的介面語言代碼（如 `"zh-HK"`）；訂閱 `CultureChanged` 可在介面語言切換時動態重新整理內部狀態或重載字典。 |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | 帶記憶體與磁碟快取的 Windows Shell 檔案圖示與縮圖擷取服務。 |
 | **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | 讀取收藏清單、檢查路徑是否已登記，並透過宿主橋接新增收藏項目。 |
-| **`HistoryService`** | `IReadOnlyList<HistoryEntry> GetHistoryEntries()` | 讀取搜尋記錄項目，按最近開啟時間降序排列，包含關聯的搜尋關鍵字與檔案類型。 |
+| **`HistoryService`** | `IEnumerable<HistoryEntry> GetHistoryEntries()` | 讀取搜尋記錄項目，按最近開啟時間降序排列，包含關聯的搜尋關鍵字、檔案類型與單筆記錄的使用次數。同一實體路徑最多出現一次，並歸屬於最近一次開啟它時使用的關鍵字。 |
 | **`FileMetadataService`** | `Task<IReadOnlyDictionary<string, FileMetadata>> GetMetadataAsync(IEnumerable<string> paths)` | 批次查詢外部路徑的實體檔案大小與時間戳記（僅用於查詢未出現在當前搜尋結果集中的外部路徑）。 |
 | **`DirectoryIndexerService`** | `void RegisterDirectory(string pluginId, string path, bool recursive, string? filterPattern)`<br>`IDisposable WatchDirectories(string pluginId, Action onChanged)`<br>`IDisposable WatchDirectories(string pluginId, Action<IReadOnlyList<string>> onChanged)`<br>`IAsyncEnumerable<ISearchResult> EnumerateDirectoryAsync(...)` | 允許外掛模組向宿主註冊自訂目錄，以進行基於宿主索引的搜尋和變更監聽。目錄列舉只讀取宿主檔案索引並以串流返回；未被索引涵蓋的目錄會返回空白序列，因此呼叫方必須確保目錄由已設定的本機磁碟機、網路或資料夾索引涵蓋。宿主不會直接掃描檔案系統。監聽通知會經過防抖處理，並可攜帶受影響目錄；空白清單表示宿主無法確定更窄的範圍。 |
 | **`MemoryMaintenanceService`** | `void RequestTrim()` | 外掛程式完成一段臨時記憶體分配密集的後台工作後，請求宿主延遲執行工作集維護。請求可能會合併或忽略，不會釋放仍在使用的快取。 |
@@ -27,6 +27,8 @@
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 開啟指定資料夾或定位指定檔案，遵循宿主配置的第三方檔案管理員（或檔案總管分頁），未配置時回退至系統檔案總管。 |
 
 `SettingsSearchService.GetEntries()` 回傳的項目索引只在目前宿主程序中有效。將項目直接傳給 `SettingsWindowService.ShowEntry(...)`，SDK 會呼叫宿主回呼，不會建立或啟動 `lertaro://` URI。
+
+`HistoryEntry` 提供 `Keyword`、`Path`、`Kind`、`Time`（Unix 秒）和 `Count`（項目被開啟的次數）欄位。`HistoryService.GetHistoryEntries()` 按最近開啟順序返回記錄。
 
 ### 元件啟用狀態與高成本執行階段
 
