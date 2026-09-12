@@ -38,6 +38,7 @@ public class DefaultFileManagerSetting
 public class QuickLaunchSettings
 {
     public bool Enabled { get; set; } = true;
+    public bool ShowShortcutBadges { get; set; } = true;
     public List<QuickLaunchItemSetting> Items { get; set; } = new();
     public List<string> DisabledSourceIds { get; set; } = new();
     public List<string> SourceOrder { get; set; } = new();

@@ -25,6 +25,7 @@
   "QuickLaunch_Title": "快速启动",
   "QuickLaunch_Hint": "管理手动快速启动项目，并选择要显示在快速搜索窗口中的数据源。",
   "QuickLaunch_Enabled": "启用快速启动面板",
+  "QuickLaunch_ShowShortcutBadges": "显示快捷键徽章",
   "QuickLaunch_ShiftWheelHint": "在面板上按住 Shift 滚动鼠标滚轮可切换数据源。",
   "QuickLaunch_ItemsTitle": "手动快速启动项目",
   "QuickLaunch_ItemsDesc": "这些项目会按照此处的顺序显示。",

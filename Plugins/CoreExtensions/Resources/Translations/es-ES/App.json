@@ -25,6 +25,7 @@
   "QuickLaunch_Title": "Inicio rápido",
   "QuickLaunch_Hint": "Administra elementos de inicio rápido y elige las fuentes de datos que aparecen en la ventana de búsqueda rápida.",
   "QuickLaunch_Enabled": "Habilitar el panel de inicio rápido",
+  "QuickLaunch_ShowShortcutBadges": "Mostrar insignias de atajo",
   "QuickLaunch_ShiftWheelHint": "Mantén pulsada Mayús y desplázate sobre el panel para cambiar de fuente.",
   "QuickLaunch_ItemsTitle": "Elementos de inicio rápido manuales",
   "QuickLaunch_ItemsDesc": "Estos elementos se muestran en el orden indicado.",

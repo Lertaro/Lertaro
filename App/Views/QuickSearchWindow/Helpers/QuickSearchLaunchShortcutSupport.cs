@@ -56,13 +56,16 @@ internal sealed class QuickSearchLaunchShortcutSupport
         if (items == null)
             return;
 
-        var modifier = UserSettings.Load().Hotkeys.SelectJumpModifier;
+        var settings = UserSettings.Load();
+        var modifier = settings.Hotkeys.SelectJumpModifier;
+        var showBadges = settings.QuickLaunch.ShowShortcutBadges;
         var firstVisible = GetFirstVisibleItemIndex(
             WpfUiHelper.GetScrollViewer(_itemsListView), _columnsProvider(), GetItemSlotHeight());
         for (var i = 0; i < items.Count; i++)
         {
             var shortcutIndex = i - firstVisible;
-            if (string.IsNullOrEmpty(modifier)
+            if (!showBadges
+                || string.IsNullOrEmpty(modifier)
                 || shortcutIndex < 0
                 || shortcutIndex >= MaxShortcutCount)
             {

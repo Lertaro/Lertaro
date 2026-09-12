@@ -67,6 +67,9 @@
             <CheckBox x:Name="RowQuickLaunchEnabled" Margin="0,12,0,8"
                       Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Enabled]}"
                       IsChecked="{Binding IsEnabled}" FontSize="13"/>
+            <CheckBox x:Name="RowQuickLaunchShowShortcutBadges" Margin="0,0,0,8"
+                      Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ShowShortcutBadges]}"
+                      IsChecked="{Binding ShowShortcutBadges}" FontSize="13"/>
             <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_ShiftWheelHint]}"
                        Style="{StaticResource SettingsHintText}" Margin="0,0,0,14"/>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">

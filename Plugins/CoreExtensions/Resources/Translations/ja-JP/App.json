@@ -25,6 +25,7 @@
   "QuickLaunch_Title": "クイック起動",
   "QuickLaunch_Hint": "手動のクイック起動項目と、クイック検索ウィンドウに表示するデータソースを管理します。",
   "QuickLaunch_Enabled": "クイック起動パネルを有効にする",
+  "QuickLaunch_ShowShortcutBadges": "ショートカットバッジを表示",
   "QuickLaunch_ShiftWheelHint": "パネル上で Shift を押しながらホイールを回すとデータソースを切り替えます。",
   "QuickLaunch_ItemsTitle": "手動クイック起動項目",
   "QuickLaunch_ItemsDesc": "項目はここに表示されている順に並びます。",

@@ -178,6 +178,7 @@ public static class SettingsSearchIndex
         new("Settings_QuickLaunch", "QuickLaunch"),
         new("QuickLaunch_Title", "QuickLaunch"),
         new("QuickLaunch_Enabled", "QuickLaunch", TargetElementName: "RowQuickLaunchEnabled"),
+        new("QuickLaunch_ShowShortcutBadges", "QuickLaunch", TargetElementName: "RowQuickLaunchShowShortcutBadges"),
         new("QuickLaunch_ItemsTitle", "QuickLaunch", vm => vm.QuickLaunch.SelectedSection = "Items", "RowQuickLaunchItemsTitle"),
         new("QuickLaunch_SourceTitle", "QuickLaunch", vm => vm.QuickLaunch.SelectedSection = "Sources", "RowQuickLaunchSourceTitle"),
 

@@ -25,6 +25,7 @@
   "QuickLaunch_Title": "快速啟動",
   "QuickLaunch_Hint": "管理手動快速啟動項目，並選擇要在快速搜尋視窗顯示的資料來源。",
   "QuickLaunch_Enabled": "啟用快速啟動面板",
+  "QuickLaunch_ShowShortcutBadges": "顯示快速鍵徽章",
   "QuickLaunch_ShiftWheelHint": "在面板上按住 Shift 滾動滑鼠滾輪即可切換資料來源。",
   "QuickLaunch_ItemsTitle": "手動快速啟動項目",
   "QuickLaunch_ItemsDesc": "這些項目會按照此處的順序顯示。",

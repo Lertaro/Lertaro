@@ -8,6 +8,20 @@ namespace Lertaro.App.Tests.ViewModels.Settings;
 public sealed class QuickLaunchSettingsViewModelTests
 {
     [TestMethod]
+    public void ShortcutBadges_DefaultToEnabledAndSaveChanges()
+    {
+        var settings = new UserSettings();
+        var vm = new QuickLaunchSettingsViewModel(settings);
+
+        Assert.IsTrue(vm.ShowShortcutBadges);
+
+        vm.ShowShortcutBadges = false;
+        vm.Save();
+
+        Assert.IsFalse(settings.QuickLaunch.ShowShortcutBadges);
+    }
+
+    [TestMethod]
     public void EditCommand_Execute_StartsInlineEditWithoutRemovingItem()
     {
         var vm = new QuickLaunchSettingsViewModel(new UserSettings());

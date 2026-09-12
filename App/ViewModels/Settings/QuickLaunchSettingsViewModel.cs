@@ -12,11 +12,13 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
     private string _newName = string.Empty;
     private string _newPath = string.Empty;
     private bool _isEnabled;
+    private bool _showShortcutBadges;
 
     public QuickLaunchSettingsViewModel(UserSettings userSettings)
     {
         _userSettings = userSettings;
         _isEnabled = userSettings.QuickLaunch.Enabled;
+        _showShortcutBadges = userSettings.QuickLaunch.ShowShortcutBadges;
         SelectSectionCommand = new RelayCommand<string>(section => SelectedSection = section ?? "Items");
         foreach (var item in userSettings.QuickLaunch.Items)
             Items.Add(new QuickLaunchItemViewModel { Name = item.Name, Path = item.Path });
@@ -76,6 +78,12 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
         set => SetProperty(ref _isEnabled, value);
     }
 
+    public bool ShowShortcutBadges
+    {
+        get => _showShortcutBadges;
+        set => SetProperty(ref _showShortcutBadges, value);
+    }
+
     private string _selectedSection = "Items";
     public string SelectedSection
     {
@@ -114,6 +122,7 @@ public sealed class QuickLaunchSettingsViewModel : ViewModelBase
     {
         var settings = _userSettings.QuickLaunch;
         settings.Enabled = IsEnabled;
+        settings.ShowShortcutBadges = ShowShortcutBadges;
         settings.Items = Items.Select(item => new QuickLaunchItemSetting { Name = item.Name, Path = item.Path }).ToList();
         var visibleIds = Sources.Select(source => source.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         settings.DisabledSourceIds = settings.DisabledSourceIds

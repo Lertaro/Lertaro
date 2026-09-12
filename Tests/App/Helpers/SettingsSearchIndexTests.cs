@@ -139,6 +139,15 @@ public sealed class SettingsSearchIndexTests
     }
 
     [TestMethod]
+    public void TheQuickLaunchShortcutBadgeSettingTargetsItsCheckbox()
+    {
+        var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "QuickLaunch_ShowShortcutBadges");
+
+        Assert.IsNotNull(entry, "the quick-launch shortcut badge setting has no search index entry");
+        Assert.AreEqual("RowQuickLaunchShowShortcutBadges", entry.TargetElementName);
+    }
+
+    [TestMethod]
     public void TheQuickLaunchSourceTitleSelectsTheSourcesSubsection()
     {
         var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "QuickLaunch_SourceTitle");

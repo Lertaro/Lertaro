@@ -25,6 +25,7 @@
   "QuickLaunch_Title": "빠른 실행",
   "QuickLaunch_Hint": "수동 빠른 실행 항목과 빠른 검색 창에 표시할 데이터 원본을 관리합니다.",
   "QuickLaunch_Enabled": "빠른 실행 패널 사용",
+  "QuickLaunch_ShowShortcutBadges": "바로 가기 배지 표시",
   "QuickLaunch_ShiftWheelHint": "패널에서 Shift를 누른 채 마우스 휠을 굴리면 데이터 원본을 전환합니다.",
   "QuickLaunch_ItemsTitle": "수동 빠른 실행 항목",
   "QuickLaunch_ItemsDesc": "항목은 여기에 표시된 순서로 표시됩니다.",
