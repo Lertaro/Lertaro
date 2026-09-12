@@ -5,6 +5,7 @@ Inicio rápido es el panel de lanzamiento que aparece debajo de la ventana de b�
 ## 1. Interruptor principal
 
 - **Activar el panel de inicio rápido**: Activa el panel. Solo aparece en la ventana de búsqueda rápida cuando la consulta está vacía y al menos una fuente contiene datos disponibles.
+- **Mostrar insignias de atajo**: Muestra el atajo de teclado asignado a cada elemento visible. Está activado de forma predeterminada; ocultar las insignias no desactiva los atajos.
 - Si se desactiva, el panel no carga ninguna fuente.
 - La altura se calcula a partir de la fuente con más elementos y no supera la altura máxima del área de resultados de la ventana de búsqueda rápida.
 
@@ -37,7 +38,8 @@ Abre **Configuración → Inicio rápido → Fuentes de datos** para elegir fuen
 - Con varias fuentes, la franja inferior muestra un punto por fuente. El punto seleccionado es azul y los demás grises; al pasar el ratón por encima, el punto se expande para mostrar el nombre de la fuente.
 - Mantén pulsada la tecla **Shift** y usa la rueda del ratón sobre el panel para recorrer las fuentes. La fuente seleccionada reproduce brevemente la misma animación de expansión.
 - Los atajos configurados de **Seleccionar elemento siguiente** y **Seleccionar elemento anterior** (por defecto **Ctrl+N** y **Ctrl+P**) también recorren las fuentes cuando el panel está visible; la selección vuelve de la última fuente a la primera y viceversa.
+- Cada elemento visible se puede abrir con el modificador configurado de **salto de selección** más **1–9**, **0** o **A–Z**. El primer elemento usa `1`, el décimo usa `0` y los siguientes usan `A–Z`, por lo que se pueden asignar atajos a un máximo de 36 elementos visibles.
 - Con el panel visible, usa las flechas para mover la selección según la cuadrícula visual: **←** y **→** atraviesan los límites de las filas, mientras **↑** y **↓** buscan el elemento más cercano de la misma columna en la dirección correspondiente, incluso entre grupos. Si no existe ningún elemento de esa columna en toda la dirección adyacente, la selección permanece donde está y no vuelve al principio ni al final.
 - Haz clic derecho en cualquier elemento de cualquier fuente para abrir su menú de acciones flotante dentro del panel de Inicio rápido. El panel se amplía temporalmente hasta la altura máxima de trabajo de la lista de acciones y recupera su altura anterior al cerrar el menú; al hacer clic fuera del menú, este se cierra.
-- Si los elementos superan el alto visible del panel, usa la rueda del ratón sobre el área de elementos para desplazarte verticalmente; pasar el ratón sobre un elemento no bloquea el desplazamiento.
+- Si los elementos superan el alto visible del panel, usa la rueda del ratón sobre el área de elementos para desplazarte por filas completas; pasar el ratón sobre un elemento no bloquea el desplazamiento. Las insignias de atajo y sus destinos avanzan con las filas visibles.
 - Al empezar a escribir una consulta, el panel se oculta.

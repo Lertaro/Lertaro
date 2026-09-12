@@ -5,6 +5,7 @@ Quick Launch is the launch panel shown below the Quick Search Window when the se
 ## 1. Master switch
 
 - **Enable quick launch panel**: Enables the panel. It appears only in the Quick Search Window when the query is empty and at least one source has available data.
+- **Show shortcut badges**: Shows the keyboard shortcut assigned to each visible item. The setting is enabled by default; hiding the badges does not disable the shortcuts.
 - When disabled, no source is loaded for the panel.
 - The panel height is based on the source with the most items and is capped by the Quick Search Window's maximum result area.
 
@@ -37,7 +38,8 @@ Open **Settings → Quick Launch → Data sources** to choose dynamic sources:
 - With multiple sources, the bottom strip shows one dot per source. The selected dot is blue and the other dots are gray; hovering over a dot expands it to show the source name.
 - Hold **Shift** and scroll over the panel to cycle through sources. The selected source briefly plays the same reveal animation.
 - The configured **Select Next Item** and **Select Previous Item** hotkeys (defaults **Ctrl+N** and **Ctrl+P**) also cycle through sources when the panel is visible; selection wraps from the last source to the first and vice versa.
+- Each visible item can be opened with the configured **Select Jump** modifier plus **1–9**, **0**, or **A–Z**. The first item uses `1`, the tenth uses `0`, and the remaining items use `A–Z`; this provides shortcuts for up to 36 visible items.
 - When the panel is visible, use the arrow keys to move through items in their visual grid: **←** and **→** move across row boundaries, while **↑** and **↓** seek the nearest item in the same column, including across groups. If no item exists in that column anywhere in the adjacent direction, selection stays where it is; item selection does not wrap around.
 - Right-click any item from any source to open its floating action menu inside the Quick Launch panel. The panel temporarily expands to the action list's maximum working height and returns to its previous height when the menu closes; clicking outside the menu closes it.
-- When the panel contains more items than fit vertically, use the mouse wheel over the item area to scroll; hovering an item does not block vertical scrolling.
+- When the panel contains more items than fit vertically, use the mouse wheel over the item area to scroll by whole rows; hovering an item does not block vertical scrolling. Shortcut badges and their targets advance with the visible rows.
 - Starting a query hides the panel.

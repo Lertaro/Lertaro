@@ -69,6 +69,8 @@ public interface IInlineSearchAdapter
 }
 ```
 
+- **`GetDockBounds`**: Returns the physical bounds of the actual content area used for docking. The host uses this container rectangle to size and position the inline search box; adapters should return the active Explorer pane or dialog content region rather than an unrelated outer window when those bounds can be resolved.
+
 ## 4. Quick Navigation Provider `IQuickNavigationProvider`
 
 Contributes dynamic groups and items to the [**Quick Navigation Menu**](../../user-guide/hotkeys#3-quick-navigation-mouse-triggers):

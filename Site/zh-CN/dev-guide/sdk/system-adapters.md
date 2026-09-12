@@ -69,6 +69,8 @@ public interface IInlineSearchAdapter
 }
 ```
 
+- **`GetDockBounds`**：返回实际用于停靠的内容区域的物理边界。宿主会使用这个容器矩形计算内嵌搜索栏的大小和位置；如果能够解析，适配器应返回当前的资源管理器窗格或对话框内容区域，而不是无关的外层窗口。
+
 ## 4. 鼠标快速导航提供者 `IQuickNavigationProvider`
 
 为鼠标双击或中键呼出的[**快速导航级联菜单**](../../user-guide/hotkeys#3-快速导航鼠标触发)贡献动态分组与条目：

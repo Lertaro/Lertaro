@@ -69,6 +69,8 @@ public interface IInlineSearchAdapter
 }
 ```
 
+- **`GetDockBounds`**：返回實際用於停靠的內容區域實體邊界。宿主會使用這個容器矩形計算內嵌搜尋列的大小和位置；如果能夠解析，適配器應返回目前的檔案總管窗格或對話方塊內容區域，而不是無關的外層視窗。
+
 ## 4. 滑鼠快速導覽提供者 `IQuickNavigationProvider`
 
 為滑鼠按兩下或中鍵呼出的[**快速導覽級聯選單**](../../user-guide/hotkeys#3-快速導覽滑鼠觸發)貢獻動態分組與項目：

@@ -69,6 +69,8 @@ public interface IInlineSearchAdapter
 }
 ```
 
+- **`GetDockBounds`**: Devuelve los límites físicos del área de contenido usada realmente para acoplarse. El anfitrión utiliza este rectángulo del contenedor para calcular el tamaño y la posición de la búsqueda incrustada; cuando sea posible, el adaptador debe devolver el área de contenido del panel activo del Explorador o del diálogo, no una ventana exterior no relacionada.
+
 ## 4. Proveedor de Navegación rápida `IQuickNavigationProvider`
 
 Aporta grupos y elementos dinámicos al menú contextual de [**Navegación rápida**](../../user-guide/hotkeys#3-navegacion-rapida-activadores-de-raton):
