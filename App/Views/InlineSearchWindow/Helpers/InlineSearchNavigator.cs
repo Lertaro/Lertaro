@@ -2,6 +2,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Lertaro.App.Services;
 using Lertaro.App.Services.Plugin;
+using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
 using Lertaro.Core.Wire;
 using Lertaro.Core.Hook.Commands;
@@ -60,6 +61,11 @@ public static class InlineSearchNavigator
         {
             return;
         }
+
+        // A real file/folder/app open goes into search history (same rule as the quick and full
+        // windows), so inline-launched paths also accumulate their open count.
+        if (!result.IsInstantResult && !string.IsNullOrEmpty(result.FullPath))
+            SearchHistoryStore.Record(window.SearchText, result.FullPath, SearchResultHelper.HistoryKindOf(result));
 
         // Trust result.IsDir for *which kind* it is (that's already known from the index), but still
         // confirm the path actually still exists right now -- a search result can go stale between when it

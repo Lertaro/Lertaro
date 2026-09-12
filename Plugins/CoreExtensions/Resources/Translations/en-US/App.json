@@ -215,6 +215,7 @@
   "Settings_History_Tab_Search": "Search History",
   "Settings_History_Tab_Keyword": "Keyword History",
   "Settings_History_Enable": "Enable History",
+  "Settings_History_Clear_Below": "Clear with at most {0} uses",
   "Settings_History_Clear_All": "Clear All History",
   "Settings_SaveTip": "Changes will be saved to local configuration after applying.",
   "Settings_Cancel": "Cancel",

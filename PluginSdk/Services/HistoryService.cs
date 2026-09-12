@@ -8,11 +8,11 @@ public enum HistoryEntryKind { File, Folder, Application }
 
 /// <summary>
 /// One recorded history entry: the search keyword that led to it (empty if opened directly, e.g. from
-/// a Startup Panel tab with no query typed), the target path/id, its kind, and when it was opened
-/// (Unix seconds). A path appears at most once -- if it's opened again under a different keyword, the
-/// newer keyword replaces the older one rather than both coexisting.
+/// a Startup Panel tab with no query typed), the target path/id, its kind, when it was last opened
+/// (Unix seconds), and how many times it has been opened. A path appears at most once -- if it's opened
+/// again under a different keyword, the newer keyword replaces the older one rather than both coexisting.
 /// </summary>
-public readonly record struct HistoryEntry(string Keyword, string Path, HistoryEntryKind Kind, long Time);
+public readonly record struct HistoryEntry(string Keyword, string Path, HistoryEntryKind Kind, long Time, int Count = 1);
 
 /// <summary>
 /// A decoupled service to retrieve search and navigation history from the host application.

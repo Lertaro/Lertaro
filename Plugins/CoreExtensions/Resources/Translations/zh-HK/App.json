@@ -215,6 +215,7 @@
   "Settings_History_Tab_Search": "搜尋紀錄",
   "Settings_History_Tab_Keyword": "關鍵字紀錄",
   "Settings_History_Enable": "啟用歷史紀錄",
+  "Settings_History_Clear_Below": "清除少於等於{0}次的紀錄",
   "Settings_History_Clear_All": "清空全部紀錄",
   "Settings_SaveTip": "變更會在套用後儲存到本機設定。",
   "Settings_Cancel": "取消",

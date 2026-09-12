@@ -4,6 +4,8 @@ using System.Windows.Input;
 using Lertaro.App.Services;
 using Lertaro.App.Helpers;
 using Lertaro.App.Views.Controls.Results;
+using Lertaro.App.ViewModels.Search;
+using Lertaro.Core;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using ListViewItem = System.Windows.Controls.ListViewItem;
 namespace Lertaro.App.Views.SearchWindow;
@@ -154,6 +156,7 @@ public class SearchWindowInputHandler
 
             if (!_columnActivation.TryHandle(e, item, result, isFileOrFolder))
             {
+                RecordOpen(result);
                 FileExecutor.OpenFileOrFolder(result.FullPath);
             }
         }
@@ -188,6 +191,7 @@ public class SearchWindowInputHandler
         {
             if (obj is AppSearchResult r && !r.IsSearchSectionHeader && !r.IsEmptyResult && !string.IsNullOrEmpty(r.FullPath))
             {
+                RecordOpen(r);
                 if (asAdmin)
                     FileExecutor.OpenFileOrFolderAsAdmin(r.FullPath);
                 else
@@ -198,11 +202,21 @@ public class SearchWindowInputHandler
 
         if (opened == 0 && _window.LstGridResultsControl.SelectedItem is AppSearchResult selected && !string.IsNullOrEmpty(selected.FullPath))
         {
+            RecordOpen(selected);
             if (asAdmin)
                 FileExecutor.OpenFileOrFolderAsAdmin(selected.FullPath);
             else
                 FileExecutor.OpenFileOrFolder(selected.FullPath);
         }
+    }
+
+    // Mirrors the quick window's recording rule: a real file/folder/app open goes into search history,
+    // while a plugin action or instant result does not (those have no path to re-open later).
+    private void RecordOpen(AppSearchResult result)
+    {
+        if (result.IsPluginSearchAction || result.IsInstantResult)
+            return;
+        SearchHistoryStore.Record(_window.SearchText, result.FullPath, SearchResultHelper.HistoryKindOf(result));
     }
 
     // Wraps at both ends, and skips the rows that exist only to be looked at, the same way the quick,

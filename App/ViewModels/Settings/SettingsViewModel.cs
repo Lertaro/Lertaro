@@ -114,6 +114,7 @@ public class SettingsViewModel : ViewModelBase
         _searchService.Dispose();
         General.Cleanup();
         _deferred.ExistingAppearance?.Cleanup();
+        _deferred.ExistingHistory?.Cleanup();
         LocalDrive.Cleanup();
         NetworkDrive.Cleanup();
         Hotkeys.Cleanup();

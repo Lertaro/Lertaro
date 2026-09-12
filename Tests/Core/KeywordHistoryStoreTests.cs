@@ -33,7 +33,48 @@ public sealed class KeywordHistoryStoreTests
         var entries = KeywordHistoryStore.TryReadFile(path);
 
         Assert.IsNotNull(entries);
-        CollectionAssert.AreEqual(new[] { "alpha", "Beta" }, entries);
+        CollectionAssert.AreEqual(new[] { "alpha", "Beta" }, entries.Select(e => e.Keyword).ToArray());
+    }
+
+    [TestMethod]
+    public void TryReadFile_TabCountIsParsed()
+    {
+        var path = MainPath;
+        File.WriteAllLines(path, ["alpha\t3", "beta\t7"]);
+
+        var entries = KeywordHistoryStore.TryReadFile(path);
+
+        Assert.IsNotNull(entries);
+        Assert.AreEqual(3, entries[0].Count);
+        Assert.AreEqual(7, entries[1].Count);
+    }
+
+    [TestMethod]
+    public void TryReadFile_LineWithoutTabDefaultsToOne()
+    {
+        // Old-format files wrote a bare keyword per line; those read as one use so the count never
+        // looks like zero and the entry stays clearable/visible.
+        var path = MainPath;
+        File.WriteAllLines(path, ["legacy-keyword"]);
+
+        var entries = KeywordHistoryStore.TryReadFile(path);
+
+        Assert.IsNotNull(entries);
+        Assert.AreEqual(1, entries[0].Count);
+    }
+
+    [TestMethod]
+    public void TryReadFile_InvalidOrZeroCount_CoercedToOne()
+    {
+        var path = MainPath;
+        File.WriteAllLines(path, ["alpha\t0", "beta\tgarbage", "gamma\t-2"]);
+
+        var entries = KeywordHistoryStore.TryReadFile(path);
+
+        Assert.IsNotNull(entries);
+        Assert.AreEqual(1, entries[0].Count);
+        Assert.AreEqual(1, entries[1].Count);
+        Assert.AreEqual(1, entries[2].Count);
     }
 
     [TestMethod]
@@ -47,7 +88,7 @@ public sealed class KeywordHistoryStoreTests
 
         var entries = KeywordHistoryStore.LoadFromFiles(MainPath, BackupPath);
 
-        CollectionAssert.AreEqual(new[] { "main-entry" }, entries);
+        CollectionAssert.AreEqual(new[] { "main-entry" }, entries.Select(e => e.Keyword).ToArray());
     }
 
     [TestMethod]
@@ -72,7 +113,8 @@ public sealed class KeywordHistoryStoreTests
         try
         {
             lockStream = new FileStream(MainPath, FileMode.Open, FileAccess.Read, FileShare.None);
-            CollectionAssert.AreEqual(new[] { "backup-entry" }, KeywordHistoryStore.LoadFromFiles(MainPath, BackupPath));
+            var entries = KeywordHistoryStore.LoadFromFiles(MainPath, BackupPath);
+            CollectionAssert.AreEqual(new[] { "backup-entry" }, entries.Select(e => e.Keyword).ToArray());
         }
         finally
         {

@@ -135,4 +135,64 @@ public sealed class HistoryListViewModelTests
 
         CollectionAssert.AreEqual(new[] { "a.txt", "c.txt" }, vm.GetEntriesToSave().ToList());
     }
+
+    private static HistoryListViewModel<string> MakeCountedVm(params (string Name, int Count)[] items)
+    {
+        return new HistoryListViewModel<string>(
+            () => items.Select(x => x.Name).ToList(),
+            raw => new HistoryEntryViewModel<string>
+            {
+                RawValue = raw,
+                Primary = raw,
+                Secondary = "",
+                UsageCount = items.Single(x => x.Name == raw).Count
+            },
+            () => true,
+            _ => { });
+    }
+
+    [TestMethod]
+    public void ClearBelowCommand_RemovesEntriesAtOrBelowThreshold()
+    {
+        var vm = MakeCountedVm(("one", 1), ("three", 3), ("five", 5));
+        vm.UsageThreshold = 3;
+
+        vm.ClearBelowCommand.Execute(null);
+
+        // "at most 3" removes one(1) and three(3), keeps five(5).
+        CollectionAssert.AreEqual(new[] { "five" }, vm.FilteredItems.Select(x => x.Primary).ToList());
+    }
+
+    [TestMethod]
+    public void ClearBelowCommand_ThresholdIsInclusive()
+    {
+        var vm = MakeCountedVm(("one", 1), ("two", 2), ("three", 3));
+        vm.UsageThreshold = 2;
+
+        vm.ClearBelowCommand.Execute(null);
+
+        // "at most 2" removes one(1) and two(2), keeps three(3).
+        CollectionAssert.AreEqual(new[] { "three" }, vm.FilteredItems.Select(x => x.Primary).ToList());
+    }
+
+    [TestMethod]
+    public void ClearBelowCommand_AllAtOrBelowThreshold_EmptiesList()
+    {
+        var vm = MakeCountedVm(("one", 1), ("two", 2));
+
+        vm.UsageThreshold = 20;
+        vm.ClearBelowCommand.Execute(null);
+
+        Assert.IsEmpty(vm.FilteredItems);
+    }
+
+    [TestMethod]
+    public void UsageThresholds_AreOneThroughTwenty()
+    {
+        var vm = MakeVm(new List<string>());
+
+        CollectionAssert.AreEqual(
+            Enumerable.Range(1, 20).ToArray(),
+            vm.UsageThresholds.ToArray());
+    }
 }
