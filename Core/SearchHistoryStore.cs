@@ -40,7 +40,7 @@ public static class SearchHistoryStore
     /// "search history".</param>
     public static void Record(string keyword, string path, HistoryEntryKind kind)
     {
-        if (string.IsNullOrWhiteSpace(path) || path.StartsWith("__", StringComparison.Ordinal) || !UserSettings.Load().EnableHistory)
+        if (string.IsNullOrWhiteSpace(path) || path.StartsWith("__", StringComparison.Ordinal))
             return;
         if (string.IsNullOrWhiteSpace(keyword))
             return;
@@ -48,10 +48,11 @@ public static class SearchHistoryStore
         // File.Exists/Directory.Exists below have no timeout and can block for seconds on a slow or
         // heavily-indexed network share -- callers invoke this synchronously right before/after launching
         // a result, often still on the UI thread, so recording history must not be able to freeze that.
-        Task.Run(() => RecordCore(keyword.Trim(), path, kind));
+        var enabled = UserSettings.Load().EnableHistory;
+        Task.Run(() => RecordCore(keyword.Trim(), path, kind, enabled));
     }
 
-    private static void RecordCore(string keyword, string path, HistoryEntryKind kind)
+    private static void RecordCore(string keyword, string path, HistoryEntryKind kind, bool enabled)
     {
         var isApp = kind == HistoryEntryKind.Application;
         var normalizedPath = isApp ? path.Trim() : NormalizePath(path);
@@ -62,6 +63,11 @@ public static class SearchHistoryStore
         {
             EnsureCacheNoLock();
             var buckets = _buckets!;
+
+            var entryExists = buckets.Values.Any(list => list.Any(e =>
+                e.Path.Equals(normalizedPath, StringComparison.OrdinalIgnoreCase)));
+            if (!HistoryRecordingPolicy.ShouldRecord(enabled, entryExists))
+                return;
 
             // A path belongs to at most one keyword -- drop it from wherever it currently lives
             // (including its own bucket, if it's already there) before re-adding it under the keyword

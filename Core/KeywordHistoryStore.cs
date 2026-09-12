@@ -25,13 +25,17 @@ public static class KeywordHistoryStore
     public static void Record(string? keyword)
     {
         var trimmed = keyword?.Trim() ?? string.Empty;
-        if (trimmed.Length == 0 || !UserSettings.Load().EnableKeywordHistory)
+        if (trimmed.Length == 0)
             return;
 
+        var enabled = UserSettings.Load().EnableKeywordHistory;
         lock (Gate)
         {
             EnsureCacheNoLock();
             var existingIndex = _entriesCache!.FindIndex(x => x.Keyword.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
+            if (!HistoryRecordingPolicy.ShouldRecord(enabled, existingIndex >= 0))
+                return;
+
             var count = existingIndex >= 0 ? _entriesCache[existingIndex].Count + 1 : 1;
             _entriesCache.RemoveAll(x => x.Keyword.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
             _entriesCache.Insert(0, new KeywordHistoryEntry(trimmed, count));
