@@ -120,9 +120,8 @@
                                      BorderThickness="0" Background="Transparent"
                                      ItemContainerStyle="{StaticResource SidebarItemStyle}"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                     ScrollViewer.CanContentScroll="True"
-                                     VirtualizingPanel.IsVirtualizing="True"
-                                     VirtualizingPanel.VirtualizationMode="Recycling"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ScrollViewer.CanContentScroll="False"
                                      MouseUp="LstSearchResults_MouseUp">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
