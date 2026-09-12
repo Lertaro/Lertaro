@@ -84,7 +84,7 @@ public interface IConfigurable
 
 スキーマキーが `Icon` のテキストフィールドにはアイコンのプレビューが表示されます。WPF Path Data を直接入力でき、完全な SVG/XML を貼り付けるとホストがすべての `<path d>` 値を抽出して結合し、変換後の WPF Path Data だけを保存します。無効なアイコン内容は消去され、テーマ対応のエラーダイアログで通知されます。アイコンを指定しない場合は空の値も有効です。
 
-`PluginConfigSchema` では `OnSave` や `OnRollback` デリゲートを設定し、保存や破棄時のカスタム処理をフックできます。
+`PluginConfigSchema` では `OnSave` や `OnRollback` デリゲートを設定できます。`OnSave` はユーザーが**OK/適用**を押して変更を確定したときに実行され、`OnRollback` はキャンセルまたは破棄時に状態を復元します。
 
 ### 選択肢のローカライズラベル
 

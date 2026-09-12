@@ -84,7 +84,7 @@ public interface IConfigurable
 
 스키마 키가 `Icon`인 텍스트 필드에는 아이콘 미리보기가 표시됩니다. WPF Path Data를 직접 입력할 수 있으며, 전체 SVG/XML 문서를 붙여 넣으면 호스트가 모든 `<path d>` 값을 추출해 결합하고 변환된 WPF Path Data만 저장합니다. 유효하지 않은 아이콘 내용은 지워지고 테마가 적용된 오류 대화상자로 알립니다. 아이콘을 지정하지 않을 때는 빈 값도 유효합니다.
 
-`PluginConfigSchema`는 `OnSave` 및 `OnRollback` 생명주기 델리게이트를 지원하여 저장 및 취소 시의 커스텀 로직을 처리할 수 있습니다.
+`PluginConfigSchema`는 `OnSave` 및 `OnRollback` 생명주기 델리게이트를 지원합니다. `OnSave`는 사용자가 **확인/적용**을 눌러 변경 사항을 커밋할 때 실행되고, `OnRollback`은 취소하거나 되돌릴 때 상태를 복원합니다.
 
 ### 지역화된 선택 항목 레이블
 

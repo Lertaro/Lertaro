@@ -84,7 +84,7 @@ public interface IConfigurable
 
 A text field whose schema key is `Icon` is rendered with an icon preview. It accepts WPF Path Data directly; when a complete SVG/XML document is pasted, the host extracts every `<path d>` value, combines them, and stores only the resulting WPF Path Data. Invalid icon content is cleared and reported with a themed error dialog. Empty values remain valid when no icon is desired.
 
-`PluginConfigSchema` also supports `OnSave` and `OnRollback` lifecycle delegates to manage custom persistence and rollback workflows.
+`PluginConfigSchema` also supports `OnSave` and `OnRollback` lifecycle delegates: `OnSave` runs when the user clicks **OK/Apply** to commit changes, while `OnRollback` restores state when changes are cancelled or rolled back.
 
 ### Localized choice labels
 
