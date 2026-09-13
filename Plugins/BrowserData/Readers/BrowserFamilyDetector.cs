@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace Lertaro.Plugins.BrowserData.Readers;
 
 internal enum BrowserFamily

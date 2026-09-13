@@ -1,5 +1,7 @@
 using Lertaro.Plugins.BrowserData.Readers;
 
+using System.IO;
+
 namespace Lertaro.Plugins.BrowserData.Tests.Readers;
 
 [TestClass]

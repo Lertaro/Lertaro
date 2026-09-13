@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -42,7 +43,10 @@
     <Compile Include="..\..\..\Plugins\BrowserData\Readers\BrowserFamilyDetector.cs" Link="Source\Readers\BrowserFamilyDetector.cs" />
     <Compile Include="..\..\..\Plugins\BrowserData\Readers\ChromiumBookmarksReader.cs" Link="Source\Readers\ChromiumBookmarksReader.cs" />
     <Compile Include="..\..\..\Plugins\BrowserData\Readers\ChromiumHistoryReader.cs" Link="Source\Readers\ChromiumHistoryReader.cs" />
+    <Compile Include="..\..\..\Plugins\BrowserData\Readers\ChromiumFaviconReader.cs" Link="Source\Readers\ChromiumFaviconReader.cs" />
     <Compile Include="..\..\..\Plugins\BrowserData\Readers\FirefoxPlacesReader.cs" Link="Source\Readers\FirefoxPlacesReader.cs" />
+    <Compile Include="..\..\..\Plugins\BrowserData\Readers\FirefoxFaviconReader.cs" Link="Source\Readers\FirefoxFaviconReader.cs" />
+    <Compile Include="..\..\..\Plugins\BrowserData\BrowserFaviconIconLoader.cs" Link="Source\BrowserFaviconIconLoader.cs" />
     <Compile Include="**\*.cs" Exclude="bin\**;obj\**" />
   </ItemGroup>
 

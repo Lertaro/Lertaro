@@ -1,4 +1,5 @@
 using Lertaro.Plugins.BrowserData.Readers;
+using System.Windows.Media.Imaging;
 
 namespace Lertaro.Plugins.BrowserData;
 
@@ -12,6 +13,7 @@ internal sealed class BrowserEntry
     public bool IsBookmark { get; }
     public long SortKey { get; }
     public BrowserFamily Family { get; }
+    public BitmapSource? Favicon { get; internal set; }
 
     public DateTimeOffset? VisitTime =>
         SortKey == 0 ? null : (Family == BrowserFamily.Firefox

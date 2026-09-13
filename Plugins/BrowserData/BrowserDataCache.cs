@@ -1,3 +1,4 @@
+using System.IO;
 using Lertaro.Plugins.BrowserData.Readers;
 using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Services;
@@ -33,7 +34,8 @@ internal static class BrowserDataCache
 
     private static readonly string[] MonitoredFileNames =
     [
-        "Bookmarks", "History", "History-wal", "places.sqlite", "places.sqlite-wal"
+        "Bookmarks", "History", "History-wal", "Favicons", "Favicons-wal", "places.sqlite", "places.sqlite-wal",
+        "favicons.sqlite", "favicons.sqlite-wal"
     ];
 
     internal static bool IsComponentEnabled => PluginSettingsService.IsComponentEnabled(
@@ -185,6 +187,7 @@ internal static class BrowserDataCache
                             entries.Bookmarks.AddRange(ChromiumBookmarksReader.Read(expandedPath));
                         if (indexHistory)
                             entries.History.AddRange(ChromiumHistoryReader.Read(expandedPath));
+                        AttachChromiumFavicons(entries, expandedPath);
                         break;
                     case BrowserFamily.Firefox:
                         // Firefox keeps both in one places.sqlite, read together in a single pass -- only
@@ -194,6 +197,7 @@ internal static class BrowserDataCache
                             entries.Bookmarks.AddRange(bookmarks);
                         if (indexHistory)
                             entries.History.AddRange(history);
+                        AttachFavicons(entries, FirefoxFaviconReader.Read(expandedPath));
                         break;
                     default:
                         PluginSdk.Logger.Log($"[BrowserData] '{expandedPath}' doesn't look like a Chrome/Firefox profile folder (no Bookmarks/History/places.sqlite found), skipping.", PluginSdk.LogLevel.Warn);
@@ -210,5 +214,16 @@ internal static class BrowserDataCache
             }
         }
         return result;
+    }
+
+    private static void AttachChromiumFavicons(ProfileEntries entries, string profileDir) => AttachFavicons(entries, ChromiumFaviconReader.Read(profileDir));
+
+    private static void AttachFavicons(ProfileEntries entries, IReadOnlyDictionary<string, byte[]> icons)
+    {
+        foreach (var entry in entries.Bookmarks.Concat(entries.History))
+        {
+            if (icons.TryGetValue(entry.Url, out var imageData))
+                entry.Favicon = BrowserFaviconIconLoader.Decode(imageData);
+        }
     }
 }

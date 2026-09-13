@@ -142,6 +142,7 @@ public class BrowserDataInstantProvider : IInstantResultProvider
         var iconData = !string.IsNullOrWhiteSpace(profile.Profile.Icon)
             ? profile.Profile.Icon
             : entry.IsBookmark ? DefaultBookmarkIcon : DefaultHistoryIcon;
+        var favicon = BrowserFaviconIconLoader.ToHBitmap(entry.Favicon);
 
         return new InstantResultItem
         {
@@ -149,6 +150,7 @@ public class BrowserDataInstantProvider : IInstantResultProvider
             Description = description,
             IconData = iconData,
             IconColor = "AccentBlue",
+            HBitmapIcon = favicon,
             ActionType = "Execute",
             ActionArgument = entry.Url,
             TabCompletion = entry.Url
