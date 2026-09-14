@@ -123,6 +123,19 @@ public sealed class BuildStartInfoTests
     }
 
     [TestMethod]
+    public void BuildStartInfo_VirtualApplicationWithDefaultFileManagerConfigured_LaunchesThroughShell()
+    {
+        var path = @"shell:AppsFolder\Microsoft.WindowsTerminal_8wekyb3d8bbwe!App";
+        var setting = new DefaultFileManagerSetting { Enabled = true, Path = @"C:\portable\TotalCMD64.exe" };
+
+        var info = FileExecutor.BuildStartInfo(path, isFile: false, asAdmin: false, associatedExe: null, setting);
+
+        Assert.AreEqual(path, info.FileName);
+        Assert.IsTrue(info.UseShellExecute);
+        Assert.IsEmpty(info.Arguments);
+    }
+
+    [TestMethod]
     public void BuildStartInfo_FileWithDefaultFileManagerConfigured_StillOpensFileDirectly()
     {
         // GitHub issue #180's setting only ever redirects opening a FOLDER -- a file still needs its own

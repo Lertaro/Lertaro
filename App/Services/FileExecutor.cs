@@ -189,7 +189,8 @@ public static class FileExecutor
         {
             // A user-configured default file manager (see GitHub issue #180) only ever applies to
             // opening a FOLDER -- a file still needs its own associated program, not the file manager.
-            if (!isFile && TryBuildDefaultFileManagerStartInfo(path, defaultFileManager) is { } customStartInfo)
+            if (!isFile && !UserPathResolver.IsVirtualPath(path)
+                && TryBuildDefaultFileManagerStartInfo(path, defaultFileManager) is { } customStartInfo)
                 return customStartInfo;
             return new ProcessStartInfo { FileName = path, UseShellExecute = true };
         }
