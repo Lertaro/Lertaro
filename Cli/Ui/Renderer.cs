@@ -137,9 +137,14 @@ public sealed class Renderer
         return sb.ToString();
     }
 
-    // \x1b[?25h re-shows the cursor (it's never explicitly hidden, but this is cheap insurance) and the
-    // CUP escape parks the real terminal caret just below the drawn UI block, both via the same CONOUT$
-    // handle Render() itself writes through -- not Console.SetCursorPosition/Console.CursorVisible, which
-    // would throw once stdout (not this handle) is redirected.
-    public void Cleanup() => _terminal.WriteConsole($"\x1b[{_originTop + SearchSession.MaxVisible + 2};1H\x1b[?25h");
+    // Clear the status row before parking the caret below the drawn UI block. Enter writes the chosen
+    // paths through Console.Out after this method returns; leaving the old range text on that row would
+    // make its trailing characters appear attached to the first printed path. Both cursor operations
+    // use the same CONOUT$ handle Render() itself writes through -- not Console.SetCursorPosition/
+    // Console.CursorVisible, which would throw once stdout (not this handle) is redirected.
+    public void Cleanup()
+    {
+        var statusRow = _originTop + SearchSession.MaxVisible + 2;
+        _terminal.WriteConsole($"\x1b[{statusRow};1H\x1b[2K\x1b[{statusRow + 1};1H\x1b[?25h");
+    }
 }

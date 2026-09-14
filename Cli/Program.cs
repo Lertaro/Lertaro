@@ -57,6 +57,36 @@ if (SpaceEntriesCommand.IsRequested(args))
     return;
 }
 
+if (args.Length == 1 && string.Equals(args[0], "--help", StringComparison.OrdinalIgnoreCase))
+{
+    Console.WriteLine("Usage: lff [query]");
+    Console.WriteLine("       lff --search <query> [--limit N] [--json] [--files|--folders] [--path <directory>]");
+    Console.WriteLine("       lff --space-entries <directory>");
+    Console.WriteLine();
+    Console.WriteLine("Non-interactive search returns matching paths, or one JSON array with --json.");
+    return;
+}
+
+if (args.Length == 1 && string.Equals(args[0], "--version", StringComparison.OrdinalIgnoreCase))
+{
+    Console.WriteLine($"lff {typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "unknown"}");
+    return;
+}
+
+if (NonInteractiveSearchParser.TryParse(args, out var nonInteractiveOptions, out var searchError))
+{
+    if (nonInteractiveOptions == null)
+    {
+        Console.Error.WriteLine($"[error] {searchError}");
+        Console.Error.WriteLine("Use 'lff --help' for usage.");
+        Environment.ExitCode = 2;
+        return;
+    }
+
+    Environment.ExitCode = await NonInteractiveSearchCommand.RunAsync(nonInteractiveOptions);
+    return;
+}
+
 var pipeName = AppSearchPipeClient.PipeNameFor(CurrentUserIdentity.SessionHash);
 
 try

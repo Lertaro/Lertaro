@@ -4,7 +4,6 @@ using Lertaro.Core;
 using Lertaro.App.ViewModels.Search;
 
 using Lertaro.Core.Services.Search;
-
 using Lertaro.Core.Services.Pipe;
 using Lertaro.Core.Wire;
 using Lertaro.Core.SearchIndex;
@@ -104,7 +103,7 @@ public static class AppSearchPipeService
                         continue;
                     }
 
-                    if (request.Id != SearchRequestId.Search)
+                    if (request.Id is not (SearchRequestId.Search or SearchRequestId.SearchDir))
                     {
                         await PipeResponseBinarySerializer.WriteErrorAsync(pipe, "Unsupported App search pipe request.");
                         continue;
@@ -116,7 +115,9 @@ public static class AppSearchPipeService
                     IdleWorkingSetTrimmer.BackgroundSearchStarted();
                     try
                     {
-                        await RunFullWindowSearchAsync(request.Query ?? string.Empty, pipe, queryCts.Token);
+                        await RunFullWindowSearchAsync(request.Query ?? string.Empty,
+                            request.Id == SearchRequestId.SearchDir ? request.DirectoryFilter : null,
+                            pipe, queryCts.Token);
                     }
                     finally
                     {
@@ -150,7 +151,7 @@ public static class AppSearchPipeService
     private const int FlushEveryResults = 50;
     private const int FlushEveryResultUntil = 10;
 
-    private static async Task RunFullWindowSearchAsync(string query, Stream pipe, CancellationToken token)
+    private static async Task RunFullWindowSearchAsync(string query, string? directoryFilter, Stream pipe, CancellationToken token)
     {
         // Deliberately not disposed: disposing a BufferedStream closes what it wraps, and HandleClientAsync
         // reads the NEXT request off this same pipe when this returns. Everything written is flushed
@@ -166,9 +167,9 @@ public static class AppSearchPipeService
             var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
 
             if (tokens.Count > 0)
-                await RunTokenizedSearchAsync(cleanQuery, tokens, bypassExclusions, buffered, token);
+                await RunTokenizedSearchAsync(cleanQuery, tokens, directoryFilter, bypassExclusions, buffered, token);
             else
-                await RunStreamingSearchAsync(cleanQuery, bypassExclusions, buffered, token);
+                await RunStreamingSearchAsync(cleanQuery, directoryFilter, bypassExclusions, buffered, token);
         }
 
         await SearchResultWithHighlightBinarySerializer.WriteEndAsync(buffered, token);
@@ -182,7 +183,7 @@ public static class AppSearchPipeService
     // as results stream in). Ranking (SearchResultRankComparer) is left to the client for the same
     // reason: it needs to re-run repeatedly against a growing snapshot, which belongs wherever the
     // incremental rendering is happening.
-    private static async Task RunStreamingSearchAsync(string query, bool bypassExclusions, Stream pipe, CancellationToken token)
+    private static async Task RunStreamingSearchAsync(string query, string? directoryFilter, bool bypassExclusions, Stream pipe, CancellationToken token)
     {
         // SearchStreamingAsync's onResult callback fires from whichever of its local/network tasks
         // produces a match, concurrently -- serialize pipe writes so two results' bytes never interleave
@@ -196,7 +197,7 @@ public static class AppSearchPipeService
             query,
             SearchViewModel.FullSearchFileLimit,
             SearchViewModel.FullSearchAppLimit,
-            null,
+            directoryFilter,
             r =>
             {
                 if (SearchResultMapper.IsQueriedDirectoryItself(r.Path, query))
@@ -233,7 +234,7 @@ public static class AppSearchPipeService
     // RefreshAfterTokenDispatchAsync. PluginManager.QueryTokenProviders is only populated in a process
     // that's loaded plugins -- same reason AliasProviderRegistry needed this pipe in the first place --
     // so this dispatch has to run here, not on a bare CLI client.
-    private static async Task RunTokenizedSearchAsync(string query, IReadOnlyList<string> tokens, bool bypassExclusions, Stream pipe, CancellationToken token)
+    private static async Task RunTokenizedSearchAsync(string query, IReadOnlyList<string> tokens, string? directoryFilter, bool bypassExclusions, Stream pipe, CancellationToken token)
     {
         var raw = new List<SearchResult>();
         // SearchStreamingAsync's onResult callback fires concurrently from its local/network tasks, and
@@ -243,7 +244,7 @@ public static class AppSearchPipeService
             query,
             SearchViewModel.FullSearchFileLimit,
             SearchViewModel.FullSearchAppLimit,
-            null,
+            directoryFilter,
             r =>
             {
                 writeLock.Wait();

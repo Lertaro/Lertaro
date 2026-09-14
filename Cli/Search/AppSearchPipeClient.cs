@@ -84,7 +84,7 @@ public static class AppSearchPipeClient
     internal static bool ShouldRenderProgressSnapshot(int streamedCount) =>
         streamedCount is FirstProgressResultCount or MaximumProgressResultCount;
 
-    public static async Task<List<(SearchResult Result, int[] Highlights)>> SearchAsync(string pipeName, string query, Action<List<(SearchResult, int[])>> onProgress, CancellationToken token)
+    public static async Task<List<(SearchResult Result, int[] Highlights)>> SearchAsync(string pipeName, string query, Action<List<(SearchResult, int[])>> onProgress, CancellationToken token, string? directoryFilter = null)
     {
         // No PipeOptions.CurrentUserOnly here either -- see ProbeAsync's own comment on why (the ACL on
         // AppSearchPipeService's side is the real enforcement; this flag would just make an elevated
@@ -92,7 +92,12 @@ public static class AppSearchPipeClient
         using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
         await pipe.ConnectAsync(ConnectTimeoutMs, token);
 
-        var msg = new SearchRequestMessage { Id = SearchRequestId.Search, Query = query };
+        var msg = new SearchRequestMessage
+        {
+            Id = string.IsNullOrWhiteSpace(directoryFilter) ? SearchRequestId.Search : SearchRequestId.SearchDir,
+            Query = query,
+            DirectoryFilter = directoryFilter
+        };
         await SearchRequestBinarySerializer.WriteSearchRequestAsync(pipe, msg, token);
 
         // Read through a buffer: ReadAsync takes a result's magic, frame type, payload length and
