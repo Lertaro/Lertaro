@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using System.Text;
-
 namespace Lertaro.Core.Hook.InlineSearch;
 
 // The raw key-code-to-inline-search-event translation logic lives in
@@ -128,6 +127,7 @@ public class KeyboardHookService : IDisposable
             var vkCode = (int)hookStruct.vkCode;
             var time = hookStruct.time;
             _hotkeyDetector.OnKeyDown(vkCode);
+            _hotkeyDetector.SynchronizeModifierState();
 
             // The physical Menu/context-menu key, and Shift+F10, both open a context menu just like a
             // right-click does, with the same real, non-zero construction delay -- covered

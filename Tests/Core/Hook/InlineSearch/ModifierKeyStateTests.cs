@@ -62,4 +62,18 @@ public sealed class ModifierKeyStateTests
         Assert.IsFalse(state.IsShiftDown);
         Assert.IsFalse(state.IsWindowsDown);
     }
+
+    [TestMethod]
+    public void Synchronize_RemovesModifierStateLostAcrossDesktopTransition()
+    {
+        var state = new ModifierKeyState();
+        state.OnKeyDown(0x5B);
+        state.OnKeyDown(0xA4);
+
+        var physicallyDown = new HashSet<int> { 0xA4 };
+        state.Synchronize(physicallyDown.Contains);
+
+        Assert.IsFalse(state.IsWindowsDown);
+        Assert.IsTrue(state.IsAltDown);
+    }
 }

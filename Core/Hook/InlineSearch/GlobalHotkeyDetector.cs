@@ -17,6 +17,11 @@ public sealed class GlobalHotkeyDetector
 
     public void OnKeyDown(int vkCode) => _modifierKeyState.OnKeyDown(vkCode);
 
+    // Secure-desktop transitions can hide a modifier key-up from the low-level hook; refresh the
+    // hook-owned snapshot before processing the next key event.
+    internal void SynchronizeModifierState() => _modifierKeyState.Synchronize(vkCode =>
+        (KeyboardNativeMethods.GetAsyncKeyState(vkCode) & 0x8000) != 0);
+
     internal bool HasControlAltOrWindowsDown => _modifierKeyState.HasControlAltOrWindowsDown;
 
     internal bool CheckModifiersMatch(string expectedModifier) =>
