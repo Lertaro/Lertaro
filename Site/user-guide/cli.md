@@ -38,7 +38,32 @@ lff
 | `Enter` | Outputs all marked paths (or the highlighted path if none marked) to `stdout` and exits. |
 | `Esc` or `Ctrl+C` | Exits cleanly without outputting anything. |
 
-## 4. Pre-filling Queries & Pipeline Input
+## 4. Non-interactive Search
+
+Use `--search` when a script needs search results without opening the interactive interface:
+
+```bash
+# Print up to 20 matching paths
+lff --search "report"
+
+# Sort the complete result set first, then keep the first 50 results
+lff --search "report" --limit 50
+
+# Restrict the search to files under a directory
+lff --search "report" --files --path "D:\Documents"
+
+# Restrict the search to folders
+lff --search "report" --folders
+
+# Print one compact JSON array with result metadata
+lff --search "report" --json
+```
+
+The complete result set is sorted before `--limit` is applied. Without `--limit`, at most 20 results are printed. Plain output writes one path per line; `--json` writes one JSON array rather than NDJSON. Each JSON item includes the name, path, directory flag, drive, attributes, size, and creation, modification, and access timestamps. This mode uses the same search syntax as the interactive interface and requires the Lertaro App to be running.
+
+`--files` and `--folders` cannot be used together. `--path` limits the search to the specified directory and its descendants.
+
+## 5. Pre-filling Queries & Pipeline Input
 
 You can provide an initial search term directly via command-line arguments or standard input:
 
@@ -52,13 +77,13 @@ echo report | lff
 
 Both open the interactive TUI pre-populated with `report` as the initial filter, allowing you to refine the search or press `Enter` directly to confirm.
 
-## 5. Multi-selection & Batch Output
+## 6. Multi-selection & Batch Output
 
 Press `Tab` to mark items. **Marked selections persist even when you change your search query**.
 
 You can search for `doc` to mark several Word documents, clear the query, search `pdf` to mark several reports, and press `Enter` — `lff` outputs all marked paths across queries line-by-line to standard output.
 
-## 6. Shell Scripting Examples
+## 7. Shell Scripting Examples
 
 `lff` renders its TUI directly into the console buffer without polluting the standard output stream. Only the final confirmed path strings are written to `stdout`, making it ideal for piping into other tools:
 
@@ -82,7 +107,7 @@ lff | Get-Item | Select-Object Name, Length, LastWriteTime
 for /f "delims=" %i in ('lff') do code "%i"
 ```
 
-## 7. Limitations & Intentional Choices
+## 8. Limitations & Intentional Choices
 
 - **Requires Foreground App**: `lff` relies on the running Lertaro App instance for querying; it does not perform standalone indexing.
 - **No GUI Previews**: Optimized exclusively for fast terminal piping. For interactive media/rich text previews, use Lertaro's GUI [**Actions & Preview**](./actions-and-preview).

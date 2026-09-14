@@ -41,6 +41,8 @@ The **Browser Bookmarks & History** plugin can search configured Chrome-family a
 
 The **Blacklist** field accepts one literal string per line. A bookmark or history entry is hidden when its title or URL contains any rule, using case-insensitive matching; fuzzy matching is not used. The rules apply to both bookmarks and history and take effect after the plugin reloads its cached data.
 
+When a matching favicon is available in the browser's local database, the plugin reads it in read-only mode and displays it for the result without copying the database. If no favicon can be read, the configured profile icon is used, followed by the default bookmark or history icon.
+
 ## 3. Flow Launcher Community Ecosystem Bridge
 
 In addition to native plugins built against `Lertaro.PluginSdk`, Lertaro includes a built-in **Flow Launcher Bridge** providing native-grade compatibility for the expansive Flow Launcher plugin community.

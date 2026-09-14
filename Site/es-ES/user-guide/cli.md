@@ -38,7 +38,32 @@ lff
 | `Enter` | Envía todas las rutas marcadas (o la ruta resaltada si no hay marcas) a `stdout` y sale. |
 | `Esc` o `Ctrl+C` | Sale limpiamente sin emitir ninguna salida. |
 
-## 4. Búsquedas predefinidas y entrada por tubería
+## 4. Búsqueda no interactiva
+
+Usa `--search` cuando un script necesite resultados sin abrir la interfaz interactiva:
+
+```bash
+# Imprimir hasta 20 rutas coincidentes
+lff --search "report"
+
+# Ordenar primero todo el conjunto de resultados y conservar después los 50 primeros
+lff --search "report" --limit 50
+
+# Buscar solo archivos bajo un directorio
+lff --search "report" --files --path "D:\Documents"
+
+# Buscar solo carpetas
+lff --search "report" --folders
+
+# Imprimir un único array JSON compacto con los metadatos de los resultados
+lff --search "report" --json
+```
+
+El conjunto completo de resultados se ordena antes de aplicar `--limit`. Sin `--limit`, se imprimen como máximo 20 resultados. La salida normal escribe una ruta por línea; `--json` escribe un único array JSON, no NDJSON. Cada elemento JSON incluye nombre, ruta, indicador de directorio, unidad, atributos, tamaño y las marcas de tiempo de creación, modificación y acceso. Este modo usa la misma sintaxis de búsqueda que la interfaz interactiva y requiere que Lertaro App esté en ejecución.
+
+`--files` y `--folders` no se pueden usar a la vez. `--path` limita la búsqueda al directorio especificado y a todos sus descendientes.
+
+## 5. Búsquedas predefinidas y entrada por tubería
 
 Puedes proporcionar un término de búsqueda inicial mediante argumentos de línea de comandos o por la entrada estándar:
 
@@ -52,13 +77,13 @@ echo report | lff
 
 Ambos métodos abren la interfaz interactiva con `report` precargado como filtro inicial, permitiéndote ajustar la búsqueda o pulsar `Enter` directamente.
 
-## 5. Selección múltiple y salida por lotes
+## 6. Selección múltiple y salida por lotes
 
 Pulsa `Tab` para marcar elementos. **Las selecciones marcadas se mantienen incluso si cambias el término de búsqueda**.
 
 Puedes buscar `doc` para marcar varios documentos de Word, borrar la búsqueda, buscar `pdf` para marcar informes y pulsar `Enter`: `lff` enviará todas las rutas marcadas a la salida estándar, una por línea.
 
-## 6. Integración en scripts de consola
+## 7. Integración en scripts de consola
 
 La interfaz de `lff` se dibuja directamente en el búfer de la consola sin interferir con el flujo de salida estándar. Solo las cadenas de rutas confirmadas se escriben en `stdout`, facilitando su combinación con otras herramientas:
 
@@ -82,7 +107,7 @@ lff | Get-Item | Select-Object Name, Length, LastWriteTime
 for /f "delims=" %i in ('lff') do code "%i"
 ```
 
-## 7. Límites y decisiones de diseño
+## 8. Límites y decisiones de diseño
 
 - **Requiere la aplicación en primer plano**: `lff` depende de la instancia activa de Lertaro App; no realiza indexación autónoma.
 - **Sin vista previa gráfica**: Optimizado exclusivamente para operaciones rápidas en consola. Para vistas previas interactivas y multimedia, utiliza la interfaz gráfica en [**Acciones y vista previa**](./actions-and-preview).

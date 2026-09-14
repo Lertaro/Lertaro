@@ -41,6 +41,8 @@ El plugin **Marcadores e historial del navegador** puede buscar carpetas de perf
 
 El campo **Lista de bloqueo** acepta una cadena literal por línea. Un marcador o entrada del historial se oculta cuando su título o URL contiene cualquiera de las reglas, con coincidencia literal sin distinguir mayúsculas y minúsculas; no se usa coincidencia difusa. Las reglas se aplican tanto a marcadores como a historial y se activan después de que el plugin vuelva a cargar sus datos en caché.
 
+Si la base de datos local del navegador contiene un favicon coincidente, el plugin lo lee en modo de solo lectura y lo muestra en el resultado sin copiar el archivo de base de datos. Si no se puede leer el favicon, se usa el icono del navegador configurado y, después, el icono predeterminado de marcador o historial.
+
 ## 3. Soporte del ecosistema de plugins de Flow Launcher
 
 Además de los plugins nativos de `Lertaro.PluginSdk`, el módulo integrado **Flow Launcher Bridge** ofrece compatibilidad total con el extenso catálogo de Flow Launcher.
