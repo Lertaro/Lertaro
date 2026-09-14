@@ -3,6 +3,7 @@
                     xmlns:app="clr-namespace:Lertaro.App"
                     xmlns:local="clr-namespace:Lertaro.App.Converters"
                     xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+                    xmlns:inline="clr-namespace:Lertaro.App.Views.InlineSearchWindow.Helpers"
                     xmlns:services="clr-namespace:Lertaro.App.Services">
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="../Styles/Tokens/Colors.xaml"/>
@@ -95,7 +96,7 @@
                 </Grid.Style>
                 
                 <!-- Side-by-side name and path for standard results -->
-                <Grid>
+                <Grid inline:InlineResultColumnsBehavior.IsResultGrid="True">
                     <Grid.Style>
                         <Style TargetType="Grid">
                             <Setter Property="Visibility" Value="Visible"/>
@@ -120,7 +121,8 @@
                                    Foreground="{DynamicResource TextPrimary}"
                                    local:TextHighlighter.HighlightText="{Binding SearchQuery}"
                                    local:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}"
-                                   helpers:MarqueeBehavior.EnableMarquee="True"
+                                   Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}"
+                                   TextTrimming="CharacterEllipsis"
                                    FontSize="14"
                                    VerticalAlignment="Center">
                             <TextBlock.Style>
@@ -152,7 +154,10 @@
                                    FontSize="11"
                                    Foreground="{DynamicResource TextSecondary}"
                                    VerticalAlignment="Center"
-                                   helpers:MarqueeBehavior.EnableMarquee="True"
+                                   inline:InlinePathDisplayBehavior.IsEnabled="True"
+                                   Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextAlignment="Right"
                                    local:TextHighlighter.HighlightText="{Binding SearchQuery}"
                                    local:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}">
                             <TextBlock.Style>

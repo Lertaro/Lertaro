@@ -219,16 +219,28 @@ public sealed class InlineSearchWindowLayoutManager
         FindScrollViewers(container, scrollViewers);
         foreach (var sv in scrollViewers)
         {
-            if (sv.ScrollableWidth > 0)
-            {
-                if (result.IsJumpToExplorerPath && Grid.GetColumn(sv) == 1)
-                {
-                    continue;
-                }
+            if (sv.ActualWidth <= 0 || FindTextBlock(sv) is not { } textBlock)
+                continue;
+
+            var fullText = Grid.GetColumn(sv) == 0
+                ? (result.IsJumpToExplorerPath ? result.ParentDir : result.Name)
+                : (result.IsJumpToExplorerPath ? result.Name : result.ParentDir);
+            if (InlineTextMetrics.Measure(fullText, textBlock) > sv.ActualWidth + 0.5)
                 return true;
-            }
         }
         return false;
+    }
+
+    private static TextBlock? FindTextBlock(DependencyObject root)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is TextBlock textBlock) return textBlock;
+            if (FindTextBlock(child) is { } nested) return nested;
+        }
+
+        return null;
     }
 
     private static void FindScrollViewers(DependencyObject depObj, List<ScrollViewer> list)
