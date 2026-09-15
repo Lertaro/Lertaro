@@ -42,6 +42,36 @@ public sealed class IndexV2SearcherTests
         Assert.AreEqual(@"C:\Projects", results[0].Path);
     }
 
+    // End-to-end for the two defects that made "lertaro regex:/\.exe$/" return nothing. Both have to be
+    // fixed for this to pass: the escaped dot's backslash used to flip the query into PATH mode (so the
+    // whole text was read as a path that cannot exist), and the ASCII fast path cannot apply a regex, so
+    // a regex-only clause used to reject every ASCII name. "install.exe" is pure ASCII, which is exactly
+    // the case that took the broken branch.
+    [TestMethod]
+    public void SearchStreaming_RegexOnlyQuery_FiltersByTheClause()
+    {
+        using var fixture = BuildSampleDrive();
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"regex:/\.exe$/", 10, results.Add, CancellationToken.None);
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual("install.exe", results[0].Name);
+    }
+
+    [TestMethod]
+    public void SearchStreaming_RegexWithANameTerm_RequiresBoth()
+    {
+        using var fixture = BuildSampleDrive();
+        var results = new List<SearchResult>();
+
+        // The term narrows the prefilter, the clause is the final say: "readme.txt" has the term but does
+        // not match the regex, and nothing else matches both.
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"readme regex:/\.exe$/", 10, results.Add, CancellationToken.None);
+
+        Assert.IsEmpty(results);
+    }
+
     [TestMethod]
     public void SearchStreaming_DirectoryFilter_OnlyReturnsResultsUnderThatDirectory()
     {

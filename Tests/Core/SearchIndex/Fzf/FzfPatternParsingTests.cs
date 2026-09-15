@@ -167,6 +167,28 @@ public sealed class FzfPatternParsingTests
         Assert.IsNull(pattern.TargetDrive);
     }
 
+    // IsEmpty means "no query here", which is what its callers act on -- NameSearch's drive gate returns
+    // without searching, and FuzzyMatcher treats it as a non-match. A regex clause IS a query even though
+    // it carries no term, so counting term sets alone made "regex:/\.exe$/" search for nothing at all.
+    [TestMethod]
+    public void IsEmpty_RegexOnlyPattern_IsNotEmpty()
+    {
+        Assert.IsFalse(FzfPattern.Parse(@"regex:/\.exe$/").IsEmpty);
+    }
+
+    [TestMethod]
+    public void IsEmpty_RegexAlongsideATerm_IsNotEmpty()
+    {
+        Assert.IsFalse(FzfPattern.Parse(@"lertaro regex:/\.exe$/").IsEmpty);
+    }
+
+    [TestMethod]
+    public void IsEmpty_NoTermsAndNoRegex_IsEmpty()
+    {
+        Assert.IsTrue(FzfPattern.Parse("").IsEmpty);
+        Assert.IsTrue(FzfPattern.Parse(":").IsEmpty);
+    }
+
     private static void WithFuzzyDisabled(Action body)
     {
         var previous = SearchContext.FuzzyMatchEnabled;
