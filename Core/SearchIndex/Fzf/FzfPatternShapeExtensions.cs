@@ -19,9 +19,4 @@ internal static class FzfPatternShapeExtensions
     // read as "any of these words" instead of "all of them".
     public static FzfPattern FromTermSets(FzfTermSet[] sets)
         => new(null, sets);
-
-    // True when the query's text was entirely regex (no ordinary terms), which is the expensive case: no
-    // literal term exists for the index prefilter to consume, so the regex falls back to a full scan.
-    public static bool IsRegexOnly(this FzfPattern pattern)
-        => pattern.Regexes is { Length: > 0 } && pattern.TermSets.Length == 0;
 }

@@ -81,22 +81,19 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
         return best;
     }
 
-    private static Regex? GetRegex(string rule)
-    {
-        return RegexCache.GetOrAdd(rule, static r =>
-        {
-            try
-            {
-                return new Regex(RuleToRegex(r), MatchOptions);
-            }
-            catch (ArgumentException)
-            {
-                // A user-authored rule that doesn't translate to a valid pattern matches nothing rather
-                // than failing the whole search.
-                return new Regex("(?!)", MatchOptions);
-            }
-        });
-    }
+    private static Regex? GetRegex(string rule) => RegexCache.GetOrAdd(rule, static r =>
+                                                                  {
+                                                                      try
+                                                                      {
+                                                                          return new Regex(RuleToRegex(r), MatchOptions);
+                                                                      }
+                                                                      catch (ArgumentException)
+                                                                      {
+                                                                          // A user-authored rule that doesn't translate to a valid pattern matches nothing rather
+                                                                          // than failing the whole search.
+                                                                          return new Regex("(?!)", MatchOptions);
+                                                                      }
+                                                                  });
 
     // "*.doc; *.docx; *.pdf" and "audio" (a bare word is read as an extension) both become one
     // alternation anchored at the end of the name. Anything that already carries wildcard syntax keeps

@@ -29,7 +29,7 @@ Enlaces interactivos para abrir los directorios de almacenamiento en el Explorad
 ### Estructura de rutas de almacenamiento
 
 - **Versión instalable**: Los datos de usuario se guardan en `%LocalAppData%\Lertaro` y los de máquina en `%ProgramData%\Lertaro`.
-- **Versión portátil**: Los datos se guardan en `Data\Users\<SID hash>` y `Data\Machine` junto al ejecutable (ver [**Aislamiento de datos en versión portátil**](../getting-started#arquitectura-de-aislamiento-de-datos-en-version-portatil)).
+- **Versión portátil**: Los datos se guardan en `Data\Users\<SID hash>` y `Data\Machine` junto al ejecutable (ver [**Aislamiento de datos en versión portátil**](../getting-started#edicion-portatil-lertaro-portable-zip)).
 
 ## 3. Comprobación y aplicación de actualizaciones
 

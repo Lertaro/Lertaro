@@ -29,7 +29,7 @@ Clickable links directly open storage directories in File Explorer (folders are 
 ### Storage Path Architecture
 
 - **Installer Version**: User data is placed in `%LocalAppData%\Lertaro`, and machine data in `%ProgramData%\Lertaro`.
-- **Portable Version**: User data is placed in `Data\Users\<SID hash>`, and machine data in `Data\Machine` next to the executable (see [**Portable Data Isolation**](../getting-started#portable-data-isolation-architecture)).
+- **Portable Version**: User data is placed in `Data\Users\<SID hash>`, and machine data in `Data\Machine` next to the executable (see [**Portable Data Isolation**](../getting-started#portable-edition-lertaro-portable-zip)).
 
 ## 3. Update Checks & In-Place Upgrades
 

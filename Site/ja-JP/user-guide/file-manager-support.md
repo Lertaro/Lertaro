@@ -43,7 +43,7 @@ Lertaro は単体のデスクトップランチャーにとどまらず、Window
 
 ### Everything 互換サービス (IPC)
 
-[**設定 → 一般 → システム**](./settings/general#システム) で **Everything 互換サービス (IPC) を有効化** すると、標準の Everything Win32 IPC インターフェースをエミュレートします。Directory Opus、Total Commander、Flow Launcher などのツールから、Everything を起動することなく Lertaro のインメモリインデックスを直接利用できます。
+[**設定 → 一般 → システム**](./settings/general#_1-システム-system) で **Everything 互換サービス (IPC) を有効化** すると、標準の Everything Win32 IPC インターフェースをエミュレートします。Directory Opus、Total Commander、Flow Launcher などのツールから、Everything を起動することなく Lertaro のインメモリインデックスを直接利用できます。
 
 ## 4. 各種アプリの独自ダイアログ対応（専用プラグイン）
 

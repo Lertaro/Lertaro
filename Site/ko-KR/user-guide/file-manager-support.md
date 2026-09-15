@@ -43,7 +43,7 @@ Lertaro는 단순한 독립형 실행기를 넘어, Windows 파일 탐색기, �
 
 ### Everything 호환 서비스 (IPC)
 
-[**설정 → 일반 → 시스템**](./settings/general#시스템)에서 **Everything 호환 서비스 (IPC) 활성화**를 켜면 표준 Everything Win32 IPC 인터페이스를 에뮬레이트합니다. Directory Opus, Total Commander, Flow Launcher 등에서 Everything 없이도 Lertaro 인덱스를 직접 활용할 수 있습니다.
+[**설정 → 일반 → 시스템**](./settings/general#_1-시스템-system)에서 **Everything 호환 서비스 (IPC) 활성화**를 켜면 표준 Everything Win32 IPC 인터페이스를 에뮬레이트합니다. Directory Opus, Total Commander, Flow Launcher 등에서 Everything 없이도 Lertaro 인덱스를 직접 활용할 수 있습니다.
 
 ## 4. 자체 제작 대화상자 소프트웨어 지원 (전용 플러그인)
 

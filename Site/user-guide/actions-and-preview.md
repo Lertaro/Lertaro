@@ -53,7 +53,7 @@ Press `Alt+P` on any result to summon the docked preview panel alongside the sea
 
 ### Adaptive Layout & Pop-up Handling
 
-- **Adaptive Screen Bounds**: Preview dimensions can be customized under [**Settings → General → Preview**](./settings/general#preview); Lertaro guarantees the panel remains within the visible monitor bounds.
+- **Adaptive Screen Bounds**: Preview dimensions can be customized under [**Settings → General → Preview**](./settings/general#_4-preview-window); Lertaro guarantees the panel remains within the visible monitor bounds.
 - **Native Dialog Avoidance**: When previewing password-protected Office documents, Lertaro temporarily hides both windows so the native password dialog can be interacted with, restoring seamlessly afterwards.
 - **Drag Source**: The top area of the preview panel acts as a drag source — drag the previewed file directly into editors, browsers, or chat applications.
 

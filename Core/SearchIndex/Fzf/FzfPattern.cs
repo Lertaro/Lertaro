@@ -3,7 +3,7 @@ using Lertaro.Core.SearchIndex.Query;
 namespace Lertaro.Core.SearchIndex.Fzf;
 
 // Alias-fallback quality-gating (IsAcceptableAliasMatch/WeightAliasMatch and their private helpers) lives
-// in FzfPatternAliasMatchExtensions.cs and the caller-facing shape queries (IsRegexOnly) in
+// in FzfPatternAliasMatchExtensions.cs and the pattern factories (Empty/FromTermSets) in
 // FzfPatternShapeExtensions.cs -- extension methods, not partials, to keep this file under the project's
 // line limit. Pattern parsing is delegated to FzfPatternParser for the same reason; this file keeps the
 // immutable pattern state and core text-matching algorithm.

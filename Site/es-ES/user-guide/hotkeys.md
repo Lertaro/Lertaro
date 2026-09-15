@@ -92,4 +92,4 @@ Los plugins pueden registrar atajos propios (p. ej. `Ctrl+Shift+C` para copiar r
 ### Lista negra de procesos y omisión en pantalla completa
 
 - **Omisión automática en pantalla completa**: Cuando una aplicación se ejecuta en pantalla completa exclusiva (como juegos 3D o reproductores de vídeo), Lertaro omite automáticamente todos los atajos globales para no interferir.
-- **Lista negra de procesos personalizada**: Añade ejecutables en [**Configuración → Atajos de teclado**](./settings/hotkeys-page#lista-negra-de-procesos) (p. ej. `game.exe`) para silenciar los atajos mientras ese proceso esté en primer plano.
+- **Lista negra de procesos personalizada**: Añade ejecutables en [**Configuración → Atajos de teclado**](./settings/hotkeys-page#_3-lista-negra-de-procesos) (p. ej. `game.exe`) para silenciar los atajos mientras ese proceso esté en primer plano.

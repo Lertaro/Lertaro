@@ -29,7 +29,7 @@
 ### ディレクトリの配置構成
 
 - **インストーラー版**：ユーザーデータは `%LocalAppData%\Lertaro`、マシンデータは `%ProgramData%\Lertaro` に保存されます。
-- **ポータブル版**：実行ファイルと同階層の `Data\Users\<SID hash>` および `Data\Machine` に保存され、完全なポータブル環境を提供します（詳細は [**ポータブル版のデータ分離**](../getting-started#ポータブル版のデータ分離構造) を参照）。
+- **ポータブル版**：実行ファイルと同階層の `Data\Users\<SID hash>` および `Data\Machine` に保存され、完全なポータブル環境を提供します（詳細は [**ポータブル版のデータ分離**](../getting-started#ポータブル版-lertaro-portable-zip) を参照）。
 
 ## 3. 更新の確認と自動アップデート
 
