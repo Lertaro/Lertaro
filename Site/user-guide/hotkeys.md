@@ -59,7 +59,7 @@ The small logo inside the search box is not just an indicator — it provides se
 
 ### Inline and Full Window Icons
 
-- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows. Dragging the logo moves the card itself, and the offset is re-applied on every later dock.
+- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#_3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows. Dragging the logo moves the card itself, and the offset is re-applied on every later dock.
 - **Full Window**: Left-clicking the logo opens the context menu; **Open Full Window** is hidden there because the window is already open. Middle-clicking toggles the window's pinned state.
 
 ### Search Box Gestures (Quick Window)
@@ -128,4 +128,4 @@ Two guards make the destructive keys safe under a search box. A chord only reach
 ### Process Blacklist & Fullscreen Bypass
 
 - **Automatic Fullscreen Bypass**: When a focused foreground application runs in exclusive fullscreen mode (e.g. 3D games or video players), Lertaro automatically bypasses all global hotkeys to avoid interrupting gameplay.
-- **Custom Process Blacklist**: Add executable names under [**Settings → Hotkeys**](./settings/hotkeys-page#process-blacklist) (e.g. `game.exe`) to silence hotkeys and mouse triggers while that process is focused.
+- **Custom Process Blacklist**: Add executable names under [**Settings → Hotkeys**](./settings/hotkeys-page#_3-process-blacklist) (e.g. `game.exe`) to silence hotkeys and mouse triggers while that process is focused.

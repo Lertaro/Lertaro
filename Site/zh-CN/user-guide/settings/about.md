@@ -29,7 +29,7 @@
 ### 存储路径规则
 
 - **安装版**：用户数据存放于 `%LocalAppData%\Lertaro`，机器数据存放于 `%ProgramData%\Lertaro`。
-- **便携版**：用户数据存放于程序目录下的 `Data\Users\<SID hash>`，机器数据存放于 `Data\Machine`，实现纯绿色的全隔离便携运行（详见[**便携版使用说明**](../getting-started#便携版数据隔离机制)）。
+- **便携版**：用户数据存放于程序目录下的 `Data\Users\<SID hash>`，机器数据存放于 `Data\Machine`，实现纯绿色的全隔离便携运行（详见[**便携版使用说明**](../getting-started#便携版-lertaro-portable-zip)）。
 
 ## 3. 检查更新与一键升级
 

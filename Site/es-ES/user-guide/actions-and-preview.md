@@ -67,7 +67,7 @@ El panel es deliberadamente no activador: nunca le quita el foco a la ventana de
 
 ### Ajuste de pantalla y gestión de ventanas emergentes
 
-- **Ajuste automático de límites**: Las dimensiones de la vista previa se pueden personalizar en [**Configuración → General → Vista previa**](./settings/general#vista-previa); Lertaro garantiza que nunca sobrepase el área visible del monitor.
+- **Ajuste automático de límites**: Las dimensiones de la vista previa se pueden personalizar en [**Configuración → General → Vista previa**](./settings/general#_4-ventana-de-vista-previa); Lertaro garantiza que nunca sobrepase el área visible del monitor.
 - **Lado de acoplamiento**: El panel se acopla a la **derecha** de su ventana de búsqueda y pasa a la izquierda solo cuando a la derecha no cabe; no persigue el lado más espacioso, así que se queda quieto mientras desplazas una ventana ancha. Después sigue a su ventana propietaria cuando la mueves o la redimensionas.
 - **La memoria de tamaño dura la sesión**: Arrastrar el asa de redimensionado o mover el panel se recuerda mientras la vista previa siga en juego, pero la próxima vez que la ventana de búsqueda se oculte o se cierre el panel vuelve al tamaño y al lado de acoplamiento configurados.
 - **Evitación de diálogos nativos**: Al previsualizar documentos de Office protegidos con contraseña, Lertaro oculta temporalmente sus ventanas para que puedas introducir la contraseña sin bloqueos, restaurándose después con normalidad.

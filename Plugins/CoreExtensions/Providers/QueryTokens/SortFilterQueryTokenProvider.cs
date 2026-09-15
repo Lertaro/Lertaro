@@ -18,7 +18,14 @@ namespace Lertaro.Plugins.CoreExtensions.Providers.QueryTokens;
 public class SortFilterQueryTokenProvider : IQueryTokenProvider
 {
     public const string PluginId = "Lertaro.Plugins.CoreExtensions";
-    public const string SettingKey = "SortFilterPrefix";
+
+    // The ascending trigger, with '>' as its descending counterpart. A compile-time constant rather than a
+    // setting: QueryTokenScanner decides which words are even offered to this provider, and it recognizes
+    // '<'/'>' literally (see its IsToken). A configurable value here would therefore look settable while
+    // the token were never handed over -- worse than not offering the setting at all. Moving the family off
+    // '<'/'>' has to start in the scanner, so it is left fixed and documented instead of half-wired.
+    private const char AscendingTrigger = '<';
+    private const char DescendingTrigger = '>';
 
     // Keys: size, created, modified, accessed, and folder/file. An unknown key is not claimed.
     private static readonly Dictionary<string, SortKey> KeysByLetter = new(StringComparer.OrdinalIgnoreCase)
@@ -33,8 +40,7 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
     public string Name => TranslationService.Get("CoreExtensions_QueryTokenProvider_Name");
 
     // A token is "<" or ">" followed by a key letter, and optionally a second "<"/">" plus a threshold
-    // ("<s>20m", ">c>2008.8.3"). The prefix character is configurable, so callers can move the whole
-    // family off '<'/'>' if they ever need to.
+    // ("<s>20m", ">c>2008.8.3").
     //
     // The second trigger must be present only as part of a threshold: a lone "<s>" is not a sort token,
     // it is an unparseable query, and claiming it would swallow the user's text and return nothing.
@@ -51,14 +57,14 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
         return token.Length == 2 || (IsTrigger(token[2]) && token.Length > 3);
     }
 
-    private static bool IsTrigger(char c) => c == GetConfiguredPrefix() || c == GetDescendingPrefix(GetConfiguredPrefix());
+    private static bool IsTrigger(char c) => c == AscendingTrigger || c == DescendingTrigger;
 
     public Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results)
     {
         if (results == null || results.Count == 0)
             return Task.FromResult<IReadOnlyList<ISearchResult>>(Array.Empty<ISearchResult>());
 
-        var ascending = token[0] == GetConfiguredPrefix();
+        var ascending = token[0] == AscendingTrigger;
         var key = KeysByLetter[token[1].ToString()];
         var body = token.Length > 2 ? token[2..] : string.Empty;
         var (hasThreshold, thresholdAscending, rawThreshold) = SplitThreshold(body);
@@ -94,9 +100,9 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
         if (body.Length < 2)
             return (false, false, string.Empty);
 
-        if (body[0] == GetDescendingPrefix(GetConfiguredPrefix()))
+        if (body[0] == DescendingTrigger)
             return (true, true, body[1..]);
-        if (body[0] == GetConfiguredPrefix())
+        if (body[0] == AscendingTrigger)
             return (true, false, body[1..]);
 
         return (false, false, string.Empty);
@@ -229,19 +235,6 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
 
         return false;
     }
-
-    private static char GetConfiguredPrefix()
-    {
-        var prefix = PluginSettingsService.GetSetting(PluginId, SettingKey, "<");
-        return string.IsNullOrEmpty(prefix) ? '<' : prefix[0];
-    }
-
-    private static char GetDescendingPrefix(char ascending) => ascending switch
-    {
-        '<' => '>',
-        '>' => '<',
-        _ => ascending == '>' ? '<' : '>'
-    };
 
     private enum SortKey
     {

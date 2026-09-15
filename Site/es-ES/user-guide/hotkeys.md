@@ -59,7 +59,7 @@ El pequeño logotipo en la barra de búsqueda no es solo estético: ofrece múlt
 
 ### Iconos en la Ventana incrustada y Ventana principal
 
-- **Ventana incrustada**: Al incrustarse en diálogos nativos (Abrir/Guardar/Examinar), hacer clic izquierdo en el icono abre el menú de [**Navegación rápida**](#3-navegacion-rapida-activadores-de-raton); desactivado en el Explorador ordinario. Arrastrar el icono mueve la propia tarjeta, y el desplazamiento se vuelve a aplicar en cada acoplamiento posterior.
+- **Ventana incrustada**: Al incrustarse en diálogos nativos (Abrir/Guardar/Examinar), hacer clic izquierdo en el icono abre el menú de [**Navegación rápida**](#_3-navegacion-rapida-activadores-de-raton); desactivado en el Explorador ordinario. Arrastrar el icono mueve la propia tarjeta, y el desplazamiento se vuelve a aplicar en cada acoplamiento posterior.
 - **Ventana principal**: Al hacer clic izquierdo en el icono se abre el menú contextual; **Mostrar ventana principal** se oculta porque la ventana ya está abierta. El clic central alterna el estado de fijación de la ventana.
 
 ### Gestos del cuadro de búsqueda (Ventana rápida)
@@ -128,4 +128,4 @@ Dos salvaguardas hacen que las teclas destructivas sean seguras bajo un cuadro d
 ### Lista negra de procesos y omisión en pantalla completa
 
 - **Omisión automática en pantalla completa**: Cuando una aplicación se ejecuta en pantalla completa exclusiva (como juegos 3D o reproductores de vídeo), Lertaro omite automáticamente todos los atajos globales para no interferir.
-- **Lista negra de procesos personalizada**: Añade ejecutables en [**Configuración → Atajos de teclado**](./settings/hotkeys-page#lista-negra-de-procesos) (p. ej. `game.exe`) para silenciar los atajos mientras ese proceso esté en primer plano.
+- **Lista negra de procesos personalizada**: Añade ejecutables en [**Configuración → Atajos de teclado**](./settings/hotkeys-page#_3-lista-negra-de-procesos) (p. ej. `game.exe`) para silenciar los atajos mientras ese proceso esté en primer plano.

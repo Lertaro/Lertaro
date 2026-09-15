@@ -67,7 +67,7 @@ The panel is deliberately non-activating: it never takes focus from the search w
 
 ### Adaptive Layout & Pop-up Handling
 
-- **Adaptive Screen Bounds**: Preview dimensions can be customized under [**Settings → General → Preview**](./settings/general#preview); Lertaro guarantees the panel remains within the visible monitor bounds.
+- **Adaptive Screen Bounds**: Preview dimensions can be customized under [**Settings → General → Preview**](./settings/general#_4-preview-window); Lertaro guarantees the panel remains within the visible monitor bounds.
 - **Docking Side**: The panel docks to the **right** of its search window and flips to the left only when the right cannot fit it — it does not chase the roomier side, so it stays put while you scroll a wide window. It then follows the owner as you move or resize that window.
 - **Resize Memory Is Per Session**: Dragging the resize grip or moving the panel is remembered while the preview stays in play, but the next time the search window is hidden or closed the panel returns to the configured size and docking side.
 - **Native Dialog Avoidance**: When previewing password-protected Office documents, Lertaro temporarily hides both windows so the native password dialog can be interacted with, restoring seamlessly afterwards.
