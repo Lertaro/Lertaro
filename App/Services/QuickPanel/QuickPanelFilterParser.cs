@@ -4,7 +4,7 @@ namespace Lertaro.App.Services.QuickPanel;
 
 /// <summary>
 /// Parsed QuickPanel source filter: the glob patterns the index enumerator already understands, plus
-/// the search-syntax "@" token filters that must be applied after enumeration. Positive glob and token
+/// the search-syntax token filters that must be applied after enumeration. Positive glob and token
 /// entries are OR-ed together, matching the existing wildcard-only filter semantics; entries prefixed
 /// with "!" (e.g. "!*.xxx") are exclusions removed after the positive set is computed.
 /// </summary>
@@ -22,7 +22,7 @@ public sealed class QuickPanelFilterSpec
     /// <summary>Filename patterns for the index enumerator / glob matching. Empty when only token filters exist.</summary>
     public string[] GlobPatterns { get; }
 
-    /// <summary>Search-syntax "@" tokens without the global ":" prefix, e.g. "@doc" or "@doc|img".</summary>
+    /// <summary>Search-syntax plugin tokens, e.g. "\doc" or "\doc|img" -- the same spelling the search box uses.</summary>
     public string[] TokenFilters { get; }
 
     /// <summary>"!"-prefixed glob entries, e.g. "*.xxx" for "!*.xxx"; removed after positive matching.</summary>
@@ -40,14 +40,14 @@ public sealed class QuickPanelFilterSpec
 }
 
 /// <summary>
-/// Splits a QuickPanel source filter into positive globs, "@" token filters, and "!"-negated globs.
-/// Each entry must fully match one of those syntaxes; a ":" entry that is not a valid "@" token is
-/// deliberately left as a glob pattern, where the colon can never match a real file name and the entry
-/// is effectively ignored. A bare "!" is invalid and ignored.
+/// Splits a QuickPanel source filter into positive globs, plugin-token filters, and "!"-negated globs.
+/// Each entry must fully match one of those syntaxes; an entry that is neither a valid token nor a
+/// wildcard is kept as a glob, where it can never match a real file name and is effectively ignored.
+/// A bare "!" is invalid and ignored.
 /// </summary>
 public static class QuickPanelFilterParser
 {
-    public static QuickPanelFilterSpec Parse(string? filterPattern, char globalTokenPrefix = ':')
+    public static QuickPanelFilterSpec Parse(string? filterPattern, char globalTokenPrefix = '\\')
     {
         var entries = FilterPatternHelper.Split(filterPattern ?? string.Empty);
         var globs = new List<string>();
@@ -95,13 +95,13 @@ public static class QuickPanelFilterParser
     internal static bool TryParseTokenFilter(string entry, char globalTokenPrefix, out string token)
     {
         token = string.Empty;
-        // Search-syntax @ filters are spelled ":@doc" or ":@doc|img" in the QuickPanel filter field
-        // (the global ":" prefix, then the @ token the search box would dispatch to the
-        // CustomFilterQueryTokenProvider).
-        if (entry.Length < 3 || entry[0] != globalTokenPrefix || entry[1] != '@')
+        // A plugin token is spelled "\doc" or "\doc|img" -- the global token prefix then the keywords,
+        // exactly as the search box writes it. The old ":@doc" form is gone with the '@' marker: the
+        // prefix character itself is what marks a token now.
+        if (entry.Length < 2 || entry[0] != globalTokenPrefix)
             return false;
 
-        var raw = entry[2..];
+        var raw = entry[1..];
         if (raw.Length == 0 || raw.Any(char.IsWhiteSpace))
             return false;
 
@@ -109,7 +109,7 @@ public static class QuickPanelFilterParser
         if (keywords.Any(string.IsNullOrEmpty))
             return false;
 
-        // Repeated keywords inside one token conflict; the first occurrence wins ("@doc|doc" -> "@doc").
+        // Repeated keywords inside one token conflict; the first occurrence wins ("doc|doc" -> "doc").
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var deduped = new List<string>(keywords.Length);
         foreach (var keyword in keywords)
@@ -118,7 +118,7 @@ public static class QuickPanelFilterParser
                 deduped.Add(keyword);
         }
 
-        token = "@" + string.Join('|', deduped);
+        token = globalTokenPrefix + string.Join('|', deduped);
         return true;
     }
 }

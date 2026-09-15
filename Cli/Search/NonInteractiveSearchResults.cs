@@ -12,8 +12,8 @@ internal static class NonInteractiveSearchResults
     {
         var results = source.ToList();
         var configuredPrefix = UserSettings.Load().GlobalTokenPrefix;
-        var prefix = !string.IsNullOrEmpty(configuredPrefix) ? configuredPrefix[0] : ':';
-        SearchQuerySortParser.Strip(query, out var tokens, prefix);
+        var prefix = !string.IsNullOrEmpty(configuredPrefix) ? configuredPrefix[0] : '\\';
+        var tokens = QueryTokenScanner.Scan(query, prefix).Tokens;
         if (tokens.Count == 0)
             results.Sort(new SearchResultRankComparer(SearchHistoryStore.Snapshot()));
 
