@@ -29,7 +29,8 @@ public static class FlowConfigSchemaBuilder
             MaxLength = 10,
             // A live trigger word (FlowInstantResultProvider.QueryTriggerKeywords publishes it), so two
             // features on one word has to be named at the field where it is being created.
-            IsTriggerWord = true
+            IsTriggerWord = true,
+            Validation = ConfigFieldValidation.TriggerKeyword
         });
 
         foreach (var pair in host.GetAllPlugins())

@@ -33,9 +33,12 @@ namespace Lertaro.App.Helpers;
 // never be reported as conflicting with its own previous value.
 public static class QueryTokenPrefixRules
 {
-    // The sort/filter triggers QueryTokenScanner always recognizes, whatever the configured prefix is.
-    private const char AscendingTrigger = '<';
-    private const char DescendingTrigger = '>';
+    // True for the characters QueryTokenScanner always reads as token starts whatever the configured
+    // prefix is -- only the sort/filter pair, unlike SearchSyntaxReserved.IsReserved, which also covers the
+    // exclusion, bypass and quote characters. The two are used for different sentences: a prefix equal to
+    // '<'/'>' leaves the plugin tokens permanently unreachable, while a prefix equal to ':' still leaves
+    // them reachable but collides with exclusion syntax.
+    internal static bool IsAlwaysTokenTrigger(char prefix) => prefix == '<' || prefix == '>';
 
     /// <summary>The conflict to show under the app-wide prefix field, or null when it is usable.</summary>
     public static string? GlobalPrefixConflict(string? globalPrefix, UserSettings settings)
@@ -44,13 +47,26 @@ public static class QueryTokenPrefixRules
             return TranslationManager.Instance["General_GlobalTokenPrefixConflictEmpty"];
 
         var prefix = globalPrefix[0];
-        if (IsFixedTrigger(prefix))
+        // Any character the search syntax owns is unusable here, not just the always-on sort/filter pair:
+        // a ':' prefix collides with exclusion syntax and a '*' prefix with the exclusion bypass, and the
+        // settings field is the place to say so. This deliberately subsumes the '<'/'>' case, which is the
+        // strictly worse variant of the same mistake.
+        if (SearchSyntaxReserved.IsReserved(prefix))
             return TranslationManager.Instance["General_GlobalTokenPrefixConflictReserved"];
 
         return OwnedByPlugin(prefix, settings, null, null)
             ? TranslationManager.Instance["General_GlobalTokenPrefixConflictPlugin"]
             : null;
     }
+
+    /// <summary>
+    /// The conflict to show under an instant-answer trigger keyword field, or null when it is usable.
+    /// Providers recognize their keyword as a prefix of the whole query, so a keyword that starts with a
+    /// character the search syntax consumes is stripped before the provider is ever asked -- the trigger
+    /// silently does nothing. The shared rule lives in SearchSyntaxReserved so this and the prefix check
+    /// cannot drift apart.
+    /// </summary>
+    public static string? TriggerKeywordConflict(string? keyword) => SearchSyntaxReserved.ValidateLeadingCharacter(keyword);
 
     /// <summary>
     /// The conflict to show under a plugin's own prefix field, or null when it is usable. The field's own
@@ -62,8 +78,11 @@ public static class QueryTokenPrefixRules
             return TranslationManager.Instance["Plugins_QueryTokenPrefixConflictEmpty"];
 
         var prefix = pluginPrefix[0];
-        if (IsFixedTrigger(prefix))
+        if (IsAlwaysTokenTrigger(prefix))
             return TranslationManager.Instance["Plugins_QueryTokenPrefixConflictReserved"];
+
+        if (SearchSyntaxReserved.IsReserved(prefix))
+            return TranslationManager.Instance["Plugins_QueryTokenPrefixConflictSyntax"];
 
         if (settings.GlobalTokenPrefix is { Length: > 0 } global && global[0] == prefix)
             return TranslationManager.Instance["Plugins_QueryTokenPrefixConflictMain"];
@@ -80,8 +99,6 @@ public static class QueryTokenPrefixRules
     /// </summary>
     public static bool IsPrefixField(PluginConfigField field)
         => field.FieldType == ConfigFieldType.Text && field.MaxLength == 1;
-
-    internal static bool IsFixedTrigger(char prefix) => prefix == AscendingTrigger || prefix == DescendingTrigger;
 
     /// <summary>
     /// The first provider already claiming this character, or null when the prefix is free. Pure on

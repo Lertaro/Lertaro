@@ -21,7 +21,8 @@ public class ProcessManagerPlugin : IPlugin, IConfigurable
                 DescriptionKey = "ProcessManager_Config_TriggerKeywordDesc",
                 FieldType = ConfigFieldType.Text,
                 DefaultValue = "ps",
-                RequireNonEmpty = true
+                RequireNonEmpty = true,
+                Validation = ConfigFieldValidation.TriggerKeyword
             }
         }
     };
