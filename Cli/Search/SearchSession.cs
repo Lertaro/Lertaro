@@ -130,13 +130,13 @@ public sealed class SearchSession
     {
         var rankComparer = new SearchResultRankComparer(SearchHistoryStore.Snapshot());
         var comparer = Comparer<(SearchResult Result, int[] Highlights)>.Create((a, b) => rankComparer.Compare(a.Result, b.Result));
-        // A trailing " :a,b,c" query-token suffix (same shared Core parser AppSearchPipeService itself
-        // uses to decide this) means the server already ran the full rank-sort + IQueryTokenProvider
-        // dispatch and sent back the finished, final-order result in one shot -- re-sorting here with a
-        // plain rank comparer would scramble whatever a token like "::expr" deliberately reordered by.
+        // A query-token word (same shared Core scanner AppSearchPipeService itself uses to decide this)
+        // means the server already ran the full rank-sort + IQueryTokenProvider dispatch and sent back the
+        // finished, final-order result in one shot -- re-sorting here with a plain rank comparer would
+        // scramble whatever a token like "<s" deliberately reordered by.
         // Progress snapshots are also moot in that case (the server never streams partial results for a
         // tokenized query), so this only really changes the final callback's behavior.
-        SearchQuerySortParser.Strip(q, out var parsedTokens);
+        var parsedTokens = QueryTokenScanner.Scan(q).Tokens;
         var hasTokens = parsedTokens.Count > 0;
 
         void ShowSnapshot(List<(SearchResult, int[])> snapshot)

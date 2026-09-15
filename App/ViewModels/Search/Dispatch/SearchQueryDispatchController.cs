@@ -61,10 +61,9 @@ internal sealed class SearchQueryDispatchController
 
     public void OnAdvancedQueryChanged(string query)
     {
-        var globalPrefixChar = GetGlobalTokenPrefixChar();
-        var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
-        _queryTokens = tokens;
-        var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        var scan = QueryTokenScanner.Scan(query, GetGlobalTokenPrefixChar());
+        _queryTokens = scan.Tokens;
+        var cleanQuery = QueryTokenScanner.StripExclusionBypass(scan.Text, out var bypassExclusions);
 
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
@@ -283,6 +282,6 @@ internal sealed class SearchQueryDispatchController
     private static char GetGlobalTokenPrefixChar()
     {
         var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
+        return !string.IsNullOrEmpty(prefix) ? prefix[0] : '\\';
     }
 }

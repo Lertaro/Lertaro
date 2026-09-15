@@ -123,4 +123,31 @@ public sealed class QueryTokenScannerTests
         Assert.AreEqual(@"报告 :temp", result.Text);
         Assert.IsEmpty(result.Tokens);
     }
+
+    [TestMethod]
+    public void StripExclusionBypass_LeadingAsterisk_IsStrippedAndFlagged()
+    {
+        var result = QueryTokenScanner.StripExclusionBypass("*readme", out var bypass);
+
+        Assert.AreEqual("readme", result);
+        Assert.IsTrue(bypass);
+    }
+
+    [TestMethod]
+    public void StripExclusionBypass_NoAsterisk_IsUnchanged()
+    {
+        var result = QueryTokenScanner.StripExclusionBypass("readme", out var bypass);
+
+        Assert.AreEqual("readme", result);
+        Assert.IsFalse(bypass);
+    }
+
+    [TestMethod]
+    public void StripExclusionBypass_EmptyQuery_DoesNotThrow()
+    {
+        var result = QueryTokenScanner.StripExclusionBypass("", out var bypass);
+
+        Assert.AreEqual("", result);
+        Assert.IsFalse(bypass);
+    }
 }

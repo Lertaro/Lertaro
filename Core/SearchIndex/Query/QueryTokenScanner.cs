@@ -126,6 +126,21 @@ public static class QueryTokenScanner
 
         return backslashCount % 2 != 0;
     }
+
+    // Strips a leading "*" -- the marker that opts one search out of the user's own exclusion rules
+    // (see SearchService.SearchStreamingAsync's bypassExclusions parameter). Callers must run this
+    // BEFORE the query is used for anything else (the actual search call, AND whatever gets stored as
+    // an AppSearchResult's SearchQuery for highlighting) -- the character itself is never part of the
+    // match/highlight text, only a query-string-level signal.
+    //
+    // It lives here, next to the token scan, because both are the same job: reducing raw typed text to
+    // (search text + query-level signals). Unlike a token, "*" is a whole-query switch rather than a
+    // term, so it is read from the first character only, not from anywhere in the string.
+    public static string StripExclusionBypass(string query, out bool bypassExclusions)
+    {
+        bypassExclusions = query.Length > 0 && query[0] == '*';
+        return bypassExclusions ? query[1..] : query;
+    }
 }
 
 // The search text that remains after the tokens were lifted out, plus the tokens in the order they

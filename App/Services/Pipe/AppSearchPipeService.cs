@@ -134,12 +134,12 @@ public static class AppSearchPipeService
     }
 
     // Mirrors SearchQueryDispatchController.OnAdvancedQueryChanged in full, including the part an
-    // earlier version of this method skipped: a trailing " :a,b,c" suffix (SearchQuerySortParser.Strip)
-    // isn't part of the fuzzy search text at all -- it's dispatched, AFTER the file search completes, to
-    // whichever IQueryTokenProvider plugin (the built-in "::expr"/".ext"/etc.) claims each token, which
-    // can filter or reorder the already-ranked results. Passing the raw (unstripped) query straight into
-    // SearchStreamingAsync -- what this used to do -- searched for the literal ":xxx" substring instead
-    // of treating it as an operator, which is why that syntax silently did nothing here.
+    // earlier version of this method skipped: query tokens ("\audio", "<s>20m") aren't part of the fuzzy
+    // search text at all -- they're dispatched, AFTER the file search completes, to whichever
+    // IQueryTokenProvider plugin claims each token, which can filter or reorder the already-ranked
+    // results. Passing the raw (unstripped) query straight into SearchStreamingAsync -- what this used to
+    // do -- searched for the literal token text instead of treating it as an operator, which is why that
+    // syntax silently did nothing here.
     // Every result used to be its own write straight onto the pipe. That is a syscall each, and a
     // whole-drive query returns hundreds of thousands of them -- the same shape, on the GUI's own pipe,
     // measured 30us a result against 2.1 once the bytes were batched. Buffered here with the flush
@@ -162,9 +162,9 @@ public static class AppSearchPipeService
 
         if (!string.IsNullOrWhiteSpace(query))
         {
-            var globalPrefixChar = GetGlobalTokenPrefixChar();
-            var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
-            var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+            var scan = QueryTokenScanner.Scan(query, GetGlobalTokenPrefixChar());
+            var cleanQuery = QueryTokenScanner.StripExclusionBypass(scan.Text, out var bypassExclusions);
+            var tokens = scan.Tokens;
 
             if (tokens.Count > 0)
                 await RunTokenizedSearchAsync(cleanQuery, tokens, directoryFilter, bypassExclusions, buffered, token);
@@ -294,6 +294,6 @@ public static class AppSearchPipeService
     private static char GetGlobalTokenPrefixChar()
     {
         var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
+        return !string.IsNullOrEmpty(prefix) ? prefix[0] : '\\';
     }
 }
