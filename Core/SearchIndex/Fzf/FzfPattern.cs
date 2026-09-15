@@ -1,10 +1,10 @@
 namespace Lertaro.Core.SearchIndex.Fzf;
 
-// Alias-fallback quality-gating (IsAcceptableAliasMatch/WeightAliasMatch and their private helpers)
-// lives in FzfPatternAliasMatchExtensions.cs (extension methods, matching TreeBuilder's Checkpoint/Diff
-// split and MenuBuilder's ContentExtensions split) instead of a partial class, to keep this file under
-// the project's line limit. Pattern parsing is delegated to FzfPatternParser for the same reason; this
-// file keeps the immutable pattern state and core text-matching algorithm.
+// Alias-fallback quality-gating (IsAcceptableAliasMatch/WeightAliasMatch and their private helpers) lives
+// in FzfPatternAliasMatchExtensions.cs and the caller-facing shape queries (IsRegexOnly) in
+// FzfPatternShapeExtensions.cs -- extension methods, not partials, to keep this file under the project's
+// line limit. Pattern parsing is delegated to FzfPatternParser for the same reason; this file keeps the
+// immutable pattern state and core text-matching algorithm.
 internal sealed class FzfPattern
 {
     internal FzfPattern(string? targetDrive, FzfTermSet[] termSets)
@@ -13,15 +13,25 @@ internal sealed class FzfPattern
     }
 
     // orGroups is the AND-first reading of the same query: a disjunction of conjunctions (DNF), where
-    // each group contains ANDed term sets and each set retains its OR aliases. It is null whenever the flat termSets
-    // already say the same thing, which is every query without a '|' plus every OR-first query -- the
-    // hot engine keeps consuming TermSets unchanged and only a genuinely mixed AND-first query pays for
+    // each group contains ANDed term sets and each set retains its OR aliases. It is null whenever the flat
+    // termSets already say the same thing, which is every query without a '|' plus every OR-first query --
+    // the hot engine keeps consuming TermSets unchanged and only a genuinely mixed AND-first query pays for
     // the extra shape. See FzfPatternParser.ParseTermSets.
     internal FzfPattern(string? targetDrive, FzfTermSet[] termSets, FzfTermGroup[]? orGroups)
+        : this(targetDrive, termSets, orGroups, null)
+    {
+    }
+
+    // regexes are the "regex:/.../" clauses from the query, ANDed with everything else. They cannot ride in
+    // TermSets because the byte-level matcher (FzfBytePattern) has no regex support and the char-level
+    // TermSets have no notion of a pattern that is not fixed text -- so they are carried alongside and
+    // applied by TryMatchSingle on the decoded char span (see RegexClauses).
+    internal FzfPattern(string? targetDrive, FzfTermSet[] termSets, FzfTermGroup[]? orGroups, string[]? regexes)
     {
         TargetDrive = targetDrive;
         TermSets = termSets;
         OrGroups = orGroups;
+        Regexes = regexes;
         EffectiveSets = orGroups == null ? termSets : Flatten(orGroups);
     }
 
@@ -31,6 +41,10 @@ internal sealed class FzfPattern
     // Non-null only for an AND-first query that actually mixes '|' with spaces. When set, this is the
     // authoritative shape and TryMatch/TryMatchSingle evaluate it instead of TermSets.
     public FzfTermGroup[]? OrGroups { get; }
+
+    // Non-null only when the query carried one or more "regex:/.../" clauses. Every clause must match for
+    // the whole pattern to match.
+    internal string[]? Regexes { get; }
 
     // Whichever shape actually governs matching: OrGroups when the query is an AND-first mix, else the
     // flat TermSets. Everything that only needs to ENUMERATE the terms (alignment requirement, typed
@@ -52,14 +66,10 @@ internal sealed class FzfPattern
 
     public bool IsEmpty => TermSets.Length == 0;
 
-    // True when every term was matched as a PRECISE run rather than as a scattered subsequence -- the
-    // ordinary "fuzzy matching is switched off" query, and also an all-explicit-operator one. Alias
-    // fallback then has to respect the provider's syllable boundaries (see AliasMatchRules), which is what
-    // stops "ex" being read as the tail of "xue" plus the head of "xi".
-    //
-    // Keyed off the terms rather than SearchContext.FuzzyMatchEnabled so a term that explicitly flips
-    // itself back to a subsequence ("'jtqin", under fuzzy-off) stays exempt: for that term the user did ask
-    // for a loose match, and applying the boundary rule would contradict what the operator means.
+    // True when every term has to be matched as a PRECISE run rather than as a scattered subsequence --
+    // the ordinary "fuzzy matching is switched off" query. Alias fallback then has to respect the
+    // provider's syllable boundaries (see AliasMatchRules), which is what stops "ex" being read as the
+    // tail of "xue" plus the head of "xi".
     public bool RequiresAlignedAliases
     {
         get
@@ -79,18 +89,14 @@ internal sealed class FzfPattern
     }
 
     // How much text the user actually typed, which is what the alias-fallback quality gate scales its
-    // thresholds against (see IsAcceptableAliasMatch). A term set holds ALTERNATIVES -- one OR branch,
-    // or one of the spellings an alias provider offers for the same term -- so only one of them can
-    // ever be what was typed, and only one is counted.
-    //
-    // Summing them instead made the gate reject genuine matches as soon as a term had several
-    // alternatives: "jiating" expands to six pinyin readings, which inflated the length from 7 to 64
-    // and pushed the required score past anything a real match scores, so 家庭... stopped being found
-    // while the shorter "jiatin" (four readings) still squeaked through.
-    //
-    // An AND-first mix takes the longest GROUP, not the sum of every group: its groups are OR
-    // alternatives, so including them all would scale the gate against branches the user's single query
-    // can never require at once. Inside the winning group the terms DO all have to match, so they add up.
+    // thresholds against (see IsAcceptableAliasMatch). A term set holds ALTERNATIVES -- one OR branch, or
+    // one of the spellings an alias provider offers for the same term -- so only one of them can ever be
+    // what was typed, and only one is counted. Summing them instead made the gate reject genuine matches:
+    // "jiating" expands to six pinyin readings, inflating the length from 7 to 64 and pushing the required
+    // score past anything a real match scores. An AND-first mix takes the longest GROUP for the same reason
+    // -- its groups are OR alternatives, so counting them all would scale the gate against branches the
+    // user's single query can never require at once. Inside the winning group the terms DO all have to
+    // match, so they add up.
     public int GetTotalTermLength()
     {
         if (OrGroups != null)
@@ -133,6 +139,7 @@ internal sealed class FzfPattern
     // from a string the operators were already stripped from.
     internal static FzfPattern ForTermSet(FzfPattern source, int index)
         => new(source.TargetDrive, new[] { source.TermSets[index] });
+
     public bool TryMatch(ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
     {
         if (text.Contains('|'))
@@ -182,6 +189,23 @@ internal sealed class FzfPattern
     // can't contain it (invalid in Windows paths) -- so no cross-'|' span check is needed.
     private bool TryMatchSingle(ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
     {
+        // Regex clauses are ANDed with everything else and checked first: a miss here is a miss for the
+        // whole pattern, and the regex engine is the most expensive step in the chain.
+        if (Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, text))
+        {
+            result = default;
+            return false;
+        }
+
+        // Nothing left to combine -- a regex-only query (the name satisfied the regex; no text offsets to
+        // report, since the regex's own match span is not tracked) or a bare drive spec. Either way the
+        // prefilter has already done the work, so this is a match.
+        if (TermSets.Length == 0 && OrGroups == null)
+        {
+            result = new FzfPatternResult(0, -1, -1, 0, false);
+            return true;
+        }
+
         // AND-first query that mixes '|' with spaces: a disjunction of AND-groups. Each group's term
         // sets retain the OR relationship between the typed term and its provider aliases.
         if (OrGroups != null)

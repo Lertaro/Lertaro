@@ -1,4 +1,4 @@
-using System.IO.Enumeration;
+using System.Text.RegularExpressions;
 using Lertaro.Plugins.CoreExtensions.Models;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
@@ -6,18 +6,32 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.CoreExtensions.Providers.QueryTokens;
 
+// Built-in implementation of the "<keyword> \<category>" query suffix token, e.g. "report \audio".
+//
+// Each category keyword is resolved to the regex its configured rule denotes -- "\audio" becomes
+// "\.(?:ogg|m4a|mp3|wav|flac|aac)$" -- and matched against the result's file name. The rule field keeps
+// its historical "*.ext; *.ext2" spelling; it is translated to a regex internally (see RuleToRegex), so
+// existing user settings keep working unchanged.
 public class CustomFilterQueryTokenProvider : IQueryTokenProvider
 {
     public const string PluginId = "Lertaro.Plugins.CoreExtensions";
     public const string SettingKey = "CustomFilters";
     public const string PrefixSettingKey = "CustomFilterPrefix";
 
+    private static readonly RegexOptions MatchOptions = RegexOptions.IgnoreCase | RegexOptions.Compiled;
+
+    // Compiled regexes are cached per translated pattern. A filter runs on every keystroke against the
+    // whole fetched result set, so recompiling here would be the single most expensive thing in the
+    // token chain. ponytail: unbounded cache -- the key space is one entry per distinct rule a user has
+    // configured, which is a handful, not a per-query growth.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Regex> RegexCache = new(StringComparer.Ordinal);
+
     public string Name => TranslationService.Get("CoreExtensions_CustomFilterProvider_Name");
 
     public bool CanHandle(string token)
     {
         var prefix = GetConfiguredPrefix();
-        return token.Length > prefix.Length && token.StartsWith(prefix);
+        return token.Length > prefix.Length && token.StartsWith(prefix, StringComparison.Ordinal);
     }
 
     public Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results)
@@ -26,36 +40,107 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
             return Task.FromResult<IReadOnlyList<ISearchResult>>(Array.Empty<ISearchResult>());
 
         var prefix = GetConfiguredPrefix();
-        if (token.Length <= prefix.Length || !token.StartsWith(prefix))
+        if (token.Length <= prefix.Length || !token.StartsWith(prefix, StringComparison.Ordinal))
             return Task.FromResult(results);
 
-        var rawKeywords = token[prefix.Length..].Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (rawKeywords.Length == 0)
+        var keyword = token[prefix.Length..].Trim();
+        if (keyword.Length == 0)
             return Task.FromResult(results);
 
-        var filters = GetConfiguredFilters();
-
-        var matchedRules = new List<string>();
-        foreach (var kw in rawKeywords)
-        {
-            var match = filters.FirstOrDefault(f => f.Enabled && string.Equals(f.Keyword?.Trim(), kw, StringComparison.OrdinalIgnoreCase));
-            if (match != null && !string.IsNullOrWhiteSpace(match.Rule))
-            {
-                var expandedRule = CustomFilterRuleResolver.Expand(match.Rule, filters, prefix);
-                if (!string.IsNullOrWhiteSpace(expandedRule))
-                    matchedRules.Add(expandedRule);
-            }
-        }
-
-        if (matchedRules.Count == 0)
+        // Longest-match first: the trigger key may be alphanumeric, so a user who configured both "a"
+        // and "audio" must still get the "audio" rule for "\audio" rather than the "a" rule.
+        var filter = ResolveLongestMatch(keyword);
+        if (filter == null || string.IsNullOrWhiteSpace(filter.Rule))
             return Task.FromResult<IReadOnlyList<ISearchResult>>(Array.Empty<ISearchResult>());
 
-        var combinedRule = string.Join("; ", matchedRules);
-        var filtered = ApplyRule(combinedRule, results, filters, prefix);
-        return Task.FromResult(filtered);
+        var regex = GetRegex(filter.Rule);
+        if (regex == null)
+            return Task.FromResult(results);
+
+        return Task.FromResult<IReadOnlyList<ISearchResult>>(results.Where(r => !r.IsDir && regex.IsMatch(r.Name)).ToList());
     }
 
     public string? GetHighlightText(string token) => null;
+
+    // The configured keyword whose text the typed one extends, preferring the longest -- "\audio" picks
+    // "audio" over "a" when both exist.
+    private static CustomFilterItem? ResolveLongestMatch(string keyword)
+    {
+        CustomFilterItem? best = null;
+        foreach (var filter in GetConfiguredFilters())
+        {
+            var name = filter.Keyword?.Trim();
+            if (!filter.Enabled || string.IsNullOrEmpty(name))
+                continue;
+            if (!keyword.StartsWith(name, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (best == null || name.Length > best.Keyword!.Trim().Length)
+                best = filter;
+        }
+
+        return best;
+    }
+
+    private static Regex? GetRegex(string rule)
+    {
+        return RegexCache.GetOrAdd(rule, static r =>
+        {
+            try
+            {
+                return new Regex(RuleToRegex(r), MatchOptions);
+            }
+            catch (ArgumentException)
+            {
+                // A user-authored rule that doesn't translate to a valid pattern matches nothing rather
+                // than failing the whole search.
+                return new Regex("(?!)", MatchOptions);
+            }
+        });
+    }
+
+    // "*.doc; *.docx; *.pdf" and "audio" (a bare word is read as an extension) both become one
+    // alternation anchored at the end of the name. Anything that already carries wildcard syntax keeps
+    // being treated as a wildcard pattern rather than a regex, so rules written before the rewrite
+    // behave as they did.
+    internal static string RuleToRegex(string rule)
+    {
+        var alternatives = new List<string>();
+        foreach (var raw in rule.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var token = raw.ToLowerInvariant();
+            if (token == "folder" || token == "dir")
+            {
+                alternatives.Add(Regex.Escape(token));
+                continue;
+            }
+
+            if (token.Contains('*') || token.Contains('?'))
+            {
+                alternatives.Add(WildcardToRegex(token));
+                continue;
+            }
+
+            alternatives.Add(@"\." + Regex.Escape(token.TrimStart('.')) + "$");
+        }
+
+        return alternatives.Count == 0 ? "(?!)" : "(?:" + string.Join("|", alternatives) + ")";
+    }
+
+    private static string WildcardToRegex(string wildcard)
+    {
+        var builder = new System.Text.StringBuilder("^");
+        foreach (var c in wildcard)
+        {
+            builder.Append(c switch
+            {
+                '*' => ".*",
+                '?' => ".",
+                _ => Regex.Escape(c.ToString())
+            });
+        }
+
+        return builder.Append('$').ToString();
+    }
 
     public static List<CustomFilterItem> DefaultFilters() => new()
     {
@@ -75,8 +160,12 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
         new Dictionary<string, object> { ["Enabled"] = true, ["Keyword"] = "zip", ["Rule"] = "*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd" }
     };
 
-    public static IReadOnlyList<ISearchResult> ApplyRule(string rule, IReadOnlyList<ISearchResult> results) => ApplyRule(rule, results, GetConfiguredFilters(), GetConfiguredPrefix());
+    public static IReadOnlyList<ISearchResult> ApplyRule(string rule, IReadOnlyList<ISearchResult> results)
+        => ApplyRule(rule, results, GetConfiguredFilters(), GetConfiguredPrefix());
 
+    // Kept for the sidebar filter providers, which bind a filename pattern list to a filter definition.
+    // Still wildcard-based: those patterns come from the same "*.ext" rule strings, and the sidebar has
+    // no reason to run a regex per row when a simple-expression match does the job.
     public static Func<ISearchResult, bool> BuildPredicate(
         string rule,
         IReadOnlyList<CustomFilterItem> filters,
@@ -108,7 +197,7 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
                     var cleanExt = pattern.TrimStart('.');
                     pattern = $"*.{cleanExt}";
                 }
-                subRules.Add(r => FileSystemName.MatchesSimpleExpression(pattern, r.Name, ignoreCase: true));
+                subRules.Add(r => System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(pattern, r.Name, ignoreCase: true));
             }
         }
 
@@ -143,7 +232,7 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
 
     public static string GetConfiguredPrefix()
     {
-        var prefix = PluginSettingsService.GetSetting(PluginId, PrefixSettingKey, "@");
-        return string.IsNullOrEmpty(prefix) ? "@" : prefix;
+        var prefix = PluginSettingsService.GetSetting(PluginId, PrefixSettingKey, "\\");
+        return string.IsNullOrEmpty(prefix) ? "\\" : prefix;
     }
 }

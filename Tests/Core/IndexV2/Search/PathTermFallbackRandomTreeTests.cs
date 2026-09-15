@@ -33,18 +33,6 @@ public sealed class PathTermFallbackRandomTreeTests
 
     private static readonly string[] Extensions = { ".txt", ".log", ".dat", ".cfg" };
 
-    // Operators change what a term means, and the mask is built from whatever each term decides. An
-    // inverse term is the interesting one: it is satisfied by segments that do NOT contain its text,
-    // so it fills the mask from the opposite direction to everything else here.
-    private static readonly Func<Random, string, string>[] TermShapes =
-    {
-        (_, word) => word,
-        (_, word) => "'" + word,      // exactness flipped
-        (_, word) => "^" + word,      // prefix
-        (_, word) => word + "$",      // suffix
-        (_, word) => "!" + word,      // inverse
-    };
-
     /// <param name="Superseded">Renamed since the snapshot was written, so its live name is delta-only.</param>
     private sealed record Row(UInt128 Id, UInt128 ParentId, string Name, bool IsDirectory, string FullPath,
         bool Superseded = false, bool Deleted = false);
@@ -57,7 +45,7 @@ public sealed class PathTermFallbackRandomTreeTests
         var queriesRun = 0;
         var rowsExpected = 0;
         var rowsNeedingAnAncestor = 0;
-        var queriesWithAnOperator = 0;
+        var queriesWithExactTerms = 0;
         var rowsWithANonAsciiSegment = 0;
         var rowsUnderARenamedFolder = 0;
 
@@ -76,26 +64,41 @@ public sealed class PathTermFallbackRandomTreeTests
             if (seed % 2 == 0)
                 rows = Mutate(fixture, rows, random);
 
-            foreach (var terms in QueriesFor(random))
+            // Fuzzy on and fuzzy off, because that setting is the ONLY thing left that decides a term's
+            // kind -- the two take different paths through the matcher, and the exact path is otherwise
+            // never reached by this test at all. Restored below: FuzzyMatchEnabled is an AsyncLocal, so
+            // leaving it flipped would follow this test's context into whatever runs next.
+            try
             {
-                var query = string.Join(' ', terms);
-                var actual = Search(fixture, query);
-                var expected = Expected(rows, terms, out var viaAncestor);
+                foreach (var fuzzy in new[] { true, false })
+                {
+                    SearchContext.FuzzyMatchEnabled = fuzzy;
+                    foreach (var terms in QueriesFor(random))
+                    {
+                        var query = string.Join(' ', terms);
+                        var actual = Search(fixture, query);
+                        var expected = Expected(rows, terms, out var viaAncestor);
 
-                queriesRun++;
-                rowsExpected += expected.Count;
-                rowsNeedingAnAncestor += viaAncestor;
-                if (terms.Any(t => "'^!".Contains(t[0]) || t[^1] == '$'))
-                    queriesWithAnOperator++;
-                rowsWithANonAsciiSegment += expected.Count(p => p.Any(c => c > 127));
-                // The ones whose ancestor verdict had to come from the path-string fallback.
-                var renamedFolders = rows.Where(r => r.Superseded && r.IsDirectory).Select(r => r.FullPath + "\\").ToList();
-                rowsUnderARenamedFolder += expected.Count(p => renamedFolders.Any(f => p.StartsWith(f, StringComparison.Ordinal)));
+                        queriesRun++;
+                        rowsExpected += expected.Count;
+                        rowsNeedingAnAncestor += viaAncestor;
+                        if (!fuzzy)
+                            queriesWithExactTerms++;
+                        rowsWithANonAsciiSegment += expected.Count(p => p.Any(c => c > 127));
+                        // The ones whose ancestor verdict had to come from the path-string fallback.
+                        var renamedFolders = rows.Where(r => r.Superseded && r.IsDirectory).Select(r => r.FullPath + "\\").ToList();
+                        rowsUnderARenamedFolder += expected.Count(p => renamedFolders.Any(f => p.StartsWith(f, StringComparison.Ordinal)));
 
-                CollectionAssert.AreEquivalent(expected.ToList(), actual.ToList(),
-                    $"seed {seed}, query \"{query}\"\n" +
-                    $"missing: {string.Join(", ", expected.Except(actual))}\n" +
-                    $"unexpected: {string.Join(", ", actual.Except(expected))}");
+                        CollectionAssert.AreEquivalent(expected.ToList(), actual.ToList(),
+                            $"seed {seed}, fuzzy {fuzzy}, query \"{query}\"\n" +
+                            $"missing: {string.Join(", ", expected.Except(actual))}\n" +
+                            $"unexpected: {string.Join(", ", actual.Except(expected))}");
+                    }
+                }
+            }
+            finally
+            {
+                SearchContext.FuzzyMatchEnabled = true;
             }
         }
 
@@ -105,7 +108,7 @@ public sealed class PathTermFallbackRandomTreeTests
         // Without them the whole run could be satisfied by plain name search.
         Assert.IsGreaterThan(100, rowsNeedingAnAncestor,
             "no result depended on an ancestor folder, so the ancestor pass was never exercised");
-        Assert.IsGreaterThan(30, queriesWithAnOperator, "every term came out plain, so no operator was tested");
+        Assert.IsGreaterThan(30, queriesWithExactTerms, "fuzzy was never switched off, so the exact path went untested");
         Assert.IsGreaterThan(20, rowsWithANonAsciiSegment,
             "nothing matched through a non-ASCII segment, so the decode branch was never taken");
         Assert.IsGreaterThan(20, rowsUnderARenamedFolder,
@@ -304,7 +307,8 @@ public sealed class PathTermFallbackRandomTreeTests
     }
 
     // Two and three terms: one is never routed here at all, and the mask is what the sharing is about,
-    // so more than one term is the whole point.
+    // so more than one term is the whole point. Terms are bare words or word prefixes -- the parser
+    // turns no character into an operator any more, so there is no shape left to vary.
     private static IEnumerable<string[]> QueriesFor(Random random)
     {
         for (var i = 0; i < 12; i++)
@@ -316,11 +320,7 @@ public sealed class PathTermFallbackRandomTreeTests
                 var word = Words[random.Next(Words.Length)];
                 // Sometimes a prefix rather than the whole word, so a term can be satisfied by several
                 // different segments at once.
-                var text = random.Next(2) == 0 || word.Length < 3 ? word : word[..random.Next(2, word.Length + 1)];
-                // Mostly plain, because that is what the ancestor mask is normally built from, but with
-                // enough operators mixed in that none of the term kinds goes unexercised.
-                var shape = random.Next(3) == 0 ? TermShapes[random.Next(TermShapes.Length)] : TermShapes[0];
-                terms[t] = shape(random, text);
+                terms[t] = random.Next(2) == 0 || word.Length < 3 ? word : word[..random.Next(2, word.Length + 1)];
             }
             if (terms.Distinct().Count() == terms.Length)
                 yield return terms;
