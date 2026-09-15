@@ -227,14 +227,15 @@ public sealed class IndexV2SearcherTests
     }
 
     [TestMethod]
-    public void SearchStreaming_PathModeWithADriveAndNoSpace_StillMatches()
+    public void SearchStreaming_PathModeWithADriveAndNoSpace_TreatsTheColonAsLiteralText()
     {
+        // "c:readme" is no longer read as a drive spec -- the colon needs a space after it to be one.
+        // Here the literal "c:readme" appears in no file name, so nothing matches.
         using var fixture = BuildSampleDrive();
 
         var results = Search(fixture, @"projects\ c:readme");
 
-        Assert.HasCount(1, results);
-        Assert.AreEqual("readme.txt", results[0].Name);
+        Assert.IsEmpty(results);
     }
 
     [TestMethod]

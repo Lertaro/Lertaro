@@ -166,31 +166,11 @@ public class CoreExtensionsPlugin : IPlugin, IActionProvider, IConfigurable
                 {
                     new PluginConfigField
                     {
-                        Key = Providers.QueryTokens.PathExclusionQueryTokenProvider.SettingKey,
-                        LabelKey = "CoreExtensions_Config_PathExclusionPrefixLabel",
-                        DescriptionKey = "CoreExtensions_Config_PathExclusionPrefixDesc",
-                        FieldType = ConfigFieldType.Text,
-                        DefaultValue = ":",
-                        MaxLength = 1,
-                        RequireNonEmpty = true
-                    },
-                    new PluginConfigField
-                    {
                         Key = Providers.QueryTokens.CustomFilterQueryTokenProvider.PrefixSettingKey,
                         LabelKey = "CoreExtensions_Config_CustomFilterPrefixLabel",
                         DescriptionKey = "CoreExtensions_Config_CustomFilterPrefixDesc",
                         FieldType = ConfigFieldType.Text,
-                        DefaultValue = "@",
-                        MaxLength = 1,
-                        RequireNonEmpty = true
-                    },
-                    new PluginConfigField
-                    {
-                        Key = Providers.QueryTokens.WildcardQueryTokenProvider.PrefixSettingKey,
-                        LabelKey = "CoreExtensions_Config_WildcardFilterPrefixLabel",
-                        DescriptionKey = "CoreExtensions_Config_WildcardFilterPrefixDesc",
-                        FieldType = ConfigFieldType.Text,
-                        DefaultValue = "?",
+                        DefaultValue = "\\",
                         MaxLength = 1,
                         RequireNonEmpty = true
                     }
