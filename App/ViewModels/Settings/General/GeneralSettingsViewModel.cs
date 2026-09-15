@@ -209,11 +209,23 @@ public class GeneralSettingsViewModel : ViewModelBase
         get => _globalTokenPrefix;
         set
         {
-            var val = value ?? ":";
+            var val = value ?? "\\";
             if (val.Length > 1) val = val[..1];
             SetProperty(ref _globalTokenPrefix, val);
+            // Re-validated on every keystroke: the conflict depends only on this one character, and the
+            // value is what the user is looking at while they type it.
+            OnPropertyChanged(nameof(PrefixError));
+            OnPropertyChanged(nameof(HasPrefixError));
         }
     }
+
+    /// <summary>
+    /// Why this prefix cannot be used, or null when it is fine. A collision is otherwise invisible --
+    /// the plugin's tokens would simply stop filtering, with nothing on screen to explain it.
+    /// </summary>
+    public string? PrefixError => QueryTokenPrefixRules.GlobalPrefixConflict(_globalTokenPrefix, _userSettings);
+
+    public bool HasPrefixError => !string.IsNullOrEmpty(PrefixError);
 
     public string LogLevel => SettingsOptionGenerator.NormalizeLogLevel(_selectedLogLevel?.Value ?? _userSettings.LogLevel);
 

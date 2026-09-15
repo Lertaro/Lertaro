@@ -232,9 +232,21 @@ public class PluginConfigFieldViewModel : ViewModelBase
             // buttons); the load paths write LocalValueStore directly, so staging a value this way is
             // what marks the field (and therefore its plugin) as having something to save.
             _loadSupport.MarkDirty();
+            // A staged single-character trigger changes whether it collides with another one, so its
+            // warning has to be re-read even though the value itself is what was just edited.
+            if (QueryTokenPrefixRules.IsPrefixField(SchemaField)) OnPropertyChanged(nameof(PrefixError));
             if (_onValueChanged == null) OnPropertyChanged();
         }
     }
+
+    /// <summary>
+    /// Why this single-character trigger cannot be used, or null when it is fine -- a prefix collision
+    /// otherwise resolves silently by whichever provider is asked first, leaving the other one's tokens
+    /// simply not working. See QueryTokenPrefixRules for the collisions that count.
+    /// </summary>
+    internal string? PrefixError => QueryTokenPrefixRules.IsPrefixField(SchemaField)
+        ? QueryTokenPrefixRules.PluginPrefixConflict(PluginId, SchemaField, Value as string, Settings)
+        : null;
 
     public PluginConfigFieldViewModel(string pluginId, PluginConfigField field, UserSettings settings, Action? onValueChanged = null)
     {
