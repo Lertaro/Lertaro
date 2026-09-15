@@ -72,6 +72,55 @@ public sealed class IndexV2SearcherTests
         Assert.IsEmpty(results);
     }
 
+    // The regex prefilter must never be the thing that decides a result. Its literal is required of every
+    // match, so a name that satisfies the regex while carrying the literal in an unexpected place -- here
+    // the ".txt" the literal comes from is in the middle, not at the end -- must still come back.
+    [TestMethod]
+    public void SearchStreaming_RegexLiteralInTheMiddle_StillMatches()
+    {
+        using var fixture = LiveIndexFixture.Build("C", new[]
+        {
+            LiveIndexFixture.Root(),
+            new FileRecord(2, 1, "report.txt.bak", FileRecordFlags.None),
+            new FileRecord(3, 1, "notes.log", FileRecordFlags.None),
+        });
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"regex:/\.txt/", 10, results.Add, CancellationToken.None);
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual("report.txt.bak", results[0].Name);
+    }
+
+    // A clause with no extractable literal (an alternation) cannot narrow anything, and must not thereby
+    // filter everything out -- the search falls back to testing the regex against every name.
+    [TestMethod]
+    public void SearchStreaming_RegexWithoutALiteral_StillMatches()
+    {
+        using var fixture = BuildSampleDrive();
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"regex:/^(readme|notes)\.(txt|md)$/", 10, results.Add, CancellationToken.None);
+
+        CollectionAssert.AreEquivalent(
+            new[] { "readme.txt", "notes.md" },
+            results.Select(r => r.Name).ToList());
+    }
+
+    // A regex that matches nothing still returns nothing once the mask is in play, i.e. the prefilter did
+    // not turn into a "match everything" path.
+    [TestMethod]
+    public void SearchStreaming_RegexLiteralPresentButRegexFails_ReturnsNothing()
+    {
+        using var fixture = BuildSampleDrive();
+        var results = new List<SearchResult>();
+
+        // ".txt" is present on readme.txt, so it survives the mask, and the regex then rejects it.
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"regex:/^zzz.*\.txt$/", 10, results.Add, CancellationToken.None);
+
+        Assert.IsEmpty(results);
+    }
+
     [TestMethod]
     public void SearchStreaming_DirectoryFilter_OnlyReturnsResultsUnderThatDirectory()
     {

@@ -14,12 +14,13 @@ public sealed class RegexLiteralExtractorTests
     }
 
     [TestMethod]
-    public void Extract_AlternationInThePattern_ReportsNoLiteral()
+    public void Extract_ExtensionAlternation_StillFindsTheRequiredPrefix()
     {
-        // "\.(?:ogg|mp3)$" -- "ogg" is not REQUIRED (mp3 matches without it), and the only truly required
-        // piece is the escaped dot. Rather than risk returning a branch-only run, any top-level
-        // alternation bails out and costs only speed.
-        Assert.AreEqual(string.Empty, RegexLiteralExtractor.ExtractRequiredLiteral("\\.(?:ogg|mp3)$"));
+        // "\.(?:ogg|mp3)$" -- "ogg" and "mp3" are branch-only and must not be claimed, but the escaped dot
+        // before the group and the end anchor after it are required of every match. Bailing out entirely
+        // (which this used to do) left the most common real-world pattern with no prefilter at all.
+        Assert.AreEqual(".", RegexLiteralExtractor.ExtractRequiredLiteral("\\.(?:ogg|mp3)$"));
+        Assert.AreEqual(".", RegexLiteralExtractor.ExtractRequiredLiteral("\\.(?:ogg|mp3|wav|flac)$"));
     }
 
     [TestMethod]
@@ -57,6 +58,95 @@ public sealed class RegexLiteralExtractorTests
     public void Extract_TrailingLiteralAfterAnEndAnchor_IsStillRequired()
     {
         Assert.AreEqual("read", RegexLiteralExtractor.ExtractRequiredLiteral("^read.*\\.md$"));
+    }
+
+    // An optional quantifier makes the atom before it optional, so that character must not be claimed as
+    // required: "ab?c" matches "ac". This used to return "ab" -- harmless while nothing consumed the
+    // literal, and wrong results the moment it became a prefilter.
+    [TestMethod]
+    public void Extract_OptionalAtom_IsNotClaimedAsRequired()
+    {
+        Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("ab?c"));
+        Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("ab*c"));
+        Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("ab{0,2}c"));
+    }
+
+    // A minimum above zero keeps its atom required, so the run survives.
+    [TestMethod]
+    public void Extract_RepeatedAtom_StaysInTheRun()
+    {
+        Assert.AreEqual("ab", RegexLiteralExtractor.ExtractRequiredLiteral("ab+c"));
+        Assert.AreEqual("ab", RegexLiteralExtractor.ExtractRequiredLiteral("ab{1,2}c"));
+    }
+
+    // The run is a CONTIGUOUS substring requirement. Once a character is dropped from the middle, what
+    // follows cannot be joined to what came before: for "ab?c" the required characters are "a" and "c",
+    // but "ac" is not a substring of "ac" (nor of "abc"), so returning it would be a wrong literal.
+    [TestMethod]
+    public void Extract_LiteralAfterADroppedCharacter_StartsANewRun()
+    {
+        var literal = RegexLiteralExtractor.ExtractRequiredLiteral("ab?c");
+
+        Assert.AreEqual("a", literal);
+    }
+
+    [TestMethod]
+    public void Extract_EscapedQuantifier_IsStillLiteral()
+    {
+        // "\\+" is a literal plus, so the "?" makes the PLUS optional, not the "a".
+        Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("a\\+?b"));
+    }
+
+    // Text on either side of an alternation group is required, but it cannot be joined into one run: the
+    // group sits between them, so no match places the two adjacent.
+    [TestMethod]
+    public void Extract_TextAroundAnAlternationGroup_IsNotJoined()
+    {
+        Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("a(b|c)d"));
+        Assert.AreEqual("baz", RegexLiteralExtractor.ExtractRequiredLiteral("(foo|bar)baz"));
+    }
+
+    // A group is a break at both ends: text before it and text after it are not adjacent in a match, so the
+    // longest run is whichever side is longer. A plain group's own contents are still scanned, because they
+    // are required text like anything else.
+    [TestMethod]
+    public void Extract_PlainGroup_ContentsAreStillScanned()
+    {
+        Assert.AreEqual("defghi", RegexLiteralExtractor.ExtractRequiredLiteral("abc(defghi)"));
+        Assert.AreEqual("after", RegexLiteralExtractor.ExtractRequiredLiteral("abc(def)after"));
+    }
+
+    [TestMethod]
+    public void Extract_PlainGroup_DoesNotJoinItsTwoSides()
+    {
+        // "abcdef" would be wrong: no match of "abc(def)" contains "abcdef".
+        Assert.AreEqual("abc", RegexLiteralExtractor.ExtractRequiredLiteral("abc(def)"));
+    }
+
+    [TestMethod]
+    public void Extract_TopLevelAlternation_ReportsNoLiteral()
+    {
+        // At depth 0 there is nothing shared between the branches at all.
+        Assert.AreEqual(string.Empty, RegexLiteralExtractor.ExtractRequiredLiteral("readme|notes"));
+    }
+
+    // A branch group is skipped whole, but the text OUTSIDE it is still required of every match. Bailing
+    // out for the whole pattern (which this used to do) left the commonest real-world shape -- a list of
+    // extensions -- with no prefilter at all.
+    [TestMethod]
+    public void Extract_TextOutsideAnAlternationGroup_IsStillRequired()
+    {
+        Assert.AreEqual(".", RegexLiteralExtractor.ExtractRequiredLiteral(@"\.(?:ogg|mp3|wav)$"));
+        // The escaped dot is a literal dot, so it belongs to the run before the group.
+        Assert.AreEqual("report.", RegexLiteralExtractor.ExtractRequiredLiteral(@"report\.(?:txt|md)"));
+    }
+
+    // Nested branches must not be read as the group's own level: the outer group has no '|' of its own
+    // here, but its inner content is still alternatives, so nothing inside may be claimed.
+    [TestMethod]
+    public void Extract_NestedAlternation_DoesNotClaimBranchText()
+    {
+        Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("a(b(c|d))e"));
     }
 
     [TestMethod]
@@ -193,5 +283,36 @@ public sealed class RegexQueryParserTests
             FzfScoringScheme.Default,
             new FzfSlab(),
             new FzfByteBuffers()));
+    }
+
+    // What the prefilter consumes: the longest literal any regex clause requires a matching name to
+    // contain, so a regex search can reject candidates on the cheap character mask instead of running the
+    // regex engine against every indexed name.
+    [TestMethod]
+    public void RequiredRegexLiteral_LongestExtractableRunWins()
+    {
+        Assert.AreEqual(".exe", FzfPattern.Parse(@"regex:/\.exe$/").RequiredRegexLiteral);
+        Assert.AreEqual("ab", FzfPattern.Parse(@"regex:/^ab.c\..{3}$/").RequiredRegexLiteral);
+    }
+
+    [TestMethod]
+    public void RequiredRegexLiteral_NoExtractableRun_IsEmpty()
+    {
+        // A bare wildcard and a class-only pattern have nothing a mask could demand. Note that an
+        // alternation is NOT in this list: its surrounding text is still required (see the extractor tests),
+        // so "\\.(?:ogg|mp3)$" prefilteres on the "." before the group.
+        Assert.AreEqual(string.Empty, FzfPattern.Parse(@"regex:/.*/").RequiredRegexLiteral);
+        Assert.AreEqual(string.Empty, FzfPattern.Parse(@"regex:/^.{5}$/").RequiredRegexLiteral);
+        Assert.AreEqual(string.Empty, FzfPattern.Parse(@"regex:/\d+/").RequiredRegexLiteral);
+        Assert.AreEqual(string.Empty, FzfPattern.Parse("plain").RequiredRegexLiteral);
+    }
+
+    [TestMethod]
+    public void RequiredRegexLiteral_TakesTheLongestAcrossClauses()
+    {
+        // Both clauses must match, so the longest run is the strongest prefilter either can offer.
+        var pattern = FzfPattern.Parse(@"regex:/ab.*/ regex:/readme/");
+
+        Assert.AreEqual("readme", pattern.RequiredRegexLiteral);
     }
 }
