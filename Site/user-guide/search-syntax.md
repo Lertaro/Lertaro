@@ -124,6 +124,7 @@ Pastes automatically as:
 | *(none)* | Default term | Fuzzy when fuzzy matching is on, exact substring when it is off | `report` |
 | `:` | Exclusion | Drops every result whose name contains this text (always exact, never fuzzy) | `:temp` |
 | `\|` | OR logic | Matches either side of the pipe | `doc \| pdf` |
+| `regex:/.../` | Regular expression | Matches the name with a .NET regex (see below) | `regex:/^report.*\.md$/` |
 | `\ ` | Escaped space | Keeps a space inside one term | `final\ report` |
 | `'...'` / `"..."` | Quoted phrase | Keeps a whole phrase (spaces included) as one term | `'final report'` |
 | `*` | Bypass exclusions | One-off opt-out of your configured exclusion rules (first character only) | `*node_modules` |
@@ -136,12 +137,30 @@ Pastes automatically as:
 2. **Exclusions are always exact** — they are matched as a contiguous substring even when fuzzy matching is on, and they are not expanded through pinyin aliases. A loose subsequence or a pinyin spelling would otherwise remove files you never named.
 3. **A lone colon is ignored** — `:` with nothing after it is not an operator; it is simply dropped from the query.
 4. **The drive colon is different** — a drive letter follows the colon (`d:`, see [section 4](#_4-path-mode-drive-scoping)) while an exclusion precedes it (`:temp`). The two can never be confused, and a colon inside a word (`c:\path`) is ordinary text.
+5. **A regex clause is lifted out before anything else reads the query** — that is what keeps its backslashes and slashes from being mistaken for a path, and it means a clause can sit anywhere in the query (`regex:/\.md$/ report` and `report regex:/\.md$/` are the same search).
 
 **Operator Combination Examples**:
 
 - `report :draft`: Finds names containing `report` and drops any whose name contains `draft`.
 - `IMG :png :gif`: Finds names containing `IMG` while dropping both `png` and `gif` files. Both exclusions are ANDed — a name survives only if it contains neither.
 - `log :temp :bak`: Keeps `log` files that are neither temp nor backup files.
+
+### Regular Expressions (`regex:/.../`)
+
+Write a .NET regular expression between slashes to match a file **name** exactly as you describe it:
+
+```text
+regex:/^report.*\.md$/
+```
+
+That finds names starting with `report` and ending in `.md`. The clause is ANDed with the rest of the query, so `report regex:/\.pdf$/` keeps only PDFs among the `report` matches.
+
+Four things are worth knowing:
+
+- **It matches the name, not the path**, and not file contents. Use a path query for folders.
+- **It does not go through pinyin aliases.** A regex describes the characters actually in the name, so a Chinese name is matched by its own characters, not by a pinyin spelling of them.
+- **The slashes are the delimiter, and `\` escapes.** Write `\.` for a literal dot (`.` alone means any character). To match a literal slash, write `\/`. An unclosed clause is treated as ordinary text rather than swallowing the rest of the query.
+- **A regex cannot be accelerated the way a term can**, because it is not a fixed string. Lertaro pulls the longest run of literal characters the expression requires — `.exe` from `regex:/\.exe$/`, nothing at all from `regex:/^(ogg|mp3)$/` — and uses that to skip most candidates before running the real expression. Adding an ordinary word alongside a literal-free regex is the reliable way to keep such a search fast.
 
 ## 4. Path Mode & Drive Scoping
 

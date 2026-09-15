@@ -103,6 +103,18 @@ internal static class SearchMatcher
             }
         }
 
+        // A regex clause cannot be mask-tested, but the literal its extractor pulled out of it can -- and
+        // that is the whole point of extracting one. Without this, "regex:/^report.*\.md$/" ran the regex
+        // engine against every indexed name; with it, the same cheap character mask a literal query uses
+        // rejects the names that cannot possibly match first, and only the survivors reach the regex.
+        //
+        // The literal is required of every match, so demanding its characters is exactly as sound as
+        // demanding a term's. Folded into the same mask as the terms because both are conditions on the
+        // same text (the name): ORing the bit sets is the conjunction of "contains all of these".
+        var regexLiteral = pattern.RequiredRegexLiteral;
+        if (regexLiteral.Length > 0)
+            requiredMask |= FzfAlgorithm.GetCharMask(regexLiteral);
+
         return new QueryContext
         {
             Pattern = pattern,

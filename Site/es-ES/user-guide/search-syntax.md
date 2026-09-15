@@ -124,6 +124,7 @@ Se pega automáticamente como:
 | *(ninguno)* | Término predeterminado | Difuso cuando la coincidencia difusa está activada; subcadena exacta cuando está desactivada | `report` |
 | `:` | Exclusión | Descarta todos los resultados cuyo nombre contenga este texto (siempre exacto, nunca difuso) | `:temp` |
 | `\|` | Lógica OR | Coincide con cualquiera de los lados de la barra vertical | `doc \| pdf` |
+| `regex:/.../` | Expresión regular | Coincide con el nombre mediante una expresión regular de .NET (ver más abajo) | `regex:/^report.*\.md$/` |
 | `\ ` | Espacio escapado | Mantiene un espacio dentro de un mismo término | `final\ report` |
 | `'...'` / `"..."` | Frase entrecomillada | Mantiene toda una frase (espacios incluidos) como un único término | `'final report'` |
 | `*` | Omitir exclusiones | Excepción puntual a tus reglas de exclusión configuradas (solo como primer carácter) | `*node_modules` |
@@ -136,12 +137,30 @@ Se pega automáticamente como:
 2. **Las exclusiones son siempre exactas** — se comparan como una subcadena contigua incluso con la coincidencia difusa activada, y no se expanden mediante alias de pinyin. De lo contrario, una subsecuencia laxa o una grafía en pinyin eliminaría archivos que nunca nombraste.
 3. **Unos dos puntos solos se ignoran** — `:` sin nada detrás no es un operador; simplemente se descarta de la consulta.
 4. **Los dos puntos de unidad son distintos** — una letra de unidad va después de los dos puntos (`d:`, ver la [sección 4](#_4-modo-de-ruta-y-delimitacion-por-unidad)), mientras que una exclusión va antes (`:temp`). Es imposible confundirlos, y unos dos puntos dentro de una palabra (`c:\path`) son texto normal.
+5. **Una cláusula regex se extrae antes de que nada más lea la consulta** — eso es lo que evita que sus barras invertidas y sus barras se confundan con una ruta, y significa que una cláusula puede situarse en cualquier parte de la consulta (`regex:/\.md$/ report` y `report regex:/\.md$/` son la misma búsqueda).
 
 **Ejemplos de combinación de operadores**:
 
 - `report :draft`: Encuentra los nombres que contienen `report` y descarta cualquiera cuyo nombre contenga `draft`.
 - `IMG :png :gif`: Encuentra los nombres que contienen `IMG` y descarta tanto los archivos `png` como los `gif`. Ambas exclusiones se combinan con AND: un nombre solo sobrevive si no contiene ninguna de las dos.
 - `log :temp :bak`: Conserva los archivos `log` que no son ni temporales ni copias de seguridad.
+
+### Expresiones regulares (`regex:/.../`)
+
+Escribe una expresión regular de .NET entre barras para que coincida con un **nombre** de archivo exactamente como lo describes:
+
+```text
+regex:/^report.*\.md$/
+```
+
+Eso encuentra los nombres que empiezan por `report` y terminan en `.md`. La cláusula se combina con AND con el resto de la consulta, así que `report regex:/\.pdf$/` conserva solo los PDF entre las coincidencias de `report`.
+
+Hay cuatro cosas que conviene saber:
+
+- **Coincide con el nombre, no con la ruta**, y tampoco con el contenido del archivo. Usa una consulta de ruta para las carpetas.
+- **No pasa por los alias de pinyin.** Una expresión regular describe los caracteres que hay realmente en el nombre, así que un nombre en chino coincide por sus propios caracteres, no por una grafía en pinyin de ellos.
+- **Las barras son el delimitador, y `\` escapa.** Escribe `\.` para un punto literal (`.` por sí solo significa cualquier carácter). Para que coincida con una barra literal, escribe `\/`. Una cláusula sin cerrar se trata como texto normal en lugar de tragarse el resto de la consulta.
+- **Una expresión regular no se puede acelerar como un término**, porque no es una cadena fija. Lertaro extrae la tirada más larga de caracteres literales que la expresión exige — `.exe` de `regex:/\.exe$/`, nada en absoluto de `regex:/^(ogg|mp3)$/` — y la usa para saltarse la mayoría de los candidatos antes de ejecutar la expresión real. Añadir una palabra normal junto a una expresión regular sin literales es la forma fiable de mantener rápida ese tipo de búsqueda.
 
 ## 4. Modo de ruta y delimitación por unidad
 
