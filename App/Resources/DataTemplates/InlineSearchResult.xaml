@@ -117,6 +117,18 @@
 
                     <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False"
                                   local:ScrollViewerHelper.BubbleMouseWheel="True">
+                        <ScrollViewer.Style>
+                            <Style TargetType="ScrollViewer">
+                                <Style.Triggers>
+                                    <!-- Single-line rows, such as opened-folder entries, have no path
+                                         subtitle. Let their main text use both result columns instead of
+                                         truncating it to the name column's share. -->
+                                    <DataTrigger Binding="{Binding HasPathSubtitle}" Value="False">
+                                        <Setter Property="Grid.ColumnSpan" Value="2"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ScrollViewer.Style>
                         <TextBlock 
                                    Foreground="{DynamicResource TextPrimary}"
                                    local:TextHighlighter.HighlightText="{Binding SearchQuery}"
@@ -129,6 +141,12 @@
                                 <Style TargetType="TextBlock">
                                     <Setter Property="local:TextHighlighter.Text" Value="{Binding Name}"/>
                                     <Style.Triggers>
+                                        <!-- Opened-folder rows store their complete path in Name. Reuse the
+                                             path column's middle-directory compaction after the row spans both
+                                             columns, while ordinary single-line names keep normal ellipsis. -->
+                                        <DataTrigger Binding="{Binding ResultKind}" Value="OpenedFolder">
+                                            <Setter Property="inline:InlinePathDisplayBehavior.IsEnabled" Value="True"/>
+                                        </DataTrigger>
                                         <DataTrigger Binding="{Binding IsJumpToExplorerPath}" Value="True">
                                             <Setter Property="local:TextHighlighter.Text" Value="{Binding ParentDir}"/>
                                         </DataTrigger>

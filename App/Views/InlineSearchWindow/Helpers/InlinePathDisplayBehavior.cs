@@ -69,7 +69,9 @@ public static class InlinePathDisplayBehavior
         if (GetState(textBlock) == null || textBlock.DataContext is not AppSearchResult result)
             return;
 
-        var fullText = result.IsJumpToExplorerPath ? result.Name : result.ParentDir;
+        var fullText = result.IsJumpToExplorerPath || result.ResultKind == "OpenedFolder"
+            ? result.Name
+            : result.ParentDir;
         var availableWidth = (textBlock.Parent as FrameworkElement)?.ActualWidth ?? 0;
         if (string.IsNullOrEmpty(fullText) || availableWidth <= 0)
             return;
@@ -97,9 +99,6 @@ public static class InlinePathDisplayBehavior
         public TextBlock TextBlock { get; }
         public FrameworkElement? Parent { get; }
         public void ParentSizeChanged(object? sender, SizeChangedEventArgs e) => QueueRefresh(TextBlock);
-        public void Dispose()
-        {
-            Parent?.SizeChanged -= ParentSizeChanged;
-        }
+        public void Dispose() => Parent?.SizeChanged -= ParentSizeChanged;
     }
 }
