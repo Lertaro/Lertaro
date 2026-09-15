@@ -12,7 +12,7 @@ Configuración general abarca el comportamiento central del sistema, las dimensi
 - **Habilitar servicio de compatibilidad Everything (IPC)**: Emula el protocolo Win32 IPC de Everything para que Directory Opus, Total Commander y otras herramientas consulten el índice en memoria de Lertaro directamente.
 - **Habilitar coincidencia difusa**: Activado por defecto. Permite coincidencias no consecutivas; si se desactiva, solo coincidirán subcadenas continuas (ver [**Sintaxis de búsqueda**](../search-syntax)). Surte efecto inmediato.
 - **Mostrar las carpetas abiertas actualmente en la búsqueda integrada**: Cuando la ventana integrada está acoplada a un cuadro de diálogo de archivos, muestra las carpetas abiertas actualmente en ese diálogo cuando la consulta está vacía. Está activado de forma predeterminada.
-- **Delimitador de tokens de consulta**: Campo de un solo carácter (por defecto `:`). Define el prefijo para los tokens de sufijo (p. ej. `:.pdf`, `:@doc`, `:[S]`).
+- **Prefijo de tokens de consulta de plugins**: Campo de texto de un solo carácter (por defecto `\`). Define el carácter inicial de un token de consulta de plugin (p. ej. `\audio`, `\doc`). No puede estar vacío, no puede ser `<` ni `>`, y no debe coincidir con el prefijo propio de otro plugin: el campo informa de la colisión en lugar de dejar que un plugin gane en silencio (ver [**Sintaxis de búsqueda**](../search-syntax)).
 - **Nivel de registro**: Selecciona Error / Advertencia / Información (predeterminado) / Depuración para la verbosidad de los registros.
 - **Idioma de la interfaz**: Selecciona el idioma global de la aplicación.
 

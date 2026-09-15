@@ -73,7 +73,7 @@ public interface IInlineSearchAdapter
 
 ## 4. 퀵 내비게이션 제공자 `IQuickNavigationProvider`
 
-마우스 제스처로 열리는 [**퀵 내비게이션 메뉴**](../../user-guide/hotkeys#3-퀵-내비게이션-마우스-트리거)에 동적 그룹과 항목을 제공합니다.
+마우스 제스처로 열리는 [**퀵 내비게이션 메뉴**](../../user-guide/hotkeys#_3-퀵-내비게이션-마우스-트리거)에 동적 그룹과 항목을 제공합니다.
 
 ```csharp
 public interface IQuickNavigationProvider

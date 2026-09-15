@@ -73,7 +73,7 @@ public interface IInlineSearchAdapter
 
 ## 4. Quick Navigation Provider `IQuickNavigationProvider`
 
-Contributes dynamic groups and items to the [**Quick Navigation Menu**](../../user-guide/hotkeys#3-quick-navigation-mouse-triggers):
+Contributes dynamic groups and items to the [**Quick Navigation Menu**](../../user-guide/hotkeys#_3-quick-navigation-mouse-triggers):
 
 ```csharp
 public interface IQuickNavigationProvider

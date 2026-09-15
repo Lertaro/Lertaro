@@ -38,7 +38,7 @@ About        - 정보 및 업데이트
 ```
 
 > [!NOTE]
-> `lertaro://settings/entry/[ID]`의 ID는 내장된 [**설정 검색**](./instant-answers#2-키워드-실행-기능-내장-플러그인)에서 동적으로 생성되는 내부 번호입니다. 버전 업데이트 시 변경될 수 있으므로 스크립트 연동 시에는 `lertaro://settings/page/[섹션]` 사용을 권장합니다.
+> `lertaro://settings/entry/[ID]`의 ID는 내장된 [**설정 검색**](./instant-answers#_2-키워드-실행-기능-내장-플러그인)에서 동적으로 생성되는 내부 번호입니다. 버전 업데이트 시 변경될 수 있으므로 스크립트 연동 시에는 `lertaro://settings/page/[섹션]` 사용을 권장합니다.
 
 ## 3. LocalSend 파라미터 및 인코딩 규칙
 
