@@ -10,18 +10,19 @@ internal sealed class FzfBytePattern
 {
     internal readonly record struct ByteTerm(FzfTermKind Kind, bool Inverse, byte[]? Bytes, bool CaseSensitive);
     internal readonly record struct ByteTermSet(ByteTerm[] Terms);
+    internal readonly record struct ByteTermGroup(ByteTermSet[] Sets);
 
     public readonly ByteTermSet[] TermSets;
 
     // AND-first counterpart of the char-side FzfPattern.OrGroups: non-null only for a query that mixes
     // '|' with spaces under AND-first precedence, in which case this is the authoritative shape.
-    public readonly ByteTermSet[]? OrGroups;
+    public readonly ByteTermGroup[]? OrGroups;
 
     private FzfBytePattern(ByteTermSet[] termSets) : this(termSets, null)
     {
     }
 
-    private FzfBytePattern(ByteTermSet[] termSets, ByteTermSet[]? orGroups)
+    private FzfBytePattern(ByteTermSet[] termSets, ByteTermGroup[]? orGroups)
     {
         TermSets = termSets;
         OrGroups = orGroups;
@@ -51,6 +52,14 @@ internal sealed class FzfBytePattern
             sets[s] = new ByteTermSet(byteTerms);
         }
         return sets;
+    }
+
+    private static ByteTermGroup[] Convert(FzfTermGroup[] source)
+    {
+        var groups = new ByteTermGroup[source.Length];
+        for (var i = 0; i < source.Length; i++)
+            groups[i] = new ByteTermGroup(Convert(source[i].Sets));
+        return groups;
     }
 
     public static FzfMatchResult Match(FzfTermKind kind, ReadOnlySpan<byte> text, byte[] pattern, bool caseSensitive, FzfScoringScheme scheme, FzfSlab slab, FzfByteBuffers buffers) => kind switch
@@ -107,9 +116,9 @@ internal sealed class FzfBytePattern
         return true;
     }
 
-    // Byte twin of FzfPattern's DNF group evaluation: every term must be satisfied (a positive term
-    // matches, or an inverse term is absent).
-    private static bool TryMatchGroup(ByteTermSet group, ReadOnlySpan<byte> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab slab, FzfByteBuffers buffers)
+    // Byte twin of FzfPattern's DNF group evaluation: every term set must be satisfied, while each set
+    // keeps its own OR alternatives (including alias spellings).
+    private static bool TryMatchGroup(ByteTermGroup group, ReadOnlySpan<byte> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab slab, FzfByteBuffers buffers)
     {
         var totalScore = 0;
         var minBegin = int.MaxValue;
@@ -117,19 +126,13 @@ internal sealed class FzfBytePattern
         var maxEnd = 0;
         var validOffsetFound = false;
 
-        foreach (var term in group.Terms)
+        foreach (var set in group.Sets)
         {
-            var current = term.Bytes == null
-                ? FzfMatchResult.NoMatch // non-ASCII pattern text can never occur in ASCII text
-                : Match(term.Kind, text, term.Bytes, term.CaseSensitive, scheme, slab, buffers);
-            if (current.IsMatch == term.Inverse)
+            if (!TryMatchSet(set, text, out var current, scheme, slab, buffers))
             {
                 result = default;
                 return false;
             }
-
-            if (!current.IsMatch)
-                continue;
 
             totalScore += current.Score;
             if (current.Start < current.End)

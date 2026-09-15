@@ -13,15 +13,16 @@ internal sealed class FzfPattern
     }
 
     // orGroups is the AND-first reading of the same query: a disjunction of conjunctions (DNF), where
-    // each inner FzfTermSet is one AND-group of single terms. It is null whenever the flat termSets
+    // each group contains ANDed term sets and each set retains its OR aliases. It is null whenever the flat termSets
     // already say the same thing, which is every query without a '|' plus every OR-first query -- the
     // hot engine keeps consuming TermSets unchanged and only a genuinely mixed AND-first query pays for
     // the extra shape. See FzfPatternParser.ParseTermSets.
-    internal FzfPattern(string? targetDrive, FzfTermSet[] termSets, FzfTermSet[]? orGroups)
+    internal FzfPattern(string? targetDrive, FzfTermSet[] termSets, FzfTermGroup[]? orGroups)
     {
         TargetDrive = targetDrive;
         TermSets = termSets;
         OrGroups = orGroups;
+        EffectiveSets = orGroups == null ? termSets : Flatten(orGroups);
     }
 
     public string? TargetDrive { get; }
@@ -29,12 +30,25 @@ internal sealed class FzfPattern
 
     // Non-null only for an AND-first query that actually mixes '|' with spaces. When set, this is the
     // authoritative shape and TryMatch/TryMatchSingle evaluate it instead of TermSets.
-    public FzfTermSet[]? OrGroups { get; }
+    public FzfTermGroup[]? OrGroups { get; }
 
     // Whichever shape actually governs matching: OrGroups when the query is an AND-first mix, else the
     // flat TermSets. Everything that only needs to ENUMERATE the terms (alignment requirement, typed
     // length, alias gating) reads this rather than choosing between the two shapes itself.
-    private FzfTermSet[] EffectiveSets => OrGroups ?? TermSets;
+    internal FzfTermSet[] EffectiveSets { get; }
+
+    private static FzfTermSet[] Flatten(FzfTermGroup[] groups)
+    {
+        var count = 0;
+        foreach (var group in groups)
+            count += group.Sets.Length;
+        var sets = new FzfTermSet[count];
+        var index = 0;
+        foreach (var group in groups)
+            foreach (var set in group.Sets)
+                sets[index++] = set;
+        return sets;
+    }
 
     public bool IsEmpty => TermSets.Length == 0;
 
@@ -83,7 +97,7 @@ internal sealed class FzfPattern
         {
             var groupLen = 0;
             foreach (var group in OrGroups)
-                groupLen = Math.Max(groupLen, SumGroupTermLength(group));
+                groupLen = Math.Max(groupLen, SumPositiveTermLength(group.Sets));
             return groupLen;
         }
 
@@ -107,19 +121,6 @@ internal sealed class FzfPattern
             return term.Text.Length; // the rest of this set are alternative spellings of the same typed text
         }
         return 0;
-    }
-
-    // One DNF group's terms are ANDed, and each term's own set of spellings is still one OR branch, so
-    // every term in the group contributes its single typed length.
-    private static int SumGroupTermLength(FzfTermSet group)
-    {
-        var len = 0;
-        foreach (var term in group.Terms)
-        {
-            if (!term.Inverse)
-                len += term.Text.Length;
-        }
-        return len;
     }
 
     public static FzfPattern Parse(string query) => FzfPatternParser.Parse(query);
@@ -181,8 +182,8 @@ internal sealed class FzfPattern
     // can't contain it (invalid in Windows paths) -- so no cross-'|' span check is needed.
     private bool TryMatchSingle(ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
     {
-        // AND-first query that mixes '|' with spaces: a disjunction of AND-groups, so the FIRST group
-        // that satisfies all of its own terms wins (groups are alternatives, not a conjunction).
+        // AND-first query that mixes '|' with spaces: a disjunction of AND-groups. Each group's term
+        // sets retain the OR relationship between the typed term and its provider aliases.
         if (OrGroups != null)
         {
             foreach (var group in OrGroups)
@@ -223,10 +224,9 @@ internal sealed class FzfPattern
         return true;
     }
 
-    // One AND-group of the DNF shape: every term in it must be satisfied, and the matched spans combine
-    // exactly the way TryMatchSingle combines its term sets. A term is satisfied when a positive term
-    // matches, or when an inverse ("!") term does NOT appear in the text.
-    private static bool TryMatchGroup(FzfTermSet group, ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab)
+    // One AND-group of the DNF shape: every term set must be satisfied, while each set keeps its own OR
+    // alternatives (including alias spellings).
+    private bool TryMatchGroup(FzfTermGroup group, ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab)
     {
         var totalScore = 0;
         var minBegin = int.MaxValue;
@@ -234,18 +234,13 @@ internal sealed class FzfPattern
         var maxEnd = 0;
         var validOffsetFound = false;
 
-        foreach (var term in group.Terms)
+        foreach (var set in group.Sets)
         {
-            var current = FzfAlgorithm.Match(term.Kind, text, term.Text, term.CaseSensitive, scheme, slab);
-            if (current.IsMatch == term.Inverse)
+            if (!TryMatchSet(set, text, out var current, scheme, slab))
             {
-                // Positive term missed, or inverse term appeared: this whole group fails.
                 result = default;
                 return false;
             }
-
-            if (!current.IsMatch)
-                continue; // satisfied inverse term: contributes no score and no span
 
             totalScore += current.Score;
             if (current.Start < current.End)
@@ -288,12 +283,3 @@ internal sealed class FzfPattern
         return false;
     }
 }
-
-internal readonly record struct FzfTermSet(FzfTerm[] Terms);
-// AliasForm marks a spelling an alias provider supplied for a term the user typed, rather than
-// something the user typed themselves. It exists so display highlighting can tell the two apart: a
-// user-written OR ("a | b") highlights every branch that matches, but a provider's rewriting of one
-// term is an internal detail whose text (pinyin, boundaries and all) appears nowhere in the candidate,
-// and marking it lights up characters that have nothing to do with what was typed.
-internal readonly record struct FzfTerm(FzfTermKind Kind, bool Inverse, string Text, bool CaseSensitive, bool AliasForm = false);
-internal readonly record struct FzfPatternResult(int Score, int MinBegin, int MinEnd, int MaxEnd, bool ValidOffsetFound);

@@ -96,16 +96,17 @@ internal static class FzfPatternParser
     // and starts the next -- the space binds tighter than the pipe, so "report | summary 2024" is the
     // disjunction [report] OR [summary AND 2024]. Groups are the outer OR, terms inside a group the
     // inner AND, which is the exact mirror of the OR-first shape above where the two roles swap.
-    private static FzfTermSet[] ParseAndGroups(string query, out bool sawSpace, out bool sawPipe)
+    private static FzfTermGroup[] ParseAndGroups(string query, out bool sawSpace, out bool sawPipe)
     {
         sawSpace = false;
         sawPipe = false;
-        var groups = new List<FzfTermSet>();
+        var groups = new List<FzfTermGroup>();
         if (string.IsNullOrWhiteSpace(query))
-            return Array.Empty<FzfTermSet>();
+            return Array.Empty<FzfTermGroup>();
 
         query = query.Replace("\\ ", "\t");
-        var current = new List<FzfTerm>();
+        var currentGroup = new List<FzfTermSet>();
+        var currentSet = new List<FzfTerm>();
 
         foreach (var rawToken in MergeQuotedPhrases(query.Split(' ', StringSplitOptions.RemoveEmptyEntries)))
         {
@@ -113,21 +114,32 @@ internal static class FzfPatternParser
             if (token == "|")
             {
                 sawPipe = true;
-                if (current.Count > 0)
+                if (currentSet.Count > 0)
                 {
-                    groups.Add(new FzfTermSet(current.ToArray()));
-                    current.Clear();
+                    currentGroup.Add(new FzfTermSet(currentSet.ToArray()));
+                    currentSet.Clear();
+                }
+                if (currentGroup.Count > 0)
+                {
+                    groups.Add(new FzfTermGroup(currentGroup.ToArray()));
+                    currentGroup.Clear();
                 }
                 continue;
             }
 
-            if (current.Count > 0)
+            if (currentSet.Count > 0)
+            {
                 sawSpace = true;
-            AddToken(token, current);
+                currentGroup.Add(new FzfTermSet(currentSet.ToArray()));
+                currentSet.Clear();
+            }
+            AddToken(token, currentSet);
         }
 
-        if (current.Count > 0)
-            groups.Add(new FzfTermSet(current.ToArray()));
+        if (currentSet.Count > 0)
+            currentGroup.Add(new FzfTermSet(currentSet.ToArray()));
+        if (currentGroup.Count > 0)
+            groups.Add(new FzfTermGroup(currentGroup.ToArray()));
 
         return groups.ToArray();
     }

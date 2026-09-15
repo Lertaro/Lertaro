@@ -26,6 +26,27 @@ public sealed class PathTermFallbackTests
         return results;
     }
 
+    private static LiveIndexFixture BuildAndFirstDrive() => LiveIndexFixture.Build("T", new[]
+    {
+        LiveIndexFixture.Root(),
+        new FileRecord(2, 1, "summary", FileRecordFlags.Directory),
+        new FileRecord(3, 2, "2024.txt", FileRecordFlags.None),
+    });
+
+    [TestMethod]
+    public void SearchStreaming_AndFirstBranchStillUsesAncestorFallback()
+    {
+        using var fixture = BuildAndFirstDrive();
+
+        // The file name supplies only "2024"; "summary" is supplied by its parent folder. This row
+        // is reachable only if the mixed-precedence path splits the DNF branches and runs the existing
+        // ancestor fallback for the [summary AND 2024] branch.
+        var results = Search(fixture, "report | summary 2024");
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual(@"T:\summary\2024.txt", results[0].Path);
+    }
+
     // The ancestor verdict is now recorded for every folder on the chain, not just the one asked about,
     // so a later row can be answered from a partial walk somebody else did. The cases below are the ones
     // where sharing an answer could hand back the wrong one.

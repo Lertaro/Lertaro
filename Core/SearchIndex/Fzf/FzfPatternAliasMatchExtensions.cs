@@ -52,7 +52,9 @@ internal static class FzfPatternAliasMatchExtensions
         if (pattern.IsAcceptableAliasMatch(aliasMatch, queryLen))
             return true;
 
-        if (pattern.OrGroups != null || pattern.TermSets.Length < 2 || !pattern.HasAliasFallbackAnchorTerm())
+        if (pattern.OrGroups == null && (pattern.TermSets.Length < 2 || !pattern.HasAliasFallbackAnchorTerm()))
+            return false;
+        if (pattern.OrGroups != null && !pattern.HasAliasFallbackAnchorTerm())
             return false;
 
         // Mirror TryMatch's own '|' segment-splitting (polyphonic alias variants, e.g. 和's he/hu/huo
@@ -65,7 +67,7 @@ internal static class FzfPatternAliasMatchExtensions
             var len = text.Slice(start).IndexOf('|');
             if (len < 0)
                 len = text.Length - start;
-            if (pattern.EveryTermSetHasTightMatch(text.Slice(start, len), scheme, slab))
+            if (pattern.HasTightMatchInAnyGroup(text.Slice(start, len), scheme, slab))
                 return true;
             start += len + 1;
         }
@@ -74,16 +76,27 @@ internal static class FzfPatternAliasMatchExtensions
 
     private static bool HasAliasFallbackAnchorTerm(this FzfPattern pattern)
     {
-        foreach (var set in pattern.TermSets)
+        foreach (var set in pattern.EffectiveSets)
             foreach (var term in set.Terms)
                 if (!term.Inverse && term.Text.Length >= AliasFallbackAnchorLength)
                     return true;
         return false;
     }
 
-    private static bool EveryTermSetHasTightMatch(this FzfPattern pattern, ReadOnlySpan<char> segment, FzfScoringScheme scheme, FzfSlab? slab)
+    private static bool HasTightMatchInAnyGroup(this FzfPattern pattern, ReadOnlySpan<char> segment, FzfScoringScheme scheme, FzfSlab? slab)
     {
-        foreach (var set in pattern.TermSets)
+        if (pattern.OrGroups == null)
+            return pattern.EveryTermSetHasTightMatch(pattern.TermSets, segment, scheme, slab);
+
+        foreach (var group in pattern.OrGroups)
+            if (pattern.EveryTermSetHasTightMatch(group.Sets, segment, scheme, slab))
+                return true;
+        return false;
+    }
+
+    private static bool EveryTermSetHasTightMatch(this FzfPattern pattern, FzfTermSet[] sets, ReadOnlySpan<char> segment, FzfScoringScheme scheme, FzfSlab? slab)
+    {
+        foreach (var set in sets)
         {
             var hasPositiveTerm = false;
             var setOk = false;
