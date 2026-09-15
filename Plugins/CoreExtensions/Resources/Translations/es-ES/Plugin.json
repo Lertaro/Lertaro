@@ -215,10 +215,8 @@
   "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "Analiza tokens de filtro personalizados que comienzan con :@ y filtra resultados de búsqueda.",
   "CoreExtensions_Config_QueryTokensGroupLabel": "Configuración de tokens de consulta",
   "CoreExtensions_Config_PathExclusionPrefixLabel": "Prefijo de exclusión de ruta",
-  "CoreExtensions_Config_PathExclusionPrefixDesc": "Carácter de prefijo para tokens de coincidencia difusa de ruta (predeterminado :).",
   "CoreExtensions_Config_CustomFilterPrefixLabel": "Prefijo de filtro personalizado",
-  "CoreExtensions_Config_CustomFilterPrefixDesc": "Carácter de prefijo para tokens de filtro de categoría personalizados (predeterminado @).",
+  "CoreExtensions_Config_CustomFilterPrefixDesc": "Carácter de prefijo para los tokens de filtro de categoría personalizados (por defecto \\). No puede ser un carácter que use la sintaxis de búsqueda (\\ < > : *), porque la sintaxis lo consumiría antes de leer el filtro.",
   "CoreExtensions_WildcardFilterProvider_Name": "Filtro comodín secundario (?expresión)",
   "CoreExtensions_Config_WildcardFilterPrefixLabel": "Prefijo del filtro comodín",
-  "CoreExtensions_Config_WildcardFilterPrefixDesc": "Carácter de prefijo para activar el filtro comodín secundario (predeterminado ?)."
 }

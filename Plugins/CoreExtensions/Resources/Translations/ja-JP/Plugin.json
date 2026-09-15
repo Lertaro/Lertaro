@@ -215,10 +215,8 @@
   "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": ":@ で始まるカスタムフィルター文字を解析し、ワイルドカードと拡張子ルールに基づいて結果を絞り込みます。",
   "CoreExtensions_Config_QueryTokensGroupLabel": "クエリトークン設定",
   "CoreExtensions_Config_PathExclusionPrefixLabel": "パス除外プレフィックス文字",
-  "CoreExtensions_Config_PathExclusionPrefixDesc": "パス部分一致トークンのプレフィックス文字（デフォルト: :）。",
   "CoreExtensions_Config_CustomFilterPrefixLabel": "カテゴリフィルタープレフィックス文字",
-  "CoreExtensions_Config_CustomFilterPrefixDesc": "カスタムカテゴリフィルターのプレフィックス文字（デフォルト: @）。",
+  "CoreExtensions_Config_CustomFilterPrefixDesc": "カスタムカテゴリフィルターのプレフィックス文字（デフォルト: \\）。検索構文が使用する文字（\\ < > : *）は使えません。構文側が先にその文字を消費します。",
   "CoreExtensions_WildcardFilterProvider_Name": "ワイルドカード二次フィルター (?表現)",
   "CoreExtensions_Config_WildcardFilterPrefixLabel": "ワイルドカードフィルターのプレフィックス",
-  "CoreExtensions_Config_WildcardFilterPrefixDesc": "ワイルドカード二次フィルターをトリガーするプレフィックス文字 (デフォルトは ?)。"
 }

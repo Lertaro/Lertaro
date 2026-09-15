@@ -215,10 +215,8 @@
   "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "Parses custom filter tokens starting with :@ and filters search results based on wildcard or extension rules.",
   "CoreExtensions_Config_QueryTokensGroupLabel": "Query Token Settings",
   "CoreExtensions_Config_PathExclusionPrefixLabel": "Path Exclusion Prefix",
-  "CoreExtensions_Config_PathExclusionPrefixDesc": "Prefix character for path fuzzy-matching tokens (default :).",
   "CoreExtensions_Config_CustomFilterPrefixLabel": "Custom Filter Prefix",
-  "CoreExtensions_Config_CustomFilterPrefixDesc": "Prefix character for custom filter tokens (default @).",
+  "CoreExtensions_Config_CustomFilterPrefixDesc": "Prefix character for custom filter tokens (default \\). It cannot be a character the search syntax uses (\\ < > : *), because the syntax would consume it before the filter is read.",
   "CoreExtensions_WildcardFilterProvider_Name": "Wildcard Filter (?expression)",
   "CoreExtensions_Config_WildcardFilterPrefixLabel": "Wildcard Filter Prefix",
-  "CoreExtensions_Config_WildcardFilterPrefixDesc": "Prefix character to trigger wildcard secondary filtering (default ?)."
 }
