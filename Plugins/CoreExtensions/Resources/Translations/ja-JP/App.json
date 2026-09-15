@@ -355,6 +355,8 @@
   "General_OpenFoldersInNewExplorerTabs": "新しいエクスプローラー タブでフォルダーを開く",
   "General_OpenFoldersInNewExplorerTabsHint": "利用可能な場合は、既存の Windows 11 エクスプローラー ウィンドウを再利用します。サードパーティ製ファイルマネージャーを設定している場合、この実験的な連携は使用されません。",
   "General_DefaultFileManagerEnabled": "サードパーティ製ファイルマネージャーでフォルダーを開く",
+  "General_ShowOpenedFoldersInInlineSearch": "インライン検索に現在開いているフォルダーを表示",
+  "General_ShowOpenedFoldersInInlineSearchDesc": "インラインウィンドウをファイル選択画面にドッキングしたとき、その画面で現在開いているフォルダーを表示します。",
   "General_DefaultFileManagerHint": "フォルダーを開く操作（「フォルダーの場所を開く」を含む）を、システム既定の代わりに以下のプログラムにリダイレクトします。",
   "General_DefaultFileManagerPath": "パス（プログラム）",
   "General_DefaultFileManagerBrowseTooltip": "プログラムを参照",

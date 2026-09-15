@@ -159,7 +159,7 @@ internal sealed class SearchDispatchController
             _engine.CancelPendingSearch();
             _setIsSearching(false);
             var suggestion = ExplorerJumpSuggestionHelper.TryBuildSuggestion(_getIsInlineSearchContext(), _getSearchScope());
-            var openedFolderPaths = _getIsInlineSearchContext() && InlineSearchManager.Instance.ExplorerTracker.IsActiveWindowDialog
+            var openedFolderPaths = _getIsInlineSearchContext() && UserSettings.Load().ShowOpenedFoldersInInlineSearch && InlineSearchManager.Instance.ExplorerTracker.IsActiveWindowDialog
                 ? ExplorerPathService.GetOpenedFolderPaths()
                 : Array.Empty<string>();
             var emptyStateResults = InlineEmptyStateResultHelper.Build(

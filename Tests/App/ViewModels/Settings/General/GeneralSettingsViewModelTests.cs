@@ -43,4 +43,19 @@ public sealed class GeneralSettingsViewModelTests
         Assert.AreEqual(nameof(vm.EnableEverythingIpc), changedProp);
         Assert.IsFalse(vm.EnableEverythingIpc);
     }
+
+    [TestMethod]
+    public void ShowOpenedFoldersInInlineSearch_DefaultsToEnabledAndCanBeStaged()
+    {
+        var settings = new UserSettings();
+        var vm = new GeneralSettingsViewModel(settings);
+
+        Assert.IsTrue(settings.ShowOpenedFoldersInInlineSearch);
+        Assert.IsTrue(vm.ShowOpenedFoldersInInlineSearch);
+
+        vm.ShowOpenedFoldersInInlineSearch = false;
+
+        Assert.IsFalse(vm.ShowOpenedFoldersInInlineSearch);
+        Assert.IsTrue(settings.ShowOpenedFoldersInInlineSearch);
+    }
 }

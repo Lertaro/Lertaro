@@ -55,6 +55,7 @@ public class UserSettings
     // QuickSearchWindow's BtnTrayMenu and TrayIconService.ShowMenuAt.
     public bool HideTrayIcon { get; set; } = false;
     public bool EnableEverythingIpc { get; set; } = false;
+    public bool ShowOpenedFoldersInInlineSearch { get; set; } = true;
     public string GlobalTokenPrefix { get; set; } = ":";
     public string LogLevel { get; set; } = "Info";
     public string PreferredLanguage { get; set; } = GetDefaultSystemLanguage();

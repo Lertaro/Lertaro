@@ -355,6 +355,8 @@
   "General_OpenFoldersInNewExplorerTabs": "Abrir carpetas en nuevas pestañas del Explorador de archivos",
   "General_OpenFoldersInNewExplorerTabsHint": "Cuando esté disponible, reutiliza una ventana existente del Explorador de archivos de Windows 11. Esta integración experimental se ignora si se configura un administrador de archivos de terceros.",
   "General_DefaultFileManagerEnabled": "Abrir carpetas con un administrador de archivos de terceros",
+  "General_ShowOpenedFoldersInInlineSearch": "Mostrar las carpetas abiertas actualmente en la búsqueda integrada",
+  "General_ShowOpenedFoldersInInlineSearchDesc": "Cuando la ventana de búsqueda integrada esté acoplada a un selector de archivos, muestra las carpetas abiertas actualmente en ese selector.",
   "General_DefaultFileManagerHint": "Redirige la apertura de una carpeta (incluido \"Abrir Ubicación de la Carpeta\") al programa indicado a continuación en lugar de al predeterminado del propio shell.",
   "General_DefaultFileManagerPath": "Ruta (programa)",
   "General_DefaultFileManagerBrowseTooltip": "Buscar un programa",

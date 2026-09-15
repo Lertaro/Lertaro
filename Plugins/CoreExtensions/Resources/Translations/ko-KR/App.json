@@ -355,6 +355,8 @@
   "General_OpenFoldersInNewExplorerTabs": "새 파일 탐색기 탭에서 폴더 열기",
   "General_OpenFoldersInNewExplorerTabsHint": "가능한 경우 기존 Windows 11 파일 탐색기 창을 재사용합니다. 타사 파일 관리자를 설정하면 이 실험적 통합은 적용되지 않습니다.",
   "General_DefaultFileManagerEnabled": "타사 파일 관리자로 폴더 열기",
+  "General_ShowOpenedFoldersInInlineSearch": "인라인 검색에 현재 열려 있는 폴더 표시",
+  "General_ShowOpenedFoldersInInlineSearchDesc": "인라인 창을 파일 선택기에 도킹하면 해당 선택기에서 현재 열려 있는 폴더를 표시합니다.",
   "General_DefaultFileManagerHint": "폴더 열기(\"폴더 위치 열기\" 포함)를 셸 자체 기본값 대신 아래 프로그램으로 리디렉션합니다.",
   "General_DefaultFileManagerPath": "경로(프로그램)",
   "General_DefaultFileManagerBrowseTooltip": "프로그램 찾아보기",

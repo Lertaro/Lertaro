@@ -150,6 +150,11 @@
                            Margin="0,4"/>
                 <TextBlock Style="{StaticResource SettingsHintText}" TextWrapping="Wrap"
                             Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_OpenFoldersInNewExplorerTabsHint]}"/>
+                <CheckBox x:Name="RowShowOpenedFoldersInInlineSearch" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ShowOpenedFoldersInInlineSearch]}"
+                           IsChecked="{Binding General.ShowOpenedFoldersInInlineSearch, Mode=TwoWay}"
+                           Margin="0,12,0,0"/>
+                <TextBlock Style="{StaticResource SettingsHintText}" TextWrapping="Wrap"
+                           Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ShowOpenedFoldersInInlineSearchDesc]}"/>
             </StackPanel>
         </Border>
 

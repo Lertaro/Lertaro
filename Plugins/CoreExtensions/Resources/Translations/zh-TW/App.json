@@ -355,6 +355,8 @@
   "General_OpenFoldersInNewExplorerTabs": "在檔案總管的新索引標籤中開啟資料夾",
   "General_OpenFoldersInNewExplorerTabsHint": "可用時會重用現有的 Windows 11 檔案總管視窗。設定第三方檔案管理員時不會套用此實驗性整合。",
   "General_DefaultFileManagerEnabled": "使用第三方檔案管理員開啟資料夾",
+  "General_ShowOpenedFoldersInInlineSearch": "在內嵌搜尋中顯示目前開啟的資料夾",
+  "General_ShowOpenedFoldersInInlineSearchDesc": "內嵌視窗停靠在檔案選擇器時，顯示該選擇器目前開啟的資料夾。",
   "General_DefaultFileManagerHint": "開啟資料夾(包括\"開啟所在資料夾\")時改用下面配置的程式，而不是系統預設關聯。",
   "General_DefaultFileManagerPath": "路徑(程式)",
   "General_DefaultFileManagerBrowseTooltip": "瀏覽選擇程式",

@@ -355,6 +355,8 @@
   "General_OpenFoldersInNewExplorerTabs": "Open folders in new File Explorer tabs",
   "General_OpenFoldersInNewExplorerTabsHint": "Uses an existing Windows 11 File Explorer window when available. This experimental integration is ignored when a third-party file manager is configured.",
   "General_DefaultFileManagerEnabled": "Open folders with a third-party file manager",
+  "General_ShowOpenedFoldersInInlineSearch": "Show currently open folders in inline search",
+  "General_ShowOpenedFoldersInInlineSearchDesc": "When the inline window is docked in a file picker, show the folders currently open in that picker.",
   "General_DefaultFileManagerHint": "Redirects opening a folder (including \"Open Folder Location\") to the program below instead of the shell's own default.",
   "General_DefaultFileManagerPath": "Path (program)",
   "General_DefaultFileManagerBrowseTooltip": "Browse for a program",

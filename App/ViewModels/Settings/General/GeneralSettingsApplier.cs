@@ -23,6 +23,7 @@ internal static class GeneralSettingsApplier
         bool orFirstPrecedence,
         bool enableQuickSearchClipboardAutoFill,
         bool enableEverythingIpc,
+        bool showOpenedFoldersInInlineSearch,
         bool hideTrayIcon,
         bool openFoldersInNewExplorerTabs,
         string globalTokenPrefix,
@@ -44,6 +45,7 @@ internal static class GeneralSettingsApplier
         // filtering, highlighting), which only ever sees the process-wide value -- see SearchContext.
         SearchContext.DefaultAndFirstPrecedence = !orFirstPrecedence;
         userSettings.EnableEverythingIpc = enableEverythingIpc;
+        userSettings.ShowOpenedFoldersInInlineSearch = showOpenedFoldersInInlineSearch;
         userSettings.HideTrayIcon = hideTrayIcon;
         userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs = openFoldersInNewExplorerTabs;
         userSettings.GlobalTokenPrefix = string.IsNullOrWhiteSpace(globalTokenPrefix) ? ":" : globalTokenPrefix;

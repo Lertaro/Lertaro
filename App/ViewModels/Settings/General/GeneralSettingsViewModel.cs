@@ -23,6 +23,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _orFirstPrecedence;
     private bool _enableQuickSearchClipboardAutoFill;
     private bool _enableEverythingIpc;
+    private bool _showOpenedFoldersInInlineSearch;
     private bool _hideTrayIcon;
     private bool _openFoldersInNewExplorerTabs;
     private string _globalTokenPrefix;
@@ -61,6 +62,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _orFirstPrecedence = userSettings.OrFirstPrecedence;
         _enableQuickSearchClipboardAutoFill = userSettings.EnableQuickSearchClipboardAutoFill;
         _enableEverythingIpc = userSettings.EnableEverythingIpc;
+        _showOpenedFoldersInInlineSearch = userSettings.ShowOpenedFoldersInInlineSearch;
         _hideTrayIcon = userSettings.HideTrayIcon;
         _openFoldersInNewExplorerTabs = userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs;
         _globalTokenPrefix = userSettings.GlobalTokenPrefix;
@@ -184,6 +186,12 @@ public class GeneralSettingsViewModel : ViewModelBase
         set => SetProperty(ref _enableEverythingIpc, value);
     }
 
+    public bool ShowOpenedFoldersInInlineSearch
+    {
+        get => _showOpenedFoldersInInlineSearch;
+        set => SetProperty(ref _showOpenedFoldersInInlineSearch, value);
+    }
+
     public bool HideTrayIcon
     {
         get => _hideTrayIcon;
@@ -240,6 +248,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _orFirstPrecedence,
         _enableQuickSearchClipboardAutoFill,
         _enableEverythingIpc,
+        _showOpenedFoldersInInlineSearch,
         _hideTrayIcon,
         _openFoldersInNewExplorerTabs,
         _globalTokenPrefix,
