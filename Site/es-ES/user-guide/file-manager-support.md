@@ -43,7 +43,7 @@ Para usuarios avanzados que utilicen exploradores de terceros, Lertaro ofrece pl
 
 ### Servicio de compatibilidad con Everything (IPC)
 
-En [**Configuración → General → Sistema**](./settings/general#sistema), activa **Habilitar servicio de compatibilidad Everything (IPC)** para emular la interfaz Win32 IPC de Everything. Herramientas como Directory Opus, Total Commander y Flow Launcher pueden consultar el índice en memoria de Lertaro mediante sus plugins existentes de Everything.
+En [**Configuración → General → Sistema**](./settings/general#_1-sistema), activa **Habilitar servicio de compatibilidad Everything (IPC)** para emular la interfaz Win32 IPC de Everything. Herramientas como Directory Opus, Total Commander y Flow Launcher pueden consultar el índice en memoria de Lertaro mediante sus plugins existentes de Everything.
 
 ## 4. Diálogos personalizados de software (Plugins dedicados)
 

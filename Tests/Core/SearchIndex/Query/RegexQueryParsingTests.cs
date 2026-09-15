@@ -148,13 +148,6 @@ public sealed class RegexLiteralExtractorTests
     {
         Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("a(b(c|d))e"));
     }
-
-    [TestMethod]
-    public void IsPrefixAnchored_DetectsTheCaret()
-    {
-        Assert.IsTrue(RegexLiteralExtractor.IsPrefixAnchored("^abc"));
-        Assert.IsFalse(RegexLiteralExtractor.IsPrefixAnchored("abc"));
-    }
 }
 
 [TestClass]
@@ -227,12 +220,14 @@ public sealed class RegexQueryParserTests
     }
 
     [TestMethod]
-    public void Split_NoExtractableLiteral_ReportsNoPrefilter()
+    public void Split_NoExtractableLiteral_YieldsAnEmptyLiteral()
     {
+        // Asserted on the literal itself, which is what the prefilter consumes (via
+        // FzfPattern.RequiredRegexLiteral); there is no separate "can prefilter" flag to keep in sync.
         _ = RegexQueryParser.Split("regex:/.*/", out var clauses);
 
         Assert.HasCount(1, clauses);
-        Assert.IsFalse(clauses[0].CanPrefilter);
+        Assert.AreEqual(string.Empty, clauses[0].RequiredLiteral);
     }
 
     // The headline use case end to end: the clause must reach the pattern matcher AND must not have sent

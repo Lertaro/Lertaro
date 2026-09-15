@@ -404,9 +404,4 @@ internal static class RegexLiteralExtractor
 
         return i;
     }
-
-    // True when the extracted literal is required to sit at the very start of the text, which lets a
-    // caller answer "does this name even start with it" instead of a general substring scan.
-    public static bool IsPrefixAnchored(string pattern)
-        => pattern.StartsWith('^');
 }

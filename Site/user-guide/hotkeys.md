@@ -92,4 +92,4 @@ Plugins can register specific action shortcuts (e.g. `Ctrl+Shift+C` for copying 
 ### Process Blacklist & Fullscreen Bypass
 
 - **Automatic Fullscreen Bypass**: When a focused foreground application runs in exclusive fullscreen mode (e.g. 3D games or video players), Lertaro automatically bypasses all global hotkeys to avoid interrupting gameplay.
-- **Custom Process Blacklist**: Add executable names under [**Settings → Hotkeys**](./settings/hotkeys-page#process-blacklist) (e.g. `game.exe`) to silence hotkeys and mouse triggers while that process is focused.
+- **Custom Process Blacklist**: Add executable names under [**Settings → Hotkeys**](./settings/hotkeys-page#_3-process-blacklist) (e.g. `game.exe`) to silence hotkeys and mouse triggers while that process is focused.

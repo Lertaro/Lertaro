@@ -53,7 +53,7 @@ Pulsa `Alt+P` en cualquier resultado para abrir el panel lateral de vista previa
 
 ### Ajuste de pantalla y gestión de ventanas emergentes
 
-- **Ajuste automático de límites**: Las dimensiones de la vista previa se pueden personalizar en [**Configuración → General → Vista previa**](./settings/general#vista-previa); Lertaro garantiza que nunca sobrepase el área visible del monitor.
+- **Ajuste automático de límites**: Las dimensiones de la vista previa se pueden personalizar en [**Configuración → General → Vista previa**](./settings/general#_4-ventana-de-vista-previa); Lertaro garantiza que nunca sobrepase el área visible del monitor.
 - **Evitación de diálogos nativos**: Al previsualizar documentos de Office protegidos con contraseña, Lertaro oculta temporalmente sus ventanas para que puedas introducir la contraseña sin bloqueos, restaurándose después con normalidad.
 - **Arrastrar desde la vista previa**: La parte superior del panel sirve como origen de arrastre para llevar el archivo previsualizado directamente a editores, navegadores o chats.
 

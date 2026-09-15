@@ -2,12 +2,11 @@ namespace Lertaro.Core.SearchIndex.Query;
 
 // One parsed "regex:/.../" clause from a query. Public with RegexQueryParser, which SearchQueryParser now
 // calls to decide path mode from a query that no longer contains its regex clauses.
-public readonly record struct RegexClause(string Pattern, string RequiredLiteral)
-{
-    // True when a literal was extracted, so the index prefilter can narrow the candidate set before the
-    // (comparatively expensive) regex engine runs. False means this clause forces a full scan.
-    public bool CanPrefilter => RequiredLiteral.Length > 0;
-}
+//
+// The clause carries its extracted literal because the extractor runs once, when the clause is parsed; the
+// index prefilter consumes it later, through FzfPattern.RequiredRegexLiteral, which folds the clauses'
+// literals into the character mask.
+public readonly record struct RegexClause(string Pattern, string RequiredLiteral);
 
 // Splits a query into the ordinary text part and the "regex:/.../" clauses it contains.
 //
