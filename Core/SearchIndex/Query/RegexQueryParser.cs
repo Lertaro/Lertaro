@@ -1,7 +1,8 @@
 namespace Lertaro.Core.SearchIndex.Query;
 
-// One parsed "regex:/.../" clause from a query.
-internal readonly record struct RegexClause(string Pattern, string RequiredLiteral)
+// One parsed "regex:/.../" clause from a query. Public with RegexQueryParser, which SearchQueryParser now
+// calls to decide path mode from a query that no longer contains its regex clauses.
+public readonly record struct RegexClause(string Pattern, string RequiredLiteral)
 {
     // True when a literal was extracted, so the index prefilter can narrow the candidate set before the
     // (comparatively expensive) regex engine runs. False means this clause forces a full scan.
@@ -13,7 +14,11 @@ internal readonly record struct RegexClause(string Pattern, string RequiredLiter
 // This runs BEFORE FzfPatternParser for a reason: a regex like "^ab\.c\..{3}$" contains backslashes and
 // slashes, and Lertaro's path-mode detection switches the whole query to full-path matching the moment
 // it sees one of those. Having the regex swallowed here means path mode never fires for it.
-internal static class RegexQueryParser
+//
+// SearchQueryParser.Parse calls this too, for that exact reason: it is the caller that MAKES the path-mode
+// decision, so it has to see the query without its regex clauses. Before it did, "lertaro regex:/\.exe$/"
+// was read as a full path named "lertaro regex:\.exe$" and matched nothing at all.
+public static class RegexQueryParser
 {
     private const string Prefix = "regex:";
 

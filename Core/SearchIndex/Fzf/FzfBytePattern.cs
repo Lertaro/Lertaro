@@ -18,26 +18,36 @@ internal sealed class FzfBytePattern
     // '|' with spaces under AND-first precedence, in which case this is the authoritative shape.
     public readonly ByteTermGroup[]? OrGroups;
 
+    // True when the query carried "regex:/.../" clauses, which this byte matcher CANNOT apply: it is the
+    // ASCII fast path, and a regex needs the decoded chars. A caller that ignores this gets one of two
+    // wrong answers -- a regex-only query looks like "no positive terms" and is rejected for every name
+    // (so the search returns nothing at all), while a query that also has an ordinary term matches on the
+    // term alone and silently drops the regex (so it returns files the user excluded). Either way the
+    // caller has to send these candidates down the char path, which does apply the clauses.
+    public readonly bool HasRegexClauses;
+
     // Carried over from FzfPattern: false for an exclusion-only query, which must match nothing. The byte
     // path is the one that RUNS for pure-ASCII names (and it returns a hit before the char path is ever
     // consulted), so it needs the same guard -- without it ":temp" would match every ASCII name that does
     // not contain "temp", i.e. nearly the whole index.
     private readonly bool _hasPositiveTerm;
 
-    private FzfBytePattern(ByteTermSet[] termSets, ByteTermGroup[]? orGroups, bool hasPositiveTerm)
+    private FzfBytePattern(ByteTermSet[] termSets, ByteTermGroup[]? orGroups, bool hasPositiveTerm, bool hasRegexClauses)
     {
         TermSets = termSets;
         OrGroups = orGroups;
         _hasPositiveTerm = hasPositiveTerm;
+        HasRegexClauses = hasRegexClauses;
     }
 
     public static FzfBytePattern From(FzfPattern pattern)
     {
         var sets = Convert(pattern.TermSets);
         var hasPositiveTerm = pattern.HasPositiveTerm;
+        var hasRegexes = pattern.Regexes is { Length: > 0 };
         return pattern.OrGroups == null
-            ? new FzfBytePattern(sets, null, hasPositiveTerm)
-            : new FzfBytePattern(sets, Convert(pattern.OrGroups), hasPositiveTerm);
+            ? new FzfBytePattern(sets, null, hasPositiveTerm, hasRegexes)
+            : new FzfBytePattern(sets, Convert(pattern.OrGroups), hasPositiveTerm, hasRegexes);
     }
 
     private static ByteTermSet[] Convert(FzfTermSet[] source)

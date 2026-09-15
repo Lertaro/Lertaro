@@ -86,7 +86,12 @@ internal sealed class FzfPattern
         return sets;
     }
 
-    public bool IsEmpty => TermSets.Length == 0;
+    // True when the pattern has nothing to match ON -- no ordinary terms AND no regex clauses. Callers use
+    // this to mean "there is no query here", so a regex-only pattern must NOT report empty: it has real
+    // matching to do, just not through a term. It used to count term sets alone, which made
+    // "regex:/\.exe$/" look like an empty query -- NameSearch's drive gate rejected it outright and the
+    // search returned nothing at all, and FuzzyMatcher would have called the empty pattern a non-match.
+    public bool IsEmpty => TermSets.Length == 0 && Regexes is not { Length: > 0 };
 
     // True when every term has to be matched as a PRECISE run rather than as a scattered subsequence --
     // the ordinary "fuzzy matching is switched off" query. Alias fallback then has to respect the
