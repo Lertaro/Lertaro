@@ -25,6 +25,18 @@ public static class SearchSyntaxReserved
     //   '*'   the one-search exclusion bypass, read from the first character only
     public static IReadOnlyList<char> LeadingCharacters { get; } = new[] { '\\', '<', '>', ':', '*' };
 
+    // Leading characters an instant-answer provider claims for itself, by its own hardcoded rule rather
+    // than by the search syntax. They are not syntax, so they are listed separately -- but they are just
+    // as unavailable to another first-character trigger, which is the whole point of ValidateLeadingCharacter.
+    //
+    //   '#'   CommandInstantProvider: an elevated shell command ("#dir")
+    //   '$'   CommandInstantProvider: a normal shell command ("$dir")
+    //   '%'   EnvironmentVariableInstantProvider: fuzzes environment variable names ("%TE")
+    //
+    // Providers matching on a configurable KEYWORD are deliberately not here: their keyword is the user's
+    // own setting, so the collision is the user's to see and fix, and the settings page already reports it.
+    public static IReadOnlyList<char> ProviderClaimedCharacters { get; } = new[] { '#', '$', '%' };
+
     // True when `value` starts with a character the search syntax consumes before any plugin or trigger
     // ever sees the query.
     public static bool StartsWithReservedCharacter(string? value)
@@ -32,23 +44,34 @@ public static class SearchSyntaxReserved
 
     public static bool IsReserved(char value) => LeadingCharacters.Contains(value);
 
+    public static bool IsProviderClaimed(char value) => ProviderClaimedCharacters.Contains(value);
+
     /// <summary>
     /// Why this value cannot be used as a leading trigger, or null when it is usable. Shared by every
     /// surface so the same input always gets the same answer. Only the FIRST character is judged: every
     /// trigger is matched against the start of the query, so that is the only position the search syntax
-    /// competes for, and a keyword is free to contain anything else.
+    /// and the providers compete for, and a keyword is free to contain anything else.
     /// </summary>
     public static string? ValidateLeadingCharacter(string? value)
     {
         if (string.IsNullOrEmpty(value))
             return TranslationManager.Instance["General_ReservedCharacterEmpty"];
 
-        return StartsWithReservedCharacter(value)
-            ? TranslationManager.Instance["General_ReservedCharacterSyntax"]
+        var first = value[0];
+        if (LeadingCharacters.Contains(first))
+            return TranslationManager.Instance["General_ReservedCharacterSyntax"];
+
+        // Claimed by a provider's own hardcoded rule rather than by the syntax. The message names the
+        // characters, because "you cannot use #, $ or %" is arbitrary unless the user is told what already
+        // answers to them.
+        return ProviderClaimedCharacters.Contains(first)
+            ? TranslationManager.Instance["General_ReservedCharacterProvider"]
             : null;
     }
 
     // The characters listed for a message, so the warning can name them without each locale hardcoding a
     // translated copy that can drift from the list above.
     public static string DescribeLeadingCharacters() => string.Join(' ', LeadingCharacters);
+
+    public static string DescribeProviderClaimedCharacters() => string.Join(' ', ProviderClaimedCharacters);
 }
