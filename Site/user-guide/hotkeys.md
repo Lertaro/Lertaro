@@ -25,7 +25,7 @@ Lertaro embraces a keyboard-first interaction philosophy while offering rich mou
 
 ### Empty Inline Search in File Dialogs
 
-When an inline search box is embedded in a native file dialog and the query is empty, the list shows the **Previous Directory** group first, followed by a **Currently Open Folders** group collected from supported file managers. The dialog's current folder is omitted, duplicate paths are removed, empty groups stay hidden, and group headers do not receive shortcut badges. This behavior applies only to inline search in file dialogs; Quick and Full Windows are unchanged.
+When an inline search box is embedded in a native file dialog and the query is empty, the list shows the **Previous Directory** group first. If **Show Currently Open Folders in Inline Search** is enabled, it also shows a **Currently Open Folders** group collected from supported file managers. The dialog's current folder is omitted, duplicate paths are removed, empty groups stay hidden, and group headers do not receive shortcut badges. The setting is enabled by default and can be changed under [**Settings → General → System**](./settings/general). This behavior applies only to inline search in file dialogs; Quick and Full Windows are unchanged.
 
 ## 2. Search Box Icon & Mouse Gestures
 

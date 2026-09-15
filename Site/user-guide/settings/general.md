@@ -11,6 +11,7 @@ General Settings covers core application behaviors, search window dimensions and
 - **Hide System Tray Icon**: Hides the icon from the Windows taskbar notification area. The logo inside the Quick Search bar continues to provide the full context menu, so access is never lost.
 - **Enable Everything Compatibility Service (IPC)**: Emulates the standard Everything Win32 IPC protocol in the background. Third-party software (such as Directory Opus and Total Commander) can query Lertaro's in-memory index directly.
 - **Enable Fuzzy Matching**: Enabled by default. When active, queries match non-contiguous character sequences. When disabled, queries require contiguous substring matches (see [**Search Syntax**](../search-syntax)). Takes effect immediately.
+- **Show Currently Open Folders in Inline Search**: When the inline window is docked in a file dialog, shows the folders currently open in that dialog when the search query is empty. Enabled by default.
 - **Query Token Delimiter**: Single-character text box (default `:`). Defines the leading character for suffix tokens (e.g. `:.pdf`, `:@doc`, `:[S]`).
 - **Log Level**: Dropdown selecting Error / Warning / Info (default) / Debug, controlling log verbosity across all processes.
 - **UI Language**: Selects the active display language across the entire application.

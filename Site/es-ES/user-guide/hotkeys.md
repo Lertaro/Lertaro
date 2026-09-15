@@ -25,7 +25,7 @@ Lertaro adopta una filosofía de interacción centrada en el teclado, complement
 
 ### Búsqueda en línea vacía en diálogos de archivos
 
-Cuando un cuadro de búsqueda en línea está integrado en un diálogo de archivos nativo y la consulta está vacía, la lista muestra primero el grupo **Directorio anterior** y después el grupo **Carpetas abiertas actualmente**, recopilado desde los exploradores compatibles. Se excluye la carpeta actual del diálogo, las rutas duplicadas se unifican, los grupos vacíos permanecen ocultos y los encabezados de grupo no muestran insignias de atajos. Este comportamiento solo se aplica a la búsqueda en línea de los diálogos de archivos; las ventanas Rápida y Completa no cambian.
+Cuando un cuadro de búsqueda en línea está integrado en un diálogo de archivos nativo y la consulta está vacía, la lista muestra primero el grupo **Directorio anterior**. Si está activado **Mostrar las carpetas abiertas actualmente en la búsqueda integrada**, también muestra el grupo **Carpetas abiertas actualmente**, recopilado desde los exploradores compatibles. Se excluye la carpeta actual del diálogo, las rutas duplicadas se unifican, los grupos vacíos permanecen ocultos y los encabezados de grupo no muestran insignias de atajos. La opción está activada de forma predeterminada y se puede cambiar en [**Configuración → General → Sistema**](./settings/general). Este comportamiento solo se aplica a la búsqueda en línea de los diálogos de archivos; las ventanas Rápida y Completa no cambian.
 
 ## 2. Icono de búsqueda y gestos de ratón
 
