@@ -228,7 +228,10 @@ internal static class SearchMatcher
             return;
 
         // Pure-ASCII name: bytes ARE the chars (same values, same offsets) -- match with zero decode.
-        if (snapshot.IsUniqueAscii(uid))
+        // Only when the query has no regex clause, though: the byte matcher cannot apply one, and its
+        // answer would be either "no match" for everything or a match that silently skipped the regex.
+        // Regex queries decode instead (see FzfBytePattern.HasRegexClauses).
+        if (snapshot.IsUniqueAscii(uid) && !ctx.BytePattern.HasRegexClauses)
         {
             if (ctx.BytePattern.TryMatch(utf8, out var byteMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers))
             {

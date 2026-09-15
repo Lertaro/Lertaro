@@ -1,3 +1,4 @@
+using Lertaro.Core.SearchIndex.Fzf;
 using Lertaro.Core.SearchIndex.Query;
 
 namespace Lertaro.Core.Tests.SearchIndex.Query;
@@ -142,5 +143,55 @@ public sealed class RegexQueryParserTests
 
         Assert.HasCount(1, clauses);
         Assert.IsFalse(clauses[0].CanPrefilter);
+    }
+
+    // The headline use case end to end: the clause must reach the pattern matcher AND must not have sent
+    // the query down the path-mode branch on its way there. Regression: the escaped dot's backslash made
+    // SearchQueryParser call this a full path, so "lertaro regex:/\.exe$/" matched nothing.
+    [TestMethod]
+    public void Split_EscapedDotQuery_ReachesTheMatcherFromANonPathQuery()
+    {
+        var query = @"lertaro regex:/\.exe$/";
+
+        var rest = RegexQueryParser.Split(query, out var clauses);
+        var parsed = SearchQueryParser.Parse(query);
+        var pattern = FzfPattern.Parse(query);
+
+        Assert.AreEqual("lertaro", rest);
+        Assert.HasCount(1, clauses);
+        Assert.AreEqual(@"\.exe$", clauses[0].Pattern);
+        Assert.IsFalse(parsed.IsPathMode);
+
+        Assert.IsTrue(pattern.TryMatch("Lertaro.App.exe", out _, FzfScoringScheme.Default));
+        Assert.IsFalse(pattern.TryMatch("Lertaro.App.dll", out _, FzfScoringScheme.Default));
+    }
+
+    // The byte matcher is the ASCII fast path and cannot apply a regex, so it must SAY so rather than
+    // answer. It cannot simply run the terms it does understand: for a regex-only query that means "no
+    // positive terms", which rejects every name (the search returns nothing at all), and for a query with
+    // an ordinary term as well it returns a match that ignored the regex entirely. Callers use this flag
+    // to send those candidates down the char path instead.
+    [TestMethod]
+    public void BytePattern_ReportsThatItCannotApplyRegexClauses()
+    {
+        Assert.IsTrue(FzfBytePattern.From(FzfPattern.Parse(@"regex:/\.exe$/")).HasRegexClauses);
+        Assert.IsTrue(FzfBytePattern.From(FzfPattern.Parse(@"lertaro regex:/\.exe$/")).HasRegexClauses);
+        Assert.IsFalse(FzfBytePattern.From(FzfPattern.Parse("lertaro")).HasRegexClauses);
+        Assert.IsFalse(FzfBytePattern.From(FzfPattern.Parse(":temp")).HasRegexClauses);
+    }
+
+    [TestMethod]
+    public void BytePattern_RegexOnlyQuery_DoesNotClaimAMatch()
+    {
+        // Whatever a caller does with the flag, the byte matcher itself must not report a hit for a query
+        // it cannot evaluate -- an empty result masquerading as a successful match is the worse failure.
+        var bytePattern = FzfBytePattern.From(FzfPattern.Parse(@"regex:/\.exe$/"));
+
+        Assert.IsFalse(bytePattern.TryMatch(
+            System.Text.Encoding.ASCII.GetBytes("a.exe"),
+            out _,
+            FzfScoringScheme.Default,
+            new FzfSlab(),
+            new FzfByteBuffers()));
     }
 }
