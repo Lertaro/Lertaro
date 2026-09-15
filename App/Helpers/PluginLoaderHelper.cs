@@ -147,22 +147,35 @@ public static class PluginLoaderHelper
     }
 
     /// <summary>This assembly's declared config schema fields, or an empty list when it declares none.
-    /// Public because the prefix-collision rules walk every loaded plugin's schema, not just the one whose
-    /// settings page is open (see QueryTokenPrefixRules). Group fields stay nested here: the caller that
-    /// only wants the declarations, rather than the defaults map, does its own walk.</summary>
+    /// Public because the prefix-collision rules walk every loaded plugin's schema while the user is still
+    /// typing a prefix (see QueryTokenPrefixRules). Group fields stay nested here: the caller that only
+    /// wants the declarations, rather than the defaults map, does its own walk.</summary>
     public static List<PluginConfigField> ResolveConfigFields(Assembly assembly)
     {
         try
         {
-            var pluginType = GetCachedTypes(assembly).FirstOrDefault(t => typeof(IPlugin).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
-            var pluginInstance = pluginType != null ? PluginManager.Instance.Plugins.FirstOrDefault(p => p.GetType() == pluginType) : null;
-            var configurableInstance = ResolveConfigurable(assembly, pluginInstance);
-            return configurableInstance?.GetConfigSchema()?.Fields ?? new List<PluginConfigField>();
+            // The schema is CACHED per assembly, not just returned: GetConfigSchema() builds a brand-new
+            // field tree on every call, and a per-keystroke validation would otherwise rebuild every
+            // loaded plugin's schema each time. The plugin's own live instance is not used (it is absent
+            // while plugins are still loading), so the cached instance also keeps the field objects stable
+            // across calls.
+            return SchemaFieldsCache.GetOrAdd(assembly, static a => GetSchemaFields(a));
         }
         catch
         {
             return new List<PluginConfigField>();
         }
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Assembly, List<PluginConfigField>> SchemaFieldsCache = new();
+
+    private static List<PluginConfigField> GetSchemaFields(Assembly assembly)
+    {
+        var configurableInstance = ResolveConfigurable(assembly, null);
+        var fields = configurableInstance?.GetConfigSchema()?.Fields;
+        // Stored eagerly (never as a lazy/empty placeholder) so the cache never has to be re-checked under
+        // a lock to decide whether an entry is a real result.
+        return fields is { Count: > 0 } ? fields : new List<PluginConfigField>();
     }
 
     private static PluginConfigSchema? TryLoadConfigFields(Assembly assembly, string dllName, IPlugin? pluginInstance, UserSettings userSettings, List<PluginConfigFieldViewModel> configFields)
