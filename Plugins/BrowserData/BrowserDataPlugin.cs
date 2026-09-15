@@ -37,7 +37,8 @@ public class BrowserDataPlugin : IPlugin, IConfigurable
                 DescriptionKey = "BrowserData_Config_BookmarkTriggerKeywordDesc",
                 FieldType = ConfigFieldType.Text,
                 DefaultValue = "bb",
-                RequireNonEmpty = true
+                RequireNonEmpty = true,
+                Validation = ConfigFieldValidation.TriggerKeyword
             },
             new PluginConfigField
             {
@@ -47,7 +48,8 @@ public class BrowserDataPlugin : IPlugin, IConfigurable
                 DescriptionKey = "BrowserData_Config_HistoryTriggerKeywordDesc",
                 FieldType = ConfigFieldType.Text,
                 DefaultValue = "bh",
-                RequireNonEmpty = true
+                RequireNonEmpty = true,
+                Validation = ConfigFieldValidation.TriggerKeyword
             },
             new PluginConfigField
             {
