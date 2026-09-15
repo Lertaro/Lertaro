@@ -26,4 +26,4 @@ You can also add a single existing file or folder directly from the search resul
 
 - **Starred Star Badge (★)**: Matching favorite items display a prominent **★** badge beside their path in search results.
 - **Custom Alias Recall**: Assign memorable names to deeply nested paths (e.g. naming `D:\Workspace\2026\Q1\Financial\Summary.xlsx` as `Q1 Financials`). Searching for the alias recalls the item instantly.
-- **Multi-surface Aggregation**: Favorites automatically sync to the [**Quick Navigation**](../hotkeys#3-quick-navigation-mouse-triggers) menu and the [**Quick Panel**](./quick-panel#4-plugin-tabs) Favorites tab.
+- **Multi-surface Aggregation**: Favorites automatically sync to the [**Quick Navigation**](../hotkeys#_3-quick-navigation-mouse-triggers) menu and the [**Quick Panel**](./quick-panel#_4-plugin-tabs) Favorites tab.

@@ -28,9 +28,9 @@ Encountering issues while using Lertaro? Follow these systematic steps to diagno
 
 ## 5. IME Candidate Window Not Appearing in Inline Window
 
-- **Non-Focus Design**: The [Inline Window](./getting-started#3-three-window-modes) intentionally avoids stealing real keyboard focus from the host application so it can dismiss cleanly without UI flicker. Because IME candidate popups require true window focus, they may not render in inline mode.
+- **Non-Focus Design**: The [Inline Window](./getting-started#_3-three-window-modes) intentionally avoids stealing real keyboard focus from the host application so it can dismiss cleanly without UI flicker. Because IME candidate popups require true window focus, they may not render in inline mode.
 - **Recommended Solutions**:
-  1. **Direct Pinyin Typing**: Lertaro features an embedded pinyin alias engine; type pinyin letters directly to fuzzy-match Chinese filenames without opening an IME popup (see [**Search Syntax**](./search-syntax#8-multilingual--pinyin-aliases)).
+  1. **Direct Pinyin Typing**: Lertaro features an embedded pinyin alias engine; type pinyin letters directly to fuzzy-match Chinese filenames without opening an IME popup (see [**Search Syntax**](./search-syntax#_8-multilingual--pinyin-aliases)).
   2. **Switch to Quick Window**: Double-tap `Ctrl` to open the fully focused Quick Window, where all input methods work normally.
 
 ## 6. Inspecting Logs & Submitting Issues

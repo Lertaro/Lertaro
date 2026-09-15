@@ -73,7 +73,7 @@ public interface IInlineSearchAdapter
 
 ## 4. 滑鼠快速導覽提供者 `IQuickNavigationProvider`
 
-為滑鼠連按兩下或中鍵呼出的[**快速導覽階層式功能表**](../../user-guide/hotkeys#3-快速導覽滑鼠觸發)貢獻動態分組與項目：
+為滑鼠連按兩下或中鍵呼出的[**快速導覽階層式功能表**](../../user-guide/hotkeys#_3-快速導覽滑鼠觸發)貢獻動態分組與項目：
 
 ```csharp
 public interface IQuickNavigationProvider

@@ -43,7 +43,7 @@ The small logo inside the search box is not just an indicator — it provides se
 
 ### Inline and Full Window Icons
 
-- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows.
+- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#_3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows.
 - **Full Window**: Left-clicking the logo opens the context menu; **Open Full Window** is hidden there because the window is already open. Middle-clicking toggles the window's pinned state.
 
 ## 3. Quick Navigation (Mouse Triggers)

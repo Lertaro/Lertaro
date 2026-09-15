@@ -73,7 +73,7 @@ public interface IInlineSearchAdapter
 
 ## 4. クイックナビゲーションプロバイダー `IQuickNavigationProvider`
 
-マウス操作で表示される [**クイックナビゲーションメニュー**](../../user-guide/hotkeys#3-クイックナビゲーションマウス操作) に動的な項目やグループを提供します。
+マウス操作で表示される [**クイックナビゲーションメニュー**](../../user-guide/hotkeys#_3-クイックナビゲーションマウス操作) に動的な項目やグループを提供します。
 
 ```csharp
 public interface IQuickNavigationProvider

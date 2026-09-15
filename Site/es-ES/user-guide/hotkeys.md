@@ -43,7 +43,7 @@ El pequeño logotipo en la barra de búsqueda no es solo estético: ofrece múlt
 
 ### Iconos en la Ventana incrustada y Ventana principal
 
-- **Ventana incrustada**: Al incrustarse en diálogos nativos (Abrir/Guardar/Examinar), hacer clic izquierdo en el icono abre el menú de [**Navegación rápida**](#3-navegacion-rapida-activadores-de-raton); desactivado en el Explorador ordinario.
+- **Ventana incrustada**: Al incrustarse en diálogos nativos (Abrir/Guardar/Examinar), hacer clic izquierdo en el icono abre el menú de [**Navegación rápida**](#_3-navegacion-rapida-activadores-de-raton); desactivado en el Explorador ordinario.
 - **Ventana principal**: Al hacer clic izquierdo en el icono se abre el menú contextual; **Mostrar ventana principal** se oculta porque la ventana ya está abierta. El clic central alterna el estado de fijación de la ventana.
 
 ## 3. Navegación rápida (Activadores de ratón)

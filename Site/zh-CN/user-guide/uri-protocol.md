@@ -38,7 +38,7 @@ About        - 关于与更新
 ```
 
 > [!NOTE]
-> `lertaro://settings/entry/[序号]` 中的序号是由内置的[**设置搜索**](./instant-answers#2-关键词触发功能内置插件)功能动态生成的。由于内部序号在版本更新或重启后可能会重新分配，建议在外部脚本中优先使用 `lertaro://settings/page/[分区]`。
+> `lertaro://settings/entry/[序号]` 中的序号是由内置的[**设置搜索**](./instant-answers#_2-关键词触发功能内置插件)功能动态生成的。由于内部序号在版本更新或重启后可能会重新分配，建议在外部脚本中优先使用 `lertaro://settings/page/[分区]`。
 
 ## 3. LocalSend 路由与参数编码规范
 

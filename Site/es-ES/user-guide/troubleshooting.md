@@ -28,7 +28,7 @@
 
 ## 5. El menú de candidatos IME no aparece en la Ventana incrustada
 
-- **Diseño sin foco**: La [Ventana incrustada](./getting-started#3-tres-modalidades-de-ventana) no toma el foco del teclado para evitar parpadeos al cerrarse. Dado que los menús de candidatos de ciertos métodos de entrada (IME) requieren foco real de ventana, pueden no mostrarse en modo incrustado.
+- **Diseño sin foco**: La [Ventana incrustada](./getting-started#_3-tres-modalidades-de-ventana) no toma el foco del teclado para evitar parpadeos al cerrarse. Dado que los menús de candidatos de ciertos métodos de entrada (IME) requieren foco real de ventana, pueden no mostrarse en modo incrustado.
 - **Solución recomendada**: Usa la Ventana rápida (doble pulsación de `Ctrl`), la cual cuenta con foco completo.
 
 ## 6. Consulta de registros y reporte de errores

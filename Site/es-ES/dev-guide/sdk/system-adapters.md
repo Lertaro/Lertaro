@@ -73,7 +73,7 @@ public interface IInlineSearchAdapter
 
 ## 4. Proveedor de Navegación rápida `IQuickNavigationProvider`
 
-Aporta grupos y elementos dinámicos al menú contextual de [**Navegación rápida**](../../user-guide/hotkeys#3-navegacion-rapida-activadores-de-raton):
+Aporta grupos y elementos dinámicos al menú contextual de [**Navegación rápida**](../../user-guide/hotkeys#_3-navegacion-rapida-activadores-de-raton):
 
 ```csharp
 public interface IQuickNavigationProvider
