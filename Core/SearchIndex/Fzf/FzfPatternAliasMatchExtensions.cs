@@ -52,7 +52,7 @@ internal static class FzfPatternAliasMatchExtensions
         if (pattern.IsAcceptableAliasMatch(aliasMatch, queryLen))
             return true;
 
-        if (pattern.TermSets.Length < 2 || !pattern.HasAliasFallbackAnchorTerm())
+        if (pattern.OrGroups != null || pattern.TermSets.Length < 2 || !pattern.HasAliasFallbackAnchorTerm())
             return false;
 
         // Mirror TryMatch's own '|' segment-splitting (polyphonic alias variants, e.g. 和's he/hu/huo

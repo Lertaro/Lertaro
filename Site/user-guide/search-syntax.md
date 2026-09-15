@@ -53,22 +53,40 @@ png | jpg | gif
 You can freely combine AND and OR logic:
 
 ```text
-report | summary 2024
+report | summary
 ```
 
-This finds files matching either `report` or `summary`, and also containing `2024`. In OR queries, all matched terms across hit branches are highlighted simultaneously in the result name.
+This finds files matching either `report` or `summary`. In OR queries, all matched terms across hit branches are highlighted simultaneously in the result name.
 
-### Operator Precedence: OR binds tighter than AND
+### Operator Precedence: AND binds tighter than OR
 
-When spaces (AND) and the pipe `|` (OR) are mixed in a single query, `|` has **higher** precedence than spaces: the terms on both sides of `|` are merged into one OR group first, and the space-separated groups are then ANDed together. Parentheses are not supported, so this binding order cannot be changed.
+When spaces (AND) and the pipe `|` (OR) are mixed in a single query, the space binds **tighter** than the pipe by default: each space-separated run of terms is ANDed into its own group first, and those groups are then ORed together. Parentheses are not supported, and this is the standard boolean reading — but the old binding order is one toggle away (see below).
 
 ```text
 report | summary 2024 | draft
 ```
 
-is equivalent to `(report OR summary) AND (2024 OR draft)`.
+is equivalent to `report OR (summary AND 2024) OR draft`.
+
+This is the reading a user who types a few alternatives and then narrows one of them expects: `summary 2024` stays a single conjunction instead of dissolving into two independent alternatives.
+
+#### Switching back to OR-first
+
+Under **Settings → General → System → OR binds tighter than AND (legacy)** you can restore Lertaro's historical binding order, in which the pipe binds tighter than the space:
+
+```text
+report | summary 2024 | draft
+```
+
+then means `(report OR summary) AND (2024 OR draft)`.
+
+The toggle only changes the precedence between the two operators — no new operator is introduced, and it has no effect on a query that uses only one of them (`read me` and `readme | rdm` mean the same thing under either setting).
 
 Note: `|` must be a standalone token with spaces on both sides — `a|b` or `a |b` is not parsed as OR. Do not put an `!` exclusion term inside a `|` OR group either (e.g. `b | !c`), which is parsed as "b matches or c does not"; to exclude a term globally, give it its own space-separated AND condition instead (e.g. `b !c`).
+
+#### Quoting and precedence
+
+A quoted phrase `'...'` never spans a pipe — the pipe always ends the phrase's reach, so `'data | 'backup` is two OR alternatives (one per quoted word), not one phrase containing a pipe. This holds under both precedence settings.
 
 ### Escaping Spaces & Quoted Phrases
 

@@ -348,6 +348,8 @@
   "General_EnableEverythingIpcDesc": "Allows third-party tools that depend on Everything (e.g. Directory Opus, Total Commander, Flow Launcher) to use Lertaro for search and folder size calculation.",
   "General_EnableFuzzyMatch": "Enable fuzzy matching",
   "General_EnableFuzzyMatchDesc": "When off, a term must appear as a contiguous substring: \"abc\" no longer matches \"a-b-c\". Prefix a term with ' to keep matching it fuzzily.",
+  "General_OrFirstPrecedence": "OR binds tighter than AND (legacy)",
+  "General_OrFirstPrecedenceDesc": "Off (default): a space binds tighter, so \"report | summary 2024\" means report OR (summary AND 2024). On: the pipe binds tighter, so the same query means (report OR summary) AND 2024.",
   "General_GlobalTokenPrefix": "Global Query Token Prefix",
   "General_GlobalTokenPrefixDesc": "Global lead prefix character for splitting trailing query token expressions in the search box (default :).",
   "General_OpenFoldersInNewExplorerTabs": "Open folders in new File Explorer tabs",

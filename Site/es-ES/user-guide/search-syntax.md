@@ -53,22 +53,40 @@ png | jpg | gif
 Puedes combinar libremente la lógica AND y OR:
 
 ```text
-report | summary 2024
+report | summary
 ```
 
-Esto busca archivos que contengan `report` o `summary`, y que además contengan `2024`. En las consultas OR, todos los términos que coincidan se resaltarán simultáneamente en el nombre del resultado.
+Esto busca archivos cuyo nombre contenga `report` o `summary`. En las consultas OR, todos los términos que coincidan se resaltarán simultáneamente en el nombre del resultado.
 
-### Precedencia de operadores: OR se agrupa más estrechamente que AND
+### Precedencia de operadores: AND se agrupa más estrechamente que OR
 
-Cuando se mezclan espacios (AND) y la barra vertical `|` (OR) en una misma consulta, `|` tiene **mayor** prioridad que los espacios: los términos de ambos lados de `|` se agrupan primero en un único grupo OR, y los grupos separados por espacios se combinan después con AND. No se admiten paréntesis, por lo que este orden de agrupación no se puede cambiar.
+Cuando se mezclan espacios (AND) y la barra vertical `|` (OR) en una misma consulta, por defecto el espacio se agrupa **más estrechamente** que la barra vertical: cada tramo de términos separados por espacios se combina primero con AND en su propio grupo, y esos grupos se combinan después con OR. No se admiten paréntesis, y esta es la lectura booleana estándar; el orden de agrupación anterior queda a un interruptor de distancia (ver más abajo).
 
 ```text
 report | summary 2024 | draft
 ```
 
-equivale a `(report OR summary) AND (2024 OR draft)`.
+equivale a `report OR (summary AND 2024) OR draft`.
+
+Esta es la lectura que espera quien escribe varias alternativas y luego acota una de ellas: `summary 2024` se mantiene como una única conjunción en lugar de disolverse en dos alternativas independientes.
+
+#### Volver a OR primero
+
+En **Configuración → General → Sistema → OR se une más fuerte que AND (heredado)** puedes restaurar el orden de agrupación histórico de Lertaro, en el que la barra vertical se une más estrechamente que el espacio:
+
+```text
+report | summary 2024 | draft
+```
+
+entonces significa `(report OR summary) AND (2024 OR draft)`.
+
+El interruptor solo cambia la precedencia entre los dos operadores; no introduce ningún operador nuevo y no afecta a una consulta que use solo uno de ellos (`read me` y `readme | rdm` significan lo mismo con cualquiera de los dos ajustes).
 
 Nota: `|` debe ser un token independiente con espacios a ambos lados: `a|b` o `a |b` no se interpreta como OR. Tampoco metas un término de exclusión `!` dentro de un grupo OR (p. ej. `b | !c`), que se interpreta como «b coincide o c no coincide»; para excluir un término globalmente, dale su propia condición AND separada por espacios (p. ej. `b !c`).
+
+#### Comillas y precedencia
+
+Una frase entre comillas simples `'...'` nunca cruza una barra vertical: la barra vertical siempre pone fin al alcance de la frase, así que `'data | 'backup` son dos alternativas OR (una por palabra entrecomillada), no una frase que contiene una barra vertical. Esto se cumple con ambos ajustes de precedencia.
 
 ### Espacios en términos y frases entre comillas
 

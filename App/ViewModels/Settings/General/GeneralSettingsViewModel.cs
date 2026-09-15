@@ -20,6 +20,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _autoSilentUpdate;
     private bool _enableHardwareAcceleration;
     private bool _enableFuzzyMatch;
+    private bool _orFirstPrecedence;
     private bool _enableQuickSearchClipboardAutoFill;
     private bool _enableEverythingIpc;
     private bool _hideTrayIcon;
@@ -57,6 +58,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _autoSilentUpdate = userSettings.AutoSilentUpdate;
         _enableHardwareAcceleration = userSettings.EnableHardwareAcceleration;
         _enableFuzzyMatch = userSettings.EnableFuzzyMatch;
+        _orFirstPrecedence = userSettings.OrFirstPrecedence;
         _enableQuickSearchClipboardAutoFill = userSettings.EnableQuickSearchClipboardAutoFill;
         _enableEverythingIpc = userSettings.EnableEverythingIpc;
         _hideTrayIcon = userSettings.HideTrayIcon;
@@ -165,6 +167,15 @@ public class GeneralSettingsViewModel : ViewModelBase
         set => SetProperty(ref _enableFuzzyMatch, value);
     }
 
+    // How spaces (AND) and the pipe '|' (OR) bind when a query mixes them. Off is AND-first, the
+    // default: "report | summary 2024" means report OR (summary AND 2024). On restores the historical
+    // OR-first reading of the same query -- (report OR summary) AND 2024.
+    public bool OrFirstPrecedence
+    {
+        get => _orFirstPrecedence;
+        set => SetProperty(ref _orFirstPrecedence, value);
+    }
+
     public bool EnableQuickSearchClipboardAutoFill { get => _enableQuickSearchClipboardAutoFill; set => SetProperty(ref _enableQuickSearchClipboardAutoFill, value); }
 
     public bool EnableEverythingIpc
@@ -226,6 +237,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _autoSilentUpdate,
         _enableHardwareAcceleration,
         _enableFuzzyMatch,
+        _orFirstPrecedence,
         _enableQuickSearchClipboardAutoFill,
         _enableEverythingIpc,
         _hideTrayIcon,

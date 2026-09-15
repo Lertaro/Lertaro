@@ -58,6 +58,7 @@ public class SearchService : IDisposable
             DirectoryFilter = isSearchDir ? directoryFilter : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             Query = query,
             ExactMatch = !settings.EnableFuzzyMatch,
+            OrFirstPrecedence = settings.OrFirstPrecedence,
             DisabledAliasComponents = settings.DisabledPluginComponents
                 .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))
                 .ToList(),
@@ -79,6 +80,7 @@ public class SearchService : IDisposable
         // Applies to the sources this process searches itself (network drives, live directory scans);
         // the local-drive path carries the same flag over the pipe instead -- see SearchStreamPump.
         SearchContext.FuzzyMatchEnabled = !msg.ExactMatch;
+        SearchContext.AndFirstPrecedence = !msg.OrFirstPrecedence;
 
         var parsed = SearchQueryParser.Parse(query);
         // A path-mode query ("C:\Windows\...") is the user typing an exact location they want to look at,

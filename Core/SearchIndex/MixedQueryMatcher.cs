@@ -38,7 +38,9 @@ internal static class MixedQueryMatcher
     // combines with the rest of the query's own semantics, which this tier doesn't attempt.
     public static MixedTerm? TrySegmentPattern(FzfPattern pattern)
     {
-        if (pattern.TermSets.Length != 1)
+        // An AND-first mix is never a bare single term, and its OrGroups shape is disjunctive -- there
+        // is no single term set here to segment.
+        if (pattern.OrGroups != null || pattern.TermSets.Length != 1)
             return null;
         var terms = pattern.TermSets[0].Terms;
         if (terms.Length != 1)

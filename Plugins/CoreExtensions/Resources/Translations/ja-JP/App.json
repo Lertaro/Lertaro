@@ -348,6 +348,8 @@
   "General_EnableEverythingIpcDesc": "Directory Opus、Total Commander、Flow Launcher など Everything に依存するサードパーティ製ツールが、Lertaro を使用して検索やフォルダサイズ計算を行えるようにします。",
   "General_EnableFuzzyMatch": "あいまい一致を有効化",
   "General_EnableFuzzyMatchDesc": "無効にすると、検索語は連続した部分文字列として現れる必要があります。\"abc\" は \"a-b-c\" に一致しなくなります。語の前に ' を付けると、その語だけあいまい一致のままになります。",
+  "General_OrFirstPrecedence": "OR を AND より優先（旧動作）",
+  "General_OrFirstPrecedenceDesc": "オフ（既定）：空白を優先するため、\"report | summary 2024\" は report OR (summary AND 2024) を意味します。オン：縦棒を優先するため、同じクエリは (report OR summary) AND 2024 を意味します。",
   "General_GlobalTokenPrefix": "クエリトークン全体プレフィックス文字",
   "General_GlobalTokenPrefixDesc": "検索ボックス末尾のトークン式を分割する全体プレフィックス文字（デフォルト: :）。",
   "General_OpenFoldersInNewExplorerTabs": "新しいエクスプローラー タブでフォルダーを開く",
