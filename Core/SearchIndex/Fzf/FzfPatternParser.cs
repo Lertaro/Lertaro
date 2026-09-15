@@ -7,6 +7,13 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 // constructor; matching remains on the pattern itself.
 internal static class FzfPatternParser
 {
+    // The exclusion operator: ":term" drops every candidate whose file name contains "term". It replaced
+    // the old '!', and it shares the colon with the drive spec -- but the two can never collide, because
+    // a drive spec is the whole token "d:" (letter THEN colon, handled in Parse) while an exclusion is
+    // the colon FIRST. A colon inside a word, as in "c:\path", is not a leading character and is left as
+    // literal text by both rules.
+    internal const char ExclusionTrigger = ':';
+
     public static FzfPattern Parse(string query)
     {
         // Regex clauses are lifted out first: their backslashes and slashes would otherwise trip the
@@ -178,19 +185,42 @@ internal static class FzfPatternParser
     // alias spellings a provider offers for it.
     //
     // The historical operator prefixes are gone -- '!' "'" '^' '$' no longer mean anything and are
-    // searched as literal characters. Only fuzzy-vs-exact is still decided here, from the process-wide
-    // setting. A term is Exact when fuzzy matching is switched off, and Fuzzy otherwise.
+    // searched as literal characters. A leading ':' is the one operator left: it marks the term as an
+    // exclusion (see the Inverse flag), which is the syntax that replaced '!'. The colon is otherwise
+    // handled before this point -- a bare "d:" drive spec is split off in Parse, and the query-token
+    // scanner deliberately leaves ':' alone (see QueryTokenScanner), so anything still starting with it
+    // here is a user-written exclusion.
+    //
+    // An exclusion is ALWAYS Exact, whatever the fuzzy setting says: the old '!' worked the same way,
+    // and an exclusion is a statement about what must NOT be there, so a loose subsequence reading
+    // would reject far more than the user named.
     private static void AddToken(string token, List<FzfTerm> current)
     {
+        // A lone ":" is not an exclusion of the empty string -- strip the trigger and drop the word
+        // entirely, so a stray colon ("report :") leaves the rest of the query untouched instead of
+        // adding a term that can never match.
+        if (token.Length > 0 && token[0] == ExclusionTrigger)
+        {
+            token = token[1..];
+            if (token.Length == 0)
+                return;
+
+            var lower = token.ToLowerInvariant();
+            current.Add(new FzfTerm(FzfTermKind.Exact, Inverse: true, lower, CaseSensitive: false));
+            // No alias expansion for an exclusion: a pinyin spelling must not be able to exclude a file
+            // the user never named (mirrors the old '!', which skipped the same expansion).
+            return;
+        }
+
         var kind = SearchContext.FuzzyMatchEnabled ? FzfTermKind.Fuzzy : FzfTermKind.Exact;
 
         if (token.Length == 0)
             return;
 
         // Matching is always case-insensitive: uppercase input no longer activates fzf smart case.
-        var lower = token.ToLowerInvariant();
-        current.Add(new FzfTerm(kind, Inverse: false, lower, CaseSensitive: false));
-        AddAliasQueryForms(current, lower, kind);
+        var positive = token.ToLowerInvariant();
+        current.Add(new FzfTerm(kind, Inverse: false, positive, CaseSensitive: false));
+        AddAliasQueryForms(current, positive, kind);
     }
 
     // Shared with FuzzyMatcher's own operator-compatible entry point, which builds its term sets by

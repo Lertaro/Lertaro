@@ -18,22 +18,26 @@ internal sealed class FzfBytePattern
     // '|' with spaces under AND-first precedence, in which case this is the authoritative shape.
     public readonly ByteTermGroup[]? OrGroups;
 
-    private FzfBytePattern(ByteTermSet[] termSets) : this(termSets, null)
-    {
-    }
+    // Carried over from FzfPattern: false for an exclusion-only query, which must match nothing. The byte
+    // path is the one that RUNS for pure-ASCII names (and it returns a hit before the char path is ever
+    // consulted), so it needs the same guard -- without it ":temp" would match every ASCII name that does
+    // not contain "temp", i.e. nearly the whole index.
+    private readonly bool _hasPositiveTerm;
 
-    private FzfBytePattern(ByteTermSet[] termSets, ByteTermGroup[]? orGroups)
+    private FzfBytePattern(ByteTermSet[] termSets, ByteTermGroup[]? orGroups, bool hasPositiveTerm)
     {
         TermSets = termSets;
         OrGroups = orGroups;
+        _hasPositiveTerm = hasPositiveTerm;
     }
 
     public static FzfBytePattern From(FzfPattern pattern)
     {
         var sets = Convert(pattern.TermSets);
+        var hasPositiveTerm = pattern.HasPositiveTerm;
         return pattern.OrGroups == null
-            ? new FzfBytePattern(sets)
-            : new FzfBytePattern(sets, Convert(pattern.OrGroups));
+            ? new FzfBytePattern(sets, null, hasPositiveTerm)
+            : new FzfBytePattern(sets, Convert(pattern.OrGroups), hasPositiveTerm);
     }
 
     private static ByteTermSet[] Convert(FzfTermSet[] source)
@@ -75,6 +79,13 @@ internal sealed class FzfBytePattern
 
     public bool TryMatch(ReadOnlySpan<byte> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab slab, FzfByteBuffers buffers)
     {
+        // Exclusion-only query: matches nothing, for the reason given on _hasPositiveTerm.
+        if (!_hasPositiveTerm)
+        {
+            result = default;
+            return false;
+        }
+
         // AND-first mix: groups are OR alternatives, so the first group satisfying all of its terms wins.
         if (OrGroups != null)
         {

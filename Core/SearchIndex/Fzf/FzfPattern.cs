@@ -33,6 +33,7 @@ internal sealed class FzfPattern
         OrGroups = orGroups;
         Regexes = regexes;
         EffectiveSets = orGroups == null ? termSets : Flatten(orGroups);
+        HasPositiveTerm = AnyPositiveTerm(EffectiveSets);
     }
 
     public string? TargetDrive { get; }
@@ -50,6 +51,27 @@ internal sealed class FzfPattern
     // flat TermSets. Everything that only needs to ENUMERATE the terms (alignment requirement, typed
     // length, alias gating) reads this rather than choosing between the two shapes itself.
     internal FzfTermSet[] EffectiveSets { get; }
+
+    // False when every term is an exclusion (":temp", ":temp :log"). An exclusion-only query has nothing
+    // to match ON -- an exclusion can only remove candidates from a set some positive term produced -- so
+    // such a pattern must match NOTHING rather than everything. It would otherwise match everything: an
+    // inverse term is satisfied by the ABSENCE of its text, so a lone ":temp" leaves every candidate
+    // satisfying it and the user would see the whole index after typing a filter. Decided here (rather
+    // than in the parser) because the DNF shape is materialized in this constructor too.
+    internal bool HasPositiveTerm { get; }
+
+    private static bool AnyPositiveTerm(FzfTermSet[] sets)
+    {
+        foreach (var set in sets)
+        {
+            foreach (var term in set.Terms)
+            {
+                if (!term.Inverse)
+                    return true;
+            }
+        }
+        return false;
+    }
 
     private static FzfTermSet[] Flatten(FzfTermGroup[] groups)
     {
@@ -189,6 +211,15 @@ internal sealed class FzfPattern
     // can't contain it (invalid in Windows paths) -- so no cross-'|' span check is needed.
     private bool TryMatchSingle(ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
     {
+        // An exclusion-only query matches nothing at all -- see HasPositiveTerm. Checked before the regex
+        // clauses because it is a property of the query shape, not of this candidate, so no text can
+        // change the answer.
+        if (!HasPositiveTerm && Regexes is not { Length: > 0 })
+        {
+            result = default;
+            return false;
+        }
+
         // Regex clauses are ANDed with everything else and checked first: a miss here is a miss for the
         // whole pattern, and the regex engine is the most expensive step in the chain.
         if (Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, text))
