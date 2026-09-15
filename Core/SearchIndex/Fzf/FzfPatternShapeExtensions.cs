@@ -12,11 +12,13 @@ internal static class FzfPatternShapeExtensions
     // callers can hand back a pattern in an out-parameter without each of them allocating its own.
     public static FzfPattern Empty { get; } = new(null, Array.Empty<FzfTermSet>());
 
-    // A pattern built from terms a caller produced itself (FuzzyMatcher's operator-compatible entry
-    // point), for the callers that have a term list rather than a query string to parse. All terms go
-    // into ONE term set, which is the flat AND reading -- there is no '|' in an operator grammar.
-    public static FzfPattern FromTerms(FzfTerm[] terms)
-        => new(null, new[] { new FzfTermSet(terms) });
+    // A pattern built from term sets a caller produced itself (FuzzyMatcher's operator-compatible entry
+    // point), for callers that have already parsed their own term list rather than a query string. The
+    // caller owns the shape: sets are ANDed and the terms inside one set are OR alternatives, so a
+    // space-separated query must hand in one set PER word -- one set holding every word would silently
+    // read as "any of these words" instead of "all of them".
+    public static FzfPattern FromTermSets(FzfTermSet[] sets)
+        => new(null, sets);
 
     // True when the query's text was entirely regex (no ordinary terms), which is the expensive case: no
     // literal term exists for the index prefilter to consume, so the regex falls back to a full scan.

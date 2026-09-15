@@ -193,7 +193,10 @@ internal static class FzfPatternParser
         AddAliasQueryForms(current, lower, kind);
     }
 
-    private static void AddAliasQueryForms(List<FzfTerm> current, string lower, FzfTermKind kind)
+    // Shared with FuzzyMatcher's own operator-compatible entry point, which builds its term sets by
+    // hand rather than through Parse -- a query reaching that seam has no search pipeline in front of it
+    // and keeps the term operators, so it needs the same alias-form expansion the pipeline gets here.
+    internal static void AddAliasQueryForms(List<FzfTerm> current, string lower, FzfTermKind kind)
     {
         if (lower.Length == 0)
             return;
