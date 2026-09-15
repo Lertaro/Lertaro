@@ -215,10 +215,8 @@
   "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "解析以 :@ 开头的自定义过滤器标记，按照设定的通配符与扩展名规则筛选搜索结果。",
   "CoreExtensions_Config_QueryTokensGroupLabel": "查询标记设置",
   "CoreExtensions_Config_PathExclusionPrefixLabel": "路径过滤前导字符",
-  "CoreExtensions_Config_PathExclusionPrefixDesc": "路径段模糊匹配标记的前导字符（默认为 :）。",
   "CoreExtensions_Config_CustomFilterPrefixLabel": "分类过滤前导字符",
-  "CoreExtensions_Config_CustomFilterPrefixDesc": "自定义分类过滤器标记的前导字符（默认为 @）。",
+  "CoreExtensions_Config_CustomFilterPrefixDesc": "自定义分类过滤器标记的前导字符（默认为 \\）。不能使用搜索语法占用的字符（\\ < > : *），否则语法会先消耗掉该字符。",
   "CoreExtensions_WildcardFilterProvider_Name": "通配符二次过滤 (?表达式)",
   "CoreExtensions_Config_WildcardFilterPrefixLabel": "通配符过滤触发前缀",
-  "CoreExtensions_Config_WildcardFilterPrefixDesc": "触发通配符二次过滤的前缀字符(默认为 ?)。"
 }
