@@ -1,4 +1,4 @@
-using Lertaro.Core.SearchIndex.Fzf;
+﻿using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.SearchIndex;
 
@@ -16,7 +16,8 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(pattern) || string.IsNullOrEmpty(text))
             return false;
 
-        var fzf = FzfPattern.Parse(pattern);
+        if (!TryParseOperators(pattern, out var fzf))
+            return false;
 
         // A pattern that's entirely a drive spec ("d:\") parses down to zero real search terms once
         // Parse strips the prefix into TargetDrive -- meaningful for the index/path searchers (IndexV2,
@@ -29,6 +30,62 @@ public static class FuzzyMatcher
             return false;
 
         return IsMatch(fzf, text);
+    }
+
+    // The term operators the parser no longer produces, understood anyway for callers building a
+    // pattern from a caller-supplied user string. The file-search pipeline strips its own operator
+    // syntax (later tokens, the `\`/`<`/`>` token triggers) BEFORE the pattern ever gets here, so a
+    // character that reaches this seam is a literal by the time it arrives -- which is why this is a
+    // separate, opt-in entry point and not part of FzfPattern.Parse. Plugin catalogs, bookmark titles
+    // and similar free-standing text have no such pipeline in front of them and keep the operators.
+    // ponytail: five shapes, no nesting, no escaping. Widen the grammar only for a caller that needs it.
+    private static bool TryParseOperators(string pattern, out FzfPattern fzf)
+    {
+        fzf = FzfPatternShapeExtensions.Empty;
+        var text = pattern.Trim();
+        if (text.Length == 0)
+            return false;
+
+        var terms = new List<FzfTerm>();
+        foreach (var raw in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (raw.Length == 0)
+                continue;
+
+            var kind = SearchContext.FuzzyMatchEnabled ? FzfTermKind.Fuzzy : FzfTermKind.Exact;
+            var body = raw;
+            if (body.Length > 1 && body[0] == '!')
+            {
+                body = body[1..];
+            }
+            else if (body.Length > 1 && body[0] == '\'')
+            {
+                kind = FzfTermKind.Exact;
+                body = body[1..];
+            }
+            else if (body.Length > 1 && body[0] == '^')
+            {
+                kind = FzfTermKind.Prefix;
+                body = body[1..];
+            }
+
+            if (body.Length > 1 && body[^1] == '$')
+            {
+                kind = kind == FzfTermKind.Prefix ? FzfTermKind.Equal : FzfTermKind.Suffix;
+                body = body[..^1];
+            }
+
+            if (body.Length == 0)
+                continue;
+
+            terms.Add(new FzfTerm(kind, Inverse: false, body.ToLowerInvariant(), CaseSensitive: false));
+        }
+
+        if (terms.Count == 0)
+            return false;
+
+        fzf = FzfPatternShapeExtensions.FromTerms(terms.ToArray());
+        return true;
     }
 
     // Overload for callers that already hold the parsed pattern -- avoids re-parsing (and re-running

@@ -4,34 +4,17 @@ namespace Lertaro.Core.Tests.SearchIndex.Fzf;
 
 // Split out from FzfPatternTests to keep the test files under the repository's 300-line limit. These
 // tests cover phrase parsing, fuzzy-mode switches, and term-length bookkeeping for FzfPattern.
+//
+// The historical operator prefixes ('!' "'" '^' '$') were removed in the search-syntax rewrite; the
+// tests that used to pin their behavior now pin the OPPOSITE -- that they are literal text.
+//
+// AND-first / OR-first precedence lives in FzfPatternPrecedenceTests; this file does not repeat it.
 [TestClass]
 [DoNotParallelize]
 public sealed class FzfPatternParsingTests
 {
     [TestMethod]
-    public void TryMatch_QuotedPhraseContainingSpaces_IsOneBoundaryTerm()
-    {
-        var pattern = FzfPattern.Parse("'cad acb'");
-
-        Assert.HasCount(1, pattern.TermSets);
-        Assert.HasCount(1, pattern.TermSets[0].Terms);
-        Assert.AreEqual(FzfTermKind.ExactBoundary, pattern.TermSets[0].Terms[0].Kind);
-        Assert.AreEqual("cad acb", pattern.TermSets[0].Terms[0].Text);
-        Assert.IsTrue(pattern.TryMatch("cad acb.txt", out _, FzfScoringScheme.Default));
-        Assert.IsFalse(pattern.TryMatch("cad-acb.txt", out _, FzfScoringScheme.Default));
-    }
-
-    [TestMethod]
-    public void TryMatch_NegatedQuotedPhraseContainingSpaces_IsOneInverseBoundaryTerm()
-    {
-        var pattern = FzfPattern.Parse("txt !'cad acb'");
-
-        Assert.IsTrue(pattern.TryMatch("other.txt", out _, FzfScoringScheme.Default));
-        Assert.IsFalse(pattern.TryMatch("cad acb.txt", out _, FzfScoringScheme.Default));
-    }
-
-    [TestMethod]
-    public void Parse_ApostropheInsideWord_DoesNotOpenAQuotedPhrase()
+    public void Parse_ApostropheInsideWord_IsLiteralText()
     {
         var pattern = FzfPattern.Parse("don't stop");
 
@@ -41,68 +24,50 @@ public sealed class FzfPatternParsingTests
     }
 
     [TestMethod]
-    public void Parse_UnmatchedOpeningQuote_KeepsTermByTermReading()
+    public void Parse_ApostrophePrefix_IsNoLongerExactnessFlip()
     {
-        var pattern = FzfPattern.Parse("'cad acb");
+        var pattern = FzfPattern.Parse("'cad");
 
-        Assert.HasCount(2, pattern.TermSets);
-        Assert.AreEqual(FzfTermKind.Exact, pattern.TermSets[0].Terms[0].Kind);
-        Assert.AreEqual("cad", pattern.TermSets[0].Terms[0].Text);
-        Assert.AreEqual("acb", pattern.TermSets[1].Terms[0].Text);
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
     }
 
     [TestMethod]
-    public void Parse_OrOfQuotedTerms_KeepsTheSeparatorInsteadOfMergingIntoOnePhrase()
+    public void Parse_CaretPrefix_IsNoLongerAPrefixAnchor()
     {
-        var pattern = FzfPattern.Parse("'foo | 'bar'");
+        var pattern = FzfPattern.Parse("^read");
+
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
+    }
+
+    [TestMethod]
+    public void Parse_DollarSuffix_IsNoLongerASuffixAnchor()
+    {
+        var pattern = FzfPattern.Parse("md$");
+
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
+    }
+
+    [TestMethod]
+    public void Parse_QuotedPhrase_NoLongerFormsABoundaryTerm()
+    {
+        // The quote characters are gone from the operator set, but the phrase merger still folds a
+        // matched pair into ONE term -- that is quoting, not an operator, and it stays.
+        var pattern = FzfPattern.Parse("'cad acb'");
 
         Assert.HasCount(1, pattern.TermSets);
-        Assert.HasCount(2, pattern.TermSets[0].Terms);
-        Assert.AreEqual("foo", pattern.TermSets[0].Terms[0].Text);
-        Assert.AreEqual("bar", pattern.TermSets[0].Terms[1].Text);
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
+        Assert.AreEqual("'cad acb'", pattern.TermSets[0].Terms[0].Text);
     }
 
     [TestMethod]
-    public void Parse_ExactMarkerBeforeEndAnchor_KeepsSuffixSemantics()
+    public void Parse_FuzzyDisabled_LeavesEveryBareTermExact() => WithFuzzyDisabled(() =>
     {
-        var pattern = FzfPattern.Parse("'md$");
-
-        Assert.AreEqual(FzfTermKind.Suffix, pattern.TermSets[0].Terms[0].Kind);
-        Assert.AreEqual("md", pattern.TermSets[0].Terms[0].Text);
-        Assert.IsTrue(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
-        Assert.IsFalse(pattern.TryMatch("md5sum.txt", out _, FzfScoringScheme.Default));
-    }
+        Assert.AreEqual(FzfTermKind.Exact, FzfPattern.Parse("^read").TermSets[0].Terms[0].Kind);
+        Assert.AreEqual(FzfTermKind.Exact, FzfPattern.Parse("md$").TermSets[0].Terms[0].Kind);
+        Assert.AreEqual(FzfTermKind.Exact, FzfPattern.Parse("'read'").TermSets[0].Terms[0].Kind);
+    });
 
     [TestMethod]
-    public void Parse_PrefixMarkerFollowedByExactMarker_DropsTheRedundantQuote()
-    {
-        var pattern = FzfPattern.Parse("^'read");
-
-        Assert.AreEqual(FzfTermKind.Prefix, pattern.TermSets[0].Terms[0].Kind);
-        Assert.AreEqual("read", pattern.TermSets[0].Terms[0].Text);
-        Assert.IsTrue(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
-    }
-
-    [TestMethod]
-    public void TryMatch_EscapedSpaceInsideQuotedPhrase_StillParsesAsOneTerm()
-    {
-        var pattern = FzfPattern.Parse(@"'cad\ acb'");
-
-        Assert.AreEqual(FzfTermKind.ExactBoundary, pattern.TermSets[0].Terms[0].Kind);
-        Assert.AreEqual("cad acb", pattern.TermSets[0].Terms[0].Text);
-        Assert.IsTrue(pattern.TryMatch("cad acb.txt", out _, FzfScoringScheme.Default));
-    }
-
-    private static void WithFuzzyDisabled(Action body)
-    {
-        var previous = SearchContext.FuzzyMatchEnabled;
-        SearchContext.FuzzyMatchEnabled = false;
-        try { body(); }
-        finally { SearchContext.FuzzyMatchEnabled = previous; }
-    }
-
-    [TestMethod]
-    [DoNotParallelize]
     public void Parse_ProcessDefaultDisabled_AppliesWithoutAnyPerRequestValue()
     {
         var previous = SearchContext.DefaultFuzzyMatchEnabled;
@@ -156,29 +121,11 @@ public sealed class FzfPatternParsingTests
     }
 
     [TestMethod]
-    public void Parse_FuzzyDisabled_ExactMarkerFlipsTheTermBackToFuzzy() => WithFuzzyDisabled(() =>
+    public void GetTotalTermLength_SumsEveryPositiveTerm()
     {
-        var pattern = FzfPattern.Parse("'ab");
+        var pattern = FzfPattern.Parse("read md");
 
-        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
-        Assert.IsTrue(pattern.TryMatch("cad acb.txt", out _, FzfScoringScheme.Default));
-    });
-
-    [TestMethod]
-    public void Parse_FuzzyDisabled_LeavesExplicitOperatorsAlone() => WithFuzzyDisabled(() =>
-    {
-        Assert.AreEqual(FzfTermKind.Prefix, FzfPattern.Parse("^read").TermSets[0].Terms[0].Kind);
-        Assert.AreEqual(FzfTermKind.Suffix, FzfPattern.Parse("md$").TermSets[0].Terms[0].Kind);
-        Assert.AreEqual(FzfTermKind.Equal, FzfPattern.Parse("^readme.md$").TermSets[0].Terms[0].Kind);
-        Assert.AreEqual(FzfTermKind.ExactBoundary, FzfPattern.Parse("'read'").TermSets[0].Terms[0].Kind);
-    });
-
-    [TestMethod]
-    public void GetTotalTermLength_SumsPositiveTermsOnlyExcludingInverse()
-    {
-        var pattern = FzfPattern.Parse("read !md");
-
-        Assert.AreEqual("read".Length, pattern.GetTotalTermLength());
+        Assert.AreEqual("read".Length + "md".Length, pattern.GetTotalTermLength());
     }
 
     [TestMethod]
@@ -198,4 +145,33 @@ public sealed class FzfPatternParsingTests
         Assert.AreEqual("read".Length + "me".Length, pattern.GetTotalTermLength());
     }
 
+    [TestMethod]
+    public void Parse_DriveTokenAlone_SelectsTheDrive()
+        => Assert.AreEqual("d", FzfPattern.Parse("d: report").TargetDrive);
+
+    [TestMethod]
+    public void Parse_DriveTokenWithAttachedText_IsNoLongerADrive()
+    {
+        // "d:report" keeps the colon as literal text -- the drive rule needs the bare "d:" token.
+        var pattern = FzfPattern.Parse("d:report");
+
+        Assert.IsNull(pattern.TargetDrive);
+        Assert.AreEqual("d:report", pattern.TermSets[0].Terms[0].Text);
+    }
+
+    [TestMethod]
+    public void Parse_NonAsciiLetterBeforeColon_IsNotADrive()
+    {
+        var pattern = FzfPattern.Parse("中: x");
+
+        Assert.IsNull(pattern.TargetDrive);
+    }
+
+    private static void WithFuzzyDisabled(Action body)
+    {
+        var previous = SearchContext.FuzzyMatchEnabled;
+        SearchContext.FuzzyMatchEnabled = false;
+        try { body(); }
+        finally { SearchContext.FuzzyMatchEnabled = previous; }
+    }
 }

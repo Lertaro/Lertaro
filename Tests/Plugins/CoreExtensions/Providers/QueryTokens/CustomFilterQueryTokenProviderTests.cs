@@ -26,14 +26,14 @@ public class CustomFilterQueryTokenProviderTests
     }
 
     [TestMethod]
-    public void CanHandle_TokenStartsWithAt_ReturnsTrue()
+    public void CanHandle_BackslashPrefixedToken_ReturnsTrue()
     {
         var provider = new CustomFilterQueryTokenProvider();
-        Assert.IsTrue(provider.CanHandle("@doc"));
-        Assert.IsTrue(provider.CanHandle("@video"));
-        Assert.IsFalse(provider.CanHandle("@"));
+        Assert.IsTrue(provider.CanHandle("\\doc"));
+        Assert.IsTrue(provider.CanHandle("\\video"));
+        Assert.IsFalse(provider.CanHandle("\\"));
         Assert.IsFalse(provider.CanHandle("doc"));
-        Assert.IsFalse(provider.CanHandle(".doc"));
+        Assert.IsFalse(provider.CanHandle("@doc"));
     }
 
     [TestMethod]
@@ -42,7 +42,103 @@ public class CustomFilterQueryTokenProviderTests
         PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.PrefixSettingKey ? "!" : fallback;
         var provider = new CustomFilterQueryTokenProvider();
         Assert.IsTrue(provider.CanHandle("!doc"));
-        Assert.IsFalse(provider.CanHandle("@doc"));
+        Assert.IsFalse(provider.CanHandle("\\doc"));
+    }
+
+    [TestMethod]
+    public async Task ApplyAsync_CategoryKeyword_MatchesByExtensionRegex()
+    {
+        var provider = new CustomFilterQueryTokenProvider();
+        var results = new List<ISearchResult>
+        {
+            new FakeSearchResult { Name = "report.docx", FullPath = @"C:\docs\report.docx", IsDir = false },
+            new FakeSearchResult { Name = "photo.jpg", FullPath = @"C:\pics\photo.jpg", IsDir = false },
+            new FakeSearchResult { Name = "song.mp3", FullPath = @"C:\music\song.mp3", IsDir = false },
+            new FakeSearchResult { Name = "subfolder", FullPath = @"C:\docs\subfolder", IsDir = true },
+        };
+
+        var filtered = await provider.ApplyAsync("\\doc", results);
+
+        Assert.HasCount(1, filtered);
+        Assert.AreEqual("report.docx", filtered[0].Name);
+    }
+
+    [TestMethod]
+    public async Task ApplyAsync_AudioCategory_MatchesTheAudioExtensions()
+    {
+        var provider = new CustomFilterQueryTokenProvider();
+        var results = new List<ISearchResult>
+        {
+            new FakeSearchResult { Name = "song.mp3", FullPath = @"C:\music\song.mp3", IsDir = false },
+            new FakeSearchResult { Name = "clip.ogg", FullPath = @"C:\music\clip.ogg", IsDir = false },
+            new FakeSearchResult { Name = "photo.jpg", FullPath = @"C:\pics\photo.jpg", IsDir = false },
+        };
+
+        var filtered = await provider.ApplyAsync("\\audio", results);
+
+        Assert.HasCount(2, filtered);
+    }
+
+    [TestMethod]
+    public async Task ApplyAsync_LongestKeywordWins_SoAudioBeatsA()
+    {
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
+            ? new List<CustomFilterItem>
+            {
+                new() { Keyword = "a", Rule = "*.jpg" },
+                new() { Keyword = "audio", Rule = "*.mp3" }
+            }
+            : fallback;
+
+        var provider = new CustomFilterQueryTokenProvider();
+        var results = new List<ISearchResult>
+        {
+            new FakeSearchResult { Name = "song.mp3", FullPath = @"C:\music\song.mp3", IsDir = false },
+            new FakeSearchResult { Name = "photo.jpg", FullPath = @"C:\pics\photo.jpg", IsDir = false },
+        };
+
+        var filtered = await provider.ApplyAsync("\\audio", results);
+
+        Assert.HasCount(1, filtered);
+        Assert.AreEqual("song.mp3", filtered[0].Name);
+    }
+
+    [TestMethod]
+    public async Task ApplyAsync_UnknownKeyword_ReturnsNothing()
+    {
+        var provider = new CustomFilterQueryTokenProvider();
+        var results = new List<ISearchResult>
+        {
+            new FakeSearchResult { Name = "report.docx", FullPath = @"C:\docs\report.docx", IsDir = false },
+        };
+
+        var filtered = await provider.ApplyAsync("\\nosuchcategory", results);
+
+        Assert.IsEmpty(filtered);
+    }
+
+    [TestMethod]
+    public void RuleToRegex_WildcardExtensions_BecomeAnAnchoredAlternation()
+    {
+        var regex = new System.Text.RegularExpressions.Regex(
+            CustomFilterQueryTokenProvider.RuleToRegex("*.mp3; *.wav; *.ogg"),
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        Assert.IsTrue(regex.IsMatch("song.mp3"));
+        Assert.IsTrue(regex.IsMatch("clip.OGG"));
+        Assert.IsFalse(regex.IsMatch("clip.mp3.bak"));
+        Assert.IsFalse(regex.IsMatch("song.mp4"));
+    }
+
+    [TestMethod]
+    public void RuleToRegex_BareWord_IsReadAsAnExtension()
+    {
+        var regex = new System.Text.RegularExpressions.Regex(
+            CustomFilterQueryTokenProvider.RuleToRegex("audio"),
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        Assert.IsTrue(regex.IsMatch("song.audio"));
+        Assert.IsFalse(regex.IsMatch("audiofile.txt"));
     }
 
     [TestMethod]
@@ -70,8 +166,10 @@ public class CustomFilterQueryTokenProviderTests
     }
 
     [TestMethod]
-    public async Task ApplyAsync_MultipleKeywordsWithPipe_CombinesFiltersWithOrLogic()
+    public async Task ApplyAsync_AKeywordTokenAppliesExactlyOneCategory()
     {
+        // A single token carries one category now -- combining several means writing several tokens,
+        // which the token dispatcher chains.
         var provider = new CustomFilterQueryTokenProvider();
         var results = new List<ISearchResult>
         {
@@ -80,10 +178,10 @@ public class CustomFilterQueryTokenProviderTests
             new FakeSearchResult { Name = "movie.mp4", FullPath = @"C:\videos\movie.mp4", IsDir = false },
         };
 
-        var filtered = await provider.ApplyAsync("@doc|img", results);
-        Assert.HasCount(2, filtered);
-        Assert.IsTrue(filtered.Any(r => r.Name == "report.docx"));
-        Assert.IsTrue(filtered.Any(r => r.Name == "photo.jpg"));
+        var filtered = await provider.ApplyAsync("\\doc", results);
+
+        Assert.HasCount(1, filtered);
+        Assert.AreEqual("report.docx", filtered[0].Name);
     }
 
     [TestMethod]
@@ -95,7 +193,7 @@ public class CustomFilterQueryTokenProviderTests
             new() { Keyword = "tools", Rule = "*.cmd; *.bat" }
         };
 
-        var expanded = CustomFilterQueryTokenProvider.ExpandRule("@scripts; @tools; *.exe", filters);
+        var expanded = CustomFilterQueryTokenProvider.ExpandRule("\\scripts; \\tools; *.exe", filters);
 
         Assert.AreEqual("*.exe; *.cmd; *.bat", expanded);
     }
@@ -105,11 +203,11 @@ public class CustomFilterQueryTokenProviderTests
     {
         var filters = new List<CustomFilterItem>
         {
-            new() { Keyword = "a", Rule = "@b" },
-            new() { Keyword = "b", Rule = "@a" }
+            new() { Keyword = "a", Rule = "\\b" },
+            new() { Keyword = "b", Rule = "\\a" }
         };
 
-        Assert.AreEqual(string.Empty, CustomFilterQueryTokenProvider.ExpandRule("@missing; @a", filters));
+        Assert.AreEqual(string.Empty, CustomFilterQueryTokenProvider.ExpandRule("\\missing; \\a", filters));
     }
 
     [TestMethod]
