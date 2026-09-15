@@ -83,7 +83,8 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                 DescriptionKey = "ContentSearch_Config_TriggerDesc",
                 FieldType = ConfigFieldType.Text,
                 DefaultValue = "cs",
-                RequireNonEmpty = true
+                RequireNonEmpty = true,
+                Validation = ConfigFieldValidation.TriggerKeyword
             },
             new()
             {

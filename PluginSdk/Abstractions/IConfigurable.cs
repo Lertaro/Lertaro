@@ -17,6 +17,27 @@ public enum ConfigFieldType
     Button
 }
 
+/// <summary>
+/// A validation rule the host applies to a config field beyond its declared type, for values that are a
+/// prefix of the search query and so compete with the search syntax for the same leading characters.
+/// Declaring it here is what lets the host identify the field: the eight instant-answer trigger keywords
+/// are otherwise ordinary non-empty text fields, scattered across plugins under inconsistent key names
+/// ("TriggerKeyword", "SearchSettingsTrigger", "BookmarkTriggerKeyword", ...).
+/// </summary>
+public enum ConfigFieldValidation
+{
+    /// <summary>No extra rule beyond the field type.</summary>
+    None,
+
+    /// <summary>
+    /// An instant-answer trigger keyword: the word typed at the start of a query to invoke a provider.
+    /// Rejected when it starts with a character the search syntax consumes (see the host's
+    /// SearchSyntaxReserved), because that character is stripped before the provider ever sees the query
+    /// and the trigger would silently never fire.
+    /// </summary>
+    TriggerKeyword
+}
+
 public class PluginConfigField
 {
     public string Key { get; set; } = string.Empty;
@@ -35,6 +56,8 @@ public class PluginConfigField
     /// instead of persisting the empty value -- for a field like a trigger keyword, where an empty value would
     /// silently make the depending feature unreachable rather than just "no value set".</summary>
     public bool RequireNonEmpty { get; set; }
+    /// <summary>The extra rule the host validates this field's value against; see <see cref="ConfigFieldValidation"/>.</summary>
+    public ConfigFieldValidation Validation { get; set; }
     /// <summary>For Text fields: maximum character length (0 or unset means no length restriction).</summary>
     public int MaxLength { get; set; }
     /// <summary>For Text fields: zero-based initial selection start in the prompt editor.</summary>

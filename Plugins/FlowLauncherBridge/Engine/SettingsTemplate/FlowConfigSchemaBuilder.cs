@@ -26,6 +26,7 @@ public static class FlowConfigSchemaBuilder
             FieldType = ConfigFieldType.Text,
             DefaultValue = "flow",
             RequireNonEmpty = true,
+            Validation = ConfigFieldValidation.TriggerKeyword,
             MaxLength = 10
         });
 

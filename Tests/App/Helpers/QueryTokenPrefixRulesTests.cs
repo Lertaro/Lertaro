@@ -90,18 +90,20 @@ public sealed class QueryTokenPrefixRulesTests
         => Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict(string.Empty, new UserSettings()));
 
     [TestMethod]
-    public void GlobalPrefixConflict_SortFilterTrigger_IsReported()
+    public void GlobalPrefixConflict_EverySyntaxCharacter_IsReported()
     {
-        // '<' and '>' are always pulled out by the scanner as sort/filter tokens, whatever the configured
-        // prefix is, so using either as the prefix makes the plugin tokens unreachable.
-        Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict("<", new UserSettings()));
-        Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict(">", new UserSettings()));
+        // '<'/'>' are the worst case -- the scanner always reads those as token starts, so plugin tokens
+        // become permanently unreachable -- but ':' and '*' collide with exclusion syntax and the bypass
+        // marker, so the field rejects those too rather than letting one meaning silently win.
+        foreach (var prefix in new[] { "<", ">", ":", "*" })
+            Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict(prefix, new UserSettings()), prefix);
     }
 
     [TestMethod]
-    public void GlobalPrefixConflict_OrdinaryCharacter_IsAccepted()
+    public void GlobalPrefixConflict_CharacterNoPluginUses_IsAccepted()
     {
-        Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("\\", new UserSettings()));
+        // '\\' is the shipped default, so it is deliberately NOT free: the CoreExtensions custom-filter
+        // prefix also defaults to it (see the plugin-conflict case above).
         Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("#", new UserSettings()));
     }
 
@@ -136,12 +138,42 @@ public sealed class QueryTokenPrefixRulesTests
     }
 
     [TestMethod]
-    public void IsFixedTrigger_OnlyTheTwoSortFilters()
+    public void IsAlwaysTokenTrigger_OnlyTheTwoSortFilters()
     {
-        Assert.IsTrue(QueryTokenPrefixRules.IsFixedTrigger('<'));
-        Assert.IsTrue(QueryTokenPrefixRules.IsFixedTrigger('>'));
-        Assert.IsFalse(QueryTokenPrefixRules.IsFixedTrigger('\\'));
+        // Narrower than SearchSyntaxReserved.IsReserved on purpose: only these two are read as token starts
+        // regardless of the configured prefix, which is a different (worse) situation than colliding with
+        // the exclusion or bypass character.
+        Assert.IsTrue(QueryTokenPrefixRules.IsAlwaysTokenTrigger('<'));
+        Assert.IsTrue(QueryTokenPrefixRules.IsAlwaysTokenTrigger('>'));
+        Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger('\\'));
+        Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger(':'));
     }
+
+    // An instant-answer trigger keyword is matched against the START of the query, so it competes with the
+    // search syntax for the same character position. One starting with a reserved character is stripped
+    // before the provider is ever asked, so the trigger silently never fires.
+    [TestMethod]
+    public void TriggerKeywordConflict_ReservedFirstCharacter_IsReported()
+    {
+        Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict("\\tr"));
+        Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict(":tr"));
+        Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict("<tr"));
+        Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict(">tr"));
+        Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict("*tr"));
+    }
+
+    [TestMethod]
+    public void TriggerKeywordConflict_EveryDefaultPluginKeyword_IsAccepted()
+    {
+        // The keywords the bundled providers ship with, so a future reserved character cannot quietly
+        // break one of them.
+        foreach (var keyword in new[] { "bb", "bh", "tr", "ps", "ad", "win", "cs", "set", "flow", "g", "bd", "bing", "gh", "wiki", "yt" })
+            Assert.IsNull(QueryTokenPrefixRules.TriggerKeywordConflict(keyword), keyword);
+    }
+
+    [TestMethod]
+    public void TriggerKeywordConflict_Empty_IsReported()
+        => Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict(string.Empty));
 
     private static PluginConfigField PrefixField()
         => new() { Key = "Prefix", FieldType = ConfigFieldType.Text, MaxLength = 1, DefaultValue = "\\" };

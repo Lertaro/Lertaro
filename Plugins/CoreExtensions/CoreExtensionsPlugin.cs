@@ -124,7 +124,9 @@ public class CoreExtensionsPlugin : IPlugin, IActionProvider, IConfigurable
                 LabelKey = "CoreExtensions_Config_SearchSettingsTriggerLabel",
                 DescriptionKey = "CoreExtensions_Config_SearchSettingsTriggerDesc",
                 FieldType = ConfigFieldType.Text,
-                DefaultValue = "set"
+                DefaultValue = "set",
+                RequireNonEmpty = true,
+                Validation = ConfigFieldValidation.TriggerKeyword
             },
             new PluginConfigField
             {

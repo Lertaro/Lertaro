@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:services="clr-namespace:Lertaro.App.Services"
              xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
+             xmlns:conv="clr-namespace:Lertaro.App.Converters"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="700">
     <!-- Split out of GeneralSettingsPage.xaml (the "Layout" tab) to keep that file under the
@@ -18,6 +19,10 @@
                 <ResourceDictionary Source="../../../Resources/Styles/Windows/SettingsWindow.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- Declared locally (this page's own resource set, like SettingsTextBox below) for the
+                 trigger-character warning, which shows only when the bound message is non-empty. -->
+            <conv:NullToVisibilityConverter x:Key="NullToVis"/>
+
             <!-- Mirrors FavoritesSettingsPage.xaml's own FavIconButton exactly: same small square icon
                  button used for its Move Up/Down actions, but defined locally rather than shared across
                  UserControls, matching how SettingsTextBox above is already page-local rather than pulled
@@ -26,6 +31,7 @@
                  ResultTypeOrder's own Move Up/Down commands instead of QuickNavigationOrder's. -->
             <DataTemplate x:Key="ResultTypeOrderItemTemplate">
                 <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
+                  <StackPanel>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -82,6 +88,14 @@
                                     CommandParameter="{Binding}"/>
                         </StackPanel>
                     </Grid>
+                    <!-- Empty unless this trigger character cannot work: one the search syntax consumes
+                         (and would strip before the trigger is ever read), or one a second type also
+                         claims. Both used to be silent. -->
+                    <TextBlock Text="{Binding Error}"
+                               Foreground="{DynamicResource ErrorBrush}"
+                               FontSize="11" TextWrapping="Wrap" Margin="18,4,0,0"
+                               Visibility="{Binding Error, Converter={StaticResource NullToVis}}"/>
+                  </StackPanel>
                 </Border>
             </DataTemplate>
         </ResourceDictionary>

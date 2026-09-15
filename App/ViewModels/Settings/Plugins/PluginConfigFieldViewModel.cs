@@ -232,9 +232,11 @@ public class PluginConfigFieldViewModel : ViewModelBase
             // buttons); the load paths write LocalValueStore directly, so staging a value this way is
             // what marks the field (and therefore its plugin) as having something to save.
             _loadSupport.MarkDirty();
-            // A staged single-character trigger changes whether it collides with another one, so its
-            // warning has to be re-read even though the value itself is what was just edited.
+            // A staged single-character trigger or trigger keyword changes whether it collides with the
+            // search syntax, so its warning has to be re-read even though the value itself is what was
+            // just edited.
             if (QueryTokenPrefixRules.IsPrefixField(SchemaField)) OnPropertyChanged(nameof(PrefixError));
+            if (SchemaField.Validation == ConfigFieldValidation.TriggerKeyword) OnPropertyChanged(nameof(TriggerKeywordError));
             if (_onValueChanged == null) OnPropertyChanged();
         }
     }
@@ -246,6 +248,16 @@ public class PluginConfigFieldViewModel : ViewModelBase
     /// </summary>
     internal string? PrefixError => QueryTokenPrefixRules.IsPrefixField(SchemaField)
         ? QueryTokenPrefixRules.PluginPrefixConflict(PluginId, SchemaField, Value as string, Settings)
+        : null;
+
+    /// <summary>
+    /// Why this instant-answer trigger keyword cannot be used, or null when it is fine. The keyword is a
+    /// prefix of the whole query, so one starting with a character the search syntax consumes is stripped
+    /// before the provider is ever asked and the trigger silently stops working. Only fields that declare
+    /// <see cref="ConfigFieldValidation.TriggerKeyword"/> are checked.
+    /// </summary>
+    internal string? TriggerKeywordError => SchemaField.Validation == ConfigFieldValidation.TriggerKeyword
+        ? QueryTokenPrefixRules.TriggerKeywordConflict(Value as string)
         : null;
 
     public PluginConfigFieldViewModel(string pluginId, PluginConfigField field, UserSettings settings, Action? onValueChanged = null)

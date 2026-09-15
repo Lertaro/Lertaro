@@ -33,7 +33,7 @@ Permite ajustar con precisión las dimensiones geométricas y las prioridades de
 ### Prioridad de tipos de resultado y activadores
 
 - **Lista de ordenación de prioridades**: Arrastra los controles para cambiar la precedencia de aplicaciones, ajustes, archivos y extensiones de plugins.
-- **Carácter activador exclusivo**: Asigna un prefijo de un solo carácter (p. ej. `;` para Filtros de archivos) para aislar las búsquedas a ese tipo concreto.
+- **Carácter activador exclusivo**: Asigna un prefijo de un solo carácter (p. ej. `;` para Filtros de archivos) para aislar las búsquedas a ese tipo concreto. No puede ser uno de los caracteres que la propia sintaxis de búsqueda utiliza (`\` `<` `>` `:` `*`), porque la sintaxis lo consume antes de leer el activador y este dejaría de funcionar en silencio; dos tipos tampoco pueden compartir el mismo carácter. El campo de ajustes avisa en ambos casos.
 
 ## 3. Ventana de búsqueda principal
 
