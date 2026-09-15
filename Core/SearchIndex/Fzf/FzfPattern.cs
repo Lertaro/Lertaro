@@ -1,3 +1,5 @@
+using Lertaro.Core.SearchIndex.Query;
+
 namespace Lertaro.Core.SearchIndex.Fzf;
 
 // Alias-fallback quality-gating (IsAcceptableAliasMatch/WeightAliasMatch and their private helpers) lives
@@ -34,6 +36,7 @@ internal sealed class FzfPattern
         Regexes = regexes;
         EffectiveSets = orGroups == null ? termSets : Flatten(orGroups);
         HasPositiveTerm = AnyPositiveTerm(EffectiveSets);
+        RequiredRegexLiteral = ComputeRequiredRegexLiteral(regexes);
     }
 
     public string? TargetDrive { get; }
@@ -46,6 +49,36 @@ internal sealed class FzfPattern
     // Non-null only when the query carried one or more "regex:/.../" clauses. Every clause must match for
     // the whole pattern to match.
     internal string[]? Regexes { get; }
+
+    // The longest run of literal characters that every regex clause requires a matching name to contain,
+    // or empty when no clause has one (an alternation, a bare wildcard, a class-only pattern...). This is
+    // what lets a regex search feed the index's character-mask prefilter: the clause itself is far too
+    // expensive to run per candidate, and without a literal there is nothing cheap to reject on.
+    //
+    // Computed once per parsed query rather than per search, because the mask is built per query and the
+    // extraction walks the pattern. Empty rather than null so callers can test it without a null check.
+    // RegexLiteralExtractor guarantees the literal really is required of EVERY match -- a wrong one would
+    // silently drop results rather than merely miss an optimization, which is why its rules are stated in
+    // that file.
+    internal string RequiredRegexLiteral { get; }
+
+    private static string ComputeRequiredRegexLiteral(string[]? regexes)
+    {
+        if (regexes is not { Length: > 0 })
+            return string.Empty;
+
+        var best = string.Empty;
+        foreach (var pattern in regexes)
+        {
+            var literal = RegexLiteralExtractor.ExtractRequiredLiteral(pattern);
+            // Every clause must match, so the longest single-run requirement wins; the caller ORs the
+            // per-clause masks together, which keeps a clause with no literal from disabling the others.
+            if (literal.Length > best.Length)
+                best = literal;
+        }
+
+        return best;
+    }
 
     // Whichever shape actually governs matching: OrGroups when the query is an AND-first mix, else the
     // flat TermSets. Everything that only needs to ENUMERATE the terms (alignment requirement, typed
