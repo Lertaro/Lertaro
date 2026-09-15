@@ -9,7 +9,7 @@ namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 public class InlineSearchWindowPositioner
 {
     private const double DefaultWindowWidth = 465;
-    private const double DockedWidthRatio = 0.5;
+    private const double DockedWidthRatio = 2.0 / 3.0;
     private const double DesktopWidthRatio = 0.2;
 
     [DllImport("Shcore.dll")]
