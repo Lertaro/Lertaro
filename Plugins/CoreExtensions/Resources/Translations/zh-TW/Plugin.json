@@ -215,10 +215,8 @@
   "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "解析以 :@ 開頭的自訂篩選器標記，按照設定的萬用字元與副檔名規則篩選搜尋結果。",
   "CoreExtensions_Config_QueryTokensGroupLabel": "查詢標記設定",
   "CoreExtensions_Config_PathExclusionPrefixLabel": "路徑過濾前導字元",
-  "CoreExtensions_Config_PathExclusionPrefixDesc": "路徑段模糊比對標記的前導字元（預設 :）。",
   "CoreExtensions_Config_CustomFilterPrefixLabel": "分類過濾前導字元",
-  "CoreExtensions_Config_CustomFilterPrefixDesc": "自訂分類篩选器標記的前導字元（預設 @）。",
+  "CoreExtensions_Config_CustomFilterPrefixDesc": "自訂分類篩選器標記的前導字元（預設為 \\）。不能使用搜尋語法占用的字元（\\ < > : *），否則語法會先消耗掉該字元。",
   "CoreExtensions_WildcardFilterProvider_Name": "萬用字元二次過濾 (?運算式)",
   "CoreExtensions_Config_WildcardFilterPrefixLabel": "萬用字元過濾觸發前綴",
-  "CoreExtensions_Config_WildcardFilterPrefixDesc": "觸發萬用字元二次過濾的前綴字元(預設為 ?)。"
 }
