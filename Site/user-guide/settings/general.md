@@ -33,7 +33,7 @@ Fine-tunes the dimensions, layout, and priority rankings of the centered floatin
 ### Result Type Priority & Trigger Characters
 
 - **Priority Sorting List**: Drag or move items (Applications, System Settings, Files, Plugin Extensions) to adjust which types rank highest in search results.
-- **Exclusive Single-Character Trigger**: Assign a dedicated character prefix (e.g. `;` for File Filters) to restrict searches exclusively to that type when typed at the start of a query. A trigger cannot be one of the characters the search syntax reads itself (`\` `<` `>` `:` `*`), because the syntax consumes it before the trigger is ever consulted and the trigger would silently stop working; two types also cannot share one character. The settings field reports both cases.
+- **Exclusive Single-Character Trigger**: Assign a dedicated character prefix (e.g. `;` for File Filters) to restrict searches exclusively to that type when typed at the start of a query. A trigger cannot be one of the characters the search syntax reads itself (`\` `<` `>` `:` `*`), because the syntax consumes it before the trigger is ever consulted and the trigger would silently stop working; two types also cannot share one character. The settings field reports both cases. The built-in instant answers also read their own leading characters -- `#` and `$` run a shell command, `%` searches environment variables -- so those are unavailable too.
 
 ## 3. Full Search Window
 

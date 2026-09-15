@@ -25,11 +25,46 @@ public sealed class SearchSyntaxReservedTests
     [DataRow("set")]
     [DataRow("bb")]
     [DataRow("g")]
-    [DataRow("#cmd")]
-    [DataRow("$cmd")]
-    [DataRow("%path%")]
     public void StartsWithReservedCharacter_OrdinaryTriggerWords_AreUsable(string value)
         => Assert.IsFalse(SearchSyntaxReserved.StartsWithReservedCharacter(value));
+
+    // A provider's own hardcoded leading character is not syntax, but it is just as unavailable to another
+    // first-character trigger: the input would be answered by two features at once.
+    [TestMethod]
+    [DataRow("#dir")]
+    [DataRow("$dir")]
+    [DataRow("%TE")]
+    public void ValidateLeadingCharacter_ProviderClaimedCharacter_IsReported(string value)
+    {
+        Assert.IsNotNull(SearchSyntaxReserved.ValidateLeadingCharacter(value));
+        Assert.IsTrue(SearchSyntaxReserved.IsProviderClaimed(value[0]));
+    }
+
+    [TestMethod]
+    [DataRow('#')]
+    [DataRow('$')]
+    [DataRow('%')]
+    public void IsProviderClaimed_TheInstantAnswerCharacters_AreClaimed(char value)
+        => Assert.IsTrue(SearchSyntaxReserved.IsProviderClaimed(value));
+
+    [TestMethod]
+    [DataRow('#')]
+    [DataRow('$')]
+    [DataRow('%')]
+    public void IsReserved_TheProviderClaimedCharacters_AreNotSyntax(char value)
+    {
+        // They belong to a provider, not to the grammar -- the two lists answer different questions and the
+        // message shown to the user differs, so a character must not drift between them.
+        Assert.IsFalse(SearchSyntaxReserved.IsReserved(value));
+    }
+
+    [TestMethod]
+    public void ValidateLeadingCharacter_ReservedWinsOverProviderClaimed()
+    {
+        // No overlap today; if one is ever introduced, the syntax message must still be the one shown.
+        foreach (var c in SearchSyntaxReserved.LeadingCharacters)
+            Assert.IsFalse(SearchSyntaxReserved.IsProviderClaimed(c), c.ToString());
+    }
 
     [TestMethod]
     public void ValidateLeadingCharacter_ReservedFirstCharacter_IsReported()
@@ -47,9 +82,15 @@ public sealed class SearchSyntaxReservedTests
 
     [TestMethod]
     public void ValidateLeadingCharacter_OrdinaryWord_IsAccepted()
+        => Assert.IsNull(SearchSyntaxReserved.ValidateLeadingCharacter("tr"));
+
+    [TestMethod]
+    public void DescribeProviderClaimedCharacters_ListsTheInstantAnswerCharacters()
     {
-        Assert.IsNull(SearchSyntaxReserved.ValidateLeadingCharacter("tr"));
-        Assert.IsNull(SearchSyntaxReserved.ValidateLeadingCharacter("#cmd"));
+        var described = SearchSyntaxReserved.DescribeProviderClaimedCharacters();
+
+        foreach (var c in SearchSyntaxReserved.ProviderClaimedCharacters)
+            Assert.Contains(c.ToString(), described);
     }
 
     [TestMethod]

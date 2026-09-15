@@ -362,6 +362,7 @@
   "General_GlobalTokenPrefixConflictPlugin": "この文字は既にいずれかのプラグインがクエリトークンの接頭辞として使っています。別の文字を選んでください。",
   "General_ReservedCharacterEmpty": "値を入力してください。",
   "General_ReservedCharacterSyntax": "検索構文が使用する文字（\\ < > : *）で始めることはできません。その文字はこのトリガーを読む前に構文側で消費されるため、トリガーは黙って機能しなくなります。",
+  "General_ReservedCharacterProvider": "この文字は組み込みのインスタント機能が使用しています: # と $ はコマンド実行、% は環境変数の検索です。別の文字を選んでください。",
   "General_ResultTypeTriggerDuplicate": "別の結果タイプが既にこの文字を使用しています。同じ文字を使えるのは 1 つのタイプだけです。",
   "General_GlobalTokenPrefixDesc": "検索ボックスでプラグインのトークン語（例: \\audio、\\doc）に付ける先頭文字（デフォルト: \\）。",
   "General_OpenFoldersInNewExplorerTabs": "新しいエクスプローラー タブでフォルダーを開く",
