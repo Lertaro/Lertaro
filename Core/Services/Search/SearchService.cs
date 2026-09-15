@@ -38,7 +38,7 @@ public class SearchService : IDisposable
 
     // bypassExclusions: opts this one search out of ExcludedPaths/IgnoredPathGlobs/IgnoredPathRegexes
     // filtering. The caller is responsible for stripping whatever query-string marker triggers this
-    // (see SearchQuerySortParser.StripExclusionBypass) BEFORE calling here -- `query` itself is always
+    // (see QueryTokenScanner.StripExclusionBypass) BEFORE calling here -- `query` itself is always
     // matched/highlighted verbatim, so a caller must never pass the marker through as part of it. Also
     // forced on automatically for a path-mode query (see effectiveBypassExclusions below) -- typing an
     // exact path is the same "I want to see what's actually here" intent regardless of the marker. Only

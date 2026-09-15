@@ -27,35 +27,47 @@ public sealed class QuickPanelFilterParserTests
     [TestMethod]
     public void Parse_TokenAndGlob_SeparatesThem()
     {
-        var spec = QuickPanelFilterParser.Parse("*.lnk;:@doc;:@img");
+        var spec = QuickPanelFilterParser.Parse(@"*.lnk;\doc;\img");
 
         CollectionAssert.AreEqual(new[] { "*.lnk" }, spec.GlobPatterns);
-        CollectionAssert.AreEqual(new[] { "@doc", "@img" }, spec.TokenFilters);
+        CollectionAssert.AreEqual(new[] { @"\doc", @"\img" }, spec.TokenFilters);
     }
 
     [TestMethod]
     public void Parse_PipeToken_IsKeptAsOneFilter()
     {
-        var spec = QuickPanelFilterParser.Parse("*.lnk;:@doc|img");
+        var spec = QuickPanelFilterParser.Parse(@"*.lnk;\doc|img");
 
         CollectionAssert.AreEqual(new[] { "*.lnk" }, spec.GlobPatterns);
-        CollectionAssert.AreEqual(new[] { "@doc|img" }, spec.TokenFilters);
+        CollectionAssert.AreEqual(new[] { @"\doc|img" }, spec.TokenFilters);
     }
 
     [TestMethod]
     public void Parse_InvalidTokenEntry_IsNotToken()
     {
         // Empty keyword after the pipe is invalid syntax, so the whole entry falls back to glob
-        // (where the colon can never match a real file name).
-        var spec = QuickPanelFilterParser.Parse(":@doc|");
+        // (where the backslash can never match a real file name).
+        var spec = QuickPanelFilterParser.Parse(@"\doc|");
 
         Assert.HasCount(0, spec.TokenFilters);
-        CollectionAssert.AreEqual(new[] { ":@doc|" }, spec.GlobPatterns);
+        CollectionAssert.AreEqual(new[] { @"\doc|" }, spec.GlobPatterns);
     }
 
     [TestMethod]
-    public void Parse_NonAtColonEntry_IsNotToken()
+    public void Parse_OldAtMarkerForm_IsNoLongerAToken()
     {
+        // ":@doc" was the old spelling (global ':' prefix plus an '@' category marker). Both characters
+        // are gone from the token grammar now, so the entry is just an unmatched glob.
+        var spec = QuickPanelFilterParser.Parse(":@doc");
+
+        Assert.HasCount(0, spec.TokenFilters);
+        CollectionAssert.AreEqual(new[] { ":@doc" }, spec.GlobPatterns);
+    }
+
+    [TestMethod]
+    public void Parse_ColonPrefixedEntry_IsNotAToken()
+    {
+        // ':' is the exclusion operator in the search box, never a token prefix.
         var spec = QuickPanelFilterParser.Parse(":.pdf");
 
         Assert.HasCount(0, spec.TokenFilters);
@@ -65,27 +77,28 @@ public sealed class QuickPanelFilterParserTests
     [TestMethod]
     public void Parse_DuplicateTokens_FirstWins()
     {
-        var spec = QuickPanelFilterParser.Parse(":@doc;:@doc");
+        var spec = QuickPanelFilterParser.Parse(@"\doc;\doc");
 
-        CollectionAssert.AreEqual(new[] { "@doc" }, spec.TokenFilters);
+        CollectionAssert.AreEqual(new[] { @"\doc" }, spec.TokenFilters);
     }
 
     [TestMethod]
     public void Parse_DuplicateKeywordsInsideOneToken_FirstWins()
     {
-        var spec = QuickPanelFilterParser.Parse(":@doc|doc");
+        var spec = QuickPanelFilterParser.Parse(@"\doc|doc");
 
-        CollectionAssert.AreEqual(new[] { "@doc" }, spec.TokenFilters);
+        CollectionAssert.AreEqual(new[] { @"\doc" }, spec.TokenFilters);
     }
 
     [TestMethod]
     public void Parse_CustomGlobalTokenPrefix_IsUsed()
     {
-        var spec = QuickPanelFilterParser.Parse("*.lnk;#@doc", globalTokenPrefix: '#');
+        var spec = QuickPanelFilterParser.Parse("*.lnk;#doc", globalTokenPrefix: '#');
 
         CollectionAssert.AreEqual(new[] { "*.lnk" }, spec.GlobPatterns);
-        CollectionAssert.AreEqual(new[] { "@doc" }, spec.TokenFilters);
+        CollectionAssert.AreEqual(new[] { "#doc" }, spec.TokenFilters);
     }
+
     [TestMethod]
     public void Parse_NegatedGlob_GoesToExcluded()
     {

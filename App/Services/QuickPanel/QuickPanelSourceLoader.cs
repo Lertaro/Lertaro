@@ -134,7 +134,7 @@ public static class QuickPanelSourceLoader
     private static char GetGlobalTokenPrefix()
     {
         var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return string.IsNullOrEmpty(prefix) ? ':' : prefix[0];
+        return string.IsNullOrEmpty(prefix) ? '\\' : prefix[0];
     }
 
     private static void AddResult(

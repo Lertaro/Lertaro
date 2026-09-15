@@ -48,7 +48,7 @@ internal static class GeneralSettingsApplier
         userSettings.ShowOpenedFoldersInInlineSearch = showOpenedFoldersInInlineSearch;
         userSettings.HideTrayIcon = hideTrayIcon;
         userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs = openFoldersInNewExplorerTabs;
-        userSettings.GlobalTokenPrefix = string.IsNullOrWhiteSpace(globalTokenPrefix) ? ":" : globalTokenPrefix;
+        userSettings.GlobalTokenPrefix = string.IsNullOrWhiteSpace(globalTokenPrefix) ? "\\" : globalTokenPrefix;
         userSettings.LogLevel = logLevel;
         // The third-party-file-manager fields are owned by their own sub-VM now; see vm.FileManager.Save
         // below rather than a copy of them threaded through this signature.

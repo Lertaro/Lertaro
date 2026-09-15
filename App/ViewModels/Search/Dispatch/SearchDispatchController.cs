@@ -64,10 +64,9 @@ internal sealed class SearchDispatchController
 
     public void DispatchSearch(string value)
     {
-        var globalPrefixChar = GetGlobalTokenPrefixChar();
-        var strippedTrailing = SearchQuerySortParser.Strip(value, out var tokens, globalPrefixChar);
-        _queryTokens = tokens;
-        var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        var scan = QueryTokenScanner.Scan(value, GetGlobalTokenPrefixChar());
+        _queryTokens = scan.Tokens;
+        var cleanQuery = QueryTokenScanner.StripExclusionBypass(scan.Text, out var bypassExclusions);
         _bypassExclusions = bypassExclusions;
         var (strippedClean, triggeredTypeId) = _resultTypeTrigger.StripTrigger(value, cleanQuery);
         cleanQuery = strippedClean;
@@ -216,10 +215,9 @@ internal sealed class SearchDispatchController
             }
             return;
         }
-        var globalPrefixChar = GetGlobalTokenPrefixChar();
-        var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
-        _queryTokens = tokens;
-        var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        var scan = QueryTokenScanner.Scan(query, GetGlobalTokenPrefixChar());
+        _queryTokens = scan.Tokens;
+        var cleanQuery = QueryTokenScanner.StripExclusionBypass(scan.Text, out var bypassExclusions);
         _bypassExclusions = bypassExclusions;
         var (strippedClean, triggeredTypeId) = _resultTypeTrigger.StripTrigger(query, cleanQuery);
         cleanQuery = strippedClean;
@@ -358,6 +356,6 @@ internal sealed class SearchDispatchController
     private static char GetGlobalTokenPrefixChar()
     {
         var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
+        return !string.IsNullOrEmpty(prefix) ? prefix[0] : '\\';
     }
 }
