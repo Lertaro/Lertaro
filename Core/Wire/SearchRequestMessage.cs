@@ -70,4 +70,10 @@ public struct SearchRequestMessage
     // ExactMatch above -- a caller that forgets it gets the cheap single-level listing, not a
     // full subtree walk.
     public bool Recursive { get; set; }
+
+    // Search/SearchDir: whether '|' binds tighter than the space. Carried per request for the same
+    // reason as ExactMatch -- the service runs as a different identity and cannot read this user's
+    // settings file. Phrased as the positive "OR-first" because default(bool) is false, and a caller
+    // that forgets it must fall back to the AND-first reading, which is the product default.
+    public bool OrFirstPrecedence { get; set; }
 }

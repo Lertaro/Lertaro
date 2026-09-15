@@ -39,6 +39,17 @@ public class UserSettings
     // Off makes every bare query term a contiguous-substring match instead of a subsequence one
     // (fzf's own --exact mode). Default on, so an upgrade never changes what a query matches.
     public bool EnableFuzzyMatch { get; set; } = true;
+
+    // How spaces and the pipe '|' bind when a query mixes the two.
+    //
+    // false (default) is AND-first: the space binds tighter, so a query of "report | summary 2024"
+    // means report OR (summary AND 2024) -- the usual boolean reading, and what a user who types a
+    // few alternatives and then narrows them expects.
+    //
+    // true switches to OR-first, where the pipe binds tighter and that same query means
+    // (report OR summary) AND 2024. That was Lertaro's only behavior before this option existed, so
+    // anyone who wants the old reading back opts into it explicitly.
+    public bool OrFirstPrecedence { get; set; } = false;
     // The Quick window's tray-menu capsule button (only shown while this is true) is the replacement
     // entry point for Settings/Exit/etc., so hiding the tray icon never strands the user -- see
     // QuickSearchWindow's BtnTrayMenu and TrayIconService.ShowMenuAt.

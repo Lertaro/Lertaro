@@ -64,7 +64,7 @@ internal static class HighlightMask
     private static int Mark(ReadOnlySpan<char> fullText, FzfPattern pattern, Span<bool> highlights, ref string? materialized, FzfSlab slab)
     {
         var tier = MatchRank.TierFull;
-        foreach (var set in pattern.TermSets)
+        foreach (var set in pattern.OrGroups ?? pattern.TermSets)
         {
             // Highlight EVERY non-inverse term in the set that actually matches this candidate, not
             // just whichever one happens to be tried first -- a candidate containing more than one of a

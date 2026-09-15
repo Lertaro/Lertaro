@@ -49,6 +49,39 @@ public sealed class SearchRequestBinarySerializerTests
     }
 
     [TestMethod]
+    public async Task RoundTrip_Search_PreservesOrFirstPrecedenceFlag()
+    {
+        foreach (var id in new[] { SearchRequestId.Search, SearchRequestId.SearchDir })
+        {
+            var result = await RoundTripAsync(new SearchRequestMessage
+            {
+                Id = id,
+                Query = "report",
+                DirectoryFilter = @"C:\docs",
+                Limit = 51,
+                AppLimit = 51,
+                OrFirstPrecedence = true,
+                FileNameFilter = "*.exe;*.lnk"
+            });
+
+            Assert.IsTrue(result.OrFirstPrecedence, $"{id} lost the flag");
+            Assert.AreEqual("report", result.Query);
+            Assert.AreEqual(51, result.Limit);
+            Assert.AreEqual("*.exe;*.lnk", result.FileNameFilter);
+        }
+    }
+
+    [TestMethod]
+    public async Task RoundTrip_Search_DefaultsToAndFirstWhenFlagNeverSet()
+    {
+        // Positive phrasing this time: default(bool) is false, and false is the AND-first product
+        // default, so a caller that forgets the flag gets the default reading rather than the legacy one.
+        var result = await RoundTripAsync(new SearchRequestMessage { Id = SearchRequestId.Search, Query = "report" });
+
+        Assert.IsFalse(result.OrFirstPrecedence);
+    }
+
+    [TestMethod]
     public async Task RoundTrip_EnumerateDir_PreservesDirectoryFilterPatternAndRecursion()
     {
         var result = await RoundTripAsync(new SearchRequestMessage

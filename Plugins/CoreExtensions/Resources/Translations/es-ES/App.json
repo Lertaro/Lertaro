@@ -348,6 +348,8 @@
   "General_EnableEverythingIpcDesc": "Permite que herramientas de terceros dependientes de Everything (como Directory Opus, Total Commander o Flow Launcher) usen Lertaro para búsquedas y cálculo del tamaño de carpetas.",
   "General_EnableFuzzyMatch": "Activar coincidencia difusa",
   "General_EnableFuzzyMatchDesc": "Al desactivarla, un término debe aparecer como subcadena contigua: \"abc\" deja de coincidir con \"a-b-c\". Antepón ' a un término para seguir buscándolo de forma difusa.",
+  "General_OrFirstPrecedence": "OR se une más fuerte que AND (heredado)",
+  "General_OrFirstPrecedenceDesc": "Desactivado (predeterminado): el espacio se une más fuerte, así que \"report | summary 2024\" significa report OR (summary AND 2024). Activado: la barra vertical se une más fuerte, así que la misma consulta significa (report OR summary) AND 2024.",
   "General_GlobalTokenPrefix": "Carácter de prefijo global de tokens",
   "General_GlobalTokenPrefixDesc": "Carácter de prefijo global para dividir expresiones de tokens al final del cuadro de búsqueda (predeterminado :).",
   "General_OpenFoldersInNewExplorerTabs": "Abrir carpetas en nuevas pestañas del Explorador de archivos",

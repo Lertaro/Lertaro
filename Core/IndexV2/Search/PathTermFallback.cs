@@ -74,6 +74,12 @@ internal static class PathTermFallback
         Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower)
     {
         var termCount = pattern.TermSets.Length;
+        // A DNF pattern's groups are OR alternatives, so "every term matched somewhere" is the wrong
+        // question and this pass's flat full-mask test would reject every legitimate row. Name search
+        // already ran; skipping only the fallback tier keeps correctness at the cost of some results
+        // an AND-first mix would otherwise recall through ancestor folder names.
+        if (pattern.OrGroups != null)
+            return;
         // One term has nowhere to split: the "at least one term matches the name" rule would make this
         // identical to the name search that just came up empty.
         if (termCount < 2 || termCount > MaxTerms)

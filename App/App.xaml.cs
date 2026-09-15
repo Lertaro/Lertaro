@@ -76,6 +76,7 @@ public partial class App : Application
         // favorites, shell-menu filtering, display highlighting -- reads this rather than the
         // per-request value, which only ever reaches the search pipeline's own async flow.
         SearchContext.DefaultFuzzyMatchEnabled = settings.EnableFuzzyMatch;
+        SearchContext.DefaultAndFirstPrecedence = !settings.OrFirstPrecedence;
         StartupManager.SetEnabled(settings.StartWithWindows);
         Logger.Log("=========================================");
         Logger.Log($"Application starting with arguments: {string.Join(" ", e.Args)}");

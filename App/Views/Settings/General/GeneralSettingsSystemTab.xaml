@@ -91,6 +91,12 @@
                 <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_EnableFuzzyMatchDesc]}"
                            Style="{StaticResource SettingsHintText}" TextWrapping="Wrap"/>
 
+                <CheckBox x:Name="RowOrFirstPrecedence" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_OrFirstPrecedence]}"
+                           IsChecked="{Binding General.OrFirstPrecedence, Mode=TwoWay}"
+                           Margin="0,4"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_OrFirstPrecedenceDesc]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap"/>
+
                 <Grid x:Name="RowGlobalTokenPrefix" Margin="0,12,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>

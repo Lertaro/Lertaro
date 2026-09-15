@@ -59,6 +59,26 @@ internal static class SearchMatcher
 
     internal static QueryContext BuildContext(FzfPattern pattern)
     {
+        // An AND-first query that mixes '|' with spaces is a disjunction of AND-groups, which no
+        // mask prefilter can express as a single required set (each OR branch needs its own conjunction
+        // of masks, and rejection must happen only when EVERY branch is unsatisfiable). Rather than
+        // approximate that -- a wrong prefilter silently drops results -- such a query turns the
+        // prefilter off entirely and pays the full per-candidate scan, which is what the prefilter is
+        // only an optimization for anyway.
+        if (pattern.OrGroups != null)
+        {
+            return new QueryContext
+            {
+                Pattern = pattern,
+                BytePattern = FzfBytePattern.From(pattern),
+                RequiredMask = 0,
+                OrSetMasks = Array.Empty<ulong[]>(),
+                CanFilter = false,
+                QueryLen = pattern.GetTotalTermLength(),
+                MixedTerm = null,
+            };
+        }
+
         ulong requiredMask = 0;
         List<ulong[]>? orSets = null;
         foreach (var set in pattern.TermSets)
