@@ -13,7 +13,7 @@ General Settings covers core application behaviors, search window dimensions and
 - **Enable Fuzzy Matching**: Enabled by default. When active, queries match non-contiguous character sequences. When disabled, queries require contiguous substring matches (see [**Search Syntax**](../search-syntax)). Takes effect immediately.
 - **Keep Search Box Content after Closing**: Disabled by default. When enabled, neither hiding the Quick Window nor pressing `Escape` in the Full Window empties the box — and `Escape` in the Full Window closes the window on the first press instead of asking twice. The query a window is handed on its next summon arrives **selected whole**, so the first keystroke replaces it rather than appending. This lasts for the current run only; the text is never written to disk.
 - **Show Currently Open Folders in Inline Search**: When the inline window is docked in a file dialog, shows the folders currently open in that dialog when the search query is empty. Enabled by default.
-- **Query Token Delimiter**: Single-character text box (default `:`). Defines the leading character for suffix tokens (e.g. `:.pdf`, `:@doc`, `:[S]`).
+- **Plugin Query Token Prefix**: Single-character text box (default `\`). Sets the leading character of a plugin query token (e.g. `\audio`, `\doc`). It cannot be empty, cannot be `<` or `>`, and must not collide with another plugin's own prefix — the field reports a collision rather than letting one plugin silently win (see [**Search Syntax**](../search-syntax)).
 - **Log Level**: Dropdown selecting Error / Warning / Info (default) / Debug, controlling log verbosity across all processes.
 - **UI Language**: Selects the active display language across the entire application.
 
