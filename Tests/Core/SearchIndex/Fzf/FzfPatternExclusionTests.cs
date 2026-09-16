@@ -120,6 +120,21 @@ public sealed class FzfPatternExclusionTests
     }
 
     [TestMethod]
+    public void TryMatch_OrWithExclusion_IsIndependentOfTermOrder()
+    {
+        // The set is a disjunction, so a negative alternative is satisfied by the text being ABSENT and
+        // must not veto a positive alternative that does match. Both readings are pinned explicitly:
+        // "report-temp.txt" is satisfied through "report", "notes.txt" through the absence of "temp",
+        // and "draft-temp.txt" through neither.
+        foreach (var pattern in new[] { FzfPattern.Parse("report | :temp"), FzfPattern.Parse(":temp | report") })
+        {
+            Assert.IsTrue(pattern.TryMatch("report-temp.txt", out _, FzfScoringScheme.Default));
+            Assert.IsTrue(pattern.TryMatch("notes.txt", out _, FzfScoringScheme.Default));
+            Assert.IsFalse(pattern.TryMatch("draft-temp.txt", out _, FzfScoringScheme.Default));
+        }
+    }
+
+    [TestMethod]
     public void TryMatch_ExclusionOnly_MatchesNothing()
     {
         var pattern = FzfPattern.Parse(":temp");
@@ -154,6 +169,21 @@ public sealed class FzfPatternExclusionTests
 
         Assert.IsTrue(TryMatchBytes(pattern, "report-final.txt"));
         Assert.IsFalse(TryMatchBytes(pattern, "report-temp.txt"));
+    }
+
+    [TestMethod]
+    public void BytePattern_OrWithExclusion_IsIndependentOfTermOrder()
+    {
+        // Same three readings as the char-path test above, over the ASCII fast path.
+        var leftFirst = FzfBytePattern.From(FzfPattern.Parse("report | :temp"));
+        var exclusionFirst = FzfBytePattern.From(FzfPattern.Parse(":temp | report"));
+
+        Assert.IsTrue(TryMatchBytes(leftFirst, "report-temp.txt"));
+        Assert.IsTrue(TryMatchBytes(exclusionFirst, "report-temp.txt"));
+        Assert.IsTrue(TryMatchBytes(leftFirst, "notes.txt"));
+        Assert.IsTrue(TryMatchBytes(exclusionFirst, "notes.txt"));
+        Assert.IsFalse(TryMatchBytes(leftFirst, "draft-temp.txt"));
+        Assert.IsFalse(TryMatchBytes(exclusionFirst, "draft-temp.txt"));
     }
 
     [TestMethod]

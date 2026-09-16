@@ -174,28 +174,29 @@ internal sealed class FzfBytePattern
     private static bool TryMatchSet(ByteTermSet set, ReadOnlySpan<byte> text, out FzfMatchResult best, FzfScoringScheme scheme, FzfSlab slab, FzfByteBuffers buffers)
     {
         best = default;
+        var foundPositive = false;
         foreach (var term in set.Terms)
         {
             var current = term.Bytes == null
                 ? FzfMatchResult.NoMatch // non-ASCII pattern text can never occur in ASCII text
                 : Match(term.Kind, text, term.Bytes, term.CaseSensitive, scheme, slab, buffers);
-            if (current.IsMatch)
-            {
-                if (term.Inverse)
-                    return false;
-
-                best = current;
-                return true;
-            }
-
             if (term.Inverse)
             {
-                best = new FzfMatchResult(0, 0, 0);
-                return true;
+                // Keep OR evaluation commutative: an absent inverse term satisfies the set, while a present
+                // inverse term does not prevent a later positive alternative from matching.
+                if (!current.IsMatch)
+                    return true;
+                continue;
+            }
+
+            if (current.IsMatch && (!foundPositive || current.Score > best.Score))
+            {
+                best = current;
+                foundPositive = true;
             }
         }
 
-        return false;
+        return foundPositive;
     }
 
     // '|' polyphonic-alias segmentation on bytes -- mirrors FzfPattern.TryMatch's segmented branch.
