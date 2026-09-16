@@ -16,14 +16,12 @@ public sealed class NaturalNameComparerTests
             Sorted("lx-music", "LRC maker", "Lertaro"));
 
     [TestMethod]
-    public void DigitsCompareByValue()
-    {
+    public void DigitsCompareByValue() =>
         // The whole point of a natural sort: numeric runs compare as numbers, not as characters -- a plain
         // Ordinal/culture compare puts "10" before "9".
         CollectionAssert.AreEqual(
             new[] { "file2.txt", "file9.txt", "file10.txt" },
             Sorted("file10.txt", "file2.txt", "file9.txt"));
-    }
 
     [TestMethod]
     public void LargerNumericRunsStillCompareByValue() =>
