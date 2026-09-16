@@ -84,20 +84,27 @@ El interruptor solo cambia la precedencia entre los dos operadores: no introduce
 
 Nota: `|` debe ser un token independiente con espacios a ambos lados — `a|b` o `a |b` no se interpretan como OR. Esto también se aplica a una exclusión: `b | :c` se lee como «b, o no c», así que para excluir algo de toda la consulta, dale a la exclusión su propia posición separada por espacios (`b :c`).
 
-#### Comillas y precedencia
+#### La precedencia no se ve afectada por las comillas
 
-Una frase entrecomillada `'...'` nunca cruza una barra vertical: la barra vertical siempre pone fin al alcance de la frase, así que `'data | 'backup` son dos alternativas OR (una por palabra entrecomillada), no una frase que contiene una barra vertical. Esto se cumple con ambos ajustes de precedencia.
+No existe ninguna sintaxis de comillas que cambie cómo se lee la precedencia; la agrupación la fija únicamente el ajuste anterior. Una `|` solo es un OR cuando es un token independiente rodeado de espacios, así que incluirla en texto normal como `data|backup` solo busca esa cadena literal.
 
-### Espacios escapados y frases entre comillas
+### La regla del espacio
 
-Para buscar una frase que contenga espacios dentro de un solo término, escapa el espacio con una barra invertida `\ `, o encierra la frase entre comillas simples `'...'` o dobles `"..."`:
+No hay forma de meter un espacio dentro de un solo término. El espacio es siempre el separador AND, así que una consulta con espacios es siempre varios términos unidos por AND: este es el único punto en el que Lertaro lee la puntuación como estructura:
 
 ```text
-final\ report
-'final report'
+final report
 ```
 
-Ambos ejemplos tratan `final report` como una única frase con espacio, en lugar de dividirla en dos términos AND independientes.
+es `final` AND `report`, que no es lo mismo que una única frase `final report`.
+
+**Ni las comillas ni la barra invertida lo resuelven.** `'final report'` y `"final report"` no son sintaxis de frase: las comillas se comparan como caracteres literales, así que esas consultas buscan nombres que contengan una comilla y no encuentran nada. `final\ report` también se lee como las dos palabras `final` AND `report`.
+
+En resumen, Lertaro no tiene búsqueda de frase exacta. Cuando las dos palabras son adyacentes en el nombre que buscas, busca solo la mitad más distintiva y deja que la ordenación la ponga arriba; o usa una cláusula de expresión regular, que compara el nombre como un todo (ver más abajo):
+
+```text
+/^final report/
+```
 
 ### Pegar varias líneas dobladas en OR
 
@@ -125,8 +132,6 @@ Se pega automáticamente como:
 | `:` | Exclusión | Descarta todos los resultados cuyo nombre contenga este texto (siempre exacto, nunca difuso) | `:temp` |
 | `\|` | Lógica OR | Coincide con cualquiera de los lados de la barra vertical | `doc \| pdf` |
 | `/.../` | Expresión regular | Coincide con el nombre mediante una expresión regular de .NET (ver más abajo) | `/^report.*\.md$/` |
-| `\ ` | Espacio escapado | Mantiene un espacio dentro de un mismo término | `final\ report` |
-| `'...'` / `"..."` | Frase entrecomillada | Mantiene toda una frase (espacios incluidos) como un único término | `'final report'` |
 | `*` | Omitir exclusiones | Excepción puntual a tus reglas de exclusión configuradas (solo como primer carácter) | `*node_modules` |
 | `<` `>` | Token de orden / filtro | Ordena y, opcionalmente, filtra los resultados (ver la [sección 5](#_5-tokens-de-consulta-ordenacion-y-filtrado)) | `<s>20m` |
 | `\` | Token de plugin | Aplica un filtro proporcionado por un plugin, p. ej. una categoría de archivo (ver la [sección 5](#_5-tokens-de-consulta-ordenacion-y-filtrado)) | `\audio` |
@@ -219,7 +224,7 @@ report <s>20m \audio
 \audio report <s>20m
 ```
 
-Un token solo cuenta cuando es la **palabra completa** y empieza la palabra: `abc\def` es texto normal, no un token. Entrecomillarlo también lo excluye, así que `"\audio"` busca los caracteres literales en lugar de aplicar el filtro. Para incluir un espacio dentro de un token, escápalo como `\ `.
+Un token solo cuenta cuando es la **palabra completa** y empieza la palabra: `abc\def` es texto normal, no un token.
 
 ### Ordenación y umbrales (`<` y `>`)
 

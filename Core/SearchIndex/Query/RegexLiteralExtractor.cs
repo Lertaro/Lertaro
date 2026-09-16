@@ -20,7 +20,7 @@ namespace Lertaro.Core.SearchIndex.Query;
 // literal only costs speed; returning a wrong one drops real results, so every rule below is stated in the
 // conservative direction.
 //
-// Four traps this walker exists inside, all of which produced a WRONG literal before being fixed (they were
+// Five traps this walker exists inside, all of which produced a WRONG literal before being fixed (they were
 // invisible while nothing consumed the result, and became wrong results the moment it fed the prefilter):
 //
 //   1. An optional atom is not required. "ab?c" matches "ac", so "b" cannot be claimed -- the same for "*"
@@ -32,6 +32,9 @@ namespace Lertaro.Core.SearchIndex.Query;
 //      "abcdef".
 //   4. A group that chooses between alternatives contributes nothing at all, so it is skipped whole; text
 //      OUTSIDE it is still required, which is why "\.(?:ogg|mp3)$" yields "." rather than nothing.
+//   5. A group that is not the match's own text contributes nothing either -- see the '(' case. A NEGATIVE
+//      assertion is the wrong-literal case here, not just the weak-literal one: "/^(?!.*tmp).*\.md$/" says
+//      "tmp" must be ABSENT, and demanding it returned nothing for "readme.md".
 internal static class RegexLiteralExtractor
 {
     // The longest run of literal characters any match must contain. Empty when the pattern has none.
@@ -65,11 +68,12 @@ internal static class RegexLiteralExtractor
             switch (c)
             {
                 case '\\':
-                    // An escaped metacharacter is a literal character. An escaped class (\d, \w) is not.
+                    // An escaped metacharacter is a literal character. A class (\d, \w), an anchor (\b) or
+                    // a backreference (\1) is not, and ends the run instead.
                     if (i + 1 < pattern.Length)
                     {
                         var next = pattern[i + 1];
-                        if (IsEscapedClass(next))
+                        if (IsEscapedNonLiteral(next))
                         {
                             Flush(current, ref best);
                             lastIsOptional = false;
@@ -120,6 +124,22 @@ internal static class RegexLiteralExtractor
                     runIsContiguous = true;
                     if (c == '(')
                     {
+                        // A group that carries none of the match's own text -- a lookaround, an inline
+                        // option setting, a comment -- contributes nothing, and must be skipped whole.
+                        // Scanning a NEGATIVE assertion's contents is not merely weak, it is wrong: the
+                        // assertion says that text must be ABSENT, so demanding it of every candidate
+                        // drops exactly the names the pattern exists to match. "/^(?!.*tmp).*\.md$/" used
+                        // to yield "tmp" and so returned nothing for "readme.md". Positive assertions do
+                        // require their contents, but skipping those too costs only prefilter strength
+                        // and keeps every group of this shape on one rule.
+                        var close = SkipAlternationGroup(pattern, i);
+                        if (IsTextlessGroup(pattern, i))
+                        {
+                            i = close;
+                            runIsContiguous = false;
+                            continue;
+                        }
+
                         // A group breaks the run at BOTH ends -- text before it and text after it are not
                         // adjacent in a match, so they can never be one substring. That is also why the
                         // ')' case below does not resume the run: giving up the pair of short runs costs a
@@ -128,7 +148,6 @@ internal static class RegexLiteralExtractor
                         // Find the close before deciding whether the group itself is required: a quantifier
                         // after the close applies to the whole group, not merely to the last character that
                         // happened to be scanned inside it.
-                        var close = SkipAlternationGroup(pattern, i);
                         var hasAlternation = HasAlternationAtOwnLevel(pattern, i, close);
                         if (hasAlternation || IsOptionalGroup(pattern, close))
                         {

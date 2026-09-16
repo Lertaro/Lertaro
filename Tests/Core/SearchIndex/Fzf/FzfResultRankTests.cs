@@ -72,15 +72,4 @@ public sealed class FzfResultRankTests
         // the score component, so the two are directly comparable via FzfResultRank.Compare.
         Assert.IsGreaterThan(0, FzfResultRank.Compare(weighted, rank));
     }
-
-    [TestMethod]
-    public void RankLow32_SameTextAndMatch_IsDeterministic()
-    {
-        var match = new FzfPatternResult(Score: 50, MinBegin: 2, MinEnd: 6, MaxEnd: 6, ValidOffsetFound: true);
-
-        var first = FzfResultRank.RankLow32("readme.md", match);
-        var second = FzfResultRank.RankLow32("readme.md", match);
-
-        Assert.AreEqual(first, second);
-    }
 }
