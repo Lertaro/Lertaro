@@ -5,8 +5,11 @@ using Lertaro.Core;
 using Lertaro.App.Services.Plugin;
 namespace Lertaro.App.ViewModels.Search;
 
-// Dispatches the raw tokens split out of a query's trailing ":a,b,c" suffix to whichever registered
-// IQueryTokenProvider plugin claims each one, chaining the result through providers in token order.
+// Dispatches the raw tokens QueryTokenScanner lifted out of a query -- any word starting with a token
+// trigger, wherever it sits -- to whichever registered IQueryTokenProvider plugin claims each one,
+// chaining the result through providers in token order. Each token is passed exactly as it appeared,
+// trigger character included, which is why a provider's own configured prefix has to match the app-wide
+// one to ever be asked (see QueryTokenPrefixRules).
 // Operates purely on the file/directory subset the caller hands it -- has no idea about (and doesn't
 // try to reconstruct) section headers, instant results, applications, or anything else that ends up in
 // the final UI list; composing the final result set around whatever this returns, and deciding what a
