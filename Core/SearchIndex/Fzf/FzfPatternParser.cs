@@ -16,20 +16,24 @@ internal static class FzfPatternParser
 
     public static FzfPattern Parse(string query)
     {
-        // Regex clauses are lifted out first: their backslashes and slashes would otherwise trip the
-        // path-mode detection below and turn the whole query into a full-path match.
         var text = RegexQueryParser.Split(query, out var clauses);
-        var regexes = ToPatternArray(clauses);
+        return ParseCore(text, ToPatternArray(clauses));
+    }
 
+    internal static FzfPattern Parse(string query, string[]? regexes)
+    {
+        var text = RegexQueryParser.Split(query, out _);
+        return ParseCore(text, regexes);
+    }
+
+    private static FzfPattern ParseCore(string text, string[]? regexes)
+    {
         string? targetDrive = null;
         var terms = new List<string>();
         foreach (var rawTerm in text.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
         {
             // A drive spec is exactly "X:" -- one ASCII letter followed by the half-width colon, and
-            // nothing else. "d:report" is NOT a drive any more: it stays a literal term, because the
-            // colon is a legal file-name character and guessing intent from it produced false positives
-            // on names like "c:notes.txt". Only the bare "d:" token (which the space split has already
-            // separated) still selects a drive.
+            // nothing else. "d:report" remains literal text; only the bare "d:" token selects a drive.
             if (rawTerm.Length == 2 && IsAsciiLetter(rawTerm[0]) && rawTerm[1] == Path.VolumeSeparatorChar)
             {
                 targetDrive = rawTerm[0].ToString();
@@ -65,6 +69,9 @@ internal static class FzfPatternParser
         var text = RegexQueryParser.Split(query, out var clauses);
         return Build(null, text, ToPatternArray(clauses));
     }
+
+    internal static FzfPattern ParseText(string query, string[]? regexes)
+        => Build(null, query, regexes);
 
     // Decides which of the two precedence readings the query gets and materializes the matching shape.
     //

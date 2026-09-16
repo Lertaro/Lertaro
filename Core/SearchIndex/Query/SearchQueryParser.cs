@@ -9,7 +9,8 @@ public static class SearchQueryParser
         // either as a path separator turned the whole query into a full-path search for a path that
         // cannot exist, dropping every result. The rest of the query is what actually gets searched, so
         // that is what the path/name decision has to be made from.
-        var withoutRegexes = RegexQueryParser.Split(query, out _);
+        var withoutRegexes = RegexQueryParser.Split(query, out var clauses);
+        var regexes = clauses.Count == 0 ? null : clauses.Select(c => c.Pattern).ToArray();
 
         var normalizedQuery = NormalizePathSeparators(withoutRegexes.Trim()).ToLowerInvariant();
         if (ContainsPathSeparator(normalizedQuery))
@@ -31,7 +32,8 @@ public static class SearchQueryParser
                 pathTargetDrive,
                 pathPatternLower,
                 exactPathLower,
-                pathEndsWithSeparator);
+                pathEndsWithSeparator,
+                regexes);
         }
 
         string? targetDrive = null;
@@ -50,7 +52,8 @@ public static class SearchQueryParser
             isPathMode: false,
             targetDrive,
             pathPatternLower: null,
-            exactPathLower: null);
+            exactPathLower: null,
+            regexes: regexes);
     }
 
     private static bool ContainsPathSeparator(string text) => text.IndexOf(Path.DirectorySeparatorChar) >= 0 ||
