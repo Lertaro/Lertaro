@@ -4,7 +4,6 @@ using Lertaro.Core;
 using Lertaro.App.ViewModels.Search;
 
 using Lertaro.Core.Services.Search;
-using Lertaro.Core.Services.Pipe;
 using Lertaro.Core.Wire;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Query;
@@ -21,72 +20,11 @@ namespace Lertaro.App.Services.Pipe;
 // identical either way -- only the pipe name differs.
 public static class AppSearchPipeService
 {
-    // Two independent layers, matching how AppPipeService's own activation pipe scopes itself, plus one
-    // more: the per-SID and per-session suffix means a different Windows account's App instance never contends for
-    // the exact same pipe name in the first place (Windows named pipes live in the machine-wide \\.\pipe\
-    // namespace, not session-isolated by default), and the ACL below backs that with actual enforcement --
-    // the OS itself rejects a connection attempt from any SID but the current user's, so even a guessed/
-    // predicted name (Windows usernames aren't secret) can't cross accounts. This matters specifically for
-    // this pipe (unlike the plain activation one) because a search request can return another user's own
-    // file paths/network-drive contents.
-    private static readonly string PipeName = AppPipeNames.SearchPipeName;
-    private static bool _keepRunning = true;
     private static readonly SearchService SharedSearchService = new();
 
-    public static void StopServer() => _keepRunning = false;
+    public static void StopServer() => AppSearchPipeListener.Stop();
 
-    public static Task StartPipeServerAsync() => Task.Run(ListenLoopAsync);
-
-    private static async Task ListenLoopAsync()
-    {
-        // PipeSecurityFactory.CreateCurrentUserOnly's ACL (SID-based), not the simpler
-        // PipeOptions.CurrentUserOnly flag: this pipe needs to be reachable from an ELEVATED client too
-        // (`lff` run from an admin terminal), and PipeOptions.CurrentUserOnly's own client-side check
-        // compares token OWNER, not the actual user SID -- for a member of Administrators that's
-        // BUILTIN\Administrators on both the standard and elevated token, not this (non-elevated) App's
-        // own user SID, so an elevated client fails that check even though it's the very same logged-in
-        // user. See CreateCurrentUserOnly's own comment for the full explanation.
-        var pipeSecurity = PipeSecurityFactory.CreateCurrentUserOnly();
-        if (pipeSecurity == null)
-        {
-            // No PipeOptions.CurrentUserOnly fallback here (unlike an earlier version of this method) --
-            // that flag is precisely the buggy mechanism the ACL above replaced (see the comment on
-            // CreateCurrentUserOnly), so silently falling back to it would quietly reintroduce the exact
-            // "elevated client rejected" bug this exists to avoid, in whatever rare case
-            // WindowsIdentity.GetCurrent().User itself fails to resolve. Unlike HookIpcServer's own
-            // fallback (a plain, unrestricted pipe), this one also isn't an acceptable substitute here:
-            // this pipe's results can carry another user's own file paths/network-drive contents (see the
-            // PipeName comment above), so a broadened ACL is a real exposure, not just a shrug-worthy
-            // degradation. Refusing to start is the honest failure mode.
-            Logger.Log("[AppSearchPipeService] Could not resolve the current user's SID -- refusing to start (would otherwise need to either reintroduce a known bug or broaden this pipe's ACL, neither acceptable).", LogLevel.Error);
-            return;
-        }
-
-        while (_keepRunning)
-        {
-            NamedPipeServerStream? pipe = null;
-            try
-            {
-                pipe = NamedPipeServerStreamAcl.Create(
-                    PipeName,
-                    PipeDirection.InOut,
-                    NamedPipeServerStream.MaxAllowedServerInstances,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous,
-                    4096, 4096,
-                    pipeSecurity);
-
-                await pipe.WaitForConnectionAsync().ConfigureAwait(false);
-                _ = Task.Run(() => HandleClientAsync(pipe));
-            }
-            catch (Exception ex)
-            {
-                pipe?.Dispose();
-                Logger.Log($"[AppSearchPipeService] Server connection failed: {ex.Message}", LogLevel.Error);
-                await Task.Delay(1000).ConfigureAwait(false);
-            }
-        }
-    }
+    public static Task StartPipeServerAsync() => Task.Run(() => AppSearchPipeListener.ListenLoopAsync(HandleClientAsync));
 
     private static async Task HandleClientAsync(NamedPipeServerStream pipe)
     {
@@ -96,7 +34,11 @@ public static class AppSearchPipeService
             {
                 while (pipe.IsConnected)
                 {
-                    var request = await SearchRequestBinarySerializer.ReadSearchRequestAsync(pipe);
+                    // Bounded read: a stalled or silent client is dropped rather than parking this handler
+                    // (and its connection slot) indefinitely. The timeout is reported as cancellation, so
+                    // the catch below ends the connection quietly, as it does for any other disconnect.
+                    using var readCts = new CancellationTokenSource(AppSearchPipeListener.RequestReadTimeout);
+                    var request = await SearchRequestBinarySerializer.ReadSearchRequestAsync(pipe, readCts.Token);
                     if (request.Id == SearchRequestId.GetSpaceEntries)
                     {
                         await AppSearchPipeSpaceEntries.WriteAsync(SharedSearchService, request.Drive, pipe);
