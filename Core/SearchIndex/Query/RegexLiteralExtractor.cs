@@ -1,3 +1,5 @@
+using static Lertaro.Core.SearchIndex.Query.RegexLiteralScanSupport;
+
 namespace Lertaro.Core.SearchIndex.Query;
 
 // Pulls the "must appear verbatim" pieces out of a regular expression so a regex search can be
@@ -123,17 +125,23 @@ internal static class RegexLiteralExtractor
                         // ')' case below does not resume the run: giving up the pair of short runs costs a
                         // little prefilter strength and removes every question of whether a group is
                         // optional or quantified, which is the trade this file's own rule asks for.
+                        // Find the close before deciding whether the group itself is required: a quantifier
+                        // after the close applies to the whole group, not merely to the last character that
+                        // happened to be scanned inside it.
                         var close = SkipAlternationGroup(pattern, i);
-                        if (HasAlternationAtOwnLevel(pattern, i, close))
+                        var hasAlternation = HasAlternationAtOwnLevel(pattern, i, close);
+                        if (hasAlternation || IsOptionalGroup(pattern, close))
                         {
-                            // Branch contents are not required of every match, so they are skipped whole.
+                            // Branch contents are not required of every match. The same is true for a plain
+                            // group followed by '?', '*', or a zero-minimum repeat: '(ab)?c' matches 'c', so
+                            // 'ab' must never reach the required-literal mask.
                             i = close;
                             runIsContiguous = false;
                         }
                         else
                         {
-                            // A plain group's contents ARE required, so they are scanned normally; the run
-                            // simply starts fresh inside it.
+                            // A required plain group's contents ARE required, so they are scanned normally;
+                            // the run simply starts fresh inside it.
                             i = SkipGroupPrefix(pattern, i);
                         }
                     }
@@ -195,213 +203,4 @@ internal static class RegexLiteralExtractor
         return best;
     }
 
-    // True when the pattern chooses between alternatives at its TOP level, where no text at all can be
-    // required of every match ("readme|notes" matches either word). An alternation nested inside a group is
-    // a different matter: "\.(?:ogg|mp3)$" still requires the "\." before it and the "$" after it, and
-    // bailing out for those was throwing away the most common real-world pattern there is (a list of
-    // extensions). Those groups are skipped as a unit instead -- see SkipAlternationGroup.
-    private static bool HasTopLevelAlternation(string pattern)
-    {
-        var depth = 0;
-        for (var i = 0; i < pattern.Length; i++)
-        {
-            var c = pattern[i];
-            if (c == '\\')
-            {
-                i++;
-                continue;
-            }
-
-            if (c == '[')
-            {
-                i = SkipCharacterClass(pattern, i);
-                continue;
-            }
-
-            if (c == '(')
-            {
-                depth++;
-                continue;
-            }
-
-            if (c == ')')
-            {
-                if (depth > 0)
-                    depth--;
-                continue;
-            }
-
-            // Only depth 0 is unresolvable. Deeper pipes are a group's business, and the group as a whole
-            // is still required text as far as the run outside it is concerned.
-            if (c == '|' && depth == 0)
-                return true;
-        }
-
-        return false;
-    }
-
-    // Advances past a group whose contents choose between alternatives, returning the index of its closing
-    // ')' (or the end of the pattern when it is unterminated). Nothing inside is claimed as literal: which
-    // branch matched decides which characters are present.
-    private static int SkipAlternationGroup(string pattern, int openIndex)
-    {
-        var depth = 1;
-        for (var i = openIndex + 1; i < pattern.Length; i++)
-        {
-            var c = pattern[i];
-            if (c == '\\')
-            {
-                i++;
-                continue;
-            }
-
-            if (c == '[')
-            {
-                i = SkipCharacterClass(pattern, i);
-                continue;
-            }
-
-            if (c == '(')
-            {
-                depth++;
-                continue;
-            }
-
-            if (c == ')')
-            {
-                depth--;
-                if (depth == 0)
-                    return i;
-            }
-        }
-
-        return pattern.Length - 1;
-    }
-
-    // True when the group spanning `openIndex`..`closeIndex` contains a '|' at its own nesting level, i.e.
-    // the group itself is a set of alternatives, so no character inside it is required of every match.
-    private static bool HasAlternationAtOwnLevel(string pattern, int openIndex, int closeIndex)
-    {
-        var depth = 1;
-        for (var i = openIndex + 1; i < closeIndex; i++)
-        {
-            var c = pattern[i];
-            if (c == '\\')
-            {
-                i++;
-                continue;
-            }
-
-            if (c == '[')
-            {
-                i = SkipCharacterClass(pattern, i);
-                continue;
-            }
-
-            if (c == '(')
-            {
-                depth++;
-                continue;
-            }
-
-            if (c == ')')
-            {
-                depth--;
-                continue;
-            }
-
-            if (c == '|' && depth == 1)
-                return true;
-        }
-
-        return false;
-    }
-
-    private static void Flush(System.Text.StringBuilder current, ref string best)
-    {
-        if (current.Length > best.Length)
-            best = current.ToString();
-
-        current.Clear();
-    }
-
-    // \d \w \s and friends match a CLASS of characters, so they contribute no literal text.
-    private static bool IsEscapedClass(char c) => char.IsLetter(c) || c == 'b' || c == 'B';
-
-    // Advances past a "[...]" class, honouring a leading ']' and the "[:name:]" form so the class's own
-    // brackets are not mistaken for a literal.
-    private static int SkipCharacterClass(string pattern, int openIndex)
-    {
-        var i = openIndex + 1;
-        if (i < pattern.Length && pattern[i] == '^')
-            i++;
-        if (i < pattern.Length && pattern[i] == ']')
-            i++;
-
-        while (i < pattern.Length && pattern[i] != ']')
-        {
-            if (pattern[i] == '\\')
-                i++;
-            i++;
-        }
-
-        return i;
-    }
-
-    // True when a "{...}" quantifier body at `openIndex` allows zero repetitions ("{0}", "{0,3}"), which
-    // makes the atom before it optional. An unparseable body counts as not-zero, matching the "miss an
-    // extractable literal rather than return a wrong one" rule only in the safe direction: a repeat with a
-    // minimum above zero keeps its atom required whatever the upper bound is.
-    private static bool StartsAtZero(string pattern, int openIndex)
-    {
-        var i = openIndex + 1;
-        if (i >= pattern.Length)
-            return false;
-
-        // Optional whitespace is not legal in a quantifier, but skipping it costs nothing.
-        while (i < pattern.Length && pattern[i] == ' ')
-            i++;
-
-        if (i < pattern.Length && pattern[i] == '0')
-        {
-            var after = i + 1;
-            return after >= pattern.Length || pattern[after] == ',' || pattern[after] == '}';
-        }
-
-        return false;
-    }
-
-    private static int SkipUntil(string pattern, int from, char terminator)
-    {
-        for (var i = from; i < pattern.Length; i++)
-        {
-            if (pattern[i] == terminator)
-                return i;
-        }
-
-        return pattern.Length;
-    }
-
-    // Steps past a group's opening syntax -- "(?:" "(?<name>" "(?=" "(?!" and the bare "(" -- and returns
-    // the index of the LAST character consumed, so the caller's own loop increment lands on the group's
-    // first content character. (Returning that content index instead silently skipped a character of every
-    // group: the caller adds one on top of whatever this returns.)
-    //
-    // ")" is deliberately NOT a break in the scan: the group's contents are required text, so a run has to
-    // pass straight through it. Treating ")" as a boundary is what made "abc(def)" report "abc".
-    private static int SkipGroupPrefix(string pattern, int openIndex)
-    {
-        var i = openIndex + 1;
-        if (i >= pattern.Length || pattern[i] != '?')
-            return openIndex;
-
-        i++;
-        if (i < pattern.Length && (pattern[i] == '<' || pattern[i] == '\''))
-        {
-            var closer = pattern[i] == '<' ? '>' : '\'';
-            return SkipUntil(pattern, i, closer);
-        }
-
-        return i;
-    }
 }
