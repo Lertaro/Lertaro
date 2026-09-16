@@ -49,4 +49,21 @@ public sealed class ExclusionSearchTests
         Assert.Contains(@"T:\notes.txt", exclusionFirst);
         Assert.DoesNotContain(@"T:\draft-temp.txt", exclusionFirst);
     }
+
+    [TestMethod]
+    public void SearchStreaming_RegexWithAnExclusion_RequiresBoth()
+    {
+        using var fixture = BuildReportsDrive();
+
+        // A "/.../" clause is a positive requirement in its own right, so it satisfies the exclusion-only
+        // guard alone -- and the exclusion beside it must still veto. Every name here is pure ASCII, so
+        // this also pins that the byte fast path steps aside for the clause instead of answering on the
+        // exclusion alone (which would return every name lacking "temp").
+        var paths = Search(fixture, @"/\.txt$/ :temp");
+
+        Assert.Contains(@"T:\report-final.txt", paths);
+        Assert.Contains(@"T:\notes.txt", paths);
+        Assert.DoesNotContain(@"T:\report-temp.txt", paths);
+        Assert.DoesNotContain(@"T:\draft-temp.txt", paths);
+    }
 }

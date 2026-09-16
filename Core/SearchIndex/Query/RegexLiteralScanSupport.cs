@@ -139,7 +139,11 @@ internal static class RegexLiteralScanSupport
         current.Clear();
     }
 
-    internal static bool IsEscapedClass(char c) => char.IsLetter(c) || c == 'b' || c == 'B';
+    // An escape that is NOT the literal character it looks like: a class or anchor (\d \w \p{L} \b), or a
+    // backreference (\1). Both must end the run rather than contribute text -- "\1" stands for the group it
+    // points at and never for "1", so claiming it would demand a character no match of "^(ab)\1$" contains.
+    // Everything else is an escaped metacharacter and IS its own literal ("\.", "\\").
+    internal static bool IsEscapedNonLiteral(char c) => char.IsLetter(c) || char.IsDigit(c);
 
     internal static int SkipCharacterClass(string pattern, int openIndex)
     {
@@ -202,5 +206,33 @@ internal static class RegexLiteralScanSupport
         }
 
         return i;
+    }
+
+    // True for a "(?" group that carries none of the match's own text: a lookahead ("(?=" / "(?!"), a
+    // lookbehind ("(?<=" / "(?<!"), an inline option setting ("(?i)", "(?i:...") or a comment ("(?#...").
+    //
+    // Only the ":" (non-capturing) and "(?<name>" / "(?'name'" (capturing) forms are ordinary groups that
+    // DO contain the match's text; everything else opening with "(?" is metadata about how to match rather
+    // than something a candidate must contain. The negative forms are the dangerous ones -- they assert
+    // the text is ABSENT, so scanning their contents as required inverts the assertion: see
+    // RegexLiteralExtractor's '(' case.
+    internal static bool IsTextlessGroup(string pattern, int openIndex)
+    {
+        var i = openIndex + 1;
+        if (i + 1 >= pattern.Length || pattern[i] != '?')
+            return false;
+
+        var kind = pattern[i + 1];
+        if (kind == ':')
+            return false;
+
+        if (kind is not ('<' or '\''))
+            return true;
+
+        // "(?<" opens either a lookbehind or a named group; "(?'" only ever names a group. The marker
+        // right after the bracket decides, which is what keeps "(?<=pre)" out of the named-group branch
+        // that would otherwise swallow the rest of the pattern looking for a '>'.
+        var after = i + 2;
+        return after < pattern.Length && (pattern[after] == '=' || pattern[after] == '!');
     }
 }

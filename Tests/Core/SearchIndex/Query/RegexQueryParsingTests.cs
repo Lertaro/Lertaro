@@ -153,6 +153,26 @@ public sealed class RegexQueryParserTests
     }
 
     [TestMethod]
+    public void Split_AsteriskBypassBeforeAClause_IsStrippedFirstSoTheClauseSurvives()
+    {
+        // The two markers are consumed by different layers and in a fixed order: the App strips the leading
+        // '*' (QueryTokenScanner.StripExclusionBypass) before Core ever looks for clauses. Handing the raw
+        // "*/\.md$/" to the clause reader leaves the '*' glued to the opening delimiter, so the word no
+        // longer STARTS with '/' and the query silently degrades to a literal-text search.
+        var stripped = QueryTokenScanner.StripExclusionBypass(@"*/\.md$/", out var bypass);
+        var rest = RegexQueryParser.Split(stripped, out var patterns);
+
+        Assert.IsTrue(bypass);
+        Assert.AreEqual(string.Empty, rest);
+        Assert.HasCount(1, patterns!);
+        Assert.AreEqual(@"\.md$", patterns![0]);
+
+        // The un-stripped form is not a clause at all, which is what makes the ordering load-bearing.
+        RegexQueryParser.Split(@"*/\.md$/", out var unstripped);
+        Assert.IsNull(unstripped);
+    }
+
+    [TestMethod]
     public void RequiredRegexLiteral_LongestExtractableRunWins()
     {
         Assert.AreEqual(".exe", FzfPattern.Parse(@"/\.exe$/").RequiredRegexLiteral);

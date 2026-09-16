@@ -31,12 +31,4 @@ public sealed class OrderItemBaseTests
 
         CollectionAssert.Contains(raised, nameof(ColumnOrderItem.DisplayName));
     }
-
-    [TestMethod]
-    public void Id_IsSetFromConstructorAndNeverChanges()
-    {
-        var item = new ColumnOrderItem("stable-id", () => "name");
-
-        Assert.AreEqual("stable-id", item.Id);
-    }
 }

@@ -18,6 +18,11 @@ public sealed class SearchSyntaxReservedTests
     [DataRow(":temp")]
     [DataRow("*node_modules")]
     [DataRow("/\\.md$/")]
+    // NOTE: this list mirrors LeadingCharacters rather than the syntax table in Plan.md §2.2, which also
+    // lists the quote pair (' ") as grouping characters. Note the two disagree: a leading quote changes how
+    // the query is read (see FzfPatternParser.MergeQuotedPhrases) but is not refused to a configurable
+    // trigger, so a row for it here would fail. This test cannot tell the two sets apart -- if the grouping
+    // characters are ever promoted to reserved, this DataRow set and LeadingCharacters move together.
     public void StartsWithReservedCharacter_EverySyntaxCharacter_IsReserved(string value)
         => Assert.IsTrue(SearchSyntaxReserved.StartsWithReservedCharacter(value));
 
