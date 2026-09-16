@@ -61,9 +61,9 @@ internal static class FzfPatternParser
 
     // Decides which of the two precedence readings the query gets and materializes the matching shape.
     //
-    // A regex clause carries no ordinary terms of its own -- the "regex:" text was stripped by
-    // RegexQueryParser -- so a regex-only query reaches this with an empty term string and is handled as
-    // the pattern's regex-only case.
+    // A regex clause carries no ordinary terms of its own -- RegexQueryParser stripped its "/" delimiters
+    // and took the pattern out of the query -- so a regex-only query reaches this with an empty term
+    // string and is handled as the pattern's regex-only case.
     //
     // OR-first (SearchContext.AndFirstPrecedence == false, the historical reading) is "conjunction of
     // disjunctions" and is exactly what the flat TermSets has always represented, so it is built the

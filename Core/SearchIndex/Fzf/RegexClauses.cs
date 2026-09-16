@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace Lertaro.Core.SearchIndex.Fzf;
 
-// Compiles and caches the "regex:/.../" clauses a query carried, and evaluates them against a candidate
+// Compiles and caches the "/.../" clauses a query carried, and evaluates them against a candidate
 // name.
 //
 // Compiled once per distinct pattern string rather than per candidate: a regex search runs its clauses

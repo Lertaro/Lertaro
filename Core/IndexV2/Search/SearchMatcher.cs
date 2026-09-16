@@ -104,7 +104,7 @@ internal static class SearchMatcher
         }
 
         // A regex clause cannot be mask-tested, but the literal its extractor pulled out of it can -- and
-        // that is the whole point of extracting one. Without this, "regex:/^report.*\.md$/" ran the regex
+        // that is the whole point of extracting one. Without this, "/^report.*\.md$/" ran the regex
         // engine against every indexed name; with it, the same cheap character mask a literal query uses
         // rejects the names that cannot possibly match first, and only the survivors reach the regex.
         //

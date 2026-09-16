@@ -24,7 +24,7 @@ internal sealed class FzfPattern
     {
     }
 
-    // regexes are the "regex:/.../" clauses from the query, ANDed with everything else. They cannot ride in
+    // regexes are the "/.../" clauses from the query, ANDed with everything else. They cannot ride in
     // TermSets because the byte-level matcher (FzfBytePattern) has no regex support and the char-level
     // TermSets have no notion of a pattern that is not fixed text -- so they are carried alongside and
     // applied by TryMatchSingle on the decoded char span (see RegexClauses).
@@ -46,7 +46,7 @@ internal sealed class FzfPattern
     // authoritative shape and TryMatch/TryMatchSingle evaluate it instead of TermSets.
     public FzfTermGroup[]? OrGroups { get; }
 
-    // Non-null only when the query carried one or more "regex:/.../" clauses. Every clause must match for
+    // Non-null only when the query carried one or more "/.../" clauses. Every clause must match for
     // the whole pattern to match.
     internal string[]? Regexes { get; }
 
@@ -124,7 +124,7 @@ internal sealed class FzfPattern
     // True when the pattern has nothing to match ON -- no ordinary terms AND no regex clauses. Callers use
     // this to mean "there is no query here", so a regex-only pattern must NOT report empty: it has real
     // matching to do, just not through a term. It used to count term sets alone, which made
-    // "regex:/\.exe$/" look like an empty query -- NameSearch's drive gate rejected it outright and the
+    // "/\.exe$/" look like an empty query -- NameSearch's drive gate rejected it outright and the
     // search returned nothing at all, and FuzzyMatcher would have called the empty pattern a non-match.
     public bool IsEmpty => TermSets.Length == 0 && Regexes is not { Length: > 0 };
 

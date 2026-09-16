@@ -24,12 +24,12 @@ public sealed class SearchQueryParserTests
     }
 
     // A regex clause is full of the characters that decide path mode, so it has to be lifted out before
-    // that decision is made. Regression: "lertaro regex:/\.exe$/" was read as a full path named
-    // "lertaro regex:\.exe$" and returned nothing at all -- the query was not a path search in any sense.
+    // that decision is made. Regression: "lertaro /\.exe$/" was read as a full path named
+    // "lertaro /\.exe$" and returned nothing at all -- the query was not a path search in any sense.
     [TestMethod]
     public void Parse_RegexWithAnEscapedDot_IsNotPathMode()
     {
-        var result = SearchQueryParser.Parse(@"lertaro regex:/\.exe$/");
+        var result = SearchQueryParser.Parse(@"lertaro /\.exe$/");
 
         Assert.IsFalse(result.IsPathMode);
         Assert.IsNull(result.PathPatternLower);
@@ -38,10 +38,11 @@ public sealed class SearchQueryParserTests
     [TestMethod]
     public void Parse_RegexWithAnEscapedSlash_IsNotPathMode()
     {
-        // The slash is escaped, so it belongs to the clause rather than to a path. (An UNescaped slash
-        // closes the clause, so whatever follows it is ordinary text and is judged as such -- either way
-        // the escaped form is the one that must not flip the query into path mode.)
-        var result = SearchQueryParser.Parse(@"regex:/^a\/b/");
+        // The slash is escaped, so it belongs to the clause rather than to a path. An UNescaped one inside
+        // the body is what makes a word stop being a clause at all (see RegexQueryParser), which is what
+        // keeps "/usr/local/" a path -- either way the escaped form is the one that must not flip the
+        // query into path mode.
+        var result = SearchQueryParser.Parse(@"/^a\/b/");
 
         Assert.IsFalse(result.IsPathMode);
     }
@@ -50,7 +51,7 @@ public sealed class SearchQueryParserTests
     public void Parse_RegexClause_DoesNotLeaveItsTextInThePathPattern()
     {
         // The clause is not part of what gets searched, so it must not leak into the path either.
-        var result = SearchQueryParser.Parse(@"regex:/\.exe$/ report");
+        var result = SearchQueryParser.Parse(@"/\.exe$/ report");
 
         Assert.IsFalse(result.IsPathMode);
         Assert.IsNull(result.ExactPathLower);
@@ -60,11 +61,11 @@ public sealed class SearchQueryParserTests
     [TestMethod]
     public void Parse_RealPathWithRegexClause_IsStillPathMode()
     {
-        var result = SearchQueryParser.Parse(@"d:\projects regex:/\.cs$/");
+        var result = SearchQueryParser.Parse(@"d:\projects /\.cs$/");
 
         Assert.IsTrue(result.IsPathMode);
         Assert.IsNotNull(result.PathPatternLower);
-        Assert.IsFalse(result.PathPatternLower.Contains("regex:", StringComparison.Ordinal));
+        Assert.AreEqual(@"d:\projects", result.PathPatternLower, "the clause must not leak into the path");
     }
 
     // The drive test here has to stay identical to FzfPattern.Parse's, or the two disagree about what
@@ -84,12 +85,26 @@ public sealed class SearchQueryParserTests
     [TestMethod]
     public void Parse_PathWithRegex_PreservesRegexForPathMatcher()
     {
-        var result = SearchQueryParser.Parse(@"c:\projects\ regex:/^readme\.txt$/");
+        var result = SearchQueryParser.Parse(@"c:\projects\ /^readme\.txt$/");
 
         Assert.IsTrue(result.IsPathMode);
         Assert.IsNotNull(result.Regexes);
         Assert.HasCount(1, result.Regexes);
         Assert.AreEqual(@"^readme\.txt$", result.Regexes[0]);
+    }
+
+    // The clause syntax is "/.../", and '/' is also the alternate path separator, so these pin that the
+    // path reading still wins wherever the two could be confused.
+    [TestMethod]
+    [DataRow("C:/Users/me", DisplayName = "forward-slash drive path")]
+    [DataRow("/mnt/c/Users", DisplayName = "forward-slash absolute path")]
+    [DataRow("/usr/local/", DisplayName = "multi-segment path with a trailing separator")]
+    public void Parse_ForwardSlashPath_IsStillPathMode(string query)
+    {
+        var result = SearchQueryParser.Parse(query);
+
+        Assert.IsTrue(result.IsPathMode, $"{query} is a path, not a regex clause");
+        Assert.IsNull(result.Regexes);
     }
 
     [TestMethod]

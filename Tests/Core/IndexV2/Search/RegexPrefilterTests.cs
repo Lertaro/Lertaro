@@ -4,7 +4,7 @@ using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.Tests.IndexV2.Search;
 
-// The regex prefilter. A "regex:/.../" clause cannot be mask-tested, so without the literal its extractor
+// The regex prefilter. A "/.../" clause cannot be mask-tested, so without the literal its extractor
 // pulls out, the regex engine runs against every indexed name. These pin the wiring itself: the literal has
 // to reach RequiredMask, and a clause with no literal must leave the prefilter exactly as it was rather
 // than switching it off or narrowing it to nothing.
@@ -14,7 +14,7 @@ public sealed class RegexPrefilterTests
     [TestMethod]
     public void BuildContext_RegexWithALiteral_AddsTheLiteralsBitsToTheMask()
     {
-        var pattern = FzfPattern.Parse(@"regex:/^report.*\.md$/");
+        var pattern = FzfPattern.Parse(@"/^report.*\.md$/");
 
         var ctx = SearchMatcher.BuildContext(pattern);
 
@@ -28,7 +28,7 @@ public sealed class RegexPrefilterTests
     {
         // Both conditions are on the same text, so the mask is the union of their requirements -- the
         // candidate must contain the term's characters AND the clause's.
-        var pattern = FzfPattern.Parse(@"readme regex:/\.md$/");
+        var pattern = FzfPattern.Parse(@"readme /\.md$/");
 
         var ctx = SearchMatcher.BuildContext(pattern);
 
@@ -42,7 +42,7 @@ public sealed class RegexPrefilterTests
         // An alternation yields no literal, so there is nothing to demand -- and crucially this must not
         // become a "filter everything out" mask: a regex-only query with no literal reports no filtering
         // rather than an unsatisfiable one.
-        var pattern = FzfPattern.Parse(@"regex:/^(ogg|mp3)$/");
+        var pattern = FzfPattern.Parse(@"/^(ogg|mp3)$/");
 
         var ctx = SearchMatcher.BuildContext(pattern);
 

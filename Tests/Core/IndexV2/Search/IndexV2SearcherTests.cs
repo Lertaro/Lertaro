@@ -42,7 +42,7 @@ public sealed class IndexV2SearcherTests
         Assert.AreEqual(@"C:\Projects", results[0].Path);
     }
 
-    // End-to-end for the two defects that made "lertaro regex:/\.exe$/" return nothing. Both have to be
+    // End-to-end for the two defects that made "lertaro /\.exe$/" return nothing. Both have to be
     // fixed for this to pass: the escaped dot's backslash used to flip the query into PATH mode (so the
     // whole text was read as a path that cannot exist), and the ASCII fast path cannot apply a regex, so
     // a regex-only clause used to reject every ASCII name. "install.exe" is pure ASCII, which is exactly
@@ -53,7 +53,7 @@ public sealed class IndexV2SearcherTests
         using var fixture = BuildSampleDrive();
         var results = new List<SearchResult>();
 
-        IndexV2Searcher.SearchStreaming(fixture.Index, @"regex:/\.exe$/", 10, results.Add, CancellationToken.None);
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"/\.exe$/", 10, results.Add, CancellationToken.None);
 
         Assert.HasCount(1, results);
         Assert.AreEqual("install.exe", results[0].Name);
@@ -67,7 +67,7 @@ public sealed class IndexV2SearcherTests
 
         // The term narrows the prefilter, the clause is the final say: "readme.txt" has the term but does
         // not match the regex, and nothing else matches both.
-        IndexV2Searcher.SearchStreaming(fixture.Index, @"readme regex:/\.exe$/", 10, results.Add, CancellationToken.None);
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"readme /\.exe$/", 10, results.Add, CancellationToken.None);
 
         Assert.IsEmpty(results);
     }
@@ -86,7 +86,7 @@ public sealed class IndexV2SearcherTests
         });
         var results = new List<SearchResult>();
 
-        IndexV2Searcher.SearchStreaming(fixture.Index, @"regex:/\.txt/", 10, results.Add, CancellationToken.None);
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"/\.txt/", 10, results.Add, CancellationToken.None);
 
         Assert.HasCount(1, results);
         Assert.AreEqual("report.txt.bak", results[0].Name);
@@ -100,7 +100,7 @@ public sealed class IndexV2SearcherTests
         using var fixture = BuildSampleDrive();
         var results = new List<SearchResult>();
 
-        IndexV2Searcher.SearchStreaming(fixture.Index, @"regex:/^(readme|notes)\.(txt|md)$/", 10, results.Add, CancellationToken.None);
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"/^(readme|notes)\.(txt|md)$/", 10, results.Add, CancellationToken.None);
 
         CollectionAssert.AreEquivalent(
             new[] { "readme.txt", "notes.md" },
@@ -116,7 +116,7 @@ public sealed class IndexV2SearcherTests
         var results = new List<SearchResult>();
 
         // ".txt" is present on readme.txt, so it survives the mask, and the regex then rejects it.
-        IndexV2Searcher.SearchStreaming(fixture.Index, @"regex:/^zzz.*\.txt$/", 10, results.Add, CancellationToken.None);
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"/^zzz.*\.txt$/", 10, results.Add, CancellationToken.None);
 
         Assert.IsEmpty(results);
     }

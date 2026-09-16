@@ -18,7 +18,7 @@ internal sealed class FzfBytePattern
     // '|' with spaces under AND-first precedence, in which case this is the authoritative shape.
     public readonly ByteTermGroup[]? OrGroups;
 
-    // True when the query carried "regex:/.../" clauses, which this byte matcher CANNOT apply: it is the
+    // True when the query carried "/.../" clauses, which this byte matcher CANNOT apply: it is the
     // ASCII fast path, and a regex needs the decoded chars. A caller that ignores this gets one of two
     // wrong answers -- a regex-only query looks like "no positive terms" and is rejected for every name
     // (so the search returns nothing at all), while a query that also has an ordinary term matches on the

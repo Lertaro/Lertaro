@@ -9,7 +9,7 @@ public sealed class RegexQueryParserTests
     [TestMethod]
     public void Split_RegexAlone_LeavesNoText()
     {
-        var rest = RegexQueryParser.Split("regex:/^ab.c\\..{3}$/", out var patterns);
+        var rest = RegexQueryParser.Split("/^ab.c\\..{3}$/", out var patterns);
 
         Assert.AreEqual(string.Empty, rest);
         Assert.HasCount(1, patterns!);
@@ -19,7 +19,7 @@ public sealed class RegexQueryParserTests
     [TestMethod]
     public void Split_RegexWithTrailingWord_KeepsTheWordAsText()
     {
-        var rest = RegexQueryParser.Split("regex:/^ab.c\\..{3}$/ zip", out var patterns);
+        var rest = RegexQueryParser.Split("/^ab.c\\..{3}$/ zip", out var patterns);
 
         Assert.AreEqual("zip", rest);
         Assert.HasCount(1, patterns!);
@@ -28,7 +28,7 @@ public sealed class RegexQueryParserTests
     [TestMethod]
     public void Split_EscapedSlashInsidePattern_DoesNotEndTheClause()
     {
-        var rest = RegexQueryParser.Split("regex:/a\\/b/ tail", out var patterns);
+        var rest = RegexQueryParser.Split("/a\\/b/ tail", out var patterns);
 
         Assert.AreEqual("tail", rest);
         Assert.HasCount(1, patterns!);
@@ -45,36 +45,77 @@ public sealed class RegexQueryParserTests
     }
 
     [TestMethod]
-    public void Split_UnterminatedRegex_StaysLiteralText()
+    public void Split_UnterminatedClause_StaysLiteralText()
     {
-        var rest = RegexQueryParser.Split("regex:/ab", out var patterns);
+        var rest = RegexQueryParser.Split("/ab", out var patterns);
 
         Assert.IsNull(patterns);
-        Assert.AreEqual("regex:/ab", rest);
+        Assert.AreEqual("/ab", rest);
     }
 
     [TestMethod]
-    public void Split_PrefixNotAtTokenBoundary_StaysLiteralText()
+    public void Split_DelimiterInsideAWord_StaysLiteralText()
     {
-        var rest = RegexQueryParser.Split("aregex:/ab/", out var patterns);
+        // A '/' that does not start its own word is a path separator, never a delimiter.
+        var rest = RegexQueryParser.Split("a/ab/", out var patterns);
 
         Assert.IsNull(patterns);
-        Assert.AreEqual("aregex:/ab/", rest);
+        Assert.AreEqual("a/ab/", rest);
     }
 
     [TestMethod]
     public void Split_TwoClauses_BothExtractedAndAnded()
     {
-        var rest = RegexQueryParser.Split("regex:/^a/ regex:/\\.md$/ report", out var patterns);
+        var rest = RegexQueryParser.Split("/^a/ /\\.md$/ report", out var patterns);
 
         Assert.AreEqual("report", rest);
         Assert.HasCount(2, patterns!);
     }
 
+    // '/' is also Windows' alternate path separator, so the clause form has to be narrow enough that the
+    // shapes a path actually takes are never read as patterns. These are the three that matter, and each
+    // one fails a different half of the "/.../" requirement.
+    [TestMethod]
+    [DataRow("C:/Users/me", DisplayName = "forward-slash drive path: the '/' does not start the word")]
+    [DataRow("/mnt/c/Users", DisplayName = "forward-slash absolute path: no closing delimiter")]
+    [DataRow("/usr/local/", DisplayName = "multi-segment path: an unescaped '/' inside the body")]
+    [DataRow("//server/share/", DisplayName = "UNC path in forward slashes")]
+    [DataRow("//", DisplayName = "empty body")]
+    public void Split_ForwardSlashPaths_StayLiteralText(string query)
+    {
+        var rest = RegexQueryParser.Split(query, out var patterns);
+
+        Assert.IsNull(patterns, $"{query} must not be read as a pattern");
+        Assert.AreEqual(query, rest);
+    }
+
+    [TestMethod]
+    public void Split_EscapedSpaceInsidePattern_IsKeptInTheBody()
+    {
+        // The same escape convention QueryTokenScanner uses to split a query into words, so a pattern may
+        // still contain a space.
+        var rest = RegexQueryParser.Split(@"/^my\ file$/ tail", out var patterns);
+
+        Assert.AreEqual("tail", rest);
+        Assert.HasCount(1, patterns!);
+        Assert.AreEqual(@"^my\ file$", patterns![0]);
+    }
+
+    [TestMethod]
+    public void Split_ClauseFollowedByTextInTheSameWord_IsNotAClause()
+    {
+        // The closing delimiter has to be the word's last character, so "/a/b" is a path-looking word
+        // rather than the clause "a" with a stray "b".
+        var rest = RegexQueryParser.Split("/a/b", out var patterns);
+
+        Assert.IsNull(patterns);
+        Assert.AreEqual("/a/b", rest);
+    }
+
     [TestMethod]
     public void Split_EscapedDotQuery_ReachesTheMatcherFromANonPathQuery()
     {
-        var query = @"lertaro regex:/\.exe$/";
+        var query = @"lertaro /\.exe$/";
 
         var rest = RegexQueryParser.Split(query, out var patterns);
         var parsed = SearchQueryParser.Parse(query);
@@ -92,8 +133,8 @@ public sealed class RegexQueryParserTests
     [TestMethod]
     public void BytePattern_ReportsThatItCannotApplyRegexClauses()
     {
-        Assert.IsTrue(FzfBytePattern.From(FzfPattern.Parse(@"regex:/\.exe$/")).HasRegexClauses);
-        Assert.IsTrue(FzfBytePattern.From(FzfPattern.Parse(@"lertaro regex:/\.exe$/")).HasRegexClauses);
+        Assert.IsTrue(FzfBytePattern.From(FzfPattern.Parse(@"/\.exe$/")).HasRegexClauses);
+        Assert.IsTrue(FzfBytePattern.From(FzfPattern.Parse(@"lertaro /\.exe$/")).HasRegexClauses);
         Assert.IsFalse(FzfBytePattern.From(FzfPattern.Parse("lertaro")).HasRegexClauses);
         Assert.IsFalse(FzfBytePattern.From(FzfPattern.Parse(":temp")).HasRegexClauses);
     }
@@ -101,7 +142,7 @@ public sealed class RegexQueryParserTests
     [TestMethod]
     public void BytePattern_RegexOnlyQuery_DoesNotClaimAMatch()
     {
-        var bytePattern = FzfBytePattern.From(FzfPattern.Parse(@"regex:/\.exe$/"));
+        var bytePattern = FzfBytePattern.From(FzfPattern.Parse(@"/\.exe$/"));
 
         Assert.IsFalse(bytePattern.TryMatch(
             System.Text.Encoding.ASCII.GetBytes("a.exe"),
@@ -114,16 +155,16 @@ public sealed class RegexQueryParserTests
     [TestMethod]
     public void RequiredRegexLiteral_LongestExtractableRunWins()
     {
-        Assert.AreEqual(".exe", FzfPattern.Parse(@"regex:/\.exe$/").RequiredRegexLiteral);
-        Assert.AreEqual("ab", FzfPattern.Parse(@"regex:/^ab.c\..{3}$/").RequiredRegexLiteral);
+        Assert.AreEqual(".exe", FzfPattern.Parse(@"/\.exe$/").RequiredRegexLiteral);
+        Assert.AreEqual("ab", FzfPattern.Parse(@"/^ab.c\..{3}$/").RequiredRegexLiteral);
     }
 
     [TestMethod]
     public void RequiredRegexLiteral_NoExtractableRun_IsEmpty()
     {
-        Assert.AreEqual(string.Empty, FzfPattern.Parse(@"regex:/.*/").RequiredRegexLiteral);
-        Assert.AreEqual(string.Empty, FzfPattern.Parse(@"regex:/^.{5}$/").RequiredRegexLiteral);
-        Assert.AreEqual(string.Empty, FzfPattern.Parse(@"regex:/\d+/").RequiredRegexLiteral);
+        Assert.AreEqual(string.Empty, FzfPattern.Parse(@"/.*/").RequiredRegexLiteral);
+        Assert.AreEqual(string.Empty, FzfPattern.Parse(@"/^.{5}$/").RequiredRegexLiteral);
+        Assert.AreEqual(string.Empty, FzfPattern.Parse(@"/\d+/").RequiredRegexLiteral);
         Assert.AreEqual(string.Empty, FzfPattern.Parse("plain").RequiredRegexLiteral);
     }
 
@@ -131,8 +172,8 @@ public sealed class RegexQueryParserTests
     public void RequiredRegexLiteral_OptionalGroup_DoesNotPrefilterOutValidNames()
     {
         // Regression: an optional group used to hand its contents to the required-literal mask, so
-        // "regex:/(ab)?c/" demanded "ab" and rejected "c" -- a genuine match -- before the regex ran.
-        var pattern = FzfPattern.Parse(@"regex:/(ab)?c/");
+        // "/(ab)?c/" demanded "ab" and rejected "c" -- a genuine match -- before the regex ran.
+        var pattern = FzfPattern.Parse(@"/(ab)?c/");
 
         Assert.AreEqual("c", pattern.RequiredRegexLiteral);
         Assert.IsTrue(pattern.TryMatch("c", out _, FzfScoringScheme.Default));
@@ -143,7 +184,7 @@ public sealed class RegexQueryParserTests
     [TestMethod]
     public void RequiredRegexLiteral_TakesTheLongestAcrossClauses()
     {
-        var pattern = FzfPattern.Parse(@"regex:/ab.*/ regex:/readme/");
+        var pattern = FzfPattern.Parse(@"/ab.*/ /readme/");
 
         Assert.AreEqual("readme", pattern.RequiredRegexLiteral);
     }
