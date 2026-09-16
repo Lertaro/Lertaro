@@ -19,8 +19,6 @@ internal sealed class ConnectionSlotGate
 
     internal int MaxConcurrent { get; }
 
-    internal int Available => _slots.CurrentCount;
-
     // Non-blocking on purpose. Queueing an over-limit client would let an unbounded backlog of open
     // connections accumulate while each queued client still holds its pipe handle and socket -- the
     // resource being defended is exactly the one queueing would keep spending. Refusing closes the pipe,

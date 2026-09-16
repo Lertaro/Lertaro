@@ -31,6 +31,32 @@ public sealed class RegexTimeoutTests
     }
 
     [TestMethod]
+    public void Throttle_TrackedPatterns_AreBounded()
+    {
+        // Every intermediate state of an edit is a distinct pattern, so the map is unbounded input: it is
+        // cleared wholesale at a cap, the same trade the compiled-regex cache beside it makes.
+        var throttle = new RegexTimeoutLogThrottle(60_000);
+
+        for (var i = 0; i < 1_000; i++)
+            throttle.ShouldLog($"pattern-{i}", 1_000 + i);
+
+        Assert.IsLessThanOrEqualTo(256, throttle.TrackedCount);
+    }
+
+    [TestMethod]
+    public void Throttle_PatternSurvivesUntilTheCapIsReached()
+    {
+        var throttle = new RegexTimeoutLogThrottle(60_000);
+
+        Assert.IsTrue(throttle.ShouldLog("keep", 1_000));
+        for (var i = 0; i < 100; i++)
+            throttle.ShouldLog($"other-{i}", 1_000);
+
+        // Below the cap nothing is forgotten, so the repeat is still suppressed.
+        Assert.IsFalse(throttle.ShouldLog("keep", 1_001));
+    }
+
+    [TestMethod]
     public void AllMatch_PathologicalPattern_TreatsTheCandidateAsAMissInsteadOfThrowing()
     {
         // The lookahead is unsupported under NonBacktracking, so this pattern is compiled by the timed

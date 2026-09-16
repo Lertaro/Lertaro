@@ -7,8 +7,12 @@ namespace Lertaro.Core.Services.Search;
 // token. Something still has to own it, and this is that something. Each entry carries its own
 // CancellationTokenSource linked to the owner's, which is what makes the guarantees below possible:
 //
-//   - Eviction cancels what it drops. Dropping the entry alone left the walk running to completion while
-//     nothing could reuse it (the entry was gone) and nothing could stop it short of the window closing.
+//   - Eviction drops the OLDEST entry without cancelling it. Cancelling was the earlier behaviour and was
+//     wrong on two counts: a dropped scan can still be awaited by a request that has not finished (a
+//     scoped search runs several folders at once), so cancelling it failed that request with an
+//     OperationCanceledException for a reason nobody asked for; and the memory the cap reclaims is the
+//     cached RESULT LIST, which an awaiting caller holds a reference to anyway, so dropping the entry
+//     already releases everything the cap is for. See EvictLocked for the ceiling this leaves.
 //   - Dispose cancels and then waits. Cancelling alone is not enough when callers dispose with `using`:
 //     returning before the scans had observed cancellation let them keep walking -- and keep invoking the
 //     per-request match callback they captured -- past the point their owner considered itself closed.
@@ -27,6 +31,7 @@ internal sealed class LiveScanCache : IDisposable
     private readonly CancellationTokenSource _ownerCts = new();
     private readonly object _gate = new();
     private readonly int _maxEntries;
+    private long _nextSequence;
     private bool _disposed;
 
     internal LiveScanCache(int maxEntries = DefaultMaxEntries)
@@ -63,9 +68,14 @@ internal sealed class LiveScanCache : IDisposable
             if (_scans.Count >= _maxEntries)
                 EvictLocked();
 
+            // ponytail: the per-scan linked CTS is never disposed and never cancelled on its own. It is
+            // only ever created via CreateLinkedTokenSource -- no CancelAfter, so no timer and no unmanaged
+            // handle -- and the owning cache's Dispose cancels it through the owner it is linked to, which
+            // is also what keeps a scan from outliving its window. Add disposal here if a timer ever gets
+            // attached to it.
             var cts = CancellationTokenSource.CreateLinkedTokenSource(_ownerCts.Token);
             var task = Task.Run(() => scan(directory, cts.Token), cts.Token);
-            var entry = new LiveScan(cts, task);
+            var entry = new LiveScan(task, ++_nextSequence);
             _scans[directory] = entry;
             _ = task.ContinueWith(t => RemoveIfFaulted(directory, entry, t), CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
@@ -87,11 +97,33 @@ internal sealed class LiveScanCache : IDisposable
         }
     }
 
+    // Makes room by dropping the oldest entry -- oldest by when its scan STARTED, so the list a long-typing
+    // session is most likely to reuse again is the one that survives.
+    //
+    // Deliberately not cancelled (see this class's header): a dropped scan may still be awaited by a request
+    // that is running right now, and cancelling it would fail that request for a reason it never asked for.
+    // Dropping the entry alone already releases what the cap is for -- the cached list -- because an
+    // awaiting caller holds its own reference to the task that produces it.
+    //
+    // ponytail: a scan dropped while still walking therefore keeps walking to its own maxProcessed bound
+    // with nothing able to reuse it, at most one per eviction. Typing is what drives evictions and a walk
+    // costs a directory's worth of I/O, so this is bounded in practice; if walked-but-unwanted scans ever
+    // show up as real CPU, track the number of awaiting callers per entry and cancel only unobserved ones.
     private void EvictLocked()
     {
-        foreach (var entry in _scans.Values)
-            entry.Cancel();
-        _scans.Clear();
+        string? oldestKey = null;
+        var oldestSequence = long.MaxValue;
+        foreach (var (directory, entry) in _scans)
+        {
+            if (entry.Sequence < oldestSequence)
+            {
+                oldestSequence = entry.Sequence;
+                oldestKey = directory;
+            }
+        }
+
+        if (oldestKey != null)
+            _scans.Remove(oldestKey);
     }
 
     public void Dispose()
@@ -129,15 +161,11 @@ internal sealed class LiveScanCache : IDisposable
         }
     }
 
-    private sealed class LiveScan(CancellationTokenSource cts, Task<List<SearchResult>> task)
+    private sealed class LiveScan(Task<List<SearchResult>> task, long sequence)
     {
         internal Task<List<SearchResult>> Task { get; } = task;
 
-        internal void Cancel() => cts.Cancel();
-
-        // ponytail: the per-scan CancellationTokenSource is never disposed. It is only ever created via
-        // CreateLinkedTokenSource -- no CancelAfter, so no timer and no unmanaged handle -- and its
-        // lifetime is bounded by the owning cache's own Dispose, which cancels it and releases the
-        // registration it holds on the owner. Add disposal here if a timer ever gets attached to it.
+        // Registration order, used only to pick the oldest entry to drop (see EvictLocked).
+        internal long Sequence { get; } = sequence;
     }
 }

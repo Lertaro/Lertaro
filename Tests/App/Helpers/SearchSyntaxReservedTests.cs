@@ -23,16 +23,16 @@ public sealed class SearchSyntaxReservedTests
     // the query is read (see FzfPatternParser.MergeQuotedPhrases) but is not refused to a configurable
     // trigger, so a row for it here would fail. This test cannot tell the two sets apart -- if the grouping
     // characters are ever promoted to reserved, this DataRow set and LeadingCharacters move together.
-    public void StartsWithReservedCharacter_EverySyntaxCharacter_IsReserved(string value)
-        => Assert.IsTrue(SearchSyntaxReserved.StartsWithReservedCharacter(value));
+    public void IsReserved_EverySyntaxCharacter_IsReserved(string value)
+        => Assert.IsTrue(SearchSyntaxReserved.IsReserved(value[0]));
 
     [TestMethod]
     [DataRow("audio")]
     [DataRow("set")]
     [DataRow("bb")]
     [DataRow("g")]
-    public void StartsWithReservedCharacter_OrdinaryTriggerWords_AreUsable(string value)
-        => Assert.IsFalse(SearchSyntaxReserved.StartsWithReservedCharacter(value));
+    public void IsReserved_OrdinaryTriggerWords_AreUsable(string value)
+        => Assert.IsFalse(SearchSyntaxReserved.IsReserved(value[0]));
 
     // A provider's own hardcoded leading character is not syntax, but it is just as unavailable to another
     // first-character trigger: the input would be answered by two features at once.
@@ -43,15 +43,15 @@ public sealed class SearchSyntaxReservedTests
     public void ValidateLeadingCharacter_ProviderClaimedCharacter_IsReported(string value)
     {
         Assert.IsNotNull(SearchSyntaxReserved.ValidateLeadingCharacter(value));
-        Assert.IsTrue(SearchSyntaxReserved.IsProviderClaimed(value[0]));
+        Assert.Contains(value[0], SearchSyntaxReserved.ProviderClaimedCharacters);
     }
 
     [TestMethod]
     [DataRow('#')]
     [DataRow('$')]
     [DataRow('%')]
-    public void IsProviderClaimed_TheInstantAnswerCharacters_AreClaimed(char value)
-        => Assert.IsTrue(SearchSyntaxReserved.IsProviderClaimed(value));
+    public void ProviderClaimedCharacters_TheInstantAnswerCharacters_AreClaimed(char value)
+        => Assert.Contains(value, SearchSyntaxReserved.ProviderClaimedCharacters);
 
     [TestMethod]
     [DataRow('#')]
@@ -67,7 +67,7 @@ public sealed class SearchSyntaxReservedTests
     {
         // No overlap today; if one is ever introduced, the syntax message must still be the one shown.
         foreach (var c in SearchSyntaxReserved.LeadingCharacters)
-            Assert.IsFalse(SearchSyntaxReserved.IsProviderClaimed(c), c.ToString());
+            Assert.DoesNotContain(c, SearchSyntaxReserved.ProviderClaimedCharacters);
     }
 
     [TestMethod]
@@ -87,15 +87,6 @@ public sealed class SearchSyntaxReservedTests
     [TestMethod]
     public void ValidateLeadingCharacter_OrdinaryWord_IsAccepted()
         => Assert.IsNull(SearchSyntaxReserved.ValidateLeadingCharacter("tr"));
-
-    [TestMethod]
-    public void DescribeProviderClaimedCharacters_ListsTheInstantAnswerCharacters()
-    {
-        var described = SearchSyntaxReserved.DescribeProviderClaimedCharacters();
-
-        foreach (var c in SearchSyntaxReserved.ProviderClaimedCharacters)
-            Assert.Contains(c.ToString(), described);
-    }
 
     [TestMethod]
     public void ValidateLeadingCharacter_OnlyTheFirstCharacterIsJudged()

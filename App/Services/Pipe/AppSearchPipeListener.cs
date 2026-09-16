@@ -18,7 +18,13 @@ internal static class AppSearchPipeListener
     // this pipe (unlike the plain activation one) because a search request can return another user's own
     // file paths/network-drive contents.
     private static readonly string PipeName = AppPipeNames.SearchPipeName;
-    private static bool _keepRunning = true;
+
+    // Volatile: Stop() runs on the shutting-down thread while the accept loop reads this on a thread-pool
+    // thread, and a plain bool let the JIT hoist the read out of the loop, so the loop could keep accepting
+    // after Stop() returned. (Shutdown also does not have to wait for the loop: the pending
+    // WaitForConnectionAsync stays parked until the process exits, which is why Stop only has to make the
+    // flag visible rather than wake the accept.)
+    private static volatile bool _keepRunning = true;
 
     // A local client can open connections as fast as it likes, and each accepted one runs a handler that
     // may execute a full search. The cap is deliberately generous -- the CLI uses one connection and sends

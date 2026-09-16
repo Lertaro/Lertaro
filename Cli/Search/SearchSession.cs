@@ -136,7 +136,14 @@ public sealed class SearchSession
         // scramble whatever a token like "<s" deliberately reordered by.
         // Progress snapshots are also moot in that case (the server never streams partial results for a
         // tokenized query), so this only really changes the final callback's behavior.
-        var parsedTokens = QueryTokenScanner.Scan(q).Tokens;
+        //
+        // The prefix comes from the settings, exactly as NonInteractiveSearchResults and the App's own pipe
+        // handler read it: the scanner only recognizes the character it is handed, so scanning with the
+        // default would miss every token of a user who configured another one -- and then re-sort the
+        // server's token-ordered result.
+        var configuredPrefix = UserSettings.Load().GlobalTokenPrefix;
+        var prefix = !string.IsNullOrEmpty(configuredPrefix) ? configuredPrefix[0] : '\\';
+        var parsedTokens = QueryTokenScanner.Scan(q, prefix).Tokens;
         var hasTokens = parsedTokens.Count > 0;
 
         void ShowSnapshot(List<(SearchResult, int[])> snapshot)

@@ -48,7 +48,6 @@ internal static class RegexLiteralExtractor
 
         var best = string.Empty;
         var current = new System.Text.StringBuilder();
-        var anchoredAtStart = false;
 
         // Whether the character just appended could still be removed from every match by a quantifier that
         // the next token brings. See the '?'/'*'/'{' cases: a run is only "required" up to the first
@@ -81,6 +80,16 @@ internal static class RegexLiteralExtractor
                         }
                         else
                         {
+                            // The escaped literal is a separate atom, so it cannot be joined onto a run
+                            // that an optional atom already broke: for "ab?\.c" the required runs are "a"
+                            // and ".c", never "a." -- the same contiguity rule the '?' case below states.
+                            // Without this the returned value was a string no match has to contain
+                            // ("readm." for "^readme?\.md$"), which breaks the substring contract this
+                            // file's header states, even though the current consumer (a character mask,
+                            // which only asks whether each character occurs) does not notice.
+                            if (!runIsContiguous && current.Length > 0)
+                                Flush(current, ref best);
+                            runIsContiguous = true;
                             current.Append(next);
                             lastIsOptional = true;
                         }
@@ -89,7 +98,6 @@ internal static class RegexLiteralExtractor
                     continue;
 
                 case '^':
-                    anchoredAtStart = current.Length == 0;
                     if (current.Length > 0)
                         Flush(current, ref best);
                     lastIsOptional = false;
@@ -119,7 +127,6 @@ internal static class RegexLiteralExtractor
                 case '|':
                 case '(':
                     Flush(current, ref best);
-                    anchoredAtStart = false;
                     lastIsOptional = false;
                     runIsContiguous = true;
                     if (c == '(')
@@ -188,7 +195,6 @@ internal static class RegexLiteralExtractor
                     }
 
                     Flush(current, ref best);
-                    anchoredAtStart = false;
                     lastIsOptional = false;
                     runIsContiguous = true;
                     i = SkipUntil(pattern, i, '}');
@@ -199,7 +205,6 @@ internal static class RegexLiteralExtractor
 
                 case '[':
                     Flush(current, ref best);
-                    anchoredAtStart = false;
                     lastIsOptional = false;
                     runIsContiguous = true;
                     i = SkipCharacterClass(pattern, i);

@@ -51,6 +51,21 @@ public sealed class PathModeRegexTests
     }
 
     [TestMethod]
+    public void SearchStreaming_RelativePathModeWithRegexOnly_StillAppliesTheRegex()
+    {
+        using var fixture = BuildProjectsDrive();
+
+        // No drive letter, so this takes the other branch of PathSearch: TryDirectoryChildren requires a
+        // target drive and bails out, which routes the file part through PathSearchFuzzy -> the ASCII byte
+        // fast path. That path cannot apply a clause at all, and with a regex-only file part it has no
+        // positive term to match on either -- it used to return every ASCII child, or nothing at all.
+        var results = Search(fixture, @"projects\ /^report\.md$/");
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual(@"T:\projects\report.md", results[0].Path);
+    }
+
+    [TestMethod]
     public void SearchStreaming_PathModeWithoutRegex_KeepsEveryChild()
     {
         using var fixture = BuildProjectsDrive();

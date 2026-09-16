@@ -213,4 +213,50 @@ public sealed class SortFilterQueryTokenProviderTests
         Assert.IsTrue(SortFilterQueryTokenProvider.TryParseDate("13-01-03", out var value));
         Assert.AreEqual(new DateTime(2013, 1, 3), value);
     }
+
+    [TestMethod]
+    [DataRow("20m", 20L * 1024 * 1024)]
+    [DataRow("1.5k", 1536)]
+    [DataRow("2g", 2L * 1024 * 1024 * 1024)]
+    [DataRow("512", 512)]
+    public void TryParseSize_AcceptedForms(string text, long expected)
+    {
+        Assert.IsTrue(SortFilterQueryTokenProvider.TryParseSize(text, out var bytes));
+        Assert.AreEqual(expected, bytes);
+    }
+
+    [TestMethod]
+    [DataRow("1e300", DisplayName = "far outside long's range")]
+    [DataRow("NaN", DisplayName = "not a number")]
+    [DataRow("Infinity", DisplayName = "infinite")]
+    [DataRow("", DisplayName = "empty")]
+    [DataRow("abc", DisplayName = "not a number at all")]
+    public void TryParseSize_UnrepresentableValues_AreRejectedRatherThanSilentlyBounded(string text)
+    {
+        // NumberStyles.Float parses "NaN", "Infinity" and "1e300", and converting such a double to long is
+        // UNSPECIFIED in an unchecked context -- so an absurd threshold used to become a nonsense bound
+        // (in practice long.MinValue, which makes "greater than" keep everything) instead of being rejected
+        // as unparseable, which the caller already handles by narrowing nothing.
+        Assert.IsFalse(SortFilterQueryTokenProvider.TryParseSize(text, out _));
+    }
+
+    [TestMethod]
+    public async Task ApplyAsync_FolderThreshold_AcceptsTheDocumentedSpellings()
+    {
+        // The search-syntax documentation offers "f", "folder" and "dir" for the folder/file key, so all
+        // three have to mean directories -- only the bare letter used to work, and "dir" silently meant
+        // "files only".
+        foreach (var threshold in new[] { "f", "folder", "dir", "F", "DIR" })
+        {
+            var results = new List<ISearchResult>
+            {
+                new FakeResult { Name = "folder1", IsDir = true },
+                new FakeResult { Name = "file1", IsDir = false },
+            };
+
+            var filtered = await Provider.ApplyAsync($"<f>{threshold}", results);
+
+            CollectionAssert.AreEqual(new[] { "folder1" }, filtered.Select(r => r.Name).ToList(), threshold);
+        }
+    }
 }

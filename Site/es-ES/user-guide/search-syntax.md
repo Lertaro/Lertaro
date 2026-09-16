@@ -14,7 +14,7 @@ Lertaro activa la coincidencia difusa de forma predeterminada. Basta con escribi
 | `vsc` | `Visual Studio Code.lnk` | Coincide con las iniciales de cada palabra (**V**isual **S**tudio **C**ode) |
 | `rt-fin` | `Q3-report-final.docx` | Coincide con la subcadena contigua (Q3-repo**rt-fin**al.docx) |
 
-Desactívala en **Configuración → General → Sistema → Habilitar coincidencia difusa** y cada término simple exigirá una subcadena contigua: `abc` solo coincidirá con nombres que contengan `abc` contiguo, y ya no coincidirá con `a-b-c`. Este interruptor solo afecta a los términos y exclusiones normales; la sintaxis de tokens descrita a continuación no se ve afectada en ningún caso.
+Desactívala en **Configuración → General → Sistema → Habilitar coincidencia difusa** y cada término simple exigirá una subcadena contigua: `abc` solo coincidirá con nombres que contengan `abc` contiguo, y ya no coincidirá con `a-b-c`. Este interruptor solo afecta a los términos normales: las exclusiones siempre se comparan de forma exacta (ver más abajo), y la sintaxis de tokens descrita a continuación no se ve afectada en ningún caso.
 
 ### Sin distinción entre mayúsculas y minúsculas
 

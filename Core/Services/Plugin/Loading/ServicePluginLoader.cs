@@ -124,10 +124,10 @@ public static class ServicePluginLoader
                 }
                 catch (BadImageFormatException)
                 {
-                    // Not a .NET assembly at all -- expected for a plugin's own bundled native
-                    // dependency (e.g. a SQLite provider's e_sqlite3.dll) now that the scan is
-                    // recursive into each plugin's own subdirectory. Not a failure, so not worth an
-                    // Error-level log line.
+                    // Not a .NET assembly at all. The naming filter above means a plugin's bundled native
+                    // dependency (e.g. a SQLite provider's e_sqlite3.dll) never reaches this loop, so what
+                    // lands here is a file that IS named like a plugin entry (Lertaro.Plugins.*.dll) without
+                    // being a managed assembly -- worth knowing about, but not a load failure either.
                     Logger.Log($"[ServicePluginLoader] Skipped non-.NET file: {Path.GetFileName(dllFile)}", LogLevel.Debug);
                 }
                 catch (Exception ex)

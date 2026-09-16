@@ -42,4 +42,27 @@ public sealed class LegacySettingsAdvisorTests
 
         Assert.IsFalse(LegacySettingsAdvisor.HasLegacyTokenPrefix(settings));
     }
+
+    [TestMethod]
+    public void ShouldShowNotice_LegacyPrefixOnAFreshSettingsFile_IsShown()
+        => Assert.IsTrue(LegacySettingsAdvisor.ShouldShowNotice(new UserSettings { GlobalTokenPrefix = ":" }));
+
+    [TestMethod]
+    public void ShouldShowNotice_AlreadyShown_IsNotShownAgain()
+    {
+        // Once per user, not once per launch: the settings page keeps reporting the value on its own field,
+        // so a balloon that reappeared at every start would only nag about something already seen.
+        var settings = new UserSettings { GlobalTokenPrefix = ":", LegacyTokenPrefixNoticeShown = true };
+
+        Assert.IsFalse(LegacySettingsAdvisor.ShouldShowNotice(settings));
+    }
+
+    [TestMethod]
+    public void ShouldShowNotice_CurrentPrefix_IsNotShownEvenWhenUnmarked()
+    {
+        var settings = new UserSettings { GlobalTokenPrefix = "\\" };
+
+        Assert.IsFalse(LegacySettingsAdvisor.HasLegacyTokenPrefix(settings));
+        Assert.IsFalse(LegacySettingsAdvisor.ShouldShowNotice(settings));
+    }
 }

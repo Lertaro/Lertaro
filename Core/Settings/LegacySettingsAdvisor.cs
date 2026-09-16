@@ -31,4 +31,17 @@ public static class LegacySettingsAdvisor
     /// </summary>
     public static bool HasLegacyTokenPrefix(UserSettings settings)
         => settings.GlobalTokenPrefix == ShippedLegacyTokenPrefix;
+
+    /// <summary>
+    /// True when the startup notice should be shown now: the saved prefix is still the legacy one AND the
+    /// user has not already been told about it.
+    /// </summary>
+    /// <remarks>
+    /// Once per user, not once per launch. The settings page reports the value on its own field for as long
+    /// as it is set (see QueryTokenPrefixRules), so a balloon that reappears at every start would only nag
+    /// about something the user has either already seen or already decided to keep. The caller marks it shown
+    /// before displaying it, so a crash in between cannot turn it into a repeat either.
+    /// </remarks>
+    public static bool ShouldShowNotice(UserSettings settings)
+        => !settings.LegacyTokenPrefixNoticeShown && HasLegacyTokenPrefix(settings);
 }

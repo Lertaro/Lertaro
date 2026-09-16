@@ -19,7 +19,16 @@ internal static class UsnServicePipeRequestProcessor
             // One choke point for every state-changing command. Checking at the dispatch site instead
             // meant each new command had to remember its own guard, and four of them did not.
             if (RequiresAuthorizedCaller(msg.Id) && !IsAuthorizedControlClient(pipe))
+            {
+                // Logged, not merely refused: the rejection is invisible to the caller's UI (see
+                // SearchServiceManagementExtensions.InitializeOrLoadIndexAsync, which ignores the response),
+                // so without a line here a legitimate App whose identity check fails -- a portable or
+                // debug build outside the install directory, the same case HookLaunchRequestHandler
+                // documents -- would watch index initialization silently do nothing, with no trace on
+                // either side.
+                Logger.Log($"[UsnService] Refused {msg.Id}: the caller is not this install's Lertaro.App.exe.", LogLevel.Warn);
                 return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
+            }
 
             switch (msg.Id)
             {
@@ -125,9 +134,12 @@ internal static class UsnServicePipeRequestProcessor
     //
     // Read/query commands are deliberately open -- Ping, Status, GetMachineSettings, GetFileMetadata,
     // GetRecentFiles, GetSpaceEntries -- because they are how any client (including the CLI and the
-    // installer) finds out whether the service is up, and they expose nothing the pipe's own ACL does
-    // not already grant. Commands the server handles itself (Search, SearchDir, EnumerateDir,
-    // SubscribeStatus, SubscribeDirectoryChanges) never reach here; LaunchHook carries its own check.
+    // installer) finds out whether the service is up. That openness is a decision about this pipe's ACL
+    // (PipeSecurityFactory.Create grants every local authenticated user access to it), NOT a claim that the
+    // data is otherwise reachable: these commands return names, paths and metadata for anything the index
+    // covers, which is a broader read than the caller's own token may have on disk. Commands the server
+    // handles itself (Search, SearchDir, EnumerateDir, SubscribeStatus, SubscribeDirectoryChanges) never
+    // reach here; LaunchHook carries its own check.
     internal static bool RequiresAuthorizedCaller(SearchRequestId id) => id switch
     {
         SearchRequestId.Rebuild or

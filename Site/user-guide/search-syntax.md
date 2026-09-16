@@ -14,7 +14,7 @@ Lertaro enables Fuzzy Matching by default. Simply enter any characters in order,
 | `vsc` | `Visual Studio Code.lnk` | Matches initial letters of each word (**V**isual **S**tudio **C**ode) |
 | `rt-fin` | `Q3-report-final.docx` | Matches contiguous substring (Q3-repo**rt-fin**al.docx) |
 
-Turn this off under **Settings → General → System → Enable fuzzy matching** and every plain term requires a contiguous substring — `abc` will only match names containing contiguous `abc`, no longer matching `a-b-c`. This toggle only affects ordinary terms and exclusions; the token syntax below is unaffected either way.
+Turn this off under **Settings → General → System → Enable fuzzy matching** and every plain term requires a contiguous substring — `abc` will only match names containing contiguous `abc`, no longer matching `a-b-c`. This toggle only affects ordinary terms: exclusions are always exact (see below), and the token syntax is unaffected either way.
 
 ### Case Insensitivity
 

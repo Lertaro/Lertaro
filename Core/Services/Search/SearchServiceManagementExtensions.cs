@@ -31,7 +31,12 @@ public static class SearchServiceManagementExtensions
     public static async Task InitializeOrLoadIndexAsync(this SearchService service, bool forceRebuild = false, CancellationToken token = default)
     {
         var requestId = forceRebuild ? SearchRequestId.Rebuild : SearchRequestId.Initialize;
-        await service.SendPipeCommandAsync(new SearchRequestMessage { Id = requestId }, token).ConfigureAwait(false);
+        var resp = await service.SendPipeCommandAsync(new SearchRequestMessage { Id = requestId }, token).ConfigureAwait(false);
+        // The response used to be dropped, which made the one failure this command can report -- the
+        // service refusing a control command from a caller it does not recognize (see
+        // UsnServicePipeRequestProcessor's authorization gate) -- look exactly like a successful no-op.
+        if (resp.Kind == PipeResponseKind.Error)
+            Logger.Log($"[SearchService] {requestId} failed: {resp.Message}", LogLevel.Error);
     }
 
     // service.log lives under the service's own (elevated/system) data directory, which the App

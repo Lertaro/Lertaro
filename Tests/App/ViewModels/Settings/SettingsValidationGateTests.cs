@@ -39,6 +39,31 @@ public sealed class SettingsValidationGateTests
     }
 
     [TestMethod]
+    public void GeneralPage_CarriedOverLegacyPrefix_WarnsWithoutRefusingToSave()
+    {
+        // What an upgraded install actually has on disk: the previous release's ':' default, which this
+        // release reads as the exclusion operator. The field must still report it, but the window must stay
+        // able to save every OTHER setting -- blocking there is a lockout over a value the user never typed
+        // in this session (see QueryTokenPrefixRules.BlocksSaving).
+        var settings = new UserSettings { GlobalTokenPrefix = Reserved };
+        var vm = new GeneralSettingsViewModel(settings);
+
+        Assert.IsNotNull(vm.PrefixError, "the field must keep saying the value cannot work");
+        Assert.IsTrue(vm.HasPrefixError);
+        Assert.IsEmpty(vm.ValidationErrors.ToList());
+    }
+
+    [TestMethod]
+    public void GeneralPage_ClearedPrefix_DoesNotRefuseToSave()
+    {
+        // An emptied field is not a broken value: SettingsApplyHelpers maps blank to the default prefix.
+        var vm = new GeneralSettingsViewModel(new UserSettings());
+        vm.GlobalTokenPrefix = string.Empty;
+
+        Assert.IsEmpty(vm.ValidationErrors.ToList());
+    }
+
+    [TestMethod]
     public void GeneralPage_ResultTypeTriggerCollision_NamesTheRow()
     {
         var vm = new GeneralSettingsViewModel(new UserSettings());
@@ -62,8 +87,12 @@ public sealed class SettingsValidationGateTests
         try
         {
             vm.General.GlobalTokenPrefix = Reserved;
+            var field = PluginWithTriggerField();
+            // Staged, i.e. what the user typed into the row: only then does an unusable value block a save
+            // (a schema default or a carried-over value is warned about instead).
+            field.ConfigFields[0].Value = Reserved;
             vm.Plugins.Plugins.Clear();
-            vm.Plugins.Plugins.Add(PluginWithTriggerField());
+            vm.Plugins.Plugins.Add(field);
 
             var errors = vm.ValidationErrors.ToList();
 
@@ -97,17 +126,79 @@ public sealed class SettingsValidationGateTests
     }
 
     [TestMethod]
+    public void Apply_Refused_SaysSoInTheWindowsStatusBar()
+    {
+        // A refused Apply used to be invisible: the button stays enabled by design and the page-level
+        // warning can sit on a tab the user is not looking at, so clicking OK looked like nothing happening.
+        var vm = new SettingsViewModel();
+        try
+        {
+            vm.IsServiceReady = true;
+            Assert.IsFalse(vm.Validation.HasRefusal, "nothing has been refused yet");
+
+            vm.General.GlobalTokenPrefix = Reserved;
+            Assert.IsFalse(vm.Apply());
+
+            Assert.IsTrue(vm.Validation.HasRefusal);
+            Assert.IsNotNull(vm.Validation.RefusalMessage);
+        }
+        finally
+        {
+            vm.Cleanup();
+        }
+    }
+
+    [TestMethod]
+    public void Gate_NoPluginPage_UsesTheGeneralPagesErrorsOnly()
+    {
+        // The gate is handed a Func precisely so an unbuilt Plugins page can stay unbuilt; a null page
+        // contributes nothing rather than an error or an exception.
+        var general = new GeneralSettingsViewModel(new UserSettings());
+        general.GlobalTokenPrefix = Reserved;
+        var gate = new SettingsValidationGate(general, () => null);
+
+        var errors = gate.Errors.ToList();
+
+        Assert.HasCount(1, errors);
+        Assert.AreEqual(general.PrefixError, errors[0]);
+    }
+
+    [TestMethod]
+    public void Gate_Refusal_IsShownUntilCleared()
+    {
+        var gate = new SettingsValidationGate(new GeneralSettingsViewModel(new UserSettings()), () => null);
+        var notified = new List<string?>();
+        gate.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
+
+        gate.Refuse(2);
+        Assert.IsTrue(gate.HasRefusal);
+        Assert.IsNotNull(gate.RefusalMessage);
+        Assert.Contains(nameof(SettingsValidationGate.HasRefusal), notified);
+
+        gate.Clear();
+        Assert.IsFalse(gate.HasRefusal);
+        Assert.IsNull(gate.RefusalMessage);
+    }
+
+    [TestMethod]
     public void UnvisitedPluginsPage_IsNotAskedForItsErrors()
     {
         // Asking the unvisited page for its errors would construct it, and its constructor is the one
         // expensive thing in the window (PluginLoaderHelper.BuildPluginList does genuine reflection over
         // every loaded plugin). An unvisited page holds no staged edit, so it can report no error either
-        // way -- the same rule, and the same reason, as the other deferred sub-VMs.
+        // way -- the same rule, and the same reason, as the other deferred sub-VMs. Two halves: the window
+        // must hand the gate the BACKING FIELD (the Plugins property would build the page), and the gate
+        // must skip a null page.
         var vm = Source("App/ViewModels/Settings/SettingsViewModel.cs");
-        var collect = Between(vm, "private IEnumerable<string> CollectValidationErrors()", "\n    }");
+        Assert.Contains("() => _plugins", vm,
+            "the gate must be wired to the backing field, not to the lazy Plugins property");
 
-        Assert.Contains("_plugins == null", collect, "the unvisited page must be skipped, not asked");
-        Assert.DoesNotContain("Plugins.ValidationErrors", collect,
+        var gate = Source("App/ViewModels/Settings/SettingsValidationGate.cs");
+        var errors = Between(gate, "internal IReadOnlyList<string> Errors", "\n    }");
+
+        Assert.Contains("plugins()", errors, "the page must be asked through the injected lookup");
+        Assert.Contains("!= null", errors, "the unvisited page must be skipped, not asked");
+        Assert.DoesNotContain("Plugins.ValidationErrors", errors,
             "asking through the lazy property would build the page just to be told it is clean");
     }
 

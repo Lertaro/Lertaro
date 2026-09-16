@@ -47,9 +47,6 @@ public static class QueryTokenPrefixRules
     internal static bool IsAlwaysTokenTrigger(char prefix) => prefix == '<' || prefix == '>';
 
     /// <summary>The conflict to show under the app-wide prefix field, or null when it is usable.</summary>
-    /// <summary>
-    /// The conflict to show under the app-wide prefix field, or null when it is usable.
-    /// </summary>
     /// <remarks>
     /// Only the search syntax is consulted -- the loaded plugins are deliberately NOT. This field and a
     /// plugin's own prefix field hold the same character by design: QueryTokenScanner hands the provider
@@ -59,10 +56,7 @@ public static class QueryTokenPrefixRules
     /// collision -- see PluginPrefixConflict, which reports the one collision that is real (a SECOND
     /// plugin claiming a character the first one already answers to).
     /// </remarks>
-    // ponytail: `settings` is no longer read here -- the plugin-ownership scan this field's rule used to
-    // end with moved out (see the remarks above). Kept in the signature because every prefix rule in this
-    // class takes the same (value, settings) pair; drop it if a future rule still has no use for it.
-    public static string? GlobalPrefixConflict(string? globalPrefix, UserSettings settings)
+    public static string? GlobalPrefixConflict(string? globalPrefix)
     {
         if (string.IsNullOrEmpty(globalPrefix))
             return TranslationManager.Instance["General_GlobalTokenPrefixConflictEmpty"];
@@ -120,6 +114,26 @@ public static class QueryTokenPrefixRules
             ? TranslationManager.Instance["Plugins_QueryTokenPrefixConflictPlugin"]
             : null;
     }
+
+    /// <summary>
+    /// Whether an error a page is showing next to a prefix/trigger field should also STOP the whole
+    /// settings window from saving, or only be reported.
+    /// </summary>
+    /// <remarks>
+    /// The distinction is between a value the user is entering right now and one that is merely already in
+    /// effect (persisted by an earlier release, or resolved from the applier's own blank-to-default rule).
+    /// Saving a value the user just typed that visibly cannot work is worth refusing -- the previous,
+    /// working value would otherwise be replaced by one that never fires. Refusing on the carried-over
+    /// value instead locks the user out of saving EVERY other setting in the window, which is why this
+    /// release ships a startup notice for exactly that value (see LegacySettingsAdvisor): the field keeps
+    /// showing the warning, and the user can still save everything else. An empty value never blocks
+    /// either, because GeneralSettingsApplier resolves a blank prefix to the default rather than rejecting
+    /// it.
+    /// </remarks>
+    /// <param name="typedValue">The value the field currently holds.</param>
+    /// <param name="savedValue">The value already persisted, or null when nothing has been persisted yet.</param>
+    internal static bool BlocksSaving(string? typedValue, string? savedValue)
+        => !string.IsNullOrEmpty(typedValue) && !string.Equals(typedValue, savedValue, StringComparison.Ordinal);
 
     /// <summary>
     /// True for the one-character Text fields that declare a query-token trigger -- see this class's
@@ -193,22 +207,12 @@ public static class QueryTokenPrefixRules
 
         foreach (var assembly in loadedAssemblies)
         {
-            var dllName = Path.GetFileName(assembly.Location);
-            if (dllName.Equals("Lertaro.PluginSdk.dll", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            List<PluginConfigField>? fields = null;
-            try
-            {
-                fields = PluginLoaderHelper.ResolveConfigFields(assembly);
-            }
-            catch
-            {
-                // A plugin whose schema cannot be built simply does not take part in the check.
-            }
+            // ResolveConfigFields already absorbs a plugin whose schema cannot be built (it returns an
+            // empty list), so a schema failure here simply means the plugin does not take part in the check.
+            var fields = PluginLoaderHelper.ResolveConfigFields(assembly);
 
             if (fields is { Count: > 0 })
-                yield return (Path.GetFileNameWithoutExtension(dllName), fields);
+                yield return (Path.GetFileNameWithoutExtension(assembly.Location), fields);
         }
     }
 }

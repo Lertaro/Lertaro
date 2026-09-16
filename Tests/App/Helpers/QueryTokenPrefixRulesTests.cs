@@ -87,7 +87,7 @@ public sealed class QueryTokenPrefixRulesTests
     public void GlobalPrefixConflict_EmptyPrefix_IsReported()
         // Nothing could be tokenized at all, which is worth saying out loud rather than silently
         // disabling every plugin token.
-        => Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict(string.Empty, new UserSettings()));
+        => Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict(string.Empty));
 
     [TestMethod]
     public void GlobalPrefixConflict_EverySyntaxCharacter_IsReported()
@@ -97,7 +97,7 @@ public sealed class QueryTokenPrefixRulesTests
         // marker, and '/' with the regex clause delimiter, so the field rejects those too rather than
         // letting one meaning silently win.
         foreach (var prefix in new[] { "<", ">", ":", "*", "/" })
-            Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict(prefix, new UserSettings()), prefix);
+            Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict(prefix), prefix);
     }
 
     [TestMethod]
@@ -106,11 +106,11 @@ public sealed class QueryTokenPrefixRulesTests
     // what gives '\' its meaning. Reporting the shipped default would leave every user looking at a
     // permanent error under a field they never touched.
     public void GlobalPrefixConflict_ShippedDefault_IsAccepted()
-        => Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("\\", new UserSettings()));
+        => Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("\\"));
 
     [TestMethod]
     public void GlobalPrefixConflict_CharacterNoPluginUses_IsAccepted()
-        => Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("#", new UserSettings()));
+        => Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("#"));
 
     [TestMethod]
     public void PluginPrefixConflict_ShippedDefaults_AreAccepted()
@@ -188,6 +188,29 @@ public sealed class QueryTokenPrefixRulesTests
     [TestMethod]
     public void TriggerKeywordConflict_Empty_IsReported()
         => Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict(string.Empty));
+
+    // Whether an unusable value merely warns next to its field or actually refuses to save anything.
+    //
+    // A value already in effect -- what the settings file carries, or a blank the applier resolves to the
+    // default -- must not block: the user is not entering it now, and blocking would refuse every other
+    // setting in the window over one field they may not even be looking at (which is exactly the lockout an
+    // upgraded install with the previous release's ':' prefix hit). A value the user IS entering does block,
+    // which is the gate's whole purpose.
+    //
+    // The rule is only ever consulted for a value that is ALREADY known to be unusable, which is why "the
+    // user typed something else, usable" is not a case here: that value raises no error to consult it about.
+    [TestMethod]
+    [DataRow(":", "\\", true, DisplayName = "typed an unusable value")]
+    [DataRow(":", ":", false, DisplayName = "the unusable value is already in effect")]
+    [DataRow("", ":", false, DisplayName = "cleared: the applier resolves blank to the default")]
+    public void BlocksSaving_OnlyAValueTheUserJustTyped(string typed, string saved, bool expected)
+        => Assert.AreEqual(expected, QueryTokenPrefixRules.BlocksSaving(typed, saved));
+
+    [TestMethod]
+    public void BlocksSaving_NothingPersistedYet_BlocksATypedValue()
+        // A fresh install has no stored prefix, so an unusable value typed there is still one the user is
+        // entering right now.
+        => Assert.IsTrue(QueryTokenPrefixRules.BlocksSaving(":", null));
 
     private static PluginConfigField PrefixField()
         => new() { Key = "Prefix", FieldType = ConfigFieldType.Text, MaxLength = 1, DefaultValue = "\\" };

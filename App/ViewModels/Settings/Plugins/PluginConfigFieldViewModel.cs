@@ -235,12 +235,15 @@ public class PluginConfigFieldViewModel : ViewModelBase
 
     /// <summary>
     /// Why this single-character trigger cannot be used, or null when it is fine. Thin: the rule lives in
-    /// <see cref="Validation"/>, and the name stays here because Templates.xaml binds it on this type.
+    /// <see cref="Validation"/>, and the name stays here because Templates.xaml binds it on this type --
+    /// public, not internal, because a binding path only ever resolves public members (see the comment on
+    /// SearchViewModel.Hints).
     /// </summary>
-    internal string? PrefixError => Validation.PrefixError;
+    public string? PrefixError => Validation.PrefixError;
 
-    /// <summary>Why this instant-answer trigger keyword cannot be used, or null when it is fine.</summary>
-    internal string? TriggerKeywordError => Validation.TriggerKeywordError;
+    /// <summary>Why this instant-answer trigger keyword cannot be used, or null when it is fine. Public for
+    /// the same binding reason as <see cref="PrefixError"/>.</summary>
+    public string? TriggerKeywordError => Validation.TriggerKeywordError;
 
     public PluginConfigFieldViewModel(string pluginId, PluginConfigField field, UserSettings settings, Action? onValueChanged = null)
     {

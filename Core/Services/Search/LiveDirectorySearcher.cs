@@ -9,7 +9,8 @@ public static class LiveDirectorySearcher
     // soon as each directory is walked, instead of waiting for the whole (potentially huge) subtree to
     // finish before anything renders -- see LiveScanCache for why only the caller that wins the GetOrAdd
     // race gets this; every later caller just reuses the finished list via MatchAndStream once the shared
-    // task completes.
+    // task completes. `liveQuery` is the filter's TEXT and `regexes` are the "/.../" clauses that go with
+    // it, both required for the filter to mean what the user typed.
     //
     // Two tokens, because the scan and its audience have two different lifetimes. `token` governs the
     // SCAN: the scan is shared between keystrokes and outlives any one of them, so cancelling it means
@@ -26,7 +27,8 @@ public static class LiveDirectorySearcher
         Action<SearchResult>? onLiveMatch = null,
         bool onlyDirectChildren = false,
         string? parentPath = null,
-        CancellationToken liveMatchToken = default)
+        CancellationToken liveMatchToken = default,
+        string[]? regexes = null)
     {
         var results = new List<SearchResult>();
         var exists = !string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory);
@@ -36,10 +38,14 @@ public static class LiveDirectorySearcher
 
         FzfPattern? livePattern = null;
         FzfSlab? liveSlab = null;
-        if (onLiveMatch != null && !string.IsNullOrWhiteSpace(liveQuery))
+        // A regex clause is a filter on its own: the path-mode branch hands over a clause with no query
+        // text at all, so the clause is the only reason to build a pattern here. Both entry points take the
+        // clauses as an argument (the text handed over is already clause-free), which is why this is
+        // ParseText rather than Parse -- see SearchService's live-scan setup.
+        if (onLiveMatch != null && (!string.IsNullOrWhiteSpace(liveQuery) || regexes is { Length: > 0 }))
         {
-            var parsed = FzfPattern.Parse(liveQuery);
-            if (!parsed.IsEmpty || parsed.TargetDrive != null)
+            var parsed = FzfPattern.ParseText(liveQuery ?? string.Empty, regexes);
+            if (!parsed.IsEmpty)
             {
                 livePattern = parsed;
                 liveSlab = new FzfSlab();
@@ -109,17 +115,20 @@ public static class LiveDirectorySearcher
         Action<SearchResult> onResult,
         CancellationToken token,
         bool onlyDirectChildren = false,
-        string? parentPath = null)
+        string? parentPath = null,
+        string[]? regexes = null)
     {
         if (entries == null || entries.Count == 0)
             return false;
 
         FzfPattern? pattern = null;
         FzfSlab? slab = null;
-        if (!string.IsNullOrWhiteSpace(query))
+        // A regex clause is a filter on its own: the path-mode branch hands over a clause with no query
+        // text at all, and skipping the pattern there would stream every entry the clause rejects.
+        if (!string.IsNullOrWhiteSpace(query) || regexes is { Length: > 0 })
         {
-            pattern = FzfPattern.Parse(query);
-            if (pattern.IsEmpty && pattern.TargetDrive == null)
+            pattern = FzfPattern.ParseText(query, regexes);
+            if (pattern.IsEmpty)
                 return false;
             slab = new FzfSlab();
         }

@@ -61,9 +61,11 @@ internal sealed class SearchQueryDispatchController
 
     public void OnAdvancedQueryChanged(string query)
     {
-        var scan = QueryTokenScanner.Scan(query, GetGlobalTokenPrefixChar());
+        // The bypass marker is stripped before the scan: the scanner reads a trigger from a word's first
+        // character only, so "*\audio" would otherwise stay ordinary text (see StripExclusionBypass).
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GetGlobalTokenPrefixChar());
         _queryTokens = scan.Tokens;
-        var cleanQuery = QueryTokenScanner.StripExclusionBypass(scan.Text, out var bypassExclusions);
+        var cleanQuery = scan.Text;
 
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {

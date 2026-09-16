@@ -133,6 +133,10 @@ public static class QueryTokenScanner
     // an AppSearchResult's SearchQuery for highlighting) -- the character itself is never part of the
     // match/highlight text, only a query-string-level signal.
     //
+    // That includes running it before Scan: the scanner reads a token trigger from a word's FIRST
+    // character, so a marker glued to one ("*\audio") would leave the word looking like ordinary text and
+    // the token would never be dispatched at all.
+    //
     // It lives here, next to the token scan, because both are the same job: reducing raw typed text to
     // (search text + query-level signals). Unlike a token, "*" is a whole-query switch rather than a
     // term, so it is read from the first character only, not from anywhere in the string.

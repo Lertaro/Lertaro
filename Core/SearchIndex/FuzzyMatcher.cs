@@ -1,4 +1,4 @@
-﻿using Lertaro.Core.SearchIndex.Fzf;
+using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.SearchIndex;
 

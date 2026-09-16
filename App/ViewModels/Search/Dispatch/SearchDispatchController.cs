@@ -55,9 +55,9 @@ internal sealed class SearchDispatchController
     }
     public void DispatchSearch(string value)
     {
-        var scan = QueryTokenScanner.Scan(value, GetGlobalTokenPrefixChar());
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(value, out var bypassExclusions), GetGlobalTokenPrefixChar());
         _queryTokens = scan.Tokens;
-        var cleanQuery = QueryTokenScanner.StripExclusionBypass(scan.Text, out var bypassExclusions);
+        var cleanQuery = scan.Text;
         _bypassExclusions = bypassExclusions;
         var (strippedClean, triggeredTypeId) = _resultTypeTrigger.StripTrigger(value, cleanQuery);
         cleanQuery = strippedClean;
@@ -196,9 +196,10 @@ internal sealed class SearchDispatchController
             }
             return;
         }
-        var scan = QueryTokenScanner.Scan(query, GetGlobalTokenPrefixChar());
+        // Same order as DispatchSearch: the bypass marker is stripped before the token scan.
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GetGlobalTokenPrefixChar());
         _queryTokens = scan.Tokens;
-        var cleanQuery = QueryTokenScanner.StripExclusionBypass(scan.Text, out var bypassExclusions);
+        var cleanQuery = scan.Text;
         _bypassExclusions = bypassExclusions;
         var (strippedClean, triggeredTypeId) = _resultTypeTrigger.StripTrigger(query, cleanQuery);
         cleanQuery = strippedClean;

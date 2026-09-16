@@ -104,8 +104,9 @@ public static class AppSearchPipeService
 
         if (!string.IsNullOrWhiteSpace(query))
         {
-            var scan = QueryTokenScanner.Scan(query, GetGlobalTokenPrefixChar());
-            var cleanQuery = QueryTokenScanner.StripExclusionBypass(scan.Text, out var bypassExclusions);
+            // The bypass marker is stripped before the scan (see QueryTokenScanner.StripExclusionBypass).
+            var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GetGlobalTokenPrefixChar());
+            var cleanQuery = scan.Text;
             var tokens = scan.Tokens;
 
             if (tokens.Count > 0)
