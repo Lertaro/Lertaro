@@ -7,9 +7,17 @@ public static class LiveDirectorySearcher
 {
     // liveQuery/onLiveMatch let the caller that actually triggers a cold (uncached) scan see matches as
     // soon as each directory is walked, instead of waiting for the whole (potentially huge) subtree to
-    // finish before anything renders -- see SearchService's _sessionDirectoryCache for why only the
-    // caller that wins the GetOrAdd race gets this; every later caller just reuses the finished list via
-    // MatchAndStream once the shared task completes.
+    // finish before anything renders -- see LiveScanCache for why only the caller that wins the GetOrAdd
+    // race gets this; every later caller just reuses the finished list via MatchAndStream once the shared
+    // task completes.
+    //
+    // Two tokens, because the scan and its audience have two different lifetimes. `token` governs the
+    // SCAN: the scan is shared between keystrokes and outlives any one of them, so cancelling it means
+    // "stop walking", which only the owning window does. `liveMatchToken` governs DELIVERY to whoever is
+    // listening right now: when that request is superseded, the walk is still worth finishing for the next
+    // keystroke, but its results have nowhere to go -- without this the callback captured at scan start
+    // keeps firing into a caller that has already moved on. Defaults to never-cancelled, i.e. deliver for
+    // as long as the scan runs, which is what a caller with no separate request token wants.
     public static List<SearchResult> ScanDirectory(
         string directory,
         int maxProcessed,
@@ -17,7 +25,8 @@ public static class LiveDirectorySearcher
         string? liveQuery = null,
         Action<SearchResult>? onLiveMatch = null,
         bool onlyDirectChildren = false,
-        string? parentPath = null)
+        string? parentPath = null,
+        CancellationToken liveMatchToken = default)
     {
         var results = new List<SearchResult>();
         var exists = !string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory);
@@ -86,7 +95,7 @@ public static class LiveDirectorySearcher
                     queue.Enqueue(entry.FullName);
                 }
 
-                if (onLiveMatch != null && TryMatchEntry(result, livePattern, liveSlab, onlyDirectChildren, normalizedParent))
+                if (onLiveMatch != null && !liveMatchToken.IsCancellationRequested && TryMatchEntry(result, livePattern, liveSlab, onlyDirectChildren, normalizedParent))
                     onLiveMatch(result);
             }
         }
