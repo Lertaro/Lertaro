@@ -20,13 +20,30 @@ internal static class RegexClauses
 
     private static readonly ConcurrentDictionary<string, Regex> Cache = new(StringComparer.Ordinal);
 
+    // A pattern that exceeds its match budget is a per-candidate miss, not a per-candidate log line.
+    private static readonly RegexTimeoutLogThrottle TimeoutLog = new(60_000);
+
     internal static bool AllMatch(string[] patterns, ReadOnlySpan<char> text)
     {
         foreach (var pattern in patterns)
         {
             var regex = GetOrCreate(pattern);
-            if (!regex.IsMatch(text))
+            try
+            {
+                if (!regex.IsMatch(text))
+                    return false;
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                // Only the backtracking fallback below carries a budget -- NonBacktracking cannot time
+                // out at all -- so this is a user's lookaround/backreference pattern losing a race
+                // against one name. Rejecting that candidate is the whole cost; letting the exception
+                // out would abandon the entire search for every remaining name.
+                if (TimeoutLog.ShouldLog(pattern, Environment.TickCount64))
+                    Logger.Log($"[Search] Regex clause '{pattern}' exceeded its match budget; that candidate was skipped.", LogLevel.Warn);
+
                 return false;
+            }
         }
 
         return true;
