@@ -239,4 +239,30 @@ public class CustomFilterQueryTokenProviderTests
         foreach (var ext in new[] { "*.wim", "*.esd" })
             Assert.Contains(ext, zipRule, $"zip rule missing {ext}");
     }
+
+    // A compiled rule regex is cached per translated pattern. The key space is one entry per distinct
+    // rule TEXT, and every intermediate state of editing a rule is a distinct text, so the cache is fed
+    // by unbounded input even though a user configures only a handful of filters at a time.
+    [TestMethod]
+    public async Task ApplyAsync_ManyDistinctRules_KeepsTheRegexCacheBounded()
+    {
+        var revision = 0;
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
+            ? new List<CustomFilterItem> { new() { Keyword = "doc", Rule = $"*.rev{revision}" } }
+            : fallback;
+
+        var provider = new CustomFilterQueryTokenProvider();
+        var results = new List<ISearchResult>
+        {
+            new FakeSearchResult { Name = "report.rev0", FullPath = @"C:\docs\report.rev0" },
+        };
+
+        for (var i = 0; i < 600; i++)
+        {
+            revision = i;
+            _ = await provider.ApplyAsync("\\doc", results);
+        }
+
+        Assert.IsLessThanOrEqualTo(256, CustomFilterQueryTokenProvider.CachedRegexCount);
+    }
 }

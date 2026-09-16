@@ -22,9 +22,14 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
 
     // Compiled regexes are cached per translated pattern. A filter runs on every keystroke against the
     // whole fetched result set, so recompiling here would be the single most expensive thing in the
-    // token chain. ponytail: unbounded cache -- the key space is one entry per distinct rule a user has
-    // configured, which is a handful, not a per-query growth.
+    // token chain. The cache is bounded and cleared at the cap, so repeated rule edits cannot grow it
+    // without limit.
+    private const int MaxRegexCacheEntries = 256;
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Regex> RegexCache = new(StringComparer.Ordinal);
+    private static readonly object RegexCacheGate = new();
+
+    // Test seam: the bound is only observable from the outside through the count.
+    internal static int CachedRegexCount => RegexCache.Count;
 
     public string Name => TranslationService.Get("CoreExtensions_CustomFilterProvider_Name");
 
@@ -81,19 +86,39 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
         return best;
     }
 
-    private static Regex? GetRegex(string rule) => RegexCache.GetOrAdd(rule, static r =>
-                                                                  {
-                                                                      try
-                                                                      {
-                                                                          return new Regex(RuleToRegex(r), MatchOptions);
-                                                                      }
-                                                                      catch (ArgumentException)
-                                                                      {
-                                                                          // A user-authored rule that doesn't translate to a valid pattern matches nothing rather
-                                                                          // than failing the whole search.
-                                                                          return new Regex("(?!)", MatchOptions);
-                                                                      }
-                                                                  });
+    // The fast path is a plain read, so a rule that is already compiled never takes the lock. The cap is
+    // enforced inside it, where the count cannot change underneath the check. Clearing rather than
+    // evicting one entry keeps the rules a user actually configured (a handful) resident, and costs at
+    // most one recompile per MaxRegexCacheEntries new rules.
+    private static Regex? GetRegex(string rule)
+    {
+        if (RegexCache.TryGetValue(rule, out var cached))
+            return cached;
+
+        lock (RegexCacheGate)
+        {
+            if (RegexCache.TryGetValue(rule, out cached))
+                return cached;
+
+            if (RegexCache.Count >= MaxRegexCacheEntries)
+                RegexCache.Clear();
+
+            Regex compiled;
+            try
+            {
+                compiled = new Regex(RuleToRegex(rule), MatchOptions);
+            }
+            catch (ArgumentException)
+            {
+                // A user-authored rule that doesn't translate to a valid pattern matches nothing rather
+                // than failing the whole search.
+                compiled = new Regex("(?!)", MatchOptions);
+            }
+
+            RegexCache[rule] = compiled;
+            return compiled;
+        }
+    }
 
     // "*.doc; *.docx; *.pdf" and "audio" (a bare word is read as an extension) both become one
     // alternation anchored at the end of the name. Anything that already carries wildcard syntax keeps

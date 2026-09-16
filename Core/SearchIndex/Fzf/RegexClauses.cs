@@ -8,7 +8,7 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 //
 // Compiled once per distinct pattern string rather than per candidate: a regex search runs its clauses
 // against every surviving name, and recompiling would dominate the cost. The cache is keyed on the raw
-// pattern text, which is bounded by how many distinct regexes a user actually types.
+// pattern text and bounded by MaxCacheEntries, so a long editing session cannot grow it without limit.
 internal static class RegexClauses
 {
     // NonBacktracking keeps a pathological pattern (nested quantifiers the user typed by accident) from
@@ -18,10 +18,19 @@ internal static class RegexClauses
     private static readonly RegexOptions BaseOptions =
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled;
 
+    // A user types a handful of distinct regexes, but every intermediate state of an edit is a distinct
+    // pattern string, so an editing session is unbounded input. A compiled Regex is expensive enough to
+    // hold that it must not accumulate forever; the cap is far above any real query's clause count, so
+    // clearing it costs a recompile at most once per MaxCacheEntries new patterns.
+    private const int MaxCacheEntries = 256;
     private static readonly ConcurrentDictionary<string, Regex> Cache = new(StringComparer.Ordinal);
+    private static readonly object CacheGate = new();
 
     // A pattern that exceeds its match budget is a per-candidate miss, not a per-candidate log line.
     private static readonly RegexTimeoutLogThrottle TimeoutLog = new(60_000);
+
+    // Test seam: the bound is only observable from the outside through the count.
+    internal static int CachedCount => Cache.Count;
 
     internal static bool AllMatch(string[] patterns, ReadOnlySpan<char> text)
     {
@@ -49,7 +58,26 @@ internal static class RegexClauses
         return true;
     }
 
-    private static Regex GetOrCreate(string pattern) => Cache.GetOrAdd(pattern, Compile);
+    // The fast path is a plain read, so the common case (a pattern already compiled) never takes the
+    // lock. The cap is enforced inside it, where the count cannot change underneath the check.
+    private static Regex GetOrCreate(string pattern)
+    {
+        if (Cache.TryGetValue(pattern, out var cached))
+            return cached;
+
+        lock (CacheGate)
+        {
+            if (Cache.TryGetValue(pattern, out cached))
+                return cached;
+
+            if (Cache.Count >= MaxCacheEntries)
+                Cache.Clear();
+
+            var compiled = Compile(pattern);
+            Cache[pattern] = compiled;
+            return compiled;
+        }
+    }
 
     private static Regex Compile(string pattern)
     {
