@@ -20,7 +20,7 @@ internal static class PathSearch
         if (parsed.TargetDrive != null && !parsed.TargetDrive.Equals(snapshot.SourceKey, StringComparison.OrdinalIgnoreCase))
             return;
 
-        PathSearchFuzzy.SearchStreaming(snapshot, delta, parsed.PathPatternLower ?? string.Empty, limit, onResult, token, directoryFilterLower);
+        PathSearchFuzzy.SearchStreaming(snapshot, delta, parsed.PathPatternLower ?? string.Empty, limit, onResult, token, directoryFilterLower, parsed.Regexes);
     }
 
     // "t:\a\b\" lists children; "t:\a\b\pre" filters them by the last segment as a name prefix query.
@@ -34,13 +34,19 @@ internal static class PathSearch
         // See NameSearch: bounded by the index, and widened so a large limit cannot overflow.
         var keep = (int)Math.Min((long)Math.Max(limit, 8) * 8, snapshot.Count + delta.Added.Count);
         var matches = new FzfTopN(keep);
+        var pattern = childPrefix.Length == 0 && parsed.Regexes is not { Length: > 0 }
+            ? null
+            : FzfPattern.ParseText(childPrefix, parsed.Regexes);
 
         if (childPrefix.Length == 0 && !DirectoryFilterResolver.IsVisiblyDeleted(snapshot, delta, current))
         {
-            matches.Add(FzfResultRank.ForDefaultScheme(current, DirectoryFilterResolver.GetName(snapshot, delta, current), new FzfPatternResult(0, 0, 0, 0, false)));
+            var currentName = DirectoryFilterResolver.GetName(snapshot, delta, current);
+            if (pattern == null || pattern.TryMatch(currentName, out _, FzfScoringScheme.Default))
+            {
+                matches.Add(FzfResultRank.ForDefaultScheme(current, currentName, new FzfPatternResult(0, 0, 0, 0, false)));
+            }
         }
 
-        var pattern = childPrefix.Length == 0 ? null : FzfPattern.ParseText(childPrefix);
         var queryLen = pattern?.GetTotalTermLength() ?? 0;
         var slab = new FzfSlab();
         var aliasScratch = new List<(string Alias, byte ProviderId)>();

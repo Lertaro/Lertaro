@@ -20,7 +20,7 @@ internal static class PathSearchFuzzy
     private const int RefinementHeadroomFactor = 5;
 
     public static void SearchStreaming(Snapshot snapshot, DeltaOverlay delta, string pathQuery, int limit,
-        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower)
+        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, string[]? regexes = null)
     {
         var directoryContext = NameSearch.ResolveDirectoryContext(snapshot, delta, directoryFilterLower);
         if (directoryContext.Excluded)
@@ -49,7 +49,8 @@ internal static class PathSearchFuzzy
             // the same reason it is one in a name-mode query. ParseText has no notion of a drive, so the
             // token stayed a plain term -- and a term containing a colon can never match a file name, so
             // one of those anywhere in the query took the whole thing down to no results at all.
-            filePattern = !string.IsNullOrEmpty(fileQuery) ? FzfPattern.Parse(fileQuery) : null;
+            filePattern = !string.IsNullOrEmpty(fileQuery) || regexes is { Length: > 0 }
+                ? FzfPattern.Parse(fileQuery, regexes) : null;
             if (filePattern?.TargetDrive != null &&
                 !filePattern.TargetDrive.Equals(snapshot.SourceKey, StringComparison.OrdinalIgnoreCase))
             {
@@ -59,7 +60,7 @@ internal static class PathSearchFuzzy
             gate = SearchWithDirectory(snapshot, delta, dirQuery, filePattern, topN, scanKeep, token, directoryContext);
         }
         else
-            filePattern = SearchFilenameOnly(snapshot, delta, pathQuery, topN, token, directoryContext);
+            filePattern = SearchFilenameOnly(snapshot, delta, pathQuery, topN, token, directoryContext, regexes);
 
         var ranks = topN.Finish(scanKeep);
         if (filePattern is { IsEmpty: false } || gate != null)
@@ -240,9 +241,9 @@ internal static class PathSearchFuzzy
     }
 
     private static FzfPattern SearchFilenameOnly(Snapshot snapshot, DeltaOverlay delta, string pathQuery, FzfTopN topN,
-        CancellationToken token, NameSearch.DirectoryContext directoryContext)
+        CancellationToken token, NameSearch.DirectoryContext directoryContext, string[]? regexes)
     {
-        var pattern = FzfPattern.ParseText(pathQuery);
+        var pattern = FzfPattern.ParseText(pathQuery, regexes);
         var membership = directoryContext.FilterLower != null ? new Dictionary<int, bool>() : null;
 
         var hits = SearchMatcher.RentHitList();

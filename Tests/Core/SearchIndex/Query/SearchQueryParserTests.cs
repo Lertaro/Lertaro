@@ -82,6 +82,17 @@ public sealed class SearchQueryParserTests
     }
 
     [TestMethod]
+    public void Parse_PathWithRegex_PreservesRegexForPathMatcher()
+    {
+        var result = SearchQueryParser.Parse(@"c:\projects\ regex:/^readme\.txt$/");
+
+        Assert.IsTrue(result.IsPathMode);
+        Assert.IsNotNull(result.Regexes);
+        Assert.HasCount(1, result.Regexes);
+        Assert.AreEqual(@"^readme\.txt$", result.Regexes[0]);
+    }
+
+    [TestMethod]
     public void Parse_DrivePath_IsPathModeWithNormalizedDrive()
     {
         var result = SearchQueryParser.Parse(@"c:\foo\bar");
