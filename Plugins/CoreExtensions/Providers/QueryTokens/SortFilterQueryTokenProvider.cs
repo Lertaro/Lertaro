@@ -118,9 +118,10 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
 
         if (key == SortKey.IsDirectory)
         {
-            // Folders are not ordered, so the only meaningful threshold is membership: "<f>f/folder"
-            // keeps directories and "<f<f" keeps everything else, mirroring ">20m" = "on this side".
-            var wantsDirectory = isLowerBound && threshold.StartsWith('f');
+            // Folders are not ordered, so the only meaningful threshold is membership: "<f>f" -- or the
+            // words the search-syntax documentation offers, "folder" / "dir" -- keeps directories and any
+            // other threshold keeps everything else, mirroring ">20m" = "on this side".
+            var wantsDirectory = isLowerBound && IsDirectoryThreshold(threshold);
             return r => r.IsDir == wantsDirectory;
         }
 
@@ -143,6 +144,12 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
 
         return isLowerBound ? r => getter(r) > date : r => getter(r) < date;
     }
+
+    // The folder/file key's own threshold spellings: the key letter (so "f" and "folder" both work) and the
+    // alternative word the search-syntax docs list. Case-insensitive, like the rest of the token syntax.
+    private static bool IsDirectoryThreshold(string threshold)
+        => threshold.StartsWith("f", StringComparison.OrdinalIgnoreCase)
+            || threshold.StartsWith("dir", StringComparison.OrdinalIgnoreCase);
 
     private static Func<ISearchResult, IComparable> SelectorFor(SortKey key) => key switch
     {
@@ -174,7 +181,20 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
         if (!double.TryParse(digits, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
             return false;
 
-        bytes = (long)(value * multiplier);
+        // A double that is NaN, infinite, or outside long's range has an UNSPECIFIED result when converted
+        // to long in an unchecked context, and NumberStyles.Float happily parses "NaN", "Infinity" and
+        // "1e300". Unchecked, an absurd threshold silently became a nonsense bound (usually long.MinValue,
+        // which makes a "greater than" filter keep everything) instead of being rejected as unparseable --
+        // which the caller already handles by narrowing nothing. checked() makes that case explicit.
+        try
+        {
+            bytes = checked((long)(value * multiplier));
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+
         return true;
     }
 

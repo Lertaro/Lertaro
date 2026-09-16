@@ -5,10 +5,12 @@ using Lertaro.PluginSdk.Abstractions;
 namespace Lertaro.App.Tests.ViewModels.Settings.Plugins;
 
 // The Settings window's Apply gate reads every built page's errors (SettingsViewModel.ValidationErrors),
-// and this is the leaf that produces them for a plugin config field. Two things matter here and neither is
-// visible from the outside: a message must name the field that produced it, and asking for the errors must
-// NOT materialize a config tree that was never shown -- building that tree is the exact cost the lazy rows
-// exist to avoid, and Apply sits behind a single click.
+// and this is the leaf that produces them for a plugin config field. Three things matter here and none is
+// visible from the outside: a message must name the field that produced it, asking for the errors must NOT
+// materialize a config tree that was never shown (building that tree is the exact cost the lazy rows exist
+// to avoid, and Apply sits behind a single click), and only a value the user has STAGED may block a save --
+// a schema default or a carried-over value that cannot work is shown next to its field instead, or an
+// upgraded install could not save anything at all.
 [TestClass]
 public sealed class PluginConfigFieldValidationSupportTests
 {
@@ -40,6 +42,7 @@ public sealed class PluginConfigFieldValidationSupportTests
     public void PrefixError_ReservedCharacter_IsReportedAndNamesTheField()
     {
         var field = Field(TriggerSchema("prefix", Reserved));
+        field.Value = Reserved; // the user typed it
 
         var errors = field.Validation.Errors.ToList();
 
@@ -48,11 +51,25 @@ public sealed class PluginConfigFieldValidationSupportTests
     }
 
     [TestMethod]
+    public void PrefixError_UnstagedReservedValue_IsShownButDoesNotBlockSaving()
+    {
+        // The schema's own default (or a value a previous release persisted) is not something the user is
+        // entering now. Blocking on it refuses every other setting in the window -- the lockout this rule
+        // exists to prevent -- while the field still shows the warning.
+        var field = Field(TriggerSchema("prefix", Reserved));
+
+        Assert.IsNotNull(field.PrefixError, "the field must still report that the value cannot work");
+        Assert.IsFalse(field.IsDirty);
+        Assert.IsEmpty(field.Validation.Errors.ToList());
+    }
+
+    [TestMethod]
     public void PrefixError_FieldThatIsNotATrigger_IsNotReported()
     {
         // The same reserved character in an ordinary text field is just the user's text: only the
         // single-character trigger shape is matched against the syntax.
         var field = Field(Schema("label", Reserved));
+        field.Value = Reserved;
 
         Assert.IsEmpty(field.Validation.Errors.ToList());
     }
@@ -61,6 +78,7 @@ public sealed class PluginConfigFieldValidationSupportTests
     public void TriggerKeywordError_ReservedLeadingCharacter_IsReportedAndNamesTheField()
     {
         var field = Field(Schema("keyword", Reserved + "audio", validation: ConfigFieldValidation.TriggerKeyword));
+        field.Value = Reserved + "audio";
 
         var errors = field.Validation.Errors.ToList();
 
@@ -102,6 +120,7 @@ public sealed class PluginConfigFieldValidationSupportTests
     {
         var field = Field(GroupSchema());
         _ = field.Children; // the group was shown
+        field.Children[0].Value = Reserved; // and its row was edited
 
         var errors = field.Validation.Errors.ToList();
 
@@ -126,7 +145,9 @@ public sealed class PluginConfigFieldValidationSupportTests
 
         Assert.IsEmpty(field.Validation.Errors.ToList());
 
-        field.ArrayItems.Add(new PluginConfigArrayItemViewModel(field, new Dictionary<string, object>(), () => { }));
+        var item = new PluginConfigArrayItemViewModel(field, new Dictionary<string, object>(), () => { });
+        field.ArrayItems.Add(item);
+        item.Children[0].Value = Reserved; // the row's own trigger was edited
 
         var errors = field.Validation.Errors.ToList();
 

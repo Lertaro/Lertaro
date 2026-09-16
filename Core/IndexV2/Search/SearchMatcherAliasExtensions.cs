@@ -57,7 +57,8 @@ internal static class SearchMatcherAliasExtensions
 
     // Zero-copy alias fallback: each baked alias is matched from its raw UTF-8 (byte path for ASCII
     // aliases -- the common case, pinyin -- else decoded into the alias scratch), honoring
-    // SearchContext.DisabledAliasIds and the IsAcceptableAliasMatch quality gate.
+    // SearchContext.DisabledAliasIds and the IsAcceptableAliasMatch quality gate. An ASCII alias decodes
+    // too when the query carries a regex clause, which the byte matcher cannot apply at all.
     internal static bool TryMatchAliases(Snapshot snapshot, SearchMatcher.QueryContext ctx, int uid, SearchMatcher.Worker worker, out FzfPatternResult best)
     {
         best = default;
@@ -76,8 +77,12 @@ internal static class SearchMatcherAliasExtensions
             FzfPatternResult aliasMatch;
             bool hit;
             var decodedLength = -1; // -1: not decoded to chars yet (the ASCII/byte fast path below skips it)
-            var isAsciiAlias = Ascii.IsValid(aliasUtf8);
-            if (isAsciiAlias)
+            // A regex clause lives only in ctx.Pattern: the byte pattern has no regex support at all (see
+            // FzfBytePattern.HasRegexClauses). So the byte fast path is only correct when the query carries
+            // no clause -- otherwise this tier is reached precisely because the NAME failed the clause, and
+            // an alias satisfying just the terms would admit a row the clause excludes.
+            var useBytePath = Ascii.IsValid(aliasUtf8) && !ctx.BytePattern.HasRegexClauses;
+            if (useBytePath)
             {
                 hit = ctx.BytePattern.TryMatchSegmented(aliasUtf8, out aliasMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers);
             }
@@ -95,7 +100,7 @@ internal static class SearchMatcherAliasExtensions
                 // The alias's own provider is the only one that knows where its boundaries fall, and for a
                 // baked alias that provider is reachable only by its id.
                 var separator = AliasProviderRegistry.GetSyllableSeparator(snapshot.AliasProviderId(e));
-                var aligned = isAsciiAlias
+                var aligned = useBytePath
                     ? AliasMatchRules.AllowsMatchUtf8(ctx.Pattern, separator, aliasUtf8, aliasMatch.MinBegin)
                     : AliasMatchRules.AllowsMatch(ctx.Pattern, separator, worker.AliasScratch.AsSpan(0, decodedLength), aliasMatch.MinBegin);
                 if (!aligned)

@@ -153,6 +153,9 @@ public class SearchService : IDisposable
         var needsLiveSearch = false;
         var liveScanDir = string.Empty;
         var liveScanFilter = string.Empty;
+        // The regex clauses the live scan has to apply too -- they are part of the query, not of the text
+        // the live pattern is built from (see the two branches below).
+        string[]? liveScanRegexes = null;
 
         if (parsed.IsPathMode && !string.IsNullOrEmpty(parsed.ExactPathLower))
         {
@@ -162,6 +165,10 @@ public class SearchService : IDisposable
                 needsLiveSearch = true;
                 liveScanDir = resolved.DirectoryToScan;
                 liveScanFilter = resolved.FilterQuery;
+                // The path fragment is only the tail of the path, so it never carries the clauses itself;
+                // without this the live scan matched on the fragment alone and streamed every child of a
+                // directory the index does not cover, regex and all.
+                liveScanRegexes = parsed.Regexes;
             }
         }
         else if (!string.IsNullOrEmpty(directoryFilter) && _scopeLiveSearchCache.GetOrAdd(directoryFilter,
@@ -169,7 +176,10 @@ public class SearchService : IDisposable
         {
             needsLiveSearch = true;
             liveScanDir = directoryFilter;
-            liveScanFilter = query;
+            // Split off this query's own clauses: the live pattern is built through ParseText, which takes
+            // the clauses as an argument instead of lifting them out of the text.
+            liveScanFilter = RegexQueryParser.Split(query, out _);
+            liveScanRegexes = parsed.Regexes;
         }
 
         Task<bool>? liveTask = null;
@@ -187,10 +197,10 @@ public class SearchService : IDisposable
                         (dir, scanToken) => LiveDirectorySearcher.ScanDirectory(dir, 10000, scanToken,
                             liveQuery: liveScanFilter, onLiveMatch: uniqueOnResult,
                             onlyDirectChildren: onlyDirectChildren, parentPath: liveScanDir,
-                            liveMatchToken: token));
+                            liveMatchToken: token, regexes: liveScanRegexes));
                     var entries = await scanTask.WaitAsync(token).ConfigureAwait(false);
 
-                    return LiveDirectorySearcher.MatchAndStream(entries, liveScanFilter, uniqueOnResult, token, onlyDirectChildren, liveScanDir);
+                    return LiveDirectorySearcher.MatchAndStream(entries, liveScanFilter, uniqueOnResult, token, onlyDirectChildren, liveScanDir, liveScanRegexes);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)

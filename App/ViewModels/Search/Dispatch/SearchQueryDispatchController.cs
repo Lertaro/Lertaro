@@ -86,9 +86,11 @@ internal sealed class SearchQueryDispatchController
 
     public void OnAdvancedQueryChanged(string query)
     {
-        var scan = QueryTokenScanner.Scan(query, GetGlobalTokenPrefixChar());
+        // The bypass marker is stripped before the scan: the scanner reads a trigger from a word's first
+        // character only, so "*\audio" would otherwise stay ordinary text (see StripExclusionBypass).
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GetGlobalTokenPrefixChar());
         _queryTokens = scan.Tokens;
-        var cleanQuery = QueryTokenScanner.StripExclusionBypass(scan.Text, out var bypassExclusions);
+        var cleanQuery = scan.Text;
         // A file-filter scope keyword ("tf report" -> search "report" only inside the tf filter's folders)
         // resolves first, in the same order SearchDispatchController applies it: the scope is the more
         // specific prefix and its own resolver owns stripping its word, so the trigger-word strip below is

@@ -3,9 +3,9 @@ using Lertaro.Core.Services.Search;
 namespace Lertaro.Core.Tests.Services.Search;
 
 // A live scan is shared between keystrokes and deliberately outlives any one of them, so its lifetime is
-// owned by the window (the cache) rather than by the request that started it. These pin the three things
-// that ownership has to mean: a scan is started once, an evicted scan is actually stopped, and a disposed
-// cache does not return while its scans are still running.
+// owned by the window (the cache) rather than by the request that started it. These pin what that ownership
+// has to mean: a scan is started once, eviction drops only the cached list (never cancelling a scan another
+// request may still be awaiting), and a disposed cache does not return while its scans are still running.
 [TestClass]
 public sealed class LiveScanCacheTests
 {
@@ -41,7 +41,7 @@ public sealed class LiveScanCacheTests
     }
 
     [TestMethod]
-    public async Task GetOrAdd_AtTheEntryLimit_CancelsTheScansItEvicts()
+    public async Task GetOrAdd_AtTheEntryLimit_DropsTheOldestEntryWithoutCancellingIt()
     {
         using var cache = new LiveScanCache(maxEntries: 2);
         var tokens = new List<CancellationToken>();
@@ -52,12 +52,40 @@ public sealed class LiveScanCacheTests
             await cache.GetOrAdd($@"C:\dir{index}", (_, token) => { tokens.Add(token); return Empty(); });
         }
 
-        // The first two were evicted to make room for the third, so their scans must have been stopped --
-        // dropping the entry alone left the walk running with nothing able to reuse or stop it.
-        Assert.IsTrue(tokens[0].IsCancellationRequested);
-        Assert.IsTrue(tokens[1].IsCancellationRequested);
+        // The first entry was dropped to make room for the third -- but NOT cancelled. A dropped scan can
+        // still be awaited by a request that has not finished (a scoped search fans out over several folders
+        // at once), and cancelling it failed that request with an OperationCanceledException for a reason
+        // nobody asked for. What the cap reclaims is the cached list, which dropping the entry already
+        // releases because an awaiting caller holds its own reference to the task.
+        Assert.IsFalse(tokens[0].IsCancellationRequested);
+        Assert.IsFalse(tokens[1].IsCancellationRequested);
         Assert.IsFalse(tokens[2].IsCancellationRequested);
-        Assert.AreEqual(1, cache.Count);
+        Assert.AreEqual(2, cache.Count);
+    }
+
+    [TestMethod]
+    public async Task GetOrAdd_AtTheEntryLimit_KeepsTheMostRecentDirectories()
+    {
+        using var cache = new LiveScanCache(maxEntries: 2);
+        var starts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        for (var i = 0; i < 3; i++)
+        {
+            var directory = $@"C:\dir{i}";
+            await cache.GetOrAdd(directory, (dir, _) =>
+            {
+                starts[dir] = starts.GetValueOrDefault(dir) + 1;
+                return Empty();
+            });
+        }
+
+        // The oldest entry is the one that goes: reading the list a long-typing session most recently reused
+        // again is what the cache is for.
+        await cache.GetOrAdd(@"C:\dir2", (dir, _) => { starts[dir] = starts.GetValueOrDefault(dir) + 1; return Empty(); });
+        Assert.AreEqual(1, starts[@"C:\dir2"]);
+
+        await cache.GetOrAdd(@"C:\dir0", (dir, _) => { starts[dir] = starts.GetValueOrDefault(dir) + 1; return Empty(); });
+        Assert.AreEqual(2, starts[@"C:\dir0"], "the oldest entry must have been the one dropped");
     }
 
     [TestMethod]
