@@ -52,6 +52,16 @@ public sealed class FzfPatternParsingTests
     {
         // The quote characters are gone from the operator set, but the phrase merger still folds a
         // matched pair into ONE term -- that is quoting, not an operator, and it stays.
+        //
+        // KNOWN DEFECT (not this test's subject, so the assertion below records the current behaviour
+        // rather than the intended one): the quote characters survive INTO the term text. A quoted phrase
+        // therefore has to match apostrophes that no file name contains, so `'final report'` -- the form
+        // documented under "Escaping Spaces & Quoted Phrases" in site/user-guide/search-syntax.md, and
+        // listed as a grouping operator in Plan.md §2.2 -- returns nothing. Only the `final\ report` form
+        // works, and only when FzfPattern.Parse sees it directly (the search box's QueryTokenScanner
+        // consumes the escape first). Fixing it means stripping the delimiters where the phrase is folded,
+        // teaching the merger about double quotes too, and keeping the scanner from eating `\ ` -- one
+        // change across three places, which is why it is reported rather than pinned here.
         var pattern = FzfPattern.Parse("'cad acb'");
 
         Assert.HasCount(1, pattern.TermSets);

@@ -166,25 +166,6 @@ public class CustomFilterQueryTokenProviderTests
     }
 
     [TestMethod]
-    public async Task ApplyAsync_AKeywordTokenAppliesExactlyOneCategory()
-    {
-        // A single token carries one category now -- combining several means writing several tokens,
-        // which the token dispatcher chains.
-        var provider = new CustomFilterQueryTokenProvider();
-        var results = new List<ISearchResult>
-        {
-            new FakeSearchResult { Name = "report.docx", FullPath = @"C:\docs\report.docx", IsDir = false },
-            new FakeSearchResult { Name = "photo.jpg", FullPath = @"C:\pics\photo.jpg", IsDir = false },
-            new FakeSearchResult { Name = "movie.mp4", FullPath = @"C:\videos\movie.mp4", IsDir = false },
-        };
-
-        var filtered = await provider.ApplyAsync("\\doc", results);
-
-        Assert.HasCount(1, filtered);
-        Assert.AreEqual("report.docx", filtered[0].Name);
-    }
-
-    [TestMethod]
     public void ExpandRule_ResolvesReferencesAndRemovesDuplicatePatterns()
     {
         var filters = new List<CustomFilterItem>

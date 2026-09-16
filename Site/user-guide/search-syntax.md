@@ -84,20 +84,27 @@ The toggle only changes the precedence between the two operators — no new oper
 
 Note: `|` must be a standalone token with spaces on both sides — `a|b` or `a |b` is not parsed as OR. This also applies to an exclusion: `b | :c` is read as "b, or not c", so to exclude something from the whole query, give the exclusion its own space-separated position instead (`b :c`).
 
-#### Quoting and precedence
+#### Precedence is not affected by quoting
 
-A quoted phrase `'...'` never spans a pipe — the pipe always ends the phrase's reach, so `'data | 'backup` is two OR alternatives (one per quoted word), not one phrase containing a pipe. This holds under both precedence settings.
+There is no quoting syntax that can change how precedence is read; grouping is fixed by the setting above. A `|` is only an OR when it is its own space-separated token, so putting one inside ordinary text such as `data|backup` simply searches for that literal string.
 
-### Escaping Spaces & Quoted Phrases
+### The Space Rule
 
-To search for a phrase containing spaces within a single term, escape the space with a backslash `\ `, or enclose the phrase in single quotes `'...'` or double quotes `"..."`:
+There is no way to put a space inside a single term. A space is always the AND separator, so a query with spaces is always several ANDed terms — this is the one place where Lertaro reads punctuation as structure:
 
 ```text
-final\ report
-'final report'
+final report
 ```
 
-Both examples treat `final report` as a single phrase with space, rather than splitting it into two independent AND terms.
+is `final` AND `report`, which is not the same as a single phrase `final report`.
+
+**Neither quoting nor a backslash solves this.** `'final report'` and `"final report"` are not phrase syntax: quotes are matched as literal characters, so those queries look for names containing a quote mark, and they find nothing. `final\ report` is likewise read as the two words `final` AND `report`.
+
+The upshot is that Lertaro has no exact-phrase search. When the two words are adjacent in the name you want, search for the more distinctive half and let the ranking put it on top — or use a regex clause, which matches the name as one whole string (see below):
+
+```text
+/^final report/
+```
 
 ### Pasting Multiple Lines Folded into OR
 
@@ -125,8 +132,6 @@ Pastes automatically as:
 | `:` | Exclusion | Drops every result whose name contains this text (always exact, never fuzzy) | `:temp` |
 | `\|` | OR logic | Matches either side of the pipe | `doc \| pdf` |
 | `/.../` | Regular expression | Matches the name with a .NET regex (see below) | `/^report.*\.md$/` |
-| `\ ` | Escaped space | Keeps a space inside one term | `final\ report` |
-| `'...'` / `"..."` | Quoted phrase | Keeps a whole phrase (spaces included) as one term | `'final report'` |
 | `*` | Bypass exclusions | One-off opt-out of your configured exclusion rules (first character only) | `*node_modules` |
 | `<` `>` | Sort / filter token | Sorts and optionally filters the results (see [section 5](#_5-query-tokens-sorting-filtering)) | `<s>20m` |
 | `\` | Plugin token | Applies a plugin-provided filter, e.g. a file category (see [section 5](#_5-query-tokens-sorting-filtering)) | `\audio` |
@@ -219,7 +224,7 @@ report <s>20m \audio
 \audio report <s>20m
 ```
 
-A token only counts when it is the **whole word** and starts the word — `abc\def` is ordinary text, not a token. Quoting opts a word out as well, so `"\audio"` searches for the literal characters instead of applying the filter. To put a space inside a token, escape it as `\ `.
+A token only counts when it is the **whole word** and starts the word — `abc\def` is ordinary text, not a token.
 
 ### Sorting and Thresholds (`<` and `>`)
 

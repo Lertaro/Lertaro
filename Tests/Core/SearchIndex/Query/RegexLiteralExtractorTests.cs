@@ -101,4 +101,45 @@ public sealed class RegexLiteralExtractorTests
 
     [TestMethod]
     public void Extract_NestedAlternation_DoesNotClaimBranchText() => Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("a(b(c|d))e"));
+
+    // A group that is not the match's own text contributes nothing. The NEGATIVE assertion is the case
+    // that made this a wrong literal rather than a weak one: it asserts the text is ABSENT, so demanding
+    // it of every candidate rejects exactly the names the pattern accepts. Regression: "/^(?!.*tmp).*\.md$/"
+    // yielded "tmp", and a search for it returned nothing for "readme.md".
+    [TestMethod]
+    public void Extract_NegativeLookahead_DoesNotClaimTheAssertedText() =>
+        Assert.AreEqual(".md", RegexLiteralExtractor.ExtractRequiredLiteral(@"^(?!.*tmp).*\.md$"));
+
+    [TestMethod]
+    public void Extract_NegativeLookbehind_DoesNotClaimTheAssertedText() =>
+        Assert.AreEqual("post", RegexLiteralExtractor.ExtractRequiredLiteral(@"^(?<!pre)post$"));
+
+    // The text AFTER a lookaround is still required, which is what the run has to restart on.
+    [TestMethod]
+    public void Extract_TextAfterAnAssertion_IsStillRequired() =>
+        Assert.AreEqual("report", RegexLiteralExtractor.ExtractRequiredLiteral(@"^(?!.*tmp)report.*$"));
+
+    // Metadata about how to match, carrying no text of the match at all. "(?i)" and "(?#...)" used to hand
+    // their own syntax to the mask ("i", "#note"), which no matching name needs to contain.
+    [TestMethod]
+    public void Extract_InlineOptionGroup_ContributesNothing() =>
+        Assert.AreEqual("abc", RegexLiteralExtractor.ExtractRequiredLiteral("(?i)abc"));
+
+    [TestMethod]
+    public void Extract_CommentGroup_ContributesNothing() =>
+        Assert.AreEqual("abc", RegexLiteralExtractor.ExtractRequiredLiteral("(?#note)abc"));
+
+    // The two forms that DO carry the match's text keep being scanned, so the rule above stays narrow.
+    [TestMethod]
+    public void Extract_NonCapturingAndNamedGroups_StillContributeTheirText()
+    {
+        Assert.AreEqual("abc", RegexLiteralExtractor.ExtractRequiredLiteral("(?<name>abc)"));
+        Assert.AreEqual("abc", RegexLiteralExtractor.ExtractRequiredLiteral("(?:abc)def"));
+    }
+
+    // "\1" is the group it points at, never the character "1": "^(ab)\1$" matches "abab", which contains no
+    // digit at all.
+    [TestMethod]
+    public void Extract_Backreference_ContributesNoLiteral() =>
+        Assert.AreEqual("ab", RegexLiteralExtractor.ExtractRequiredLiteral(@"^(ab)\1$"));
 }

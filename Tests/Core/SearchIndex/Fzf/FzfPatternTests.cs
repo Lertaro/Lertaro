@@ -180,8 +180,7 @@ public sealed class FzfPatternTests
 
     // Reachable through this API only, never from the search box: a backslash anywhere in a query
     // makes SearchQueryParser classify it as path mode, which routes to PathSearch before
-    // FzfPattern.Parse is ever called. Quoting ("'my file'") is the only search-box route to a term
-    // containing a space.
+    // FzfPattern.Parse is ever called.
     [TestMethod]
     public void TryMatch_EscapedSpace_IsTreatedAsLiteralSpaceInOneTerm()
     {

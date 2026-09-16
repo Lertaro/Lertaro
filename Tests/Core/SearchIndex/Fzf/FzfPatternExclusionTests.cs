@@ -156,6 +156,30 @@ public sealed class FzfPatternExclusionTests
     }
 
     [TestMethod]
+    public void TryMatch_RegexWithAnExclusion_RequiresBoth()
+    {
+        // A clause is a positive requirement in its own right even though it contributes no term, so it
+        // satisfies the exclusion-only guard alone -- and the ":temp" beside it must still veto a name the
+        // clause accepts. Both halves matter: ignoring the clause would admit "readme.txt", ignoring the
+        // exclusion would admit "temp.md".
+        var pattern = FzfPattern.Parse(@"/\.md$/ :temp");
+
+        Assert.IsTrue(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
+        Assert.IsFalse(pattern.TryMatch("temp.md", out _, FzfScoringScheme.Default));
+        Assert.IsFalse(pattern.TryMatch("readme.txt", out _, FzfScoringScheme.Default));
+    }
+
+    [TestMethod]
+    public void BytePattern_RegexAlongsideAnExclusion_StillReportsTheClause()
+    {
+        // The byte fast path cannot run a regex and its caller skips it on this flag, so the flag has to
+        // be raised from the pattern's clauses even when the only other condition is an inverse term --
+        // otherwise the ASCII path would answer on the exclusion alone and drop the clause entirely.
+        Assert.IsTrue(FzfBytePattern.From(FzfPattern.Parse(@"/\.md$/ :temp")).HasRegexClauses);
+        Assert.IsTrue(FzfBytePattern.From(FzfPattern.Parse(@"readme /\.md$/ :temp")).HasRegexClauses);
+    }
+
+    [TestMethod]
     public void BytePattern_PositiveTermWithAnExclusion_RejectsNamesContainingIt()
     {
         var pattern = FzfBytePattern.From(FzfPattern.Parse("report :temp"));
