@@ -171,16 +171,10 @@ public sealed class FzfPatternParsingTests
     // without searching, and FuzzyMatcher treats it as a non-match. A regex clause IS a query even though
     // it carries no term, so counting term sets alone made "/\.exe$/" search for nothing at all.
     [TestMethod]
-    public void IsEmpty_RegexOnlyPattern_IsNotEmpty()
-    {
-        Assert.IsFalse(FzfPattern.Parse(@"/\.exe$/").IsEmpty);
-    }
+    public void IsEmpty_RegexOnlyPattern_IsNotEmpty() => Assert.IsFalse(FzfPattern.Parse(@"/\.exe$/").IsEmpty);
 
     [TestMethod]
-    public void IsEmpty_RegexAlongsideATerm_IsNotEmpty()
-    {
-        Assert.IsFalse(FzfPattern.Parse(@"lertaro /\.exe$/").IsEmpty);
-    }
+    public void IsEmpty_RegexAlongsideATerm_IsNotEmpty() => Assert.IsFalse(FzfPattern.Parse(@"lertaro /\.exe$/").IsEmpty);
 
     [TestMethod]
     public void IsEmpty_NoTermsAndNoRegex_IsEmpty()

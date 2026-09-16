@@ -64,12 +64,10 @@ public sealed class FzfPatternExclusionTests
     }
 
     [TestMethod]
-    public void Parse_BareColon_IsDroppedRatherThanBecomingAnEmptyTerm()
-    {
+    public void Parse_BareColon_IsDroppedRatherThanBecomingAnEmptyTerm() =>
         // A lone ":" is not an exclusion of nothing -- dropping the word keeps a stray colon from turning
         // the query into one that can never match.
         Assert.IsTrue(FzfPattern.Parse(":").IsEmpty);
-    }
 
     [TestMethod]
     public void Parse_TrailingBareColon_LeavesThePositiveTermAlone()
@@ -104,11 +102,9 @@ public sealed class FzfPatternExclusionTests
     }
 
     [TestMethod]
-    public void GetTotalTermLength_IgnoresTheExcludedTerm()
-    {
+    public void GetTotalTermLength_IgnoresTheExcludedTerm() =>
         // Only the positive term is text the user actually typed for the match quality gate to scale by.
         Assert.AreEqual("report".Length, FzfPattern.Parse("report :temp").GetTotalTermLength());
-    }
 
     [TestMethod]
     public void TryMatch_PositiveTermWithAnExclusion_RejectsNamesContainingIt()
@@ -145,10 +141,7 @@ public sealed class FzfPatternExclusionTests
     }
 
     [TestMethod]
-    public void TryMatch_TwoExclusionsOnly_MatchesNothing()
-    {
-        Assert.IsFalse(FzfPattern.Parse(":temp :log").TryMatch("readme.txt", out _, FzfScoringScheme.Default));
-    }
+    public void TryMatch_TwoExclusionsOnly_MatchesNothing() => Assert.IsFalse(FzfPattern.Parse(":temp :log").TryMatch("readme.txt", out _, FzfScoringScheme.Default));
 
     [TestMethod]
     public void TryMatch_RegexOnlyQueryWithNoPositiveTerm_StillMatchesOnTheRegex()
