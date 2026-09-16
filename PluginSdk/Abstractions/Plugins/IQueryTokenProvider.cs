@@ -31,6 +31,16 @@ public interface IQueryTokenProvider : IPluginComponent
     Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results);
 
     /// <summary>
+    /// Cancellation-aware host entry point. Existing providers remain source-compatible through the default
+    /// implementation; providers that perform asynchronous work should override it and observe the token.
+    /// </summary>
+    Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ApplyAsync(token, results);
+    }
+
+    /// <summary>
     /// The literal text this token fuzzy-matches against a result's name/path, if any -- the host
     /// folds this into what gets highlighted in the UI alongside the query's main keyword, so a result
     /// kept by this token (e.g. because a path segment matched it) visibly shows why. Return null for

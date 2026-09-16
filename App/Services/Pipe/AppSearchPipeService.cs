@@ -268,7 +268,7 @@ public static class AppSearchPipeService
             appResults.Add(SearchResultMapper.CreateUiResult(raw[i], query, i, isApplication: false, scope: null));
         }
 
-        var dispatched = await QueryTokenDispatcher.ApplyAsync(appResults, tokens);
+        var dispatched = await QueryTokenDispatcher.ApplyAsync(appResults, tokens, token);
 
         // Highlight against each item's own (possibly token-extended) SearchQuery -- not the bare
         // `query` -- so a result kept alive by e.g. an "::expr" token highlights the same characters the
