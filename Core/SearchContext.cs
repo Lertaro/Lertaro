@@ -1,3 +1,5 @@
+using Lertaro.Core.SearchIndex.Fzf;
+
 namespace Lertaro.Core;
 
 public static class SearchContext
@@ -53,4 +55,24 @@ public static class SearchContext
         get => _andFirstPrecedence.Value ?? _defaultAndFirstPrecedence;
         set => _andFirstPrecedence.Value = value;
     }
+
+    /// <summary>
+    /// The "/.../" clauses the most recent search could not compile, in the order they were first seen, so
+    /// a caller can tell the user which part of their query could never match anything. Empty when every
+    /// clause compiled.
+    /// </summary>
+    /// <remarks>
+    /// Lives here rather than on the regex machinery because that is internal to Core while this report is
+    /// for the UI, and this is already the static channel the app reads process-wide search state from
+    /// (<see cref="DefaultFuzzyMatchEnabled"/>). An uncompilable clause is otherwise indistinguishable from
+    /// a genuine miss: it matches nothing, so a query mixing one with ordinary words returns no results
+    /// while the only explanation on screen says the search was too narrow.
+    ///
+    /// Callers that DISPLAY this are expected to call <see cref="ClearInvalidRegexes"/> once they have,
+    /// so a clause the user has since fixed or deleted cannot be reported again on the next search.
+    /// </remarks>
+    public static IReadOnlyList<string> InvalidRegexes => RegexClauses.InvalidPatterns;
+
+    /// <summary>Forgets the collected invalid clauses -- see <see cref="InvalidRegexes"/>.</summary>
+    public static void ClearInvalidRegexes() => RegexClauses.ClearInvalidPatterns();
 }

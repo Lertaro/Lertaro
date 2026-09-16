@@ -218,5 +218,5 @@
   "CoreExtensions_Config_CustomFilterPrefixLabel": "Custom Filter Prefix",
   "CoreExtensions_Config_CustomFilterPrefixDesc": "Prefix character for custom filter tokens (default \\). It cannot be a character the search syntax uses (\\ < > : *), because the syntax would consume it before the filter is read.",
   "CoreExtensions_WildcardFilterProvider_Name": "Wildcard Filter (?expression)",
-  "CoreExtensions_Config_WildcardFilterPrefixLabel": "Wildcard Filter Prefix",
+  "CoreExtensions_Config_WildcardFilterPrefixLabel": "Wildcard Filter Prefix"
 }

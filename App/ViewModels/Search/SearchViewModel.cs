@@ -6,6 +6,7 @@ using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.App.ViewModels.Service;
 
+using Lertaro.Core;
 using Lertaro.Core.Services.Search;
 
 using Lertaro.App.Services.Plugin;
@@ -52,10 +53,10 @@ public class SearchViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _isSearching, value))
             {
-                // The hint below reads this, and nothing else re-raises it: without this an empty list
-                // during a search still paints "no results", which is what makes a window that is
+                // The result-area hints read this, and nothing else re-raises them: without this an empty
+                // list during a search still paints "no results", which is what makes a window that is
                 // working look like a window that found nothing.
-                OnPropertyChanged(nameof(ShowNoResultsHint));
+                Hints.Refresh();
             }
         }
     }
@@ -66,6 +67,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
     }
     public SearchViewModel(string initialQuery = "", IReadOnlyList<AppSearchResult>? quickSearchRows = null)
     {
+        Hints = new SearchViewHints(this);
         _searchService = new SearchService();
         _searchEngine = new SearchExecutionEngine(_searchService);
         FilteredResults = new ObservableRangeCollection<AppSearchResult>();
@@ -77,11 +79,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
             () => _renderExtendsContent,
             finalResults => ReferenceEquals(finalResults, _allResults) ? _renderUnchangedPrefix : 0,
             count => ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count),
-            () =>
-            {
-                OnPropertyChanged(nameof(ShowNoResultsHint));
-                OnPropertyChanged(nameof(ShowWelcomeHint));
-            });
+            () => Hints.Refresh());
 
         _dispatcher = new SearchQueryDispatchController(
             _searchEngine,
@@ -153,8 +151,9 @@ public class SearchViewModel : ViewModelBase, IDisposable
             return;
 
         _allResults = new List<AppSearchResult>(rows);
+        // The render it triggers refreshes the hints through the result renderer's own callback, so this
+        // has nothing to raise for itself.
         ApplyFiltersAndRender(extendsContent: false, unchangedPrefix: 0);
-        OnPropertyChanged(nameof(ShowNoResultsHint));
     }
     private void OnTranslationsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -183,6 +182,10 @@ public class SearchViewModel : ViewModelBase, IDisposable
             if (SetProperty(ref _advancedQuery, value))
             {
                 _sidebarCountHelper?.Reset();
+                // Start each query with a clean complaint list: the report is about THIS query, so a clause
+                // the user has since fixed or deleted must not keep being named. Cleared before the dispatch
+                // below, which is what refills it.
+                SearchContext.ClearInvalidRegexes();
                 if (string.IsNullOrWhiteSpace(value))
                 {
                     _searchEngine.CancelPendingSearch();
@@ -193,8 +196,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
                     _searchEngine.CancelPendingSearch();
                     _dispatcher.OnAdvancedQueryChanged(value);
                 }
-                OnPropertyChanged(nameof(ShowWelcomeHint));
-                OnPropertyChanged(nameof(ShowNoResultsHint));
+                Hints.Refresh();
                 OnPropertyChanged(nameof(WindowTitle));
             }
         }
@@ -320,17 +322,13 @@ public class SearchViewModel : ViewModelBase, IDisposable
         set
         {
             if (SetProperty(ref _isActionsMode, value))
-            {
-                OnPropertyChanged(nameof(ShowNoResultsHint));
-                OnPropertyChanged(nameof(ShowWelcomeHint));
-            }
+                Hints.Refresh();
         }
     }
 
-    // False while a search is still running: an empty list then means "nothing has arrived yet", not
-    // "there is nothing to find", and the window reads as blank either way.
-    public bool ShowNoResultsHint => !IsActionsMode && !IsSearching && FilteredResults.Count == 0 && !string.IsNullOrWhiteSpace(AdvancedQuery);
-    public bool ShowWelcomeHint => !IsActionsMode && string.IsNullOrWhiteSpace(AdvancedQuery);
+    // The result-area hints, in their own file to keep this one under the repository's per-file line limit.
+    // Bindings reach them as "Hints.ShowNoResultsHint" etc. Their own Refresh raises the notifications.
+    internal SearchViewHints Hints { get; }
 
     internal void PerformSearch(string query) => _dispatcher.PerformSearch(query);
 
