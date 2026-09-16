@@ -218,5 +218,5 @@
   "CoreExtensions_Config_CustomFilterPrefixLabel": "Prefijo de filtro personalizado",
   "CoreExtensions_Config_CustomFilterPrefixDesc": "Carácter de prefijo para los tokens de filtro de categoría personalizados (por defecto \\). No puede ser un carácter que use la sintaxis de búsqueda (\\ < > : *), porque la sintaxis lo consumiría antes de leer el filtro.",
   "CoreExtensions_WildcardFilterProvider_Name": "Filtro comodín secundario (?expresión)",
-  "CoreExtensions_Config_WildcardFilterPrefixLabel": "Prefijo del filtro comodín",
+  "CoreExtensions_Config_WildcardFilterPrefixLabel": "Prefijo del filtro comodín"
 }

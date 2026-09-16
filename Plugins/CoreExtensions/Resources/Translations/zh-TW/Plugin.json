@@ -218,5 +218,5 @@
   "CoreExtensions_Config_CustomFilterPrefixLabel": "分類過濾前導字元",
   "CoreExtensions_Config_CustomFilterPrefixDesc": "自訂分類篩選器標記的前導字元（預設為 \\）。不能使用搜尋語法占用的字元（\\ < > : *），否則語法會先消耗掉該字元。",
   "CoreExtensions_WildcardFilterProvider_Name": "萬用字元二次過濾 (?運算式)",
-  "CoreExtensions_Config_WildcardFilterPrefixLabel": "萬用字元過濾觸發前綴",
+  "CoreExtensions_Config_WildcardFilterPrefixLabel": "萬用字元過濾觸發前綴"
 }
