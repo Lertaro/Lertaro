@@ -100,25 +100,36 @@ public sealed class QueryTokenPrefixRulesTests
     }
 
     [TestMethod]
-    public void GlobalPrefixConflict_CharacterNoPluginUses_IsAccepted()
-    {
-        // '\\' is the shipped default, so it is deliberately NOT free: the CoreExtensions custom-filter
-        // prefix also defaults to it (see the plugin-conflict case above).
-        Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("#", new UserSettings()));
-    }
+    // '\' is in SearchSyntaxReserved.LeadingCharacters because it IS the token prefix, not because
+    // something else consumes it: QueryTokenScanner is handed GlobalTokenPrefix, so this field's value is
+    // what gives '\' its meaning. Reporting the shipped default would leave every user looking at a
+    // permanent error under a field they never touched.
+    public void GlobalPrefixConflict_ShippedDefault_IsAccepted()
+        => Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("\\", new UserSettings()));
 
     [TestMethod]
-    public void PluginPrefixConflict_MatchesTheMainPrefix_IsReported()
+    public void GlobalPrefixConflict_CharacterNoPluginUses_IsAccepted()
+        => Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("#", new UserSettings()));
+
+    [TestMethod]
+    public void PluginPrefixConflict_ShippedDefaults_AreAccepted()
     {
+        // GlobalTokenPrefix and CoreExtensions' CustomFilterPrefix both ship '\', and that is the pair that
+        // works: QueryTokenScanner lifts "\audio" by the global prefix and hands the token to the provider
+        // with the '\' still on the front, so CustomFilterQueryTokenProvider.CanHandle only ever matches
+        // when the plugin's prefix IS the global one.
         var settings = new UserSettings { GlobalTokenPrefix = "\\" };
         var field = PrefixField();
 
-        Assert.IsNotNull(QueryTokenPrefixRules.PluginPrefixConflict("plugin", field, "\\", settings));
+        Assert.IsNull(QueryTokenPrefixRules.PluginPrefixConflict("plugin", field, "\\", settings));
     }
 
     [TestMethod]
     public void PluginPrefixConflict_DifferentFromTheMainPrefix_IsAccepted()
     {
+        // Accepted, not endorsed: a prefix that differs means the provider will never be handed a token
+        // (the scanner only lifts the global one), but the App cannot see a provider's own matching rule,
+        // so this stays silent rather than guessing -- it used to be reported as the healthy case instead.
         var settings = new UserSettings { GlobalTokenPrefix = "\\" };
         var field = PrefixField();
 

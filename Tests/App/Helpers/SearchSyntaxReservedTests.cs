@@ -110,4 +110,28 @@ public sealed class SearchSyntaxReservedTests
         foreach (var c in SearchSyntaxReserved.LeadingCharacters)
             Assert.Contains(c.ToString(), described);
     }
+
+    [TestMethod]
+    public void IsUnusableAsTokenPrefix_TheTokenPrefixItself_IsUsable()
+    {
+        // The one exception, and it is not arbitrary: '\' is listed as reserved because the scanner reads
+        // it as a token start -- but only when it was handed '\' as the prefix, which is exactly what the
+        // prefix fields configure. Every other character in that list is consumed regardless of them.
+        Assert.IsTrue(SearchSyntaxReserved.IsReserved(SearchSyntaxReserved.TokenPrefixCharacter));
+        Assert.IsFalse(SearchSyntaxReserved.IsUnusableAsTokenPrefix(SearchSyntaxReserved.TokenPrefixCharacter));
+    }
+
+    [TestMethod]
+    [DataRow('<')]
+    [DataRow('>')]
+    [DataRow(':')]
+    [DataRow('*')]
+    public void IsUnusableAsTokenPrefix_TheOtherSyntaxCharacters_AreReported(char value)
+        => Assert.IsTrue(SearchSyntaxReserved.IsUnusableAsTokenPrefix(value));
+
+    [TestMethod]
+    [DataRow('a')]
+    [DataRow('!')]
+    public void IsUnusableAsTokenPrefix_OrdinaryCharacters_AreUsable(char value)
+        => Assert.IsFalse(SearchSyntaxReserved.IsUnusableAsTokenPrefix(value));
 }

@@ -18,12 +18,18 @@ namespace Lertaro.App.Helpers;
 // keeps working until the user changes it (the settings surface reports it instead).
 public static class SearchSyntaxReserved
 {
+    // The character that starts a plugin query token. It is listed among the reserved characters because
+    // the scanner reads it as one -- but only because it IS the token prefix: QueryTokenScanner is handed
+    // GlobalTokenPrefix, so this is the one character whose meaning the prefix fields themselves decide.
+    // See IsUnusableAsTokenPrefix for what follows from that.
+    public const char TokenPrefixCharacter = '\\';
+
     // Claimed at the start of a query by the search syntax itself:
     //   '\\'  the plugin query token prefix (GlobalTokenPrefix, itself configurable)
     //   '<' '>' the sort/filter token triggers, which QueryTokenScanner always recognizes
     //   ':'   the exclusion operator, and the drive spec's separator
     //   '*'   the one-search exclusion bypass, read from the first character only
-    public static IReadOnlyList<char> LeadingCharacters { get; } = new[] { '\\', '<', '>', ':', '*' };
+    public static IReadOnlyList<char> LeadingCharacters { get; } = new[] { TokenPrefixCharacter, '<', '>', ':', '*' };
 
     // Leading characters an instant-answer provider claims for itself, by its own hardcoded rule rather
     // than by the search syntax. They are not syntax, so they are listed separately -- but they are just
@@ -43,6 +49,16 @@ public static class SearchSyntaxReserved
         => value is { Length: > 0 } && LeadingCharacters.Contains(value[0]);
 
     public static bool IsReserved(char value) => LeadingCharacters.Contains(value);
+
+    /// <summary>
+    /// True when this character cannot be the plugin query token prefix. Narrower than
+    /// <see cref="IsReserved"/> by exactly one character, and for a real reason: the token prefix is not
+    /// reserved against itself. QueryTokenScanner reads '\' as a token start only because it was handed
+    /// '\' as the prefix, so a prefix field set to '\' is what makes those tokens work -- while every other
+    /// character in that list is consumed by the scanner or the parser no matter what the prefix says.
+    /// </summary>
+    public static bool IsUnusableAsTokenPrefix(char value)
+        => value != TokenPrefixCharacter && IsReserved(value);
 
     public static bool IsProviderClaimed(char value) => ProviderClaimedCharacters.Contains(value);
 

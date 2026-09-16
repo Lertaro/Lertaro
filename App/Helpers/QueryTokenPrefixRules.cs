@@ -12,14 +12,19 @@ namespace Lertaro.App.Helpers;
 // invisible rather than loud: "\audio" simply stops filtering and nobody can tell whether the rule, the
 // spelling, or the prefix is at fault. So the settings surface the collision instead of ordering it.
 //
-// There are two real collisions today, both against the app-wide GlobalTokenPrefix:
+// There are two real collisions:
 //
-//   1. a plugin that declares its own prefix (CoreExtensions' CustomFilterPrefix) -- the two must differ,
-//      since a token can only carry one leading character;
-//   2. the fixed sort/filter triggers '<' and '>', which the scanner always treats as token starts
-//      regardless of what GlobalTokenPrefix says. Setting the global prefix to one of them would leave
-//      the plugin tokens unreachable, because QueryTokenScanner pulls those words out as sort/filter
-//      tokens before any plugin ever sees them.
+//   1. the search syntax, which consumes '<' '>' ':' and '*' at the start of a query whatever the
+//      configured prefix is -- the sort/filter pair worst of all, since QueryTokenScanner pulls those
+//      words out before any plugin sees them, leaving the plugin tokens permanently unreachable;
+//   2. a SECOND plugin declaring a prefix that a first one already answers to.
+//
+// Note what is NOT a collision: a plugin's prefix matching the app-wide GlobalTokenPrefix. The scanner
+// lifts a token by the global prefix and hands it to the provider with that character still on the front
+// (QueryTokenScanner.Scan(query, GlobalTokenPrefix)), so a provider only ever claims tokens whose leading
+// character equals its own configured prefix -- the two matching is what makes the feature work, and a
+// mismatch is what silently kills it. Reporting the match as a collision (as this file used to) flagged
+// the shipped defaults, where both are '\'.
 //
 // The plugin prefixes are found by walking each loaded plugin's config SCHEMA rather than by referencing
 // the plugin: a Text field whose MaxLength is 1 IS a single-character trigger, which is the only reason
@@ -35,27 +40,41 @@ public static class QueryTokenPrefixRules
 {
     // True for the characters QueryTokenScanner always reads as token starts whatever the configured
     // prefix is -- only the sort/filter pair, unlike SearchSyntaxReserved.IsReserved, which also covers the
-    // exclusion, bypass and quote characters. The two are used for different sentences: a prefix equal to
-    // '<'/'>' leaves the plugin tokens permanently unreachable, while a prefix equal to ':' still leaves
-    // them reachable but collides with exclusion syntax.
+    // exclusion, bypass and token-prefix characters. The two are used for different sentences: a prefix
+    // equal to '<'/'>' leaves the plugin tokens permanently unreachable, while a prefix equal to ':' still
+    // leaves them reachable but collides with exclusion syntax.
     internal static bool IsAlwaysTokenTrigger(char prefix) => prefix == '<' || prefix == '>';
 
     /// <summary>The conflict to show under the app-wide prefix field, or null when it is usable.</summary>
+    /// <summary>
+    /// The conflict to show under the app-wide prefix field, or null when it is usable.
+    /// </summary>
+    /// <remarks>
+    /// Only the search syntax is consulted -- the loaded plugins are deliberately NOT. This field and a
+    /// plugin's own prefix field hold the same character by design: QueryTokenScanner hands the provider
+    /// the token INCLUDING the global prefix, so a provider only ever claims the tokens whose leading
+    /// character matches its configured prefix, and a plugin whose prefix differs from this one can never
+    /// be reached. "A plugin already uses this character" is therefore the working configuration, not a
+    /// collision -- see PluginPrefixConflict, which reports the one collision that is real (a SECOND
+    /// plugin claiming a character the first one already answers to).
+    /// </remarks>
+    // ponytail: `settings` is no longer read here -- the plugin-ownership scan this field's rule used to
+    // end with moved out (see the remarks above). Kept in the signature because every prefix rule in this
+    // class takes the same (value, settings) pair; drop it if a future rule still has no use for it.
     public static string? GlobalPrefixConflict(string? globalPrefix, UserSettings settings)
     {
         if (string.IsNullOrEmpty(globalPrefix))
             return TranslationManager.Instance["General_GlobalTokenPrefixConflictEmpty"];
 
-        var prefix = globalPrefix[0];
         // Any character the search syntax owns is unusable here, not just the always-on sort/filter pair:
         // a ':' prefix collides with exclusion syntax and a '*' prefix with the exclusion bypass, and the
         // settings field is the place to say so. This deliberately subsumes the '<'/'>' case, which is the
         // strictly worse variant of the same mistake.
-        if (SearchSyntaxReserved.IsReserved(prefix))
-            return TranslationManager.Instance["General_GlobalTokenPrefixConflictReserved"];
-
-        return OwnedByPlugin(prefix, settings, null, null)
-            ? TranslationManager.Instance["General_GlobalTokenPrefixConflictPlugin"]
+        //
+        // '\' is deliberately NOT one of them: it is this field's own character (see
+        // SearchSyntaxReserved.IsUnusableAsTokenPrefix), so the shipped default reports nothing.
+        return SearchSyntaxReserved.IsUnusableAsTokenPrefix(globalPrefix[0])
+            ? TranslationManager.Instance["General_GlobalTokenPrefixConflictReserved"]
             : null;
     }
 
@@ -72,6 +91,13 @@ public static class QueryTokenPrefixRules
     /// The conflict to show under a plugin's own prefix field, or null when it is usable. The field's own
     /// plugin is excluded from the scan, so re-validating an unchanged value never conflicts with itself.
     /// </summary>
+    /// <remarks>
+    /// A value that matches the app-wide prefix is accepted, because that is the value that works: the
+    /// scanner lifts tokens by the global prefix and hands them to the provider with that character still
+    /// on the front, so a plugin prefix that differed would simply never be asked (see
+    /// GlobalPrefixConflict). Only a SECOND plugin claiming a character another one already answers to is
+    /// reported -- the dispatcher resolves that by whichever provider is asked first.
+    /// </remarks>
     public static string? PluginPrefixConflict(string pluginId, PluginConfigField ownField, string? pluginPrefix, UserSettings settings)
     {
         if (string.IsNullOrEmpty(pluginPrefix))
@@ -81,11 +107,8 @@ public static class QueryTokenPrefixRules
         if (IsAlwaysTokenTrigger(prefix))
             return TranslationManager.Instance["Plugins_QueryTokenPrefixConflictReserved"];
 
-        if (SearchSyntaxReserved.IsReserved(prefix))
+        if (SearchSyntaxReserved.IsUnusableAsTokenPrefix(prefix))
             return TranslationManager.Instance["Plugins_QueryTokenPrefixConflictSyntax"];
-
-        if (settings.GlobalTokenPrefix is { Length: > 0 } global && global[0] == prefix)
-            return TranslationManager.Instance["Plugins_QueryTokenPrefixConflictMain"];
 
         return OwnedByPlugin(prefix, settings, pluginId, ownField.Key)
             ? TranslationManager.Instance["Plugins_QueryTokenPrefixConflictPlugin"]
