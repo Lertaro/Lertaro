@@ -358,7 +358,7 @@
   "General_OrFirstPrecedenceDesc": "オフ（既定）：空白を優先するため、\"report | summary 2024\" は report OR (summary AND 2024) を意味します。オン：縦棒を優先するため、同じクエリは (report OR summary) AND 2024 を意味します。",
   "General_GlobalTokenPrefix": "プラグイントークンのプレフィックス文字",
   "General_GlobalTokenPrefixConflictEmpty": "1文字を入力してください。",
-  "General_GlobalTokenPrefixConflictReserved": "この文字は使用できません。「<」と「>」は常に並べ替え／絞り込みトークンの先頭文字です。",
+  "General_GlobalTokenPrefixConflictReserved": "この文字は検索構文が使用しています（{0}）。別の文字を選んでください。",
   "General_GlobalTokenPrefixConflictPlugin": "この文字は既にいずれかのプラグインがクエリトークンの接頭辞として使っています。別の文字を選んでください。",
   "General_ReservedCharacterEmpty": "値を入力してください。",
   "General_ReservedCharacterSyntax": "検索構文が使用する文字（{0}）で始めることはできません。その文字はこのトリガーを読む前に構文側で消費されるため、トリガーは黙って機能しなくなります。",

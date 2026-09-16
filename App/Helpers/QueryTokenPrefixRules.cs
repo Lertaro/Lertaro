@@ -68,14 +68,19 @@ public static class QueryTokenPrefixRules
             return TranslationManager.Instance["General_GlobalTokenPrefixConflictEmpty"];
 
         // Any character the search syntax owns is unusable here, not just the always-on sort/filter pair:
-        // a ':' prefix collides with exclusion syntax and a '*' prefix with the exclusion bypass, and the
-        // settings field is the place to say so. This deliberately subsumes the '<'/'>' case, which is the
-        // strictly worse variant of the same mistake.
+        // a ':' prefix collides with exclusion syntax, a '*' prefix with the exclusion bypass and a '/'
+        // prefix with the regex clause delimiter, and the settings field is the place to say so. This
+        // deliberately subsumes the '<'/'>' case, which is the strictly worse variant of the same mistake.
+        //
+        // The message interpolates the reserved list rather than naming characters itself, so it stays
+        // true for all five cases -- it used to name only '<'/'>', which mis-explained ':' and '*'.
         //
         // '\' is deliberately NOT one of them: it is this field's own character (see
         // SearchSyntaxReserved.IsUnusableAsTokenPrefix), so the shipped default reports nothing.
         return SearchSyntaxReserved.IsUnusableAsTokenPrefix(globalPrefix[0])
-            ? TranslationManager.Instance["General_GlobalTokenPrefixConflictReserved"]
+            ? string.Format(
+                TranslationManager.Instance["General_GlobalTokenPrefixConflictReserved"],
+                SearchSyntaxReserved.DescribeLeadingCharacters())
             : null;
     }
 

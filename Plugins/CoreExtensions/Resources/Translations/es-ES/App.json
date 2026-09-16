@@ -358,7 +358,7 @@
   "General_OrFirstPrecedenceDesc": "Desactivado (predeterminado): el espacio se une más fuerte, así que \"report | summary 2024\" significa report OR (summary AND 2024). Activado: la barra vertical se une más fuerte, así que la misma consulta significa (report OR summary) AND 2024.",
   "General_GlobalTokenPrefix": "Carácter de prefijo de tokens de complemento",
   "General_GlobalTokenPrefixConflictEmpty": "Introduce un solo carácter.",
-  "General_GlobalTokenPrefixConflictReserved": "Este carácter está reservado: \"<\" y \">\" siempre inician un token de orden o filtro.",
+  "General_GlobalTokenPrefixConflictReserved": "Este carácter está reservado por la sintaxis de búsqueda ({0}). Elige otro.",
   "General_GlobalTokenPrefixConflictPlugin": "Un complemento ya usa este carácter como prefijo de sus tokens de consulta. Elige otro.",
   "General_ReservedCharacterEmpty": "Introduce un valor.",
   "General_ReservedCharacterSyntax": "No puede empezar por un carácter que usa la sintaxis de búsqueda ({0}), porque ese carácter se consume antes de leer este activador y el activador dejaría de funcionar en silencio.",

@@ -358,7 +358,7 @@
   "General_OrFirstPrecedenceDesc": "끄기(기본): 공백이 우선하므로 \"report | summary 2024\"는 report OR (summary AND 2024)를 뜻합니다. 켜기: 세로줄이 우선하므로 같은 쿼리는 (report OR summary) AND 2024를 뜻합니다.",
   "General_GlobalTokenPrefix": "플러그인 토큰 접두사 문자",
   "General_GlobalTokenPrefixConflictEmpty": "한 글자를 입력하세요.",
-  "General_GlobalTokenPrefixConflictReserved": "이 문자는 사용할 수 없습니다. \"<\"와 \">\"는 항상 정렬/필터 토큰의 시작 문자입니다.",
+  "General_GlobalTokenPrefixConflictReserved": "이 문자는 검색 구문이 사용합니다({0}). 다른 문자를 선택하세요.",
   "General_GlobalTokenPrefixConflictPlugin": "이미 플러그인이 이 문자를 자체 쿼리 토큰 접두사로 사용하고 있습니다. 다른 문자를 선택하세요.",
   "General_ReservedCharacterEmpty": "값을 입력하세요.",
   "General_ReservedCharacterSyntax": "검색 구문이 사용하는 문자({0})로 시작할 수 없습니다. 그 문자는 이 트리거를 읽기 전에 구문 쪽에서 소비되므로 트리거가 조용히 동작하지 않습니다.",

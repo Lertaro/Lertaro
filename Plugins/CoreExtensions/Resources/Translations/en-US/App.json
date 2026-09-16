@@ -358,7 +358,7 @@
   "General_OrFirstPrecedenceDesc": "Off (default): a space binds tighter, so \"report | summary 2024\" means report OR (summary AND 2024). On: the pipe binds tighter, so the same query means (report OR summary) AND 2024.",
   "General_GlobalTokenPrefix": "Plugin Query Token Prefix",
   "General_GlobalTokenPrefixConflictEmpty": "Enter a single character.",
-  "General_GlobalTokenPrefixConflictReserved": "This character is reserved: \"<\" and \">\" always start a sort or filter token.",
+  "General_GlobalTokenPrefixConflictReserved": "This character is reserved by the search syntax ({0}). Pick a different one.",
   "General_GlobalTokenPrefixConflictPlugin": "A plugin already uses this character as its own query token prefix. Pick a different one.",
   "General_ReservedCharacterEmpty": "Enter a value.",
   "General_ReservedCharacterSyntax": "This cannot start with a character the search syntax uses ({0}), because that character is consumed before this trigger is read -- the trigger would silently never fire.",

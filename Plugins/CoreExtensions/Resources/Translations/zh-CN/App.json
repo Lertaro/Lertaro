@@ -358,7 +358,7 @@
   "General_OrFirstPrecedenceDesc": "关闭（默认）：空格优先，\"report | summary 2024\" 表示 report OR (summary AND 2024)。开启：竖线优先，同一查询表示 (report OR summary) AND 2024。",
   "General_GlobalTokenPrefix": "插件标记前导字符",
   "General_GlobalTokenPrefixConflictEmpty": "请输入一个字符。",
-  "General_GlobalTokenPrefixConflictReserved": "该字符已被占用：\"<\" 和 \">\" 始终是排序/过滤标记的起始字符。",
+  "General_GlobalTokenPrefixConflictReserved": "该字符已被搜索语法占用（{0}）。请换一个字符。",
   "General_GlobalTokenPrefixConflictPlugin": "已有插件把该字符用作自己的查询标记前缀，请换一个字符。",
   "General_ReservedCharacterEmpty": "请输入内容。",
   "General_ReservedCharacterSyntax": "不能以搜索语法占用的字符开头（{0}）——该字符会在读取此触发词之前先被语法消耗，触发词会静默失效。",
