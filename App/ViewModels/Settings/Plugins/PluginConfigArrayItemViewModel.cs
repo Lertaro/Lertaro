@@ -40,6 +40,14 @@ public class PluginConfigArrayItemViewModel : ViewModelBase
             child.ClearDirty();
     }
 
+    /// <summary>
+    /// The trigger errors this row's sub-fields are reporting. The row itself only exists once its array
+    /// field has been shown, so there is no unbuilt tree to guard against here.
+    /// </summary>
+    internal IEnumerable<string> ValidationErrors => Children
+        .SelectMany(child => child.Validation.Errors)
+        .Concat(SimpleValueViewModel?.Validation.Errors ?? []);
+
     public PluginConfigArrayItemViewModel(PluginConfigFieldViewModel parent, object? initialValue, Action onDelete, Action? onMoveUp = null, Action? onMoveDown = null)
     {
         _parent = parent;

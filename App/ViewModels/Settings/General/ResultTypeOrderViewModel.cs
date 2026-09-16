@@ -131,6 +131,22 @@ public class ResultTypeOrderViewModel : ViewModelBase
     // not of the row that was just typed in.
     private void OnTriggerCharChanged() => ValidateTriggers();
 
+    /// <summary>
+    /// Every trigger error this list is showing, each row named. Read by the Settings window's Apply gate
+    /// -- see GeneralSettingsViewModel.ValidationErrors.
+    /// </summary>
+    internal IEnumerable<string> ValidationErrors
+    {
+        get
+        {
+            foreach (var item in Items)
+            {
+                if (item.Error is { Length: > 0 } error)
+                    yield return $"{item.DisplayName}: {error}";
+            }
+        }
+    }
+
     public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
 }
 

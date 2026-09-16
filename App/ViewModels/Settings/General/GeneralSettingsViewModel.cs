@@ -227,6 +227,11 @@ public class GeneralSettingsViewModel : ViewModelBase
 
     public bool HasPrefixError => !string.IsNullOrEmpty(PrefixError);
 
+    /// <summary>Every error this page is showing, for the Settings window's Apply gate.</summary>
+    internal IEnumerable<string> ValidationErrors => PrefixError is { Length: > 0 } prefix
+        ? ResultTypeOrder.ValidationErrors.Prepend(prefix)
+        : ResultTypeOrder.ValidationErrors;
+
     public string LogLevel => SettingsOptionGenerator.NormalizeLogLevel(_selectedLogLevel?.Value ?? _userSettings.LogLevel);
 
     public string PreferredLanguage

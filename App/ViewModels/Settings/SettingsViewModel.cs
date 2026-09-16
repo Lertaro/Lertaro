@@ -21,6 +21,7 @@ public class SettingsViewModel : ViewModelBase
     private bool _canApply = true;
     private bool _isBusy;
     private bool _isServiceReady = true;
+    private int _bindingErrorCount;
 
     public SettingsViewModel()
     {
@@ -39,7 +40,7 @@ public class SettingsViewModel : ViewModelBase
         QuickPanel = new QuickPanel.QuickPanelSettingsViewModel(_userSettings);
         LocalSend = new LocalSend.LocalSendSettingsViewModel(_userSettings);
         RefreshCommand = new RelayCommand(Refresh);
-        ApplyCommand = new RelayCommand(Apply, () => CanApply);
+        ApplyCommand = new RelayCommand(() => Apply(), () => CanApply);
         _deferred = new DeferredSettingsViewModels(_userSettings, _searchService);
         _statusMonitor = new SettingsStatusMonitor(_searchService, ApplyUiState);
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;
@@ -97,11 +98,62 @@ public class SettingsViewModel : ViewModelBase
     public bool CanApply
     {
         get => _canApply;
-        set { if (SetProperty(ref _canApply, value)) CommandManager.InvalidateRequerySuggested(); }
+        private set { if (SetProperty(ref _canApply, value)) CommandManager.InvalidateRequerySuggested(); }
+    }
+
+    /// <summary>
+    /// Reports the window's binding-level error count, from WPF's own Validation.Error. Routed through the
+    /// view model rather than assigned onto CanApply directly, because the gate has more than one input --
+    /// writing the flag from the window used to erase whatever service readiness had set it to, and be
+    /// erased by it in turn, so whichever ran last won.
+    /// </summary>
+    public void SetBindingErrorCount(int count)
+    {
+        if (_bindingErrorCount == count)
+            return;
+        _bindingErrorCount = count;
+        RefreshCanApply();
+    }
+
+    // Deliberately not including ValidationErrors: this is the BUTTON's state, and re-reading the pages'
+    // errors here would put that walk on the status-push path (ApplyUiState runs up to ~10x/s while a
+    // drive indexes) to keep a cosmetic flag fresh. Apply() refuses on those errors itself, and the page
+    // that raised one is already showing it next to the field.
+    private void RefreshCanApply() => CanApply = _bindingErrorCount == 0 && _isServiceReady;
+
+    /// <summary>
+    /// Every validation error the settings pages are currently showing.
+    ///
+    /// WPF's Validation.Error only fires for rules expressed in a binding -- IDataErrorInfo, exception
+    /// validation, converters -- so a rule a page works out for itself (a trigger character the search
+    /// syntax would consume, two plugins claiming the same prefix) never reached Apply, which would then
+    /// save a value the page was visibly reporting as broken.
+    ///
+    /// Only pages already constructed are asked. An unvisited page holds no staged edit and so can report
+    /// no error, and going through a lazy property to ask would construct it (see Plugins) purely to be
+    /// told so.
+    /// </summary>
+    public IReadOnlyList<string> ValidationErrors => [.. CollectValidationErrors()];
+
+    private IEnumerable<string> CollectValidationErrors()
+    {
+        foreach (var error in General.ValidationErrors)
+            yield return error;
+
+        if (_plugins == null)
+            yield break;
+
+        foreach (var error in _plugins.ValidationErrors)
+            yield return error;
     }
 
     public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
-    public bool IsServiceReady { get => _isServiceReady; set => SetProperty(ref _isServiceReady, value); }
+
+    public bool IsServiceReady
+    {
+        get => _isServiceReady;
+        set { if (SetProperty(ref _isServiceReady, value)) RefreshCanApply(); }
+    }
 
     private bool _isSaved;
 
@@ -137,53 +189,34 @@ public class SettingsViewModel : ViewModelBase
 
     public void RefreshLists() => _statusMonitor.RefreshLists();
 
-    public void Apply()
+    /// <summary>
+    /// Commits every staged edit, and reports whether it did. The Settings window's OK uses the answer to
+    /// decide whether it may close -- see BtnOk_Click.
+    /// </summary>
+    public bool Apply()
     {
         if (!CanApply)
-            return;
+            return false;
+
+        // Second gate, and deliberately here rather than only on the button: CanApply is bound to the
+        // button's IsEnabled, which several unrelated things drive, while this method is also reached
+        // directly from OK. Saving a value the page is reporting as broken is worse than not saving -- the
+        // user has already been told what is wrong, and the previous, working value would be silently
+        // replaced by one that never fires.
+        var errors = ValidationErrors;
+        if (errors.Count > 0)
+        {
+            Logger.Log($"[SettingsViewModel] Apply refused: {errors.Count} setting error(s): {string.Join(" | ", errors)}", LogLevel.Warn);
+            return false;
+        }
 
         _isSaved = true;
 
-        var previousNetworkDrives = _userSettings.NetworkDrives
-            .Select(d => new NetworkDriveSetting { Id = d.Id, RefreshMode = d.RefreshMode })
-            .ToList();
-        var previousWslDrives = _userSettings.WslSettings
-            .Select(w => new WslSetting { Id = w.Id, RefreshMode = w.RefreshMode })
-            .ToList();
-        var previousFolderIndexes = _userSettings.FolderIndexes
-            .Select(f => new FolderIndexSetting { Path = f.Path, RefreshMode = f.RefreshMode })
-            .ToList();
-        var previousExclusions = SettingsChangeSnapshot.CaptureExclusions(_userSettings);
-        var previousDisabledAliases = _userSettings.DisabledPluginComponents
-            .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var snapshot = SettingsApplySnapshot.Capture(_userSettings, LocalDrive, NetworkDrive);
 
-        var machineSettings = new MachineSettings
-        {
-            LocalDrives = LocalDrive.LocalDrives.Where(d => d.IsEnabled && !string.IsNullOrWhiteSpace(d.Id)).Select(d => d.Id).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
-        };
-
-        var newNetworkDrives = NetworkDrive.NetworkDrives.Where(d => d.IsEnabled && !string.IsNullOrWhiteSpace(d.Id)).Select(d => new NetworkDriveSetting
-        {
-            Id = d.Id,
-            RefreshMode = d.RefreshMode
-        }).ToList();
-        var newWslDrives = NetworkDrive.WslDrives.Where(w => w.IsEnabled && !string.IsNullOrWhiteSpace(w.Id)).Select(w => new WslSetting
-        {
-            Id = w.Id,
-            RefreshMode = w.RefreshMode
-        }).ToList();
-        var newFolderIndexes = NetworkDrive.FolderIndexes.Where(f => f.IsEnabled && !string.IsNullOrWhiteSpace(f.Path)).Select(f => new FolderIndexSetting
-        {
-            Path = f.Path,
-            RefreshMode = f.RefreshMode
-        }).ToList();
-        var localDriveSnapshots = LocalDrive.LocalDrives
-            .Select(d => new LocalDriveSnapshot(d.Drive, d.Id, d.IsEnabled))
-            .ToList();
-        _userSettings.NetworkDrives = newNetworkDrives;
-        _userSettings.WslSettings = newWslDrives;
-        _userSettings.FolderIndexes = newFolderIndexes;
+        _userSettings.NetworkDrives = snapshot.NewNetworkDrives;
+        _userSettings.WslSettings = snapshot.NewWslDrives;
+        _userSettings.FolderIndexes = snapshot.NewFolderIndexes;
         Exclusions.Save();
         General.Apply();
         // _plugins, not the Plugins property: an untouched Plugins tab was never constructed, so it has
@@ -210,63 +243,17 @@ public class SettingsViewModel : ViewModelBase
         // window's launch panel otherwise only rebuilds on its next show, and its live result list
         // keeps the rows the previous query read -- see OpenSearchWindowRefresher.
         OpenSearchWindowRefresher.AfterSettingsSaved();
-        var exclusionsChanged = SettingsChangeSnapshot.ExclusionsChanged(previousExclusions, SettingsChangeSnapshot.CaptureExclusions(_userSettings));
+        var exclusionsChanged = SettingsChangeSnapshot.ExclusionsChanged(snapshot.PreviousExclusions, SettingsChangeSnapshot.CaptureExclusions(_userSettings));
         var newDisabledAliases = _userSettings.DisabledPluginComponents
             .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))
             .ToList();
-        var aliasProviderEnabled = previousDisabledAliases.Any(c => !newDisabledAliases.Contains(c, StringComparer.OrdinalIgnoreCase));
+        var aliasProviderEnabled = snapshot.PreviousDisabledAliases.Any(c => !newDisabledAliases.Contains(c, StringComparer.OrdinalIgnoreCase));
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-            var previousLocalDrives = (await _searchService.GetMachineSettingsAsync()).LocalDrives.ToList();
-            if (SettingsChangeSnapshot.StringListChanged(previousLocalDrives, machineSettings.LocalDrives))
-                await _searchService.SaveMachineSettingsAsync(machineSettings);
+        // Everything above is the UI-side commit, which has already happened; this is the service side,
+        // which does not block the window -- see SettingsApplyBackground.
+        new SettingsApplyBackground(_searchService, snapshot, exclusionsChanged, aliasProviderEnabled, RefreshLists).Run();
 
-            if (exclusionsChanged)
-            {
-                _searchService.RefreshNetworkIndexes();
-            }
-            else if (SettingsApplyHelpers.NetworkSettingsChanged(previousNetworkDrives, newNetworkDrives)
-                || SettingsApplyHelpers.WslSettingsChanged(previousWslDrives, newWslDrives)
-                || SettingsApplyHelpers.FolderIndexesChanged(previousFolderIndexes, newFolderIndexes))
-            {
-                await NetworkDriveApplyHelper.ApplyChangesAsync(_searchService, previousNetworkDrives, newNetworkDrives);
-                foreach (var wsl in newWslDrives)
-                {
-                    if (!previousWslDrives.Any(w => w.Id.Equals(wsl.Id, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        var unc = $@"\\wsl$\{wsl.Id}";
-                        _searchService.RefreshNetworkDriveIndex(unc);
-                    }
-                }
-                // Unlike a network drive, a folder path never needs resolving from the OS, so there's
-                // nothing to wait for -- ConfigureNetworkIndexes() (already called above via
-                // ApplyChangesAsync) already auto-queues an initial refresh for it; this just requests it
-                // directly, same as a newly-added WSL distro above.
-                foreach (var folder in newFolderIndexes)
-                {
-                    if (!previousFolderIndexes.Any(f => f.Path.Equals(folder.Path, StringComparison.OrdinalIgnoreCase)))
-                        _searchService.RefreshNetworkDriveIndex(folder.Path);
-                }
-            }
-
-            if (exclusionsChanged)
-                await SettingsApplyHelpers.RebuildScanBasedLocalDrivesAsync(_searchService, localDriveSnapshots, machineSettings.LocalDrives);
-
-            if (aliasProviderEnabled)
-                await _searchService.InitializeOrLoadIndexAsync(false);
-            }
-            catch (Exception ex)
-            {
-                Logger.Log($"[Settings] Apply pipeline failed: {ex}", LogLevel.Error);
-            }
-            finally
-            {
-                RefreshLists();
-            }
-        });
+        return true;
     }
 
     private void ApplyUiState()
@@ -294,6 +281,6 @@ public class SettingsViewModel : ViewModelBase
         IsServiceReady = isServiceReady;
         _deferred.ExistingLog?.IsServiceReady = isServiceReady;
         IsBusy = !isServiceReady;
-        CanApply = isServiceReady;
+        // CanApply follows from IsServiceReady (see its own comment); nothing to assign here.
     }
 }
