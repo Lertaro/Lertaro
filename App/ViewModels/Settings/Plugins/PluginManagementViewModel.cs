@@ -19,6 +19,9 @@ public class PluginManagementViewModel : ViewModelBase
 
     private readonly UserSettings _userSettings;
 
+    /// <summary>Every trigger error in this page's config fields, for the Settings window's Apply gate.</summary>
+    internal IEnumerable<string> ValidationErrors => Plugins.SelectMany(p => p.ConfigFields).SelectMany(f => f.Validation.Errors);
+
     public PluginManagementViewModel(UserSettings userSettings)
     {
         _userSettings = userSettings;
