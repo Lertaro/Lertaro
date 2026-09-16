@@ -15,6 +15,12 @@ internal static class UsnServicePipeRequestProcessor
         try
         {
             token.ThrowIfCancellationRequested();
+
+            // One choke point for every state-changing command. Checking at the dispatch site instead
+            // meant each new command had to remember its own guard, and four of them did not.
+            if (RequiresAuthorizedCaller(msg.Id) && !IsAuthorizedControlClient(pipe))
+                return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
+
             switch (msg.Id)
             {
                 case SearchRequestId.Ping:
@@ -29,8 +35,6 @@ internal static class UsnServicePipeRequestProcessor
                     };
 
                 case SearchRequestId.Rebuild:
-                    if (!IsAuthorizedControlClient(pipe))
-                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
                     Logger.Log("[UsnService] Received REBUILD request from client.");
                     engine?.InitializeOrLoadIndex(true);
                     return new PipeResponse { Kind = PipeResponseKind.Ok };
@@ -41,8 +45,6 @@ internal static class UsnServicePipeRequestProcessor
                     return new PipeResponse { Kind = PipeResponseKind.Ok };
 
                 case SearchRequestId.RebuildDrive:
-                    if (!IsAuthorizedControlClient(pipe))
-                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
                     var drive = msg.Drive ?? string.Empty;
                     Logger.Log($"[UsnService] Received REBUILD_DRIVE request from client: {drive}");
                     return engine?.RebuildDriveIndex(drive) == true
@@ -50,8 +52,6 @@ internal static class UsnServicePipeRequestProcessor
                         : new PipeResponse { Kind = PipeResponseKind.Error, Message = "Invalid or disabled drive" };
 
                 case SearchRequestId.DeleteDriveIndex:
-                    if (!IsAuthorizedControlClient(pipe))
-                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
                     var deleteDrive = msg.Drive ?? string.Empty;
                     Logger.Log($"[UsnService] Received DELETE_DRIVE_INDEX request from client: {deleteDrive}");
                     return engine?.DeleteDriveIndex(deleteDrive) == true
@@ -73,8 +73,6 @@ internal static class UsnServicePipeRequestProcessor
                     };
 
                 case SearchRequestId.SetMachineSettings:
-                    if (!IsAuthorizedControlClient(pipe))
-                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
                     var settings = msg.MachineSettings;
                     if (settings == null)
                         return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Invalid settings" };
@@ -119,6 +117,29 @@ internal static class UsnServicePipeRequestProcessor
             return new PipeResponse { Kind = PipeResponseKind.Error, Message = ex.Message };
         }
     }
+
+    // Commands that change service state or destroy data, and are therefore only ever issued by this
+    // install's own Lertaro.App.exe: Rebuild/Initialize reload or rebuild the whole index, the three
+    // drive commands start or tear down a per-drive index, SetMachineSettings rewrites machine-wide
+    // configuration, and the two Clear commands truncate the service log and the path caches.
+    //
+    // Read/query commands are deliberately open -- Ping, Status, GetMachineSettings, GetFileMetadata,
+    // GetRecentFiles, GetSpaceEntries -- because they are how any client (including the CLI and the
+    // installer) finds out whether the service is up, and they expose nothing the pipe's own ACL does
+    // not already grant. Commands the server handles itself (Search, SearchDir, EnumerateDir,
+    // SubscribeStatus, SubscribeDirectoryChanges) never reach here; LaunchHook carries its own check.
+    internal static bool RequiresAuthorizedCaller(SearchRequestId id) => id switch
+    {
+        SearchRequestId.Rebuild or
+        SearchRequestId.Initialize or
+        SearchRequestId.RebuildDrive or
+        SearchRequestId.DeleteDriveIndex or
+        SearchRequestId.CancelDriveIndex or
+        SearchRequestId.SetMachineSettings or
+        SearchRequestId.ClearServiceLog or
+        SearchRequestId.ClearPathCaches => true,
+        _ => false,
+    };
 
     private static bool IsAuthorizedControlClient(NamedPipeServerStream pipe)
     {
