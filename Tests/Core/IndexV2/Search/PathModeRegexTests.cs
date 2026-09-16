@@ -2,7 +2,7 @@ using Lertaro.Core.IndexV2.Search;
 
 namespace Lertaro.Core.Tests.IndexV2.Search;
 
-// A path-mode query has to satisfy BOTH its path condition and any "regex:/.../" clause it carries.
+// A path-mode query has to satisfy BOTH its path condition and any "/.../" clause it carries.
 // Regex clauses are lifted out before the path/name decision is made -- they are full of backslashes and
 // slashes, which would otherwise read as path separators -- so the clauses have to survive that decision
 // and be handed back to the path matcher. Dropping them there silently returned rows the user had already
@@ -31,7 +31,7 @@ public sealed class PathModeRegexTests
     {
         using var fixture = BuildProjectsDrive();
 
-        var results = Search(fixture, @"T:\projects\ regex:/^report\.md$/");
+        var results = Search(fixture, @"T:\projects\ /^report\.md$/");
 
         // "notes.txt" is under the path but fails the regex; the root "report.md" passes the regex but is
         // outside the path. Only the row that satisfies both may come back.
@@ -44,7 +44,7 @@ public sealed class PathModeRegexTests
     {
         using var fixture = BuildProjectsDrive();
 
-        var results = Search(fixture, @"T:\projects\ regex:/^notes\.txt$/");
+        var results = Search(fixture, @"T:\projects\ /^notes\.txt$/");
 
         Assert.HasCount(1, results);
         Assert.AreEqual(@"T:\projects\notes.txt", results[0].Path);

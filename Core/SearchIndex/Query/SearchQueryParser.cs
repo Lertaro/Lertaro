@@ -5,10 +5,10 @@ public static class SearchQueryParser
     public static ParsedSearchQuery Parse(string query)
     {
         // Regex clauses are lifted out FIRST, because they are full of the very characters that decide
-        // path mode below: "regex:/\.exe$/" contains a backslash and "regex:/^a/b/" a slash, and reading
-        // either as a path separator turned the whole query into a full-path search for a path that
-        // cannot exist, dropping every result. The rest of the query is what actually gets searched, so
-        // that is what the path/name decision has to be made from.
+        // path mode below: "/\.exe$/" contains a backslash and "/^a\/b/" a slash, and reading either as a
+        // path separator turned the whole query into a full-path search for a path that cannot exist,
+        // dropping every result. The rest of the query is what actually gets searched, so that is what the
+        // path/name decision has to be made from.
         var withoutRegexes = RegexQueryParser.Split(query, out var regexes);
 
         var normalizedQuery = NormalizePathSeparators(withoutRegexes.Trim()).ToLowerInvariant();

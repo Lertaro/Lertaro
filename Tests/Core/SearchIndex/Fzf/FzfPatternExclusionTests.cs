@@ -155,7 +155,7 @@ public sealed class FzfPatternExclusionTests
     {
         // The exclusion-only guard must not swallow a regex-only query: its "positive" requirement is the
         // regex itself, which is why the guard is skipped when regex clauses are present.
-        var pattern = FzfPattern.Parse("regex:/^ab\\.txt$/");
+        var pattern = FzfPattern.Parse("/^ab\\.txt$/");
 
         Assert.IsFalse(pattern.HasPositiveTerm);
         Assert.IsTrue(pattern.TryMatch("ab.txt", out _, FzfScoringScheme.Default));
