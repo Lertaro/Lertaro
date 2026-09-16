@@ -32,6 +32,7 @@ public class SettingsViewModel : ViewModelBase
         LocalDrive = new LocalDriveSettingsViewModel(_searchService, RefreshLists);
         NetworkDrive = new NetworkDriveSettingsViewModel(_searchService, RefreshLists);
         General = new GeneralSettingsViewModel(_userSettings);
+        Validation = new SettingsValidationGate(General, () => _plugins);
         Exclusions = new ExclusionSettingsViewModel(_userSettings);
         Blacklist = new BlacklistSettingsViewModel(_userSettings);
         Hotkeys = new HotkeySettingsViewModel(_userSettings, Blacklist);
@@ -133,19 +134,15 @@ public class SettingsViewModel : ViewModelBase
     /// no error, and going through a lazy property to ask would construct it (see Plugins) purely to be
     /// told so.
     /// </summary>
-    public IReadOnlyList<string> ValidationErrors => [.. CollectValidationErrors()];
+    /// <summary>
+    /// Every blocking error the settings pages are currently showing, and the status-bar reason shown when
+    /// Apply refused because of them. Public because SettingsWindow.xaml binds it -- see the type's own
+    /// comment on why a binding path needs public members.
+    /// </summary>
+    public SettingsValidationGate Validation { get; }
 
-    private IEnumerable<string> CollectValidationErrors()
-    {
-        foreach (var error in General.ValidationErrors)
-            yield return error;
-
-        if (_plugins == null)
-            yield break;
-
-        foreach (var error in _plugins.ValidationErrors)
-            yield return error;
-    }
+    /// <summary>The gate's own list, kept as the name callers and tests already read.</summary>
+    public IReadOnlyList<string> ValidationErrors => Validation.Errors;
 
     public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
 
@@ -207,8 +204,11 @@ public class SettingsViewModel : ViewModelBase
         if (errors.Count > 0)
         {
             Logger.Log($"[SettingsViewModel] Apply refused: {errors.Count} setting error(s): {string.Join(" | ", errors)}", LogLevel.Warn);
+            Validation.Refuse(errors.Count);
             return false;
         }
+
+        Validation.Clear();
 
         _isSaved = true;
 

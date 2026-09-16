@@ -52,9 +52,6 @@ public static class SearchSyntaxReserved
 
     // True when `value` starts with a character the search syntax consumes before any plugin or trigger
     // ever sees the query.
-    public static bool StartsWithReservedCharacter(string? value)
-        => value is { Length: > 0 } && LeadingCharacters.Contains(value[0]);
-
     public static bool IsReserved(char value) => LeadingCharacters.Contains(value);
 
     /// <summary>
@@ -66,8 +63,6 @@ public static class SearchSyntaxReserved
     /// </summary>
     public static bool IsUnusableAsTokenPrefix(char value)
         => value != TokenPrefixCharacter && IsReserved(value);
-
-    public static bool IsProviderClaimed(char value) => ProviderClaimedCharacters.Contains(value);
 
     /// <summary>
     /// Why this value cannot be used as a leading trigger, or null when it is usable. Shared by every
@@ -97,6 +92,4 @@ public static class SearchSyntaxReserved
     // translated copy that can drift from the list above. Interpolated into General_ReservedCharacterSyntax
     // as {0}; a locale whose text lost the placeholder still renders, just without the list.
     public static string DescribeLeadingCharacters() => string.Join(' ', LeadingCharacters);
-
-    public static string DescribeProviderClaimedCharacters() => string.Join(' ', ProviderClaimedCharacters);
 }

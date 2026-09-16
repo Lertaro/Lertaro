@@ -26,6 +26,42 @@ internal static class SettingsWindowSearchExtensions
         return string.Join(" › ", parts);
     }
 
+    /// <summary>
+    /// The index <see cref="SettingsWindow.JumpToEntry"/> expects for the static entry with this label key,
+    /// or -1 when there is none.
+    /// </summary>
+    /// <remarks>
+    /// That index is the entry's position in the list <see cref="BuildAllEntries"/> produces, NOT its
+    /// position in <see cref="SettingsSearchIndex.Entries"/>. The two differ by however many entries with an
+    /// IsVisible predicate precede the target, because the evaluateConditionalVisibility: false build that
+    /// JumpToEntry and the SDK feed both use skips those outright. A caller holding only the raw index list
+    /// (see LegacySettingsNoticeService) therefore has to map through this rule rather than pass a raw
+    /// position, or it lands on a later row entirely.
+    /// </remarks>
+    internal static int JumpToEntryIndexFor(string labelKey)
+    {
+        var index = 0;
+        foreach (var entry in SettingsSearchIndex.Entries)
+        {
+            if (entry.IsVisible != null)
+            {
+                // Conditional entries hold no slot in the build JumpToEntry resolves against, so a target
+                // of that shape is not reachable by index at all.
+                if (entry.LabelKey == labelKey)
+                    return -1;
+
+                continue;
+            }
+
+            if (entry.LabelKey == labelKey)
+                return index;
+
+            index++;
+        }
+
+        return -1;
+    }
+
     internal static List<SettingsSearchResultItem> BuildAllEntries(SettingsViewModel? vm, bool evaluateConditionalVisibility = true)
     {
         var results = new List<SettingsSearchResultItem>();

@@ -35,6 +35,15 @@ internal sealed class PluginConfigFieldValidationSupport
         : null;
 
     /// <summary>
+    /// Whether the field's own trigger error should STOP the settings window from saving, rather than only
+    /// being shown next to the field. True only once the user has staged a value on this field: an unusable
+    /// prefix or keyword that is merely the schema default, or what a carried-over settings file already
+    /// holds, is reported but must not refuse to save every other setting in the window (see
+    /// QueryTokenPrefixRules.BlocksSaving for the app-wide field's identical rule).
+    /// </summary>
+    internal bool BlocksSaving => _field.IsDirty;
+
+    /// <summary>
     /// This field's own errors, then its loaded rows'. A container that was never shown holds no staged
     /// edit and so cannot hold an error -- and materializing it here would make every Apply walk every
     /// visited plugin's whole schema, the exact cost the lazy rows exist to avoid. Same rule, and the same
@@ -48,9 +57,9 @@ internal sealed class PluginConfigFieldValidationSupport
     {
         get
         {
-            if (PrefixError is { Length: > 0 } prefix)
+            if (BlocksSaving && PrefixError is { Length: > 0 } prefix)
                 yield return Describe(prefix);
-            if (TriggerKeywordError is { Length: > 0 } keyword)
+            if (BlocksSaving && TriggerKeywordError is { Length: > 0 } keyword)
                 yield return Describe(keyword);
 
             // Guarded before the getters, which load on demand: a tree that was never materialized cannot

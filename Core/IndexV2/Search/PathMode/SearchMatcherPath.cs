@@ -70,7 +70,12 @@ internal static class SearchMatcherPath
         if (utf8.Length == 0)
             return;
 
-        if (snapshot.IsUniqueAscii(uid))
+        // Pure-ASCII name: bytes ARE the chars (same values, same offsets) -- match with zero decode.
+        // Only when the query has no regex clause: the byte matcher cannot apply one, so for a regex-only
+        // pattern every ASCII name would be rejected (the byte pattern has no positive term to match on)
+        // and for a term+regex pattern the clause would be silently skipped. Regex queries decode instead.
+        // This mirrors SearchMatcher.MatchOne, the name-mode twin of this method.
+        if (snapshot.IsUniqueAscii(uid) && !ctx.BytePattern.HasRegexClauses)
         {
             if (ctx.BytePattern.TryMatch(utf8, out var byteMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers))
             {

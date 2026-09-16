@@ -283,8 +283,9 @@ public class SearchViewModel : ViewModelBase, IDisposable
     }
 
     // The result-area hints, in their own file to keep this one under the repository's per-file line limit.
-    // Bindings reach them as "Hints.ShowNoResultsHint" etc. Their own Refresh raises the notifications.
-    internal SearchViewHints Hints { get; }
+    // Bindings reach them as "Hints.ShowNoResultsHint" etc. Public, not internal: a binding path resolves
+    // public members only, so an internal one is silently skipped -- see SearchViewHints' class comment.
+    public SearchViewHints Hints { get; }
 
     internal void PerformSearch(string query) => _dispatcher.PerformSearch(query);
 

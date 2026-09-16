@@ -198,7 +198,7 @@
                                    MaxWidth="520"
                                    TextAlignment="Center"
                                    Foreground="{DynamicResource ErrorBrush}"
-                                   Visibility="{Binding InvalidRegexHint, Converter={StaticResource NullToVis}}"/>
+                                   Visibility="{Binding Hints.InvalidRegexHint, Converter={StaticResource NullToVis}}"/>
                         <!-- No Results Hint -->
                         <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_NoResult]}"
                                    HorizontalAlignment="Center"

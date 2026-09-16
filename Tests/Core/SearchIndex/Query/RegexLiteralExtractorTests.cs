@@ -70,6 +70,18 @@ public sealed class RegexLiteralExtractorTests
     public void Extract_LiteralAfterADroppedCharacter_StartsANewRun() => Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("ab?c"));
 
     [TestMethod]
+    public void Extract_AnEscapedLiteralAfterADroppedCharacter_IsNotJoinedOntoTheRun()
+    {
+        // The contiguity rule applies to the escape branch too, and this is the shape that shows why: 'e'
+        // is optional, so the escape's "." cannot be appended to "readm" -- no match must contain "readm."
+        // ("readme.md" does not), which is what the extractor used to return. It is silent today because the
+        // only consumer folds the value into a per-character mask, but the value itself broke the substring
+        // contract stated at the top of RegexLiteralExtractor.
+        Assert.AreEqual("readm", RegexLiteralExtractor.ExtractRequiredLiteral("^readme?\\.md$"));
+        Assert.AreEqual("ab", RegexLiteralExtractor.ExtractRequiredLiteral("^abc?\\.d$"));
+    }
+
+    [TestMethod]
     public void Extract_EscapedQuantifier_IsStillLiteral() => Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("a\\+?b"));
 
     [TestMethod]

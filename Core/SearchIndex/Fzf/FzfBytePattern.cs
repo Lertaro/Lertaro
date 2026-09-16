@@ -22,14 +22,13 @@ internal sealed class FzfBytePattern
     // ASCII fast path, and a regex needs the decoded chars. A caller that ignores this gets one of two
     // wrong answers -- a regex-only query looks like "no positive terms" and is rejected for every name
     // (so the search returns nothing at all), while a query that also has an ordinary term matches on the
-    // term alone and silently drops the regex (so it returns files the user excluded). Either way the
-    // caller has to send these candidates down the char path, which does apply the clauses.
+    // term alone and silently drops the regex. Either way the caller has to send these candidates down the
+    // char path, which does apply the clauses.
     public readonly bool HasRegexClauses;
 
     // Carried over from FzfPattern: false for an exclusion-only query, which must match nothing. The byte
-    // path is the one that RUNS for pure-ASCII names (and it returns a hit before the char path is ever
-    // consulted), so it needs the same guard -- without it ":temp" would match every ASCII name that does
-    // not contain "temp", i.e. nearly the whole index.
+    // path is the one that RUNS for pure-ASCII names (returning a hit before the char path is consulted),
+    // so it needs the same guard -- without it ":temp" would match nearly the whole index.
     private readonly bool _hasPositiveTerm;
 
     private FzfBytePattern(ByteTermSet[] termSets, ByteTermGroup[]? orGroups, bool hasPositiveTerm, bool hasRegexClauses)
@@ -137,8 +136,7 @@ internal sealed class FzfBytePattern
         return true;
     }
 
-    // Byte twin of FzfPattern's DNF group evaluation: every term set must be satisfied, while each set
-    // keeps its own OR alternatives (including alias spellings).
+    // Byte twin of FzfPattern's DNF group evaluation: every set must be satisfied, each keeping its own ORs.
     private static bool TryMatchGroup(ByteTermGroup group, ReadOnlySpan<byte> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab slab, FzfByteBuffers buffers)
     {
         var totalScore = 0;
@@ -169,8 +167,7 @@ internal sealed class FzfBytePattern
         return true;
     }
 
-    // One AND-condition's OR alternatives (the flat shape) or one AND-group of the DNF shape -- the
-    // two are the same evaluation, so both callers share it.
+    // One AND-condition's OR alternatives -- the flat and the DNF shape are the same evaluation.
     private static bool TryMatchSet(ByteTermSet set, ReadOnlySpan<byte> text, out FzfMatchResult best, FzfScoringScheme scheme, FzfSlab slab, FzfByteBuffers buffers)
     {
         best = default;
@@ -255,10 +252,8 @@ internal sealed class FzfBytePattern
     }
 
     // Ranking-only weight, computed as a bounded refinement AFTER the hot scan (see
-    // FzfResultRank.ApplyWeight) rather than inline per-candidate -- see that comment for why. ASCII
-    // bytes widen 1:1 into chars (no decode table needed for values < 128), so HighlightMask's
-    // char-based mask computation applies unchanged. Shared by name mode's refinement stage and path
-    // mode's per-unique filename weight (SearchMatcherPath.PathMatchOne / PathGate).
+    // FzfResultRank.ApplyWeight for why). ASCII bytes widen 1:1 into chars, so HighlightMask's char-based
+    // mask computation applies unchanged. Shared by name mode's refinement and path mode's filename weight.
     public static double ComputeWeight(ReadOnlySpan<byte> text, FzfPattern pattern)
     {
         if (pattern.IsEmpty)

@@ -12,10 +12,16 @@ namespace Lertaro.App.ViewModels.Search;
 // own classes. It is deliberately a class the view model exposes rather than a set of extension methods:
 // these are WPF binding TARGETS, and a binding cannot reach an extension method.
 //
+// Every member a binding path names here is PUBLIC, and so is the SearchViewModel.Hints property that
+// reaches them. That is load-bearing rather than stylistic: WPF resolves a binding path through a
+// public-only reflection lookup, so a non-public property is silently skipped -- no error, no log, the
+// trigger and the text simply keep their defaults. The TYPE has to be public as well, because C# rejects a
+// public property whose type is less accessible (CS0053); public in an application assembly costs nothing.
+//
 // It raises its own PropertyChanged for all three hints on Refresh rather than leaving that to the view
 // model: all three read the same state (the query, the result count, actions mode), so the view model only
 // has to say "something they watch moved" in one call instead of naming three properties it no longer owns.
-internal sealed class SearchViewHints(SearchViewModel viewModel) : INotifyPropertyChanged
+public sealed class SearchViewHints(SearchViewModel viewModel) : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
