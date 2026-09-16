@@ -56,7 +56,9 @@ internal sealed class FzfPattern
     // expensive to run per candidate, and without a literal there is nothing cheap to reject on.
     //
     // Computed once per parsed query rather than per search, because the mask is built per query and the
-    // extraction walks the pattern. Empty rather than null so callers can test it without a null check.
+    // extraction walks the pattern. This is the ONLY extraction: RegexQueryParser produces the clause
+    // patterns and nothing else, so the walk happens here and nowhere earlier.
+    // Empty rather than null so callers can test it without a null check.
     // RegexLiteralExtractor guarantees the literal really is required of EVERY match -- a wrong one would
     // silently drop results rather than merely miss an optimization, which is why its rules are stated in
     // that file.
