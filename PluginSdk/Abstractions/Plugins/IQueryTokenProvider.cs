@@ -1,18 +1,21 @@
 namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 /// <summary>
-/// Represents a provider that can claim a token out of a search query's trailing
-/// "&lt;keyword&gt; :a,b,c" suffix and transform the result list for it (e.g. sort, filter). Each
-/// comma-separated token is dispatched to whichever registered provider's <see cref="CanHandle"/>
-/// returns true first, and results are chained through providers in token order -- so multiple
-/// providers can each own a different token and compose within one query.
+/// Represents a provider that can claim a token out of a search query and transform the result list for
+/// it (e.g. sort, filter). A token is any whitespace-separated word starting with a trigger character
+/// (the app-wide query token prefix, or the fixed sort/filter triggers) -- it may appear ANYWHERE in the
+/// query, not only in a trailing suffix, and the remaining words are the ordinary search text. Each
+/// token is dispatched to whichever registered provider's <see cref="CanHandle"/> returns true first,
+/// and results are chained through providers in token order -- so multiple providers can each own a
+/// different token and compose within one query.
 /// </summary>
 public interface IQueryTokenProvider : IPluginComponent
 {
 
     /// <summary>
     /// Returns true if this provider understands the given token (e.g. "s", ".txt.doc", or any
-    /// custom token this plugin defines). Called once per token in the query's suffix; a token no
+    /// custom token this plugin defines). The token is passed exactly as it appeared in the query, with
+    /// its trigger character still on the front. Called once per token; a token no
     /// provider claims is treated as an unsupported/typo'd filter -- the file/directory results are
     /// dropped rather than silently applying only the tokens that were recognized (everything else in
     /// the query window -- applications, instant results like a calculator answer, ... -- is unrelated

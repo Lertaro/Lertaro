@@ -9,76 +9,66 @@ public sealed class RegexQueryParserTests
     [TestMethod]
     public void Split_RegexAlone_LeavesNoText()
     {
-        var rest = RegexQueryParser.Split("regex:/^ab.c\\..{3}$/", out var clauses);
+        var rest = RegexQueryParser.Split("regex:/^ab.c\\..{3}$/", out var patterns);
 
         Assert.AreEqual(string.Empty, rest);
-        Assert.HasCount(1, clauses);
-        Assert.AreEqual("^ab.c\\..{3}$", clauses[0].Pattern);
-        Assert.AreEqual("ab", clauses[0].RequiredLiteral);
+        Assert.HasCount(1, patterns!);
+        Assert.AreEqual("^ab.c\\..{3}$", patterns![0]);
     }
 
     [TestMethod]
     public void Split_RegexWithTrailingWord_KeepsTheWordAsText()
     {
-        var rest = RegexQueryParser.Split("regex:/^ab.c\\..{3}$/ zip", out var clauses);
+        var rest = RegexQueryParser.Split("regex:/^ab.c\\..{3}$/ zip", out var patterns);
 
         Assert.AreEqual("zip", rest);
-        Assert.HasCount(1, clauses);
+        Assert.HasCount(1, patterns!);
     }
 
     [TestMethod]
     public void Split_EscapedSlashInsidePattern_DoesNotEndTheClause()
     {
-        var rest = RegexQueryParser.Split("regex:/a\\/b/ tail", out var clauses);
+        var rest = RegexQueryParser.Split("regex:/a\\/b/ tail", out var patterns);
 
         Assert.AreEqual("tail", rest);
-        Assert.HasCount(1, clauses);
-        Assert.AreEqual("a\\/b", clauses[0].Pattern);
+        Assert.HasCount(1, patterns!);
+        Assert.AreEqual("a\\/b", patterns![0]);
     }
 
     [TestMethod]
     public void Split_NoRegexClause_ReturnsTheQueryUntouched()
     {
-        var rest = RegexQueryParser.Split("read me", out var clauses);
+        var rest = RegexQueryParser.Split("read me", out var patterns);
 
         Assert.AreEqual("read me", rest);
-        Assert.IsEmpty(clauses);
+        Assert.IsNull(patterns, "no clauses is null, which is what FzfPattern's regexes already mean");
     }
 
     [TestMethod]
     public void Split_UnterminatedRegex_StaysLiteralText()
     {
-        var rest = RegexQueryParser.Split("regex:/ab", out var clauses);
+        var rest = RegexQueryParser.Split("regex:/ab", out var patterns);
 
-        Assert.IsEmpty(clauses);
+        Assert.IsNull(patterns);
         Assert.AreEqual("regex:/ab", rest);
     }
 
     [TestMethod]
     public void Split_PrefixNotAtTokenBoundary_StaysLiteralText()
     {
-        var rest = RegexQueryParser.Split("aregex:/ab/", out var clauses);
+        var rest = RegexQueryParser.Split("aregex:/ab/", out var patterns);
 
-        Assert.IsEmpty(clauses);
+        Assert.IsNull(patterns);
         Assert.AreEqual("aregex:/ab/", rest);
     }
 
     [TestMethod]
     public void Split_TwoClauses_BothExtractedAndAnded()
     {
-        var rest = RegexQueryParser.Split("regex:/^a/ regex:/\\.md$/ report", out var clauses);
+        var rest = RegexQueryParser.Split("regex:/^a/ regex:/\\.md$/ report", out var patterns);
 
         Assert.AreEqual("report", rest);
-        Assert.HasCount(2, clauses);
-    }
-
-    [TestMethod]
-    public void Split_NoExtractableLiteral_YieldsAnEmptyLiteral()
-    {
-        _ = RegexQueryParser.Split("regex:/.*/", out var clauses);
-
-        Assert.HasCount(1, clauses);
-        Assert.AreEqual(string.Empty, clauses[0].RequiredLiteral);
+        Assert.HasCount(2, patterns!);
     }
 
     [TestMethod]
@@ -86,13 +76,13 @@ public sealed class RegexQueryParserTests
     {
         var query = @"lertaro regex:/\.exe$/";
 
-        var rest = RegexQueryParser.Split(query, out var clauses);
+        var rest = RegexQueryParser.Split(query, out var patterns);
         var parsed = SearchQueryParser.Parse(query);
         var pattern = FzfPattern.Parse(query);
 
         Assert.AreEqual("lertaro", rest);
-        Assert.HasCount(1, clauses);
-        Assert.AreEqual(@"\.exe$", clauses[0].Pattern);
+        Assert.HasCount(1, patterns!);
+        Assert.AreEqual(@"\.exe$", patterns![0]);
         Assert.IsFalse(parsed.IsPathMode);
 
         Assert.IsTrue(pattern.TryMatch("Lertaro.App.exe", out _, FzfScoringScheme.Default));

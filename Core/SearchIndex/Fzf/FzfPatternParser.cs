@@ -16,8 +16,8 @@ internal static class FzfPatternParser
 
     public static FzfPattern Parse(string query)
     {
-        var text = RegexQueryParser.Split(query, out var clauses);
-        return ParseCore(text, ToPatternArray(clauses));
+        var text = RegexQueryParser.Split(query, out var regexes);
+        return ParseCore(text, regexes);
     }
 
     internal static FzfPattern Parse(string query, string[]? regexes)
@@ -46,34 +46,24 @@ internal static class FzfPatternParser
         return Build(targetDrive, string.Join(' ', terms), regexes);
     }
 
-    // A regex clause carries no ordinary terms of its own -- the "regex:" text was stripped -- so a
-    // regex-only query reaches Build with an empty term string and is handled as the pattern's
-    // regex-only case.
-    private static string[]? ToPatternArray(IReadOnlyList<RegexClause> clauses)
-    {
-        if (clauses.Count == 0)
-            return null;
-
-        var patterns = new string[clauses.Count];
-        for (var i = 0; i < clauses.Count; i++)
-            patterns[i] = clauses[i].Pattern;
-        return patterns;
-    }
-
     private static bool IsAsciiLetter(char c) => (uint)(c | 0x20) - 'a' <= 'z' - 'a';
 
     // ParseText is the no-drive entry point: it still honours regex clauses, since those are a property
     // of the query text rather than of the drive it targets.
     public static FzfPattern ParseText(string query)
     {
-        var text = RegexQueryParser.Split(query, out var clauses);
-        return Build(null, text, ToPatternArray(clauses));
+        var text = RegexQueryParser.Split(query, out var regexes);
+        return Build(null, text, regexes);
     }
 
     internal static FzfPattern ParseText(string query, string[]? regexes)
         => Build(null, query, regexes);
 
     // Decides which of the two precedence readings the query gets and materializes the matching shape.
+    //
+    // A regex clause carries no ordinary terms of its own -- the "regex:" text was stripped by
+    // RegexQueryParser -- so a regex-only query reaches this with an empty term string and is handled as
+    // the pattern's regex-only case.
     //
     // OR-first (SearchContext.AndFirstPrecedence == false, the historical reading) is "conjunction of
     // disjunctions" and is exactly what the flat TermSets has always represented, so it is built the

@@ -1,13 +1,5 @@
 namespace Lertaro.Core.SearchIndex.Query;
 
-// One parsed "regex:/.../" clause from a query. Public with RegexQueryParser, which SearchQueryParser now
-// calls to decide path mode from a query that no longer contains its regex clauses.
-//
-// The clause carries its extracted literal because the extractor runs once, when the clause is parsed; the
-// index prefilter consumes it later, through FzfPattern.RequiredRegexLiteral, which folds the clauses'
-// literals into the character mask.
-public readonly record struct RegexClause(string Pattern, string RequiredLiteral);
-
 // Splits a query into the ordinary text part and the "regex:/.../" clauses it contains.
 //
 // This runs BEFORE FzfPatternParser for a reason: a regex like "^ab\.c\..{3}$" contains backslashes and
@@ -17,19 +9,25 @@ public readonly record struct RegexClause(string Pattern, string RequiredLiteral
 // SearchQueryParser.Parse calls this too, for that exact reason: it is the caller that MAKES the path-mode
 // decision, so it has to see the query without its regex clauses. Before it did, "lertaro regex:/\.exe$/"
 // was read as a full path named "lertaro regex:\.exe$" and matched nothing at all.
+//
+// Only the clause PATTERNS come out of here. The required literal the index prefilter needs is extracted
+// once per pattern by FzfPattern -- the single consumer (see FzfPattern.ComputeRequiredRegexLiteral).
+// Extracting one here as well was dead work: the value was carried out in the clause and dropped again on
+// the way to the pattern, which then recomputed it from the same text.
 public static class RegexQueryParser
 {
     private const string Prefix = "regex:";
 
-    // Returns the query with every regex clause removed, plus the clauses themselves. The clauses are
-    // ANDed with whatever text is left, matching the documented "<regex> <word>" behaviour.
-    public static string Split(string query, out IReadOnlyList<RegexClause> clauses)
+    // Returns the query with every regex clause removed, plus the clause patterns themselves (null when
+    // there were none). The clauses are ANDed with whatever text is left, matching the documented
+    // "<regex> <word>" behaviour.
+    public static string Split(string query, out string[]? patterns)
     {
-        clauses = Array.Empty<RegexClause>();
+        patterns = null;
         if (string.IsNullOrEmpty(query) || !query.Contains(Prefix, StringComparison.Ordinal))
             return query;
 
-        List<RegexClause>? found = null;
+        List<string>? found = null;
         var remaining = new System.Text.StringBuilder(query.Length);
 
         var index = 0;
@@ -54,12 +52,12 @@ public static class RegexQueryParser
                 continue;
             }
 
-            (found ??= new List<RegexClause>()).Add(new RegexClause(pattern, RegexLiteralExtractor.ExtractRequiredLiteral(pattern)));
+            (found ??= new List<string>()).Add(pattern);
             remaining.Append(' ');
             index = end;
         }
 
-        clauses = found ?? (IReadOnlyList<RegexClause>)Array.Empty<RegexClause>();
+        patterns = found?.ToArray();
         return remaining.ToString().Trim();
     }
 
