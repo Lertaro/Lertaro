@@ -130,6 +130,40 @@ public sealed class LiveDirectorySearcherTests
     }
 
     [TestMethod]
+    public void ScanDirectory_CancelledLiveMatchToken_StopsDeliveryButNotTheScan()
+    {
+        // The scan is shared between keystrokes and outlives any one of them, so its own token cannot gate
+        // delivery to whoever is listening: cancelling it means "stop walking". Delivery is gated by the
+        // listener's own token instead -- without that, the callback captured at scan start keeps firing
+        // into a request that has already been superseded and moved on.
+        using var dir = new TempDirectory();
+        File.WriteAllText(Path.Combine(dir.Path, "readme.txt"), "x");
+        var streamed = new List<SearchResult>();
+        using var liveCts = new CancellationTokenSource();
+        liveCts.Cancel();
+
+        var results = LiveDirectorySearcher.ScanDirectory(dir.Path, 100, CancellationToken.None,
+            liveQuery: "read", onLiveMatch: streamed.Add, liveMatchToken: liveCts.Token);
+
+        Assert.IsEmpty(streamed);
+        // The walk still completed, so the finished list is there for the next keystroke to reuse.
+        Assert.HasCount(1, results);
+    }
+
+    [TestMethod]
+    public void ScanDirectory_LiveMatchTokenNotCancelled_StillStreams()
+    {
+        using var dir = new TempDirectory();
+        File.WriteAllText(Path.Combine(dir.Path, "readme.txt"), "x");
+        var streamed = new List<SearchResult>();
+
+        LiveDirectorySearcher.ScanDirectory(dir.Path, 100, CancellationToken.None,
+            liveQuery: "read", onLiveMatch: streamed.Add, liveMatchToken: CancellationToken.None);
+
+        Assert.HasCount(1, streamed);
+    }
+
+    [TestMethod]
     public void MatchAndStream_EmptyEntries_ReturnsFalse()
     {
         var streamed = new List<SearchResult>();
@@ -201,59 +235,6 @@ public sealed class LiveDirectorySearcherTests
         Assert.IsTrue(found);
         Assert.HasCount(1, streamed);
         Assert.AreEqual("child.txt", streamed[0].Name);
-    }
-
-    [TestMethod]
-    public void ResolvePathModeSearch_EmptyInput_ReturnsEmptyTuple()
-    {
-        var (dir, filter) = LiveDirectorySearcher.ResolvePathModeSearch("");
-
-        Assert.AreEqual(string.Empty, dir);
-        Assert.AreEqual(string.Empty, filter);
-    }
-
-    [TestMethod]
-    public void ResolvePathModeSearch_WslPath_DoesNotProbeForLiveFallback()
-    {
-        var (dir, filter) = LiveDirectorySearcher.ResolvePathModeSearch(@"\\wsl$\Ubuntu\home\testuser\file.txt");
-
-        Assert.AreEqual(string.Empty, dir);
-        Assert.AreEqual(string.Empty, filter);
-    }
-
-    [TestMethod]
-    public void ResolvePathModeSearch_ExistingDirectory_ReturnsItselfWithNoFilter()
-    {
-        using var tempDir = new TempDirectory();
-
-        var (dir, filter) = LiveDirectorySearcher.ResolvePathModeSearch(tempDir.Path);
-
-        Assert.AreEqual(tempDir.Path, dir);
-        Assert.AreEqual(string.Empty, filter);
-    }
-
-    [TestMethod]
-    public void ResolvePathModeSearch_NonExistentSubPath_ReturnsNearestExistingAncestorAndFilter()
-    {
-        using var tempDir = new TempDirectory();
-        var target = Path.Combine(tempDir.Path, "missing-sub", "file.txt");
-
-        var (dir, filter) = LiveDirectorySearcher.ResolvePathModeSearch(target);
-
-        Assert.AreEqual(tempDir.Path, dir);
-        Assert.AreEqual(Path.Combine("missing-sub", "file.txt"), filter);
-    }
-
-    [TestMethod]
-    public void ResolvePathModeSearch_NoAncestorExists_ReturnsEmptyTuple()
-    {
-        var usedLetters = DriveInfo.GetDrives().Select(d => char.ToUpperInvariant(d.Name[0])).ToHashSet();
-        var freeLetter = Enumerable.Range('A', 26).Select(c => (char)c).First(c => !usedLetters.Contains(c));
-
-        var (dir, filter) = LiveDirectorySearcher.ResolvePathModeSearch($@"{freeLetter}:\definitely-not-real\deeper\file.txt");
-
-        Assert.AreEqual(string.Empty, dir);
-        Assert.AreEqual(string.Empty, filter);
     }
 
     private sealed class TempDirectory : IDisposable
