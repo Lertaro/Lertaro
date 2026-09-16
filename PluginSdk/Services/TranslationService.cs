@@ -163,21 +163,27 @@ public static class TranslationService
         try
         {
             using var stream = assembly.GetManifestResourceStream(matchedResourceName);
-            if (stream != null)
+            if (stream == null) return target;
+
+            using var reader = new StreamReader(stream);
+            var json = reader.ReadToEnd();
+            var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+            if (dict == null) return target;
+
+            foreach (var kvp in dict)
             {
-                using var reader = new StreamReader(stream);
-                var json = reader.ReadToEnd();
-                var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-                if (dict != null)
-                {
-                    foreach (var kvp in dict)
-                    {
-                        target[kvp.Key] = kvp.Value;
-                    }
-                }
+                target[kvp.Key] = kvp.Value;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            // A malformed translation file used to be swallowed here, so the plugin silently rendered
+            // every key as "[Key]" with nothing pointing at the cause. Say which resource is broken
+            // instead: the file is embedded at build time and only ever parsed here.
+            Logger.Log(
+                $"[TranslationService] Failed to load '{matchedResourceName}' from '{assembly.GetName().Name}': {ex.Message}",
+                LogLevel.Error);
+        }
 
         return target;
     }

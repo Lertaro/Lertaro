@@ -281,6 +281,10 @@ public partial class App : Application
         // Background update check on startup
         UpdateCheckService.RunOnStartupAsync();
 
+        // Tell the user if their saved settings still carry a value the rewritten search syntax cannot
+        // honor -- the feature fails silently otherwise (see LegacySettingsAdvisor).
+        LegacySettingsNoticeService.RunOnStartup();
+
         // LocalSend transfer service runs in App process
         Helpers.LocalSend.LocalSendAppEventHandler.Initialize(settings);
     }

@@ -218,5 +218,5 @@
   "CoreExtensions_Config_CustomFilterPrefixLabel": "分类过滤前导字符",
   "CoreExtensions_Config_CustomFilterPrefixDesc": "自定义分类过滤器标记的前导字符（默认为 \\）。不能使用搜索语法占用的字符（\\ < > : *），否则语法会先消耗掉该字符。",
   "CoreExtensions_WildcardFilterProvider_Name": "通配符二次过滤 (?表达式)",
-  "CoreExtensions_Config_WildcardFilterPrefixLabel": "通配符过滤触发前缀",
+  "CoreExtensions_Config_WildcardFilterPrefixLabel": "通配符过滤触发前缀"
 }

@@ -56,4 +56,63 @@ public sealed class RegexClauseCompilationTests
         Assert.IsFalse(pattern.TryMatch("a(b", out _, FzfScoringScheme.Default));
         Assert.IsFalse(pattern.TryMatch("anything.txt", out _, FzfScoringScheme.Default));
     }
+
+    // Matching nothing is right, but it is also indistinguishable from a genuine miss, so the failure is
+    // REPORTED: the UI names the clause rather than claiming the search was simply too narrow.
+    //
+    // The report is process-wide and other tests compile patterns of their own, so every assertion here is
+    // on a UNIQUE pattern's presence or absence rather than on the list's total contents -- MSTest gives no
+    // ordering guarantee, and a test that expects an empty list would depend on nothing else having run.
+    [TestMethod]
+    public void InvalidPatterns_ReportsTheClauseThatCouldNotCompile()
+    {
+        Assert.IsFalse(RegexClauses.AllMatch([@"zz-probe-unique("], "zz-probe-unique(x"));
+
+        CollectionAssert.Contains(RegexClauses.InvalidPatterns.ToList(), @"zz-probe-unique(");
+    }
+
+    [TestMethod]
+    public void InvalidPatterns_ValidPatterns_ReportNothing()
+    {
+        // Every pattern here compiles, so none of them may appear in the report whatever else has.
+        Assert.IsTrue(RegexClauses.AllMatch([@"^zz-probe-valid\.md$"], "zz-probe-valid.md"));
+        Assert.IsFalse(RegexClauses.AllMatch([@"^(?!.*tmp).*zz-probe-valid\.md$"], "tmp.md"));
+
+        CollectionAssert.DoesNotContain(RegexClauses.InvalidPatterns.ToList(), @"^zz-probe-valid\.md$");
+        CollectionAssert.DoesNotContain(RegexClauses.InvalidPatterns.ToList(), @"^(?!.*tmp).*zz-probe-valid\.md$");
+    }
+
+    // A half-typed pattern is compiled on every keystroke, so the same broken clause is seen repeatedly.
+    // It has to be named once, not once per attempt.
+    [TestMethod]
+    public void InvalidPatterns_SameClauseSeenTwice_ReportedOnce()
+    {
+        Assert.IsFalse(RegexClauses.AllMatch([@"zz-probe-dupe("], "zz-probe-dupe(x"));
+        Assert.IsFalse(RegexClauses.AllMatch([@"zz-probe-dupe("], "zz-probe-dupe(xy"));
+
+        Assert.AreEqual(1, RegexClauses.InvalidPatterns.Count(p => p == @"zz-probe-dupe("));
+    }
+
+    // A pattern the NonBacktracking engine refuses but the timed fallback accepts is NOT a failure: the
+    // second attempt has to be the one that decides, or every lookaround would be reported as broken.
+    [TestMethod]
+    public void InvalidPatterns_FallbackSupportedPattern_IsNotReported()
+    {
+        Assert.IsTrue(RegexClauses.AllMatch([@"^(zz-probe-br)\1$"], "zz-probe-brzz-probe-br"));
+
+        CollectionAssert.DoesNotContain(RegexClauses.InvalidPatterns.ToList(), @"^(zz-probe-br)\1$");
+    }
+
+    // The report is surfaced to the UI through SearchContext, which is the App-visible channel (RegexClauses
+    // is internal to Core). Same list, so the two cannot drift.
+    [TestMethod]
+    public void SearchContext_ExposesAndClearsTheInvalidClauses()
+    {
+        Assert.IsFalse(RegexClauses.AllMatch([@"zz-probe-ctx("], "zz-probe-ctx(x"));
+
+        CollectionAssert.Contains(SearchContext.InvalidRegexes.ToList(), @"zz-probe-ctx(");
+
+        SearchContext.ClearInvalidRegexes();
+        Assert.IsEmpty(SearchContext.InvalidRegexes);
+    }
 }
