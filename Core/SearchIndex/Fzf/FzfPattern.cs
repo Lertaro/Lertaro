@@ -191,7 +191,12 @@ internal sealed class FzfPattern
 
     public static FzfPattern Parse(string query) => FzfPatternParser.Parse(query);
 
+    internal static FzfPattern Parse(string query, string[]? regexes) => FzfPatternParser.Parse(query, regexes);
+
     public static FzfPattern ParseText(string query) => FzfPatternParser.ParseText(query);
+
+    internal static FzfPattern ParseText(string query, string[]? regexes) =>
+        FzfPatternParser.ParseText(query, regexes);
 
     // One already-parsed term set lifted into a pattern of its own, so a caller can ask "which
     // candidates satisfy THIS term" instead of only "which satisfy the whole query". Reuses the parsed
@@ -354,25 +359,26 @@ internal sealed class FzfPattern
     private bool TryMatchSet(FzfTermSet set, ReadOnlySpan<char> text, out FzfMatchResult best, FzfScoringScheme scheme, FzfSlab? slab)
     {
         best = default;
+        var foundPositive = false;
         foreach (var term in set.Terms)
         {
             var current = FzfAlgorithm.Match(term.Kind, text, term.Text, term.CaseSensitive, scheme, slab);
-            if (current.IsMatch)
-            {
-                if (term.Inverse)
-                    return false;
-
-                best = current;
-                return true;
-            }
-
             if (term.Inverse)
             {
-                best = new FzfMatchResult(0, 0, 0);
-                return true;
+                // In an OR set, a negative alternative is satisfied when its text is absent. Do not
+                // return false merely because it is present: a later positive alternative may still match.
+                if (!current.IsMatch)
+                    return true;
+                continue;
+            }
+
+            if (current.IsMatch && (!foundPositive || current.Score > best.Score))
+            {
+                best = current;
+                foundPositive = true;
             }
         }
 
-        return false;
+        return foundPositive;
     }
 }
