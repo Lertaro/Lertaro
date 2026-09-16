@@ -125,6 +125,19 @@ public sealed class QueryTokenScannerTests
     }
 
     [TestMethod]
+    public void Scan_SlashPrefix_EatsTheRegexClause()
+    {
+        // Why '/' is listed as a reserved leading character (SearchSyntaxReserved): the scanner compares
+        // the prefix against the first character and nothing else, so a '/' prefix claims every word that
+        // starts with a slash -- including a regex clause, which is lifted out as a token and never
+        // reaches RegexQueryParser. The user-visible result is that "/\.md$/" silently stops filtering.
+        var result = QueryTokenScanner.Scan(@"/^report.*\.md$/ report", '/');
+
+        Assert.AreEqual("report", result.Text);
+        CollectionAssert.AreEqual(new[] { @"/^report.*\.md$/" }, result.Tokens.ToArray());
+    }
+
+    [TestMethod]
     public void StripExclusionBypass_LeadingAsterisk_IsStrippedAndFlagged()
     {
         var result = QueryTokenScanner.StripExclusionBypass("*readme", out var bypass);

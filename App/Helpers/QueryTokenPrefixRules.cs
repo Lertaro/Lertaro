@@ -14,7 +14,7 @@ namespace Lertaro.App.Helpers;
 //
 // There are two real collisions:
 //
-//   1. the search syntax, which consumes '<' '>' ':' and '*' at the start of a query whatever the
+//   1. the search syntax, which consumes '<' '>' ':' '*' and '/' at the start of a query whatever the
 //      configured prefix is -- the sort/filter pair worst of all, since QueryTokenScanner pulls those
 //      words out before any plugin sees them, leaving the plugin tokens permanently unreachable;
 //   2. a SECOND plugin declaring a prefix that a first one already answers to.
@@ -40,9 +40,10 @@ public static class QueryTokenPrefixRules
 {
     // True for the characters QueryTokenScanner always reads as token starts whatever the configured
     // prefix is -- only the sort/filter pair, unlike SearchSyntaxReserved.IsReserved, which also covers the
-    // exclusion, bypass and token-prefix characters. The two are used for different sentences: a prefix
-    // equal to '<'/'>' leaves the plugin tokens permanently unreachable, while a prefix equal to ':' still
-    // leaves them reachable but collides with exclusion syntax.
+    // exclusion, bypass, token-prefix and regex-delimiter characters. The two are used for different
+    // sentences: a prefix equal to '<'/'>' leaves the plugin tokens permanently unreachable, while a prefix
+    // equal to ':' or '/' still leaves them reachable but collides with the exclusion operator or the regex
+    // clause delimiter.
     internal static bool IsAlwaysTokenTrigger(char prefix) => prefix == '<' || prefix == '>';
 
     /// <summary>The conflict to show under the app-wide prefix field, or null when it is usable.</summary>

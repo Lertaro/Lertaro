@@ -17,6 +17,7 @@ public sealed class SearchSyntaxReservedTests
     [DataRow(">s")]
     [DataRow(":temp")]
     [DataRow("*node_modules")]
+    [DataRow("/\\.md$/")]
     public void StartsWithReservedCharacter_EverySyntaxCharacter_IsReserved(string value)
         => Assert.IsTrue(SearchSyntaxReserved.StartsWithReservedCharacter(value));
 
@@ -128,6 +129,18 @@ public sealed class SearchSyntaxReservedTests
     [DataRow('*')]
     public void IsUnusableAsTokenPrefix_TheOtherSyntaxCharacters_AreReported(char value)
         => Assert.IsTrue(SearchSyntaxReserved.IsUnusableAsTokenPrefix(value));
+
+    [TestMethod]
+    public void IsUnusableAsTokenPrefix_Slash_IsReported()
+    {
+        // '/' is not an always-on trigger like '<'/'>' -- it only opens a clause when the word also closes
+        // with one -- but a '/' prefix still breaks regex queries outright, because QueryTokenScanner
+        // compares the prefix against the first character alone and so lifts the whole clause out as a
+        // token before RegexQueryParser runs. See QueryTokenScannerTests.Scan_SlashPrefix_EatsTheRegexClause.
+        Assert.IsTrue(SearchSyntaxReserved.IsReserved('/'));
+        Assert.IsTrue(SearchSyntaxReserved.IsUnusableAsTokenPrefix('/'));
+        Assert.IsNotNull(SearchSyntaxReserved.ValidateLeadingCharacter("/\\.md$/"));
+    }
 
     [TestMethod]
     [DataRow('a')]
