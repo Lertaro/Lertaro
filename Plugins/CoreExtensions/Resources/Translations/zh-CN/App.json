@@ -361,7 +361,7 @@
   "General_GlobalTokenPrefixConflictReserved": "该字符已被占用：\"<\" 和 \">\" 始终是排序/过滤标记的起始字符。",
   "General_GlobalTokenPrefixConflictPlugin": "已有插件把该字符用作自己的查询标记前缀，请换一个字符。",
   "General_ReservedCharacterEmpty": "请输入内容。",
-  "General_ReservedCharacterSyntax": "不能以搜索语法占用的字符开头（\\ < > : *）——该字符会在读取此触发词之前先被语法消耗，触发词会静默失效。",
+  "General_ReservedCharacterSyntax": "不能以搜索语法占用的字符开头（{0}）——该字符会在读取此触发词之前先被语法消耗，触发词会静默失效。",
   "General_ReservedCharacterProvider": "该字符已被内置即时功能占用：# 与 $ 用于运行命令，% 用于搜索环境变量。请换一个字符。",
   "General_ResultTypeTriggerDuplicate": "另一个结果类型已使用该字符，同一字符只能由一个类型占用。",
   "General_GlobalTokenPrefixDesc": "搜索框中插件标记词的前导字符，例如 \\audio 或 \\doc（默认为 \\）。",

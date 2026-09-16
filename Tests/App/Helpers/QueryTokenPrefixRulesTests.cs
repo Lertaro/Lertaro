@@ -94,8 +94,9 @@ public sealed class QueryTokenPrefixRulesTests
     {
         // '<'/'>' are the worst case -- the scanner always reads those as token starts, so plugin tokens
         // become permanently unreachable -- but ':' and '*' collide with exclusion syntax and the bypass
-        // marker, so the field rejects those too rather than letting one meaning silently win.
-        foreach (var prefix in new[] { "<", ">", ":", "*" })
+        // marker, and '/' with the regex clause delimiter, so the field rejects those too rather than
+        // letting one meaning silently win.
+        foreach (var prefix in new[] { "<", ">", ":", "*", "/" })
             Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict(prefix, new UserSettings()), prefix);
     }
 
@@ -153,11 +154,12 @@ public sealed class QueryTokenPrefixRulesTests
     {
         // Narrower than SearchSyntaxReserved.IsReserved on purpose: only these two are read as token starts
         // regardless of the configured prefix, which is a different (worse) situation than colliding with
-        // the exclusion or bypass character.
+        // the exclusion, bypass or regex-delimiter character.
         Assert.IsTrue(QueryTokenPrefixRules.IsAlwaysTokenTrigger('<'));
         Assert.IsTrue(QueryTokenPrefixRules.IsAlwaysTokenTrigger('>'));
         Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger('\\'));
         Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger(':'));
+        Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger('/'));
     }
 
     // An instant-answer trigger keyword is matched against the START of the query, so it competes with the
@@ -171,6 +173,7 @@ public sealed class QueryTokenPrefixRulesTests
         Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict("<tr"));
         Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict(">tr"));
         Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict("*tr"));
+        Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict("/tr"));
     }
 
     [TestMethod]

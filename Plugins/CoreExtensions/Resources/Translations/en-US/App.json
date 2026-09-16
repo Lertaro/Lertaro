@@ -361,7 +361,7 @@
   "General_GlobalTokenPrefixConflictReserved": "This character is reserved: \"<\" and \">\" always start a sort or filter token.",
   "General_GlobalTokenPrefixConflictPlugin": "A plugin already uses this character as its own query token prefix. Pick a different one.",
   "General_ReservedCharacterEmpty": "Enter a value.",
-  "General_ReservedCharacterSyntax": "This cannot start with a character the search syntax uses (\\ < > : *), because that character is consumed before this trigger is read -- the trigger would silently never fire.",
+  "General_ReservedCharacterSyntax": "This cannot start with a character the search syntax uses ({0}), because that character is consumed before this trigger is read -- the trigger would silently never fire.",
   "General_ReservedCharacterProvider": "This is used by a built-in instant answer: # and $ run a shell command, % searches environment variables. Pick a different character.",
   "General_ResultTypeTriggerDuplicate": "Another result type already uses this character. Only one type can claim it.",
   "General_GlobalTokenPrefixDesc": "Lead character for a plugin query-token word in the search box, e.g. \\audio or \\doc (default \\).",

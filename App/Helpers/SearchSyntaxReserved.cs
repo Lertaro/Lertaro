@@ -29,7 +29,14 @@ public static class SearchSyntaxReserved
     //   '<' '>' the sort/filter token triggers, which QueryTokenScanner always recognizes
     //   ':'   the exclusion operator, and the drive spec's separator
     //   '*'   the one-search exclusion bypass, read from the first character only
-    public static IReadOnlyList<char> LeadingCharacters { get; } = new[] { TokenPrefixCharacter, '<', '>', ':', '*' };
+    //   '/'   the regex clause delimiter
+    //
+    // '/' is the only entry that is not a whole-query trigger: it opens a clause only when the same word
+    // also closes with one, so "/mnt/c" is ordinary text. It is listed anyway because QueryTokenScanner
+    // compares a prefix against the first character ALONE, so a '/' prefix claims the entire clause as a
+    // token and regex queries stop filtering with nothing on screen to explain it -- the exact failure this
+    // list exists to catch. See QueryTokenScannerTests.Scan_SlashPrefix_EatsTheRegexClause.
+    public static IReadOnlyList<char> LeadingCharacters { get; } = new[] { TokenPrefixCharacter, '<', '>', ':', '*', '/' };
 
     // Leading characters an instant-answer provider claims for itself, by its own hardcoded rule rather
     // than by the search syntax. They are not syntax, so they are listed separately -- but they are just
@@ -75,7 +82,8 @@ public static class SearchSyntaxReserved
 
         var first = value[0];
         if (LeadingCharacters.Contains(first))
-            return TranslationManager.Instance["General_ReservedCharacterSyntax"];
+            return string.Format(
+                TranslationManager.Instance["General_ReservedCharacterSyntax"], DescribeLeadingCharacters());
 
         // Claimed by a provider's own hardcoded rule rather than by the syntax. The message names the
         // characters, because "you cannot use #, $ or %" is arbitrary unless the user is told what already
@@ -86,7 +94,8 @@ public static class SearchSyntaxReserved
     }
 
     // The characters listed for a message, so the warning can name them without each locale hardcoding a
-    // translated copy that can drift from the list above.
+    // translated copy that can drift from the list above. Interpolated into General_ReservedCharacterSyntax
+    // as {0}; a locale whose text lost the placeholder still renders, just without the list.
     public static string DescribeLeadingCharacters() => string.Join(' ', LeadingCharacters);
 
     public static string DescribeProviderClaimedCharacters() => string.Join(' ', ProviderClaimedCharacters);

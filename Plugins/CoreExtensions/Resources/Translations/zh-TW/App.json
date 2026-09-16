@@ -361,7 +361,7 @@
   "General_GlobalTokenPrefixConflictReserved": "該字元已被占用：「<」與「>」一直是排序／篩選標記的起始字元。",
   "General_GlobalTokenPrefixConflictPlugin": "已有外掛把該字元用作自己的查詢標記前置字元，請換一個字元。",
   "General_ReservedCharacterEmpty": "請輸入內容。",
-  "General_ReservedCharacterSyntax": "不能以搜尋語法占用的字元開頭（\\ < > : *）——該字元會在讀取此觸發詞之前先被語法消耗，觸發詞會靜默失效。",
+  "General_ReservedCharacterSyntax": "不能以搜尋語法占用的字元開頭（{0}）——該字元會在讀取此觸發詞之前先被語法消耗，觸發詞會靜默失效。",
   "General_ReservedCharacterProvider": "該字元已被內建即時功能占用：# 與 $ 用於執行命令，% 用於搜尋環境變數。請換一個字元。",
   "General_ResultTypeTriggerDuplicate": "另一個結果類型已使用該字元，同一字元只能由一個類型占用。",
   "General_GlobalTokenPrefixDesc": "搜尋框中外掛標記詞的前導字元，例如 \\audio 或 \\doc（預設為 \\）。",
