@@ -13,10 +13,7 @@ public sealed class ExplorerInlineSearchAdapterTests
     }
 
     [TestMethod]
-    public void ShouldDeferDirectOpenToApp_DefersFilesWhenAlwaysOpenIsEnabled()
-    {
-        Assert.IsTrue(ExplorerInlineSearchAdapter.ShouldDeferDirectOpenToApp(false, false, true));
-    }
+    public void ShouldDeferDirectOpenToApp_DefersFilesWhenAlwaysOpenIsEnabled() => Assert.IsTrue(ExplorerInlineSearchAdapter.ShouldDeferDirectOpenToApp(false, false, true));
 
     [TestMethod]
     public void ShouldDeferDirectOpenToApp_KeepsExplorerNavigationInTheHook()

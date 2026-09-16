@@ -6,10 +6,7 @@ namespace Lertaro.Core.Tests.SearchIndex.Query;
 public sealed class RegexLiteralExtractorTests
 {
     [TestMethod]
-    public void Extract_AlternationWithClasses_KeepsOnlyTheLiteralRun()
-    {
-        Assert.AreEqual("ab", RegexLiteralExtractor.ExtractRequiredLiteral("^ab.c\\..{3}$"));
-    }
+    public void Extract_AlternationWithClasses_KeepsOnlyTheLiteralRun() => Assert.AreEqual("ab", RegexLiteralExtractor.ExtractRequiredLiteral("^ab.c\\..{3}$"));
 
     [TestMethod]
     public void Extract_ExtensionAlternation_StillFindsTheRequiredPrefix()
@@ -19,10 +16,7 @@ public sealed class RegexLiteralExtractorTests
     }
 
     [TestMethod]
-    public void Extract_DigitClassContributesNothing()
-    {
-        Assert.AreEqual("_", RegexLiteralExtractor.ExtractRequiredLiteral("^[0-9]{8}_"));
-    }
+    public void Extract_DigitClassContributesNothing() => Assert.AreEqual("_", RegexLiteralExtractor.ExtractRequiredLiteral("^[0-9]{8}_"));
 
     [TestMethod]
     public void Extract_NoLiteralAtAll_ReturnsEmpty()
@@ -33,22 +27,13 @@ public sealed class RegexLiteralExtractorTests
     }
 
     [TestMethod]
-    public void Extract_LongestRunWins()
-    {
-        Assert.AreEqual("report", RegexLiteralExtractor.ExtractRequiredLiteral("ab.*report"));
-    }
+    public void Extract_LongestRunWins() => Assert.AreEqual("report", RegexLiteralExtractor.ExtractRequiredLiteral("ab.*report"));
 
     [TestMethod]
-    public void Extract_CharacterClassContentsAreNotLiteral()
-    {
-        Assert.AreEqual("x", RegexLiteralExtractor.ExtractRequiredLiteral("x[abc]y"));
-    }
+    public void Extract_CharacterClassContentsAreNotLiteral() => Assert.AreEqual("x", RegexLiteralExtractor.ExtractRequiredLiteral("x[abc]y"));
 
     [TestMethod]
-    public void Extract_TrailingLiteralAfterAnEndAnchor_IsStillRequired()
-    {
-        Assert.AreEqual("read", RegexLiteralExtractor.ExtractRequiredLiteral("^read.*\\.md$"));
-    }
+    public void Extract_TrailingLiteralAfterAnEndAnchor_IsStillRequired() => Assert.AreEqual("read", RegexLiteralExtractor.ExtractRequiredLiteral("^read.*\\.md$"));
 
     [TestMethod]
     public void Extract_OptionalAtom_IsNotClaimedAsRequired()
@@ -82,16 +67,10 @@ public sealed class RegexLiteralExtractorTests
     }
 
     [TestMethod]
-    public void Extract_LiteralAfterADroppedCharacter_StartsANewRun()
-    {
-        Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("ab?c"));
-    }
+    public void Extract_LiteralAfterADroppedCharacter_StartsANewRun() => Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("ab?c"));
 
     [TestMethod]
-    public void Extract_EscapedQuantifier_IsStillLiteral()
-    {
-        Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("a\\+?b"));
-    }
+    public void Extract_EscapedQuantifier_IsStillLiteral() => Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("a\\+?b"));
 
     [TestMethod]
     public void Extract_TextAroundAnAlternationGroup_IsNotJoined()
@@ -108,16 +87,10 @@ public sealed class RegexLiteralExtractorTests
     }
 
     [TestMethod]
-    public void Extract_PlainGroup_DoesNotJoinItsTwoSides()
-    {
-        Assert.AreEqual("abc", RegexLiteralExtractor.ExtractRequiredLiteral("abc(def)"));
-    }
+    public void Extract_PlainGroup_DoesNotJoinItsTwoSides() => Assert.AreEqual("abc", RegexLiteralExtractor.ExtractRequiredLiteral("abc(def)"));
 
     [TestMethod]
-    public void Extract_TopLevelAlternation_ReportsNoLiteral()
-    {
-        Assert.AreEqual(string.Empty, RegexLiteralExtractor.ExtractRequiredLiteral("readme|notes"));
-    }
+    public void Extract_TopLevelAlternation_ReportsNoLiteral() => Assert.AreEqual(string.Empty, RegexLiteralExtractor.ExtractRequiredLiteral("readme|notes"));
 
     [TestMethod]
     public void Extract_TextOutsideAnAlternationGroup_IsStillRequired()
@@ -127,8 +100,5 @@ public sealed class RegexLiteralExtractorTests
     }
 
     [TestMethod]
-    public void Extract_NestedAlternation_DoesNotClaimBranchText()
-    {
-        Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("a(b(c|d))e"));
-    }
+    public void Extract_NestedAlternation_DoesNotClaimBranchText() => Assert.AreEqual("a", RegexLiteralExtractor.ExtractRequiredLiteral("a(b(c|d))e"));
 }

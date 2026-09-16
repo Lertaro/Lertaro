@@ -188,18 +188,13 @@ public sealed class SortFilterQueryTokenProviderTests
     [DataRow("2003-08.03", DisplayName = "dash mixed with dot")]
     [DataRow("2003-08/03", DisplayName = "dash mixed with slash")]
     [DataRow("2003.8/3", DisplayName = "dot mixed with slash")]
-    public void TryParseDate_MixedSeparators_AreRejected(string text)
-    {
-        Assert.IsFalse(SortFilterQueryTokenProvider.TryParseDate(text, out _));
-    }
+    public void TryParseDate_MixedSeparators_AreRejected(string text) => Assert.IsFalse(SortFilterQueryTokenProvider.TryParseDate(text, out _));
 
     [TestMethod]
-    public void TryParseDate_AmbiguousNumericForm_IsNotAFallDate()
-    {
+    public void TryParseDate_AmbiguousNumericForm_IsNotAFallDate() =>
         // 03/08/2003 would be March 8 in one culture and August 3 in another -- rejected outright, so
         // the same query can never mean two different things on two machines.
         Assert.IsFalse(SortFilterQueryTokenProvider.TryParseDate("03/08/2003", out _));
-    }
 
     [TestMethod]
     [DataRow("2003-13-03", DisplayName = "month 13")]
@@ -208,10 +203,7 @@ public sealed class SortFilterQueryTokenProviderTests
     [DataRow("2003-01-00", DisplayName = "day 0")]
     [DataRow("", DisplayName = "empty")]
     [DataRow("   ", DisplayName = "whitespace only")]
-    public void TryParseDate_ImpossibleOrEmptyValues_AreRejected(string text)
-    {
-        Assert.IsFalse(SortFilterQueryTokenProvider.TryParseDate(text, out _));
-    }
+    public void TryParseDate_ImpossibleOrEmptyValues_AreRejected(string text) => Assert.IsFalse(SortFilterQueryTokenProvider.TryParseDate(text, out _));
 
     [TestMethod]
     public void TryParseDate_TwoDigitYearLeadingThirteen_ReadsAsAYearNotAMonth()

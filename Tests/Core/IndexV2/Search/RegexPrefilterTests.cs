@@ -1,5 +1,4 @@
 using Lertaro.Core.IndexV2.Search;
-using Lertaro.Core.IndexV2.Search.PathMode;
 using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.Tests.IndexV2.Search;

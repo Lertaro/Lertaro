@@ -116,9 +116,7 @@ public sealed class HighlightMaskTests
     }
 
     [TestMethod]
-    public void ComputeRank_StartAtZero_KeepsThePlainCoverageValue()
-    {
+    public void ComputeRank_StartAtZero_KeepsThePlainCoverageValue() =>
         // 2 matched characters out of 4, fully contiguous, starting at index 0: 0.5 * 1.
         Assert.AreEqual(0.5, HighlightMask.ComputeRank("abcd", FzfPattern.Parse("ab")).Weight);
-    }
 }
