@@ -52,12 +52,10 @@ public sealed class SearchSyntaxReservedTests
     [DataRow('#')]
     [DataRow('$')]
     [DataRow('%')]
+    // They belong to a provider, not to the grammar -- the two lists answer different questions and the
+    // message shown to the user differs, so a character must not drift between them.
     public void IsReserved_TheProviderClaimedCharacters_AreNotSyntax(char value)
-    {
-        // They belong to a provider, not to the grammar -- the two lists answer different questions and the
-        // message shown to the user differs, so a character must not drift between them.
-        Assert.IsFalse(SearchSyntaxReserved.IsReserved(value));
-    }
+        => Assert.IsFalse(SearchSyntaxReserved.IsReserved(value));
 
     [TestMethod]
     public void ValidateLeadingCharacter_ReservedWinsOverProviderClaimed()

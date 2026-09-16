@@ -1,5 +1,6 @@
 using System.IO;
 using Lertaro.App.ViewModels.Search;
+using Lertaro.Core;
 
 namespace Lertaro.App.Tests.ViewModels.Search;
 
@@ -106,7 +107,7 @@ public sealed class DirectChildrenLocatorTests
         using var dir = new TempDirectory("report.txt");
         Directory.CreateDirectory(Path.Combine(dir.Path, "report-folder"));
 
-        var results = new List<Core.SearchResult>();
+        var results = new List<SearchResult>();
         DirectChildrenLocator.MatchInto(dir.Path, "report", 50, results.Add, CancellationToken.None);
 
         Assert.IsTrue(results.Any(r => r.Name == "report-folder" && r.IsDir));
