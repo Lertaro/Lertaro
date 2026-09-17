@@ -7,8 +7,8 @@ namespace Lertaro.App.Tests.Views;
 
 // A WPF binding path is resolved with a PUBLIC-only reflection lookup: a non-public member never resolves --
 // no exception, no log, the binding is simply skipped and every trigger and text it drives keeps its default.
-// Several bindings shipped that way once (the result-area hints, the plugin prefix/trigger warnings, the
-// settings status bar), each silently disabling the feature it wired up.
+// Several bindings shipped that way once (the result-area hints, the plugin trigger warnings, the settings
+// status bar), each silently disabling the feature it wired up.
 //
 // This pins the members those bindings name. It cannot see a binding added later, so a NEW binding to a
 // non-public member still has to be caught by reading the XAML -- but everything bound today is covered.
@@ -24,8 +24,7 @@ public sealed class BindingTargetVisibilityTests
         AssertPublicProperty(typeof(SearchViewHints), nameof(SearchViewHints.ShowNoResultsHint));
         AssertPublicProperty(typeof(SearchViewHints), nameof(SearchViewHints.InvalidRegexHint));
 
-        // Templates.xaml (the query-token prefix and trigger-keyword warnings).
-        AssertPublicProperty(typeof(PluginConfigFieldViewModel), nameof(PluginConfigFieldViewModel.PrefixError));
+        // Templates.xaml (the trigger-keyword warning).
         AssertPublicProperty(typeof(PluginConfigFieldViewModel), nameof(PluginConfigFieldViewModel.TriggerKeywordError));
 
         // SettingsWindow.xaml (the status bar's refusal reason).

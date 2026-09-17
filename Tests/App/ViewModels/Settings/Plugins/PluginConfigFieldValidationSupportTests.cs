@@ -14,7 +14,8 @@ namespace Lertaro.App.Tests.ViewModels.Settings.Plugins;
 [TestClass]
 public sealed class PluginConfigFieldValidationSupportTests
 {
-    // ':' is read by the search syntax as the exclusion operator, so a trigger claiming it never fires.
+    // ':' is read by the search syntax as the exclusion operator, so a trigger keyword starting with it
+    // never fires.
     private const string Reserved = ":";
 
     private static PluginConfigFieldViewModel Field(PluginConfigField schema)
@@ -33,57 +34,34 @@ public sealed class PluginConfigFieldValidationSupportTests
             Validation = validation,
         };
 
-    // A one-character Text field IS a query-token trigger (see QueryTokenPrefixRules.IsPrefixField), which
-    // is the only reason such a field exists.
-    private static PluginConfigField TriggerSchema(string key, string value)
-        => Schema(key, value, maxLength: 1);
-
-    [TestMethod]
-    public void PrefixError_ReservedCharacter_IsReportedAndNamesTheField()
-    {
-        var field = Field(TriggerSchema("prefix", Reserved));
-        field.Value = Reserved; // the user typed it
-
-        var errors = field.Validation.Errors.ToList();
-
-        Assert.HasCount(1, errors);
-        StringAssert.StartsWith(errors[0], "plugin.prefix: ");
-    }
-
-    [TestMethod]
-    public void PrefixError_UnstagedReservedValue_IsShownButDoesNotBlockSaving()
-    {
-        // The schema's own default (or a value a previous release persisted) is not something the user is
-        // entering now. Blocking on it refuses every other setting in the window -- the lockout this rule
-        // exists to prevent -- while the field still shows the warning.
-        var field = Field(TriggerSchema("prefix", Reserved));
-
-        Assert.IsNotNull(field.PrefixError, "the field must still report that the value cannot work");
-        Assert.IsFalse(field.IsDirty);
-        Assert.IsEmpty(field.Validation.Errors.ToList());
-    }
-
-    [TestMethod]
-    public void PrefixError_FieldThatIsNotATrigger_IsNotReported()
-    {
-        // The same reserved character in an ordinary text field is just the user's text: only the
-        // single-character trigger shape is matched against the syntax.
-        var field = Field(Schema("label", Reserved));
-        field.Value = Reserved;
-
-        Assert.IsEmpty(field.Validation.Errors.ToList());
-    }
+    // A field that reports an error as soon as its value is staged, which is what the container tests below
+    // need one of: an instant-answer trigger keyword whose leading character the search syntax consumes.
+    private static PluginConfigField UnusableKeywordSchema(string key)
+        => Schema(key, Reserved + "audio", validation: ConfigFieldValidation.TriggerKeyword);
 
     [TestMethod]
     public void TriggerKeywordError_ReservedLeadingCharacter_IsReportedAndNamesTheField()
     {
-        var field = Field(Schema("keyword", Reserved + "audio", validation: ConfigFieldValidation.TriggerKeyword));
+        var field = Field(UnusableKeywordSchema("keyword"));
         field.Value = Reserved + "audio";
 
         var errors = field.Validation.Errors.ToList();
 
         Assert.HasCount(1, errors);
         StringAssert.StartsWith(errors[0], "plugin.keyword: ");
+    }
+
+    [TestMethod]
+    public void TriggerKeywordError_UnstagedReservedValue_IsShownButDoesNotBlockSaving()
+    {
+        // The schema's own default (or a value a previous release persisted) is not something the user is
+        // entering now. Blocking on it refuses every other setting in the window -- the lockout this rule
+        // exists to prevent -- while the field still shows the warning.
+        var field = Field(UnusableKeywordSchema("keyword"));
+
+        Assert.IsNotNull(field.TriggerKeywordError, "the field must still report that the value cannot work");
+        Assert.IsFalse(field.IsDirty);
+        Assert.IsEmpty(field.Validation.Errors.ToList());
     }
 
     [TestMethod]
@@ -120,12 +98,12 @@ public sealed class PluginConfigFieldValidationSupportTests
     {
         var field = Field(GroupSchema());
         _ = field.Children; // the group was shown
-        field.Children[0].Value = Reserved; // and its row was edited
+        field.Children[0].Value = Reserved + "audio"; // and its row was edited
 
         var errors = field.Validation.Errors.ToList();
 
         Assert.HasCount(1, errors);
-        StringAssert.StartsWith(errors[0], "plugin.prefix: ");
+        StringAssert.StartsWith(errors[0], "plugin.keyword: ");
     }
 
     [TestMethod]
@@ -147,26 +125,26 @@ public sealed class PluginConfigFieldValidationSupportTests
 
         var item = new PluginConfigArrayItemViewModel(field, new Dictionary<string, object>(), () => { });
         field.ArrayItems.Add(item);
-        item.Children[0].Value = Reserved; // the row's own trigger was edited
+        item.Children[0].Value = Reserved + "audio"; // the row's own trigger was edited
 
         var errors = field.Validation.Errors.ToList();
 
         Assert.HasCount(1, errors);
-        StringAssert.StartsWith(errors[0], "plugin.prefix: ");
+        StringAssert.StartsWith(errors[0], "plugin.keyword: ");
     }
 
     private static PluginConfigField GroupSchema() => new()
     {
         Key = "group",
         FieldType = ConfigFieldType.Group,
-        SubFields = [TriggerSchema("prefix", Reserved)],
+        SubFields = [UnusableKeywordSchema("keyword")],
     };
 
     private static PluginConfigField ArraySchema() => new()
     {
         Key = "items",
         FieldType = ConfigFieldType.Array,
-        SubFields = [TriggerSchema("prefix", Reserved)],
+        SubFields = [UnusableKeywordSchema("keyword")],
         DefaultValue = new List<object>(),
     };
 }

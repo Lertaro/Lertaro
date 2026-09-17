@@ -224,10 +224,8 @@ public class PluginConfigFieldViewModel : ViewModelBase
             // buttons); the load paths write LocalValueStore directly, so staging a value this way is
             // what marks the field (and therefore its plugin) as having something to save.
             _loadSupport.MarkDirty();
-            // A staged single-character trigger or trigger keyword changes whether it collides with the
-            // search syntax, so its warning has to be re-read even though the value itself is what was
-            // just edited.
-            if (QueryTokenPrefixRules.IsPrefixField(SchemaField)) OnPropertyChanged(nameof(PrefixError));
+            // A staged trigger keyword changes whether it collides with the search syntax, so its warning
+            // has to be re-read even though the value itself is what was just edited.
             if (SchemaField.Validation == ConfigFieldValidation.TriggerKeyword) OnPropertyChanged(nameof(TriggerKeywordError));
             // A token keyword's help text names the whole token the user would type, so it has to be
             // recomputed while they type it -- including inside an array row, which is exactly where the
@@ -237,16 +235,10 @@ public class PluginConfigFieldViewModel : ViewModelBase
         }
     }
 
-    /// <summary>
-    /// Why this single-character trigger cannot be used, or null when it is fine. Thin: the rule lives in
-    /// <see cref="Validation"/>, and the name stays here because Templates.xaml binds it on this type --
-    /// public, not internal, because a binding path only ever resolves public members (see the comment on
-    /// SearchViewModel.Hints).
-    /// </summary>
-    public string? PrefixError => Validation.PrefixError;
-
-    /// <summary>Why this instant-answer trigger keyword cannot be used, or null when it is fine. Public for
-    /// the same binding reason as <see cref="PrefixError"/>.</summary>
+    /// <summary>Why this instant-answer trigger keyword cannot be used, or null when it is fine. Thin: the
+    /// rule lives in <see cref="Validation"/>, and the name stays here because Templates.xaml binds it on
+    /// this type -- public, not internal, because a binding path only ever resolves public members (see the
+    /// comment on SearchViewModel.Hints).</summary>
     public string? TriggerKeywordError => Validation.TriggerKeywordError;
 
     public PluginConfigFieldViewModel(string pluginId, PluginConfigField field, UserSettings settings, Action? onValueChanged = null)

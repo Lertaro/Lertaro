@@ -1,88 +1,16 @@
 using Lertaro.App.Helpers;
-using Lertaro.Core;
-using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.Tests.Helpers;
 
-// The query-token trigger character is shared: the app-wide prefix, each plugin's own prefix, and the
-// fixed sort/filter triggers all start a token, and the scanner resolves a shared character by whichever
-// provider is asked first. That is silent, so these rules exist to surface the collision instead.
+// The query-token trigger character is shared with the search syntax: the app-wide prefix and the fixed
+// sort/filter triggers all start a token, and a character the syntax reads first is consumed before any
+// provider is asked. That is silent, so this rule exists to surface the collision instead.
 //
-// Only the DECISION is covered here. Which prefixes exist is discovered by walking the loaded plugin
-// assemblies' schemas, which is filesystem/assembly-bound with no injectable seam -- the candidate list
-// is handed to FindOwner precisely so the decision can be tested without any of that.
+// There is no per-plugin prefix any more -- a plugin reads the app-wide one back through the SDK instead of
+// storing its own copy -- so the app-wide field is the only place a character can be chosen badly.
 [TestClass]
 public sealed class QueryTokenPrefixRulesTests
 {
-    private static PrefixOwner Owned(string pluginId, string prefix)
-        => new(pluginId, "Prefix", prefix);
-
-    [TestMethod]
-    public void FindOwner_PrefixMatchesAnExistingOwner_ReturnsThatOwner()
-    {
-        var candidates = new[] { Owned("Lertaro.Plugins.CoreExtensions", "\\") };
-
-        var owner = QueryTokenPrefixRules.FindOwner('\\', candidates, null, null);
-
-        Assert.IsNotNull(owner);
-        Assert.AreEqual("Lertaro.Plugins.CoreExtensions", owner.Value.PluginId);
-    }
-
-    [TestMethod]
-    public void FindOwner_NoCandidateUsesThePrefix_ReturnsNull()
-    {
-        var candidates = new[] { Owned("Lertaro.Plugins.CoreExtensions", "\\") };
-
-        Assert.IsNull(QueryTokenPrefixRules.FindOwner('#', candidates, null, null));
-    }
-
-    [TestMethod]
-    public void FindOwner_ExcludedFieldIsTheOnlyOwner_TreatsThePrefixAsFree()
-    {
-        // Re-validating a field the user has not actually changed must not report the field conflicting
-        // with its own saved value.
-        var candidates = new[] { Owned("Lertaro.Plugins.CoreExtensions", "\\") };
-
-        Assert.IsNull(QueryTokenPrefixRules.FindOwner('\\', candidates, "Lertaro.Plugins.CoreExtensions", "Prefix"));
-    }
-
-    [TestMethod]
-    public void FindOwner_AnotherPluginsFieldOwnsThePrefix_StillConflicts()
-    {
-        var candidates = new[]
-        {
-            Owned("Lertaro.Plugins.CoreExtensions", "\\"),
-            Owned("Lertaro.Plugins.Other", "\\")
-        };
-
-        var owner = QueryTokenPrefixRules.FindOwner('\\', candidates, "Lertaro.Plugins.CoreExtensions", "Prefix");
-
-        Assert.IsNotNull(owner);
-        Assert.AreEqual("Lertaro.Plugins.Other", owner.Value.PluginId);
-    }
-
-    [TestMethod]
-    public void FindOwner_PluginIdComparisonIsCaseInsensitive()
-    {
-        // Plugin ids come from a DLL file name, so casing must not decide whether a field is "itself".
-        var candidates = new[] { Owned("Lertaro.Plugins.CoreExtensions", "\\") };
-
-        Assert.IsNull(QueryTokenPrefixRules.FindOwner('\\', candidates, "lertaro.plugins.coreextensions", "Prefix"));
-    }
-
-    [TestMethod]
-    public void FindOwner_ComparesOnlyTheFirstCharacter()
-    {
-        // The scanner only ever inspects one character, so a longer stored value still claims the prefix.
-        var candidates = new[] { Owned("Lertaro.Plugins.CoreExtensions", "\\audio") };
-
-        Assert.IsNotNull(QueryTokenPrefixRules.FindOwner('\\', candidates, null, null));
-    }
-
-    [TestMethod]
-    public void FindOwner_EmptyCandidateValue_IsNotAnOwner()
-        => Assert.IsNull(QueryTokenPrefixRules.FindOwner('\\', new[] { Owned("plugin", string.Empty) }, null, null));
-
     [TestMethod]
     public void GlobalPrefixConflict_EmptyPrefix_IsReported()
         // Nothing could be tokenized at all, which is worth saying out loud rather than silently
@@ -109,60 +37,12 @@ public sealed class QueryTokenPrefixRulesTests
     public void GlobalPrefixConflict_ShippedDefault_IsAccepted()
         => Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("\\"));
 
+    // Only the search SYNTAX is this field's business. '#' is claimed by an instant-answer provider, which
+    // is a different surface with its own rule -- and deliberately not consulted here, or this field would
+    // refuse characters over a collision it cannot see.
     [TestMethod]
-    public void GlobalPrefixConflict_CharacterNoPluginUses_IsAccepted()
+    public void GlobalPrefixConflict_CharacterTheSyntaxDoesNotRead_IsAccepted()
         => Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("#"));
-
-    [TestMethod]
-    public void PluginPrefixConflict_ShippedDefaults_AreAccepted()
-    {
-        // GlobalTokenPrefix and CoreExtensions' CustomFilterPrefix both ship '\', and that is the pair that
-        // works: QueryTokenScanner lifts "\audio" by the global prefix and hands the token to the provider
-        // with the '\' still on the front, so CustomFilterQueryTokenProvider.CanHandle only ever matches
-        // when the plugin's prefix IS the global one.
-        var settings = new UserSettings { GlobalTokenPrefix = "\\" };
-        var field = PrefixField();
-
-        Assert.IsNull(QueryTokenPrefixRules.PluginPrefixConflict("plugin", field, "\\", settings));
-    }
-
-    [TestMethod]
-    public void PluginPrefixConflict_DifferentFromTheMainPrefix_IsAccepted()
-    {
-        // Accepted, not endorsed: a prefix that differs means the provider will never be handed a token
-        // (the scanner only lifts the global one), but the App cannot see a provider's own matching rule,
-        // so this stays silent rather than guessing -- it used to be reported as the healthy case instead.
-        var settings = new UserSettings { GlobalTokenPrefix = "\\" };
-        var field = PrefixField();
-
-        Assert.IsNull(QueryTokenPrefixRules.PluginPrefixConflict("plugin", field, "#", settings));
-    }
-
-    [TestMethod]
-    public void PluginPrefixConflict_SortFilterTrigger_IsReported()
-        => Assert.IsNotNull(QueryTokenPrefixRules.PluginPrefixConflict("plugin", PrefixField(), "<", new UserSettings()));
-
-    [TestMethod]
-    public void IsPrefixField_OnlySingleCharacterTextFields()
-    {
-        Assert.IsTrue(QueryTokenPrefixRules.IsPrefixField(PrefixField()));
-        Assert.IsFalse(QueryTokenPrefixRules.IsPrefixField(new PluginConfigField { FieldType = ConfigFieldType.Text, MaxLength = 10 }));
-        Assert.IsFalse(QueryTokenPrefixRules.IsPrefixField(new PluginConfigField { FieldType = ConfigFieldType.Boolean, MaxLength = 1 }));
-    }
-
-    [TestMethod]
-    public void IsAlwaysTokenTrigger_OnlyTheTwoSortFilters()
-    {
-        // Narrower than SearchSyntaxReserved.IsReserved on purpose: only these two are read as token starts
-        // regardless of the configured prefix, which is a different (worse) situation than colliding with
-        // the exclusion, bypass or regex-delimiter character.
-        Assert.IsTrue(QueryTokenPrefixRules.IsAlwaysTokenTrigger('<'));
-        Assert.IsTrue(QueryTokenPrefixRules.IsAlwaysTokenTrigger('>'));
-        Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger('\\'));
-        Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger(':'));
-        Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger('/'));
-        Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger('?'));
-    }
 
     // An instant-answer trigger keyword is matched against the START of the query, so it competes with the
     // search syntax for the same character position. One starting with a reserved character is stripped
@@ -214,7 +94,4 @@ public sealed class QueryTokenPrefixRulesTests
         // A fresh install has no stored prefix, so an unusable value typed there is still one the user is
         // entering right now.
         => Assert.IsTrue(QueryTokenPrefixRules.BlocksSaving(":", null));
-
-    private static PluginConfigField PrefixField()
-        => new() { Key = "Prefix", FieldType = ConfigFieldType.Text, MaxLength = 1, DefaultValue = "\\" };
 }

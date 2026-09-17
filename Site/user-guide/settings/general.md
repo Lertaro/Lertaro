@@ -12,7 +12,7 @@ General Settings covers core application behaviors, search window dimensions and
 - **Enable Everything Compatibility Service (IPC)**: Emulates the standard Everything Win32 IPC protocol in the background. Third-party software (such as Directory Opus and Total Commander) can query Lertaro's in-memory index directly.
 - **Enable Fuzzy Matching**: Enabled by default. When active, queries match non-contiguous character sequences. When disabled, queries require contiguous substring matches (see [**Search Syntax**](../search-syntax)). Takes effect immediately.
 - **Show Currently Open Folders in Inline Search**: When the inline window is docked in a file dialog, shows the folders currently open in that dialog when the search query is empty. Enabled by default.
-- **Plugin Query Token Prefix**: Single-character text box (default `\`). Sets the leading character of a plugin query token (e.g. `\audio`, `\doc`). It cannot be empty, cannot be `<` or `>`, and must not collide with another plugin's own prefix — the field reports a collision rather than letting one plugin silently win (see [**Search Syntax**](../search-syntax)).
+- **Plugin Query Token Prefix**: Single-character text box (default `\`). Sets the leading character of a plugin query token (e.g. `\audio`, `\doc`). It cannot be empty, and cannot be a character the search syntax already reads (`\` `<` `>` `:` `*` `/` `?`) — the field reports that rather than letting one meaning silently win (see [**Search Syntax**](../search-syntax)).
 - **Log Level**: Dropdown selecting Error / Warning / Info (default) / Debug, controlling log verbosity across all processes.
 - **UI Language**: Selects the active display language across the entire application.
 

@@ -3,8 +3,8 @@ using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.ViewModels.Settings.Plugins;
 
-// Owns one field's trigger-collision reporting: whether the single character (or keyword) it holds can
-// actually fire, and the same question for its loaded rows.
+// Owns one field's trigger-collision reporting: whether the key it holds can actually fire, and the same
+// question for its loaded rows.
 //
 // Split out of PluginConfigFieldViewModel to keep that file within the repo's per-file line limit, and
 // because this is the half of the field that is asked from OUTSIDE its own page -- the Settings window
@@ -14,15 +14,6 @@ internal sealed class PluginConfigFieldValidationSupport
     private readonly PluginConfigFieldViewModel _field;
 
     internal PluginConfigFieldValidationSupport(PluginConfigFieldViewModel field) => _field = field;
-
-    /// <summary>
-    /// Why this single-character trigger cannot be used, or null when it is fine -- a prefix collision
-    /// otherwise resolves silently by whichever provider is asked first, leaving the other one's tokens
-    /// simply not working. See QueryTokenPrefixRules for the collisions that count.
-    /// </summary>
-    internal string? PrefixError => QueryTokenPrefixRules.IsPrefixField(_field.SchemaField)
-        ? QueryTokenPrefixRules.PluginPrefixConflict(_field.PluginId, _field.SchemaField, _field.Value as string, _field.Settings)
-        : null;
 
     /// <summary>
     /// Why this instant-answer trigger keyword cannot be used, or null when it is fine. The keyword is a
@@ -57,8 +48,6 @@ internal sealed class PluginConfigFieldValidationSupport
     {
         get
         {
-            if (BlocksSaving && PrefixError is { Length: > 0 } prefix)
-                yield return Describe(prefix);
             if (BlocksSaving && TriggerKeywordError is { Length: > 0 } keyword)
                 yield return Describe(keyword);
 

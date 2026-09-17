@@ -148,13 +148,6 @@
                                         <Path Data="{Binding Value}" Fill="{DynamicResource DefaultPluginIconColor}" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                     </Border>
                                 </StackPanel>
-                                <!-- Empty for anything that is not a single-character query-token trigger; see
-                                     QueryTokenPrefixRules for why a shared trigger character must be reported
-                                     rather than silently resolved by provider order. -->
-                                <TextBlock Text="{Binding PrefixError}"
-                                           Foreground="{DynamicResource ErrorBrush}"
-                                           FontSize="12" TextWrapping="Wrap" MaxWidth="360" Margin="0,4,0,0"
-                                           Visibility="{Binding PrefixError, Converter={StaticResource NullToVis}}"/>
                                 <!-- Empty unless this field declares itself a trigger keyword: one starting
                                      with a character the search syntax consumes is stripped before the
                                      provider sees the query, so the trigger would silently never fire. -->

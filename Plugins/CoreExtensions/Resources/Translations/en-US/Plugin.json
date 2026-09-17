@@ -21,8 +21,7 @@
   "Column_TypeFile": "File",
   "Column_TypeExtFile": "{0} File",
   "WebUrl_Name": "Web Address",
-  "CoreExtensions_QueryTokenProvider_Name": "Query Sort/Filter (:[SCMA] / .ext)",
-  "CoreExtensions_PathExclusionProvider_Name": "Path Match (::expression)",
+  "CoreExtensions_QueryTokenProvider_Name": "Query Sort/Filter (<s / >s)",
   "WebUrl_OpenHint": "Enter or click to open in your browser",
   "Env_Name": "Environment Variables",
   "Env_PathNotExist": "Path (Not Exist)",
@@ -212,8 +211,5 @@
   "CoreExtensions_Config_CustomFilters_KeywordDesc": "Trigger keyword for this filter. It is also the name other rules use to reference it.",
   "CoreExtensions_Config_CustomFilters_RuleLabel": "Filter Rule",
   "CoreExtensions_Config_CustomFilters_RuleDesc": "Supports file extensions or wildcard rules (e.g. *.doc; *.pdf or doc,docx,pdf), separated by semicolon or comma.",
-  "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "Parses custom filter tokens (the app-wide token prefix followed by a keyword) and filters search results by their wildcard or extension rules.",
-  "CoreExtensions_Config_PathExclusionPrefixLabel": "Path Exclusion Prefix",
-  "CoreExtensions_WildcardFilterProvider_Name": "Wildcard Filter (?expression)",
-  "CoreExtensions_Config_WildcardFilterPrefixLabel": "Wildcard Filter Prefix"
+  "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "Parses custom filter tokens (the app-wide token prefix followed by a keyword) and filters search results by their wildcard or extension rules."
 }
