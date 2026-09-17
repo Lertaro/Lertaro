@@ -19,8 +19,11 @@ internal static class AliasHighlightMarker
     // a polyphonic CJK name can expand to dozens of alias candidates here (PinyinAliasProvider allows
     // up to 32 combinations), and unlike a real file/folder name a synthetic pinyin string has no
     // camelCase/word-boundary structure for the real algorithm's bonus scoring to add value from -- so
-    // paying its full DP cost per candidate measured slower overall than this simpler scan, for a mask
-    // that (per real name/text) comes out effectively identical either way.
+    // paying its full DP cost per candidate measured slower overall than this simpler scan.
+    //
+    // "Simpler" is not "earliest possible", though -- see FindSubsequencePositions, which tries each start
+    // and keeps the tightest alignment. A plain leftmost-greedy walk measurably does NOT come out the same:
+    // it spread "wangfei" across 我愿 before reaching the 王菲 that actually matched it.
     //
     // The typed term plus a provider's own spellings of it. The rewritten forms are what actually
     // appear in its aliases -- a term typed as one run of letters is not present verbatim in an alias
@@ -178,18 +181,69 @@ internal static class AliasHighlightMarker
         }
     }
 
-    // Finds ANY valid subsequence alignment of `term` within `text`, returning the matched positions in
-    // `text` in order, or null if no such subsequence exists. Greedy (always takes the earliest possible
-    // next position), which is enough for a highlight/weight mask -- this doesn't need the optimal/
-    // highest-scoring alignment, just a real one.
+    // Finds a subsequence alignment of `term` within `text`, returning the matched positions in order, or
+    // null if there is none.
+    //
+    // The START is not fixed at the first occurrence, and that is the whole point. A walk that always takes
+    // the earliest possible position smears a term that really belongs to one later part of the alias across
+    // everything in front of it: "wangfei" against "wo|yuanyi|yi|-|wang|fei" takes its 'w' from 我 and its
+    // 'a','n' from 愿 before it ever reaches 王菲, so a candidate matched on 王菲 alone lights 我愿 as well --
+    // characters the user never typed, and a mask that disagrees with the match that produced the row.
+    //
+    // So every occurrence of the term's first character is tried and the TIGHTEST alignment wins. That is
+    // what the real fzf backtrace would have answered here anyway (its consecutive-match bonus makes the
+    // late, near-contiguous run the best-scoring one), without paying for the backtrace per alias: a
+    // polyphonic name expands to dozens of alias candidates, and this runs once per candidate.
+    //
+    // ponytail: at most `MaxSubsequenceStarts` starts are tried and a fully contiguous run ends the search
+    // early, so an alias made almost entirely of one common letter cannot turn this into a quadratic scan.
+    // A term whose tightest alignment is still loose gets a real, not an optimal, one -- fine for a mask.
+    private const int MaxSubsequenceStarts = 16;
+
     private static int[]? FindSubsequencePositions(string text, string term)
     {
         if (term.Length == 0)
             return null;
 
+        int[]? best = null;
+        var bestSpan = int.MaxValue;
+        var nextStart = 0;
+
+        for (var attempt = 0; attempt < MaxSubsequenceStarts; attempt++)
+        {
+            var first = text.IndexOf(term[0], nextStart);
+            if (first < 0)
+                break;
+            nextStart = first + 1;
+
+            var positions = WalkFrom(text, term, first);
+            if (positions == null)
+                continue;
+
+            var span = positions[^1] - positions[0];
+            if (span >= bestSpan)
+                continue;
+
+            best = positions;
+            bestSpan = span;
+
+            // Fully contiguous: no alignment anywhere in the string can be tighter.
+            if (span == term.Length - 1)
+                break;
+        }
+
+        return best;
+    }
+
+    // One leftmost-greedy walk from a fixed first position: every later character takes the earliest
+    // position after the previous one. Null as soon as a character runs out.
+    private static int[]? WalkFrom(string text, string term, int first)
+    {
         var positions = new int[term.Length];
-        var searchFrom = 0;
-        for (var i = 0; i < term.Length; i++)
+        positions[0] = first;
+        var searchFrom = first + 1;
+
+        for (var i = 1; i < term.Length; i++)
         {
             var idx = text.IndexOf(term[i], searchFrom);
             if (idx < 0)
