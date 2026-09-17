@@ -40,6 +40,23 @@ public sealed class FuzzyMatcherTests
         // no drive-scoped "list everything" mode, so it must not fall into "no terms = match anything".
         Assert.IsFalse(FuzzyMatcher.IsMatch(@"d:\", "readme.md"));
 
+    // This seam reads the precision trigger through the same helper the search pipeline uses, because the
+    // rows it filters (plugin catalog entries, history, favorites, the shell menu) have to answer a query
+    // the file list already answered. Treating the leading '?' as literal text would make "?report" return
+    // files and no catalog rows at all -- a window showing half of what the user asked for.
+    [TestMethod]
+    public void IsMatch_PrecisionTrigger_ReadsTheTermAsExact()
+    {
+        Assert.IsTrue(FuzzyMatcher.IsMatch("rdm", "readme.md"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("?rdm", "readme.md"));
+        Assert.IsTrue(FuzzyMatcher.IsMatch("?read", "readme.md"));
+    }
+
+    [TestMethod]
+    public void IsMatch_LonePrecisionTrigger_MatchesNothing() =>
+        // A query of nothing but a trigger is not a query -- same as the empty pattern above.
+        Assert.IsFalse(FuzzyMatcher.IsMatch("?", "readme.md"));
+
     [TestMethod]
     public void ComputeHighlightMask_EmptyText_ReturnsEmptyArray() => Assert.IsEmpty(FuzzyMatcher.ComputeHighlightMask("", "read"));
 

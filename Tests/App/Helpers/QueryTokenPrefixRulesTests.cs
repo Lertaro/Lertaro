@@ -94,9 +94,10 @@ public sealed class QueryTokenPrefixRulesTests
     {
         // '<'/'>' are the worst case -- the scanner always reads those as token starts, so plugin tokens
         // become permanently unreachable -- but ':' and '*' collide with exclusion syntax and the bypass
-        // marker, and '/' with the regex clause delimiter, so the field rejects those too rather than
-        // letting one meaning silently win.
-        foreach (var prefix in new[] { "<", ">", ":", "*", "/" })
+        // marker, '/' with the regex clause delimiter, and '?' would silently retire the precision-inversion
+        // syntax for every word it lifts, so the field rejects those too rather than letting one meaning
+        // silently win.
+        foreach (var prefix in new[] { "<", ">", ":", "*", "/", "?" })
             Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict(prefix), prefix);
     }
 
@@ -160,6 +161,7 @@ public sealed class QueryTokenPrefixRulesTests
         Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger('\\'));
         Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger(':'));
         Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger('/'));
+        Assert.IsFalse(QueryTokenPrefixRules.IsAlwaysTokenTrigger('?'));
     }
 
     // An instant-answer trigger keyword is matched against the START of the query, so it competes with the
@@ -174,6 +176,7 @@ public sealed class QueryTokenPrefixRulesTests
         Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict(">tr"));
         Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict("*tr"));
         Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict("/tr"));
+        Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict("?tr"));
     }
 
     [TestMethod]

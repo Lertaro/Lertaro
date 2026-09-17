@@ -31,6 +31,70 @@ public sealed class FzfPatternParsingTests
         Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
     }
 
+    // The precision-inversion trigger: a leading '?' takes the opposite of whatever the fuzzy-matching
+    // setting says, so it is the one way to mix the two readings inside a single query. See TermTriggers.
+    [TestMethod]
+    public void Parse_PrecisionTrigger_WithFuzzyOn_MakesThatTermExact()
+    {
+        var pattern = FzfPattern.Parse("?report");
+
+        Assert.AreEqual(FzfTermKind.Exact, pattern.TermSets[0].Terms[0].Kind);
+        Assert.AreEqual("report", pattern.TermSets[0].Terms[0].Text);
+        Assert.IsTrue(pattern.TryMatch("report.txt", out _, FzfScoringScheme.Default));
+        Assert.IsFalse(pattern.TryMatch("re-port.txt", out _, FzfScoringScheme.Default));
+    }
+
+    [TestMethod]
+    public void Parse_PrecisionTrigger_WithFuzzyOff_MakesThatTermFuzzy() => WithFuzzyDisabled(() =>
+    {
+        var pattern = FzfPattern.Parse("?report");
+
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
+        Assert.IsTrue(pattern.TryMatch("re-port.txt", out _, FzfScoringScheme.Default));
+    });
+
+    [TestMethod]
+    public void Parse_PrecisionTrigger_AppliesToItsOwnWordOnly()
+    {
+        // The trigger is a property of the WORD, not of the query: only the word carrying it flips.
+        var pattern = FzfPattern.Parse("?read md");
+
+        Assert.AreEqual(FzfTermKind.Exact, pattern.TermSets[0].Terms[0].Kind);
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[1].Terms[0].Kind);
+    }
+
+    [TestMethod]
+    public void Parse_PrecisionTriggerInsideAWord_IsLiteralText()
+    {
+        // Only the FIRST character is ever read, so the '?' here is part of the text. '?' cannot occur in a
+        // Windows file name, so such a term matches nothing -- the same fate the old "'" had inside a word.
+        var pattern = FzfPattern.Parse("rep?ort");
+
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
+        Assert.AreEqual("rep?ort", pattern.TermSets[0].Terms[0].Text);
+    }
+
+    [TestMethod]
+    public void Parse_LonePrecisionTrigger_AddsNoTerm()
+    {
+        // Same treatment a lone ':' gets: a stray trigger leaves the rest of the query untouched rather
+        // than adding a term that can never match.
+        Assert.IsTrue(FzfPattern.Parse("?").IsEmpty);
+        Assert.AreEqual(FzfTermKind.Fuzzy, FzfPattern.Parse("? read").TermSets[0].Terms[0].Kind);
+    }
+
+    [TestMethod]
+    public void Parse_PrecisionTriggerAfterAnExclusion_IsLiteralText()
+    {
+        // ':' is read first, so ":?temp" excludes the literal text "?temp". An exclusion is already pinned
+        // to Exact, and a user who typed the colon first was writing a name, not an operator.
+        var term = FzfPattern.Parse(":?temp").TermSets[0].Terms[0];
+
+        Assert.IsTrue(term.Inverse);
+        Assert.AreEqual(FzfTermKind.Exact, term.Kind);
+        Assert.AreEqual("?temp", term.Text);
+    }
+
     [TestMethod]
     public void Parse_CaretPrefix_IsNoLongerAPrefixAnchor()
     {
