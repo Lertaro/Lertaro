@@ -49,6 +49,39 @@ public sealed class AliasMatchRulesTests
     [TestMethod]
     public void Alignment_ProviderWithoutASeparatorIsNeverConstrained() => Assert.IsTrue(AliasMatchRules.IsBoundaryAligned('\0', "anything", 3));
 
+    // An alias keeps the name's own non-transliterated characters verbatim, so the syllables of a later word
+    // begin right after a space, '-' or '.'. Those are boundaries in exactly the sense this rule is about --
+    // a user typing that word's pinyin starts there -- and refusing them made a precise pinyin query miss
+    // every name whose pinyin word was not the first one. Reported: "?wangfei" found 王菲.txt but not
+    // "我愿意 - 王菲.mp3", whose full alias is "wo<sep>yuan<sep>yi - wang<sep>fei.mp3" (fuzzy matching found
+    // both, because a fuzzy term is not gated by this rule at all).
+    [TestMethod]
+    [DataRow(" ", DisplayName = "space")]
+    [DataRow("-", DisplayName = "hyphen")]
+    [DataRow(".", DisplayName = "dot")]
+    [DataRow("_", DisplayName = "underscore")]
+    public void Alignment_AllowsAStartAfterALiteralSeparator(string literal)
+    {
+        var alias = $"wo{Sep}yuan{Sep}yi{literal}wang{Sep}fei.mp3";
+        var start = alias.IndexOf($"{literal}wang", StringComparison.Ordinal) + 1;
+
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, alias, start));
+    }
+
+    [TestMethod]
+    public void Alignment_StillRejectsAMidSyllableStartAfterLiteralText()
+    {
+        // What the rule exists for, restated with a literal separator in front: a splice needs the match to
+        // start INSIDE a syllable, where the character before it is a letter -- and a literal is not that.
+        // The index below is the 'u' of "yuan": its predecessor is the 'y' that opens that syllable.
+        var alias = $"-wo{Sep}yuan{Sep}yi";
+        var insideYuan = alias.IndexOf('u', StringComparison.Ordinal);
+
+        Assert.AreEqual('u', alias[insideYuan]);
+        Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, alias, insideYuan), "a start inside 'yuan' must stay rejected");
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, alias, alias.IndexOf('y', StringComparison.Ordinal)), "while that syllable's own start is aligned");
+    }
+
     [TestMethod]
     public void Alignment_Utf8TwinAgreesWithTheCharVersion()
     {
@@ -60,6 +93,20 @@ public sealed class AliasMatchRulesTests
                 AliasMatchRules.IsBoundaryAligned(Sep, alias, i),
                 AliasMatchRules.IsBoundaryAligned(Sep, bytes, i),
                 $"position {i}");
+    }
+
+    [TestMethod]
+    public void Alignment_Utf8Twin_AllowsAStartAfterALiteralSeparator()
+    {
+        // The byte overload decides the same thing as the char one where the hot path uses it: an ASCII alias
+        // keeps byte offsets equal to char offsets, and the literal in front of the second word is not a
+        // letter there either.
+        var alias = $"wo{Sep}yuan{Sep}yi - wang{Sep}fei.mp3";
+        var bytes = System.Text.Encoding.UTF8.GetBytes(alias);
+        var start = alias.IndexOf("wang", StringComparison.Ordinal);
+
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, bytes, start));
+        Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, bytes, alias.IndexOf('u', StringComparison.Ordinal)), "a mid-syllable start stays rejected");
     }
 
     [TestMethod]
