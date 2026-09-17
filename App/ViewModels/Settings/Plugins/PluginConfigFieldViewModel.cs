@@ -254,6 +254,10 @@ public class PluginConfigFieldViewModel : ViewModelBase
             // just edited.
             if (QueryTokenPrefixRules.IsPrefixField(SchemaField)) OnPropertyChanged(nameof(PrefixError));
             if (SchemaField.Validation == ConfigFieldValidation.TriggerKeyword) OnPropertyChanged(nameof(TriggerKeywordError));
+            // A token keyword's help text names the whole token the user would type, so it has to be
+            // recomputed while they type it -- including inside an array row, which is exactly where the
+            // catch-all OnPropertyChanged() below is skipped.
+            if (SchemaField.Validation == ConfigFieldValidation.TokenKeyword) OnPropertyChanged(nameof(Description));
             // Same for a trigger word: what it collides with is another feature's setting, so the staged
             // value is the only thing that can have changed this row's answer.
             OnPropertyChanged(nameof(ConflictWarning));

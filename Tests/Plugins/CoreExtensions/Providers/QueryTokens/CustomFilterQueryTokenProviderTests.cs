@@ -11,7 +11,11 @@ public class CustomFilterQueryTokenProviderTests
 {
     [TestInitialize]
     [TestCleanup]
-    public void Reset() => PluginSettingsService.GetSettingFunc = null;
+    public void Reset()
+    {
+        PluginSettingsService.GetSettingFunc = null;
+        SearchSyntaxService.TokenPrefixFunc = null;
+    }
 
     private sealed class FakeSearchResult : ISearchResult
     {
@@ -36,13 +40,22 @@ public class CustomFilterQueryTokenProviderTests
         Assert.IsFalse(provider.CanHandle("@doc"));
     }
 
+    // The prefix is the HOST's, and a plugin reading it here is what makes the two impossible to disagree:
+    // the scanner lifts a word out of the query by its own character and hands the token over with that
+    // character still on the front, so a plugin with a stored copy of its own could only ever match or
+    // silently claim nothing. This case used to configure that copy through PluginSettingsService.
     [TestMethod]
-    public void CanHandle_CustomPrefix_ReturnsTrue()
+    public void CanHandle_HostConfiguredPrefix_IsTheOneThatIsMatched()
     {
-        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.PrefixSettingKey ? "!" : fallback;
+        SearchSyntaxService.TokenPrefixFunc = () => '!';
         var provider = new CustomFilterQueryTokenProvider();
+
         Assert.IsTrue(provider.CanHandle("!doc"));
         Assert.IsFalse(provider.CanHandle("\\doc"));
+
+        SearchSyntaxService.TokenPrefixFunc = () => '\\';
+        Assert.IsTrue(provider.CanHandle("\\doc"));
+        Assert.IsFalse(provider.CanHandle("!doc"));
     }
 
     [TestMethod]
