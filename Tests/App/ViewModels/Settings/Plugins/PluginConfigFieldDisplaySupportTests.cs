@@ -1,4 +1,3 @@
-using Lertaro.App.Helpers;
 using Lertaro.App.ViewModels.Settings.Plugins;
 using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions;
@@ -6,107 +5,38 @@ using Lertaro.PluginSdk.Abstractions;
 namespace Lertaro.App.Tests.ViewModels.Settings.Plugins;
 
 // How one config field's help text is produced, which is also the only place the host can say something a
-// plugin cannot say for itself. Two of those:
-//
-//   - a PREFIX field may carry "{0}", which the host fills with the characters that prefix cannot be. That
-//     set belongs to the search syntax (SearchSyntaxReserved) and a plugin assembly cannot reference it, so
-//     the plugin's own copy of the list is what shipped wrong twice: it named the '\' the field itself
-//     defaults to, and was already missing the characters the syntax had gained since.
-//   - a TOKEN KEYWORD field gets a sentence naming the whole token to type ("\audio"), which is the
-//     app-wide prefix plus what the user has typed -- neither of which the plugin knows.
+// plugin cannot say for itself: a TOKEN KEYWORD field gets a sentence naming the whole token to type
+// ("\audio"), which is the app-wide prefix plus what the user has typed -- neither of which the plugin
+// knows.
 //
 // Translation keys do not resolve in this assembly (the lookups fall back to "[Key]"), which is exactly why
 // the wording rules live in a pure static method here: through the property the hint key never resolves, so
-// only the prefix branch could be asserted.
+// going through Description could only ever assert that the base text came back.
 [TestClass]
 public sealed class PluginConfigFieldDisplaySupportTests
 {
-    private const string Placeholder = "cannot be ({0})";
-
     private static PluginConfigFieldViewModel Field(PluginConfigField schema)
         => new("plugin", schema, new UserSettings(), null);
 
-    // A one-character Text field IS a query-token trigger, which is the only reason such a field exists
-    // (see QueryTokenPrefixRules.IsPrefixField).
-    private static PluginConfigField TriggerSchema() => new()
-    {
-        Key = "prefix",
-        FieldType = ConfigFieldType.Text,
-        MaxLength = 1,
-        DefaultValue = "\\",
-    };
-
+    // The host used to fill a "{0}" in a PREFIX field's description with the characters that prefix could
+    // not be, because a plugin assembly cannot reference the host's own list. There are no per-plugin prefix
+    // fields any more (a plugin reads the app-wide prefix through the SDK), so nothing is formatted into a
+    // plugin's text at all -- and that is what this pins, since a "{0}" reappearing unfilled on screen is
+    // silent.
     [TestMethod]
-    public void Description_PrefixFieldWithThePlaceholder_NamesTheCharactersTheSyntaxOwns()
+    public void Description_PlaceholderInAField_IsLeftAlone()
     {
-        var schema = TriggerSchema();
-        schema.DescriptionKey = Placeholder;
-
-        var description = Field(schema).Description;
-
-        Assert.AreEqual(
-            $"cannot be ({SearchSyntaxReserved.DescribeUnusableTokenPrefixCharacters()})",
-            description);
-    }
-
-    [TestMethod]
-    public void Description_PrefixField_NeverNamesTheCharacterItDefaultsTo()
-    {
-        // The contradiction this replaced: the shipped text said the prefix may not be one of
-        // "\\ < > : *" while the field's own default was "\\", so the help text forbade its default.
-        var schema = TriggerSchema();
-        schema.DescriptionKey = Placeholder;
-
-        var description = Field(schema).Description;
-
-        Assert.DoesNotContain(SearchSyntaxReserved.TokenPrefixCharacter.ToString(), description);
-    }
-
-    [TestMethod]
-    public void Description_FieldThatIsNotATrigger_LeavesThePlaceholderAlone()
-    {
-        // A plugin may put "{0}" in a description for its own reasons; only the single-character trigger
-        // shape gets the host's list.
         var schema = new PluginConfigField
         {
             Key = "label",
             FieldType = ConfigFieldType.Text,
-            DescriptionKey = Placeholder,
+            DescriptionKey = "cannot be ({0})",
         };
 
-        Assert.AreEqual(Placeholder, Field(schema).Description);
-    }
-
-    [TestMethod]
-    public void Description_PrefixFieldWithoutThePlaceholder_IsReturnedUnchanged()
-    {
-        var schema = TriggerSchema();
-        schema.DescriptionKey = "must be one character";
-
-        Assert.AreEqual("must be one character", Field(schema).Description);
-    }
-
-    [TestMethod]
-    public void Description_MalformedPlaceholder_DoesNotThrowOutOfTheProperty()
-    {
-        // A translated format string is not a programmer's string. A locale that mistypes the placeholder
-        // would otherwise throw out of a bound property, leaving the row with no help text at all and a
-        // binding error in the log -- strictly worse than showing the text unfilled. This project has
-        // already shipped broken translation resources twice.
-        var schema = TriggerSchema();
-        schema.DescriptionKey = "cannot be ({0}), (o) is fine, {o} is not";
-
-        var description = Field(schema).Description;
-
-        Assert.AreEqual("cannot be ({0}), (o) is fine, {o} is not", description);
+        Assert.AreEqual("cannot be ({0})", Field(schema).Description);
     }
 
     // --- the token keyword hint ---------------------------------------------------------------------
-    //
-    // The sentence the user actually needs, and the one no plugin can write: which WORD to type, which is
-    // the app-wide prefix plus whatever they have typed into the field. Tested as the pure function it is,
-    // because this assembly has no translations loaded -- through the property the hint key never resolves,
-    // so the wording rules would be unpinnable.
 
     private const string Hint = "Type '{0}' in the search box.";
 
@@ -152,4 +82,12 @@ public sealed class PluginConfigFieldDisplaySupportTests
         Assert.IsNull(PluginConfigFieldDisplaySupport.TokenHint("base", null, '\\', "doc"));
         Assert.IsNull(PluginConfigFieldDisplaySupport.TokenHint("base", "", '\\', "doc"));
     }
+
+    // A translated format string is not a programmer's string. A locale that mistypes the placeholder
+    // would otherwise throw out of a bound property, leaving the row with no help text at all plus a
+    // binding error in the log. This project has already shipped broken translation resources twice.
+    [TestMethod]
+    public void TokenHint_MalformedPlaceholder_DoesNotThrowOutOfTheProperty()
+        => Assert.AreEqual("base Type '{O}' here.",
+            PluginConfigFieldDisplaySupport.TokenHint("base", "Type '{O}' here.", '\\', "doc"));
 }

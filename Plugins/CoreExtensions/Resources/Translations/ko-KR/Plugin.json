@@ -21,8 +21,7 @@
   "Column_TypeFile": "파일",
   "Column_TypeExtFile": "{0} 파일",
   "WebUrl_Name": "웹 주소",
-  "CoreExtensions_QueryTokenProvider_Name": "쿼리 정렬/필터 (:[SCMA] / .확장자)",
-  "CoreExtensions_PathExclusionProvider_Name": "경로 일치 (::표현식)",
+  "CoreExtensions_QueryTokenProvider_Name": "쿼리 정렬/필터 (<s / >s)",
   "WebUrl_OpenHint": "Enter를 누르거나 클릭하여 브라우저에서 열기",
   "Env_Name": "환경 변수",
   "Env_PathNotExist": "경로 (존재하지 않음)",
@@ -212,8 +211,5 @@
   "CoreExtensions_Config_CustomFilters_KeywordDesc": "이 필터의 트리거 키워드입니다. 「규칙」에서 다른 필터를 참조할 때 쓰는 이름이기도 합니다.",
   "CoreExtensions_Config_CustomFilters_RuleLabel": "필터 규칙",
   "CoreExtensions_Config_CustomFilters_RuleDesc": "확장자 또는 와일드카드 규칙(예: *.doc; *.pdf 또는 doc,docx,pdf)을 지원합니다.",
-  "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "사용자 지정 필터 토큰(토큰 접두사 + 키워드)을 해석하고 와일드카드 및 확장자 규칙으로 결과를 필터링합니다.",
-  "CoreExtensions_Config_PathExclusionPrefixLabel": "경로 제외 접두사 문자",
-  "CoreExtensions_WildcardFilterProvider_Name": "와일드카드 2차 필터 (?표현식)",
-  "CoreExtensions_Config_WildcardFilterPrefixLabel": "와일드카드 필터 트리거 접두사"
+  "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "사용자 지정 필터 토큰(토큰 접두사 + 키워드)을 해석하고 와일드카드 및 확장자 규칙으로 결과를 필터링합니다."
 }

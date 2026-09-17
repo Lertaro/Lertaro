@@ -32,27 +32,17 @@ internal sealed class PluginConfigFieldDisplaySupport
     /// The field's help text, plus the one sentence the host can add that a plugin cannot write for itself.
     /// </summary>
     /// <remarks>
-    /// Both additions exist because a character the search syntax owns is not a plugin's to know, and a
-    /// plugin assembly cannot reference <c>SearchSyntaxReserved</c> or the configured prefix.
-    ///
-    /// A PREFIX field's text has to name the characters that prefix cannot be. The plugin used to hardcode
-    /// that list per locale and shipped it wrong twice -- it named the '\' the field itself defaults to, and
-    /// was already missing the characters the syntax had gained since -- so the text carries <c>{0}</c> and
-    /// the host fills it in.
-    ///
-    /// A TOKEN KEYWORD field (see <see cref="ConfigFieldValidation.TokenKeyword"/>) is the other half: the
-    /// user has to be told which WORD to type in the search box, and that word is the prefix plus what they
-    /// are typing right now. Describing the field in the abstract left them to assemble it themselves from a
-    /// prefix the settings page never showed them.
+    /// A TOKEN KEYWORD field (see <see cref="ConfigFieldValidation.TokenKeyword"/>) is where this applies:
+    /// the user has to be told which WORD to type in the search box, and that word is the configured prefix
+    /// plus what they are typing right now -- neither of which the plugin assembly can see. Describing the
+    /// field in the abstract left them to assemble it themselves from a prefix the settings page never
+    /// showed them.
     /// </remarks>
     internal string Description
     {
         get
         {
             var text = ResolveText(_field.SchemaField.DescriptionKey);
-
-            if (QueryTokenPrefixRules.IsPrefixField(_field.SchemaField) && text.Contains("{0}", StringComparison.Ordinal))
-                return FillPlaceholders(text, SearchSyntaxReserved.DescribeUnusableTokenPrefixCharacters());
 
             // Read lazily: only a token keyword field ever needs it, and only while it has a value.
             if (_field.SchemaField.Validation == ConfigFieldValidation.TokenKeyword

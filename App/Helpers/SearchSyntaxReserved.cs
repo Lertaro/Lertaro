@@ -20,7 +20,7 @@ public static class SearchSyntaxReserved
 {
     // The character that starts a plugin query token. It is listed among the reserved characters because
     // the scanner reads it as one -- but only because it IS the token prefix: QueryTokenScanner is handed
-    // GlobalTokenPrefix, so this is the one character whose meaning the prefix fields themselves decide.
+    // GlobalTokenPrefix, so this is the one character whose meaning the prefix field itself decides.
     // See IsUnusableAsTokenPrefix for what follows from that.
     public const char TokenPrefixCharacter = '\\';
 
@@ -70,8 +70,9 @@ public static class SearchSyntaxReserved
     // '\' is reserved only because it IS the prefix -- QueryTokenScanner reads a word as a token because it
     // was handed '\', not because anything else consumes it (see IsUnusableAsTokenPrefix). Naming it in a
     // sentence about which characters a prefix field may not use therefore contradicted the shipped
-    // default, and twice shipped that way: the app-wide field's conflict message and the CoreExtensions
-    // prefix field's help text both listed '\' among the forbidden characters while defaulting to it.
+    // default, and twice shipped that way: this app-wide field's conflict message and the CoreExtensions
+    // prefix field's help text both listed '\' among the forbidden characters while defaulting to it (that
+    // second field has since been removed -- a plugin reads the app-wide prefix through the SDK now).
     public static IReadOnlyList<char> UnusableTokenPrefixCharacters { get; } =
         LeadingCharacters.Where(c => c != TokenPrefixCharacter).ToArray();
 

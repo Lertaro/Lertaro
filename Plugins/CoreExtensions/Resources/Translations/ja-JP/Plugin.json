@@ -21,8 +21,7 @@
   "Column_TypeFile": "ファイル",
   "Column_TypeExtFile": "{0} ファイル",
   "WebUrl_Name": "Web アドレス",
-  "CoreExtensions_QueryTokenProvider_Name": "クエリの並べ替え/フィルター (:[SCMA] / .拡張子)",
-  "CoreExtensions_PathExclusionProvider_Name": "パス一致 (::式)",
+  "CoreExtensions_QueryTokenProvider_Name": "クエリの並べ替え/フィルター (<s / >s)",
   "WebUrl_OpenHint": "Enter または クリックでブラウザーで開く",
   "Env_Name": "環境変数",
   "Env_PathNotExist": "パス（存在しません）",
@@ -212,8 +211,5 @@
   "CoreExtensions_Config_CustomFilters_KeywordDesc": "このフィルターのトリガーキーワード。「ルール」欄で他のフィルターを参照するときの名前でもあります。",
   "CoreExtensions_Config_CustomFilters_RuleLabel": "フィルタールール",
   "CoreExtensions_Config_CustomFilters_RuleDesc": "拡張子またはワイルドカードルール（例: *.doc; *.pdf または doc,docx,pdf）に対応します。",
-  "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "カスタムフィルターのトークン（トークンの接頭辞 + キーワード）を解析し、ワイルドカードと拡張子ルールで結果を絞り込みます。",
-  "CoreExtensions_Config_PathExclusionPrefixLabel": "パス除外プレフィックス文字",
-  "CoreExtensions_WildcardFilterProvider_Name": "ワイルドカード二次フィルター (?表現)",
-  "CoreExtensions_Config_WildcardFilterPrefixLabel": "ワイルドカードフィルターのプレフィックス"
+  "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "カスタムフィルターのトークン（トークンの接頭辞 + キーワード）を解析し、ワイルドカードと拡張子ルールで結果を絞り込みます。"
 }

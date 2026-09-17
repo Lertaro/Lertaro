@@ -9,7 +9,7 @@ namespace Lertaro.App.Tests.ViewModels.Settings;
 
 // Apply used to save whatever the pages had staged, including a value a page was visibly reporting as
 // broken: WPF's Validation.Error only fires for rules expressed in a binding, so the rules a page works out
-// for itself (a trigger character the search syntax consumes, two plugins claiming the same prefix) never
+// for itself (a prefix or trigger keyword starting with a character the search syntax consumes) never
 // reached it. These pin the two halves of the fix -- the pages report those errors, and Apply refuses
 // while any of them is showing.
 [TestClass]
@@ -87,16 +87,16 @@ public sealed class SettingsValidationGateTests
         try
         {
             vm.General.GlobalTokenPrefix = Reserved;
-            var field = PluginWithTriggerField();
+            var field = PluginWithKeywordField();
             // Staged, i.e. what the user typed into the row: only then does an unusable value block a save
             // (a schema default or a carried-over value is warned about instead).
-            field.ConfigFields[0].Value = Reserved;
+            field.ConfigFields[0].Value = Reserved + "audio";
             vm.Plugins.Plugins.Clear();
             vm.Plugins.Plugins.Add(field);
 
             var errors = vm.ValidationErrors.ToList();
 
-            Assert.IsTrue(errors.Any(e => e.StartsWith("test_plugin.prefix: ", StringComparison.Ordinal)),
+            Assert.IsTrue(errors.Any(e => e.StartsWith("test_plugin.keyword: ", StringComparison.Ordinal)),
                 "a plugin config field's own error must reach the Settings window");
             Assert.IsTrue(errors.Any(e => e == vm.General.PrefixError),
                 "so must the General page's");
@@ -202,16 +202,18 @@ public sealed class SettingsValidationGateTests
             "asking through the lazy property would build the page just to be told it is clean");
     }
 
-    private static PluginInfoViewModel PluginWithTriggerField()
+    // The field whose rule is invisible to WPF's Validation.Error, so it used to slip through Apply: an
+    // instant-answer trigger keyword starting with a character the search syntax consumes.
+    private static PluginInfoViewModel PluginWithKeywordField()
     {
         var field = new PluginConfigFieldViewModel(
             "test_plugin",
             new PluginConfigField
             {
-                Key = "prefix",
+                Key = "keyword",
                 FieldType = ConfigFieldType.Text,
-                MaxLength = 1,
-                DefaultValue = Reserved,
+                DefaultValue = Reserved + "audio",
+                Validation = ConfigFieldValidation.TriggerKeyword,
             },
             new UserSettings(),
             null);

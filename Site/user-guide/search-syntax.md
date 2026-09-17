@@ -281,7 +281,7 @@ Plugin tokens are provided by plugins, and the plugin decides what each one mean
 
 Rename the categories, change which extensions each one covers, or add your own under **Settings → Plugins → CoreExtensions**. The keyword itself is matched longest-first, so a `\a` rule and an `\audio` rule can coexist and `\audio` still wins.
 
-The prefix character is configurable under **Settings → General → System → Plugin Query Token Prefix**. It cannot be empty, it cannot be a character the search syntax already consumes (`\` `<` `>` `:` `*` `/` `?`), and it must not be the same character as another plugin's own prefix — settings report such a collision instead of letting one provider silently win.
+The prefix character is configurable under **Settings → General → System → Plugin Query Token Prefix**. It cannot be empty, it cannot be a character the search syntax already consumes (`\` `<` `>` `:` `*` `/` `?`).
 
 The full search window's left type-filter sidebar is configured separately in the same plugin's **Search Filters** group. Sidebar filter names are display-only; prefix references are parsed only inside a sidebar filter rule and refer to keywords from the **Custom Filters** list, including disabled custom filters.
 
