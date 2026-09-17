@@ -112,11 +112,9 @@ public sealed class PluginConfigFieldDisplaySupportTests
 
     [TestMethod]
     public void TokenHint_KeywordTyped_NamesTheWholeTokenWithTheHostPrefix()
-    {
-        Assert.AreEqual(
+        => Assert.AreEqual(
             "Trigger keyword for this filter. Type '\\audio' in the search box.",
             PluginConfigFieldDisplaySupport.TokenHint("Trigger keyword for this filter.", Hint, '\\', "audio"));
-    }
 
     [TestMethod]
     public void TokenHint_NoKeywordYet_SaysNothing()
@@ -128,22 +126,18 @@ public sealed class PluginConfigFieldDisplaySupportTests
         Assert.IsNull(PluginConfigFieldDisplaySupport.TokenHint("Trigger keyword.", Hint, '\\', null));
     }
 
+    // The prefix is not a constant of this sentence: it is whatever Settings → General → System holds.
     [TestMethod]
     public void TokenHint_UserConfiguredPrefix_IsTheOneShown()
-    {
-        // The prefix is not a constant of this sentence: it is whatever Settings → General → System holds.
-        Assert.AreEqual(
+        => Assert.AreEqual(
             "base Type '?doc' in the search box.",
             PluginConfigFieldDisplaySupport.TokenHint("base", Hint, '?', "doc"));
-    }
 
     [TestMethod]
     public void TokenHint_SurroundingWhitespaceInTheKeyword_IsTrimmed()
-    {
-        Assert.AreEqual(
+        => Assert.AreEqual(
             "base Type '\\doc' in the search box.",
             PluginConfigFieldDisplaySupport.TokenHint("base", Hint, '\\', " doc "));
-    }
 
     [TestMethod]
     public void TokenHint_NoBaseTextAndNoTemplate_BehaveAsDocumented()

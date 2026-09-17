@@ -1,4 +1,3 @@
-using Lertaro.App.Helpers;
 using Lertaro.App.Services.AppWindow;
 using Lertaro.App.Services.Tray;
 using Lertaro.Core;

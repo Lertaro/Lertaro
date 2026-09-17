@@ -225,6 +225,10 @@ public sealed class SortFilterQueryTokenProviderTests
         Assert.AreEqual(expected, bytes);
     }
 
+    // NumberStyles.Float parses "NaN", "Infinity" and "1e300", and converting such a double to long is
+    // UNSPECIFIED in an unchecked context -- so an absurd threshold used to become a nonsense bound
+    // (in practice long.MinValue, which makes "greater than" keep everything) instead of being rejected
+    // as unparseable, which the caller already handles by narrowing nothing.
     [TestMethod]
     [DataRow("1e300", DisplayName = "far outside long's range")]
     [DataRow("NaN", DisplayName = "not a number")]
@@ -232,13 +236,7 @@ public sealed class SortFilterQueryTokenProviderTests
     [DataRow("", DisplayName = "empty")]
     [DataRow("abc", DisplayName = "not a number at all")]
     public void TryParseSize_UnrepresentableValues_AreRejectedRatherThanSilentlyBounded(string text)
-    {
-        // NumberStyles.Float parses "NaN", "Infinity" and "1e300", and converting such a double to long is
-        // UNSPECIFIED in an unchecked context -- so an absurd threshold used to become a nonsense bound
-        // (in practice long.MinValue, which makes "greater than" keep everything) instead of being rejected
-        // as unparseable, which the caller already handles by narrowing nothing.
-        Assert.IsFalse(SortFilterQueryTokenProvider.TryParseSize(text, out _));
-    }
+        => Assert.IsFalse(SortFilterQueryTokenProvider.TryParseSize(text, out _));
 
     [TestMethod]
     public async Task ApplyAsync_FolderThreshold_AcceptsTheDocumentedSpellings()
