@@ -14,7 +14,7 @@ Lertaro enables Fuzzy Matching by default. Simply enter any characters in order,
 | `vsc` | `Visual Studio Code.lnk` | Matches initial letters of each word (**V**isual **S**tudio **C**ode) |
 | `rt-fin` | `Q3-report-final.docx` | Matches contiguous substring (Q3-repo**rt-fin**al.docx) |
 
-Turn this off under **Settings → General → System → Enable fuzzy matching** and every plain term requires a contiguous substring — `abc` will only match names containing contiguous `abc`, no longer matching `a-b-c`. This toggle only affects ordinary terms: exclusions are always exact (see below), and the token syntax is unaffected either way.
+Turn this off under **Settings → General → System → Enable fuzzy matching** and every plain term requires a contiguous substring — `abc` will only match names containing contiguous `abc`, no longer matching `a-b-c`. This toggle only affects ordinary terms: exclusions are always exact (see below), the token syntax is unaffected either way, and a single term can still be flipped to the opposite reading with a leading `?` (see below).
 
 ### Case Insensitivity
 
@@ -130,6 +130,7 @@ Pastes automatically as:
 | :--- | :--- | :--- | :--- |
 | *(none)* | Default term | Fuzzy when fuzzy matching is on, exact substring when it is off | `report` |
 | `:` | Exclusion | Drops every result whose name contains this text (always exact, never fuzzy) | `:temp` |
+| `?` | Precision inversion | Flips the term between fuzzy and exact, the opposite of the current setting | `?report` |
 | `\|` | OR logic | Matches either side of the pipe | `doc \| pdf` |
 | `/.../` | Regular expression | Matches the name with a .NET regex (see below) | `/^report.*\.md$/` |
 | `*` | Bypass exclusions | One-off opt-out of your configured exclusion rules (first character only) | `*node_modules` |
@@ -143,6 +144,7 @@ Pastes automatically as:
 3. **A lone colon is ignored** — `:` with nothing after it is not an operator; it is simply dropped from the query.
 4. **The drive colon is different** — a drive letter follows the colon (`d:`, see [section 4](#_4-path-mode-drive-scoping)) while an exclusion precedes it (`:temp`). The two can never be confused, and a colon inside a word (`c:\path`) is ordinary text.
 5. **A regex clause is lifted out before anything else reads the query** — that is what keeps its backslashes and slashes from being mistaken for a path, and it means a clause can sit anywhere in the query (`/\.md$/ report` and `report /\.md$/` are the same search).
+6. **Precision inversion `?`** — `?term` takes the **opposite** of whatever the fuzzy-matching setting says: with fuzzy matching on the term becomes a contiguous substring, with fuzzy matching off it becomes a scattered subsequence. It is the only way to mix the two readings within one query — `?report draft` requires `report` contiguously while `draft` may be scattered. The trigger is read from the **first character of a word only**, so `rep?ort` is the literal text `rep?ort` (which cannot occur in a file name and therefore matches nothing), and it affects that word alone. Like a lone `:`, a lone `?` is dropped. The colon is read first, so `:?temp` excludes the literal text `?temp`.
 
 **Operator Combination Examples**:
 
@@ -279,7 +281,7 @@ Plugin tokens are provided by plugins, and the plugin decides what each one mean
 
 Rename the categories, change which extensions each one covers, or add your own under **Settings → Plugins → CoreExtensions**. The keyword itself is matched longest-first, so a `\a` rule and an `\audio` rule can coexist and `\audio` still wins.
 
-The prefix character is configurable under **Settings → General → System → Plugin Query Token Prefix**. It cannot be empty, it cannot be `<` or `>`, and it must not be the same character as another plugin's own prefix — settings report such a collision instead of letting one provider silently win.
+The prefix character is configurable under **Settings → General → System → Plugin Query Token Prefix**. It cannot be empty, it cannot be a character the search syntax already consumes (`\` `<` `>` `:` `*` `/` `?`), and it must not be the same character as another plugin's own prefix — settings report such a collision instead of letting one provider silently win.
 
 The full search window's left type-filter sidebar is configured separately in the same plugin's **Search Filters** group. Sidebar filter names are display-only; prefix references are parsed only inside a sidebar filter rule and refer to keywords from the **Custom Filters** list, including disabled custom filters.
 
