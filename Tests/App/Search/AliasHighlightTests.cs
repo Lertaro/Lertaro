@@ -16,6 +16,10 @@ namespace Lertaro.App.Tests.Search;
 //
 // Every case shipped wrong at least once. A highlight mask has nothing that verifies it in the search
 // path, so a broken one surfaces as characters lighting up at random rather than as a failure.
+//
+// Several cases spell the flip as a leading "?" because the interesting term is the one whose kind
+// DISAGREES with the setting: that is the only way to get an Exact term while fuzzy matching is on, which
+// is what the old leading "'" used to produce and what "?" now does.
 [TestClass]
 [DoNotParallelize] // registers into a process-wide registry and flips the process-wide fuzzy default
 public sealed class AliasHighlightTests
@@ -193,33 +197,33 @@ public sealed class AliasHighlightTests
     }
 
     // "jtqin" is two initials followed by one full reading -- a subsequence of the readings alias, never
-    // a contiguous run of it. So it is matchable only where the term is fuzzy, which is exactly what "'"
-    // controls, and it is the shape a real pinyin query takes ("jtqinzi").
+    // a contiguous run of it. So it is matchable only where the term is fuzzy, which is exactly what the
+    // "?" trigger controls, and it is the shape a real pinyin query takes ("jtqinzi").
     private const string MixedShapeQuery = "jtqin";
 
     [TestMethod]
-    public void FuzzyDisabled_AQuotedTermFlipsBackToFuzzyAndStillLights()
+    public void FuzzyDisabled_AnInvertedTermFlipsBackToFuzzyAndStillLights()
     {
-        // Reported: with fuzzy off, "'jtqinzi" found the row and lit nothing on it. Which rule applies
-        // is the TERM's, and "'" flips that term against the setting -- but highlighting was reading the
+        // Reported: with fuzzy off, "?jtqinzi" found the row and lit nothing on it. Which rule applies
+        // is the TERM's, and "?" flips that term against the setting -- but highlighting was reading the
         // setting, so it went looking for a contiguous run that a fuzzy term never had to have.
         SearchContext.DefaultFuzzyMatchEnabled = false;
 
-        Assert.IsFalse(FuzzyMatcher.IsMatch(MixedShapeQuery, "甲乙丙丁"), "unquoted, this must not match at all");
-        Assert.IsTrue(FuzzyMatcher.IsMatch("'" + MixedShapeQuery, "甲乙丙丁"));
-        Assert.IsNotEmpty(Lit("甲乙丙丁", "'" + MixedShapeQuery), "matched but lit nothing");
+        Assert.IsFalse(FuzzyMatcher.IsMatch(MixedShapeQuery, "甲乙丙丁"), "uninverted, this must not match at all");
+        Assert.IsTrue(FuzzyMatcher.IsMatch("?" + MixedShapeQuery, "甲乙丙丁"));
+        Assert.IsNotEmpty(Lit("甲乙丙丁", "?" + MixedShapeQuery), "matched but lit nothing");
     }
 
     [TestMethod]
-    public void FuzzyEnabled_AQuotedTermIsExactAndLightsNothingItDidNotMatch()
+    public void FuzzyEnabled_AnInvertedTermIsExactAndLightsNothingItDidNotMatch()
     {
-        // The mirror: with fuzzy on, "'" makes the term exact, so the same query stops matching and
+        // The mirror: with fuzzy on, "?" makes the term exact, so the same query stops matching and
         // stops lighting. Following the setting instead of the term got this half right by accident.
         SearchContext.DefaultFuzzyMatchEnabled = true;
 
-        Assert.IsTrue(FuzzyMatcher.IsMatch(MixedShapeQuery, "甲乙丙丁"), "unquoted and fuzzy, this matches");
-        Assert.IsFalse(FuzzyMatcher.IsMatch("'" + MixedShapeQuery, "甲乙丙丁"));
-        Assert.IsEmpty(Lit("甲乙丙丁", "'" + MixedShapeQuery));
+        Assert.IsTrue(FuzzyMatcher.IsMatch(MixedShapeQuery, "甲乙丙丁"), "uninverted and fuzzy, this matches");
+        Assert.IsFalse(FuzzyMatcher.IsMatch("?" + MixedShapeQuery, "甲乙丙丁"));
+        Assert.IsEmpty(Lit("甲乙丙丁", "?" + MixedShapeQuery));
     }
 
     // Turning a provider off has to reach the highlight too, and the way it reaches it differs by
@@ -255,7 +259,7 @@ public sealed class AliasHighlightTests
         // "rdm" is a subsequence of readme.md and nothing else. Where the term is not fuzzy, no such
         // match exists, so nothing may light -- the mask used to run a fuzzy position search regardless
         // of kind and lit r, d and m on a row this term had not matched at all.
-        foreach (var (fuzzy, query) in new[] { (false, "rdm"), (true, "'rdm") })
+        foreach (var (fuzzy, query) in new[] { (false, "rdm"), (true, "?rdm") })
         {
             SearchContext.DefaultFuzzyMatchEnabled = fuzzy;
             Assert.IsFalse(FuzzyMatcher.IsMatch(query, "readme.md"), $"fuzzy={fuzzy} {query}");
@@ -269,7 +273,7 @@ public sealed class AliasHighlightTests
         // The fuzzy pass returned as soon as it found anything, so it could answer for a term whose real
         // match was through an alias. Skipping it for a non-fuzzy kind must not cost the alias its turn:
         // "jtqg" is the initials alias exactly, a contiguous run, so it matches either way.
-        foreach (var (fuzzy, query) in new[] { (false, "jtqg"), (true, "'jtqg") })
+        foreach (var (fuzzy, query) in new[] { (false, "jtqg"), (true, "?jtqg") })
         {
             SearchContext.DefaultFuzzyMatchEnabled = fuzzy;
             Assert.IsTrue(FuzzyMatcher.IsMatch(query, "甲乙丙丁"), $"fuzzy={fuzzy} {query}");

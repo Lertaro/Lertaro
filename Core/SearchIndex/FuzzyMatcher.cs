@@ -9,6 +9,12 @@ namespace Lertaro.Core.SearchIndex;
 // record's own name (a path segment, say). FzfPattern itself stays internal; this is the one seam meant
 // to cross the assembly boundary (see PluginSdk.Services.FuzzyMatchService, wired to this in
 // PluginManager).
+//
+// The query is read by FzfPattern.Parse -- the search box's own parser -- so every caller of this seam
+// (the plugin catalog, bookmark titles, the quick panel's filter box, the shell-menu filter, the settings
+// filter boxes, a plugin's own IsMatch, the CLI pipe's highlight mask) reads a typed query exactly as the
+// file list does. It used to carry a private, older operator set here instead, which meant '!', "'", '^'
+// and '$' filtered a catalog while searching for literal text in the file list; see TermTriggers.
 public static class FuzzyMatcher
 {
     public static bool IsMatch(string pattern, string text)
@@ -16,7 +22,7 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(pattern) || string.IsNullOrEmpty(text))
             return false;
 
-        var fzf = RawQueryPatternParser.Parse(pattern);
+        var fzf = FzfPattern.Parse(pattern);
 
         // A query with nothing left to compare against (empty, or nothing but an operator) must not fall
         // into FzfPattern.TryMatchSingle's own "no term sets to check" -> true shortcut, which would
@@ -105,7 +111,7 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(query))
             return new bool[text.Length];
 
-        return ComputeHighlightMask(text, RawQueryPatternParser.Parse(query));
+        return ComputeHighlightMask(text, FzfPattern.Parse(query));
     }
 
     // Parsed-pattern overload: callers that test MANY texts against ONE query hit this instead of the
@@ -124,7 +130,7 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(query))
             return 0;
 
-        return HighlightMask.ComputeWeight(text, RawQueryPatternParser.Parse(query));
+        return HighlightMask.ComputeWeight(text, FzfPattern.Parse(query));
     }
 
     // The same "does it match, where does it start, how well" measure the two windows rank by -- start
@@ -135,7 +141,7 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(query))
             return MatchRank.NoMatch;
 
-        return HighlightMask.ComputeRank(text, RawQueryPatternParser.Parse(query));
+        return HighlightMask.ComputeRank(text, FzfPattern.Parse(query));
     }
 
     // Parsed-pattern overload -- same reason as ComputeHighlightMask's: the per-candidate string form
@@ -157,7 +163,7 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(query))
             return MatchRank.NoMatch;
 
-        return ComputeBestMatch(RawQueryPatternParser.Parse(query), primaryText, alternateTexts);
+        return ComputeBestMatch(FzfPattern.Parse(query), primaryText, alternateTexts);
     }
 
     // Parsed-pattern overload: this is the shape a per-candidate catalog scan uses (SearchableItemMapper
