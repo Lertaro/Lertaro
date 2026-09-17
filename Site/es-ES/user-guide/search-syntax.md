@@ -281,7 +281,7 @@ Los tokens de plugin los proporcionan los plugins, y cada plugin decide qué sig
 
 Puedes renombrar las categorías, cambiar las extensiones que cubre cada una o añadir las tuyas en **Configuración → Plugins → CoreExtensions**. La propia palabra clave se compara de la más larga a la más corta, así que una regla `\a` y una regla `\audio` pueden coexistir y `\audio` sigue ganando.
 
-El carácter de prefijo se configura en **Configuración → General → Sistema → Prefijo de tokens de consulta de plugins**. No puede estar vacío, no puede ser un carácter que ya use la sintaxis de búsqueda (`\` `<` `>` `:` `*` `/` `?`), y no puede ser el mismo carácter que el prefijo propio de otro plugin: los ajustes informan de esa colisión en lugar de dejar que un proveedor gane en silencio.
+El carácter de prefijo se configura en **Configuración → General → Sistema → Prefijo de tokens de consulta de plugins**. No puede estar vacío, no puede ser un carácter que ya use la sintaxis de búsqueda (`\` `<` `>` `:` `*` `/` `?`).
 
 La barra lateral de filtros de tipo de la ventana de búsqueda completa se configura por separado en el grupo **Filtros de búsqueda** del mismo plugin. Los nombres de los filtros de la barra lateral solo sirven para mostrar; las referencias de prefijo solo se analizan dentro de una regla de filtro de la barra lateral y se refieren a palabras clave de la lista **Filtros personalizados**, incluidos los filtros personalizados deshabilitados.
 

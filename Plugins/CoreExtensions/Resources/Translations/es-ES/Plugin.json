@@ -21,8 +21,7 @@
   "Column_TypeFile": "Archivo",
   "Column_TypeExtFile": "Archivo {0}",
   "WebUrl_Name": "Dirección Web",
-  "CoreExtensions_QueryTokenProvider_Name": "Orden/Filtro de Consulta (:[SCMA] / .ext)",
-  "CoreExtensions_PathExclusionProvider_Name": "Coincidencia de Ruta (::expresión)",
+  "CoreExtensions_QueryTokenProvider_Name": "Orden/Filtro de Consulta (<s / >s)",
   "WebUrl_OpenHint": "Pulsa Intro o haz clic para abrir en tu navegador",
   "Env_Name": "Variables de Entorno",
   "Env_PathNotExist": "Ruta (No Existe)",
@@ -212,8 +211,5 @@
   "CoreExtensions_Config_CustomFilters_KeywordDesc": "Palabra clave de este filtro. Es también el nombre con el que otras reglas lo referencian.",
   "CoreExtensions_Config_CustomFilters_RuleLabel": "Regla de filtro",
   "CoreExtensions_Config_CustomFilters_RuleDesc": "Admite extensiones o comodines (ej. *.doc; *.pdf o doc,docx,pdf).",
-  "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "Analiza los tokens de filtro personalizados (prefijo de token + palabra clave) y filtra los resultados según sus reglas de comodines o extensiones.",
-  "CoreExtensions_Config_PathExclusionPrefixLabel": "Prefijo de exclusión de ruta",
-  "CoreExtensions_WildcardFilterProvider_Name": "Filtro comodín secundario (?expresión)",
-  "CoreExtensions_Config_WildcardFilterPrefixLabel": "Prefijo del filtro comodín"
+  "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "Analiza los tokens de filtro personalizados (prefijo de token + palabra clave) y filtra los resultados según sus reglas de comodines o extensiones."
 }

@@ -59,7 +59,7 @@ public sealed class TranslationResourcesTests
     [DataTestMethod]
     [DataRow("Plugins_CoreActionPluginName")]
     [DataRow("CoreExtensions_PluginDesc")]
-    [DataRow("CoreExtensions_Config_WildcardFilterPrefixLabel")]
+    [DataRow("CoreExtensions_QueryTokenProvider_Name")]
     [DataRow("Plugins_TokenKeywordHint")]
     [DataRow("General_MergedFilterPrefixNotice")]
     public void PluginTranslations_ResolveTheKeysTheAppLooksUpByLiteral(string key)
@@ -69,13 +69,9 @@ public sealed class TranslationResourcesTests
         Assert.IsFalse(string.IsNullOrWhiteSpace(translations[key]), $"en-US has an empty value for '{key}'");
     }
 
-    // The two host-filled strings. "{0}" is what makes the settings page able to name a character the
-    // plugin cannot know -- the app-wide token prefix, and the list of characters a prefix may not be --
-    // so the placeholder being present in EVERY locale is the contract, not a formatting detail.
-    //
-    // The prefix field's own help text is where this went wrong twice: it hardcoded a list that named the
-    // '\' the field itself defaults to, and was already missing the characters the syntax had gained since.
-    // Both strings are checked here so neither can quietly go back to a literal.
+    // The host-filled strings. "{0}"/"{1}" are what make these sentences able to name something the plugin
+    // cannot know -- the token to type, and the prefix that replaced the one it used to keep -- so the
+    // placeholders being present in EVERY locale is the contract, not a formatting detail.
     [TestMethod]
     public void HostFilledStrings_CarryTheirPlaceholdersInEveryLocale()
     {
