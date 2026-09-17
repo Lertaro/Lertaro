@@ -52,6 +52,37 @@ public sealed class FuzzyMatcherTests
         Assert.IsTrue(FuzzyMatcher.IsMatch("?read", "readme.md"));
     }
 
+    // The seam reads a query with the search box's own parser (FzfPattern.Parse), so the operators the
+    // search box RETIRED are literal text here too. It used to carry its own copy of them ('!' "'" '^' '$'),
+    // which made this seam the one place where "!temp" meant "everything except temp" -- the file list
+    // beside it searched for a literal "!temp" and found nothing, so a query could return catalog rows and
+    // no files, or the reverse, for no reason the user could see.
+    [TestMethod]
+    public void IsMatch_RetiredOperatorCharacters_AreLiteralText()
+    {
+        Assert.IsTrue(FuzzyMatcher.IsMatch("!temp", "a!temp.txt"));
+        Assert.IsTrue(FuzzyMatcher.IsMatch("^read", "^readme.txt"));
+        Assert.IsTrue(FuzzyMatcher.IsMatch("cost$", "cost$.txt"));
+        Assert.IsTrue(FuzzyMatcher.IsMatch("it's", "it's.txt"));
+    }
+
+    // The other half of the same alignment: the operators that still EXIST have to work here as well, not
+    // just the ones that were removed. ":" was a literal character on this seam right up until the seam
+    // started using the search box's parser.
+    [TestMethod]
+    public void IsMatch_ExclusionOperator_ReadsAsAnExclusion()
+    {
+        Assert.IsTrue(FuzzyMatcher.IsMatch("report :draft", "report-final.txt"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("report :draft", "report-draft.txt"));
+    }
+
+    [TestMethod]
+    public void IsMatch_PipeOperator_ReadsAsOr()
+    {
+        Assert.IsTrue(FuzzyMatcher.IsMatch("png | jpg", "photo.jpg"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("png | jpg", "photo.gif"));
+    }
+
     [TestMethod]
     public void IsMatch_LonePrecisionTrigger_MatchesNothing() =>
         // A query of nothing but a trigger is not a query -- same as the empty pattern above.
