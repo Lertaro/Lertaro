@@ -229,6 +229,10 @@ public class PluginConfigFieldViewModel : ViewModelBase
             // just edited.
             if (QueryTokenPrefixRules.IsPrefixField(SchemaField)) OnPropertyChanged(nameof(PrefixError));
             if (SchemaField.Validation == ConfigFieldValidation.TriggerKeyword) OnPropertyChanged(nameof(TriggerKeywordError));
+            // A token keyword's help text names the whole token the user would type, so it has to be
+            // recomputed while they type it -- including inside an array row, which is exactly where the
+            // catch-all OnPropertyChanged() below is skipped.
+            if (SchemaField.Validation == ConfigFieldValidation.TokenKeyword) OnPropertyChanged(nameof(Description));
             if (_onValueChanged == null) OnPropertyChanged();
         }
     }

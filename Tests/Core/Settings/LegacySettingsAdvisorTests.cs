@@ -65,4 +65,52 @@ public sealed class LegacySettingsAdvisorTests
         Assert.IsFalse(LegacySettingsAdvisor.HasLegacyTokenPrefix(settings));
         Assert.IsFalse(LegacySettingsAdvisor.ShouldShowNotice(settings));
     }
+
+    // The other legacy: the CoreExtensions plugin used to store its own token prefix ("CustomFilterPrefix").
+    // It now reads the host's (SearchSyntaxService), so a stored copy is not merely unused -- it is a
+    // character its tokens no longer answer to, and any sidebar rule written with it stops expanding.
+    private const string PluginId = "Lertaro.Plugins.CoreExtensions";
+    private const string Key = "CustomFilterPrefix";
+
+    [TestMethod]
+    public void ClearLegacyFilterPrefix_DisagreeingValue_IsRemovedAndReported()
+    {
+        var settings = new UserSettings { GlobalTokenPrefix = "\\" };
+        settings.SetPluginSetting(PluginId, Key, "#");
+
+        Assert.AreEqual("#", LegacySettingsAdvisor.ClearLegacyFilterPrefix(settings));
+        Assert.IsNull(settings.GetPluginSetting<string?>(PluginId, Key, null), "the stale key must be gone");
+    }
+
+    [TestMethod]
+    public void ClearLegacyFilterPrefix_AgreeingValue_IsRemovedButNotReported()
+    {
+        // Nothing changed for the user, so there is nothing to tell them -- but the key is still dead
+        // weight pointing at a setting that no longer exists, so it goes.
+        var settings = new UserSettings { GlobalTokenPrefix = "\\" };
+        settings.SetPluginSetting(PluginId, Key, "\\");
+
+        Assert.IsNull(LegacySettingsAdvisor.ClearLegacyFilterPrefix(settings));
+        Assert.IsNull(settings.GetPluginSetting<string?>(PluginId, Key, null));
+    }
+
+    [TestMethod]
+    public void ClearLegacyFilterPrefix_NothingStored_ReportsNothing()
+    {
+        var settings = new UserSettings();
+
+        Assert.IsNull(LegacySettingsAdvisor.ClearLegacyFilterPrefix(settings));
+    }
+
+    [TestMethod]
+    public void ClearLegacyFilterPrefix_IsNotRepeatable()
+    {
+        // This is what makes the notice need no "already shown" flag of its own: removing the key is the
+        // fix, so a second launch cannot find the condition again and nag about it.
+        var settings = new UserSettings { GlobalTokenPrefix = "\\" };
+        settings.SetPluginSetting(PluginId, Key, "#");
+
+        Assert.IsNotNull(LegacySettingsAdvisor.ClearLegacyFilterPrefix(settings));
+        Assert.IsNull(LegacySettingsAdvisor.ClearLegacyFilterPrefix(settings));
+    }
 }

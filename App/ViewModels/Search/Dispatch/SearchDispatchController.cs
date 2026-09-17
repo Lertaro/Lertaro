@@ -1,3 +1,4 @@
+using Lertaro.App.Helpers;
 using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services;
@@ -55,7 +56,7 @@ internal sealed class SearchDispatchController
     }
     public void DispatchSearch(string value)
     {
-        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(value, out var bypassExclusions), GetGlobalTokenPrefixChar());
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(value, out var bypassExclusions), GlobalTokenPrefix.Current);
         _queryTokens = scan.Tokens;
         var cleanQuery = scan.Text;
         _bypassExclusions = bypassExclusions;
@@ -197,7 +198,7 @@ internal sealed class SearchDispatchController
             return;
         }
         // Same order as DispatchSearch: the bypass marker is stripped before the token scan.
-        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GetGlobalTokenPrefixChar());
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GlobalTokenPrefix.Current);
         _queryTokens = scan.Tokens;
         var cleanQuery = scan.Text;
         _bypassExclusions = bypassExclusions;
@@ -324,10 +325,4 @@ internal sealed class SearchDispatchController
 
     private static bool IsGenuineInstantResult(AppSearchResult r) =>
         r.ResultKind == "InstantResult" && r.SourceProvider is PluginSdk.Abstractions.Plugins.IInstantResultProvider;
-
-    private static char GetGlobalTokenPrefixChar()
-    {
-        var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return !string.IsNullOrEmpty(prefix) ? prefix[0] : '\\';
-    }
 }

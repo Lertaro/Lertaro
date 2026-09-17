@@ -7,6 +7,7 @@
 | 宿主服務 | 核心方法與簽章 | 功能說明 |
 | :--- | :--- | :--- |
 | **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)`<br>`double GetMatchScore(string text, string query)` | 運行與宿主完全一致的 fzf 模糊比對引擎，計算字元級的反白布林遮罩（自動支援中文字元拼音多級兜底），並提供用於統一排序的比對品質評分。 |
+| **`SearchSyntaxService`** | `char TokenPrefix { get; }` | 外掛查詢標記的起始字元，取自「設定 → 一般 → 系統」。請直接讀取，不要自己存一份：宿主的掃描器按該字元把詞抽離查詢，並把字元連著交給外掛，因此自存一份只可能「剛好一致」或「靜默什麼都認領不到」。 |
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 多語言動態剖析與執行階段變更廣播。`GetCurrentCulture()` 返回使用者在設定中心顯式選取的介面語言代碼（如 `"zh-HK"`）；訂閱 `CultureChanged` 可在介面語言切換時動態重新整理內部狀態或重載字典。 |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | 帶記憶體與磁碟快取的 Windows Shell 檔案圖示與縮圖擷取服務。 |
 | **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | 讀取收藏清單、檢查路徑是否已登記，並透過宿主橋接新增收藏項目。 |

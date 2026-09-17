@@ -16,7 +16,11 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
 {
     public const string PluginId = "Lertaro.Plugins.CoreExtensions";
     public const string SettingKey = "CustomFilters";
-    public const string PrefixSettingKey = "CustomFilterPrefix";
+
+    // The key this plugin used to store its prefix under, kept only so an upgrade can find and clear the
+    // stale value (see LegacySettingsAdvisor). Nothing reads it as a setting any more: the prefix comes
+    // from the search syntax itself, through SearchSyntaxService.
+    public const string LegacyPrefixSettingKey = "CustomFilterPrefix";
 
     private static readonly RegexOptions MatchOptions = RegexOptions.IgnoreCase | RegexOptions.Compiled;
 
@@ -252,9 +256,16 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
         string? prefix = null,
         bool allowDisabledReferences = false) => CustomFilterRuleResolver.Expand(rule, filters, prefix ?? GetConfiguredPrefix(), allowDisabledReferences);
 
-    public static string GetConfiguredPrefix()
-    {
-        var prefix = PluginSettingsService.GetSetting(PluginId, PrefixSettingKey, "\\");
-        return string.IsNullOrEmpty(prefix) ? "\\" : prefix;
-    }
+    /// <summary>
+    /// The character this provider's tokens start with: the host's own, since the host's scanner is what
+    /// decides which words become tokens and it hands them over with that character still attached.
+    /// </summary>
+    /// <remarks>
+    /// Kept as a method with this name because the sidebar filters and the rule resolver share it, but it is
+    /// no longer a setting of this plugin. It used to be one ("CustomFilterPrefix"), and a value that
+    /// disagreed with the host's meant every token this provider owned was lifted out of the query and then
+    /// claimed by nobody -- an empty result list with nothing on screen to explain it. There is no second
+    /// value to keep in step now.
+    /// </remarks>
+    public static string GetConfiguredPrefix() => SearchSyntaxService.TokenPrefix.ToString();
 }

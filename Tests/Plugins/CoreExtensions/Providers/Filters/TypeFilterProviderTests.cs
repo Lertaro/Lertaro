@@ -93,8 +93,8 @@ public sealed class TypeFilterProviderTests
         PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key switch
         {
             // The rule reference uses the same trigger character the query tokens use (see
-            // CustomFilterQueryTokenProvider.GetConfiguredPrefix), so with no prefix setting configured
-            // the default backslash applies on both sides.
+            // CustomFilterQueryTokenProvider.GetConfiguredPrefix, which reads the host's
+            // SearchSyntaxService), so with no host wired in this test the default backslash applies.
             TypeFilterProvider.SidebarCustomFiltersKey => new List<CustomFilterItem>
             {
                 new() { Keyword = "executables", Rule = @"\scripts; *.exe" }

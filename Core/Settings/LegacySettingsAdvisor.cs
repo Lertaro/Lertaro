@@ -2,7 +2,8 @@ namespace Lertaro.Core;
 
 /// <summary>
 /// Finds settings values that a previous release wrote but the current search syntax can no longer honor,
-/// so the app can tell the user about them instead of letting the feature fail quietly.
+/// or no longer consults at all, so the app can tell the user about them instead of letting the feature fail
+/// quietly.
 /// </summary>
 /// <remarks>
 /// The rewrite made '\' the plugin query token prefix. The last shipped release (v5.6.7) defaulted that
@@ -44,4 +45,34 @@ public static class LegacySettingsAdvisor
     /// </remarks>
     public static bool ShouldShowNotice(UserSettings settings)
         => !settings.LegacyTokenPrefixNoticeShown && HasLegacyTokenPrefix(settings);
+
+    // The bundled CoreExtensions plugin used to keep its own copy of the token prefix under this key. Named
+    // here rather than referenced from the plugin because Core cannot see plugin assemblies, and named with
+    // the plugin id for the same reason a settings key is: it is persisted data, not a type.
+    private const string LegacyFilterPrefixPluginId = "Lertaro.Plugins.CoreExtensions";
+    private const string LegacyFilterPrefixKey = "CustomFilterPrefix";
+
+    /// <summary>
+    /// Removes that plugin's own prefix setting if a settings file still carries one, returning the value it
+    /// held -- or null when there was nothing to remove, or when it agreed with the host prefix and so never
+    /// meant anything different.
+    /// </summary>
+    /// <remarks>
+    /// The plugin now reads the prefix from the search syntax itself (the SDK's SearchSyntaxService), so the
+    /// stored copy can only ever be stale: it names a character its own tokens no longer answer to, and any
+    /// sidebar filter rule written with it stops expanding. Cleared rather than migrated, because there is no
+    /// new key to migrate it to.
+    ///
+    /// This is also why the notice built on it needs no "already shown" flag of its own: deleting the key is
+    /// what makes the condition unrepeatable, so a second launch cannot nag.
+    /// </remarks>
+    public static string? ClearLegacyFilterPrefix(UserSettings settings)
+    {
+        var stored = settings.GetPluginSetting<string?>(LegacyFilterPrefixPluginId, LegacyFilterPrefixKey, null);
+        if (string.IsNullOrEmpty(stored))
+            return null;
+
+        settings.SetPluginSetting(LegacyFilterPrefixPluginId, LegacyFilterPrefixKey, null);
+        return stored == settings.GlobalTokenPrefix ? null : stored;
+    }
 }

@@ -1,3 +1,4 @@
+using Lertaro.App.Helpers;
 using System.IO;
 using System.IO.Pipes;
 using Lertaro.Core;
@@ -105,7 +106,7 @@ public static class AppSearchPipeService
         if (!string.IsNullOrWhiteSpace(query))
         {
             // The bypass marker is stripped before the scan (see QueryTokenScanner.StripExclusionBypass).
-            var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GetGlobalTokenPrefixChar());
+            var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GlobalTokenPrefix.Current);
             var cleanQuery = scan.Text;
             var tokens = scan.Tokens;
 
@@ -233,11 +234,5 @@ public static class AppSearchPipeService
             if (written <= FlushEveryResultUntil || written % FlushEveryResults == 0)
                 await pipe.FlushAsync(token);
         }
-    }
-
-    private static char GetGlobalTokenPrefixChar()
-    {
-        var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return !string.IsNullOrEmpty(prefix) ? prefix[0] : '\\';
     }
 }

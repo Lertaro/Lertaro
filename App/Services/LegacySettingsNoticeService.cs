@@ -17,6 +17,11 @@ public static class LegacySettingsNoticeService
     /// Shows the notice when the saved settings still carry a legacy value, and does nothing otherwise. Run
     /// after the window is up, so the balloon has a tray icon to attach to.
     /// </summary>
+    /// <remarks>
+    /// Two different legacies, one balloon: at most one of them is worth interrupting startup for, and the
+    /// merged-prefix one wins because it is the change the user cannot see coming -- their filter rules stop
+    /// working and there is no longer a field showing the prefix they were written against.
+    /// </remarks>
     public static void RunOnStartup() => _ = Task.Run(async () =>
     {
         try
@@ -26,24 +31,22 @@ public static class LegacySettingsNoticeService
             await Task.Delay(4000);
 
             var settings = UserSettings.Load();
-            if (!LegacySettingsAdvisor.ShouldShowNotice(settings))
+            var (title, text) = Describe(settings);
+            if (title == null)
                 return;
 
-            // Recorded before the balloon is shown: the notice is a one-time piece of guidance, and a
-            // failure between here and the balloon must not turn it into a once-per-launch nag.
-            settings.LegacyTokenPrefixNoticeShown = true;
+            // Saved before the balloon is shown. The recorded value is a one-time piece of guidance, and a
+            // failure between here and the balloon must not turn it into a once-per-launch nag. (The other
+            // legacy needs no flag: clearing the stale key is itself what makes it unrepeatable.)
             settings.Save();
 
-            var title = TranslationManager.Instance["General_LegacyTokenPrefixTitle"];
-            var text = TranslationManager.Instance["General_LegacyTokenPrefixNotice"];
-
             // A balloon is the right surface: this is a notice about a saved setting, not a question, and it
-            // must not block startup. Clicking it jumps straight to the field that needs changing -- the same
-            // entry the settings search box resolves that key to.
+            // must not block startup. Clicking it jumps straight to the prefix field -- the same entry the
+            // settings search box resolves that key to.
             Application.Current?.Dispatcher.BeginInvoke(new Action(
                 () => TrayIconService.Instance?.ShowBalloonTip(
                     title,
-                    text,
+                    text!,
                     ToolTipIcon.Warning,
                     onClick: OpenTokenPrefixSetting)));
         }
@@ -52,6 +55,28 @@ public static class LegacySettingsNoticeService
             Logger.Log($"[App] Legacy settings notice failed: {ex.Message}", LogLevel.Warn);
         }
     });
+
+    // Which legacy notice, if any, this settings file needs -- or (null, null) to say nothing.
+    private static (string? Title, string? Text) Describe(UserSettings settings)
+    {
+        if (LegacySettingsAdvisor.ClearLegacyFilterPrefix(settings) is { } previous)
+        {
+            return (
+                TranslationManager.Instance["General_MergedFilterPrefixTitle"],
+                string.Format(
+                    TranslationManager.Instance["General_MergedFilterPrefixNotice"],
+                    previous,
+                    settings.GlobalTokenPrefix));
+        }
+
+        if (!LegacySettingsAdvisor.ShouldShowNotice(settings))
+            return (null, null);
+
+        settings.LegacyTokenPrefixNoticeShown = true;
+        return (
+            TranslationManager.Instance["General_LegacyTokenPrefixTitle"],
+            TranslationManager.Instance["General_LegacyTokenPrefixNotice"]);
+    }
 
     // Jumps to the prefix row itself (section, tab, and highlight) rather than just the General section,
     // so the user lands on the field the notice is about. Falls back to the plain section if the index

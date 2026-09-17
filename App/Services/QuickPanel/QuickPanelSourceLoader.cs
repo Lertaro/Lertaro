@@ -37,7 +37,7 @@ public static class QuickPanelSourceLoader
         if (string.IsNullOrWhiteSpace(sourcePath))
             return new List<SearchResult>();
 
-        var filter = QuickPanelFilterParser.Parse(source.FilterPattern, GetGlobalTokenPrefix());
+        var filter = QuickPanelFilterParser.Parse(source.FilterPattern, GlobalTokenPrefix.Current);
 
         if (source.Kind == QuickPanelSourceKind.RecentFiles)
         {
@@ -129,12 +129,6 @@ public static class QuickPanelSourceLoader
         }
 
         return results.Where(matched.Contains).ToList();
-    }
-
-    private static char GetGlobalTokenPrefix()
-    {
-        var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return string.IsNullOrEmpty(prefix) ? '\\' : prefix[0];
     }
 
     private static void AddResult(
