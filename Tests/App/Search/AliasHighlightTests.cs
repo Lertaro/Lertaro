@@ -161,6 +161,23 @@ public sealed class AliasHighlightTests
         // query never described until the search stopped being allowed to scatter.
         CollectionAssert.AreEqual(new[] { 1, 2, 3 }, Lit("甲乙丙丁", "tqg"));
 
+    // Reported: searching "wangfei \audio" showed "**我愿**意-**王菲**.mp3". The row matched on 王菲 alone;
+    // 我愿 lit up because the alias walk started at the earliest possible position and spent the term's
+    // first letters on 我 ("wo") and 愿 ("yu**an**") before it ever reached 王 ("wan**g**"). Here "gan" is
+    // 丁's reading and "an" is a run inside it; both used to start their walk in an earlier character
+    // (乙's "tin**g**", 甲's "ji**a**") and light that too.
+    //
+    // (\audio is a plugin token: it is lifted out of the query and only filters, so it contributes nothing
+    // to the mask -- everything lit came from "wangfei".)
+    [TestMethod]
+    public void FuzzyTerm_LightsTheTightestAlignmentNotTheEarliestOne()
+    {
+        SearchContext.DefaultFuzzyMatchEnabled = true;
+
+        CollectionAssert.AreEqual(new[] { 3 }, Lit("甲乙丙丁", "gan"), "one character's own reading");
+        CollectionAssert.AreEqual(new[] { 3 }, Lit("甲乙丙丁", "an"), "a run inside it");
+    }
+
     [TestMethod]
     public void CrossBoundaryLetters_MatchNothingAndLightNothing()
     {
