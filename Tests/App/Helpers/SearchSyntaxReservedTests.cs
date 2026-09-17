@@ -160,6 +160,37 @@ public sealed class SearchSyntaxReservedTests
         Assert.Contains("?", SearchSyntaxReserved.DescribeLeadingCharacters());
     }
 
+    // Two sentences, two sets. "Which characters may not start a trigger" is not the same question as
+    // "which characters may not be a token PREFIX" (the prefix is not reserved against itself), and using
+    // one list for both is how the shipped help text came to name the '\' it defaults to.
+    [TestMethod]
+    public void UnusableTokenPrefixCharacters_IsTheReservedSetWithoutThePrefixItself()
+    {
+        var usable = SearchSyntaxReserved.UnusableTokenPrefixCharacters;
+
+        Assert.DoesNotContain(SearchSyntaxReserved.TokenPrefixCharacter, usable);
+        Assert.HasCount(SearchSyntaxReserved.LeadingCharacters.Count - 1, usable);
+        foreach (var c in SearchSyntaxReserved.LeadingCharacters)
+        {
+            if (c != SearchSyntaxReserved.TokenPrefixCharacter)
+                Assert.Contains(c, usable);
+        }
+
+        // Every one of them really is refused, which is what the help text claims.
+        foreach (var c in usable)
+            Assert.IsTrue(SearchSyntaxReserved.IsUnusableAsTokenPrefix(c));
+    }
+
+    [TestMethod]
+    public void DescribeUnusableTokenPrefixCharacters_NamesEveryRefusedCharacterAndNotThePrefixItself()
+    {
+        var described = SearchSyntaxReserved.DescribeUnusableTokenPrefixCharacters();
+
+        foreach (var c in SearchSyntaxReserved.UnusableTokenPrefixCharacters)
+            Assert.Contains(c.ToString(), described);
+        Assert.DoesNotContain(SearchSyntaxReserved.TokenPrefixCharacter.ToString(), described);
+    }
+
     [TestMethod]
     [DataRow('a')]
     [DataRow('!')]

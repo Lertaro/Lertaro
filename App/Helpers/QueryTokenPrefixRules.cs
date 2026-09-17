@@ -14,7 +14,7 @@ namespace Lertaro.App.Helpers;
 //
 // There are two real collisions:
 //
-//   1. the search syntax, which consumes '<' '>' ':' '*' and '/' at the start of a query whatever the
+//   1. the search syntax, which consumes '<' '>' ':' '*' '/' and '?' at the start of a query whatever the
 //      configured prefix is -- the sort/filter pair worst of all, since QueryTokenScanner pulls those
 //      words out before any plugin sees them, leaving the plugin tokens permanently unreachable;
 //   2. a SECOND plugin declaring a prefix that a first one already answers to.
@@ -23,8 +23,9 @@ namespace Lertaro.App.Helpers;
 // lifts a token by the global prefix and hands it to the provider with that character still on the front
 // (QueryTokenScanner.Scan(query, GlobalTokenPrefix)), so a provider only ever claims tokens whose leading
 // character equals its own configured prefix -- the two matching is what makes the feature work, and a
-// mismatch is what silently kills it. Reporting the match as a collision (as this file used to) flagged
-// the shipped defaults, where both are '\'.
+// mismatch is what breaks it (the token is lifted out of the query and then claimed by nobody, which
+// QueryTokenDispatcher answers with an empty result list). Reporting the match as a collision (as this
+// file used to) flagged the shipped defaults, where both are '\'.
 //
 // The plugin prefixes are found by walking each loaded plugin's config SCHEMA rather than by referencing
 // the plugin: a Text field whose MaxLength is 1 IS a single-character trigger, which is the only reason
@@ -66,15 +67,17 @@ public static class QueryTokenPrefixRules
         // prefix with the regex clause delimiter, and the settings field is the place to say so. This
         // deliberately subsumes the '<'/'>' case, which is the strictly worse variant of the same mistake.
         //
-        // The message interpolates the reserved list rather than naming characters itself, so it stays
-        // true for all five cases -- it used to name only '<'/'>', which mis-explained ':' and '*'.
+        // The message interpolates the set that actually applies rather than naming characters itself, so
+        // it stays true as the syntax grows -- it used to name only '<'/'>', which mis-explained ':' '*'
+        // and '/', and it used to interpolate the FULL reserved list, which told a user whose ':' was
+        // refused that '\' is reserved too -- under a field whose default IS '\'.
         //
         // '\' is deliberately NOT one of them: it is this field's own character (see
         // SearchSyntaxReserved.IsUnusableAsTokenPrefix), so the shipped default reports nothing.
         return SearchSyntaxReserved.IsUnusableAsTokenPrefix(globalPrefix[0])
             ? string.Format(
                 TranslationManager.Instance["General_GlobalTokenPrefixConflictReserved"],
-                SearchSyntaxReserved.DescribeLeadingCharacters())
+                SearchSyntaxReserved.DescribeUnusableTokenPrefixCharacters())
             : null;
     }
 

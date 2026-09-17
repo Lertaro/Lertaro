@@ -60,11 +60,42 @@ public sealed class TranslationResourcesTests
     [DataRow("Plugins_CoreActionPluginName")]
     [DataRow("CoreExtensions_PluginDesc")]
     [DataRow("CoreExtensions_Config_WildcardFilterPrefixLabel")]
+    [DataRow("Plugins_TokenKeywordHint")]
+    [DataRow("General_MergedFilterPrefixNotice")]
     public void PluginTranslations_ResolveTheKeysTheAppLooksUpByLiteral(string key)
     {
         var translations = new CoreTranslationProvider().GetTranslations("en-US");
         Assert.IsTrue(translations.ContainsKey(key), $"en-US is missing '{key}'");
         Assert.IsFalse(string.IsNullOrWhiteSpace(translations[key]), $"en-US has an empty value for '{key}'");
+    }
+
+    // The two host-filled strings. "{0}" is what makes the settings page able to name a character the
+    // plugin cannot know -- the app-wide token prefix, and the list of characters a prefix may not be --
+    // so the placeholder being present in EVERY locale is the contract, not a formatting detail.
+    //
+    // The prefix field's own help text is where this went wrong twice: it hardcoded a list that named the
+    // '\' the field itself defaults to, and was already missing the characters the syntax had gained since.
+    // Both strings are checked here so neither can quietly go back to a literal.
+    [TestMethod]
+    public void HostFilledStrings_CarryTheirPlaceholdersInEveryLocale()
+    {
+        var provider = new CoreTranslationProvider();
+        var cultures = provider.SupportedCultures.ToList();
+        Assert.IsNotEmpty(cultures, "the plugin must ship at least one locale");
+
+        foreach (var culture in cultures)
+        {
+            var translations = provider.GetTranslations(culture);
+
+            Assert.IsTrue(translations.TryGetValue("Plugins_TokenKeywordHint", out var hint),
+                $"{culture} is missing the token keyword hint");
+            Assert.Contains("{0}", hint!, $"{culture} must let the app fill in the token to type");
+
+            Assert.IsTrue(translations.TryGetValue("General_MergedFilterPrefixNotice", out var notice),
+                $"{culture} is missing the merged-prefix notice");
+            Assert.Contains("{0}", notice!, $"{culture} must name the prefix that was replaced");
+            Assert.Contains("{1}", notice!, $"{culture} must name the prefix that replaced it");
+        }
     }
 
     // SupportedCultures is what the app iterates to discover locales; it derives them from the same

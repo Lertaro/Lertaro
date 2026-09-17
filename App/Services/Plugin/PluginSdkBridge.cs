@@ -193,6 +193,13 @@ internal static class PluginSdkBridge
         // fallback) instead of reimplementing a fuzzy matcher of their own
         PluginSdk.Services.FuzzyMatchService.IsMatchFunc = FuzzyMatcher.IsMatch;
 
+        // The token prefix is a property of the search syntax, so a plugin that recognizes a query token
+        // reads it here rather than storing its own copy. CoreExtensions used to store one
+        // ("CustomFilterPrefix"); when the two drifted apart the host still lifted the word out of the
+        // query, no provider claimed it, and the search returned nothing at all -- with no setting left to
+        // explain why. Reading the host's value is what makes that state unreachable rather than documented.
+        PluginSdk.Services.SearchSyntaxService.TokenPrefixFunc = () => GlobalTokenPrefix.Current;
+
         // Wire up the highlight-mask delegate so plugins share the exact same literal/fuzzy/alias
         // highlighting tiers (including CJK pinyin) as the host's own results, instead of each
         // reimplementing a literal-substring-only highlighter that misses fuzzy/alias matches

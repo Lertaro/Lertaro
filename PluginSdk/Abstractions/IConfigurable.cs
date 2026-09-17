@@ -35,7 +35,16 @@ public enum ConfigFieldValidation
     /// SearchSyntaxReserved), because that character is stripped before the provider ever sees the query
     /// and the trigger would silently never fire.
     /// </summary>
-    TriggerKeyword
+    TriggerKeyword,
+
+    /// <summary>
+    /// A query-token keyword: the word a provider recognizes after the token prefix, as in the "audio" of
+    /// "\audio". No rule is validated against it -- it is matched inside a token, so a leading character
+    /// the syntax owns is harmless here -- but declaring it lets the host SHOW the user the whole token to
+    /// type, prefix included. Without that the settings page can only describe the field in the abstract,
+    /// because the prefix is not this plugin's to know (see the host's SearchSyntaxService).
+    /// </summary>
+    TokenKeyword
 }
 
 public class PluginConfigField

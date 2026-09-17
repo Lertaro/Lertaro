@@ -1,3 +1,4 @@
+using Lertaro.App.Helpers;
 using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services.Plugin;
@@ -65,7 +66,7 @@ internal sealed class SearchQueryDispatchController
     {
         // The bypass marker is stripped before the scan: the scanner reads a trigger from a word's first
         // character only, so "*\audio" would otherwise stay ordinary text (see StripExclusionBypass).
-        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GetGlobalTokenPrefixChar());
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GlobalTokenPrefix.Current);
         _queryTokens = scan.Tokens;
         var cleanQuery = scan.Text;
         // A file-filter scope keyword ("tf report" -> search "report" only inside the tf filter's folders)
@@ -306,11 +307,5 @@ internal sealed class SearchQueryDispatchController
         _getAllResults().Clear();
         _applyFiltersAndRender(false, 0);
         _setLoadingPanelVisibility(Visibility.Collapsed);
-    }
-
-    private static char GetGlobalTokenPrefixChar()
-    {
-        var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return !string.IsNullOrEmpty(prefix) ? prefix[0] : '\\';
     }
 }

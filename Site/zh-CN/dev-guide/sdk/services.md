@@ -7,6 +7,7 @@
 | 宿主服务 | 核心方法与签名 | 功能说明 |
 | :--- | :--- | :--- |
 | **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)`<br>`double GetMatchScore(string text, string query)` | 运行与宿主完全一致的 fzf 模糊匹配引擎，计算字符级的高亮布尔掩码（自动支持汉字拼音多级兜底），并提供用于统一排序的匹配质量评分。 |
+| **`SearchSyntaxService`** | `char TokenPrefix { get; }` | 插件查询标记的起始字符，取自「设置 → 通用 → 系统」。请直接读它，不要自己存一份：宿主的扫描器按该字符把词摘出查询，并把字符连着交给插件，因此自存一份只可能"恰好一致"或"静默什么都认领不到"。 |
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 多语言动态解析与运行时变更广播。`GetCurrentCulture()` 返回用户在设置中心显式选择的界面语言代码（如 `"zh-CN"`）；订阅 `CultureChanged` 可在界面语言切换时动态刷新内部状态或重载字典。 |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | 带内存与磁盘缓存的 Windows Shell 文件图标与缩略图提取服务。 |
 | **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | 读取收藏夹、检查路径是否已登记，并通过宿主桥接添加收藏项。 |

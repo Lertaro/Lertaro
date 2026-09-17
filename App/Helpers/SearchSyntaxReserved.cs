@@ -65,6 +65,21 @@ public static class SearchSyntaxReserved
     // ever sees the query.
     public static bool IsReserved(char value) => LeadingCharacters.Contains(value);
 
+    // The characters that actually make a token prefix unusable: every reserved character EXCEPT '\'.
+    //
+    // '\' is reserved only because it IS the prefix -- QueryTokenScanner reads a word as a token because it
+    // was handed '\', not because anything else consumes it (see IsUnusableAsTokenPrefix). Naming it in a
+    // sentence about which characters a prefix field may not use therefore contradicted the shipped
+    // default, and twice shipped that way: the app-wide field's conflict message and the CoreExtensions
+    // prefix field's help text both listed '\' among the forbidden characters while defaulting to it.
+    public static IReadOnlyList<char> UnusableTokenPrefixCharacters { get; } =
+        LeadingCharacters.Where(c => c != TokenPrefixCharacter).ToArray();
+
+    // The characters in UnusableTokenPrefixCharacters, listed for a message about a prefix field. The
+    // separate method from DescribeLeadingCharacters is the whole point: the two sentences talk about
+    // different sets, and one list used for both is how the contradiction above got written.
+    public static string DescribeUnusableTokenPrefixCharacters() => string.Join(' ', UnusableTokenPrefixCharacters);
+
     /// <summary>
     /// True when this character cannot be the plugin query token prefix. Narrower than
     /// <see cref="IsReserved"/> by exactly one character, and for a real reason: the token prefix is not

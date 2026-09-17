@@ -7,6 +7,7 @@
 | 서비스명 | 주요 메서드 및 시그니처 | 기능 설명 |
 | :--- | :--- | :--- |
 | **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)`<br>`double GetMatchScore(string text, string query)` | 호스트와 동일한 fzf 퍼지 매칭 엔진을 실행하고 문자 단위 하이라이트 마스크를 계산하며, 일관된 결과 정렬에 사용할 매칭 품질 점수를 제공합니다. |
+| **`SearchSyntaxService`** | `char TokenPrefix { get; }` | 플러그인 쿼리 토큰의 시작 문자(「설정 → 일반 → 시스템」에서 설정). 직접 보관하지 말고 여기서 읽으세요. 호스트의 스캐너가 이 문자로 단어를 검색어에서 떼어내고 문자를 붙인 채 넘기므로, 자체 값은 '우연히 일치'하거나 '아무것도 처리하지 못하는' 둘 중 하나가 됩니다. |
 | **`TranslationService`** | `string Get(string key)`<br>`string Format(string key, params object[] args)`<br>`void LoadEmbeddedTranslations(...)`<br>`string GetCurrentCulture()`<br>`event Action<string>? CultureChanged` | 다국어 동적 파싱 및 런타임 언어 변경 브로드캐스트. `GetCurrentCulture()`는 OS 언어가 아닌 설정 센터에서 선택된 UI 언어 코드(예: `"ko-KR"`)를 반환하며, `CultureChanged`를 구독하여 UI 언어 변경 시 사전 재로드 및 내부 상태를 갱신할 수 있습니다. |
 | **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)` | 메모리 및 디스크 캐시가 적용된 Windows Shell 파일 아이콘 및 썸네일 추출. |
 | **`FavoritesService`** | `IReadOnlyList<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | 즐겨찾기 목록 조회, 경로의 등록 여부 확인, 호스트 브리지를 통한 즐겨찾기 추가를 제공합니다. |
