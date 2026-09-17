@@ -214,9 +214,10 @@ public static class AppSearchPipeService
         var dispatched = await QueryTokenDispatcher.ApplyAsync(appResults, tokens, token);
 
         // Highlight against each item's own (possibly token-extended) SearchQuery -- not the bare
-        // `query` -- so a result kept alive by e.g. an "::expr" token highlights the same characters the
-        // real GUI's TextHighlighter would, since QueryTokenDispatcher.ApplyAsync can append extra
-        // highlight terms onto SearchQuery per result.
+        // `query` -- so a result kept alive by a token highlights the same characters the real GUI's
+        // TextHighlighter would, since QueryTokenDispatcher.ApplyAsync can append extra highlight terms
+        // onto SearchQuery per result. Both go through FzfPattern.Parse, so the two agree on what the
+        // query means as well as on which characters matched.
         var written = 0;
         foreach (var item in dispatched)
         {
