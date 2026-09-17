@@ -199,9 +199,13 @@ internal static class FzfPatternParser
             AddAliasQueryForms(current, positive, kind);
     }
 
-    // Shared with FuzzyMatcher's own operator-compatible entry point, which builds its term sets by
-    // hand rather than through Parse -- a query reaching that seam has no search pipeline in front of it
-    // and keeps the term operators, so it needs the same alias-form expansion the pipeline gets here.
+    // The provider-supplied spellings of one typed word, added to that word's own term set as OR alternatives.
+    //
+    // A word typed as one run of letters is not present verbatim in an alias that marks syllable boundaries
+    // ("wangfei" against "wang\u0002fei"), so without these forms a pinyin query could only reach a CJK name
+    // through the fuzzy reading -- an exact or '?'-inverted term would find nothing at all. Only the term's
+    // own words get them: the exclusion path skips this call, because a pinyin spelling must not be able to
+    // exclude a file the user never named.
     internal static void AddAliasQueryForms(List<FzfTerm> current, string lower, FzfTermKind kind)
     {
         if (lower.Length == 0)
@@ -264,12 +268,13 @@ internal static class FzfPatternParser
         return merged;
     }
 
+    // A word that OPENS a quoted phrase: the "'..." form. The quote characters are ordinary text now (see
+    // TermTriggers), but the merger still has to keep a quoted phrase as ONE token -- without it "'final
+    // report'" would become two ANDed words and match names the documentation says it cannot match (it shows
+    // that query finding nothing, because no file name contains an apostrophe). A leading '!' is not an
+    // operator any more, so "!'a b'" is two words rather than a quoted phrase.
     private static int QuoteStartIndex(string token)
-    {
-        if (token.StartsWith("'", StringComparison.Ordinal))
-            return 0;
-        return token.Length > 1 && token[0] == '!' && token[1] == '\'' ? 1 : -1;
-    }
+        => token.StartsWith("'", StringComparison.Ordinal) ? 0 : -1;
 
     private static bool IsSelfClosingQuote(string token, int open)
         => token.Length > open + 2 && token.EndsWith("'", StringComparison.Ordinal);
