@@ -187,6 +187,7 @@ internal static class QuickNavigationMenuContentExtensions
             };
             menuItem.MouseEnter += (s, e) => QuickNavigationSubMenuLoader.EnsureLoaded(menuItem, result, item, provider, contextMenu, trigger);
             menuItem.SubmenuOpened += (s, e) => { if (e.OriginalSource == menuItem) QuickNavigationSubMenuLoader.EnsureLoaded(menuItem, result, item, provider, contextMenu, trigger); };
+            QuickNavigationSubmenuKeepAlive.Attach(menuItem, contextMenu);
         }
         else
         {
