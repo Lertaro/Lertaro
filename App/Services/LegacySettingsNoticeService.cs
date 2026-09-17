@@ -1,5 +1,7 @@
+using Lertaro.App.Helpers;
 using Lertaro.App.Services.AppWindow;
 using Lertaro.App.Services.Tray;
+using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
 using Application = System.Windows.Application;
 
@@ -17,9 +19,11 @@ public static class LegacySettingsNoticeService
     /// after the window is up, so the balloon has a tray icon to attach to.
     /// </summary>
     /// <remarks>
-    /// Two different legacies, one balloon: at most one of them is worth interrupting startup for, and the
-    /// merged-prefix one wins because it is the change the user cannot see coming -- their filter rules stop
-    /// working and there is no longer a field showing the prefix they were written against.
+    /// Three different legacies, one balloon: at most one of them is worth interrupting startup for, and they
+    /// are checked in the order of how much the user needs to know.
+    ///
+    /// Every check MUTATES the settings (that is what makes each one unrepeatable), so the save below is not
+    /// optional: without it the same balloon comes back on the next launch.
     /// </remarks>
     public static void RunOnStartup() => _ = Task.Run(async () =>
     {
@@ -30,14 +34,14 @@ public static class LegacySettingsNoticeService
             await Task.Delay(4000);
 
             var settings = UserSettings.Load();
-            var (title, text) = Describe(settings);
+            var (title, text, changed) = Describe(settings);
             if (title == null)
                 return;
 
-            // Saved before the balloon is shown. The recorded value is a one-time piece of guidance, and a
-            // failure between here and the balloon must not turn it into a once-per-launch nag. (The other
-            // legacy needs no flag: clearing the stale key is itself what makes it unrepeatable.)
-            settings.Save();
+            // Saved before the balloon is shown. The recorded values are one-time pieces of guidance, and a
+            // failure between here and the balloon must not turn them into a once-per-launch nag.
+            if (changed)
+                settings.Save();
 
             // A balloon is the right surface: this is a notice about a saved setting, not a question, and it
             // must not block startup. Clicking it jumps straight to the prefix field -- the same entry the
@@ -55,26 +59,57 @@ public static class LegacySettingsNoticeService
         }
     });
 
-    // Which legacy notice, if any, this settings file needs -- or (null, null) to say nothing.
-    private static (string? Title, string? Text) Describe(UserSettings settings)
+    // Which legacy notice, if any, this settings file needs -- or (null, null, false) to say nothing. The
+    // flag says whether anything was changed and therefore needs saving.
+    private static (string? Title, string? Text, bool Changed) Describe(UserSettings settings)
     {
-        if (LegacySettingsAdvisor.ClearLegacyFilterPrefix(settings) is { } previous)
+        if (LegacySettingsAdvisor.TakeLegacyFilterPrefix(settings) is { } previous)
         {
             return (
                 TranslationManager.Instance["General_MergedFilterPrefixTitle"],
                 string.Format(
                     TranslationManager.Instance["General_MergedFilterPrefixNotice"],
                     previous,
-                    settings.GlobalTokenPrefix));
+                    settings.GlobalTokenPrefix),
+                true);
+        }
+
+        var precisionItems = TakePrecisionTriggerCollisions(settings);
+        if (precisionItems.Count > 0)
+        {
+            return (
+                TranslationManager.Instance["General_PrecisionTriggerTitle"],
+                string.Format(TranslationManager.Instance["General_PrecisionTriggerNotice"], string.Join(", ", precisionItems)),
+                true);
         }
 
         if (!LegacySettingsAdvisor.ShouldShowNotice(settings))
-            return (null, null);
+            return (null, null, false);
 
         settings.LegacyTokenPrefixNoticeShown = true;
         return (
             TranslationManager.Instance["General_LegacyTokenPrefixTitle"],
-            TranslationManager.Instance["General_LegacyTokenPrefixNotice"]);
+            TranslationManager.Instance["General_LegacyTokenPrefixNotice"],
+            true);
+    }
+
+    // The '?' collisions, as the human-readable list the notice interpolates: every entry names the value that
+    // was there and, where one exists, the localized label of the setting it lived in. Interpolating labels
+    // rather than writing names here is what keeps this sentence true in all seven languages.
+    private static List<string> TakePrecisionTriggerCollisions(UserSettings settings)
+    {
+        var items = new List<string>();
+
+        if (LegacySettingsAdvisor.TakePrecisionTriggerTokenPrefix(settings))
+            items.Add($"? ({TranslationManager.Instance["General_GlobalTokenPrefix"]})");
+
+        foreach (var (typeId, trigger) in LegacySettingsAdvisor.TakePrecisionTriggerResultTypes(settings))
+            items.Add($"{trigger} ({SearchResultTypePriority.GetDisplayName(typeId) ?? typeId})");
+
+        foreach (var (_, pluginName, _, value) in PluginTriggerKeywordMigration.TakeUnusable(settings, PluginTriggerKeywordMigration.Candidates()))
+            items.Add($"{value} ({pluginName})");
+
+        return items;
     }
 
     // Jumps to the prefix row itself (section, tab, and highlight) rather than just the General section,

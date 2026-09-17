@@ -73,44 +73,118 @@ public sealed class LegacySettingsAdvisorTests
     private const string Key = "CustomFilterPrefix";
 
     [TestMethod]
-    public void ClearLegacyFilterPrefix_DisagreeingValue_IsRemovedAndReported()
+    public void TakeLegacyFilterPrefix_DisagreeingValue_IsRemovedAndReported()
     {
         var settings = new UserSettings { GlobalTokenPrefix = "\\" };
         settings.SetPluginSetting(PluginId, Key, "#");
 
-        Assert.AreEqual("#", LegacySettingsAdvisor.ClearLegacyFilterPrefix(settings));
+        Assert.AreEqual("#", LegacySettingsAdvisor.TakeLegacyFilterPrefix(settings));
         Assert.IsNull(settings.GetPluginSetting<string?>(PluginId, Key, null), "the stale key must be gone");
     }
 
     [TestMethod]
-    public void ClearLegacyFilterPrefix_AgreeingValue_IsRemovedButNotReported()
+    public void TakeLegacyFilterPrefix_AgreeingValue_IsRemovedButNotReported()
     {
         // Nothing changed for the user, so there is nothing to tell them -- but the key is still dead
         // weight pointing at a setting that no longer exists, so it goes.
         var settings = new UserSettings { GlobalTokenPrefix = "\\" };
         settings.SetPluginSetting(PluginId, Key, "\\");
 
-        Assert.IsNull(LegacySettingsAdvisor.ClearLegacyFilterPrefix(settings));
+        Assert.IsNull(LegacySettingsAdvisor.TakeLegacyFilterPrefix(settings));
         Assert.IsNull(settings.GetPluginSetting<string?>(PluginId, Key, null));
     }
 
     [TestMethod]
-    public void ClearLegacyFilterPrefix_NothingStored_ReportsNothing()
+    public void TakeLegacyFilterPrefix_NothingStored_ReportsNothing()
     {
         var settings = new UserSettings();
 
-        Assert.IsNull(LegacySettingsAdvisor.ClearLegacyFilterPrefix(settings));
+        Assert.IsNull(LegacySettingsAdvisor.TakeLegacyFilterPrefix(settings));
     }
 
     [TestMethod]
-    public void ClearLegacyFilterPrefix_IsNotRepeatable()
+    public void TakeLegacyFilterPrefix_IsNotRepeatable()
     {
         // This is what makes the notice need no "already shown" flag of its own: removing the key is the
         // fix, so a second launch cannot find the condition again and nag about it.
         var settings = new UserSettings { GlobalTokenPrefix = "\\" };
         settings.SetPluginSetting(PluginId, Key, "#");
 
-        Assert.IsNotNull(LegacySettingsAdvisor.ClearLegacyFilterPrefix(settings));
-        Assert.IsNull(LegacySettingsAdvisor.ClearLegacyFilterPrefix(settings));
+        Assert.IsNotNull(LegacySettingsAdvisor.TakeLegacyFilterPrefix(settings));
+        Assert.IsNull(LegacySettingsAdvisor.TakeLegacyFilterPrefix(settings));
+    }
+
+    // The '?' collision: the precision-inversion trigger is read from a word's first character, which is
+    // exactly where the app-wide token prefix and a per-result-type trigger are read. A value saved before '?'
+    // became an operator therefore cannot work any more -- and in the prefix's case it does not merely lose
+    // the inversion, it gets the whole word lifted out of the query as a token nobody claims.
+    [TestMethod]
+    public void TakePrecisionTriggerTokenPrefix_PrecisionValue_IsResetToTheDefault()
+    {
+        var settings = new UserSettings { GlobalTokenPrefix = "?" };
+
+        Assert.IsTrue(LegacySettingsAdvisor.HasPrecisionTriggerCollisions(settings));
+        Assert.IsTrue(LegacySettingsAdvisor.TakePrecisionTriggerTokenPrefix(settings));
+        Assert.AreEqual("\\", settings.GlobalTokenPrefix, "the shipped default is the only prefix that cannot collide");
+        Assert.IsFalse(LegacySettingsAdvisor.TakePrecisionTriggerTokenPrefix(settings), "and it must not fire twice");
+    }
+
+    [TestMethod]
+    [DataRow("\\")]
+    [DataRow(":")]
+    [DataRow("#")]
+    [DataRow("")]
+    public void TakePrecisionTriggerTokenPrefix_AnythingElse_IsLeftAlone(string prefix)
+    {
+        // ':' is the OTHER legacy, and it is a separate notice with its own meaning: it still tokenizes, it
+        // just collides with the exclusion operator. Nothing here may rewrite it.
+        var settings = new UserSettings { GlobalTokenPrefix = prefix };
+
+        Assert.IsFalse(LegacySettingsAdvisor.TakePrecisionTriggerTokenPrefix(settings));
+        Assert.AreEqual(prefix, settings.GlobalTokenPrefix);
+    }
+
+    [TestMethod]
+    public void TakePrecisionTriggerResultTypes_PrecisionTriggers_AreClearedAndReported()
+    {
+        var settings = new UserSettings
+        {
+            ResultTypeTriggers = new Dictionary<string, string>
+            {
+                ["Files"] = "?",
+                ["SomeProvider"] = "?x",
+                ["OtherProvider"] = ";",
+            },
+        };
+
+        var taken = LegacySettingsAdvisor.TakePrecisionTriggerResultTypes(settings);
+
+        Assert.HasCount(2, taken);
+        Assert.Contains(item => item.TypeId == "Files" && item.Trigger == "?", taken);
+        Assert.Contains(item => item.TypeId == "SomeProvider" && item.Trigger == "?x", taken);
+        Assert.IsTrue(settings.ResultTypeTriggers.ContainsKey("OtherProvider"), "a usable trigger must survive");
+        Assert.IsFalse(settings.ResultTypeTriggers.ContainsKey("Files"), "a cleared trigger must be gone, so the feature falls back to its working default");
+    }
+
+    [TestMethod]
+    public void TakePrecisionTriggerResultTypes_IsNotRepeatable()
+    {
+        var settings = new UserSettings { ResultTypeTriggers = new Dictionary<string, string> { ["Files"] = "?" } };
+
+        Assert.HasCount(1, LegacySettingsAdvisor.TakePrecisionTriggerResultTypes(settings));
+        Assert.IsEmpty(LegacySettingsAdvisor.TakePrecisionTriggerResultTypes(settings));
+        Assert.IsFalse(LegacySettingsAdvisor.HasPrecisionTriggerCollisions(settings));
+    }
+
+    [TestMethod]
+    public void HasPrecisionTriggerCollisions_UsableSettings_SaysNothing()
+    {
+        var settings = new UserSettings
+        {
+            GlobalTokenPrefix = "\\",
+            ResultTypeTriggers = new Dictionary<string, string> { ["Files"] = ";" },
+        };
+
+        Assert.IsFalse(LegacySettingsAdvisor.HasPrecisionTriggerCollisions(settings));
     }
 }

@@ -24,6 +24,10 @@ public static class LegacySettingsAdvisor
     // value cannot drift.
     private const string ShippedLegacyTokenPrefix = ":";
 
+    // The prefix this release ships, and the one a reset collision falls back to. The App's
+    // GlobalTokenPrefix.Default and GeneralSettingsApplier's blank-to-default rule name the same character.
+    private const string DefaultTokenPrefix = "\\";
+
     /// <summary>
     /// True when the saved plugin query token prefix is the one the previous release shipped, which the
     /// current syntax no longer accepts. False once the user has changed it -- including to another value
@@ -58,7 +62,9 @@ public static class LegacySettingsAdvisor
     /// meant anything different.
     /// </summary>
     /// <remarks>
-    /// The plugin now reads the prefix from the search syntax itself (the SDK's SearchSyntaxService), so the
+    /// Named "Take" rather than "Clear" because it MUTATES the settings, and the caller has to save them for
+    /// the change to stick -- the same contract as <see cref="TakePrecisionTriggerResultTypes"/>. The
+    /// plugin now reads the prefix from the search syntax itself (the SDK's SearchSyntaxService), so the
     /// stored copy can only ever be stale: it names a character its own tokens no longer answer to, and any
     /// sidebar filter rule written with it stops expanding. Cleared rather than migrated, because there is no
     /// new key to migrate it to.
@@ -66,13 +72,83 @@ public static class LegacySettingsAdvisor
     /// This is also why the notice built on it needs no "already shown" flag of its own: deleting the key is
     /// what makes the condition unrepeatable, so a second launch cannot nag.
     /// </remarks>
-    public static string? ClearLegacyFilterPrefix(UserSettings settings)
+    public static string? TakeLegacyFilterPrefix(UserSettings settings)
     {
         var stored = settings.GetPluginSetting<string?>(LegacyFilterPrefixPluginId, LegacyFilterPrefixKey, null);
         if (string.IsNullOrEmpty(stored))
             return null;
 
         settings.SetPluginSetting(LegacyFilterPrefixPluginId, LegacyFilterPrefixKey, null);
-        return stored == settings.GlobalTokenPrefix ? null : stored;
+
+        // The key is redundant once it agrees with the host's value, so it is dropped either way -- but only
+        // the disagreeing one is worth a balloon, and the agreeing one would otherwise vanish with no trace
+        // at all. Recorded, so that decision is auditable after the fact.
+        if (stored == settings.GlobalTokenPrefix)
+        {
+            Logger.Log($"[LegacySettings] Removed '{LegacyFilterPrefixKey}' from {LegacyFilterPrefixPluginId}: it duplicated the host's token prefix.", LogLevel.Debug);
+            return null;
+        }
+
+        return stored;
     }
+
+    // The precision-inversion trigger, as the parser reads it from a term's first character (see
+    // TermTriggers, the one place that reads it). The App mirrors this in SearchSyntaxReserved, which is also
+    // where the settings-time warning about it lives.
+    private const char PrecisionInversion = SearchIndex.Fzf.TermTriggers.PrecisionInversion;
+    private const string PrecisionInversionText = "?";
+
+    /// <summary>
+    /// True when a saved value can no longer work because '?' became the precision-inversion trigger after it
+    /// was written: a '?' token prefix retires the inversion AND gets every plugin token lifted out of the
+    /// query with nobody to claim it, and a '?' per-result-type trigger eats the character before the engine
+    /// ever sees the query.
+    /// </summary>
+    public static bool HasPrecisionTriggerCollisions(UserSettings settings)
+        => settings.GlobalTokenPrefix == PrecisionInversionText || TakeableResultTypes(settings).Count > 0;
+
+    /// <summary>
+    /// Puts the app-wide token prefix back to its shipped default when a settings file holds '?', returning
+    /// whether it did. Mutates: the caller has to save.
+    /// </summary>
+    /// <remarks>
+    /// The prefix is read before every word is offered to anything else, so a '?' there is the worse of the
+    /// two collisions: the word is lifted out as a token, no provider claims it, and the search returns
+    /// nothing at all -- which looks like the feature being broken rather than like one character being
+    /// reserved. The default is restored rather than the value being reported, because there is no way to
+    /// keep '?' working in both roles.
+    /// </remarks>
+    public static bool TakePrecisionTriggerTokenPrefix(UserSettings settings)
+    {
+        if (settings.GlobalTokenPrefix != PrecisionInversionText)
+            return false;
+
+        settings.GlobalTokenPrefix = DefaultTokenPrefix;
+        return true;
+    }
+
+    /// <summary>
+    /// Clears every per-result-type trigger that is now the precision-inversion character, returning the ones
+    /// it cleared so the caller can name them. Mutates: the caller has to save.
+    /// </summary>
+    /// <remarks>
+    /// Cleared rather than reset: "no trigger" is the working default for this feature (the type is then
+    /// reached like every other one), while a trigger of '?' means the quick window reads the character as
+    /// "only this result type" and searches the REST of the query with fuzzy matching -- the exact opposite
+    /// of what the user typed. Idempotent, which is what makes the notice it feeds unrepeatable.
+    /// </remarks>
+    public static List<(string TypeId, string Trigger)> TakePrecisionTriggerResultTypes(UserSettings settings)
+    {
+        var taken = TakeableResultTypes(settings);
+        foreach (var (typeId, _) in taken)
+            settings.ResultTypeTriggers.Remove(typeId);
+
+        return taken;
+    }
+
+    private static List<(string TypeId, string Trigger)> TakeableResultTypes(UserSettings settings)
+        => settings.ResultTypeTriggers
+            .Where(entry => entry.Value.StartsWith(PrecisionInversionText, StringComparison.Ordinal))
+            .Select(entry => (entry.Key, entry.Value))
+            .ToList();
 }

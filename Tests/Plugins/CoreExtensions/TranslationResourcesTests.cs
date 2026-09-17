@@ -91,6 +91,10 @@ public sealed class TranslationResourcesTests
                 $"{culture} is missing the merged-prefix notice");
             Assert.Contains("{0}", notice!, $"{culture} must name the prefix that was replaced");
             Assert.Contains("{1}", notice!, $"{culture} must name the prefix that replaced it");
+
+            Assert.IsTrue(translations.TryGetValue("General_PrecisionTriggerNotice", out var precision),
+                $"{culture} is missing the precision-trigger notice");
+            Assert.Contains("{0}", precision!, $"{culture} must name the triggers that were reset");
         }
     }
 
