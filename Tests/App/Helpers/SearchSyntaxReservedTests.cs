@@ -18,6 +18,7 @@ public sealed class SearchSyntaxReservedTests
     [DataRow(":temp")]
     [DataRow("*node_modules")]
     [DataRow("/\\.md$/")]
+    [DataRow("?report")]
     // NOTE: this list mirrors LeadingCharacters rather than the syntax table in Plan.md §2.2, which also
     // lists the quote pair (' ") as grouping characters. Note the two disagree: a leading quote changes how
     // the query is read (see FzfPatternParser.MergeQuotedPhrases) but is not refused to a configurable
@@ -121,6 +122,7 @@ public sealed class SearchSyntaxReservedTests
     [DataRow('>')]
     [DataRow(':')]
     [DataRow('*')]
+    [DataRow('?')]
     public void IsUnusableAsTokenPrefix_TheOtherSyntaxCharacters_AreReported(char value)
         => Assert.IsTrue(SearchSyntaxReserved.IsUnusableAsTokenPrefix(value));
 
@@ -134,6 +136,28 @@ public sealed class SearchSyntaxReservedTests
         Assert.IsTrue(SearchSyntaxReserved.IsReserved('/'));
         Assert.IsTrue(SearchSyntaxReserved.IsUnusableAsTokenPrefix('/'));
         Assert.IsNotNull(SearchSyntaxReserved.ValidateLeadingCharacter("/\\.md$/"));
+    }
+
+    [TestMethod]
+    public void IsUnusableAsTokenPrefix_PrecisionInversion_IsReported()
+    {
+        // Unlike '/', a '?' prefix would not break tokenization at all: QueryTokenScanner compares the
+        // prefix against the first character alone, so "?audio" would still be lifted and handed to the
+        // plugin. What it would break is quiet -- every word that prefix lifts stops being read for the
+        // inversion trigger (see TermTriggers), so the user loses the syntax with nothing on screen to
+        // explain it. That is the failure this list exists to catch, so it is refused.
+        Assert.IsTrue(SearchSyntaxReserved.IsReserved(SearchSyntaxReserved.PrecisionInversionCharacter));
+        Assert.IsTrue(SearchSyntaxReserved.IsUnusableAsTokenPrefix(SearchSyntaxReserved.PrecisionInversionCharacter));
+        Assert.IsNotNull(SearchSyntaxReserved.ValidateLeadingCharacter("?report"));
+    }
+
+    [TestMethod]
+    public void PrecisionInversionCharacter_IsListedAmongTheLeadingCharacters()
+    {
+        // The constant and the list have to move together: the constant is what the parser and the docs
+        // name, the list is what these checks consult, and one without the other silently drops the rule.
+        Assert.Contains(SearchSyntaxReserved.PrecisionInversionCharacter, SearchSyntaxReserved.LeadingCharacters);
+        Assert.Contains("?", SearchSyntaxReserved.DescribeLeadingCharacters());
     }
 
     [TestMethod]

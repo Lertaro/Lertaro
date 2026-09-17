@@ -14,7 +14,7 @@ Lertaro activa la coincidencia difusa de forma predeterminada. Basta con escribi
 | `vsc` | `Visual Studio Code.lnk` | Coincide con las iniciales de cada palabra (**V**isual **S**tudio **C**ode) |
 | `rt-fin` | `Q3-report-final.docx` | Coincide con la subcadena contigua (Q3-repo**rt-fin**al.docx) |
 
-Desactívala en **Configuración → General → Sistema → Habilitar coincidencia difusa** y cada término simple exigirá una subcadena contigua: `abc` solo coincidirá con nombres que contengan `abc` contiguo, y ya no coincidirá con `a-b-c`. Este interruptor solo afecta a los términos normales: las exclusiones siempre se comparan de forma exacta (ver más abajo), y la sintaxis de tokens descrita a continuación no se ve afectada en ningún caso.
+Desactívala en **Configuración → General → Sistema → Habilitar coincidencia difusa** y cada término simple exigirá una subcadena contigua: `abc` solo coincidirá con nombres que contengan `abc` contiguo, y ya no coincidirá con `a-b-c`. Este interruptor solo afecta a los términos normales: las exclusiones siempre se comparan de forma exacta (ver más abajo), la sintaxis de tokens descrita a continuación no se ve afectada en ningún caso, y un término concreto siempre puede invertirse a la lectura contraria con un `?` inicial (ver más abajo).
 
 ### Sin distinción entre mayúsculas y minúsculas
 
@@ -130,6 +130,7 @@ Se pega automáticamente como:
 | :--- | :--- | :--- | :--- |
 | *(ninguno)* | Término predeterminado | Difuso cuando la coincidencia difusa está activada; subcadena exacta cuando está desactivada | `report` |
 | `:` | Exclusión | Descarta todos los resultados cuyo nombre contenga este texto (siempre exacto, nunca difuso) | `:temp` |
+| `?` | Inversión de precisión | Invierte el término entre difuso y exacto, es decir, lo contrario de la configuración actual | `?report` |
 | `\|` | Lógica OR | Coincide con cualquiera de los lados de la barra vertical | `doc \| pdf` |
 | `/.../` | Expresión regular | Coincide con el nombre mediante una expresión regular de .NET (ver más abajo) | `/^report.*\.md$/` |
 | `*` | Omitir exclusiones | Excepción puntual a tus reglas de exclusión configuradas (solo como primer carácter) | `*node_modules` |
@@ -143,6 +144,7 @@ Se pega automáticamente como:
 3. **Unos dos puntos solos se ignoran** — `:` sin nada detrás no es un operador; simplemente se descarta de la consulta.
 4. **Los dos puntos de unidad son distintos** — una letra de unidad va después de los dos puntos (`d:`, ver la [sección 4](#_4-modo-de-ruta-y-delimitacion-por-unidad)), mientras que una exclusión va antes (`:temp`). Es imposible confundirlos, y unos dos puntos dentro de una palabra (`c:\path`) son texto normal.
 5. **Una cláusula regex se extrae antes de que nada más lea la consulta** — eso es lo que evita que sus barras invertidas y sus barras se confundan con una ruta, y significa que una cláusula puede situarse en cualquier parte de la consulta (`/\.md$/ report` y `report /\.md$/` son la misma búsqueda).
+6. **Inversión de precisión `?`** — `?term` toma el valor **contrario** al de la configuración de coincidencia difusa: con la coincidencia difusa activada el término pasa a ser una subcadena contigua, y con ella desactivada pasa a ser una subsecuencia dispersa. Es la única forma de mezclar las dos lecturas en una misma consulta (`?report draft` exige `report` de forma contigua mientras que `draft` puede estar disperso). El activador se lee **solo del primer carácter de una palabra**, así que `rep?ort` es el texto literal `rep?ort` (que no puede aparecer en un nombre de archivo y por tanto no coincide con nada), y afecta únicamente a esa palabra. Igual que unos `:` solos, un `?` solo se descarta. Los dos puntos se leen primero, así que `:?temp` excluye el texto literal `?temp`.
 
 **Ejemplos de combinación de operadores**:
 
@@ -279,7 +281,7 @@ Los tokens de plugin los proporcionan los plugins, y cada plugin decide qué sig
 
 Puedes renombrar las categorías, cambiar las extensiones que cubre cada una o añadir las tuyas en **Configuración → Plugins → CoreExtensions**. La propia palabra clave se compara de la más larga a la más corta, así que una regla `\a` y una regla `\audio` pueden coexistir y `\audio` sigue ganando.
 
-El carácter de prefijo se configura en **Configuración → General → Sistema → Prefijo de tokens de consulta de plugins**. No puede estar vacío, no puede ser `<` ni `>`, y no puede ser el mismo carácter que el prefijo propio de otro plugin: los ajustes informan de esa colisión en lugar de dejar que un proveedor gane en silencio.
+El carácter de prefijo se configura en **Configuración → General → Sistema → Prefijo de tokens de consulta de plugins**. No puede estar vacío, no puede ser un carácter que ya use la sintaxis de búsqueda (`\` `<` `>` `:` `*` `/` `?`), y no puede ser el mismo carácter que el prefijo propio de otro plugin: los ajustes informan de esa colisión en lugar de dejar que un proveedor gane en silencio.
 
 La barra lateral de filtros de tipo de la ventana de búsqueda completa se configura por separado en el grupo **Filtros de búsqueda** del mismo plugin. Los nombres de los filtros de la barra lateral solo sirven para mostrar; las referencias de prefijo solo se analizan dentro de una regla de filtro de la barra lateral y se refieren a palabras clave de la lista **Filtros personalizados**, incluidos los filtros personalizados deshabilitados.
 

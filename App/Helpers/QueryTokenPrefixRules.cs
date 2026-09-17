@@ -40,10 +40,10 @@ public static class QueryTokenPrefixRules
 {
     // True for the characters QueryTokenScanner always reads as token starts whatever the configured
     // prefix is -- only the sort/filter pair, unlike SearchSyntaxReserved.IsReserved, which also covers the
-    // exclusion, bypass, token-prefix and regex-delimiter characters. The two are used for different
-    // sentences: a prefix equal to '<'/'>' leaves the plugin tokens permanently unreachable, while a prefix
-    // equal to ':' or '/' still leaves them reachable but collides with the exclusion operator or the regex
-    // clause delimiter.
+    // exclusion, bypass, token-prefix, regex-delimiter and precision-inversion characters. The two are used
+    // for different sentences: a prefix equal to '<'/'>' leaves the plugin tokens permanently unreachable,
+    // while a prefix equal to ':' or '/' still leaves them reachable but collides with the exclusion
+    // operator or the regex clause delimiter.
     internal static bool IsAlwaysTokenTrigger(char prefix) => prefix == '<' || prefix == '>';
 
     /// <summary>The conflict to show under the app-wide prefix field, or null when it is usable.</summary>

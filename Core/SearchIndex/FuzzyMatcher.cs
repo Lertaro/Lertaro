@@ -16,100 +16,13 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(pattern) || string.IsNullOrEmpty(text))
             return false;
 
-        var fzf = ParseQuery(pattern);
+        var fzf = RawQueryPatternParser.Parse(pattern);
 
         // A query with nothing left to compare against (empty, or nothing but an operator) must not fall
         // into FzfPattern.TryMatchSingle's own "no term sets to check" -> true shortcut, which would
         // otherwise match every candidate.
         return !fzf.IsEmpty && IsMatch(fzf, text);
     }
-
-    // The term operators the parser no longer produces, understood anyway for callers building a
-    // pattern from a caller-supplied user string. The file-search pipeline strips its own operator
-    // syntax (later tokens, the `\`/`<`/`>` token triggers) BEFORE the pattern ever gets here, so a
-    // character that reaches this seam is a literal by the time it arrives -- which is why this is a
-    // separate, opt-in entry point and not part of FzfPattern.Parse. Plugin catalogs, bookmark titles
-    // and similar free-standing text have no such pipeline in front of them and keep the operators.
-    // ponytail: five shapes, no nesting, no escaping. Widen the grammar only for a caller that needs it.
-    private static bool TryParseOperators(string pattern, out FzfPattern fzf)
-    {
-        fzf = FzfPatternShapeExtensions.Empty;
-        var text = pattern.Trim();
-        if (text.Length == 0)
-            return false;
-
-        var fuzzyEnabled = SearchContext.FuzzyMatchEnabled;
-        var sets = new List<FzfTermSet>();
-        foreach (var raw in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-        {
-            if (raw.Length == 0)
-                continue;
-
-            var kind = fuzzyEnabled ? FzfTermKind.Fuzzy : FzfTermKind.Exact;
-            var inverse = false;
-            var body = raw;
-
-            if (body.StartsWith("!", StringComparison.Ordinal))
-            {
-                inverse = true;
-                kind = FzfTermKind.Exact;
-                body = body[1..];
-            }
-
-            if (body != "$" && body.EndsWith("$", StringComparison.Ordinal))
-            {
-                kind = FzfTermKind.Suffix;
-                body = body[..^1];
-            }
-
-            if (body.Length > 2 && body.StartsWith("'", StringComparison.Ordinal) && body.EndsWith("'", StringComparison.Ordinal))
-            {
-                kind = FzfTermKind.ExactBoundary;
-                body = body[1..^1];
-            }
-            else if (body.StartsWith("'", StringComparison.Ordinal))
-            {
-                // The quote FLIPS exactness, and a suffix anchor already owns the kind.
-                if (kind != FzfTermKind.Suffix)
-                    kind = fuzzyEnabled && !inverse ? FzfTermKind.Exact : FzfTermKind.Fuzzy;
-                body = body[1..];
-            }
-            else if (body.StartsWith("^", StringComparison.Ordinal))
-            {
-                kind = kind == FzfTermKind.Suffix ? FzfTermKind.Equal : FzfTermKind.Prefix;
-                body = body[1..];
-                if (body.StartsWith("'", StringComparison.Ordinal))
-                    body = body[1..];
-            }
-
-            if (body.Length == 0)
-                continue;
-
-            // One set PER WORD: space-separated words stay a conjunction (each its own 1-term set) while a
-            // word's alias spellings remain OR alternatives inside that word's set -- the same shape
-            // FzfPatternParser builds, which is why the expansion is reused rather than re-derived. Note a
-            // word typed in full pinyin also needs the provider's CJK query forms to match a Chinese name.
-            var lower = body.ToLowerInvariant();
-            var terms = new List<FzfTerm> { new(kind, inverse, lower, CaseSensitive: false) };
-            if (!inverse)
-                FzfPatternParser.AddAliasQueryForms(terms, lower, kind);
-            sets.Add(new FzfTermSet(terms.ToArray()));
-        }
-
-        if (sets.Count == 0)
-            return false;
-
-        fzf = FzfPatternShapeExtensions.FromTermSets(sets.ToArray());
-        return true;
-    }
-
-    // The one query parser for every raw-string entry point on this seam. They must all read a query the
-    // same way: if IsMatch honoured the term operators while the highlight/rank paths went through
-    // FzfPattern.Parse (which no longer does), a caller could get "matched" together with an empty mask --
-    // a row that lights nothing on the very characters the match was made of. A query that cannot be
-    // parsed becomes the shared empty pattern, which every entry point already treats as "no match".
-    private static FzfPattern ParseQuery(string query)
-        => TryParseOperators(query, out var fzf) ? fzf : FzfPatternShapeExtensions.Empty;
 
     // Overload for callers that already hold the parsed pattern -- avoids re-parsing (and re-running
     // every registered alias provider's GetQueryForms) per candidate when the same query is tested
@@ -192,7 +105,7 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(query))
             return new bool[text.Length];
 
-        return ComputeHighlightMask(text, ParseQuery(query));
+        return ComputeHighlightMask(text, RawQueryPatternParser.Parse(query));
     }
 
     // Parsed-pattern overload: callers that test MANY texts against ONE query hit this instead of the
@@ -211,7 +124,7 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(query))
             return 0;
 
-        return HighlightMask.ComputeWeight(text, ParseQuery(query));
+        return HighlightMask.ComputeWeight(text, RawQueryPatternParser.Parse(query));
     }
 
     // The same "does it match, where does it start, how well" measure the two windows rank by -- start
@@ -222,7 +135,7 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(query))
             return MatchRank.NoMatch;
 
-        return HighlightMask.ComputeRank(text, ParseQuery(query));
+        return HighlightMask.ComputeRank(text, RawQueryPatternParser.Parse(query));
     }
 
     // Parsed-pattern overload -- same reason as ComputeHighlightMask's: the per-candidate string form
@@ -244,7 +157,7 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(query))
             return MatchRank.NoMatch;
 
-        return ComputeBestMatch(ParseQuery(query), primaryText, alternateTexts);
+        return ComputeBestMatch(RawQueryPatternParser.Parse(query), primaryText, alternateTexts);
     }
 
     // Parsed-pattern overload: this is the shape a per-candidate catalog scan uses (SearchableItemMapper

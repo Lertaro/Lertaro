@@ -24,19 +24,30 @@ public static class SearchSyntaxReserved
     // See IsUnusableAsTokenPrefix for what follows from that.
     public const char TokenPrefixCharacter = '\\';
 
+    // The character that inverts a term's precision. It is the second of the two triggers a term's first
+    // character can carry (see TermTriggers), and it is listed here for the same reason as the rest: it is
+    // consumed before any first-character trigger is consulted. Choosing it as a token prefix would shadow
+    // the inversion syntax for every word carrying that prefix, silently.
+    public const char PrecisionInversionCharacter = '?';
+
     // Claimed at the start of a query by the search syntax itself:
     //   '\\'  the plugin query token prefix (GlobalTokenPrefix, itself configurable)
     //   '<' '>' the sort/filter token triggers, which QueryTokenScanner always recognizes
     //   ':'   the exclusion operator, and the drive spec's separator
     //   '*'   the one-search exclusion bypass, read from the first character only
     //   '/'   the regex clause delimiter
+    //   '?'   the precision-inversion trigger, read from the first character of any word
     //
     // '/' is the only entry that is not a whole-query trigger: it opens a clause only when the same word
     // also closes with one, so "/mnt/c" is ordinary text. It is listed anyway because QueryTokenScanner
     // compares a prefix against the first character ALONE, so a '/' prefix claims the entire clause as a
     // token and regex queries stop filtering with nothing on screen to explain it -- the exact failure this
     // list exists to catch. See QueryTokenScannerTests.Scan_SlashPrefix_EatsTheRegexClause.
-    public static IReadOnlyList<char> LeadingCharacters { get; } = new[] { TokenPrefixCharacter, '<', '>', ':', '*', '/' };
+    //
+    // '?' is the same kind of entry from the other end: it is read per WORD rather than per query, so a
+    // '?' token prefix would not break tokenization at all -- it would quietly retire the inversion syntax
+    // for every word the prefix lifts, which is why it is refused here rather than left to be discovered.
+    public static IReadOnlyList<char> LeadingCharacters { get; } = new[] { TokenPrefixCharacter, '<', '>', ':', '*', '/', PrecisionInversionCharacter };
 
     // Leading characters an instant-answer provider claims for itself, by its own hardcoded rule rather
     // than by the search syntax. They are not syntax, so they are listed separately -- but they are just
