@@ -24,7 +24,7 @@ public class DirectoryOpusPathCollector : IActivePathCollector
 
         CleanUpDeadKeys();
 
-        var containers = Win32Helper.GetVisibleContainers(windowHwnd);
+        var containers = Win32Helper.GetContainers(windowHwnd, visibleOnly: true);
         if (containers.Count == 0) return null;
 
         var activeContainer = IntPtr.Zero;
@@ -150,38 +150,88 @@ public class DirectoryOpusPathCollector : IActivePathCollector
     }
 
     /// <summary>
-    /// Returns every visible file-display pane in every open Directory Opus lister.
+    /// Returns the folder of every TAB of every visible Directory Opus lister, not just the tab in front.
     /// </summary>
+    /// <remarks>
+    /// Every tab owns a <c>dopus.filedisplaycontainer</c>; the ones not in front are simply hidden. Asking
+    /// only for the visible containers (as this did) therefore reported one folder per pane -- whichever
+    /// tab happened to be active -- and silently dropped the rest of the user's open tabs, so a lister
+    /// with five tabs contributed two entries.
+    /// The active tabs are listed first: they are the folders the user is actually looking at, and it
+    /// keeps the entries a consumer already showed before this existed at the head of the list.
+    /// </remarks>
     public IReadOnlyList<OpenedFolder> GetOpenedFolders()
     {
         var folders = new List<OpenedFolder>();
         foreach (var lister in OpenFolderWindowEnumerator.FindVisibleWindows(IsListerWindow))
         {
-            foreach (var container in Win32Helper.GetVisibleContainers(lister))
+            var containers = Win32Helper.GetContainers(lister, visibleOnly: false)
+                .Select(container => (Path: ExtractPathFromContainer(container), IsActive: Win32Helper.IsWindowVisible(container), Window: lister));
+
+            folders.AddRange(BuildOpenedFolders(containers));
+        }
+        return folders;
+    }
+
+    /// <summary>
+    /// One lister's containers to its opened folders: active tabs first, one entry per distinct folder.
+    /// </summary>
+    /// <remarks>
+    /// Pure, so the policy is pinned without a Directory Opus window to measure. Duplicates are collapsed
+    /// only WITHIN a lister -- two tabs showing the same folder are one folder to offer, and the entry's
+    /// window handle would be the same lister either way -- while the same folder open in two listers
+    /// stays two entries, which is the contract <c>OpenedFolderCollectorRegistry</c> documents for
+    /// collectors ("two windows or panes may show the same path, and a consumer can choose whether to
+    /// collapse them").
+    /// </remarks>
+    internal static IReadOnlyList<OpenedFolder> BuildOpenedFolders(
+        IEnumerable<(string? Path, bool IsActive, IntPtr Window)> containers)
+    {
+        var folders = new List<OpenedFolder>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (path, _, window) in containers.OrderByDescending(container => container.IsActive))
+        {
+            // The key drops a trailing separator, so two spellings of one folder are one entry: Directory
+            // Opus reports a drive root with it and everything else without, and a folder reached both ways
+            // is still the same folder to offer. The entry itself keeps the path as reported.
+            if (!string.IsNullOrEmpty(path) &&
+                seen.Add(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)))
             {
-                var path = ExtractPathFromContainer(container);
-                if (!string.IsNullOrEmpty(path))
-                    folders.Add(new OpenedFolder(path, lister));
+                folders.Add(new OpenedFolder(path, window));
             }
         }
+
         return folders;
     }
 
     private string? ExtractPathFromContainer(IntPtr containerHwnd)
     {
+        // The location bar exists only on the container of the ACTIVE tab, and reading it first keeps the
+        // path reported for the tab in front exactly what it always was. Every other container -- all the
+        // inactive tabs -- is read from its own window text, which is where Directory Opus puts the
+        // folder for each tab (measured on both states: they agree wherever both exist).
         var locationBar = Win32Helper.FindWindowExRecursively(containerHwnd, IntPtr.Zero, "dopus.ctl.treepath", null);
-        if (locationBar != IntPtr.Zero)
-        {
-            var path = Win32Helper.GetWindowText(locationBar);
-            return ResolveReportedPath(path);
-        }
-        return null;
+        var reported = ChooseReportedPath(
+            locationBar != IntPtr.Zero ? Win32Helper.GetWindowText(locationBar) : null,
+            Win32Helper.GetWindowText(containerHwnd));
+
+        return ResolveReportedPath(reported);
     }
+
+    /// <summary>
+    /// The folder a container reports: its location bar when that has text, otherwise the container's own
+    /// window text. Pure so the choice can be pinned without a Directory Opus window to measure.
+    /// </summary>
+    internal static string? ChooseReportedPath(string? locationBarText, string? containerText) =>
+        !string.IsNullOrWhiteSpace(locationBarText) ? locationBarText : containerText;
 
     private static bool IsListerWindow(IntPtr window) =>
         Win32Helper.GetClassName(window).Equals("dopus.lister", StringComparison.OrdinalIgnoreCase);
 
-    private string? ResolveReportedPath(string path)
+    // Accepts null because the reported text is now chosen from two controls, either of which can be
+    // absent -- an unreadable container is "no path", not an error.
+    private string? ResolveReportedPath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
         var resolved = ShellPathHelper.ResolveSpecialFolder(path);
