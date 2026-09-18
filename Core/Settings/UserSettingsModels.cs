@@ -149,6 +149,14 @@ public class FavoriteItemSetting
 {
     public string Name { get; set; } = string.Empty;
     public string Path { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Optional global hotkey that navigates the foreground file-manager window to this favorite's
+    /// folder, in the flat recorder format described by <see cref="HotkeyStringFormat"/> ("Ctrl+Shift+D").
+    /// Empty means no hotkey is assigned. Settings files written before this existed simply deserialize
+    /// to empty, which is exactly the "unset" value, so no migration is needed.
+    /// </summary>
+    public string Hotkey { get; set; } = string.Empty;
 }
 
 public class SearchWindowSettings

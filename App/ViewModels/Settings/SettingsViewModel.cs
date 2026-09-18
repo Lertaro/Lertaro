@@ -46,8 +46,7 @@ public class SettingsViewModel : ViewModelBase
         RefreshLists();
     }
 
-    // The three DEFERRED sub-VMs (log reader, themes, history lists) live in their own holder -- see
-    // DeferredSettingsViewModels for what each costs and why they are not built here.
+    // The three DEFERRED sub-VMs (log reader, themes, history lists) live in their own holder.
     private readonly DeferredSettingsViewModels _deferred;
     public ServiceLogViewModel Log => _deferred.Log;
     public ThemeSettingsViewModel Appearance => _deferred.Appearance;
@@ -197,7 +196,7 @@ public class SettingsViewModel : ViewModelBase
         // staged to save -- going through the property would construct it (loading both history files)
         // purely to write back what it already read.
         _deferred.ExistingHistory?.Save();
-        Favorites.Save();
+        Favorites.Save(); SettingsApplyHelpers.RebindFavoriteHotkeys(Favorites);
         QuickLaunch.Save();
         QuickPanel.Save();
         LocalSend.Apply();

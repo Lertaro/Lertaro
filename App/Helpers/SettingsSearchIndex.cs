@@ -174,6 +174,7 @@ public static class SettingsSearchIndex
         new("Favorites_AddCardTitle", "Favorites", TargetElementName: "RowAddCardTitle"),
         new("Favorites_FieldName", "Favorites", TargetElementName: "RowFieldName", TabLabelKey: "Favorites_AddCardTitle"),
         new("Favorites_FieldPath", "Favorites", TargetElementName: "RowFieldPath", TabLabelKey: "Favorites_AddCardTitle"),
+        new("Favorites_FieldHotkey", "Favorites", TargetElementName: "RowFieldHotkey", TabLabelKey: "Favorites_AddCardTitle"),
         new("Favorites_ListTitle", "Favorites", TargetElementName: "RowListTitle"),
 
         // Quick launch

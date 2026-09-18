@@ -180,7 +180,7 @@ internal static class PluginSdkBridge
 
         // Wire up the favorites service delegate for plugins using Core UserSettings
         PluginSdk.Services.FavoritesService.GetFavoritesFunc = () =>
-            UserSettings.Load().Favorites.Select(f => new PluginSdk.Models.FavoriteItem { Name = f.Name, Path = f.Path });
+            UserSettings.Load().Favorites.Select(f => new PluginSdk.Models.FavoriteItem { Name = f.Name, Path = f.Path, Hotkey = f.Hotkey });
         PluginSdk.Services.FavoritesService.IsFavoriteFunc = IsFavoritePath;
         PluginSdk.Services.FavoritesService.AddFavoriteFunc = TryAddFavorite;
 

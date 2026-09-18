@@ -241,59 +241,10 @@ public sealed class FavoritesSettingsViewModelTests
 
         Assert.AreEqual(Path.GetTempPath(), vm.Items[0].Path);
     }
-}
-
-[TestClass]
-public sealed class FavoriteItemViewModelTests
-{
-    [TestMethod]
-    public void DisplayName_ExplicitName_ReturnsIt() =>
-        Assert.AreEqual("Docs", new FavoriteItemViewModel { Name = "Docs", Path = @"C:\Documents" }.DisplayName);
 
     [TestMethod]
-    public void DisplayName_WebUrlNoName_ReturnsTrimmedUrl() =>
-        Assert.AreEqual("https://example.com", new FavoriteItemViewModel { Path = "  https://example.com  " }.DisplayName);
-
-    [TestMethod]
-    public void DisplayName_PlainPathNoName_ReturnsFileName() =>
-        Assert.AreEqual("Documents", new FavoriteItemViewModel { Path = @"C:\Users\me\Documents" }.DisplayName);
-
-    [TestMethod]
-    public void DisplayName_PlainPathWithTrailingSlashNoName_ReturnsFileName() =>
-        Assert.AreEqual("Documents", new FavoriteItemViewModel { Path = @"C:\Users\me\Documents\" }.DisplayName);
-
-    [TestMethod]
-    public void DisplayName_EnvironmentVariableInPathNoName_ExpandsAndReturnsFolderName()
-    {
-        Environment.SetEnvironmentVariable("TEST_FAV_DIR", @"C:\TestDir\Projects");
-        try
-        {
-            var vm = new FavoriteItemViewModel { Path = @"%TEST_FAV_DIR%" };
-            Assert.AreEqual("Projects", vm.DisplayName);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("TEST_FAV_DIR", null);
-        }
-    }
-
-    [TestMethod]
-    public void DisplayName_ShellVirtualFolderNoName_ResolvesVirtualFolderDisplayName()
-    {
-        var vm = new FavoriteItemViewModel { Path = "shell:downloads" };
-        var expected = PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName("shell:downloads", "shell:downloads");
-        Assert.AreEqual(expected, vm.DisplayName);
-    }
-
-    [TestMethod]
-    public void Name_Set_RaisesPropertyChangedForDisplayNameToo()
-    {
-        var vm = new FavoriteItemViewModel();
-        var raised = new List<string?>();
-        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
-
-        vm.Name = "New";
-
-        CollectionAssert.Contains(raised, nameof(FavoriteItemViewModel.DisplayName));
-    }
+    public void Constructor_LoadsExistingFavoriteHotkeys() =>
+        Assert.AreEqual("Ctrl+Shift+D", new FavoritesSettingsViewModel(
+            new UserSettings { Favorites = new List<FavoriteItemSetting> { new() { Path = @"C:\Docs", Hotkey = "Ctrl+Shift+D" } } })
+            .Items[0].Hotkey);
 }

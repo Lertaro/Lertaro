@@ -31,6 +31,10 @@ public partial class App : Application
 
     // Held for the process lifetime so its hotkey registration and message window stay alive.
     private Services.QuickPanel.QuickPanelManager? _quickPanelManager;
+
+    // Same reason: this owns the per-favorite global hotkeys' message-only window, and dropping the
+    // instance would unregister every one of them.
+    private Services.Favorites.FavoriteHotkeyService? _favoriteHotkeys;
     private readonly Helpers.App.DispatcherExceptionHandler _dispatcherExceptionHandler = new();
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -136,6 +140,19 @@ public partial class App : Application
         // Set up the quick panel. Built here rather than lazily on the first hotkey so the handler above always
         // has something to call; it creates no window of its own until it is first opened.
         _quickPanelManager = new Services.QuickPanel.QuickPanelManager();
+
+        // Per-favorite global hotkeys. Registered in this process rather than through the Hook: the App
+        // already pumps messages, and the file-manager window these navigate is resolved here anyway.
+        // Created on the Dispatcher thread, which is the thread RegisterHotKey must be called from.
+        try
+        {
+            _favoriteHotkeys = Services.Favorites.FavoriteHotkeyService.Initialize();
+            _favoriteHotkeys.AttachHandler();
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[FavoriteHotkeys] Initialization failed: {ex}", LogLevel.Error);
+        }
 
         // Force load all plugins (actions and alias providers) on startup
         _ = PluginManager.Instance;
@@ -270,6 +287,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         Core.Services.LocalSend.LocalSendServiceManager.Instance.Stop();
+        _favoriteHotkeys?.Dispose(); _favoriteHotkeys = null;
         foreach (var provider in PluginManager.Instance.AllSearchScopeProviders.OfType<IDisposable>()) provider.Dispose();
         HookClient?.Stop(); HookClient?.Dispose(); HookClient = null;
         AppPipeService.StopServer(); AppSearchPipeService.StopServer(); Services.Everything.EverythingServiceBootstrapper.Stop(); InlineSearchManager.Instance.Dispose(); CloseAllManagedWindows();

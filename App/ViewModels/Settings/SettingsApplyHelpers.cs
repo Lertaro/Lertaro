@@ -10,6 +10,13 @@ internal sealed record LocalDriveSnapshot(string Drive, string Id, bool IsEnable
 // under the line-count limit.
 internal static class SettingsApplyHelpers
 {
+    /// <summary>
+    /// Re-registers the favorites' global hotkeys now that they have been written to settings, and copies
+    /// the outcome back onto the rows. Lives here rather than on the view model for the same reason as
+    /// the helpers below: it keeps SettingsViewModel.Apply readable and that file under the limit.
+    /// </summary>
+    public static void RebindFavoriteHotkeys(FavoritesSettingsViewModel favorites) =>
+        FavoriteHotkeySettingsSupport.ApplyHotkeys(favorites);
     public static async Task RebuildScanBasedLocalDrivesAsync(SearchService searchService, IReadOnlyList<LocalDriveSnapshot> drives, IReadOnlyList<string> enabledLocalDriveIds)
     {
         var enabled = enabledLocalDriveIds.ToHashSet(StringComparer.OrdinalIgnoreCase);

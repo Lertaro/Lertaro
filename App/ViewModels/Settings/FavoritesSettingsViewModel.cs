@@ -16,7 +16,7 @@ public class FavoritesSettingsViewModel : ViewModelBase
         _userSettings = userSettings;
         foreach (var fav in _userSettings.Favorites)
         {
-            Items.Add(new FavoriteItemViewModel { Name = fav.Name, Path = fav.Path });
+            Items.Add(new FavoriteItemViewModel { Name = fav.Name, Path = fav.Path, Hotkey = fav.Hotkey });
         }
         Items.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasItems));
 
@@ -36,6 +36,13 @@ public class FavoritesSettingsViewModel : ViewModelBase
     }
 
     public ObservableCollection<FavoriteItemViewModel> Items { get; } = new();
+
+    /// <summary>
+    /// The settings object this page edits, shared with <c>FavoriteHotkeySettingsSupport</c>: the row
+    /// hotkey state has to be rebuilt from the same list <see cref="Save"/> just wrote, not from a
+    /// reloaded copy, or a failure would be reported against whichever row happens to hold that index.
+    /// </summary>
+    public UserSettings Settings => _userSettings;
 
     public ICommand AddCommand { get; }
     public ICommand ClearCommand { get; }
@@ -212,83 +219,16 @@ public class FavoritesSettingsViewModel : ViewModelBase
 
     public void Save()
     {
-        _userSettings.Favorites = Items.Select(x => new FavoriteItemSetting { Name = x.Name, Path = x.Path }).ToList();
+        _userSettings.Favorites = Items.Select(x => new FavoriteItemSetting { Name = x.Name, Path = x.Path, Hotkey = x.Hotkey }).ToList();
         _userSettings.Save();
     }
-}
 
-public class FavoriteItemViewModel : ViewModelBase
-{
-    private string _name = string.Empty;
-    private string _path = string.Empty;
-    private string _editName = string.Empty;
-    private string _editPath = string.Empty;
-    private bool _isEditing;
-
-    public string Name
-    {
-        get => _name;
-        set
-        {
-            if (SetProperty(ref _name, value))
-                OnPropertyChanged(nameof(DisplayName));
-        }
-    }
-
-    public string Path
-    {
-        get => _path;
-        set
-        {
-            if (SetProperty(ref _path, value))
-                OnPropertyChanged(nameof(DisplayName));
-        }
-    }
-
-    public string EditName
-    {
-        get => _editName;
-        set => SetProperty(ref _editName, value);
-    }
-
-    public string EditPath
-    {
-        get => _editPath;
-        set
-        {
-            if (SetProperty(ref _editPath, value))
-                CommandManager.InvalidateRequerySuggested();
-        }
-    }
-
-    public bool IsEditing
-    {
-        get => _isEditing;
-        set => SetProperty(ref _isEditing, value);
-    }
-
-    public string DisplayName
-    {
-        get
-        {
-            if (!string.IsNullOrWhiteSpace(Name))
-                return Name;
-
-            var expanded = FavoritePathResolver.Expand(Path);
-            if (FavoritePathResolver.IsVirtualPath(expanded))
-            {
-                return PluginSdk.Helpers.ShellPathHelper.GetVirtualFolderDisplayName(expanded, Path);
-            }
-            if (FavoriteUrlHelper.IsWebUrl(Path))
-            {
-                return Path.Trim();
-            }
-            try
-            {
-                var name = System.IO.Path.GetFileName(expanded.TrimEnd('\\', '/'));
-                return string.IsNullOrEmpty(name) ? Path : name;
-            }
-            catch { return Path; }
-        }
-    }
+    /// <summary>
+    /// Re-applies the global-hotkey registrations after the favorites above were written to settings, and
+    /// surfaces per-row feedback: a combination another application already owns, or one a later favorite
+    /// also claimed. Split out of <see cref="Save"/> because the registrations belong to the hotkey
+    /// service while the row state belongs here -- <see cref="SettingsViewModel.Apply"/> is what calls
+    /// this once the settings file itself has been written.
+    /// </summary>
+    public void ApplyHotkeys() => FavoriteHotkeySettingsSupport.ApplyHotkeys(this);
 }

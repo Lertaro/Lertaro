@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
              xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
              xmlns:settings="clr-namespace:Lertaro.App.Views.Settings"
              mc:Ignorable="d"
@@ -50,12 +51,16 @@
             <DataTemplate x:Key="FavItemTemplate">
                 <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/><ColumnDefinition Width="24"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid Grid.ColumnSpan="5">
+                        <!-- Row 1 is the hotkey feedback; row 0 keeps its own 7-column grid so the edit
+                             row below can still span every column. Column 4 is the recorder, which is
+                             what makes a per-favorite global hotkey configurable next to its own row. -->
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0" Grid.ColumnSpan="7">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="24"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="24"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="10"/><ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
                             <Grid Grid.Column="0" Width="18" Height="24" Margin="0,0,10,0" Background="Transparent" VerticalAlignment="Center" Cursor="SizeAll" helpers:DragReorder.IsHandle="True">
@@ -68,14 +73,24 @@
                             <TextBlock Grid.Column="1" Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="4,0,8,0"/>
                             <TextBlock Grid.Column="3" Text="{Binding Path}" FontSize="12" Foreground="{DynamicResource TextSecondary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
-                            <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <ctrl:HotkeyRecorderControl Grid.Column="4" Value="{Binding Hotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" RequireModifier="True" HorizontalAlignment="Right"/>
+                            <StackPanel Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Right">
                                 <Button Content="&#xE74A;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveUpTooltip]}" Style="{StaticResource FavIconButton}" Command="{Binding DataContext.MoveUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
                                 <Button Content="&#xE74B;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_MoveDownTooltip]}" Style="{StaticResource FavIconButton}" Command="{Binding DataContext.MoveDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
                                 <Button Content="&#xE70F;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_EditTooltip]}" Style="{StaticResource FavIconButton}" Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
                                 <Button Content="&#xE74D;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_RemoveTooltip]}" Style="{StaticResource FavIconButton}" Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
                             </StackPanel>
                         </Grid>
-                        <Grid Grid.ColumnSpan="5">
+                        <Grid Grid.Row="1" Grid.ColumnSpan="7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="24"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="10"/><ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
+                            <TextBlock Grid.Column="4" Grid.ColumnSpan="2" Text="{Binding HotkeyHint}" FontSize="11" Foreground="{DynamicResource ErrorBrush}"
+                                       TextWrapping="Wrap" HorizontalAlignment="Right" Margin="6,3,0,0"
+                                       Visibility="{Binding HotkeyHint, Converter={StaticResource StringToVis}}"/>
+                        </Grid>
+                        <Grid Grid.Row="0" Grid.RowSpan="2" Grid.ColumnSpan="7">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/><ColumnDefinition Width="24"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
@@ -121,6 +136,10 @@
                         <!-- Headers -->
                         <TextBlock x:Name="RowFieldName" Grid.Row="0" Grid.Column="0" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_FieldName]}" FontSize="12" Foreground="{DynamicResource TextSecondary2}" Margin="0,0,0,4"/>
                         <TextBlock x:Name="RowFieldPath" Grid.Row="0" Grid.Column="1" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_FieldPath]}" FontSize="12" Foreground="{DynamicResource TextSecondary2}" Margin="8,0,0,4"/>
+                        <!-- The hotkey itself is assigned per row, next to that favorite, rather than
+                             here: a new favorite does not exist yet, so there is nothing to bind it to. -->
+                        <TextBlock x:Name="RowFieldHotkey" Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="2" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_FieldHotkey]}"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondary2}" HorizontalAlignment="Right" Margin="8,0,0,4"/>
 
                         <settings:PathEntryEditor Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" EntryName="{Binding NewName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" EntryPath="{Binding NewPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" BrowseFolderCommand="{Binding BrowseFolderCommand}" BrowseFileCommand="{Binding BrowseFileCommand}"/>
 
