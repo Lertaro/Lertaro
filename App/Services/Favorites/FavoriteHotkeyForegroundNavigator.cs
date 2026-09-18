@@ -7,18 +7,29 @@ using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.App.Services.Favorites;
 
-/// <summary>The foreground window that turned out to be a file manager this app can navigate.</summary>
-public sealed record FavoriteHotkeyTarget(IntPtr Window, string ClassName, string ProcessName);
+/// <summary>Which kind of window the target in front is, and so which route can move it.</summary>
+public enum FavoriteHotkeyTargetKind
+{
+    /// <summary>A file manager window, as claimed by one of the inline-search adapters.</summary>
+    FileManager,
+
+    /// <summary>Another application's Open/Save dialog, which only a file-dialog adapter can navigate.</summary>
+    FileDialog
+}
+
+/// <summary>The window in front that turned out to be something this app can navigate.</summary>
+public sealed record FavoriteHotkeyTarget(IntPtr Window, string ClassName, string ProcessName, FavoriteHotkeyTargetKind Kind);
 
 /// <summary>
-/// Resolves the window that is currently in the foreground to a file manager this app can navigate, and
-/// asks that manager to go to a favorite's folder.
+/// Resolves the window that is currently in the foreground to something this app can navigate -- a file
+/// manager it can drive, or another application's Open/Save dialog -- and makes that window go to a
+/// favorite's folder.
 /// </summary>
 /// <remarks>
-/// Reuse, not a second navigation implementation. Which managers exist is the adapter registry's answer
-/// (an unrecognized foreground window is left alone), and the navigation itself goes through the same
-/// App -> Hook route every other adapter caller uses -- see <see cref="NavigateExistingWindow"/> for why
-/// that route and not a direct call.
+/// Reuse, not a second navigation implementation. What the window in front is, is the adapter registries'
+/// answer (an unrecognized window is left alone), and the navigation itself goes through the same
+/// App -> Hook routes every other adapter caller uses -- see <see cref="NavigateExistingWindow"/> and
+/// <see cref="FavoriteHotkeyDialogNavigator"/> for what differs between the two.
 /// </remarks>
 internal sealed class FavoriteHotkeyForegroundNavigator
 {
@@ -55,7 +66,7 @@ internal sealed class FavoriteHotkeyForegroundNavigator
         switch (decision)
         {
             case FavoriteHotkeyNavigationAction.NavigateInPlace when target != null:
-                NavigateExistingWindow(path, target);
+                NavigateInPlace(path, target);
                 return;
 
             case FavoriteHotkeyNavigationAction.OpenThroughDefaultRoute:
@@ -67,11 +78,40 @@ internal sealed class FavoriteHotkeyForegroundNavigator
                 return;
 
             default:
-                // NotAFileManager. Deliberately nothing: the window in front is not a file manager this
-                // app supports, and opening a new one over the user's work is the wrong answer.
-                Logger.Log("[FavoriteHotkeys] Foreground window is not a supported file manager; ignoring.", LogLevel.Debug);
+                // NotAFileManager. Deliberately nothing: the window in front is not a file manager or a
+                // file dialog this app supports, and opening a new window over the user's work is the
+                // wrong answer.
+                LogUnrecognizedForeground();
                 return;
         }
+    }
+
+    /// <summary>
+    /// Names the window that was in front when nothing matched, at Debug. Without the class and the
+    /// process, "I pressed the hotkey and nothing happened" is unattributable from the log alone -- which
+    /// is exactly how the Save-As-dialog report presented itself.
+    /// </summary>
+    private static void LogUnrecognizedForeground()
+    {
+        var window = FavoriteHotkeyNavigation.GetForegroundWindow();
+        Logger.Log($"[FavoriteHotkeys] Foreground window '{GetClassName(window)}' (process '{GetProcessName(window)}') is not a supported file manager or file dialog; ignoring.", LogLevel.Debug);
+    }
+
+    /// <summary>
+    /// Routes the navigation to whichever mechanism owns this kind of target. They really are two
+    /// mechanisms: a file manager is driven by adapter code the Hook runs on a freshly spun STA thread
+    /// (see <see cref="NavigateExistingWindow"/>), a foreign Open/Save dialog by an IPC command the Hook
+    /// handles on its own (see <see cref="FavoriteHotkeyDialogNavigator.Navigate"/>).
+    /// </summary>
+    private static void NavigateInPlace(string path, FavoriteHotkeyTarget target)
+    {
+        if (target.Kind == FavoriteHotkeyTargetKind.FileDialog)
+        {
+            FavoriteHotkeyDialogNavigator.Navigate(target.Window, path);
+            return;
+        }
+
+        NavigateExistingWindow(path, target);
     }
 
     /// <summary>
@@ -158,9 +198,18 @@ internal sealed class FavoriteHotkeyForegroundNavigator
         // its own when it executes. CanRecognizeHost, not CanHandle: recognizing the manager must not
         // depend on the user having inline search switched on for it, the same distinction Quick
         // Navigation draws.
-        return RecognizesHost(window, className, processName)
-            ? new FavoriteHotkeyTarget(window, className, processName)
-            : null;
+        if (RecognizesHost(window, className, processName))
+            return new FavoriteHotkeyTarget(window, className, processName, FavoriteHotkeyTargetKind.FileManager);
+
+        // Asked only after the file-manager adapters decline, and only at or above this window: the two
+        // adapter sets have no window class in common, and this order keeps the ordinary file-manager case
+        // from paying for the walk. It also has to come before the caller falls back to the root owner:
+        // a dialog's root owner is the application's main window, which no dialog adapter recognizes.
+        var dialogWindow = FavoriteHotkeyDialogNavigator.FindDialogWindow(window);
+        return dialogWindow == IntPtr.Zero
+            ? null
+            : new FavoriteHotkeyTarget(dialogWindow, GetClassName(dialogWindow), GetProcessName(dialogWindow),
+                FavoriteHotkeyTargetKind.FileDialog);
     }
 
     private static bool RecognizesHost(IntPtr window, string className, string processName)
@@ -192,7 +241,7 @@ internal sealed class FavoriteHotkeyForegroundNavigator
     /// host check compares against. Read the same way <c>QuickPanelManager.ProcessNameOf</c> does: a
     /// window can be gone before its process is asked for, and that is simply "no manager matched".
     /// </summary>
-    private static string GetProcessName(IntPtr window)
+    internal static string GetProcessName(IntPtr window)
     {
         try
         {

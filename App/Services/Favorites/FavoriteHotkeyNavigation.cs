@@ -25,11 +25,12 @@ public enum FavoriteHotkeyNavigationAction
 public static class FavoriteHotkeyNavigation
 {
     /// <summary>
-    /// Decides the action. <paramref name="manager"/> is the inline-search adapter that matched the
-    /// foreground window -- that registry is the repository's own list of file managers it can drive, so
-    /// this deliberately does not enumerate Directory Opus / Total Commander / Explorer itself. A null
-    /// manager is the "some other application has the foreground" case, which does nothing at all rather
-    /// than opening a second window over the user's work.
+    /// Decides the action. <paramref name="managerCanNavigateInPlace"/> is true when the window in front is
+    /// something this app can move: a file manager a registered inline-search adapter recognizes, or
+    /// another application's Open/Save dialog a registered file-dialog adapter recognizes. Those registries
+    /// are the repository's own list of windows it can drive, so this deliberately does not enumerate
+    /// Directory Opus / Total Commander / Explorer itself. False is the "some other application has the
+    /// foreground" case, which does nothing at all rather than opening a second window over the user's work.
     /// </summary>
     public static FavoriteHotkeyNavigationAction Decide(
         bool isWebUrl,

@@ -72,6 +72,7 @@ public sealed class FavoriteHotkeyService : IDisposable
     {
         var failures = new List<FavoriteHotkeyFailure>();
         var unavailable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var attempted = 0;
 
         DropRegistrations();
 
@@ -81,6 +82,7 @@ public sealed class FavoriteHotkeyService : IDisposable
             // already won) are not failures -- the Settings row shows a hint for those instead.
             if (request.SkipReason != FavoriteHotkeySkipReason.None) continue;
 
+            attempted++;
             var (registered, errorCode) = _register(_nextId, request.Modifiers, request.VirtualKey);
 
             // The id is consumed either way. Reusing a refused one would make the NEXT combination
@@ -105,6 +107,11 @@ public sealed class FavoriteHotkeyService : IDisposable
         foreach (var combo in unavailable) _unavailableCombos.Add(combo);
 
         onFailure?.Invoke(failures);
+
+        // Logged at Info, not Debug: a hotkey that is registered but does nothing is exactly the kind of
+        // report the log has to be able to answer ("did it even register?"), and at Debug that answer was
+        // missing from the shipped log level entirely.
+        Logger.Log($"[FavoriteHotkeys] Registered {_byId.Count} of {attempted} requested hotkey(s).", LogLevel.Info);
     }
 
     /// <summary>

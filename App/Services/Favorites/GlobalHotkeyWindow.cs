@@ -10,28 +10,69 @@ namespace Lertaro.App.Services.Favorites;
 /// Must be created on the thread that owns the App's message pump (the Dispatcher). Windows posts
 /// <c>WM_HOTKEY</c> to the <em>thread</em> that called <c>RegisterHotKey</c>, and only a thread that
 /// pumps messages -- meaning only the UI thread here -- will ever see it.
+///
+/// The window is one WPF created (<see cref="HwndSource"/>), not one made with a raw
+/// <c>CreateWindowEx</c>: seeing <c>WM_HOTKEY</c> from managed code needs a hook on a WPF-owned window,
+/// and <c>HwndSource.FromHwnd</c> answers null for a window WPF did not create. That is how this feature
+/// first shipped -- the registration succeeded and the message was posted, but the window's own procedure
+/// discarded it, so every hotkey did nothing and logged nothing at all. A message-only parent
+/// (<see cref="FavoriteHotkeyNativeMethods.HwndMessage"/>) keeps the window off the desktop, out of window
+/// enumeration and out of the taskbar, which is everything a message sink needs.
 /// </remarks>
 internal class GlobalHotkeyWindow : IDisposable
 {
-    private readonly IntPtr _hwnd;
-    private readonly HwndSource? _source;
+    private const string MessageWindowName = "LertaroFavoriteHotkeys";
+
+    private IntPtr _hwnd;
+    private HwndSource? _source;
 
     /// <summary>Hotkey ids already accepted by the OS, so they are unregistered with the same hwnd.</summary>
     private readonly HashSet<int> _registeredIds = new();
-
-    public GlobalHotkeyWindow()
-    {
-        _hwnd = FavoriteHotkeyNativeMethods.CreateMessageWindow();
-        if (_hwnd != IntPtr.Zero)
-            _source = HwndSource.FromHwnd(_hwnd);
-    }
 
     /// <summary>
     /// False when the OS refused the receiver window, in which case no hotkey can be registered.
     /// Overridable so the registration policy can be tested without an HWND -- the Win32 half is not
     /// what a unit test should be exercising.
     /// </summary>
-    public virtual bool IsAvailable => _hwnd != IntPtr.Zero;
+    public virtual bool IsAvailable
+    {
+        get
+        {
+            EnsureMessageWindow();
+            return _hwnd != IntPtr.Zero;
+        }
+    }
+
+    /// <summary>
+    /// Creates the receiver window on first use rather than in the constructor: a user who has configured
+    /// no per-favorite hotkeys should not get one at all, and it keeps this type constructible without
+    /// touching the OS.
+    /// </summary>
+    private void EnsureMessageWindow()
+    {
+        if (_source != null || _hwnd != IntPtr.Zero) return;
+
+        try
+        {
+            _source = new HwndSource(new HwndSourceParameters(MessageWindowName)
+            {
+                ParentWindow = FavoriteHotkeyNativeMethods.HwndMessage,
+                WindowStyle = 0,
+                Width = 0,
+                Height = 0
+            });
+            _hwnd = _source.Handle;
+        }
+        catch (Exception ex)
+        {
+            // Degrade to "no per-favorite hotkeys" with one line instead of taking startup down: how the
+            // OS treats window creation is the one thing here that is outside this process's control.
+            // _source is left null, which is also what Unregister and SetHandler test for.
+            _source = null;
+            _hwnd = IntPtr.Zero;
+            Core.Logger.Log($"[FavoriteHotkeys] Could not create the hotkey message window: {ex.Message}", Core.LogLevel.Warn);
+        }
+    }
 
     /// <summary>
     /// Registers one combination. Existing registrations for the same id are dropped first so a
@@ -81,7 +122,15 @@ internal class GlobalHotkeyWindow : IDisposable
     /// </summary>
     public virtual void SetHandler(Action<int> onHotkeyId)
     {
-        if (_source == null) return;
+        EnsureMessageWindow();
+        if (_source == null)
+        {
+            // Only reachable when the window could not be created at all, which EnsureMessageWindow has
+            // already logged. Said out loud here because the silent version of this return is exactly how
+            // a registered-but-dead hotkey went unnoticed.
+            Core.Logger.Log("[FavoriteHotkeys] No message window, so the hotkey handler is not installed.", Core.LogLevel.Warn);
+            return;
+        }
 
         _source.AddHook((IntPtr _, int message, IntPtr wParam, IntPtr _, ref bool _) =>
         {
@@ -104,13 +153,10 @@ internal class GlobalHotkeyWindow : IDisposable
 
     public virtual void Dispose()
     {
+        // Disposing the HwndSource destroys the window it owns; there is nothing separate to destroy.
         _source?.Dispose();
-
-        if (_hwnd != IntPtr.Zero)
-        {
-            try { FavoriteHotkeyNativeMethods.DestroyWindow(_hwnd); }
-            catch { /* teardown only: the process is exiting either way */ }
-        }
+        _source = null;
+        _hwnd = IntPtr.Zero;
 
         _registeredIds.Clear();
     }
