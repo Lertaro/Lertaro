@@ -32,4 +32,13 @@ public interface ISearchResult
     /// genuinely-unknown value apart from a legitimate zero/default one.
     /// </summary>
     FileMetadata Metadata => default;
+
+    /// <summary>
+    /// The host-side instant result's <c>ActionArgument</c>, exactly as the instant provider emitted it
+    /// (e.g. <c>activatewindow:12345</c>, <c>kill:4321</c>, <c>cc_exec:{...}</c>). Null for every other
+    /// kind of result -- ordinary file/folder rows, plugin search actions, history entries -- whose
+    /// action is driven by <see cref="FullPath"/> and friends instead. Providers that act on what an
+    /// instant result points at (rather than on a path) read this to identify that target.
+    /// </summary>
+    string? InstantActionArgument => null;
 }

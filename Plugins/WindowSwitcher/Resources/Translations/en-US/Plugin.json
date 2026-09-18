@@ -8,6 +8,16 @@
   "WindowSwitcher_Config_UseScreenshotIconsLabel": "Show Window Content as Icon",
   "WindowSwitcher_Config_UseScreenshotIconsDesc": "Show a small live thumbnail of each window's actual content instead of its app icon. Thumbnails are captured in the background and cached briefly, so turning this off avoids that background capture work entirely.",
   "WindowSwitcher_PluginDesc": "Window switcher plugin. Lists currently open, switchable windows (the same set Alt+Tab shows) by title, process name, or PID, and brings the selected one to the foreground.",
+  "WindowSwitcher_MenuGroup": "Window",
+  "WindowSwitcher_MenuAlwaysOnTop": "Always on top",
+  "WindowSwitcher_MenuCancelAlwaysOnTop": "Cancel always on top",
+  "WindowSwitcher_MenuHide": "Hide",
+  "WindowSwitcher_MenuShow": "Show",
+  "WindowSwitcher_MenuMaximize": "Maximize",
+  "WindowSwitcher_MenuMinimize": "Minimize",
+  "WindowSwitcher_MenuRestore": "Restore",
+  "WindowSwitcher_MenuClose": "Close",
+  "WindowSwitcher_MenuFocus": "Focus",
   "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "Searches currently open windows by title, process name, or PID, and provides a one-click action to switch to the selected window in the search box.",
   "Plugin_Comp_Desc_WindowSwitcherTranslationProvider": "Provides UI translation and localization mapping for the Window Switcher plugin."
 }

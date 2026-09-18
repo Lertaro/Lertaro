@@ -8,6 +8,16 @@
   "WindowSwitcher_Config_UseScreenshotIconsLabel": "ウィンドウの内容をアイコンとして表示",
   "WindowSwitcher_Config_UseScreenshotIconsDesc": "アプリのアイコンの代わりに、各ウィンドウの実際の内容を小さなライブサムネイルとして表示します。サムネイルはバックグラウンドで取得され、短時間キャッシュされるため、これをオフにするとそのバックグラウンド処理を完全に回避できます。",
   "WindowSwitcher_PluginDesc": "ウィンドウ切り替えプラグイン。現在開いている切り替え可能なウィンドウ（Alt+Tab で表示されるものと同じ）をタイトル、プロセス名、または PID で一覧表示し、選択したウィンドウを前面に表示します。",
+  "WindowSwitcher_MenuGroup": "ウィンドウ",
+  "WindowSwitcher_MenuAlwaysOnTop": "常に最前面",
+  "WindowSwitcher_MenuCancelAlwaysOnTop": "最前面を解除",
+  "WindowSwitcher_MenuHide": "非表示",
+  "WindowSwitcher_MenuShow": "表示",
+  "WindowSwitcher_MenuMaximize": "最大化",
+  "WindowSwitcher_MenuMinimize": "最小化",
+  "WindowSwitcher_MenuRestore": "元のサイズに戻す",
+  "WindowSwitcher_MenuClose": "閉じる",
+  "WindowSwitcher_MenuFocus": "フォーカス",
   "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "タイトル、プロセス名、または PID で現在開いているウィンドウを検索し、検索ボックスから選択したウィンドウへワンクリックで切り替えられるようにします。",
   "Plugin_Comp_Desc_WindowSwitcherTranslationProvider": "ウィンドウ切り替えプラグインの UI 翻訳とローカライズマッピングを提供します。"
 }

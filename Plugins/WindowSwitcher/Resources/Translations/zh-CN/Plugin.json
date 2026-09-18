@@ -8,6 +8,16 @@
   "WindowSwitcher_Config_UseScreenshotIconsLabel": "用窗口内容作为图标",
   "WindowSwitcher_Config_UseScreenshotIconsDesc": "用每个窗口实际内容的小缩略图代替程序图标显示。缩略图在后台截取并短暂缓存，关闭此选项可以完全避免这部分后台截图工作。",
   "WindowSwitcher_PluginDesc": "窗口切换器插件。按标题、进程名或 PID 列出当前打开的、可切换的窗口（和 Alt+Tab 显示的是同一批），选中即可切换到该窗口。",
+  "WindowSwitcher_MenuGroup": "窗口",
+  "WindowSwitcher_MenuAlwaysOnTop": "窗口置顶",
+  "WindowSwitcher_MenuCancelAlwaysOnTop": "取消置顶",
+  "WindowSwitcher_MenuHide": "隐藏",
+  "WindowSwitcher_MenuShow": "显示",
+  "WindowSwitcher_MenuMaximize": "最大化",
+  "WindowSwitcher_MenuMinimize": "最小化",
+  "WindowSwitcher_MenuRestore": "还原",
+  "WindowSwitcher_MenuClose": "关闭",
+  "WindowSwitcher_MenuFocus": "聚焦",
   "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "在搜索栏输入特定触发词，按标题、进程名或 PID 检索当前打开的窗口列表，并提供一键切换到选定窗口的快捷方式。",
   "Plugin_Comp_Desc_WindowSwitcherTranslationProvider": "为窗口切换器插件提供界面语言翻译与多语言本地化服务。"
 }

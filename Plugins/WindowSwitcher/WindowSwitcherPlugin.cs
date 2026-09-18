@@ -4,10 +4,19 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.WindowSwitcher;
 
-public class WindowSwitcherPlugin : IPlugin, IConfigurable
+public class WindowSwitcherPlugin : IPlugin, IConfigurable, IActionProvider
 {
     public string Name => TranslationService.Get("WindowSwitcher_PluginName");
     public string Description => TranslationService.Get("WindowSwitcher_PluginDesc");
+
+    // Every action this plugin offers is window-specific and therefore lives in the dynamic provider
+    // below (there is no static, path-driven action to list here).
+    public IEnumerable<ISearchResultAction> GetActions() => Array.Empty<ISearchResultAction>();
+
+    public IEnumerable<IDynamicActionProvider> GetDynamicActionProviders() => new IDynamicActionProvider[]
+    {
+        new WindowMenuActionProvider()
+    };
 
     public PluginConfigSchema GetConfigSchema() => new PluginConfigSchema
     {

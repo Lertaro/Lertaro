@@ -210,6 +210,14 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     public string InstantResultActionType { get => _extras?.InstantResultActionType ?? "Copy"; set => Extras.InstantResultActionType = value; }
     public string InstantResultActionArgument { get => _extras?.InstantResultActionArgument ?? string.Empty; set => Extras.InstantResultActionArgument = value; }
 
+    // Explicit rather than implicit on purpose: the public property above is non-nullable (every
+    // existing consumer treats "" as the absent value), while the interface member is nullable so that
+    // plugins can tell "no instant argument" apart from "an argument that happens to be empty". An
+    // implementation with the same name would have to be one or the other; this keeps both contracts
+    // and is the only place the "" -> null translation happens.
+    string? PluginSdk.Abstractions.ISearchResult.InstantActionArgument =>
+        string.IsNullOrEmpty(InstantResultActionArgument) ? null : InstantResultActionArgument;
+
     public Action? InstantResultOnExecute { get => _extras?.InstantResultOnExecute; set => Extras.InstantResultOnExecute = value; }
     public Func<bool>? InstantResultOnExecuteFunc { get => _extras?.InstantResultOnExecuteFunc; set => Extras.InstantResultOnExecuteFunc = value; }
     public string? TabCompletion { get => _extras?.TabCompletion; set => Extras.TabCompletion = value; }
