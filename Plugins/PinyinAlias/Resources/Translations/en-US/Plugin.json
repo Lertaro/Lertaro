@@ -1,4 +1,6 @@
 {
   "Plugins_PinyinAliasPluginName": "Pinyin Spelling Search Alias Plugin",
-  "Plugin_Comp_Desc_PinyinAliasProvider": "Automatically generates pinyin spelling aliases for non-ASCII text to speed up search."
+  "Plugin_Comp_Desc_PinyinAliasProvider": "Automatically generates pinyin spelling aliases for non-ASCII text to speed up search.",
+  "Plugins_PinyinAlias_ConvertTraditionalToSimplified": "Convert Traditional Chinese to Simplified",
+  "Plugins_PinyinAlias_ConvertTraditionalToSimplifiedDesc": "Also generates the Simplified spelling of a Traditional name, so a Simplified query finds Traditional names and a Traditional query finds Simplified ones."
 }

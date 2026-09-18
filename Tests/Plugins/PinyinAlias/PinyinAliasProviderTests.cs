@@ -1,12 +1,33 @@
 using System.Text;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.PinyinAlias.Tests;
 
+// GetAliases' result cache is process-wide and keyed only by text, and PinyinAliasSimplifiedConversionTests
+// flips the conversion setting behind it, so this class clears the cache and pins the setting back to its
+// default (no GetSettingFunc means the call site's own default) before every test. Without that, a cache
+// entry baked under the other setting could answer a test here.
 [TestClass]
+[DoNotParallelize]
 public sealed class PinyinAliasProviderTests
 {
     private static readonly PinyinAliasProvider Provider = new();
+
+    [TestInitialize]
+    public void Reset()
+    {
+        PluginSettingsService.GetSettingFunc = null;
+        PinyinAliasProvider.ResetResultCache();
+    }
+
+    private static List<string> DecodeSegments(AliasByteSink sink)
+    {
+        var decoded = new List<string>(sink.SegmentCount);
+        for (var i = 0; i < sink.SegmentCount; i++)
+            decoded.Add(Encoding.UTF8.GetString(sink.Segment(i)));
+        return decoded;
+    }
 
     [TestMethod]
     public void CanHandle_ContainsChinese_ReturnsTrue() => Assert.IsTrue(Provider.CanHandle("hello 中文"));
@@ -113,11 +134,8 @@ public sealed class PinyinAliasProviderTests
 
         var sink = new AliasByteSink();
         Provider.GetAliasesUtf8(text, sink);
-        var decoded = new List<string>(sink.SegmentCount);
-        for (var i = 0; i < sink.SegmentCount; i++)
-            decoded.Add(Encoding.UTF8.GetString(sink.Segment(i)));
 
-        CollectionAssert.AreEquivalent(expected, decoded);
+        CollectionAssert.AreEquivalent(expected, DecodeSegments(sink));
     }
 
     // The host derives "is this the full reading or the initials shorthand" purely from which alias

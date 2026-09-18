@@ -1,4 +1,6 @@
 {
   "Plugins_PinyinAliasPluginName": "ピンイン検索エイリアスプラグイン",
-  "Plugin_Comp_Desc_PinyinAliasProvider": "検索を高速化するために、非 ASCII テキストに対してピンイン表記のエイリアスを自動生成します。"
+  "Plugin_Comp_Desc_PinyinAliasProvider": "検索を高速化するために、非 ASCII テキストに対してピンイン表記のエイリアスを自動生成します。",
+  "Plugins_PinyinAlias_ConvertTraditionalToSimplified": "繁体字を簡体字に変換",
+  "Plugins_PinyinAlias_ConvertTraditionalToSimplifiedDesc": "繁体字の名前の簡体字表記も生成するため、簡体字の検索で繁体字の名前が、繁体字の検索で簡体字の名前が見つかります。"
 }

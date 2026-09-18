@@ -1,4 +1,6 @@
 {
   "Plugins_PinyinAliasPluginName": "拼音拼写搜索别名插件",
-  "Plugin_Comp_Desc_PinyinAliasProvider": "为非 ASCII 文本（如中文）自动生成拼音首字母等搜索别名以加速检索。"
+  "Plugin_Comp_Desc_PinyinAliasProvider": "为非 ASCII 文本（如中文）自动生成拼音首字母等搜索别名以加速检索。",
+  "Plugins_PinyinAlias_ConvertTraditionalToSimplified": "繁体中文转换为简体",
+  "Plugins_PinyinAlias_ConvertTraditionalToSimplifiedDesc": "同时为繁体名称生成简体写法，因此用简体搜索可以找到繁体名称，用繁体搜索也能找到简体名称。"
 }
