@@ -41,6 +41,20 @@ public interface IDynamicActionProvider : IPluginComponent
     bool CanProvide(IReadOnlyList<ISearchResult> results);
 
     /// <summary>
+    /// Whether this provider has actions for INSTANT results -- the rows an instant-result provider
+    /// contributes (the window switcher's windows, a calculator's answer, ...). Default: false.
+    /// </summary>
+    /// <remarks>
+    /// The host keeps the actions menu closed for instant results by default: they carry no file path, so
+    /// the built-in shell actions have nothing to act on and would render as a list of dead rows. A
+    /// provider that genuinely acts on such a result has to say so here, and the host then opens the menu
+    /// for it -- this flag is a cheap declaration, not a promise: the host still asks
+    /// <see cref="CanProvide"/> before showing anything, so an instant result this provider cannot handle
+    /// keeps the menu closed rather than opening it empty.
+    /// </remarks>
+    bool CanProvideForInstantResults => false;
+
+    /// <summary>
     /// Populates and returns menu items for the root menu (hMenu = Zero) or a sub-menu.
     /// </summary>
     IEnumerable<DynamicMenuItem> GetMenuItems(IReadOnlyList<ISearchResult> results, IntPtr hMenu);

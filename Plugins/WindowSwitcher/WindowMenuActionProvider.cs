@@ -20,6 +20,10 @@ public class WindowMenuActionProvider : IDynamicActionProvider
 
     public bool CanProvide(IReadOnlyList<ISearchResult> results) => TryGetTarget(results, out _);
 
+    // The rows this menu acts on ARE instant results, so without this the host's "no actions menu for
+    // instant results" rule would keep the whole feature unreachable -- the menu never opened at all.
+    public bool CanProvideForInstantResults => true;
+
     public IEnumerable<DynamicMenuItem> GetMenuItems(IReadOnlyList<ISearchResult> results, IntPtr hMenu)
     {
         // No submenus: anything but the root menu is not ours.

@@ -65,10 +65,10 @@ public class ShellMenuPresenter : IDisposable
     public void EnterActionsMode(AppSearchResult result) => EnterActionsMode(new[] { result });
 
     /// <summary>
-    /// Whether the actions menu is allowed to open for this selection right now. Scenarios that
-    /// suppress the right-click menu (an adapter that opts out, apps outside the quick window,
-    /// plugin/instant results, the "show more" row, an inline file dialog) also suppress action
-    /// hotkeys, so callers gate on this.
+    /// Whether the actions menu is allowed to open for this selection right now. Scenarios that suppress
+    /// the right-click menu (an adapter that opts out, apps outside the quick window, plugin results, an
+    /// instant result no provider claims, the "show more" row, an inline file dialog) also suppress
+    /// action hotkeys -- see <see cref="ActionsMenuEligibility"/> for the instant-results half.
     /// </summary>
     public bool CanShowActionsMenu(IReadOnlyList<AppSearchResult> selection)
     {
@@ -85,8 +85,9 @@ public class ShellMenuPresenter : IDisposable
         var appsAllowed = result == null || !result.IsApplication || GetWindowType() == SearchWindowType.Quick;
 
         return result != null && result.FullPath != "__SHOW_MORE__" && appsAllowed
-            && !result.IsPluginSearchAction && !result.IsInstantResult && !IsInlineFileDialog()
-            && !Helpers.FavoriteUrlHelper.IsWebUrl(result.FullPath);
+            && !result.IsPluginSearchAction && !IsInlineFileDialog()
+            && !Helpers.FavoriteUrlHelper.IsWebUrl(result.FullPath)
+            && (!result.IsInstantResult || ActionsMenuEligibility.AllowsInstantResults(PluginManager.Instance.DynamicActionProviders, items));
     }
 
     public void EnterActionsMode(IReadOnlyList<AppSearchResult> selection)
