@@ -104,7 +104,7 @@ internal class GlobalHotkeyWindow : IDisposable
 
     public virtual void Dispose()
     {
-        if (_source != null) _source.Dispose();
+        _source?.Dispose();
 
         if (_hwnd != IntPtr.Zero)
         {

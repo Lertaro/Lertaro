@@ -1,5 +1,4 @@
 using System.Windows.Input;
-using Lertaro.App.Helpers;
 using Lertaro.Core;
 
 namespace Lertaro.App.Services.Favorites;

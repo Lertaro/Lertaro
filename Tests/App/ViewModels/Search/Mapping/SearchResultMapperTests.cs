@@ -1,5 +1,3 @@
-using System.IO;
-using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 using Lertaro.App.ViewModels.Search.Mapping;
 

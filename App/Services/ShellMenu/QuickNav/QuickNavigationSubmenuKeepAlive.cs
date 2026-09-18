@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using System.Windows.Controls.Primitives;
 using MenuItem = System.Windows.Controls.MenuItem;
 using ContextMenu = System.Windows.Controls.ContextMenu;
 using MouseEventHandler = System.Windows.Input.MouseEventHandler;
@@ -124,7 +123,7 @@ internal static class QuickNavigationSubmenuKeepAlive
 
     private static bool IsPointerOver(MenuItem menuItem, System.Windows.Rect popupBounds)
     {
-        var cursor = System.Windows.Forms.Cursor.Position;
+        var cursor = Cursor.Position;
         var pointer = new System.Windows.Point(cursor.X, cursor.Y);
 
         if (!popupBounds.IsEmpty && new System.Windows.Rect(popupBounds.X - Tolerance, popupBounds.Y - Tolerance,

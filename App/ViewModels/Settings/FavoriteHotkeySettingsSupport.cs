@@ -1,5 +1,4 @@
 using Lertaro.App.Services.Favorites;
-using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.Settings;
 

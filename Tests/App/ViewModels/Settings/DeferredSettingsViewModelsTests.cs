@@ -1,5 +1,4 @@
 using System.IO;
-using Lertaro.App.ViewModels.Settings;
 
 namespace Lertaro.App.Tests.ViewModels.Settings;
 

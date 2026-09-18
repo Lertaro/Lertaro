@@ -104,10 +104,8 @@ public sealed class FavoriteHotkeyFormatTests
     }
 
     [TestMethod]
-    public void ToRegisterModifiers_NoModifierAddsNoNoRepeatBit()
-    {
+    public void ToRegisterModifiers_NoModifierAddsNoNoRepeatBit() =>
         // MOD_NOREPEAT is only meaningful alongside a real modifier, so asking for none must stay none
         // rather than producing the flag on its own.
         Assert.AreEqual(FavoriteHotkeyFormat.NoModifier, FavoriteHotkeyFormat.ToRegisterModifiers(ModifierKeys.None));
-    }
 }

@@ -51,8 +51,8 @@ public sealed class DirectChildrenLocatorTests
     public void MatchInto_DoesNotDescendIntoSubdirectories()
     {
         using var dir = new TempDirectory("report.txt");
-        Directory.CreateDirectory(System.IO.Path.Combine(dir.Path, "nested"));
-        File.WriteAllText(System.IO.Path.Combine(dir.Path, "nested", "report-deep.txt"), string.Empty);
+        Directory.CreateDirectory(Path.Combine(dir.Path, "nested"));
+        File.WriteAllText(Path.Combine(dir.Path, "nested", "report-deep.txt"), string.Empty);
 
         var matched = Locate(dir.Path, "report");
 
@@ -104,9 +104,9 @@ public sealed class DirectChildrenLocatorTests
     public void MatchInto_ReportsDirectoriesAsWellAsFiles()
     {
         using var dir = new TempDirectory("report.txt");
-        Directory.CreateDirectory(System.IO.Path.Combine(dir.Path, "report-folder"));
+        Directory.CreateDirectory(Path.Combine(dir.Path, "report-folder"));
 
-        var results = new List<Lertaro.Core.SearchResult>();
+        var results = new List<Core.SearchResult>();
         DirectChildrenLocator.MatchInto(dir.Path, "report", 50, results.Add, CancellationToken.None);
 
         Assert.IsTrue(results.Any(r => r.Name == "report-folder" && r.IsDir));

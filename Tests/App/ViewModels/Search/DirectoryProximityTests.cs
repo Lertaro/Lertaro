@@ -28,11 +28,9 @@ public sealed class DirectoryProximityTests
         Assert.AreEqual(0, DirectoryProximity.Tier(@"C:\ROOT\file.txt", @"c:\root"));
 
     [TestMethod]
-    public void Tier_SiblingFolderWithSharedPrefix_IsOutside()
-    {
+    public void Tier_SiblingFolderWithSharedPrefix_IsOutside() =>
         // "C:\Roots" merely shares a string prefix with "C:\Root" -- it is not a child of it.
         Assert.AreEqual(DirectoryProximity.Outside, DirectoryProximity.Tier(@"C:\Roots\file.txt", @"C:\Root"));
-    }
 
     [TestMethod]
     public void Tier_UnrelatedPath_IsOutside() =>
