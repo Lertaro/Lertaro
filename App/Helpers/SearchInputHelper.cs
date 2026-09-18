@@ -2,9 +2,8 @@ using System.Windows;
 using System.Windows.Input;
 using Lertaro.Core;
 using Lertaro.App.Services;
-
 using Lertaro.App.Services.AppWindow;
-
+using Lertaro.App.Services.ShellMenu.ActionFlyout;
 using Lertaro.App.Services.ShellMenu.Presenter;
 namespace Lertaro.App.Helpers;
 
@@ -114,6 +113,20 @@ public static class SearchInputHelper
             return true;
         }
 
+        // Mnemonic letters (a provider writes the letter as the item's ShortcutHint). Only while the
+        // actions filter box is empty: once the user starts typing a filter, letters belong to the filter
+        // -- and typing into it is the only way to narrow a long menu down, so a mnemonic must not steal
+        // the first keystroke of it. Selecting the item and running the ordinary selected-action path
+        // keeps one execution code path for click, Enter and letter.
+        if (noModifiers && window != null && string.IsNullOrEmpty(actionSearchBox?.Text)
+            && ActionsMenuShortcutMatcher.Find(window.LstActions.Items.OfType<ActionMenuItem>(), LetterOf(actualKey)) is { } shortcutItem)
+        {
+            window.LstActions.SelectedItem = shortcutItem;
+            menuPresenter.ExecuteSelectedAction();
+            e.Handled = true;
+            return true;
+        }
+
         if (e.Key == Key.Back && noModifiers)
         {
             if (actionSearchBox != null && string.IsNullOrEmpty(actionSearchBox.Text))
@@ -199,4 +212,10 @@ public static class SearchInputHelper
 
         return false;
     }
+
+    /// <summary>
+    /// The letter a key press stands for, as the uppercase form the shortcut hints are compared against,
+    /// or <c>'\0'</c> for every key that is not A-Z (so no hint can match it).
+    /// </summary>
+    private static char LetterOf(Key key) => key >= Key.A && key <= Key.Z ? (char)('A' + (key - Key.A)) : '\0';
 }

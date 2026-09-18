@@ -20,8 +20,12 @@ internal static class WindowMenuOperations
         Focus = 5707
     }
 
-    /// <summary>One menu row: which command it runs and which translation key labels it.</summary>
-    internal readonly record struct WindowMenuEntry(uint CommandId, string LabelKey, bool Enabled);
+    /// <summary>
+    /// One menu row: which command it runs, which translation key labels it, whether it is a no-op right
+    /// now, and the letter that activates it while the menu is open (the host matches a typed letter
+    /// against this, so the letter is shown next to the row as well as being a trigger).
+    /// </summary>
+    internal readonly record struct WindowMenuEntry(uint CommandId, string LabelKey, bool Enabled, string ShortcutHint);
 
     /// <summary>
     /// Everything the menu decision depends on, read from the live window once per menu open.
@@ -47,19 +51,19 @@ internal static class WindowMenuOperations
 
         return new[]
         {
-            Entry(MenuCommand.ToggleTopmost, topmostKey, true),
-            Entry(MenuCommand.HideOrShow, visibilityKey, true),
-            Entry(MenuCommand.Maximize, "WindowSwitcher_MenuMaximize", !state.IsMaximized),
-            Entry(MenuCommand.Minimize, "WindowSwitcher_MenuMinimize", !state.IsMinimized),
-            Entry(MenuCommand.Restore, "WindowSwitcher_MenuRestore", canRestore),
-            Entry(MenuCommand.Close, "WindowSwitcher_MenuClose", true),
-            Entry(MenuCommand.Focus, "WindowSwitcher_MenuFocus", true)
+            Entry(MenuCommand.ToggleTopmost, topmostKey, true, 'p'),
+            Entry(MenuCommand.HideOrShow, visibilityKey, true, 'h'),
+            Entry(MenuCommand.Maximize, "WindowSwitcher_MenuMaximize", !state.IsMaximized, 'm'),
+            Entry(MenuCommand.Minimize, "WindowSwitcher_MenuMinimize", !state.IsMinimized, 'n'),
+            Entry(MenuCommand.Restore, "WindowSwitcher_MenuRestore", canRestore, 'r'),
+            Entry(MenuCommand.Close, "WindowSwitcher_MenuClose", true, 'c'),
+            Entry(MenuCommand.Focus, "WindowSwitcher_MenuFocus", true, 'f')
         };
     }
 
     // Small helper so Build above stays a readable table.
-    private static WindowMenuEntry Entry(MenuCommand command, string labelKey, bool enabled) =>
-        new((uint)command, labelKey, enabled);
+    private static WindowMenuEntry Entry(MenuCommand command, string labelKey, bool enabled, char shortcut) =>
+        new((uint)command, labelKey, enabled, shortcut.ToString());
 
     /// <summary>
     /// Extracts the target HWND from an instant result's action argument. Returns <see cref="IntPtr.Zero"/>

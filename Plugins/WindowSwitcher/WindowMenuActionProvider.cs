@@ -43,6 +43,8 @@ public class WindowMenuActionProvider : IDynamicActionProvider
                 Text = TranslationService.Get(entry.LabelKey),
                 CommandId = command,
                 IsDisabled = !entry.Enabled,
+                // The same letter the host matches a typed key against while this menu is open.
+                ShortcutHint = entry.ShortcutHint,
                 OnExecute = () => Execute(hwnd, command)
             };
         }

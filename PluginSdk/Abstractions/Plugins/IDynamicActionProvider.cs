@@ -100,6 +100,15 @@ public class DynamicMenuItem
     /// (e.g. virtual Shell namespace items, custom actions).
     /// </summary>
     public Action? OnExecute { get; set; }
+    /// <summary>
+    /// A single letter that activates this item while the menu is open, shown next to the item as well
+    /// as being a trigger (case-insensitive). Default: empty, meaning the item has no mnemonic.
+    /// </summary>
+    /// <remarks>
+    /// The host matches a typed letter against this only while the menu's own filter box is empty, so
+    /// letters never steal the first keystroke of a filter. A longer value (e.g. "Ctrl+O") is display
+    /// only and is never matched -- it is a hotkey, not a mnemonic.
+    /// </remarks>
     public string ShortcutHint { get; set; } = string.Empty;
     /// <summary>
     /// Marks this as a non-rendered continuation cursor for a paged submenu. The quick-navigation
