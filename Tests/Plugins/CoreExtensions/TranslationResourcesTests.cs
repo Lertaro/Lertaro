@@ -37,7 +37,7 @@ public sealed class TranslationResourcesTests
             }
         }
 
-        Assert.AreEqual(0, broken.Count, "malformed translation resources:\n" + string.Join("\n", broken));
+        Assert.IsEmpty(broken, "malformed translation resources:\n" + string.Join("\n", broken));
     }
 
     // The provider merges App.json and Plugin.json before handing anything to the app. A file that
@@ -56,7 +56,7 @@ public sealed class TranslationResourcesTests
 
     // These keys are the ones the app asks for by literal string, so a rename here silently regresses
     // a shipped string back to "[Key]" without breaking compilation.
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("Plugins_CoreActionPluginName")]
     [DataRow("CoreExtensions_PluginDesc")]
     [DataRow("CoreExtensions_QueryTokenProvider_Name")]
