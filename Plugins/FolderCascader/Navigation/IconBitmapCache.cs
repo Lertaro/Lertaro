@@ -124,8 +124,7 @@ public static class IconBitmapCache
     private static IntPtr CreateStarHBitmap()
     {
         var path = "M 8,1.5 L 10.2,6 L 15,6.5 L 11.3,9.7 L 12.5,14.5 L 8,12 L 3.5,14.5 L 4.7,9.7 L 1,6.5 L 5.8,6 Z";
-        var accentBrush = System.Windows.Application.Current?.TryFindResource("AccentBlue") as System.Windows.Media.SolidColorBrush;
-        var fill = accentBrush ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(33, 150, 243));
+        var fill = AccentBrush();
         var stroke = new System.Windows.Media.Pen(fill, 1.0);
         return CreateHBitmapFromWpfPath(path, fill, stroke);
     }
@@ -133,42 +132,59 @@ public static class IconBitmapCache
     private static IntPtr CreateClockHBitmap()
     {
         var path = "M 8,2 A 6,6 0 1,0 8.001,2 M 8,5 L 8,8 L 11,8";
-        var accentBrush = System.Windows.Application.Current?.TryFindResource("AccentBlue") as System.Windows.Media.SolidColorBrush;
-        var strokeBrush = accentBrush ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(33, 150, 243));
+        var strokeBrush = AccentBrush();
         var stroke = new System.Windows.Media.Pen(strokeBrush, 1.5);
         return CreateHBitmapFromWpfPath(path, null, stroke);
     }
 
     // A fixed themed glyph identifies the dynamic "Opened Folders" category without inheriting the
     // user's shell-specific yellow folder icon. Individual folders inside its submenu still use shell icons.
-    private static IntPtr CreateOpenedFoldersHBitmap()
-    {
-        var path = "M3,6H10L12,8H21V19H3Z";
-        var accentBrush = System.Windows.Application.Current?.TryFindResource("AccentBlue") as System.Windows.Media.SolidColorBrush;
-        var fill = accentBrush ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(33, 150, 243));
-        return CreateHBitmapFromWpfPath(path, fill, null, scale: 64.0 / 24.0);
-    }
+    private static IntPtr CreateOpenedFoldersHBitmap() =>
+        CreateHBitmapFromWpfPath("M3,6H10L12,8H21V19H3Z", AccentBrush(), null, scale: 64.0 / 24.0);
 
     // Hamburger/menu glyph for a submenu category node (a grouping created by a folder's own SubMenu
     // field, not a real filesystem location) -- same glyph and theming (AccentBlue) as
     // Plugins/CustomCommands/QuickNavIcon.cs's own GetCategoryHBitmap, for a consistent look between
     // the two plugins' cascading menus.
-    private static IntPtr CreateCategoryHBitmap()
-    {
-        var path = "M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z";
-        var accentBrush = System.Windows.Application.Current?.TryFindResource("AccentBlue") as System.Windows.Media.SolidColorBrush;
-        var fill = accentBrush ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(33, 150, 243));
-        return CreateHBitmapFromWpfPath(path, fill, null, scale: 64.0 / 24.0);
-    }
+    private static IntPtr CreateCategoryHBitmap() =>
+        CreateHBitmapFromWpfPath("M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z", AccentBrush(), null, scale: 64.0 / 24.0);
 
     // Plus glyph for "Add Current Folder" -- same 24-unit viewBox and AccentBlue theming as the
     // category hamburger above, for a consistent look among this plugin's own structural (non-shell)
     // menu icons.
-    private static IntPtr CreateAddHBitmap()
+    private static IntPtr CreateAddHBitmap() =>
+        CreateHBitmapFromWpfPath("M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z", AccentBrush(), null, scale: 64.0 / 24.0);
+
+    private static readonly System.Windows.Media.Color FallbackAccent = System.Windows.Media.Color.FromRgb(33, 150, 243);
+
+    /// <summary>
+    /// The theme's accent brush, resolved on the UI thread.
+    /// </summary>
+    /// <remarks>
+    /// The lookup has to happen on the UI thread even though the brush is only USED for rendering: a
+    /// resource brush comes out of the application's own resource dictionary, and WPF Freezables are
+    /// thread-affine, so reading one from a worker thread throws "the DependencyObject belongs to a
+    /// different thread than its parent Freezable" -- which is exactly what filled the log before this.
+    /// The geometry rendering below was already marshalled; the resource lookup was not.
+    /// When there is no application (the STA fallback path below) a local brush is used instead, which is
+    /// safe precisely because it belongs to nobody else.
+    /// </remarks>
+    private static System.Windows.Media.Brush AccentBrush()
     {
-        var path = "M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z";
-        var accentBrush = System.Windows.Application.Current?.TryFindResource("AccentBlue") as System.Windows.Media.SolidColorBrush;
-        var fill = accentBrush ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(33, 150, 243));
-        return CreateHBitmapFromWpfPath(path, fill, null, scale: 64.0 / 24.0);
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        System.Windows.Media.Brush? Resolve() =>
+            System.Windows.Application.Current?.TryFindResource("AccentBlue") as System.Windows.Media.Brush;
+
+        try
+        {
+            var found = dispatcher == null || dispatcher.CheckAccess() ? Resolve() : dispatcher.Invoke(Resolve);
+            if (found != null) return found;
+        }
+        catch (Exception)
+        {
+            // A missing or unreadable resource is not fatal: the fallback below keeps the icons visible.
+        }
+
+        return new System.Windows.Media.SolidColorBrush(FallbackAccent);
     }
 }
