@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Reflection;
+
 namespace Lertaro.Plugins.DirectoryOpus.Tests;
 
 // The two pure halves of reading Opus's own paths output (dopusrt.exe /info <file>,paths): the XML
@@ -132,15 +135,19 @@ public sealed class DopusRtPathQueryTests
         Assert.AreEqual(new IntPtr(0x2), folders[1].WindowHandle);
     }
 
-    // Opus refuses an output path containing a space, Chinese or other special character, so the path
-    // handed to it has to be validated rather than assumed: %TEMP% is per-user and often is not usable.
+    // Opus refuses a non-ASCII output path, and a double quote cannot be escaped inside the quoted form
+    // the /info argument uses, so both are rejected. A SPACE is not: the path is quoted in the argument,
+    // so a temp directory containing one -- a real user name, or a redirected %TEMP% -- is usable and
+    // must not be skipped.
     [TestMethod]
-    public void IsOpusSafePath_RejectsSpacesAndNonAscii()
+    public void IsOpusSafePath_AllowsSpacesAndRejectsNonAsciiAndQuotes()
     {
+        Assert.IsTrue(DopusRtPathQuery.IsOpusSafePath(@"C:\Users\testuser\AppData\Local\Temp\lertaro-dopusrt-1a2b.xml"));
+        Assert.IsTrue(DopusRtPathQuery.IsOpusSafePath(@"C:\Users\Some Name\AppData\Local\Temp\a.xml"));
+        Assert.IsTrue(DopusRtPathQuery.IsOpusSafePath(@"F:\tmp\new test\paths.txt"));
         Assert.IsTrue(DopusRtPathQuery.IsOpusSafePath(@"C:\Users\USER~1\AppData\Local\Temp\lertaro-dopusrt-1a2b.xml"));
-        Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath(@"C:\Users\Some Name\AppData\Local\Temp\a.xml"));
         Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath(@"C:\Users\张三\AppData\Local\Temp\a.xml"));
-        Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath(@"C:\temp\a b.xml"));
+        Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath("C:\\tmp\\new\"test\\a.xml"));
         Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath(null));
         Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath(string.Empty));
     }
@@ -155,8 +162,8 @@ public sealed class DopusRtPathQueryTests
 
         if (first == null)
         {
-            // A temp directory with neither an ASCII short form nor an ASCII long form: the plugin
-            // degrades to the scrape fallback, which the collector's own tests cover.
+            // No writable ASCII, space-free directory at all: the plugin degrades to the scrape
+            // fallback, which the collector's own tests cover.
             Assert.IsNull(second);
             return;
         }
@@ -164,5 +171,100 @@ public sealed class DopusRtPathQueryTests
         Assert.IsTrue(DopusRtPathQuery.IsOpusSafePath(first));
         Assert.AreNotEqual(first, second);
         Assert.IsTrue(Directory.Exists(Path.GetDirectoryName(first)));
+
+        // dopusrt only fills in a file that already exists, so the path this returns must already have
+        // been created -- empty -- by the time the caller runs the tool.
+        Assert.IsTrue(File.Exists(first), $"'{first}' should already exist for dopusrt to fill in");
+        Assert.AreEqual(0, new FileInfo(first).Length);
+
+        File.Delete(first);
+    }
+
+    // End-to-end over a path that CONTAINS A SPACE, which is the whole reason the /info argument quotes
+    // the path. This drives the real tool against a real Opus, so it needs both installed; on a machine
+    // without them there is nothing to query and the test stands down rather than failing.
+    //
+    // It calls the query's own tool runner directly because %TEMP% cannot be redirected in-process --
+    // Path.GetTempPath() caches its answer -- so the space would otherwise never reach the argument.
+    [TestMethod]
+    public void RunTool_FillsInAPreCreatedFileWhosePathContainsASpace()
+    {
+        var output = Path.Combine(Path.GetTempPath(), "lertaro space test", $"paths-{Guid.NewGuid():N}.xml");
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+
+            // dopusrt only fills in a file that is already there.
+            File.WriteAllBytes(output, []);
+
+            var runner = typeof(DopusRtPathQuery).GetMethod(
+                "RunTool", BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.IsNotNull(runner, "RunTool should still exist for this regression guard to work");
+
+            runner.Invoke(null, [FindDopusRt() ?? @"C:\Program Files\GPSoftware\Directory Opus\dopusrt.exe", output]);
+
+            // Opus writes the file asynchronously, so poll exactly as the production reader does rather
+            // than assuming the content is on disk the moment the process exits.
+            var deadline = DateTime.UtcNow.AddSeconds(2);
+            while (new FileInfo(output).Length == 0 && DateTime.UtcNow < deadline) Thread.Sleep(50);
+
+            var file = new FileInfo(output);
+            Assert.IsTrue(file.Exists);
+            Assert.IsGreaterThan(0, file.Length, "dopusrt wrote nothing, so the quoted space-bearing path was not accepted");
+            Assert.Contains("<path ", File.ReadAllText(output));
+        }
+        finally
+        {
+            try { Directory.Delete(Path.GetDirectoryName(output)!, recursive: true); } catch { /* best effort */ }
+        }
+    }
+
+    /// <summary>
+    /// The installed <c>dopusrt.exe</c>, taken from the running Opus where possible, or null when Opus is
+    /// not installed on this machine.
+    /// </summary>
+    private static string? FindDopusRt()
+    {
+        foreach (var process in Process.GetProcessesByName("dopus"))
+        {
+            try
+            {
+                var directory = Path.GetDirectoryName(process.MainModule?.FileName);
+                if (directory != null)
+                {
+                    var tool = Path.Combine(directory, "dopusrt.exe");
+                    if (File.Exists(tool)) return tool;
+                }
+            }
+            catch { /* elevated Opus: fall through */ }
+            finally { process.Dispose(); }
+        }
+
+        return null;
+    }
+
+    // A live log caught the plugin handing dopusrt a path in a directory that passed the character rules
+    // but refused the file: dopusrt then exits 0 having written nothing, so EVERY query silently fell
+    // through to the scrape (which only sees the focused tab) and paid the full 2s wait. Being ASCII and
+    // space-free is therefore not the contract -- being writable is.
+    [TestMethod]
+    public void CreateOutputPath_OnlyReturnsADirectoryThatCanActuallyHoldTheFile()
+    {
+        var path = DopusRtPathQuery.CreateOutputPath();
+        if (path == null) return; // covered by the test above
+
+        var directory = Path.GetDirectoryName(path)!;
+
+        // The same test the shipped code performs, asserted independently here so the guarantee is
+        // pinned by a test rather than only by the production probe.
+        var probe = Path.Combine(directory, $"lertaro-test-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            File.WriteAllBytes(probe, []);
+        }
+        finally
+        {
+            try { File.Delete(probe); } catch { /* best effort */ }
+        }
     }
 }
