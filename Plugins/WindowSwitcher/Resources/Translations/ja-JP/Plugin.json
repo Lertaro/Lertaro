@@ -11,8 +11,6 @@
   "WindowSwitcher_MenuGroup": "ウィンドウ",
   "WindowSwitcher_MenuAlwaysOnTop": "常に最前面",
   "WindowSwitcher_MenuCancelAlwaysOnTop": "最前面を解除",
-  "WindowSwitcher_MenuHide": "非表示",
-  "WindowSwitcher_MenuShow": "表示",
   "WindowSwitcher_MenuMaximize": "最大化",
   "WindowSwitcher_MenuMinimize": "最小化",
   "WindowSwitcher_MenuRestore": "元のサイズに戻す",

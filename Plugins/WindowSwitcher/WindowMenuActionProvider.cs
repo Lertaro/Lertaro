@@ -76,9 +76,6 @@ public class WindowMenuActionProvider : IDynamicActionProvider
                 // built -- the user may have toggled it from the titlebar in between.
                 WindowMenuOperations.SetTopmost(hwnd, !WindowMenuOperations.ReadState(hwnd).IsTopmost);
                 break;
-            case WindowMenuOperations.MenuCommand.HideOrShow:
-                WindowMenuOperations.SetVisible(hwnd, !WindowMenuOperations.ReadState(hwnd).IsVisible);
-                break;
             case WindowMenuOperations.MenuCommand.Maximize:
                 WindowMenuOperations.Maximize(hwnd);
                 break;

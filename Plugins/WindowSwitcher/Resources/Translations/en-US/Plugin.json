@@ -11,8 +11,6 @@
   "WindowSwitcher_MenuGroup": "Window",
   "WindowSwitcher_MenuAlwaysOnTop": "Always on top",
   "WindowSwitcher_MenuCancelAlwaysOnTop": "Cancel always on top",
-  "WindowSwitcher_MenuHide": "Hide",
-  "WindowSwitcher_MenuShow": "Show",
   "WindowSwitcher_MenuMaximize": "Maximize",
   "WindowSwitcher_MenuMinimize": "Minimize",
   "WindowSwitcher_MenuRestore": "Restore",

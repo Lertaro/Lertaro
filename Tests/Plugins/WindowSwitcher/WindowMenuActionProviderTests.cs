@@ -38,7 +38,6 @@ public sealed class WindowMenuActionProviderTests
             .ToDictionary(entry => (WindowMenuOperations.MenuCommand)entry.CommandId, entry => entry.ShortcutHint);
 
         Assert.AreEqual("p", hints[WindowMenuOperations.MenuCommand.ToggleTopmost]);
-        Assert.AreEqual("h", hints[WindowMenuOperations.MenuCommand.HideOrShow]);
         Assert.AreEqual("m", hints[WindowMenuOperations.MenuCommand.Maximize]);
         Assert.AreEqual("n", hints[WindowMenuOperations.MenuCommand.Minimize]);
         Assert.AreEqual("r", hints[WindowMenuOperations.MenuCommand.Restore]);

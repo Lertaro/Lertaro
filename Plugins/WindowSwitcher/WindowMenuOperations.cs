@@ -12,7 +12,10 @@ internal static class WindowMenuOperations
     internal enum MenuCommand
     {
         ToggleTopmost = 5701,
-        HideOrShow = 5702,
+        // 5702 was HideOrShow, removed on purpose: SW_HIDE takes the window out of this switcher's own
+        // window list (and out of Alt+Tab), and the only way to undo it was this menu -- which can no
+        // longer be reached for a window that is gone. The id is left unused rather than reused so the
+        // remaining ids stay stable.
         Maximize = 5703,
         Minimize = 5704,
         Restore = 5705,
@@ -38,13 +41,12 @@ internal static class WindowMenuOperations
     /// <summary>
     /// Maps the target window's current state to the menu rows to show. Entries that would be a no-op
     /// right now are still listed (so the menu's shape doesn't jump around) but disabled: Maximize when
-    /// already maximized, Minimize when already minimized, Restore when neither. The label of the
-    /// topmost and hide/show rows flips with the state they describe.
+    /// already maximized, Minimize when already minimized, Restore when neither. The topmost row's label
+    /// flips with the state it describes.
     /// </summary>
     internal static IReadOnlyList<WindowMenuEntry> Build(WindowMenuState state)
     {
         var topmostKey = state.IsTopmost ? "WindowSwitcher_MenuCancelAlwaysOnTop" : "WindowSwitcher_MenuAlwaysOnTop";
-        var visibilityKey = state.IsVisible ? "WindowSwitcher_MenuHide" : "WindowSwitcher_MenuShow";
         // A window cannot be both maximized and minimized, so this is exactly "restoring would change
         // something": a normal window has nothing to restore.
         var canRestore = state.IsMaximized || state.IsMinimized;
@@ -52,7 +54,6 @@ internal static class WindowMenuOperations
         return new[]
         {
             Entry(MenuCommand.ToggleTopmost, topmostKey, true, 'p'),
-            Entry(MenuCommand.HideOrShow, visibilityKey, true, 'h'),
             Entry(MenuCommand.Maximize, "WindowSwitcher_MenuMaximize", !state.IsMaximized, 'm'),
             Entry(MenuCommand.Minimize, "WindowSwitcher_MenuMinimize", !state.IsMinimized, 'n'),
             Entry(MenuCommand.Restore, "WindowSwitcher_MenuRestore", canRestore, 'r'),
@@ -104,18 +105,18 @@ internal static class WindowMenuOperations
     // into the user's face.
 
     /// <summary>Adds or removes WS_EX_TOPMOST, the same thing a titlebar "Always on top" toggle does.</summary>
+    /// <remarks>
+    /// SWP_NOACTIVATE is load-bearing, and SetWindowPos's success return does NOT reveal when it is
+    /// missing: without it the call also asks to activate the target, and a window that is not the
+    /// foreground one drops the whole positioning request while still returning TRUE. Measured on a real
+    /// Explorer frame (CabinetWClass): NOSIZE|NOMOVE returns true and WS_EX_TOPMOST never appears;
+    /// adding NOACTIVATE sets it and it stays set. A plain Notepad window happens to accept both, which
+    /// is how this shipped wrong -- so this is about the target's tolerance, not about which window.
+    /// </remarks>
     internal static bool SetTopmost(IntPtr hwnd, bool topmost)
     {
         if (!IsWindow(hwnd)) return false;
-        return SetWindowPos(hwnd, topmost ? HwndTopmost : HwndNotopmost, 0, 0, 0, 0, SwpNoSize | SwpNoMove);
-    }
-
-    /// <summary>Hides or shows the window (SW_HIDE / SW_SHOW), leaving its place on the taskbar alone.</summary>
-    internal static bool SetVisible(IntPtr hwnd, bool visible)
-    {
-        if (!IsWindow(hwnd)) return false;
-        ShowWindow(hwnd, visible ? SwShow : SwHide);
-        return true;
+        return SetWindowPos(hwnd, topmost ? HwndTopmost : HwndNotopmost, 0, 0, 0, 0, SwpNoSize | SwpNoMove | SwpNoActivate);
     }
 
     internal static bool Maximize(IntPtr hwnd)
@@ -218,10 +219,9 @@ internal static class WindowMenuOperations
 
     private const uint SwpNoSize = 0x0001;
     private const uint SwpNoMove = 0x0002;
+    private const uint SwpNoActivate = 0x0010;
 
-    private const int SwHide = 0;
     private const int SwMaximize = 3;
-    private const int SwShow = 5;
     private const int SwMinimize = 6;
     private const int SwRestore = 9;
 

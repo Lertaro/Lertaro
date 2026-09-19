@@ -9,9 +9,8 @@ public sealed class WindowMenuOperationsTests
         var entries = WindowMenuOperations.Build(new WindowMenuOperations.WindowMenuState(
             IsValid: true, IsTopmost: false, IsVisible: true, IsMaximized: false, IsMinimized: false));
 
-        Assert.HasCount(7, entries);
+        Assert.HasCount(6, entries);
         Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.ToggleTopmost).Enabled);
-        Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.HideOrShow).Enabled);
         Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.Maximize).Enabled);
         Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.Minimize).Enabled);
         Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.Close).Enabled);
@@ -27,7 +26,6 @@ public sealed class WindowMenuOperationsTests
             IsValid: true, IsTopmost: false, IsVisible: true, IsMaximized: false, IsMinimized: false));
 
         Assert.AreEqual("WindowSwitcher_MenuAlwaysOnTop", Find(entries, WindowMenuOperations.MenuCommand.ToggleTopmost).LabelKey);
-        Assert.AreEqual("WindowSwitcher_MenuHide", Find(entries, WindowMenuOperations.MenuCommand.HideOrShow).LabelKey);
         Assert.AreEqual("WindowSwitcher_MenuMaximize", Find(entries, WindowMenuOperations.MenuCommand.Maximize).LabelKey);
         Assert.AreEqual("WindowSwitcher_MenuMinimize", Find(entries, WindowMenuOperations.MenuCommand.Minimize).LabelKey);
         Assert.AreEqual("WindowSwitcher_MenuRestore", Find(entries, WindowMenuOperations.MenuCommand.Restore).LabelKey);
@@ -59,17 +57,14 @@ public sealed class WindowMenuOperationsTests
     }
 
     [TestMethod]
-    public void Build_HiddenTopmostWindow_FlipsBothLabels()
+    public void Build_TopmostWindow_FlipsItsLabel()
     {
         var entries = WindowMenuOperations.Build(new WindowMenuOperations.WindowMenuState(
             IsValid: true, IsTopmost: true, IsVisible: false, IsMaximized: false, IsMinimized: false));
 
-        // Topmost is not about visibility: a hidden window can still be (and here is) WS_EX_TOPMOST,
-        // so the two flips must be independent of one another.
+        // Topmost is not about visibility: a hidden window can still be (and here is) WS_EX_TOPMOST.
         Assert.AreEqual("WindowSwitcher_MenuCancelAlwaysOnTop", Find(entries, WindowMenuOperations.MenuCommand.ToggleTopmost).LabelKey);
-        Assert.AreEqual("WindowSwitcher_MenuShow", Find(entries, WindowMenuOperations.MenuCommand.HideOrShow).LabelKey);
         Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.ToggleTopmost).Enabled);
-        Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.HideOrShow).Enabled);
         Assert.IsFalse(Find(entries, WindowMenuOperations.MenuCommand.Restore).Enabled);
     }
 

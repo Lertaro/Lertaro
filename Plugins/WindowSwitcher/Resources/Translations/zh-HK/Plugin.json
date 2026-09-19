@@ -11,8 +11,6 @@
   "WindowSwitcher_MenuGroup": "視窗",
   "WindowSwitcher_MenuAlwaysOnTop": "置頂",
   "WindowSwitcher_MenuCancelAlwaysOnTop": "取消置頂",
-  "WindowSwitcher_MenuHide": "隱藏",
-  "WindowSwitcher_MenuShow": "顯示",
   "WindowSwitcher_MenuMaximize": "最大化",
   "WindowSwitcher_MenuMinimize": "最小化",
   "WindowSwitcher_MenuRestore": "還原",

@@ -11,8 +11,6 @@
   "WindowSwitcher_MenuGroup": "창",
   "WindowSwitcher_MenuAlwaysOnTop": "항상 위",
   "WindowSwitcher_MenuCancelAlwaysOnTop": "항상 위 해제",
-  "WindowSwitcher_MenuHide": "숨기기",
-  "WindowSwitcher_MenuShow": "표시",
   "WindowSwitcher_MenuMaximize": "최대화",
   "WindowSwitcher_MenuMinimize": "최소화",
   "WindowSwitcher_MenuRestore": "복원",

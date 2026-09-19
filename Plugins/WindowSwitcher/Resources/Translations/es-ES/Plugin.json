@@ -11,8 +11,6 @@
   "WindowSwitcher_MenuGroup": "Ventana",
   "WindowSwitcher_MenuAlwaysOnTop": "Siempre visible",
   "WindowSwitcher_MenuCancelAlwaysOnTop": "Quitar siempre visible",
-  "WindowSwitcher_MenuHide": "Ocultar",
-  "WindowSwitcher_MenuShow": "Mostrar",
   "WindowSwitcher_MenuMaximize": "Maximizar",
   "WindowSwitcher_MenuMinimize": "Minimizar",
   "WindowSwitcher_MenuRestore": "Restaurar",
