@@ -150,17 +150,25 @@ public class DirectoryOpusPathCollector : IActivePathCollector
     }
 
     /// <summary>
-    /// Returns the folder of every TAB of every visible Directory Opus lister, not just the tab in front.
+    /// Returns the folder of every TAB of every visible Directory Opus lister, not just the tab in front,
+    /// with each tab group's active tab listed before that group's other tabs.
     /// </summary>
     /// <remarks>
-    /// Every tab owns a <c>dopus.filedisplaycontainer</c>; the ones not in front are simply hidden. Asking
-    /// only for the visible containers (as this did) therefore reported one folder per pane -- whichever
-    /// tab happened to be active -- and silently dropped the rest of the user's open tabs, so a lister
-    /// with five tabs contributed two entries.
-    /// The active tabs are listed first: they are the folders the user is actually looking at, and it
-    /// keeps the entries a consumer already showed before this existed at the head of the list.
+    /// Opus's own interface answers first (see <see cref="DopusRtPathQuery"/>): it reports every tab of
+    /// every group along with which one is active, which is what the order needs. Scraping the
+    /// file-display windows -- the fallback below -- can only see the tabs whose container is visible and
+    /// cannot tell a group's active tab from its neighbours, so it is kept only for the case where Opus
+    /// cannot answer at all (not running, tool missing, unexpected output).
     /// </remarks>
     public IReadOnlyList<OpenedFolder> GetOpenedFolders()
+    {
+        var reported = DopusRtPathQuery.TryReadTabs();
+        if (reported != null) return DopusRtPathQuery.ToOpenedFolders(reported);
+
+        return GetOpenedFoldersFromWindows();
+    }
+
+    private IReadOnlyList<OpenedFolder> GetOpenedFoldersFromWindows()
     {
         var folders = new List<OpenedFolder>();
         foreach (var lister in OpenFolderWindowEnumerator.FindVisibleWindows(IsListerWindow))
