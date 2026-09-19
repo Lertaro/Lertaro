@@ -73,14 +73,35 @@ internal static class HighlightMask
             // expects to see lit up, not just an arbitrary single winner.
             foreach (var term in set.Terms)
             {
-                // An alias provider's rewriting of the user's term is for matching only. Its text is
-                // the provider's internal shape (pinyin plus syllable boundaries), which appears
-                // nowhere in the candidate, so the subsequence search below would spread it across the
+                if (term.Inverse)
+                    continue;
+
+                // An alias provider's rewriting of the user's term is normally for matching only: its
+                // text is the provider's internal shape (pinyin plus syllable boundaries), which appears
+                // nowhere in the candidate, so the fuzzy walk in MarkTerm would spread it across the
                 // whole name and light up characters the user never described -- searching a folder by
                 // the pinyin of its first four characters lit up two more from the middle of the name.
-                // The typed term still reaches the same aliases through AliasHighlightMarker.MarkViaAliasProviders.
-                if (term.Inverse || term.AliasForm)
+                // The typed term still reaches those aliases through AliasHighlightMarker.
+                //
+                // A rewriting that IS literally present is the exception worth painting: the Simplified
+                // spelling of a Traditional query ("網易" -> "网易") is real text sitting in the
+                // candidate, and it can be the ONLY thing that matches. Skipping it left the mask empty,
+                // and an empty mask is not "no match" to every caller: MarkTerm's alias tier cannot reach
+                // this case either (that tier asks the provider for the CANDIDATE's aliases and maps them
+                // back onto it, and a candidate that is already Simplified has none), so RankFromMarks
+                // answered NoMatch and SearchableItemMapper's `match.IsMatch` gate dropped the row
+                // outright. The file engine never showed this because it gates on the match itself, not
+                // on this rank -- which is why a Traditional query found the file and not the app.
+                //
+                // Only the literal tier, never the fuzzy one: that is what keeps an internal spelling
+                // from smearing.
+                if (term.AliasForm)
+                {
+                    var aliasComparison = term.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+                    if (MarkLiteralSpan(fullText, term.Text, aliasComparison, highlights))
+                        tier = Math.Min(tier, MatchRank.TierName);
                     continue;
+                }
 
                 tier = Math.Min(tier, MarkTerm(fullText, term.Text, term.CaseSensitive, term.Kind, highlights, ref materialized, slab));
             }

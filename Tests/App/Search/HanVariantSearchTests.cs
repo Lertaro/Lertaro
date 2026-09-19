@@ -215,4 +215,53 @@ public sealed class HanVariantSearchTests
 
         Assert.IsEmpty(Search(fixture.Index, "軟體"));
     }
+
+    // The OTHER real call shape, and the one an application result takes: a plugin-provided catalog item
+    // (Start Menu / desktop / a custom app search folder) is matched as a title plus whatever aliases the
+    // host baked for it -- there is no snapshot and no record, so nothing here can fall back on the bake
+    // the tests above exercise. See SearchableItemMapper.CollectSearchableItemResults.
+    //
+    // This is the reported bug: the Traditional query matched the Simplified TITLE (the provider's query
+    // form did its job) but produced no highlight mask, because the mask skipped provider-supplied forms
+    // and the aliases baked for a Simplified candidate contain no Traditional spelling to map back from.
+    // BestMatch is the gate SearchableItemMapper uses, and it reads a rank, not a match -- so the
+    // application row vanished while the same query still listed a same-named FILE, whose engine gates on
+    // the match itself.
+    [TestMethod]
+    public void TraditionalQuery_FindsASimplifiedItemTitleThroughItsQueryForm()
+    {
+        var match = FuzzyQuery.Parse("電腦").BestMatch("电脑云", null);
+
+        Assert.IsTrue(match.IsMatch, "the provider's Simplified spelling of the query must count as a match here too");
+    }
+
+    // The item path's other direction, through the aliases the host bakes from GetAliases: a Traditional
+    // TITLE with a Simplified query has no query form to lean on, so the item's own alias set is what has
+    // to carry it. (This direction never had the bug -- the alias is a CJK string, and
+    // AliasHighlightMarker maps it back onto the source text.)
+    [TestMethod]
+    public void SimplifiedQuery_FindsATraditionalItemTitleThroughItsBakedAlias()
+    {
+        var aliases = new FakeHanVariantProvider().GetAliases("電腦云").ToList();
+
+        Assert.IsFalse(FuzzyQuery.Parse("电脑").BestMatch("電腦云", null).IsMatch,
+            "the control: nothing in the Simplified query is in the Traditional title");
+        Assert.IsTrue(FuzzyQuery.Parse("电脑").BestMatch("電腦云", aliases).IsMatch);
+    }
+
+    // The mask the fix paints is the user-visible half: the characters the provider's spelling matched
+    // must light up, exactly as they do when the query is the one literally present.
+    [TestMethod]
+    public void TraditionalQuery_HighlightsTheCharactersItsSimplifiedFormMatched()
+    {
+        var query = FuzzyQuery.Parse("電腦");
+        const string title = "网易电脑管家";
+
+        var mask = query.HighlightMask(title);
+
+        CollectionAssert.AreEqual(
+            new[] { false, false, true, true, false, false },
+            mask,
+            "电脑 sits at index 2 in 网易电脑管家 and is what the query form matched");
+    }
 }
