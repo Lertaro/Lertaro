@@ -3,6 +3,7 @@ using Lertaro.Core.Hook.InlineSearch;
 
 using Lertaro.Core.Wire;
 using Lertaro.Core.Hook.Commands;
+using Lertaro.PluginSdk.Services;
 namespace Lertaro.Core.Hook.Ipc;
 
 public sealed class HookProcess : IDisposable
@@ -66,6 +67,56 @@ public sealed class HookProcess : IDisposable
 
     internal void PublishOpenedFolders() => _openedFolderSnapshots.Publish();
 
+    /// <summary>
+    /// The App-side half of <see cref="ToolRunService.RunDopusPathsFunc"/>: the App runs
+    /// the tool at the user's own privilege level, and this reads what it wrote.
+    /// </summary>
+    /// <remarks>
+    /// The file is created here first because the tool only fills in a file that already exists, and it is
+    /// written by the App with its own token, so the content has to come back through the file rather than
+    /// through the pipe.
+    /// </remarks>
+    private static async Task<string?> RunToolViaAppAsync(string toolPath, string outputFile)
+    {
+        try
+        {
+            try { File.Delete(outputFile); } catch { /* it may not exist yet */ }
+
+            var ran = await HookToolRunRequest.RunDopusRtAsync(toolPath, outputFile, TimeSpan.FromSeconds(4)).ConfigureAwait(false);
+            if (!ran) return null;
+
+            // The tool writes before exiting, so this is a short grace period rather than the main wait.
+            for (var attempt = 0; attempt < 20; attempt++)
+            {
+                try
+                {
+                    var file = new FileInfo(outputFile);
+                    if (file.Exists && file.Length > 0)
+                    {
+                        var text = File.ReadAllText(outputFile);
+                        if (!string.IsNullOrWhiteSpace(text)) return text;
+                    }
+                }
+                catch (IOException) { /* still being written, or briefly locked: try again */ }
+                catch (UnauthorizedAccessException) { /* same */ }
+
+                await Task.Delay(25).ConfigureAwait(false);
+            }
+
+            Logger.Log($"[DirectoryOpus] the App ran dopusrt but wrote nothing to '{outputFile}'.", LogLevel.Debug);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[DirectoryOpus] running dopusrt through the App failed: {ex.Message}", LogLevel.Debug);
+            return null;
+        }
+        finally
+        {
+            try { File.Delete(outputFile); } catch { /* our own temp file, best effort */ }
+        }
+    }
+
     internal uint AppProcessId
     {
         get => _appProcessId;
@@ -86,6 +137,11 @@ public sealed class HookProcess : IDisposable
 
         _ipcServer.OnStopRequested += () => Stop();
         _ipcServer.OnCommandReceived += _commandHandler.HandleAppCommand;
+
+        // Lets a plugin ask the App to run something at the App's own (unelevated) privilege level --
+        // see HookToolRunRequest for why the Hook cannot do that itself.
+        HookToolRunRequest.SendToApp = _ipcServer.SendMessage;
+        ToolRunService.RunDopusPathsFunc = RunToolViaAppAsync;
         // See ExplorerTracker.PublishCurrentState's own comment: Start()'s one-time startup activation
         // check almost always loses the race against the App actually connecting over the pipe, and
         // that lost snapshot was the App's only chance to learn the true initial state otherwise.

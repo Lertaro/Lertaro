@@ -21,8 +21,8 @@ public sealed class DirectoryOpusPathCollectorTests
 
     // Every inactive tab has NO location bar, and that is the case that used to yield nothing at all.
     [TestMethod]
-    public void ChooseReportedPath_NoLocationBar_FallsBackToTheContainerText() => Assert.AreEqual(@"F:\LanguageLearning",
-            DirectoryOpusPathCollector.ChooseReportedPath(null, @"F:\LanguageLearning"));
+    public void ChooseReportedPath_NoLocationBar_FallsBackToTheContainerText() => Assert.AreEqual(@"D:\LanguageLearning",
+            DirectoryOpusPathCollector.ChooseReportedPath(null, @"D:\LanguageLearning"));
 
     // A bar that exists but is empty must not shadow a container caption that does have the path.
     [TestMethod]
@@ -48,14 +48,14 @@ public sealed class DirectoryOpusPathCollectorTests
     {
         var folders = DirectoryOpusPathCollector.BuildOpenedFolders(new[]
         {
-            (Path: (string?)@"F:\LanguageLearning", IsActive: false, Window: Lister),
+            (Path: (string?)@"D:\LanguageLearning", IsActive: false, Window: Lister),
             (Path: (string?)@"C:\Program Files (x86)", IsActive: true, Window: Lister),
             (Path: (string?)@"D:\BCUninstaller", IsActive: false, Window: Lister),
-            (Path: (string?)@"E:\trip", IsActive: true, Window: Lister),
+            (Path: (string?)@"Z:\trip", IsActive: true, Window: Lister),
         });
 
         CollectionAssert.AreEqual(
-            new[] { @"C:\Program Files (x86)", @"E:\trip", @"F:\LanguageLearning", @"D:\BCUninstaller" },
+            new[] { @"C:\Program Files (x86)", @"Z:\trip", @"D:\LanguageLearning", @"D:\BCUninstaller" },
             folders.Select(folder => folder.Path).ToArray());
     }
 

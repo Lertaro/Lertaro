@@ -272,6 +272,12 @@ public sealed class HookIpcClient : IDisposable
                 case IpcMessageId.ExecuteInlineItemResponse:
                     InlineAdapterIpcCoordinator.SetExecuteItemResult(msg.IntVal, msg.BoolVal);
                     break;
+
+                case IpcMessageId.RunTool:
+                    // Off this thread: the tool is a separate process and the App must keep answering
+                    // pings while it runs, exactly like the Hook's own snapshot build.
+                    _ = Task.Run(() => AppToolRunner.Run(msg.StringVal1 ?? string.Empty, msg.StringVal2 ?? string.Empty, SendMessage));
+                    break;
             }
         }
 

@@ -6,6 +6,7 @@ using System.Text;
 using System.Xml.Linq;
 using Lertaro.PluginSdk;
 using Lertaro.PluginSdk.Helpers;
+using Lertaro.PluginSdk.Services;
 using Microsoft.Win32;
 
 namespace Lertaro.Plugins.DirectoryOpus;
@@ -48,22 +49,27 @@ internal static class DopusRtPathQuery
         var output = CreateOutputPath();
         if (output == null)
         {
-            // Opus's own rules for this path (ASCII, no spaces, an existing directory, a file nobody else
-            // holds) are not satisfiable here, so the query cannot be made safely at all. The scrape
+            // Opus's own rules for this path (ASCII, no double quote, a writable directory, a file nobody
+            // else holds) are not satisfiable here, so the query cannot be made safely at all. The scrape
             // fallback is the honest answer rather than handing Opus a path it will refuse.
-            Logger.Log("[DirectoryOpus] no ASCII, space-free temp path for the dopusrt query; skipping it.", LogLevel.Debug);
+            Logger.Log("[DirectoryOpus] no usable output path for the dopusrt query; skipping it.", LogLevel.Debug);
             return null;
         }
 
         try
         {
-            RunTool(tool, output);
+            // The HOST runs dopusrt, not this process. The Hook is started elevated, and an elevated
+            // dopusrt can never be answered by the unelevated Opus -- User Interface Privilege Isolation
+            // blocks the reply, so it hangs forever and writes nothing -- while starting a process at a
+            // lower integrity level needs a privilege the Hook does not hold. The host knows how to reach a
+            // context that CAN run it (the App, at the user's own level), so the request goes there.
+            var text = RunViaHost(tool, output);
+            if (text == null)
+            {
+                RunTool(tool, output, out var exited);
+                text = WaitForOutput(output, exited);
+            }
 
-            // Success is the CONTENT, never the exit code: dopusrt answers 0 with no error and no message
-            // for a call that worked, a command it did not understand and a path it refused alike. The
-            // file itself proves nothing either -- it is created empty for dopusrt to fill in -- so the
-            // evidence is that it came back holding something.
-            var text = WaitForOutput(output);
             if (text == null) return null;
 
             // Opus answers an empty <results .../> when nothing is open, which is a valid "no tabs".
@@ -81,12 +87,50 @@ internal static class DopusRtPathQuery
     }
 
     /// <summary>
-    /// Waits for dopusrt to finish writing and returns what it wrote, or null when no usable file
-    /// appeared. The file's size and write time are the whole verdict -- see the exit-code note above.
+    /// Asks the host to run dopusrt and returns what it wrote, or null when no host runner is wired up or
+    /// it produced nothing.
     /// </summary>
-    private static string? WaitForOutput(string path)
+    /// <remarks>
+    /// The path is normalised because it is the key the host matches its answer by: a trailing separator
+    /// would otherwise make the two spellings different strings for the same file. The host removes the
+    /// file itself, so only the text comes back.
+    /// </remarks>
+    private static string? RunViaHost(string tool, string output)
     {
-        for (var attempt = 0; attempt < 20; attempt++)
+        var run = ToolRunService.RunDopusPathsFunc;
+        if (run == null) return null;
+
+        try
+        {
+            var normalized = Path.GetFullPath(output);
+            return run(tool, normalized).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[DirectoryOpus] the host could not run dopusrt: {ex.Message}", LogLevel.Debug);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Waits for dopusrt to finish writing and returns what it wrote, or null when no usable file
+    /// appeared. The file's content is the whole verdict -- see the exit-code note above.
+    /// </summary>
+    /// <param name="path">The file pre-created for this query.</param>
+    /// <param name="exited">
+    /// Whether the tool has already exited. When it has, it is given only a short grace period: it writes
+    /// the file before exiting, so an empty file at that point will stay empty and waiting longer only
+    /// blocks the caller.
+    /// </param>
+    private static string? WaitForOutput(string path, bool exited)
+    {
+        // dopusrt writes before exiting, so a killed run gets a brief grace period and a run that exited
+        // on its own has already had its chance -- neither is worth a long wait. The caller is the Hook,
+        // where a stall costs the whole foreground pipeline.
+        var attempts = exited ? 10 : 15;
+        var delayMs = 20;
+
+        for (var attempt = 0; attempt < attempts; attempt++)
         {
             try
             {
@@ -100,10 +144,12 @@ internal static class DopusRtPathQuery
             catch (IOException) { /* still being written, or briefly locked by dopusrt: try again */ }
             catch (UnauthorizedAccessException) { /* same */ }
 
-            Thread.Sleep(100);
+            Thread.Sleep(delayMs);
         }
 
-        Logger.Log($"[DirectoryOpus] dopusrt produced no usable output at '{path}' within 2s; its exit code says nothing either way.", LogLevel.Debug);
+        Logger.Log(
+            $"[DirectoryOpus] dopusrt produced no usable output at '{path}' (exited={exited}); its exit code says nothing either way.",
+            LogLevel.Debug);
         return null;
     }
 
@@ -272,19 +318,36 @@ internal static class DopusRtPathQuery
     /// QUOTED, which is what makes a space-bearing path work; everything else about the argument is
     /// literal, so the path is handed over exactly as validated.
     /// </summary>
-    private static void RunTool(string tool, string output)
+    /// <param name="exited">
+    /// Whether the tool finished on its own. False means it was killed for exceeding the bound, which is
+    /// reported to the caller so it need not wait for a file from a process that never wrote one.
+    /// </param>
+    private static void RunTool(string tool, string output, out bool exited)
     {
-        var startInfo = new ProcessStartInfo(tool)
+        // Started as-is: this is the fallback for when no host runner is wired up (a unit test, or a host
+        // that cannot answer), and it is only ever correct where this process is already at the user's own
+        // privilege level. See RunViaHost for the case that matters in the shipped app.
+        var arguments = $"/info \"{output}\",paths";
+
+        using var process = Process.Start(new ProcessStartInfo(tool)
         {
-            Arguments = $"/info \"{output}\",paths",
+            Arguments = arguments,
             UseShellExecute = false,
             CreateNoWindow = true
-        };
+        });
 
-        using var process = Process.Start(startInfo);
-        // Opus writes the file before exiting; without a bound a wedged install would hold the caller --
-        // which is the Hook, where a stall costs the whole foreground pipeline.
-        if (process != null && !process.WaitForExit(3000))
+        if (process == null)
+        {
+            exited = true;
+            return;
+        }
+
+        // A working dopusrt finishes in well under a second, so this bound only ever bites when it is
+        // wedged. That is not hypothetical: measured inside the app it launched and never exited, and the
+        // old 3s bound -- followed by a 2.2s wait because the caller assumed it was still writing -- held
+        // the caller for over five seconds per query.
+        exited = process.WaitForExit(1500);
+        if (!exited)
         {
             try { process.Kill(); } catch { /* best effort */ }
         }

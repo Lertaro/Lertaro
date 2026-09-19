@@ -22,7 +22,7 @@ public enum IpcMessageId : byte
     SetInlineWindowOnScreen = 18,
     RequestOpenedFolders = 19,
 
-    // Hook -> App
+    // App -> Hook
     Activate = 20,
     ExplorerDeactivated = 21,
     ActiveWindowMoved = 22,
@@ -47,7 +47,19 @@ public enum IpcMessageId : byte
     QuickPanelHotkey = 36,
     QuickNavigationHotkey = 42,
     ExecuteInlineItemResponse = 40,
-    OpenedFoldersCaptured = 41
+    OpenedFoldersCaptured = 41,
+
+    // Hook -> App, then App -> Hook: run a tool at the App's own privilege level.
+    //
+    // The Hook is started elevated (see HookIpcClient.LaunchHookProcessAsync), and an ELEVATED dopusrt can
+    // never be answered by the unelevated Directory Opus -- User Interface Privilege Isolation blocks the
+    // reply -- so it hangs and writes nothing. Only CreateProcessAsUser can start a process at a lower
+    // integrity level, and that needs SeAssignPrimaryTokenPrivilege, which the Hook's token does not hold.
+    // The App is already at the user's level, so it runs the tool instead and reports back.
+    //   Hook -> App  RunTool:    StringVal1 = output file, StringVal2 = tool path
+    //   App -> Hook  ToolResult: BoolVal = started, IntVal = process id, StringVal1 = failure reason
+    RunTool = 43,
+    ToolResult = 44
 }
 
 public struct IpcMessage

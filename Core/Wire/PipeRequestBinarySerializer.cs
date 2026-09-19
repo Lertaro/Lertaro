@@ -149,6 +149,17 @@ public static class PipeRequestBinarySerializer
                 foreach (var path in paths)
                     writer.Write(path);
                 break;
+
+            case IpcMessageId.RunTool:
+                writer.Write(msg.StringVal1 ?? string.Empty);
+                writer.Write(msg.StringVal2 ?? string.Empty);
+                break;
+
+            case IpcMessageId.ToolResult:
+                writer.Write(msg.BoolVal);
+                writer.Write(msg.IntVal);
+                writer.Write(msg.StringVal1 ?? string.Empty);
+                break;
         }
     }
 
@@ -262,6 +273,17 @@ public static class PipeRequestBinarySerializer
                 for (var index = 0; index < count; index++)
                     paths[index] = reader.ReadString();
                 msg.StringList = paths;
+                break;
+
+            case IpcMessageId.RunTool:
+                msg.StringVal1 = reader.ReadString();
+                msg.StringVal2 = reader.ReadString();
+                break;
+
+            case IpcMessageId.ToolResult:
+                msg.BoolVal = reader.ReadBoolean();
+                msg.IntVal = reader.ReadInt32();
+                msg.StringVal1 = reader.ReadString();
                 break;
         }
 

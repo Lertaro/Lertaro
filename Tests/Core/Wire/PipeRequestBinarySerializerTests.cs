@@ -191,6 +191,48 @@ public sealed class PipeRequestBinarySerializerTests
         CollectionAssert.AreEqual(new[] { @"D:\Projects", @"C:\Work" }, result.StringList!.ToArray());
     }
 
+    // The Hook asks the App to run a tool (it cannot do so itself while elevated) and the App reports back
+    // which output file it filled, so both directions have to survive the pipe intact.
+    [TestMethod]
+    public async Task WriteMessageAsync_RunTool_RoundTripsOutputAndTool()
+    {
+        using var stream = new MemoryStream();
+        await PipeRequestBinarySerializer.WriteMessageAsync(stream, new IpcMessage
+        {
+            Id = IpcMessageId.RunTool,
+            StringVal1 = @"C:\Users\testuser\AppData\Local\Temp\lertaro-dopusrt-1a2b.xml",
+            StringVal2 = @"C:\Program Files\GPSoftware\Directory Opus\dopusrt.exe"
+        });
+        stream.Position = 0;
+
+        var result = await PipeRequestBinarySerializer.ReadMessageAsync(stream);
+
+        Assert.AreEqual(IpcMessageId.RunTool, result.Id);
+        Assert.AreEqual(@"C:\Users\testuser\AppData\Local\Temp\lertaro-dopusrt-1a2b.xml", result.StringVal1);
+        Assert.AreEqual(@"C:\Program Files\GPSoftware\Directory Opus\dopusrt.exe", result.StringVal2);
+    }
+
+    [TestMethod]
+    public async Task WriteMessageAsync_ToolResult_RoundTripsOutcome()
+    {
+        using var stream = new MemoryStream();
+        await PipeRequestBinarySerializer.WriteMessageAsync(stream, new IpcMessage
+        {
+            Id = IpcMessageId.ToolResult,
+            StringVal1 = @"C:\Users\testuser\AppData\Local\Temp\lertaro-dopusrt-1a2b.xml",
+            BoolVal = true,
+            IntVal = 4242
+        });
+        stream.Position = 0;
+
+        var result = await PipeRequestBinarySerializer.ReadMessageAsync(stream);
+
+        Assert.AreEqual(IpcMessageId.ToolResult, result.Id);
+        Assert.AreEqual(@"C:\Users\testuser\AppData\Local\Temp\lertaro-dopusrt-1a2b.xml", result.StringVal1);
+        Assert.IsTrue(result.BoolVal);
+        Assert.AreEqual(4242, result.IntVal);
+    }
+
     [TestMethod]
     public void EveryMessageId_IsNamedByBothSerializerSwitches()
     {

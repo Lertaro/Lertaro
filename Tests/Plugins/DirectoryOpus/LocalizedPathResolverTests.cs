@@ -42,7 +42,7 @@ public sealed class LocalizedPathResolverTests
         Assert.AreEqual(UserProfile, LocalizedPathResolver.Resolve(UserProfile));
         Assert.AreEqual(@"C:\Windows", LocalizedPathResolver.Resolve(@"C:\Windows"));
         Assert.AreEqual(@"C:\", LocalizedPathResolver.Resolve(@"C:\"));
-        Assert.AreEqual(@"F:\2013.3.31 上坟", LocalizedPathResolver.Resolve(@"F:\2013.3.31 上坟"));
+        Assert.AreEqual(@"D:\2013.3.31 上坟", LocalizedPathResolver.Resolve(@"D:\2013.3.31 上坟"));
     }
 
     // A path with no real counterpart must be handed back unchanged: the caller asked "what does this

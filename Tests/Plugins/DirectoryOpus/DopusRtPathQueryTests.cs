@@ -15,14 +15,14 @@ public sealed class DopusRtPathQueryTests
     private const string Xml = """
         <?xml version="1.0" encoding="UTF-8"?>
         <results command="paths" result="1">
-        	<path active_lister="0" display_path="F:\one\a" lister="0x8c0a44" side="1" tab="0x51109c">F:\one\a</path>
-        	<path active_lister="0" display_path="F:\one\b" lister="0x8c0a44" side="1" tab="0x161f20">F:\one\b</path>
-        	<path active_lister="0" active_tab="1" display_path="F:\one\active" lister="0x8c0a44" side="1" tab="0x4a0a72" tab_state="1">F:\one\active</path>
+        	<path active_lister="0" display_path="D:\one\a" lister="0x8c0a44" side="1" tab="0x51109c">D:\one\a</path>
+        	<path active_lister="0" display_path="D:\one\b" lister="0x8c0a44" side="1" tab="0x161f20">D:\one\b</path>
+        	<path active_lister="0" active_tab="1" display_path="D:\one\active" lister="0x8c0a44" side="1" tab="0x4a0a72" tab_state="1">D:\one\active</path>
         	<path active_lister="0" display_path="C:\" lister="0x8c0a44" side="2" tab="0x520de8">C:\</path>
-        	<path active_lister="0" active_tab="2" display_path="E:\two\active" lister="0x8c0a44" side="2" tab="0x3b0948" tab_state="2">E:\two\active</path>
+        	<path active_lister="0" active_tab="2" display_path="Z:\two\active" lister="0x8c0a44" side="2" tab="0x3b0948" tab_state="2">Z:\two\active</path>
         	<path active_lister="1" active_tab="1" display_path="C:\Windows" lister="0x2a019c" side="1" tab="0x990c48" tab_state="1">C:\Windows</path>
         	<path active_lister="1" display_path="C:\Users" lister="0x2a019c" side="1" tab="0x690b8e">C:\Users</path>
-        	<path active_lister="1" active_tab="2" display_path="E:\other" lister="0x2a019c" side="2" tab="0xef0b26" tab_state="2">E:\other</path>
+        	<path active_lister="1" active_tab="2" display_path="Z:\other" lister="0x2a019c" side="2" tab="0xef0b26" tab_state="2">Z:\other</path>
         </results>
         """;
 
@@ -34,7 +34,7 @@ public sealed class DopusRtPathQueryTests
         Assert.HasCount(8, tabs);
         Assert.AreEqual(new IntPtr(0x8c0a44), tabs[0].Lister);
         Assert.AreEqual(1, tabs[0].Side);
-        Assert.AreEqual(@"F:\one\a", tabs[0].Path);
+        Assert.AreEqual(@"D:\one\a", tabs[0].Path);
         Assert.IsFalse(tabs[0].IsActive);
         // The active tab of a group is the only one carrying active_tab.
         Assert.IsTrue(tabs[2].IsActive);
@@ -54,7 +54,7 @@ public sealed class DopusRtPathQueryTests
         var tabs = DopusRtPathQuery.ParseTabs(Xml);
 
         Assert.AreEqual(@"C:\", tabs[3].Path);
-        Assert.AreEqual(@"F:\one\b", tabs[1].Path);
+        Assert.AreEqual(@"D:\one\b", tabs[1].Path);
     }
 
     [TestMethod]
@@ -104,11 +104,11 @@ public sealed class DopusRtPathQueryTests
         CollectionAssert.AreEqual(
             new[]
             {
-                @"F:\one\active",   // lister 1, side 1 -- active
-                @"E:\two\active",   // lister 1, side 2 -- active
+                @"D:\one\active",   // lister 1, side 1 -- active
+                @"Z:\two\active",   // lister 1, side 2 -- active
                 @"C:\Windows",      // lister 2, side 1 -- active
-                @"E:\other",        // lister 2, side 2 -- active
-                @"F:\one\a", @"F:\one\b",   // lister 1, side 1 -- the rest, in Opus's order
+                @"Z:\other",        // lister 2, side 2 -- active
+                @"D:\one\a", @"D:\one\b",   // lister 1, side 1 -- the rest, in Opus's order
                 @"C:\",                      // lister 1, side 2 -- the rest
                 @"C:\Users",                 // lister 2, side 1 -- the rest
             },
@@ -144,7 +144,7 @@ public sealed class DopusRtPathQueryTests
     {
         Assert.IsTrue(DopusRtPathQuery.IsOpusSafePath(@"C:\Users\testuser\AppData\Local\Temp\lertaro-dopusrt-1a2b.xml"));
         Assert.IsTrue(DopusRtPathQuery.IsOpusSafePath(@"C:\Users\Some Name\AppData\Local\Temp\a.xml"));
-        Assert.IsTrue(DopusRtPathQuery.IsOpusSafePath(@"F:\tmp\new test\paths.txt"));
+        Assert.IsTrue(DopusRtPathQuery.IsOpusSafePath(@"D:\tmp\new test\paths.txt"));
         Assert.IsTrue(DopusRtPathQuery.IsOpusSafePath(@"C:\Users\USER~1\AppData\Local\Temp\lertaro-dopusrt-1a2b.xml"));
         Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath(@"C:\Users\张三\AppData\Local\Temp\a.xml"));
         Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath("C:\\tmp\\new\"test\\a.xml"));
@@ -201,7 +201,8 @@ public sealed class DopusRtPathQueryTests
                 "RunTool", BindingFlags.NonPublic | BindingFlags.Static);
             Assert.IsNotNull(runner, "RunTool should still exist for this regression guard to work");
 
-            runner.Invoke(null, [FindDopusRt() ?? @"C:\Program Files\GPSoftware\Directory Opus\dopusrt.exe", output]);
+            // The third element receives the out parameter (whether the tool exited on its own).
+            runner.Invoke(null, [FindDopusRt() ?? @"C:\Program Files\GPSoftware\Directory Opus\dopusrt.exe", output, null]);
 
             // Opus writes the file asynchronously, so poll exactly as the production reader does rather
             // than assuming the content is on disk the moment the process exits.
@@ -211,7 +212,10 @@ public sealed class DopusRtPathQueryTests
             var file = new FileInfo(output);
             Assert.IsTrue(file.Exists);
             Assert.IsGreaterThan(0, file.Length, "dopusrt wrote nothing, so the quoted space-bearing path was not accepted");
-            Assert.Contains("<path ", File.ReadAllText(output));
+
+            // The XML itself is the proof, not a tab count: with no tabs open Opus legitimately answers an
+            // empty <results />, which still shows the tool accepted the path and wrote its output.
+            Assert.Contains("<results", File.ReadAllText(output));
         }
         finally
         {
