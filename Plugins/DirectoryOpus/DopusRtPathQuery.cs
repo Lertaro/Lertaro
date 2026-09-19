@@ -33,6 +33,18 @@ internal static class DopusRtPathQuery
     /// </summary>
     public static IReadOnlyList<DopusTab>? TryReadTabs()
     {
+        // Opus itself has to be running, and that is a precondition rather than a nicety: dopusrt.exe is
+        // Opus's own runtime helper and RUNNING IT IS WHAT STARTS OPUS when it is stopped. Merely being
+        // installed is not enough, which is why this is checked here and not left to FindTool -- that
+        // deliberately still resolves the tool path for an installed-but-stopped Opus (its registry and
+        // Program Files fallbacks exist for the ELEVATED case, where a running Opus hides its own folder
+        // from MainModule), so every startup of Lertaro used to run the tool and conjure an Opus window.
+        //
+        // Nothing is lost by skipping: a stopped Opus has no tabs to report, so the answer could only ever
+        // have been empty, and a lister that is somehow on screen is still found by the window scrape the
+        // caller falls back to.
+        if (!IsOpusRunning()) return null;
+
         var tool = FindTool();
         if (tool == null) return null;
 
@@ -182,6 +194,24 @@ internal static class DopusRtPathQuery
         {
             try { process.Kill(); } catch { /* best effort */ }
         }
+    }
+
+    /// <summary>
+    /// Whether Directory Opus itself is running, as opposed to merely installed.
+    /// </summary>
+    /// <remarks>
+    /// A presence test, not a handle to anything: an elevated Opus is still running, and asking it for its
+    /// paths is exactly the case the host runner exists for. The processes are disposed so the enumeration
+    /// does not hold handles open on every window of the user's session.
+    /// </remarks>
+    private static bool IsOpusRunning()
+    {
+        Process[] processes;
+        try { processes = Process.GetProcessesByName("dopus"); }
+        catch { return false; }
+
+        try { return processes.Length > 0; }
+        finally { foreach (var process in processes) process.Dispose(); }
     }
 
     /// <summary>
