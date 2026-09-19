@@ -38,6 +38,49 @@ public sealed class HookCommandHandler
 
     public HookCommandHandler(HookProcess process) => _process = process;
 
+    // 0 = idle, 1 = a snapshot is being built. See PublishOpenedFoldersOffThread.
+    private int _snapshotInFlight;
+
+    /// <summary>
+    /// Builds the opened-folders snapshot on a background thread instead of the caller's.
+    /// </summary>
+    /// <remarks>
+    /// HandleAppCommand runs on the Hook's IPC read loop, so anything it calls synchronously delays every
+    /// LATER command on that pipe -- and building this snapshot is the opposite of fast: it queries
+    /// Directory Opus by launching a separate process, and that process can hang (measured: it never
+    /// exits, and the query then spends ~5s before giving up). Waiting for that here meant the Hook stopped
+    /// answering for seconds at a time, which is what left the quick-navigation menu unresponsive while it
+    /// was open.
+    /// A request arriving while one is already running is DROPPED rather than queued: the newer request
+    /// wants the newest state, which the run already in flight is about to produce, so queueing would only
+    /// multiply the work. That is safe because a snapshot is a point-in-time value rather than an event
+    /// anyone counts.
+    /// </remarks>
+    private void PublishOpenedFoldersOffThread()
+    {
+        if (Interlocked.CompareExchange(ref _snapshotInFlight, 1, 0) != 0)
+        {
+            Logger.Log("[HookCommandHandler] Opened-folders snapshot already in flight; skipping this request.", LogLevel.Debug);
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                _process.PublishOpenedFolders();
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[HookCommandHandler] Opened-folders snapshot failed: {ex.Message}", LogLevel.Warn);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _snapshotInFlight, 0);
+            }
+        });
+    }
+
     public void HandleAppCommand(IpcMessage msg)
     {
         try
@@ -54,7 +97,13 @@ public sealed class HookCommandHandler
                     _process.KeyboardHook?.IsInlineWindowOnScreen = msg.BoolVal;
                     break;
                 case IpcMessageId.RequestOpenedFolders:
-                    _process.PublishOpenedFolders();
+                    PublishOpenedFoldersOffThread();
+                    break;
+
+                case IpcMessageId.ToolResult:
+                    // The App ran a tool for us (see HookToolRunRequest for why it has to be the App).
+                    // Completing a task is all this does, so it cannot stall the read loop.
+                    HookToolRunRequest.Complete(msg);
                     break;
                 case IpcMessageId.SetAppProcessId:
                     _process.AppProcessId = msg.ProcessId;
