@@ -1,6 +1,5 @@
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace Lertaro.PluginSdk.Helpers;
 
@@ -32,7 +31,7 @@ public static class ShellPathHelper
     private static extern int SHParseDisplayName([MarshalAs(UnmanagedType.LPWStr)] string pszName, IntPtr pbc, out IntPtr ppidl, uint sfgaoIn, out uint psfgaoOut);
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-    private static extern bool SHGetPathFromIDListW(IntPtr pidl, [Out] StringBuilder pszPath);
+    private static extern int SHGetNameFromIDList(IntPtr pidl, int sigdnName, out IntPtr ppszName);
 
     // Gets the PIDL from any Shell COM object (FolderItem, IShellItem, etc.).
     [DllImport("shell32.dll")]
@@ -56,6 +55,11 @@ public static class ShellPathHelper
     private const uint SHGFI_PIDL = 0x000000008;
     private const uint SHGFI_ICON = 0x000000100;
     private const uint SHGFI_LARGEICON = 0x000000000;
+
+    // Name forms for SHGetNameFromIDList: where the item lives on disk, and its canonical absolute parsing
+    // name ("::{CLSID}"), which is the form every spelling of one virtual folder collapses onto.
+    private const int SIGDN_DESKTOPABSOLUTEPARSING = unchecked((int)0x80028000);
+    private const int SIGDN_FILESYSPATH = unchecked((int)0x80058000);
 
     private static readonly Environment.SpecialFolder[] _trackedSpecialFolders = new[]
     {
@@ -117,42 +121,92 @@ public static class ShellPathHelper
     }
 
     /// <summary>
-    /// Dynamically resolves a Windows shell virtual path (e.g. ::{450d8fba-...} or shell:::{...}) to its physical folder path.
-    /// Returns the original path if it cannot be resolved.
+    /// Whether a path is a Windows shell namespace token rather than a filesystem path: a virtual folder
+    /// (<c>shell:Downloads</c>) or a shell item id (<c>::{CLSID}</c>).
     /// </summary>
+    /// <remarks>
+    /// The one definition of "virtual", shared with <c>UserPathResolver.IsVirtualPath</c> so the two cannot
+    /// answer differently -- they did, and it mattered: only this side compared the token prefix
+    /// case-sensitively, so <c>SHELL:Downloads</c> was reported as virtual by one API and left unresolved
+    /// by the other. Surrounding whitespace is ignored here for the same reason (<c>Expand</c> trims
+    /// before resolving, and <c>IsVirtualPath</c> trims before testing).
+    /// </remarks>
+    public static bool IsVirtualShellPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        var trimmed = path.Trim();
+        return trimmed.StartsWith("::", StringComparison.Ordinal)
+            || trimmed.StartsWith("shell:", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Resolves a Windows shell virtual path (e.g. ::{450d8fba-...} or shell:::{...}) as far as the shell
+    /// can: to the physical folder behind it, or to its canonical shell name when it has no physical folder.
+    /// Returns the path unchanged when the shell cannot parse it at all.
+    /// </summary>
+    /// <remarks>
+    /// Two outcomes that used to be one, and the difference is what makes a pathless virtual folder usable.
+    /// <c>shell:AppsFolder</c>, This PC and the Recycle Bin exist only inside the shell namespace: no
+    /// filesystem path describes them, so a caller cannot walk them however it spells the token. What the
+    /// shell CAN say is which item the token names, and <c>::{CLSID}</c> is that answer -- a stable,
+    /// locale-independent spelling every form of the same folder collapses onto (<c>shell:AppsFolder</c>,
+    /// <c>shell:::{4234d49b-...}</c> and <c>::{4234D49B-...}</c> are one string afterwards, which is what
+    /// lets a caller dedupe them or recognise a specific folder). It stays a virtual path, so a caller
+    /// testing <c>IsVirtualShellPath</c> on the result still gets "true" and behaves exactly as before.
+    ///
+    /// The physical lookup goes through SHGetNameFromIDList rather than SHGetPathFromIDListW: the latter
+    /// fills a caller-supplied buffer, so it was called with a fixed 260-character one and quietly failed
+    /// for anything longer, while this returns a shell-allocated string of the right size.
+    /// </remarks>
     public static string TryResolveVirtualPath(string path)
     {
-        if (string.IsNullOrEmpty(path)) return path;
+        if (!IsVirtualShellPath(path)) return path;
 
-        if (path.StartsWith("::") || path.StartsWith("shell:"))
+        var token = path.Trim();
+        var pidl = IntPtr.Zero;
+        try
         {
-            var pidl = IntPtr.Zero;
-            try
-            {
-                var hr = SHParseDisplayName(path, IntPtr.Zero, out pidl, 0, out _);
-                if (hr == 0 && pidl != IntPtr.Zero)
-                {
-                    var sb = new StringBuilder(260);
-                    if (SHGetPathFromIDListW(pidl, sb))
-                    {
-                        var resolved = sb.ToString();
-                        if (!string.IsNullOrEmpty(resolved) && (Directory.Exists(resolved) || File.Exists(resolved)))
-                        {
-                            return resolved;
-                        }
-                    }
-                }
-            }
-            catch { }
-            finally
-            {
-                if (pidl != IntPtr.Zero)
-                {
-                    Marshal.FreeCoTaskMem(pidl);
-                }
-            }
+            if (SHParseDisplayName(token, IntPtr.Zero, out pidl, 0, out _) != 0 || pidl == IntPtr.Zero)
+                return path;
+
+            var physical = NameFromPidl(pidl, SIGDN_FILESYSPATH);
+            if (!string.IsNullOrEmpty(physical))
+                return physical;
+
+            var canonical = NameFromPidl(pidl, SIGDN_DESKTOPABSOLUTEPARSING);
+            return string.IsNullOrEmpty(canonical) ? path : canonical;
         }
-        return path;
+        catch
+        {
+            return path;
+        }
+        finally
+        {
+            if (pidl != IntPtr.Zero)
+                Marshal.FreeCoTaskMem(pidl);
+        }
+    }
+
+    /// <summary>The shell's name for one item id, in the requested form, or null when it has none.</summary>
+    /// <remarks>
+    /// SIGDN_FILESYSPATH fails with ERROR_FILE_NOT_FOUND for an item that lives only in the shell
+    /// namespace, which is a normal answer here rather than an error, hence the null.
+    /// </remarks>
+    private static string? NameFromPidl(IntPtr pidl, int sigdn)
+    {
+        if (SHGetNameFromIDList(pidl, sigdn, out var value) != 0 || value == IntPtr.Zero)
+            return null;
+
+        try
+        {
+            return Marshal.PtrToStringUni(value);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(value);
+        }
     }
 
     /// <summary>

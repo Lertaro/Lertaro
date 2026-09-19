@@ -23,22 +23,22 @@ public static class UserPathResolver
         => string.IsNullOrWhiteSpace(rawPath) ? (rawPath ?? string.Empty) : Environment.ExpandEnvironmentVariables(rawPath.Trim());
 
     /// <summary>True for a shell namespace token (a virtual folder, or a packaged app's identity) rather than a filesystem path.</summary>
-    public static bool IsVirtualPath(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return false;
-
-        var trimmed = path.Trim();
-        return trimmed.StartsWith("::", StringComparison.Ordinal)
-            || trimmed.StartsWith("shell:", StringComparison.OrdinalIgnoreCase);
-    }
+    public static bool IsVirtualPath(string? path) => ShellPathHelper.IsVirtualShellPath(path);
 
     /// <summary>
-    /// Expands, then resolves a virtual path to the physical folder behind it. A path the shell cannot
-    /// turn into one -- a non-filesystem folder such as <c>"shell:AppsFolder"</c>, or a typo -- comes
-    /// back unchanged, so a caller that needs to react to "still virtual" tests
-    /// <see cref="IsVirtualPath"/> on the result instead of guessing from the input.
+    /// Expands, then resolves a virtual path to what the shell says it is: the physical folder behind it,
+    /// or its canonical <c>::{CLSID}</c> spelling when it has no physical folder.
     /// </summary>
+    /// <remarks>
+    /// A virtual folder that lives only inside the shell namespace -- <c>shell:AppsFolder</c>, This PC, the
+    /// Recycle Bin -- has no filesystem path to return, and used to come back as the token the caller
+    /// happened to write. It now comes back as the item's canonical name instead, so all spellings of one
+    /// folder become one string (comparable, dedupable, recognisable) rather than as many as callers
+    /// invent. That answer is still virtual, so a caller's "still virtual" test behaves exactly as before.
+    /// A token the shell cannot parse at all -- a typo, or a non-shell path -- is returned unchanged; test
+    /// <see cref="IsVirtualPath"/> on the result rather than guessing from the input either way, and check
+    /// for the folder itself before handing the result to a filesystem API.
+    /// </remarks>
     /// <param name="virtualPathResolver">
     /// Test seam for the shell lookup (<see cref="ShellPathHelper.TryResolveVirtualPath"/>), which is
     /// COM-backed and cannot be driven from a unit test.

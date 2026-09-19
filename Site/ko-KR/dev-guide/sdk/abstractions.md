@@ -130,4 +130,4 @@ bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
 string resolved = UserPathResolver.Resolve(rawPath);
 ```
 
-`Expand`는 앞뒤 공백을 제거하고 `%USERPROFILE%` 같은 환경 변수를 확장합니다. `Resolve`는 확장 후 `shell:Downloads` 또는 `::{CLSID}` 같은 토큰을 가능한 경우 실제 경로로 확인합니다. 셸에서 토큰을 확인하지 못하면 변경하지 않고 반환하므로 파일 시스템 API에 전달하기 전에 `IsVirtualPath`로 결과를 확인하세요. 디렉터리 인덱싱 API는 실제 폴더로 확인되고 호스트 인덱스 대상인 경로만 열거할 수 있습니다.
+`Expand`는 앞뒤 공백을 제거하고 `%USERPROFILE%` 같은 환경 변수를 확장합니다. `Resolve`는 확장 후 `shell:Downloads` 또는 `::{CLSID}` 같은 토큰을 가능한 경우 실제 경로로 확인합니다. `shell:AppsFolder`처럼 실제 경로가 없는 가상 폴더는 대신 정규 `::{CLSID}` 이름으로 확인되므로 같은 폴더의 여러 표기가 서로 일치합니다. 그 결과는 여전히 가상 경로입니다. 셸이 전혀 해석할 수 없는 토큰만 변경하지 않고 반환됩니다. 파일 시스템 API에 전달하기 전에 `IsVirtualPath`로 결과를 확인하세요. 디렉터리 인덱싱 API는 실제 폴더로 확인되고 호스트 인덱스 대상인 경로만 열거할 수 있습니다.

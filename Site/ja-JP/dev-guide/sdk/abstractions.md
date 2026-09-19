@@ -130,4 +130,4 @@ bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
 string resolved = UserPathResolver.Resolve(rawPath);
 ```
 
-`Expand` は前後の空白を取り除き、`%USERPROFILE%` などの環境変数を展開します。`Resolve` は展開後、`shell:Downloads` や `::{CLSID}` などのトークンを可能な場合に物理パスへ解決します。Shell が解決できないトークンはそのまま返されるため、ファイルシステム API に渡す前に `IsVirtualPath` で結果を確認してください。ディレクトリインデックス API で列挙できるのは、実在し、インデックス対象になっているフォルダーへ解決されたパスだけです。
+`Expand` は前後の空白を取り除き、`%USERPROFILE%` などの環境変数を展開します。`Resolve` は展開後、`shell:Downloads` や `::{CLSID}` などのトークンを可能な場合に物理パスへ解決します。`shell:AppsFolder` のように物理パスを持たない仮想フォルダーは、代わりに正規の `::{CLSID}` 名へ解決されるため、同じフォルダーのさまざまな書き方が一致します。その結果は依然として仮想パスです。Shell がまったく解析できないトークンのみがそのまま返されます。ファイルシステム API に渡す前に `IsVirtualPath` で結果を確認してください。ディレクトリインデックス API で列挙できるのは、実在し、インデックス対象になっているフォルダーへ解決されたパスだけです。

@@ -2,6 +2,7 @@
   <Project Path="Core/Core.csproj" />
   <Project Path="Cli/Cli.csproj" />
   <Project Path="App/App.csproj" />
+  <Project Path="PluginSdk/PluginSdk.csproj" />
   <Project Path="Plugins/PinyinAlias/PinyinAlias.csproj" />
   <Project Path="Plugins/CustomCommands/CustomCommands.csproj" />
   <Project Path="Plugins/CustomActions/CustomActions.csproj" />

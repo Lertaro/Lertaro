@@ -130,4 +130,4 @@ bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
 string resolved = UserPathResolver.Resolve(rawPath);
 ```
 
-`Expand` 会去除首尾空白并展开 `%USERPROFILE%` 等环境变量。`Resolve` 会先展开环境变量，再尽可能将 `shell:Downloads` 或 `::{CLSID}` 等标记解析为物理路径。如果 Shell 无法解析某个标记，`Resolve` 会原样返回；传给文件系统 API 前应使用 `IsVirtualPath` 检查结果。目录索引 API 只有在路径解析为真实且被索引覆盖的文件夹后才能枚举内容。
+`Expand` 会去除首尾空白并展开 `%USERPROFILE%` 等环境变量。`Resolve` 会先展开环境变量，再尽可能将 `shell:Downloads` 或 `::{CLSID}` 等标记解析为物理路径。对于 `shell:AppsFolder` 这类没有物理路径的虚拟文件夹，`Resolve` 会改而返回其规范名 `::{CLSID}`，使同一文件夹的各种写法彼此相等；该结果仍然是虚拟路径。只有 Shell 完全无法解析的标记才会原样返回。传给文件系统 API 前应使用 `IsVirtualPath` 检查结果。目录索引 API 只有在路径解析为真实且被索引覆盖的文件夹后才能枚举内容。
