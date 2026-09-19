@@ -57,6 +57,40 @@ public sealed class DopusRtPathQueryTests
     [TestMethod]
     public void ParseTabs_EmptyResult_IsNoTabsRatherThanAnError() => Assert.IsEmpty(DopusRtPathQuery.ParseTabs("""<?xml version="1.0"?><results command="paths" result="1" />"""));
 
+    // Regression guard for the bug that made every tab under a localized folder name unusable: on a
+    // non-English Windows, Opus localizes the display_path ATTRIBUTE while the element TEXT stays the
+    // real path. The XML below is the verbatim shape measured on a live install, where the plugin's
+    // folder list showed only the tab whose display_path happened to be language-neutral.
+    [TestMethod]
+    public void ParseTabs_ReadsTheRealPathFromTheElementTextNotTheLocalizedDisplayPath()
+    {
+        var tabs = DopusRtPathQuery.ParseTabs("""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <results command="paths" result="1">
+            	<path active_lister="1" display_path="C:\" lister="0xcb07c2" side="2" tab="0x160f4e">C:\</path>
+            	<path active_lister="1" active_tab="2" display_path="C:\用户\testuser\AppData\Local\Temp" lister="0xcb07c2" side="2" tab="0x120fda" tab_state="2">C:\Users\testuser\AppData\Local\Temp</path>
+            </results>
+            """);
+
+        Assert.HasCount(2, tabs);
+        Assert.AreEqual(@"C:\Users\testuser\AppData\Local\Temp", tabs[1].Path);
+        Assert.IsTrue(tabs[1].IsActive);
+    }
+
+    // The fallback only matters for output that carries no element text; the attribute is still read
+    // rather than dropped, so such an entry is not silently lost.
+    [TestMethod]
+    public void ChooseReportedPath_PrefersElementTextAndFallsBackToTheDisplayPath()
+    {
+        Assert.AreEqual(
+            @"C:\Users\testuser\AppData\Local\Temp",
+            DopusRtPathQuery.ChooseReportedPath(@"C:\Users\testuser\AppData\Local\Temp", @"C:\用户\testuser\AppData\Local\Temp"));
+        Assert.AreEqual(@"C:\Windows", DopusRtPathQuery.ChooseReportedPath(@"C:\Windows", null));
+        Assert.AreEqual(@"C:\Windows", DopusRtPathQuery.ChooseReportedPath(null, @"C:\Windows"));
+        Assert.AreEqual(@"C:\Windows", DopusRtPathQuery.ChooseReportedPath("   ", @"C:\Windows"));
+        Assert.IsNull(DopusRtPathQuery.ChooseReportedPath(null, null));
+    }
+
     // The requested order: each group's ACTIVE tab first (one per group, groups in Opus's order), then
     // each group's remaining tabs in that same group order.
     [TestMethod]
@@ -96,5 +130,39 @@ public sealed class DopusRtPathQueryTests
         Assert.AreEqual(@"C:\Windows", folders[0].Path);
         Assert.AreEqual(new IntPtr(0x1), folders[0].WindowHandle);
         Assert.AreEqual(new IntPtr(0x2), folders[1].WindowHandle);
+    }
+
+    // Opus refuses an output path containing a space, Chinese or other special character, so the path
+    // handed to it has to be validated rather than assumed: %TEMP% is per-user and often is not usable.
+    [TestMethod]
+    public void IsOpusSafePath_RejectsSpacesAndNonAscii()
+    {
+        Assert.IsTrue(DopusRtPathQuery.IsOpusSafePath(@"C:\Users\USER~1\AppData\Local\Temp\lertaro-dopusrt-1a2b.xml"));
+        Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath(@"C:\Users\Some Name\AppData\Local\Temp\a.xml"));
+        Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath(@"C:\Users\张三\AppData\Local\Temp\a.xml"));
+        Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath(@"C:\temp\a b.xml"));
+        Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath(null));
+        Assert.IsFalse(DopusRtPathQuery.IsOpusSafePath(string.Empty));
+    }
+
+    // Every call gets a name nothing else can be holding, so a file left behind by an earlier run can
+    // never be read back as this run's folders, and no concurrent query can be writing it.
+    [TestMethod]
+    public void CreateOutputPath_IsSafeAndFreshPerCall()
+    {
+        var first = DopusRtPathQuery.CreateOutputPath();
+        var second = DopusRtPathQuery.CreateOutputPath();
+
+        if (first == null)
+        {
+            // A temp directory with neither an ASCII short form nor an ASCII long form: the plugin
+            // degrades to the scrape fallback, which the collector's own tests cover.
+            Assert.IsNull(second);
+            return;
+        }
+
+        Assert.IsTrue(DopusRtPathQuery.IsOpusSafePath(first));
+        Assert.AreNotEqual(first, second);
+        Assert.IsTrue(Directory.Exists(Path.GetDirectoryName(first)));
     }
 }

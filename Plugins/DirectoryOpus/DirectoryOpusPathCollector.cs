@@ -162,9 +162,16 @@ public class DirectoryOpusPathCollector : IActivePathCollector
     /// </remarks>
     public IReadOnlyList<OpenedFolder> GetOpenedFolders()
     {
+        // The documented answer wins whenever it carries folders -- it knows each tab AND which one is
+        // active in its group, which the scrape cannot tell.
         var reported = DopusRtPathQuery.TryReadTabs();
-        if (reported != null) return DopusRtPathQuery.ToOpenedFolders(reported);
+        if (reported is { Count: > 0 }) return DopusRtPathQuery.ToOpenedFolders(reported);
 
+        // But an EMPTY answer is not proof that nothing is open: measured on a live install, Opus answers
+        // empty while its file-display containers are right there (a lister it has not finished tracking,
+        // a window on another virtual desktop), and trusting it alone left the opened-folder list blank
+        // with the folders plainly visible on screen. The scrape is the last word whenever the documented
+        // query produced no folders at all -- its answer can be worse ordered, never emptier.
         return GetOpenedFoldersFromWindows();
     }
 
@@ -247,7 +254,13 @@ public class DirectoryOpusPathCollector : IActivePathCollector
         {
             resolved += "\\";
         }
-        return string.IsNullOrWhiteSpace(resolved) ? null : resolved;
+        if (string.IsNullOrWhiteSpace(resolved)) return null;
+
+        // A container's title is the LOCALIZED spelling Opus shows ("C:\用户\..." for "C:\Users\..."),
+        // which is not a path that exists, so the scraped answer has to be translated back before it can
+        // be offered. Only reached once the reported spelling is already known not to exist -- the
+        // translation walks directories, which every directly-readable path must not pay for.
+        return Directory.Exists(resolved) ? resolved : LocalizedPathResolver.Resolve(resolved);
     }
 
     private static void CleanUpDeadKeys()
