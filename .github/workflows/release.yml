@@ -15,32 +15,20 @@ jobs:
     steps:
       # 1. Checkout codebase with full history to retrieve previous tags/commits
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       # 2. Configure .NET SDK
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
       # 3. Install Inno Setup 7, required for the 64-bit x64 Setup shell
       - name: Install Inno Setup
         run: |
-          $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/jrsoftware/issrc/releases/latest' -Headers @{ 'User-Agent' = 'Lertaro-Release' }
-          $asset = $release.assets | Where-Object { $_.name -match '^innosetup-7\.[0-9.]+-x64\.exe$' } | Select-Object -First 1
-          if ($null -eq $asset) { throw "No 64-bit Inno Setup 7 asset was found in release $($release.tag_name)." }
-          $installerPath = Join-Path $env:RUNNER_TEMP $asset.name
-          Invoke-WebRequest -Uri $asset.browser_download_url -Headers @{ 'User-Agent' = 'Lertaro-Release' } -OutFile $installerPath
-          $installer = Start-Process -FilePath $installerPath -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-' -Wait -PassThru
-          if ($installer.ExitCode -ne 0) { throw "Inno Setup 7 installer exited with code $($installer.ExitCode)." }
-          $isccDir = Join-Path ${env:ProgramFiles} 'Inno Setup 7'
-          $isccPath = Join-Path $isccDir 'ISCC.exe'
-          if (-not (Test-Path $isccPath)) { throw '64-bit Inno Setup 7 ISCC.exe was not found after installation.' }
-          $isccInfo = (& $isccPath /? 2>&1 | Out-String)
-          if ($isccInfo -notmatch 'Inno Setup 7') { throw 'The installed ISCC.exe is not an Inno Setup 7 compiler.' }
-          Add-Content -Path $env:GITHUB_PATH -Value $isccDir
+          winget install JRSoftware.InnoSetup.7 --force --silent --no-upgrade --accept-source-agreements
 
       # 4. Execute the build and package batch script
       - name: Run Build and Package Script
@@ -142,7 +130,7 @@ jobs:
       # The new repository is not visible to legacy installs, so ARM64 assets use the conventional
       # hyphenated suffix. Keep these names in sync with make.bat and UpdateAssetSelector.
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           body_path: changelog.md
           files: |
