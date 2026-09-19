@@ -3,7 +3,6 @@ using Lertaro.Core;
 using Lertaro.Core.IndexV2;
 using Lertaro.Core.IndexV2.Persistence;
 using Lertaro.Core.IndexV2.Search;
-using Lertaro.Core.Indexer;
 using Lertaro.Core.SearchIndex;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
