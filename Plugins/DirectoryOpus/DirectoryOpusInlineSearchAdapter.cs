@@ -118,10 +118,6 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
             var isDir = Path.EndsInDirectorySeparator(path);
             var cleanPath = isDir ? Path.TrimEndingDirectorySeparator(path) : path;
 
-            var scope = GetSearchScope(hwnd);
-            var parent = Path.GetDirectoryName(cleanPath);
-            var isInCurrentFolder = IsInFolder(scope, cleanPath);
-
             if (isDir)
             {
                 if (RunDopusCommandViaCopyData($"Go \"{cleanPath}\""))
@@ -131,22 +127,28 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
             }
             else
             {
+                // Read only in this branch: deciding whether a FILE is already in the open folder needs the
+                // lister's current folder, while a folder result goes straight to "Go" and would pay for a
+                // window-tree walk it never reads.
+                var isInCurrentFolder = IsInFolder(GetSearchScope(hwnd), cleanPath);
+                var parent = Path.GetDirectoryName(cleanPath);
+
                 if (isInCurrentFolder)
                 {
                     SelectByFileName(cleanPath, focus: true);
                     return true;
                 }
-                else if (parent != null)
+
+                // Not in the open folder: navigate to the parent first, then select once the listing has
+                // caught up with the navigation.
+                if (parent != null && RunDopusCommandViaCopyData($"Go \"{parent}\""))
                 {
-                    if (RunDopusCommandViaCopyData($"Go \"{parent}\""))
+                    _ = Task.Run(async () =>
                     {
-                        _ = Task.Run(async () =>
-                        {
-                            await Task.Delay(200);
-                            SelectByFileName(cleanPath, focus: true);
-                        });
-                        return true;
-                    }
+                        await Task.Delay(200);
+                        SelectByFileName(cleanPath, focus: true);
+                    });
+                    return true;
                 }
             }
         }
@@ -208,18 +210,10 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
         }
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT
-    {
-        public int Left, Top, Right, Bottom;
-    }
-
+    // Win32Helper.RECT rather than a private copy: it is the same four ints in the same order, and the
+    // plugin's own Win32Helper already owns the GetWindowRect fallback below.
     [DllImport("dwmapi.dll")]
-    private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+    private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out Win32Helper.RECT pvAttribute, int cbAttribute);
 
     private const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
 
@@ -244,19 +238,17 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
         if (hwnd == IntPtr.Zero) return false;
 
         // Dock over the whole lister window's bottom-right corner (same as the Total Commander plugin).
-        // Extended frame bounds excludes the drop shadow, matching the visible edge.
+        // Extended frame bounds excludes the drop shadow, matching the visible edge; GetWindowRect is the
+        // fallback for a window DWM will not answer for.
         var listerHwnd = GetListerWindow(hwnd);
-        if (DwmGetWindowAttribute(listerHwnd, DWMWA_EXTENDED_FRAME_BOUNDS, out var nativeRect, Marshal.SizeOf<RECT>()) == 0)
+        if (DwmGetWindowAttribute(listerHwnd, DWMWA_EXTENDED_FRAME_BOUNDS, out var nativeRect, Marshal.SizeOf<Win32Helper.RECT>()) != 0 &&
+            !Win32Helper.TryGetWindowRect(listerHwnd, out nativeRect))
         {
-            rect = new AdapterRect { Left = nativeRect.Left, Top = nativeRect.Top, Right = nativeRect.Right, Bottom = nativeRect.Bottom };
-            return true;
+            return false;
         }
-        if (GetWindowRect(listerHwnd, out nativeRect))
-        {
-            rect = new AdapterRect { Left = nativeRect.Left, Top = nativeRect.Top, Right = nativeRect.Right, Bottom = nativeRect.Bottom };
-            return true;
-        }
-        return false;
+
+        rect = new AdapterRect { Left = nativeRect.Left, Top = nativeRect.Top, Right = nativeRect.Right, Bottom = nativeRect.Bottom };
+        return true;
     }
 
     public bool CanEnterActionsMode(IntPtr hwnd) => true;

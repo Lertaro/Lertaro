@@ -16,7 +16,10 @@ public class DirectoryOpusPathCollector : IActivePathCollector
         return className.Equals("dopus.lister", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static readonly Dictionary<IntPtr, string> _lastActiveSides = new Dictionary<IntPtr, string>();
+    // The pane index (into the layout-sorted container list) last known to be active, per lister. Only
+    // consulted when no other rule can tell which pane is in front, so a split lister keeps answering with
+    // the side the user was last on instead of an arbitrary one.
+    private static readonly Dictionary<IntPtr, int> _lastActiveSides = [];
 
     public string? TryGetPath(IntPtr activeHwnd, string activeClassName, IntPtr windowHwnd, string windowClassName, string processName)
     {
@@ -115,24 +118,21 @@ public class DirectoryOpusPathCollector : IActivePathCollector
             {
                 lock (_lastActiveSides)
                 {
-                    _lastActiveSides[windowHwnd] = activeIndex.ToString();
+                    _lastActiveSides[windowHwnd] = activeIndex;
                 }
                 activeContainer = containers[activeIndex];
             }
             else
             {
-                string lastSideIndexStr;
+                int lastActiveIndex;
                 lock (_lastActiveSides)
                 {
-                    if (!_lastActiveSides.TryGetValue(windowHwnd, out lastSideIndexStr!))
-                    {
-                        lastSideIndexStr = "0";
-                    }
+                    _lastActiveSides.TryGetValue(windowHwnd, out lastActiveIndex);
                 }
 
-                if (int.TryParse(lastSideIndexStr, out var targetIndex) && targetIndex < containers.Count)
+                if (lastActiveIndex < containers.Count)
                 {
-                    activeContainer = containers[targetIndex];
+                    activeContainer = containers[lastActiveIndex];
                 }
             }
         }
@@ -165,7 +165,7 @@ public class DirectoryOpusPathCollector : IActivePathCollector
         // The documented answer wins whenever it carries folders -- it knows each tab AND which one is
         // active in its group, which the scrape cannot tell.
         var reported = DopusRtPathQuery.TryReadTabs();
-        if (reported is { Count: > 0 }) return DopusRtPathQuery.ToOpenedFolders(reported);
+        if (reported is { Count: > 0 }) return DopusPathsXml.ToOpenedFolders(reported);
 
         // But an EMPTY answer is not proof that nothing is open: measured on a live install, Opus answers
         // empty while its file-display containers are right there (a lister it has not finished tracking,
@@ -263,19 +263,13 @@ public class DirectoryOpusPathCollector : IActivePathCollector
         return Directory.Exists(resolved) ? resolved : LocalizedPathResolver.Resolve(resolved);
     }
 
+    // A closed lister's handle would otherwise sit in the map for the life of the process, and Windows
+    // reuses handles -- a recycled one would answer with a dead lister's pane index.
     private static void CleanUpDeadKeys()
     {
         lock (_lastActiveSides)
         {
-            var deadKeys = new List<IntPtr>();
-            foreach (var key in _lastActiveSides.Keys)
-            {
-                if (!Win32Helper.IsWindow(key))
-                {
-                    deadKeys.Add(key);
-                }
-            }
-            foreach (var key in deadKeys)
+            foreach (var key in _lastActiveSides.Keys.Where(key => !Win32Helper.IsWindow(key)).ToArray())
             {
                 _lastActiveSides.Remove(key);
             }

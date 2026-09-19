@@ -97,8 +97,8 @@ internal static class FavoritesIcon
         (Application.Current?.TryFindResource("AccentBlue") as SolidColorBrush)
         ?? new SolidColorBrush(Color.FromRgb(33, 150, 243));
 
-    // Re-rendered on every call (cheap, one 64x64 bitmap) so it tracks the current theme's accent color;
-    // the previous handle is freed first to avoid leaking a GDI object per popup.
+    // Rendered at most once per popup session (see the cache-and-reuse note above) on the dispatcher the
+    // host's popup will read the handle from; a thread with no dispatcher at all gets a private STA one.
     private static IntPtr Render(string pathData, double viewBoxSize)
     {
         Func<IntPtr> render = () => RenderCore(pathData, viewBoxSize);
