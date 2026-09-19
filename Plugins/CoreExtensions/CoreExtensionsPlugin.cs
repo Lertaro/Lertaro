@@ -74,7 +74,11 @@ public class CoreExtensionsPlugin : IPlugin, IActionProvider, IConfigurable
                         LabelKey = "CoreExtensions_Config_CustomFoldersLabel",
                         DescriptionKey = "CoreExtensions_Config_CustomFoldersDesc",
                         FieldType = ConfigFieldType.StringList,
-                        DefaultValue = new List<string>()
+                        // Windows' own "all apps" folder, so the field starts out naming the one app source
+                        // that is meaningful without the user inventing a path. Read from the roots helper
+                        // rather than written out again: it is also what the provider falls back to when the
+                        // saved list is empty, and the two must not drift.
+                        DefaultValue = new List<string>(Providers.Indexing.StartMenuAppFolderRoots.DefaultCustomFolders)
                     }
                 }
             },

@@ -9,6 +9,36 @@ namespace Lertaro.Plugins.CoreExtensions.Providers.Indexing;
 /// </summary>
 internal static class StartMenuAppFolderRoots
 {
+    /// <summary>
+    /// The shipped value of the custom-folder list: Windows' own "all apps" folder, so a machine nobody has
+    /// configured still searches the applications a Start Menu scan alone misses.
+    /// </summary>
+    /// <remarks>
+    /// shell:AppsFolder is a virtual shell folder with no filesystem path: UserPathResolver returns the
+    /// token unchanged and Directory.Exists is false for it, so <see cref="Merge"/> drops it as a directory
+    /// to scan. That is deliberate -- handing a virtual token to the directory indexer could only fail --
+    /// and it costs nothing, because the provider's own shell enumeration of that folder is what returns
+    /// those entries. This default therefore declares "applications are searched out of the box" rather
+    /// than adding a folder to walk.
+    /// </remarks>
+    internal static readonly IReadOnlyList<string> DefaultCustomFolders = ["shell:appsfolder"];
+
+    /// <summary>
+    /// The custom folders to scan: the configured ones when there are any,
+    /// <see cref="DefaultCustomFolders"/> otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Pure, so the rule is pinned by a test rather than by a settings store. A list with anything in it is
+    /// the user's own and is used exactly as given -- nothing is appended to it, so configuring one folder
+    /// does not silently re-add the shipped default beside it. An unset or empty one means "never
+    /// configured" and takes the default. A blank entry does not count as configured: the field is one path
+    /// per line, so a stray empty line must not be the thing that keeps the default out.
+    /// </remarks>
+    internal static IReadOnlyList<string> ResolveCustomFolders(List<string>? configured)
+        => configured is { Count: > 0 } folders && folders.Any(folder => !string.IsNullOrWhiteSpace(folder))
+            ? folders
+            : DefaultCustomFolders;
+
     internal static IReadOnlyList<string> Merge(
         IEnumerable<string> builtInRoots,
         IEnumerable<string>? customRoots,

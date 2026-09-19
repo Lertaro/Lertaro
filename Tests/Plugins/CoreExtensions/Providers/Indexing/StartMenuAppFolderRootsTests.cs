@@ -42,4 +42,54 @@ public sealed class StartMenuAppFolderRootsTests
 
         CollectionAssert.AreEquivalent(new[] { @"C:\StartMenu" }, roots.ToList());
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // The custom-folder list's default
+    // ---------------------------------------------------------------------------------------------
+
+    [TestMethod]
+    public void ResolveCustomFolders_Unset_TakesTheShippedDefault() =>
+        CollectionAssert.AreEqual(
+            new[] { "shell:appsfolder" },
+            StartMenuAppFolderRoots.ResolveCustomFolders(null).ToList());
+
+    [TestMethod]
+    public void ResolveCustomFolders_Empty_TakesTheShippedDefault() =>
+        CollectionAssert.AreEqual(
+            new[] { "shell:appsfolder" },
+            StartMenuAppFolderRoots.ResolveCustomFolders([]).ToList());
+
+    // The field is one path per line, so a blank line the user left behind is still "nothing configured".
+    [TestMethod]
+    public void ResolveCustomFolders_OnlyBlankEntries_TakesTheShippedDefault() =>
+        CollectionAssert.AreEqual(
+            new[] { "shell:appsfolder" },
+            StartMenuAppFolderRoots.ResolveCustomFolders(["", "   "]).ToList());
+
+    // Anything real replaces the default outright: nothing is appended to a list the user wrote.
+    [TestMethod]
+    public void ResolveCustomFolders_Configured_IsUsedExactlyAsGiven() =>
+        CollectionAssert.AreEqual(
+            new[] { @"D:\Apps" },
+            StartMenuAppFolderRoots.ResolveCustomFolders([@"D:\Apps"]).ToList());
+
+    // A user who keeps the shipped value alongside their own folder must not end up with it twice.
+    [TestMethod]
+    public void ResolveCustomFolders_ConfiguredIncludingTheDefault_IsNotDuplicated() =>
+        CollectionAssert.AreEqual(
+            new[] { "shell:appsfolder", @"D:\Apps" },
+            StartMenuAppFolderRoots.ResolveCustomFolders(["shell:appsfolder", @"D:\Apps"]).ToList());
+
+    // The schema's default and the resolver's fallback are one value, not two spellings of one idea.
+    [TestMethod]
+    public void ConfigSchema_CustomFoldersDefaultMatchesTheResolverFallback()
+    {
+        var field = new CoreExtensionsPlugin().GetConfigSchema().Fields
+            .Single(f => f.Key == "CustomFoldersGroup").SubFields!
+            .Single(f => f.Key == "CustomFolders");
+
+        CollectionAssert.AreEqual(
+            StartMenuAppFolderRoots.DefaultCustomFolders.ToList(),
+            ((List<string>)field.DefaultValue!).ToList());
+    }
 }

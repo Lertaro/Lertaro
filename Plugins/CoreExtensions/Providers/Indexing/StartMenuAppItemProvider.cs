@@ -16,6 +16,9 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
     /// <summary>What this provider's directories are registered and notified under.</summary>
     private const string RegistrationId = "CoreExtensions.StartMenu";
 
+    private const string PluginId = "Lertaro.Plugins.CoreExtensions";
+    private const string CustomFoldersKey = "CustomFolders";
+
     public event Action? ItemsChanged;
 
     private readonly StartMenuAppRuntimeSupport _runtime;
@@ -32,8 +35,8 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
 
     private void OnSettingChanged(string pluginId, string key)
     {
-        if (string.Equals(pluginId, "Lertaro.Plugins.CoreExtensions", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(key, "CustomFolders", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(pluginId, PluginId, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(key, CustomFoldersKey, StringComparison.OrdinalIgnoreCase))
         {
             if (!IsComponentEnabled)
                 return;
@@ -174,13 +177,13 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
     {
         try
         {
-            var customFolders = PluginSettingsService.GetSetting<List<string>>("Lertaro.Plugins.CoreExtensions", "CustomFolders", null!);
-            return customFolders ?? Enumerable.Empty<string>();
+            var customFolders = PluginSettingsService.GetSetting<List<string>>(PluginId, CustomFoldersKey, null!);
+            return StartMenuAppFolderRoots.ResolveCustomFolders(customFolders);
         }
         catch (Exception ex)
         {
             PluginSdk.Logger.Log($"[StartMenuAppItemProvider] Failed to load custom folders config: {ex.Message}", PluginSdk.LogLevel.Warn);
-            return Array.Empty<string>();
+            return StartMenuAppFolderRoots.DefaultCustomFolders;
         }
     }
 
