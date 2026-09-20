@@ -71,6 +71,12 @@ public static class CommandExecutor
                 Logger.Log($"[FolderCascader] Failed to launch Options: {ex.Message}", LogLevel.Error);
             }
         }
+        else if (Directory.Exists(path))
+        {
+            // A folder belongs to the host's own folder route (configured default file manager, and the
+            // "open in a new tab" option with its fallback); a plugin cannot reach any of that itself.
+            ExplorerService.OpenFolder(path);
+        }
         else
         {
             try

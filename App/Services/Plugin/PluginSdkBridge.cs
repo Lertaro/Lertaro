@@ -81,6 +81,11 @@ internal static class PluginSdkBridge
             }
         };
 
+        // Plugins that open a folder (a favorites menu, a directory hotlist) get the app's own folder
+        // route, so the configured default file manager and the "new tab" option apply to them too --
+        // plugins cannot reach FileExecutor, and calling the shell themselves skipped both.
+        PluginSdk.Services.ExplorerService.OpenFolderFunc = path => FileExecutor.OpenFileOrFolder(path);
+
         // Wire up the history service delegate for plugins using Core SearchHistoryStore
         PluginSdk.Services.HistoryService.GetHistoryEntriesFunc = SearchHistoryStore.GetEntries;
 

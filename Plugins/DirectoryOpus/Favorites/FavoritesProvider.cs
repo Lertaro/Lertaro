@@ -162,6 +162,16 @@ public class FavoritesProvider : IQuickNavigationProvider
     public void ExecuteCommand(ISearchResult result, uint commandId, IntPtr ownerHwnd)
     {
         if (!_commandMap.TryGetValue(commandId, out var path)) return;
+
+        // A favorite folder belongs to the host's own folder route: that is what applies the configured
+        // default file manager and the "open in a new tab" option, neither of which a plugin can reach on
+        // its own. Only a non-folder favorite still goes straight to the shell.
+        if (Directory.Exists(path))
+        {
+            ExplorerService.OpenFolder(path);
+            return;
+        }
+
         try
         {
             Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });

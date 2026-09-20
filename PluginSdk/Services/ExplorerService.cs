@@ -14,6 +14,40 @@ public static class ExplorerService
     public static Action<string, string?>? OpenDirectoryFunc { get; set; }
 
     /// <summary>
+    /// Delegate assigned by the host application to open a folder the way the app opens folders.
+    /// </summary>
+    /// <remarks>
+    /// A folder is not just "a path the shell can open": the host may have a default file manager
+    /// configured for it, and an option to put it in a new tab of an already-open Explorer window (with a
+    /// documented fallback when that is not possible). None of that is reachable from a plugin, so a plugin
+    /// that opens a folder asks the host instead of calling the shell itself -- the same reason
+    /// <see cref="OpenDirectoryFunc"/> exists. Null in a process that never wired it (the Hook), where
+    /// <see cref="OpenFolder"/> falls back to the shell.
+    /// </remarks>
+    public static Action<string>? OpenFolderFunc { get; set; }
+
+    /// <summary>
+    /// Opens a FOLDER through whatever route the host opens folders with, falling back to the shell.
+    /// </summary>
+    /// <remarks>
+    /// For folders only -- a file belongs to its associated program, not to this route. Callers keep their
+    /// own file handling, and hand only a directory to this.
+    /// </remarks>
+    public static void OpenFolder(string? folderPath)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath)) return;
+
+        var openThroughHost = OpenFolderFunc;
+        if (openThroughHost != null)
+        {
+            openThroughHost(folderPath);
+            return;
+        }
+
+        ShellOpenHelper.TryOpenFolder(folderPath);
+    }
+
+    /// <summary>
     /// Opens the specified directory or selects the specified file, using the host's configured file manager if enabled.
     /// </summary>
     public static void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)

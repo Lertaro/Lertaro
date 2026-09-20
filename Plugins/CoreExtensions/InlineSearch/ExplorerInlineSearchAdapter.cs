@@ -1,10 +1,10 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Services;
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 using Lertaro.Plugins.CoreExtensions.Providers.Indexing;
-using Lertaro.Plugins.CoreExtensions.Shell.ContextMenu;
 namespace Lertaro.Plugins.CoreExtensions.InlineSearch;
 
 public class ExplorerInlineSearchAdapter : IInlineSearchAdapter
@@ -113,25 +113,10 @@ public class ExplorerInlineSearchAdapter : IInlineSearchAdapter
         return false;
     }
 
-    private static bool LocateViaShell(string path)
-    {
-        try
-        {
-            // Reuses the SHParseDisplayName p/invoke already declared in Shell/ShellContextMenuNativeMethods.cs
-            // (same project) instead of a second copy here.
-            if (ShellContextMenuNativeMethods.SHParseDisplayName(path, IntPtr.Zero, out var pidl, 0, out _) == 0)
-            {
-                SHOpenFolderAndSelectItems(pidl, 0, null, 0);
-                Marshal.FreeCoTaskMem(pidl);
-                return true;
-            }
-        }
-        catch { }
-        return false;
-    }
-
-    [DllImport("shell32.dll")]
-    private static extern int SHOpenFolderAndSelectItems(IntPtr pidlFolder, uint cidl, IntPtr[]? apidl, uint dwFlags);
+    private static bool LocateViaShell(string path) =>
+        // The shared shell helper, not a private copy of the same P/Invoke pair: revealing an item is one
+        // operation, and this project had its own second implementation of it.
+        ShellOpenHelper.TryRevealInFolder(path);
 
     public void OnSelectionChanged(IntPtr hwnd, string path)
     {

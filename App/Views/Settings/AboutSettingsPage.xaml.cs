@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.ComponentModel;
@@ -265,7 +264,9 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
         try
         {
             Directory.CreateDirectory(path);
-            Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+            // Through the app's own folder route rather than Process.Start, so the configured default file
+            // manager and the "open in a new tab" option apply to these two buttons as well.
+            FileExecutor.OpenFileOrFolder(path);
         }
         catch (Exception ex)
         {
