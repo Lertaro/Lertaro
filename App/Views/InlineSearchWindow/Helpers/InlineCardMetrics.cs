@@ -12,6 +12,17 @@ internal static class InlineCardMetrics
     // card bounded: section titles are rows in the list and cannot make a tenth row appear.
     internal const int DefaultRows = 9;
 
+    // The floor a screen-aware budget never drops below. Below this the list stops being usable, so the card
+    // is allowed to take more of the screen than the shares below would otherwise grant it -- the list scrolls
+    // at every budget, so the entries themselves are never lost.
+    internal const int MinRows = 4;
+
+    // How much of the monitor's working area, and how much of the window the card is anchored to, the card
+    // may occupy. The second one is what keeps a docked card from covering the dialog it belongs to: it is
+    // capped to a share of that window instead of growing to whatever its rows would need.
+    internal const double WorkingAreaHeightShare = 0.9;
+    internal const double AnchoredWindowHeightShare = 0.6;
+
     // The shell reserves this many wrapped path lines so selecting ordinary long paths does not move the
     // bottom-anchored search bar. This is only an estimate for the shell; the path banner itself remains
     // naturally sized and can grow beyond it when the complete path needs more lines.
@@ -57,4 +68,46 @@ internal static class InlineCardMetrics
 
     /// <summary>The pixel height of the row area for <paramref name="rows"/> rows.</summary>
     internal static double ResultsAreaHeight(int rows) => Math.Max(0, rows) * UiMetrics.InlineRowHeight;
+
+    /// <summary>
+    /// How much vertical room the card has, in DIP, given the screen and the window it is anchored to.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately independent of the card's own height: deriving a budget from a size that the budget
+    /// itself decides is what makes a layout oscillate between two answers. Either there is room BELOW the
+    /// anchored window, in which case the card fits there and covers nothing, or there is not and the card
+    /// has to sit over that window, in which case it may take a share of the window's height rather than all
+    /// of it. A zero <paramref name="activeWindowHeight"/> means there is no window to be anchored to (the
+    /// desktop, or nothing tracked), so only the working-area share applies.
+    /// </remarks>
+    internal static double AvailableCardHeight(double workingAreaHeight, double activeWindowHeight, double spaceBelowActiveWindow)
+    {
+        var workingAreaLimit = Math.Max(0, workingAreaHeight) * WorkingAreaHeightShare;
+        if (activeWindowHeight <= 0)
+            return workingAreaLimit;
+
+        var room = Math.Max(Math.Max(0, spaceBelowActiveWindow), activeWindowHeight * AnchoredWindowHeightShare);
+        return Math.Min(workingAreaLimit, room);
+    }
+
+    /// <summary>
+    /// How many list rows fit in <paramref name="availableHeight"/> once the card's non-row height is paid
+    /// for, bounded by the Ctrl+1..9 budget and never below <paramref name="minRows"/>.
+    /// </summary>
+    /// <remarks>
+    /// When not even <paramref name="minRows"/> fit, the minimum wins: the card then takes more of the screen
+    /// than the space allowed, because a scrollable card is more useful than one squeezed to a row or two.
+    /// </remarks>
+    internal static int ComputeRowBudget(
+        double availableHeight,
+        double chromeHeight,
+        double rowHeight,
+        int minRows = MinRows,
+        int maxRows = DefaultRows)
+    {
+        if (rowHeight <= 0) return maxRows;
+
+        var rows = (int)Math.Floor((availableHeight - chromeHeight) / rowHeight);
+        return Math.Clamp(rows, Math.Min(minRows, maxRows), maxRows);
+    }
 }

@@ -97,10 +97,11 @@ public sealed class InlineSearchWindowLayoutManager
             // to whatever the hidden list happened to contain -- a one-row panel whenever the search had
             // been cleared -- and the fixed area's own height would no longer match it.
             // Action rows are intentionally shorter than result rows, so using the result-area height alone
-            // would fit a tenth action. Limit the action ListBox itself to nine of its real rows, then add
-            // the non-list target header to the outer panel height.
+            // would fit a tenth action. Limit the action ListBox itself to as many of its real rows as fit
+            // on screen (the same budget the result list uses), then add the non-list target header to the
+            // outer panel height.
             var actionRowHeight = UiMetrics.InlineRowHeight;
-            var actionsListHeight = actionRowHeight * InlineCardMetrics.DefaultRows;
+            var actionsListHeight = actionRowHeight * _window.CardSizing.RowBudget;
             var actionHeaderHeight = UiMetrics.InlineRowHeight;
             var actionsAreaHeight = actionsListHeight + actionHeaderHeight;
             _window.LstActions.Height = actionsListHeight;

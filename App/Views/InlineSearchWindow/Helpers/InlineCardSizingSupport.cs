@@ -1,4 +1,5 @@
 using System.Windows;
+using Lertaro.App.Services;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
@@ -19,7 +20,15 @@ internal sealed class InlineCardSizingSupport
     private readonly Lertaro.App.InlineSearchWindow _window;
     private int? _searchAreaRows;
 
+    // The row budget that currently fits on screen: never more than the Ctrl+1..9 range, and never more than
+    // the space this card actually has (see InlineCardSpace.AvailableHeight). Starts at the full budget so the
+    // first sizing pass, which runs before any screen query has happened, behaves exactly as it always did.
+    private int _rowBudget = InlineCardMetrics.DefaultRows;
+
     internal InlineCardSizingSupport(Lertaro.App.InlineSearchWindow window) => _window = window;
+
+    /// <summary>The row budget in force right now: what the results area, and the actions area, size to.</summary>
+    internal int RowBudget => _rowBudget;
 
     /// <summary>Re-applies the card's size once the window has been laid out at least once.</summary>
     internal void Attach()
@@ -84,7 +93,7 @@ internal sealed class InlineCardSizingSupport
         // be sized from the same budget -- deriving it from the results collection would size the card to a
         // list that is not even on screen.
         if (_window.ResultsPanelControl.ActionsGrid.Visibility == Visibility.Visible)
-            return new InlineCardMetrics.CardLayout(InlineCardMetrics.DefaultRows, InlineCardMetrics.DefaultRows);
+            return new InlineCardMetrics.CardLayout(_rowBudget, _rowBudget);
 
         var results = _window.ViewModel.Results;
         var layout = ComputeResultLayout(results, isSearching: _window.ViewModel.IsSearching);
@@ -106,14 +115,14 @@ internal sealed class InlineCardSizingSupport
     {
         if (_window.ResultsPanelControl.ActionsGrid.Visibility == Visibility.Visible)
         {
-            _searchAreaRows = InlineCardMetrics.DefaultRows;
+            _searchAreaRows = _rowBudget;
             return;
         }
 
         _searchAreaRows = ComputeResultLayout(_window.ViewModel.Results, isSearching: false).AreaRows;
     }
 
-    private static InlineCardMetrics.CardLayout ComputeResultLayout(
+    private InlineCardMetrics.CardLayout ComputeResultLayout(
         IReadOnlyList<AppSearchResult> results,
         bool isSearching)
     {
@@ -121,7 +130,7 @@ internal sealed class InlineCardSizingSupport
         for (var i = 0; i < results.Count; i++)
             isHeader[i] = results[i].IsSearchSectionHeader;
 
-        return InlineCardMetrics.ComputeLayout(isHeader, isSearching);
+        return InlineCardMetrics.ComputeLayout(isHeader, isSearching, _rowBudget);
     }
 
     /// <summary>Sizes the window shell to the settled row count.</summary>
@@ -136,6 +145,11 @@ internal sealed class InlineCardSizingSupport
         // Searching produces intermediate result snapshots. Their full-budget layout is not a stable size,
         // so wait for IsSearching=false and resize once from the settled result set.
         if (_window.ViewModel.IsSearching) return;
+
+        // Re-derived on every size pass, before anything is measured from it: the screen, its DPI and the
+        // window this card is docked to can all change while it is open (the dialog is dragged to a smaller
+        // monitor, the window shrink-wraps), and the budget the previous pass used would then be the wrong one.
+        RefreshRowBudget();
 
         // Card plus its margin on both sides, plus a further margin so the drop shadow above the card is
         // not clipped by the window bounds.
@@ -175,18 +189,37 @@ internal sealed class InlineCardSizingSupport
     /// </remarks>
     internal double CardHeight(int rows)
     {
-        var searchBox = SearchBoxHeight();
+        var hasVisibleContent = HasVisibleContent;
+        if (hasVisibleContent)
+            rows = Math.Max(rows, _rowBudget);
+
+        return InlineCardMetrics.ResultsAreaHeight(rows) + ChromeHeight(hasVisibleContent);
+    }
+
+    // Everything the card spends that is not a result row: the search bar, the separator and the path banner.
+    // Shared with RefreshRowBudget, so how much of the available height the rows get and how tall the card
+    // ends up cannot disagree.
+    private double ChromeHeight(bool hasVisibleContent)
+    {
         var separator = _window.ResultsSeparator.ActualHeight > 0 ? _window.ResultsSeparator.ActualHeight : 1.0;
         var pathHeight = PathBannerHeight();
-        var hasVisibleContent = _window.ResultsPanelControl.Visibility == Visibility.Visible
-            || _window.PathPreviewBorder.Visibility == Visibility.Visible;
         if (hasVisibleContent)
-        {
-            rows = Math.Max(rows, InlineCardMetrics.DefaultRows);
             pathHeight = Math.Max(pathHeight, EstimatedPathPreviewHeight());
-        }
 
-        return InlineCardMetrics.ResultsAreaHeight(rows) + searchBox + separator + pathHeight;
+        return SearchBoxHeight() + separator + pathHeight;
+    }
+
+    private bool HasVisibleContent =>
+        _window.ResultsPanelControl.Visibility == Visibility.Visible
+        || _window.PathPreviewBorder.Visibility == Visibility.Visible;
+
+    /// <summary>Recomputes the rows that fit from the space the card has right now.</summary>
+    private void RefreshRowBudget()
+    {
+        // The window's own transparent margin counts against that space as well: it is the whole shell (card
+        // plus margins) that has to fit on the screen, not the card alone.
+        var chrome = ChromeHeight(HasVisibleContent) + (CardMargin * 3);
+        _rowBudget = InlineCardMetrics.ComputeRowBudget(InlineCardSpace.AvailableHeight(_window), chrome, UiMetrics.InlineRowHeight);
     }
 
     private double EstimatedPathPreviewHeight()

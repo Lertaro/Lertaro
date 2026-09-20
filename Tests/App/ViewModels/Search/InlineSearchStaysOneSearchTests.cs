@@ -133,8 +133,8 @@ public sealed class InlineSearchStaysOneSearchTests
         var metrics = Source("App/Views/InlineSearchWindow/Helpers/InlineCardMetrics.cs");
         Assert.Contains("PathPreviewReservedRows = 5", metrics,
             "the shell should reserve a five-line path estimate");
-        Assert.Contains("Math.Max(rows, InlineCardMetrics.DefaultRows)", sizing,
-            "the shell should reserve the complete nine-row result budget while content is visible");
+        Assert.Contains("Math.Max(rows, _rowBudget)", sizing,
+            "the shell should reserve the row budget that fits the screen while content is visible");
         Assert.Contains("EstimatedPathPreviewHeight()", sizing,
             "the path reserve must be an estimate rather than a fixed banner height");
 
@@ -151,8 +151,8 @@ public sealed class InlineSearchStaysOneSearchTests
 
         Assert.Contains("var actionsListHeight", layout,
             "the action list needs its own row-height limit because action rows are shorter than result rows");
-        Assert.Contains("actionRowHeight * InlineCardMetrics.DefaultRows", layout,
-            "the action list must use the same nine-row budget");
+        Assert.Contains("actionRowHeight * _window.CardSizing.RowBudget", layout,
+            "the action list must use the same row budget as the result list");
         Assert.Contains("_window.LstActions.Height = actionsListHeight", layout,
             "the ListBox itself must be constrained, not only its outer panel");
         var styles = Source("App/Resources/Styles/Controls/ListBox.xaml");
