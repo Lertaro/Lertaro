@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -12,22 +11,8 @@ public class InlineSearchWindowPositioner
     private const double DockedWidthRatio = 2.0 / 3.0;
     private const double DesktopWidthRatio = 0.2;
 
-    [DllImport("Shcore.dll")]
-    private static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct POINT { public int X; public int Y; }
-
-    private const int MDT_EFFECTIVE_DPI = 0;
-    private const uint MONITOR_DEFAULTTONEAREST = 2;
-
     private readonly Lertaro.App.InlineSearchWindow _window;
+    private readonly InlineCardDragOffset _dragOffset;
     private int _positionUpdateQueued;
 
     private bool _hasCachedInputs;
@@ -42,7 +27,11 @@ public class InlineSearchWindowPositioner
     private double _cachedVisibleHeight;
     private bool _cachedIsResultsVisible;
 
-    public InlineSearchWindowPositioner(Lertaro.App.InlineSearchWindow window) => _window = window ?? throw new ArgumentNullException(nameof(window));
+    public InlineSearchWindowPositioner(Lertaro.App.InlineSearchWindow window)
+    {
+        _window = window ?? throw new ArgumentNullException(nameof(window));
+        _dragOffset = new InlineCardDragOffset(window);
+    }
 
     public void PositionWindow()
     {
@@ -77,12 +66,12 @@ public class InlineSearchWindowPositioner
         var hwnd = new WindowInteropHelper(_window).Handle;
         var targetMonitor = tracker.IsDesktop
             ? (_window.IsVisible && hwnd != IntPtr.Zero
-                ? MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
-                : MonitorFromPoint(ToPoint(mousePosition), MONITOR_DEFAULTTONEAREST))
+                ? InlineCardSpace.MonitorForWindow(hwnd)
+                : InlineCardSpace.MonitorForPoint(mousePosition))
             : tracker.ActiveHwnd != IntPtr.Zero
-                ? MonitorFromWindow(tracker.ActiveHwnd, MONITOR_DEFAULTTONEAREST)
+                ? InlineCardSpace.MonitorForWindow(tracker.ActiveHwnd)
                 : IntPtr.Zero;
-        var (targetDpiScaleX, targetDpiScaleY) = GetMonitorDpiScale(targetMonitor);
+        var (targetDpiScaleX, targetDpiScaleY) = InlineCardSpace.DpiScaleFor(targetMonitor);
 
         var desktopWidth = tracker.IsDesktop
             ? (_window.IsVisible && hwnd != IntPtr.Zero ? Screen.FromHandle(hwnd) : Screen.FromPoint(mousePosition)).WorkingArea.Width / targetDpiScaleX
@@ -146,18 +135,15 @@ public class InlineSearchWindowPositioner
         double targetPhysLeft = 0;
         double targetPhysTop = 0;
 
+        var workingArea = InlineCardSpace.WorkingAreaFor(_window, mousePosition);
+
         if (tracker.IsDesktop)
         {
-            var screen = _window.IsVisible && hwnd != IntPtr.Zero ? Screen.FromHandle(hwnd) : Screen.FromPoint(mousePosition);
-            var workingArea = screen.WorkingArea;
             targetPhysLeft = workingArea.Right - physWindowWidth + physXamlMargin - physVisibleMargin;
             targetPhysTop = workingArea.Bottom - physWindowHeight + physXamlMarginY - physVisibleMarginY;
         }
         else if (tracker.ActiveHwnd != IntPtr.Zero)
         {
-            var screen = Screen.FromHandle(tracker.ActiveHwnd);
-            var workingArea = screen.WorkingArea;
-
             if (hasValidRect)
             {
                 if (useDialogMode)
@@ -210,6 +196,18 @@ public class InlineSearchWindowPositioner
 
         var targetLeft = targetPhysLeft / targetDpiScaleX;
         var targetTop = targetPhysTop / targetDpiScaleY;
+
+        // The dock position on its own, which is what a user's drag is measured against -- recorded before that
+        // displacement is applied below.
+        _dragOffset.RememberBase(targetLeft, targetTop);
+
+        if (_dragOffset.IsSet)
+        {
+            (targetPhysLeft, targetPhysTop) = _dragOffset.ApplyPhysical(
+                targetPhysLeft, targetPhysTop, targetDpiScaleX, targetDpiScaleY, workingArea, physWindowWidth, physWindowHeight);
+            targetLeft = targetPhysLeft / targetDpiScaleX;
+            targetTop = targetPhysTop / targetDpiScaleY;
+        }
 
         if (Math.Abs(_window.Left - targetLeft) > 0.5) _window.Left = targetLeft;
         if (Math.Abs(_window.Top - targetTop) > 0.5) _window.Top = targetTop;
@@ -274,16 +272,14 @@ public class InlineSearchWindowPositioner
         }
     }
 
-    private static POINT ToPoint(System.Drawing.Point p) => new() { X = p.X, Y = p.Y };
+    /// <summary>Records a drag the user has just finished, so the card keeps the position they left it at.</summary>
+    /// <remarks>
+    /// Wired to the search box logo's own drag (see InlineSearchWindow's constructor). Measured against the
+    /// dock position the last positioning pass applied, which is exactly what a displacement is relative to.
+    /// </remarks>
+    public void RememberUserDrag() => _dragOffset.RememberDrag();
 
     internal static double CalculateDockedWidth(double targetWindowWidth) => targetWindowWidth * DockedWidthRatio;
 
     internal static double CalculateDesktopWidth(double desktopWidth) => desktopWidth * DesktopWidthRatio;
-
-    private static (double x, double y) GetMonitorDpiScale(IntPtr hMonitor)
-    {
-        if (hMonitor != IntPtr.Zero && GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, out var dpiX, out var dpiY) == 0 && dpiX > 0 && dpiY > 0)
-            return (dpiX / 96.0, dpiY / 96.0);
-        return (1.0, 1.0);
-    }
 }

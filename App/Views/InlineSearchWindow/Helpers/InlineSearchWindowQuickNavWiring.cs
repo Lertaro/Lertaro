@@ -12,13 +12,15 @@ internal static class InlineSearchWindowQuickNavWiring
     {
         // Left-clicking the search box's own logo opens Quick Navigation, but only when this window is
         // actually docked to a file picker dialog (matching the existing middle-click trigger's own gate
-        // in FileDialogQuickNavGate) -- there's nothing useful to navigate to otherwise, and an always-on
-        // hover hint here would be a lie for the common case (docked to a plain Explorer window/desktop).
-        // Checked once at construction: this window is a fresh instance per dock session, not reused
-        // across different hosts, so the docked target can't change out from under this decision.
+        // in FileDialogQuickNavGate) -- there's nothing useful to navigate to otherwise, and the hover hint
+        // that promises this click would be a lie for the common case (docked to a plain Explorer
+        // window/desktop). Checked once at construction: this window is a fresh instance per dock session,
+        // not reused across different hosts, so the docked target can't change out from under this decision.
         if (window.Manager.ExplorerTracker.IsActiveWindowDialog)
         {
-            window.SearchBox.IsIconClickable = true;
+            // IsIconClickable/IsIconDraggable are the window's own (see its constructor): set for every host,
+            // because the logo drags the card wherever it is docked. What is dialog-only is what clicking it
+            // DOES, and the hint that says so.
             window.SearchBox.IconClickHint = TranslationManager.Instance["InlineSearch_QuickNavTooltip"];
             // Screen coordinates (physical pixels) come straight from IconLeftClicked, already in the
             // same convention QuickNavigationMenu.Show's other callers (the global mouse hook in

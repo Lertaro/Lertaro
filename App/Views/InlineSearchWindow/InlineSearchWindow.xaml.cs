@@ -65,6 +65,19 @@ public partial class InlineSearchWindow : Window, ISearchWindow
         SearchBox.SearchTextBox.LostKeyboardFocus += (_, _) => _isImeComposing = false;
         _positioner = new InlineSearchWindowPositioner(this);
 
+        // The logo is this card's drag handle, exactly as it is the quick window's: SearchBoxControl tells a
+        // real drag apart from a plain click by movement distance, so the logo's own click (Quick Navigation,
+        // wired only for a dialog host -- see InlineSearchWindowQuickNavWiring) keeps working alongside it.
+        //
+        // IsIconClickable has to be set for a drag to be honoured at all: it is the flag SearchBoxControl gates
+        // its own press handling on, deliberately, so a press on a logo that was never opted in still falls
+        // through to whatever hosts it. Setting it here rather than in the dialog-only wiring is what makes the
+        // card draggable in every host, and it also gives the logo the interactive look (hover highlight, hand
+        // cursor) it now deserves in every host.
+        SearchBox.IsIconClickable = true;
+        SearchBox.IsIconDraggable = true;
+        SearchBox.IconDragCompleted += _positioner.RememberUserDrag;
+
         _sizing = new InlineCardSizingSupport(this);
         _sizing.Attach();
         _focusSupport = new InlineSearchFocusSupport(this);
