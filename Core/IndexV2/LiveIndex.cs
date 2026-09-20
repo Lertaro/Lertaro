@@ -192,6 +192,8 @@ public sealed class LiveIndex : IDisposable
         {
             _lock.ExitWriteLock();
         }
-        _lock.Dispose();
+        // Never throws: a monitor thread that is still inside Mutate()/Read() on this lock must not turn a
+        // service stop into a process death -- see LiveIndexLockTeardown for the field failure this covers.
+        LiveIndexLockTeardown.TryDispose(_lock);
     }
 }

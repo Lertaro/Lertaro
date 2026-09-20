@@ -13,6 +13,9 @@ public class UsnMonitor : IDisposable
     private readonly CancellationToken _token;
     private readonly Action<string>? _onReindexRequired;
     private readonly UsnMonitorHandleState _handleState = new();
+    // Own token (linked to the caller's), so Dispose can stop the loop itself -- see MonitorLoopJoin.
+    private readonly CancellationTokenSource _loopCts;
+    private Task _loop = Task.CompletedTask;
     private int _disposed;
 
     public UsnMonitor(
@@ -27,17 +30,25 @@ public class UsnMonitor : IDisposable
         _journalId = journalId;
         _startUsn = startUsn;
         _indexer = indexer;
-        _token = token;
+        _loopCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        _token = _loopCts.Token;
         _onReindexRequired = onReindexRequired;
     }
 
     public void Dispose()
     {
-        Interlocked.Exchange(ref _disposed, 1);
+        // Idempotent: the PnP removal path disposes the monitor but keeps its registration, so a later stop
+        // disposes this instance again (see DriveMonitorRegistration.DisposeMonitor).
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
         _handleState.Dispose();
+        // Drain the loop before returning: the caller disposes this drive's LiveIndex next, and a batch
+        // applied into a disposed index is the crash MonitorLoopJoin exists to prevent.
+        MonitorLoopJoin.Stop(_loop, _loopCts, _drive);
     }
 
-    public void Start() => Task.Run(async () =>
+    public void Start() => _loop = Task.Run(async () =>
                                 {
                                     try
                                     {
