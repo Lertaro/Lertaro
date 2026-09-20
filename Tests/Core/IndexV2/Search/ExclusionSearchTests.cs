@@ -1,3 +1,4 @@
+using Lertaro.Core.IndexV2.Delta;
 using Lertaro.Core.IndexV2.Search;
 
 namespace Lertaro.Core.Tests.IndexV2.Search;
@@ -65,5 +66,34 @@ public sealed class ExclusionSearchTests
         Assert.Contains(@"T:\notes.txt", paths);
         Assert.DoesNotContain(@"T:\report-temp.txt", paths);
         Assert.DoesNotContain(@"T:\draft-temp.txt", paths);
+    }
+
+    // The live-update path: a row that arrived through the delta overlay carries its own baked alias
+    // array and is matched by SearchMatcherRow instead of the unique-name scan. Same rule, same hazard --
+    // the alias is pinyin, so an exclusion read off it can never fire.
+    [TestMethod]
+    public void SearchStreaming_DeltaRowMatchedOnlyByItsAlias_StillHonorsTheExclusion()
+    {
+        using var fixture = LiveIndexFixture.Build("T", new[] { LiveIndexFixture.Root() });
+        fixture.Index.Mutate((_, delta) => delta.Added.Add(new DeltaOverlay.DeltaRecord
+        {
+            Id = 42,
+            Name = "中国好声音演唱会.txt",
+            ParentBaseRow = 0,
+            ParentFrn = 1,
+            Aliases = new[] { "zghsyych.txt" },
+            ProviderIds = new byte[] { 7 },
+        }));
+
+        // The control: nothing in "zghsy" is in the CJK name, so this hit can only be the baked alias.
+        Assert.Contains("中国好声音演唱会.txt", Names(fixture, "zghsy"));
+        Assert.IsEmpty(Names(fixture, "zghsy :演唱会"));
+    }
+
+    private static List<string> Names(LiveIndexFixture fixture, string query)
+    {
+        var results = new List<SearchResult>();
+        IndexV2Searcher.SearchStreaming(fixture.Index, query, 10, results.Add, CancellationToken.None);
+        return results.Select(r => r.Name).ToList();
     }
 }

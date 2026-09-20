@@ -181,7 +181,8 @@ public static class LiveDirectorySearcher
 
         foreach (var (alias, separator) in aliases)
         {
-            if (!pattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
+            // Positives read the alias, exclusions read the entry's own name -- see FzfPattern.TryMatchAlias.
+            if (!pattern.TryMatchAlias(alias, entry.Name, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
             // Same syllable-alignment rule the index scan applies (see AliasMatchRules).
             if (!AliasMatchRules.AllowsMatch(pattern, separator, alias, aliasMatch.MinBegin))
