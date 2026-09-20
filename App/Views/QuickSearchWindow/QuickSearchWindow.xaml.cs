@@ -251,7 +251,9 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _dragSupport.OnMouseLeftButtonDown(sender, e);
     private void Border_MouseMove(object sender, MouseEventArgs e) => _dragSupport.OnMouseMove(sender, e);
     private void Border_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => _dragSupport.OnMouseLeftButtonUp(sender, e);
-    private void SaveWindowPosition() => _controller.SaveWindowPosition();
+    // Internal, not private: QuickSearchWindowDragSupport ends a chrome drag the same way the logo's own
+    // drag does, by persisting the position the user just dragged the window to.
+    internal void SaveWindowPosition() => _controller.SaveWindowPosition();
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e) => _inputHandler.HandleWindowPreviewKeyDown(e);
     // The search box logo's own left-click (see SearchBox.IconLeftClicked wiring in the constructor)
     // opens the same menu the tray icon's right-click shows, anchored at the cursor rather than the tray

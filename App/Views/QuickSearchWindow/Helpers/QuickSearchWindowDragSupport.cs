@@ -45,6 +45,12 @@ public class QuickSearchWindowDragSupport
 
         _borderDragTracker.End();
         if (sender is IInputElement el) el.ReleaseMouseCapture();
-        _window.PositionWindow();
+        // The release RECORDS where the drag ended; it must not re-apply the stored position. Calling
+        // PositionWindow() here put the window straight back on its saved relative position (or the
+        // centred default when none was ever saved), so dragging the window by its own chrome moved it
+        // and then snapped it back on release -- while the logo drag, which does call SaveWindowPosition,
+        // appeared to work. That asymmetry was reported as "can drag it, but the position never changes"
+        // (#255).
+        _window.SaveWindowPosition();
     }
 }
