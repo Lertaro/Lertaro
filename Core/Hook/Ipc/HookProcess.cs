@@ -268,6 +268,7 @@ public sealed class HookProcess : IDisposable
             _keyboardHook.OnLeftPressed += () => _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.KeyLeft });
             _keyboardHook.OnRightPressed += () => _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.KeyRight });
             _keyboardHook.OnCtrlNumberPressed += num => _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.KeyCtrlNumber, IntVal = num });
+            _keyboardHook.OnFocusInlineSearchRequested += () => _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.FocusInlineSearch });
             _keyboardHook.Start();
 
             _mouseHook = new MouseHookService();

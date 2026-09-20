@@ -16,6 +16,7 @@ public class KeyboardHookService : IDisposable
     public event Action? OnLeftPressed;
     public event Action? OnRightPressed;
     public event Action<int>? OnCtrlNumberPressed;
+    public event Action? OnFocusInlineSearchRequested;
 
     public bool IsActive => _isActive;
 
@@ -68,6 +69,7 @@ public class KeyboardHookService : IDisposable
             App.HookClient.OnLeftPressed += () => OnLeftPressed?.Invoke();
             App.HookClient.OnRightPressed += () => OnRightPressed?.Invoke();
             App.HookClient.OnCtrlNumberPressed += num => OnCtrlNumberPressed?.Invoke(num);
+            App.HookClient.OnFocusInlineSearchRequested += () => OnFocusInlineSearchRequested?.Invoke();
         }
     }
 

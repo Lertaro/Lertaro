@@ -33,6 +33,11 @@ public class KeyboardHookService : IDisposable
     public event Action? OnRightPressed;
     public event Action<int>? OnCtrlNumberPressed;
 
+    // Ctrl+F while the inline window covers a file dialog: the App puts the caret back in that window's own
+    // search box. Raised from the hook callback rather than handled here, because focusing a window is the
+    // App's to do (see KeyboardHookServiceInlineSearchExtensions.HandFocusToInlineSearch).
+    public event Action? OnFocusInlineSearchRequested;
+
     // Trampolines letting KeyboardHookServiceInlineSearchExtensions raise these events on this
     // instance's behalf -- C# event accessors can only be invoked from the declaring class itself, even
     // for an `internal` event, so a caller outside it needs one of these. Matches ExplorerTracker's own
@@ -46,6 +51,7 @@ public class KeyboardHookService : IDisposable
     internal void RaiseLeftPressed() => OnLeftPressed?.Invoke();
     internal void RaiseRightPressed() => OnRightPressed?.Invoke();
     internal void RaiseCtrlNumberPressed(int num) => OnCtrlNumberPressed?.Invoke(num);
+    internal void RaiseFocusInlineSearchRequested() => OnFocusInlineSearchRequested?.Invoke();
 
     public bool IsQuickSearchWindowVisible { get; set; }
     public bool IsInlineSearchVisible { get; set; }
@@ -248,6 +254,8 @@ public class KeyboardHookService : IDisposable
                     return (IntPtr)1;
                 }
             }
+            // See HandFocusToInlineSearch: Ctrl+F belongs to our inline window while it covers a dialog.
+            if (this.HandFocusToInlineSearch(vkCode)) return (IntPtr)1;
             // If text input is focused, bypass
             if (fgHwnd != IntPtr.Zero && InputFocusEvaluator.IsForegroundTextInputFocused(fgHwnd))
             {

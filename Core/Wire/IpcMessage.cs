@@ -59,7 +59,12 @@ public enum IpcMessageId : byte
     //   Hook -> App  RunTool:    StringVal1 = output file, StringVal2 = tool path
     //   App -> Hook  ToolResult: BoolVal = started, IntVal = process id, StringVal1 = failure reason
     RunTool = 43,
-    ToolResult = 44
+    ToolResult = 44,
+
+    // Hook -> App: Ctrl+F was pressed while the inline window was on screen over a file dialog. Carries
+    // nothing; the App focuses that window's own search box (see
+    // KeyboardHookServiceInlineSearchExtensions.HandFocusToInlineSearch for the gate).
+    FocusInlineSearch = 45
 }
 
 public struct IpcMessage

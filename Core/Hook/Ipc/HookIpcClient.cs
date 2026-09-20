@@ -59,6 +59,7 @@ public sealed class HookIpcClient : IDisposable
     public event Action? OnLeftPressed;
     public event Action? OnRightPressed;
     public event Action<int>? OnCtrlNumberPressed;
+    public event Action? OnFocusInlineSearchRequested;
     public event Action<int, int>? OnMouseClick;
     public event Action<int, int>? OnMouseDoubleClick;
     public event Action<int, int>? OnMouseMiddleClick;
@@ -241,6 +242,9 @@ public sealed class HookIpcClient : IDisposable
                     break;
                 case IpcMessageId.KeyCtrlNumber:
                     OnCtrlNumberPressed?.Invoke(msg.IntVal);
+                    break;
+                case IpcMessageId.FocusInlineSearch:
+                    OnFocusInlineSearchRequested?.Invoke();
                     break;
                 case IpcMessageId.MouseClick:
                     OnMouseClick?.Invoke(msg.MouseX, msg.MouseY);
