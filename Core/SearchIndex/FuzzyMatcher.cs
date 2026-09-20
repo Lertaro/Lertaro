@@ -57,7 +57,10 @@ public static class FuzzyMatcher
 
             foreach (var alias in provider.GetAliases(text))
             {
-                if (!fzf.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default))
+                // `text` is this candidate's own name, so it is also what the pattern's exclusions read
+                // (see FzfPattern.TryMatchAlias). Matching the alias alone would let ':term' pass on the
+                // alias's silence and hand back a name the user excluded.
+                if (!fzf.TryMatchAlias(alias, text, out var aliasMatch, FzfScoringScheme.Default))
                     continue;
 
                 // A precise query must not match a full transliteration mid-syllable -- see

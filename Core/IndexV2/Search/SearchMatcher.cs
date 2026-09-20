@@ -250,21 +250,18 @@ internal static class SearchMatcher
                 worker.Hits.Add(new UniqueMatch(uid, byteMatch, FzfBytePattern.ForDefaultScheme(uid, utf8, byteMatch).SortKey));
                 return;
             }
-            if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, out var aliasBest))
+            // The exclusion side reads the name: decode it (defensive -- ASCII names carry no aliases).
+            if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, DecodeName(worker, utf8), out var aliasBest))
                 worker.Hits.Add(new UniqueMatch(uid, aliasBest, FzfBytePattern.ForDefaultScheme(uid, utf8, aliasBest).SortKey));
             return;
         }
 
-        if (worker.Scratch.Length < utf8.Length)
-            worker.Scratch = new char[Math.Max(utf8.Length, worker.Scratch.Length * 2)];
-        var written = Encoding.UTF8.GetChars(utf8, worker.Scratch);
-        var name = worker.Scratch.AsSpan(0, written);
-
+        var name = DecodeName(worker, utf8);
         if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
         {
             worker.Hits.Add(new UniqueMatch(uid, match, FzfResultRank.ForDefaultScheme(uid, name, match).SortKey));
         }
-        else if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, out var best))
+        else if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, name, out var best))
         {
             worker.Hits.Add(new UniqueMatch(uid, best, FzfResultRank.ForDefaultScheme(uid, name, best).SortKey));
         }
@@ -272,6 +269,14 @@ internal static class SearchMatcher
         {
             worker.Hits.Add(new UniqueMatch(uid, mixedBest, FzfResultRank.ForDefaultScheme(uid, name, mixedBest).SortKey));
         }
+    }
+
+    // Decodes one unique's UTF-8 name into the worker's reusable char scratch; every tier shares it.
+    internal static ReadOnlySpan<char> DecodeName(Worker worker, ReadOnlySpan<byte> utf8)
+    {
+        if (worker.Scratch.Length < utf8.Length)
+            worker.Scratch = new char[Math.Max(utf8.Length, worker.Scratch.Length * 2)];
+        return worker.Scratch.AsSpan(0, Encoding.UTF8.GetChars(utf8, worker.Scratch));
     }
 
     internal static bool HasDirectoryRow(Snapshot snapshot, int uid)
@@ -285,9 +290,10 @@ internal static class SearchMatcher
     }
 
     // Zero-copy alias fallback, also called directly by SearchMatcherPath: forwards to
-    // SearchMatcherAliasExtensions, which holds this tier's implementation alongside the
-    // mixed-alphabet last-resort tier (TryMatchMixed, used only from MatchOne above) -- split out
-    // there (composition, not a partial class) to keep this file under the project's line limit.
-    internal static bool TryMatchAliases(Snapshot snapshot, QueryContext ctx, int uid, Worker worker, out FzfPatternResult best)
-        => SearchMatcherAliasExtensions.TryMatchAliases(snapshot, ctx, uid, worker, out best);
+    // SearchMatcherAliasExtensions, which holds this tier's implementation alongside the mixed-alphabet
+    // last-resort tier (TryMatchMixed, used only from MatchOne above) -- split out there (composition,
+    // not a partial class) to keep this file under the project's line limit. `name` is the candidate's
+    // own name, which the tier's exclusion side reads (see FzfPattern.TryMatchAlias).
+    internal static bool TryMatchAliases(Snapshot snapshot, QueryContext ctx, int uid, Worker worker, ReadOnlySpan<char> name, out FzfPatternResult best)
+        => SearchMatcherAliasExtensions.TryMatchAliases(snapshot, ctx, uid, worker, name, out best);
 }
