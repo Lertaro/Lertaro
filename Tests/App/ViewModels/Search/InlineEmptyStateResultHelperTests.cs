@@ -12,7 +12,6 @@ public sealed class InlineEmptyStateResultHelperTests
 
         var result = InlineEmptyStateResultHelper.Build(
             recent,
-            null,
             new[] { @"C:\opened" },
             "Last directory",
             "Opened folders");
@@ -26,27 +25,30 @@ public sealed class InlineEmptyStateResultHelperTests
         Assert.AreEqual("OpenedFolder", result[3].ResultKind);
     }
 
+    // Every reported folder is listed, in the order it was reported, duplicates of the same folder across
+    // two spellings collapsed. In particular the folder the user is in right now is NOT filtered out, even
+    // when the recent-directory row above names it too: the file manager reports the tab the user has focus
+    // on (Directory Opus's active_tab) first, and that is the entry this list is looked at for.
     [TestMethod]
-    public void Build_ExcludesCurrentScopeRecentPathAndDuplicates()
+    public void Build_KeepsEveryReportedFolderInTheReportedOrder()
     {
         var recent = new AppSearchResult { FullPath = @"C:\recent\", ResultKind = "JumpToExplorerPath" };
 
         var result = InlineEmptyStateResultHelper.Build(
             recent,
-            @"C:\current\",
-            new[] { @"C:\recent", @"C:\CURRENT\", @"C:\other", @"C:\other\", "" },
+            new[] { @"C:\focused", @"C:\recent", @"C:\CURRENT\", @"C:\other", @"C:\other\", "" },
             "Last directory",
             "Opened folders");
 
-        Assert.AreEqual(1, result.Count(r => r.ResultKind == "OpenedFolder"));
-        Assert.AreEqual(@"C:\other", result.Single(r => r.ResultKind == "OpenedFolder").FullPath);
+        CollectionAssert.AreEqual(
+            new[] { @"C:\focused", @"C:\recent", @"C:\CURRENT\", @"C:\other" },
+            result.Where(r => r.ResultKind == "OpenedFolder").Select(r => r.FullPath).ToArray());
     }
 
     [TestMethod]
     public void Build_IndexesHeadersAndRowsSequentially()
     {
         var result = InlineEmptyStateResultHelper.Build(
-            null,
             null,
             new[] { @"C:\one", @"C:\two" },
             "Last directory",
