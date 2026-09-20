@@ -71,10 +71,11 @@ When interacting with this repository, performing code modification, compilation
      powershell -Command "Start-Process <AppOutputPath>\<AppName>.exe -WorkingDirectory <AppOutputPath> -Wait"
      ```
 
-5. **Strict Code File Line Limit (Modularization & Decoupling)**
-   * All `.cs` and `.xaml` code files must be strictly kept under **300 lines**.
-   * Before every compilation/build, you must check the line counts of the modified files. If any file exceeds 300 lines, it must be refactored and decoupled.
-   * **Do not use `partial` classes or partial views as a shortcut to bypass this limit**. Instead, perform structural decoupling by extracting clean helper classes, utilizing C# extension methods, or grouping logical subcomponents into subfolders.
+5. **Code File Line Limit (Modularization & Decoupling)**
+
+   * All `.cs` and `.xaml` code files are recommended to stay **under 300 lines**.
+   * Before every compilation/build, check the line counts of the modified files. If any file exceeds 300 lines, evaluate whether it should be split. If the benefit of splitting is too low, leave it unsplit.
+   * Do not use partial classes or partial views as a shortcut to bypass this limit. When splitting is warranted, perform structural decoupling by extracting clean helper classes, using C# extension methods, or grouping logical subcomponents into subfolders.
 
 6. **Clean File Naming and Directory Namespace Hierarchy**
    * Do not create multi-dot source code files such as `Class.Helper.cs` or `Feature.Service.cs`.
