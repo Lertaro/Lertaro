@@ -11,4 +11,8 @@
     <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lertaro.PluginSdk.Tests" />
+  </ItemGroup>
+
 </Project>

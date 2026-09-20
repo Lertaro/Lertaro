@@ -7,6 +7,7 @@ using Lertaro.App.Services;
 using Lertaro.App.Services.Theme;
 using Lertaro.Core.Services.LocalSend;
 using Lertaro.Core.Services.LocalSend.Models;
+using Lertaro.PluginSdk.Helpers;
 using System.Windows.Threading;
 namespace Lertaro.App.Views.LocalSend;
 public partial class LocalSendReceiveWindow : Window
@@ -258,7 +259,9 @@ public partial class LocalSendReceiveWindow : Window
     private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
     {
         var target = LocalSendReceiveWindowHelper.ResolveFolderTarget(_lastRootSavedPath, _lastSavedPath);
-        if (!string.IsNullOrEmpty(target)) { try { Process.Start("explorer.exe", $"/select,\"{target}\""); } catch { } }
+        // Reveals the received file where it landed (selecting it in the folder it was saved to), through
+        // the shell rather than by spelling out an explorer.exe command line.
+        if (!string.IsNullOrEmpty(target)) ShellOpenHelper.TryRevealInFolder(target);
         Close();
     }
     private void BtnCloseProgress_Click(object sender, RoutedEventArgs e)
