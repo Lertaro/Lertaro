@@ -82,23 +82,20 @@ internal static class SearchMatcherPath
                 hits.Add(new PathUniqueMatch(uid, byteMatch, FzfBytePattern.RankLow32(utf8, byteMatch), utf8.Length));
                 return;
             }
-            if (snapshot.HasAliases(uid) && SearchMatcher.TryMatchAliases(snapshot, ctx, uid, worker, out var aliasBest))
+            if (snapshot.HasAliases(uid) && SearchMatcher.TryMatchAliases(snapshot, ctx, uid, worker, SearchMatcher.DecodeName(worker, utf8), out var aliasBest))
                 hits.Add(new PathUniqueMatch(uid, aliasBest, FzfBytePattern.RankLow32(utf8, aliasBest), utf8.Length));
             return;
         }
 
-        if (worker.Scratch.Length < utf8.Length)
-            worker.Scratch = new char[Math.Max(utf8.Length, worker.Scratch.Length * 2)];
-        var written = Encoding.UTF8.GetChars(utf8, worker.Scratch);
-        var name = worker.Scratch.AsSpan(0, written);
+        var name = SearchMatcher.DecodeName(worker, utf8);
 
         if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
         {
-            hits.Add(new PathUniqueMatch(uid, match, FzfResultRank.RankLow32(name, match), written));
+            hits.Add(new PathUniqueMatch(uid, match, FzfResultRank.RankLow32(name, match), name.Length));
         }
-        else if (snapshot.HasAliases(uid) && SearchMatcher.TryMatchAliases(snapshot, ctx, uid, worker, out var best))
+        else if (snapshot.HasAliases(uid) && SearchMatcher.TryMatchAliases(snapshot, ctx, uid, worker, name, out var best))
         {
-            hits.Add(new PathUniqueMatch(uid, best, FzfResultRank.RankLow32(name, best), written));
+            hits.Add(new PathUniqueMatch(uid, best, FzfResultRank.RankLow32(name, best), name.Length));
         }
     }
 

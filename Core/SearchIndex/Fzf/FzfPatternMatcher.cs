@@ -8,7 +8,20 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 // here.
 internal static class FzfPatternMatcher
 {
+    // The name-tier entry point: the candidate's own name IS the text being matched, so an exclusion
+    // reads that same span. See FzfPattern.TryMatch.
     public static bool TryMatch(FzfPattern pattern, ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
+        => TryMatchCore(pattern, text, text, out result, scheme, slab);
+
+    // The alias-tier entry point: every positive term reads `alias`, while an exclusion ALWAYS reads
+    // `name`. ":term" says "the candidate's name does not contain this" -- and an alias (pinyin, a
+    // simplified spelling) is precisely the string that cannot be expected to contain it, so matching
+    // an exclusion against an alias silently admits every excluded file whose positive terms happen to
+    // be reachable through an alias. See FzfPattern.TryMatchAlias.
+    public static bool TryMatchAlias(FzfPattern pattern, ReadOnlySpan<char> alias, ReadOnlySpan<char> name, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
+        => TryMatchCore(pattern, alias, name, out result, scheme, slab);
+
+    private static bool TryMatchCore(FzfPattern pattern, ReadOnlySpan<char> text, ReadOnlySpan<char> exclusionText, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
     {
         if (text.Contains('|'))
         {
@@ -23,7 +36,7 @@ internal static class FzfPatternMatcher
                 if (len < 0)
                     len = text.Length - start;
 
-                if (TryMatchSingle(pattern, text.Slice(start, len), out var segmentResult, scheme, slab))
+                if (TryMatchSingle(pattern, text.Slice(start, len), exclusionText, out var segmentResult, scheme, slab))
                 {
                     if (segmentResult.ValidOffsetFound)
                     {
@@ -50,12 +63,12 @@ internal static class FzfPatternMatcher
             return matchedAny;
         }
 
-        return TryMatchSingle(pattern, text, out result, scheme, slab);
+        return TryMatchSingle(pattern, text, exclusionText, out result, scheme, slab);
     }
 
     // Text never contains '|' here: the segmented branch above slices it away, and real file names
     // can't contain it (invalid in Windows paths) -- so no cross-'|' span check is needed.
-    private static bool TryMatchSingle(FzfPattern pattern, ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
+    private static bool TryMatchSingle(FzfPattern pattern, ReadOnlySpan<char> text, ReadOnlySpan<char> exclusionText, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
     {
         // An exclusion-only query matches nothing at all -- see HasPositiveTerm. Checked before the regex
         // clauses because it is a property of the query shape, not of this candidate, so no text can
@@ -89,7 +102,7 @@ internal static class FzfPatternMatcher
         {
             foreach (var group in pattern.OrGroups)
             {
-                if (TryMatchGroup(pattern, group, text, out result, scheme, slab))
+                if (TryMatchGroup(pattern, group, text, exclusionText, out result, scheme, slab))
                     return true;
             }
 
@@ -105,7 +118,7 @@ internal static class FzfPatternMatcher
 
         foreach (var set in pattern.TermSets)
         {
-            if (!TryMatchSet(set, text, out var best, scheme, slab))
+            if (!TryMatchSet(set, text, exclusionText, out var best, scheme, slab))
             {
                 result = default;
                 return false;
@@ -127,7 +140,7 @@ internal static class FzfPatternMatcher
 
     // One AND-group of the DNF shape: every term set must be satisfied, while each set keeps its own OR
     // alternatives (including alias spellings).
-    private static bool TryMatchGroup(FzfPattern pattern, FzfTermGroup group, ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab)
+    private static bool TryMatchGroup(FzfPattern pattern, FzfTermGroup group, ReadOnlySpan<char> text, ReadOnlySpan<char> exclusionText, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab)
     {
         var totalScore = 0;
         var minBegin = int.MaxValue;
@@ -137,7 +150,7 @@ internal static class FzfPatternMatcher
 
         foreach (var set in group.Sets)
         {
-            if (!TryMatchSet(set, text, out var current, scheme, slab))
+            if (!TryMatchSet(set, text, exclusionText, out var current, scheme, slab))
             {
                 result = default;
                 return false;
@@ -159,13 +172,17 @@ internal static class FzfPatternMatcher
 
     // The OR-alternatives-within-one-AND-condition semantics (mirrors FzfBytePattern.TryMatch's inner
     // loop), extracted so both the flat and the DNF paths share one implementation.
-    private static bool TryMatchSet(FzfTermSet set, ReadOnlySpan<char> text, out FzfMatchResult best, FzfScoringScheme scheme, FzfSlab? slab)
+    private static bool TryMatchSet(FzfTermSet set, ReadOnlySpan<char> text, ReadOnlySpan<char> exclusionText, out FzfMatchResult best, FzfScoringScheme scheme, FzfSlab? slab)
     {
         best = default;
         var foundPositive = false;
         foreach (var term in set.Terms)
         {
-            var current = FzfAlgorithm.Match(term.Kind, text, term.Text, term.CaseSensitive, scheme, slab);
+            // An exclusion reads exclusionText -- the candidate's own name, which is `text` itself on the
+            // name tier and the real name on the alias tier (see TryMatchAlias). Its OR partners in this
+            // same set still read `text`, so "report | :temp" keeps meaning what it always did: a
+            // candidate whose alias carries "report" is admitted even when its name carries "temp".
+            var current = FzfAlgorithm.Match(term.Kind, term.Inverse ? exclusionText : text, term.Text, term.CaseSensitive, scheme, slab);
             if (term.Inverse)
             {
                 // In an OR set, a negative alternative is satisfied when its text is absent. Do not

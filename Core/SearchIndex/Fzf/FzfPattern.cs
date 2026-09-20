@@ -36,6 +36,7 @@ internal sealed class FzfPattern
         Regexes = regexes;
         EffectiveSets = orGroups == null ? termSets : Flatten(orGroups);
         HasPositiveTerm = AnyPositiveTerm(EffectiveSets);
+        HasExclusions = AnyInverseTerm(EffectiveSets);
         RequiredRegexLiteral = ComputeRequiredRegexLiteral(regexes);
     }
 
@@ -102,6 +103,26 @@ internal sealed class FzfPattern
             foreach (var term in set.Terms)
             {
                 if (!term.Inverse)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    // True when the query filters with at least one ":term". Exclusions are a statement about the
+    // candidate's NAME, so a caller matching an alias has to keep reading the name for them -- and a
+    // caller whose matcher cannot do that at all (FzfBytePattern, which has no bytes for a non-ASCII
+    // exclusion) must step aside instead of answering on the exclusion's behalf. See
+    // FzfPatternMatcher.TryMatchAlias and SearchMatcherAliasExtensions.
+    internal bool HasExclusions { get; }
+
+    private static bool AnyInverseTerm(FzfTermSet[] sets)
+    {
+        foreach (var set in sets)
+        {
+            foreach (var term in set.Terms)
+            {
+                if (term.Inverse)
                     return true;
             }
         }
@@ -212,4 +233,19 @@ internal sealed class FzfPattern
     // entry point every consumer already calls.
     public bool TryMatch(ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
         => FzfPatternMatcher.TryMatch(this, text, out result, scheme, slab);
+
+    /// <summary>
+    /// Matches a candidate's <paramref name="alias"/> (a pinyin/simplified spelling a provider baked
+    /// for <paramref name="name"/>) against this pattern. Every positive term reads the alias, but an
+    /// exclusion always reads <paramref name="name"/>: ":term" states what the candidate's NAME must
+    /// not contain, and the alias is exactly the text that cannot be expected to carry it.
+    /// </summary>
+    /// <remarks>
+    /// Callers that hold the name anyway (every alias-fallback tier does) must use this instead of
+    /// TryMatch(alias): the plain overload would evaluate the exclusion against the alias, where it is
+    /// absent by construction, and so hand back a file the user explicitly excluded. Pass the name
+    /// itself as <paramref name="name"/> when the candidate has no separate alias text.
+    /// </remarks>
+    public bool TryMatchAlias(ReadOnlySpan<char> alias, ReadOnlySpan<char> name, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
+        => FzfPatternMatcher.TryMatchAlias(this, alias, name, out result, scheme, slab);
 }
