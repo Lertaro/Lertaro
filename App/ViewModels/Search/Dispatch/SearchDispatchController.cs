@@ -164,7 +164,6 @@ internal sealed class SearchDispatchController
                 : Array.Empty<string>();
             var emptyStateResults = InlineEmptyStateResultHelper.Build(
                 suggestion,
-                _getSearchScope(),
                 openedFolderPaths,
                 TranslationManager.Instance["Search_LastDirectoryHeader"],
                 TranslationManager.Instance["Search_OpenedFoldersHeader"]);

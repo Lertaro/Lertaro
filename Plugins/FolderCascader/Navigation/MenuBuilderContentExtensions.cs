@@ -155,7 +155,11 @@ internal static class MenuBuilderContentExtensions
     internal static List<DynamicMenuItem> BuildOpenedFoldersMenu(IEnumerable<string> paths, Provider provider)
     {
         var items = new List<DynamicMenuItem>();
-        foreach (var path in paths.OrderBy(path => MenuBuilder.GetDisplayName(path, ""), StringComparer.CurrentCultureIgnoreCase))
+        // The order the collectors report is kept as-is. It is not arbitrary: Directory Opus hands its tabs
+        // back with the tab the user is looking at -- the one carrying active_tab -- ahead of that group's
+        // other tabs, and sorting the menu by folder name (what this did before) threw that away, leaving
+        // the focused tab somewhere in the middle of the list.
+        foreach (var path in paths)
         {
             items.Add(new DynamicMenuItem
             {
