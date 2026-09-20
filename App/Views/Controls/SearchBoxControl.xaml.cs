@@ -35,10 +35,9 @@ public partial class SearchBoxControl : UserControl
     private System.Windows.Point? _iconPressScreenPoint;
     private bool _iconDragStarted;
 
-    // Set only once a real drag is confirmed (see Icon_MouseMove) -- WindowDragTracker (shared with
-    // QuickSearchWindow's own Border drag) instead of Window.DragMove(), since DragMove()'s native move
-    // loop can't be constrained to vertical-only movement, or even queried, once Ctrl is pressed/released
-    // mid-drag.
+    // Set only once a real drag is confirmed (see Icon_MouseMove) -- WindowDragTracker rather than
+    // Window.DragMove(), since DragMove()'s native move loop can't be constrained to vertical-only
+    // movement, or even queried, once Ctrl is pressed/released mid-drag.
     private Helpers.Visuals.WindowDragTracker? _iconDragTracker;
 
     private void Icon_MouseRightButtonUp(object sender, MouseButtonEventArgs e) => IconRightClicked?.Invoke();
@@ -54,10 +53,10 @@ public partial class SearchBoxControl : UserControl
         IconMiddleClicked?.Invoke();
     }
 
-    // Marks the press handled so it never bubbles up to a hosting window's own MouseLeftButtonDown (e.g.
-    // the quick window's own Border drag): without this, a plain click on a clickable icon would also be
-    // picked up as a drag-start by whatever's underneath it. Left alone when the icon isn't clickable, so
-    // windows that never opted in keep whatever click-to-drag behavior they had.
+    // Marks the press handled so it never bubbles up to whatever a hosting window does with a press on its
+    // own chrome (a window that drags itself): without this, a plain click on a clickable icon would also
+    // be picked up as a drag-start by whatever's underneath it. Left alone when the icon isn't clickable,
+    // so windows that never opted in keep whatever click-to-drag behavior they had.
     //
     // When IsIconDraggable is ALSO set (the quick window: its logo still drags the window, same as
     // before it was clickable at all), capture the mouse and wait to see whether the gesture turns into

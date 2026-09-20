@@ -5,7 +5,6 @@ using System.Windows.Controls;
 using Lertaro.App.Services;
 using Lertaro.Core;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
-using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using TextBox = System.Windows.Controls.TextBox;
 using TextBlock = System.Windows.Controls.TextBlock;
 using ListBox = System.Windows.Controls.ListBox;
@@ -29,7 +28,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private readonly QuickSearchWindowLayoutManager _layoutManager;
     private readonly QuickSearchWindowResultExecutor _resultExecutor;
     private readonly QuickSearchWindowLifecycle _lifecycle;
-    private readonly QuickSearchWindowDragSupport _dragSupport;
     private readonly QuickSearchLaunchActionsCoordinator _launchActions;
     private bool _isInActionsMode;
     private Action? _scaleChangedHandler;
@@ -51,7 +49,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         _layoutManager = new QuickSearchWindowLayoutManager(this);
         _resultExecutor = new QuickSearchWindowResultExecutor(this);
         _lifecycle = new QuickSearchWindowLifecycle(this, () => _trayService?.HandleTaskbarCreated());
-        _dragSupport = new QuickSearchWindowDragSupport(this);
         InitializeChildControls();
         KeywordHistoryController = new QuickSearchKeywordHistoryController(this);
         _launchActions = new QuickSearchLaunchActionsCoordinator(this);
@@ -118,21 +115,22 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         // Wire up event handlers to subcontrols
         SearchBox.IconRightClicked += _controller.ResetPosition;
         SearchBox.IconMiddleClicked += _controller.ToggleStayOpen;
-        // IsIconDraggable keeps the logo's existing "drag moves the window" behavior working alongside
-        // IconLeftClicked: SearchBoxControl tells a real drag apart from a plain click by movement
-        // distance (see its own Icon_MouseMove), so this needs BOTH flags rather than picking one.
+        // The logo is the ONLY way to move this window (#255): the card's own drag was removed rather than
+        // fixed, so nothing else on this window responds to a drag. IsIconDraggable keeps the logo's
+        // "drag moves the window" behavior working alongside IconLeftClicked: SearchBoxControl tells a real
+        // drag apart from a plain click by movement distance (see its own Icon_MouseMove), so this needs
+        // BOTH flags rather than picking one.
         SearchBox.IconLeftClicked += (_, _) => ShowTrayMenu();
         SearchBox.IconDragCompleted += SaveWindowPosition;
         SearchBox.IsIconClickable = true;
         SearchBox.IsIconDraggable = true;
-        // The logo is a SECOND way to drag this window, and it lives in SearchBoxControl rather than
-        // here, so gating Border_MouseLeftButtonDown alone left it moving while "Lock position" was on.
+        // The gate the logo's drag reads, and it lives in SearchBoxControl rather than here, so "Lock
+        // position" has to be pushed to it rather than checked by the drag itself.
         //
         // Refreshed from a tunnelling handler on the window rather than set once above: PreviewMouse...
         // reaches the window before SearchBoxControl's own bubbling icon handler reads the flag, so the
-        // logo obeys a toggle the moment it is applied -- the same per-press freshness the border drag
-        // gets from reading the setting inline. Anchoring it to a per-show refresh instead would have
-        // left the two paths disagreeing for as long as the window stayed open.
+        // logo obeys a toggle the moment it is applied. Anchoring it to a per-show refresh instead would
+        // have left it stale for as long as the window stayed open.
         PreviewMouseLeftButtonDown += (_, _) =>
             SearchBox.IsIconDraggable = ShouldAllowIconDrag(UserSettings.Load().SearchWindow.LockPosition);
         SearchBox.IconClickHint = TranslationManager.Instance["QuickSearch_LogoDragResetHint"];
@@ -245,15 +243,8 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         };
         timer.Start();
     }
-    internal static bool ShouldStartDrag(MouseButton changedButton, bool lockPosition)
-        => QuickSearchWindowDragSupport.ShouldStartDrag(changedButton, lockPosition);
-    internal static bool ShouldAllowIconDrag(bool lockPosition) => QuickSearchWindowDragSupport.ShouldAllowIconDrag(lockPosition);
-    private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _dragSupport.OnMouseLeftButtonDown(sender, e);
-    private void Border_MouseMove(object sender, MouseEventArgs e) => _dragSupport.OnMouseMove(sender, e);
-    private void Border_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => _dragSupport.OnMouseLeftButtonUp(sender, e);
-    // Internal, not private: QuickSearchWindowDragSupport ends a chrome drag the same way the logo's own
-    // drag does, by persisting the position the user just dragged the window to.
-    internal void SaveWindowPosition() => _controller.SaveWindowPosition();
+    internal static bool ShouldAllowIconDrag(bool lockPosition) => !lockPosition;
+    private void SaveWindowPosition() => _controller.SaveWindowPosition();
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e) => _inputHandler.HandleWindowPreviewKeyDown(e);
     // The search box logo's own left-click (see SearchBox.IconLeftClicked wiring in the constructor)
     // opens the same menu the tray icon's right-click shows, anchored at the cursor rather than the tray
