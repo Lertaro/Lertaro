@@ -96,7 +96,7 @@
                 </Grid.Style>
                 
                 <!-- Side-by-side name and path for standard results -->
-                <Grid inline:InlineResultColumnsBehavior.IsResultGrid="True">
+                <Grid>
                     <Grid.Style>
                         <Style TargetType="Grid">
                             <Setter Property="Visibility" Value="Visible"/>
@@ -111,8 +111,8 @@
                         </Style>
                     </Grid.Style>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="7*"/>
-                        <ColumnDefinition Width="3*"/>
+                        <ColumnDefinition Width="35*"/>
+                        <ColumnDefinition Width="65*"/>
                     </Grid.ColumnDefinitions>
 
                     <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False"
@@ -133,8 +133,7 @@
                                    Foreground="{DynamicResource TextPrimary}"
                                    local:TextHighlighter.HighlightText="{Binding SearchQuery}"
                                    local:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}"
-                                   Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}"
-                                   TextTrimming="CharacterEllipsis"
+                                   helpers:MarqueeBehavior.EnableMarquee="True"
                                    FontSize="14"
                                    VerticalAlignment="Center">
                             <TextBlock.Style>
@@ -172,9 +171,7 @@
                                    FontSize="11"
                                    Foreground="{DynamicResource TextSecondary}"
                                    VerticalAlignment="Center"
-                                   inline:InlinePathDisplayBehavior.IsEnabled="True"
-                                   Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}"
-                                   TextTrimming="CharacterEllipsis"
+                                   helpers:MarqueeBehavior.EnableMarquee="True"
                                    TextAlignment="Right"
                                    local:TextHighlighter.HighlightText="{Binding SearchQuery}"
                                    local:TextHighlighter.HighlightBrush="{DynamicResource AccentBlue}">
