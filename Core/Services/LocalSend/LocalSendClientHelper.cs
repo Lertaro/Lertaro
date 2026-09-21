@@ -64,7 +64,10 @@ internal static class LocalSendClientHelper
                 var json = JsonSerializer.Serialize(dto, jsonOptions);
                 using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var resp = await httpClient.PostAsync(prepareUrl, content, token).ConfigureAwait(false);
+                // Disposed like every other response on this path: on the early-return branches the body
+                // is never read, and an undisposed response holds its pooled connection until the
+                // finalizer runs.
+                using var resp = await httpClient.PostAsync(prepareUrl, content, token).ConfigureAwait(false);
                 if (resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
                 {
                     return (LocalSendSendResult.Declined, null, null, tryHttps, "403 Forbidden (Declined)");
