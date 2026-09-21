@@ -154,6 +154,17 @@ public sealed class HookIpcClient : IDisposable
                 ).ConfigureAwait(false);
                 Logger.Log("[HookIpcClient] Connected to hook pipes.", LogLevel.Debug);
 
+                // Connected is not the same as connected to *our* hook: the pipe name is derived from the
+                // user's identity and session rather than being secret, so a process that answered the
+                // name first would otherwise go on driving this app's Explorer/inline-search state and
+                // hand it tool-run requests to execute.
+                var serverPid = HookPipePeer.TryGetServerProcessId(eventPipe);
+                if (HookPipePeer.IsImpersonation(serverPid, _hookProcess.Id))
+                {
+                    throw new UnauthorizedAccessException(
+                        $"Hook pipe is served by PID {serverPid}, expected {_hookProcess.Id}.");
+                }
+
                 // Send initial process ID of the App so the Service can ignore it.
                 SendMessage(new IpcMessage { Id = IpcMessageId.SetAppProcessId, ProcessId = (uint)Environment.ProcessId });
                 SendMessage(new IpcMessage { Id = IpcMessageId.SetHotkeysDisabled, BoolVal = _isHotkeysDisabled });
@@ -183,6 +194,15 @@ public sealed class HookIpcClient : IDisposable
             catch (IOException ex)
             {
                 Logger.Log($"[HookIpcClient] Pipe IO error: {ex.Message}; will restart.", LogLevel.Warn);
+            }
+
+            catch (UnauthorizedAccessException ex)
+            {
+                // Not a transient fault to retry quietly: a process other than the hook we launched owns
+                // the pipe name. Logged at Error so it is visible, and the finally below tears the
+                // attempt down so the loop can race for the name again with a genuine hook. The
+                // impostor itself is another process's to terminate, not ours.
+                Logger.Log($"[HookIpcClient] {ex.Message} Relaunching the hook.", LogLevel.Error);
             }
 
             catch (Exception ex)
