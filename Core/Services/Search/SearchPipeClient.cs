@@ -15,7 +15,18 @@ internal sealed class SearchPipeClient
     private static async Task<NamedPipeClientStream> GetPipeAsync(CancellationToken token)
     {
         var pipe = new NamedPipeClientStream(".", "LertaroPipe", PipeDirection.InOut, PipeOptions.Asynchronous);
-        await pipe.ConnectAsync(2000, token).ConfigureAwait(false);
+        try
+        {
+            await pipe.ConnectAsync(2000, token).ConfigureAwait(false);
+        }
+        catch
+        {
+            // This is the per-keystroke streaming entry point, and connect failures are expected for as
+            // long as the service is cold, so an undisposed stream here drops one kernel handle per typed
+            // character until the service comes up. The non-streaming path already uses `using var pipe`.
+            pipe.Dispose();
+            throw;
+        }
         // The service listening is the readiness signal: until this first succeeds, connect
         // failures elsewhere log as cold-start noise instead of real faults.
         ServicePipeReadinessGate.Instance.MarkConnected();
