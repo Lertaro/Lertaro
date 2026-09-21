@@ -1,5 +1,5 @@
-using System.Reflection;
 using System.Collections;
+using System.Reflection;
 using Logger = Lertaro.Core.Logger;
 using LogLevel = Lertaro.Core.LogLevel;
 
@@ -13,22 +13,12 @@ public static class QuickNavigationPathResolver
         try
         {
             var field = provider.GetType().GetField("_nodeMap", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field != null && field.GetValue(provider) is IDictionary map && map.Contains(handle))
-            {
-                var val = map[handle];
-                if (val is string path)
-                {
-                    return path;
-                }
-                else if (val != null)
-                {
-                    var prop = val.GetType().GetProperty("Path");
-                    if (prop != null)
-                    {
-                        return prop.GetValue(val) as string;
-                    }
-                }
-            }
+            if (field?.GetValue(provider) is IReadOnlyDictionary<IntPtr, string> map
+                && map.TryGetValue(handle, out var path))
+                return path;
+
+            if (field?.GetValue(provider) is IDictionary legacyMap && legacyMap.Contains(handle))
+                return GetPath(legacyMap[handle]);
         }
         catch (Exception ex)
         {
@@ -37,15 +27,25 @@ public static class QuickNavigationPathResolver
         return null;
     }
 
+    private static string? GetPath(object? value)
+    {
+        if (value is string path)
+            return path;
+
+        return value?.GetType().GetProperty("Path")?.GetValue(value) as string;
+    }
+
     public static string? TryResolveCommandPath(IQuickNavigationProvider provider, uint commandId)
     {
         try
         {
             var field = provider.GetType().GetField("_commandMap", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field != null && field.GetValue(provider) is IDictionary map && map.Contains(commandId))
-            {
-                return map[commandId] as string;
-            }
+            if (field?.GetValue(provider) is IReadOnlyDictionary<uint, string> map
+                && map.TryGetValue(commandId, out var path))
+                return path;
+
+            if (field?.GetValue(provider) is IDictionary legacyMap && legacyMap.Contains(commandId))
+                return legacyMap[commandId] as string;
         }
         catch { }
         return null;

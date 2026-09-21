@@ -18,6 +18,15 @@ public static class ShellVirtualPathValidator
         uint attributesToRetrieve,
         out uint attributes);
 
+    internal static string ToParseableShellPath(string path)
+    {
+        if (path.StartsWith("::", StringComparison.Ordinal)
+            && !path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
+            return "shell:" + path;
+
+        return path;
+    }
+
     public static bool Exists(string? path, bool requireFolder = false)
     {
         if (string.IsNullOrWhiteSpace(path)
@@ -30,7 +39,8 @@ public static class ShellVirtualPathValidator
         var itemIdList = IntPtr.Zero;
         try
         {
-            var result = SHParseDisplayName(path.Trim(), IntPtr.Zero, out itemIdList,
+            var shellPath = ToParseableShellPath(path.Trim());
+            var result = SHParseDisplayName(shellPath, IntPtr.Zero, out itemIdList,
                 requireFolder ? SfgaoFolder : 0, out var attributes);
             return result == 0
                 && itemIdList != IntPtr.Zero

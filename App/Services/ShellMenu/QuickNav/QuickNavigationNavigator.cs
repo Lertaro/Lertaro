@@ -36,7 +36,8 @@ public static class QuickNavigationNavigator
         // %USERPROFILE%\Desktop, or a virtual "shell:Downloads"), and the adapters below only understand
         // a real filesystem path. A virtual token the shell cannot turn into a folder comes back as it
         // is, which leaves the existing virtual-item handling to the adapter that supports it.
-        path = UserPathResolver.Resolve(path);
+        path = ResolveNavigationPath(path);
+        var isVirtualPath = UserPathResolver.IsVirtualPath(path);
 
         if (trigger.DialogHwnd != IntPtr.Zero)
         {
@@ -68,7 +69,7 @@ public static class QuickNavigationNavigator
         // trigger.DialogHwnd above -- the Hook still re-resolves the adapter for trigger.ActiveHwnd itself
         // (see InlineAdapterCommandHandler.ResolveAdapter) if its own tracker has since moved on, so this
         // stays correct even though the hwnd was captured a while ago.
-        if (!openFolderThroughDefaultManager && trigger.ActiveAdapter != null && trigger.ActiveHwnd != IntPtr.Zero && App.HookClient?.IsConnected == true)
+        if (!isVirtualPath && !openFolderThroughDefaultManager && trigger.ActiveAdapter != null && trigger.ActiveHwnd != IntPtr.Zero && App.HookClient?.IsConnected == true)
         {
             if (InlineAdapterIpcCoordinator.ExecuteItem(trigger.ActiveHwnd, path, isDir, string.Empty, App.HookClient.SendMessage, out var lateResult))
                 return;
@@ -94,6 +95,13 @@ public static class QuickNavigationNavigator
         }
 
         OpenDirectly(path, trigger.IsDesktop);
+    }
+
+    internal static string ResolveNavigationPath(string path)
+    {
+        var expanded = UserPathResolver.Expand(path);
+        var resolved = UserPathResolver.Resolve(expanded);
+        return UserPathResolver.IsVirtualPath(resolved) ? expanded : resolved;
     }
 
     // This is a NAVIGATION menu -- picking a file should land on it (selected, in its folder) rather than

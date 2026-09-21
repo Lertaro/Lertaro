@@ -178,9 +178,9 @@ public sealed class MenuBuilderAddFolderItemsTests
         var items = new List<DynamicMenuItem>();
         var folders = new List<FolderCascaderPlugin.FolderConfigItem>
         {
-            Folder("This PC", "shell:::{20d04fe0-3aea-1069-a2d8-08002b30309d}")
+            Folder("Home", "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}")
         };
-
+        Console.WriteLine(items);
         MenuBuilder.AddFolderItems(items, folders, Array.Empty<string>(), provider);
 
         Assert.IsFalse(items[0].IsDisabled);

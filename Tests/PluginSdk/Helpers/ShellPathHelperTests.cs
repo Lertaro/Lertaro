@@ -28,6 +28,16 @@ public sealed class ShellPathHelperTests
     }
 
     [TestMethod]
+    public void ShellVirtualPathValidator_CanonicalNameGetsShellPrefix()
+    {
+        Assert.AreEqual(
+            "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}",
+            ShellVirtualPathValidator.ToParseableShellPath("::{679f85cb-0220-4080-b29b-5540cc05aab6}"));
+        Assert.IsTrue(ShellVirtualPathValidator.Exists(
+            "::{679f85cb-0220-4080-b29b-5540cc05aab6}", requireFolder: true));
+    }
+
+    [TestMethod]
     public void IsVirtualShellPath_RejectsNonTokens()
     {
         Assert.IsFalse(ShellPathHelper.IsVirtualShellPath(@"Z:\Apps"));
