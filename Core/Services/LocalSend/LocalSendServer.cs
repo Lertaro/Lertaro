@@ -83,14 +83,39 @@ public sealed class LocalSendServer : IDisposable
         }
     }
 
+    // Each connection is one socket, one TLS context and one queued work item, and the listener is
+    // bound to every interface, so neither the handshake nor the number of concurrent clients was
+    // bounded at all: one stalled peer was enough to accumulate them. Sixteen concurrent connections is
+    // generous against what LocalSend actually does (a handful of peers, two parallel file workers).
+    private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan ConnectionWaitTimeout = TimeSpan.FromSeconds(5);
+    private readonly SemaphoreSlim _connectionGate = new(16);
+
     private async Task HandleClientAsync(TcpClient client, CancellationToken token)
     {
         using (client)
         {
             try
             {
-                // ponytail: no receive timeout — transfers can be arbitrarily slow; cancellation is via _cts.
-                var connection = await LocalSendTlsHelper.CreateServerStreamAsync(client, Certificate, token).ConfigureAwait(false);
+                if (!await _connectionGate.WaitAsync(ConnectionWaitTimeout, token).ConfigureAwait(false))
+                {
+                    Logger.Log("[LocalSendServer] At the connection limit; dropping client.", LogLevel.Debug);
+                    return;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            try
+            {
+                // Framing reads carry their own deadline (see LocalSendServerHandler); the handshake was
+                // the remaining untimed wait. Transfer speed is not bounded here -- the upload body has an
+                // idle timeout of its own, and a slow large file must never be cut off mid-flight.
+                var connection = await LocalSendTlsHelper.CreateServerStreamAsync(client, Certificate, token)
+                    .WaitAsync(HandshakeTimeout, token)
+                    .ConfigureAwait(false);
                 using var stream = connection.Stream;
                 await LocalSendServerHandler.ProcessAsync(
                     this, stream, client.Client.RemoteEndPoint, connection.PeerFingerprint, token).ConfigureAwait(false);
@@ -98,6 +123,10 @@ public sealed class LocalSendServer : IDisposable
             catch (Exception ex)
             {
                 Logger.Log($"[LocalSendServer] Client handling error: {ex.Message}", LogLevel.Debug);
+            }
+            finally
+            {
+                _connectionGate.Release();
             }
         }
     }

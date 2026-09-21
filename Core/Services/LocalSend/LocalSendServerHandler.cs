@@ -13,6 +13,15 @@ internal static class LocalSendServerHandler
     private const int MaxRequestBodyBytes = 1024 * 1024;
     private const int MaxRequestLineBytes = 8192;
 
+    // A line's LENGTH was capped but not the number of lines, and the framing reads had no deadline:
+    // the listener is bound to every interface, so any reachable host could grow the header table
+    // without limit or open a connection, send one byte, and hold a socket, TLS context and thread-pool
+    // work item forever. Bounding only the framing reads keeps Slowloris out without touching
+    // transfers -- the upload body has its own idle timeout in LocalSendIncomingFileWriter, and a
+    // genuinely slow large file must never be cut off mid-flight.
+    private const int MaxRequestHeaderLines = 100;
+    private static readonly TimeSpan HeaderReadTimeout = TimeSpan.FromSeconds(10);
+
     internal static Task ProcessAsync(
         LocalSendServer server, Stream stream, EndPoint? remoteEp, string? peerFingerprint, CancellationToken token) =>
         LocalSendHttpConnection.ProcessAsync(server, stream, remoteEp, peerFingerprint, token);
@@ -41,8 +50,14 @@ internal static class LocalSendServerHandler
         // Read headers
         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         string line;
+        // Counted by lines rather than by headers.Count: repeated names overwrite one key, so a
+        // size-based check would let an endless header flood through. Returning false on the limit is
+        // the same answer the empty/short request line above gives -- close, no response.
+        var headerLines = 0;
         while (!string.IsNullOrEmpty(line = await ReadLineAsync(stream, token).ConfigureAwait(false)))
         {
+            if (++headerLines > MaxRequestHeaderLines)
+                return false;
             var colon = line.IndexOf(':');
             if (colon > 0)
                 headers[line[..colon].Trim()] = line[(colon + 1)..].Trim();
@@ -244,7 +259,11 @@ internal static class LocalSendServerHandler
         var buf = new byte[1];
         while (true)
         {
-            var read = await stream.ReadAsync(buf.AsMemory(0, 1), token).ConfigureAwait(false);
+            // Same AsTask().WaitAsync idiom LocalSendIncomingFileWriter uses for the body: the abandoned
+            // read is not cancelled, but the exception that follows tears the connection down, which does.
+            var read = await stream.ReadAsync(buf.AsMemory(0, 1), token).AsTask()
+                .WaitAsync(HeaderReadTimeout, token)
+                .ConfigureAwait(false);
             if (read == 0) break;
             var ch = (char)buf[0];
             if (ch == '\n') break;
