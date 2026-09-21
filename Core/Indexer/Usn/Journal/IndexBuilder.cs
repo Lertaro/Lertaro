@@ -46,13 +46,19 @@ internal static class IndexBuilder
                 else
                     folderResults[i] = (drive, buildFolderDrive(drive, (files, dirs) => onDriveProgress(drive, files, dirs), token));
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (ex is OperationCanceledException || ex is ObjectDisposedException)
             {
                 // Caught HERE, per drive, rather than left to escape the Parallel.For body -- an exception
                 // escaping one iteration is not contained to it: .NET stops scheduling further iterations
                 // and can abandon others still in flight, then rethrows as an AggregateException from this
                 // whole call. A single drive's Stop request must not abort every other drive's own scan.
-                cancelled[i] = true;
+                //
+                // ObjectDisposedException has to join that bucket: a cancel disposes the volume handle
+                // through the token registration (see JournalReader.cs), and a SafeHandle cannot abort a
+                // synchronous native read already in flight, so the close is deferred and the NEXT P/Invoke
+                // on the handle throws ObjectDisposedException rather than returning false. Keyed on this
+                // drive's token so any other disposed-handle fault still reports as a failure below.
+                cancelled[i] = token.IsCancellationRequested;
             }
         });
 
