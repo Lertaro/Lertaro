@@ -170,13 +170,15 @@ public static class MenuBuilder
             // Resolved, not just expanded: a configured entry may be a virtual folder ("shell:Downloads"),
             // and the handle allocated here is what a later submenu expansion (FolderBrowseMenuBuilder)
             // walks -- which needs the physical folder behind it.
-            var expandedPath = UserPathResolver.Resolve(folder.Path);
-            var pathExists = PathAvailability.IsFolderAvailable(expandedPath);
+            var expandedPath = UserPathResolver.Expand(folder.Path);
+            var resolvedPath = UserPathResolver.Resolve(folder.Path);
+            var pathExists = PathAvailability.IsFolderAvailable(resolvedPath);
+            var browsePath = UserPathResolver.IsVirtualPath(expandedPath) ? expandedPath : resolvedPath;
             items.Add(new DynamicMenuItem
             {
                 Text = GetDisplayName(folder.Path, folder.Name),
                 HasSubMenu = pathExists,
-                SubMenuHandle = pathExists ? provider.AllocateHandle(expandedPath) : IntPtr.Zero,
+                SubMenuHandle = pathExists ? provider.AllocateHandle(browsePath) : IntPtr.Zero,
                 HBitmapItem = IntPtr.Zero,
                 IsDisabled = !pathExists
             });

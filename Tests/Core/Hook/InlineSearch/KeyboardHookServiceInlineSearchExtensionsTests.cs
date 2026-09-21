@@ -42,7 +42,7 @@ public sealed class KeyboardHookServiceInlineSearchExtensionsTests
         bool inlineWindowOnScreen = true,
         bool activeWindowIsDialog = true,
         bool quickSearchWindowVisible = false,
-        int vkCode = KeyboardNativeMethods.VK_F,
+        int vkCode = KeyboardNativeMethods.VK_K,
         bool controlOnlyDown = true) =>
         KeyboardHookServiceInlineSearchExtensions.ShouldHandFocusToInlineSearch(
             inlineWindowOnScreen, activeWindowIsDialog, quickSearchWindowVisible, vkCode, controlOnlyDown);
