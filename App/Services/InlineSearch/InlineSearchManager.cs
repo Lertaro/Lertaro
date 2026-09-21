@@ -59,11 +59,10 @@ public class InlineSearchManager : IDisposable
         Logger.Log("[InlineSearchManager] Services started.", LogLevel.Debug);
     }
 
-    private bool IsPointInsideWindow(int x, int y)
-    {
-        if (_window == null || !_window.IsVisible) return false;
-        return _window.IsPointInsideWindowExternal(x, y);
-    }
+    // MouseHookService evaluates this on the hook's IPC thread, where reading a WPF property throws --
+    // so only the Win32 point test runs here and the window's own visibility is decided in
+    // WireUpMouseEvents, back on the UI thread.
+    private bool IsPointInsideWindow(int x, int y) => _window?.IsPointInsideWindowExternal(x, y) ?? false;
 
     private void WireUpExplorerEvents()
     {
@@ -131,6 +130,11 @@ public class InlineSearchManager : IDisposable
 
     private void WireUpMouseEvents() => _mouseHook.OnClickOutside += () => Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                                                  {
+                                                     // Reads IsVisible here rather than in the predicate:
+                                                     // the hook delivers this on its IPC thread, and the
+                                                     // InvalidOperationException it threw there used to kill
+                                                     // the click-outside dismissal for every click.
+                                                     if (_window == null || !_window.IsVisible) return;
                                                      if (_explorerTracker.IsActiveWindowDialog)
                                                          return;
                                                      CloseInlineSearch("ClickOutside");
