@@ -22,11 +22,33 @@ public static class PipeSecurityFactory
         try
         {
             var pipeSecurity = new PipeSecurity();
+
+            // Creating an instance of a named pipe that already exists is access-checked against THIS
+            // DACL, and the server creates instances while previous ones are still live (UsnServicePipeServer
+            // runs two overlapping listener loops with MaxAllowedServerInstances). So the right to create
+            // instances belongs to the accounts that host the server -- LocalSystem, plus Administrators
+            // for an interactive run -- and not to the public. Granting it to Everyone/Authenticated Users
+            // let any local process add its own "LertaroPipe" instance and have the App's or CLI's requests
+            // answered by it: they would receive attacker-chosen search results, file metadata and recent
+            // files to display and act on, and each squatted instance reserves kernel nonpaged pool.
+            foreach (var hostSid in new[]
+            {
+                new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
+                new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
+            })
+            {
+                pipeSecurity.AddAccessRule(new PipeAccessRule(
+                    hostSid,
+                    PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance,
+                    AccessControlType.Allow
+                ));
+            }
+
             var everyoneSid = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
 
             pipeSecurity.AddAccessRule(new PipeAccessRule(
                 everyoneSid,
-                PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance,
+                PipeAccessRights.ReadWrite,
                 AccessControlType.Allow
             ));
 
@@ -34,7 +56,7 @@ public static class PipeSecurityFactory
 
             pipeSecurity.AddAccessRule(new PipeAccessRule(
                 authenticatedUsersSid,
-                PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance,
+                PipeAccessRights.ReadWrite,
                 AccessControlType.Allow
             ));
             Logger.Log("[PipeServer] PipeSecurity successfully configured.", LogLevel.Debug);
