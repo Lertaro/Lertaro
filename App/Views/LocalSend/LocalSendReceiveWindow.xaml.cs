@@ -125,7 +125,17 @@ public partial class LocalSendReceiveWindow : Window
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     { if (GridStep1Footer.Visibility != Visibility.Visible && !_isCompleted) { e.Cancel = true; return; } base.OnClosing(e); }
     protected override void OnClosed(EventArgs e)
-    { base.OnClosed(e); if (!string.IsNullOrEmpty(_currentSessionId)) LocalSendServiceManager.Instance.UnregisterSession(_currentSessionId); }
+    {
+        base.OnClosed(e);
+        // The step-1 prompt can be dismissed with the close button or Alt+F4 without ever answering it
+        // (OnClosing only blocks closes once the transfer is running). LocalSendPrepareUploadHandler
+        // awaits that answer, so an unanswered request parks its handler task -- with the TcpClient,
+        // SslStream and both cancellation registrations -- permanently, and leaves the sender waiting
+        // for a response that can no longer come. Respond is a TrySetResult, so declining on a window
+        // that already answered is a no-op.
+        if (!_isCompleted && !string.IsNullOrEmpty(_currentSessionId)) _requestArgs.Respond(false);
+        if (!string.IsNullOrEmpty(_currentSessionId)) LocalSendServiceManager.Instance.UnregisterSession(_currentSessionId);
+    }
     private void BtnDecline_Click(object sender, RoutedEventArgs e) { _requestArgs.Respond(false); Close(); }
     private bool ApplySelectedFiles()
     { var selected = LstFiles.SelectedItems.OfType<LocalSendReceiveFileItem>().Select(i => i.FileId).ToHashSet(); if (selected.Count == 0) { BtnDecline_Click(this, new RoutedEventArgs()); return false; } _requestArgs.SelectedFileIds = selected; return true; }
@@ -193,7 +203,17 @@ public partial class LocalSendReceiveWindow : Window
     private DispatcherTimer CreateInactivityTimer()
     {
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
-        timer.Tick += (_, _) => { timer.Stop(); if (!_isCompleted) HandleSessionCanceled(_currentSessionId ?? string.Empty); };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (_isCompleted) return;
+            var sessionId = _currentSessionId ?? string.Empty;
+            // Cancel the session for real, exactly as BtnCloseProgress_Click does: HandleSessionCanceled
+            // only repaints, so a stalled transfer used to show "Canceled" while the server kept writing
+            // the file and then silently flipped the window to "Completed".
+            if (!string.IsNullOrEmpty(sessionId)) LocalSendServiceManager.Instance.CancelSession(sessionId, notifySender: true);
+            HandleSessionCanceled(sessionId);
+        };
         return timer;
     }
     private int _maxCompletedCount;
