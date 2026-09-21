@@ -15,8 +15,14 @@ public sealed class EverythingIpcMessageDispatcher
         public IntPtr lpData;
     }
 
+    // SMTO_ABORTIFHUNG returns early for a window whose thread is not responding, and the timeout bounds
+    // the wait for every other case.
+    private const uint SMTO_ABORTIFHUNG = 0x0002;
+    private const uint ReplyTimeoutMilliseconds = 5000;
+
     [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, ref COPYDATASTRUCT lParam);
+    private static extern IntPtr SendMessageTimeout(
+        IntPtr hWnd, uint msg, IntPtr wParam, ref COPYDATASTRUCT lParam, uint flags, uint timeout, out IntPtr result);
 
     public EverythingIpcMessageDispatcher(IEverythingDataProvider dataProvider) => _dataProvider = dataProvider ?? throw new ArgumentNullException(nameof(dataProvider));
 
@@ -150,7 +156,16 @@ public sealed class EverythingIpcMessageDispatcher
                 cbData = buffer.Length,
                 lpData = pinnedBuffer.AddrOfPinnedObject()
             };
-            SendMessage(replyHwnd, EverythingIpcConstants.WM_COPYDATA, serverHwnd, ref cds);
+            // replyHwnd comes straight out of the request payload, and this is the only IPC message-loop
+            // thread: a plain SendMessage blocked here until the caller's window processed the copy, so
+            // one hung or deliberately stalled client wedged Everything IPC emulation for every other
+            // client for the life of the process. The query above already bounds its own wait for
+            // exactly this reason; dropping a reply the peer cannot take is the only sane fallback.
+            if (SendMessageTimeout(replyHwnd, EverythingIpcConstants.WM_COPYDATA, serverHwnd, ref cds,
+                    SMTO_ABORTIFHUNG, ReplyTimeoutMilliseconds, out _) == IntPtr.Zero)
+            {
+                Logger.Log($"[EverythingIpc] Reply to 0x{replyHwnd:X} timed out or failed; result dropped.", LogLevel.Debug);
+            }
         }
         finally
         {
