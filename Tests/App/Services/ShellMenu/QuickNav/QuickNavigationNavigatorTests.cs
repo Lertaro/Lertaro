@@ -1,4 +1,5 @@
 using Lertaro.App.Services.ShellMenu.QuickNav;
+using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.App.Tests.Services.ShellMenu.QuickNav;
 

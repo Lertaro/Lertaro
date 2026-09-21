@@ -22,7 +22,9 @@ public sealed class QuickNavigationPathResolverTests
         private readonly Dictionary<IntPtr, string> _nodeMap = new();
         private readonly Dictionary<uint, string> _commandMap = new();
 
-        private sealed class ConcurrentProvider : IQuickNavigationProvider
+        // Reached as `FakeProvider.ConcurrentProvider` from the test methods below, so it cannot be
+        // `private`: a private nested type is visible only inside its immediately enclosing type.
+        internal sealed class ConcurrentProvider : IQuickNavigationProvider
         {
             public string GroupName => "Concurrent";
             public bool CanProvide(ISearchResult result) => true;
