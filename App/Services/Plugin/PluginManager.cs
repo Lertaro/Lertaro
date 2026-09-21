@@ -261,15 +261,31 @@ public class PluginManager : PluginRegistry
 
         foreach (var action in _actions)
         {
-            if (action.Action.Keywords.Count == 0) continue;
-            if (!PluginPerformanceMonitor.Measure(action.Action, () => action.Action.IsVisibleInSearch(single, windowType))) continue;
-            if (!_filter.IsEnabled(ComponentFilter.GetDllName(action.Plugin), PluginComponentType.Action, action.Action.GetType().Name)) continue;
-            if (!PluginPerformanceMonitor.Measure(action.Action, () => action.Action.CanExecute(single))) continue;
+            // Every call in here is arbitrary plugin code, and PluginPerformanceMonitor rethrows what a
+            // plugin throws on purpose (so its counters stay honest). Without per-action isolation one
+            // bad IsVisibleInSearch/CanExecute costs the user every OTHER action's match too, because
+            // the exception walks out of this iterator and aborts the whole query -- the instant-result
+            // path already isolates each provider the same way. A local instead of a direct yield
+            // because C# forbids yield inside a try with a catch.
+            PluginSearchActionMatch? matched = null;
+            try
+            {
+                if (action.Action.Keywords.Count != 0
+                    && PluginPerformanceMonitor.Measure(action.Action, () => action.Action.IsVisibleInSearch(single, windowType))
+                    && _filter.IsEnabled(ComponentFilter.GetDllName(action.Plugin), PluginComponentType.Action, action.Action.GetType().Name)
+                    && PluginPerformanceMonitor.Measure(action.Action, () => action.Action.CanExecute(single)))
+                {
+                    var match = KeywordMatcher.TryMatchKeyword(query, action.Action.Keywords);
+                    if (match != null)
+                        matched = new PluginSearchActionMatch(action, match.Value.Keyword, match.Value.ArgumentText);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[PluginManager] Search action '{action.Action.GetType().Name}' failed: {ex}", LogLevel.Error);
+            }
 
-            var match = KeywordMatcher.TryMatchKeyword(query, action.Action.Keywords);
-            if (match == null) continue;
-
-            yield return new PluginSearchActionMatch(action, match.Value.Keyword, match.Value.ArgumentText);
+            if (matched != null) yield return matched;
         }
     }
 
