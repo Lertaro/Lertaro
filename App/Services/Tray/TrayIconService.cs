@@ -93,7 +93,9 @@ public class TrayIconService : IDisposable
         try
         {
             _notifyIcon.Visible = false;
-            _notifyIcon.Visible = true;
+            // Re-add through the one rule that owns tray visibility: setting Visible = true here ignored
+            // the user's "hide tray icon" choice, so the icon came back every time explorer.exe restarted.
+            ApplyTrayIconVisible();
         }
         catch (Exception ex)
         {
