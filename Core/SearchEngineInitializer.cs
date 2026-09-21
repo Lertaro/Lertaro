@@ -27,6 +27,18 @@ internal class SearchEngineInitializer
 
     internal static bool CanUseCachedUsnCatchUp(bool isComplete, bool supportsUsnJournal) => isComplete && supportsUsnJournal;
 
+    /// <summary>
+    /// The overall status to settle on when initialization threw. A state that already describes a usable
+    /// index must survive a late fault, but an in-flight one cannot: <c>Run</c>'s finally clears
+    /// <c>_isRebuilding</c> without touching the state, so a left-behind pending/indexing/loading-cache
+    /// value is progress that never advances for the life of the process -- and
+    /// <see cref="SearchEngine.GetStatus"/> only re-detects drives while the state is settled, so drives
+    /// attached afterwards would never appear either. "error" is the failure value the App already renders
+    /// (it is also what the App synthesises when the service cannot be reached at all).
+    /// </summary>
+    internal static string ResolveStateAfterFailure(string stateAtFailure) =>
+        stateAtFailure is "ready" or "cached" or "idle" ? stateAtFailure : "error";
+
     private void EnsureDriveStatuses(IReadOnlyList<string> detectedDrives, IReadOnlyList<string> enabledDrives)
     {
         var enabled = new HashSet<string>(enabledDrives, StringComparer.OrdinalIgnoreCase);
@@ -200,6 +212,12 @@ internal class SearchEngineInitializer
         catch (Exception ex)
         {
             Logger.Log($"[SearchEngineInitializer] Index initialization failed: {ex}", LogLevel.Error);
+            var settled = ResolveStateAfterFailure(_indexer.Status.State);
+            lock (_indexer.LockObj)
+            {
+                _indexer.Status.State = settled;
+            }
+            _indexer.NotifyStatusChanged();
         }
         finally
         {

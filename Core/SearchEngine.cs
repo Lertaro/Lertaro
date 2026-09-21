@@ -72,7 +72,9 @@ public class SearchEngine : IDisposable
     {
         _indexer.Status.IsMaintenanceBusy = _isRebuilding || _drives.HasPendingRebuilds;
         var now = Environment.TickCount64;
-        if (now - _lastDriveDetectTime > 5000 && (_indexer.Status.State is "ready" or "idle"))
+        // "error" belongs here: it is a settled state, not a busy one, and a failed initialization must not
+        // permanently stop newly attached drives from being noticed.
+        if (now - _lastDriveDetectTime > 5000 && (_indexer.Status.State is "ready" or "idle" or "error"))
         {
             _lastDriveDetectTime = now;
             RefreshDrivesInStatus();
