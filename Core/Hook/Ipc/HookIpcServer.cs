@@ -55,8 +55,9 @@ public sealed class HookIpcServer : IDisposable
     public void SendQuickPanelHotkey() => SendMessage(new IpcMessage { Id = IpcMessageId.QuickPanelHotkey });
     public void SendQuickNavigationHotkey() => SendMessage(new IpcMessage { Id = IpcMessageId.QuickNavigationHotkey });
 
-    private async Task ProcessWriteQueueAsync(NamedPipeServerStream pipe, CancellationToken token)
+    private async Task ProcessWriteQueueAsync(NamedPipeServerStream pipe, CancellationTokenSource connectionCts)
     {
+        var token = connectionCts.Token;
         try
         {
             var reader = _sendChannel.Reader;
@@ -75,6 +76,12 @@ public sealed class HookIpcServer : IDisposable
         catch (Exception ex)
         {
             Logger.Log($"[HookIpcServer] Write queue error: {ex.Message}", LogLevel.Warn);
+            // Ending the connection is the point of this branch. Returning quietly left the link half
+            // alive before: the hook kept reading commands and kept queueing events nothing would ever
+            // write, while the App still saw a connected pipe, so hotkeys, path capture and inline search
+            // all stopped working with both processes healthy. One write fault (a transient IO error, or
+            // ObjectDisposedException from a Dispose racing a reconnect) now costs a reconnect instead.
+            try { connectionCts.Cancel(); } catch (ObjectDisposedException) { }
         }
     }
 
@@ -128,29 +135,45 @@ public sealed class HookIpcServer : IDisposable
 
                 Logger.Log("[HookIpcServer] Waiting for App to connect on both pipes...", LogLevel.Debug);
 
-                await Task.WhenAll(
+                try
+                {
+                    await Task.WhenAll(
 
-                    eventPipe.WaitForConnectionAsync(token),
-                    cmdPipe.WaitForConnectionAsync(token)
+                        eventPipe.WaitForConnectionAsync(token),
+                        cmdPipe.WaitForConnectionAsync(token)
 
-                ).ConfigureAwait(false);
+                    ).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // The fields the finally block below disposes are only assigned once BOTH sides are
+                    // up, so a one-sided failure would abandon two live streams. Each pipe is created
+                    // asking for a single server instance, and an abandoned instance keeps its name
+                    // occupied -- every later iteration's Create then fails until the finalizer happens
+                    // to run, wedging IPC for the life of the hook while the App keeps relaunching it.
+                    eventPipe.Dispose();
+                    cmdPipe.Dispose();
+                    throw;
+                }
                 Logger.Log("[HookIpcServer] App connected on both pipes.", LogLevel.Debug);
                 _eventPipe = eventPipe;
                 _cmdPipe = cmdPipe;
                 while (_sendChannel.Reader.TryRead(out _)) { }
                 OnConnected?.Invoke();
-                using var writeCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                // One token owns the whole connection: the write pump cancels it when it faults, which is
+                // how a dead pump takes the read loop down with it so the loop below reconnects.
+                using var connectionCts = CancellationTokenSource.CreateLinkedTokenSource(token);
 
-                var writeTask = ProcessWriteQueueAsync(eventPipe, writeCts.Token);
+                var writeTask = ProcessWriteQueueAsync(eventPipe, connectionCts);
 
                 try
                 {
-                    await ListenForCommands(cmdPipe, token).ConfigureAwait(false);
+                    await ListenForCommands(cmdPipe, connectionCts.Token).ConfigureAwait(false);
                 }
 
                 finally
                 {
-                    writeCts.Cancel();
+                    connectionCts.Cancel();
 
                     try { await writeTask.ConfigureAwait(false); } catch { }
                 }

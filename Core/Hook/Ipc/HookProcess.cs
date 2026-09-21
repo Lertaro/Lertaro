@@ -148,7 +148,12 @@ public sealed class HookProcess : IDisposable
         _ipcServer.OnConnected += () =>
         {
             _explorerTracker?.PublishCurrentState();
-            _openedFolderSnapshots.Publish();
+            // Off the accept loop, via the same path the command handler uses. OnConnected is raised
+            // before the writer pump and the command reader exist, and building this snapshot queries
+            // file managers by launching a process that can hang for seconds -- a collector that
+            // round-trips through this pipe cannot get its reply from a pump that is not running yet, so
+            // doing it inline spent its full timeout here while the hook answered nothing at all.
+            _commandHandler.PublishOpenedFoldersOffThread();
         };
     }
 

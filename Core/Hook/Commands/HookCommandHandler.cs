@@ -56,7 +56,10 @@ public sealed class HookCommandHandler
     /// multiply the work. That is safe because a snapshot is a point-in-time value rather than an event
     /// anyone counts.
     /// </remarks>
-    private void PublishOpenedFoldersOffThread()
+    // Internal as well as used by the command path: HookIpcServer's OnConnected has to build the same
+    // snapshot off the accept loop, and sharing this method is what keeps the one-in-flight guard
+    // covering both triggers instead of letting a connect and a command build two snapshots at once.
+    internal void PublishOpenedFoldersOffThread()
     {
         if (Interlocked.CompareExchange(ref _snapshotInFlight, 1, 0) != 0)
         {
