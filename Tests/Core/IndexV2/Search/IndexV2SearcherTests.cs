@@ -140,6 +140,29 @@ public sealed class IndexV2SearcherTests
         CollectionAssert.AreEquivalent(new[] { "Projects", "notes.md", "readme.txt" }, names);
     }
 
+    // Path mode bounded its widened refinement set with a fixed constant while NameSearch bounds the
+    // identical expression by the index -- and that set is exactly what topN.Finish returns, so a
+    // path-mode query the caller asked for "everything" of silently stopped at 4000 rows.
+    [TestMethod]
+    public void SearchStreaming_PathModeQuery_ReturnsEveryMatchAboveTheOldFixedCap()
+    {
+        const int fileCount = 4200;
+        var records = new List<FileRecord>
+        {
+            LiveIndexFixture.Root(),
+            new FileRecord(2, 1, "stuff", FileRecordFlags.Directory),
+        };
+        for (var i = 0; i < fileCount; i++)
+            records.Add(new FileRecord((ulong)(3 + i), 2, $"file{i}.txt", FileRecordFlags.None));
+
+        using var fixture = LiveIndexFixture.Build("C", records);
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"C:\stuff\file", int.MaxValue, results.Add, CancellationToken.None);
+
+        Assert.IsGreaterThan(4000, results.Count, $"path mode still truncates: got {results.Count} of {fileCount} matches");
+    }
+
     [TestMethod]
     public void SearchStreaming_PathModeQuery_ListsChildrenOfAnAddedDirectory()
     {

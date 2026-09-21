@@ -18,7 +18,6 @@ internal static class PathSearchFuzzy
     // for every matched candidate, so the scan keeps a wider unweighted top-N and only that bounded
     // headroom set gets refined (filename weight * directory weight) afterward.
     private const int RefinementHeadroomFactor = 5;
-    private const int RefinementScanCap = 4000;
 
     public static void SearchStreaming(Snapshot snapshot, DeltaOverlay delta, string pathQuery, int limit,
         Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower)
@@ -29,8 +28,13 @@ internal static class PathSearchFuzzy
 
         // See NameSearch: bounded by the index, and widened so a large limit cannot overflow.
         var keep = (int)Math.Min((long)Math.Max(limit, 8) * 8, snapshot.Count + delta.Added.Count);
-        // Widen before multiplying so a large keep cannot overflow int (see NameSearch's identical fix).
-        var scanKeep = (int)Math.Min((long)keep * RefinementHeadroomFactor, RefinementScanCap);
+        // Widen before multiplying so a large keep cannot overflow int (see NameSearch's identical fix),
+        // and bound the widened set by the index itself, exactly as NameSearch does. The fixed 4000 cap
+        // that used to sit here bounded topN, and so the emission list returned by Finish(scanKeep):
+        // path-mode queries silently stopped at 4000 rows even though the full window's contract is
+        // "returns everything that matches", and with the unbounded limit its callers use, the
+        // emitted >= limit break below could never fire to notice the shortfall.
+        var scanKeep = (int)Math.Min((long)keep * RefinementHeadroomFactor, snapshot.Count + delta.Added.Count);
         var topN = new FzfTopN(scanKeep);
 
         var lastSep = pathQuery.LastIndexOf(Path.DirectorySeparatorChar);
