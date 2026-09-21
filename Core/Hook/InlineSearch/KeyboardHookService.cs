@@ -33,7 +33,7 @@ public class KeyboardHookService : IDisposable
     public event Action? OnRightPressed;
     public event Action<int>? OnCtrlNumberPressed;
 
-    // Ctrl+F while the inline window covers a file dialog: the App puts the caret back in that window's own
+    // Ctrl+K while the inline window covers a file dialog: the App puts the caret back in that window's own
     // search box. Raised from the hook callback rather than handled here, because focusing a window is the
     // App's to do (see KeyboardHookServiceInlineSearchExtensions.HandFocusToInlineSearch).
     public event Action? OnFocusInlineSearchRequested;
@@ -254,7 +254,7 @@ public class KeyboardHookService : IDisposable
                     return (IntPtr)1;
                 }
             }
-            // See HandFocusToInlineSearch: Ctrl+F belongs to our inline window while it covers a dialog.
+            // See HandFocusToInlineSearch: Ctrl+K belongs to our inline window while it covers a dialog.
             if (this.HandFocusToInlineSearch(vkCode)) return (IntPtr)1;
             // If text input is focused, bypass
             if (fgHwnd != IntPtr.Zero && InputFocusEvaluator.IsForegroundTextInputFocused(fgHwnd))

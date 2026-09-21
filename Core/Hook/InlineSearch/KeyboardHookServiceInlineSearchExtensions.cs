@@ -101,16 +101,16 @@ internal static class KeyboardHookServiceInlineSearchExtensions
     }
 
     /// <summary>
-    /// Consumes Ctrl+F while Lertaro's inline window covers a file dialog, so the App can put the caret back in
+    /// Consumes Ctrl+K while Lertaro's inline window covers a file dialog, so the App can put the caret back in
     /// that window's search box.
     /// </summary>
     /// <remarks>
     /// This is the one key that has to reach our own window while the DIALOG holds the keyboard. The panel
     /// docks over a dialog without taking focus from it (see InlineSearchWindowCreationSupport), so typing there
     /// keeps going to the dialog's own file-name box and the panel only ever receives the keyboard when it is
-    /// clicked into. Ctrl+F is the standard "put me in the search box" chord for the window the user is looking
+    /// clicked into. Ctrl+K is the standard "put me in the search box" chord for the window the user is looking
     /// at, and while our box is that window, it is what they mean. Consumed rather than passed on, so the
-    /// dialog's own Ctrl+F (Explorer's search box, or the host's accelerator) cannot act on it as well.
+    /// dialog's own Ctrl+K (Explorer's search box, or the host's accelerator) cannot act on it as well.
     ///
     /// Called from HookCallbackCore BEFORE its text-input bypass and its file-dialog early return, which is
     /// where it has to sit: a dialog's file-name box normally has keyboard focus, so both of those would
@@ -136,8 +136,8 @@ internal static class KeyboardHookServiceInlineSearchExtensions
     /// Gated on the window being ON SCREEN rather than on IsInlineSearchVisible: that one means "forward
     /// keystrokes to me" and is cleared the moment the box takes focus for itself, which is exactly the state
     /// this has to work in -- the user is back in the dialog and wants the box again. Not while the quick window
-    /// is up, whose own OpenFullWindowHotkey defaults to the same Ctrl+F and is handled by the WPF key path, and
-    /// not for a plain Explorer window's dock, where Ctrl+F belongs to Explorer's own folder search.
+    /// is up, whose own OpenFullWindowHotkey defaults to the same Ctrl+K and is handled by the WPF key path, and
+    /// not for a plain Explorer window's dock, where Ctrl+K belongs to Explorer's own folder search.
     /// </remarks>
     internal static bool ShouldHandFocusToInlineSearch(
         bool inlineWindowOnScreen,
@@ -148,7 +148,7 @@ internal static class KeyboardHookServiceInlineSearchExtensions
         inlineWindowOnScreen
         && activeWindowIsDialog
         && !quickSearchWindowVisible
-        && vkCode == KeyboardNativeMethods.VK_F
+        && vkCode == KeyboardNativeMethods.VK_K
         && controlOnlyDown;
 
     private static bool HandleInlineSearchTriggerKey(this KeyboardHookService service, int vkCode, KeyboardNativeMethods.KBDLLHOOKSTRUCT hookStruct, IntPtr fgHwnd)

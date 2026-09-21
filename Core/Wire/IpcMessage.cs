@@ -61,7 +61,7 @@ public enum IpcMessageId : byte
     RunTool = 43,
     ToolResult = 44,
 
-    // Hook -> App: Ctrl+F was pressed while the inline window was on screen over a file dialog. Carries
+    // Hook -> App: Ctrl+K was pressed while the inline window was on screen over a file dialog. Carries
     // nothing; the App focuses that window's own search box (see
     // KeyboardHookServiceInlineSearchExtensions.HandFocusToInlineSearch for the gate).
     FocusInlineSearch = 45
