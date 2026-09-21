@@ -48,4 +48,14 @@ public static class UserPathResolver
         var expanded = Expand(rawPath);
         return (virtualPathResolver ?? ShellPathHelper.TryResolveVirtualPath)(expanded);
     }
+
+    /// <summary>
+    /// Resolves a path for navigation while preserving a virtual Shell token when no physical path exists.
+    /// </summary>
+    public static string ResolveForNavigation(string? rawPath, Func<string, string>? virtualPathResolver = null)
+    {
+        var expanded = Expand(rawPath);
+        var resolved = (virtualPathResolver ?? ShellPathHelper.TryResolveVirtualPath)(expanded);
+        return IsVirtualPath(resolved) ? expanded : resolved;
+    }
 }

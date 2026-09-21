@@ -173,7 +173,7 @@ public static class MenuBuilder
             var expandedPath = UserPathResolver.Expand(folder.Path);
             var resolvedPath = UserPathResolver.Resolve(folder.Path);
             var pathExists = PathAvailability.IsFolderAvailable(resolvedPath);
-            var browsePath = UserPathResolver.IsVirtualPath(expandedPath) ? expandedPath : resolvedPath;
+            var browsePath = UserPathResolver.ResolveForNavigation(folder.Path);
             items.Add(new DynamicMenuItem
             {
                 Text = GetDisplayName(folder.Path, folder.Name),

@@ -68,9 +68,5 @@ internal static class FolderBrowseMenuBuilder
     }
 
     private static string ResolvePhysicalPath(string path)
-    {
-        var expanded = UserPathResolver.Expand(path);
-        var resolved = UserPathResolver.Resolve(expanded);
-        return Directory.Exists(resolved) ? resolved : expanded;
-    }
+        => UserPathResolver.ResolveForNavigation(path);
 }

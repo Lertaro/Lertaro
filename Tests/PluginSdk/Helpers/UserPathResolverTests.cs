@@ -83,4 +83,19 @@ public sealed class UserPathResolverTests
     // is", and a caller-supplied resolver must see the same input the real one would.
     [TestMethod]
     public void Resolve_HandsANonVirtualPathToTheLookupToo() => Assert.AreEqual(@"Z:\Apps", UserPathResolver.Resolve(@"  Z:\Apps  ", path => path));
+
+    [TestMethod]
+    public void ResolveForNavigation_PreservesVirtualPathWhenItHasNoPhysicalPath()
+    {
+        const string input = "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}";
+
+        Assert.AreEqual(input, UserPathResolver.ResolveForNavigation(input, _ => "::{679f85cb-0220-4080-b29b-5540cc05aab6}"));
+    }
+
+    [TestMethod]
+    public void ResolveForNavigation_UsesResolvedPhysicalPath()
+    {
+        Assert.AreEqual(@"C:\Users\test\Desktop",
+            UserPathResolver.ResolveForNavigation("shell:Desktop", _ => @"C:\Users\test\Desktop"));
+    }
 }

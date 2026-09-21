@@ -98,11 +98,7 @@ public static class QuickNavigationNavigator
     }
 
     internal static string ResolveNavigationPath(string path)
-    {
-        var expanded = UserPathResolver.Expand(path);
-        var resolved = UserPathResolver.Resolve(expanded);
-        return UserPathResolver.IsVirtualPath(resolved) ? expanded : resolved;
-    }
+        => UserPathResolver.ResolveForNavigation(path);
 
     // This is a NAVIGATION menu -- picking a file should land on it (selected, in its folder) rather than
     // launch it, UNLESS the active host is the desktop: there's no Explorer pane to navigate-and-select
