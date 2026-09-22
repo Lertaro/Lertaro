@@ -14,6 +14,17 @@ internal static class LocalSendCertificate
 
     internal static X509Certificate2 LoadOrCreate() => LoadOrCreate(Path.Combine(Logger.UserDataDir, CertificateFileName));
 
+    private static readonly Lazy<X509Certificate2> SharedIdentityCache = new(LoadOrCreate);
+
+    /// <summary>
+    /// The one identity for a client that has no running server to borrow its certificate from.
+    /// ponytail: never disposed, and the renewal window is only consulted when it is first loaded, so a
+    /// process left running across the boundary keeps the identity it started with -- the same thing the
+    /// server does with its own. Re-loading per client was a file read, a PKCS#12 parse and an RSA key
+    /// load for every discovered device.
+    /// </summary>
+    internal static X509Certificate2 SharedIdentity => SharedIdentityCache.Value;
+
     internal static X509Certificate2 LoadOrCreate(string path)
     {
         try

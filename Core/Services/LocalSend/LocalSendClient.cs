@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using System.Security.Cryptography.X509Certificates;
 using Lertaro.Core.Services.LocalSend.Models;
 
 namespace Lertaro.Core.Services.LocalSend;
@@ -8,7 +7,6 @@ namespace Lertaro.Core.Services.LocalSend;
 public sealed class LocalSendClient : IDisposable
 {
     private readonly HttpClient _httpClient;
-    private readonly X509Certificate2? _ownedIdentityCertificate;
     private readonly LocalSendServer? _server;
     private readonly bool _createChecksums;
     private LocalSendPendingFileTransfer? _pendingFileTransfer;
@@ -23,7 +21,11 @@ public sealed class LocalSendClient : IDisposable
     {
         _server = server;
         _createChecksums = createChecksums;
-        var identity = (server?.IdentityCertificate ?? server?.Certificate) ?? (_ownedIdentityCertificate = LocalSendCertificate.LoadOrCreate());
+        // A running server already holds this installation's identity. Without one the shared instance
+        // stands in: loading the pfx here ran once per discovered device per validation sweep, and the
+        // per-device client has to stay per-device because the peer fingerprint it pins is baked into its
+        // handler.
+        var identity = (server?.IdentityCertificate ?? server?.Certificate) ?? LocalSendCertificate.SharedIdentity;
         _httpClient = LocalSendHttpClientFactory.Create(identity, expectedFingerprint);
     }
 
@@ -262,9 +264,5 @@ public sealed class LocalSendClient : IDisposable
 
     public string? LastError { get; private set; }
 
-    public void Dispose()
-    {
-        _httpClient.Dispose();
-        _ownedIdentityCertificate?.Dispose();
-    }
+    public void Dispose() => _httpClient.Dispose();
 }
