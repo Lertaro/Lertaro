@@ -237,17 +237,54 @@ public partial class QuickLookWindow : Window
             }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
-        if (isDir)
+        // Size and modified date come off this thread too, for the same reason as the icon above:
+        // DirectoryInfo.LastWriteTime, FileInfo.Length and the existence probe are all file-system
+        // calls, and stepping through a result list that includes a mapped drive whose server is gone
+        // used to wait out the SMB timeout per row -- freezing QuickLook and the search window it rides
+        // on, which is exactly what the icon path stopped doing and the footer was left behind on.
+        // What is shown for the row that is still resolving is the previous row's footer, the same as
+        // its placeholder icon, and the staleness check is the icon's.
+        _ = Task.Run(() => ReadFooter(path, isDir)).ContinueWith(t =>
         {
-            var dirInfo = new DirectoryInfo(path);
-            TxtFooterSize.Text = TranslationService.Get("QuickLook_Folder");
-            TxtFooterDate.Text = $"{TranslationService.Get("QuickLook_Modified")}: {dirInfo.LastWriteTime:yyyy-MM-dd HH:mm}";
+            if (t.Status != TaskStatus.RanToCompletion || t.Result is not { } footer) return;
+            if (_currentFilePath != path) return;
+
+            if (isDir)
+            {
+                TxtFooterSize.Text = TranslationService.Get("QuickLook_Folder");
+                TxtFooterDate.Text = $"{TranslationService.Get("QuickLook_Modified")}: {footer.LastWrite:yyyy-MM-dd HH:mm}";
+                return;
+            }
+
+            if (!footer.Exists)
+                return;
+
+            TxtFooterSize.Text = FormatFileSize(footer.Size);
+            TxtFooterDate.Text = $"{TranslationService.Get("QuickLook_Modified")}: {footer.LastWrite:yyyy-MM-dd HH:mm}";
+        }, TaskScheduler.FromCurrentSynchronizationContext());
+    }
+
+    /// <summary>Size, modified date and existence of one path, read away from the UI thread.</summary>
+    private sealed record FileFooter(bool Exists, long Size, DateTime LastWrite);
+
+    private static FileFooter ReadFooter(string path, bool isDir)
+    {
+        try
+        {
+            if (isDir)
+            {
+                var dir = new DirectoryInfo(path);
+                return new FileFooter(dir.Exists, 0, dir.LastWriteTime);
+            }
+
+            var file = new FileInfo(path);
+            return new FileFooter(file.Exists, file.Length, file.LastWriteTime);
         }
-        else if (File.Exists(path))
+        catch
         {
-            var fileInfo = new FileInfo(path);
-            TxtFooterSize.Text = FormatFileSize(fileInfo.Length);
-            TxtFooterDate.Text = $"{TranslationService.Get("QuickLook_Modified")}: {fileInfo.LastWriteTime:yyyy-MM-dd HH:mm}";
+            // A path can be gone or unreachable by the time this runs; the footer simply stays as it
+            // was, which is what the old synchronous File.Exists guard ended up showing anyway.
+            return new FileFooter(false, 0, DateTime.MinValue);
         }
     }
 
