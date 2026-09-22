@@ -118,7 +118,7 @@ internal sealed class SearchStreamRenderer
 
             var statusText = uiResults.Count > 0
                 ? SearchResultMapper.FormatSearchStatus(0, received)
-                : final ? "No matching results" : string.Empty;
+                : string.Empty;
 
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
             {
