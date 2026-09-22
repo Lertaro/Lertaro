@@ -35,12 +35,26 @@ internal sealed class FavoriteHotkeyForegroundNavigator
 {
     public void Navigate(string rawPath)
     {
-        // Every failure below is logged and swallowed: this runs from a WM_HOTKEY handler, and an
-        // exception there would come out of the message pump.
+        // Sampled here, before anything is moved off the thread: the point of the decision below is which
+        // window is in front *when the hotkey is pressed*, and by the time the shell thread runs it the
+        // user could have clicked elsewhere.
+        var foregroundWindow = FavoriteHotkeyNavigation.GetForegroundWindow();
+
+        // Everything after that sample goes off the UI thread. This is a WM_HOTKEY handler, and
+        // IsFolderPath calls Directory.Exists while ResolveForegroundManager opens processes and asks
+        // every adapter -- all of which wait out the SMB timeout on a mapped drive whose server is gone
+        // (see ShellThread's own remarks), freezing every window, the tray and all hook-driven UI rather
+        // than just this navigation. The try/catch cannot help: the problem is blocking, not throwing.
+        ShellThread.Run("FavoriteHotkeyNavigate", () => NavigateOffThread(rawPath, foregroundWindow));
+    }
+
+    private void NavigateOffThread(string rawPath, IntPtr foregroundWindow)
+    {
+        // Every failure is logged and swallowed: an exception here escapes the shell thread.
         try
         {
             var path = UserPathResolver.Resolve(rawPath);
-            var target = ResolveForegroundManager(FavoriteHotkeyNavigation.GetForegroundWindow());
+            var target = ResolveForegroundManager(foregroundWindow);
 
             var decision = FavoriteHotkeyNavigation.Decide(
                 isWebUrl: Helpers.FavoriteUrlHelper.IsWebUrl(rawPath),
@@ -48,7 +62,7 @@ internal sealed class FavoriteHotkeyForegroundNavigator
                 targetIsFolder: IsFolderPath(path),
                 managerCanNavigateInPlace: target != null);
 
-            Execute(decision, path, target);
+            Execute(decision, path, target, foregroundWindow);
         }
         catch (Exception ex)
         {
@@ -61,7 +75,7 @@ internal sealed class FavoriteHotkeyForegroundNavigator
     /// intent is readable on its own; <paramref name="target"/> is guaranteed non-null for the
     /// <see cref="FavoriteHotkeyNavigationAction.NavigateInPlace"/> case by the decision itself.
     /// </summary>
-    private static void Execute(FavoriteHotkeyNavigationAction decision, string path, FavoriteHotkeyTarget? target)
+    private static void Execute(FavoriteHotkeyNavigationAction decision, string path, FavoriteHotkeyTarget? target, IntPtr foregroundWindow)
     {
         switch (decision)
         {
@@ -81,7 +95,7 @@ internal sealed class FavoriteHotkeyForegroundNavigator
                 // NotAFileManager. Deliberately nothing: the window in front is not a file manager or a
                 // file dialog this app supports, and opening a new window over the user's work is the
                 // wrong answer.
-                LogUnrecognizedForeground();
+                LogUnrecognizedForeground(foregroundWindow);
                 return;
         }
     }
@@ -89,13 +103,11 @@ internal sealed class FavoriteHotkeyForegroundNavigator
     /// <summary>
     /// Names the window that was in front when nothing matched, at Debug. Without the class and the
     /// process, "I pressed the hotkey and nothing happened" is unattributable from the log alone -- which
-    /// is exactly how the Save-As-dialog report presented itself.
+    /// is exactly how the Save-As-dialog report presented itself. The window is the one sampled at the
+    /// key press rather than re-read here, because by now the user may have moved on.
     /// </summary>
-    private static void LogUnrecognizedForeground()
-    {
-        var window = FavoriteHotkeyNavigation.GetForegroundWindow();
+    private static void LogUnrecognizedForeground(IntPtr window) =>
         Logger.Log($"[FavoriteHotkeys] Foreground window '{GetClassName(window)}' (process '{GetProcessName(window)}') is not a supported file manager or file dialog; ignoring.", LogLevel.Debug);
-    }
 
     /// <summary>
     /// Routes the navigation to whichever mechanism owns this kind of target. They really are two
