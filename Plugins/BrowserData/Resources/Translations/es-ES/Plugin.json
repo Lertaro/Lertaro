@@ -16,7 +16,7 @@
   "BrowserData_Config_IconDataLabel": "Icono (datos de ruta vectorial, opcional)",
   "BrowserData_Config_IconDataDesc": "Déjalo vacío para usar el icono predeterminado (distingue los marcadores del historial).",
   "BrowserData_Config_PathLabel": "Directorio de Perfil",
-  "BrowserData_Config_PathDesc": "La carpeta de perfil del navegador, por ejemplo \"...\\User Data\\Default\" para Chrome/Edge, o \"...\\Profiles\\xxxxxxxx.default-release\" para Firefox.",
+  "BrowserData_Config_PathDesc": "La carpeta de perfil del navegador, o la carpeta que contiene varias para indexar todos los perfiles a la vez: \"...\\User Data\" o \"...\\User Data\\Default\" en Chrome/Edge, \"...\\Firefox\\Profiles\" o uno de sus perfiles en Firefox.",
   "BrowserData_PluginDesc": "Complemento de acceso a datos del navegador. Busca y accede rápidamente al historial, los marcadores y otros datos de los navegadores más populares.",
   "Plugin_Comp_Desc_BrowserDataInstantProvider": "Realiza coincidencias difusas en tiempo real con el historial y los marcadores de los navegadores más populares (Chrome, Edge, Firefox) en el cuadro de búsqueda.",
   "Plugin_Comp_Desc_BrowserDataTranslationProvider": "Ofrece traducción de la interfaz y asignación de localización para el complemento de Datos del Navegador."

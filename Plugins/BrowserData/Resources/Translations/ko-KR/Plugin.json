@@ -16,7 +16,7 @@
   "BrowserData_Config_IconDataLabel": "아이콘 (벡터 경로 데이터, 선택 사항)",
   "BrowserData_Config_IconDataDesc": "비워두면 기본 아이콘을 사용합니다(북마크와 방문 기록을 구분).",
   "BrowserData_Config_PathLabel": "프로필 디렉터리",
-  "BrowserData_Config_PathDesc": "브라우저의 프로필 폴더입니다. 예: Chrome/Edge의 경우 \"...\\User Data\\Default\", Firefox의 경우 \"...\\Profiles\\xxxxxxxx.default-release\".",
+  "BrowserData_Config_PathDesc": "브라우저의 프로필 폴더, 또는 여러 프로필을 한 번에 색인화하려면 이들을 담은 상위 폴더를 지정합니다. 예: Chrome/Edge의 경우 \"...\\User Data\" 또는 \"...\\User Data\\Default\", Firefox의 경우 \"...\\Firefox\\Profiles\" 또는 그 안의 프로필 폴더 하나.",
   "BrowserData_PluginDesc": "브라우저 데이터 접근 플러그인입니다. 주요 브라우저의 방문 기록, 북마크 등의 데이터를 빠르게 검색하고 접근할 수 있습니다.",
   "Plugin_Comp_Desc_BrowserDataInstantProvider": "주요 브라우저(Chrome, Edge, Firefox)의 방문 기록과 북마크를 검색 상자에서 실시간으로 퍼지 매칭합니다.",
   "Plugin_Comp_Desc_BrowserDataTranslationProvider": "브라우저 데이터 플러그인에 UI 번역 및 지역화 매핑을 제공합니다."

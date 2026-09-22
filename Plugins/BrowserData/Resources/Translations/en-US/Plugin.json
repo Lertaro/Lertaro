@@ -16,7 +16,7 @@
   "BrowserData_Config_IconDataLabel": "Icon (vector path data, optional)",
   "BrowserData_Config_IconDataDesc": "Leave empty to use the default icon (distinguishes bookmarks from history).",
   "BrowserData_Config_PathLabel": "Profile Directory",
-  "BrowserData_Config_PathDesc": "The browser's profile folder, e.g. \"...\\User Data\\Default\" for Chrome/Edge, or \"...\\Profiles\\xxxxxxxx.default-release\" for Firefox.",
+  "BrowserData_Config_PathDesc": "The browser's profile folder. Point at the folder that holds several of them to index every profile at once, e.g. \"...\\User Data\" or \"...\\User Data\\Default\" for Chrome/Edge, and \"...\\Firefox\\Profiles\" or one profile inside it for Firefox.",
   "BrowserData_PluginDesc": "Browser data access plugin. Quickly search and access history, bookmarks, and other data from mainstream browsers.",
   "Plugin_Comp_Desc_BrowserDataInstantProvider": "Fuzzy-matches history and bookmarks from mainstream browsers (Chrome, Edge, Firefox) in the search box in real-time.",
   "Plugin_Comp_Desc_BrowserDataTranslationProvider": "Provides UI translation and localization mapping for the Browser Data plugin."

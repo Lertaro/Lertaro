@@ -42,6 +42,38 @@ public sealed class BrowserDataCacheTests
         insert.ExecuteNonQuery();
     }
 
+    private static void WritePlacesDb(string profileDir)
+    {
+        using var conn = new SqliteConnection($"Data Source={Path.Combine(profileDir, "places.sqlite")}");
+        conn.Open();
+        using var create = conn.CreateCommand();
+        create.CommandText = """
+            CREATE TABLE moz_places (id INTEGER PRIMARY KEY, url TEXT, title TEXT, last_visit_date INTEGER, hidden INTEGER);
+            CREATE TABLE moz_bookmarks (id INTEGER PRIMARY KEY, type INTEGER, fk INTEGER, title TEXT);
+            INSERT INTO moz_places (id, url, title, last_visit_date, hidden) VALUES (1, 'https://visited.com', 'Visited', 100, 0);
+            INSERT INTO moz_bookmarks (id, type, fk, title) VALUES (1, 1, 1, 'Example');
+            """;
+        create.ExecuteNonQuery();
+    }
+
+    private static string MakeSubDirectory(string parentDir, string name) =>
+        Directory.CreateDirectory(Path.Combine(parentDir, name)).FullName;
+
+    private static string MakeSubChromiumProfile(string parentDir, string name)
+    {
+        var dir = MakeSubDirectory(parentDir, name);
+        WriteBookmarksFile(dir);
+        WriteHistoryDb(dir);
+        return dir;
+    }
+
+    private static string MakeSubFirefoxProfile(string parentDir, string name)
+    {
+        var dir = MakeSubDirectory(parentDir, name);
+        WritePlacesDb(dir);
+        return dir;
+    }
+
     private static List<BrowserProfileConfig> ProfileConfig(string path) =>
         new() { new BrowserProfileConfig { Name = "Test", Path = path } };
 
@@ -148,5 +180,113 @@ public sealed class BrowserDataCacheTests
             ProfileConfig(dir.Path), new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc));
 
         Assert.IsTrue(changed);
+    }
+
+    [TestMethod]
+    public void LoadAll_ConfiguredFolderOfProfiles_LoadsEveryProfileItHolds()
+    {
+        using var dir = new TempDirectory();
+        MakeSubChromiumProfile(dir.Path, "Default");
+        MakeSubChromiumProfile(dir.Path, "Profile 1");
+        MakeSubDirectory(dir.Path, "Crashpad");
+
+        var result = BrowserDataCache.LoadAll(ProfileConfig(dir.Path), indexBookmarks: true, indexHistory: true);
+
+        Assert.HasCount(2, result);
+        CollectionAssert.AreEqual(
+            new[] { Path.Combine(dir.Path, "Default"), Path.Combine(dir.Path, "Profile 1") },
+            result.Select(entries => entries.Profile.Path).ToList());
+        Assert.HasCount(1, result[0].Bookmarks);
+        Assert.HasCount(1, result[1].Bookmarks);
+    }
+
+    [TestMethod]
+    public void LoadAll_FirefoxProfilesFolder_LoadsEveryProfileAndNamesItReadablely()
+    {
+        // A Firefox install names each profile folder after a random token, which is exactly why the
+        // shipped default points at the folder holding them rather than at one profile.
+        using var dir = new TempDirectory();
+        MakeSubFirefoxProfile(dir.Path, "abc12345.default-release");
+        MakeSubFirefoxProfile(dir.Path, "zyx98765.dev-edition-default");
+        var stub = MakeSubDirectory(dir.Path, "k7cm2jgl.profiles");
+        File.WriteAllText(Path.Combine(stub, "times.json"), "{}");
+
+        var result = BrowserDataCache.LoadAll(ProfileConfig(dir.Path), indexBookmarks: true, indexHistory: false);
+
+        Assert.HasCount(2, result);
+        Assert.AreEqual("Test · default-release", result[0].Profile.Name);
+        Assert.AreEqual("Test · dev-edition-default", result[1].Profile.Name);
+        Assert.HasCount(1, result[0].Bookmarks);
+        Assert.IsEmpty(result[0].History);
+    }
+
+    [TestMethod]
+    public void LoadAll_SingleProfileUnderAConfiguredFolder_KeepsTheConfiguredName()
+    {
+        using var dir = new TempDirectory();
+        MakeSubChromiumProfile(dir.Path, "Default");
+
+        var result = BrowserDataCache.LoadAll(ProfileConfig(dir.Path), indexBookmarks: true, indexHistory: false);
+
+        Assert.AreEqual("Test", result.Single().Profile.Name);
+    }
+
+    [TestMethod]
+    public void LoadAll_ConfiguredFolderKeepsItsOwnIconForEveryProfileInside()
+    {
+        using var dir = new TempDirectory();
+        MakeSubChromiumProfile(dir.Path, "Default");
+        MakeSubChromiumProfile(dir.Path, "Profile 1");
+
+        var result = BrowserDataCache.LoadAll(
+            new List<BrowserProfileConfig> { new() { Name = "Test", Icon = "M0 0h1v1z", Path = dir.Path } },
+            indexBookmarks: true, indexHistory: false);
+
+        Assert.AreEqual("M0 0h1v1z", result[0].Profile.Icon);
+        Assert.AreEqual("M0 0h1v1z", result[1].Profile.Icon);
+    }
+
+    [TestMethod]
+    public void LoadAll_FolderWithNoProfilesInIt_ReturnsNoProfiles()
+    {
+        using var dir = new TempDirectory();
+        MakeSubDirectory(dir.Path, "sub");
+
+        Assert.IsEmpty(BrowserDataCache.LoadAll(ProfileConfig(dir.Path), indexBookmarks: true, indexHistory: true));
+    }
+
+    [TestMethod]
+    public void HaveProfileFilesChanged_NewerFileInProfileUnderTheConfiguredFolder_ReturnsTrue()
+    {
+        using var dir = new TempDirectory();
+        var bookmarkPath = WriteDatedBookmarkInSubProfile(dir.Path, "Default", new DateTime(2025, 1, 3, 0, 0, 0, DateTimeKind.Utc));
+
+        var changed = BrowserDataCache.HaveProfileFilesChanged(
+            ProfileConfig(dir.Path), new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.IsTrue(changed);
+    }
+
+    [TestMethod]
+    public void HaveProfileFilesChanged_NothingNewerUnderTheConfiguredFolder_ReturnsFalse()
+    {
+        using var dir = new TempDirectory();
+        WriteDatedBookmarkInSubProfile(dir.Path, "Default", new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+
+        var changed = BrowserDataCache.HaveProfileFilesChanged(
+            ProfileConfig(dir.Path), new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.IsFalse(changed);
+    }
+
+    // A sub-profile holding just one dated Bookmarks file: writing the others too would leave them
+    // stamped "now", and the probe under test returns true on any single newer monitored file.
+    private static string WriteDatedBookmarkInSubProfile(string parentDir, string profileName, DateTime lastWriteUtc)
+    {
+        var profileDir = MakeSubDirectory(parentDir, profileName);
+        var bookmarkPath = Path.Combine(profileDir, "Bookmarks");
+        WriteBookmarksFile(profileDir);
+        File.SetLastWriteTimeUtc(bookmarkPath, lastWriteUtc);
+        return bookmarkPath;
     }
 }

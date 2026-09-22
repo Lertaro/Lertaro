@@ -16,7 +16,7 @@
   "BrowserData_Config_IconDataLabel": "圖示（向量路徑資料，可選）",
   "BrowserData_Config_IconDataDesc": "留空則使用預設圖示區分書籤與歷史記錄。",
   "BrowserData_Config_PathLabel": "使用者目錄路徑",
-  "BrowserData_Config_PathDesc": "瀏覽器的使用者資料目錄，例如 Chrome/Edge 的 \"...\\User Data\\Default\"，或 Firefox 的 \"...\\Profiles\\xxxxxxxx.default-release\"。",
+  "BrowserData_Config_PathDesc": "瀏覽器的使用者資料目錄；若要一次索引全部資料，也可填寫包含多個使用者資料的上層目錄。例如 Chrome/Edge 的 \"...\\User Data\" 或 \"...\\User Data\\Default\"，Firefox 的 \"...\\Firefox\\Profiles\" 或其中某一個使用者資料目錄。",
   "BrowserData_PluginDesc": "瀏覽器資料直達外掛。快速搜尋並存取主流瀏覽器的歷史記錄、書籤等資料。",
   "Plugin_Comp_Desc_BrowserDataInstantProvider": "實時在搜尋框中快速模糊匹配主流瀏覽器（如 Chrome、Edge、Firefox）的歷史記錄與書籤資料。",
   "Plugin_Comp_Desc_BrowserDataTranslationProvider": "為瀏覽器資料直達外掛提供介面語言翻譯與多語言本地化服務。"

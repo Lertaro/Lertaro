@@ -7,7 +7,7 @@ public class BrowserDataInstantProvider : IInstantResultProvider
 {
     // PluginLoader instantiates this once (via Activator.CreateInstance) as soon as it discovers
     // IInstantResultProvider while scanning Plugins/ at app startup -- kicking off the cache's
-    // background reload right here means the first real "bm <query>" of the session doesn't land on
+    // background reload right here means the first real "bb <query>" of the session doesn't land on
     // a still-empty snapshot. BrowserDataCache.Preload() reuses the same staleness-guarded reload path
     // GetSnapshot() already uses, so this is safe even if something ever constructs a second instance.
     public BrowserDataInstantProvider()

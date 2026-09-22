@@ -16,7 +16,7 @@
   "BrowserData_Config_IconDataLabel": "アイコン（ベクターパスデータ、任意）",
   "BrowserData_Config_IconDataDesc": "空欄にすると、ブックマークと履歴を区別する既定アイコンが使われます。",
   "BrowserData_Config_PathLabel": "プロファイルディレクトリ",
-  "BrowserData_Config_PathDesc": "ブラウザーのプロファイルフォルダー。例: Chrome/Edge なら \"...\\User Data\\Default\"、Firefox なら \"...\\Profiles\\xxxxxxxx.default-release\"。",
+  "BrowserData_Config_PathDesc": "ブラウザーのプロファイルフォルダー。複数のプロファイルを一度に索引化する場合はそれらを含む親フォルダーも指定できます。例: Chrome/Edge なら \"...\\User Data\" または \"...\\User Data\\Default\"、Firefox なら \"...\\Firefox\\Profiles\" またはその中の 1 つのプロファイル。",
   "BrowserData_PluginDesc": "ブラウザーデータアクセスプラグイン。主要ブラウザーの履歴、ブックマークなどのデータを素早く検索・アクセスできます。",
   "Plugin_Comp_Desc_BrowserDataInstantProvider": "主要ブラウザー（Chrome、Edge、Firefox）の履歴とブックマークを、検索ボックスでリアルタイムにあいまい検索します。",
   "Plugin_Comp_Desc_BrowserDataTranslationProvider": "ブラウザーデータプラグインの UI 翻訳とローカライズマッピングを提供します。"
