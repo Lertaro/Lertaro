@@ -137,6 +137,7 @@ internal static class PathSearchFuzzy
             Parallel.For(
                 0,
                 chunkCount,
+                new ParallelOptions { CancellationToken = token },
                 () => (Worker: SearchMatcher.RentWorker(), TopN: new FzfTopN(keep), Membership: directoryContext.FilterLower != null ? new Dictionary<int, bool>() : null),
                 (chunk, _, state) =>
                 {
