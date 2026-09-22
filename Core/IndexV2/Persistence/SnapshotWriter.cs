@@ -256,6 +256,10 @@ public static class SnapshotWriter
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.OrphanFrns, MemoryMarshal.AsBytes(CollectionsMarshal.AsSpan(orphanFrns)));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.UniqueAsciiBits, MemoryMarshal.AsBytes(asciiBits));
                 stream.SetLength(totalLength);
+                // Disposing the stream flushes to the OS cache, not to the platter, and the File.Replace
+                // that follows is a namespace operation that can reach the disk first -- a power loss
+                // then leaves the live path pointing at a zero-length or torn snapshot.
+                stream.Flush(flushToDisk: true);
             }
 
             FileRecordStoreReplaceHelper.ReplaceWithRetry(temp, path, SnapshotWriterOps.TryDelete);

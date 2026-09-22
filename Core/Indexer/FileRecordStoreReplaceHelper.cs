@@ -13,6 +13,12 @@ internal static class FileRecordStoreReplaceHelper
                 if (File.Exists(finalPath))
                 {
                     File.Replace(tempPath, finalPath, backupPath, ignoreMetadataErrors: true);
+                    // The previous snapshot is discarded here rather than kept as a second known-good
+                    // generation: LiveIndex.Compact has to release its mapping before this swap, and on
+                    // some Windows/filesystem combinations an orphaned .bak still held by this very
+                    // process made the delete that follows the rename fail -- see the comment there. The
+                    // residual hole is a snapshot torn by a power loss with nothing to fall back to, which
+                    // costs a full re-scan of the drive, not data.
                     tryDelete(backupPath);
                 }
                 else
