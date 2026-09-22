@@ -58,7 +58,9 @@ public class SearchEngine : IDisposable
 
         Logger.Log("[SearchEngine] Service has been idle for 3s. Trimming working set...", LogLevel.Debug);
         _indexer.ClearCaches();
-        GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+        // No compaction: the working-set trim below is what hands memory back to the OS, and compacting
+        // the large-object heap only lengthens the pause the next query pays.
+        GC.Collect(2, GCCollectionMode.Forced, blocking: true);
         Win32Api.TrimWorkingSet();
     }
 
@@ -269,6 +271,15 @@ public class SearchEngine : IDisposable
         Task.Run(async () =>
         {
             await Task.Delay(150);
+            // Re-checked after the wait, which is the reason for the wait: compaction walks the same
+            // structures an arriving query is reading, so doing it under a running search is a pause
+            // with nothing to show for it.
+            // ponytail: this is still a check-then-act, so a query can start one instruction after it
+            // passes. The upgrade path is a lease -- compact only while no search holds the index read
+            // lock -- which LiveIndex does not offer this caller today.
+            if (_idleTrim.HasSearchInFlight || _isRebuilding)
+                return;
+
             _indexer.CompactMemory();
         });
     }

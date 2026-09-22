@@ -71,6 +71,16 @@ internal sealed class IdleTrimGate
     }
 
     /// <summary>
+    /// Whether a search is running right now, without touching the arming. A caller that deferred work
+    /// behind a delay uses this to re-check when the delay ends, since <see cref="ShouldTrim"/> would
+    /// either consume the one-shot arm or answer for the idle window rather than for "is it safe now".
+    /// </summary>
+    public bool HasSearchInFlight
+    {
+        get { lock (_armLock) return _inFlight > 0; }
+    }
+
+    /// <summary>
     /// Whether to reclaim now. Returns true at most once per burst of activity, and never while a search
     /// is in flight.
     /// </summary>

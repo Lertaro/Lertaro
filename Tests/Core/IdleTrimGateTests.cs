@@ -104,4 +104,24 @@ public sealed class IdleTrimGateTests
         gate.SearchStarted(3000);
         Assert.IsFalse(gate.ShouldTrim(4000), "the trim must not land on top of the new search");
     }
+
+    [TestMethod]
+    public void HasSearchInFlight_FollowsTheSearchesWithoutTouchingTheArming()
+    {
+        var gate = At();
+        Assert.IsFalse(gate.HasSearchInFlight);
+
+        gate.SearchStarted(0);
+        gate.SearchStarted(200);
+        Assert.IsTrue(gate.HasSearchInFlight);
+
+        gate.SearchFinished(400);
+        Assert.IsTrue(gate.HasSearchInFlight, "one of the two overlapping searches is still running");
+
+        gate.SearchFinished(600);
+        Assert.IsFalse(gate.HasSearchInFlight);
+
+        // The property is read while waiting out a delay, so it must not be what spends the one-shot arm.
+        Assert.IsTrue(gate.ShouldTrim(5000));
+    }
 }
