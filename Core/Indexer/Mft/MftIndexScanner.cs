@@ -68,7 +68,13 @@ internal static class MftIndexScanner
         }
 
         var store = IndexCacheManager.CreateEmptyStore(drive, rootFrn, nextUsn, journalId);
-        store.Records.EnsureCapacity(2_800_000);
+        // Sized from the volume's own MFT length rather than a fixed guess: the constant committed a
+        // ~180 MB large-object-heap array (2.8M x ~64-byte FileRecord) for every NTFS drive before a single
+        // record had been read -- including a 32 GB stick holding 50k files -- and IndexBuilder builds the
+        // drives in parallel with no degree cap, so the peaks added up. Deleted names are filtered later and
+        // hard links add rows, so this is an estimate; List's own growth absorbs the error, and the old
+        // constant survives as the ceiling.
+        store.Records.EnsureCapacity((int)Math.Clamp(mftValidLen / Math.Max(1u, recordSize), 0, 2_800_000));
         var namePool = new FileRecordNamePool();
         var records = store.Records;
         var baseMetadata = new Dictionary<ulong, MftMetadata>();
