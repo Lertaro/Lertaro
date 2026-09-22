@@ -200,6 +200,11 @@ public sealed class HookCommandHandler
                 case IpcMessageId.InlineSearchFinished:
                     InlineAdapterCommandHandler.Handle(_process, msg);
                     break;
+                case IpcMessageId.ClearHookLog:
+                    // Own process, own handle, so this is the only place hook.log can be truncated. What
+                    // the App learns is that the write arrived; a failed truncation stays in this log.
+                    Logger.ClearCurrentLog();
+                    break;
                 case IpcMessageId.KillProcess:
                     {
                         var pid = (int)msg.ProcessId;

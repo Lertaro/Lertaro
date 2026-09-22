@@ -262,7 +262,11 @@ public static class Logger
     /// directory the service runs with elevated/system rights over, which the App process cannot
     /// write to directly, so clearing it must be requested of the owning process via IPC instead.
     /// </summary>
-    public static void ClearCurrentLog()
+    /// <returns>
+    /// <c>false</c> when the file is still there with its old content, so a caller can say so rather
+    /// than report a clear that never happened.
+    /// </returns>
+    public static bool ClearCurrentLog()
     {
         lock (LogLock)
         {
@@ -273,10 +277,14 @@ public static class Logger
                 OpenWriter(append: false).Write($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Log cleared\n");
                 _lastMessage = null;
                 _repeatsSinceFirst = 0;
+                return true;
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore
+                // The next line still takes the writer's own swallow-and-continue path, so this is the
+                // only record a failed clear leaves. Log is reentrant on LogLock.
+                Log($"[Logger] Clearing the log failed: {ex.Message}", LogLevel.Warn);
+                return false;
             }
         }
     }

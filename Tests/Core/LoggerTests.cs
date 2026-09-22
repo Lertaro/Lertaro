@@ -103,6 +103,37 @@ public sealed class LoggerTests
         Assert.IsEmpty(lines.Where(l => l.Contains("(repeated x", StringComparison.Ordinal)).ToList());
     }
 
+    // The App's log page reports a clear to the user, so it needs to know whether one happened -- the
+    // Service/Hook tabs ask their owning process over IPC and take this return value as the answer.
+    [TestMethod]
+    public void ClearCurrentLog_ReturnsTrueAndLeavesOnlyTheBanner()
+    {
+        Logger.Log("before the clear", LogLevel.Warn);
+
+        Assert.IsTrue(Logger.ClearCurrentLog());
+
+        var lines = Lines();
+        Assert.HasCount(1, lines);
+        Assert.Contains("Log cleared", lines[0]);
+    }
+
+    [TestMethod]
+    public void ClearCurrentLog_ReturnsFalseWhenTheLogFileCannotBeReopened()
+    {
+        // Recreating the writer is what a clear does, and a read-only file refuses FileMode.Create -- the
+        // same class of failure the old swallow-on-failure body hid.
+        File.SetAttributes(_logPath, FileAttributes.ReadOnly);
+        try
+        {
+            Assert.IsFalse(Logger.ClearCurrentLog());
+            Assert.DoesNotContain("Log cleared", string.Join('\n', Lines()));
+        }
+        finally
+        {
+            File.SetAttributes(_logPath, FileAttributes.Normal);
+        }
+    }
+
     [TestMethod]
     public void Initialize_Overwrite_StartsFreshLog()
     {

@@ -258,6 +258,7 @@
   "Service_ActionStop": "Stop Service",
   "Service_LogTitle": "Logs",
   "Service_ClearLog": "Clear Logs",
+  "Service_ClearLogFailed": "The log could not be cleared. The process writing it still holds it open.",
   "Service_LogTab_Service": "Service",
   "Service_LogTab_App": "Main App",
   "Service_LogTab_Hook": "Hook",

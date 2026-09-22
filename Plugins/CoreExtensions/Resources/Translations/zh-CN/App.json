@@ -258,6 +258,7 @@
   "Service_ActionStop": "停止服务",
   "Service_LogTitle": "运行日志",
   "Service_ClearLog": "清空日志",
+  "Service_ClearLogFailed": "无法清空日志：写入该日志的程序仍占用着它。",
   "Service_LogTab_Service": "服务",
   "Service_LogTab_App": "主程序",
   "Service_LogTab_Hook": "钩子",

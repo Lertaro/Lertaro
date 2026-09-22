@@ -258,6 +258,7 @@
   "Service_ActionStop": "Detener Servicio",
   "Service_LogTitle": "Registros",
   "Service_ClearLog": "Borrar Registros",
+  "Service_ClearLogFailed": "No se pudo borrar el registro. La aplicación que lo escribe lo sigue teniendo abierto.",
   "Service_LogTab_Service": "Servicio",
   "Service_LogTab_App": "Aplicación Principal",
   "Service_LogTab_Hook": "Hook",

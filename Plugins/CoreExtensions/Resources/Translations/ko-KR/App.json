@@ -258,6 +258,7 @@
   "Service_ActionStop": "서비스 중지",
   "Service_LogTitle": "로그",
   "Service_ClearLog": "로그 지우기",
+  "Service_ClearLogFailed": "로그를 지울 수 없습니다. 로그를 쓰는 프로세스가 계속 점유하고 있습니다.",
   "Service_LogTab_Service": "서비스",
   "Service_LogTab_App": "메인 앱",
   "Service_LogTab_Hook": "후크",

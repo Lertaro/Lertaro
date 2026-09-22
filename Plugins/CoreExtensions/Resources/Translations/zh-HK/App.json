@@ -258,6 +258,7 @@
   "Service_ActionStop": "停止服務",
   "Service_LogTitle": "執行記錄",
   "Service_ClearLog": "清空記錄",
+  "Service_ClearLogFailed": "無法清空記錄：寫入該記錄的程序仍佔用著它。",
   "Service_LogTab_Service": "服務",
   "Service_LogTab_App": "主程式",
   "Service_LogTab_Hook": "攔截程式",

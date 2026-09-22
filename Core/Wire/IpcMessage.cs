@@ -64,7 +64,13 @@ public enum IpcMessageId : byte
     // Hook -> App: Ctrl+K was pressed while the inline window was on screen over a file dialog. Carries
     // nothing; the App focuses that window's own search box (see
     // KeyboardHookServiceInlineSearchExtensions.HandFocusToInlineSearch for the gate).
-    FocusInlineSearch = 45
+    FocusInlineSearch = 45,
+
+    // App -> Hook: truncate hook.log. The Hook holds that file's only write handle for its whole process
+    // lifetime (see Logger), and it usually runs elevated, so the App can neither reopen nor delete the
+    // file -- it has to ask. Carries nothing, and like every other command here is only reachable by the
+    // App the hook actually launched (see HookPipePeer).
+    ClearHookLog = 46
 }
 
 public struct IpcMessage

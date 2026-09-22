@@ -1,14 +1,17 @@
 using System.IO;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.Core;
+using Lertaro.Core.Wire;
 
 using Lertaro.Core.Services.Search;
 
 using Lertaro.Core.SearchIndex;
 using Lertaro.App.ViewModels.Settings.General;
+using MessageBox = Lertaro.App.Views.Controls.Dialogs.CustomMessageBox;
 namespace Lertaro.App.ViewModels.Settings;
 
 // A single rendered log line, colored by its level for the log-view tabs on the Service Status page.
@@ -45,6 +48,20 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
         set
         {
             if (SetProperty(ref _isServiceReady, value))
+                CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    private bool _isHookReady;
+    // Whether the hook process the App launched is reachable right now. Read from the same poll tick that
+    // re-reads the log files, because HookIpcClient reconnects on its own timer and this page has no
+    // connection events to subscribe to.
+    public bool IsHookReady
+    {
+        get => _isHookReady;
+        set
+        {
+            if (SetProperty(ref _isHookReady, value))
                 CommandManager.InvalidateRequerySuggested();
         }
     }
@@ -91,9 +108,16 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
     private ICommand? _clearCommand;
     public ICommand ClearCommand => _clearCommand ??= new RelayCommand(() => _ = ClearAsync(), CanClear);
 
-    // Clearing the Service tab needs a live pipe round trip to the service process -- disable the
-    // button rather than let the user fire a clear that can only silently fail while it's unreachable.
-    private bool CanClear() => SelectedTab != "Service" || IsServiceReady;
+    // Each log file belongs to the process that writes it, and only that process can truncate it while it
+    // holds the file open (see Logger). Service and hook are therefore reached over their respective
+    // channels, and the button is disabled rather than left to fire a clear that can only fail -- which is
+    // also why ClearAsync reports a failure instead of hiding one.
+    private bool CanClear() => SelectedTab switch
+    {
+        "Service" => IsServiceReady,
+        "Hook" => IsHookReady,
+        _ => true,
+    };
 
     public ObservableRangeCollection<LogLineViewModel> Lines { get; } = new();
 
@@ -110,8 +134,13 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
         ];
 
         Load(force: true);
+        IsHookReady = App.HookClient?.IsConnected ?? false;
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-        _refreshTimer.Tick += (s, e) => Load(force: false);
+        _refreshTimer.Tick += (s, e) =>
+        {
+            IsHookReady = App.HookClient?.IsConnected ?? false;
+            Load(force: false);
+        };
         _refreshTimer.Start();
 
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;
@@ -187,27 +216,43 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
 
     private async Task ClearAsync()
     {
+        if (!await TryClearOwnedBySelectedTabAsync())
+        {
+            MessageBox.Show(TranslationManager.Instance["Service_ClearLogFailed"],
+                TranslationManager.Instance["Service_Error"], MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        // Reloaded rather than emptied: the list then shows what the file really holds, so a clear that
+        // did not happen leaves the rows on screen instead of pretending it did. A successful one shows the
+        // owner's own "Log cleared" banner.
+        _lastLoadedWriteTimes.Remove(SelectedTab);
+        Load(force: true);
+    }
+
+    // A log file can only be truncated by the process holding its write handle, so each tab asks its own
+    // owner: this process, the hook, or the service. The reason for a failure is already in the owner's log
+    // (Logger, HookIpcClient and the pipe layer each log their own), so only an unexpected throw -- this
+    // view's own bug -- has anything left to report here.
+    private async Task<bool> TryClearOwnedBySelectedTabAsync()
+    {
         try
         {
-            if (SelectedTab == "Service")
+            switch (SelectedTab)
             {
-                // service.log lives under the service's own (elevated/system) data directory -- the App
-                // process has no permission to truncate it directly, so ask the service to do it instead.
-                await _searchService.ClearServiceLogAsync();
+                case "Service":
+                    return await _searchService.ClearServiceLogAsync();
+                case "Hook":
+                    var hook = App.HookClient;
+                    return hook != null
+                        && await hook.TrySendMessageAsync(new IpcMessage { Id = IpcMessageId.ClearHookLog });
+                default:
+                    return Logger.ClearCurrentLog();
             }
-            else
-            {
-                var path = CurrentLogPath;
-                if (File.Exists(path))
-                    File.WriteAllText(path, string.Empty);
-            }
-
-            _allLines = new List<LogLineViewModel>();
-            ApplyFilter();
-            _lastLoadedWriteTimes.Remove(SelectedTab);
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.Log($"[ServiceLog] Clearing the {SelectedTab} log threw: {ex.Message}", LogLevel.Warn);
+            return false;
         }
     }
 

@@ -258,6 +258,7 @@
   "Service_ActionStop": "サービスを停止",
   "Service_LogTitle": "ログ",
   "Service_ClearLog": "ログをクリア",
+  "Service_ClearLogFailed": "ログをクリアできませんでした。ログを書き込んでいるプロセスが引き続きファイルを占有しています。",
   "Service_LogTab_Service": "サービス",
   "Service_LogTab_App": "メインアプリ",
   "Service_LogTab_Hook": "フック",

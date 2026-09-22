@@ -97,8 +97,10 @@ internal static class UsnServicePipeRequestProcessor
                     return new PipeResponse { Kind = PipeResponseKind.SpaceEntries, SpaceEntries = spaceEntries };
 
                 case SearchRequestId.ClearServiceLog:
-                    Logger.ClearCurrentLog();
-                    return new PipeResponse { Kind = PipeResponseKind.Ok };
+                    // Reported, not assumed: the App's log page says "cleared" only when this did it.
+                    return Logger.ClearCurrentLog()
+                        ? new PipeResponse { Kind = PipeResponseKind.Ok }
+                        : new PipeResponse { Kind = PipeResponseKind.Error, Message = "The service could not truncate its own log file" };
 
                 case SearchRequestId.ClearPathCaches:
                     engine?.ClearPathCaches();

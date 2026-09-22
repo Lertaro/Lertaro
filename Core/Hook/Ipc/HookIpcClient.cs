@@ -86,6 +86,14 @@ public sealed class HookIpcClient : IDisposable
     public void SendMessage(IpcMessage msg) => _ = SendMessageAsync(msg);
 
     /// <summary>
+    /// Sends a command and reports whether the write actually reached the hook. That is all either side can
+    /// know of a fire-and-forget command -- there is no reply channel -- but it is enough to tell "the hook
+    /// was told" from "the command never left this process", which is the difference a user-facing action
+    /// needs before it claims success.
+    /// </summary>
+    public Task<bool> TrySendMessageAsync(IpcMessage msg) => SendMessageAsync(msg);
+
+    /// <summary>
     /// Commands that leave a state the hook keeps applying until it is told otherwise. Losing one is not
     /// "a dropped write": the hook carries the previous value, and for the inline-visibility flags that
     /// value is what stops Escape, Backspace and the arrows reaching the foreground application. They are
@@ -103,15 +111,16 @@ public sealed class HookIpcClient : IDisposable
 
     private readonly Dictionary<IpcMessageId, IpcMessage> _pendingState = new();
 
-    private async Task SendMessageAsync(IpcMessage msg)
+    private async Task<bool> SendMessageAsync(IpcMessage msg)
     {
+        // False until a write is confirmed, so a pipe that died mid-write still reports not sent.
+        var sent = false;
         try
         {
             await _writeGate.WaitAsync().ConfigureAwait(false);
 
             try
             {
-                var sent = false;
                 if (_cmdPipe is { IsConnected: true } cmdPipe)
                 {
                     await PipeRequestBinarySerializer.WriteMessageAsync(cmdPipe, msg).ConfigureAwait(false);
@@ -140,6 +149,8 @@ public sealed class HookIpcClient : IDisposable
         {
             Logger.Log($"[HookIpcClient] Failed to send IPC message {msg.Id}: {ex.Message}", LogLevel.Warn);
         }
+
+        return sent;
     }
 
     /// <summary>
