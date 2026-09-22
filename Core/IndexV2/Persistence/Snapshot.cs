@@ -68,6 +68,8 @@ public sealed unsafe class Snapshot : IDisposable
             // open, while the actual file size is still at hand.
             if (stream.Length < totalLength)
                 throw new InvalidDataException($"Snapshot file is truncated: header requires {totalLength} bytes but the file holds only {stream.Length}.");
+
+            ValidateNameOffsets();
         }
         catch
         {
@@ -77,6 +79,29 @@ public sealed unsafe class Snapshot : IDisposable
     }
 
     private byte* Section(SnapshotSection section) => _base + _offsets[(int)section];
+
+    /// <summary>
+    /// The name-offset column is used as raw pointers into the blob: <c>offsets[uid + 1] - offsets[uid]</c>
+    /// is unsigned arithmetic, so a non-monotonic pair wraps and the int cast can hand back a large
+    /// positive length -- a span over the mapping whose first read past the end is an access violation,
+    /// which no catch and no log turns into anything. Magic, version and file length were the only checks
+    /// before, so a same-length corruption of this column passed them. Validated once here rather than
+    /// per name lookup, so queries keep paying nothing.
+    /// </summary>
+    private void ValidateNameOffsets()
+    {
+        var offsets = NameOffsets;
+        var blobLength = Meta.NameBlobLength;
+        if (offsets[0] != 0)
+            throw new InvalidDataException($"Snapshot {SourceKey}: the name offset column does not start at 0.");
+
+        for (var i = 1; i < offsets.Length; i++)
+        {
+            if (offsets[i] < offsets[i - 1] || offsets[i] > blobLength)
+                throw new InvalidDataException(
+                    $"Snapshot {SourceKey}: name offset {i} ({offsets[i]}) is out of order or past the {blobLength}-byte name blob.");
+        }
+    }
 
     // Hot sections -- what name matching touches.
     public ReadOnlySpan<uint> NameIds => new(Section(SnapshotSection.NameIds), Count);

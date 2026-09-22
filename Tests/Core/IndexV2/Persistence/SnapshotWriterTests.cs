@@ -93,9 +93,31 @@ public sealed class SnapshotWriterTests
         Assert.ThrowsExactly<InvalidDataException>(() => Snapshot.Open(path));
     }
 
+    // Regression (CS-07): a name's length is the difference of two consecutive unsigned offsets, so one
+    // non-monotonic entry wraps to a huge positive number and the read past the end of the mapping is an
+    // access violation -- not an exception the service can catch or log. Magic, version and file length
+    // were the only checks, and a same-length corruption of this column passes all three.
     [TestMethod]
-    public void ComputeSectionOffsets_NegativeMetadata_ThrowsInvalidDataException()
+    public void Open_CorruptedNameOffsetColumn_ThrowsInvalidDataException()
     {
+        using var dir = new TempDirectory();
+        var path = Path.Combine(dir.Path, "corrupt-offsets.idx");
+        SnapshotWriter.Write(BuildStore(fileCount: 4), path);
+
+        var meta = SnapshotFormat.TryReadHeaderFromFile(path);
+        Assert.IsNotNull(meta);
+        var nameOffsetsAt = SnapshotFormat.ComputeSectionOffsets(meta, out _)[(int)SnapshotSection.NameOffsets];
+        using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write))
+        {
+            stream.Position = nameOffsetsAt + sizeof(uint); // the second entry; the first stays at 0
+            stream.Write(BitConverter.GetBytes(uint.MaxValue));
+        }
+
+        Assert.ThrowsExactly<InvalidDataException>(() => Snapshot.Open(path));
+    }
+
+    [TestMethod]
+    public void ComputeSectionOffsets_NegativeMetadata_ThrowsInvalidDataException()    {
         var meta = new SnapshotFormat.Meta { SectionsOffset = 0, RowCount = -1 };
 
         Assert.ThrowsExactly<InvalidDataException>(() => SnapshotFormat.ComputeSectionOffsets(meta, out _));
