@@ -8,8 +8,18 @@ namespace Lertaro.Core.IndexV2.Delta;
 // is unambiguous.
 internal static class DeltaCascade
 {
-    internal static void Tombstone(DeltaOverlay delta, int baseRow)
+    private const int MaxDepth = 512;
+
+    internal static void Tombstone(DeltaOverlay delta, int baseRow, int depth = 0)
     {
+        // The same backstop every other walk in this module uses against a parent cycle in the data
+        // (Snapshot.GetFullPath, DeltaPathBuilder.GetFullPath, PathGate.Verify, LiveSpaceQuery). The
+        // cycles here do terminate on their own -- record.Removed and DeletedBase are set before
+        // recursing -- so what this bounds is stack depth on a legitimately deep tree, which a
+        // long-path Windows directory can exceed.
+        if (depth >= MaxDepth)
+            return;
+
         // A row's true "current" flags are its override's if present, else the base snapshot's --
         // read BEFORE removing the override entry below, matching whatever visibility state made this
         // row countable in the first place (an already-superseded/renamed-away row was already
@@ -34,27 +44,27 @@ internal static class DeltaCascade
                 continue;
             if (delta.BaseOverrides.TryGetValue(child, out var moved) && moved.ParentBaseRow != baseRow)
                 continue; // moved out from under this directory
-            Tombstone(delta, child);
+            Tombstone(delta, child, depth + 1);
         }
         foreach (var (row, record) in delta.BaseOverrides.ToList())
         {
             if (record.ParentBaseRow == baseRow && !delta.DeletedBase.Contains(row))
-                Tombstone(delta, row); // moved INTO this directory from elsewhere
+                Tombstone(delta, row, depth + 1); // moved INTO this directory from elsewhere
         }
         var dirFrn = delta.Snapshot.Ids[baseRow];
         foreach (var record in delta.Added)
         {
             if (!record.Removed && (record.ParentBaseRow == baseRow || record.ParentFrn == dirFrn))
-                RemoveAdded(delta, record);
+                RemoveAdded(delta, record, depth + 1);
         }
     }
 
     // Removing an ADDED directory record (e.g. the healed new-name row of a renamed directory) must
     // cascade like the old engine's CascadeDeleteChildren on the appended row: the re-parented base
     // children (reachable through the renamed-away forwarding) and any delta rows parented to it.
-    internal static void RemoveAdded(DeltaOverlay delta, DeltaOverlay.DeltaRecord record)
+    internal static void RemoveAdded(DeltaOverlay delta, DeltaOverlay.DeltaRecord record, int depth = 0)
     {
-        if (record.Removed)
+        if (record.Removed || depth >= MaxDepth)
             return;
         record.Removed = true;
         delta.CountRemoved((record.Flags & (ushort)FileRecordFlags.Directory) != 0);
@@ -71,18 +81,18 @@ internal static class DeltaCascade
                     continue;
                 if (delta.BaseOverrides.TryGetValue(child, out var moved) && moved.ParentBaseRow != oldRow)
                     continue;
-                Tombstone(delta, child);
+                Tombstone(delta, child, depth + 1);
             }
             foreach (var (row, movedIn) in delta.BaseOverrides.ToList())
             {
                 if (movedIn.ParentBaseRow == oldRow && !delta.DeletedBase.Contains(row))
-                    Tombstone(delta, row);
+                    Tombstone(delta, row, depth + 1);
             }
         }
         foreach (var other in delta.Added)
         {
             if (!other.Removed && !ReferenceEquals(other, record) && other.ParentFrn == record.Id)
-                RemoveAdded(delta, other);
+                RemoveAdded(delta, other, depth + 1);
         }
     }
 }
