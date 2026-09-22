@@ -138,6 +138,9 @@ public sealed class LocalSendSendViewModel : ViewModelBase, IDisposable
         if (selectedDevices == null || selectedDevices.Count == 0) return;
         IsSending = true;
         TransferStage = LocalSendTransferStage.Transferring;
+        // The window stays open after a transfer, so without this every batch in the session leaked its
+        // source (and the kernel event it allocates lazily) until the view-model was disposed.
+        _cts?.Dispose();
         _cts = new CancellationTokenSource();
         var allSuccess = true;
         for (var dIdx = 0; dIdx < selectedDevices.Count; dIdx++)
