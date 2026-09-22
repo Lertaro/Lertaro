@@ -182,10 +182,18 @@ public sealed class EverythingIpcServer : IDisposable
 
         // _stopRequested checked so a Stop() that ran while the window was still being created
         // exits immediately instead of settling into a message loop nobody will ever post to.
-        while (!_stopRequested && GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
+        //
+        // Skipped entirely with no window: Stop() breaks the loop by posting to _hwnd, so parking in
+        // GetMessage after a failed CreateWindowEx meant Join(1500) always timed out and the thread
+        // stayed blocked for the life of the process -- one stranded thread per Start/Stop cycle after
+        // that, with only the creation warning to show for it.
+        if (_hwnd != IntPtr.Zero)
         {
-            TranslateMessage(ref msg);
-            DispatchMessage(ref msg);
+            while (!_stopRequested && GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
+            {
+                TranslateMessage(ref msg);
+                DispatchMessage(ref msg);
+            }
         }
 
         if (_hwnd != IntPtr.Zero)
