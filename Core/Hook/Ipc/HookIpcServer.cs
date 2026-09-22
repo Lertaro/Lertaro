@@ -33,6 +33,14 @@ public sealed class HookIpcServer : IDisposable
     public event Action? OnConnected;
 
     /// <summary>
+    /// Raised when a connection that had been established goes away (the App crashed, was killed, or its
+    /// pipe broke). The commands that gate key suppression only ever arrive over the pipe, so whoever
+    /// holds those flags has to be told the link is down -- otherwise a hook that outlives its App keeps
+    /// swallowing Escape and the arrows in every application for the rest of the session.
+    /// </summary>
+    public event Action? OnDisconnected;
+
+    /// <summary>
     /// The event queue's ceiling. SendMessage is called for every keystroke, mouse click and captured
     /// path, and the only reader runs while an App is connected -- so with no App connected (every App
     /// restart window, and the state a crashed App leaves the hook in) an unbounded queue retained each
@@ -210,6 +218,10 @@ public sealed class HookIpcServer : IDisposable
 
             finally
             {
+                // Set before the pipes go away: this is the "the App is gone, not just quiet" edge, and
+                // the flags that gate key suppression are only ever cleared by commands over the pipe.
+                var wasConnected = _eventPipe != null || _cmdPipe != null;
+
                 try { _eventPipe?.Dispose(); } catch { }
 
                 _eventPipe = null;
@@ -217,6 +229,11 @@ public sealed class HookIpcServer : IDisposable
                 try { _cmdPipe?.Dispose(); } catch { }
 
                 _cmdPipe = null;
+
+                if (wasConnected)
+                {
+                    try { OnDisconnected?.Invoke(); } catch (Exception ex) { Logger.Log($"[HookIpcServer] Disconnect handler threw: {ex.Message}", LogLevel.Warn); }
+                }
             }
         }
 

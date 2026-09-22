@@ -53,6 +53,7 @@ public sealed class HookProcess : IDisposable
     // hook still installed.
     private volatile bool _stopRequested;
     private uint _appProcessId;
+    private int _watchedAppPid;
     private bool _isHotkeysDisabledTemporarily;
 
     internal KeyboardHookService? KeyboardHook => _keyboardHook;
@@ -120,7 +121,61 @@ public sealed class HookProcess : IDisposable
     internal uint AppProcessId
     {
         get => _appProcessId;
-        set => _appProcessId = value;
+        set
+        {
+            _appProcessId = value;
+            WatchAppLiveness(value);
+        }
+    }
+
+    /// <summary>
+    /// Whether the hook should shut itself down because the App it was launched for is gone: the watched
+    /// pid must still be the App the hook believes it serves (the App can restart and register a new one,
+    /// and a stale watch on the old pid must not stop the hook under the new one), and a pid of 0 means no
+    /// App ever registered -- which is the state a hook started by the service sits in before the App
+    /// connects, and must not self-stop.
+    /// </summary>
+    internal static bool ShouldSelfStop(uint watchedPid, uint currentAppPid, bool appIsGone) =>
+        watchedPid != 0 && watchedPid == currentAppPid && appIsGone;
+
+    /// <summary>
+    /// Nothing else watched the App. The only other shutdown signal is a Stop *message*, which a crashed
+    /// App by definition never sends, and the App's own Kill() of this process died with it -- so a crash
+    /// left an elevated hook with system-wide keyboard and mouse hooks installed for the rest of the
+    /// logon session, still swallowing the keys its inline-window flags gate.
+    /// </summary>
+    private void WatchAppLiveness(uint pid)
+    {
+        if (pid == 0 || Volatile.Read(ref _watchedAppPid) == (int)pid)
+            return;
+
+        Volatile.Write(ref _watchedAppPid, (int)pid);
+        _ = Task.Run(async () =>
+        {
+            var gone = true;
+            try
+            {
+                using var app = System.Diagnostics.Process.GetProcessById((int)pid);
+                await app.WaitForExitAsync().ConfigureAwait(false);
+            }
+            catch (ArgumentException)
+            {
+                // The pid is already gone by the time the watch starts -- the same answer as exiting.
+            }
+            catch (Exception ex)
+            {
+                // Cannot tell whether the App is alive: leave the hook running, which is what happened
+                // unconditionally before, rather than stopping a working hook on a lookup fault.
+                Logger.Log($"[HookProcess] App liveness watch on pid {pid} failed: {ex.Message}", LogLevel.Warn);
+                gone = false;
+            }
+
+            if (!ShouldSelfStop(pid, _appProcessId, gone))
+                return;
+
+            Logger.Log($"[HookProcess] App pid {pid} is gone; stopping the hook instead of outliving it.", LogLevel.Info);
+            Stop();
+        });
     }
 
     internal bool IsHotkeysDisabledTemporarily
@@ -154,6 +209,20 @@ public sealed class HookProcess : IDisposable
             // round-trips through this pipe cannot get its reply from a pump that is not running yet, so
             // doing it inline spent its full timeout here while the hook answered nothing at all.
             _commandHandler.PublishOpenedFoldersOffThread();
+        };
+        _ipcServer.OnDisconnected += () =>
+        {
+            // Whatever the window state was, the window it described is no longer answering: these flags
+            // are what the hook uses to decide which keystrokes to swallow, and only the App clears them.
+            // A crash with the inline window open used to leave the hook suppressing Escape and the arrows
+            // in every application on the desktop.
+            if (_keyboardHook == null)
+                return;
+
+            _keyboardHook.IsInlineSearchVisible = false;
+            _keyboardHook.IsInlineWindowOnScreen = false;
+            _keyboardHook.IsQuickSearchWindowVisible = false;
+            Logger.Log("[HookProcess] App link dropped; inline and quick-window suppression flags cleared.", LogLevel.Debug);
         };
     }
 
