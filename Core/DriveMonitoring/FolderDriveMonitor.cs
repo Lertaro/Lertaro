@@ -2,6 +2,8 @@ namespace Lertaro.Core.DriveMonitoring;
 
 internal sealed class FolderDriveMonitor : IDisposable
 {
+    private const int DebounceMilliseconds = 250;
+
     private readonly record struct PendingChange(WatcherChangeTypes ChangeType, string Path, string? OldPath);
 
     private readonly string _drive;
@@ -59,8 +61,16 @@ internal sealed class FolderDriveMonitor : IDisposable
             if (_disposed)
                 return;
             _pending.Add(new PendingChange(changeType, path, oldPath));
-            _debounce?.Dispose();
-            _debounce = new Timer(_ => FlushPending(), null, TimeSpan.FromMilliseconds(250), Timeout.InfiniteTimeSpan);
+
+            // One timer, re-armed, instead of disposing and rebuilding it per event: a raw
+            // FileSystemWatcher event arrived on this path thousands of times a second during the large
+            // copies this monitor exists for (it drives the FAT32/exFAT volumes with no USN journal), and
+            // each one allocated a Timer and a finalizer registration only to throw it away 250 ms later.
+            // The ceiling that remains -- _pending itself, which still grows with the number of distinct
+            // events until the drive goes quiet -- is IDX-01: bounding it needs a per-directory re-scan the
+            // delta applier has no entry point for yet.
+            _debounce ??= new Timer(_ => FlushPending(), null, DebounceMilliseconds, Timeout.Infinite);
+            _debounce.Change(DebounceMilliseconds, Timeout.Infinite);
         }
     }
 
@@ -74,8 +84,6 @@ internal sealed class FolderDriveMonitor : IDisposable
 
             batch = _pending.ToArray();
             _pending.Clear();
-            _debounce?.Dispose();
-            _debounce = null;
         }
 
         foreach (var item in batch)
