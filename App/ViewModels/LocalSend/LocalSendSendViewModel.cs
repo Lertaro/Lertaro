@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.Core.Services.LocalSend;
@@ -14,6 +15,8 @@ public sealed class LocalSendSendViewModel : ViewModelBase, IDisposable
     private int _currentStep;
     private bool _isFromAction;
     private CancellationTokenSource? _cts;
+    private LocalSendSendProgressArgs? _pendingProgress;
+    private bool _progressDispatchQueued;
     private readonly LocalSendDiscoveryService? _discoveryService;
     public event EventHandler? SendSuccessCompleted;
     public LocalSendSendViewModel(
@@ -194,22 +197,40 @@ public sealed class LocalSendSendViewModel : ViewModelBase, IDisposable
                 NotifyTransferListChanged();
                 (result, errDetails) = await LocalSendServiceManager.Instance.SendFilesAsync(
                     item.Device, filesList, item.Pin,
-                    args => System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                    args =>
                     {
-                        TransferStage = args.Stage;
-                        var elapsedSec = stopwatch.Elapsed.TotalSeconds;
-                        if (elapsedSec >= 0.3 || lastBytes == 0)
+                        // One dispatcher post per 512 KB chunk meant a multi-GB folder on NVMe queued
+                        // thousands of operations per second on the UI thread -- each doing a translation
+                        // lookup, a tracker update and a transfer-list re-evaluation -- which starves the
+                        // thread that has to render the progress. Coalesced the same way the receive side
+                        // is (LocalSendAppEventHandler.OnProgressChanged): keep the latest args, let one
+                        // post cover everything that arrived while it was in flight.
+                        _pendingProgress = args;
+                        if (_progressDispatchQueued)
+                            return;
+
+                        _progressDispatchQueued = true;
+                        System.Windows.Application.Current.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
                         {
-                            var bytesDelta = args.BytesSent - lastBytes;
-                            currentSpeed = elapsedSec > 0 && bytesDelta > 0 ? bytesDelta / elapsedSec : currentSpeed;
-                            lastBytes = args.BytesSent;
-                            stopwatch.Restart();
-                        }
-                        SpeedText = currentSpeed > 0 ? $"{LocalSendSendPresentation.FormatBytes((long)currentSpeed)}/s" : string.Empty;
-                        _progressTracker.UpdateProgress(args, TranslationManager.Instance["Settings_LocalSend_Waiting"]);
-                        NotifyTransferListChanged();
-                        SendingStarted?.Invoke(this, EventArgs.Empty);
-                    })),
+                            _progressDispatchQueued = false;
+                            if (_pendingProgress is not { } progress)
+                                return;
+
+                            TransferStage = progress.Stage;
+                            var elapsedSec = stopwatch.Elapsed.TotalSeconds;
+                            if (elapsedSec >= 0.3 || lastBytes == 0)
+                            {
+                                var bytesDelta = progress.BytesSent - lastBytes;
+                                currentSpeed = elapsedSec > 0 && bytesDelta > 0 ? bytesDelta / elapsedSec : currentSpeed;
+                                lastBytes = progress.BytesSent;
+                                stopwatch.Restart();
+                            }
+                            SpeedText = currentSpeed > 0 ? $"{LocalSendSendPresentation.FormatBytes((long)currentSpeed)}/s" : string.Empty;
+                            _progressTracker.UpdateProgress(progress, TranslationManager.Instance["Settings_LocalSend_Waiting"]);
+                            NotifyTransferListChanged();
+                            SendingStarted?.Invoke(this, EventArgs.Empty);
+                        }));
+                    },
                     confirmation => System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                     {
                         if (confirmation.Result == LocalSendSendResult.Success)
