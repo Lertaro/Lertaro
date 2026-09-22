@@ -78,7 +78,13 @@ public static class ShellIconHelper
         }
 
         var isVirtualItem = UserPathResolver.IsVirtualPath(path);
-        var hasThumbnailProvider = !isDir && PluginManager.Instance.ThumbnailProviders.Any(p => PluginPerformanceMonitor.Measure(p, () => p.CanProvideThumbnail(path, isDir)));
+        // Asked only when it can still change the answer. This is the binding-path getter for every
+        // visible result row on every refresh, and CanProvideThumbnail is arbitrary third-party code
+        // (wrapped in a Stopwatch and an allocation probe each) -- but a directory, a virtual token or an
+        // extension already known to have its own icon is on the unique-icon path whatever the providers
+        // say, and the placeholder branch below keys off the same extension in that case.
+        var hasThumbnailProvider = !isDir && !isVirtualItem && !IsUniqueIconExtension(ext)
+            && PluginManager.Instance.ThumbnailProviders.Any(p => PluginPerformanceMonitor.Measure(p, () => p.CanProvideThumbnail(path, isDir)));
         var isUniqueIconType = isDir || isVirtualItem || hasThumbnailProvider || IsUniqueIconExtension(ext);
         var cacheKey = isUniqueIconType ? path : ext;
 
@@ -157,9 +163,14 @@ public static class ShellIconHelper
         var isDummyPath = checkPath.StartsWith("dummy", StringComparison.OrdinalIgnoreCase);
         var isUnreachableNetwork = checkPath.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase) && !ViewModels.Search.SearchReachabilityGate.IsPathReachable(checkPath);
         var isPhysicalPath = !isVirtualItem && !isDummyPath && !isUnreachableNetwork && (isDir ? Directory.Exists(checkPath) : File.Exists(checkPath));
-        var hasThumbnailProvider = !isDir && PluginManager.Instance.ThumbnailProviders.Any(p => PluginPerformanceMonitor.Measure(p, () => p.CanProvideThumbnail(path, isDir)));
+        // One probe, used for both the cache-key decision and the thumbnail below. This asked twice --
+        // an .Any here and a .FirstOrDefault after the cache check -- which ran every registered
+        // third-party CanProvideThumbnail twice per uncached row.
+        var thumbnailProvider = !isDir
+            ? PluginManager.Instance.ThumbnailProviders.FirstOrDefault(p => PluginPerformanceMonitor.Measure(p, () => p.CanProvideThumbnail(path, isDir)))
+            : null;
 
-        var isUniqueIconType = isPhysicalPath || isVirtualItem || hasThumbnailProvider;
+        var isUniqueIconType = isPhysicalPath || isVirtualItem || thumbnailProvider != null;
         var cacheKey = isUniqueIconType ? path : ext;
 
         if (_iconCache.TryGetValue(cacheKey, out var cachedIcon))
@@ -167,8 +178,6 @@ public static class ShellIconHelper
             return cachedIcon;
         }
 
-        // Check custom plugin thumbnail providers first
-        var thumbnailProvider = PluginManager.Instance.ThumbnailProviders.FirstOrDefault(p => PluginPerformanceMonitor.Measure(p, () => p.CanProvideThumbnail(path, isDir)));
         if (thumbnailProvider != null)
         {
             try
