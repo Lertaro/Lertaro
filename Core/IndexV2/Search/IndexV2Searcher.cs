@@ -17,6 +17,15 @@ public static class IndexV2Searcher
             return;
 
         var parsed = SearchQueryParser.Parse(query);
+        // ponytail: the whole search, every onResult callback included, runs inside this read lock. The
+        // production callback is a blocking write to SearchStreamPump's bounded channel, so one slow pipe
+        // client parks the search thread holding the lock -- and ReaderWriterLockSlim blocks new readers
+        // while a writer waits, so LiveIndex.Mutate (USN/watcher apply) and Compact queue behind it: a
+        // stalled client can stall indexing for that drive. Deferred deliberately (decided 2026-09-22),
+        // because the fix is not local: collecting the page inside the lock and emitting after
+        // ExitReadLock removes progressive streaming for large result sets -- rows arrive all at once --
+        // and needs a memory bound the full window cannot state while its limit is int.MaxValue. The
+        // inline window already searches against a bounded limit. Reopen on an observed stall.
         index.Read<object?>((snapshot, delta) =>
         {
             var directoryFilterLower = DirectoryFilterResolver.NormalizeFilter(directoryFilter);
