@@ -179,12 +179,12 @@ public static class PluginSearchResultMapper
                         ? item.Description
                         : ((isRealFile || isRealDir) ? Path.GetDirectoryName(targetPath) ?? string.Empty : string.Empty);
 
-                    // If it is a real file, but ShellIconHelper has not cached it yet, request the shell icon dynamically
-                    if ((isRealFile || isRealDir) && iconOverride == null)
-                    {
-                        iconOverride = ShellIconHelper.GetIconForPath(targetPath, isRealDir);
-                    }
-
+                    // No synchronous icon here on purpose. This mapper runs from the final render
+                    // callback, on the UI thread, and GetIconForPath is the cache-missing extraction
+                    // (SHGetFileInfo, IImageList::GetIcon, a pixel-scan trim). Content-search rows can
+                    // name files on any drive, so one cold SMB icon could stall the paint for seconds --
+                    // AppSearchResult.Icon already answers from the cache and kicks off a background load
+                    // when it misses, which is how every other row in this window is mapped.
                     uiResults.Add(new AppSearchResult
                     {
                         Name = SanitizeSingleLine(item.Title),
