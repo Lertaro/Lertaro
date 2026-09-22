@@ -238,7 +238,13 @@ public static class ReFsScanner
                                 Interlocked.Increment(ref files);
                             }
 
-                            if ((items.Count & 4095) == 0)
+                            // Throttled on the counters maintained just above. items.Count was the obvious
+                            // thing to reach for, but ConcurrentDictionary.Count takes a lock on every
+                            // stripe and sums them -- in the per-entry loop of a scan adding millions of
+                            // entries from 8 concurrent workers, that briefly serialized all of them every
+                            // 4096th add. The callback is advisory progress, so the same looseness about
+                            // which worker happens to see the boundary is fine either way.
+                            if (((Volatile.Read(ref files) + Volatile.Read(ref dirs)) & 4095) == 0)
                                 onProgress?.Invoke(Volatile.Read(ref files), Volatile.Read(ref dirs));
 
                             checkpointState.MaybeCheckpoint(items);
