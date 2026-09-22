@@ -114,16 +114,23 @@ public class InlineSearchWindowPositioner
         const double xamlMargin = 12;
         const double visibleMargin = 0;
 
-        var useDialogMode = false;
-        if (hasValidRect && tracker.IsActiveWindowDialog)
+        // Whether the card has room to hang entirely BELOW the window it is docked to, where it covers
+        // nothing. This is the same spaceBelow measurement InlineCardMetrics.AvailableCardHeight already
+        // feeds the row budget with, so the height the budget settled on and the place the card is drawn
+        // cannot disagree -- which is what made a tall card that fits below still get painted inside.
+        var hangsBelow = false;
+        if (hasValidRect)
         {
             var screen = Screen.FromHandle(tracker.ActiveHwnd);
             var spaceBelow = screen.WorkingArea.Bottom - rect.Bottom;
-            if (spaceBelow >= (visibleHeight - xamlMargin) * targetDpiScaleY)
-                useDialogMode = true;
+            hangsBelow = spaceBelow >= (visibleHeight - xamlMargin) * targetDpiScaleY;
         }
 
-        ApplyLayoutMode(useDialogMode, isResultsVisible);
+        // Inside-placement mode for a file dialog with no room below: the card hangs from the dialog's own
+        // top edge instead. Both cases draw the card as a drop-down, so they share the internal layout.
+        var dropDown = hangsBelow || (hasValidRect && tracker.IsActiveWindowDialog);
+
+        ApplyLayoutMode(dropDown, isResultsVisible);
 
         var physWindowWidth = windowWidth * targetDpiScaleX;
         var physWindowHeight = windowHeight * targetDpiScaleY;
@@ -146,18 +153,27 @@ public class InlineSearchWindowPositioner
         {
             if (hasValidRect)
             {
-                if (useDialogMode)
+                var isDialog = tracker.IsActiveWindowDialog;
+                if (hangsBelow)
                 {
-                    var winWidth = rect.Right - rect.Left;
-                    targetPhysLeft = rect.Left + (winWidth - physWindowWidth) / 2.0;
+                    // Below the anchored window, so the card's top edge meets that window's bottom edge and
+                    // nothing is covered. A dialog's drop-down stays centered under it, as it always was; an
+                    // Explorer window's keeps the same right-edge dock the inside placement uses, so the two
+                    // answers cannot shift the card sideways as a resize turns one into the other.
+                    targetPhysLeft = isDialog
+                        ? rect.Left + ((rect.Right - rect.Left) - physWindowWidth) / 2.0
+                        : rect.Right - physWindowWidth + physXamlMargin - physVisibleMargin;
                     targetPhysTop = rect.Bottom - physXamlMarginY + physVisibleMarginY;
                 }
-                else if (tracker.IsActiveWindowDialog)
+                else if (isDialog)
                 {
-                    var winWidth = rect.Right - rect.Left;
-                    targetPhysLeft = rect.Left + (winWidth - physWindowWidth) / 2.0;
-                    var searchBoxHeight = _window.CardSizing.SearchBoxHeight();
-                    targetPhysTop = rect.Bottom - physWindowHeight + physXamlMarginY + searchBoxHeight * targetDpiScaleY;
+                    // No room below: hang the card from the dialog's own top edge and let it grow downward.
+                    // AvailableCardHeight caps the card at AnchoredWindowHeightShare of this window, so
+                    // starting at the top is what keeps its bottom clear of the dialog's button row by
+                    // arithmetic. This replaces an offset-by-one-search-box-height guess whose units only
+                    // came out right because of how the shell's margins happen to fall.
+                    targetPhysLeft = rect.Left + ((rect.Right - rect.Left) - physWindowWidth) / 2.0;
+                    targetPhysTop = rect.Top - physXamlMarginY;
                 }
                 else
                 {
@@ -172,20 +188,10 @@ public class InlineSearchWindowPositioner
 
                 targetPhysLeft = Math.Clamp(targetPhysLeft, minLeft, maxLeft);
 
-                if (useDialogMode)
-                {
-                    var maxDialogModeTop = workingArea.Bottom - visibleHeight * targetDpiScaleY;
-                    targetPhysTop = Math.Clamp(targetPhysTop, minTop, Math.Max(minTop, maxDialogModeTop));
-                }
-                else if (tracker.IsActiveWindowDialog)
-                {
-                    var minDialogModeTop = workingArea.Top - physWindowHeight + visibleHeight * targetDpiScaleY;
-                    targetPhysTop = Math.Clamp(targetPhysTop, minDialogModeTop, Math.Max(minDialogModeTop, maxTop));
-                }
-                else
-                {
-                    targetPhysTop = Math.Clamp(targetPhysTop, minTop, maxTop);
-                }
+                // One clamp for all three placements: staying on the working area is what each of them
+                // needs, and at the limit the shell's own bottom margin puts the visible card's bottom edge
+                // exactly on the working area's edge.
+                targetPhysTop = Math.Clamp(targetPhysTop, minTop, Math.Max(minTop, maxTop));
             }
             else
             {
@@ -240,9 +246,13 @@ public class InlineSearchWindowPositioner
         _cachedIsResultsVisible = isResultsVisible;
     }
 
-    private void ApplyLayoutMode(bool useDialogMode, bool isResultsVisible)
+    // The card's internal order follows the direction it grows in: a drop-down puts the search box on top
+    // and the list below it, an upward card from the anchored window's bottom edge the other way round. The
+    // corner radii and the path banner's border follow the same split, so this is the one place that knows
+    // which edge the card is attached by.
+    private void ApplyLayoutMode(bool dropDown, bool isResultsVisible)
     {
-        if (useDialogMode)
+        if (dropDown)
         {
             _window.RootGrid.VerticalAlignment = VerticalAlignment.Top;
             _window.MainBorder.VerticalAlignment = VerticalAlignment.Top;

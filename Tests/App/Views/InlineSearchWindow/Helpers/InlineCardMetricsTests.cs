@@ -141,14 +141,40 @@ public sealed class InlineCardMetricsTests
     }
 
     [TestMethod]
-    public void ComputeRowBudget_NoRoomAtAll_StillShowsTheFourRowFloor()
+    public void ComputeRowBudget_NoRoomAtAll_StillShowsTheFloor()
     {
-        // The floor the card is allowed to exceed its space for: on a small screen at a large scale the rows
-        // are what is left after the search bar and the path banner, and a scrollable four-row card is more
-        // useful than one squeezed to a row or two. The list scrolls, so nothing becomes unreachable.
+        // The floor the card is allowed to exceed its space for. It sits at two rows on purpose: a card that
+        // overruns the window it is docked to is the one thing this layout is meant to stop doing, and two
+        // rows still show a selection with a neighbour. The list scrolls, so nothing becomes unreachable.
         Assert.AreEqual(InlineCardMetrics.MinRows, InlineCardMetrics.ComputeRowBudget(120, Chrome, RowHeight));
         Assert.AreEqual(InlineCardMetrics.MinRows, InlineCardMetrics.ComputeRowBudget(0, Chrome, RowHeight));
         Assert.AreEqual(InlineCardMetrics.MinRows, InlineCardMetrics.ComputeRowBudget(-500, Chrome, RowHeight));
+    }
+
+    [TestMethod]
+    public void ComputeRowBudget_RoomForTwoRows_TakesTheFloorWithoutPaddingItUp()
+    {
+        Assert.AreEqual(2, InlineCardMetrics.ComputeRowBudget(Chrome + (RowHeight * 2), Chrome, RowHeight));
+        // One pixel short of the second row and the floor still holds the card at two rather than letting it
+        // collapse -- which is the whole reason MinRows and DefaultRows are both parameters.
+        Assert.AreEqual(2, InlineCardMetrics.ComputeRowBudget((Chrome + (RowHeight * 2)) - 1, Chrome, RowHeight));
+    }
+
+    [TestMethod]
+    public void CanAffordPathReserve_KeepsTheEstimateWhileTheFloorStillFits()
+    {
+        // The reserve is five lines of mostly empty shell, so it survives only while the floor rows fit
+        // beside it. Here there is room for more than that.
+        Assert.IsTrue(InlineCardMetrics.CanAffordPathReserve(Chrome + (RowHeight * 5), Chrome, RowHeight));
+        Assert.IsTrue(InlineCardMetrics.CanAffordPathReserve(Chrome + (RowHeight * InlineCardMetrics.MinRows), Chrome, RowHeight));
+    }
+
+    [TestMethod]
+    public void CanAffordPathReserve_DroppedWhenTheEstimateIsWhatIsInTheWay()
+    {
+        Assert.IsFalse(InlineCardMetrics.CanAffordPathReserve((Chrome + (RowHeight * InlineCardMetrics.MinRows)) - 1, Chrome, RowHeight));
+        Assert.IsFalse(InlineCardMetrics.CanAffordPathReserve(Chrome, Chrome, RowHeight));
+        Assert.IsFalse(InlineCardMetrics.CanAffordPathReserve(0, Chrome, RowHeight));
     }
 
     [TestMethod]

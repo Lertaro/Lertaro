@@ -12,10 +12,11 @@ internal static class InlineCardMetrics
     // card bounded: section titles are rows in the list and cannot make a tenth row appear.
     internal const int DefaultRows = 9;
 
-    // The floor a screen-aware budget never drops below. Below this the list stops being usable, so the card
-    // is allowed to take more of the screen than the shares below would otherwise grant it -- the list scrolls
-    // at every budget, so the entries themselves are never lost.
-    internal const int MinRows = 4;
+    // The floor a screen-aware budget never drops below, and it is deliberately low: an over-tall card is
+    // the one thing that actually blocks the window it is docked to, so in a space too short for four rows
+    // the card takes two and scrolls rather than pushing further over the host window. Two rows still show a
+    // selection with a neighbour, which is the least the list can be and stay legible.
+    internal const int MinRows = 2;
 
     // How much of the monitor's working area, and how much of the window the card is anchored to, the card
     // may occupy. The second one is what keeps a docked card from covering the dialog it belongs to: it is
@@ -89,6 +90,21 @@ internal static class InlineCardMetrics
         var room = Math.Max(Math.Max(0, spaceBelowActiveWindow), activeWindowHeight * AnchoredWindowHeightShare);
         return Math.Min(workingAreaLimit, room);
     }
+
+    /// <summary>
+    /// Whether the shell can still afford its <see cref="PathPreviewReservedRows"/>-line estimate.
+    /// </summary>
+    /// <remarks>
+    /// The reserve exists so a long path appearing later cannot move the bottom-anchored search bar. It is
+    /// five lines of mostly empty shell, so once the space is down to the floor row count it would cost more
+    /// than the results it sits above -- dropping it there is what makes the extreme card its rows plus the
+    /// search box, rather than a search box floating in reserved space. A jump then beats a card that is
+    /// mostly blank.
+    /// <paramref name="chromeWithReserve"/> is the card's whole non-row cost including the reserve.
+    /// </remarks>
+    internal static bool CanAffordPathReserve(
+        double availableHeight, double chromeWithReserve, double rowHeight, int minRows = MinRows) =>
+        availableHeight - chromeWithReserve >= Math.Max(0, minRows) * rowHeight;
 
     /// <summary>
     /// How many list rows fit in <paramref name="availableHeight"/> once the card's non-row height is paid
