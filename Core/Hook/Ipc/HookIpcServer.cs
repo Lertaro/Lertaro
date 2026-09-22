@@ -32,12 +32,30 @@ public sealed class HookIpcServer : IDisposable
 
     public event Action? OnConnected;
 
-    public HookIpcServer() => _sendChannel = Channel.CreateUnbounded<IpcMessage>(new UnboundedChannelOptions
-    {
-        SingleWriter = false,
-        SingleReader = true
+    /// <summary>
+    /// The event queue's ceiling. SendMessage is called for every keystroke, mouse click and captured
+    /// path, and the only reader runs while an App is connected -- so with no App connected (every App
+    /// restart window, and the state a crashed App leaves the hook in) an unbounded queue retained each
+    /// event with its heap strings for the rest of the session.
+    /// </summary>
+    internal const int SendQueueCapacity = 4096;
 
-    });
+    /// <summary>
+    /// The one send queue, built here so the bound is a property of the channel rather than of a field
+    /// initializer nobody can look at.
+    /// </summary>
+    internal static Channel<IpcMessage> CreateSendChannel() => Channel.CreateBounded<IpcMessage>(
+        new BoundedChannelOptions(SendQueueCapacity)
+        {
+            // Drop the oldest rather than the newest: a queued keystroke notification is worth less than
+            // the working set of a process that also holds system-wide hooks, and the events the App
+            // cares about are the ones that just happened.
+            FullMode = BoundedChannelFullMode.DropOldest,
+            SingleWriter = false,
+            SingleReader = true
+        });
+
+    public HookIpcServer() => _sendChannel = CreateSendChannel();
 
     public void Start()
     {
