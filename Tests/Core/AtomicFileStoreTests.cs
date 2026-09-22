@@ -70,4 +70,17 @@ public sealed class AtomicFileStoreTests
             lockStream?.Dispose();
         }
     }
+
+    [TestMethod]
+    public void Write_ExclusivelyLockedDestination_LeavesNoTempFileBehind()
+    {
+        AtomicFileStore.Write(_path, "v1");
+
+        using (new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            Assert.ThrowsExactly<IOException>(() => AtomicFileStore.Write(_path, "v2"));
+        }
+
+        Assert.IsEmpty(Directory.GetFiles(_dir, "*.tmp"), "the failed write deletes its own temp file");
+    }
 }

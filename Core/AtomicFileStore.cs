@@ -23,9 +23,13 @@ internal static class AtomicFileStore
         if (!string.IsNullOrEmpty(directory))
             Directory.CreateDirectory(directory);
 
-        var tempPath = $"{path}.tmp";
+        // Process-scoped temp name: two processes may write the same destination (the App and the
+        // service both touch machine-settings.json), and a shared temp path makes them contend on the
+        // very file they are each trying to swap in.
+        var tempPath = $"{path}.{Environment.ProcessId}.tmp";
         // ponytail: a process death between writing the temp file and the replace leaves a lingering
-        // .tmp file behind; harmless, and the next Write recreates it via FileMode.Create anyway.
+        // .tmp file behind; harmless, and the next Write from the same process recreates it via
+        // FileMode.Create. A failure that exhausts the retries deletes its own temp below.
         for (var attempt = 0; ; attempt++)
         {
             try
@@ -47,6 +51,12 @@ internal static class AtomicFileStore
             catch (IOException) when (attempt < RetryCount)
             {
                 Thread.Sleep(RetryDelayMilliseconds);
+            }
+            catch (IOException)
+            {
+                // Best effort: a lingering temp file is recreated by the next Write anyway.
+                try { File.Delete(tempPath); } catch (IOException) { }
+                throw;
             }
         }
     }

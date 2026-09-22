@@ -184,7 +184,7 @@ public class UserSettings
     public static UserSettings ForceReload() => UserSettingsPersistence.ForceReload();
     internal static UserSettings? TryParse(string json) => UserSettingsPersistence.TryParse(json);
     internal static void NormalizeHotkeys(UserSettings settings) => UserSettingsPersistence.NormalizeHotkeys(settings);
-    public void Save() => UserSettingsPersistence.Save(this);
+    public bool Save() => UserSettingsPersistence.Save(this);
     internal static void RotateBackups(string filePath, int maxBackups = 5) => UserSettingsPersistence.RotateBackups(filePath, maxBackups);
     public static void RestoreFrom(string sourcePath) => UserSettingsPersistence.RestoreFrom(sourcePath);
     internal static UserSettings WriteRestored(string sourcePath, string settingsPath, int backupCount, out string json)

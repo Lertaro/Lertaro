@@ -107,20 +107,40 @@ internal static class UserSettingsPersistence
             settings.Hotkeys.ToggleWindowHotkey = new HotkeyPageSettings().ToggleWindowHotkey;
     }
 
-    public static void Save(UserSettings settings)
+    /// <summary>
+    /// Writes <paramref name="settings"/> to <see cref="SettingsPath"/>. Returns false when the write
+    /// failed: the reason is logged and the cache is left pointing at what is actually on disk, so
+    /// <see cref="Load"/> never reports a change nothing persisted, and the caller's next change retries.
+    /// </summary>
+    public static bool Save(UserSettings settings)
     {
         NormalizeHotkeys(settings);
         Directory.CreateDirectory(Logger.UserDataDir);
         lock (CacheLock)
         {
             var json = JsonSerializer.Serialize(settings, WriteOptions);
-            if (json == _lastJsonOnDisk) { _cachedSettings = settings; return; }
-            RotateBackups(SettingsPath);
-            AtomicFileStore.Write(SettingsPath, json);
+            if (json == _lastJsonOnDisk) { _cachedSettings = settings; return true; }
+            if (!TryPersist(json, SettingsPath)) return false;
             _cachedSettings = settings;
             _lastJsonOnDisk = json;
         }
         ExclusionRuleSet.InvalidateCache();
+        return true;
+    }
+
+    internal static bool TryPersist(string json, string settingsPath)
+    {
+        try
+        {
+            RotateBackups(settingsPath);
+            AtomicFileStore.Write(settingsPath, json);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Logger.Log($"[UserSettings] Save failed, settings on disk left unchanged: {ex.Message}", LogLevel.Error);
+            return false;
+        }
     }
 
     public static void RotateBackups(string filePath, int maxBackups = 5) => UserSettingsBackupStore.Rotate(filePath, maxBackups);
