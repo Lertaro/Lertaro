@@ -118,4 +118,28 @@ public sealed class KeyboardUtilsTests
 
         Assert.IsTrue(KeyboardUtils.CheckModifiersMatch("Ctrl", state, "NONE"));
     }
+
+    // The parse is cached by the spec string now, so these pin that the cached answer is exactly what the
+    // per-keystroke string walk produced -- including the spellings that must stay inert. The mask is
+    // passed as an int because the enum lives inside an internal type.
+    [DataTestMethod]
+    [DataRow("Ctrl", (int)KeyboardUtils.ModifierMask.Control)]
+    [DataRow("CONTROL", (int)KeyboardUtils.ModifierMask.Control)]
+    [DataRow(" ctrl ", (int)KeyboardUtils.ModifierMask.Control)]
+    [DataRow("Alt", (int)KeyboardUtils.ModifierMask.Alt)]
+    [DataRow("Shift", (int)KeyboardUtils.ModifierMask.Shift)]
+    [DataRow("Win", (int)KeyboardUtils.ModifierMask.Windows)]
+    [DataRow("WINDOWS", (int)KeyboardUtils.ModifierMask.Windows)]
+    [DataRow("Ctrl+Alt", (int)(KeyboardUtils.ModifierMask.Control | KeyboardUtils.ModifierMask.Alt))]
+    [DataRow("Shift+Win", (int)(KeyboardUtils.ModifierMask.Shift | KeyboardUtils.ModifierMask.Windows))]
+    [DataRow("Ctrl++Alt", (int)(KeyboardUtils.ModifierMask.Control | KeyboardUtils.ModifierMask.Alt))]
+    [DataRow("", (int)KeyboardUtils.ModifierMask.None)]
+    [DataRow("NONE", (int)KeyboardUtils.ModifierMask.None)]
+    [DataRow("BOGUS", (int)KeyboardUtils.ModifierMask.None)]
+    public void ParseModifiers_MatchesWhatTheStringWalkProduced(string spec, int expected) =>
+        Assert.AreEqual((KeyboardUtils.ModifierMask)expected, KeyboardUtils.ParseModifiers(spec));
+
+    [TestMethod]
+    public void ParseModifiers_NullSpecIsNoModifierUntilTheCallerDefaultsIt() =>
+        Assert.AreEqual(KeyboardUtils.ModifierMask.None, KeyboardUtils.ParseModifiers(null));
 }

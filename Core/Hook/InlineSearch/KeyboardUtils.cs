@@ -1,11 +1,38 @@
+using System.Collections.Concurrent;
+
 namespace Lertaro.Core.Hook.InlineSearch;
 
 internal static class KeyboardUtils
 {
+    /// <summary>What a configured hotkey string asks for, parsed once and compared as integers thereafter.</summary>
+    [Flags]
+    internal enum ModifierMask
+    {
+        None = 0,
+        Control = 1,
+        Alt = 2,
+        Shift = 4,
+        Windows = 8,
+    }
+
+    // One keystroke runs up to five hotkey evaluations, each of which used to re-split the configured
+    // string, walk it with four LINQ Any() passes of two ordinal comparisons each and UpperInvariant a
+    // couple of tokens -- inside the low-level keyboard hook, whose stall budget is the
+    // LowLevelHooksTimeout that gets the hook silently dropped. The strings come from settings and
+    // change only when a user edits a hotkey, so the parse is cached by the string itself: a new spec is
+    // a new key, and no invalidation hook is needed.
+    private static readonly ConcurrentDictionary<string, ModifierMask> MaskBySpec = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, int> VirtualCodeByKey = new(StringComparer.OrdinalIgnoreCase);
+
     public static int GetKeyVirtualCode(string key)
     {
         if (string.IsNullOrEmpty(key)) return 0;
-        key = key.Trim().ToUpperInvariant();
+        return VirtualCodeByKey.GetOrAdd(key, static k => ComputeVirtualCode(k));
+    }
+
+    private static int ComputeVirtualCode(string rawKey)
+    {
+        var key = rawKey.Trim().ToUpperInvariant();
         if (key == "SPACE") return 0x20;
         if (key == "TAB") return 0x09;
         if (key == "ENTER" || key == "RETURN") return 0x0D;
@@ -56,32 +83,49 @@ internal static class KeyboardUtils
         return 0;
     }
 
-    internal static bool CheckModifiersMatch(string expected, ModifierKeyState state, string defaultModifier) =>
-        ModifiersMatch(expected, state.IsControlDown, state.IsAltDown, state.IsShiftDown,
-            state.IsWindowsDown, defaultModifier);
-
-    private static bool ModifiersMatch(string? expected, bool ctrlDown, bool altDown, bool shiftDown, bool winDown, string defaultModifier)
+    internal static bool CheckModifiersMatch(string expected, ModifierKeyState state, string defaultModifier)
     {
-        var modifiers = (expected ?? defaultModifier).Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var expectsCtrl = modifiers.Any(modifier => modifier.Equals("Control", StringComparison.OrdinalIgnoreCase) || modifier.Equals("Ctrl", StringComparison.OrdinalIgnoreCase));
-        var expectsAlt = modifiers.Any(modifier => modifier.Equals("Alt", StringComparison.OrdinalIgnoreCase));
-        var expectsShift = modifiers.Any(modifier => modifier.Equals("Shift", StringComparison.OrdinalIgnoreCase));
-        var expectsWin = modifiers.Any(modifier => modifier.Equals("Win", StringComparison.OrdinalIgnoreCase) || modifier.Equals("Windows", StringComparison.OrdinalIgnoreCase));
-        return ctrlDown == expectsCtrl && altDown == expectsAlt && shiftDown == expectsShift && winDown == expectsWin;
+        var mask = ParseModifiers(expected ?? defaultModifier);
+        return (state.IsControlDown == ((mask & ModifierMask.Control) != 0))
+            && (state.IsAltDown == ((mask & ModifierMask.Alt) != 0))
+            && (state.IsShiftDown == ((mask & ModifierMask.Shift) != 0))
+            && (state.IsWindowsDown == ((mask & ModifierMask.Windows) != 0));
+    }
+
+    internal static ModifierMask ParseModifiers(string? spec) =>
+        MaskBySpec.GetOrAdd(spec ?? string.Empty, static s => ComputeModifiers(s));
+
+    private static ModifierMask ComputeModifiers(string spec)
+    {
+        var mask = ModifierMask.None;
+        foreach (var modifier in spec.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (modifier.Equals("Control", StringComparison.OrdinalIgnoreCase) || modifier.Equals("Ctrl", StringComparison.OrdinalIgnoreCase))
+                mask |= ModifierMask.Control;
+            else if (modifier.Equals("Alt", StringComparison.OrdinalIgnoreCase))
+                mask |= ModifierMask.Alt;
+            else if (modifier.Equals("Shift", StringComparison.OrdinalIgnoreCase))
+                mask |= ModifierMask.Shift;
+            else if (modifier.Equals("Win", StringComparison.OrdinalIgnoreCase) || modifier.Equals("Windows", StringComparison.OrdinalIgnoreCase))
+                mask |= ModifierMask.Windows;
+        }
+
+        return mask;
     }
 
     public static bool IsModifierKey(int vkCode, string modifier)
     {
-        modifier = modifier?.Trim().ToUpperInvariant() ?? "CONTROL";
-        if (modifier == "CONTROL" || modifier == "CTRL")
-            return vkCode == 0x11 || vkCode == 0xA2 || vkCode == 0xA3;
-        if (modifier == "ALT")
-            return vkCode == 0x12 || vkCode == 0xA4 || vkCode == 0xA5;
-        if (modifier == "SHIFT")
-            return vkCode == 0x10 || vkCode == 0xA0 || vkCode == 0xA1;
-        if (modifier == "WIN" || modifier == "WINDOWS")
-            return vkCode == 0x5B || vkCode == 0x5C;
-        return false;
+        // An unset modifier means Control (what the callers passed before); an empty one matched nothing
+        // then and still does, since the empty spec parses to no flags at all.
+        var mask = ParseModifiers(modifier ?? "Control");
+        return mask switch
+        {
+            ModifierMask.Control => vkCode == 0x11 || vkCode == 0xA2 || vkCode == 0xA3,
+            ModifierMask.Alt => vkCode == 0x12 || vkCode == 0xA4 || vkCode == 0xA5,
+            ModifierMask.Shift => vkCode == 0x10 || vkCode == 0xA0 || vkCode == 0xA1,
+            ModifierMask.Windows => vkCode == 0x5B || vkCode == 0x5C,
+            _ => false,
+        };
     }
 
     // True when the foreground window's IME is actively composing (open AND in native conversion mode),
