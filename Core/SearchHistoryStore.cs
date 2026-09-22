@@ -17,6 +17,10 @@ public static class SearchHistoryStore
     private static Dictionary<string, List<StoredEntry>>? _buckets;
     private static Dictionary<string, int>? _priorityCache;
 
+    /// <summary>What <see cref="Snapshot"/> returns before the store has any entries at all.</summary>
+    private static readonly IReadOnlyDictionary<string, int> EmptyPriorities =
+        new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -165,14 +169,18 @@ public static class SearchHistoryStore
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// The live path-to-rank map. Handed out by reference: <see cref="_priorityCache"/> is only ever
+    /// replaced with a freshly built dictionary (never mutated in place), so a reader holding the
+    /// reference sees a consistent snapshot, and the callers are per-keystroke -- copying it used to
+    /// allocate and discard the whole dictionary while holding the gate the recorder needs.
+    /// </summary>
     public static IReadOnlyDictionary<string, int> Snapshot()
     {
         lock (Gate)
         {
             EnsureCacheNoLock();
-            return _priorityCache != null
-                ? new Dictionary<string, int>(_priorityCache, StringComparer.OrdinalIgnoreCase)
-                : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            return _priorityCache ?? EmptyPriorities;
         }
     }
 
