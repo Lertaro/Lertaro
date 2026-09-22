@@ -120,7 +120,7 @@ internal sealed class SearchExecutionEngine : IDisposable
                 var streamingContextDirectory = isInlineSearchContext
                     ? (!string.IsNullOrWhiteSpace(searchScope) ? searchScope : tracker.ActivePath ?? tracker.LastActiveExplorerPath)
                     : tracker.LastActiveExplorerPath;
-                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective).ConfigureAwait(false);
+                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective, foldersOnly: isInlineSearchContext).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -191,7 +191,10 @@ internal sealed class SearchExecutionEngine : IDisposable
         bool bypassExclusions)
     {
         var localMatches = new List<AppSearchResult>();
-        var learnedLocalMatches = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse(query), contextDirectory);
+        // Folders only, like every other row source of this window: history remembers files too, and a
+        // learned file row would otherwise reach the Current Folder tier past the engine-side filter.
+        var learnedLocalMatches = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse(query), contextDirectory)
+            .Where(c => c.Result.IsDir).ToList();
         var localUpdateVersion = learnedLocalMatches.Count > 0 ? 1 : 0;
         void OnLocalMatchesChanged() => Interlocked.Increment(ref localUpdateVersion);
 
@@ -230,7 +233,8 @@ internal sealed class SearchExecutionEngine : IDisposable
         }
 
         await _streamRenderer.RenderAsync(query, null, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token,
-            GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), localSearchTask, onLocalServiceUnavailable, bypassExclusions).ConfigureAwait(false);
+            GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), localSearchTask, onLocalServiceUnavailable, bypassExclusions,
+            foldersOnly: true).ConfigureAwait(false);
     }
 
     private void EmitInstantResults(

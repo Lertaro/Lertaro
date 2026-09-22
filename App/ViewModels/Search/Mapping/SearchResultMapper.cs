@@ -181,6 +181,13 @@ public static class SearchResultMapper
             }
         }
 
+        // The inline window's scope is folders. Both sources merged above can contribute files (a favorite
+        // path, learned history), and the engine-side filter in SearchStreamRenderer.Accumulate is not this
+        // mapper's contract -- applied before ranking and before the display cap so a dropped file cannot
+        // take a row the folders would have used.
+        if (isInlineWindow)
+            candidates.RemoveAll(c => !c.Result.IsDir);
+
         var ranked = RankAndDedupe(candidates);
         // Capped here (not deferred to the caller) because this display cap has to respect whatever
         // header/grouping layout the caller (or InlineListSearchHelper.MergeLocalMatches, downstream)

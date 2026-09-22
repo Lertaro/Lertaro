@@ -133,7 +133,12 @@ internal sealed class SearchDispatchController
         // (a folder scope says nothing about applications), so no app budget is needed at all.
         var hasTokens = _queryTokens.Count > 0;
         var hasScope = scopeDirective != null;
-        var fileLimit = hasTokens || hasScope ? SearchViewModel.TokenQuickSearchFileLimit : 51;
+        // The inline window lists folders only (see SearchStreamRenderer's foldersOnly), so most of what
+        // the engine answers gets dropped before it reaches the list -- at the ordinary 51-row budget that
+        // leaves about ten folders on a mixed query. Same widening the token and scoped paths above already
+        // use, for the same reason: the rows the window may keep have to reach the accumulator first.
+        var isInline = _getIsInlineSearchContext();
+        var fileLimit = hasTokens || hasScope || isInline ? SearchViewModel.TokenQuickSearchFileLimit : 51;
         var appLimit = hasScope ? 0 : hasTokens ? SearchViewModel.FullSearchAppLimit : 51;
         engineCall(
             searchQuery,

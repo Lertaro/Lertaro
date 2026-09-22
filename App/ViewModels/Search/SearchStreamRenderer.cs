@@ -55,7 +55,8 @@ internal sealed class SearchStreamRenderer
         bool bypassExclusions = false,
         bool resultMapperConsumesBatches = false,
         Action<int>? onReceivedCountUpdated = null,
-        FileFilterScopeDirective? scopeDirective = null)
+        FileFilterScopeDirective? scopeDirective = null,
+        bool foldersOnly = false)
     {
         var streamedResponse = new List<SearchResult>();
         object responseLock = new();
@@ -76,6 +77,12 @@ internal sealed class SearchStreamRenderer
         {
             token.ThrowIfCancellationRequested();
             if (!SearchReachabilityGate.IsResultReachable(result))
+                return;
+
+            // The inline window's scope is folders. Dropped here rather than after ranking so the row
+            // budget, the progressive paint sizes and the "N results" count all describe the rows this
+            // window may actually list.
+            if (foldersOnly && !result.IsDir)
                 return;
 
             // The filter pattern constrains FILE names; a folder always passes (same semantics the

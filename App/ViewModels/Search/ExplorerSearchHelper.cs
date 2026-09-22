@@ -38,6 +38,10 @@ public static class ExplorerSearchHelper
 
             DirectChildrenLocator.MatchInto(entries, contextDirectory, query, fileLimit, result =>
             {
+                // This listing feeds the inline window only, and that window lists folders only.
+                if (!result.IsDir)
+                    return;
+
                 lock (localMatches)
                 {
                     localMatches.Add(SearchResultMapper.CreateUiResult(result, query, localMatches.Count, isApplication: false, contextDirectory));
