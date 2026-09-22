@@ -21,11 +21,13 @@ public sealed class LoggerTests
     [TestCleanup]
     public void TearDown()
     {
+        // Logger holds the log file open for the process lifetime, so this test's directory cannot be
+        // deleted while it is the current log. Hand the handle to a throwaway path first.
+        Logger.Initialize("release.log", baseDirectory: Path.Combine(Path.GetTempPath(), "LertaroLoggerRelease"));
         try { Directory.Delete(_baseDir, recursive: true); } catch { }
     }
 
-    private IReadOnlyList<string> Lines() =>
-        File.ReadAllLines(_logPath);
+    private IReadOnlyList<string> Lines() => Logger.ReadLogLines(_logPath);
 
     [TestMethod]
     public void Log_DistinctMessages_EachWrittenOnce()
@@ -129,12 +131,36 @@ public sealed class LoggerTests
     [TestMethod]
     public void Initialize_AppendPastSizeCap_StartsFreshLog()
     {
-        File.AppendAllText(_logPath, new string('x', 1024 * 1024));
+        AppendRaw(new string('x', 1024 * 1024));
 
         Logger.Initialize("test.log", baseDirectory: _baseDir, overwrite: false);
 
         var lines = Lines();
         Assert.HasCount(1, lines);
         Assert.Contains("Log initialized", lines[0]);
+    }
+
+    [TestMethod]
+    public void WriteLine_PastSizeCap_RollsTheLogOver()
+    {
+        var chunk = new string('x', 4000);
+        for (var i = 0; i < 400; i++) // ~1.6 MB of distinct lines, so the cap is crossed mid-run
+            Logger.Log($"{chunk} line {i}", LogLevel.Warn);
+
+        // Assert.IsLessThan takes (upperBound, value).
+        Assert.IsLessThan(1024L * 1024L, new FileInfo(_logPath).Length,
+            "a single long run must not grow the log past the cap");
+        Assert.Contains("Log rolled over", string.Join('\n', Lines()));
+    }
+
+    /// <summary>
+    /// Writes around the open log handle: Logger keeps one writer on the file for the process lifetime,
+    /// so a plain File.AppendAllText here would be a sharing violation.
+    /// </summary>
+    private void AppendRaw(string content)
+    {
+        using var stream = new FileStream(_logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+        using var writer = new StreamWriter(stream);
+        writer.Write(content);
     }
 }

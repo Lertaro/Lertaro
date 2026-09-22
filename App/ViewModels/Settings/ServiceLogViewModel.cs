@@ -153,7 +153,7 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
                 return;
             _lastLoadedWriteTimes[SelectedTab] = lastWrite;
 
-            _allLines = File.ReadLines(path).TakeLast(MaxLines).Select(ParseLine).ToList();
+            _allLines = Logger.ReadLogLines(path).TakeLast(MaxLines).Select(ParseLine).ToList();
             ApplyFilter();
         }
         catch
