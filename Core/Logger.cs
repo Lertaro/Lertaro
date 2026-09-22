@@ -45,9 +45,16 @@ public static class Logger
     // written once, condensed into a "(repeated x N)" tally line at every 10th occurrence,
     // and flushed with its final tally when a different message arrives.
     private const int RepeatReportInterval = 10;
+    private const long RollOverSizeBytes = 1024 * 1024;
     private static string? _lastMessage;
     private static LogLevel _lastLevel;
     private static int _repeatsSinceFirst;
+
+    /// <summary>
+    /// Whether the current log file exists and is still under the size cap that forces a fresh file.
+    /// </summary>
+    private static bool IsLogBelowRollOver() =>
+        File.Exists(_logPath) && new FileInfo(_logPath).Length < RollOverSizeBytes;
 
     /// <summary>
     /// Gets the directory where the current log file is stored.
@@ -69,7 +76,11 @@ public static class Logger
     /// system-wide (service) logs, or <see cref="UserDataDir"/> for per-user (UI) logs.
     /// If null, defaults to <see cref="UserDataDir"/>.
     /// </param>
-    /// <param name="overwrite">Whether to overwrite the log file on init.</param>
+    /// <param name="overwrite">
+    /// When <c>true</c>, the log file is truncated and this launch starts a fresh log. When <c>false</c>,
+    /// an existing log is appended to, but only while it is under <see cref="RollOverSizeBytes"/>; a log
+    /// that has already grown past that cap is truncated even then, so no single file grows without bound.
+    /// </param>
     public static void Initialize(string logFileName, string? baseDirectory = null, bool overwrite = true)
     {
         lock (LogLock)
@@ -82,15 +93,7 @@ public static class Logger
                 _lastMessage = null;
                 _repeatsSinceFirst = 0;
 
-                var shouldAppend = false;
-                if (File.Exists(_logPath))
-                {
-                    var fileInfo = new FileInfo(_logPath);
-                    if (fileInfo.Length < 1024 * 1024)
-                    {
-                        shouldAppend = true;
-                    }
-                }
+                var shouldAppend = !overwrite && IsLogBelowRollOver();
 
                 if (shouldAppend)
                 {

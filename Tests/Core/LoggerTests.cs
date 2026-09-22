@@ -100,4 +100,41 @@ public sealed class LoggerTests
         Assert.HasCount(2, lines); // "Log cleared" + the message as a fresh first occurrence
         Assert.IsEmpty(lines.Where(l => l.Contains("(repeated x", StringComparison.Ordinal)).ToList());
     }
+
+    [TestMethod]
+    public void Initialize_Overwrite_StartsFreshLog()
+    {
+        Logger.Log("previous session", LogLevel.Warn);
+
+        Logger.Initialize("test.log", baseDirectory: _baseDir, overwrite: true);
+
+        var lines = Lines();
+        Assert.HasCount(1, lines);
+        Assert.Contains("Log initialized", lines[0]);
+    }
+
+    [TestMethod]
+    public void Initialize_AppendUnderSizeCap_KeepsPreviousRun()
+    {
+        Logger.Log("previous session", LogLevel.Warn);
+
+        Logger.Initialize("test.log", baseDirectory: _baseDir, overwrite: false);
+
+        var lines = Lines();
+        Assert.HasCount(3, lines); // init line + the previous run's message + the resume marker
+        Assert.Contains("previous session", lines[1]);
+        Assert.Contains("Log resumed", lines[2]);
+    }
+
+    [TestMethod]
+    public void Initialize_AppendPastSizeCap_StartsFreshLog()
+    {
+        File.AppendAllText(_logPath, new string('x', 1024 * 1024));
+
+        Logger.Initialize("test.log", baseDirectory: _baseDir, overwrite: false);
+
+        var lines = Lines();
+        Assert.HasCount(1, lines);
+        Assert.Contains("Log initialized", lines[0]);
+    }
 }
