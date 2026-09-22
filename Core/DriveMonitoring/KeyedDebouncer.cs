@@ -8,14 +8,21 @@ namespace Lertaro.Core.DriveMonitoring;
 // persist on every single change with no throttling at all.
 internal sealed class KeyedDebouncer<TKey> : IDisposable where TKey : notnull
 {
-    private readonly Dictionary<TKey, Timer> _pending;
+    // Each schedule carries a generation so a callback can tell whether the entry it is about to remove
+    // is still its own. Timer.Dispose() (the parameterless overload) does not wait for a callback already
+    // in flight, so without this a callback blocked on _gate while Schedule replaced it would remove the
+    // replacement by key -- without disposing it, so the expensive action ran a second time when the
+    // replacement fired -- and that replacement's own callback would then remove whatever entry existed at
+    // the time, leaving a later Cancel with nothing to cancel.
+    private readonly Dictionary<TKey, (Timer Timer, long Generation)> _pending;
     private readonly object _gate = new();
     private readonly int _delayMs;
+    private long _generation;
 
     public KeyedDebouncer(int delayMs, IEqualityComparer<TKey>? comparer = null)
     {
         _delayMs = delayMs;
-        _pending = new Dictionary<TKey, Timer>(comparer);
+        _pending = new Dictionary<TKey, (Timer, long)>(comparer);
     }
 
     public void Schedule(TKey key, Action action)
@@ -23,14 +30,20 @@ internal sealed class KeyedDebouncer<TKey> : IDisposable where TKey : notnull
         lock (_gate)
         {
             if (_pending.TryGetValue(key, out var existing))
-                existing.Dispose();
+                existing.Timer.Dispose();
 
-            _pending[key] = new Timer(_ =>
+            var generation = ++_generation;
+            var timer = new Timer(_ =>
             {
                 lock (_gate)
-                    _pending.Remove(key);
+                {
+                    if (_pending.TryGetValue(key, out var live) && live.Generation == generation)
+                        _pending.Remove(key);
+                }
+
                 action();
             }, null, _delayMs, Timeout.Infinite);
+            _pending[key] = (timer, generation);
         }
     }
 
@@ -40,8 +53,8 @@ internal sealed class KeyedDebouncer<TKey> : IDisposable where TKey : notnull
     {
         lock (_gate)
         {
-            if (_pending.Remove(key, out var timer))
-                timer.Dispose();
+            if (_pending.Remove(key, out var entry))
+                entry.Timer.Dispose();
         }
     }
 
@@ -49,8 +62,8 @@ internal sealed class KeyedDebouncer<TKey> : IDisposable where TKey : notnull
     {
         lock (_gate)
         {
-            foreach (var timer in _pending.Values)
-                timer.Dispose();
+            foreach (var entry in _pending.Values)
+                entry.Timer.Dispose();
             _pending.Clear();
         }
     }
