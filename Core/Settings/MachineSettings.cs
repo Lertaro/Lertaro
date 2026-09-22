@@ -102,7 +102,7 @@ public class MachineSettings
             }
             catch (IOException) when (retries-- > 0)
             {
-                Task.Delay(50).Wait();
+                Thread.Sleep(50);
             }
             catch (Exception ex)
             {

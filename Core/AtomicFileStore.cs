@@ -46,7 +46,7 @@ internal static class AtomicFileStore
             }
             catch (IOException) when (attempt < RetryCount)
             {
-                Task.Delay(RetryDelayMilliseconds).Wait();
+                Thread.Sleep(RetryDelayMilliseconds);
             }
         }
     }

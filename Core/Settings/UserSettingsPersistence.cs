@@ -73,7 +73,7 @@ internal static class UserSettingsPersistence
             catch (IOException)
             {
                 if (--retries <= 0) throw;
-                Task.Delay(50).Wait();
+                Thread.Sleep(50);
             }
         }
     }
