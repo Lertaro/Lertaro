@@ -11,14 +11,18 @@ internal static class SearchEngineDriveMaintenanceCancellationExtensions
     public static bool CancelDriveRebuild(this SearchEngineDriveMaintenance maintenance, string drive)
     {
         drive = DriveMaintenanceHelper.NormalizeDrive(drive);
-        CancellationTokenSource? cts;
         lock (maintenance._pendingDriveRebuilds)
-            maintenance._activeRebuildCts.TryGetValue(drive, out cts);
-        if (cts == null)
-            return false;
+        {
+            if (!maintenance._activeRebuildCts.TryGetValue(drive, out var cts) || cts is null)
+                return false;
 
-        cts.Cancel();
-        return true;
+            // Cancelled inside the lock it was read under: RebuildDrive's finally removes and disposes
+            // that same instance while holding it, so a Stop landing exactly as the rebuild completed used
+            // to call Cancel() on a disposed source and throw ObjectDisposedException at the caller. The
+            // only thing registered on this token is handle.Dispose, which does not come back here.
+            cts.Cancel();
+            return true;
+        }
     }
 
     public static void QueueDriveRebuildAfterRemoval(this SearchEngineDriveMaintenance maintenance, string drive)
