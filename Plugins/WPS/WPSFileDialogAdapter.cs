@@ -105,7 +105,6 @@ public class WPSFileDialogAdapter : IFileDialogAdapter
     /// The whole dialog's bounds, matching what every other dialog adapter reports: the host rejects a
     /// dock rect under 100px tall as "not a real target" (InlineSearchWindowPositioner.PositionWindowCore)
     /// and would silently fall back to a fixed screen position if this returned the file-name row alone.
-    /// Measured on the handle the dialog actually lives on, which is not always the one passed in.
     /// </summary>
     public bool GetDockBounds(IntPtr hwnd, out AdapterRect rect)
     {
