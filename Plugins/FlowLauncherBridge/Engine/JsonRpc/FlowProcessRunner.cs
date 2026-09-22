@@ -214,19 +214,26 @@ public class FlowProcessRunner
             IcoPath = icoPath ?? string.Empty,
             Score = item.Score,
             AutoCompleteText = autoText,
-            AsyncAction = async _ =>
+            Action = _context =>
             {
-                if (item.JsonRPCAction != null)
-                {
-                    try
-                    {
-                        await ExecuteActionAsync(item.JsonRPCAction, api).ConfigureAwait(false);
-                    }
-                    catch { }
-                    return !item.JsonRPCAction.DontHideAfterAction;
-                }
-                return true;
+                if (item.JsonRPCAction == null)
+                    return true;
+
+                _ = Task.Run(() => ExecuteActionInBackgroundAsync(item.JsonRPCAction, api));
+                return !item.JsonRPCAction.DontHideAfterAction;
             }
         };
+    }
+
+    private async Task ExecuteActionInBackgroundAsync(JsonRpcActionModel action, IPublicAPI api)
+    {
+        try
+        {
+            await ExecuteActionAsync(action, api).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            PluginSdk.Logger.Log($"[FlowPlugin:{_metadata.Name}] Action '{action.Method}' failed: {ex.Message}", PluginSdk.LogLevel.Error);
+        }
     }
 }

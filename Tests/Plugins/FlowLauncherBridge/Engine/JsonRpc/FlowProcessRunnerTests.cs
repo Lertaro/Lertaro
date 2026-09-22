@@ -24,6 +24,24 @@ public sealed class FlowProcessRunnerTests
     }
 
     [TestMethod]
+    public void FlowProcessRunner_MapsJsonRpcActionToImmediateAction()
+    {
+        var meta = new PluginMetadata { ID = "TEST_RPC", Name = "RpcPlugin" };
+        var runner = new FlowProcessRunner(meta, "dummy.exe");
+        var fakeApi = new FakePublicApi((_, _) => { });
+        var parseMethod = typeof(FlowProcessRunner).GetMethod("ParseResults", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        const string json = "{\"result\":[{\"Title\":\"Wallpaper\",\"JsonRPCAction\":{\"method\":\"flow_open_url\",\"parameters\":[\"https://example.com\"],\"dontHideAfterAction\":true}}]}";
+        var results = parseMethod?.Invoke(runner, [json, fakeApi]) as List<Result>;
+
+        Assert.IsNotNull(results);
+        Assert.HasCount(1, results);
+        Assert.IsNotNull(results[0].Action);
+        Assert.IsNull(results[0].AsyncAction);
+        Assert.IsFalse(results[0].Action!(new ActionContext()));
+    }
+
+    [TestMethod]
     public void FlowProcessRunner_InjectsTriggerKeyword_IntoSettings()
     {
         var meta = new PluginMetadata { ID = "TEST_RPC", Name = "RpcPlugin", ActionKeyword = "tra" };
