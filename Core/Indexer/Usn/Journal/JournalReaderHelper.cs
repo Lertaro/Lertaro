@@ -65,6 +65,7 @@ public static class JournalReaderHelper
         var outBuf = new byte[bufSize];
 
         var changeCount = 0;
+        var failedRecords = 0;
 
         while (currentUsn < currentNextUsn)
         {
@@ -108,11 +109,22 @@ public static class JournalReaderHelper
                 }
                 catch (Exception ex)
                 {
+                    failedRecords++;
                     Logger.Log($"[JournalReaderHelper] Catch-up record parse error on {drive}: {ex}", LogLevel.Error);
                 }
 
                 offset += (int)recordLen;
             }
+        }
+
+        if (failedRecords > 0)
+        {
+            // Same reason as the journal-ID mismatch above: -1 tells the caller the journal cannot be
+            // trusted from here, so it falls back to a full re-index. Returning currentUsn instead would
+            // have it persist a watermark that walked past changes nothing applied, which is the silent
+            // gap the rebuild is for.
+            Logger.Log($"[JournalReaderHelper] Catch-up on {drive} skipped {failedRecords} unreadable record(s); requiring a full re-index.", LogLevel.Error);
+            return -1;
         }
 
         Logger.Log($"[JournalReaderHelper] Catch-up complete for drive {drive}. Processed {changeCount} changes. Next USN: {currentUsn}");

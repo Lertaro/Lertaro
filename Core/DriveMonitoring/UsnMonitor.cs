@@ -176,25 +176,23 @@ public class UsnMonitor : IDisposable
             // Advance the watermark only after a successful apply. If ApplyUsnRecords throws, keep the
             // old _startUsn so the next read replays this batch instead of dropping it forever.
             if (records.Count > 0)
-            {
                 _indexer.ApplyUsnRecords(_drive, records);
-                if (failedRecords > 0)
-                {
-                    // Partial apply: the watermark must advance past the unreadable records (they would
-                    // fail deterministically on replay and wedge the monitor on the same batch), so
-                    // whatever changes they described are lost to the incremental index. Queue a rebuild
-                    // so a full scan recovers them -- rare enough (the parser handles every shipped USN
-                    // record version) that the rebuild cost is the right trade-off for silent gaps.
-                    Logger.Log($"[Monitor] {failedRecords} unreadable record(s) on {_drive}; queuing a rebuild to recover the skipped changes.", LogLevel.Error);
-                    _onReindexRequired?.Invoke(_drive);
-                }
-                _startUsn = nextUsn;
-            }
-            else
+
+            if (failedRecords > 0)
             {
-                // Empty batch (or nothing in it parsed): nothing to apply, just follow the journal.
-                _startUsn = nextUsn;
+                // Partial apply: the watermark must advance past the unreadable records (they would
+                // fail deterministically on replay and wedge the monitor on the same batch), so whatever
+                // changes they described are lost to the incremental index. Queue a rebuild so a full
+                // scan recovers them -- rare enough (the parser handles every shipped USN record version)
+                // that the rebuild cost is the right trade-off for silent gaps. This is checked for the
+                // whole batch, not only when at least one record parsed: a batch where every record was
+                // unreadable used to take the "nothing to apply" path below, advance the watermark past
+                // all of them, and queue nothing -- the exact silent gap the rebuild exists to recover.
+                Logger.Log($"[Monitor] {failedRecords} unreadable record(s) on {_drive}; queuing a rebuild to recover the skipped changes.", LogLevel.Error);
+                _onReindexRequired?.Invoke(_drive);
             }
+
+            _startUsn = nextUsn;
 
             if (_startUsn == previousUsn)
                 await Task.Delay(1000, _token);
