@@ -181,4 +181,38 @@ public sealed class SmoothWheelScrollBehaviorTests
 
     [TestMethod]
     public void TheCeilingIsTheDoubledPreviousPunch() => Assert.AreEqual(6800.0, SmoothWheelScrollBehavior.MaxVelocity, 1e-9);
+
+    // -- Device-pixel snapping of what gets submitted. --
+    // WPF stops using ClearType for text drawn at a non-integer device-pixel offset, and a glide's position
+    // is fractional by construction, so the page read blurred while coasting and snapped sharp once still.
+    // Only the value handed to the ScrollViewer is snapped -- the glide's own position has to stay exact.
+    [TestMethod]
+    public void SnapToPixel_AtOneHundredPercent_TakesWholePixels()
+    {
+        Assert.AreEqual(10.0, SmoothWheelScrollBehavior.SnapToPixel(10.4, 1.0), 1e-9);
+        Assert.AreEqual(11.0, SmoothWheelScrollBehavior.SnapToPixel(10.6, 1.0), 1e-9);
+        Assert.AreEqual(0.0, SmoothWheelScrollBehavior.SnapToPixel(0.4, 1.0), 1e-9);
+    }
+
+    [TestMethod]
+    public void SnapToPixel_AtFractionalScaling_SnapsToDevicePixelsNotDips()
+    {
+        // 10.2 DIP is 12.75 device pixels at 125%; the nearest whole one is 13, i.e. 10.4 DIP. Rounding the
+        // DIP instead would have left the text half a pixel off on every display that is not at 100%.
+        Assert.AreEqual(10.4, SmoothWheelScrollBehavior.SnapToPixel(10.2, 1.25), 1e-9);
+
+        foreach (var scale in new[] { 1.25, 1.5, 1.75 })
+        {
+            for (var offset = 0.0; offset < 40; offset += 0.37)
+            {
+                var snapped = SmoothWheelScrollBehavior.SnapToPixel(offset, scale);
+                Assert.AreEqual(Math.Round(snapped * scale), snapped * scale, 1e-9,
+                    $"{offset} at {scale}x became {snapped}, which is not a whole device pixel");
+            }
+        }
+    }
+
+    [TestMethod]
+    public void SnapToPixel_LeavesTheOffsetAloneWhenTheScaleCannotBeRead() =>
+        Assert.AreEqual(10.2, SmoothWheelScrollBehavior.SnapToPixel(10.2, 0), 1e-9);
 }

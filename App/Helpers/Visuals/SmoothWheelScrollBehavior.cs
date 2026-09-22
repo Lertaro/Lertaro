@@ -149,6 +149,19 @@ public static class SmoothWheelScrollBehavior
     /// <summary>Caps a glide velocity without changing its sign.</summary>
     internal static double ClampVelocity(double velocity) => Math.Clamp(velocity, -MaxVelocity, MaxVelocity);
 
+    /// <summary>The offset to hand to the ScrollViewer for a given exact glide position: snapped to whole
+    /// device pixels.</summary>
+    /// <remarks>
+    /// WPF stops using ClearType for text drawn at a non-integer device-pixel offset, and a glide's position
+    /// is fractional by construction (velocity * elapsed time), which is why a smooth-scrolled page read
+    /// blurred while coasting and snapped sharp once it settled. Only the submitted offset is snapped: the
+    /// glide's own position stays exact, so a long coast cannot accumulate a pixel of drift per frame.
+    /// Rounding in device pixels rather than DIPs is what makes this hold at 125% and 150% scaling, where a
+    /// whole DIP is not a whole pixel.
+    /// </remarks>
+    internal static double SnapToPixel(double offset, double pixelsPerDip) =>
+        pixelsPerDip <= 0 ? offset : Math.Round(offset * pixelsPerDip) / pixelsPerDip;
+
     private static readonly ConditionalWeakTable<ScrollViewer, Glide> Glides = new();
     private static bool _registered;
 
@@ -263,7 +276,9 @@ public static class SmoothWheelScrollBehavior
             if (clamped != _offset)
                 _velocity = 0;
             _offset = clamped;
-            _scrollViewer.ScrollToVerticalOffset(_offset);
+            // Snapped only on the way out, never in _offset itself: see SnapToPixel.
+            var scale = VisualTreeHelper.GetDpi(_scrollViewer).DpiScaleY;
+            _scrollViewer.ScrollToVerticalOffset(SnapToPixel(clamped, scale));
 
             // Exponential friction, also frame-rate independent. Which friction: the low spinning value
             // while notches are still arriving, else the precise lone-notch value -- see SelectFriction
