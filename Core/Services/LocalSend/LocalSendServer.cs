@@ -286,7 +286,10 @@ public sealed class LocalSendServer : IDisposable
         }
         var displayIndex = isAllDone ? expectedTotalFiles : Math.Max(fileIndex, completedSet.Count);
         var relPath = fileName.Replace('\\', '/').TrimStart('/');
-        var rootSavedPath = Path.Combine(DownloadDirectory, relPath.Split('/')[0]);
+        // The session's own directory, not the server default: a *Save To…* receive wrote the file
+        // somewhere else entirely, so the default-derived path either did not exist (hiding the
+        // reveal-in-Explorer button) or, worse, named an unrelated same-named folder.
+        var rootSavedPath = Path.Combine(context.DownloadDirectory, relPath.Split('/')[0]);
         var finalDict = _sessionTransferredBytes.GetOrAdd(sessionId, _ => new System.Collections.Concurrent.ConcurrentDictionary<string, long>());
         finalDict[fileId] = bytesReadTotal;
         var finalSessionTransferred = finalDict.Values.Sum();

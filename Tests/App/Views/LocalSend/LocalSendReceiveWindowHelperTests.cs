@@ -1,3 +1,4 @@
+using System.IO;
 using Lertaro.App.Views.LocalSend;
 using Lertaro.Core.Services.LocalSend;
 
@@ -25,6 +26,49 @@ public sealed class LocalSendReceiveWindowHelperTests
     {
         var res = LocalSendReceiveWindowHelper.ResolveFolderTarget(@"C:\NonExistentDir12345\file.txt", null);
         Assert.AreEqual(string.Empty, res);
+    }
+
+    [TestMethod]
+    public void ResolveFolderTarget_ExistingRootFolder_PrefersItOverTheFile()
+    {
+        var dir = CreateTempDir();
+        try
+        {
+            var root = Directory.CreateDirectory(Path.Combine(dir, "photos")).FullName;
+            var saved = Path.Combine(root, "a.jpg");
+            File.WriteAllText(saved, "x");
+
+            Assert.AreEqual(root, LocalSendReceiveWindowHelper.ResolveFolderTarget(root, saved));
+        }
+        finally { DeleteTemp(dir); }
+    }
+
+    [TestMethod]
+    public void ResolveFolderTarget_RootMissingButFileArrived_TargetsTheFile()
+    {
+        // The LS-05 regression: the session wrote the file, the root the event named does not exist,
+        // and the button used to disappear instead of revealing what was actually received.
+        var dir = CreateTempDir();
+        try
+        {
+            var saved = Path.Combine(dir, "a.jpg");
+            File.WriteAllText(saved, "x");
+
+            Assert.AreEqual(saved, LocalSendReceiveWindowHelper.ResolveFolderTarget(Path.Combine(dir, "photos"), saved));
+        }
+        finally { DeleteTemp(dir); }
+    }
+
+    private static string CreateTempDir()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "LertaroReceiveWindowTests_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        return dir;
+    }
+
+    private static void DeleteTemp(string dir)
+    {
+        try { Directory.Delete(dir, recursive: true); } catch { }
     }
 
     [TestMethod]

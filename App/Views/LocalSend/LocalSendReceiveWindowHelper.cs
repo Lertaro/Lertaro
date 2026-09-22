@@ -17,13 +17,17 @@ public static class LocalSendReceiveWindowHelper
         return totalFiles > 1 ? $"{firstFileName} ({totalFiles})" : firstFileName;
     }
 
+    /// <summary>
+    /// Which path the reveal-in-Explorer button targets: the folder the session wrote into, and failing
+    /// that the file that actually landed. The root is preferred because a multi-file receive puts every
+    /// file under it; falling through matters when it is not there -- a folder the sender named but never
+    /// sent anything into, or one an earlier build derived from the server default rather than from the
+    /// session's own *Save To…* directory. Returning empty hid the button in both cases.
+    /// </summary>
     public static string ResolveFolderTarget(string? rootPath, string? savedPath)
     {
-        var target = rootPath ?? savedPath;
-        if (!string.IsNullOrEmpty(target) && (File.Exists(target) || Directory.Exists(target)))
-        {
-            return target;
-        }
+        if (!string.IsNullOrEmpty(rootPath) && Directory.Exists(rootPath)) return rootPath;
+        if (!string.IsNullOrEmpty(savedPath) && (File.Exists(savedPath) || Directory.Exists(savedPath))) return savedPath;
         return string.Empty;
     }
 
