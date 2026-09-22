@@ -31,21 +31,42 @@ public sealed class AncestorNodeTests
     [TestMethod]
     public void HasSegmentCycle_NoRepeatingSegments_ReturnsFalse()
     {
-        var node = new AncestorNode(@"\\nas\share\folderA\subB\childC\deepD", null);
+        var node = new AncestorNode(@"\\nas\share\folderA\subB\childC\deepD", null, isReparsePoint: true);
         Assert.IsFalse(node.HasSegmentCycle());
     }
 
     [TestMethod]
     public void HasSegmentCycle_ConsecutiveRepeatingSegments_ReturnsTrue()
     {
-        var node = new AncestorNode(@"\\nas\share\folderA\symlinkA\symlinkA", null);
+        var node = new AncestorNode(@"\\nas\share\folderA\symlinkA\symlinkA", null, isReparsePoint: true);
         Assert.IsTrue(node.HasSegmentCycle());
     }
 
     [TestMethod]
     public void HasSegmentCycle_TwoSegmentCycle_ReturnsTrue()
     {
-        var node = new AncestorNode(@"\\nas\share\folderA\subB\linkA\subB\linkA", null);
+        var node = new AncestorNode(@"\\nas\share\folderA\subB\linkA\subB\linkA", null, isReparsePoint: true);
         Assert.IsTrue(node.HasSegmentCycle());
+    }
+
+    [TestMethod]
+    public void HasSegmentCycle_RepeatedNameThatIsAnOrdinaryDirectory_IsNotACycle()
+    {
+        // The whole point of the reparse-point requirement: "\\nas\data\backup\backup" and "...\src\src"
+        // are directories people create, and classifying them as cycles dropped their entire subtree from
+        // the index with nothing but an aggregate counter to show for it.
+        Assert.IsFalse(new AncestorNode(@"\\nas\share\a\b\b", null).HasSegmentCycle());
+        Assert.IsFalse(new AncestorNode(@"\\nas\share\subA\subB\subA\subB", null).HasSegmentCycle());
+    }
+
+    [TestMethod]
+    public void HasSegmentCycle_OnlyTheTrailingSegmentHasToBeTheLink()
+    {
+        // The walk descends into links, so the repeat that matters is the one this node arrived through.
+        var throughLink = new AncestorNode(@"\\nas\share\data\backup\backup", null, isReparsePoint: true);
+        var ordinary = new AncestorNode(@"\\nas\share\data\backup\backup", null, isReparsePoint: false);
+
+        Assert.IsTrue(throughLink.HasSegmentCycle());
+        Assert.IsFalse(ordinary.HasSegmentCycle());
     }
 }

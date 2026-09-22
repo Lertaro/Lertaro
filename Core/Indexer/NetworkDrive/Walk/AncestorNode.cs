@@ -10,10 +10,18 @@ internal sealed class AncestorNode
     public string NormalizedPath { get; }
     public AncestorNode? Parent { get; }
 
-    public AncestorNode(string path, AncestorNode? parent)
+    /// <summary>
+    /// Whether this node's own trailing segment arrived through a reparse point. The network walk descends
+    /// into links, so this is what separates a symlink loop from a directory somebody named after its
+    /// parent -- see <see cref="HasSegmentCycle"/>.
+    /// </summary>
+    public bool IsReparsePoint { get; }
+
+    public AncestorNode(string path, AncestorNode? parent, bool isReparsePoint = false)
     {
         NormalizedPath = Normalize(path);
         Parent = parent;
+        IsReparsePoint = isReparsePoint;
     }
 
     public bool Contains(string path)
@@ -35,6 +43,14 @@ internal sealed class AncestorNode
     /// </summary>
     public bool HasSegmentCycle()
     {
+        // A repeated name is not a loop. Without this guard, \\nas\data\backup\backup and ...\src\src --
+        // directories people really do create -- were classified as cycles and skipped whole, with only an
+        // aggregate counter to show for it. A repeat only means something when it arrived through a link,
+        // which is the Samba shape this was written for; the exact-path Contains check, the resolved-target
+        // check and the per-id enqueue guard are what stop a real cycle.
+        if (!IsReparsePoint)
+            return false;
+
         var segments = NormalizedPath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
         if (segments.Length < 4)
             return false;

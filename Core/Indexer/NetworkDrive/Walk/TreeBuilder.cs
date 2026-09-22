@@ -187,7 +187,8 @@ internal sealed class TreeBuilder
                 // happens, silently leaving it un-Listed forever. Flush now so the child's own record is
                 // registered before anyone else can possibly touch it.
                 FlushRecords(batch);
-                EnqueueDirectory(childPath, logicalFullPath, record.Id, current.Depth + 1, ignoreRules, current.Ancestors);
+                EnqueueDirectory(childPath, logicalFullPath, record.Id, current.Depth + 1, ignoreRules, current.Ancestors,
+                    (record.Attributes & FileAttributes.ReparsePoint) != 0);
             }
 
             if (Interlocked.Increment(ref _countSinceProgress) >= ProgressBatchSize)
@@ -226,7 +227,8 @@ internal sealed class TreeBuilder
 
     // parentId here is this directory's OWN id (becomes WorkItem.LocalId), not its parent's -- matches the
     // naming TryCreateRecord's callers already use when they pass record.Id through as this parameter.
-    internal void EnqueueDirectory(string path, string logicalPath, UInt128 parentId, int depth, NetworkIgnoreRuleSet ignoreRules, AncestorNode? parentAncestors = null)
+    internal void EnqueueDirectory(string path, string logicalPath, UInt128 parentId, int depth, NetworkIgnoreRuleSet ignoreRules,
+        AncestorNode? parentAncestors = null, bool isReparsePoint = false)
     {
         if (depth > 128)
         {
@@ -261,7 +263,7 @@ internal sealed class TreeBuilder
             }
         }
 
-        var nextAncestors = new AncestorNode(normalizedPath, parentAncestors);
+        var nextAncestors = new AncestorNode(normalizedPath, parentAncestors, isReparsePoint);
         if (nextAncestors.HasSegmentCycle())
         {
             Interlocked.Increment(ref _reparseSkipped);
