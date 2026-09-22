@@ -36,6 +36,15 @@ internal static class LocalSendFileTransferSender
 {
     private const int MaxChecksumAttempts = 3;
 
+    /// <summary>
+    /// How long an upload may go without a single byte reaching the peer before the request is given up.
+    /// The send client's own timeout is infinite -- a multi-GB file over WiFi legitimately runs for
+    /// minutes -- so before this, a peer that accepted the connection and then stopped reading left the
+    /// POST pending until the user noticed and pressed Cancel, and a peer that had been unplugged could
+    /// sit in TCP retransmit for minutes.
+    /// </summary>
+    internal static readonly TimeSpan DefaultUploadStallTimeout = TimeSpan.FromSeconds(30);
+
     internal static async Task<LocalSendFileTransferAttempt> UploadWithSenderCancellationAsync(
         Func<CancellationToken, Task<LocalSendFileTransferAttempt>> upload,
         Func<Task> notifyReceiver,
@@ -62,8 +71,10 @@ internal static class LocalSendFileTransferSender
 
     internal static async Task<LocalSendFileTransferAttempt> UploadAsync(HttpClient client, LocalSendServer? server,
         LocalSendPendingFileTransfer transfer, Action<LocalSendSendProgressArgs>? onProgress,
-        Action<LocalSendFileConfirmationArgs>? onFileConfirmed, CancellationToken token)
+        Action<LocalSendFileConfirmationArgs>? onFileConfirmed, CancellationToken token,
+        TimeSpan? uploadStallTimeout = null)
     {
+        var stallTimeout = uploadStallTimeout ?? DefaultUploadStallTimeout;
         using var outgoing = server?.StartOutgoingSession(transfer.TargetIp, transfer.SessionId, LocalSendApiRoute.UsesV1(transfer.TargetVersion));
         using var linked = outgoing == null ? null : CancellationTokenSource.CreateLinkedTokenSource(token, outgoing.Cancellation.Token);
         var transferToken = linked?.Token ?? token;
@@ -78,7 +89,7 @@ internal static class LocalSendFileTransferSender
             while (Interlocked.Increment(ref next) is var index && index < files.Count)
             {
                 var pendingFile = files[index];
-                var attempt = await UploadFileAsync(client, transfer, pendingFile, index + 1, files.Count, onProgress, transferToken, token).ConfigureAwait(false);
+                var attempt = await UploadFileAsync(client, transfer, pendingFile, index + 1, files.Count, onProgress, transferToken, token, stallTimeout).ConfigureAwait(false);
                 onFileConfirmed?.Invoke(new LocalSendFileConfirmationArgs(pendingFile.Id, pendingFile.File.FileName, index + 1, files.Count, attempt.Result, attempt.Error));
                 if (attempt.Result == LocalSendSendResult.Success)
                 {
@@ -105,7 +116,7 @@ internal static class LocalSendFileTransferSender
 
     private static async Task<LocalSendFileTransferAttempt> UploadFileAsync(HttpClient client, LocalSendPendingFileTransfer transfer,
         LocalSendPendingFile pendingFile, int fileIndex, int totalFiles, Action<LocalSendSendProgressArgs>? onProgress,
-        CancellationToken token, CancellationToken userToken)
+        CancellationToken token, CancellationToken userToken, TimeSpan stallTimeout)
     {
         if (!transfer.Tokens.TryGetValue(pendingFile.Id, out var fileToken))
             return new LocalSendFileTransferAttempt(LocalSendSendResult.Success, null, false);
@@ -114,15 +125,24 @@ internal static class LocalSendFileTransferSender
             $"?{sessionQuery}fileId={Uri.EscapeDataString(pendingFile.Id)}&token={Uri.EscapeDataString(fileToken)}";
         for (var attemptNumber = 1; attemptNumber <= MaxChecksumAttempts; attemptNumber++)
         {
+            using var stalled = new CancellationTokenSource(stallTimeout);
+            using var requestToken = CancellationTokenSource.CreateLinkedTokenSource(token, stalled.Token);
             try
             {
                 using var file = pendingFile.OpenContent();
                 onProgress?.Invoke(new LocalSendSendProgressArgs(pendingFile.File.FileName, 0, file.Length,
                     fileIndex, totalFiles));
-                using var content = new ProgressiveStreamContent(file, (sent, total) => onProgress?.Invoke(
-                    new LocalSendSendProgressArgs(pendingFile.File.FileName, sent, total, fileIndex, totalFiles)));
+                using var content = new ProgressiveStreamContent(file, (sent, total) =>
+                {
+                    // Bytes left the sender, so the peer is keeping up: re-arm. The last chunk is not
+                    // re-armed, because what follows is the receiver's own checksum pass over a file it
+                    // may have just taken minutes to write, and that wait is meant to be unbounded.
+                    if (sent < total)
+                        stalled.CancelAfter(stallTimeout);
+                    onProgress?.Invoke(new LocalSendSendProgressArgs(pendingFile.File.FileName, sent, total, fileIndex, totalFiles));
+                });
                 content.Headers.ContentType = new MediaTypeHeaderValue(LocalSendClientHelper.GetMimeTypeForFileName(pendingFile.File.FileName));
-                using var response = await client.PostAsync(url, content, token).ConfigureAwait(false);
+                using var response = await client.PostAsync(url, content, requestToken.Token).ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
                     return new LocalSendFileTransferAttempt(LocalSendSendResult.Success, null, false);
                 if ((int)response.StatusCode == 422 && attemptNumber < MaxChecksumAttempts)
@@ -135,6 +155,11 @@ internal static class LocalSendFileTransferSender
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
                 return new LocalSendFileTransferAttempt(GetCancellationResult(userToken), null, false);
+            }
+            catch (OperationCanceledException) when (stalled.IsCancellationRequested)
+            {
+                Logger.Log($"[LocalSendClient] Upload stalled for {pendingFile.File.FileName}: no progress for {stallTimeout.TotalSeconds:F0}s", LogLevel.Warn);
+                return new LocalSendFileTransferAttempt(LocalSendSendResult.Error, "The receiver stopped accepting data", true);
             }
             catch (OperationCanceledException)
             {

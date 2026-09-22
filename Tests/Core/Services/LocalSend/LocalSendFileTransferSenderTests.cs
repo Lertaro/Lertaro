@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using Lertaro.Core.Services.LocalSend;
 using Lertaro.Core.Services.LocalSend.Models;
 
@@ -50,5 +52,63 @@ public sealed class LocalSendFileTransferSenderTests
 
         Assert.IsFalse(receiverNotified);
         Assert.AreEqual(LocalSendSendResult.Success, result.Result);
+    }
+
+    [TestMethod]
+    public async Task UploadAsync_WhenThePeerAcceptsAndNeverAnswers_EndsAsAStall()
+    {
+        // The send client's own timeout is infinite, so without the inactivity deadline this request
+        // would still be pending when the test run gave up. The stub reads nothing and never responds.
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var heldOpen = new List<TcpClient>();
+        using var listening = new CancellationTokenSource();
+        var accepting = Task.Run(async () =>
+        {
+            try
+            {
+                while (!listening.IsCancellationRequested)
+                {
+                    var client = await listener.AcceptTcpClientAsync(listening.Token);
+                    lock (heldOpen) heldOpen.Add(client);
+                }
+            }
+            catch (OperationCanceledException) { }
+        });
+
+        try
+        {
+            var transfer = new LocalSendPendingFileTransfer
+            {
+                TargetIp = "127.0.0.1",
+                TargetPort = port,
+                Https = false,
+                SessionId = "session",
+                TargetVersion = "2.2",
+                Files =
+                [
+                    new LocalSendPendingFile("file",
+                        new LocalSendFileDto { Id = "file", FileName = "note.txt", Size = 4 },
+                        () => new MemoryStream("data"u8.ToArray()))
+                ],
+                Tokens = new Dictionary<string, string> { ["file"] = "token" }
+            };
+            using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+
+            var attempt = await LocalSendFileTransferSender.UploadAsync(http, server: null, transfer,
+                onProgress: null, onFileConfirmed: null, CancellationToken.None, TimeSpan.FromMilliseconds(250));
+
+            Assert.AreEqual(LocalSendSendResult.Error, attempt.Result);
+            StringAssert.Contains(attempt.Error ?? string.Empty, "stopped accepting",
+                "the stall deadline, not a connection error, is what ended the request");
+            Assert.IsTrue(attempt.CanRetry, "a peer that stopped responding is a transient failure");
+        }
+        finally
+        {
+            listening.Cancel();
+            listener.Stop();
+            lock (heldOpen) foreach (var client in heldOpen) client.Dispose();
+        }
     }
 }
