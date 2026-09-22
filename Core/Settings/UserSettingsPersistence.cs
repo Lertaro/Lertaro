@@ -14,6 +14,13 @@ internal static class UserSettingsPersistence
 
     public static string SettingsPath => Path.Combine(UserDataDirectory.Value, "user-settings.json");
     private const int BackupCount = 5;
+
+    /// <summary>
+    /// One shared instance: a freshly constructed <see cref="JsonSerializerOptions"/> carries no cached
+    /// contract metadata, so every save would re-derive the serializer for the whole settings graph.
+    /// </summary>
+    private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
+
     private static UserSettings? _cachedSettings;
     private static string? _lastJsonOnDisk;
     private static readonly object CacheLock = new();
@@ -106,7 +113,7 @@ internal static class UserSettingsPersistence
         Directory.CreateDirectory(Logger.UserDataDir);
         lock (CacheLock)
         {
-            var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(settings, WriteOptions);
             if (json == _lastJsonOnDisk) { _cachedSettings = settings; return; }
             RotateBackups(SettingsPath);
             AtomicFileStore.Write(SettingsPath, json);

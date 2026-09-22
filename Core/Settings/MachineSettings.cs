@@ -37,6 +37,10 @@ public class MachineSettings
         return Logger.SharedDataDir;
     });
 
+    // One shared instance: a freshly built JsonSerializerOptions re-derives the contract metadata for
+    // the whole object graph on every call.
+    private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
+
     public static string SettingsPath => Path.Combine(SharedDataDirectory.Value, "machine-settings.json");
 
     private static string BackupPath => SettingsPath + ".bak";
@@ -137,6 +141,6 @@ public class MachineSettings
     public void Save()
     {
         Directory.CreateDirectory(Logger.SharedDataDir);
-        AtomicFileStore.Write(SettingsPath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }), BackupPath);
+        AtomicFileStore.Write(SettingsPath, JsonSerializer.Serialize(this, WriteOptions), BackupPath);
     }
 }
