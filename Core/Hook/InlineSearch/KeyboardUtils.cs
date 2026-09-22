@@ -155,12 +155,53 @@ internal static class KeyboardUtils
         return (conv.ToInt64() & KeyboardNativeMethods.IME_CMODE_NATIVE) != 0;
     }
 
+    /// <summary>
+    /// The key-state array ToUnicode wants, built from the physical key states.
+    ///
+    /// GetKeyboardState returns the *calling thread's* synchronized state, and the calling thread here is
+    /// the hook owner, not the thread the keystroke was headed for -- which is why the rest of this module
+    /// asks about modifiers through GetAsyncKeyState. Feeding ToUnicode the wrong thread's shift/AltGr
+    /// bits is how the first character forwarded into the inline search box came out as an unshifted
+    /// digit instead of the symbol, or lost an AltGr combination.
+    /// </summary>
+    internal static byte[] BuildKeyState(Func<int, bool> isDown, Func<int, bool> isToggled)
+    {
+        var state = new byte[256];
+
+        SetDown(state, 0xA0, isDown(0xA0)); // VK_LSHIFT
+        SetDown(state, 0xA1, isDown(0xA1)); // VK_RSHIFT
+        if (isDown(0xA0) || isDown(0xA1)) SetDown(state, 0x10, true); // VK_SHIFT
+
+        SetDown(state, 0xA2, isDown(0xA2)); // VK_LCONTROL
+        SetDown(state, 0xA3, isDown(0xA3)); // VK_RCONTROL
+        if (isDown(0xA2) || isDown(0xA3)) SetDown(state, 0x11, true); // VK_CONTROL
+
+        SetDown(state, 0xA4, isDown(0xA4)); // VK_LMENU
+        SetDown(state, 0xA5, isDown(0xA5)); // VK_RMENU
+        if (isDown(0xA4) || isDown(0xA5)) SetDown(state, 0x12, true); // VK_MENU
+
+        SetDown(state, 0x5B, isDown(0x5B)); // VK_LWIN
+        SetDown(state, 0x5C, isDown(0x5C)); // VK_RWIN
+
+        // The lock keys are read as a toggle in bit 0, not as a held key in the high bit.
+        if (isToggled(0x14)) state[0x14] = 1; // VK_CAPITAL
+        if (isToggled(0x90)) state[0x90] = 1; // VK_NUMLOCK
+
+        return state;
+    }
+
+    private static void SetDown(byte[] state, int vk, bool down) => state[vk] = down ? (byte)0x80 : (byte)0;
+
     public static char GetUnicodeChar(KeyboardNativeMethods.KBDLLHOOKSTRUCT hookStruct)
     {
-        var keyboardState = new byte[256];
-        KeyboardNativeMethods.GetKeyboardState(keyboardState);
+        var keyboardState = BuildKeyState(
+            vk => (KeyboardNativeMethods.GetAsyncKeyState(vk) & 0x8000) != 0,
+            vk => (KeyboardNativeMethods.GetAsyncKeyState(vk) & 1) != 0);
         var sb = new System.Text.StringBuilder(2);
-        var result = KeyboardNativeMethods.ToUnicode(hookStruct.vkCode, hookStruct.scanCode, keyboardState, sb, sb.Capacity, 0);
+        // wFlags 4 asks ToUnicode to leave the dead-key state alone. Consuming it is what made this
+        // probe damage the user's *next* composition: the first half of a dead-key sequence typed in the
+        // foreground application would already be spent.
+        var result = KeyboardNativeMethods.ToUnicode(hookStruct.vkCode, hookStruct.scanCode, keyboardState, sb, sb.Capacity, 4);
         if (result == 1 && !char.IsControl(sb[0]))
         {
             return sb[0];

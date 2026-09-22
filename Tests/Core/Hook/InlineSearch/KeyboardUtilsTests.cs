@@ -142,4 +142,47 @@ public sealed class KeyboardUtilsTests
     [TestMethod]
     public void ParseModifiers_NullSpecIsNoModifierUntilTheCallerDefaultsIt() =>
         Assert.AreEqual(KeyboardUtils.ModifierMask.None, KeyboardUtils.ParseModifiers(null));
+
+    [TestMethod]
+    public void BuildKeyState_ReportsOnlyTheShiftThatIsActuallyDown()
+    {
+        var state = KeyboardUtils.BuildKeyState(vk => vk == 0xA1, _ => false); // right shift held
+
+        Assert.AreEqual(0x80, state[0xA1]);
+        Assert.AreEqual(0x80, state[0x10], "the generic VK_SHIFT bit is what ToUnicode reads");
+        Assert.AreEqual(0, state[0xA0]);
+    }
+
+    [TestMethod]
+    public void BuildKeyState_KeepsEveryModifierThePhysicalStateCarries()
+    {
+        var down = new HashSet<int> { 0xA2, 0xA4, 0x5B }; // left ctrl, left alt, left win
+
+        var state = KeyboardUtils.BuildKeyState(down.Contains, _ => false);
+
+        Assert.AreEqual(0x80, state[0x11]);
+        Assert.AreEqual(0x80, state[0xA2]);
+        Assert.AreEqual(0x80, state[0x12]);
+        Assert.AreEqual(0x80, state[0xA4]);
+        Assert.AreEqual(0x80, state[0x5B]);
+        Assert.AreEqual(0, state[0x10], "nothing here is a shift");
+    }
+
+    [TestMethod]
+    public void BuildKeyState_ReadsTheLockKeysAsTogglesNotAsHeldKeys()
+    {
+        var state = KeyboardUtils.BuildKeyState(_ => false, vk => vk == 0x14); // caps lock on
+
+        Assert.AreEqual(1, state[0x14], "bit 0 is the toggle; the high bit would say caps lock is held down");
+        Assert.AreEqual(0, state[0x90]);
+    }
+
+    [TestMethod]
+    public void BuildKeyState_AllKeysUpIsAnAllZeroArray()
+    {
+        var state = KeyboardUtils.BuildKeyState(_ => false, _ => false);
+
+        Assert.HasCount(256, state);
+        Assert.IsTrue(state.All(b => b == 0));
+    }
 }
