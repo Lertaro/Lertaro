@@ -98,48 +98,4 @@ public static class VolumeHelper
     // GetFileSystemType round trip).
     public static bool IsJournalCapableFileSystem(string fileSystemType) =>
         fileSystemType.Equals("NTFS", StringComparison.OrdinalIgnoreCase) || fileSystemType.Equals("ReFS", StringComparison.OrdinalIgnoreCase);
-
-    public static string GetNtfsVersion(string driveLetter)
-    {
-        var volumePath = $"\\\\.\\{driveLetter}:";
-        using var handle = Win32Api.CreateFileW(volumePath, Win32Api.GENERIC_READ,
-            Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE,
-            IntPtr.Zero, Win32Api.OPEN_EXISTING, 0, IntPtr.Zero);
-        if (handle.IsInvalid) return "v?";
-
-        // NTFS_VOLUME_DATA_BUFFER (96 bytes) + NTFS_EXTENDED_VOLUME_DATA.
-        var ntfsBuf = new byte[128];
-        if (Win32Api.DeviceIoControl(handle, Win32Api.FSCTL_GET_NTFS_VOLUME_DATA,
-            IntPtr.Zero, 0, ntfsBuf, (uint)ntfsBuf.Length, out var returned, IntPtr.Zero)
-            && returned >= 104)
-        {
-            var major = BitConverter.ToUInt16(ntfsBuf, 100);
-            var minor = BitConverter.ToUInt16(ntfsBuf, 102);
-            return $"v{major}.{minor}";
-        }
-
-        return "v?";
-    }
-
-    // Returns the ReFS on-disk format version string (e.g. "v3.14").
-    public static string GetReFsVersion(string driveLetter)
-    {
-        var volumePath = $"\\\\.\\{driveLetter}:";
-        using var handle = Win32Api.CreateFileW(volumePath, Win32Api.GENERIC_READ,
-            Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE,
-            IntPtr.Zero, Win32Api.OPEN_EXISTING, 0, IntPtr.Zero);
-        if (handle.IsInvalid) return "v?";
-
-        // REFS_VOLUME_DATA_BUFFER layout: [0] ByteCount(4), [4] MajorVersion(4), [8] MinorVersion(4), ...
-        var refsBuf = new byte[512];
-        if (Win32Api.DeviceIoControl(handle, Win32Api.FSCTL_GET_REFS_VOLUME_DATA,
-            IntPtr.Zero, 0, refsBuf, (uint)refsBuf.Length, out _, IntPtr.Zero))
-        {
-            var major = BitConverter.ToUInt32(refsBuf, 4);
-            var minor = BitConverter.ToUInt32(refsBuf, 8);
-            return $"v{major}.{minor}";
-        }
-
-        return "v?";
-    }
 }
