@@ -261,11 +261,17 @@ public class QuickSearchWindowController
             };
             fadeContent.BeginAnimation(UIElement.OpacityProperty, fadeOut);
 
-            Task.Run(async () =>
+            // A one-shot dispatcher timer, not a pool thread sleeping to a blocking Invoke: the thread was
+            // occupied purely to wait out an animation, supersession is already handled by the search
+            // version guard inside FinishHide, and if the app began shutting down just after a hide the
+            // Invoke threw inside a fire-and-forget task -- an unobserved exception with no context.
+            var fadeTimer = new DispatcherTimer { Interval = fadeOutDuration.TimeSpan };
+            fadeTimer.Tick += (_, _) =>
             {
-                await Task.Delay(fadeOutDuration.TimeSpan);
-                _window.Dispatcher.Invoke(FinishHide);
-            });
+                fadeTimer.Stop();
+                FinishHide();
+            };
+            fadeTimer.Start();
         }
         else
         {

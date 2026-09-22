@@ -55,13 +55,14 @@ public class QuickSearchWindowForegroundWatcher
             GetClassName(hwnd, sbClass, sbClass.Capacity);
             var className = sbClass.ToString();
             GetWindowThreadProcessId(hwnd, out var activePid);
-            var procName = ShellOverlayDismissHelper.TryGetProcessName(activePid);
 
-            // TODO(issue #68): temporary diagnostic for "a system notification makes the search window
-            // disappear" -- couldn't reproduce with a plain WinRT toast fired under Explorer's AUMID, so
-            // logging every candidate here (skipped or not) to see what's actually triggering it for the
-            // reporter. Remove once root-caused.
-            Logger.Log($"[ForegroundHook] class='{className}' pid={activePid} proc='{procName}'", LogLevel.Info);
+            // Issue #68's diagnostic for "a system notification makes the search window disappear", kept
+            // but demoted from Info and made conditional: this callback runs for every foreground change
+            // anywhere in the OS while the quick window is visible, and the unconditional line paid a
+            // GetClassName, a Process.GetProcessById -- opening a real process object -- and a log write
+            // on the WinEvent callback path even when the level would drop it.
+            if (Logger.IsEnabled(LogLevel.Debug))
+                Logger.Log($"[ForegroundHook] class='{className}' pid={activePid} proc='{ShellOverlayDismissHelper.TryGetProcessName(activePid)}'", LogLevel.Debug);
 
             // A preview provider may be hosting an out-of-process native handler (e.g. Office acting as
             // its own Preview Handler COM server), whose window can grab foreground on its own -- at
