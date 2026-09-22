@@ -230,17 +230,46 @@ internal sealed class SearchDispatchController
             // assembled (e.g. the inline window's "Current Folder"/"Global Search" split, each with its
             // own files right under its own header) -- token mode is the only case that needs to
             // extract/re-filter/re-cap that structure, since it collapses it into a flat file list anyway.
-            _replaceResults(uiResults);
-
-            var hasResults = uiResults.Count > 0;
-            _setResultsPanelVisibility(hasResults ? Visibility.Visible : Visibility.Collapsed);
-            _setResultsSeparatorVisibility(hasResults ? Visibility.Visible : Visibility.Collapsed);
-            _mainVm.Monitor.StatusBarVisibility = Visibility.Visible;
-            _mainVm.Monitor.StatusText = statusText;
+            ApplyUntokenized(uiResults, statusText);
             return;
         }
 
-        _ = ComposeAndApplyAsync(query, uiResults, _queryTokens, statusText, final);
+        _ = ComposeAndApplyGuardedAsync(query, uiResults, _queryTokens, statusText, final);
+    }
+
+    /// <summary>
+    /// The fire-and-forget half of the guard around <see cref="ComposeAndApplyAsync"/>. A query-token or
+    /// sidebar plugin that throws used to fault this task unobserved: nothing was logged with the query
+    /// that caused it, and because the replace-results step never ran the window kept showing the
+    /// *previous* query's rows under the text the user just typed -- which reads as "search is stuck"
+    /// rather than "one plugin failed". Rendering the untokenized rows is the honest fallback: the search
+    /// still answers, just without the token's refinement.
+    /// </summary>
+    private async Task ComposeAndApplyGuardedAsync(string query, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final)
+    {
+        try
+        {
+            await ComposeAndApplyAsync(query, uiResults, tokensSnapshot, statusText, final).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[SearchDispatch] Query-token composition failed for '{query}': {ex.Message}. Showing the untokenized results.", LogLevel.Warn);
+            if (_getSearchQuery() != query || !ReferenceEquals(_queryTokens, tokensSnapshot))
+                return; // a newer query already owns the list; falling back would undo it
+
+            ApplyUntokenized(uiResults, statusText);
+        }
+    }
+
+    private void ApplyUntokenized(List<AppSearchResult> uiResults, string statusText)
+    {
+        _replaceResults(uiResults);
+
+        var hasResults = uiResults.Count > 0;
+        _setResultsPanelVisibility(hasResults ? Visibility.Visible : Visibility.Collapsed);
+        _setResultsSeparatorVisibility(hasResults ? Visibility.Visible : Visibility.Collapsed);
+        _mainVm.Monitor.StatusBarVisibility = Visibility.Visible;
+        _mainVm.Monitor.StatusText = statusText;
     }
 
     // Token mode only: extracts the file/directory subset -- the only thing a query token is allowed to

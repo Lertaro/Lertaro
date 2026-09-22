@@ -235,7 +235,24 @@ internal sealed class SearchQueryDispatchController
 
     private async Task RefreshAfterTokenDispatchAsync(List<AppSearchResult> resultsSnapshot, IReadOnlyList<string> tokensSnapshot, bool extendsContent)
     {
-        var dispatched = await QueryTokenDispatcher.ApplyAsync(resultsSnapshot, tokensSnapshot);
+        List<AppSearchResult> dispatched;
+        try
+        {
+            dispatched = await QueryTokenDispatcher.ApplyAsync(resultsSnapshot, tokensSnapshot);
+        }
+        catch (Exception ex)
+        {
+            // This is awaited by nobody, so a throwing token provider used to vanish: no log carrying the
+            // query, no error reaching the UI, and because the render step below never ran the window
+            // kept the previous query's rows under the text the user just typed -- "search is stuck", not
+            // "a plugin failed". The snapshot is already what _allResults holds, so rendering it is the
+            // honest untokenized fallback.
+            Logger.Log($"[SearchQueryDispatch] Query-token dispatch failed: {ex.Message}. Showing the untokenized results.", LogLevel.Warn);
+            if (ReferenceEquals(_getAllResults(), resultsSnapshot) && ReferenceEquals(_queryTokens, tokensSnapshot))
+                _applyFiltersAndRender(extendsContent, 0);
+            return;
+        }
+
         if (!ReferenceEquals(_getAllResults(), resultsSnapshot) || !ReferenceEquals(_queryTokens, tokensSnapshot))
             return;
         _setAllResults(dispatched);
