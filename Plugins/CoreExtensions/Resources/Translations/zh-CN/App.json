@@ -110,6 +110,7 @@
   "Settings_LocalSend_DiscoveryTimeoutDesc": "扫描局域网设备时的响应等待超时时间 (毫秒, 默认 1000)",
   "Settings_LocalSend_EnableHttps": "加密传输 (HTTPS)",
   "Settings_LocalSend_EnableHttpsDesc": "使用 HTTPS 加密连接传输数据 (需对方设备支持)",
+  "Settings_LocalSend_Insecure": "未加密",
   "Settings_LocalSend_CreateChecksums": "发送时校验",
   "Settings_LocalSend_CreateChecksumsDesc": "发送文件时创建 SHA-256 校验和 (可能增加发送前的等待时间)",
   "Settings_LocalSend_VerifyChecksums": "接收后校验",

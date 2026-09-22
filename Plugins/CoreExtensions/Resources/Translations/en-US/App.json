@@ -110,6 +110,7 @@
   "Settings_LocalSend_DiscoveryTimeoutDesc": "Response timeout when scanning LAN devices (ms, default 1000)",
   "Settings_LocalSend_EnableHttps": "Encrypted Transfer (HTTPS)",
   "Settings_LocalSend_EnableHttpsDesc": "Use HTTPS encrypted connection for data transfer",
+  "Settings_LocalSend_Insecure": "Unencrypted",
   "Settings_LocalSend_CreateChecksums": "Verify While Sending",
   "Settings_LocalSend_CreateChecksumsDesc": "Create SHA-256 checksums when sending files (may add a delay before transfer)",
   "Settings_LocalSend_VerifyChecksums": "Verify After Receiving",

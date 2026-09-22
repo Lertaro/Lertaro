@@ -45,18 +45,22 @@
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Alias}" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary2}" TextTrimming="CharacterEllipsis"/>
-                                        <Ellipse Width="7" Height="7" Margin="5,0,0,0" VerticalAlignment="Center" Fill="{DynamicResource SuccessBrush}">
-                                            <Ellipse.Style>
-                                                <Style TargetType="Ellipse">
+                                        <TextBlock Margin="5,0,0,0" VerticalAlignment="Center" FontSize="10.5"
+                                                   Foreground="{DynamicResource WarningBrush}"
+                                                   Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Insecure]}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding UsesHttps}" Value="True">
+                                                        <!-- The peer chose HTTP; say so in words. A colour-only
+                                                             dot is not a warning a colour-blind user can read. -->
+                                                        <DataTrigger Binding="{Binding ShowInsecureLabel}" Value="True">
                                                             <Setter Property="Visibility" Value="Visible"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
-                                            </Ellipse.Style>
-                                        </Ellipse>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </StackPanel>
                                     <TextBlock FontSize="10.5" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"><Run Text="#"/><Run Text="{Binding FingerprintTag, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding DeviceModel, Mode=OneWay}"/></TextBlock>
                                 </StackPanel>

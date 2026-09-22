@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Lertaro.Core;
 using Lertaro.Core.Services.LocalSend.Models;
 
 namespace Lertaro.App.ViewModels.LocalSend;
@@ -21,6 +22,17 @@ public sealed class LocalSendSendDeviceItem : INotifyPropertyChanged
     public string IpAddress => Device.IpAddress;
     public string? DeviceModel => Device.DeviceModel;
     public bool UsesHttps => Device.Https;
+
+    /// <summary>
+    /// Whether this peer should be labelled as an unencrypted target: it announced plain HTTP while this
+    /// installation has encrypted transfer switched on, so the transfer will leave the machine in
+    /// cleartext. Discovery is unauthenticated multicast and the peer picks its own protocol, so this is
+    /// information about a choice the other end made, not a failure -- the send still goes ahead.
+    /// A colour-only dot cannot carry that: it is invisible to a colour-blind user and reads as
+    /// decoration. The local setting is read when the row is bound, so turning HTTPS on mid-session
+    /// labels the list the next time it refreshes.
+    /// </summary>
+    public bool ShowInsecureLabel => !Device.Https && UserSettings.Load().LocalSend.EnableHttps;
 
     // #xxx tag: last octet of the device's IP, matching LocalSend protocol convention and the settings display.
     public string FingerprintTag
@@ -64,6 +76,7 @@ public sealed class LocalSendSendDeviceItem : INotifyPropertyChanged
         OnPropertyChanged(nameof(IpAddress));
         OnPropertyChanged(nameof(DeviceModel));
         OnPropertyChanged(nameof(UsesHttps));
+        OnPropertyChanged(nameof(ShowInsecureLabel));
         OnPropertyChanged(nameof(DeviceTypeIcon));
     }
 

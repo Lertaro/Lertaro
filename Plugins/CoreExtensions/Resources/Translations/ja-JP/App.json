@@ -110,6 +110,7 @@
   "Settings_LocalSend_DiscoveryTimeoutDesc": "LANデバイスをスキャンする際の応答待機タイムアウト (ミリ秒、デフォルト 1000)",
   "Settings_LocalSend_EnableHttps": "暗号化転送 (HTTPS)",
   "Settings_LocalSend_EnableHttpsDesc": "データ転送に HTTPS 暗号化接続を使用する",
+  "Settings_LocalSend_Insecure": "未暗号化",
   "Settings_LocalSend_CreateChecksums": "送信時に検証",
   "Settings_LocalSend_CreateChecksumsDesc": "ファイル送信時に SHA-256 チェックサムを作成します (転送開始前に時間がかかる場合があります)",
   "Settings_LocalSend_VerifyChecksums": "受信後に検証",

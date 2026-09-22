@@ -110,6 +110,7 @@
   "Settings_LocalSend_DiscoveryTimeoutDesc": "LAN 기기를 스캔할 때의 응답 대기 타임아웃 (밀리초, 기본값 1000)",
   "Settings_LocalSend_EnableHttps": "암호화 전송 (HTTPS)",
   "Settings_LocalSend_EnableHttpsDesc": "데이터 전송에 HTTPS 암호화 연결 사용",
+  "Settings_LocalSend_Insecure": "암호화되지 않음",
   "Settings_LocalSend_CreateChecksums": "전송 시 검증",
   "Settings_LocalSend_CreateChecksumsDesc": "파일 전송 시 SHA-256 체크섬을 생성합니다 (전송 시작 전 대기 시간이 늘어날 수 있음)",
   "Settings_LocalSend_VerifyChecksums": "수신 후 검증",
