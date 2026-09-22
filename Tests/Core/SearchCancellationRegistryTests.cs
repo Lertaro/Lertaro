@@ -121,4 +121,45 @@ public sealed class SearchCancellationRegistryTests
         Assert.IsTrue(unscoped.IsCancellationRequested);
         Assert.IsTrue(scoped.IsCancellationRequested);
     }
+
+    [TestMethod]
+    public void Begin_WhenSupersededCallbackThrows_StillRegistersTheNewSearch()
+    {
+        var registry = new SearchCancellationRegistry();
+        var superseded = registry.Begin(@"C:\Books");
+        superseded.Token.Register(static () => throw new InvalidOperationException("callback failed"));
+
+        var replacement = registry.Begin(@"C:\Books");
+
+        Assert.IsFalse(replacement.IsCancellationRequested, "a throwing callback of the old search must not fail the new one");
+
+        var third = registry.Begin(@"C:\Books");
+        Assert.IsTrue(replacement.IsCancellationRequested, "the new search must be in the slot, so the next keystroke supersedes it");
+        Assert.IsFalse(third.IsCancellationRequested);
+    }
+
+    [TestMethod]
+    public void Begin_CancelsTheSupersededSearchOutsideTheRegistryLock()
+    {
+        var registry = new SearchCancellationRegistry();
+        var superseded = registry.Begin(@"C:\Books");
+        using var unwound = new ManualResetEventSlim(false);
+        superseded.Token.Register(() =>
+        {
+            // The real deadlock shape: the superseded search calls End from its own finally, on its own
+            // thread, while this thread is still inside Begin. Join bounds the wait so a regression fails
+            // the assertion after five seconds instead of hanging the run.
+            var unwindingThread = new Thread(() =>
+            {
+                registry.End(@"C:\Books", superseded);
+                unwound.Set();
+            });
+            unwindingThread.Start();
+            unwindingThread.Join(TimeSpan.FromSeconds(5));
+        });
+
+        registry.Begin(@"C:\Books");
+
+        Assert.IsTrue(unwound.IsSet, "the registry lock must be free while a superseded search is being cancelled");
+    }
 }

@@ -26,15 +26,39 @@ internal sealed class SearchCancellationRegistry
     /// </summary>
     public CancellationTokenSource Begin(string? directoryFilter)
     {
+        var key = directoryFilter ?? string.Empty;
+        var current = new CancellationTokenSource();
+        CancellationTokenSource? previous;
         lock (_lock)
         {
-            var key = directoryFilter ?? string.Empty;
-            if (_slots.TryGetValue(key, out var previous))
-                previous.Cancel();
-
-            var current = new CancellationTokenSource();
+            _slots.TryGetValue(key, out previous);
             _slots[key] = current;
-            return current;
+        }
+
+        CancelSuperseded(previous);
+        return current;
+    }
+
+    /// <summary>
+    /// Cancels a superseded source outside <c>_lock</c> and never lets it throw. Cancel() runs every
+    /// registered continuation synchronously on this thread, and these tokens reach the whole search
+    /// pipeline -- including <see cref="End"/>, which the search's own finally calls from another thread,
+    /// so a callback that blocks would deadlock the search path if the lock were held. A throwing
+    /// callback would otherwise abort <see cref="Begin"/> before the new source was registered, leaving
+    /// the new search uncancelable by the next keystroke.
+    /// </summary>
+    private static void CancelSuperseded(CancellationTokenSource? previous)
+    {
+        if (previous is null)
+            return;
+
+        try
+        {
+            previous.Cancel();
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[SearchCancellation] A superseded search's cancellation callback threw: {ex.Message}", LogLevel.Warn);
         }
     }
 
@@ -56,11 +80,14 @@ internal sealed class SearchCancellationRegistry
 
     public void CancelAll()
     {
+        CancellationTokenSource[] superseded;
         lock (_lock)
         {
-            foreach (var slot in _slots.Values)
-                slot.Cancel();
+            superseded = [.. _slots.Values];
             _slots.Clear();
         }
+
+        foreach (var source in superseded)
+            CancelSuperseded(source);
     }
 }
