@@ -84,6 +84,25 @@ public sealed class HookIpcClient : IDisposable
         _ = ClosePipesAsync();
     }
     public void SendMessage(IpcMessage msg) => _ = SendMessageAsync(msg);
+
+    /// <summary>
+    /// Commands that leave a state the hook keeps applying until it is told otherwise. Losing one is not
+    /// "a dropped write": the hook carries the previous value, and for the inline-visibility flags that
+    /// value is what stops Escape, Backspace and the arrows reaching the foreground application. They are
+    /// remembered and re-sent after every successful connect, which is what the hotkey-disabled flag
+    /// already did by hand.
+    /// </summary>
+    private static readonly HashSet<IpcMessageId> StickyStates =
+    [
+        IpcMessageId.SetAppProcessId,
+        IpcMessageId.SetHotkeysDisabled,
+        IpcMessageId.SetQuickSearchVisible,
+        IpcMessageId.SetInlineSearchVisible,
+        IpcMessageId.SetInlineWindowOnScreen,
+    ];
+
+    private readonly Dictionary<IpcMessageId, IpcMessage> _pendingState = new();
+
     private async Task SendMessageAsync(IpcMessage msg)
     {
         try
@@ -92,8 +111,23 @@ public sealed class HookIpcClient : IDisposable
 
             try
             {
-                if (_cmdPipe != null && _cmdPipe.IsConnected)
-                    await PipeRequestBinarySerializer.WriteMessageAsync(_cmdPipe, msg).ConfigureAwait(false);
+                var sent = false;
+                if (_cmdPipe is { IsConnected: true } cmdPipe)
+                {
+                    await PipeRequestBinarySerializer.WriteMessageAsync(cmdPipe, msg).ConfigureAwait(false);
+                    sent = true;
+                }
+
+                if (StickyStates.Contains(msg.Id))
+                {
+                    _pendingState[msg.Id] = msg;
+                    if (!sent)
+                        Logger.Log($"[HookIpcClient] {msg.Id} could not reach the hook; re-sent on connect.", LogLevel.Debug);
+                }
+                else if (!sent)
+                {
+                    Logger.Log($"[HookIpcClient] Dropped {msg.Id}: the hook pipe is not connected.", LogLevel.Debug);
+                }
             }
 
             finally
@@ -105,6 +139,22 @@ public sealed class HookIpcClient : IDisposable
         catch (Exception ex)
         {
             Logger.Log($"[HookIpcClient] Failed to send IPC message {msg.Id}: {ex.Message}", LogLevel.Warn);
+        }
+    }
+
+    /// <summary>
+    /// Replays the remembered state onto a freshly connected hook, so a command lost during the
+    /// reconnect window cannot leave the new connection carrying a stale view of the App's windows.
+    /// Caller holds <see cref="_writeGate"/>.
+    /// </summary>
+    private async Task ResendPendingStateAsync()
+    {
+        foreach (var state in _pendingState.Values.ToList())
+        {
+            if (_cmdPipe is not { IsConnected: true })
+                return;
+
+            await PipeRequestBinarySerializer.WriteMessageAsync(_cmdPipe, state).ConfigureAwait(false);
         }
     }
     private async Task RunLoop(CancellationToken token)
@@ -133,19 +183,6 @@ public sealed class HookIpcClient : IDisposable
                 using var eventPipe = new NamedPipeClientStream(".", HookIpcNames.EventPipeName, PipeDirection.In, PipeOptions.Asynchronous);
                 using var cmdPipe = new NamedPipeClientStream(".", HookIpcNames.CmdPipeName, PipeDirection.Out, PipeOptions.Asynchronous);
 
-                await _writeGate.WaitAsync(token).ConfigureAwait(false);
-
-                try
-                {
-                    _eventPipe = eventPipe;
-                    _cmdPipe = cmdPipe;
-                }
-
-                finally
-                {
-                    _writeGate.Release();
-                }
-
                 await Task.WhenAll(
 
                     eventPipe.ConnectAsync(5000, token),
@@ -163,6 +200,23 @@ public sealed class HookIpcClient : IDisposable
                 {
                     throw new UnauthorizedAccessException(
                         $"Hook pipe is served by PID {serverPid}, expected {_hookProcess.Id}.");
+                }
+
+                // Only now do the streams become the ones SendMessageAsync writes to. Publishing them
+                // before ConnectAsync -- as this used to -- let IsConnected be consulted on pipes that
+                // were not connected yet, which is how a state command sent in that window disappeared
+                // without a word.
+                await _writeGate.WaitAsync(token).ConfigureAwait(false);
+                try
+                {
+                    _eventPipe = eventPipe;
+                    _cmdPipe = cmdPipe;
+                    await ResendPendingStateAsync().ConfigureAwait(false);
+                }
+
+                finally
+                {
+                    _writeGate.Release();
                 }
 
                 // Send initial process ID of the App so the Service can ignore it.
