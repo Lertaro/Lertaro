@@ -27,7 +27,7 @@ public static class SearchServiceSpaceExtensions
             .Select(group => group.First())
             .OrderByDescending(entry => entry.Size)
             .ThenByDescending(entry => entry.IsDirectory)
-            .ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 

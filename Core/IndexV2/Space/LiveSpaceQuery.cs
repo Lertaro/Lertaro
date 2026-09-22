@@ -270,7 +270,9 @@ internal static class LiveSpaceQuery
         var bySize = right.Size.CompareTo(left.Size);
         if (bySize != 0) return bySize;
         if (left.IsDirectory != right.IsDirectory) return left.IsDirectory ? -1 : 1;
-        return StringComparer.CurrentCultureIgnoreCase.Compare(left.Name, right.Name);
+        // Ordinal, like everything else in this module: the culture collation was the one place a
+        // sort paid Win32 CompareStringW per row, and the space view orders by size first anyway.
+        return StringComparer.OrdinalIgnoreCase.Compare(left.Name, right.Name);
     }
 
     private static long SaturatingAdd(long left, long right)
