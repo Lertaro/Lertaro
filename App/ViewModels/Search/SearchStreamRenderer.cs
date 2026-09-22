@@ -79,9 +79,9 @@ internal sealed class SearchStreamRenderer
             if (!SearchReachabilityGate.IsResultReachable(result))
                 return;
 
-            // The inline window's scope is folders. Dropped here rather than after ranking so the row
-            // budget, the progressive paint sizes and the "N results" count all describe the rows this
-            // window may actually list.
+            // The card over a file dialog offers folders, so everything else is dropped before it can take
+            // a row. Filtered here rather than after ranking so the row budget, the progressive paint sizes
+            // and the "N results" count all describe the rows the window may actually list.
             if (foldersOnly && !result.IsDir)
                 return;
 

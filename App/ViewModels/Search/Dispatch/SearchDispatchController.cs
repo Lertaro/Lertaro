@@ -133,12 +133,14 @@ internal sealed class SearchDispatchController
         // (a folder scope says nothing about applications), so no app budget is needed at all.
         var hasTokens = _queryTokens.Count > 0;
         var hasScope = scopeDirective != null;
-        // The inline window lists folders only (see SearchStreamRenderer's foldersOnly), so most of what
-        // the engine answers gets dropped before it reaches the list -- at the ordinary 51-row budget that
-        // leaves about ten folders on a mixed query. Same widening the token and scoped paths above already
-        // use, for the same reason: the rows the window may keep have to reach the accumulator first.
-        var isInline = _getIsInlineSearchContext();
-        var fileLimit = hasTokens || hasScope || isInline ? SearchViewModel.TokenQuickSearchFileLimit : 51;
+        // Folders only, and only for the card over a file dialog -- there the user is choosing a folder. Typed
+        // into an Explorer window's own search box this card IS that window's search, so it has to keep
+        // finding files; the layout code already tells those two situations apart by the same flag.
+        var folderScope = _getIsInlineSearchContext() && InlineSearchManager.Instance.ExplorerTracker.IsActiveWindowDialog;
+        // A folder scope drops most of what the engine answers before it reaches the list, so the ordinary
+        // 51-row budget would leave about ten folders on a mixed query. Same widening the token and scoped
+        // paths above already use, for the same reason: the rows the card may keep have to arrive first.
+        var fileLimit = hasTokens || hasScope || folderScope ? SearchViewModel.TokenQuickSearchFileLimit : 51;
         var appLimit = hasScope ? 0 : hasTokens ? SearchViewModel.FullSearchAppLimit : 51;
         engineCall(
             searchQuery,
@@ -146,7 +148,7 @@ internal sealed class SearchDispatchController
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope, fileFilterScope: scopeDirective),
+            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope, fileFilterScope: scopeDirective, folderScope: folderScope),
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, results, status, final),
             HandleLocalServiceUnavailable,

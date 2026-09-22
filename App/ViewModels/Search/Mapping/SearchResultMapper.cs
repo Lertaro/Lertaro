@@ -12,7 +12,7 @@ public static class SearchResultMapper
     // silently drops the token's real matches whenever they don't also happen to be in the top ~50 by
     // plain filename weight (e.g. a common substring like "1080" already fills that cap with unrelated
     // files before the directory filter gets a chance to run at all).
-    public static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null)
+    public static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false)
     {
         var uiResults = new List<AppSearchResult>();
         // Instant-result plugins get the untouched raw text (keyword + any " :xxx" token suffix) rather
@@ -181,11 +181,10 @@ public static class SearchResultMapper
             }
         }
 
-        // The inline window's scope is folders. Both sources merged above can contribute files (a favorite
-        // path, learned history), and the engine-side filter in SearchStreamRenderer.Accumulate is not this
-        // mapper's contract -- applied before ranking and before the display cap so a dropped file cannot
-        // take a row the folders would have used.
-        if (isInlineWindow)
+        // The history and favorite rows merged above never pass through the engine's own folder filter, so the
+        // scope has to be re-applied to them here. Before ranking and before the display cap, so a dropped
+        // file cannot take a row the folders would have used.
+        if (folderScope)
             candidates.RemoveAll(c => !c.Result.IsDir);
 
         var ranked = RankAndDedupe(candidates);

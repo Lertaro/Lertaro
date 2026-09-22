@@ -103,6 +103,9 @@ internal sealed class SearchExecutionEngine : IDisposable
             {
                 var tracker = InlineSearchManager.Instance.ExplorerTracker;
                 var dialogAdapter = tracker.ActiveAdapter;
+                // Folders only over a file dialog, where the user is choosing a folder. Typed into an Explorer
+                // window's own search box this card is that window's search, so it keeps finding files.
+                var folderScope = isInlineSearchContext && tracker.IsActiveWindowDialog;
                 if (isInlineSearchContext && tracker.ActiveHwnd != IntPtr.Zero
                     && (tracker.IsActiveWindowExplorer || (tracker.IsActiveWindowDialog && dialogAdapter != null)))
                 {
@@ -111,7 +114,7 @@ internal sealed class SearchExecutionEngine : IDisposable
                         : tracker.ActivePath ?? tracker.LastActiveExplorerPath;
                     if (!string.IsNullOrEmpty(contextDirectory))
                     {
-                        await RenderInlineSearchAsync(query, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable, bypassExclusions).ConfigureAwait(false);
+                        await RenderInlineSearchAsync(query, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable, bypassExclusions, folderScope).ConfigureAwait(false);
                         return;
                     }
                 }
@@ -120,7 +123,7 @@ internal sealed class SearchExecutionEngine : IDisposable
                 var streamingContextDirectory = isInlineSearchContext
                     ? (!string.IsNullOrWhiteSpace(searchScope) ? searchScope : tracker.ActivePath ?? tracker.LastActiveExplorerPath)
                     : tracker.LastActiveExplorerPath;
-                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective, foldersOnly: isInlineSearchContext).ConfigureAwait(false);
+                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective, foldersOnly: folderScope).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -188,13 +191,14 @@ internal sealed class SearchExecutionEngine : IDisposable
         Action<List<AppSearchResult>, string, bool> onResultsUpdated,
         CancellationToken token,
         Action? onLocalServiceUnavailable,
-        bool bypassExclusions)
+        bool bypassExclusions,
+        bool folderScope)
     {
         var localMatches = new List<AppSearchResult>();
-        // Folders only, like every other row source of this window: history remembers files too, and a
-        // learned file row would otherwise reach the Current Folder tier past the engine-side filter.
-        var learnedLocalMatches = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse(query), contextDirectory)
-            .Where(c => c.Result.IsDir).ToList();
+        // The engine-side folder filter never sees these rows: history remembers files too, so the scope has
+        // to be applied here as well.
+        var learned = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse(query), contextDirectory);
+        var learnedLocalMatches = folderScope ? learned.Where(c => c.Result.IsDir).ToList() : learned;
         var localUpdateVersion = learnedLocalMatches.Count > 0 ? 1 : 0;
         void OnLocalMatchesChanged() => Interlocked.Increment(ref localUpdateVersion);
 
@@ -204,7 +208,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         // gate before the global search below: the global search IS the result list now, and holding it
         // back behind this listing is what made the inline window lag the quick window.
         var localSearchTask = ExplorerSearchHelper.LoadDirectChildrenAsync(
-            query, fileLimit, contextDirectory, localMatches, token, OnLocalMatchesChanged, _directChildrenListing);
+            query, fileLimit, contextDirectory, localMatches, token, OnLocalMatchesChanged, _directChildrenListing, folderScope);
 
         // Memoized: CreateLocalSnapshot copies the whole history-priority dictionary and re-ranks every
         // local match, and the renderer asks for this snapshot on EVERY paint -- of which one keystroke can
@@ -234,7 +238,7 @@ internal sealed class SearchExecutionEngine : IDisposable
 
         await _streamRenderer.RenderAsync(query, null, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token,
             GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), localSearchTask, onLocalServiceUnavailable, bypassExclusions,
-            foldersOnly: true).ConfigureAwait(false);
+            foldersOnly: folderScope).ConfigureAwait(false);
     }
 
     private void EmitInstantResults(
