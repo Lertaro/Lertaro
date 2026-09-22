@@ -164,9 +164,31 @@ public sealed class QuickPanelWorkspaceSelectionTests
         Assert.IsTrue(vm.HasTabStrip);
     }
 
+    // Each group caches the filter last pushed to it, and a tab's groups are kept and reused when the
+    // user comes back to it, so the empty box has to be pushed too -- otherwise the tab comes back showing
+    // the subset it was narrowed to while the box says nothing is being narrowed.
     [TestMethod]
-    public async Task SelectTab_AWorkspaceThatIsNotThere_ChangesNothing()
+    public async Task SelectTab_BackToAWorkspaceFilteredEarlier_ReappliesTheNowEmptyFilter()
     {
+        var settings = OneWorkspace();
+        settings.Tabs.Add(Workspace("w2", "s2"));
+
+        var vm = Build(settings);
+        await vm.RefreshAsync();
+
+        vm.SearchQuery = "nothing-matches-this";
+        Assert.IsFalse(vm.Groups[0].HasMatches, "the workspace on screen is filtered down to nothing");
+
+        await vm.SelectTabAsync("w2");
+        vm.SearchQuery = string.Empty;
+        await vm.SelectTabAsync("w1");
+
+        Assert.IsTrue(vm.Groups[0].HasMatches, "w1's groups must show their files again, not stay filtered");
+        CollectionAssert.AreEqual(new[] { "file.txt" }, vm.Groups[0].Items.Select(i => i.Name).ToList());
+    }
+
+    [TestMethod]
+    public async Task SelectTab_AWorkspaceThatIsNotThere_ChangesNothing()    {
         var settings = OneWorkspace();
         var vm = Build(settings);
         await vm.RefreshAsync();

@@ -211,10 +211,13 @@ public partial class QuickPanelViewModel : ViewModelBase
 
         // Switching workspace with something typed keeps the filter: the box is still on screen with
         // that text in it, and a strip that quietly showed everything again would be contradicting it.
-        if (SearchQuery.Length > 0)
-            ApplyFilter();
-        else
-            IsEmpty = Groups.Count == 0;
+        // Applied in both branches rather than only that one: each group caches the filter last pushed to
+        // it and a tab's groups are kept and reused when the user comes back, so skipping the empty-query
+        // case left the revisited tab showing the subset it had been narrowed to while the box was blank
+        // -- and IsEmpty from Groups.Count cannot notice, so the panel showed a near-empty strip with no
+        // empty-state message until the next full refresh. ApplyFilter is a no-op per group whose
+        // normalised filter already matches, so the non-empty branch costs nothing extra.
+        ApplyFilter();
 
         OnPropertyChanged(nameof(HasContent));
         UpdateLineNumberSizing();
