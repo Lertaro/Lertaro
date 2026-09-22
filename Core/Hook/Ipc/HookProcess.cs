@@ -234,7 +234,12 @@ public sealed class HookProcess : IDisposable
         // loop below exit immediately and the finally block cleans the freshly installed hooks up.
         _running = !_stopRequested;
 
-        using (var trackerStartedEvent = new ManualResetEventSlim(false))
+        // Not disposed at the end of the block: on a timeout this method moves on while the tracker
+        // thread may still be about to call Set(), and disposing first would turn that into an exception
+        // escaping a background thread. ManualResetEventSlim only allocates its kernel handle if
+        // WaitHandle is touched, which nothing here does.
+        var trackerStartedEvent = new ManualResetEventSlim(false);
+        var trackerStartedInTime = false;
         {
             _trackerThread = new Thread(() =>
             {
@@ -298,10 +303,22 @@ public sealed class HookProcess : IDisposable
             _trackerThread.IsBackground = true;
             _trackerThread.Start();
 
-            trackerStartedEvent.Wait();
+            // Bounded on purpose. ExplorerTracker.Start() ends with an active-window classification whose
+            // plugin probes are not all routed through the bounded STA invoker, so a third-party plugin
+            // that blocks in one of them never reaches the Set() below -- and an unbounded Wait parked
+            // this thread before any hook was installed or any pipe served, which the App answered by
+            // killing and relaunching the hook every 5 s with no backoff, so inline search never came up.
+            // A tracker that will not start within the window now gets the same abort as a null one, which
+            // was always the intended answer and simply could not be reached on time.
+            trackerStartedInTime = trackerStartedEvent.Wait(TimeSpan.FromSeconds(10));
+            if (!trackerStartedInTime)
+            {
+                _running = false; // let the tracker thread's own loop fall out instead of pumping messages
+                Logger.Log("[HookProcess] The Explorer tracker did not start within 10s; aborting.", LogLevel.Error);
+            }
         }
 
-        if (_explorerTracker == null)
+        if (_explorerTracker == null || !trackerStartedInTime)
         {
             Logger.Log("[HookProcess] Explorer tracker failed to start; aborting hook installation.", LogLevel.Error);
             CleanupHooks();
