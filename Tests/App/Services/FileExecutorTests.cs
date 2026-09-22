@@ -62,7 +62,8 @@ public sealed class BuildStartInfoTests
 
         Assert.AreEqual("cmd.exe", info.FileName);
         Assert.AreEqual("runas", info.Verb);
-        Assert.Contains(@"""C:\folder""", info.Arguments);
+        // ArgQuoting's own rule: nothing to escape, so nothing is wrapped. cmd takes the bare path.
+        Assert.AreEqual("/k cd /d C:\\folder", info.Arguments);
     }
 
     [TestMethod]
@@ -81,7 +82,7 @@ public sealed class BuildStartInfoTests
 
         Assert.AreEqual(@"C:\Program Files\Word\winword.exe", info.FileName);
         Assert.AreEqual("runas", info.Verb);
-        Assert.Contains(@"""C:\report.docx""", info.Arguments);
+        Assert.AreEqual("C:\\report.docx", info.Arguments);
     }
 
     [TestMethod]
@@ -91,7 +92,40 @@ public sealed class BuildStartInfoTests
 
         Assert.AreEqual("OpenWith.exe", info.FileName);
         Assert.AreEqual("runas", info.Verb);
-        Assert.Contains(@"""C:\mystery.xyz""", info.Arguments);
+        Assert.AreEqual("C:\\mystery.xyz", info.Arguments);
+    }
+
+    // The three elevated branches used to splice the path into a quoted argument by hand, so a quote in
+    // the path closed the argument and handed the rest to whatever parsed it -- cmd.exe, where & is a
+    // command separator. Quoting is now ArgQuoting's job...
+    [TestMethod]
+    public void BuildStartInfo_PathWithSpaces_ElevatedArgumentIsOneQuotedArgument()
+    {
+        var info = FileExecutor.BuildStartInfo(@"C:\Program Files\report.docx", isFile: true, asAdmin: true,
+            associatedExe: @"C:\WinWord\winword.exe");
+
+        Assert.AreEqual("\"C:\\Program Files\\report.docx\"", info.Arguments, "the space forces the wrap");
+    }
+
+    // ...and quoting alone cannot make `cmd /k cd /d "<path>"` safe, because cmd re-parses what it
+    // receives. So an admin launch of a quote-bearing path is refused and degrades to the ordinary open.
+    [TestMethod]
+    public void BuildStartInfo_PathWithAQuote_IsNotElevatedAtAll()
+    {
+        var info = FileExecutor.BuildStartInfo("C:\\evil\" & whoami & \"x", isFile: false, asAdmin: true, associatedExe: null);
+
+        Assert.AreNotEqual("runas", info.Verb, "no elevated process may be built from this path");
+        Assert.AreNotEqual("cmd.exe", info.FileName);
+        Assert.AreEqual(string.Empty, info.Arguments);
+    }
+
+    [TestMethod]
+    public void BuildStartInfo_PathWithAQuote_StillRefusedForAnElevatedDocument()
+    {
+        var info = FileExecutor.BuildStartInfo("C:\\a\"b.docx", isFile: true, asAdmin: true, associatedExe: @"C:\Word.exe");
+
+        Assert.AreNotEqual("runas", info.Verb);
+        Assert.AreEqual("C:\\a\"b.docx", info.FileName);
     }
 
     [TestMethod]

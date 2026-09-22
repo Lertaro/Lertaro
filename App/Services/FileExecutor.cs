@@ -195,14 +195,26 @@ public static class FileExecutor
             return new ProcessStartInfo { FileName = path, UseShellExecute = true };
         }
 
+        // A quote inside the path closes the quoted argument and hands the remainder to whatever is
+        // parsing it -- for the cmd.exe branch below, & is then a command separator, so a weird path
+        // becomes elevated command execution. Quoting alone does not make `cmd /k cd /d "<path>"` safe,
+        // so an admin launch of a quote-bearing path is refused outright and falls back to the ordinary
+        // shell open. NTFS forbids " in on-disk names, so this needs an exotic source (a virtual token,
+        // a hand-edited favourite, a provider-supplied UNC path) to be reachable at all.
+        if (path.Contains('"', StringComparison.Ordinal))
+        {
+            Logger.Log($"[FileExecutor] Refused an elevated launch for a path containing a quote: '{path}'.", LogLevel.Warn);
+            return new ProcessStartInfo { FileName = path, UseShellExecute = true };
+        }
+
         if (!isFile)
-            return new ProcessStartInfo { FileName = "cmd.exe", Arguments = $"/k cd /d \"{path}\"", UseShellExecute = true, Verb = "runas" };
+            return new ProcessStartInfo { FileName = "cmd.exe", Arguments = $"/k cd /d {ArgQuoting.Quote(path)}", UseShellExecute = true, Verb = "runas" };
 
         if (IsElevatableExecutable(path))
             return new ProcessStartInfo { FileName = path, UseShellExecute = true, Verb = "runas" };
 
         if (!string.IsNullOrEmpty(associatedExe))
-            return new ProcessStartInfo { FileName = associatedExe, Arguments = $"\"{path}\"", UseShellExecute = true, Verb = "runas" };
+            return new ProcessStartInfo { FileName = associatedExe, Arguments = ArgQuoting.Quote(path), UseShellExecute = true, Verb = "runas" };
 
         // No association resolved — bring up the shell "Open with" dialog, but run it ELEVATED (runas).
         // The program the user then picks is launched as a child of the elevated dialog and inherits
@@ -210,7 +222,7 @@ public static class FileExecutor
         // OpenWith.exe is a normal exe that pops the same "Open with" dialog and takes a standard quoted
         // path argument (so spaces just work). Elevating it means the program the user picks inherits
         // admin rights.
-        return new ProcessStartInfo { FileName = "OpenWith.exe", Arguments = $"\"{path}\"", UseShellExecute = true, Verb = "runas" };
+        return new ProcessStartInfo { FileName = "OpenWith.exe", Arguments = ArgQuoting.Quote(path), UseShellExecute = true, Verb = "runas" };
     }
 
     // Null when no custom manager is configured, so a disabled/empty setting never accidentally
