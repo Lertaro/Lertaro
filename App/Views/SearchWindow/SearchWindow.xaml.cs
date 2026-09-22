@@ -246,11 +246,22 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     {
         SaveWindowSize();
         _viewModel.Dispose();
-        // This window can be one of several (e.g. opened via "show more"), so on close release the icon
-        // cache and trim the working set, matching the quick/inline windows, to reclaim its bitmaps.
-        ShellIconHelper.ClearCache();
-        PathCacheMaintenance.ClearAllPathCaches();
-        Core.Win32Api.TrimWorkingSet();
+
+        // The two caches genuinely free memory, so they are still released -- off this thread, because
+        // both are process-wide and shared with any quick, inline or other full window still open.
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(100);
+            try { ShellIconHelper.ClearCache(); } catch { }
+            try { PathCacheMaintenance.ClearAllPathCaches(); } catch { }
+        });
+
+        // TrimWorkingSet() used to run here, synchronously, on the theory that it matched the quick
+        // window -- which documents the exact opposite about the same call: it frees nothing, it only
+        // evicts pages the next summon has to fault straight back in (measured at ~17 MB and 70 % of a
+        // summon), and because the trim is process-wide, closing one of this window's several instances
+        // did that to the windows the user still had open. Deferred, like theirs.
+        IdleWorkingSetTrimmer.WindowHidden();
         PowerThrottlingHelper.WindowHidden(PowerWindowId);
         base.OnClosed(e);
     }
