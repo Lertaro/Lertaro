@@ -184,6 +184,10 @@ public partial class LocalSendReceiveWindow : Window
         }
         LstFiles.ItemsSource = selectedItems;
         LstFiles.UnselectAll(); LstFiles.ItemContainerStyle = (Style)FindResource("LocalSendProgressListBoxItemStyle");
+        // The whole-session bar lives only here: UpdateFileItemsProgress writes its value on every
+        // progress event, and nothing else ever made it visible, so a long multi-file receive had
+        // per-file rows and a speed label but no overall progress.
+        PbTransfer.Visibility = Visibility.Visible;
         BtnToggleSelectAll.Visibility = Visibility.Collapsed;
         GridStep1Footer.Visibility = Visibility.Collapsed;
         PanelStep2Footer.Visibility = Visibility.Visible;
