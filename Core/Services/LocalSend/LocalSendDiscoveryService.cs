@@ -18,6 +18,7 @@ public sealed class LocalSendDiscoveryService : IDisposable
     private readonly List<UdpClient> _udpListenersV6 = [];
     private CancellationTokenSource? _cts;
     private Task? _listenTask;
+    private int _discoveryPort = DefaultPort;
     private int _isDiscovering;
     private int _isValidating;
 
@@ -43,7 +44,7 @@ public sealed class LocalSendDiscoveryService : IDisposable
             return;
 
         _cts = new CancellationTokenSource();
-        LocalInfo.Port = port;
+        _discoveryPort = port;
 
         try
         {
@@ -84,8 +85,8 @@ public sealed class LocalSendDiscoveryService : IDisposable
             var json = JsonSerializer.Serialize(LocalSendProtocolMapper.CreateMulticast(LocalInfo, announcement: true));
             var bytes = Encoding.UTF8.GetBytes(json);
 
-            var multicastEp = new IPEndPoint(IPAddress.Parse(MulticastGroupIp), LocalInfo.Port);
-            var multicastEpV6 = new IPEndPoint(IPAddress.Parse(MulticastGroupIpV6), LocalInfo.Port);
+            var multicastEp = new IPEndPoint(IPAddress.Parse(MulticastGroupIp), _discoveryPort);
+            var multicastEpV6 = new IPEndPoint(IPAddress.Parse(MulticastGroupIpV6), _discoveryPort);
             foreach (var ip in LocalSendSubnetScanner.GetLocalIPv4Addresses())
             {
                 try

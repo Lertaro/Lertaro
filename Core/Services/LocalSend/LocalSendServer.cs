@@ -51,21 +51,42 @@ public sealed class LocalSendServer : IDisposable
     {
         if (_listener != null) return;
         _cts = new CancellationTokenSource();
-        for (var p = port; p < port + 10; p++)
+        var requestedPort = port is > 0 and <= IPEndPoint.MaxPort ? port : 53317;
+        Exception? lastBindError = null;
+        for (var offset = 0; offset < 10; offset++)
         {
-            try
-            {
-                var l = LocalSendServerHelper.TryCreateDualStackListener(p) ?? new TcpListener(IPAddress.Any, p);
-                l.Start();
-                _listener = l;
-                ActualPort = p;
-                DeviceInfo.Port = p;
+            var candidate = (long)requestedPort + offset;
+            if (candidate > IPEndPoint.MaxPort)
                 break;
-            }
-            catch { }
+            if (TryStartListener((int)candidate, out lastBindError))
+                break;
         }
-        if (_listener == null) throw new InvalidOperationException("Failed to bind LocalSend port.");
+        if (_listener == null && TryStartListener(0, out lastBindError))
+            Logger.Log($"[LocalSendServer] Requested ports {requestedPort}-{Math.Min(IPEndPoint.MaxPort, requestedPort + 9)} were unavailable; using dynamic port {ActualPort}.", LogLevel.Warn);
+        if (_listener == null)
+            throw new InvalidOperationException("Failed to bind LocalSend port.", lastBindError);
         _listenTask = Task.Run(() => AcceptLoopAsync(_cts.Token));
+    }
+
+    private bool TryStartListener(int port, out Exception? error)
+    {
+        TcpListener? listener = null;
+        try
+        {
+            listener = LocalSendServerHelper.TryCreateDualStackListener(port) ?? new TcpListener(IPAddress.Any, port);
+            listener.Start();
+            _listener = listener;
+            ActualPort = ((IPEndPoint)listener.LocalEndpoint).Port;
+            DeviceInfo.Port = ActualPort;
+            error = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex;
+            try { listener?.Stop(); } catch { }
+            return false;
+        }
     }
 
     private async Task AcceptLoopAsync(CancellationToken token)

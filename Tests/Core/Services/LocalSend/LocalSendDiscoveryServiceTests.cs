@@ -7,6 +7,19 @@ namespace Lertaro.Core.Tests.Services.LocalSend;
 public sealed class LocalSendDiscoveryServiceTests
 {
     [TestMethod]
+    public void Start_DoesNotOverwriteAdvertisedTcpPort()
+    {
+        using var discovery = new LocalSendDiscoveryService
+        {
+            LocalInfo = new LocalSendDeviceInfo { Fingerprint = "local", Port = 61799 }
+        };
+
+        discovery.Start(0);
+
+        Assert.AreEqual(61799, discovery.LocalInfo.Port);
+    }
+
+    [TestMethod]
     public void AddDiscoveredDevice_UsesIpPortAndFingerprintAsTheIdentity()
     {
         using var discovery = new LocalSendDiscoveryService { LocalInfo = new LocalSendDeviceInfo { Fingerprint = "local" } };

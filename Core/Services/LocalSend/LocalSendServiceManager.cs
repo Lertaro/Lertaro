@@ -52,7 +52,15 @@ public sealed class LocalSendServiceManager : IDisposable
 
         if (settings.Enabled)
         {
-            Start(settings);
+            try
+            {
+                Start(settings);
+            }
+            catch (Exception ex)
+            {
+                Stop();
+                Logger.Log($"[LocalSend] Failed to start the service: {ex}", LogLevel.Error);
+            }
         }
         else
         {
@@ -91,7 +99,9 @@ public sealed class LocalSendServiceManager : IDisposable
         _server.SessionCanceled += (s, e) => SessionCanceled?.Invoke(this, e);
         _server.UploadRequested += (s, e) => UploadRequested?.Invoke(this, e);
         _server.ShowRequested += (s, files) => OpenSendWindow(files, null);
-        _discoveryService.Start(_server.ActualPort > 0 ? _server.ActualPort : 53317);
+        // Discovery stays on the configured UDP port. The server may use a dynamic TCP port
+        // when the requested range is excluded; that actual port is already advertised in LocalInfo.
+        _discoveryService.Start(settings.Port > 0 ? settings.Port : LocalSendDiscoveryService.DefaultPort);
     }
 
     public void CancelSession(string sessionId, bool notifySender = false) => _server?.CancelSession(sessionId, notifySender);
