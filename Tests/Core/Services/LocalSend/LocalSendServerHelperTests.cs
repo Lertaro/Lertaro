@@ -112,8 +112,49 @@ public class LocalSendServerHelperTests
     }
 
     [TestMethod]
-    public void ResolveTargetPath_PathWithMatchingPrefixOutsideTheDestination_IsRejected()
+    public void ResolveTargetPath_TakenName_MovesToTheCollisionSuffix_AndLeavesTheOriginalAlone()
     {
+        var tempDir = Path.Combine(Path.GetTempPath(), "LocalSendTest_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            var alreadyThere = Path.Combine(tempDir, "report.txt");
+            File.WriteAllText(alreadyThere, "the user's own file");
+
+            var targetPath = LocalSendServerHelper.ResolveTargetPath(tempDir, "report.txt");
+
+            Assert.AreEqual(Path.Combine(tempDir, "report (1).txt"), targetPath);
+            Assert.AreEqual("the user's own file", File.ReadAllText(alreadyThere));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+        }
+    }
+
+    [TestMethod]
+    public void ResolveTargetPath_ReservesWhatItHandsBack_SoTwoCallsNeverGetTheSameName()
+    {
+        // The race the reservation closes: picking a name and opening it were separate steps, so a second
+        // upload worker (the session runs two) could be handed a path the first was about to write, and
+        // FileMode.Create then truncated whatever was there.
+        var tempDir = Path.Combine(Path.GetTempPath(), "LocalSendTest_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var first = LocalSendServerHelper.ResolveTargetPath(tempDir, "report.txt");
+            var second = LocalSendServerHelper.ResolveTargetPath(tempDir, "report.txt");
+
+            Assert.AreEqual(Path.Combine(tempDir, "report.txt"), first);
+            Assert.AreEqual(Path.Combine(tempDir, "report (1).txt"), second);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+        }
+    }
+
+    [TestMethod]
+    public void ResolveTargetPath_PathWithMatchingPrefixOutsideTheDestination_IsRejected()    {
         var tempDir = Path.Combine(Path.GetTempPath(), "LocalSendTest_" + Guid.NewGuid().ToString("N"));
         try
         {

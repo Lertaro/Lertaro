@@ -3,6 +3,10 @@ namespace Lertaro.Core.Services.LocalSend;
 /// <summary>Converts peer-provided relative names into safe Windows paths for LocalSend folder transfers.</summary>
 internal static class LocalSendPathSanitizer
 {
+    // Ceiling on the " (n)" suffix search. Real folders collide a handful of times at most; the cap
+    // exists so a directory that cannot be written to at all fails fast instead of looping.
+    private const int MaxNameAttempts = 1000;
+
     private static readonly HashSet<string> ReservedNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "CON", "PRN", "AUX", "NUL",
@@ -49,20 +53,53 @@ internal static class LocalSendPathSanitizer
         return ReservedNames.Contains(baseName) ? $"_{cleaned}" : cleaned;
     }
 
+    /// <summary>
+    /// Picks a name for the incoming file and reserves it. The reservation is part of the choice: a
+    /// File.Exists check followed by the writer's FileMode.Create left a window in which anything else
+    /// could land at the chosen path -- the user's own activity in the download folder, or this session's
+    /// second parallel upload worker -- and be truncated without a word.
+    /// </summary>
     private static string FindAvailableName(string candidate)
     {
-        if (!File.Exists(candidate))
+        // A directory sitting at the target name stays as-is: that transfer has always failed in the
+        // writer, and the receive UI reports the failure. Suffixing around it would quietly land a file
+        // next to the folder the sender meant to replace.
+        if (Directory.Exists(candidate))
+            return candidate;
+
+        if (TryReserve(candidate))
             return candidate;
 
         var directory = Path.GetDirectoryName(candidate)!;
         var name = Path.GetFileNameWithoutExtension(candidate);
         var extension = Path.GetExtension(candidate);
-        var counter = 1;
-        string available;
-        do
+        for (var counter = 1; counter <= MaxNameAttempts; counter++)
         {
-            available = Path.Combine(directory, $"{name} ({counter++}){extension}");
-        } while (File.Exists(available));
-        return available;
+            var available = Path.Combine(directory, $"{name} ({counter}){extension}");
+            if (TryReserve(available))
+                return available;
+        }
+
+        // Every suffix up to the cap was taken or unreservable. Hand back a name one past the cap, which
+        // nothing has claimed: the writer either creates it or fails on its own, rather than overwriting
+        // something the loop could not reserve.
+        return Path.Combine(directory, $"{name} ({MaxNameAttempts + 1}){extension}");
+    }
+
+    /// <summary>
+    /// Creates the file exclusively, so the name is this transfer's from the moment it is chosen rather
+    /// than a path someone else may fill before the writer opens it.
+    /// </summary>
+    private static bool TryReserve(string path)
+    {
+        try
+        {
+            using var _ = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 }
