@@ -70,7 +70,11 @@ internal sealed class SearchEngineDriveMaintenance
     public UsnIndexer.IndexerStatus BuildStatusSnapshot()
     {
         RefreshDrivesInStatus();
-        _indexer.Status.IsMaintenanceBusy = _isRebuilding() || HasPendingRebuilds;
+        // Under LockObj like every other Status mutation (UpdateMaintenanceBusyState, PopulateCountsFromCache,
+        // the initializer): SnapshotStatus() deep-copies under that same lock, and an unlocked write here let a
+        // concurrent snapshot observe a half-updated status.
+        lock (_indexer.LockObj)
+            _indexer.Status.IsMaintenanceBusy = _isRebuilding() || HasPendingRebuilds;
         PopulateCountsFromCache();
         // Return a locked, deep-copied snapshot (UsnIndexer.SnapshotStatus), not the live, mutable Status
         // object. PipeResponseBinarySerializer.WriteStatusAsync reads every drive's Files/Dirs/State

@@ -11,7 +11,9 @@ public class SearchEngine : IDisposable
     private readonly UsnIndexer _indexer = new();
     private CancellationTokenSource? _cts;
     private readonly object _startLock = new();
-    private bool _isRebuilding = false;
+    // Volatile, not just locked: read without _startLock by the drive-maintenance callback and by
+    // TryReleaseRuntimeAfterActivity, and a stale true would silently skip an idle-time cache release.
+    private volatile bool _isRebuilding;
     private readonly ManualResetEventSlim _initializationReady = new(initialState: true);
     private MachineSettings _machineSettings = MachineSettings.Load();
     private readonly SearchEngineDriveMaintenance _drives;
@@ -21,7 +23,6 @@ public class SearchEngine : IDisposable
     private readonly SearchCancellationRegistry _searchCancellations = new();
     private static readonly string IndexCacheDir = LocalDriveCacheLocator.DefaultCacheDir;
 
-    private long _lastDriveDetectTime = 0;
     private const long IdleTrimAfterMs = 3000;
     private readonly IdleTrimGate _idleTrim = new(IdleTrimAfterMs, Environment.TickCount64);
     private readonly Timer? _idleTimer;
@@ -68,19 +69,14 @@ public class SearchEngine : IDisposable
     public List<SearchResult> GetRecentFiles(IReadOnlyList<string> directories, int limit, int maxAgeMinutes) => _indexer.GetRecentFiles(directories, limit, maxAgeMinutes);
     public List<SpaceIndexEntry> GetSpaceEntries(string? directory) => _indexer.GetSpaceEntries(directory);
 
-    public UsnIndexer.IndexerStatus GetStatus()
-    {
-        _indexer.Status.IsMaintenanceBusy = _isRebuilding || _drives.HasPendingRebuilds;
-        var now = Environment.TickCount64;
-        // "error" belongs here: it is a settled state, not a busy one, and a failed initialization must not
-        // permanently stop newly attached drives from being noticed.
-        if (now - _lastDriveDetectTime > 5000 && (_indexer.Status.State is "ready" or "idle" or "error"))
-        {
-            _lastDriveDetectTime = now;
-            RefreshDrivesInStatus();
-        }
-        return _drives.BuildStatusSnapshot();
-    }
+    /// <summary>
+    /// The status snapshot, composed in one place: <see cref="SearchEngineDriveMaintenance.BuildStatusSnapshot"/>
+    /// refreshes the drive list, derives <c>IsMaintenanceBusy</c> under the indexer lock, and returns a
+    /// deep copy. This used to duplicate both steps beforehand, which made the extra unlocked
+    /// <c>IsMaintenanceBusy</c> write racy against the locked updates elsewhere in the indexer and the
+    /// extra 5 s-throttled refresh dead weight, since the snapshot refreshed unconditionally anyway.
+    /// </summary>
+    public UsnIndexer.IndexerStatus GetStatus() => _drives.BuildStatusSnapshot();
 
     private void RefreshDrivesInStatus()
         => _drives.RefreshDrivesInStatus();
