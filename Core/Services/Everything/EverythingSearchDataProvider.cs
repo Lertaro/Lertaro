@@ -277,11 +277,32 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
     public uint GetRunCount(string fileName) =>
         _runHistory.TryGetValue(fileName, out var count) ? count : 0;
 
-    public void SetRunCount(string fileName, uint count) =>
-        _runHistory[fileName] = count;
+    /// <summary>
+    /// Ceiling on the run-history map. The IPC window's UIPI filter deliberately lets a lower-integrity
+    /// process write these counts (that is the point of the Everything compatibility surface), so without
+    /// a cap any local process could add an entry per iteration and grow a dictionary owned by the
+    /// long-running service forever. An insert past the cap is dropped, which is also the right answer for
+    /// the ranking data itself: a name nobody has run yet is not worth evicting a real entry for.
+    /// </summary>
+    internal const int MaxRunHistoryEntries = 10_000;
 
-    public uint IncrementRunCount(string fileName) =>
-        _runHistory.AddOrUpdate(fileName, 1, (_, current) => current + 1);
+    public void SetRunCount(string fileName, uint count)
+    {
+        // ponytail: check-then-act, so two threads racing on the last slot can overshoot the cap by a
+        // handful. A hard cap would need a lock around every insert, which this is not worth.
+        if (!_runHistory.ContainsKey(fileName) && _runHistory.Count >= MaxRunHistoryEntries)
+            return;
+
+        _runHistory[fileName] = count;
+    }
+
+    public uint IncrementRunCount(string fileName)
+    {
+        if (!_runHistory.ContainsKey(fileName) && _runHistory.Count >= MaxRunHistoryEntries)
+            return 0;
+
+        return _runHistory.AddOrUpdate(fileName, 1, (_, current) => current + 1);
+    }
 
     private static string NormalizeDirectory(string dir)
     {

@@ -10,6 +10,13 @@ public static class EverythingQueryParser
     private const int QueryV1HeaderSize = 20;
     private const int QueryV2HeaderSize = 28;
 
+    // Run-history names arrive from a peer that sizes the payload itself. The cap is the longest path the
+    // indexer can hold (\\?\ plus 32767 characters) rounded up to a round number, and the byte ceiling is
+    // that in the widest encoding the API accepts, so a legitimate long path still gets through while a
+    // multi-megabyte payload is refused before it is allocated into a string.
+    internal const int MaxRunHistoryNameLength = 32768;
+    internal const int MaxRunHistoryPayloadBytes = 128 * 1024;
+
     [StructLayout(LayoutKind.Sequential)]
     private struct COPYDATASTRUCT
     {
@@ -53,42 +60,47 @@ public static class EverythingQueryParser
         {
             var cds = Marshal.PtrToStructure<COPYDATASTRUCT>(lParam);
             var actionCode = (uint)cds.dwData.ToInt64();
-            if (cds.lpData == IntPtr.Zero || cds.cbData <= 0) return false;
+            if (cds.lpData == IntPtr.Zero || cds.cbData <= 0 || cds.cbData > MaxRunHistoryPayloadBytes) return false;
 
             switch (actionCode)
             {
                 case EverythingIpcConstants.CopyDataGetRunCountA:
                 case EverythingIpcConstants.CopyDataIncRunCountA:
-                    var fileNameA = ReadNullTerminatedString(cds.lpData, 0, cds.cbData, EverythingAnsiEncoding.Instance);
-                    request = new EverythingRunHistoryRequest(actionCode, fileNameA);
-                    return true;
+                    request = new EverythingRunHistoryRequest(actionCode,
+                        ReadNullTerminatedString(cds.lpData, 0, cds.cbData, EverythingAnsiEncoding.Instance));
+                    break;
 
                 case EverythingIpcConstants.CopyDataGetRunCountW:
                 case EverythingIpcConstants.CopyDataIncRunCountW:
-                    var fileNameW = ReadNullTerminatedString(cds.lpData, 0, cds.cbData, Encoding.Unicode);
-                    request = new EverythingRunHistoryRequest(actionCode, fileNameW);
-                    return true;
+                    request = new EverythingRunHistoryRequest(actionCode,
+                        ReadNullTerminatedString(cds.lpData, 0, cds.cbData, Encoding.Unicode));
+                    break;
 
                 case EverythingIpcConstants.CopyDataSetRunCountA:
                     if (cds.cbData < sizeof(uint)) return false;
-                    var runCountA = (uint)Marshal.ReadInt32(cds.lpData, 0);
-                    var nameA = ReadNullTerminatedString(cds.lpData, sizeof(uint), cds.cbData - sizeof(uint), EverythingAnsiEncoding.Instance);
-                    request = new EverythingRunHistoryRequest(actionCode, nameA, runCountA);
-                    return true;
+                    request = new EverythingRunHistoryRequest(actionCode,
+                        ReadNullTerminatedString(cds.lpData, sizeof(uint), cds.cbData - sizeof(uint), EverythingAnsiEncoding.Instance),
+                        (uint)Marshal.ReadInt32(cds.lpData, 0));
+                    break;
 
                 case EverythingIpcConstants.CopyDataSetRunCountW:
                     if (cds.cbData < sizeof(uint)) return false;
-                    var runCountW = (uint)Marshal.ReadInt32(cds.lpData, 0);
-                    var nameW = ReadNullTerminatedString(cds.lpData, sizeof(uint), cds.cbData - sizeof(uint), Encoding.Unicode);
-                    request = new EverythingRunHistoryRequest(actionCode, nameW, runCountW);
-                    return true;
+                    request = new EverythingRunHistoryRequest(actionCode,
+                        ReadNullTerminatedString(cds.lpData, sizeof(uint), cds.cbData - sizeof(uint), Encoding.Unicode),
+                        (uint)Marshal.ReadInt32(cds.lpData, 0));
+                    break;
 
                 default:
                     return false;
             }
+
+            // The peer sizes this string itself and it becomes a key held for the process lifetime, so a
+            // name is only accepted when it is a name: non-empty and no longer than a path can be.
+            return request is { FileName.Length: > 0 and <= MaxRunHistoryNameLength };
         }
         catch
         {
+            request = null;
             return false;
         }
     }

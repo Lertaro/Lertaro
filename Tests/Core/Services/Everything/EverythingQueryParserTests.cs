@@ -173,6 +173,47 @@ public class EverythingQueryParserTests
         }
     }
 
+    [TestMethod]
+    public void TryParseRunHistory_OrdinaryName_IsAccepted() => Assert.IsTrue(TryParseRunHistory(EverythingIpcConstants.CopyDataIncRunCountW,
+            Encoding.Unicode.GetBytes(@"C:\Tools\tool.exe" + "\0")));
+
+    [TestMethod]
+    public void TryParseRunHistory_EmptyName_IsRejected() =>
+        // The name becomes a key in the provider's run-history map, so a peer sending no name at all is
+        // not worth an entry.
+        Assert.IsFalse(TryParseRunHistory(EverythingIpcConstants.CopyDataIncRunCountW,
+            Encoding.Unicode.GetBytes("\0")));
+
+    [TestMethod]
+    public void TryParseRunHistory_PayloadLargerThanAnyPath_IsRejected() =>
+        // The peer sizes this field itself; the bytes would otherwise be allocated into a string and kept
+        // as a dictionary key for the process lifetime.
+        Assert.IsFalse(TryParseRunHistory(EverythingIpcConstants.CopyDataIncRunCountW,
+            new byte[EverythingQueryParser.MaxRunHistoryPayloadBytes + 1]));
+
+    private static bool TryParseRunHistory(uint actionCode, byte[] payload)
+    {
+        var buffer = Marshal.AllocHGlobal(payload.Length);
+        var cdsPtr = Marshal.AllocHGlobal(Marshal.SizeOf<CopyDataStructWrapper>());
+        try
+        {
+            Marshal.Copy(payload, 0, buffer, payload.Length);
+            var cds = new CopyDataStructWrapper
+            {
+                dwData = (IntPtr)actionCode,
+                cbData = payload.Length,
+                lpData = buffer
+            };
+            Marshal.StructureToPtr(cds, cdsPtr, false);
+            return EverythingQueryParser.TryParseRunHistory(cdsPtr, out _);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(cdsPtr);
+            Marshal.FreeHGlobal(buffer);
+        }
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct CopyDataStructWrapper
     {

@@ -24,6 +24,27 @@ public class EverythingSearchDataProviderTests
     }
 
     [TestMethod]
+    public void RunCountTracking_PastTheEntryCap_StoresNoNewNames()
+    {
+        // The IPC surface takes these from any local process, so an unbounded map is a memory-exhaustion
+        // vector; past the cap a name nobody has run through Lertaro is dropped rather than kept.
+        using var searchService = new SearchService();
+        var provider = new EverythingSearchDataProvider(searchService);
+
+        for (var i = 0; i < EverythingSearchDataProvider.MaxRunHistoryEntries; i++)
+            provider.SetRunCount($@"C:\Tools\tool{i}.exe", 1);
+
+        var latecomer = @"C:\Tools\latecomer.exe";
+        provider.SetRunCount(latecomer, 7);
+        Assert.AreEqual(0u, provider.GetRunCount(latecomer));
+        Assert.AreEqual(0u, provider.IncrementRunCount(latecomer));
+
+        var alreadyStored = @"C:\Tools\tool0.exe";
+        provider.SetRunCount(alreadyStored, 9);
+        Assert.AreEqual(9u, provider.GetRunCount(alreadyStored), "an entry already in the map is still updated");
+    }
+
+    [TestMethod]
     public async Task QueryFolderSubtree_UnindexedFolder_ReturnsEmptyResult()
     {
         using var searchService = new SearchService();
