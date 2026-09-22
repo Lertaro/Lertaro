@@ -19,7 +19,7 @@ public sealed class ChromiumHistoryReaderTests
 
     private static void CreateHistoryDb(string path, params (string Url, string Title, long LastVisit, int Hidden)[] rows)
     {
-        using var conn = new SqliteConnection($"Data Source={path}");
+        using var conn = new SqliteConnection($"Data Source={path};Pooling=False");
         conn.Open();
         using (var create = conn.CreateCommand())
         {

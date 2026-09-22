@@ -32,7 +32,7 @@ public sealed class BrowserDataCacheTests
 
     private static void WriteHistoryDb(string profileDir)
     {
-        using var conn = new SqliteConnection($"Data Source={Path.Combine(profileDir, "History")}");
+        using var conn = new SqliteConnection($"Data Source={Path.Combine(profileDir, "History")};Pooling=False");
         conn.Open();
         using var create = conn.CreateCommand();
         create.CommandText = "CREATE TABLE urls (id INTEGER PRIMARY KEY, url TEXT, title TEXT, last_visit_time INTEGER, hidden INTEGER)";
@@ -44,7 +44,7 @@ public sealed class BrowserDataCacheTests
 
     private static void WritePlacesDb(string profileDir)
     {
-        using var conn = new SqliteConnection($"Data Source={Path.Combine(profileDir, "places.sqlite")}");
+        using var conn = new SqliteConnection($"Data Source={Path.Combine(profileDir, "places.sqlite")};Pooling=False");
         conn.Open();
         using var create = conn.CreateCommand();
         create.CommandText = """

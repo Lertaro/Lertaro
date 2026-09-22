@@ -22,7 +22,7 @@ public sealed class ChromiumFaviconReaderTests
     {
         using var dir = new TempDirectory();
         var imageData = new byte[] { 1, 2, 3 };
-        using (var conn = new SqliteConnection($"Data Source={Path.Combine(dir.Path, "Favicons")}"))
+        using (var conn = new SqliteConnection($"Data Source={Path.Combine(dir.Path, "Favicons")};Pooling=False"))
         {
             conn.Open();
             using var create = conn.CreateCommand();

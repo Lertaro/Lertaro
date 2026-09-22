@@ -22,7 +22,7 @@ public sealed class FirefoxFaviconReaderTests
     {
         using var dir = new TempDirectory();
         var imageData = new byte[] { 4, 5, 6 };
-        using (var conn = new SqliteConnection($"Data Source={Path.Combine(dir.Path, "favicons.sqlite")}"))
+        using (var conn = new SqliteConnection($"Data Source={Path.Combine(dir.Path, "favicons.sqlite")};Pooling=False"))
         {
             conn.Open();
             using var create = conn.CreateCommand();

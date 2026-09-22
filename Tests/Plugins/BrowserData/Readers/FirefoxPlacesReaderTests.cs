@@ -24,7 +24,7 @@ public sealed class FirefoxPlacesReaderTests
 
         public PlacesDbBuilder(string path)
         {
-            _conn = new SqliteConnection($"Data Source={path}");
+            _conn = new SqliteConnection($"Data Source={path};Pooling=False");
             _conn.Open();
             using var create = _conn.CreateCommand();
             create.CommandText = """
