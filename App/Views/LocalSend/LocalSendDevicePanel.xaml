@@ -61,7 +61,8 @@
                                     <TextBlock FontSize="10.5" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"><Run Text="#"/><Run Text="{Binding FingerprintTag, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding DeviceModel, Mode=OneWay}"/></TextBlock>
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" Text="{Binding IpAddress}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                <TextBox Grid.Column="3" Text="{Binding Pin, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ThemeTextBoxStyle}" Height="26" VerticalAlignment="Center"/>
+                                <TextBox Grid.Column="3" Text="{Binding Pin, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ThemeTextBoxStyle}" Height="26" VerticalAlignment="Center"
+                                         AutomationProperties.Name="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_TargetPin]}"/>
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -70,10 +71,10 @@
         </Grid>
         <Border Grid.Row="1" Background="{DynamicResource FooterBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0" Padding="16,0">
             <Grid VerticalAlignment="Center">
-                <Button x:Name="SelectAllButton" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_SelectAll], Mode=OneWay}" Click="SelectAll_Click" Style="{StaticResource SettingsButton}" HorizontalAlignment="Left" Width="70" Height="30"/>
+                <Button x:Name="SelectAllButton" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_SelectAll], Mode=OneWay}" Click="SelectAll_Click" Style="{StaticResource SettingsButton}" HorizontalAlignment="Left" Height="30"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Cancel]}" Click="Cancel_Click" Style="{StaticResource SettingsButton}" Margin="0,0,8,0" Width="80" Height="30"/>
-                    <Button x:Name="SendButton" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Send]}" Click="Send_Click" Style="{StaticResource PrimarySettingsButton}" IsDefault="True" Width="85" Height="30" IsEnabled="False"/>
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Cancel]}" Click="Cancel_Click" Style="{StaticResource SettingsButton}" Margin="0,0,8,0" Height="30"/>
+                    <Button x:Name="SendButton" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Send]}" Click="Send_Click" Style="{StaticResource PrimarySettingsButton}" IsDefault="True" Height="30" IsEnabled="False"/>
                 </StackPanel>
             </Grid>
         </Border>

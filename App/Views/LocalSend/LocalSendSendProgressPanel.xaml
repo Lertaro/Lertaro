@@ -20,7 +20,7 @@
             </Border>
         </Grid>
         <Border Grid.Row="1" Background="{DynamicResource FooterBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0" Padding="16,0">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"><Button Content="{Binding ActionText, RelativeSource={RelativeSource AncestorType={x:Type local:LocalSendSendProgressPanel}}}" Click="Action_Click" Style="{StaticResource SettingsButton}" Width="80" Height="30"/></StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"><Button Content="{Binding ActionText, RelativeSource={RelativeSource AncestorType={x:Type local:LocalSendSendProgressPanel}}}" Click="Action_Click" Style="{StaticResource SettingsButton}" Height="30"/></StackPanel>
         </Border>
     </Grid>
 </UserControl>

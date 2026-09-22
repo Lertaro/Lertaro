@@ -170,7 +170,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <Button x:Name="BtnDecline" Grid.Column="0" Height="30" Width="80" HorizontalAlignment="Left"
+                                <Button x:Name="BtnDecline" Grid.Column="0" Height="30" HorizontalAlignment="Left"
                                         Style="{StaticResource SettingsButton}"
                                         Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Decline]}"
                                         Click="BtnDecline_Click"/>
@@ -193,7 +193,7 @@
                                         Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_OpenFolder]}"
                                         Click="BtnOpenFolder_Click"/>
 
-                                <Button x:Name="BtnCloseProgress" Height="30" Padding="16,0" Width="80"
+                                <Button x:Name="BtnCloseProgress" Height="30" Padding="16,0"
                                         Style="{StaticResource SettingsButton}"
                                         Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Cancel]}"
                                         Click="BtnCloseProgress_Click"/>
@@ -204,7 +204,7 @@
                                         Style="{StaticResource PrimarySettingsButton}"
                                         Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Copy]}"
                                         Click="BtnCopyText_Click"/>
-                                <Button x:Name="BtnCloseText" Height="30" Padding="16,0" Width="80"
+                                <Button x:Name="BtnCloseText" Height="30" Padding="16,0"
                                         Style="{StaticResource SettingsButton}"
                                         Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Close]}"
                                         Click="BtnCloseProgress_Click"/>

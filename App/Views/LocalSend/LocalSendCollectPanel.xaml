@@ -62,7 +62,7 @@
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="{Binding DisplayName}" ToolTip="{Binding Path}" FontSize="12" Foreground="{DynamicResource TextPrimary2}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                    <Button Grid.Column="1" Content="&#xE74D;" Click="RemoveItem_Click" Style="{StaticResource RemoveItemButtonStyle}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Remove]}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                    <Button Grid.Column="1" Content="&#xE74D;" Click="RemoveItem_Click" Style="{StaticResource RemoveItemButtonStyle}" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Remove]}" AutomationProperties.Name="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Remove]}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="4,0,0,0"/>
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -76,8 +76,8 @@
         </Grid>
         <Border Grid.Row="1" Background="{DynamicResource FooterBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0" Padding="16,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Cancel]}" Click="Cancel_Click" Style="{StaticResource SettingsButton}" Margin="0,0,8,0" Width="80" Height="30"/>
-                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Next], Mode=OneWay}" Click="Next_Click" Style="{StaticResource PrimarySettingsButton}" IsEnabled="{Binding CanGoNextStep}" Width="85" Height="30"/>
+                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Cancel]}" Click="Cancel_Click" Style="{StaticResource SettingsButton}" Margin="0,0,8,0" Height="30"/>
+                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Next], Mode=OneWay}" Click="Next_Click" Style="{StaticResource PrimarySettingsButton}" IsEnabled="{Binding CanGoNextStep}" Height="30"/>
             </StackPanel>
         </Border>
     </Grid>
