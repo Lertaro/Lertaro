@@ -37,6 +37,7 @@ internal static class SearchCoordinator
         }
 
         var writeLock = new object();
+        var emitted = 0;
         Parallel.For(
             0,
             drives.Length,
@@ -48,12 +49,28 @@ internal static class SearchCoordinator
             i =>
             {
                 token.ThrowIfCancellationRequested();
-                IndexV2Searcher.SearchStreaming(drives[i], query, limit, result =>
+                // One budget shared by the whole fan-out. Each drive used to be handed the full limit and
+                // every hit was forwarded, so a limit=200 query on a 4-drive machine streamed up to 800
+                // rows to the wire layer, and the count a user saw changed as drives were attached or
+                // removed -- while the single-drive path above was correct, which made it worse.
+                int alreadyEmitted;
+                lock (writeLock)
+                    alreadyEmitted = emitted;
+                if (alreadyEmitted >= limit)
+                    return;
+
+                IndexV2Searcher.SearchStreaming(drives[i], query, limit - alreadyEmitted, result =>
                 {
                     token.ThrowIfCancellationRequested();
                     lock (writeLock)
                     {
-                        token.ThrowIfCancellationRequested();
+                        // ponytail: an in-flight drive search is not aborted once the budget runs out, it
+                        // just stops forwarding rows -- stopping it would need its own cancellation token.
+                        // The per-drive limit above already bounds how long that can go on.
+                        if (emitted >= limit)
+                            return;
+
+                        emitted++;
                         onResult(result);
                     }
                 }, token, directoryFilter, fileNameFilter);

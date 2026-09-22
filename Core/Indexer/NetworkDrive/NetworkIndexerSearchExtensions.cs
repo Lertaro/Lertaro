@@ -27,6 +27,7 @@ public static class NetworkIndexerSearchExtensions
         var parsed = SearchQueryParser.Parse(query);
         var directoryFilterLower = IndexerHelper.NormalizeFilter(directoryFilter);
         var callbackLock = new object();
+        var emitted = 0;
 
         Parallel.ForEach(
             snapshots,
@@ -41,12 +42,25 @@ public static class NetworkIndexerSearchExtensions
                 if (!IsDriveAllowed(index.Drive, parsed, directoryFilterLower))
                     return;
 
+                // Same shared budget as SearchCoordinator's fan-out: each index used to be handed the full
+                // limit, so the total emitted grew with the number of mapped shares rather than stopping
+                // at what the caller asked for.
+                int alreadyEmitted;
+                lock (callbackLock)
+                    alreadyEmitted = emitted;
+                if (alreadyEmitted >= limit)
+                    return;
+
                 // Parallel search invokes the caller-provided callback from multiple threads. Serialize
                 // the callback exactly like SearchCoordinator does so non-thread-safe consumers are safe.
-                index.SearchStreaming(parsed, query, directoryFilterLower, limit, result =>
+                index.SearchStreaming(parsed, query, directoryFilterLower, limit - alreadyEmitted, result =>
                 {
                     lock (callbackLock)
                     {
+                        if (emitted >= limit)
+                            return;
+
+                        emitted++;
                         onResult(result);
                     }
                 }, token, fileNameFilter);

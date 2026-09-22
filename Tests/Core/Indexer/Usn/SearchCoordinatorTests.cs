@@ -62,11 +62,38 @@ public sealed class SearchCoordinatorTests
         Assert.HasCount(1, Search(drives, "notes"));
     }
 
-    private static List<SearchResult> Search(Dictionary<string, LiveIndex> drives, string query)
+    [TestMethod]
+    public void TheLimit_IsSharedByTheWholeFanOut()
+    {
+        // Two drives with ten matches each and a limit of fifteen: the budget used to be handed to every
+        // drive separately, so this streamed twenty rows and the total moved with the number of drives
+        // attached rather than staying at what the caller asked for.
+        using var dir = new TempDirectory();
+        using var c = LoadMany(dir, "C", 10);
+        using var d = LoadMany(dir, "D", 10);
+        var drives = new Dictionary<string, LiveIndex> { ["C"] = c, ["D"] = d };
+
+        var hits = Search(drives, "report", limit: 15);
+
+        Assert.HasCount(15, hits);
+    }
+
+    [TestMethod]
+    public void ARequestAlreadySpent_ReachesNoDriveAtAll()
+    {
+        using var dir = new TempDirectory();
+        using var c = LoadMany(dir, "C", 10);
+        using var d = LoadMany(dir, "D", 10);
+        var drives = new Dictionary<string, LiveIndex> { ["C"] = c, ["D"] = d };
+
+        Assert.HasCount(0, Search(drives, "report", limit: 0));
+    }
+
+    private static List<SearchResult> Search(Dictionary<string, LiveIndex> drives, string query, int limit = 100)
     {
         var hits = new List<SearchResult>();
         var gate = new object();
-        SearchCoordinator.SearchStreaming(drives, new object(), query, 100,
+        SearchCoordinator.SearchStreaming(drives, new object(), query, limit,
             r => { lock (gate) hits.Add(r); }, CancellationToken.None, null);
         return hits;
     }
@@ -75,6 +102,16 @@ public sealed class SearchCoordinatorTests
     {
         var path = Path.Combine(dir.Path, $"{drive}.idx");
         SnapshotWriter.Write(BuildStore(drive, fileName), path);
+        return new LiveIndex(Snapshot.Open(path));
+    }
+
+    private static LiveIndex LoadMany(TempDirectory dir, string drive, int count)
+    {
+        var path = Path.Combine(dir.Path, $"{drive}many.idx");
+        var store = BuildStore(drive, "unused.txt");
+        for (var i = 0; i < count; i++)
+            store.Records.Add(new FileRecord((ulong)(i + 3), 1, $"report{i}.txt", FileRecordFlags.None));
+        SnapshotWriter.Write(store, path);
         return new LiveIndex(Snapshot.Open(path));
     }
 
