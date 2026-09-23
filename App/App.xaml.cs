@@ -40,6 +40,9 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         Services.AppLifecycle.AppRestartService.WaitForParentExit(e.Args);
+        // The shell worker pool is built here rather than on the first shell action, so that no click ever
+        // asks the loader for a thread while a third-party shell extension is holding it (see ShellThread).
+        ShellThread.Start();
         // Lertaro never set an explicit AppUserModelID, so Windows infers one on its own (commonly
         // derived from the exe's own path) -- the taskbar's default/resting icon for windows from a
         // path Windows treats as an "installed app" (Program Files + Start Menu registration) came
