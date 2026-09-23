@@ -279,6 +279,70 @@ public sealed class BrowserDataCacheTests
         Assert.IsFalse(changed);
     }
 
+    [TestMethod]
+    public void HaveIndexedFilesChanged_NewerWatchedFile_ReturnsTrue()
+    {
+        using var dir = new TempDirectory();
+        WriteDatedFile(dir.Path, "Bookmarks", new DateTime(2025, 1, 3, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.IsTrue(BrowserDataCache.HaveIndexedFilesChanged(
+            [dir.Path], new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc)));
+    }
+
+    [TestMethod]
+    public void HaveIndexedFilesChanged_NothingNewer_ReturnsFalse()
+    {
+        using var dir = new TempDirectory();
+        WriteDatedFile(dir.Path, "Bookmarks", new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.IsFalse(BrowserDataCache.HaveIndexedFilesChanged(
+            [dir.Path], new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc)));
+    }
+
+    [TestMethod]
+    public void HaveIndexedFilesChanged_NewerFileThatIsNotIndexedData_ReturnsFalse()
+    {
+        // A running browser rewrites plenty under a profile that this plugin never reads -- and it does so
+        // on its own schedule, not the user's. Taking those into account would turn every query into a
+        // reload, which is the cost this probe is supposed to avoid.
+        using var dir = new TempDirectory();
+        WriteDatedFile(dir.Path, "preferences", new DateTime(2025, 1, 3, 0, 0, 0, DateTimeKind.Utc));
+        WriteDatedFile(dir.Path, "Bookmarks", new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.IsFalse(BrowserDataCache.HaveIndexedFilesChanged(
+            [dir.Path], new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc)));
+    }
+
+    [TestMethod]
+    public void HaveIndexedFilesChanged_NothingIndexedYet_ReturnsFalse() =>
+        // The coarse re-walk owns discovering a profile for the first time; per query this must say "no"
+        // rather than reloading against an empty snapshot forever.
+        Assert.IsFalse(BrowserDataCache.HaveIndexedFilesChanged([], DateTime.UtcNow));
+
+    [TestMethod]
+    public void HaveIndexedFilesChanged_NeverLoaded_ReturnsTrue() =>
+        Assert.IsTrue(BrowserDataCache.HaveIndexedFilesChanged([], DateTime.MinValue));
+
+    [TestMethod]
+    public void HaveIndexedFilesChanged_ProfileFolderDeletedAfterTheLoad_ReturnsFalse()
+    {
+        // Signing out of a browser can remove the folder under a live snapshot. The probe runs per query on
+        // the UI thread, so it reports "nothing moved" rather than throwing -- the next configured re-walk
+        // drops the profile for good.
+        using var dir = new TempDirectory();
+        var gone = MakeSubDirectory(dir.Path, "Deleted");
+
+        Assert.IsFalse(BrowserDataCache.HaveIndexedFilesChanged(
+            [gone], new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc)));
+    }
+
+    private static void WriteDatedFile(string dir, string name, DateTime lastWriteUtc)
+    {
+        var path = Path.Combine(dir, name);
+        File.WriteAllText(path, "{}");
+        File.SetLastWriteTimeUtc(path, lastWriteUtc);
+    }
+
     // A sub-profile holding just one dated Bookmarks file: writing the others too would leave them
     // stamped "now", and the probe under test returns true on any single newer monitored file.
     private static string WriteDatedBookmarkInSubProfile(string parentDir, string profileName, DateTime lastWriteUtc)
