@@ -178,6 +178,7 @@ public sealed class IndexV2SearcherTests
     public void SearchStreaming_LimitCapsResultCount()
     {
         using var fixture = BuildSampleDrive();
+        var results = new List<SearchResult>();
 
         IndexV2Searcher.SearchStreaming(fixture.Index, "c:", 2, results.Add, CancellationToken.None);
 
@@ -230,7 +231,7 @@ public sealed class IndexV2SearcherTests
             delta.Upsert(100, 2, "newdir", FileRecordFlags.Directory, 0, 0, 0, 0);
             delta.Upsert(101, 100, "inner.txt", FileRecordFlags.None, 0, 0, 0, 0);
         });
-        var results = Search(fixture, @"c:\projects\newdir\");
+        var results = RunSearch(fixture, @"c:\projects\newdir\");
 
         CollectionAssert.AreEquivalent(new[] { "newdir", "inner.txt" }, results.Select(r => r.Name).ToArray());
     }
