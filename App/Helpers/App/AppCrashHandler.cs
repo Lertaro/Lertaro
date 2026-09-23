@@ -11,10 +11,12 @@ namespace Lertaro.App.Helpers.App;
 /// </summary>
 public static class AppCrashHandler
 {
-    public static void LogException(string source, Exception? ex)
+    public static void LogException(string source, Exception? ex, bool showDialog = true)
     {
         var details = ex != null ? ex.ToString() : "Null exception object";
         Logger.Log($"CRITICAL CRASH ({source}):\n{details}", LogLevel.Error);
+        if (!showDialog)
+            return;
         try
         {
             MessageBox.Show(
