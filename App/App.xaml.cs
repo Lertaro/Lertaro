@@ -172,16 +172,20 @@ public partial class App : Application
                 {
                     foreach (Window window in Windows)
                     {
+                        // A view that has never run a query carries a null one (SearchExecutionViewModel
+                        // seeds _searchQuery with null!), so this walk is what holds up SearchRefreshService's
+                        // Func<string,bool>: a plugin's predicate is entitled to dereference its argument, and
+                        // most of them do. A blank box has nothing to re-run either way.
                         if (window.DataContext is QuickSearchViewModel quickVm)
                         {
                             var currentQuery = quickVm.SearchQuery;
-                            if (queryMatches(currentQuery))
+                            if (!string.IsNullOrWhiteSpace(currentQuery) && queryMatches(currentQuery))
                                 quickVm.Search.PerformSearch(currentQuery);
                         }
                         else if (window.DataContext is SearchViewModel searchVm)
                         {
                             var currentQuery = searchVm.AdvancedQuery;
-                            if (queryMatches(currentQuery))
+                            if (!string.IsNullOrWhiteSpace(currentQuery) && queryMatches(currentQuery))
                                 searchVm.PerformSearch(currentQuery);
                         }
                     }

@@ -9,7 +9,9 @@ public static class SearchRefreshService
 {
     /// <summary>
     /// Delegate function set by the main application. Given a predicate over a search's current
-    /// query text, re-runs every active search view whose query text satisfies it.
+    /// query text, re-runs every active search view whose query text satisfies it. The host calls the
+    /// predicate once per search view and never with a blank query, so a predicate is free to
+    /// dereference its argument.
     /// </summary>
     public static Action<Func<string, bool>>? RefreshMatchingFunc { get; set; }
 
