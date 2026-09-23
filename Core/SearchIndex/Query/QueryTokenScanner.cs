@@ -11,17 +11,21 @@ namespace Lertaro.Core.SearchIndex.Query;
 // confused with text the user wants to search for. Everything that is not a token is left in place,
 // in order, as the search text.
 //
+// The one carve-out is a word that opens with the plugin prefix TWICE: that is a UNC path
+// ("\\server\share"), which a separator DOES build, and no keyword can start with '\' either.
+//
 // Deliberately dumb: it has no idea what a token MEANS -- that is up to whichever IQueryTokenProvider
 // plugin claims it (see QueryTokenDispatcher). It only decides the trigger characters, which is what
 // lets a provider be added without touching this file.
 //
-// Quoting/escaping is preserved from the trailing-segment parser this replaces: a quoted word may
-// contain whitespace, and "\ " escapes a space inside an unquoted word.
+// Nothing else here is syntax. Quoting came from the trailing-segment parser this replaces and went with
+// the rest of that grammar, so '"' and '\'' are ordinary characters now; the only escape left is "\ " so a
+// keyword can carry a space.
 public static class QueryTokenScanner
 {
     // The characters that start a token. '\' is the plugin-token prefix (GlobalTokenPrefix); '<' and
     // '>' are the sort/filter triggers. A word starting with any of these is pulled out; a word that
-    // merely CONTAINS one is ordinary search text.
+    // merely CONTAINS one is ordinary search text -- as is a UNC path, which starts with two of them.
     public static ScanResult Scan(string query, char pluginPrefix = '\\')
     {
         if (string.IsNullOrWhiteSpace(query))
@@ -33,16 +37,8 @@ public static class QueryTokenScanner
 
         foreach (var word in words)
         {
-            // A quoted word is always search text -- quoting is how a user says "I mean these exact
-            // characters", so "\audio" is matched literally rather than claimed as a token.
-            if (IsQuoted(word))
-            {
-                kept.Add(word);
-                continue;
-            }
-
             if (IsToken(word, pluginPrefix))
-                tokens.Add(Unquote(word));
+                tokens.Add(word);
             else
                 kept.Add(word);
         }
@@ -56,35 +52,24 @@ public static class QueryTokenScanner
             return false;
 
         var first = word[0];
-        return first == pluginPrefix || first == '<' || first == '>';
+        if (first == pluginPrefix)
+            // "\\" is how a UNC path opens. A token is the prefix + a keyword, and '\' cannot start a
+            // keyword (it is illegal in a Windows file name), so a doubled prefix is never one.
+            return word[1] != pluginPrefix;
+
+        return first == '<' || first == '>';
     }
 
-    // Splits on unescaped whitespace, keeping quoted runs together. "\ " inside an unquoted word is a
-    // literal space (not a separator), which is how a token can carry a space without quotes.
+    // Splits on unescaped whitespace. "\ " inside a word is a literal space (not a separator), which is
+    // how a token can carry a space.
     private static List<string> SplitWords(string query)
     {
         var words = new List<string>();
         var current = new System.Text.StringBuilder();
-        var activeQuote = '\0';
 
         for (var i = 0; i < query.Length; i++)
         {
             var c = query[i];
-
-            if (activeQuote != '\0')
-            {
-                current.Append(c);
-                if (c == activeQuote && !IsEscaped(query, i))
-                    activeQuote = '\0';
-                continue;
-            }
-
-            if (c == '"' || c == '\'')
-            {
-                activeQuote = c;
-                current.Append(c);
-                continue;
-            }
 
             if (char.IsWhiteSpace(c) && !IsEscaped(query, i))
             {
@@ -111,12 +96,6 @@ public static class QueryTokenScanner
             words.Add(current.ToString());
         return words;
     }
-
-    private static bool IsQuoted(string word) =>
-        word.Length >= 2 &&
-        ((word[0] == '"' && word[^1] == '"') || (word[0] == '\'' && word[^1] == '\''));
-
-    private static string Unquote(string word) => IsQuoted(word) ? word[1..^1] : word;
 
     private static bool IsEscaped(string text, int index)
     {
