@@ -60,11 +60,22 @@ public sealed class QueryTokenScannerTests
     }
 
     [TestMethod]
-    public void Scan_QuotedTokenLikeWord_IsTreatedAsSearchText()
+    public void Scan_UncPath_IsSearchTextNotAToken()
     {
-        var result = QueryTokenScanner.Scan(@"report ""\audio""");
+        // The prefix character doubled is a UNC path, not "\" + keyword -- no keyword can start with '\'.
+        var result = QueryTokenScanner.Scan(@"\\server\share\report");
 
-        Assert.AreEqual(@"report ""\audio""", result.Text);
+        Assert.AreEqual(@"\\server\share\report", result.Text);
+        Assert.IsEmpty(result.Tokens);
+    }
+
+    [TestMethod]
+    public void Scan_DoubledCustomPrefix_IsSearchTextNotAToken()
+    {
+        // The exemption reads off the configured prefix, so it is not a hard-coded backslash rule.
+        var result = QueryTokenScanner.Scan("//server/share", '/');
+
+        Assert.AreEqual("//server/share", result.Text);
         Assert.IsEmpty(result.Tokens);
     }
 
@@ -94,6 +105,17 @@ public sealed class QueryTokenScannerTests
 
         Assert.AreEqual("report", result.Text);
         CollectionAssert.AreEqual(new[] { @"\hello world" }, result.Tokens.ToArray());
+    }
+
+    [TestMethod]
+    public void Scan_UnbalancedQuote_NoLongerShieldsAToken()
+    {
+        // Quoting is gone with the rest of the old grammar, so '"' is an ordinary character and cannot
+        // make the rest of the query disappear: "\audio" is still read as the token it looks like.
+        var result = QueryTokenScanner.Scan(@"report ""x \audio");
+
+        Assert.AreEqual(@"report ""x", result.Text);
+        CollectionAssert.AreEqual(new[] { @"\audio" }, result.Tokens.ToArray());
     }
 
     [TestMethod]
