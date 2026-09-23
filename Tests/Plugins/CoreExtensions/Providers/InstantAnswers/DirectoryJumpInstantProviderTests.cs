@@ -157,4 +157,20 @@ public sealed class DirectoryJumpInstantProviderTests
         Assert.IsEmpty(new DirectoryJumpInstantProvider().GetInstantResults(@"Core\SearchIndex"));
         Assert.IsEmpty(new DirectoryJumpInstantProvider().GetInstantResults(""));
     }
+
+    [TestMethod]
+    public void GetInstantResults_OtherQuerySyntax_YieldsNothing()
+    {
+        var provider = new DirectoryJumpInstantProvider();
+
+        // None of these is "the whole query is one complete existing folder", so the drive spec, the regex
+        // clause and path mode all keep their own reading with no row added on top. The UNC case is absent
+        // on purpose: answering it needs a real share, and a bogus hostname would put a network timeout
+        // inside the test run -- its shape is pinned by IsCompletePath instead.
+        Assert.IsEmpty(provider.GetInstantResults("c:"));
+        Assert.IsEmpty(provider.GetInstantResults("d:report"));
+        Assert.IsEmpty(provider.GetInstantResults(@"d:\projects\ /^readme\.txt$/"));
+        Assert.IsEmpty(provider.GetInstantResults(@"/^readme\.txt$/"));
+        Assert.IsEmpty(provider.GetInstantResults(@"\audio 报告"));
+    }
 }
