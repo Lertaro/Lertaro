@@ -191,8 +191,23 @@ D:\Projects\Lertaro
 
 Ending with a path separator (e.g. `D:\Projects\`) searches the direct contents **inside** that folder.
 
+### Jumping To A Folder
+
+When the entire query is a complete path to a folder that exists, a row offering to open it appears above the path-mode results. Press Enter and the folder opens in Explorer:
+
+```text
+D:\Projects\Lertaro
+D:/Projects/
+%LOCALAPPDATA%\abc/d/e
+shell:Downloads\Tools
+\\server\share\docs
+"C:\Users\me\My Documents"
+```
+
+Every spelling below works, and they mix: `/` or `\` as the separator, with or without a trailing separator, `%VARIABLES%` anywhere in it, a `shell:` / `::{CLSID}` virtual folder, a network share, or the whole thing wrapped in quotes. What decides it is existence: a relative path such as `Core\SearchIndex` is never offered a jump, and neither is a folder that is not there yet -- in both cases you simply keep the ordinary path-mode results.
+
 > [!NOTE]
-> A plugin token also starts with `\` (for example `\audio`). Tokens are lifted out of the query before path mode is decided, so a query that only contains tokens and ordinary words (`report \audio`) stays a normal name search. Path mode only triggers when a separator is left in the remaining text.
+> A plugin token also starts with `\` (for example `\audio`). Tokens are lifted out of the query before path mode is decided, so a query that only contains tokens and ordinary words (`report \audio`) stays a normal name search. Path mode only triggers when a separator is left in the remaining text. A query that opens with two separators (`\\server\share`) is read as a UNC path, so it stays search text.
 
 ### Folder Matching Fallback
 
