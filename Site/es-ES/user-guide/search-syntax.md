@@ -191,8 +191,23 @@ D:\Projects\Lertaro
 
 Si termina con un separador de ruta (p. ej. `D:\Projects\`), busca el contenido directo **dentro** de esa carpeta.
 
+### Saltar a una carpeta
+
+Cuando toda la consulta es la ruta completa de una carpeta que existe, aparece una fila encima de los resultados de modo de ruta que la abre. Pulsa Intro y la carpeta se abre en el Explorador:
+
+```text
+D:\Projects\Lertaro
+D:/Projects/
+%LOCALAPPDATA%\abc/d/e
+shell:Downloads\Tools
+\\server\share\docs
+"C:\Users\me\My Documents"
+```
+
+Todas las formas de arriba funcionan y se pueden mezclar: `/` o `\` como separador, con o sin separador final, `%VARIABLES%` en cualquier parte, una carpeta virtual `shell:` / `::{CLSID}`, un recurso de red, o toda la ruta entre comillas. Lo que decide es que exista: una ruta relativa como `Core\SearchIndex` nunca ofrece el salto, y tampoco una carpeta que aún no está -- en ambos casos se quedan los resultados normales del modo de ruta.
+
 > [!NOTE]
-> Un token de plugin también empieza por `\` (por ejemplo, `\audio`). Los tokens se extraen de la consulta antes de decidir el modo de ruta, así que una consulta que solo contenga tokens y palabras normales (`report \audio`) sigue siendo una búsqueda por nombre habitual. El modo de ruta solo se activa cuando queda un separador en el texto restante.
+> Un token de plugin también empieza por `\` (por ejemplo, `\audio`). Los tokens se extraen de la consulta antes de decidir el modo de ruta, así que una consulta que solo contenga tokens y palabras normales (`report \audio`) sigue siendo una búsqueda por nombre habitual. El modo de ruta solo se activa cuando queda un separador en el texto restante. Una consulta que empieza con dos separadores (`\\server\share`) se lee como una ruta UNC, así que sigue siendo texto de búsqueda.
 
 ### Coincidencia alternativa en carpetas superiores
 
