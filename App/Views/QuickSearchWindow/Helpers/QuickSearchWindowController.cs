@@ -17,6 +17,9 @@ public class QuickSearchWindowController
     private readonly QuickSearchWindowForegroundWatcher _foregroundWatcher;
     private readonly QuickSearchWindowFocusHelper _focusHelper;
 
+    // Where the window is sent when it hides; see the assignment in FinishHide for why.
+    private const double ParkedOffScreen = -32000;
+
     internal Lertaro.App.QuickSearchWindow Window => _window;
     internal QuickSearchWindowForegroundWatcher ForegroundWatcher => _foregroundWatcher;
     internal IntPtr LastActiveHwnd { get => _lastActiveHwnd; set => _lastActiveHwnd = value; }
@@ -228,6 +231,15 @@ public class QuickSearchWindowController
 
             _window.UpdateLayout();
             _window.Hide();
+            // Hiding really does take the window off screen (WS_VISIBLE is cleared, and hit-testing can no
+            // longer reach it), but Win32 still answers GetWindowRect with the rectangle it last occupied --
+            // which is a live-looking, on-screen, captioned window to any enumerator that leaves out the
+            // IsWindowVisible check. PixPin's element picker is one of them: it drew its selection box
+            // exactly where the previous summon had been. -32000 is where Windows itself parks windows it
+            // has disabled, and the value such enumerators recognise as "not a candidate". ShowWindow runs
+            // PositionWindow twice around the Show, so nothing has to undo this.
+            _window.Left = ParkedOffScreen;
+            _window.Top = ParkedOffScreen;
             PowerThrottlingHelper.WindowHidden("quick");
 
             InlineSearchManager.Instance.KeyboardHook.IsQuickSearchWindowVisible = false;
