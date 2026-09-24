@@ -90,7 +90,7 @@ There is no quoting syntax that can change how precedence is read; grouping is f
 
 ### The Space Rule
 
-There is no way to put a space inside a single term. A space is always the AND separator, so a query with spaces is always several ANDed terms — this is the one place where Lertaro reads punctuation as structure:
+A space is the AND separator, so a query with spaces is always several ANDed terms — this is the one place where Lertaro reads punctuation as structure:
 
 ```text
 final report
@@ -98,9 +98,9 @@ final report
 
 is `final` AND `report`, which is not the same as a single phrase `final report`.
 
-**Neither quoting nor a backslash solves this.** `'final report'` and `"final report"` are not phrase syntax: quotes are matched as literal characters, so those queries look for names containing a quote mark, and they find nothing. `final\ report` is likewise read as the two words `final` AND `report`.
+**A backslash solves it; quotes do not.** `\ ` (backslash + space) keeps one literal space inside a single term: `final\ report` is one term containing a space — the same escape lets a plugin token's keyword carry a space. The term still follows the fuzzy setting, so write `?final\ report` (or turn fuzzy matching off) to require the words contiguously. Quoting solves nothing: `'final report'` and `"final report"` are not phrase syntax — quotes are matched as literal characters, so those queries look for names containing a quote mark, and they find nothing.
 
-The upshot is that Lertaro has no exact-phrase search. When the two words are adjacent in the name you want, search for the more distinctive half and let the ranking put it on top — or use a regex clause, which matches the name as one whole string (see below):
+So Lertaro needs no dedicated phrase operator: `?final\ report` is the exact phrase. When the two words are adjacent in the name you want, searching for the more distinctive half and letting the ranking put it on top also works — or use a regex clause, which matches the name as one whole string (see below):
 
 ```text
 /^final report/
