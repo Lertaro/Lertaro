@@ -133,7 +133,7 @@ Se pega automáticamente como:
 | `?` | Inversión de precisión | Invierte el término entre difuso y exacto, es decir, lo contrario de la configuración actual | `?report` |
 | `\|` | Lógica OR | Coincide con cualquiera de los lados de la barra vertical | `doc \| pdf` |
 | `/.../` | Expresión regular | Coincide con el nombre mediante una expresión regular de .NET (ver más abajo) | `/^report.*\.md$/` |
-| `*` | Omitir exclusiones | Excepción puntual a tus reglas de exclusión configuradas (solo como primer carácter) | `*node_modules` |
+| `*` | Omitir exclusiones | Excepción puntual a tus reglas de exclusión configuradas (solo como primer carácter de la consulta) | `*node_modules` |
 | `<` `>` | Token de orden / filtro | Ordena y, opcionalmente, filtra los resultados (ver la [sección 5](#_5-tokens-de-consulta-ordenacion-y-filtrado)) | `<s>20m` |
 | `\` | Token de plugin | Aplica un filtro proporcionado por un plugin, p. ej. una categoría de archivo (ver la [sección 5](#_5-tokens-de-consulta-ordenacion-y-filtrado)) | `\audio` |
 
@@ -143,7 +143,7 @@ Se pega automáticamente como:
 2. **Las exclusiones son siempre exactas** — se comparan como una subcadena contigua incluso con la coincidencia difusa activada, y no se expanden mediante alias de pinyin. De lo contrario, una subsecuencia laxa o una grafía en pinyin eliminaría archivos que nunca nombraste.
 3. **Unos dos puntos solos se ignoran** — `:` sin nada detrás no es un operador; simplemente se descarta de la consulta.
 4. **Los dos puntos de unidad son distintos** — una letra de unidad va después de los dos puntos (`d:`, ver la [sección 4](#_4-modo-de-ruta-y-delimitacion-por-unidad)), mientras que una exclusión va antes (`:temp`). Es imposible confundirlos, y unos dos puntos dentro de una palabra (`c:\path`) son texto normal.
-5. **Una cláusula regex se extrae antes de que nada más lea la consulta** — eso es lo que evita que sus barras invertidas y sus barras se confundan con una ruta, y significa que una cláusula puede situarse en cualquier parte de la consulta (`/\.md$/ report` y `report /\.md$/` son la misma búsqueda).
+5. **Una cláusula regex se extrae antes de que la consulta se lea como una ruta o se divida en términos** — eso es lo que evita que sus barras invertidas y sus barras se confundan con una ruta, y significa que una cláusula puede situarse en cualquier parte de la consulta (`/\.md$/ report` y `report /\.md$/` son la misma búsqueda).
 6. **Inversión de precisión `?`** — `?term` toma el valor **contrario** al de la configuración de coincidencia difusa: con la coincidencia difusa activada el término pasa a ser una subcadena contigua, y con ella desactivada pasa a ser una subsecuencia dispersa. Es la única forma de mezclar las dos lecturas en una misma consulta (`?report draft` exige `report` de forma contigua mientras que `draft` puede estar disperso). El activador se lee **solo del primer carácter de una palabra**, así que `rep?ort` es el texto literal `rep?ort` (que no puede aparecer en un nombre de archivo y por tanto no coincide con nada), y afecta únicamente a esa palabra. Igual que unos `:` solos, un `?` solo se descarta. Los dos puntos se leen primero, así que `:?temp` excluye el texto literal `?temp`.
 
 **Ejemplos de combinación de operadores**:
@@ -266,7 +266,7 @@ Añade un segundo desencadenante más un umbral para conservar solo un lado:
 
 El segundo desencadenante es una **comparación**, no una repetición de la flecha de ordenación: `>` siempre significa un límite inferior y `<` siempre significa un límite superior.
 
-Los tamaños aceptan los sufijos `k`, `m`, `g` y `t` (unidades binarias, así que `1m` es 1 MiB) o un número de bytes sin más. Los umbrales de la clave carpeta/archivo usan `f` / `folder` / `dir`.
+Los tamaños aceptan los sufijos `k`, `m`, `g` y `t` (unidades binarias, así que `1m` es 1 MiB) o un número de bytes sin más. En la clave carpeta/archivo, `<f>f` (o un umbral que empiece por `folder` / `dir`) deja solo carpetas; cualquier otro umbral, p. ej. `<f<1`, deja solo archivos.
 
 Las fechas deben escribirse **primero el año**. Se aceptan estas formas (un año de dos dígitos se lee como `20xx`):
 
@@ -296,7 +296,7 @@ Los tokens de plugin los proporcionan los plugins, y cada plugin decide qué sig
 
 Puedes renombrar las categorías, cambiar las extensiones que cubre cada una o añadir las tuyas en **Configuración → Plugins → CoreExtensions**. La propia palabra clave se compara de la más larga a la más corta, así que una regla `\a` y una regla `\audio` pueden coexistir y `\audio` sigue ganando.
 
-El carácter de prefijo se configura en **Configuración → General → Sistema → Prefijo de tokens de consulta de plugins**. No puede estar vacío, no puede ser un carácter que ya use la sintaxis de búsqueda (`\` `<` `>` `:` `*` `/` `?`).
+El carácter de prefijo se configura en **Configuración → General → Sistema → Prefijo de tokens de consulta de plugins**. No puede estar vacío, no puede ser un carácter que ya use la sintaxis de búsqueda (`<` `>` `:` `*` `/` `?`) — `\` en sí es el valor predeterminado, así que se puede usar.
 
 La barra lateral de filtros de tipo de la ventana de búsqueda completa se configura por separado en el grupo **Filtros de búsqueda** del mismo plugin. Los nombres de los filtros de la barra lateral solo sirven para mostrar; las referencias de prefijo solo se analizan dentro de una regla de filtro de la barra lateral y se refieren a palabras clave de la lista **Filtros personalizados**, incluidos los filtros personalizados deshabilitados.
 
@@ -330,7 +330,7 @@ Escribir el activador como el primer carácter en la ventana de búsqueda rápid
 ;vs
 ```
 
-Si `;` está asignado a «Aplicaciones», la consulta anterior busca Visual Studio exclusivamente entre las aplicaciones. El activador debe ser el primer carácter, sin nada delante, y solo se aplica a las ventanas de búsqueda rápida e integrada. En ambas, el Historial y los Favoritos permanecen fijados en la parte superior independientemente de los activadores.
+Si `;` está asignado a «Aplicaciones», la consulta anterior busca Visual Studio exclusivamente entre las aplicaciones. El activador debe ser el primer carácter, sin nada delante, y solo se aplica a la ventana de búsqueda rápida. Con un activador en uso, los Favoritos siguen fijados arriba; las entradas del Historial se filtran como los demás tipos.
 
 > [!NOTE]
 > El activador debe ser el primer carácter de la consulta: un token de plugin o de ordenación antes de él (`\img ;vs`) deja el activador sin leer, ya que la consulta ya no empieza por él.

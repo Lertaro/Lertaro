@@ -133,7 +133,7 @@ Pastes automatically as:
 | `?` | Precision inversion | Flips the term between fuzzy and exact, the opposite of the current setting | `?report` |
 | `\|` | OR logic | Matches either side of the pipe | `doc \| pdf` |
 | `/.../` | Regular expression | Matches the name with a .NET regex (see below) | `/^report.*\.md$/` |
-| `*` | Bypass exclusions | One-off opt-out of your configured exclusion rules (first character only) | `*node_modules` |
+| `*` | Bypass exclusions | One-off opt-out of your configured exclusion rules (query-opening character only) | `*node_modules` |
 | `<` `>` | Sort / filter token | Sorts and optionally filters the results (see [section 5](#_5-query-tokens-sorting-filtering)) | `<s>20m` |
 | `\` | Plugin token | Applies a plugin-provided filter, e.g. a file category (see [section 5](#_5-query-tokens-sorting-filtering)) | `\audio` |
 
@@ -143,7 +143,7 @@ Pastes automatically as:
 2. **Exclusions are always exact** — they are matched as a contiguous substring even when fuzzy matching is on, and they are not expanded through pinyin aliases. A loose subsequence or a pinyin spelling would otherwise remove files you never named.
 3. **A lone colon is ignored** — `:` with nothing after it is not an operator; it is simply dropped from the query.
 4. **The drive colon is different** — a drive letter follows the colon (`d:`, see [section 4](#_4-path-mode-drive-scoping)) while an exclusion precedes it (`:temp`). The two can never be confused, and a colon inside a word (`c:\path`) is ordinary text.
-5. **A regex clause is lifted out before anything else reads the query** — that is what keeps its backslashes and slashes from being mistaken for a path, and it means a clause can sit anywhere in the query (`/\.md$/ report` and `report /\.md$/` are the same search).
+5. **A regex clause is lifted out before the query is read as a path or split into terms** — that is what keeps its backslashes and slashes from being mistaken for a path, and it means a clause can sit anywhere in the query (`/\.md$/ report` and `report /\.md$/` are the same search).
 6. **Precision inversion `?`** — `?term` takes the **opposite** of whatever the fuzzy-matching setting says: with fuzzy matching on the term becomes a contiguous substring, with fuzzy matching off it becomes a scattered subsequence. It is the only way to mix the two readings within one query — `?report draft` requires `report` contiguously while `draft` may be scattered. The trigger is read from the **first character of a word only**, so `rep?ort` is the literal text `rep?ort` (which cannot occur in a file name and therefore matches nothing), and it affects that word alone. Like a lone `:`, a lone `?` is dropped. The colon is read first, so `:?temp` excludes the literal text `?temp`.
 
 **Operator Combination Examples**:
@@ -266,7 +266,7 @@ Add a second trigger plus a threshold to keep only one side of it:
 
 The second trigger is a **comparison**, not a repetition of the sort arrow: `>` always means a lower bound and `<` always means an upper bound.
 
-Sizes accept `k`, `m`, `g` and `t` suffixes (binary units, so `1m` is 1 MiB) or a plain byte count. Thresholds for the folder/file key use `f` / `folder` / `dir`.
+Sizes accept `k`, `m`, `g` and `t` suffixes (binary units, so `1m` is 1 MiB) or a plain byte count. For the folder/file key, `<f>f` (or a threshold starting with `folder` / `dir`) keeps only folders; any other threshold, e.g. `<f<1`, keeps only files.
 
 Dates must be written **year first**. These shapes are accepted (a two-digit year is read as `20xx`):
 
@@ -296,7 +296,7 @@ Plugin tokens are provided by plugins, and the plugin decides what each one mean
 
 Rename the categories, change which extensions each one covers, or add your own under **Settings → Plugins → CoreExtensions**. The keyword itself is matched longest-first, so a `\a` rule and an `\audio` rule can coexist and `\audio` still wins.
 
-The prefix character is configurable under **Settings → General → System → Plugin Query Token Prefix**. It cannot be empty, it cannot be a character the search syntax already consumes (`\` `<` `>` `:` `*` `/` `?`).
+The prefix character is configurable under **Settings → General → System → Plugin Query Token Prefix**. It cannot be empty, it cannot be a character the search syntax already consumes (`<` `>` `:` `*` `/` `?`) — `\` itself is the shipped default, so it is usable.
 
 The full search window's left type-filter sidebar is configured separately in the same plugin's **Search Filters** group. Sidebar filter names are display-only; prefix references are parsed only inside a sidebar filter rule and refer to keywords from the **Custom Filters** list, including disabled custom filters.
 
@@ -330,7 +330,7 @@ Typing the trigger as the very first character in the quick search window displa
 ;vs
 ```
 
-If `;` is assigned to "Applications", the above query searches Visual Studio exclusively among applications. The trigger must be the first character with nothing before it, and it applies to the Quick and Inline search windows only. In both, History and Favorites remain pinned at the top regardless of triggers.
+If `;` is assigned to "Applications", the above query searches Visual Studio exclusively among applications. The trigger must be the first character with nothing before it, and it applies to the Quick search window only. Favorites remain pinned at the top even under a trigger; history-sourced entries are filtered out together with every other type.
 
 > [!NOTE]
 > The trigger must be the first character of the query — a plugin token or sort token before it (`\img ;vs`) leaves the trigger unread, since the query no longer starts with it.
