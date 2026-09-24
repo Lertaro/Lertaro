@@ -90,7 +90,7 @@ No existe ninguna sintaxis de comillas que cambie cómo se lee la precedencia; l
 
 ### La regla del espacio
 
-No hay forma de meter un espacio dentro de un solo término. El espacio es siempre el separador AND, así que una consulta con espacios es siempre varios términos unidos por AND: este es el único punto en el que Lertaro lee la puntuación como estructura:
+El espacio es el separador AND, así que una consulta con espacios es siempre varios términos unidos por AND: este es el único punto en el que Lertaro lee la puntuación como estructura:
 
 ```text
 final report
@@ -98,9 +98,9 @@ final report
 
 es `final` AND `report`, que no es lo mismo que una única frase `final report`.
 
-**Ni las comillas ni la barra invertida lo resuelven.** `'final report'` y `"final report"` no son sintaxis de frase: las comillas se comparan como caracteres literales, así que esas consultas buscan nombres que contengan una comilla y no encuentran nada. `final\ report` también se lee como las dos palabras `final` AND `report`.
+**La barra invertida sí lo resuelve; las comillas no.** `\ ` (barra invertida + espacio) conserva un espacio literal dentro de una palabra: `final\ report` es un solo término con espacio — el mismo escape permite que la palabra clave de un token lleve espacio. El término sigue el ajuste difuso, así que escribe `?final\ report` (o desactiva la coincidencia difusa) para exigir las palabras contiguas. Las comillas no resuelven nada: `'final report'` y `"final report"` no son sintaxis de frase — las comillas se comparan como caracteres literales, así que esas consultas buscan nombres que contengan una comilla y no encuentran nada.
 
-En resumen, Lertaro no tiene búsqueda de frase exacta. Cuando las dos palabras son adyacentes en el nombre que buscas, busca solo la mitad más distintiva y deja que la ordenación la ponga arriba; o usa una cláusula de expresión regular, que compara el nombre como un todo (ver más abajo):
+Así que Lertaro no necesita un operador de frase dedicado: `?final\ report` es la frase exacta. Cuando las dos palabras son adyacentes en el nombre que buscas, también basta buscar solo la mitad más distintiva y dejar que la ordenación la ponga arriba; o usa una cláusula de expresión regular, que compara el nombre como un todo (ver más abajo):
 
 ```text
 /^final report/
