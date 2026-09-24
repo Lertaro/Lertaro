@@ -30,6 +30,12 @@ public class UserSettings
     public bool StartWithWindows { get; set; } = true;
     public bool AutoCheckUpdates { get; set; } = true;
     public bool AutoSilentUpdate { get; set; } = false;
+    // Bookkeeping rather than a preference: the release tag whose last startup install attempt failed, and
+    // when. Without it a startup that cannot update (service not running, download failed) re-downloads a
+    // full release zip on every single launch. Only UpdateCheckService reads or writes these; the About
+    // page's own update button ignores them, because a request that was just clicked is not a retry.
+    public string LastFailedUpdateTag { get; set; } = "";
+    public long LastFailedUpdateUtcTicks { get; set; }
     // Applied only to QuickSearchWindow (Window_Loaded), not process-wide -- see GitHub issue #82
     // (NVIDIA Advanced Optimus GPU hot-switch blocked by this window's persistent DirectX composition
     // surface, since it's created once at startup and only ever hidden, never closed). Requires a

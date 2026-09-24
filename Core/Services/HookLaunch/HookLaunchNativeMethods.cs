@@ -13,6 +13,7 @@ internal static class HookLaunchNativeMethods
     // Per CreateProcess docs the two are mutually exclusive (CREATE_NO_WINDOW is ignored if DETACHED_PROCESS
     // is also set), so only this one is used.
     public const uint DETACHED_PROCESS = 0x00000008;
+    public const uint CREATE_NO_WINDOW = 0x08000000;
     public const int TokenLinkedToken = 19; // TOKEN_INFORMATION_CLASS.TokenLinkedToken (WinNT.h)
     public const int SecurityImpersonation = 2; // SECURITY_IMPERSONATION_LEVEL.SecurityImpersonation
     public const int TokenPrimary = 1; // TOKEN_TYPE.TokenPrimary

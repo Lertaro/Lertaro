@@ -2,14 +2,20 @@
 setlocal enabledelayedexpansion
 chcp 65001 >nul
 
-:: 1. Check for Admin privileges and self-elevate
-net session >nul 2>&1
+:: 1. Check for Admin privileges and self-elevate.
+:: fltmc and not the usual `net session`: the latter only succeeds when the LanmanServer service is
+:: running, so on a machine where that has been turned off it reported "not admin" inside an already
+:: elevated process -- which sent this branch around again, asking for UAC over and over with no
+:: elevation ever reached.
+fltmc >nul 2>&1
 if %errorLevel% neq 0 (
     powershell -Command "Start-Process -FilePath '%~f0' -ArgumentList '\"%~1\" \"%~2\"' -Verb RunAs"
     exit /b
 )
 
-:: %1: The source directory containing the new version files (unzipped temporary directory)
+:: %1: The source directory holding the new version files, already unpacked and signature-verified by the
+::     background service. It sits under %2 on purpose: the temp directory it came from is writable by
+::     unprivileged code, and an elevated copy step must not read its payload out of that.
 :: %2: The target installation directory of the current Lertaro instance
 set "SRC_DIR=%~1"
 set "DST_DIR=%~2"
@@ -48,6 +54,10 @@ if "%errorlevel%"=="0" (
 
 :: Copy new files to destination directory, overwriting existing files
 xcopy "%SRC_DIR%\*" "%DST_DIR%\" /E /Y /Q /R
+
+:: The payload directory is a subdirectory of the install directory, so it would otherwise be left behind
+:: there forever. Only the copy above is allowed to have read from it.
+rd /s /q "%SRC_DIR%" >nul 2>&1
 
 :: Run Lertaro.App.exe as standard user via explorer.exe to avoid running App as administrator
 start "" explorer.exe "%DST_DIR%\Lertaro.App.exe"

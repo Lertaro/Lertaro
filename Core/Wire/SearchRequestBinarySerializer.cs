@@ -8,13 +8,13 @@ public static class SearchRequestBinarySerializer
 {
     private const int Magic = 0x51504C53; // SLPQ
     // v5: Search/SearchDir gained ExactMatch; v6: EnumerateDir; v7: in-memory space entries; v8: file-name filtering.
-    // v9: Search/SearchDir gained OrFirstPrecedence.
+    // v9: Search/SearchDir gained OrFirstPrecedence. v10: ApplyUpdate.
     // Bumped for a new request id too, not only for a changed payload layout: the set of ids IS part of
     // this contract, and the version is what makes an App/Service pair that disagree about it fail
     // loudly and at once, in both directions, instead of one side quietly answering "Unknown command"
     // to a request the other believes is supported. App and Service always ship and restart together,
     // so a mismatch is an install-time transient, not a state worth degrading gracefully into.
-    private const int VersionSearchRequest = 9;
+    private const int VersionSearchRequest = 10;
 
     public static async Task WriteSearchRequestAsync(Stream stream, SearchRequestMessage msg, CancellationToken token = default)
     {
@@ -50,6 +50,9 @@ public static class SearchRequestBinarySerializer
                 break;
             case SearchRequestId.SubscribeDirectoryChanges:
                 payloadSize += SearchRequestValueCodec.CalculateStringListSize(msg.Directories);
+                break;
+            case SearchRequestId.ApplyUpdate:
+                payloadSize += GetStringByteCount(msg.UpdateSourceDir) + 5;
                 break;
         }
 
@@ -117,6 +120,9 @@ public static class SearchRequestBinarySerializer
                     break;
                 case SearchRequestId.SubscribeDirectoryChanges:
                     SearchRequestValueCodec.WriteStringList(span, ref offset, msg.Directories);
+                    break;
+                case SearchRequestId.ApplyUpdate:
+                    WriteString(span, ref offset, msg.UpdateSourceDir);
                     break;
             }
 
@@ -210,6 +216,9 @@ public static class SearchRequestBinarySerializer
                 break;
             case SearchRequestId.SubscribeDirectoryChanges:
                 msg.Directories = SearchRequestValueCodec.ReadStringList(payload, ref offset);
+                break;
+            case SearchRequestId.ApplyUpdate:
+                msg.UpdateSourceDir = ReadString(payload, ref offset);
                 break;
         }
 

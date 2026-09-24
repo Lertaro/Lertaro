@@ -266,6 +266,29 @@ public sealed class SearchRequestBinarySerializerTests
     }
 
     [TestMethod]
+    public async Task RoundTrip_ApplyUpdate_PreservesSourceDirectory()
+    {
+        var result = await RoundTripAsync(new SearchRequestMessage
+        {
+            Id = SearchRequestId.ApplyUpdate,
+            UpdateSourceDir = @"C:\Users\ someone \AppData\Local\Temp\LertaroUpdate-abc123.def"
+        });
+
+        Assert.AreEqual(SearchRequestId.ApplyUpdate, result.Id);
+        Assert.AreEqual(@"C:\Users\ someone \AppData\Local\Temp\LertaroUpdate-abc123.def", result.UpdateSourceDir);
+    }
+
+    [TestMethod]
+    public async Task RoundTrip_ApplyUpdate_NullSourceDirectory_RoundTripsAsEmpty()
+    {
+        // The field is absent rather than a sentinel: the server-side handler has to refuse an unusable
+        // package either way, and a round trip that invents a path would hide a caller that forgot to set one.
+        var result = await RoundTripAsync(new SearchRequestMessage { Id = SearchRequestId.ApplyUpdate });
+
+        Assert.AreEqual(string.Empty, result.UpdateSourceDir);
+    }
+
+    [TestMethod]
     public async Task ReadSearchRequestAsync_WrongVersion_ThrowsInvalidDataException()
     {
         using var stream = new MemoryStream();

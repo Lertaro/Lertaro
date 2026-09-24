@@ -26,6 +26,11 @@ public class SearchService : IDisposable
     public Task<(bool Ok, int Pid, string? Error)> RequestHookLaunchAsync(bool requestElevation, CancellationToken token = default)
         => _pipeClient.RequestHookLaunchAsync(requestElevation, token);
 
+    // Hands a staged update package to the service for installation. See SearchPipeClient's method of the
+    // same name -- Ok means the updater is running, not that the files are in place yet.
+    public Task<(bool Ok, string? Error)> RequestApplyUpdateAsync(string sourceDir, CancellationToken token = default)
+        => _pipeClient.RequestApplyUpdateAsync(sourceDir, token);
+
     // Fire-and-forget, called whenever a search window closes/hides (mirrors ShellIconHelper.ClearCache()'s
     // existing trigger points) -- gives back the local drives' per-row full-path memo, which otherwise
     // only self-clears once it crosses its own high backstop threshold (see PathQueryExtensions).

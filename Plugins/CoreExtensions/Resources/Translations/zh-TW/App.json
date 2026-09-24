@@ -441,7 +441,6 @@
   "About_UpToDate": "當前已是最新版本",
   "About_NewVersionAvailable": "檢測到新版本 {0}，可以更新。",
   "About_NewVersionAvailablePrompt": "檢測到新版本 {0}，可以更新。點選“確定”前往“關於”頁面進行自動更新。",
-  "About_SilentUpdatePrompt": "檢測到新版本 {0}，點選“確定”將自動執行靜默更新並重啟程式。",
   "About_CheckUpdateNull": "檢查更新失敗：API未返回任何資料。請確認最新版本是否已在 GitHub 釋出。",
   "About_CheckUpdateError": "檢查更新失敗，出現異常：\n{0}\n\n堆疊資訊：\n{1}",
   "About_CheckUpdateErrorTitle": "更新錯誤",

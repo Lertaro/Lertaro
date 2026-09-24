@@ -69,6 +69,16 @@ internal sealed class SearchPipeClient
         return resp.Kind == PipeResponseKind.HookLaunched ? (true, resp.Pid, null) : (false, 0, resp.Message);
     }
 
+    // Asks the service to install a staged update package (see UpdateApplyRequestHandler): it verifies the
+    // signature itself, unpacks the payload somewhere the caller can't write, and hands it to an elevated
+    // process in this session. Ok means "the updater is running and this process should quit now" -- the
+    // update itself is no longer this process's to report on.
+    public async Task<(bool Ok, string? Error)> RequestApplyUpdateAsync(string sourceDir, CancellationToken token = default)
+    {
+        var resp = await SendPipeCommandAsync(new SearchRequestMessage { Id = SearchRequestId.ApplyUpdate, UpdateSourceDir = sourceDir }, token).ConfigureAwait(false);
+        return resp.Kind == PipeResponseKind.Ok ? (true, null) : (false, resp.Message);
+    }
+
     // Fire-and-forget, called whenever a search window closes/hides (mirrors ShellIconHelper.ClearCache()'s
     // existing trigger points) -- gives back the local drives' per-row full-path memo, which otherwise
     // only self-clears once it crosses its own high backstop threshold (see PathQueryExtensions).
