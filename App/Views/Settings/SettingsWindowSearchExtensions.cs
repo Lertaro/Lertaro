@@ -5,6 +5,7 @@ using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Settings;
 using Lertaro.App.ViewModels.Settings.Plugins;
 using Lertaro.App.ViewModels.Settings.QuickPanel;
+using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 
@@ -175,7 +176,35 @@ internal static class SettingsWindowSearchExtensions
                 Reveal: new SettingsSearchDynamicReveal("QuickPanelPluginTabsList", capturedTab)));
         }
 
+        // The launch panel's tabs are configured per source here, and the quick search window's tab
+        // strip offers "related settings" jumps landing on exactly this row -- so each source gets its
+        // own entry, not just the section heading.
+        var quickLaunchSectionLabel = TranslationManager.Instance["Settings_QuickLaunch"];
+        var quickLaunchSourcesLabel = TranslationManager.Instance["QuickLaunch_SourceTitle"];
+        var quickLaunchSources = vm?.QuickLaunch.Sources ?? (IEnumerable<QuickLaunchSourceOptionViewModel>)QuickLaunchSourceFallback();
+        foreach (var source in quickLaunchSources)
+        {
+            var capturedSource = source;
+            void SelectSourcesSection(SettingsViewModel v) => v.QuickLaunch.SelectedSection = "Sources";
+
+            results.Add(new SettingsSearchResultItem(capturedSource.Name, $"{quickLaunchSectionLabel} › {quickLaunchSourcesLabel}", "QuickLaunch", SelectSourcesSection,
+                Reveal: new SettingsSearchDynamicReveal("QuickLaunchSourcesList", capturedSource)));
+        }
+
         return results;
+    }
+
+    private static List<QuickLaunchSourceOptionViewModel> QuickLaunchSourceFallback()
+    {
+        var disabled = UserSettings.Load().QuickLaunch.DisabledSourceIds;
+        return QuickLaunchSourceCatalog.Providers
+            .Select(provider =>
+            {
+                var id = QuickLaunchSourceCatalog.GetId(provider);
+                return new QuickLaunchSourceOptionViewModel(id, provider.Name,
+                    !disabled.Contains(id, StringComparer.OrdinalIgnoreCase));
+            })
+            .ToList();
     }
 
     public static void OnSettingsSearchTextChanged(this SettingsWindow window)
