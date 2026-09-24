@@ -97,7 +97,7 @@ public interface IActionProvider
 
 ### 静态动作契约 `ISearchResultAction`
 
-表示一个明确的静态操作（如“复制完整路径”、“以管理员身份运行”等），呈现在 `Ctrl+O` 动作菜单中或绑定为全局动作热键：
+表示一个明确的静态操作（如“复制完整路径”、“以管理员身份运行”等），呈现在 `Ctrl+O` 动作菜单中或绑定为全局动作快捷键：
 
 ```csharp
 public interface ISearchResultAction : IPluginComponent
