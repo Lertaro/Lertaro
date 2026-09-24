@@ -178,7 +178,7 @@
                                    FontWeight="SemiBold" FontSize="13"/>
                         <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceDesc]}"
                                    Style="{StaticResource SettingsHintText}" Margin="0,4,0,8"/>
-                        <ItemsControl ItemsSource="{Binding Sources}" helpers:DragReorder.IsEnabled="True">
+                        <ItemsControl x:Name="QuickLaunchSourcesList" ItemsSource="{Binding Sources}" helpers:DragReorder.IsEnabled="True">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Grid Margin="0,5">

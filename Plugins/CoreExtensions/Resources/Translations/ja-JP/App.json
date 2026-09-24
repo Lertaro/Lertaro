@@ -57,6 +57,7 @@
   "QuickLaunch_Remove": "削除",
   "QuickLaunch_SourceTitle": "データソース",
   "QuickLaunch_SourceDesc": "現在データがある有効なソースだけがクイック検索ウィンドウのタブとして表示されます。",
+  "QuickLaunch_SourceSettings": "関連設定",
   "QuickLaunch_SourceEnabledTooltip": "このソースをクイック検索ウィンドウに表示",
   "QuickLaunch_ManualSource": "クイック起動",
   "Settings_LocalSend": "LocalSend",

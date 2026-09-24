@@ -54,9 +54,24 @@ public static class AppWindowManager
         });
     }
 
+    public static void ShowQuickLaunchItemEditor(string path)
+        => QuickLaunchItemEditor.Show(path);
+
     // Jumps straight to one specific setting (section + tab + row highlight), not just its section.
     // The index comes from the host's searchable settings entries and is validated by the window.
     public static void ShowSettingsWindowEntry(int entryIndex)
+        => ShowSettingsWindowBefore(w => w.JumpToEntry(entryIndex));
+
+    // The quick search window's launch-panel tab menu: open settings on that tab's data-source row.
+    public static void ShowSettingsQuickLaunchSource(string sourceId)
+        => ShowSettingsWindowBefore(w => w.ShowQuickLaunchSource(sourceId));
+
+    // Shared ensure-window sequence: the target selection happens before the window becomes
+    // visible/restored -- after Show() it rendered whatever section was already selected first, which
+    // read as a jarring flash -- while the reveal's own scroll/highlight step is separately deferred
+    // internally (ContextIdle), so it still lands once layout has actually happened. Application.
+    // Current may already be null at run time (see ShowSettingsWindow's comment); nothing to show then.
+    private static void ShowSettingsWindowBefore(Action<SettingsWindow> revealBeforeShow)
     {
         if (System.Windows.Application.Current == null) return;
 
@@ -68,10 +83,7 @@ public static class AppWindowManager
                 _settingsWindow.Closed += (_, _) => _settingsWindow = null;
             }
 
-            // Same before-Show ordering as ShowSettingsWindow, for the same reason (see its own
-            // comment) -- JumpToEntry's own highlight/scroll step is separately deferred internally
-            // (ActivateSearchResult), so it still lands correctly once layout has actually happened.
-            _settingsWindow.JumpToEntry(entryIndex);
+            revealBeforeShow(_settingsWindow);
 
             if (!_settingsWindow.IsVisible)
                 _settingsWindow.Show();
@@ -82,9 +94,6 @@ public static class AppWindowManager
             _settingsWindow.Activate();
         });
     }
-
-    public static void ShowQuickLaunchItemEditor(string path)
-        => QuickLaunchItemEditor.Show(path);
 
     public static void ShowSearchWindow()
     {

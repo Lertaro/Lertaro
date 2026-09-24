@@ -57,6 +57,7 @@
   "QuickLaunch_Remove": "Quitar",
   "QuickLaunch_SourceTitle": "Fuentes de datos",
   "QuickLaunch_SourceDesc": "Solo las fuentes habilitadas que contienen datos aparecen como pestañas en la ventana de búsqueda rápida.",
+  "QuickLaunch_SourceSettings": "Ajustes relacionados",
   "QuickLaunch_SourceEnabledTooltip": "Mostrar esta fuente en la ventana de búsqueda rápida",
   "QuickLaunch_ManualSource": "Inicio rápido",
   "Settings_LocalSend": "LocalSend",

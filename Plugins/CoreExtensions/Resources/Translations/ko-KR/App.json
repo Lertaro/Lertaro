@@ -57,6 +57,7 @@
   "QuickLaunch_Remove": "삭제",
   "QuickLaunch_SourceTitle": "데이터 원본",
   "QuickLaunch_SourceDesc": "현재 데이터가 있는 사용 설정된 원본만 빠른 검색 창의 탭으로 표시됩니다.",
+  "QuickLaunch_SourceSettings": "관련 설정",
   "QuickLaunch_SourceEnabledTooltip": "이 원본을 빠른 검색 창에 표시",
   "QuickLaunch_ManualSource": "빠른 실행",
   "Settings_LocalSend": "LocalSend",

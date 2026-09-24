@@ -57,6 +57,7 @@
   "QuickLaunch_Remove": "删除",
   "QuickLaunch_SourceTitle": "数据源",
   "QuickLaunch_SourceDesc": "只有已启用且当前有数据的数据源，才会显示为快速搜索窗口底部的标签页。",
+  "QuickLaunch_SourceSettings": "相关设置",
   "QuickLaunch_SourceEnabledTooltip": "在快速搜索窗口中显示此数据源",
   "QuickLaunch_ManualSource": "快速启动",
   "Settings_LocalSend": "局域网传输",

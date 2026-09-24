@@ -262,6 +262,28 @@ public sealed class SettingsWindowSearchExtensionsTests
     public void JumpToEntryIndexFor_UnknownKey_IsMinusOne()
         => Assert.AreEqual(-1, SettingsWindowSearchExtensions.JumpToEntryIndexFor("No_Such_Key"));
 
+    // The launch panel's tab menu and the settings search both need to land on one source's own
+    // checkbox row, not just the page -- so every data source carries its own reveal entry.
+    [TestMethod]
+    public void BuildAllEntries_GivesEachLaunchSourceItsOwnRevealEntry()
+    {
+        var settingsVm = new SettingsViewModel();
+        settingsVm.QuickLaunch.Sources.Clear();
+        var history = new QuickLaunchSourceOptionViewModel("TestPlugin.dll::QuickPanelTabProvider::HistoryTabProvider", "History", true);
+        settingsVm.QuickLaunch.Sources.Add(history);
+
+        var results = SettingsWindowSearchExtensions.BuildAllEntries(vm: settingsVm);
+
+        var targetItem = results.Single(r => r.Reveal?.GroupItem == history);
+        Assert.AreEqual("QuickLaunch", targetItem.Section);
+        Assert.AreEqual("History", targetItem.Label);
+        Assert.AreEqual("QuickLaunchSourcesList", targetItem.Reveal!.ListElementName);
+
+        settingsVm.QuickLaunch.SelectedSection = "Items";
+        targetItem.Activate!(settingsVm);
+        Assert.AreEqual("Sources", settingsVm.QuickLaunch.SelectedSection);
+    }
+
     // The same rule BuildAllEntries applies when it is asked for the statics only (see its
     // evaluateConditionalVisibility parameter).
     private static List<SettingsSearchEntry> BuiltEntries()
