@@ -105,6 +105,8 @@ public class WPSFileDialogAdapter : IFileDialogAdapter
     /// The whole dialog's bounds, matching what every other dialog adapter reports: the host rejects a
     /// dock rect under 100px tall as "not a real target" (InlineSearchWindowPositioner.PositionWindowCore)
     /// and would silently fall back to a fixed screen position if this returned the file-name row alone.
+    /// Where that row actually is -- which is what the card lines itself up with horizontally -- is a
+    /// separate answer, in <see cref="TryGetTargetFieldBounds"/>.
     /// </summary>
     public bool GetDockBounds(IntPtr hwnd, out AdapterRect rect)
     {
@@ -120,6 +122,79 @@ public class WPSFileDialogAdapter : IFileDialogAdapter
 
         rect = new AdapterRect { Left = r.Left, Top = r.Top, Right = r.Right, Bottom = r.Bottom };
         return true;
+    }
+
+    /// <summary>
+    /// Where the file-name box actually sits inside that dialog, so the card can hang under it rather than
+    /// under the middle of a dialog whose box starts a third of the way in.
+    /// </summary>
+    /// <remarks>
+    /// The host asks this on the positioning path, which runs again every time the dialog moves. Only the
+    /// first answer per dialog size costs anything: WPS lays its widgets out relative to the dialog's own
+    /// edges, so a dialog that has merely been dragged somewhere keeps its box at the same offset inside
+    /// itself, and that offset is translated instead of re-measured. A dialog that changed size is a
+    /// different matter -- there the layout really did change -- and gets exactly one fresh, non-retrying
+    /// UI Automation attempt, because spending <see cref="WPSDialogAutomation.EditorLookupTimeoutMs"/>
+    /// sleeping on this path would put a cross-process wait on the UI thread. Failing that attempt returns
+    /// false, which is the honest answer and costs the user nothing but the old centered placement.
+    /// </remarks>
+    public bool TryGetTargetFieldBounds(IntPtr hwnd, out AdapterRect bounds)
+    {
+        bounds = default;
+        if (!WPSWindowInterop.TryGetDialogRect(hwnd, out var dialogRect))
+            return false;
+
+        var dialog = new AdapterRect { Left = dialogRect.Left, Top = dialogRect.Top, Right = dialogRect.Right, Bottom = dialogRect.Bottom };
+        if (hwnd == _anchoredHwnd && SameSize(dialog, _anchoredDialog))
+        {
+            bounds = Translate(_anchoredField, _anchoredDialog, dialog);
+            return true;
+        }
+
+        var measured = WPSDialogAutomation.TryGetFileNameEditorBounds(hwnd);
+        if (measured == null)
+            return false;
+
+        // UI Automation reports physical screen pixels, the same space TryGetDialogRect answers in for a
+        // DPI-aware client, so nothing here is scaled -- and a Qt window makes DWM's extended-frame call
+        // fail with E_INVALIDARG, which means both of these really do come from GetWindowRect's system.
+        _anchoredHwnd = hwnd;
+        _anchoredDialog = dialog;
+        _anchoredField = new AdapterRect
+        {
+            Left = (int)measured.Value.Left,
+            Top = (int)measured.Value.Top,
+            Right = (int)measured.Value.Right,
+            Bottom = (int)measured.Value.Bottom,
+        };
+        bounds = _anchoredField;
+        return true;
+    }
+
+    // The dialog rect the cached field was measured against. _anchoredHwnd stays Zero until a measurement
+    // exists, and no live window is Zero, so that alone marks the cache as empty.
+    private IntPtr _anchoredHwnd;
+    private AdapterRect _anchoredDialog;
+    private AdapterRect _anchoredField;
+
+    internal static bool SameSize(AdapterRect a, AdapterRect b) =>
+        a.Right - a.Left == b.Right - b.Left && a.Bottom - a.Top == b.Bottom - b.Top;
+
+    /// <summary>
+    /// <paramref name="field"/> re-expressed for a window that has travelled from
+    /// <paramref name="from"/> to <paramref name="to"/>.
+    /// </summary>
+    internal static AdapterRect Translate(AdapterRect field, AdapterRect from, AdapterRect to)
+    {
+        var dx = to.Left - from.Left;
+        var dy = to.Top - from.Top;
+        return new AdapterRect
+        {
+            Left = field.Left + dx,
+            Top = field.Top + dy,
+            Right = field.Right + dx,
+            Bottom = field.Bottom + dy,
+        };
     }
 
     /// <summary>

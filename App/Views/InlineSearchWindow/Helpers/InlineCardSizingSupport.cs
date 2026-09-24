@@ -177,41 +177,54 @@ internal sealed class InlineCardSizingSupport
         _window.InputHandler.QueueResultsLayoutUpdate();
     }
 
-    /// <summary>The card's height: stable result/path reserves, natural content, and chrome.</summary>
+    /// <summary>The card's height: the natural content (rows, search bar, and the path banner when it is
+    /// actually shown) plus the shell's transparent margin.</summary>
     /// <remarks>
     /// Separated and taking the row count so the arithmetic is testable without a laid-out window. The
-    /// The search bar and path banner are measured when WPF has not produced their arranged heights yet.
+    /// search bar and path banner are measured when WPF has not produced their arranged heights yet.
     ///
-    /// When result content or the path preview is visible, the shell reserves the full result budget and a
-    /// five-line path estimate. This keeps the bottom-anchored search bar and native window position stable
-    /// while content is changing. The path banner is still measured naturally, so a path longer than the
-    /// estimate grows the shell instead of being clipped.
+    /// The banner is charged at its NATURAL height and only while it is visible: the shell used to also
+    /// pre-reserve a five-line estimate for it, which inflated the window (and the placement decision
+    /// derived from <see cref="FullCardHeight"/>) by ~97px of transparent space on every card, banner or
+    /// not. That reserve only ever protected a BOTTOM-anchored search bar, and the docked layout is now
+    /// always drop-down (search box pinned at the top, banner grown downward), so the search bar no longer
+    /// moves when the banner appears -- the reserve bought nothing and cost the correct corner.
     /// </remarks>
     internal double CardHeight(int rows)
     {
-        var hasVisibleContent = HasVisibleContent;
-        if (hasVisibleContent)
+        if (HasVisibleContent)
             rows = Math.Max(rows, _rowBudget);
 
-        return InlineCardMetrics.ResultsAreaHeight(rows) + ChromeHeight(hasVisibleContent, _reservePathPreview);
+        return InlineCardMetrics.ResultsAreaHeight(rows) + ChromeHeight();
     }
 
-    // Everything the card spends that is not a result row: the search bar, the separator and the path banner.
-    // Shared with RefreshRowBudget, so how much of the available height the rows get and how tall the card
-    // ends up cannot disagree.
-    private double ChromeHeight(bool hasVisibleContent, bool reservePathPreview)
+    /// <summary>The tallest the STABLE card can be, in DIP: the full row budget plus the search bar and the
+    /// shell margin, but deliberately NOT the path banner.</summary>
+    /// <remarks>
+    /// Excluding the banner is what makes this a constant the placement can be decided against: the banner
+    /// flicks on and off as the selection moves between truncated and ordinary paths, so charging it here
+    /// would re-pick the corner (below vs. over the anchored window) mid-navigation -- the visible jump the
+    /// user reported. The row budget already absorbs a shown banner (RefreshRowBudget charges it through
+    /// ChromeHeight), so the real card still fits the space this number selected; the banner simply grows
+    /// into the room below rather than forcing the card to the top when there is none.
+    /// </remarks>
+    internal double FullCardHeight() =>
+        InlineCardMetrics.ResultsAreaHeight(InlineCardMetrics.DefaultRows)
+        + StableChromeHeight() + CardMargin * 3;
+
+    // Everything the card spends that is not a result row and does not come and go with the selection: the
+    // search bar and the separator. This is the chrome the placement decision is built on, so it must not
+    // read the banner's live visibility.
+    private double StableChromeHeight()
     {
         var separator = _window.ResultsSeparator.ActualHeight > 0 ? _window.ResultsSeparator.ActualHeight : 1.0;
-        var pathHeight = PathBannerHeight();
-        if (hasVisibleContent && reservePathPreview)
-            pathHeight = Math.Max(pathHeight, EstimatedPathPreviewHeight());
-
-        return SearchBoxHeight() + separator + pathHeight;
+        return SearchBoxHeight() + separator;
     }
 
-    // Whether the shell keeps paying for the path preview estimate. Decided along with the row budget, which
-    // is the pass that learns how much space there actually is.
-    private bool _reservePathPreview = true;
+    // The full non-row cost including the path banner at its natural height (zero while collapsed). Shared
+    // by CardHeight and RefreshRowBudget, so how much of the available height the rows get and how tall the
+    // card ends up cannot disagree.
+    private double ChromeHeight() => StableChromeHeight() + PathBannerHeight();
 
     private bool HasVisibleContent =>
         _window.ResultsPanelControl.Visibility == Visibility.Visible
@@ -221,31 +234,14 @@ internal sealed class InlineCardSizingSupport
     private void RefreshRowBudget()
     {
         // The window's own transparent margin counts against that space as well: it is the whole shell (card
-        // plus margins) that has to fit on the screen, not the card alone.
+        // plus margins) that has to fit on the screen, not the card alone. The banner is charged through
+        // ChromeHeight only while it is shown, so a card with no banner keeps the rows it would otherwise
+        // lose to a speculative five-line estimate.
         var margin = CardMargin * 3;
-        var available = InlineCardSpace.AvailableHeight(_window);
-        var hasContent = HasVisibleContent;
-
-        // Judged against the cost WITH the reserve always, never against whatever the last pass settled on:
-        // reading the flag here instead would let the answer decide its own input and oscillate between two
-        // sizes across passes. Once two rows no longer fit beside the five-line estimate, the estimate is
-        // what is in the way, and the card becomes its rows plus the search bar.
-        var chromeWithReserve = ChromeHeight(hasContent, reservePathPreview: true) + margin;
-        _reservePathPreview = InlineCardMetrics.CanAffordPathReserve(available, chromeWithReserve, UiMetrics.InlineRowHeight);
+        var available = InlineCardSpace.AvailableHeight(_window, FullCardHeight());
 
         _rowBudget = InlineCardMetrics.ComputeRowBudget(
-            available, ChromeHeight(hasContent, _reservePathPreview) + margin, UiMetrics.InlineRowHeight);
-    }
-
-    private double EstimatedPathPreviewHeight()
-    {
-        var lineHeight = _window.PathPreviewTextBlock.LineHeight;
-        if (double.IsNaN(lineHeight) || lineHeight <= 0)
-            lineHeight = _window.PathPreviewTextBlock.FontSize;
-
-        var padding = _window.PathPreviewBorder.Padding.Top + _window.PathPreviewBorder.Padding.Bottom;
-        var border = _window.PathPreviewBorder.BorderThickness.Top + _window.PathPreviewBorder.BorderThickness.Bottom;
-        return lineHeight * InlineCardMetrics.PathPreviewReservedRows + padding + border;
+            available, ChromeHeight() + margin, UiMetrics.InlineRowHeight);
     }
 
     /// <summary>Measures the search bar at its natural height for the current card width.</summary>

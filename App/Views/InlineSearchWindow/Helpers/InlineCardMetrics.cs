@@ -24,11 +24,6 @@ internal static class InlineCardMetrics
     internal const double WorkingAreaHeightShare = 0.9;
     internal const double AnchoredWindowHeightShare = 0.6;
 
-    // The shell reserves this many wrapped path lines so selecting ordinary long paths does not move the
-    // bottom-anchored search bar. This is only an estimate for the shell; the path banner itself remains
-    // naturally sized and can grow beyond it when the complete path needs more lines.
-    internal const int PathPreviewReservedRows = 5;
-
     /// <summary>What the results area should occupy right now.</summary>
     /// <param name="ShownItems">Bound items to occupy with real rows, including any section titles.</param>
     /// <param name="AreaRows">Rows reserved by the result area while a search is running.</param>
@@ -71,40 +66,41 @@ internal static class InlineCardMetrics
     internal static double ResultsAreaHeight(int rows) => Math.Max(0, rows) * UiMetrics.InlineRowHeight;
 
     /// <summary>
+    /// Whether the space under an anchored window can hold the tallest the card can ever be. The one place
+    /// that answers it, because the height budget and the placement have to agree: a card sized to hang
+    /// outside and then drawn inside (or the reverse) is what made it cover a file list it had room to sit
+    /// below, and asking about the card's CURRENT height made it change corners between two result counts.
+    /// </summary>
+    internal static bool HasRoomToHangBelow(double spaceBelowActiveWindow, double fullCardHeight) =>
+        spaceBelowActiveWindow >= fullCardHeight;
+
+    /// <summary>
     /// How much vertical room the card has, in DIP, given the screen and the window it is anchored to.
     /// </summary>
     /// <remarks>
     /// Deliberately independent of the card's own height: deriving a budget from a size that the budget
-    /// itself decides is what makes a layout oscillate between two answers. Either there is room BELOW the
-    /// anchored window, in which case the card fits there and covers nothing, or there is not and the card
-    /// has to sit over that window, in which case it may take a share of the window's height rather than all
-    /// of it. A zero <paramref name="activeWindowHeight"/> means there is no window to be anchored to (the
-    /// desktop, or nothing tracked), so only the working-area share applies.
+    /// itself decides is what makes a layout oscillate between two answers. Hanging BELOW the anchored window
+    /// is the preferred answer and wins when that space can hold the full card, because it covers nothing;
+    /// anything shorter goes over the anchored window, where it may take a share of that window's height
+    /// rather than all of it. A zero <paramref name="activeWindowHeight"/> means there is no window to be
+    /// anchored to (the desktop, or nothing tracked), so only the working-area share applies.
     /// </remarks>
-    internal static double AvailableCardHeight(double workingAreaHeight, double activeWindowHeight, double spaceBelowActiveWindow)
+    internal static double AvailableCardHeight(
+        double workingAreaHeight,
+        double activeWindowHeight,
+        double spaceBelowActiveWindow,
+        double fullCardHeight)
     {
         var workingAreaLimit = Math.Max(0, workingAreaHeight) * WorkingAreaHeightShare;
         if (activeWindowHeight <= 0)
             return workingAreaLimit;
 
-        var room = Math.Max(Math.Max(0, spaceBelowActiveWindow), activeWindowHeight * AnchoredWindowHeightShare);
+        var overAnchoredWindow = activeWindowHeight * AnchoredWindowHeightShare;
+        var room = HasRoomToHangBelow(spaceBelowActiveWindow, fullCardHeight)
+            ? spaceBelowActiveWindow
+            : overAnchoredWindow;
         return Math.Min(workingAreaLimit, room);
     }
-
-    /// <summary>
-    /// Whether the shell can still afford its <see cref="PathPreviewReservedRows"/>-line estimate.
-    /// </summary>
-    /// <remarks>
-    /// The reserve exists so a long path appearing later cannot move the bottom-anchored search bar. It is
-    /// five lines of mostly empty shell, so once the space is down to the floor row count it would cost more
-    /// than the results it sits above -- dropping it there is what makes the extreme card its rows plus the
-    /// search box, rather than a search box floating in reserved space. A jump then beats a card that is
-    /// mostly blank.
-    /// <paramref name="chromeWithReserve"/> is the card's whole non-row cost including the reserve.
-    /// </remarks>
-    internal static bool CanAffordPathReserve(
-        double availableHeight, double chromeWithReserve, double rowHeight, int minRows = MinRows) =>
-        availableHeight - chromeWithReserve >= Math.Max(0, minRows) * rowHeight;
 
     /// <summary>
     /// How many list rows fit in <paramref name="availableHeight"/> once the card's non-row height is paid

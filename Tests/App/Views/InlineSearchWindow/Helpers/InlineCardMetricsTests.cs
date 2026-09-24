@@ -161,23 +161,6 @@ public sealed class InlineCardMetricsTests
     }
 
     [TestMethod]
-    public void CanAffordPathReserve_KeepsTheEstimateWhileTheFloorStillFits()
-    {
-        // The reserve is five lines of mostly empty shell, so it survives only while the floor rows fit
-        // beside it. Here there is room for more than that.
-        Assert.IsTrue(InlineCardMetrics.CanAffordPathReserve(Chrome + (RowHeight * 5), Chrome, RowHeight));
-        Assert.IsTrue(InlineCardMetrics.CanAffordPathReserve(Chrome + (RowHeight * InlineCardMetrics.MinRows), Chrome, RowHeight));
-    }
-
-    [TestMethod]
-    public void CanAffordPathReserve_DroppedWhenTheEstimateIsWhatIsInTheWay()
-    {
-        Assert.IsFalse(InlineCardMetrics.CanAffordPathReserve((Chrome + (RowHeight * InlineCardMetrics.MinRows)) - 1, Chrome, RowHeight));
-        Assert.IsFalse(InlineCardMetrics.CanAffordPathReserve(Chrome, Chrome, RowHeight));
-        Assert.IsFalse(InlineCardMetrics.CanAffordPathReserve(0, Chrome, RowHeight));
-    }
-
-    [TestMethod]
     public void ComputeRowBudget_ExactRoomForNRows_IsNRows()
     {
         // No off-by-one at the boundary: the row whose height exactly fits is included.
@@ -194,21 +177,45 @@ public sealed class InlineCardMetricsTests
     public void AvailableCardHeight_RoomBelowTheWindow_IsUsedWithoutCoveringIt() =>
         // Working area 1080, a 600-tall window with 500 DIP of screen left below it: the card takes that 500
         // rather than a share of the window, because it can sit under the window and cover nothing at all.
-        Assert.AreEqual(500.0, InlineCardMetrics.AvailableCardHeight(1080, 600, 500), 0.001);
+        Assert.AreEqual(500.0, InlineCardMetrics.AvailableCardHeight(1080, 600, 500, 100), 0.001);
 
     [TestMethod]
     public void AvailableCardHeight_NoRoomBelow_CapsToAShareOfTheWindow() =>
-        // The same window at the bottom of a 768-tall screen: 10 DIP below it, so the card has to sit over
-        // the window, and 60% of the window (360) is what it may take -- not 90% of the screen.
-        Assert.AreEqual(360.0, InlineCardMetrics.AvailableCardHeight(768, 600, 10), 0.001);
+        // The same window at the bottom of a 768-tall screen: 10 DIP below it, nowhere near the whole card,
+        // so the card has to sit over the window -- and 60% of the window (360) is what it may take -- not
+        // 90% of the screen.
+        Assert.AreEqual(360.0, InlineCardMetrics.AvailableCardHeight(768, 600, 10, 100), 0.001);
+
+    [TestMethod]
+    public void AvailableCardHeight_RoomBelowHoldingTheWholeCard_UsesItWithoutCoveringTheWindow()
+    {
+        // A 607-tall window with room under it for the tallest card there is (495): the card hangs below at
+        // that room and covers none of the window.
+        Assert.IsTrue(InlineCardMetrics.HasRoomToHangBelow(520, 495));
+        Assert.AreEqual(520.0, InlineCardMetrics.AvailableCardHeight(1152, 607, 520, fullCardHeight: 495), 0.001);
+    }
+
+    [TestMethod]
+    public void AvailableCardHeight_RoomBelowShorterThanTheWholeCard_GoesOverTheWindow()
+    {
+        // Measured off a real Explorer window docked to its own file list: it ended 222px above the working
+        // area's bottom edge, which is no room for a whole 495px card. So the card goes over the window at
+        // 60% of it -- and because the placement asks the same HasRoomToHangBelow question, the two cannot
+        // pick opposite answers, which is what used to make the card jump as the row count changed.
+        Assert.IsFalse(InlineCardMetrics.HasRoomToHangBelow(222, 495));
+        Assert.AreEqual(
+            607 * InlineCardMetrics.AnchoredWindowHeightShare,
+            InlineCardMetrics.AvailableCardHeight(1152, 607, 222, fullCardHeight: 495),
+            0.001);
+    }
 
     [TestMethod]
     public void AvailableCardHeight_WindowTallerThanTheScreen_IsCappedByTheWorkingArea() =>
         // A maximized dialog on a 768-tall screen: 60% of the window would exceed the screen's own share.
-        Assert.AreEqual(768 * InlineCardMetrics.WorkingAreaHeightShare, InlineCardMetrics.AvailableCardHeight(768, 10000, 0), 0.001);
+        Assert.AreEqual(768 * InlineCardMetrics.WorkingAreaHeightShare, InlineCardMetrics.AvailableCardHeight(768, 10000, 0, 100), 0.001);
 
     [TestMethod]
     public void AvailableCardHeight_NoAnchoredWindow_UsesTheWorkingAreaShare() =>
         // The desktop, or no tracked window: there is nothing to share the screen with.
-        Assert.AreEqual(1080 * InlineCardMetrics.WorkingAreaHeightShare, InlineCardMetrics.AvailableCardHeight(1080, 0, 0), 0.001);
+        Assert.AreEqual(1080 * InlineCardMetrics.WorkingAreaHeightShare, InlineCardMetrics.AvailableCardHeight(1080, 0, 0, 100), 0.001);
 }

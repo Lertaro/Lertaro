@@ -70,4 +70,36 @@ public sealed class WPSFileDialogAdapterTests
         // How it reaches FileDialogAdapterRegistry at all: the loaders scan for the interface rather than
         // taking any registration from the plugin itself.
         Assert.IsInstanceOfType<IFileDialogAdapter>(Adapter());
+
+    [TestMethod]
+    public void ADeadDialogOffersNoFieldToAnchorTo()
+    {
+        // Asked on the positioning path, which keeps running while the dialog is going away. The cheap Win32
+        // liveness check has to answer before anything reaches UI Automation, and "no anchor" has to be an
+        // answer rather than an exception -- the host reads false as "keep the placement you had".
+        Assert.IsFalse(Adapter().TryGetTargetFieldBounds(IntPtr.Zero, out var bounds));
+        Assert.AreEqual(default(AdapterRect), bounds);
+    }
+
+    [TestMethod]
+    public void SameSizeIgnoresWhereTheDialogIsButNotHowBigItGot()
+    {
+        var here = Rect(480, 272, 1440, 920);
+        Assert.IsTrue(WPSFileDialogAdapter.SameSize(here, Rect(900, 400, 1860, 1048)), "a dragged dialog is the same dialog");
+        Assert.IsFalse(WPSFileDialogAdapter.SameSize(here, Rect(480, 272, 1440, 1200)), "a taller dialog relayouts its file-name row");
+        Assert.IsFalse(WPSFileDialogAdapter.SameSize(here, Rect(600, 272, 1440, 920)), "a narrower dialog moves it");
+    }
+
+    [TestMethod]
+    public void TranslateCarriesTheFieldAlongWithTheDialog()
+    {
+        // Measured against the dialog at 480,272; the dialog has since been dragged to 1000,400, so the
+        // file-name box went with it, offset for offset.
+        var field = Rect(783, 799, 1405, 821);
+        var moved = WPSFileDialogAdapter.Translate(field, Rect(480, 272, 1440, 920), Rect(1000, 400, 1960, 1048));
+        Assert.AreEqual(new AdapterRect { Left = 1303, Top = 927, Right = 1925, Bottom = 949 }, moved);
+    }
+
+    private static AdapterRect Rect(int left, int top, int right, int bottom) =>
+        new() { Left = left, Top = top, Right = right, Bottom = bottom };
 }

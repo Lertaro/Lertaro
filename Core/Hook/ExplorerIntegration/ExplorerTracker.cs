@@ -240,6 +240,29 @@ public class ExplorerTracker : IDisposable
         }
         return false;
     }
+
+    /// <summary>
+    /// Where the active dialog's own target field is, when that dialog's adapter can see it. False for a
+    /// non-dialog window, and for a dialog whose adapter does not opt in -- see
+    /// <see cref="IFileDialogAdapter.TryGetTargetFieldBounds"/>.
+    /// </summary>
+    public bool TryGetTargetFieldRect(out RECT rect)
+    {
+        rect = default;
+        if (ActiveHwnd == IntPtr.Zero || ActiveAdapter == null)
+            return false;
+        if (!ActiveAdapter.TryGetTargetFieldBounds(ActiveHwnd, out var bounds))
+            return false;
+
+        // Reported across a process boundary by someone else's UI framework, which is exactly where an
+        // empty or bogus rect comes from; a field with no area cannot anchor anything.
+        if (bounds.Right <= bounds.Left || bounds.Bottom <= bounds.Top)
+            return false;
+
+        rect = new RECT { Left = bounds.Left, Top = bounds.Top, Right = bounds.Right, Bottom = bounds.Bottom };
+        return true;
+    }
+
     private void WinEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
         int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
     {

@@ -23,29 +23,49 @@ public sealed class InlineCardPlacementTests
     }
 
     [TestMethod]
-    public void ADialogWithNoRoomBelowIsHungFromItsTopEdge()
+    public void ACardWithNoRoomBelowIsHungFromTheAnchoredWindowsTopEdge()
     {
-        // A dialog's Open/Cancel row sits on its bottom edge. Attaching the card to the top instead means
-        // AnchoredWindowHeightShare decides whether that row is covered, rather than an offset guessed to be
-        // one search box tall.
-        var inside = Between(Positioner(), "else if (isDialog)", "targetPhysTop = rect.Bottom - physWindowHeight");
+        // A dialog's Open/Cancel row sits on its bottom edge, and a plain window's list scrolls from the top
+        // down; attaching to the top edge is what keeps the row clear by arithmetic (AvailableCardHeight caps
+        // the card at a share of the window) instead of an offset guessed to be one search box tall.
+        var anchored = Between(Positioner(), "else if (tracker.ActiveHwnd != IntPtr.Zero)", "var targetLeft");
 
-        Assert.Contains("targetPhysTop = rect.Top", inside, "the card must attach to the dialog's top edge");
-        Assert.DoesNotContain("rect.Bottom", inside,
-            "and must not be placed off its bottom edge, which is where the buttons are");
+        Assert.Contains("targetPhysTop = hangsBelow", anchored,
+            "one placement decision, both branches of it answering from the same rect");
+        Assert.Contains(": rect.Top - physXamlMarginY", anchored, "and the no-room case attaches to the top edge");
+        Assert.DoesNotContain("rect.Bottom - physWindowHeight", anchored,
+            "not to the bottom edge, whose position a growing card moves");
     }
 
     [TestMethod]
-    public void AnExplorerCardKeepsItsRightDockWhenItHangsBelow()
+    public void BothPlacementsShareOneHorizontalAnchor()
     {
-        // Both Explorer placements have to share one horizontal anchor, or resizing a window until the room
-        // below runs out walks the card sideways under the user's own typing.
-        var below = Between(Positioner(), "if (hangsBelow)", "else if (isDialog)");
+        // The two answers used to be written out per placement, which is how a resize that turned the inside
+        // placement into a drop-down ended up walking an Explorer card sideways under the user's own typing.
+        var anchored = Between(Positioner(), "else if (tracker.ActiveHwnd != IntPtr.Zero)", "var minLeft");
 
-        Assert.Contains("rect.Right - physWindowWidth", below,
-            "the drop-down keeps the inside placement's right-edge dock");
-        Assert.Contains("isDialog", below, "while a dialog's own drop-down stays centered under it");
+        Assert.AreEqual(1, Count(anchored, "targetPhysLeft ="),
+            "the horizontal anchor is decided once, not once per placement");
+        Assert.Contains("rect.Right - physWindowWidth", anchored,
+            "an Explorer window keeps its right-edge dock in both");
+        Assert.Contains("isDialog", anchored, "while a dialog keeps its own centered-or-anchored answer");
     }
+
+    [TestMethod]
+    public void NothingIsRepositionedWhileNoWindowIsTracked()
+    {
+        // Deactivation leaves the mirror at ActiveHwnd=0/IsDesktop=false for up to 200ms while the card is
+        // still visible (and startup starts there before the mirror's first state arrives). Neither
+        // placement branch answers for that state, so without the guard the target keeps its (0,0)
+        // initializer and the still-visible card is flung into the screen corner.
+        var core = Between(Positioner(), "private void PositionWindowCore()", "var isResultsVisible");
+
+        Assert.Contains("if (!tracker.IsDesktop && tracker.ActiveHwnd == IntPtr.Zero)", core,
+            "the untracked state must be recognized");
+        Assert.Contains("return;", core, "and it must keep the card where it already is");
+    }
+
+    private static int Count(string text, string needle) => text.Split(needle, StringSplitOptions.None).Length - 1;
 
     [TestMethod]
     public void TheCardIsClampedToTheWorkingAreaOnceForEveryPlacement()
@@ -56,11 +76,14 @@ public sealed class InlineCardPlacementTests
         // Three placements, one vertical clamp. The per-mode clamps each re-derived the limit from a
         // different height (the shell in one, the visible card in the others), so the modes did not agree
         // about where the bottom of the screen was.
-        var clamp = Between(Positioner(), "targetPhysLeft = Math.Clamp(targetPhysLeft, minLeft, maxLeft);", "var targetLeft");
+        var clamp = Between(Positioner(), "targetPhysLeft = Math.Clamp(targetPhysLeft, minLeft, Math.Max(minLeft, maxLeft));", "var targetLeft");
 
         // The horizontal clamp above is the range's own opening line, so two clamps in it means no third.
         Assert.AreEqual(2, clamp.Split("Math.Clamp", StringSplitOptions.None).Length - 1,
             "one horizontal clamp and one vertical clamp, shared by every placement");
+        Assert.Contains("minLeft, Math.Max(minLeft, maxLeft)", clamp,
+            "the horizontal clamp must be guarded like the vertical one: a target window spanning two "
+            + "monitors makes the card wider than one working area, and Math.Clamp throws when min > max");
         Assert.Contains("minTop, Math.Max(minTop, maxTop)", clamp,
             "and the vertical one must still be able to pull the card back onto the screen");
     }

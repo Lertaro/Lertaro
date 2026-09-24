@@ -173,6 +173,39 @@ internal static class WPSDialogAutomation
 
     private const int MaxFilterWidgetDepth = 6;
 
+    /// <summary>
+    /// The file-name editor's screen bounds, from one attempt.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not <see cref="FindFileNameEditor"/>'s retry loop: this is asked from the card's
+    /// positioning path, which runs again every time the dialog moves, so spending up to
+    /// <see cref="EditorLookupTimeoutMs"/> sleeping here would put a cross-process wait on the UI thread.
+    /// A miss costs nothing either -- the caller keeps whatever it measured last, and a dialog whose widget
+    /// tree has not answered yet just gets the placement it always had.
+    /// </remarks>
+    internal static System.Windows.Rect? TryGetFileNameEditorBounds(IntPtr dialogHwnd)
+    {
+        var dialog = GetDialog(dialogHwnd);
+        if (dialog == null)
+            return null;
+
+        var editor = FindFileNameEditorOnce(dialog);
+        if (editor == null)
+            return null;
+
+        try
+        {
+            var bounds = editor.Current.BoundingRectangle;
+            // An empty rect is what a framework reports for an element it lays out but never shows, and a
+            // zero-width anchor would drag the card to a nonsense position.
+            return bounds.Width <= 0 || bounds.Height <= 0 ? null : bounds;
+        }
+        catch (Exception ex) when (IsTransientAutomationFailure(ex))
+        {
+            return null;
+        }
+    }
+
     private static IEnumerable<Condition> EditorConditions()
     {
         foreach (var className in WPSDialogIdentity.EditorClassNames)

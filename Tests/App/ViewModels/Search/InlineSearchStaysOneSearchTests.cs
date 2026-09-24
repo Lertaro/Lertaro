@@ -130,13 +130,23 @@ public sealed class InlineSearchStaysOneSearchTests
         Assert.Contains("PathPreviewTextBlock.Text != pathText", layout,
             "a longer replacement path must trigger a new natural-height pass");
 
-        var metrics = Source("App/Views/InlineSearchWindow/Helpers/InlineCardMetrics.cs");
-        Assert.Contains("PathPreviewReservedRows = 5", metrics,
-            "the shell should reserve a five-line path estimate");
         Assert.Contains("Math.Max(rows, _rowBudget)", sizing,
             "the shell should reserve the row budget that fits the screen while content is visible");
-        Assert.Contains("EstimatedPathPreviewHeight()", sizing,
-            "the path reserve must be an estimate rather than a fixed banner height");
+
+        // The placement constant must be the STABLE max-row card, without the transient path banner: the
+        // banner flicks on/off as the selection moves between truncated and ordinary paths, so charging it
+        // here would re-pick the below-vs-over corner mid-navigation. The old five-line reserve went further
+        // and inflated this by ~97px of transparent space on EVERY card, which is what made the window box
+        // tower over its visible rows and the card hang at the top almost always.
+        var fullCard = Between(sizing, "internal double FullCardHeight()", "private double StableChromeHeight");
+        Assert.Contains("StableChromeHeight()", fullCard,
+            "FullCardHeight must build on the banner-free chrome");
+        Assert.DoesNotContain("PathBannerHeight()", fullCard,
+            "and must not charge the live banner, or the corner flips as the selection moves");
+
+        var metrics = Source("App/Views/InlineSearchWindow/Helpers/InlineCardMetrics.cs");
+        Assert.DoesNotContain("PathPreviewReservedRows", metrics,
+            "the five-line path reserve is gone: it inflated the window and the placement decision alike");
 
         Assert.DoesNotContain("PlaceholderSlots", xaml,
             "the no-results view must not render synthetic placeholder rows");

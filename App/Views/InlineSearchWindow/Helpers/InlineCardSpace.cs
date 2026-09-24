@@ -71,8 +71,10 @@ internal static class InlineCardSpace
     /// with it -- and this window's own otherwise. This window's DPI converts the physical working area back
     /// to DIP: the positioner places the card on the anchored window's monitor, so the two agree once it has
     /// settled, and a single wrong pass before that only re-sizes the card once.
+    /// <paramref name="fullCardHeight"/> is what the caller counts as a card worth hanging outside at all,
+    /// which only the caller can price: it is the card's own chrome and row budget.
     /// </remarks>
-    internal static double AvailableHeight(Lertaro.App.InlineSearchWindow window)
+    internal static double AvailableHeight(Lertaro.App.InlineSearchWindow window, double fullCardHeight)
     {
         var tracker = window.Manager.ExplorerTracker;
         var dpiScaleY = VisualTreeHelper.GetDpi(window).DpiScaleY;
@@ -95,6 +97,7 @@ internal static class InlineCardSpace
             spaceBelow = (screen.WorkingArea.Bottom - rect.Bottom) / dpiScaleY;
         }
 
-        return InlineCardMetrics.AvailableCardHeight(screen.WorkingArea.Height / dpiScaleY, activeWindowHeight, spaceBelow);
+        return InlineCardMetrics.AvailableCardHeight(
+            screen.WorkingArea.Height / dpiScaleY, activeWindowHeight, spaceBelow, fullCardHeight);
     }
 }
