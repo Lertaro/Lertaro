@@ -111,8 +111,12 @@
                         </Style>
                     </Grid.Style>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="35*"/>
-                        <ColumnDefinition Width="65*"/>
+                        <!-- 60/40 of the width left after the icon and the shortcut badge (both Auto
+                             columns of the outer grid): the name is what the user reads first and the
+                             old 35/65 split starved it while the path, right-aligned and compacted,
+                             rarely needed its share. -->
+                        <ColumnDefinition Width="60*"/>
+                        <ColumnDefinition Width="40*"/>
                     </Grid.ColumnDefinitions>
 
                     <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False"
