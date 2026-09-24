@@ -1,17 +1,17 @@
-# Configuración de inicio rápido
+# Configuración de página inicial
 
-Inicio rápido es el panel de lanzamiento que aparece debajo de la ventana de búsqueda rápida cuando el cuadro de búsqueda está vacío. Combina elementos gestionados manualmente con fuentes de datos dinámicas seleccionadas, como Favoritos e Historial.
+La página inicial es el panel que la ventana de búsqueda rápida muestra mientras el cuadro de búsqueda está vacío: arriba tus elementos fijados, abajo pestañas con las fuentes de datos dinámicas que elijas (Favoritos, Historial, etc.).
 
 ## 1. Interruptor principal
 
-- **Activar el panel de inicio rápido**: Activa el panel. Solo aparece en la ventana de búsqueda rápida cuando la consulta está vacía y al menos una fuente contiene datos disponibles.
+- **Activar el panel de página inicial**: Activa el panel. Solo aparece en la ventana de búsqueda rápida cuando la consulta está vacía y al menos una fuente contiene datos disponibles.
 - **Mostrar insignias de atajo**: Muestra el atajo de teclado asignado a cada elemento visible. Está activado de forma predeterminada; ocultar las insignias no desactiva los atajos.
 - Si se desactiva, el panel no carga ninguna fuente.
 - La altura se calcula a partir de la fuente con más elementos y no supera la altura máxima del área de resultados de la ventana de búsqueda rápida.
 
 ## 2. Elementos manuales
 
-Abre **Configuración → Inicio rápido → Inicio rápido** para gestionar tus elementos:
+Abre **Configuración → Página inicial → Página inicial** para gestionar tus elementos:
 
 - Añade archivos, carpetas, URL o rutas de Windows Shell. Las variables de entorno se expanden al comprobar el destino.
 - El nombre visible es opcional. Si queda vacío, Lertaro lo genera a partir del destino.
@@ -23,13 +23,13 @@ Abre **Configuración → Inicio rápido → Inicio rápido** para gestionar tus
 
 ## 3. Fuentes de datos
 
-Abre **Configuración → Inicio rápido → Fuentes de datos** para elegir fuentes dinámicas:
+Abre **Configuración → Página inicial → Fuentes de datos** para elegir fuentes dinámicas:
 
-- Las fuentes proceden de los proveedores de pestañas del Panel rápido instalados. Así Inicio rápido reutiliza Favoritos, Historial, Historial de Windows, Último directorio, Archivos recientes y futuras fuentes de plugins sin duplicar sus datos.
+- Las fuentes proceden de los proveedores de pestañas del Panel rápido instalados. Así Página inicial reutiliza Favoritos, Historial, Historial de Windows, Último directorio, Archivos recientes y futuras fuentes de plugins sin duplicar sus datos.
 - Una fuente está activada por defecto cuando existe su proveedor. Solo se guardan en la configuración las fuentes desactivadas explícitamente.
 - Solo se crea una pestaña para una fuente activada que devuelva datos en ese momento. Las fuentes vacías se ocultan.
-- Usa el controlador de arrastre situado junto a una fuente para reordenar sus pestañas del panel; el orden se guarda en la configuración de Inicio rápido.
-- Si no hay datos en ningún elemento manual ni fuente dinámica, el panel de Inicio rápido se oculta.
+- Usa el controlador de arrastre situado junto a una fuente para reordenar sus pestañas del panel; el orden se guarda en la configuración de Página inicial.
+- Si no hay datos en ningún elemento manual ni fuente dinámica, el panel de Página inicial se oculta.
 
 ## 4. Interacción con el panel
 
@@ -40,6 +40,6 @@ Abre **Configuración → Inicio rápido → Fuentes de datos** para elegir fuen
 - Los atajos configurados de **Seleccionar elemento siguiente** y **Seleccionar elemento anterior** (por defecto **Ctrl+N** y **Ctrl+P**) también recorren las fuentes cuando el panel está visible; la selección vuelve de la última fuente a la primera y viceversa.
 - Cada elemento visible se puede abrir con el modificador configurado de **salto de selección** más **1–9**, **0** o **A–Z**. El primer elemento usa `1`, el décimo usa `0` y los siguientes usan `A–Z`, por lo que se pueden asignar atajos a un máximo de 36 elementos visibles.
 - Con el panel visible, usa las flechas para mover la selección según la cuadrícula visual: **←** y **→** atraviesan los límites de las filas, mientras **↑** y **↓** buscan el elemento más cercano de la misma columna en la dirección correspondiente, incluso entre grupos. Si no existe ningún elemento de esa columna en toda la dirección adyacente, la selección permanece donde está y no vuelve al principio ni al final.
-- Haz clic derecho en cualquier elemento de cualquier fuente para abrir su menú de acciones flotante dentro del panel de Inicio rápido. El panel se amplía temporalmente hasta la altura máxima de trabajo de la lista de acciones y recupera su altura anterior al cerrar el menú; al hacer clic fuera del menú, este se cierra.
+- Haz clic derecho en cualquier elemento de cualquier fuente para abrir su menú de acciones flotante dentro del panel de Página inicial. El panel se amplía temporalmente hasta la altura máxima de trabajo de la lista de acciones y recupera su altura anterior al cerrar el menú; al hacer clic fuera del menú, este se cierra.
 - Si los elementos superan el alto visible del panel, usa la rueda del ratón sobre el área de elementos para desplazarte por filas completas; pasar el ratón sobre un elemento no bloquea el desplazamiento. Las insignias de atajo y sus destinos avanzan con las filas visibles.
 - Al empezar a escribir una consulta, el panel se oculta.

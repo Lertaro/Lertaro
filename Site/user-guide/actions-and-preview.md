@@ -30,11 +30,11 @@ Not every row has a menu. It is withheld from the **Show More** row, plugin-prov
 - **Type to Filter**: Once the action menu opens, type immediately to filter actions by name (e.g., typing `copy` narrows the list to copy-related actions). The filter box takes the keyboard, so navigating away never touches your original query.
 - **Mnemonic Letters**: Every action may show a highlighted letter. Pressing it **runs the action at once** — it does not merely highlight it — but only while the filter box is still empty, so the first letter you type for a filter is never stolen.
 - **Independent Search Box**: The action menu has its own focused search box, so filtering actions never changes the main search query. Moving to another menu level clears the action filter and focuses the new level's search box.
-- **Floating Action Panel**: In the Quick Window, Quick Launch panel, and Full Search Window, actions appear in a floating panel anchored to the active result. The Quick Launch panel expands to the action menu's full working height and returns to its compact height when the menu closes.
+- **Floating Action Panel**: In the Quick Window, Start Page panel, and Full Search Window, actions appear in a floating panel anchored to the active result. The Start Page panel expands to the action menu's full working height and returns to its compact height when the menu closes.
 - **Hierarchical Navigation**: On items with submenus (such as "Send to"), press `→`, `Tab` or `Enter` to enter; press `←` or `Backspace` (when filter text is empty) to return to the parent level. In a nested menu, `Escape` and right-click return to the parent; at the root level they close the action menu.
 - **Navigation Keys Still Work**: Your configured Next/Previous Item hotkeys (`Ctrl+N` / `Ctrl+P` by default) move the highlight inside the action list too, wrapping past the first and last entry and skipping separators, headers and disabled actions. `Tab` only enters a submenu when you have not bound it to one of those keys.
 - **Click Away to Close**: Clicking outside a floating action panel closes it. Right-clicking another result replaces the current action target in place when the host supports it.
-- **Action Hotkeys**: Provider-defined action shortcuts work while the action panel is focused. Executing one closes the floating panel while keeping the Full Search Window or Quick Launch panel open.
+- **Action Hotkeys**: Provider-defined action shortcuts work while the action panel is focused. Executing one closes the floating panel while keeping the Full Search Window or Start Page panel open.
 
 ## 2. Full Window Results List Features
 
