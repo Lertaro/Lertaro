@@ -47,6 +47,7 @@ public partial class SettingsWindow : Window
     private Views.Settings.QuickPanel.QuickPanelSettingsPage? _pageQuickPanel;
     private Views.Settings.LocalSend.LocalSendSettingsPage? _pageLocalSend;
     private AboutSettingsPage? _pageAbout;
+    private SearchSyntaxSettingsPage? _pageSearchSyntax;
     private FrameworkElement? _currentPage;
     private readonly SettingsPagePrewarmer _pagePrewarmer;
 
@@ -66,6 +67,7 @@ public partial class SettingsWindow : Window
     internal Views.Settings.QuickPanel.QuickPanelSettingsPage PageQuickPanel => _pageQuickPanel ??= AddPage(new Views.Settings.QuickPanel.QuickPanelSettingsPage { DataContext = ((SettingsViewModel)DataContext).QuickPanel });
     internal Views.Settings.LocalSend.LocalSendSettingsPage PageLocalSend => _pageLocalSend ??= AddPage(new Views.Settings.LocalSend.LocalSendSettingsPage { DataContext = ((SettingsViewModel)DataContext).LocalSend });
     internal AboutSettingsPage PageAbout => _pageAbout ??= AddPage(new AboutSettingsPage());
+    internal SearchSyntaxSettingsPage PageSearchSyntax => _pageSearchSyntax ??= AddPage(new SearchSyntaxSettingsPage());
 
     private T AddPage<T>(T page) where T : FrameworkElement
     {
