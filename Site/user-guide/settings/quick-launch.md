@@ -1,17 +1,17 @@
-# Quick Launch Settings
+# Start Page Settings
 
-Quick Launch is the launch panel shown below the Quick Search Window when the search box is empty. It combines manually managed items with selected dynamic data sources such as Favorites and History.
+The Start Page is the panel the Quick Search Window shows while the search box is empty: your pinned items on top, and tabs for the dynamic data sources you select — Favorites, History and friends — below.
 
 ## 1. Master switch
 
-- **Enable quick launch panel**: Enables the panel. It appears only in the Quick Search Window when the query is empty and at least one source has available data.
+- **Enable start page panel**: Enables the panel. It appears only in the Quick Search Window when the query is empty and at least one source has available data.
 - **Show shortcut badges**: Shows the keyboard shortcut assigned to each visible item. The setting is enabled by default; hiding the badges does not disable the shortcuts.
 - When disabled, no source is loaded for the panel.
 - The panel height is based on the source with the most items and is capped by the Quick Search Window's maximum result area.
 
-## 2. Manual quick-launch items
+## 2. Manual start-page items
 
-Open **Settings → Quick Launch → Quick Launch** to manage your own items:
+Open **Settings → Start Page → Start Page** to manage your own items:
 
 - Add a file, folder, URL, or Windows shell path. Environment variables are supported when the target is checked.
 - The display name is optional. If it is blank, Lertaro derives a name from the target.
@@ -23,13 +23,13 @@ Open **Settings → Quick Launch → Quick Launch** to manage your own items:
 
 ## 3. Data sources
 
-Open **Settings → Quick Launch → Data sources** to choose dynamic sources:
+Open **Settings → Start Page → Data sources** to choose dynamic sources:
 
-- Sources come from the installed Quick Panel tab providers. This lets Quick Launch reuse Favorites, History, Windows History, Last Directory, Recent Files, and future plugin sources without maintaining a second copy of their data.
+- Sources come from the installed Quick Panel tab providers. This lets Start Page reuse Favorites, History, Windows History, Last Directory, Recent Files, and future plugin sources without maintaining a second copy of their data.
 - A source is enabled by default when its provider is present. Only explicitly disabled providers are stored in user settings.
 - A source gets a panel tab only when it is enabled and currently returns data. Empty sources are hidden.
-- Use the drag handle beside a data source to reorder its panel tabs; the order is saved with the Quick Launch settings.
-- If all manual items and dynamic sources are empty, the Quick Launch panel is hidden.
+- Use the drag handle beside a data source to reorder its panel tabs; the order is saved with the Start Page settings.
+- If all manual items and dynamic sources are empty, the Start Page panel is hidden.
 
 ## 4. Panel interaction
 
@@ -40,6 +40,6 @@ Open **Settings → Quick Launch → Data sources** to choose dynamic sources:
 - The configured **Select Next Item** and **Select Previous Item** hotkeys (defaults **Ctrl+N** and **Ctrl+P**) also cycle through sources when the panel is visible; selection wraps from the last source to the first and vice versa.
 - Each visible item can be opened with the configured **Select Jump** modifier plus **1–9**, **0**, or **A–Z**. The first item uses `1`, the tenth uses `0`, and the remaining items use `A–Z`; this provides shortcuts for up to 36 visible items.
 - When the panel is visible, use the arrow keys to move through items in their visual grid: **←** and **→** move across row boundaries, while **↑** and **↓** seek the nearest item in the same column, including across groups. If no item exists in that column anywhere in the adjacent direction, selection stays where it is; item selection does not wrap around.
-- Right-click any item from any source to open its floating action menu inside the Quick Launch panel. The panel temporarily expands to the action list's maximum working height and returns to its previous height when the menu closes; clicking outside the menu closes it.
+- Right-click any item from any source to open its floating action menu inside the Start Page panel. The panel temporarily expands to the action list's maximum working height and returns to its previous height when the menu closes; clicking outside the menu closes it.
 - When the panel contains more items than fit vertically, use the mouse wheel over the item area to scroll by whole rows; hovering an item does not block vertical scrolling. Shortcut badges and their targets advance with the visible rows.
 - Starting a query hides the panel.

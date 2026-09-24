@@ -5,7 +5,7 @@ Bienvenido al Manual de referencia para desarrolladores de Lertaro. Diseñado so
 ## 1. Arquitectura y flujo de trabajo
 
 - **[Arquitectura del sistema](./architecture)** —— Explicación del modelo de aislamiento de tres procesos (Servicio de Windows a nivel SYSTEM, App WPF en modo usuario y proceso de interceptación de teclado Hook) y la comunicación IPC por tuberías con nombre.
-- **[Guía de inicio rápido](./getting-started)** —— Guía paso a paso para crear un proyecto de librería, referenciar el SDK, implementar `IPlugin` y depurar localmente.
+- **[Guía de página inicial](./getting-started)** —— Guía paso a paso para crear un proyecto de librería, referenciar el SDK, implementar `IPlugin` y depurar localmente.
 - **[Empaquetado y distribución](./packaging)** —— Estructura de carpetas de plugins, inclusión de librerías dependientes administradas y nativas, recursos i18n incrustados y automatización PostBuild.
 - **[Ejemplos de plugins](./examples)** —— Análisis en profundidad del código de los plugins oficiales de código abierto `CoreExtensions`, `PinyinAlias` y `FlowLauncherBridge`.
 

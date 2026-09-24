@@ -11,7 +11,7 @@ Lertaro 在首次運行時會自動在 Windows 系統中註冊自訂協議 **`le
 
 | URI 指令格式 | 功能說明與互動效果 |
 | :--- | :--- |
-| `lertaro://` | 啟用並顯示快速搜尋視窗（效果等同於雙擊 `Ctrl` 全域熱鍵）。 |
+| `lertaro://` | 啟用並顯示快速搜尋視窗（效果等同於雙擊 `Ctrl` 全域快捷鍵）。 |
 | `lertaro://search/[關鍵字]` | 啟用快速搜尋視窗，並預先填入指定的 `[關鍵字]` 並立即過濾。 |
 | `lertaro://fullsearch/[關鍵字]` | 開啟大尺寸完整搜尋主視窗，並預先填入指定的 `[關鍵字]`。 |
 | `lertaro://settings/page/[分區]` | 開啟設定視窗，並直接切換到指定的分區標籤頁。 |
@@ -29,7 +29,7 @@ Service      - 運行狀態
 Index        - 索引設定
 General      - 一般設定
 Appearance   - 外觀與主題
-Hotkeys      - 熱鍵設定
+Hotkeys      - 快捷鍵設定
 Plugins      - 外掛模組管理
 Favorites    - 我的最愛
 History      - 搜尋記錄
