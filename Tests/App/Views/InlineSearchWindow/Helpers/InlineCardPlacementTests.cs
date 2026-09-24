@@ -28,27 +28,58 @@ public sealed class InlineCardPlacementTests
         // A dialog's Open/Cancel row sits on its bottom edge, and a plain window's list scrolls from the top
         // down; attaching to the top edge is what keeps the row clear by arithmetic (AvailableCardHeight caps
         // the card at a share of the window) instead of an offset guessed to be one search box tall.
-        var anchored = Between(Positioner(), "else if (tracker.ActiveHwnd != IntPtr.Zero)", "var targetLeft");
+        var anchored = Between(Positioner(), "else if (tracker.ActiveHwnd != IntPtr.Zero)", "var targetLeft =");
 
-        Assert.Contains("targetPhysTop = hangsBelow", anchored,
-            "one placement decision, both branches of it answering from the same rect");
-        Assert.Contains(": rect.Top - physXamlMarginY", anchored, "and the no-room case attaches to the top edge");
+        Assert.Contains("targetPhysTop = CalculatePhysTop(hangsBelow, hang, rect", anchored,
+            "one placement decision, both branches of it answering from the same inputs");
         Assert.DoesNotContain("rect.Bottom - physWindowHeight", anchored,
             "not to the bottom edge, whose position a growing card moves");
+
+        // Which top edge each case takes -- the dialog's file list when it can see one, its own top edge
+        // otherwise -- is asserted on real measurements in InlineSearchWindowPositionerTests; this guard only
+        // has to keep the decision in one place.
     }
 
     [TestMethod]
-    public void BothPlacementsShareOneHorizontalAnchor()
+    public void TheHorizontalAnchorIsDecidedOnceForBothPlacements()
     {
         // The two answers used to be written out per placement, which is how a resize that turned the inside
         // placement into a drop-down ended up walking an Explorer card sideways under the user's own typing.
+        // One call site is what keeps that impossible: the rungs it chooses between -- a dialog's button row,
+        // its file list, the field it feeds, the dialog's center, the window's right edge -- are decided
+        // together, in a function the tests can hand real dialog measurements to.
         var anchored = Between(Positioner(), "else if (tracker.ActiveHwnd != IntPtr.Zero)", "var minLeft");
 
         Assert.AreEqual(1, Count(anchored, "targetPhysLeft ="),
             "the horizontal anchor is decided once, not once per placement");
-        Assert.Contains("rect.Right - physWindowWidth", anchored,
-            "an Explorer window keeps its right-edge dock in both");
-        Assert.Contains("isDialog", anchored, "while a dialog keeps its own centered-or-anchored answer");
+        Assert.Contains("CalculatePhysLeft(isDialog, hangsBelow, rect, hang, anchor", anchored,
+            "and it is one call, taking both the placement and the dialog's inner edges");
+    }
+
+    [TestMethod]
+    public void TheHeightBudgetAndThePlacementHangFromTheSameLine()
+    {
+        // The budget decides how many rows fit the room the card has; the placement decides where the card
+        // starts. Measured from two different lines, a card sized to hang outside a dialog got drawn over it
+        // (and the other way round), which is the disagreement InlineCardMetrics' and the positioner's own
+        // comments keep warning about. ExplorerTracker.GetInlineCardHang is the one answer.
+        Assert.Contains("tracker.GetInlineCardHang(rect)", Positioner(), "the placement asks it");
+        Assert.Contains("GetInlineCardHang(rect).BelowY", Space(), "and so does the row budget");
+    }
+
+    [TestMethod]
+    public void TheDialogRowCapPricesTheSameCardTheBudgetMayBuild()
+    {
+        // FullCardHeight is what the room-below question is answered with, so it has to be the tallest card
+        // this host can ever build. Left at the plain 9-row cap it would be priced at more than twice a
+        // four-row dialog card's height, and the card would be told there is no room under the dialog -- the
+        // one placement the shorter card exists to get.
+        var priced = Between(Sizing(), "internal double FullCardHeight()", "+ CardMargin * 3;");
+
+        Assert.AreEqual(1, Count(priced, "ResultsAreaHeight("), "one row count priced in");
+        Assert.Contains("ResultsAreaHeight(RowCap)", priced,
+            "and it is the cap in force for this host, not the plain-window one");
+        Assert.Contains("maxRows: RowCap", Sizing(), "the same cap the budget itself is clamped by");
     }
 
     [TestMethod]
@@ -90,6 +121,12 @@ public sealed class InlineCardPlacementTests
 
     private static string Positioner() =>
         Source("App/Views/InlineSearchWindow/Helpers/InlineSearchWindowPositioner.cs");
+
+    private static string Space() =>
+        Source("App/Views/InlineSearchWindow/Helpers/InlineCardSpace.cs");
+
+    private static string Sizing() =>
+        Source("App/Views/InlineSearchWindow/Helpers/InlineCardSizingSupport.cs");
 
     private static string Between(string source, string from, string to)
     {

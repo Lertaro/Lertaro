@@ -30,6 +30,14 @@ internal sealed class InlineCardSizingSupport
     /// <summary>The row budget in force right now: what the results area, and the actions area, size to.</summary>
     internal int RowBudget => _rowBudget;
 
+    // How tall the card may get where it is now. A file dialog caps at four rows because the card hangs off
+    // that dialog's own button row, and everything below it belongs to the dialog; a card over a file
+    // manager's window has that window's whole list to fill, and keeps the Ctrl+1..9 budget. This is also
+    // what FullCardHeight prices, so the two cannot disagree about which corner to hang from.
+    private int RowCap => _window.Manager.ExplorerTracker.IsActiveWindowDialog
+        ? InlineCardMetrics.DialogRows
+        : InlineCardMetrics.DefaultRows;
+
     /// <summary>Re-applies the card's size once the window has been laid out at least once.</summary>
     internal void Attach()
     {
@@ -209,7 +217,7 @@ internal sealed class InlineCardSizingSupport
     /// into the room below rather than forcing the card to the top when there is none.
     /// </remarks>
     internal double FullCardHeight() =>
-        InlineCardMetrics.ResultsAreaHeight(InlineCardMetrics.DefaultRows)
+        InlineCardMetrics.ResultsAreaHeight(RowCap)
         + StableChromeHeight() + CardMargin * 3;
 
     // Everything the card spends that is not a result row and does not come and go with the selection: the
@@ -241,7 +249,7 @@ internal sealed class InlineCardSizingSupport
         var available = InlineCardSpace.AvailableHeight(_window, FullCardHeight());
 
         _rowBudget = InlineCardMetrics.ComputeRowBudget(
-            available, ChromeHeight() + margin, UiMetrics.InlineRowHeight);
+            available, ChromeHeight() + margin, UiMetrics.InlineRowHeight, maxRows: RowCap);
     }
 
     /// <summary>Measures the search bar at its natural height for the current card width.</summary>

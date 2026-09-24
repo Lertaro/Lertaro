@@ -94,7 +94,9 @@ internal static class InlineCardSpace
             && rect.Bottom - rect.Top > 100 && rect.Right - rect.Left > 100)
         {
             activeWindowHeight = (rect.Bottom - rect.Top) / dpiScaleY;
-            spaceBelow = (screen.WorkingArea.Bottom - rect.Bottom) / dpiScaleY;
+            // The same hang line the placement uses, from the same one place: budgeting rows against the
+            // window's bottom edge while hanging the card from a dialog's button row is the two disagreeing.
+            spaceBelow = (screen.WorkingArea.Bottom - tracker.GetInlineCardHang(rect).BelowY) / dpiScaleY;
         }
 
         return InlineCardMetrics.AvailableCardHeight(

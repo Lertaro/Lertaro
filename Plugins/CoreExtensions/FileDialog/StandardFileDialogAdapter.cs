@@ -4,6 +4,7 @@ using System.Text;
 using Lertaro.PluginSdk.Services;
 using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+using Lertaro.Plugins.CoreExtensions.InlineSearch;
 namespace Lertaro.Plugins.CoreExtensions.FileDialog;
 
 public class StandardFileDialogAdapter : IFileDialogAdapter
@@ -37,6 +38,52 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
     // frame via IFileDialogCustomize, but can't remove or renumber the shell's own built-in id-1148
     // combo since that part isn't Office's to customize, only add alongside.
     public bool TargetIsFolderOnly => _lastMatchWasFolderOnly;
+
+    /// <summary>
+    /// The row under the dialog's shell view, which is where its Save/Open button sits.
+    /// </summary>
+    /// <remarks>
+    /// <c>DUIViewWndClassName</c> is the pane that holds the address bar, the navigation pane and the file
+    /// list; the confirm-button row is whatever lies between its bottom edge and the dialog's own, so the row
+    /// is left-aligned with the list it belongs to rather than with a button parked at the right end of it.
+    /// The button has to be confirmed to be BELOW that pane: a bespoke template that happens to reuse the
+    /// class name then gets the old centered placement instead of a card hung over its middle.
+    /// </remarks>
+    public bool TryGetButtonRowBounds(IntPtr hwnd, out AdapterRect bounds)
+    {
+        bounds = default;
+        var shellViewHost = FindWindowEx(hwnd, IntPtr.Zero, "DUIViewWndClassName", null);
+        if (shellViewHost == IntPtr.Zero || !GetWindowRect(shellViewHost, out var hostRect)) return false;
+        var confirmButton = GetDlgItem(hwnd, IdOK);
+        if (confirmButton == IntPtr.Zero || !GetWindowRect(confirmButton, out var buttonRect)) return false;
+        if (buttonRect.Top < hostRect.Bottom) return false;
+        if (!GetWindowRect(hwnd, out var dialogRect)) return false;
+
+        bounds = new AdapterRect
+        {
+            Left = hostRect.Left,
+            Top = hostRect.Bottom,
+            Right = dialogRect.Right,
+            Bottom = dialogRect.Bottom,
+        };
+        return true;
+    }
+
+    /// <summary>The dialog's own file list, found the same way Explorer's is.</summary>
+    /// <remarks>
+    /// The shell view inside a common dialog is the same <c>SHELLDLL_DefView</c> window the Explorer adapter
+    /// docks to (verified against a live Save As), so this reuses that lookup rather than writing a second
+    /// one that would drift from it.
+    /// </remarks>
+    public bool TryGetFileListBounds(IntPtr hwnd, out AdapterRect bounds)
+    {
+        bounds = default;
+        var listView = ExplorerAdapterHelpers.FindContentView(hwnd);
+        if (listView == IntPtr.Zero || !GetWindowRect(listView, out var r)) return false;
+
+        bounds = new AdapterRect { Left = r.Left, Top = r.Top, Right = r.Right, Bottom = r.Bottom };
+        return true;
+    }
 
     private static bool LooksLikeFolderOnlyPicker(IntPtr hwnd)
     {
@@ -210,6 +257,8 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
     [DllImport("user32.dll")]
     private static extern IntPtr GetParent(IntPtr hWnd);
     [DllImport("user32.dll")]
+    private static extern IntPtr GetDlgItem(IntPtr hDlg, int nIDDlgItem);
+    [DllImport("user32.dll")]
     private static extern int GetDlgCtrlID(IntPtr hWnd);
     [DllImport("user32.dll")]
     private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
@@ -240,6 +289,7 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
     private const uint WM_LBUTTONUP = 0x0202;
     private const uint EM_SETSEL = 0x00B1;
     private const int VK_RETURN = 0x0D;
+    private const int IdOK = 1;
     private const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
 
     [StructLayout(LayoutKind.Sequential)]

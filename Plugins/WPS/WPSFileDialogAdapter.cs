@@ -128,54 +128,80 @@ public class WPSFileDialogAdapter : IFileDialogAdapter
     /// Where the file-name box actually sits inside that dialog, so the card can hang under it rather than
     /// under the middle of a dialog whose box starts a third of the way in.
     /// </summary>
+    public bool TryGetTargetFieldBounds(IntPtr hwnd, out AdapterRect bounds) =>
+        TryGetAnchored(hwnd, _targetField, WPSDialogAutomation.TryGetFileNameEditorBounds, out bounds);
+
+    /// <summary>
+    /// The row the dialog's Open/Save and Cancel buttons sit in, which is where the card hangs from when it
+    /// hangs outside the dialog.
+    /// </summary>
+    public bool TryGetButtonRowBounds(IntPtr hwnd, out AdapterRect bounds) =>
+        TryGetAnchored(hwnd, _buttonRow,
+            h => WPSDialogAutomation.TryGetWidgetBounds(h, WPSDialogIdentity.ConfirmGroupClassName), out bounds);
+
+    /// <summary>
+    /// The dialog's file list, which is where the card hangs from when it has to lie over the dialog.
+    /// </summary>
+    public bool TryGetFileListBounds(IntPtr hwnd, out AdapterRect bounds) =>
+        TryGetAnchored(hwnd, _fileList,
+            h => WPSDialogAutomation.TryGetWidgetBounds(h, WPSDialogIdentity.FileListAreaClassName), out bounds);
+
+    private readonly MeasuredRect _targetField = new(), _buttonRow = new(), _fileList = new();
+
+    /// <summary>
+    /// One of the dialog's inner rects, measured through UI Automation at most once per dialog size.
+    /// </summary>
     /// <remarks>
-    /// The host asks this on the positioning path, which runs again every time the dialog moves. Only the
+    /// The host asks these on the positioning path, which runs again every time the dialog moves. Only the
     /// first answer per dialog size costs anything: WPS lays its widgets out relative to the dialog's own
-    /// edges, so a dialog that has merely been dragged somewhere keeps its box at the same offset inside
-    /// itself, and that offset is translated instead of re-measured. A dialog that changed size is a
-    /// different matter -- there the layout really did change -- and gets exactly one fresh, non-retrying
-    /// UI Automation attempt, because spending <see cref="WPSDialogAutomation.EditorLookupTimeoutMs"/>
-    /// sleeping on this path would put a cross-process wait on the UI thread. Failing that attempt returns
-    /// false, which is the honest answer and costs the user nothing but the old centered placement.
+    /// edges, so a dialog that has merely been dragged somewhere keeps its offsets inside itself, and those
+    /// are translated rather than re-measured. A dialog that changed size is a different matter -- there the
+    /// layout really did change -- and gets exactly one fresh, non-retrying UI Automation attempt, because
+    /// spending <see cref="WPSDialogAutomation.EditorLookupTimeoutMs"/> sleeping on this path would put a
+    /// cross-process wait on the UI thread. Failing that attempt returns false, which is the honest answer
+    /// and costs the user nothing but the placement the dialog always had.
     /// </remarks>
-    public bool TryGetTargetFieldBounds(IntPtr hwnd, out AdapterRect bounds)
+    private static bool TryGetAnchored(IntPtr hwnd, MeasuredRect cache, Func<IntPtr, System.Windows.Rect?> measure, out AdapterRect bounds)
     {
         bounds = default;
         if (!WPSWindowInterop.TryGetDialogRect(hwnd, out var dialogRect))
             return false;
 
         var dialog = new AdapterRect { Left = dialogRect.Left, Top = dialogRect.Top, Right = dialogRect.Right, Bottom = dialogRect.Bottom };
-        if (hwnd == _anchoredHwnd && SameSize(dialog, _anchoredDialog))
+        if (cache.Hwnd == hwnd && SameSize(dialog, cache.Dialog))
         {
-            bounds = Translate(_anchoredField, _anchoredDialog, dialog);
+            bounds = Translate(cache.Rect, cache.Dialog, dialog);
             return true;
         }
 
-        var measured = WPSDialogAutomation.TryGetFileNameEditorBounds(hwnd);
+        var measured = measure(hwnd);
         if (measured == null)
             return false;
 
         // UI Automation reports physical screen pixels, the same space TryGetDialogRect answers in for a
         // DPI-aware client, so nothing here is scaled -- and a Qt window makes DWM's extended-frame call
         // fail with E_INVALIDARG, which means both of these really do come from GetWindowRect's system.
-        _anchoredHwnd = hwnd;
-        _anchoredDialog = dialog;
-        _anchoredField = new AdapterRect
+        cache.Hwnd = hwnd;
+        cache.Dialog = dialog;
+        cache.Rect = new AdapterRect
         {
             Left = (int)measured.Value.Left,
             Top = (int)measured.Value.Top,
             Right = (int)measured.Value.Right,
             Bottom = (int)measured.Value.Bottom,
         };
-        bounds = _anchoredField;
+        bounds = cache.Rect;
         return true;
     }
 
-    // The dialog rect the cached field was measured against. _anchoredHwnd stays Zero until a measurement
+    // One inner rect, measured inside one particular dialog rect. Hwnd stays Zero until a measurement
     // exists, and no live window is Zero, so that alone marks the cache as empty.
-    private IntPtr _anchoredHwnd;
-    private AdapterRect _anchoredDialog;
-    private AdapterRect _anchoredField;
+    private sealed class MeasuredRect
+    {
+        public IntPtr Hwnd;
+        public AdapterRect Dialog;
+        public AdapterRect Rect;
+    }
 
     internal static bool SameSize(AdapterRect a, AdapterRect b) =>
         a.Right - a.Left == b.Right - b.Left && a.Bottom - a.Top == b.Bottom - b.Top;

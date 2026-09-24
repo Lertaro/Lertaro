@@ -126,7 +126,7 @@ internal static class WPSDialogAutomation
     }
 
     /// <summary>
-    /// Walks down to the file-name row without ever entering the file list.
+    /// Walks down to a widget by its class name without ever entering the file list.
     /// </summary>
     /// <remarks>
     /// This used to be a plain FindFirst(TreeScope.Descendants, KcfdFilterWidget), which was wrong in a
@@ -136,13 +136,14 @@ internal static class WPSDialogAutomation
     /// listing across the process boundary, on every attempt of a retry loop. Nothing wanted the file
     /// list; it was simply in the way.
     ///
-    /// So: breadth-first by children only, never descending into a List, and depth-capped. The row sits
-    /// three levels down (dialog -> KcfdAreaSplitter -> KcfdFileDialogContentWidget -> KcfdFilterWidget),
-    /// and the cap leaves room for that to move without letting a wrong turn become an unbounded walk.
-    /// The class names are still matched rather than the path being hard-coded, so a rearranged tree
-    /// still resolves as long as the row is somewhere in the first few levels.
+    /// So: breadth-first by children only, never descending into a List, and depth-capped. The widgets the
+    /// host asks for sit three or four levels down (dialog -> KcfdAreaSplitter ->
+    /// KcfdFileDialogContentWidget -> KcfdFilterWidget -> kd::KDConfirmGroup), and the cap leaves room for
+    /// that to move without letting a wrong turn become an unbounded walk. The class names are still
+    /// matched rather than the path being hard-coded, so a rearranged tree still resolves as long as the
+    /// widget is somewhere in the first few levels.
     /// </remarks>
-    private static AutomationElement? FindFilterWidget(AutomationElement dialog)
+    private static AutomationElement? FindWidgetByClassName(AutomationElement dialog, string className, int maxDepth)
     {
         var walker = TreeWalker.RawViewWalker;
         var queue = new Queue<(AutomationElement Element, int Depth)>();
@@ -151,14 +152,13 @@ internal static class WPSDialogAutomation
         while (queue.Count > 0)
         {
             var (element, depth) = queue.Dequeue();
-            if (depth >= MaxFilterWidgetDepth)
+            if (depth >= maxDepth)
                 continue;
 
             var child = walker.GetFirstChild(element);
             while (child != null)
             {
-                var className = child.Current.ClassName;
-                if (string.Equals(className, WPSDialogIdentity.FilterWidgetClassName, StringComparison.Ordinal))
+                if (string.Equals(child.Current.ClassName, className, StringComparison.Ordinal))
                     return child;
 
                 if (child.Current.ControlType != ControlType.List)
@@ -171,7 +171,41 @@ internal static class WPSDialogAutomation
         return null;
     }
 
-    private const int MaxFilterWidgetDepth = 6;
+    private const int MaxWidgetDepth = 6;
+
+    private static AutomationElement? FindFilterWidget(AutomationElement dialog) =>
+        FindWidgetByClassName(dialog, WPSDialogIdentity.FilterWidgetClassName, MaxWidgetDepth);
+
+    /// <summary>
+    /// The screen bounds of the widget with this class name, from one attempt and without retrying: the
+    /// host asks for the card's hang points on the positioning path, which runs again every time the
+    /// dialog moves, so a cross-process wait does not belong here.
+    /// </summary>
+    internal static System.Windows.Rect? TryGetWidgetBounds(IntPtr dialogHwnd, string className)
+    {
+        var dialog = GetDialog(dialogHwnd);
+        if (dialog == null)
+            return null;
+
+        try
+        {
+            var widget = FindWidgetByClassName(dialog, className, MaxWidgetDepth);
+            if (widget == null)
+                return null;
+
+            var bounds = widget.Current.BoundingRectangle;
+            // An empty rect is what a framework reports for an element it lays out but never shows -- and a
+            // rect off every screen arrives as NaN, which no cast to int survives usefully. Either way the
+            // caller gets "no anchor" and keeps the placement it had.
+            return bounds.Width <= 0 || bounds.Height <= 0 || double.IsNaN(bounds.X) || double.IsInfinity(bounds.X)
+                ? null
+                : bounds;
+        }
+        catch (Exception ex) when (IsTransientAutomationFailure(ex))
+        {
+            return null;
+        }
+    }
 
     /// <summary>
     /// The file-name editor's screen bounds, from one attempt.

@@ -12,6 +12,12 @@ internal static class InlineCardMetrics
     // card bounded: section titles are rows in the list and cannot make a tenth row appear.
     internal const int DefaultRows = 9;
 
+    // The cap over a file dialog, where the card hangs off the dialog's own button row: everything under
+    // that row belongs to somebody else's window, so four rows is what the card takes before it is covering
+    // the taskbar rather than the dialog. The jump shortcuts keep working 1..4; 5..9 simply have nothing to
+    // jump to here.
+    internal const int DialogRows = 4;
+
     // The floor a screen-aware budget never drops below, and it is deliberately low: an over-tall card is
     // the one thing that actually blocks the window it is docked to, so in a space too short for four rows
     // the card takes two and scrolls rather than pushing further over the host window. Two rows still show a

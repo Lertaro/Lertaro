@@ -68,6 +68,37 @@ public interface IFileDialogAdapter : IPluginComponent
     }
 
     /// <summary>
+    /// Where the dialog's confirm button (Save/Open) sits, for a dialog that can see its own row of buttons.
+    /// </summary>
+    /// <remarks>
+    /// The inline card hangs from this rect's TOP-LEFT whenever the screen has room under the dialog, which
+    /// is why it is a row rather than the button itself: the button shares that row with the file-type box and
+    /// a Help button, and a card lined up on the button alone would sit off to one side of the dialog. A
+    /// dialog that cannot see this far in answers false and keeps the centered-under-the-dialog placement it
+    /// has always had.
+    /// </remarks>
+    bool TryGetButtonRowBounds(IntPtr hwnd, out AdapterRect bounds)
+    {
+        bounds = default;
+        return false;
+    }
+
+    /// <summary>
+    /// The dialog's own file list, for a dialog that can see it.
+    /// </summary>
+    /// <remarks>
+    /// Where the card hangs from when there is NO room under the dialog: the card's visible top-right corner
+    /// meets this rect's top-right, which is the same edge the card uses over a file manager's window (whose
+    /// dock rect already is its file list). Answering false leaves the card attached to the dialog's own top
+    /// edge, covering its address bar and navigation pane.
+    /// </remarks>
+    bool TryGetFileListBounds(IntPtr hwnd, out AdapterRect bounds)
+    {
+        bounds = default;
+        return false;
+    }
+
+    /// <summary>
     /// Restores focus to the appropriate control in the dialog window.
     /// </summary>
     bool RestoreFocus(IntPtr hwnd);

@@ -141,6 +141,22 @@ public sealed class InlineCardMetricsTests
     }
 
     [TestMethod]
+    public void ComputeRowBudget_DialogCap_StopsAtFourWhateverTheRoom()
+    {
+        // A file dialog card is capped by its host at four rows, not by the screen: the room under a
+        // dialog's button row is mostly empty desktop, so the cap alone has to say "short card here".
+        Assert.AreEqual(InlineCardMetrics.DialogRows,
+            InlineCardMetrics.ComputeRowBudget(2000, Chrome, RowHeight, maxRows: InlineCardMetrics.DialogRows));
+        Assert.AreEqual(InlineCardMetrics.DialogRows,
+            InlineCardMetrics.ComputeRowBudget(Chrome + (RowHeight * 9), Chrome, RowHeight, maxRows: InlineCardMetrics.DialogRows));
+        // The floor and the cap stay independent: a space that fits two rows gets two, not four.
+        Assert.AreEqual(2,
+            InlineCardMetrics.ComputeRowBudget(Chrome + (RowHeight * 2), Chrome, RowHeight, maxRows: InlineCardMetrics.DialogRows));
+        Assert.AreEqual(InlineCardMetrics.MinRows,
+            InlineCardMetrics.ComputeRowBudget(0, Chrome, RowHeight, maxRows: InlineCardMetrics.DialogRows));
+    }
+
+    [TestMethod]
     public void ComputeRowBudget_NoRoomAtAll_StillShowsTheFloor()
     {
         // The floor the card is allowed to exceed its space for. It sits at two rows on purpose: a card that

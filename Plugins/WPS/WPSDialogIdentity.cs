@@ -21,6 +21,19 @@ internal static class WPSDialogIdentity
     internal const string FilterWidgetClassName = "KcfdFilterWidget";
 
     /// <summary>
+    /// The widget holding the dialog's two confirm buttons (Open/Save and Cancel), at the bottom of the
+    /// file-name row. The inline card hangs under this when it hangs outside the dialog at all.
+    /// </summary>
+    internal const string ConfirmGroupClassName = "kd::KDConfirmGroup";
+
+    /// <summary>
+    /// Everything the browsing happens in: the column header plus the file list, between the toolbars above
+    /// and the file-name row below. The inline card's top-right corner lines up with this when it has to lie
+    /// over the dialog -- the same edge it uses inside a file manager's own window.
+    /// </summary>
+    internal const string FileListAreaClassName = "KcfdContentWidget";
+
+    /// <summary>
     /// Editor class names seen inside those combo boxes. Two of them because WPS builds vary: older ones
     /// use Qt's own QLineEdit, newer ones a WPS-internal subclass. Whichever is found first is used.
     /// </summary>
