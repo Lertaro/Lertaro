@@ -165,6 +165,12 @@
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                      ScrollViewer.VerticalScrollBarVisibility="Disabled"
                                      SelectionChanged="LstSectionsBottom_SelectionChanged">
+                                <ListBoxItem Tag="SearchSyntax" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_SearchSyntax]}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_SearchSyntax]}" Style="{StaticResource SidebarNavigationLabel}"/>
+                                    </StackPanel>
+                                </ListBoxItem>
                                 <ListBoxItem Tag="Appearance" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Appearance]}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE790;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>

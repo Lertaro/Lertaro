@@ -103,6 +103,7 @@ internal static class SettingsWindowSearchActivationHelper
         "QuickLaunch" => window.PageQuickLaunch,
         "QuickPanel" => window.PageQuickPanel,
         "LocalSend" => window.PageLocalSend,
+        "SearchSyntax" => window.PageSearchSyntax,
         "About" => window.PageAbout,
         _ => null,
     };
