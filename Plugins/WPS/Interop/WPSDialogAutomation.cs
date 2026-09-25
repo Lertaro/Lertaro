@@ -211,11 +211,11 @@ internal static class WPSDialogAutomation
     /// The file-name editor's screen bounds, from one attempt.
     /// </summary>
     /// <remarks>
-    /// Deliberately not <see cref="FindFileNameEditor"/>'s retry loop: this is asked from the card's
-    /// positioning path, which runs again every time the dialog moves, so spending up to
-    /// <see cref="EditorLookupTimeoutMs"/> sleeping here would put a cross-process wait on the UI thread.
-    /// A miss costs nothing either -- the caller keeps whatever it measured last, and a dialog whose widget
-    /// tree has not answered yet just gets the placement it always had.
+    /// Deliberately not <see cref="FindFileNameEditor"/>'s retry loop: this is asked from the card's geometry
+    /// probe on every dialog resize, so sleeping up to <see cref="EditorLookupTimeoutMs"/> here would just
+    /// make the answer arrive later than the placement that needs it. A miss costs nothing either -- the
+    /// caller keeps whatever it measured last, and a dialog whose widget tree has not answered yet just gets
+    /// the placement it always had.
     /// </remarks>
     internal static System.Windows.Rect? TryGetFileNameEditorBounds(IntPtr dialogHwnd)
     {

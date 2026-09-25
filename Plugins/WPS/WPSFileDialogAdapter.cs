@@ -144,14 +144,18 @@ public class WPSFileDialogAdapter : IFileDialogAdapter
     /// One of the dialog's inner rects, measured through UI Automation at most once per dialog size.
     /// </summary>
     /// <remarks>
-    /// The host asks these on the positioning path, which runs again every time the dialog moves. Only the
-    /// first answer per dialog size costs anything: WPS lays its widgets out relative to the dialog's own
-    /// edges, so a dialog that has merely been dragged somewhere keeps its offsets inside itself, and those
+    /// Only the first answer per dialog size costs anything: WPS lays its widgets out relative to the dialog's
+    /// own edges, so a dialog that has merely been dragged somewhere keeps its offsets inside itself, and those
     /// are translated rather than re-measured. A dialog that changed size is a different matter -- there the
-    /// layout really did change -- and gets exactly one fresh, non-retrying UI Automation attempt, because
-    /// spending <see cref="WPSDialogAutomation.EditorLookupTimeoutMs"/> sleeping on this path would put a
-    /// cross-process wait on the UI thread. Failing that attempt returns false, which is the honest answer
-    /// and costs the user nothing but the placement the dialog always had.
+    /// layout really did change -- and gets exactly one fresh, non-retrying UI Automation attempt. Failing that
+    /// attempt returns false, which is the honest answer and costs the user nothing but the placement the
+    /// dialog always had.
+    ///
+    /// That attempt is still a synchronous call into WPS's UI thread, and a WPS that is busy or tearing the
+    /// dialog down does not answer it: UI Automation's own timeout does not bound reaching the element in the
+    /// first place, so this can wait indefinitely rather than the 500ms the retry budget suggests. Callers
+    /// that cannot afford to block -- the card's placement path, which runs on a WPF thread and froze once
+    /// this was asked of it directly -- have to call from their own worker thread.
     /// </remarks>
     private static bool TryGetAnchored(IntPtr hwnd, MeasuredRect cache, Func<IntPtr, System.Windows.Rect?> measure, out AdapterRect bounds)
     {

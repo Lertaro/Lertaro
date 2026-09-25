@@ -14,6 +14,7 @@ public class InlineSearchWindowPositioner
 
     private readonly Lertaro.App.InlineSearchWindow _window;
     private readonly InlineCardDragOffset _dragOffset;
+    private readonly InlineDialogGeometryProbe _geometry;
     private int _positionUpdateQueued;
 
     private bool _hasCachedInputs;
@@ -33,6 +34,21 @@ public class InlineSearchWindowPositioner
     {
         _window = window ?? throw new ArgumentNullException(nameof(window));
         _dragOffset = new InlineCardDragOffset(window);
+        _geometry = new InlineDialogGeometryProbe(MeasureDialogGeometry, PositionWindow);
+    }
+
+    // The dialog's own rectangles, read off the thread that asks for them -- which is why they are read here
+    // rather than inline in PositionWindowCore. An adapter that has to reach into a foreign process to answer
+    // must not be able to stop the card from being placed.
+    private InlineDialogGeometryProbe.Answer MeasureDialogGeometry(IntPtr hwnd)
+    {
+        var tracker = _window.Manager.ExplorerTracker;
+        // A dialog that closed or was superseded mid-measurement has nothing left to answer for.
+        if (tracker.ActiveHwnd != hwnd) return default;
+
+        return new InlineDialogGeometryProbe.Answer(
+            tracker.TryGetTargetFieldRect(out var anchor) ? anchor : null,
+            tracker.TryGetFileListRect(out var list) ? list : null);
     }
 
     public void PositionWindow()
@@ -72,18 +88,16 @@ public class InlineSearchWindowPositioner
             hasValidRect = tracker.TryGetActiveWindowRect(out rect) && (rect.Right - rect.Left > 100 && rect.Bottom - rect.Top > 100);
         }
 
-        // Which part of that window the card's own text lands in. Only a file dialog's adapter can answer,
-        // and only the ones that opt in do; no answer leaves the horizontal placement exactly as it was.
-        Core.Hook.ExplorerTracker.RECT? anchor = null;
-        if (hasValidRect && tracker.TryGetTargetFieldRect(out var anchorValue))
-            anchor = anchorValue;
-
-        // A dialog's own file list, which is where the card hangs from when it has to lie over the dialog.
-        // Null for a plain window -- whose dock rect already IS its file list -- and for a dialog whose
-        // adapter cannot see that far in.
-        Core.Hook.ExplorerTracker.RECT? fileList = null;
-        if (hasValidRect && tracker.TryGetFileListRect(out var listValue))
-            fileList = listValue;
+        // Which part of that window the card's own text lands in, and that dialog's own file list. Only a
+        // dialog's adapter can answer either, and only the ones that opt in do; no answer leaves the placement
+        // exactly as it was before either was asked. Not answered here, on this thread: for a dialog whose
+        // widgets have no window handles of their own it would be a call into that other process, which is
+        // how a closing WPS dialog once took the whole application down with it -- InlineDialogGeometryProbe.
+        var geometry = hasValidRect
+            ? _geometry.Request(tracker.ActiveHwnd, rect.Right - rect.Left, rect.Bottom - rect.Top)
+            : default;
+        Core.Hook.ExplorerTracker.RECT? anchor = geometry.Anchor;
+        Core.Hook.ExplorerTracker.RECT? fileList = geometry.FileList;
         var mousePosition = System.Windows.Forms.Control.MousePosition;
 
         var hwnd = new WindowInteropHelper(_window).Handle;
