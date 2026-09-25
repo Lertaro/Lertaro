@@ -103,9 +103,10 @@ internal sealed class SearchExecutionEngine : IDisposable
             {
                 var tracker = InlineSearchManager.Instance.ExplorerTracker;
                 var dialogAdapter = tracker.ActiveAdapter;
-                // Folders only over a file dialog, where the user is choosing a folder. Typed into an Explorer
-                // window's own search box this card is that window's search, so it keeps finding files.
-                var folderScope = isInlineSearchContext && tracker.IsActiveWindowDialog;
+                // Scoped to what the dialog's own target field can hold, not to "is a dialog": a Browse-For-Folder
+                // picker takes only a folder, an Open/Save dialog's name box takes a file too, and there the card
+                // has to keep offering files. Typed into an Explorer window this card is that window's search.
+                var folderScope = isInlineSearchContext && dialogAdapter?.TargetIsFolderOnly == true;
                 if (isInlineSearchContext && tracker.ActiveHwnd != IntPtr.Zero
                     && (tracker.IsActiveWindowExplorer || (tracker.IsActiveWindowDialog && dialogAdapter != null)))
                 {

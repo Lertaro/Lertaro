@@ -133,10 +133,10 @@ internal sealed class SearchDispatchController
         // (a folder scope says nothing about applications), so no app budget is needed at all.
         var hasTokens = _queryTokens.Count > 0;
         var hasScope = scopeDirective != null;
-        // Folders only, and only for the card over a file dialog -- there the user is choosing a folder. Typed
-        // into an Explorer window's own search box this card IS that window's search, so it has to keep
-        // finding files; the layout code already tells those two situations apart by the same flag.
-        var folderScope = _getIsInlineSearchContext() && InlineSearchManager.Instance.ExplorerTracker.IsActiveWindowDialog;
+        // Folders only, and only for the card over a dialog whose target field takes nothing but a folder --
+        // a Browse-For-Folder picker. Over an Open/Save dialog the name box wants a file, so the card has to
+        // keep finding files; typed into an Explorer window's own search box this card IS that window's search.
+        var folderScope = _getIsInlineSearchContext() && InlineSearchManager.Instance.ExplorerTracker.ActiveAdapter?.TargetIsFolderOnly == true;
         // A folder scope drops most of what the engine answers before it reaches the list, so the ordinary
         // 51-row budget would leave about ten folders on a mixed query. Same widening the token and scoped
         // paths above already use, for the same reason: the rows the card may keep have to arrive first.

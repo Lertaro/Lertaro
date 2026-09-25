@@ -5,9 +5,10 @@ using Lertaro.Core;
 
 namespace Lertaro.App.Tests.ViewModels.Search;
 
-// The card over a FILE DIALOG offers folders only, because there the user is choosing a folder. Typed into an
-// Explorer window's own search box the card is that window's search and keeps finding files, so these cover
-// both halves: what the dialog scope filters out, and what an ordinary window must still get.
+// The card offers folders only over a dialog whose target field takes nothing but a folder. Over an Open/Save
+// dialog, where the name box wants a file, and typed into an Explorer window's own search box, where the card
+// is that window's search, it keeps finding files -- so these cover both halves: what the scope filters out,
+// and what everything else must still get.
 [TestClass]
 public sealed class InlineFolderScopeTests
 {
@@ -93,16 +94,16 @@ public sealed class InlineFolderScopeTests
     }
 
     // Wiring guards. Both consumers need the same answer and neither can be executed here: the renderer needs
-    // a live SearchService and a WPF dispatcher, and the scope itself comes from the hook's window
-    // classification. A silently reverted named argument would take the dialog's scope away, or put it back
-    // onto Explorer windows -- which is the bug this narrowing fixes.
+    // a live SearchService and a WPF dispatcher, and the scope itself comes from the window classification the
+    // hook reports. A silently reverted named argument would take the folder scope away from the pickers that
+    // need it, or put it back onto every dialog and Explorer window -- both of which are the bug this fixes.
     [TestMethod]
-    public void TheFolderScopeIsAskedOfTheFileDialogAndNotOfTheInlineWindow()
+    public void TheFolderScopeIsAskedOfTheDialogTargetAndNotOfTheInlineWindow()
     {
         var engine = Source("App/ViewModels/Search/SearchExecutionEngine.cs");
 
-        Assert.Contains("folderScope = isInlineSearchContext && tracker.IsActiveWindowDialog", engine,
-            "the engine's scope must be inline AND a file dialog");
+        Assert.Contains("folderScope = isInlineSearchContext && dialogAdapter?.TargetIsFolderOnly == true", engine,
+            "the engine's scope must be inline AND a folder-only target");
         Assert.HasCount(2, LinesWith(engine, "foldersOnly: folderScope"),
             "and both renderer paths must take that answer rather than the bare inline flag");
         Assert.IsEmpty(LinesWith(engine, "foldersOnly: isInlineSearchContext"),
@@ -110,7 +111,7 @@ public sealed class InlineFolderScopeTests
 
         var dispatch = Source("App/ViewModels/Search/Dispatch/SearchDispatchController.cs");
 
-        Assert.Contains("_getIsInlineSearchContext() && InlineSearchManager.Instance.ExplorerTracker.IsActiveWindowDialog", dispatch,
+        Assert.Contains("_getIsInlineSearchContext() && InlineSearchManager.Instance.ExplorerTracker.ActiveAdapter?.TargetIsFolderOnly == true", dispatch,
             "the dispatcher must derive the same scope, not its own wider one");
         Assert.Contains("folderScope: folderScope", dispatch,
             "and hand it to the mapper, whose history and favorite rows bypass the engine filter");

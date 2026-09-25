@@ -39,7 +39,7 @@ public static class ExplorerSearchHelper
 
             DirectChildrenLocator.MatchInto(entries, contextDirectory, query, fileLimit, result =>
             {
-                // Over a file dialog the user is choosing a folder, so the listing contributes folders only.
+                // Over a dialog whose target takes only a folder the listing contributes folders only.
                 // Typed into an Explorer window the same listing has to keep offering files.
                 if (folderScope && !result.IsDir)
                     return;
