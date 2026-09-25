@@ -39,6 +39,11 @@ public sealed class UsnServicePipeAuthorizationTests
         SearchRequestId.SubscribeStatus,
         SearchRequestId.SubscribeDirectoryChanges,
         SearchRequestId.LaunchHook,
+        // Overwrites this install's files, so it is as state-changing as anything above -- but it is served
+        // before dispatch too, and UpdateApplyRequestHandler asks the kernel the same question
+        // HookLaunchRequestHandler does (IsGenuineAppProcess) before it touches anything. Listing it here
+        // records that the gate exists, just not at this table.
+        SearchRequestId.ApplyUpdate,
     ];
 
     [TestMethod]
