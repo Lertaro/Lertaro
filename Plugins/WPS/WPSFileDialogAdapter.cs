@@ -132,21 +132,13 @@ public class WPSFileDialogAdapter : IFileDialogAdapter
         TryGetAnchored(hwnd, _targetField, WPSDialogAutomation.TryGetFileNameEditorBounds, out bounds);
 
     /// <summary>
-    /// The row the dialog's Open/Save and Cancel buttons sit in, which is where the card hangs from when it
-    /// hangs outside the dialog.
-    /// </summary>
-    public bool TryGetButtonRowBounds(IntPtr hwnd, out AdapterRect bounds) =>
-        TryGetAnchored(hwnd, _buttonRow,
-            h => WPSDialogAutomation.TryGetWidgetBounds(h, WPSDialogIdentity.ConfirmGroupClassName), out bounds);
-
-    /// <summary>
     /// The dialog's file list, which is where the card hangs from when it has to lie over the dialog.
     /// </summary>
     public bool TryGetFileListBounds(IntPtr hwnd, out AdapterRect bounds) =>
         TryGetAnchored(hwnd, _fileList,
             h => WPSDialogAutomation.TryGetWidgetBounds(h, WPSDialogIdentity.FileListAreaClassName), out bounds);
 
-    private readonly MeasuredRect _targetField = new(), _buttonRow = new(), _fileList = new();
+    private readonly MeasuredRect _targetField = new(), _fileList = new();
 
     /// <summary>
     /// One of the dialog's inner rects, measured through UI Automation at most once per dialog size.

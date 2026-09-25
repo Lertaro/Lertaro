@@ -137,11 +137,11 @@ internal static class WPSDialogAutomation
     /// list; it was simply in the way.
     ///
     /// So: breadth-first by children only, never descending into a List, and depth-capped. The widgets the
-    /// host asks for sit three or four levels down (dialog -> KcfdAreaSplitter ->
-    /// KcfdFileDialogContentWidget -> KcfdFilterWidget -> kd::KDConfirmGroup), and the cap leaves room for
-    /// that to move without letting a wrong turn become an unbounded walk. The class names are still
-    /// matched rather than the path being hard-coded, so a rearranged tree still resolves as long as the
-    /// widget is somewhere in the first few levels.
+    /// host asks for sit three levels down (dialog -> KcfdAreaSplitter -> KcfdFileDialogContentWidget ->
+    /// KcfdFilterWidget / KcfdContentWidget), and the cap leaves room for that to move without letting a
+    /// wrong turn become an unbounded walk. The class names are still matched rather than the path being
+    /// hard-coded, so a rearranged tree still resolves as long as the widget is somewhere in the first few
+    /// levels.
     /// </remarks>
     private static AutomationElement? FindWidgetByClassName(AutomationElement dialog, string className, int maxDepth)
     {

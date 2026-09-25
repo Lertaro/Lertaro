@@ -23,7 +23,7 @@ public class InlineSearchWindowPositioner
     private bool _cachedHasValidRect;
     private Core.Hook.ExplorerTracker.RECT _cachedRect;
     private Core.Hook.ExplorerTracker.RECT? _cachedAnchor;
-    private Core.Hook.ExplorerTracker.InlineCardHang _cachedHang;
+    private Core.Hook.ExplorerTracker.RECT? _cachedFileList;
     private System.Drawing.Point _cachedMousePosition;
     private double _cachedWindowWidth;
     private double _cachedWindowHeight;
@@ -78,10 +78,12 @@ public class InlineSearchWindowPositioner
         if (hasValidRect && tracker.TryGetTargetFieldRect(out var anchorValue))
             anchor = anchorValue;
 
-        // The inner edges of a dialog the card can hang from: the row its confirm button sits in, and its
-        // file list. Both come back empty for a plain window, whose dock rect already is its file list, and
-        // for a dialog whose adapter cannot see that far in.
-        var hang = hasValidRect ? tracker.GetInlineCardHang(rect) : default;
+        // A dialog's own file list, which is where the card hangs from when it has to lie over the dialog.
+        // Null for a plain window -- whose dock rect already IS its file list -- and for a dialog whose
+        // adapter cannot see that far in.
+        Core.Hook.ExplorerTracker.RECT? fileList = null;
+        if (hasValidRect && tracker.TryGetFileListRect(out var listValue))
+            fileList = listValue;
         var mousePosition = System.Windows.Forms.Control.MousePosition;
 
         var hwnd = new WindowInteropHelper(_window).Handle;
@@ -120,7 +122,7 @@ public class InlineSearchWindowPositioner
             && _cachedHasValidRect == hasValidRect
             && _cachedRect.Left == rect.Left && _cachedRect.Top == rect.Top && _cachedRect.Right == rect.Right && _cachedRect.Bottom == rect.Bottom
             && SameAnchor(_cachedAnchor, anchor)
-            && SameHang(_cachedHang, hang)
+            && SameAnchor(_cachedFileList, fileList)
             && _cachedWindowWidth == windowWidth
             && _cachedWindowHeight == windowHeight
             && _cachedIsResultsVisible == isResultsVisible
@@ -132,15 +134,20 @@ public class InlineSearchWindowPositioner
         const double xamlMargin = 12;
         const double visibleMargin = 0;
 
-        // Whether the space under the hang line can hold the WHOLE card. Asked of the tallest the card
+        // Whether the space under the anchored window can hold the WHOLE card. Asked of the tallest the card
         // can ever be (InlineCardSizingSupport.FullCardHeight), never of the height it happens to have: the
         // row count follows what the search returned, so a card measured as it is now picks a different
         // corner to hang from between two result counts -- which is the card jumping while the user types.
+        //
+        // Measured to the MONITOR's bottom edge, taskbar included. A card hanging below is allowed to cover
+        // the taskbar, and on a screen where the dialog nearly fills the monitor that strip is the whole
+        // difference between hanging below and lying over the dialog -- so the vertical clamp below has to
+        // be measured the same way, or it would simply pull the card back up again.
+        var screen = Screen.FromHandle(tracker.ActiveHwnd);
         var hangsBelow = false;
         if (hasValidRect)
         {
-            var screen = Screen.FromHandle(tracker.ActiveHwnd);
-            var spaceBelow = screen.WorkingArea.Bottom - hang.BelowY;
+            var spaceBelow = screen.Bounds.Bottom - rect.Bottom;
             hangsBelow = InlineCardMetrics.HasRoomToHangBelow(
                 spaceBelow / targetDpiScaleY, _window.CardSizing.FullCardHeight());
         }
@@ -175,12 +182,11 @@ public class InlineSearchWindowPositioner
             {
                 var isDialog = tracker.IsActiveWindowDialog;
 
-                // One call decides the horizontal anchor for both placements, so the rungs it weighs (a
-                // dialog's button row, its file list, the field the card feeds, the dialog's center, the
-                // window's right edge) cannot drift into disagreeing about which corner the card hangs off:
-                // below a dialog it is left-aligned on that dialog's button row, over a dialog it is
-                // right-aligned on the file list, and a plain Explorer window keeps its right-edge dock.
-                targetPhysLeft = CalculatePhysLeft(isDialog, hangsBelow, rect, hang, anchor,
+                // One call decides the horizontal anchor for both placements, so its rungs (the card centered
+                // under the window it hangs below, a dialog's file list when it has to lie over the dialog,
+                // the field a dialog feeds, the window's own right edge) cannot drift into disagreeing about
+                // which corner the card hangs off.
+                targetPhysLeft = CalculatePhysLeft(isDialog, hangsBelow, rect, fileList, anchor,
                     physWindowWidth, physXamlMargin, physVisibleMargin);
 
                 // Outside below, or from the top edge of whatever the card has to cover. The top, not the
@@ -188,12 +194,15 @@ public class InlineSearchWindowPositioner
                 // inside: AvailableCardHeight caps the card at AnchoredWindowHeightShare of the window it
                 // covers, so starting at the top is what leaves its bottom edge free -- and for a plain
                 // window it is the same edge a row count cannot move.
-                targetPhysTop = CalculatePhysTop(hangsBelow, hang, rect, physXamlMarginY, physVisibleMarginY);
+                targetPhysTop = CalculatePhysTop(hangsBelow, rect, fileList, physXamlMarginY, physVisibleMarginY);
 
                 var minLeft = workingArea.Left + physVisibleMargin - physXamlMargin;
                 var minTop = workingArea.Top + physVisibleMarginY - physXamlMarginY;
                 var maxLeft = workingArea.Right - physWindowWidth + physXamlMargin - physVisibleMargin;
-                var maxTop = workingArea.Bottom - physWindowHeight + physXamlMarginY - physVisibleMarginY;
+                // Below, the monitor's own bottom edge, matching the room-below measurement above; over the
+                // window, the working area, so a card that covers a dialog never runs off the screen.
+                var maxTop = (hangsBelow ? screen.Bounds.Bottom : workingArea.Bottom)
+                    - physWindowHeight + physXamlMarginY - physVisibleMarginY;
 
                 // Guarded like the top clamp below: a target window spanning two monitors makes the card
                 // (2/3 of it) wider than one monitor's working area, and Math.Clamp THROWS when min > max.
@@ -213,10 +222,9 @@ public class InlineSearchWindowPositioner
                     + $"hwnd={tracker.ActiveHwnd:x8} dialog={isDialog} valid={hasValidRect} "
                     + $"rect={rect.Left},{rect.Top},{rect.Right},{rect.Bottom} "
                     + $"anchor={(anchor is { } a ? $"{a.Left},{a.Top},{a.Right},{a.Bottom}" : "none")} "
-                    + $"row={(hang.ButtonRow is { } rowRect ? $"{rowRect.Left},{rowRect.Top}" : "none")} "
-                    + $"list={(hang.FileList is { } listRect ? $"{listRect.Right},{listRect.Top}" : "none")} "
+                    + $"list={(fileList is { } listRect ? $"{listRect.Right},{listRect.Top}" : "none")} "
                     + $"dpi={targetDpiScaleX:F2} window={windowWidth:F0}x{windowHeight:F0} "
-                    + $"below={hangsBelow}@{hang.BelowY} work={workingArea.Left},{workingArea.Top},{workingArea.Right},{workingArea.Bottom} "
+                    + $"below={hangsBelow} boundsBottom={screen.Bounds.Bottom} work={workingArea.Left},{workingArea.Top},{workingArea.Right},{workingArea.Bottom} "
                     + $"bound={minTop:F0}..{maxTop:F0} at={targetPhysLeft:F0},{targetPhysTop:F0} drag={_dragOffset.IsSet}",
                     LogLevel.Debug);
             }
@@ -267,7 +275,7 @@ public class InlineSearchWindowPositioner
         _cachedHasValidRect = hasValidRect;
         _cachedRect = rect;
         _cachedAnchor = anchor;
-        _cachedHang = hang;
+        _cachedFileList = fileList;
         _cachedMousePosition = mousePosition;
         _cachedWindowWidth = windowWidth;
         _cachedWindowHeight = windowHeight;
@@ -344,57 +352,50 @@ public class InlineSearchWindowPositioner
     /// Where the card's window starts horizontally, in physical pixels.
     /// </summary>
     /// <remarks>
-    /// Every rung below names the edge the card's VISIBLE edge is meant to meet, and pays the window's own
-    /// transparent margin back to get the window position that puts it there: added for a right-aligned
-    /// anchor, subtracted for a left-aligned one.
+    /// Below the window there is one answer for every host: centered under it, the taskbar allowed to be
+    /// covered. Over it, a dialog whose adapter can see its own file list lines up on that list's right edge
+    /// -- the same edge a plain window's card docks to, since a plain window's dock rect IS its file list --
+    /// and a dialog that cannot see that far in gets the placement it has always had. Each rung names the
+    /// edge the card's VISIBLE edge is meant to meet, and pays the window's own transparent margin back to
+    /// get the window position that puts it there.
     /// </remarks>
     internal static double CalculatePhysLeft(
         bool isDialog,
         bool hangsBelow,
         Core.Hook.ExplorerTracker.RECT dock,
-        Core.Hook.ExplorerTracker.InlineCardHang hang,
+        Core.Hook.ExplorerTracker.RECT? fileList,
         Core.Hook.ExplorerTracker.RECT? field,
         double physWindowWidth,
         double physXamlMargin,
         double physVisibleMargin)
     {
-        if (!isDialog)
-            return dock.Right - physWindowWidth + physXamlMargin - physVisibleMargin;
+        if (hangsBelow)
+            return CalculateDialogPhysLeft(dock, null, physWindowWidth, physXamlMargin, physVisibleMargin);
 
-        // Hanging below a dialog: its button row's left edge, so the card lines up with the file list above
-        // it rather than with a button parked at one end of that row.
-        if (hangsBelow && hang.ButtonRow.HasValue)
-            return hang.ButtonRow.Value.Left - physXamlMargin;
+        if (fileList.HasValue)
+            return fileList.Value.Right - physWindowWidth + physXamlMargin - physVisibleMargin;
 
-        // Lying over a dialog: its file list's right edge, which is the same edge the card docks to over a
-        // file manager's window -- the whole point of the two looking alike.
-        if (!hangsBelow && hang.FileList.HasValue)
-            return hang.FileList.Value.Right - physWindowWidth + physXamlMargin - physVisibleMargin;
-
-        return CalculateDialogPhysLeft(dock, field, physWindowWidth, physXamlMargin, physVisibleMargin);
+        return isDialog
+            ? CalculateDialogPhysLeft(dock, field, physWindowWidth, physXamlMargin, physVisibleMargin)
+            : dock.Right - physWindowWidth + physXamlMargin - physVisibleMargin;
     }
 
     /// <summary>Where the card's window starts vertically, in physical pixels.</summary>
     internal static double CalculatePhysTop(
         bool hangsBelow,
-        Core.Hook.ExplorerTracker.InlineCardHang hang,
         Core.Hook.ExplorerTracker.RECT dock,
+        Core.Hook.ExplorerTracker.RECT? fileList,
         double physXamlMarginY,
         double physVisibleMarginY)
     {
         if (hangsBelow)
-            return hang.BelowY - physXamlMarginY + physVisibleMarginY;
+            return dock.Bottom - physXamlMarginY + physVisibleMarginY;
 
-        return (hang.FileList.HasValue ? hang.FileList.Value.Top : dock.Top) - physXamlMarginY;
+        return (fileList.HasValue ? fileList.Value.Top : dock.Top) - physXamlMarginY;
     }
 
     private static bool SameAnchor(Core.Hook.ExplorerTracker.RECT? a, Core.Hook.ExplorerTracker.RECT? b) =>
         a?.Left == b?.Left && a?.Top == b?.Top && a?.Right == b?.Right && a?.Bottom == b?.Bottom;
-
-    // A dialog's inner edges are measured, not derived, so they can arrive late (a Qt widget tree that
-    // answered on the second attempt) or go stale (the dialog was resized): either way the card has to move.
-    private static bool SameHang(Core.Hook.ExplorerTracker.InlineCardHang a, Core.Hook.ExplorerTracker.InlineCardHang b) =>
-        a.BelowY == b.BelowY && SameAnchor(a.ButtonRow, b.ButtonRow) && SameAnchor(a.FileList, b.FileList);
 
     internal static double CalculateDesktopWidth(double desktopWidth) => desktopWidth * DesktopWidthRatio;
 }

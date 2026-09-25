@@ -68,22 +68,6 @@ public interface IFileDialogAdapter : IPluginComponent
     }
 
     /// <summary>
-    /// Where the dialog's confirm button (Save/Open) sits, for a dialog that can see its own row of buttons.
-    /// </summary>
-    /// <remarks>
-    /// The inline card hangs from this rect's TOP-LEFT whenever the screen has room under the dialog, which
-    /// is why it is a row rather than the button itself: the button shares that row with the file-type box and
-    /// a Help button, and a card lined up on the button alone would sit off to one side of the dialog. A
-    /// dialog that cannot see this far in answers false and keeps the centered-under-the-dialog placement it
-    /// has always had.
-    /// </remarks>
-    bool TryGetButtonRowBounds(IntPtr hwnd, out AdapterRect bounds)
-    {
-        bounds = default;
-        return false;
-    }
-
-    /// <summary>
     /// The dialog's own file list, for a dialog that can see it.
     /// </summary>
     /// <remarks>

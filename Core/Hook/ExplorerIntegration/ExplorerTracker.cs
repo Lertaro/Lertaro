@@ -260,6 +260,25 @@ public class ExplorerTracker : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// The active dialog's own file list, when that dialog's adapter can see it. False for a non-dialog
+    /// window, and for a dialog whose adapter does not opt in -- see
+    /// <see cref="IFileDialogAdapter.TryGetFileListBounds"/>.
+    /// </summary>
+    public bool TryGetFileListRect(out RECT rect)
+    {
+        rect = default;
+        if (ActiveHwnd == IntPtr.Zero || ActiveAdapter == null)
+            return false;
+        if (!ActiveAdapter.TryGetFileListBounds(ActiveHwnd, out var bounds))
+            return false;
+        if (!IsUsableBounds(bounds))
+            return false;
+
+        rect = ToRect(bounds);
+        return true;
+    }
+
     // Reported across a process boundary by someone else's UI framework, which is exactly where an empty or
     // bogus rect comes from; a region with no area cannot anchor anything.
     private static bool IsUsableBounds(AdapterRect bounds) =>
@@ -267,54 +286,6 @@ public class ExplorerTracker : IDisposable
 
     private static RECT ToRect(AdapterRect b) =>
         new() { Left = b.Left, Top = b.Top, Right = b.Right, Bottom = b.Bottom };
-
-    /// <summary>
-    /// Where the inline card can hang from on the window it is docked to, in physical screen pixels.
-    /// </summary>
-    /// <remarks>
-    /// Resolved in one place on purpose: the card's height budget and its placement both start from
-    /// <see cref="InlineCardHang.BelowY"/>, and a budget measured from one line with the card hung from
-    /// another is what made a card sized to sit outside a window get drawn over it.
-    /// </remarks>
-    /// <param name="dock">The caller's already-validated dock rect for the active window, so the adapter is
-    /// not asked for it a second time.</param>
-    public InlineCardHang GetInlineCardHang(RECT dock)
-    {
-        RECT? buttonRow = null, fileList = null;
-        if (ActiveHwnd != IntPtr.Zero && ActiveAdapter != null)
-        {
-            // A plain file-manager window needs neither answer: its dock rect already IS its file list.
-            if (ActiveAdapter.TryGetButtonRowBounds(ActiveHwnd, out var row) && IsUsableBounds(row))
-                buttonRow = ToRect(row);
-            if (ActiveAdapter.TryGetFileListBounds(ActiveHwnd, out var list) && IsUsableBounds(list))
-                fileList = ToRect(list);
-        }
-
-        return InlineCardHang.Resolve(dock, buttonRow, fileList);
-    }
-
-    /// <summary>The edges of the active window the inline card's top edge can attach to.</summary>
-    public readonly struct InlineCardHang
-    {
-        /// <summary>The row holding the dialog's confirm button, where a card hanging below it snaps. Null for
-        /// a plain window and for a dialog whose adapter cannot see that far in.</summary>
-        public RECT? ButtonRow { get; init; }
-
-        /// <summary>The dialog's file list, where a card that has to lie over the dialog snaps. Null under the
-        /// same conditions as <see cref="ButtonRow"/>.</summary>
-        public RECT? FileList { get; init; }
-
-        /// <summary>The Y a card hanging below starts at: <see cref="ButtonRow"/>'s top edge when the dialog
-        /// can show one, the docked window's own bottom edge otherwise.</summary>
-        public int BelowY { get; init; }
-
-        public static InlineCardHang Resolve(RECT dock, RECT? buttonRow, RECT? fileList) => new()
-        {
-            ButtonRow = buttonRow,
-            FileList = fileList,
-            BelowY = buttonRow?.Top ?? dock.Bottom,
-        };
-    }
 
     private void WinEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
         int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)

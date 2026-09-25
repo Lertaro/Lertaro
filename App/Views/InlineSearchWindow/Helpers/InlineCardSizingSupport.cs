@@ -30,10 +30,10 @@ internal sealed class InlineCardSizingSupport
     /// <summary>The row budget in force right now: what the results area, and the actions area, size to.</summary>
     internal int RowBudget => _rowBudget;
 
-    // How tall the card may get where it is now. A file dialog caps at four rows because the card hangs off
-    // that dialog's own button row, and everything below it belongs to the dialog; a card over a file
-    // manager's window has that window's whole list to fill, and keeps the Ctrl+1..9 budget. This is also
-    // what FullCardHeight prices, so the two cannot disagree about which corner to hang from.
+    // How tall the card may get where it is now. A file dialog caps at four rows because the card is a guest
+    // over somebody else's window, and the shorter it is the less of that window it costs the user; a card
+    // over a file manager's window has that window's whole list to fill, and keeps the Ctrl+1..9 budget. This
+    // is also what FullCardHeight prices, so the two cannot disagree about which corner to hang from.
     private int RowCap => _window.Manager.ExplorerTracker.IsActiveWindowDialog
         ? InlineCardMetrics.DialogRows
         : InlineCardMetrics.DefaultRows;

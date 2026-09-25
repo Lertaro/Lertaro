@@ -30,7 +30,7 @@ public sealed class InlineCardPlacementTests
         // the card at a share of the window) instead of an offset guessed to be one search box tall.
         var anchored = Between(Positioner(), "else if (tracker.ActiveHwnd != IntPtr.Zero)", "var targetLeft =");
 
-        Assert.Contains("targetPhysTop = CalculatePhysTop(hangsBelow, hang, rect", anchored,
+        Assert.Contains("targetPhysTop = CalculatePhysTop(hangsBelow, rect, fileList", anchored,
             "one placement decision, both branches of it answering from the same inputs");
         Assert.DoesNotContain("rect.Bottom - physWindowHeight", anchored,
             "not to the bottom edge, whose position a growing card moves");
@@ -52,19 +52,26 @@ public sealed class InlineCardPlacementTests
 
         Assert.AreEqual(1, Count(anchored, "targetPhysLeft ="),
             "the horizontal anchor is decided once, not once per placement");
-        Assert.Contains("CalculatePhysLeft(isDialog, hangsBelow, rect, hang, anchor", anchored,
-            "and it is one call, taking both the placement and the dialog's inner edges");
+        Assert.Contains("CalculatePhysLeft(isDialog, hangsBelow, rect, fileList, anchor", anchored,
+            "and it is one call, taking the placement and the dialog's file list");
     }
 
     [TestMethod]
-    public void TheHeightBudgetAndThePlacementHangFromTheSameLine()
+    public void TheRoomBelowIsMeasuredToTheMonitorBottomByEveryQuestionThatAsksIt()
     {
-        // The budget decides how many rows fit the room the card has; the placement decides where the card
-        // starts. Measured from two different lines, a card sized to hang outside a dialog got drawn over it
-        // (and the other way round), which is the disagreement InlineCardMetrics' and the positioner's own
-        // comments keep warning about. ExplorerTracker.GetInlineCardHang is the one answer.
-        Assert.Contains("tracker.GetInlineCardHang(rect)", Positioner(), "the placement asks it");
-        Assert.Contains("GetInlineCardHang(rect).BelowY", Space(), "and so does the row budget");
+        // Two things read this space: the placement, which decides below-versus-over on it, and the card's
+        // height budget, which has to fit whatever corner was picked. Measured from two different lines, a
+        // card sized to hang outside a dialog gets drawn over it -- the disagreement InlineCardMetrics' and
+        // the positioner's own comments keep warning about.
+        //
+        // Both measure to the monitor's own bottom edge, taskbar included: covering the taskbar is allowed,
+        // and on a screen where the dialog nearly fills the monitor that strip is the whole difference
+        // between hanging below and lying over the dialog.
+        Assert.Contains("screen.Bounds.Bottom - rect.Bottom", Positioner(), "the placement's room-below");
+        Assert.Contains("screen.Bounds.Bottom - rect.Bottom", Space(), "and the budget's");
+        Assert.DoesNotContain("WorkingArea.Bottom - rect.Bottom", Positioner(),
+            "neither may fall back to the working area, or the taskbar quietly moves the corner");
+        Assert.DoesNotContain("WorkingArea.Bottom - rect.Bottom", Space(), "nor here");
     }
 
     [TestMethod]
@@ -99,14 +106,18 @@ public sealed class InlineCardPlacementTests
     private static int Count(string text, string needle) => text.Split(needle, StringSplitOptions.None).Length - 1;
 
     [TestMethod]
-    public void TheCardIsClampedToTheWorkingAreaOnceForEveryPlacement()
+    public void TheCardIsClampedToTheScreenOnceForEveryPlacement()
     {
-        // Three placements, one clamp. The separate per-mode clamps each re-derived the limit from a
-        // different height (shell for one, visible card for the others), so the modes did not agree about
-        // where the bottom of the screen was.
         // Three placements, one vertical clamp. The per-mode clamps each re-derived the limit from a
-        // different height (the shell in one, the visible card in the others), so the modes did not agree
+        // different height (the shell in one, the visible card for the others), so the modes did not agree
         // about where the bottom of the screen was.
+        //
+        // Where that bottom is depends on the placement: below a window, the monitor's own edge, because the
+        // taskbar may be covered; every other case, the working area, so a card that lies over a dialog never
+        // runs off the screen.
+        Assert.Contains("maxTop = (hangsBelow ? screen.Bounds.Bottom : workingArea.Bottom)", Positioner(),
+            "the below clamp has to be as generous as the room-below measurement that chose it");
+
         var clamp = Between(Positioner(), "targetPhysLeft = Math.Clamp(targetPhysLeft, minLeft, Math.Max(minLeft, maxLeft));", "var targetLeft");
 
         // The horizontal clamp above is the range's own opening line, so two clamps in it means no third.

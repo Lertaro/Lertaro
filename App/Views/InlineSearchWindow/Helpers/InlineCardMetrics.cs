@@ -12,10 +12,9 @@ internal static class InlineCardMetrics
     // card bounded: section titles are rows in the list and cannot make a tenth row appear.
     internal const int DefaultRows = 9;
 
-    // The cap over a file dialog, where the card hangs off the dialog's own button row: everything under
-    // that row belongs to somebody else's window, so four rows is what the card takes before it is covering
-    // the taskbar rather than the dialog. The jump shortcuts keep working 1..4; 5..9 simply have nothing to
-    // jump to here.
+    // The cap over a file dialog: a dialog is mostly other people's controls, and the card that covers one
+    // should leave as much of it usable as possible. The jump shortcuts keep working 1..4; 5..9 simply have
+    // nothing to jump to here.
     internal const int DialogRows = 4;
 
     // The floor a screen-aware budget never drops below, and it is deliberately low: an over-tall card is
@@ -86,7 +85,8 @@ internal static class InlineCardMetrics
     /// <remarks>
     /// Deliberately independent of the card's own height: deriving a budget from a size that the budget
     /// itself decides is what makes a layout oscillate between two answers. Hanging BELOW the anchored window
-    /// is the preferred answer and wins when that space can hold the full card, because it covers nothing;
+    /// is the preferred answer and wins when that space can hold the full card, because it covers none of the
+    /// window the user is working in (the taskbar strip counts as space, and is allowed to be covered);
     /// anything shorter goes over the anchored window, where it may take a share of that window's height
     /// rather than all of it. A zero <paramref name="activeWindowHeight"/> means there is no window to be
     /// anchored to (the desktop, or nothing tracked), so only the working-area share applies.
