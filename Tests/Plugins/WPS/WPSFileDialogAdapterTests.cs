@@ -35,9 +35,10 @@ public sealed class WPSFileDialogAdapterTests
     }
 
     [TestMethod]
-    public void ThePickedPathIsPassedThroughAsIs() =>
-        // Unlike the archive-tool adapters, whose destination field can only hold a folder, this one is an
-        // Open/Save file-name box: a picked file must arrive here as that file, not as its parent folder.
+    public void AnAdapterThatHasNotMatchedADialogGivesTheWideAnswer() =>
+        // The folder-only verdict comes out of CanHandle, which is the only thing that has seen the dialog's
+        // bottom row. Before that the safe answer is the one that hides nothing: an unfiltered result list
+        // rather than a list with every file silently dropped from it.
         Assert.IsFalse(Adapter().TargetIsFolderOnly);
 
     [TestMethod]

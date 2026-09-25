@@ -28,11 +28,18 @@ public class WPSFileDialogAdapter : IFileDialogAdapter
     public string Name => "WPS";
 
     /// <summary>
-    /// The path goes into the dialog's file-name box, which takes a folder or a file exactly as an
-    /// Open/Save dialog's does, so callers should keep passing whichever the user picked -- hence the
-    /// default false rather than the folder-only behaviour the archive-tool adapters opt into.
+    /// Which of the two shapes the matched dialog turned out to have. An Open/Save dialog has a file-name
+    /// editor in its bottom row, which takes a folder or a file; the folder-picking ones (WPS's 上传到云 and
+    /// 导入文件夹) have nothing but their own buttons there, so they can only ever be fed a directory -- and
+    /// through the address row rather than that row, see <see cref="NavigateTo"/>.
     /// </summary>
-    public bool TargetIsFolderOnly => false;
+    /// <remarks>
+    /// Set by <see cref="CanHandle"/> for whichever hwnd it last matched, the way
+    /// StandardFileDialogAdapter does it: this adapter is a long-lived singleton tracking one dialog at a time.
+    /// </remarks>
+    public bool TargetIsFolderOnly => _lastMatchWasFolderOnly;
+
+    private bool _lastMatchWasFolderOnly;
 
     /// <summary>
     /// Two free string comparisons, then the one call that costs something.
@@ -45,9 +52,18 @@ public class WPSFileDialogAdapter : IFileDialogAdapter
     /// window and frame, so in practice nothing but the dialog itself ever reaches the third test.
     /// </remarks>
     public bool CanHandle(IntPtr hwnd, string className, string processName)
-        => WPSDialogIdentity.IsWPSProcess(processName)
-            && WPSDialogIdentity.CouldBeDialogWindowClass(className)
-            && WPSDialogAutomation.GetDialog(hwnd) != null;
+    {
+        if (!WPSDialogIdentity.IsWPSProcess(processName)
+            || !WPSDialogIdentity.CouldBeDialogWindowClass(className))
+            return false;
+
+        var dialog = WPSDialogAutomation.GetDialog(hwnd);
+        if (dialog == null)
+            return false;
+
+        _lastMatchWasFolderOnly = !WPSDialogAutomation.HasFileNameEditor(dialog);
+        return true;
+    }
 
     /// <summary>
     /// Always null: this dialog does not report the folder it is showing.
@@ -63,8 +79,9 @@ public class WPSFileDialogAdapter : IFileDialogAdapter
     public string? GetCurrentPath(IntPtr hwnd) => null;
 
     /// <summary>
-    /// Puts the path in the file-name box and commits it, which is how this dialog is navigated: typing a
-    /// folder and pressing Enter moves the view into it, and typing a file opens it.
+    /// Puts the path where this dialog can read it and commits it: into the file-name box of an Open/Save
+    /// dialog, whose box moves the view into a folder and opens a file, or into the address row of the
+    /// folder-picking dialogs that have no such box.
     /// </summary>
     public bool NavigateTo(IntPtr hwnd, string targetPath)
     {
@@ -74,6 +91,12 @@ public class WPSFileDialogAdapter : IFileDialogAdapter
         var dialog = WPSDialogAutomation.GetDialog(hwnd);
         if (dialog == null)
             return false;
+
+        // The folder-picking shapes of this dialog have no field in their bottom row to type into at all, so
+        // the only way in is their address row. Asking the retrying editor lookup anyway would spend its whole
+        // 500ms budget and then report failure for a dialog that was never going to answer it.
+        if (!WPSDialogAutomation.HasFileNameEditor(dialog))
+            return WPSDialogAutomation.TryNavigateThroughLocationBar(hwnd, targetPath);
 
         var editor = WPSDialogAutomation.FindFileNameEditor(dialog, hwnd);
         if (editor == null)

@@ -28,6 +28,29 @@ internal static class WPSDialogIdentity
     internal const string FileListAreaClassName = "KcfdContentWidget";
 
     /// <summary>
+    /// The empty strip at the right end of the address row, and the row's editable form. Verified against a
+    /// live 上传到云: posting a click into the strip replaces the whole row (KcfdLocNavigationButtonEdit plus
+    /// its breadcrumb) with a single <c>KcfdLocNavigationLineEdit</c> that takes a typed path and navigates on
+    /// Enter. The dialogs whose bottom row has no file-name editor are driven this way.
+    /// </summary>
+    internal const string LocationBarSpaceClassName = "KcfdLocSpaceButton";
+    internal const string LocationEditClassName = "KcfdLocNavigationLineEdit";
+
+    /// <summary>
+    /// Where to click to make the address row editable: the middle of its empty strip.
+    /// </summary>
+    /// <remarks>
+    /// The strip is a node of its own rather than "somewhere on the right of the row" because the row is only
+    /// empty when the path is short. Click a point measured from the row's own edge instead and a deep path
+    /// puts that click on a breadcrumb, which navigates the dialog somewhere the user never asked for.
+    /// </remarks>
+    internal static (double X, double Y)? LocationBarClickPoint(System.Windows.Rect? strip) =>
+        strip is { } s && s.Width > 8 && s.Height > 8
+            && double.IsFinite(s.X) && double.IsFinite(s.Y) && double.IsFinite(s.Width) && double.IsFinite(s.Height)
+            ? (s.X + s.Width / 2, s.Y + s.Height / 2)
+            : null;
+
+    /// <summary>
     /// Editor class names seen inside those combo boxes. Two of them because WPS builds vary: older ones
     /// use Qt's own QLineEdit, newer ones a WPS-internal subclass. Whichever is found first is used.
     /// </summary>

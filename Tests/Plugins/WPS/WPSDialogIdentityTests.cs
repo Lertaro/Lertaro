@@ -82,6 +82,33 @@ public sealed class WPSDialogIdentityTests
     }
 
     [TestMethod]
+    public void TheAddressRowIsClickedInTheMiddleOfItsEmptyStrip()
+    {
+        // Both numbers were read off a live 上传到云: the strip is a node of its own (KcfdLocSpaceButton),
+        // and its width is whatever the breadcrumb does not use -- 206px here, 82px on a deeper path.
+        var click = WPSDialogIdentity.LocationBarClickPoint(new System.Windows.Rect(531, 300, 206, 22));
+        Assert.AreEqual(634, click?.X);
+        Assert.AreEqual(311, click?.Y);
+    }
+
+    [TestMethod]
+    public void ARowWithNoEmptyStripGivesNoClickPoint()
+    {
+        // Clicking the row anyway would land on a breadcrumb and navigate the dialog somewhere the user never
+        // asked for, so "no strip" has to come back as no click rather than as some point on it. NaN and
+        // infinity are what UI Automation answers for a widget on no monitor at all, and neither may survive
+        // into the coordinate cast.
+        Assert.IsNull(WPSDialogIdentity.LocationBarClickPoint(null));
+        Assert.IsNull(WPSDialogIdentity.LocationBarClickPoint(new System.Windows.Rect(531, 300, 0, 22)));
+        Assert.IsNull(WPSDialogIdentity.LocationBarClickPoint(new System.Windows.Rect(531, 300, 4, 22)));
+        Assert.IsNull(WPSDialogIdentity.LocationBarClickPoint(new System.Windows.Rect(531, 300, 206, 0)));
+        Assert.IsNull(WPSDialogIdentity.LocationBarClickPoint(new System.Windows.Rect(double.NaN, 300, 206, 22)));
+        Assert.IsNull(WPSDialogIdentity.LocationBarClickPoint(new System.Windows.Rect(531, double.NaN, 206, 22)));
+        Assert.IsNull(WPSDialogIdentity.LocationBarClickPoint(new System.Windows.Rect(531, 300, double.NaN, 22)));
+        Assert.IsNull(WPSDialogIdentity.LocationBarClickPoint(new System.Windows.Rect(531, 300, 206, double.PositiveInfinity)));
+    }
+
+    [TestMethod]
     public void TheWin32PreFilterAcceptsEveryFormOfTheQtWindowClass()
     {
         // Digits vary with the Qt build, and Sandboxie prefixes the whole class with "Sandbox:BoxName:"

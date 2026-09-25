@@ -193,18 +193,23 @@ internal static class WPSDialogAutomation
             if (widget == null)
                 return null;
 
-            var bounds = widget.Current.BoundingRectangle;
-            // An empty rect is what a framework reports for an element it lays out but never shows -- and a
-            // rect off every screen arrives as NaN, which no cast to int survives usefully. Either way the
-            // caller gets "no anchor" and keeps the placement it had.
-            return bounds.Width <= 0 || bounds.Height <= 0 || double.IsNaN(bounds.X) || double.IsInfinity(bounds.X)
-                ? null
-                : bounds;
+            return ToScreenBounds(widget);
         }
         catch (Exception ex) when (IsTransientAutomationFailure(ex))
         {
             return null;
         }
+    }
+
+    // An empty rect is what a framework reports for an element it lays out but never shows -- and a rect off
+    // every screen arrives as NaN, which no cast to int survives usefully. Either way the caller gets "no such
+    // widget", which for the card's hang points means keeping the placement it had.
+    private static System.Windows.Rect? ToScreenBounds(AutomationElement widget)
+    {
+        var bounds = widget.Current.BoundingRectangle;
+        return bounds.Width <= 0 || bounds.Height <= 0 || double.IsNaN(bounds.X) || double.IsInfinity(bounds.X)
+            ? null
+            : bounds;
     }
 
     /// <summary>
@@ -229,15 +234,92 @@ internal static class WPSDialogAutomation
 
         try
         {
-            var bounds = editor.Current.BoundingRectangle;
-            // An empty rect is what a framework reports for an element it lays out but never shows, and a
-            // zero-width anchor would drag the card to a nonsense position.
-            return bounds.Width <= 0 || bounds.Height <= 0 ? null : bounds;
+            return ToScreenBounds(editor);
         }
         catch (Exception ex) when (IsTransientAutomationFailure(ex))
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Whether this dialog's bottom row holds a field a file name can be typed into.
+    /// </summary>
+    /// <remarks>
+    /// One attempt, not <see cref="FindFileNameEditor"/>'s retrying lookup: this is asked from
+    /// <see cref="CanHandle"/>, which runs on every foreground change, and it is only ever used to choose
+    /// between the dialog's two shapes. A dialog still building its widgets answers "no" here and is then
+    /// driven through the address row, which is what the retrying lookup inside the file-name route is for.
+    /// </remarks>
+    internal static bool HasFileNameEditor(AutomationElement dialog) => FindFileNameEditorOnce(dialog) != null;
+
+    /// <summary>
+    /// Navigates by typing the path into the dialog's address row, for the dialogs that have no file-name
+    /// field to type into -- WPS's 上传到云 and 导入文件夹 among them, whose bottom row holds nothing but their
+    /// own buttons.
+    /// </summary>
+    /// <remarks>
+    /// Measured end to end against a live 上传到云: a posted click in the row's empty strip
+    /// (KcfdLocSpaceButton) replaces the whole breadcrumb with a KcfdLocNavigationLineEdit, SetValue puts the
+    /// path into that, and a posted Enter navigates the dialog to it.
+    ///
+    /// The click has to be on the strip rather than anywhere on the row, and the strip is only as wide as
+    /// whatever the breadcrumb does not use -- see WPSDialogIdentity.LocationBarClickPoint.
+    ///
+    /// Focus is confirmed before the keystroke for the same reason the file-name route confirms the
+    /// foreground first: an Enter that the field does not take is an Enter the dialog's default button does,
+    /// and this dialog's default button is 上传. Backing out with Escape is what keeps a failure here from
+    /// leaving a foreign path sitting in the user's address row.
+    /// </remarks>
+    internal static bool TryNavigateThroughLocationBar(IntPtr dialogHwnd, string path)
+    {
+        try
+        {
+            var dialog = GetDialog(dialogHwnd);
+            if (dialog == null)
+                return false;
+
+            var edit = FindLocationEdit(dialog);
+            if (edit == null)
+            {
+                if (WPSDialogIdentity.LocationBarClickPoint(
+                        TryBoundsOf(dialog, WPSDialogIdentity.LocationBarSpaceClassName)) is not { } click)
+                    return false;
+
+                WPSWindowInterop.PostClickAtScreenPoint(dialogHwnd, click.X, click.Y);
+
+                // Qt rebuilds the row into its editable form in its own time.
+                for (var waited = 0; waited < EditorLookupTimeoutMs && edit == null; waited += EditorLookupStepMs)
+                {
+                    Thread.Sleep(EditorLookupStepMs);
+                    edit = FindLocationEdit(dialog);
+                }
+            }
+
+            if (edit == null)
+                return false;
+
+            if (!TrySetValue(edit, path) || !TryFocus(edit))
+            {
+                WPSWindowInterop.PostEscapeTo(dialogHwnd);
+                return false;
+            }
+
+            return WPSWindowInterop.PostEnterTo(dialogHwnd);
+        }
+        catch (Exception ex) when (IsTransientAutomationFailure(ex))
+        {
+            return false;
+        }
+    }
+
+    private static AutomationElement? FindLocationEdit(AutomationElement dialog) =>
+        FindWidgetByClassName(dialog, WPSDialogIdentity.LocationEditClassName, MaxWidgetDepth);
+
+    private static System.Windows.Rect? TryBoundsOf(AutomationElement dialog, string className)
+    {
+        var widget = FindWidgetByClassName(dialog, className, MaxWidgetDepth);
+        return widget == null ? null : ToScreenBounds(widget);
     }
 
     private static IEnumerable<Condition> EditorConditions()

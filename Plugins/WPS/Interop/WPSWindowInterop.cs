@@ -31,11 +31,64 @@ internal static class WPSWindowInterop
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
+    [DllImport("user32.dll")]
+    private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
+
     private const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
     private const uint INPUT_KEYBOARD = 1;
     private const uint KEYEVENTF_KEYUP = 0x0002;
     private const ushort VK_RETURN = 0x0D;
+    private const ushort VK_ESCAPE = 0x1B;
     private const int ForegroundPollMs = 20;
+    private const uint WM_KEYDOWN = 0x0100;
+    private const uint WM_KEYUP = 0x0101;
+    private const uint WM_MOUSEMOVE = 0x0200;
+    private const uint WM_LBUTTONDOWN = 0x0201;
+    private const uint WM_LBUTTONUP = 0x0202;
+    private static readonly IntPtr MK_LBUTTON = new(0x0001);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    /// <summary>
+    /// Clicks a screen point inside this window by posting the mouse messages to it.
+    /// </summary>
+    /// <remarks>
+    /// Posted to the dialog rather than synthesised at the input queue like <see cref="SendEnter"/>, because
+    /// what it is for is switching the address row into its editable form while the user's keyboard belongs to
+    /// the search card: a click sent through the system queue would land wherever focus happened to be.
+    /// </remarks>
+    internal static bool PostClickAtScreenPoint(IntPtr hwnd, double screenX, double screenY)
+    {
+        if (!IsAlive(hwnd)) return false;
+
+        var point = new POINT { X = (int)screenX, Y = (int)screenY };
+        ScreenToClient(hwnd, ref point);
+        var lParam = (IntPtr)((point.Y << 16) | (point.X & 0xFFFF));
+        PostMessage(hwnd, WM_MOUSEMOVE, IntPtr.Zero, lParam);
+        PostMessage(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, lParam);
+        PostMessage(hwnd, WM_LBUTTONUP, IntPtr.Zero, lParam);
+        return true;
+    }
+
+    /// <summary>
+    /// A keystroke posted to the dialog's own window, which Qt hands to whichever widget it holds focused.
+    /// </summary>
+    internal static bool PostKeyTo(IntPtr hwnd, ushort virtualKey) =>
+        IsAlive(hwnd)
+            && PostMessage(hwnd, WM_KEYDOWN, new IntPtr(virtualKey), IntPtr.Zero)
+            && PostMessage(hwnd, WM_KEYUP, new IntPtr(virtualKey), IntPtr.Zero);
+
+    internal static bool PostEnterTo(IntPtr hwnd) => PostKeyTo(hwnd, VK_RETURN);
+
+    internal static bool PostEscapeTo(IntPtr hwnd) => PostKeyTo(hwnd, VK_ESCAPE);
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct RECT
