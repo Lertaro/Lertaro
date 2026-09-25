@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:update="clr-namespace:Lertaro.App.Services.Update"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="700">
     <UserControl.Resources>
@@ -137,6 +138,24 @@
                                 Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_CheckUpdate]}" 
                                 Click="BtnCheckUpdate_Click" MinWidth="120"/>
                     </Grid>
+
+                    <!-- What a background silent update is doing, when this page is opened during one.
+                         Collapsed while nothing is running, so the card is unchanged for everyone who never
+                         turns the feature on. -->
+                    <TextBlock Text="{Binding Source={x:Static update:SilentUpdateState.Current}, Path=Text}"
+                               Foreground="{DynamicResource TextSecondary2}" TextWrapping="Wrap" Margin="0,12,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Source={x:Static update:SilentUpdateState.Current}, Path=IsActive}"
+                                                 Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
 
                     <!-- Update Progress Bar -->
                     <ProgressBar x:Name="PbUpdate" Margin="0,12,0,0" Visibility="Collapsed"/>

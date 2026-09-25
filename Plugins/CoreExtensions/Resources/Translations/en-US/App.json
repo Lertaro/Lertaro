@@ -441,7 +441,6 @@
   "About_UpToDate": "You are running the latest version.",
   "About_NewVersionAvailable": "New version {0} is available.",
   "About_NewVersionAvailablePrompt": "New version {0} is available. Click OK to open the About page and perform auto-update.",
-  "About_SilentUpdatePrompt": "New version {0} detected. Click OK to automatically execute the silent update and restart the application.",
   "About_CheckUpdateNull": "Failed to check update: API returned null. Please verify if latest release is published on GitHub.",
   "About_CheckUpdateError": "Update check failed with exception:\n{0}\n\nStack:\n{1}",
   "About_CheckUpdateErrorTitle": "Update Error",

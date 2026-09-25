@@ -33,7 +33,14 @@ public enum SearchRequestId : byte
     // per change and cannot even be made correct, since no history small enough to send covers the
     // window between two of them. A watch list is a handful of paths sent once; a hit is rare.
     SubscribeDirectoryChanges = 18,
-    GetSpaceEntries = 19
+    GetSpaceEntries = 19,
+
+    // Ask this install's background service to hand a staged update package to an elevated process in the
+    // caller's own session, which is the only way an update gets written to Program Files without the App
+    // holding a runas/UAC prompt of its own. Carries the staging directory and nothing else: where the
+    // files go is decided by the service, from its own location, so a caller cannot point the elevated copy
+    // at a directory of its choosing.
+    ApplyUpdate = 20
 }
 
 public struct SearchRequestMessage
@@ -58,6 +65,9 @@ public struct SearchRequestMessage
     // LaunchHook: whether the caller wants the hook elevated (only honored if that session's user is
     // genuinely an administrator -- see HookProcessBroker).
     public bool RequestElevation { get; set; }
+
+    // ApplyUpdate: the per-run staging directory holding the downloaded zip and its signature.
+    public string? UpdateSourceDir { get; set; }
 
     // Search/SearchDir: the user's fuzzy-matching preference, carried per request because the service
     // runs as a different (elevated) identity and cannot read this user's settings file. Deliberately

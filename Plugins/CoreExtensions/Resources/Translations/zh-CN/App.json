@@ -441,7 +441,6 @@
   "About_UpToDate": "当前已是最新版本",
   "About_NewVersionAvailable": "检测到新版本 {0}，可以更新。",
   "About_NewVersionAvailablePrompt": "检测到新版本 {0}，可以更新。点击“确定”前往“关于”页面进行自动更新。",
-  "About_SilentUpdatePrompt": "检测到新版本 {0}，点击“确定”将自动执行静默更新并重启程序。",
   "About_CheckUpdateNull": "检查更新失败：API未返回任何数据。请确认最新版本是否已在 GitHub 发布。",
   "About_CheckUpdateError": "检查更新失败，出现异常：\n{0}\n\n堆栈信息：\n{1}",
   "About_CheckUpdateErrorTitle": "更新错误",

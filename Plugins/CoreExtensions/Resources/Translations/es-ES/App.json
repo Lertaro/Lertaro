@@ -441,7 +441,6 @@
   "About_UpToDate": "Estás usando la última versión.",
   "About_NewVersionAvailable": "Hay disponible una nueva versión {0}.",
   "About_NewVersionAvailablePrompt": "Hay disponible una nueva versión {0}. Haz clic en Aceptar para abrir la página Acerca de y realizar la actualización automática.",
-  "About_SilentUpdatePrompt": "Se ha detectado la nueva versión {0}. Haz clic en Aceptar para ejecutar automáticamente la actualización silenciosa y reiniciar la aplicación.",
   "About_CheckUpdateNull": "Error al comprobar la actualización: la API devolvió un valor nulo. Verifica si la última versión está publicada en GitHub.",
   "About_CheckUpdateError": "La comprobación de actualizaciones falló con una excepción:\n{0}\n\nPila:\n{1}",
   "About_CheckUpdateErrorTitle": "Error de Actualización",

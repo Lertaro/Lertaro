@@ -441,7 +441,6 @@
   "About_UpToDate": "現在、最新バージョンです。",
   "About_NewVersionAvailable": "新しいバージョン {0} が利用可能です。",
   "About_NewVersionAvailablePrompt": "新しいバージョン {0} が利用可能です。「OK」をクリックすると「バージョン情報」ページを開いて自動アップデートを実行します。",
-  "About_SilentUpdatePrompt": "新しいバージョン {0} を検出しました。「OK」をクリックするとサイレントアップデートを自動実行し、アプリケーションを再起動します。",
   "About_CheckUpdateNull": "アップデートの確認に失敗しました: API が null を返しました。最新リリースが GitHub に公開されているかご確認ください。",
   "About_CheckUpdateError": "アップデートの確認中に例外が発生しました:\n{0}\n\nスタックトレース:\n{1}",
   "About_CheckUpdateErrorTitle": "アップデートエラー",

@@ -441,7 +441,6 @@
   "About_UpToDate": "현재 최신 버전을 사용하고 있습니다.",
   "About_NewVersionAvailable": "새 버전 {0}을(를) 사용할 수 있습니다.",
   "About_NewVersionAvailablePrompt": "새 버전 {0}을(를) 사용할 수 있습니다. 확인을 클릭하면 정보 페이지를 열고 자동 업데이트를 진행합니다.",
-  "About_SilentUpdatePrompt": "새 버전 {0}이(가) 감지되었습니다. 확인을 클릭하면 자동으로 무음 업데이트를 실행하고 애플리케이션을 다시 시작합니다.",
   "About_CheckUpdateNull": "업데이트 확인 실패: API가 null을 반환했습니다. GitHub에 최신 릴리스가 게시되어 있는지 확인하세요.",
   "About_CheckUpdateError": "업데이트 확인 중 예외가 발생했습니다:\n{0}\n\n스택:\n{1}",
   "About_CheckUpdateErrorTitle": "업데이트 오류",
