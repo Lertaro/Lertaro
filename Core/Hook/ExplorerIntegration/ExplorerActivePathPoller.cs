@@ -11,9 +11,29 @@ internal sealed class ExplorerActivePathPoller : IDisposable
     // produces one poll rather than hundreds.
     private const int LocationSettleMs = 200;
 
+    // How many times a common dialog that nothing claimed is asked again, and the poller's own 200ms quiet
+    // period is the gap between asks.
+    //
+    // The reason this exists: a dialog whose child controls are built AFTER it takes the foreground answers
+    // "not a file dialog" to the single classification it gets, and nothing ever asks again -- re-identification
+    // is gated on the foreground window having changed, and a dialog just sitting there produces no more
+    // events. Rimage's 添加文件夹 is the report that led here: measured once it had settled, that very window
+    // is a plain #32770 with a Breadcrumb Parent and an Edit #1152, which every adapter would claim, yet no
+    // card appeared until the user moved the focus away and back -- the one thing that manufactures a fresh
+    // foreground event. Asked by a timer instead of by an event, it is claimed as soon as it settles.
+    internal const int UnclaimedDialogRetryLimit = 12;
+
     private readonly ExplorerWindowClassifier _classifier;
     private readonly QuietPeriodScheduler _scheduler;
     private ExplorerTracker? _tracker;
+
+    // The budget belongs to the window, not to the poller: one dialog that never becomes interesting must not
+    // spend the retries of the next one.
+    internal static int BudgetFor(IntPtr foreground, IntPtr askedFor, int askedLeft) =>
+        foreground == IntPtr.Zero || foreground != askedFor ? UnclaimedDialogRetryLimit : askedLeft;
+
+    private IntPtr _askedFor;
+    private int _askedLeft = UnclaimedDialogRetryLimit;
 
     public ExplorerActivePathPoller(ExplorerWindowClassifier classifier)
     {
@@ -44,6 +64,28 @@ internal sealed class ExplorerActivePathPoller : IDisposable
 
     public void Dispose() => _scheduler.Dispose();
 
+    private void RetryUnclaimedDialog(ExplorerTracker tracker, IntPtr foreground)
+    {
+        if (tracker.IsActiveWindowDialog || !ExplorerNativeHooks.IsCommonDialogClass(foreground))
+        {
+            _askedFor = IntPtr.Zero;
+            _askedLeft = UnclaimedDialogRetryLimit;
+            return;
+        }
+
+        _askedLeft = BudgetFor(foreground, _askedFor, _askedLeft);
+        _askedFor = foreground;
+        if (_askedLeft <= 0) return;
+        _askedLeft--;
+
+        _classifier.CheckActiveWindow(foreground);
+
+        // Arm the next attempt rather than waiting for an event that a settled window stops producing. Once
+        // the dialog has been claimed this stops on its own, and a dialog that never finishes building spends
+        // at most UnclaimedDialogRetryLimit attempts on it.
+        if (!tracker.IsActiveWindowDialog) _scheduler.RunWhenQuiet();
+    }
+
     private void PollCore(ExplorerTracker tracker)
     {
         var currentFg = ExplorerNativeHooks.GetForegroundWindow();
@@ -61,6 +103,9 @@ internal sealed class ExplorerActivePathPoller : IDisposable
                 _classifier.CheckActiveWindow(currentFg);
             }
         }
+
+        RetryUnclaimedDialog(tracker, currentFg);
+
         if (tracker.IsActiveWindowDialog && tracker.ActiveHwnd != IntPtr.Zero && tracker.ActiveAdapter != null)
         {
             var dialogHwnd = tracker.ActiveHwnd;

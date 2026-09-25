@@ -144,6 +144,13 @@ public static class ExplorerNativeHooks
         return IntPtr.Zero;
     }
 
+    public static bool IsCommonDialogClass(IntPtr hwnd)
+    {
+        var sb = new StringBuilder(256);
+        GetClassName(hwnd, sb, sb.Capacity);
+        return sb.ToString().Equals("#32770", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static bool HasBreadcrumbParent(IntPtr parent)
     {
         var child = FindWindowEx(parent, IntPtr.Zero, null, null);
