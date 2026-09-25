@@ -20,7 +20,7 @@ namespace Lertaro.Core.Services.HookLaunch;
 /// The update applier needs the same launch with different bookkeeping -- a detached applier must never be
 /// deduped away because a hook happens to be running.
 /// </remarks>
-internal static class SessionProcessLauncher
+public static class SessionProcessLauncher
 {
     /// <param name="detachFromConsole">
     /// True for a child that never touches a terminal (the hook). False gives it a console with no window

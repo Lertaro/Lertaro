@@ -55,11 +55,20 @@ if "%errorlevel%"=="0" (
 :: Copy new files to destination directory, overwriting existing files
 xcopy "%SRC_DIR%\*" "%DST_DIR%\" /E /Y /Q /R
 
-:: The payload directory is a subdirectory of the install directory, so it would otherwise be left behind
-:: there forever. Only the copy above is allowed to have read from it.
-rd /s /q "%SRC_DIR%" >nul 2>&1
+:: The service unpacks the verified payload into <install dir>\update-payload -- keep the name in step with
+:: UpdateApplyRequestHandler.PayloadStagingFolderName -- and only the copy above may read from it. Its parent
+:: goes too, whichever of the two layouts the release zip used.
+rd /s /q "%DST_DIR%\update-payload" >nul 2>&1
 
-:: Run Lertaro.App.exe as standard user via explorer.exe to avoid running App as administrator
-start "" explorer.exe "%DST_DIR%\Lertaro.App.exe"
+:: Bring the service back: it was stopped to unlock its own files, and it is the one process that can start
+:: the updated App at the session's own integrity level (see UpdateRelaunchMarker), which it does as it
+:: comes up.
+sc start LertaroService >nul 2>&1
+if %errorlevel% neq 0 (
+    rem The service is deleted or disabled, so nothing else will start the App. This hand-off does not
+    rem work from an elevated process -- UIPI drops the request to the session's non-elevated shell -- so
+    rem it stays only as the fallback it now is, for the install that has no service to lean on.
+    start "" explorer.exe "%DST_DIR%\Lertaro.App.exe"
+)
 
 exit /b 0

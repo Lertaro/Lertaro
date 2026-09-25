@@ -3,7 +3,11 @@ using System.ServiceProcess;
 using Lertaro.Core;
 using Lertaro.Core.Services;
 
+using Lertaro.Core.Services.HookLaunch;
+
 using Lertaro.Core.Services.Plugin.Loading;
+
+using Lertaro.Core.Services.Update;
 namespace Lertaro.Service;
 
 public class UsnService : ServiceBase
@@ -42,6 +46,7 @@ public class UsnService : ServiceBase
 
             _pipeServer = new UsnServicePipeServer();
             _pipeServer.Start(_engine);
+            RelaunchAppAfterUpdate();
             Logger.Log("[UsnService] Service Started successfully.");
         }
         catch (Exception ex)
@@ -67,6 +72,35 @@ public class UsnService : ServiceBase
     {
         OnStop();
         base.OnShutdown();
+    }
+
+    /// <summary>
+    /// Hands the App back to the user after a silent update.
+    /// </summary>
+    /// <remarks>
+    /// The copier runs elevated, and an elevated process asking the session's (non-elevated) shell to start
+    /// something is dropped by UI Privilege Isolation -- measured on the machine this replaced: the files
+    /// were copied, the service was left stopped, and the App never came back. Only this process, restarted
+    /// by the copier, holds the privilege to start the App at the session's own integrity level, which is
+    /// what the note written before the copy is for.
+    ///
+    /// Called after the pipe server is listening, so an App that comes up and asks the service something
+    /// immediately finds an answer. A duplicate for a user who started the App by hand in the meantime is
+    /// answered by the App's own per-session mutex.
+    /// </remarks>
+    private static void RelaunchAppAfterUpdate()
+    {
+        if (!UpdateRelaunchMarker.TryTake(out var sessionId, out var appExePath, DateTimeOffset.UtcNow))
+            return;
+
+        if (!SessionProcessLauncher.TryLaunch(sessionId, appExePath, string.Empty, requestElevation: false,
+                detachFromConsole: true, out var pid, out var error))
+        {
+            Logger.Log($"[UsnService] Update finished but the App could not be started: {error}", LogLevel.Error);
+            return;
+        }
+
+        Logger.Log($"[UsnService] Started the updated App (PID {pid}) in session {sessionId}.");
     }
 
     internal void TestStart() => OnStart(Array.Empty<string>());

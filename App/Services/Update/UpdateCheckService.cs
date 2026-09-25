@@ -64,10 +64,26 @@ public static class UpdateCheckService
                 // business on the UI thread, and CustomMessageBox already marshals the one dialog it may
                 // show. StartSilentUpdateAsync only returns true once the updater is running, and the
                 // updater needs these files unlocked, so leaving is the last step here.
-                if (await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.BrowserDownloadUrl))
+                //
+                // The progress goes to SilentUpdateState rather than to a window, because there is no
+                // window at this point -- but the user can open one, and "no dialogs" is not the same
+                // promise as "nothing to see".
+                var downloadingFormat = TranslationManager.Instance["About_Downloading"];
+                var progress = new Action<double>(p =>
+                    SilentUpdateState.Report(string.Format(downloadingFormat, (int)(p * 100))));
+
+                if (await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.BrowserDownloadUrl, progress))
+                {
+                    SilentUpdateState.Report(TranslationManager.Instance["About_Success"]);
                     TrayCleanExitHelper.CleanExit();
+                }
                 else
+                {
+                    // Nothing is running, so nothing should be claimed to be running. The reason is in the
+                    // log, and the release will be offered again after the cooldown.
+                    SilentUpdateState.Report(null);
                     RememberFailedAttempt(settings, release.TagName);
+                }
                 return;
             }
 

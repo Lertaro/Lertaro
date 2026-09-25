@@ -37,6 +37,8 @@ internal static class UpdateApplyRequestHandler
     /// <summary>Subdirectory of the install directory the verified payload is unpacked into for the copier.</summary>
     internal const string PayloadStagingFolderName = "update-payload";
 
+    private const string AppExeFileName = "Lertaro.App.exe";
+
     public static PipeResponse Handle(NamedPipeServerStream pipe, string? sourceDir)
     {
         try
@@ -70,11 +72,21 @@ internal static class UpdateApplyRequestHandler
             // one of the files being copied: an applier running from the install directory would hold
             // Lertaro.Service.exe and Lertaro.Core.dll locked and could not overwrite them. The script lives
             // in System32, so nothing it replaces is in use by it.
+            //
+            // Recorded before the copier starts, because the copier stops this service and this service is
+            // the only process that can hand the App back to the session at its own integrity level.
+            UpdateRelaunchMarker.Write(sessionId, Path.Combine(installDir, AppExeFileName), DateTimeOffset.UtcNow);
+
             var arguments = $"/c \"\"{updaterBat}\" \"{payloadDir}\" \"{installDir}\"\"";
             var cmdExe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe");
             if (!SessionProcessLauncher.TryLaunch(sessionId, cmdExe, arguments, requestElevation: true,
                     detachFromConsole: false, out var pid, out var error))
+            {
+                // Nothing was copied and this service stays running, so the note would only make some later
+                // start of the service launch an App nobody asked for.
+                UpdateRelaunchMarker.Clear();
                 return Reject(error ?? "Could not start the updater.");
+            }
 
             Logger.Log($"[UsnService] Update applier launched (PID {pid}) into session {sessionId} for PID {callerPid}.");
             return new PipeResponse { Kind = PipeResponseKind.Ok };
