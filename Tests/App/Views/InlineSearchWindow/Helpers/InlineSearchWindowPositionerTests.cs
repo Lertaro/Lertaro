@@ -26,14 +26,14 @@ public sealed class InlineSearchWindowPositionerTests
         // answer, it was a DIFFERENT one, so every dialog left unmeasured sat across the middle of the
         // address bar and then snapped sideways whenever the measurement finally arrived.
         Assert.AreEqual(812, InlineSearchWindowPositioner.CalculatePhysLeft(
-            false, Rect(480, 1440), null, null, 640, 12, 0));
+            false, Rect(480, 1440), null, null, 640, 12));
 
     [TestMethod]
     public void ADialogThatNamedItsFieldStillHangsOffThatField() =>
         // 1405 - 640 + 12: the +12 is the transparent XAML margin, so it is the card's *visible* right edge
         // that meets the field's, which is what the user reads as "under the box".
         Assert.AreEqual(777, InlineSearchWindowPositioner.CalculatePhysLeft(
-            false, Rect(480, 1440), null, Rect(783, 1405), 640, 12, 0));
+            false, Rect(480, 1440), null, Rect(783, 1405), 640, 12));
 
     // The tests below use two real dialogs, measured off live windows with Lertaro's own probes at 96 DPI
     // (so physical px == DIP):
@@ -52,8 +52,8 @@ public sealed class InlineSearchWindowPositionerTests
         var dock = Box(191, 314, 1048, 924);
         var fileList = Box(352, 438, 1047, 788);
 
-        var left = InlineSearchWindowPositioner.CalculatePhysLeft(true, dock, fileList, null, 571, 12, 0);
-        var top = InlineSearchWindowPositioner.CalculatePhysTop(true, dock, fileList, 12, 0);
+        var left = InlineSearchWindowPositioner.CalculatePhysLeft(true, dock, fileList, null, 571, 12);
+        var top = InlineSearchWindowPositioner.CalculatePhysTop(true, dock, fileList, 12);
 
         Assert.AreEqual(912, top, "its visible top edge meets the dialog's bottom edge");
         Assert.AreEqual(334, left);
@@ -66,8 +66,8 @@ public sealed class InlineSearchWindowPositionerTests
         var dock = Box(191, 314, 1048, 924);
         var fileList = Box(352, 438, 1047, 788);
 
-        var left = InlineSearchWindowPositioner.CalculatePhysLeft(false, dock, fileList, null, 571, 12, 0);
-        var top = InlineSearchWindowPositioner.CalculatePhysTop(false, dock, fileList, 12, 0);
+        var left = InlineSearchWindowPositioner.CalculatePhysLeft(false, dock, fileList, null, 571, 12);
+        var top = InlineSearchWindowPositioner.CalculatePhysTop(false, dock, fileList, 12);
 
         // Visible right edge = 488 + 571 - 12 = 1047 and visible top = 426 + 12 = 438, i.e. the card's top
         // right corner on the list's, hanging down over it -- so it covers files, which scroll, rather than
@@ -82,11 +82,11 @@ public sealed class InlineSearchWindowPositionerTests
         var dock = Box(187, 310, 1147, 958);
         var fileList = Box(396, 394, 1147, 818);
 
-        Assert.AreEqual(347, InlineSearchWindowPositioner.CalculatePhysLeft(true, dock, fileList, null, 640, 12, 0));
-        Assert.AreEqual(946, InlineSearchWindowPositioner.CalculatePhysTop(true, dock, fileList, 12, 0));
+        Assert.AreEqual(347, InlineSearchWindowPositioner.CalculatePhysLeft(true, dock, fileList, null, 640, 12));
+        Assert.AreEqual(946, InlineSearchWindowPositioner.CalculatePhysTop(true, dock, fileList, 12));
         // 519 + 640 - 12 = 1147: the dialog's own right edge, which is also where its list ends.
-        Assert.AreEqual(519, InlineSearchWindowPositioner.CalculatePhysLeft(false, dock, fileList, null, 640, 12, 0));
-        Assert.AreEqual(382, InlineSearchWindowPositioner.CalculatePhysTop(false, dock, fileList, 12, 0));
+        Assert.AreEqual(519, InlineSearchWindowPositioner.CalculatePhysLeft(false, dock, fileList, null, 640, 12));
+        Assert.AreEqual(382, InlineSearchWindowPositioner.CalculatePhysTop(false, dock, fileList, 12));
     }
 
     [TestMethod]
@@ -97,10 +97,10 @@ public sealed class InlineSearchWindowPositionerTests
         // and a card over a Save dialog behave alike.
         var dock = Box(0, 0, 1000, 800);
 
-        Assert.AreEqual(250, InlineSearchWindowPositioner.CalculatePhysLeft(true, dock, null, null, 500, 12, 0));
-        Assert.AreEqual(788, InlineSearchWindowPositioner.CalculatePhysTop(true, dock, null, 12, 0));
-        Assert.AreEqual(512, InlineSearchWindowPositioner.CalculatePhysLeft(false, dock, null, null, 500, 12, 0));
-        Assert.AreEqual(-12, InlineSearchWindowPositioner.CalculatePhysTop(false, dock, null, 12, 0));
+        Assert.AreEqual(250, InlineSearchWindowPositioner.CalculatePhysLeft(true, dock, null, null, 500, 12));
+        Assert.AreEqual(788, InlineSearchWindowPositioner.CalculatePhysTop(true, dock, null, 12));
+        Assert.AreEqual(512, InlineSearchWindowPositioner.CalculatePhysLeft(false, dock, null, null, 500, 12));
+        Assert.AreEqual(-12, InlineSearchWindowPositioner.CalculatePhysTop(false, dock, null, 12));
     }
 
     [TestMethod]
@@ -111,12 +111,12 @@ public sealed class InlineSearchWindowPositionerTests
         // from correct rather than in a different corner. 1440 - 640 + 12, with the card's visible right edge
         // on the dialog's own.
         var dock = Box(480, 272, 1440, 920);
-        Assert.AreEqual(812, InlineSearchWindowPositioner.CalculatePhysLeft(false, dock, null, null, 640, 12, 0));
+        Assert.AreEqual(812, InlineSearchWindowPositioner.CalculatePhysLeft(false, dock, null, null, 640, 12));
 
         // Below, nothing changed: the card is still centered under the window it hangs from, and the top edge
         // is still the dialog's own when there is no list to name.
-        Assert.AreEqual(640, InlineSearchWindowPositioner.CalculatePhysLeft(true, dock, null, null, 640, 12, 0));
-        Assert.AreEqual(908, InlineSearchWindowPositioner.CalculatePhysTop(true, dock, null, 12, 0));
-        Assert.AreEqual(260, InlineSearchWindowPositioner.CalculatePhysTop(false, dock, null, 12, 0));
+        Assert.AreEqual(640, InlineSearchWindowPositioner.CalculatePhysLeft(true, dock, null, null, 640, 12));
+        Assert.AreEqual(908, InlineSearchWindowPositioner.CalculatePhysTop(true, dock, null, 12));
+        Assert.AreEqual(260, InlineSearchWindowPositioner.CalculatePhysTop(false, dock, null, 12));
     }
 }
