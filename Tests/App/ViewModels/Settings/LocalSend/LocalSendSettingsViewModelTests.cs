@@ -1,3 +1,4 @@
+using System.IO;
 using Lertaro.App.ViewModels.Settings.LocalSend;
 using Lertaro.Core;
 using Lertaro.Core.Services.LocalSend.Models;
@@ -60,5 +61,20 @@ public class LocalSendSettingsViewModelTests
 
         Assert.HasCount(1, vm.DiscoveredDevices);
         Assert.AreEqual("Phone-1", vm.DiscoveredDevices[0].Alias);
+    }
+
+    [TestMethod]
+    public void LocalSendSettingsViewModel_KeepsTheShellTokenAndShowsTheFolderItResolvesTo()
+    {
+        var settings = new UserSettings();
+        var vm = new LocalSendSettingsViewModel(settings);
+
+        // The row shows a real folder, but what the page stores stays the token -- applying the settings
+        // page must not freeze today's Downloads location into the file.
+        Assert.AreEqual(LocalSendSettingsModel.DefaultDownloadDirectory, vm.DownloadDirectory);
+        Assert.IsTrue(Directory.Exists(vm.DownloadDirectoryDisplay));
+
+        vm.Apply();
+        Assert.AreEqual(LocalSendSettingsModel.DefaultDownloadDirectory, settings.LocalSend.DownloadDirectory);
     }
 }

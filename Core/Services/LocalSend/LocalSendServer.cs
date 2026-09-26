@@ -26,8 +26,7 @@ public sealed class LocalSendServer : IDisposable
         Port = 53317,
         Protocol = "http"
     };
-    public string DownloadDirectory { get; set; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+    public string DownloadDirectory { get; set; } = LocalSendServerHelper.ResolveDownloadDirectory(null);
     public bool QuickSave { get; set; } = false;
     public bool VerifyChecksums { get; set; } = true;
     public string? ReceivePin { get; set; }

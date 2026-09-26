@@ -58,7 +58,11 @@ public class LocalSendSettingsModel
     public int Port { get; set; } = 53317;
     public bool QuickSave { get; set; } = false;
     public bool QuickSaveFromFavorites { get; set; } = true;
-    public string DownloadDirectory { get; set; } = string.Empty;
+    // The shell token rather than a path built from SpecialFolder.UserProfile: Downloads is routinely
+    // redirected to another drive or localized, and only the token follows it. Resolved by
+    // LocalSendServerHelper.ResolveDownloadDirectory wherever the physical folder is needed.
+    public const string DefaultDownloadDirectory = "shell:Downloads";
+    public string DownloadDirectory { get; set; } = DefaultDownloadDirectory;
     public bool EnableHttps { get; set; } = true;
     public bool CreateChecksums { get; set; } = true;
     public bool VerifyChecksums { get; set; } = true;

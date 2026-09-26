@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Windows.Input;
 using Lertaro.App.Helpers;
 using Lertaro.Core;
@@ -31,7 +30,7 @@ public sealed class LocalSendSettingsViewModel : ViewModelBase
         _discoveryTimeout = userSettings.LocalSend.DiscoveryTimeout > 0 ? userSettings.LocalSend.DiscoveryTimeout : 1000;
         _quickSave = userSettings.LocalSend.QuickSave;
         _downloadDirectory = string.IsNullOrEmpty(userSettings.LocalSend.DownloadDirectory)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")
+            ? LocalSendSettingsModel.DefaultDownloadDirectory
             : userSettings.LocalSend.DownloadDirectory;
         _enableHttps = userSettings.LocalSend.EnableHttps;
         _createChecksums = userSettings.LocalSend.CreateChecksums;
@@ -72,8 +71,18 @@ public sealed class LocalSendSettingsViewModel : ViewModelBase
     public string DownloadDirectory
     {
         get => _downloadDirectory;
-        set => SetProperty(ref _downloadDirectory, value);
+        set
+        {
+            if (SetProperty(ref _downloadDirectory, value))
+                OnPropertyChanged(nameof(DownloadDirectoryDisplay));
+        }
     }
+
+    /// <summary>
+    /// What the row shows: the folder files actually land in. The stored value stays the configured one
+    /// (the shell token by default) so applying the page never freezes it to today's physical path.
+    /// </summary>
+    public string DownloadDirectoryDisplay => Core.Services.LocalSend.LocalSendServerHelper.ResolveDownloadDirectory(_downloadDirectory);
 
     public bool EnableHttps
     {
@@ -139,7 +148,7 @@ public sealed class LocalSendSettingsViewModel : ViewModelBase
         {
             Description = "Select LocalSend Download Directory",
             UseDescriptionForTitle = true,
-            SelectedPath = DownloadDirectory
+            SelectedPath = Core.Services.LocalSend.LocalSendServerHelper.ResolveDownloadDirectory(DownloadDirectory)
         };
 
         if (dialog.ShowDialog() == DialogResult.OK)

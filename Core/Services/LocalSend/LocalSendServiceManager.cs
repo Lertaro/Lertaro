@@ -74,9 +74,7 @@ public sealed class LocalSendServiceManager : IDisposable
         _createChecksums = settings.CreateChecksums;
 
         var alias = string.IsNullOrWhiteSpace(settings.DeviceAlias) ? Environment.MachineName : settings.DeviceAlias;
-        var downloadDir = string.IsNullOrWhiteSpace(settings.DownloadDirectory)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")
-            : settings.DownloadDirectory;
+        var downloadDir = LocalSendServerHelper.ResolveDownloadDirectory(settings.DownloadDirectory);
 
         var identityCertificate = LocalSendCertificate.LoadOrCreate();
         settings.DeviceFingerprint = LocalSendCertificate.GetFingerprint(identityCertificate);

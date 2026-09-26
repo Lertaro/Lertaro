@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
+using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.Core.Services.LocalSend;
 
@@ -179,6 +180,16 @@ public static class LocalSendServerHelper
             Logger.Log($"[LocalSendServer] Failed to delete partial file {path}: {deleteEx.Message}", LogLevel.Warn);
         }
     }
+
+    /// <summary>
+    /// The physical folder received files are saved to. The setting is a shell token by default (and
+    /// accepts one anywhere), so it goes through the app's shared resolver instead of being treated as a
+    /// literal path. A blank value is a setting written before the token was the default.
+    /// </summary>
+    public static string ResolveDownloadDirectory(string? configured) =>
+        UserPathResolver.Resolve(string.IsNullOrWhiteSpace(configured)
+            ? LocalSendSettingsModel.DefaultDownloadDirectory
+            : configured);
 
     public static string GetLocalDeviceHashtag()
     {

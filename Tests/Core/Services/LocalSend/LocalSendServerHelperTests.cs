@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using Lertaro.Core.Services.LocalSend;
 using Lertaro.Core.Services.LocalSend.Models;
+using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.Core.Tests.Services.LocalSend;
 
@@ -225,5 +226,21 @@ public class LocalSendServerHelperTests
         ]);
 
         Assert.AreEqual("#84 / #111 / #1", hashtag);
+    }
+
+    [TestMethod]
+    public void ResolveDownloadDirectory_PassesAPhysicalPathThroughAndTurnsTheTokenIntoOne()
+    {
+        Assert.AreEqual(@"D:\Elsewhere", LocalSendServerHelper.ResolveDownloadDirectory(@"D:\Elsewhere"));
+
+        // The token default, and the blank a settings file written before it existed holds: both have to
+        // come out as a folder that is really there. That is what the token buys -- a Downloads moved to
+        // another drive or given a localized name follows instead of being rebuilt from UserProfile.
+        foreach (var configured in new string?[] { null, "", LocalSendSettingsModel.DefaultDownloadDirectory })
+        {
+            var resolved = LocalSendServerHelper.ResolveDownloadDirectory(configured);
+            Assert.IsFalse(UserPathResolver.IsVirtualPath(resolved), $"'{configured}' came back unresolved");
+            Assert.IsTrue(Directory.Exists(resolved), $"'{configured}' resolved to a missing folder: {resolved}");
+        }
     }
 }
