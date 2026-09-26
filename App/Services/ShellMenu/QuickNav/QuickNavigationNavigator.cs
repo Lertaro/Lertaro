@@ -58,10 +58,20 @@ public static class QuickNavigationNavigator
 
         // The desktop has no folder pane to navigate. A configured default file manager must therefore
         // handle its folders, just as it does for inline search, rather than Explorer opening them.
+        var fileManager = UserSettings.Load().DefaultFileManager;
         var openFolderThroughDefaultManager = isDir && InlineSearchNavigator.OpeningAFolderBelongsToTheFileManager(
             trigger.IsDesktop,
             isDir,
-            UserSettings.Load().DefaultFileManager);
+            fileManager);
+
+        // The other half of "this folder is not something to navigate into": with the Explorer-tab option
+        // on, a folder in the navigation menus is an OPEN, and the tab request lives behind the App's own
+        // folder route below. Left to the adapter it would have driven the tab already showing instead.
+        var folderBelongsToExplorerTabRoute = FolderBelongsToExplorerTabRoute(
+            isDir,
+            isVirtualPath,
+            ExplorerShellWindowsHelper.TargetsWindowsExplorer(trigger.ActiveHwnd),
+            fileManager);
 
         // Delegate to whichever file-manager adapter matched the active host (Explorer, Directory Opus,
         // Total Commander, ...) so folders navigate in place and files open/select there. Uses the captured trigger.ActiveHwnd/
@@ -69,7 +79,7 @@ public static class QuickNavigationNavigator
         // trigger.DialogHwnd above -- the Hook still re-resolves the adapter for trigger.ActiveHwnd itself
         // (see InlineAdapterCommandHandler.ResolveAdapter) if its own tracker has since moved on, so this
         // stays correct even though the hwnd was captured a while ago.
-        if (!isVirtualPath && !openFolderThroughDefaultManager && trigger.ActiveAdapter != null && trigger.ActiveHwnd != IntPtr.Zero && App.HookClient?.IsConnected == true)
+        if (!isVirtualPath && !openFolderThroughDefaultManager && !folderBelongsToExplorerTabRoute && trigger.ActiveAdapter != null && trigger.ActiveHwnd != IntPtr.Zero && App.HookClient?.IsConnected == true)
         {
             if (InlineAdapterIpcCoordinator.ExecuteItem(trigger.ActiveHwnd, path, isDir, string.Empty, App.HookClient.SendMessage, out var lateResult))
                 return;
@@ -99,6 +109,21 @@ public static class QuickNavigationNavigator
 
     internal static string ResolveNavigationPath(string path)
         => UserPathResolver.ResolveForNavigation(path);
+
+    /// <summary>
+    /// Whether a folder picked from a navigation menu belongs to the Explorer-tab route instead of to the
+    /// window in front of the user.
+    /// </summary>
+    /// <remarks>
+    /// The option is about Explorer's tabs, so the two cases that have none keep their current answer: a
+    /// third-party manager's window (its adapter navigates in place, as inline search's does), and a
+    /// configured replacement file manager -- which is the same gate <see cref="FileExecutor.OpenFileOrFolder"/>
+    /// applies before it asks for a tab, so the two cannot disagree about who owns the folder.
+    /// </remarks>
+    internal static bool FolderBelongsToExplorerTabRoute(bool isDir, bool isVirtualPath, bool hostIsWindowsExplorer, DefaultFileManagerSetting fileManager)
+        => isDir && !isVirtualPath && hostIsWindowsExplorer
+           && fileManager.OpenFoldersInNewExplorerTabs
+           && (!fileManager.Enabled || string.IsNullOrWhiteSpace(fileManager.Path));
 
     // This is a NAVIGATION menu -- picking a file should land on it (selected, in its folder) rather than
     // launch it, UNLESS the active host is the desktop: there's no Explorer pane to navigate-and-select

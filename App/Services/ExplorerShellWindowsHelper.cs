@@ -253,6 +253,12 @@ internal static class ExplorerShellWindowsHelper
                && string.Equals(buffer.ToString(), className, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Whether this is Windows Explorer's own folder window -- the only kind that has the tab strip the
+    /// new-tab route drives. A third-party manager's window and the desktop are both <see langword="false"/>.
+    /// </summary>
+    internal static bool TargetsWindowsExplorer(IntPtr hwnd) => hwnd != IntPtr.Zero && HasClassName(hwnd, ExplorerWindowClass);
+
     private static bool PathsEqual(string? left, string? right) =>
         string.Equals(
             Path.TrimEndingDirectorySeparator(left ?? string.Empty),
