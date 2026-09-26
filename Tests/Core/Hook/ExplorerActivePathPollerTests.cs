@@ -14,6 +14,47 @@ public sealed class ExplorerActivePathPollerTests
     }
 
     [TestMethod]
+    public void UpdatePath_ADialogClaim_KeepsTheDialogVerdictWithoutAnAdapter()
+    {
+        // The claim comes from the process that owns the WinEvent path; this process may have matched no
+        // adapter because its own cross-process read timed out while the other side was still building.
+        // The card is what waits on that verdict, so the claim wins over the weaker local answer -- but only
+        // while a window is actually tracked, which is why the handle is set here rather than left empty.
+        using var tracker = new ExplorerTracker { ActiveHwnd = new IntPtr(0x1234) };
+
+        bool? reported = null;
+        tracker.OnPathCaptured += (_, _, isDialog) => reported = isDialog;
+        tracker.UpdatePath(@"D:\Downloads", isDesktop: false, isDialog: true);
+
+        Assert.IsTrue(tracker.IsActiveWindowDialog);
+        Assert.AreEqual(true, reported);
+    }
+
+    [TestMethod]
+    public void UpdatePath_ADialogClaimAfterDeactivation_DoesNotResurrectAnything()
+    {
+        // A path event still in flight after the tracker let the window go must not leave it claiming a
+        // dialog with no dialog to point at: everything downstream reads ActiveHwnd alongside the flag.
+        using var tracker = new ExplorerTracker();
+
+        tracker.UpdatePath(@"D:\Downloads", isDesktop: false, isDialog: true);
+
+        Assert.IsFalse(tracker.IsActiveWindowDialog);
+    }
+
+    [TestMethod]
+    public void UpdatePath_WithoutAClaim_LeavesTheVerdictAlone()
+    {
+        // The path collector calls this with isDialog omitted: a plain Explorer window's path must not be
+        // read as "a dialog", or the card would filter to folders over an ordinary window.
+        using var tracker = new ExplorerTracker();
+
+        tracker.UpdatePath(@"D:\Downloads", isDesktop: false);
+
+        Assert.IsFalse(tracker.IsActiveWindowDialog);
+    }
+
+    [TestMethod]
     public void UpdatePath_UsesConfiguredPathNormalizer()
     {
         using var tracker = new ExplorerTracker { PathNormalizer = _ => string.Empty };

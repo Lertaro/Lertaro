@@ -57,9 +57,22 @@ public class ExplorerTracker : IDisposable
         ExplorerNativeHooks.GetClassName(_activeHwnd, sbClass, sbClass.Capacity);
         var className = sbClass.ToString();
         var processName = GetProcessName(_activeHwnd);
-        ActiveAdapter = FileDialogAdapterRegistry.GetMatchingAdapter(_activeHwnd, className, processName);
+
+        // Bounded, like every other plugin read in this file's callers. An adapter's CanHandle is a
+        // cross-process probe for the dialogs whose widgets carry no window handles of their own, and this
+        // runs on whichever thread just learned about a foreground change -- in the App, the IPC mirror
+        // thread that carries *every* event. Measured on a Rimage folder dialog: its thread was still busy
+        // initializing, this read parked behind it for seconds, and the whole mirror went quiet rather than
+        // just this one window being answered wrong.
+        var budget = TimeSpan.FromMilliseconds(ExplorerWindowClassifier.DefaultPluginTimeoutMs);
+        var hwnd = _activeHwnd;
+        ActiveAdapter = ExplorerStaInvoker.RunOnStaWithTimeout(
+            () => FileDialogAdapterRegistry.GetMatchingAdapter(hwnd, className, processName),
+            (IFileDialogAdapter?)null, budget);
         _isActiveWindowDialog = ActiveAdapter != null;
-        ActiveInlineAdapter = InlineSearchAdapterRegistry.GetMatchingAdapter(_activeHwnd, className, processName);
+        ActiveInlineAdapter = ExplorerStaInvoker.RunOnStaWithTimeout(
+            () => InlineSearchAdapterRegistry.GetMatchingAdapter(hwnd, className, processName),
+            (IInlineSearchAdapter?)null, budget);
         IsActiveWindowExplorer = !IsDesktop && (ActiveInlineAdapter?.IsFileExplorer ?? false);
     }
     public void SetActiveInlineAdapterDirectly(IInlineSearchAdapter? adapter, IntPtr hwnd)
@@ -161,6 +174,23 @@ public class ExplorerTracker : IDisposable
             LastPath = path;
             Logger.Log($"[ExplorerTracker] UpdatePath captured path: {path} (isDesktop={isDesktop})", LogLevel.Debug);
             var pathIsDialog = isDialog ?? IsActiveWindowDialog;
+            if (isDialog == true && !_isActiveWindowDialog && _activeHwnd != IntPtr.Zero)
+            {
+                // The process that owns the WinEvent path has claimed this window as a dialog, while this
+                // process's own probe matched nothing -- a read that timed out, or a dialog still building.
+                // The claim wins: the card is what the user is waiting on, and everything the adapter would
+                // have answered for -- the anchor rect, the folder it feeds -- already has a fallback.
+                //
+                // Only while a window is actually tracked, though: a path event that arrives after a
+                // deactivation carries the claim for a window this tracker has let go of, and honouring it
+                // there would say "a dialog is active" with no dialog to point at.
+                Logger.Log(
+                    $"[ExplorerTracker] Path event reports 0x{_activeHwnd:x} as a claimed dialog; "
+                    + "no adapter matched it in this process.",
+                    LogLevel.Debug);
+                _isActiveWindowDialog = true;
+            }
+
             if (!pathIsDialog) _dialogTracker.SetLastActiveExplorerPath(path);
             RaisePathCaptured(path, isDesktop, pathIsDialog);
         }

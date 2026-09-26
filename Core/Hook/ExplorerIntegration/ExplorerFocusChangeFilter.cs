@@ -28,7 +28,18 @@ internal static class ExplorerFocusChangeFilter
         {
             var rootHwnd = ExplorerNativeHooks.GetAncestor(hwnd, ExplorerNativeHooks.GA_ROOTOWNER);
             if (rootHwnd == IntPtr.Zero) rootHwnd = hwnd;
-            if (rootHwnd == tracker.ActiveHwnd) return true;
+            if (rootHwnd == tracker.ActiveHwnd)
+            {
+                // Worth its line in the log: this is the one place where a window we already track makes every
+                // event for a window owned by it invisible, which from outside the process looks identical to
+                // "the card never appears no matter how long I wait". It was the leading suspect for the
+                // Rimage report and turned out not to be it -- which is its own reason to keep the line.
+                Logger.Log(
+                    $"[ExplorerTracker] Event for 0x{hwnd:x} dropped: its root owner 0x{rootHwnd:x} is the "
+                    + $"tracked window (dialog={tracker.IsActiveWindowDialog}).",
+                    LogLevel.Debug);
+                return true;
+            }
         }
         return false;
     }

@@ -23,6 +23,11 @@ internal sealed class ExplorerActivePathPoller : IDisposable
     // foreground event. Asked by a timer instead of by an event, it is claimed as soon as it settles.
     internal const int UnclaimedDialogRetryLimit = 12;
 
+    // How long one speculative ask may hold things: half the poll gap, so a retry cannot be the reason the
+    // next event waits, and it gives up on the lock rather than queueing behind a read already in flight.
+    private const int RetryLockWaitMs = 50;
+    private const int RetryReadBudgetMs = 100;
+
     private readonly ExplorerWindowClassifier _classifier;
     private readonly QuietPeriodScheduler _scheduler;
     private ExplorerTracker? _tracker;
@@ -78,7 +83,16 @@ internal sealed class ExplorerActivePathPoller : IDisposable
         if (_askedLeft <= 0) return;
         _askedLeft--;
 
-        _classifier.CheckActiveWindow(foreground);
+        // Tighter than what a real foreground change gets, and willing to skip a contended lock: a retry is
+        // speculative, so the honest answer is to ask again shortly rather than to hold the thread that reads
+        // every window in the session. ExplorerStaInvoker's own abandoned-thread cap then turns a wedged
+        // target into fast failures instead of a queue of waits.
+        _classifier.CheckActiveWindow(foreground, RetryLockWaitMs, RetryReadBudgetMs);
+
+        Logger.Log(
+            $"[ExplorerTracker] Unclaimed #32770 retry for 0x{foreground:x}: "
+            + (tracker.IsActiveWindowDialog ? "claimed." : $"still unclaimed, {(_askedLeft > 0 ? _askedLeft + " left" : "budget spent")}."),
+            LogLevel.Debug);
 
         // Arm the next attempt rather than waiting for an event that a settled window stops producing. Once
         // the dialog has been claimed this stops on its own, and a dialog that never finishes building spends
@@ -95,10 +109,16 @@ internal sealed class ExplorerActivePathPoller : IDisposable
             ExplorerNativeHooks.GetClassName(currentFg, sbClass, sbClass.Capacity);
             var className = sbClass.ToString();
             var processName = tracker.GetProcessName(currentFg);
-            if (FileDialogAdapterRegistry.GetMatchingAdapter(currentFg, className, processName) != null ||
-                InlineSearchAdapterRegistry.GetMatchingAdapter(currentFg, className, processName) != null ||
-                ActivePathCollectorRegistry.GetCollectors()
-                    .Any(collector => collector.CanHandle(currentFg, className, processName)))
+            // Bounded like the classifier's own reads: these adapters reach into the target process, and this
+            // runs on the WinEvent thread whenever an event asked for an immediate poll.
+            var worthIdentifying = ExplorerStaInvoker.RunOnStaWithTimeout(
+                () => FileDialogAdapterRegistry.GetMatchingAdapter(currentFg, className, processName) != null
+                    || InlineSearchAdapterRegistry.GetMatchingAdapter(currentFg, className, processName) != null
+                    || ActivePathCollectorRegistry.GetCollectors()
+                        .Any(collector => collector.CanHandle(currentFg, className, processName)),
+                false,
+                TimeSpan.FromMilliseconds(ExplorerWindowClassifier.DefaultPluginTimeoutMs));
+            if (worthIdentifying)
             {
                 _classifier.CheckActiveWindow(currentFg);
             }

@@ -32,7 +32,7 @@ internal sealed class ExplorerWindowClassifier
     // Default plugin-read budget for tracker-owned threads (WinEvent tracker, poller): long enough for
     // a healthy Explorer COM path read on a cold cache, short enough that a hung plugin cannot hold the
     // tracker lock forever. The LL hook path passes a much tighter budget -- see ExplorerTracker.
-    private const int DefaultPluginTimeoutMs = 2000;
+    internal const int DefaultPluginTimeoutMs = 2000;
 
     public void CheckActiveWindow(IntPtr hwnd)
         => CheckActiveWindow(hwnd, Timeout.Infinite, DefaultPluginTimeoutMs);
@@ -61,7 +61,7 @@ internal sealed class ExplorerWindowClassifier
             if (ExplorerFocusChangeFilter.IsIgnored(_tracker, hwnd))
                 return;
 
-            var dialogHwnd = FindMatchingDialogWindow(hwnd, out var adapter);
+            var dialogHwnd = FindMatchingDialogWindow(hwnd, pluginTimeoutMs, out var adapter);
             if (dialogHwnd != IntPtr.Zero && adapter != null)
             {
                 var previousWasPathProvider = _tracker.IsExplorerOrDesktopActive && !_tracker.IsActiveWindowDialog;
@@ -254,7 +254,7 @@ internal sealed class ExplorerWindowClassifier
         _tracker.RaisePathCaptured(_tracker.LastPath, false, true);
     }
 
-    private IntPtr FindMatchingDialogWindow(IntPtr hwnd, out IFileDialogAdapter? adapter)
+    private IntPtr FindMatchingDialogWindow(IntPtr hwnd, int pluginTimeoutMs, out IFileDialogAdapter? adapter)
     {
         var current = hwnd;
         while (current != IntPtr.Zero)
@@ -266,7 +266,17 @@ internal sealed class ExplorerWindowClassifier
             ExplorerNativeHooks.GetWindowThreadProcessId(current, out var pid);
             var processName = ProcessNameResolver.GetNameWithoutExtension(pid);
 
-            var matched = FileDialogAdapterRegistry.GetMatchingAdapter(current, className, processName);
+            // Bounded, like every other plugin read here -- see ExplorerStaInvoker's own summary, which says
+            // exactly that. An adapter's CanHandle is a cross-process read for the dialogs whose widgets carry
+            // no window handles (WPS goes through UI Automation) and for the ones that walk child windows, and
+            // the target's thread is busiest precisely in the moment this is asked of it: the instant a dialog
+            // takes the foreground. Asked directly, it parks the WinEvent tracker thread for as long as the
+            // other process likes -- which is not "this one window is misclassified" but "nothing in the
+            // session is tracked any more", and the log shows it as total silence rather than as a wrong answer.
+            var matched = ExplorerStaInvoker.RunOnStaWithTimeout(
+                () => FileDialogAdapterRegistry.GetMatchingAdapter(current, className, processName),
+                (IFileDialogAdapter?)null,
+                TimeSpan.FromMilliseconds(pluginTimeoutMs));
             if (matched != null)
             {
                 adapter = matched;
