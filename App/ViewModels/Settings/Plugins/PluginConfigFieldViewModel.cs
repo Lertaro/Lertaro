@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions;
-using Lertaro.PluginSdk.Services;
 using Lertaro.App.Helpers;
 
 namespace Lertaro.App.ViewModels.Settings.Plugins;
@@ -12,6 +11,7 @@ public class PluginConfigFieldViewModel : ViewModelBase
     private readonly Action? _onValueChanged;
     private readonly PluginConfigArrayFieldSupport _arraySupport;
     private readonly PluginConfigFieldLoadSupport _loadSupport;
+    private readonly PluginConfigFieldDisplaySupport _display;
     private object? _localValueStore;
 
     public string PluginId { get; }
@@ -21,23 +21,19 @@ public class PluginConfigFieldViewModel : ViewModelBase
     internal bool HasValueChangedCallback => _onValueChanged != null;
     internal PluginConfigArrayFieldSupport ArraySupport => _arraySupport;
 
-    private static string ResolveText(string? keyOrText)
-    {
-        if (string.IsNullOrEmpty(keyOrText)) return string.Empty;
-        if (TranslationService.TryGet(keyOrText, out var translated))
-            return translated;
-        return keyOrText;
-    }
+    /// <summary>This field's trigger-collision reporting -- see PluginConfigFieldValidationSupport.</summary>
+    internal PluginConfigFieldValidationSupport Validation { get; }
 
-    public string Label => ResolveText(SchemaField.LabelKey);
-    public string Description => ResolveText(SchemaField.DescriptionKey);
+    // Thin delegations: the projection (and the TranslationService lookup behind it) lives in
+    // PluginConfigFieldDisplaySupport. The names stay here because the field editors and Templates.xaml
+    // bind them on this type.
+    public string Label => _display.Label;
+    public string Description => _display.Description;
     public string GroupKey => SchemaField.GroupKey;
-    public string GroupName => ResolveText(GroupKey);
+    public string GroupName => _display.GroupName;
     public ConfigFieldType FieldType => SchemaField.FieldType;
-    public List<string>? Choices => SchemaField.Choices?.Select(ResolveText).ToList();
-    public IReadOnlyList<PluginConfigChoiceItem> ChoiceItems => SchemaField.ChoiceOptions != null
-        ? SchemaField.ChoiceOptions.Select(choice => new PluginConfigChoiceItem(choice.Value, ResolveText(choice.LabelKey))).ToList()
-        : SchemaField.Choices?.Select(choice => new PluginConfigChoiceItem(choice, ResolveText(choice))).ToList() ?? [];
+    public List<string>? Choices => _display.Choices;
+    public IReadOnlyList<PluginConfigChoiceItem> ChoiceItems => _display.ChoiceItems;
     public int MaxLength => SchemaField.MaxLength > 0 ? SchemaField.MaxLength : int.MaxValue;
     public int SelectionStart => SchemaField.SelectionStart;
     public int SelectionLength => SchemaField.SelectionLength;
@@ -104,6 +100,12 @@ public class PluginConfigFieldViewModel : ViewModelBase
     /// PluginConfigFieldLoadSupport.HasLoadedChildren for why the Children getter cannot answer this).
     /// </summary>
     internal bool HasLoadedChildren => _loadSupport.HasLoadedChildren;
+
+    /// <summary>
+    /// Whether this field's array rows are currently materialized, checked WITHOUT building them -- the
+    /// twin of HasLoadedChildren, for the same reason (see PluginConfigFieldValidationSupport.Errors).
+    /// </summary>
+    internal bool HasLoadedArrayItems => _loadSupport.HasLoadedArrayItems;
 
     /// <summary>
     /// Discards staged edits and drops the rows. Used by Cancel (and any rollback), where the staged
@@ -210,17 +212,7 @@ public class PluginConfigFieldViewModel : ViewModelBase
         get
         {
             if (IsObject || IsArray || IsGroup) return this;
-            if (IsStringList)
-            {
-                if (LocalValueStore is System.Collections.IEnumerable en && !(LocalValueStore is string))
-                {
-                    var items = new List<string>();
-                    foreach (var item in en) items.Add(item?.ToString() ?? string.Empty);
-                    return string.Join("\r\n", items);
-                }
-                return LocalValueStore?.ToString() ?? string.Empty;
-            }
-            return LocalValueStore;
+            return IsStringList ? PluginConfigFieldDisplaySupport.SerializeStringList(LocalValueStore) : LocalValueStore;
         }
         set
         {
@@ -232,9 +224,22 @@ public class PluginConfigFieldViewModel : ViewModelBase
             // buttons); the load paths write LocalValueStore directly, so staging a value this way is
             // what marks the field (and therefore its plugin) as having something to save.
             _loadSupport.MarkDirty();
+            // A staged trigger keyword changes whether it collides with the search syntax, so its warning
+            // has to be re-read even though the value itself is what was just edited.
+            if (SchemaField.Validation == ConfigFieldValidation.TriggerKeyword) OnPropertyChanged(nameof(TriggerKeywordError));
+            // A token keyword's help text names the whole token the user would type, so it has to be
+            // recomputed while they type it -- including inside an array row, which is exactly where the
+            // catch-all OnPropertyChanged() below is skipped.
+            if (SchemaField.Validation == ConfigFieldValidation.TokenKeyword) OnPropertyChanged(nameof(Description));
             if (_onValueChanged == null) OnPropertyChanged();
         }
     }
+
+    /// <summary>Why this instant-answer trigger keyword cannot be used, or null when it is fine. Thin: the
+    /// rule lives in <see cref="Validation"/>, and the name stays here because Templates.xaml binds it on
+    /// this type -- public, not internal, because a binding path only ever resolves public members (see the
+    /// comment on SearchViewModel.Hints).</summary>
+    public string? TriggerKeywordError => Validation.TriggerKeywordError;
 
     public PluginConfigFieldViewModel(string pluginId, PluginConfigField field, UserSettings settings, Action? onValueChanged = null)
     {
@@ -244,6 +249,8 @@ public class PluginConfigFieldViewModel : ViewModelBase
         _onValueChanged = onValueChanged;
         _arraySupport = new PluginConfigArrayFieldSupport(this);
         _loadSupport = new PluginConfigFieldLoadSupport(this);
+        _display = new PluginConfigFieldDisplaySupport(this);
+        Validation = new PluginConfigFieldValidationSupport(this);
         AddCommand = new RelayCommand(_arraySupport.AddArrayItem);
         DuplicateCommand = new RelayCommand(_arraySupport.DuplicateArrayItem, () => SelectedArrayItem != null);
         ButtonClickCommand = new RelayCommand(() => SchemaField.OnClick?.Invoke());

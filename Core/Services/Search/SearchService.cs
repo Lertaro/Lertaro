@@ -9,9 +9,8 @@ namespace Lertaro.Core.Services.Search;
 
 public class SearchService : IDisposable
 {
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<List<SearchResult>>> _sessionDirectoryCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly LiveScanCache _liveScans = new();
     private readonly ScopeLiveSearchCache _scopeLiveSearchCache = new();
-    private readonly CancellationTokenSource _cacheFillCts = new();
     private readonly SearchPipeClient _pipeClient = new();
     private int _disposed;
 
@@ -38,7 +37,7 @@ public class SearchService : IDisposable
 
     // bypassExclusions: opts this one search out of ExcludedPaths/IgnoredPathGlobs/IgnoredPathRegexes
     // filtering. The caller is responsible for stripping whatever query-string marker triggers this
-    // (see SearchQuerySortParser.StripExclusionBypass) BEFORE calling here -- `query` itself is always
+    // (see QueryTokenScanner.StripExclusionBypass) BEFORE calling here -- `query` itself is always
     // matched/highlighted verbatim, so a caller must never pass the marker through as part of it. Also
     // forced on automatically for a path-mode query (see effectiveBypassExclusions below) -- typing an
     // exact path is the same "I want to see what's actually here" intent regardless of the marker. Only
@@ -154,6 +153,9 @@ public class SearchService : IDisposable
         var needsLiveSearch = false;
         var liveScanDir = string.Empty;
         var liveScanFilter = string.Empty;
+        // The regex clauses the live scan has to apply too -- they are part of the query, not of the text
+        // the live pattern is built from (see the two branches below).
+        string[]? liveScanRegexes = null;
 
         if (parsed.IsPathMode && !string.IsNullOrEmpty(parsed.ExactPathLower))
         {
@@ -163,6 +165,10 @@ public class SearchService : IDisposable
                 needsLiveSearch = true;
                 liveScanDir = resolved.DirectoryToScan;
                 liveScanFilter = resolved.FilterQuery;
+                // The path fragment is only the tail of the path, so it never carries the clauses itself;
+                // without this the live scan matched on the fragment alone and streamed every child of a
+                // directory the index does not cover, regex and all.
+                liveScanRegexes = parsed.Regexes;
             }
         }
         else if (!string.IsNullOrEmpty(directoryFilter) && _scopeLiveSearchCache.GetOrAdd(directoryFilter,
@@ -170,51 +176,31 @@ public class SearchService : IDisposable
         {
             needsLiveSearch = true;
             liveScanDir = directoryFilter;
-            liveScanFilter = query;
+            // Split off this query's own clauses: the live pattern is built through ParseText, which takes
+            // the clauses as an argument instead of lifting them out of the text.
+            liveScanFilter = RegexQueryParser.Split(query, out _);
+            liveScanRegexes = parsed.Regexes;
         }
 
         Task<bool>? liveTask = null;
         if (needsLiveSearch && !string.IsNullOrEmpty(liveScanDir))
         {
-            var cacheFillToken = _cacheFillCts.Token;
             liveTask = Task.Run(async () =>
             {
                 try
                 {
-                    // GetOrAdd shares ONE in-flight scan per directory across every caller currently
-                    // waiting on it, instead of the old lock(this) around the whole SearchService
-                    // instance -- that lock serialized every live scan regardless of which directory it
-                    // targeted, so typing into a directory that needs one (excluded from the index, an
-                    // unconfigured network drive, ...) queued every subsequent keystroke's own scan
-                    // attempt behind whichever one happened to go first, none of which could even check
-                    // their own cancellation token until they finally got the lock. The shared scan keeps
-                    // running when this one query is superseded so the next query in this window can reuse
-                    // it, but the SearchService owns its lifetime and cancels it when the window closes.
-                    if (_sessionDirectoryCache.Count > 32)
-                        _sessionDirectoryCache.Clear();
                     var onlyDirectChildren = parsed.IsPathMode && string.IsNullOrEmpty(liveScanFilter);
-                    // liveQuery/onLiveMatch only actually fire for whichever caller wins the GetOrAdd race
-                    // (i.e. triggers the scan for real) -- a directory this large/uncached is exactly the
-                    // "current folder" case that used to sit with zero results until the entire subtree
-                    // walk finished; streaming matches out as each directory is walked keeps the first,
-                    // cold keystroke from looking frozen even though the underlying walk cost is unchanged.
-                    var scanTask = _sessionDirectoryCache.GetOrAdd(liveScanDir,
-                        dir => Task.Run(() => LiveDirectorySearcher.ScanDirectory(dir, 10000, cacheFillToken,
+                    // The scan is shared between keystrokes and outlives this request (see LiveScanCache),
+                    // but this request's own results do not: once it has been superseded they have nowhere
+                    // to go, so delivery stops with it while the walk continues for the next keystroke.
+                    var scanTask = _liveScans.GetOrAdd(liveScanDir,
+                        (dir, scanToken) => LiveDirectorySearcher.ScanDirectory(dir, 10000, scanToken,
                             liveQuery: liveScanFilter, onLiveMatch: uniqueOnResult,
-                            onlyDirectChildren: onlyDirectChildren, parentPath: liveScanDir)));
-                    List<SearchResult> entries;
-                    try
-                    {
-                        entries = await scanTask.WaitAsync(token).ConfigureAwait(false);
-                    }
-                    catch (Exception) when (scanTask.IsFaulted)
-                    {
-                        // Do not let a faulted live-scan task poison the cache for every later keystroke.
-                        _sessionDirectoryCache.TryRemove(new KeyValuePair<string, Task<List<SearchResult>>>(liveScanDir, scanTask));
-                        throw;
-                    }
+                            onlyDirectChildren: onlyDirectChildren, parentPath: liveScanDir,
+                            liveMatchToken: token, regexes: liveScanRegexes));
+                    var entries = await scanTask.WaitAsync(token).ConfigureAwait(false);
 
-                    return LiveDirectorySearcher.MatchAndStream(entries, liveScanFilter, uniqueOnResult, token, onlyDirectChildren, liveScanDir);
+                    return LiveDirectorySearcher.MatchAndStream(entries, liveScanFilter, uniqueOnResult, token, onlyDirectChildren, liveScanDir, liveScanRegexes);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
@@ -269,8 +255,7 @@ public class SearchService : IDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
-        _cacheFillCts.Cancel();
-        _cacheFillCts.Dispose();
+        _liveScans.Dispose();
         GC.SuppressFinalize(this);
     }
 }

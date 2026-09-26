@@ -1,3 +1,4 @@
+using Lertaro.App.Helpers;
 using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services.Plugin;
@@ -61,10 +62,11 @@ internal sealed class SearchQueryDispatchController
 
     public void OnAdvancedQueryChanged(string query)
     {
-        var globalPrefixChar = GetGlobalTokenPrefixChar();
-        var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
-        _queryTokens = tokens;
-        var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        // The bypass marker is stripped before the scan: the scanner reads a trigger from a word's first
+        // character only, so "*\audio" would otherwise stay ordinary text (see StripExclusionBypass).
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GlobalTokenPrefix.Current);
+        _queryTokens = scan.Tokens;
+        var cleanQuery = scan.Text;
 
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
@@ -278,11 +280,5 @@ internal sealed class SearchQueryDispatchController
         _getAllResults().Clear();
         _applyFiltersAndRender(false, 0);
         _setLoadingPanelVisibility(Visibility.Collapsed);
-    }
-
-    private static char GetGlobalTokenPrefixChar()
-    {
-        var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
     }
 }

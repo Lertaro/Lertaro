@@ -62,7 +62,12 @@ public class UserSettings
     public bool HideTrayIcon { get; set; } = false;
     public bool EnableEverythingIpc { get; set; } = false;
     public bool ShowOpenedFoldersInInlineSearch { get; set; } = true;
-    public string GlobalTokenPrefix { get; set; } = ":";
+    public string GlobalTokenPrefix { get; set; } = "\\";
+    // Whether the startup balloon for a carried-over, no-longer-usable token prefix has already been shown.
+    // Persisted so the notice is given ONCE rather than on every launch: the settings page keeps reporting
+    // the value itself (see QueryTokenPrefixRules), and repeating an unobtainable balloon every start is
+    // just noise. See LegacySettingsAdvisor.ShouldShowNotice.
+    public bool LegacyTokenPrefixNoticeShown { get; set; } = false;
     public string LogLevel { get; set; } = "Info";
     public string PreferredLanguage { get; set; } = GetDefaultSystemLanguage();
     public string Theme { get; set; } = "Light";

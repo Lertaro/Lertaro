@@ -10,7 +10,7 @@
 
 - **靜態結果動作（`IActionProvider.GetActions()`）**：註冊了一組常用的基礎檔案動作，包括開啟與定位項目、複製路徑和檔案、加入我的最愛、重新命名、終端機命令、刪除以及以管理員身分執行等。
 - **原生 Shell 選單整合（`IDynamicActionProvider`）**：透過 `ShellMenuActionProvider` 與 Windows Shell COM 介面互動，將完整的 Windows 快顯級聯選單（如「傳送到」、7-Zip、VS Code 開啟等）無縫轉譯至 Lertaro 的 `Ctrl+O` 動作選單中。
-- **結構描述驅動的設定表單（`IConfigurable`）**：展示了如何定義包含巢狀分組（`Group`）、多行字串清單（`StringList`）與熱鍵錄製（`Hotkey`）的複雜設定表單，無需手寫任何 XAML 即可在設定中心中自動產生。
+- **結構描述驅動的設定表單（`IConfigurable`）**：展示了如何定義包含巢狀分組（`Group`）、多行字串清單（`StringList`）與快捷鍵錄製（`Hotkey`）的複雜設定表單，無需手寫任何 XAML 即可在設定中心中自動產生。
 - **多樣化的快速面板標籤（`IQuickPanelTabProvider`）**：
   - `FavoritesTabProvider` / `HistoryTabProvider`：直接將記憶體中的結構化清單包裝為結果集，屬於零 I/O 極簡實作。
   - `WindowsRecentTabProvider`：在背景任務中周遊系統 `Recent` 目錄並透過 COM 剖析捷徑目標，預先截斷並填入 `Metadata.Modified` 時間戳記以實現「最新在前」。

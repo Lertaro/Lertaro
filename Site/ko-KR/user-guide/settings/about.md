@@ -29,7 +29,7 @@
 ### 저장 경로 아키텍처
 
 - **설치형 버전**: 사용자 데이터는 `%LocalAppData%\Lertaro`, 머신 데이터는 `%ProgramData%\Lertaro`에 보관.
-- **포터블 버전**: 프로그램 실행 파일 옆의 `Data\Users\<SID hash>` 및 `Data\Machine`에 보관되어 완전한 격리형 무설치 환경 지원([**포터블 데이터 격리 안내**](../getting-started#포터블-데이터-격리-구조) 참고).
+- **포터블 버전**: 프로그램 실행 파일 옆의 `Data\Users\<SID hash>` 및 `Data\Machine`에 보관되어 완전한 격리형 무설치 환경 지원([**포터블 데이터 격리 안내**](../getting-started#포터블-버전-lertaro-portable-zip) 참고).
 
 ## 3. 업데이트 확인 및 원클릭 업데이트
 

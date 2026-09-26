@@ -19,7 +19,9 @@ public sealed class TranslatorPlugin : IPlugin, IConfigurable
                 LabelKey = "Translator_Config_TriggerLabel",
                 DescriptionKey = "Translator_Config_TriggerDesc",
                 FieldType = ConfigFieldType.Text,
-                DefaultValue = "tr"
+                DefaultValue = "tr",
+                RequireNonEmpty = true,
+                Validation = ConfigFieldValidation.TriggerKeyword
             }
         }
     };

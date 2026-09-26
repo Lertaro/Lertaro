@@ -43,7 +43,7 @@ For advanced users relying on third-party file managers, Lertaro offers dedicate
 
 ### Everything Compatibility Service (IPC)
 
-Under [**Settings → General → System**](./settings/general#system), enable **Enable Everything Compatibility Service (IPC)** to emulate the standard Everything Win32 IPC interface. Tools like Directory Opus, Total Commander, and Flow Launcher can query Lertaro's fast in-memory index directly via their existing Everything plugins.
+Under [**Settings → General → System**](./settings/general#_1-system), enable **Enable Everything Compatibility Service (IPC)** to emulate the standard Everything Win32 IPC interface. Tools like Directory Opus, Total Commander, and Flow Launcher can query Lertaro's fast in-memory index directly via their existing Everything plugins.
 
 ## 4. Custom Application Dialogs (Dedicated Plugins)
 

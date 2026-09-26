@@ -195,4 +195,97 @@ public sealed class SettingsWindowSearchExtensionsTests
             Assert.IsTrue(results.Any(r => r.Section == "Hotkeys"));
         }
     }
+
+    // SettingsWindow.JumpToEntry resolves an index against the list BuildAllEntries produces -- NOT against
+    // SettingsSearchIndex.Entries. The two differ by however many entries carry an IsVisible predicate,
+    // because the evaluateConditionalVisibility: false build JumpToEntry uses skips those outright. A caller
+    // holding only the raw index list (the legacy-prefix notice) therefore has to map through the same rule,
+    // and getting it wrong is invisible: the balloon opened a different setting several rows down the page.
+    [TestMethod]
+    public void JumpToEntryIndexFor_MatchesTheEntrysPositionInTheBuiltList()
+    {
+        var built = BuiltEntries();
+        Assert.IsNotEmpty(built);
+
+        // Rows that share a label key are skipped: several do ("Network_IndexStatus" appears under three
+        // tabs), and the mapping resolves a key to its FIRST reachable slot, which the next test pins.
+        var duplicates = built
+            .GroupBy(entry => entry.LabelKey, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
+        for (var i = 0; i < built.Count; i++)
+        {
+            if (duplicates.Contains(built[i].LabelKey))
+                continue;
+
+            Assert.AreEqual(i, SettingsWindowSearchExtensions.JumpToEntryIndexFor(built[i].LabelKey),
+                $"'{built[i].LabelKey}' must resolve to its own slot in the built list");
+        }
+    }
+
+    [TestMethod]
+    public void JumpToEntryIndexFor_DuplicateLabelKey_ResolvesToTheFirstReachableRow()
+    {
+        var first = BuiltEntries().FindIndex(entry => entry.LabelKey == "Network_IndexStatus");
+
+        Assert.IsGreaterThanOrEqualTo(0, first);
+        Assert.AreEqual(first, SettingsWindowSearchExtensions.JumpToEntryIndexFor("Network_IndexStatus"));
+    }
+
+    [TestMethod]
+    public void JumpToEntryIndexFor_TheTokenPrefixRow_IsNotItsRawIndex()
+    {
+        // The concrete row the startup notice jumps to: conditional entries precede it, so its built index is
+        // smaller than its raw one -- the raw index landed on General_DefaultFileManagerEnabled instead.
+        var rawIndex = SettingsSearchIndex.Entries.ToList().FindIndex(entry => entry.LabelKey == "General_GlobalTokenPrefix");
+        var builtIndex = SettingsWindowSearchExtensions.JumpToEntryIndexFor("General_GlobalTokenPrefix");
+
+        Assert.IsGreaterThan(0, rawIndex);
+        Assert.IsGreaterThanOrEqualTo(0, builtIndex);
+        Assert.IsLessThan(rawIndex, builtIndex, "conditional entries precede this row, so the built index must be smaller");
+        Assert.AreEqual("General_GlobalTokenPrefix", BuiltEntries()[builtIndex].LabelKey);
+    }
+
+    [TestMethod]
+    public void JumpToEntryIndexFor_ConditionalEntry_HasNoBuiltIndex()
+    {
+        // A conditional row is never part of the list JumpToEntry resolves against, so it must report "not
+        // reachable by index" rather than a slot that belongs to some other row.
+        var conditional = SettingsSearchIndex.Entries.First(entry => entry.IsVisible != null);
+
+        Assert.AreEqual(-1, SettingsWindowSearchExtensions.JumpToEntryIndexFor(conditional.LabelKey));
+    }
+
+    [TestMethod]
+    public void JumpToEntryIndexFor_UnknownKey_IsMinusOne()
+        => Assert.AreEqual(-1, SettingsWindowSearchExtensions.JumpToEntryIndexFor("No_Such_Key"));
+
+    // The launch panel's tab menu and the settings search both need to land on one source's own
+    // checkbox row, not just the page -- so every data source carries its own reveal entry.
+    [TestMethod]
+    public void BuildAllEntries_GivesEachLaunchSourceItsOwnRevealEntry()
+    {
+        var settingsVm = new SettingsViewModel();
+        settingsVm.QuickLaunch.Sources.Clear();
+        var history = new QuickLaunchSourceOptionViewModel("TestPlugin.dll::QuickPanelTabProvider::HistoryTabProvider", "History", true);
+        settingsVm.QuickLaunch.Sources.Add(history);
+
+        var results = SettingsWindowSearchExtensions.BuildAllEntries(vm: settingsVm);
+
+        var targetItem = results.Single(r => r.Reveal?.GroupItem == history);
+        Assert.AreEqual("QuickLaunch", targetItem.Section);
+        Assert.AreEqual("History", targetItem.Label);
+        Assert.AreEqual("QuickLaunchSourcesList", targetItem.Reveal!.ListElementName);
+
+        settingsVm.QuickLaunch.SelectedSection = "Items";
+        targetItem.Activate!(settingsVm);
+        Assert.AreEqual("Sources", settingsVm.QuickLaunch.SelectedSection);
+    }
+
+    // The same rule BuildAllEntries applies when it is asked for the statics only (see its
+    // evaluateConditionalVisibility parameter).
+    private static List<SettingsSearchEntry> BuiltEntries()
+        => SettingsSearchIndex.Entries.Where(entry => entry.IsVisible == null).ToList();
 }

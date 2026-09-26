@@ -12,7 +12,7 @@ General Settings covers core application behaviors, search window dimensions and
 - **Enable Everything Compatibility Service (IPC)**: Emulates the standard Everything Win32 IPC protocol in the background. Third-party software (such as Directory Opus and Total Commander) can query Lertaro's in-memory index directly.
 - **Enable Fuzzy Matching**: Enabled by default. When active, queries match non-contiguous character sequences. When disabled, queries require contiguous substring matches (see [**Search Syntax**](../search-syntax)). Takes effect immediately.
 - **Show Currently Open Folders in Inline Search**: When the inline window is docked in a file dialog, shows the folders currently open in that dialog when the search query is empty. Enabled by default.
-- **Query Token Delimiter**: Single-character text box (default `:`). Defines the leading character for suffix tokens (e.g. `:.pdf`, `:@doc`, `:[S]`).
+- **Plugin Query Token Prefix**: Single-character text box (default `\`). Sets the leading character of a plugin query token (e.g. `\audio`, `\doc`). It cannot be empty, and cannot be a character the search syntax already reads (`<` `>` `:` `*` `/` `?`) — the field reports that rather than letting one meaning silently win (see [**Search Syntax**](../search-syntax)).
 - **Log Level**: Dropdown selecting Error / Warning / Info (default) / Debug, controlling log verbosity across all processes.
 - **UI Language**: Selects the active display language across the entire application.
 
@@ -33,7 +33,7 @@ Fine-tunes the dimensions, layout, and priority rankings of the centered floatin
 ### Result Type Priority & Trigger Characters
 
 - **Priority Sorting List**: Drag or move items (Applications, System Settings, Files, Plugin Extensions) to adjust which types rank highest in search results.
-- **Exclusive Single-Character Trigger**: Assign a dedicated character prefix (e.g. `;` for File Filters) to restrict searches exclusively to that type when typed at the start of a query.
+- **Exclusive Single-Character Trigger**: Assign a dedicated character prefix (e.g. `;` for File Filters) to restrict searches exclusively to that type when typed at the start of a query. A trigger cannot be one of the characters the search syntax reads itself (`\` `<` `>` `:` `*` `/` `?`), because the syntax consumes it before the trigger is ever consulted and the trigger would silently stop working; two types also cannot share one character. The settings field reports both cases. The built-in instant answers also read their own leading characters -- `#` and `$` run a shell command, `%` searches environment variables -- so those are unavailable too.
 
 ## 3. Full Search Window
 

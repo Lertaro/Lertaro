@@ -43,7 +43,7 @@ Lertaro 不僅是一款獨立的桌面啟動器，更具備深度嵌入各類檔
 
 ### Everything 相容服務 (IPC)
 
-在[**設定 → 一般 → 系統**](./settings/general#系統)中勾選**啟用 Everything 相容服務 (IPC)**後，Lertaro 會在後台模擬標準的 Everything Win32 IPC 介面。Directory Opus、Total Commander、Flow Launcher 等第三方軟體無需額外安裝或運行 Everything，即可直接透過原有的 Everything 外掛模組調用 Lertaro 的極速記憶體索引。
+在[**設定 → 一般 → 系統**](./settings/general#_1-系統-system)中勾選**啟用 Everything 相容服務 (IPC)**後，Lertaro 會在後台模擬標準的 Everything Win32 IPC 介面。Directory Opus、Total Commander、Flow Launcher 等第三方軟體無需額外安裝或運行 Everything，即可直接透過原有的 Everything 外掛模組調用 Lertaro 的極速記憶體索引。
 
 ## 4. 常用軟體自繪對話方塊支援（專用外掛模組）
 

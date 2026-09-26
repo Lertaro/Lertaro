@@ -29,7 +29,7 @@
 ### 儲存路徑規則
 
 - **安裝版**：使用者資料存放於 `%LocalAppData%\Lertaro`，機器資料存放於 `%ProgramData%\Lertaro`。
-- **可攜版**：使用者資料存放於程式目錄下的 `Data\Users\<SID hash>`，機器資料存放於 `Data\Machine`，實現純綠色的全隔離可攜運行（詳見[**可攜版使用說明**](../getting-started#可攜版資料隔離機制)）。
+- **可攜版**：使用者資料存放於程式目錄下的 `Data\Users\<SID hash>`，機器資料存放於 `Data\Machine`，實現純綠色的全隔離可攜運行（詳見[**可攜版使用說明**](../getting-started#便攜版-lertaro-portable-zip)）。
 
 ## 3. 檢查更新與一鍵升級
 

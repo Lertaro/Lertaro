@@ -56,7 +56,11 @@ public class WebSearchPlugin : IPlugin, IConfigurable
                             Key = "Keyword",
                             LabelKey = "WebSearch_Config_KeywordLabel",
                             FieldType = ConfigFieldType.Text,
-                            DefaultValue = ""
+                            DefaultValue = "",
+                            // A source's keyword is a query-leading trigger like any instant-answer keyword, so
+                            // it competes with the search syntax for the same first character -- and being a
+                            // row inside an array rather than a top-level field does not change that.
+                            Validation = ConfigFieldValidation.TriggerKeyword
                         },
                         new PluginConfigField
                         {

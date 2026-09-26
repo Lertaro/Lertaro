@@ -11,7 +11,7 @@ Lertaro 在首次運行時會自動在 Windows 系統中註冊自訂協議 **`le
 
 | URI 指令格式 | 功能說明與互動效果 |
 | :--- | :--- |
-| `lertaro://` | 啟用並顯示快速搜尋視窗（效果等同於雙擊 `Ctrl` 全域熱鍵）。 |
+| `lertaro://` | 啟用並顯示快速搜尋視窗（效果等同於雙擊 `Ctrl` 全域快捷鍵）。 |
 | `lertaro://search/[關鍵字]` | 啟用快速搜尋視窗，並預先填入指定的 `[關鍵字]` 並立即過濾。 |
 | `lertaro://fullsearch/[關鍵字]` | 開啟大尺寸完整搜尋主視窗，並預先填入指定的 `[關鍵字]`。 |
 | `lertaro://settings/page/[分區]` | 開啟設定視窗，並直接切換到指定的分區標籤頁。 |
@@ -29,7 +29,7 @@ Service      - 運行狀態
 Index        - 索引設定
 General      - 一般設定
 Appearance   - 外觀與主題
-Hotkeys      - 熱鍵設定
+Hotkeys      - 快捷鍵設定
 Plugins      - 外掛模組管理
 Favorites    - 我的最愛
 History      - 搜尋記錄
@@ -38,7 +38,7 @@ About        - 關於與更新
 ```
 
 > [!NOTE]
-> `lertaro://settings/entry/[序號]` 中的序號是由內建的[**設定搜尋**](./instant-answers#2-關鍵字觸發功能內建外掛模組)功能動態產生的。由於內部序號在版本更新或重啟後可能會重新分配，建議在外部腳本中優先使用 `lertaro://settings/page/[分區]`。
+> `lertaro://settings/entry/[序號]` 中的序號是由內建的[**設定搜尋**](./instant-answers#_2-關鍵字觸發功能-內建外掛模組)功能動態產生的。由於內部序號在版本更新或重啟後可能會重新分配，建議在外部腳本中優先使用 `lertaro://settings/page/[分區]`。
 
 ## 3. LocalSend 路由與參數編碼規範
 

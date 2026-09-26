@@ -209,11 +209,30 @@ public class GeneralSettingsViewModel : ViewModelBase
         get => _globalTokenPrefix;
         set
         {
-            var val = value ?? ":";
+            var val = value ?? "\\";
             if (val.Length > 1) val = val[..1];
             SetProperty(ref _globalTokenPrefix, val);
+            // Re-validated on every keystroke: the conflict depends only on this one character, and the
+            // value is what the user is looking at while they type it.
+            OnPropertyChanged(nameof(PrefixError));
+            OnPropertyChanged(nameof(HasPrefixError));
         }
     }
+
+    /// <summary>
+    /// Why this prefix cannot be used, or null when it is fine. A collision is otherwise invisible --
+    /// the plugin's tokens would simply stop filtering, with nothing on screen to explain it.
+    /// </summary>
+    public string? PrefixError => QueryTokenPrefixRules.GlobalPrefixConflict(_globalTokenPrefix);
+
+    public bool HasPrefixError => !string.IsNullOrEmpty(PrefixError);
+
+    /// <summary>Every error this page is showing that must block saving, for the Settings window's Apply
+    /// gate. A carried-over unusable prefix warns without blocking (QueryTokenPrefixRules.BlocksSaving).</summary>
+    internal IEnumerable<string> ValidationErrors => PrefixError is { Length: > 0 } prefix
+        && QueryTokenPrefixRules.BlocksSaving(_globalTokenPrefix, _userSettings.GlobalTokenPrefix)
+        ? ResultTypeOrder.ValidationErrors.Prepend(prefix)
+        : ResultTypeOrder.ValidationErrors;
 
     public string LogLevel => SettingsOptionGenerator.NormalizeLogLevel(_selectedLogLevel?.Value ?? _userSettings.LogLevel);
 

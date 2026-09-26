@@ -73,7 +73,7 @@ public interface IInlineSearchAdapter
 
 ## 4. 鼠标快速导航提供者 `IQuickNavigationProvider`
 
-为鼠标双击或中键呼出的[**快速导航级联菜单**](../../user-guide/hotkeys#3-快速导航鼠标触发)贡献动态分组与条目：
+为鼠标双击或中键呼出的[**快速导航级联菜单**](../../user-guide/hotkeys#_3-快速导航鼠标触发)贡献动态分组与条目：
 
 ```csharp
 public interface IQuickNavigationProvider

@@ -9,8 +9,8 @@ Lertaro embraces a keyboard-first interaction philosophy while offering rich mou
 | **Toggle Quick Window** | Double-tap `Ctrl` | Can be set to a double-tap mode or standard key combinations (e.g. `Alt+Space`, `Win+Space`). When **Open full panel by default** is enabled, this shortcut opens the Full Window instead: it is brought to the foreground once when first shown, refocused when visible but inactive, and closed when already active. It is not automatically kept topmost. |
 | **Quick Jump** | `Ctrl+G` | Jumps file dialogs directly to the directory most recently browsed in a supported file manager or Quick Panel. |
 | **Quick Navigation Menu** | No default | An optional global shortcut opens the cascading Quick Navigation menu. From the desktop or an ordinary app it uses desktop context; in File Explorer and native file dialogs it uses the active window context. File managers and file dialogs remain allowed even when ordinary foreground protections suppress global hotkeys. |
-| **Select Next Item** | `Ctrl+N` or `↓` | Moves highlight down. Navigates seamlessly across groups in the Quick Panel. In Quick Launch, the arrow keys follow the visible grid; **←** and **→** cross row boundaries, while **↑** and **↓** seek the nearest item in the same column, including across groups. If that column has no item anywhere in the adjacent direction, selection stays where it is. When Quick Launch is visible with an empty query, `Ctrl+N` cycles to the next data source and wraps at the end. |
-| **Select Previous Item** | `Ctrl+P` or `↑` | Moves highlight up. Navigates seamlessly across groups in the Quick Panel. In Quick Launch, the arrow keys follow the visible grid; **←** and **→** cross row boundaries, while **↑** and **↓** seek the nearest item in the same column, including across groups. If that column has no item anywhere in the adjacent direction, selection stays where it is. When Quick Launch is visible with an empty query, `Ctrl+P` cycles to the previous data source and wraps at the beginning. |
+| **Select Next Item** | `Ctrl+N` or `↓` | Moves highlight down. Navigates seamlessly across groups in the Quick Panel. In Start Page, the arrow keys follow the visible grid; **←** and **→** cross row boundaries, while **↑** and **↓** seek the nearest item in the same column, including across groups. If that column has no item anywhere in the adjacent direction, selection stays where it is. When Start Page is visible with an empty query, `Ctrl+N` cycles to the next data source and wraps at the end. |
+| **Select Previous Item** | `Ctrl+P` or `↑` | Moves highlight up. Navigates seamlessly across groups in the Quick Panel. In Start Page, the arrow keys follow the visible grid; **←** and **→** cross row boundaries, while **↑** and **↓** seek the nearest item in the same column, including across groups. If that column has no item anywhere in the adjacent direction, selection stays where it is. When Start Page is visible with an empty query, `Ctrl+P` cycles to the previous data source and wraps at the beginning. |
 | **Jump to Results 1–9** | `Ctrl` + `1`–`9` | Modifier is customizable. Number badges appear next to visible items for instant activation. |
 | **Open Action Menu** | `Ctrl+O` or `→` | Expands the context action menu (copy path, properties, run as admin, file operations, etc.). |
 | **Autocomplete from Selection** | `Ctrl+Tab` | Fills the search box with the selected item's name or full path for secondary refinement. |
@@ -43,7 +43,7 @@ The small logo inside the search box is not just an indicator — it provides se
 
 ### Inline and Full Window Icons
 
-- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows.
+- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#_3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows.
 - **Full Window**: Left-clicking the logo opens the context menu; **Open Full Window** is hidden there because the window is already open. Middle-clicking toggles the window's pinned state.
 
 ## 3. Quick Navigation (Mouse Triggers)
@@ -92,4 +92,4 @@ Plugins can register specific action shortcuts (e.g. `Ctrl+Shift+C` for copying 
 ### Process Blacklist & Fullscreen Bypass
 
 - **Automatic Fullscreen Bypass**: When a focused foreground application runs in exclusive fullscreen mode (e.g. 3D games or video players), Lertaro automatically bypasses all global hotkeys to avoid interrupting gameplay.
-- **Custom Process Blacklist**: Add executable names under [**Settings → Hotkeys**](./settings/hotkeys-page#process-blacklist) (e.g. `game.exe`) to silence hotkeys and mouse triggers while that process is focused.
+- **Custom Process Blacklist**: Add executable names under [**Settings → Hotkeys**](./settings/hotkeys-page#_3-process-blacklist) (e.g. `game.exe`) to silence hotkeys and mouse triggers while that process is focused.

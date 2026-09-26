@@ -124,7 +124,9 @@ public class CoreExtensionsPlugin : IPlugin, IActionProvider, IConfigurable
                 LabelKey = "CoreExtensions_Config_SearchSettingsTriggerLabel",
                 DescriptionKey = "CoreExtensions_Config_SearchSettingsTriggerDesc",
                 FieldType = ConfigFieldType.Text,
-                DefaultValue = "set"
+                DefaultValue = "set",
+                RequireNonEmpty = true,
+                Validation = ConfigFieldValidation.TriggerKeyword
             },
             new PluginConfigField
             {
@@ -157,45 +159,12 @@ public class CoreExtensionsPlugin : IPlugin, IActionProvider, IConfigurable
                 }
             },
             Providers.Filters.SearchFiltersConfigSchema.Create(),
-            new PluginConfigField
-            {
-                Key = "QueryTokensGroup",
-                LabelKey = "CoreExtensions_Config_QueryTokensGroupLabel",
-                FieldType = ConfigFieldType.Group,
-                SubFields = new List<PluginConfigField>
-                {
-                    new PluginConfigField
-                    {
-                        Key = Providers.QueryTokens.PathExclusionQueryTokenProvider.SettingKey,
-                        LabelKey = "CoreExtensions_Config_PathExclusionPrefixLabel",
-                        DescriptionKey = "CoreExtensions_Config_PathExclusionPrefixDesc",
-                        FieldType = ConfigFieldType.Text,
-                        DefaultValue = ":",
-                        MaxLength = 1,
-                        RequireNonEmpty = true
-                    },
-                    new PluginConfigField
-                    {
-                        Key = Providers.QueryTokens.CustomFilterQueryTokenProvider.PrefixSettingKey,
-                        LabelKey = "CoreExtensions_Config_CustomFilterPrefixLabel",
-                        DescriptionKey = "CoreExtensions_Config_CustomFilterPrefixDesc",
-                        FieldType = ConfigFieldType.Text,
-                        DefaultValue = "@",
-                        MaxLength = 1,
-                        RequireNonEmpty = true
-                    },
-                    new PluginConfigField
-                    {
-                        Key = Providers.QueryTokens.WildcardQueryTokenProvider.PrefixSettingKey,
-                        LabelKey = "CoreExtensions_Config_WildcardFilterPrefixLabel",
-                        DescriptionKey = "CoreExtensions_Config_WildcardFilterPrefixDesc",
-                        FieldType = ConfigFieldType.Text,
-                        DefaultValue = "?",
-                        MaxLength = 1,
-                        RequireNonEmpty = true
-                    }
-                }
-            },
+            // No prefix field here on purpose. The character that starts a plugin token belongs to the
+            // search syntax -- the host's scanner lifts a word out of the query by ITS character and hands
+            // the token over with that character still on the front -- so this plugin reads it from
+            // SearchSyntaxService instead of keeping a copy. The copy that used to live here could only
+            // agree or break, and breaking was silent: the host stripped the word, nobody claimed it, and
+            // the search came back empty.
             new PluginConfigField
             {
                 Key = "CustomFiltersGroup",
@@ -225,6 +194,10 @@ public class CoreExtensionsPlugin : IPlugin, IActionProvider, IConfigurable
                                 LabelKey = "CoreExtensions_Config_CustomFilters_KeywordLabel",
                                 DescriptionKey = "CoreExtensions_Config_CustomFilters_KeywordDesc",
                                 FieldType = ConfigFieldType.Text,
+                                // Says "this value is a plugin query token keyword", which is what lets the
+                                // host's settings page show the user the exact word to type ("\audio")
+                                // instead of leaving them to assemble it from a prefix they cannot see.
+                                Validation = ConfigFieldValidation.TokenKeyword,
                                 DefaultValue = ""
                             },
                             new PluginConfigField

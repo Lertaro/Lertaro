@@ -215,6 +215,9 @@ public static class SettingsSearchIndex
         new("Settings_LocalSend_QuickSave", "LocalSend", TargetElementName: "RowLocalSendQuickSave"),
         new("Settings_LocalSend_DownloadDir", "LocalSend", TargetElementName: "RowLocalSendDownloadDir"),
 
+        // Search syntax help (read-only page; chapter tabs are page state, not settings to jump to)
+        new("Settings_SearchSyntax", "SearchSyntax"),
+
         // About
         new("Settings_About", "About"),
         new("About_Homepage", "About", TargetElementName: "RowHomepage"),

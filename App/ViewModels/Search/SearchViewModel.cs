@@ -6,6 +6,7 @@ using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.App.ViewModels.Service;
 
+using Lertaro.Core;
 using Lertaro.Core.Services.Search;
 
 using Lertaro.App.Services.Plugin;
@@ -53,6 +54,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
     }
     public SearchViewModel(string initialQuery = "")
     {
+        Hints = new SearchViewHints(this);
         _searchService = new SearchService();
         _searchEngine = new SearchExecutionEngine(_searchService);
         FilteredResults = new ObservableRangeCollection<AppSearchResult>();
@@ -64,11 +66,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
             () => _renderExtendsContent,
             finalResults => ReferenceEquals(finalResults, _allResults) ? _renderUnchangedPrefix : 0,
             count => ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count),
-            () =>
-            {
-                OnPropertyChanged(nameof(ShowNoResultsHint));
-                OnPropertyChanged(nameof(ShowWelcomeHint));
-            });
+            () => Hints.Refresh());
 
         _dispatcher = new SearchQueryDispatchController(
             _searchEngine,
@@ -144,6 +142,10 @@ public class SearchViewModel : ViewModelBase, IDisposable
             if (SetProperty(ref _advancedQuery, value))
             {
                 _sidebarCountHelper?.Reset();
+                // Start each query with a clean complaint list: the report is about THIS query, so a clause
+                // the user has since fixed or deleted must not keep being named. Cleared before the dispatch
+                // below, which is what refills it.
+                SearchContext.ClearInvalidRegexes();
                 if (string.IsNullOrWhiteSpace(value))
                 {
                     _searchEngine.CancelPendingSearch();
@@ -154,8 +156,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
                     _searchEngine.CancelPendingSearch();
                     _dispatcher.OnAdvancedQueryChanged(value);
                 }
-                OnPropertyChanged(nameof(ShowWelcomeHint));
-                OnPropertyChanged(nameof(ShowNoResultsHint));
+                Hints.Refresh();
                 OnPropertyChanged(nameof(WindowTitle));
             }
         }
@@ -277,15 +278,14 @@ public class SearchViewModel : ViewModelBase, IDisposable
         set
         {
             if (SetProperty(ref _isActionsMode, value))
-            {
-                OnPropertyChanged(nameof(ShowNoResultsHint));
-                OnPropertyChanged(nameof(ShowWelcomeHint));
-            }
+                Hints.Refresh();
         }
     }
 
-    public bool ShowNoResultsHint => !IsActionsMode && FilteredResults.Count == 0 && !string.IsNullOrWhiteSpace(AdvancedQuery);
-    public bool ShowWelcomeHint => !IsActionsMode && string.IsNullOrWhiteSpace(AdvancedQuery);
+    // The result-area hints, in their own file to keep this one under the repository's per-file line limit.
+    // Bindings reach them as "Hints.ShowNoResultsHint" etc. Public, not internal: a binding path resolves
+    // public members only, so an internal one is silently skipped -- see SearchViewHints' class comment.
+    public SearchViewHints Hints { get; }
 
     internal void PerformSearch(string query) => _dispatcher.PerformSearch(query);
 

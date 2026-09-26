@@ -1,0 +1,240 @@
+<UserControl x:Class="Lertaro.App.Views.Settings.SearchSyntaxSettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="700">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
+                <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsWindow.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- One TextBlock style per chapter body: shown only while its chapter is the selected
+                 tab, same DataTrigger shape the General page uses for its tab contents. -->
+            <Style x:Key="ChapterText" TargetType="TextBlock">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="Margin" Value="0,8,0,0"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Style="{StaticResource SettingsSectionTitle}" 
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchSyntax_Title]}"/>
+            <TextBlock Style="{StaticResource SettingsHintText}" 
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchSyntax_Hint]}"/>
+        </StackPanel>
+
+        <!-- Tab header row: same Button+underline shape as the General page (TabHeaderButtonStyle /
+             TabUnderlineStyle live in the SettingsWindow style dictionary). -->
+        <ctrl:TabStripScrollView Grid.Row="1" Margin="0,16,0,0">
+            <StackPanel Orientation="Horizontal">
+                <StackPanel Margin="0,0,28,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchSyntax_Tab_Basic]}"
+                            Tag="Basic" Click="ChapterTab_Click">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Basic">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Basic">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="0,0,28,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchSyntax_Tab_Regex]}"
+                            Tag="Regex" Click="ChapterTab_Click">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Regex">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Regex">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="0,0,28,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchSyntax_Tab_SortFilter]}"
+                            Tag="SortFilter" Click="ChapterTab_Click">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="SortFilter">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="SortFilter">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="0,0,28,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchSyntax_Tab_Tokens]}"
+                            Tag="Tokens" Click="ChapterTab_Click">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Tokens">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Tokens">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="0,0,28,0">
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchSyntax_Tab_PathJump]}"
+                            Tag="PathJump" Click="ChapterTab_Click">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="PathJump">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="PathJump">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ctrl:TabStripScrollView>
+
+        <!-- Chapter bodies: plain text, one line per \n in the translated string. -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock x:Name="ChapBasic"                           Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchSyntax_Basic_Body]}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource ChapterText}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Basic">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock x:Name="ChapRegex"                           Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchSyntax_Regex_Body]}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource ChapterText}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Regex">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock x:Name="ChapSortFilter"                           Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchSyntax_SortFilter_Body]}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource ChapterText}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="SortFilter">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock x:Name="ChapTokens"                           Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchSyntax_Tokens_Body]}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource ChapterText}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Tokens">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock x:Name="ChapPathJump"                           Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchSyntax_PathJump_Body]}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource ChapterText}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="PathJump">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

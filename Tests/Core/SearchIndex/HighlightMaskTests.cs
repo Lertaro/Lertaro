@@ -26,11 +26,16 @@ public sealed class HighlightMaskTests
     [TestMethod]
     public void Compute_ScatteredFuzzyMatch_MarksOnlyMatchedCharacters()
     {
-        // "chwx" against "china_white_x" has no literal substring -- falls through to the direct
-        // fuzzy backtrace (FzfPositionMatcher), which should mark exactly the matched subsequence.
-        var mask = HighlightMask.Compute("cwx", FzfPattern.Parse("cwx"));
+        // "cwx" against "china_white_x" has no literal substring -- it falls through to the direct fuzzy
+        // backtrace (FzfPositionMatcher), which must mark the three characters it actually matched and
+        // nothing else. Asserting the exact mask is the point: a mask that marks every character would
+        // still pass a "did it mark the matched ones" check, which is how this test used to be written
+        // (against a text the pattern matched in full, so it could never tell the two apart).
+        var mask = HighlightMask.Compute("china_white_x", FzfPattern.Parse("cwx"));
 
-        Assert.IsTrue(Array.TrueForAll(mask, m => m));
+        CollectionAssert.AreEqual(
+            new[] { true, false, false, false, false, false, true, false, false, false, false, false, true },
+            mask);
     }
 
     // Regression coverage: Mark used to always highlight the OR set's FIRST term regardless of whether
@@ -116,9 +121,7 @@ public sealed class HighlightMaskTests
     }
 
     [TestMethod]
-    public void ComputeRank_StartAtZero_KeepsThePlainCoverageValue()
-    {
+    public void ComputeRank_StartAtZero_KeepsThePlainCoverageValue() =>
         // 2 matched characters out of 4, fully contiguous, starting at index 0: 0.5 * 1.
         Assert.AreEqual(0.5, HighlightMask.ComputeRank("abcd", FzfPattern.Parse("ab")).Weight);
-    }
 }

@@ -113,6 +113,12 @@
                 </Grid>
                 <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_GlobalTokenPrefixDesc]}"
                            Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                <!-- Collision warning. The trigger character is shared by every plugin token, so a clash
+                     has to be reported here rather than resolved silently by provider order. -->
+                <TextBlock Text="{Binding General.PrefixError}"
+                           Foreground="{DynamicResource ErrorBrush}"
+                           FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"
+                           Visibility="{Binding General.HasPrefixError, Converter={StaticResource BoolToVis}}"/>
 
                 <Grid x:Name="RowLogLevel" Margin="0,12,0,0">
                     <Grid.ColumnDefinitions>

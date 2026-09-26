@@ -136,7 +136,8 @@ public sealed class HistoryListViewModelTests
         CollectionAssert.AreEqual(new[] { "a.txt", "c.txt" }, vm.GetEntriesToSave().ToList());
     }
 
-    private static HistoryListViewModel<string> MakeCountedVm(params (string Name, int Count)[] items) => new HistoryListViewModel<string>(
+    private static HistoryListViewModel<string> MakeCountedVm(params (string Name, int Count)[] items)
+        => new HistoryListViewModel<string>(
             () => items.Select(x => x.Name).ToList(),
             raw => new HistoryEntryViewModel<string>
             {

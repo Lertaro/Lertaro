@@ -33,19 +33,24 @@ public class ResultTypeOrderViewModel : ViewModelBase
             new(
                 SearchResultTypePriority.FilesTypeId,
                 () => TranslationManager.Instance["General_ResultTypeFiles"],
-                triggers.GetValueOrDefault(SearchResultTypePriority.FilesTypeId, string.Empty))
+                triggers.GetValueOrDefault(SearchResultTypePriority.FilesTypeId, string.Empty),
+                OnTriggerCharChanged)
         };
 
         foreach (var provider in PluginManager.Instance.SearchableItemProviders)
         {
             var id = SearchResultTypePriority.GetProviderTypeId(provider);
-            candidates.Add(new ResultTypeOrderItem(id, () => provider.Name, triggers.GetValueOrDefault(id, string.Empty)));
+            candidates.Add(new ResultTypeOrderItem(id, () => provider.Name, triggers.GetValueOrDefault(id, string.Empty), OnTriggerCharChanged));
         }
 
         foreach (var item in candidates.OrderBy(c => SearchResultTypePriority.Rank(c.Id, order)))
         {
             Items.Add(item);
         }
+
+        // A value saved by an older build may already collide with the syntax or with another type; that
+        // has to be visible as soon as the page opens, not only after the user happens to retype it.
+        ValidateTriggers();
 
         MoveUpCommand = new RelayCommand<ResultTypeOrderItem>(MoveUp);
         MoveDownCommand = new RelayCommand<ResultTypeOrderItem>(MoveDown);
@@ -81,9 +86,65 @@ public class ResultTypeOrderViewModel : ViewModelBase
     public void Save()
     {
         _userSettings.ResultTypeOrder = Items.Select(x => x.Id).ToList();
+        // Keyed by type id, NOT by trigger character: that is the shape UserSettings.ResultTypeTriggers
+        // already had and the shape SearchResultTypePriority.ResolveTrigger reads.
+        //
+        // A trigger character is a dictionary VALUE here, so two types claiming the same character cannot
+        // both survive -- ToDictionary used to throw outright on the duplicate and take Save/Apply down
+        // with it, and a duplicate is entirely legal to type. The collision is reported per row instead
+        // (see ValidateTriggers), and the first claimant keeps the character.
+        var claimed = new HashSet<string>(StringComparer.Ordinal);
         _userSettings.ResultTypeTriggers = Items
-            .Where(x => !string.IsNullOrEmpty(x.TriggerChar))
+            .Where(x => !string.IsNullOrEmpty(x.TriggerChar) && claimed.Add(x.TriggerChar))
             .ToDictionary(x => x.Id, x => x.TriggerChar);
+    }
+
+    // Reports, per row, whether its trigger character can actually work:
+    //   * a reserved character is consumed by the search syntax before any trigger is read, so the
+    //     trigger would silently never fire (see SearchSyntaxReserved);
+    //   * a duplicate would be discarded by the dictionary in Save.
+    // Called on every keystroke in the trigger box and once on load, so a value saved by an older build
+    // is flagged rather than silently kept -- the value itself is deliberately NOT rewritten, so the
+    // user's setting keeps working until they change it.
+    private void ValidateTriggers()
+    {
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var item in Items)
+        {
+            if (string.IsNullOrEmpty(item.TriggerChar))
+                continue;
+            counts[item.TriggerChar] = counts.GetValueOrDefault(item.TriggerChar) + 1;
+        }
+
+        foreach (var item in Items)
+        {
+            item.Error = string.IsNullOrEmpty(item.TriggerChar)
+                ? null
+                : SearchSyntaxReserved.ValidateLeadingCharacter(item.TriggerChar)
+                    ?? (counts.GetValueOrDefault(item.TriggerChar) > 1
+                        ? TranslationManager.Instance["General_ResultTypeTriggerDuplicate"]
+                        : null);
+        }
+    }
+
+    // Any row's trigger change re-validates every row, because a duplicate is a property of the set and
+    // not of the row that was just typed in.
+    private void OnTriggerCharChanged() => ValidateTriggers();
+
+    /// <summary>
+    /// Every trigger error this list is showing, each row named. Read by the Settings window's Apply gate
+    /// -- see GeneralSettingsViewModel.ValidationErrors.
+    /// </summary>
+    internal IEnumerable<string> ValidationErrors
+    {
+        get
+        {
+            foreach (var item in Items)
+            {
+                if (item.Error is { Length: > 0 } error)
+                    yield return $"{item.DisplayName}: {error}";
+            }
+        }
     }
 
     public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
@@ -91,9 +152,43 @@ public class ResultTypeOrderViewModel : ViewModelBase
 
 public class ResultTypeOrderItem : OrderItemBase
 {
-    public ResultTypeOrderItem(string id, Func<string> resolveDisplayName, string triggerChar) : base(id, resolveDisplayName) => TriggerChar = triggerChar;
+    private readonly Action? _onTriggerChanged;
+    private string _triggerChar;
+
+    public ResultTypeOrderItem(string id, Func<string> resolveDisplayName, string triggerChar, Action? onTriggerChanged = null)
+        : base(id, resolveDisplayName)
+    {
+        _triggerChar = triggerChar;
+        _onTriggerChanged = onTriggerChanged;
+    }
 
     // Empty = no trigger configured. When this is the first character typed in the quick window,
     // only this type's results show (see SearchResultMapper.BuildQuickResults' triggeredTypeId).
-    public string TriggerChar { get; set; }
+    public string TriggerChar
+    {
+        get => _triggerChar;
+        set
+        {
+            SetProperty(ref _triggerChar, value);
+            _onTriggerChanged?.Invoke();
+        }
+    }
+
+    private string? _error;
+
+    /// <summary>
+    /// Why this trigger character cannot work, or null. Shown under the box: a trigger the search syntax
+    /// consumes, or one a second type also claims, would otherwise just silently never fire.
+    /// </summary>
+    public string? Error
+    {
+        get => _error;
+        set
+        {
+            SetProperty(ref _error, value);
+            OnPropertyChanged(nameof(HasError));
+        }
+    }
+
+    public bool HasError => !string.IsNullOrEmpty(_error);
 }
