@@ -146,13 +146,16 @@ public class QuickSearchWindowInputHandler
             e.Handled = true;
             return;
         }
-        if (e.Key == Key.Down)
+        // An active IME reports even a bare arrow as Key.ImeProcessed, so these read the unwrapped
+        // actualKey like the hotkeys below do. The no-modifier guard keeps Ctrl/Alt+arrow falling
+        // through to that dispatch instead of moving the selection.
+        if (actualKey == Key.Down && Keyboard.Modifiers == ModifierKeys.None)
         {
             MoveResultSelection(1);
             e.Handled = true;
             return;
         }
-        if (e.Key == Key.Up)
+        if (actualKey == Key.Up && Keyboard.Modifiers == ModifierKeys.None)
         {
             MoveResultSelection(-1);
             e.Handled = true;
