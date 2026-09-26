@@ -259,9 +259,11 @@ internal static class LocalSendServerHandler
         var buf = new byte[1];
         while (true)
         {
-            // Same AsTask().WaitAsync idiom LocalSendIncomingFileWriter uses for the body: the abandoned
-            // read is not cancelled, but the exception that follows tears the connection down, which does.
+            // Same AsTask().WaitAsync idiom LocalSendIncomingFileWriter uses for the body: the timeout
+            // abandons the read rather than cancelling it, so KeepObserved stands between its eventual
+            // IOException and the finalizer reporting a stalled transfer as a crash.
             var read = await stream.ReadAsync(buf.AsMemory(0, 1), token).AsTask()
+                .KeepObserved()
                 .WaitAsync(HeaderReadTimeout, token)
                 .ConfigureAwait(false);
             if (read == 0) break;

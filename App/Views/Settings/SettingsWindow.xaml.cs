@@ -101,9 +101,11 @@ public partial class SettingsWindow : Window
         {
             _pagePrewarmer.Stop();
             vm.Cleanup();
-            // Release cached bitmaps and trim the working set on close, like the search windows.
+            // Release cached bitmaps, and let the trimmer hand the working set back later: trimming here
+            // meant a blocking GC.WaitForPendingFinalizers on this thread, which is one finalizer that
+            // wants the UI thread away from a hang (see SearchWindow's own note on the same call).
             ShellIconHelper.ClearCache();
-            Core.Win32Api.TrimWorkingSet();
+            Services.IdleWorkingSetTrimmer.RequestTrim();
         };
         this.AddHandler(Validation.ErrorEvent, new EventHandler<ValidationErrorEventArgs>(OnValidationError));
         // The popup is StaysOpen="True" (see its XAML comment), so it won't auto-close when the whole

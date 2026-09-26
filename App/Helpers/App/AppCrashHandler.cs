@@ -1,6 +1,7 @@
 using System.Windows;
 using Lertaro.App.Services;
 using Lertaro.Core;
+using Application = System.Windows.Application;
 using MessageBox = Lertaro.App.Views.Controls.Dialogs.CustomMessageBox;
 
 namespace Lertaro.App.Helpers.App;
@@ -17,6 +18,23 @@ public static class AppCrashHandler
         Logger.Log($"CRITICAL CRASH ({source}):\n{details}", LogLevel.Error);
         if (!showDialog)
             return;
+
+        // Report without ever waiting for the UI thread FROM another one. An unobserved task exception
+        // arrives here from the finalizer thread, and CustomMessageBox.Show would then block that thread
+        // on a Dispatcher operation -- which the UI thread can only serve by pumping, and it was not
+        // pumping because trimming its working set waits for pending finalizers. Each thread held the
+        // other, with the dialog still unscheduled.
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is not null && !dispatcher.CheckAccess())
+        {
+            dispatcher.BeginInvoke(new Action(() => ShowDialog(source, ex)));
+            return;
+        }
+        ShowDialog(source, ex);
+    }
+
+    private static void ShowDialog(string source, Exception? ex)
+    {
         try
         {
             MessageBox.Show(

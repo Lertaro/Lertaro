@@ -134,6 +134,7 @@ public sealed class LocalSendServer : IDisposable
                 // the remaining untimed wait. Transfer speed is not bounded here -- the upload body has an
                 // idle timeout of its own, and a slow large file must never be cut off mid-flight.
                 var connection = await LocalSendTlsHelper.CreateServerStreamAsync(client, Certificate, token)
+                    .KeepObserved()
                     .WaitAsync(HandshakeTimeout, token)
                     .ConfigureAwait(false);
                 using var stream = connection.Stream;

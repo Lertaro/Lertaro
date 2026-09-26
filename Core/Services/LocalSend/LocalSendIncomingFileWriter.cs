@@ -35,6 +35,7 @@ internal static class LocalSendIncomingFileWriter
                 var buffer = new byte[BufferSize];
                 int read;
                 while ((read = await source.ReadAsync(buffer, cancellationToken).AsTask()
+                    .KeepObserved()
                     .WaitAsync(IdleTimeout, cancellationToken).ConfigureAwait(false)) > 0)
                 {
                     if (isCanceled() || cancellationToken.IsCancellationRequested)
