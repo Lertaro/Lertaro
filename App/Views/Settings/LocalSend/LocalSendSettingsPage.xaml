@@ -164,6 +164,21 @@
                                  Text="{Binding DiscoveryTimeout, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
 
+                    <Grid x:Name="RowLocalSendPort" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="100"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Port]}"
+                                       FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_PortDesc]}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <TextBox Grid.Column="1" Style="{StaticResource SettingsTextBox}"
+                                 Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+
                     <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,12"/>
 
                     <Grid x:Name="RowLocalSendReceivePin" Margin="0,0,0,12">

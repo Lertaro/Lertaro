@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Net;
 using System.Windows.Input;
 using Lertaro.App.Helpers;
 using Lertaro.Core;
@@ -16,6 +17,7 @@ public sealed class LocalSendSettingsViewModel : ViewModelBase
     private int _discoveryTimeout;
     private bool _quickSave;
     private string _downloadDirectory;
+    private int _port;
     private bool _enableHttps;
     private bool _createChecksums;
     private bool _verifyChecksums;
@@ -29,6 +31,7 @@ public sealed class LocalSendSettingsViewModel : ViewModelBase
         _deviceAlias = userSettings.LocalSend.DeviceAlias;
         _discoveryTimeout = userSettings.LocalSend.DiscoveryTimeout > 0 ? userSettings.LocalSend.DiscoveryTimeout : 1000;
         _quickSave = userSettings.LocalSend.QuickSave;
+        _port = userSettings.LocalSend.Port;
         _downloadDirectory = string.IsNullOrEmpty(userSettings.LocalSend.DownloadDirectory)
             ? LocalSendSettingsModel.DefaultDownloadDirectory
             : userSettings.LocalSend.DownloadDirectory;
@@ -67,6 +70,26 @@ public sealed class LocalSendSettingsViewModel : ViewModelBase
         get => _quickSave;
         set => SetProperty(ref _quickSave, value);
     }
+
+    /// <summary>
+    /// The port LocalSend listens on and tells peers to reach it at -- the same number for both
+    /// directions, since the protocol has a sender connect to the receiver's own HTTP port. Discovery
+    /// (multicast and announcement) is sent from it too, so one field covers receiving and sending.
+    /// </summary>
+    public int Port
+    {
+        get => _port;
+        set => SetProperty(ref _port, value);
+    }
+
+    /// <summary>
+    /// <paramref name="port"/> as the service may safely bind it: the row is a text box, so an
+    /// out-of-range or half-typed value falls back to the protocol default instead of being stored --
+    /// and 0 has to fall back with them, since every reader of Port takes 0 to mean "not configured"
+    /// (IPEndPoint.MinPort is 0, so a range check alone would let it through).
+    /// </summary>
+    internal static int ValidPort(int port) =>
+        port >= 1 && port <= IPEndPoint.MaxPort ? port : Core.Services.LocalSend.LocalSendDiscoveryService.DefaultPort;
 
     public string DownloadDirectory
     {
@@ -122,6 +145,7 @@ public sealed class LocalSendSettingsViewModel : ViewModelBase
         _userSettings.LocalSend.DeviceAlias = _deviceAlias;
         _userSettings.LocalSend.DiscoveryTimeout = _discoveryTimeout > 0 ? _discoveryTimeout : 1000;
         _userSettings.LocalSend.QuickSave = _quickSave;
+        _userSettings.LocalSend.Port = ValidPort(_port);
         _userSettings.LocalSend.DownloadDirectory = _downloadDirectory;
         _userSettings.LocalSend.EnableHttps = _enableHttps;
         _userSettings.LocalSend.CreateChecksums = _createChecksums;

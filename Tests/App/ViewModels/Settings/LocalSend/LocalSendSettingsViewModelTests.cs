@@ -1,6 +1,7 @@
 using System.IO;
 using Lertaro.App.ViewModels.Settings.LocalSend;
 using Lertaro.Core;
+using Lertaro.Core.Services.LocalSend;
 using Lertaro.Core.Services.LocalSend.Models;
 
 namespace Lertaro.App.Tests.ViewModels.Settings.LocalSend;
@@ -76,5 +77,31 @@ public class LocalSendSettingsViewModelTests
 
         vm.Apply();
         Assert.AreEqual(LocalSendSettingsModel.DefaultDownloadDirectory, settings.LocalSend.DownloadDirectory);
+    }
+
+    [TestMethod]
+    public void LocalSendSettingsViewModel_StoresThePortAndWeedsOutAnUnusableOne()
+    {
+        var settings = new UserSettings();
+        var vm = new LocalSendSettingsViewModel(settings);
+
+        vm.Port = 53400;
+        vm.Apply();
+        Assert.AreEqual(53400, settings.LocalSend.Port);
+
+        // The row is a text box, so whatever is in it when Apply runs has to be judged there: a value the
+        // sockets cannot bind, or 0, would otherwise reach a settings file whose readers all take 0 to mean
+        // "not configured" and quietly bind the default instead.
+        foreach (var unusable in new[] { 0, -1, 70000, 65536 })
+        {
+            vm.Port = unusable;
+            vm.Apply();
+            Assert.AreEqual(LocalSendDiscoveryService.DefaultPort, settings.LocalSend.Port, $"port {unusable}");
+        }
+
+        // Both ends of the legal range survive untouched.
+        vm.Port = 1;
+        vm.Apply();
+        Assert.AreEqual(1, settings.LocalSend.Port);
     }
 }
