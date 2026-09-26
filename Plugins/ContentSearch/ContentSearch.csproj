@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Lertaro.Plugins.ContentSearch</AssemblyName>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <UseCurrentRuntimeIdentifier>true</UseCurrentRuntimeIdentifier>
     <SelfContained>false</SelfContained>
@@ -17,12 +17,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
-    <PackageReference Include="System.IO.Hashing" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+    <PackageReference Include="System.IO.Hashing" Version="10.0.12" />
     <PackageReference Include="PdfPig" Version="0.1.16" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Primitives" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Primitives" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>

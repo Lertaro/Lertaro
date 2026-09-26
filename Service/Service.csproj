@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.8" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.12" />
   </ItemGroup>
 
 </Project>

@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Lertaro.Plugins.BrowserData</AssemblyName>
-    <Version>1.2.1</Version>
+    <Version>1.2.2</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <!-- Microsoft.Data.Sqlite ships a native e_sqlite3.dll. A plain framework-dependent build with no
          RuntimeIdentifier never selects/copies it (that normally only happens on `dotnet publish`).
@@ -38,10 +38,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="11.0.0-rc.1.26425.128" />
     <!-- Overrides the bundle's own transitively-pinned native lib version: 2.1.x has a known
          high-severity advisory (GHSA-2m69-gcr7-jv3q) in the bundled sqlite3 build. -->
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
   </ItemGroup>
 
   <ItemGroup>
