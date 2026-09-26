@@ -12,9 +12,11 @@ namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 /// WPS stopped answering while its dialog was being destroyed (the user had just clicked Cancel), so the
 /// placing thread now takes whatever was answered last and the measurement happens here instead.
 ///
-/// The key is the dialog window plus its size, because that is what the answer describes: a dialog that only
-/// moved keeps its widgets where they were relative to its own edges, and a dialog that changed size has new
-/// ones. Adapters cache the same way, so a repeated request costs nothing on either side.
+/// The key is the dialog window and the rect it answered for, position included. These are screen rectangles,
+/// and an answer carried across a move is not "the dialog's inner layout", it is where the dialog used to be:
+/// the card then anchors to a point the dialog has left behind, which is exactly a card that looks stuck while
+/// the window is dragged. Re-asking on a move is cheap, because the adapter translates its own offsets and
+/// only reaches for UI Automation again when the dialog changed size.
 /// </remarks>
 internal sealed class InlineDialogGeometryProbe
 {
@@ -27,7 +29,7 @@ internal sealed class InlineDialogGeometryProbe
 
     internal readonly record struct Answer(ExplorerTracker.RECT? Anchor, ExplorerTracker.RECT? FileList);
 
-    private readonly record struct Key(IntPtr Hwnd, int Width, int Height);
+    private readonly record struct Key(IntPtr Hwnd, int Left, int Top, int Width, int Height);
 
     private readonly Func<IntPtr, Answer> _measure;
     private readonly Action _placementChanged;
@@ -48,24 +50,24 @@ internal sealed class InlineDialogGeometryProbe
     /// What is known about this dialog's inner layout right now, starting a measurement if none is running.
     /// </summary>
     /// <remarks>
-    /// A measurement that arrives after the dialog changed size or moved on is dropped rather than applied --
-    /// the card is placed by the answer for the layout it is actually in -- and it asks for a fresh placement,
-    /// which is what starts the measurement the current layout needs.
+    /// A measurement that arrives after the dialog moved or resized is dropped rather than applied -- the card
+    /// is placed by the answer for the rect it is at now -- and it asks for a fresh placement either way, which
+    /// is what starts the measurement the current rect needs.
     /// </remarks>
-    public Answer Request(IntPtr hwnd, int width, int height)
+    public Answer Request(IntPtr hwnd, int left, int top, int width, int height)
     {
-        var key = new Key(hwnd, width, height);
+        var key = new Key(hwnd, left, top, width, height);
         lock (_gate)
         {
             if (_asked != key)
             {
                 _asked = key;
                 _attempts = 0;
-                // Whatever was answered describes a layout the card is no longer in -- another dialog, or this
-                // one at another size -- so it is not carried over. Windows hands out the same window handle
-                // again, so the size and handle agreeing is not proof the answer still applies.
+                // Windows hands out the same handle again, so the window and size agreeing is not proof the
+                // answer still applies. The answer itself is kept while this rect is being measured: it is the
+                // same dialog's inner layout offset by where the dialog used to be, and dropping it would move
+                // the card by a hundred-odd pixels for the frame before the fresh one lands.
                 _answeredFor = null;
-                _answer = default;
             }
 
             if (_answeredFor == key || _beingMeasured != null || _attempts >= MaxAttemptsPerLayout)
@@ -75,6 +77,24 @@ internal sealed class InlineDialogGeometryProbe
             _beingMeasured = key;
             Task.Run(() => Measure(key));
             return _answer;
+        }
+    }
+
+    /// <summary>
+    /// Drops the credit for the layout being asked about, so the next request measures it again.
+    /// </summary>
+    /// <remarks>
+    /// For a dialog whose adapter this process has only just matched: every answer before that was empty, and
+    /// <see cref="MaxAttemptsPerLayout"/> would otherwise keep the card on the anchorless placement until the
+    /// dialog happened to move or resize. The answer itself is kept, and a measurement already in flight
+    /// still lands and is still judged against the layout it was asked for.
+    /// </remarks>
+    public void Invalidate()
+    {
+        lock (_gate)
+        {
+            _answeredFor = null;
+            _attempts = 0;
         }
     }
 

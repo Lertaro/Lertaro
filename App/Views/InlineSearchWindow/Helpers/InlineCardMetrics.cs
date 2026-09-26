@@ -95,13 +95,19 @@ internal static class InlineCardMetrics
         double workingAreaHeight,
         double activeWindowHeight,
         double spaceBelowActiveWindow,
+        double spaceBelowAnchorTop,
         double fullCardHeight)
     {
         var workingAreaLimit = Math.Max(0, workingAreaHeight) * WorkingAreaHeightShare;
         if (activeWindowHeight <= 0)
             return workingAreaLimit;
 
-        var overAnchoredWindow = activeWindowHeight * AnchoredWindowHeightShare;
+        // When the card has to lie over the window it is anchored to the top of that placement is fixed --
+        // it starts at the anchor's top edge -- so the room left on screen below *that edge* is the real
+        // ceiling, alongside the share of the window. Capping by the window share alone left the positioner's
+        // on-screen clamp pulling the whole card up to a y that no longer moves with the window, which is how
+        // a dialog near the bottom of the screen ended up with the card parked at a fixed point above it.
+        var overAnchoredWindow = Math.Min(activeWindowHeight * AnchoredWindowHeightShare, spaceBelowAnchorTop);
         var room = HasRoomToHangBelow(spaceBelowActiveWindow, fullCardHeight)
             ? spaceBelowActiveWindow
             : overAnchoredWindow;

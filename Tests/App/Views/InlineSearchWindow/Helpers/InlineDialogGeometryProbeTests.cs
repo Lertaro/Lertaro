@@ -18,8 +18,11 @@ public sealed class InlineDialogGeometryProbeTests
     private static readonly ExplorerTracker.RECT Rect = new() { Left = 10, Top = 20, Right = 210, Bottom = 44 };
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(5);
 
-    private static InlineDialogGeometryProbe.Answer Measured() =>
-        new(Rect, Rect);
+    private static InlineDialogGeometryProbe.Answer Measured() => new(Rect, Rect);
+
+    private static InlineDialogGeometryProbe.Answer AnswerAt(int right) =>
+        new(new ExplorerTracker.RECT { Left = 10, Top = 20, Right = right, Bottom = 44 },
+            new ExplorerTracker.RECT { Left = 10, Top = 20, Right = right, Bottom = 44 });
 
     [TestMethod]
     public void TheAskingThreadIsNeverTheOneThatMeasures()
@@ -38,7 +41,7 @@ public sealed class InlineDialogGeometryProbeTests
             },
             () => { });
 
-        Assert.IsNull(probe.Request(Dialog, 400, 300).Anchor,
+        Assert.IsNull(probe.Request(Dialog, 100, 200, 400, 300).Anchor,
             "the answer cannot be known yet -- blocking here to wait for it is the freeze");
 
         Assert.IsTrue(entered.Wait(Wait), "nothing was ever measured, so the card would never get its anchor");
@@ -55,65 +58,51 @@ public sealed class InlineDialogGeometryProbeTests
             _ => { Interlocked.Increment(ref measures); return Measured(); },
             () => landed.Set());
 
-        Assert.IsNull(probe.Request(Dialog, 400, 300).Anchor);
+        Assert.IsNull(probe.Request(Dialog, 100, 200, 400, 300).Anchor);
         Assert.IsTrue(landed.Wait(Wait), "an answer that landed has to move the card again");
 
-        var answer = probe.Request(Dialog, 400, 300);
+        var answer = probe.Request(Dialog, 100, 200, 400, 300);
         Assert.AreEqual(Rect.Right, answer.Anchor?.Right);
         Assert.AreEqual(Rect.Bottom, answer.FileList?.Bottom);
 
-        for (var i = 0; i < 5; i++) probe.Request(Dialog, 400, 300);
+        for (var i = 0; i < 5; i++) probe.Request(Dialog, 100, 200, 400, 300);
         Assert.AreEqual(1, measures, "a placement pass must not re-ask what it already has");
     }
 
     [TestMethod]
-    public void AnAnswerForTheSizeTheCardLeftIsNotApplied()
+    public void AMovedDialogIsMeasuredAgainWhileItsLastAnswerIsStillAllTheCardHas()
     {
         var measures = 0;
         var published = 0;
-        using var firstEntered = new ManualResetEventSlim(false);
-        using var firstMayReturn = new ManualResetEventSlim(false);
         using var secondEntered = new ManualResetEventSlim(false);
         using var secondMayReturn = new ManualResetEventSlim(false);
         var probe = new InlineDialogGeometryProbe(
             _ =>
             {
-                // Both measurements are held until the test lets them answer, so the moment a stale one is
-                // judged is observable rather than raced against the fresh one finishing.
-                if (Interlocked.Increment(ref measures) == 1)
-                {
-                    firstEntered.Set();
-                    firstMayReturn.Wait(Wait);
-                }
-                else
-                {
-                    secondEntered.Set();
-                    secondMayReturn.Wait(Wait);
-                }
-                return Measured();
+                // The second answer is held until the test lets it out, and each call returns its own
+                // rectangle, so which of the two the card is placing itself against is observable.
+                if (Interlocked.Increment(ref measures) == 1) return AnswerAt(210);
+                secondEntered.Set();
+                secondMayReturn.Wait(Wait);
+                return AnswerAt(310);
             },
             () => Interlocked.Increment(ref published));
 
-        Assert.IsNull(probe.Request(Dialog, 400, 300).Anchor);
-        Assert.IsTrue(firstEntered.Wait(Wait));
+        Assert.IsNull(probe.Request(Dialog, 100, 200, 400, 300).Anchor);
+        Assert.IsTrue(SpinWait.SpinUntil(() => Volatile.Read(ref published) == 1, Wait));
+        Assert.AreEqual(210, probe.Request(Dialog, 100, 200, 400, 300).Anchor?.Right);
 
-        // The dialog changed size while that measurement was still running.
-        Assert.IsNull(probe.Request(Dialog, 800, 600).Anchor);
-        Assert.AreEqual(1, measures, "one measurement at a time, however fast the dialog resizes");
-
-        firstMayReturn.Set();
-        Assert.IsTrue(SpinWait.SpinUntil(
-            () => { probe.Request(Dialog, 800, 600); return Volatile.Read(ref measures) == 2; }, Wait),
-            "the size the card is actually in has to be measured once the stale one is done");
-
-        // A's answer is in hand now, and it is the wrong shape for the dialog the card is looking at: the
-        // card keeps the anchorless placement rather than sliding under a rectangle from the old layout.
-        Assert.IsNull(probe.Request(Dialog, 800, 600).Anchor, "an answer about a layout the card left is not applied");
-        Assert.AreEqual(1, published, "a discarded answer still says the card should be placed again");
+        // The dialog is dragged elsewhere. Its answer for the old place is what the card has, so it keeps
+        // placing with that for the moment -- but it is not credited to the new rect, which is what the
+        // second measurement proves, and it is exactly the credit that a cache keyed on the size alone
+        // withheld: the card then anchors to where the dialog used to be, which looks like a card stuck
+        // while the window moves.
+        Assert.AreEqual(210, probe.Request(Dialog, 900, 560, 400, 300).Anchor?.Right);
+        Assert.IsTrue(secondEntered.Wait(Wait), "the moved rect was never measured again");
 
         secondMayReturn.Set();
         Assert.IsTrue(SpinWait.SpinUntil(() => Volatile.Read(ref published) == 2, Wait));
-        Assert.AreEqual(Rect.Right, probe.Request(Dialog, 800, 600).Anchor?.Right);
+        Assert.AreEqual(310, probe.Request(Dialog, 900, 560, 400, 300).Anchor?.Right, "the new rect's own answer wins");
         Assert.AreEqual(2, measures);
     }
 
@@ -130,13 +119,46 @@ public sealed class InlineDialogGeometryProbeTests
         // is not the last word -- but a dialog that genuinely has no anchor must not be asked on every
         // placement pass forever, so the asking stops after a bounded number of tries.
         var gaveUp = SpinWait.SpinUntil(
-            () => { probe.Request(Dialog, 400, 300); return Volatile.Read(ref measures) >= InlineDialogGeometryProbe.MaxAttemptsPerLayout; },
+            () => { probe.Request(Dialog, 100, 200, 400, 300); return Volatile.Read(ref measures) >= InlineDialogGeometryProbe.MaxAttemptsPerLayout; },
             Wait);
         Assert.IsTrue(gaveUp, "the dialog was never asked at all");
 
-        for (var pass = 0; pass < 50; pass++) probe.Request(Dialog, 400, 300);
+        for (var pass = 0; pass < 50; pass++) probe.Request(Dialog, 100, 200, 400, 300);
         Assert.AreEqual(InlineDialogGeometryProbe.MaxAttemptsPerLayout, measures, "the asking is bounded");
         Assert.AreEqual(0, published, "nothing landed, so the card should never be told to move");
+    }
+
+    [TestMethod]
+    public void Invalidate_ReAsksALayoutTheProbeHadGivenUpOn()
+    {
+        // That budget gets spent on empty answers that were empty only because there was no adapter to
+        // measure with at all. ExplorerTracker matches one on its own schedule, off the placing thread and
+        // possibly seconds later, so a dialog that has not moved since must not stay centered under a layout
+        // the probe already gave up on.
+        var measures = 0;
+        using var landed = new ManualResetEventSlim(false);
+        var probe = new InlineDialogGeometryProbe(
+            _ =>
+            {
+                // Nothing measurable while the budget lasts, exactly what a dialog with no adapter answers.
+                if (Interlocked.Increment(ref measures) <= InlineDialogGeometryProbe.MaxAttemptsPerLayout)
+                    return default;
+                return Measured();
+            },
+            () => landed.Set());
+
+        Assert.IsTrue(SpinWait.SpinUntil(
+            () => { probe.Request(Dialog, 100, 200, 400, 300); return Volatile.Read(ref measures) >= InlineDialogGeometryProbe.MaxAttemptsPerLayout; },
+            Wait));
+        for (var pass = 0; pass < 5; pass++) probe.Request(Dialog, 100, 200, 400, 300);
+        Assert.AreEqual(InlineDialogGeometryProbe.MaxAttemptsPerLayout, Volatile.Read(ref measures),
+            "the layout was given up on, as the test above establishes it should be");
+
+        probe.Invalidate();
+
+        Assert.IsNull(probe.Request(Dialog, 100, 200, 400, 300).Anchor);
+        Assert.IsTrue(landed.Wait(Wait), "the invalidated layout was never measured again");
+        Assert.AreEqual(Rect.Right, probe.Request(Dialog, 100, 200, 400, 300).Anchor?.Right);
     }
 
     // The guard against the regression itself. The probe above cannot be reached from a test by the placement

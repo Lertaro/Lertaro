@@ -193,14 +193,14 @@ public sealed class InlineCardMetricsTests
     public void AvailableCardHeight_RoomBelowTheWindow_IsUsedWithoutCoveringIt() =>
         // Working area 1080, a 600-tall window with 500 DIP of screen left below it: the card takes that 500
         // rather than a share of the window, because it can sit under the window and cover nothing at all.
-        Assert.AreEqual(500.0, InlineCardMetrics.AvailableCardHeight(1080, 600, 500, 100), 0.001);
+        Assert.AreEqual(500.0, InlineCardMetrics.AvailableCardHeight(1080, 600, 500, 900, 100), 0.001);
 
     [TestMethod]
     public void AvailableCardHeight_NoRoomBelow_CapsToAShareOfTheWindow() =>
         // The same window at the bottom of a 768-tall screen: 10 DIP below it, nowhere near the whole card,
         // so the card has to sit over the window -- and 60% of the window (360) is what it may take -- not
         // 90% of the screen.
-        Assert.AreEqual(360.0, InlineCardMetrics.AvailableCardHeight(768, 600, 10, 100), 0.001);
+        Assert.AreEqual(360.0, InlineCardMetrics.AvailableCardHeight(768, 600, 10, 610, 100), 0.001);
 
     [TestMethod]
     public void AvailableCardHeight_RoomBelowHoldingTheWholeCard_UsesItWithoutCoveringTheWindow()
@@ -208,7 +208,7 @@ public sealed class InlineCardMetricsTests
         // A 607-tall window with room under it for the tallest card there is (495): the card hangs below at
         // that room and covers none of the window.
         Assert.IsTrue(InlineCardMetrics.HasRoomToHangBelow(520, 495));
-        Assert.AreEqual(520.0, InlineCardMetrics.AvailableCardHeight(1152, 607, 520, fullCardHeight: 495), 0.001);
+        Assert.AreEqual(520.0, InlineCardMetrics.AvailableCardHeight(1152, 607, 520, 1000, fullCardHeight: 495), 0.001);
     }
 
     [TestMethod]
@@ -221,17 +221,31 @@ public sealed class InlineCardMetricsTests
         Assert.IsFalse(InlineCardMetrics.HasRoomToHangBelow(222, 495));
         Assert.AreEqual(
             607 * InlineCardMetrics.AnchoredWindowHeightShare,
-            InlineCardMetrics.AvailableCardHeight(1152, 607, 222, fullCardHeight: 495),
+            InlineCardMetrics.AvailableCardHeight(1152, 607, 222, 600, fullCardHeight: 495),
             0.001);
     }
 
     [TestMethod]
     public void AvailableCardHeight_WindowTallerThanTheScreen_IsCappedByTheWorkingArea() =>
         // A maximized dialog on a 768-tall screen: 60% of the window would exceed the screen's own share.
-        Assert.AreEqual(768 * InlineCardMetrics.WorkingAreaHeightShare, InlineCardMetrics.AvailableCardHeight(768, 10000, 0, 100), 0.001);
+        Assert.AreEqual(768 * InlineCardMetrics.WorkingAreaHeightShare, InlineCardMetrics.AvailableCardHeight(768, 10000, 0, 700, 100), 0.001);
 
     [TestMethod]
     public void AvailableCardHeight_NoAnchoredWindow_UsesTheWorkingAreaShare() =>
         // The desktop, or no tracked window: there is nothing to share the screen with.
-        Assert.AreEqual(1080 * InlineCardMetrics.WorkingAreaHeightShare, InlineCardMetrics.AvailableCardHeight(1080, 0, 0, 100), 0.001);
+        Assert.AreEqual(1080 * InlineCardMetrics.WorkingAreaHeightShare, InlineCardMetrics.AvailableCardHeight(1080, 0, 0, 0, 100), 0.001);
+
+    [TestMethod]
+    public void AvailableCardHeight_CappedByTheRoomBelowItsOwnAnchorTop()
+    {
+        // A 648-tall dialog near the bottom of the screen, so the card has to lie over it: 60% of the window
+        // is 388.8, but its top edge is anchored ~200 DIP above the working area's bottom, and the positioner
+        // clamps the card to stay on screen. Sized to the window share it would have been pulled upward off its
+        // anchor -- which is what showed as a card stuck at a fixed point while the dialog kept moving down.
+        Assert.AreEqual(200.0, InlineCardMetrics.AvailableCardHeight(1152, 648, 0, 200, fullCardHeight: 495), 0.001);
+
+        // The share still wins while there is room below the anchor, so nothing changes for the ordinary case.
+        Assert.AreEqual(648 * InlineCardMetrics.AnchoredWindowHeightShare,
+            InlineCardMetrics.AvailableCardHeight(1152, 648, 0, 400, fullCardHeight: 495), 0.001);
+    }
 }

@@ -25,8 +25,10 @@ internal sealed class ExplorerActivePathPoller : IDisposable
 
     // How long one speculative ask may hold things: half the poll gap, so a retry cannot be the reason the
     // next event waits, and it gives up on the lock rather than queueing behind a read already in flight.
+    // Shared with ExplorerTracker's re-ask of a dialog another process claimed, so the two processes hold a
+    // speculative read for the same length of time.
     private const int RetryLockWaitMs = 50;
-    private const int RetryReadBudgetMs = 100;
+    internal const int RetryReadBudgetMs = 100;
 
     private readonly ExplorerWindowClassifier _classifier;
     private readonly QuietPeriodScheduler _scheduler;

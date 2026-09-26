@@ -45,14 +45,14 @@ public sealed class InlineCardPlacementTests
     {
         // The two answers used to be written out per placement, which is how a resize that turned the inside
         // placement into a drop-down ended up walking an Explorer card sideways under the user's own typing.
-        // One call site is what keeps that impossible: the rungs it chooses between -- a dialog's button row,
-        // its file list, the field it feeds, the dialog's center, the window's right edge -- are decided
-        // together, in a function the tests can hand real dialog measurements to.
+        // One call site is what keeps that impossible: the rungs it chooses between -- a dialog's file list,
+        // the field it feeds, the window's own right edge, and the center for a card hanging below -- are
+        // decided together, in a function the tests can hand real dialog measurements to.
         var anchored = Between(Positioner(), "else if (tracker.ActiveHwnd != IntPtr.Zero)", "var minLeft");
 
         Assert.AreEqual(1, Count(anchored, "targetPhysLeft ="),
             "the horizontal anchor is decided once, not once per placement");
-        Assert.Contains("CalculatePhysLeft(isDialog, hangsBelow, rect, fileList, anchor", anchored,
+        Assert.Contains("CalculatePhysLeft(hangsBelow, rect, fileList, anchor", anchored,
             "and it is one call, taking the placement and the dialog's file list");
     }
 

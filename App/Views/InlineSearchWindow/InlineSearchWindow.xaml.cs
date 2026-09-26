@@ -259,6 +259,9 @@ public partial class InlineSearchWindow : Window, ISearchWindow
     {
         if (IsVisible)
         {
+            // This is also the signal that the tracked dialog became measurable after all -- see
+            // InlineSearchWindowPositioner.InvalidateDialogGeometry.
+            _positioner.InvalidateDialogGeometry();
             _positioner.PositionWindow();
         }
     }

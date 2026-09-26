@@ -46,10 +46,41 @@ public class InlineSearchWindowPositioner
         // A dialog that closed or was superseded mid-measurement has nothing left to answer for.
         if (tracker.ActiveHwnd != hwnd) return default;
 
-        return new InlineDialogGeometryProbe.Answer(
-            tracker.TryGetTargetFieldRect(out var anchor) ? anchor : null,
-            tracker.TryGetFileListRect(out var list) ? list : null);
+        Core.Hook.ExplorerTracker.RECT? anchor = tracker.TryGetTargetFieldRect(out var field) ? field : null;
+        Core.Hook.ExplorerTracker.RECT? list = tracker.TryGetFileListRect(out var content) ? content : null;
+
+        // Nothing measurable about a window this process calls a dialog: the adapter it settled on cannot see
+        // that far into the dialog, or was picked in the instant before the dialog could be seen at all. This
+        // is where that gets noticed, and it is already off the thread that places the card.
+        if (anchor is null && list is null) tracker.RederiveActiveDialogAdapterIfStale();
+
+        return new InlineDialogGeometryProbe.Answer(anchor, list);
     }
+
+    /// <summary>
+    /// The file list the last applied placement hung the card from, when the dialog answered with one.
+    /// </summary>
+    /// <remarks>
+    /// What the sizing pass reads to agree with the placement about which edge the card's top is anchored to.
+    /// A remembered answer, never a fresh one: sizing runs on the WPF UI thread, and a dialog whose widgets
+    /// carry no window handles of their own answers through a synchronous call into its own process -- the
+    /// freeze InlineDialogGeometryProbe exists to keep off that thread. Null until a placement has been
+    /// applied, which leaves the sizing pass on the anchored window's own top edge, the same fallback the
+    /// placement uses.
+    /// </remarks>
+    internal Core.Hook.ExplorerTracker.RECT? PlacedFileList => _cachedFileList;
+
+    /// <summary>
+    /// Asks for the dialog's rectangles to be measured again on the next placement pass, however many times
+    /// this layout has already been asked.
+    /// </summary>
+    /// <remarks>
+    /// For the pass that learns the tracked window can now be measured -- a dialog this process had no
+    /// adapter for has just matched one, which is what ExplorerTracker's re-ask signals through
+    /// OnActiveWindowMoved. Without it the probe's own attempt budget, spent on answers that were empty
+    /// because there was nothing to ask, would keep the card centered over a dialog that is sitting still.
+    /// </remarks>
+    internal void InvalidateDialogGeometry() => _geometry.Invalidate();
 
     public void PositionWindow()
     {
@@ -94,7 +125,7 @@ public class InlineSearchWindowPositioner
         // widgets have no window handles of their own it would be a call into that other process, which is
         // how a closing WPS dialog once took the whole application down with it -- InlineDialogGeometryProbe.
         var geometry = hasValidRect
-            ? _geometry.Request(tracker.ActiveHwnd, rect.Right - rect.Left, rect.Bottom - rect.Top)
+            ? _geometry.Request(tracker.ActiveHwnd, rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top)
             : default;
         Core.Hook.ExplorerTracker.RECT? anchor = geometry.Anchor;
         Core.Hook.ExplorerTracker.RECT? fileList = geometry.FileList;
@@ -200,7 +231,7 @@ public class InlineSearchWindowPositioner
                 // under the window it hangs below, a dialog's file list when it has to lie over the dialog,
                 // the field a dialog feeds, the window's own right edge) cannot drift into disagreeing about
                 // which corner the card hangs off.
-                targetPhysLeft = CalculatePhysLeft(isDialog, hangsBelow, rect, fileList, anchor,
+                targetPhysLeft = CalculatePhysLeft(hangsBelow, rect, fileList, anchor,
                     physWindowWidth, physXamlMargin, physVisibleMargin);
 
                 // Outside below, or from the top edge of whatever the card has to cover. The top, not the
@@ -342,39 +373,27 @@ public class InlineSearchWindowPositioner
     internal static double CalculateDockedWidth(double targetWindowWidth) => targetWindowWidth * DockedWidthRatio;
 
     /// <summary>
-    /// Where a dialog's card starts horizontally, in physical pixels.
-    /// </summary>
-    /// <remarks>
-    /// Centered on the dialog, unless that dialog named the field the card feeds -- WPS's is 960px wide with
-    /// its file-name box starting 300px in, so centering parked the card's left edge 143px left of the box.
-    /// Both dialog placements ask here, which is what keeps a resize from sliding the card sideways.
-    /// </remarks>
-    internal static double CalculateDialogPhysLeft(
-        Core.Hook.ExplorerTracker.RECT dock,
-        Core.Hook.ExplorerTracker.RECT? anchor,
-        double physWindowWidth,
-        double physXamlMargin,
-        double physVisibleMargin)
-    {
-        if (anchor.HasValue)
-            return anchor.Value.Right - physWindowWidth + physXamlMargin - physVisibleMargin;
-
-        return dock.Left + ((dock.Right - dock.Left) - physWindowWidth) / 2.0;
-    }
-
     /// <summary>
     /// Where the card's window starts horizontally, in physical pixels.
     /// </summary>
     /// <remarks>
     /// Below the window there is one answer for every host: centered under it, the taskbar allowed to be
-    /// covered. Over it, a dialog whose adapter can see its own file list lines up on that list's right edge
-    /// -- the same edge a plain window's card docks to, since a plain window's dock rect IS its file list --
-    /// and a dialog that cannot see that far in gets the placement it has always had. Each rung names the
-    /// edge the card's VISIBLE edge is meant to meet, and pays the window's own transparent margin back to
-    /// get the window position that puts it there.
+    /// covered. Over it the card's VISIBLE top-right corner meets one named edge -- the dialog's own file list
+    /// where it can see one, the field the card feeds where only that is known, the window's own right edge
+    /// where neither is -- and each of them pays the window's transparent margin back to get the window
+    /// position that puts the visible edge there. A plain window has no list to name because its dock rect
+    /// already IS its file list, so it takes the last rung and a card over Total Commander and a card over a
+    /// Save dialog behave alike. That is also why nothing here needs to know whether the window is a dialog.
+    ///
+    /// The last rung used to center the card on the dialog instead, and that was a different answer rather
+    /// than a weaker one: any dialog left unmeasured -- by an adapter that cannot see its file list, or by one
+    /// chosen in the instant before it could be -- then sat across the middle of the address bar, and snapped
+    /// to the corner whenever the measurement finally arrived. Measured on Rimage's 添加文件夹, the content
+    /// pane's right edge is 1204 against the dialog's own 1205, so the corner is where the weaker answer
+    /// belongs too. WPS is the case that earned the field rung and keeps it: its dialog is 960px wide with
+    /// the file-name box starting 300px in, so centering parked the card's left edge 143px off the box.
     /// </remarks>
     internal static double CalculatePhysLeft(
-        bool isDialog,
         bool hangsBelow,
         Core.Hook.ExplorerTracker.RECT dock,
         Core.Hook.ExplorerTracker.RECT? fileList,
@@ -384,14 +403,9 @@ public class InlineSearchWindowPositioner
         double physVisibleMargin)
     {
         if (hangsBelow)
-            return CalculateDialogPhysLeft(dock, null, physWindowWidth, physXamlMargin, physVisibleMargin);
+            return dock.Left + ((dock.Right - dock.Left) - physWindowWidth) / 2.0;
 
-        if (fileList.HasValue)
-            return fileList.Value.Right - physWindowWidth + physXamlMargin - physVisibleMargin;
-
-        return isDialog
-            ? CalculateDialogPhysLeft(dock, field, physWindowWidth, physXamlMargin, physVisibleMargin)
-            : dock.Right - physWindowWidth + physXamlMargin - physVisibleMargin;
+        return ((fileList ?? field) ?? dock).Right - physWindowWidth + physXamlMargin - physVisibleMargin;
     }
 
     /// <summary>Where the card's window starts vertically, in physical pixels.</summary>

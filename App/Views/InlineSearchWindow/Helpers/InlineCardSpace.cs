@@ -89,6 +89,7 @@ internal static class InlineCardSpace
 
         double activeWindowHeight = 0;
         double spaceBelow = 0;
+        double spaceBelowAnchorTop = double.MaxValue;
         if (tracker.ActiveHwnd != IntPtr.Zero && !tracker.IsDesktop
             && tracker.TryGetActiveWindowRect(out var rect)
             && rect.Bottom - rect.Top > 100 && rect.Right - rect.Left > 100)
@@ -98,9 +99,18 @@ internal static class InlineCardSpace
             // the same way, and a budget measured from one line with the card hung from another is what made
             // a card sized to sit outside a window get drawn over it.
             spaceBelow = (screen.Bounds.Bottom - rect.Bottom) / dpiScaleY;
+
+            // The edge the card's own top is anchored to when it has to lie over the window -- the same
+            // choice CalculatePhysTop makes, so the height decided here is the height that placement can
+            // actually keep on screen. Read from the positioner's last applied placement rather than asked of
+            // the dialog again: this runs on the WPF UI thread, and a dialog whose widgets carry no window
+            // handles answers that question through a synchronous call into its own process. No file list
+            // remembered yet means the window's own top edge, which is what the placement falls back to too.
+            var anchorTop = window.Positioner.PlacedFileList is { } fileList ? fileList.Top : rect.Top;
+            spaceBelowAnchorTop = Math.Max(0, screen.WorkingArea.Bottom - anchorTop) / dpiScaleY;
         }
 
         return InlineCardMetrics.AvailableCardHeight(
-            screen.WorkingArea.Height / dpiScaleY, activeWindowHeight, spaceBelow, fullCardHeight);
+            screen.WorkingArea.Height / dpiScaleY, activeWindowHeight, spaceBelow, spaceBelowAnchorTop, fullCardHeight);
     }
 }
