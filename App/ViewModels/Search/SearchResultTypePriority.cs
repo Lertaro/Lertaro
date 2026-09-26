@@ -68,8 +68,15 @@ public static class SearchResultTypePriority
     {
         if (query.Length == 0)
             return query;
-        return ResolveTrigger(query[0], UserSettings.Load().ResultTypeTriggers) != null
-            ? query.Substring(1)
-            : query;
+        return StripLeadingTrigger(query, UserSettings.Load().ResultTypeTriggers);
+    }
+
+    // Same rule against a caller-supplied trigger table, for the paths that already have the settings
+    // graph loaded or need the decision without touching it (see SearchResultExecutionHelper).
+    public static string StripLeadingTrigger(string query, IReadOnlyDictionary<string, string> triggers)
+    {
+        if (query.Length == 0)
+            return query;
+        return ResolveTrigger(query[0], triggers) != null ? query.Substring(1) : query;
     }
 }
