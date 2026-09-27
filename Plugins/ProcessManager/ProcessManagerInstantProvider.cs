@@ -8,6 +8,10 @@ namespace Lertaro.Plugins.ProcessManager;
 public class ProcessManagerInstantProvider : IInstantResultProvider
 {
     public string Name => TranslationService.Get("ProcessManager_Name");
+    // The word the user types to invoke this provider, published for the host so it can strip it before
+    // matching/highlighting file names. Read live from the plugin's own settings: the host never keeps a
+    // copy, and changing the word in Settings takes effect on the next keystroke.
+    public IReadOnlyList<string> QueryTriggerKeywords => [GetTriggerKeyword()];
 
     // CharSet.Unicode is required, not cosmetic: without it this binds to SendMessageTimeoutA, whose
     // WM_GETTEXT path writes ANSI bytes that PtrToStringUni then decodes as mojibake for any title

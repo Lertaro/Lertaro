@@ -18,6 +18,21 @@ public interface IInstantResultProvider : IPluginComponent
     /// Returns a custom highlight mask if supported.
     /// </summary>
     bool[]? GetHighlightMask(string text, string query) => null;
+
+    /// <summary>
+    /// The leading word(s) the user types to invoke this provider ("cs", "ps", ...), exactly as the
+    /// user has configured them -- never a hardcoded copy, and read fresh per call so a Settings change
+    /// takes effect without reloading the plugin. Empty (the default) means "this provider has no
+    /// trigger word", which is the case for every provider that matches on content rather than a prefix.
+    /// </summary>
+    /// <remarks>
+    /// The host strips a claimed word before searching file/application names and before computing
+    /// highlights, so typing "cs report" looks for files called "report" instead of fuzzy-matching the
+    /// trigger itself and highlighting it in the result rows. <see cref="GetInstantResults"/> still
+    /// receives the untouched box text: the provider that owns a word has to keep recognising it, so
+    /// declaring the word here is what removes it from OTHER results, not from the provider's own.
+    /// </remarks>
+    IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 
 /// <summary>

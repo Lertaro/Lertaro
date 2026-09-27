@@ -70,6 +70,12 @@ internal sealed class SearchDispatchController
             ? FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery)
             : null;
         var searchQuery = scopeDirective != null ? scopedQuery : cleanQuery;
+        // A plugin's own trigger word ("cs report" for the content-search plugin) is not part of what the
+        // user wants found, so it must not be fuzzy-matched against file names nor highlighted. Skipped when
+        // a file-filter scope already claimed the leading keyword -- two prefixes cannot both win, and the
+        // scope is the more specific feature. Instant providers still receive the raw text (instantQuery).
+        if (scopeDirective == null)
+            searchQuery = InstantTriggerQuery.Strip(searchQuery);
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
             _engine.CancelPendingSearch();
@@ -113,7 +119,7 @@ internal sealed class SearchDispatchController
     // DispatchSearch (debounced) and PerformSearch (blocking) both resolve to the same set of
     // search parameters -- only which SearchExecutionEngine method runs them differs.
     private void RunEngineSearch(
-        Action<string, string?, bool, int, int, Func<List<SearchResult>?, string?, List<AppSearchResult>>, Action<bool>, Action<List<AppSearchResult>, string, bool>, Action?, Func<bool>?, bool, bool, Action<int>?, FileFilterScopeDirective?> engineCall,
+        Action<string, string?, bool, int, int, Func<List<SearchResult>?, string?, List<AppSearchResult>>, Action<bool>, Action<List<AppSearchResult>, string, bool>, Action?, Func<bool>?, bool, bool, Action<int>?, FileFilterScopeDirective?, string?> engineCall,
         string originalValue,
         string searchQuery,
         FileFilterScopeDirective? scopeDirective)
@@ -156,7 +162,10 @@ internal sealed class SearchDispatchController
             _bypassExclusions,
             false,
             null,
-            scopeDirective
+            scopeDirective,
+            // What the instant-result providers are handed: the untouched box text, so a provider that owns a
+            // trigger word still recognises it after the word was stripped from the file-search query above.
+            originalValue
         );
     }
     public void PerformSearch(string query)
@@ -209,6 +218,12 @@ internal sealed class SearchDispatchController
             ? FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery)
             : null;
         var searchQuery = scopeDirective != null ? scopedQuery : cleanQuery;
+        // A plugin's own trigger word ("cs report" for the content-search plugin) is not part of what the
+        // user wants found, so it must not be fuzzy-matched against file names nor highlighted. Skipped when
+        // a file-filter scope already claimed the leading keyword -- two prefixes cannot both win, and the
+        // scope is the more specific feature. Instant providers still receive the raw text (instantQuery).
+        if (scopeDirective == null)
+            searchQuery = InstantTriggerQuery.Strip(searchQuery);
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
             if (triggeredTypeId != null)

@@ -17,6 +17,11 @@ public class BrowserDataInstantProvider : IInstantResultProvider
     }
 
     public string Name => TranslationService.Get("BrowserData_ProviderName");
+    // The word the user types to invoke this provider, published for the host so it can strip it before
+    // matching/highlighting file names. Read live from the plugin's own settings: the host never keeps a
+    // copy, and changing the word in Settings takes effect on the next keystroke.
+    public IReadOnlyList<string> QueryTriggerKeywords =>
+        [GetTriggerKeyword("BookmarkTriggerKeyword", "bb"), GetTriggerKeyword("HistoryTriggerKeyword", "bh")];
 
     // Bounds how many rows this ever hands back per keystroke -- only the best few are worth showing
     // in the launcher result list.

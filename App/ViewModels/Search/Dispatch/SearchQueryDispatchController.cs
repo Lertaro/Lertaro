@@ -65,6 +65,10 @@ internal sealed class SearchQueryDispatchController
         var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
         _queryTokens = tokens;
         var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        // Same rule as the quick/inline windows: a plugin's own leading trigger word ("cs report" ->
+        // search "report") must not be fuzzy-matched against file names or highlighted. Overwritten in
+        // place so the streaming accumulator below ranks by the very term being searched.
+        cleanQuery = InstantTriggerQuery.Strip(cleanQuery);
 
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
@@ -198,6 +202,9 @@ internal sealed class SearchQueryDispatchController
             shouldEmitInstantResults: () => false,
             bypassExclusions: bypassExclusions,
             resultMapperConsumesBatches: true,
+            // The untouched box text: this window's providers still have to recognise a trigger word that
+            // cleanQuery above has already had stripped.
+            instantQuery: query,
             onReceivedCountUpdated: count =>
             {
                 if (_queryTokens.Count == 0)

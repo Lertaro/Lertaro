@@ -39,7 +39,12 @@ internal sealed class SearchExecutionEngine : IDisposable
         bool bypassExclusions = false,
         bool resultMapperConsumesBatches = false,
         Action<int>? onReceivedCountUpdated = null,
-        FileFilterScopeDirective? scopeDirective = null)
+        FileFilterScopeDirective? scopeDirective = null,
+        // The untouched box text, handed to the instant-result providers instead of `query`: the host has
+        // already stripped a plugin's own trigger word out of `query` so it is not fuzzy-matched against
+        // file names, but the provider that owns that word must still recognise it. Null (every other
+        // caller) means "nothing was stripped", which is the same query for both purposes.
+        string? instantQuery = null)
     {
         _debounceCts?.Cancel();
         _debounceCts?.Dispose();
@@ -49,7 +54,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 150 : 30);
         if (delay == 0)
         {
-            PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective);
+            PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery);
             return;
         }
 
@@ -58,7 +63,7 @@ internal sealed class SearchExecutionEngine : IDisposable
             if (t.IsCanceled)
                 return;
             _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective)));
+                PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery)));
         }, cts.Token);
     }
 
@@ -76,7 +81,12 @@ internal sealed class SearchExecutionEngine : IDisposable
         bool bypassExclusions = false,
         bool resultMapperConsumesBatches = false,
         Action<int>? onReceivedCountUpdated = null,
-        FileFilterScopeDirective? scopeDirective = null)
+        FileFilterScopeDirective? scopeDirective = null,
+        // The untouched box text, handed to the instant-result providers instead of `query`: the host has
+        // already stripped a plugin's own trigger word out of `query` so it is not fuzzy-matched against
+        // file names, but the provider that owns that word must still recognise it. Null (every other
+        // caller) means "nothing was stripped", which is the same query for both purposes.
+        string? instantQuery = null)
     {
         Logger.Log($"[SearchExecutionEngine] Performing search: '{query}', scope: '{searchScope}'", LogLevel.Debug);
         CancelPendingSearch();
@@ -96,7 +106,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         }
 
         var token = cts.Token;
-        EmitInstantResults(query, isInlineSearchContext, searchVersion, token, onResultsUpdated, shouldEmitInstantResults);
+        EmitInstantResults(instantQuery ?? query, isInlineSearchContext, searchVersion, token, onResultsUpdated, shouldEmitInstantResults);
         _ = Task.Run(async () =>
         {
             try

@@ -19,6 +19,10 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider, IFull
     };
 
     public string Name => TranslationService.Get("ContentSearch_ProviderName");
+    // The word the user types to invoke this provider, published for the host so it can strip it before
+    // matching/highlighting file names. Read live from the plugin's own settings: the host never keeps a
+    // copy, and changing the word in Settings takes effect on the next keystroke.
+    public IReadOnlyList<string> QueryTriggerKeywords => [GetTriggerKeyword()];
     public string Description => TranslationService.Get("ContentSearch_ProviderDesc");
 
     public IEnumerable<InstantResultItem> GetInstantResults(string query)

@@ -16,6 +16,10 @@ public sealed class AudioDeviceSelectorInstantProvider : IInstantResultProvider
     private readonly CoreAudioDeviceProvider _deviceProvider = new();
 
     public string Name => TranslationService.Get("AudioDeviceSelector_ProviderName");
+    // The word the user types to invoke this provider, published for the host so it can strip it before
+    // matching/highlighting file names. Read live from the plugin's own settings: the host never keeps a
+    // copy, and changing the word in Settings takes effect on the next keystroke.
+    public IReadOnlyList<string> QueryTriggerKeywords => [GetTriggerKeyword()];
 
     public IEnumerable<InstantResultItem> GetInstantResults(string query)
     {
