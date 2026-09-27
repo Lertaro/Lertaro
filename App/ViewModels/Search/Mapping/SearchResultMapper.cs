@@ -49,7 +49,11 @@ public static class SearchResultMapper
         // are explicit keyword triggers the user deliberately typed, not fuzzy-guessed candidates, so
         // "how well did this match the query text" isn't a meaningful way to rank them against files/
         // apps/favorites) -- positioned right after instant results, before the weighted candidates.
-        var hasPluginSearchActions = PluginSearchResultMapper.AddPluginSearchActionResults(uiResults, query, contextDirectory, isInlineWindow);
+        // Raw text, for the same reason as the instant results above and now more strongly: a command word
+        // ("mkdir sub") is stripped out of `query` so it stops being matched and highlighted as file text,
+        // and matching the action against that stripped remainder would delete the very row the word asked
+        // for. ArgumentText is the action's own business, and KeywordMatcher reads it from here.
+        var hasPluginSearchActions = PluginSearchResultMapper.AddPluginSearchActionResults(uiResults, rawQuery ?? query, contextDirectory, isInlineWindow);
 
         var historySnapshot = SearchHistoryStore.Snapshot();
 

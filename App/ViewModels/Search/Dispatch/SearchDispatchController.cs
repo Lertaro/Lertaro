@@ -70,12 +70,13 @@ internal sealed class SearchDispatchController
             ? FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery)
             : null;
         var searchQuery = scopeDirective != null ? scopedQuery : cleanQuery;
-        // A plugin's own trigger word ("cs report" for the content-search plugin) is not part of what the
-        // user wants found, so it must not be fuzzy-matched against file names nor highlighted. Skipped when
+        // A trigger word -- an instant provider's configured one ("cs report") or a search action's command
+        // word ("mkdir sub") -- is not part of what the user wants found, so it must not be fuzzy
+        // matched against file names nor highlighted. Skipped when
         // a file-filter scope already claimed the leading keyword -- two prefixes cannot both win, and the
         // scope is the more specific feature. Instant providers still receive the raw text (instantQuery).
         if (scopeDirective == null)
-            searchQuery = InstantTriggerQuery.Strip(searchQuery);
+            searchQuery = PluginTriggerQuery.Strip(searchQuery);
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
             _engine.CancelPendingSearch();
@@ -218,12 +219,13 @@ internal sealed class SearchDispatchController
             ? FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery)
             : null;
         var searchQuery = scopeDirective != null ? scopedQuery : cleanQuery;
-        // A plugin's own trigger word ("cs report" for the content-search plugin) is not part of what the
-        // user wants found, so it must not be fuzzy-matched against file names nor highlighted. Skipped when
+        // A trigger word -- an instant provider's configured one ("cs report") or a search action's command
+        // word ("mkdir sub") -- is not part of what the user wants found, so it must not be fuzzy
+        // matched against file names nor highlighted. Skipped when
         // a file-filter scope already claimed the leading keyword -- two prefixes cannot both win, and the
         // scope is the more specific feature. Instant providers still receive the raw text (instantQuery).
         if (scopeDirective == null)
-            searchQuery = InstantTriggerQuery.Strip(searchQuery);
+            searchQuery = PluginTriggerQuery.Strip(searchQuery);
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
             if (triggeredTypeId != null)

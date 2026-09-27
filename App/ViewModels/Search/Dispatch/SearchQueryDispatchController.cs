@@ -65,10 +65,10 @@ internal sealed class SearchQueryDispatchController
         var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
         _queryTokens = tokens;
         var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
-        // Same rule as the quick/inline windows: a plugin's own leading trigger word ("cs report" ->
+        // Same rule as the quick/inline windows: a leading trigger word ("cs report" ->
         // search "report") must not be fuzzy-matched against file names or highlighted. Overwritten in
         // place so the streaming accumulator below ranks by the very term being searched.
-        cleanQuery = InstantTriggerQuery.Strip(cleanQuery);
+        cleanQuery = PluginTriggerQuery.Strip(cleanQuery);
 
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
@@ -165,7 +165,10 @@ internal sealed class SearchQueryDispatchController
                     // "exactly this type", and the extra content rows are outside that contract.
                     if (final && !_isTypeFilterSelected())
                     {
-                        var merged = MergeFullSearchFileResults(filteredResults, cleanQuery);
+                        // The RAW box text, not cleanQuery: a content provider recognises its own trigger word,
+                        // and the host already stripped it out of what the file index searches (above). Handing
+                        // it the stripped text would ask it to match a prefix that is no longer there.
+                        var merged = MergeFullSearchFileResults(filteredResults, query);
                         if (!ReferenceEquals(merged, filteredResults))
                         {
                             // Prepending changes every row's position, so no scroll anchor can

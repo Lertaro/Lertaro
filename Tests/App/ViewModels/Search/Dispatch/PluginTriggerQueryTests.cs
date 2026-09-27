@@ -4,10 +4,10 @@ namespace Lertaro.App.Tests.ViewModels.Search.Dispatch;
 
 // Pins the activation rules of the plugin-trigger-word strip ("cs report" searches files for "report"):
 // the whole first token must hit a declared keyword and be followed by a space, the rest -- trimmed --
-// is what gets searched and highlighted. InstantTriggerQuery.Strip itself (which reads PluginManager) is
+// is what gets searched and highlighted. PluginTriggerQuery.Strip itself (which reads PluginManager) is
 // deliberately not exercised here, same split as FileFilterScopeResolverTests.
 [TestClass]
-public sealed class InstantTriggerQueryTests
+public sealed class PluginTriggerQueryTests
 {
     private static readonly IReadOnlyList<string> Cs = ["cs"];
     private static readonly IReadOnlyList<string> Two = ["bb", "bh"];
@@ -15,28 +15,28 @@ public sealed class InstantTriggerQueryTests
     [TestMethod]
     public void Match_KeywordWithTerm_StripsDownToTheTerm()
     {
-        Assert.IsTrue(InstantTriggerQuery.Match("cs report", Cs, out var remainder));
+        Assert.IsTrue(PluginTriggerQuery.Match("cs report", Cs, out var remainder));
         Assert.AreEqual("report", remainder);
     }
 
     [TestMethod]
     public void Match_KeywordIsCaseInsensitive_TermKeepsItsOwnCase()
     {
-        Assert.IsTrue(InstantTriggerQuery.Match("CS Report", Cs, out var remainder));
+        Assert.IsTrue(PluginTriggerQuery.Match("CS Report", Cs, out var remainder));
         Assert.AreEqual("Report", remainder);
     }
 
     [TestMethod]
     public void Match_LeadingSpaces_StillMatch()
     {
-        Assert.IsTrue(InstantTriggerQuery.Match("   cs report", Cs, out var remainder));
+        Assert.IsTrue(PluginTriggerQuery.Match("   cs report", Cs, out var remainder));
         Assert.AreEqual("report", remainder);
     }
 
     [TestMethod]
     public void Match_MultipleTerms_KeepsThemAll()
     {
-        Assert.IsTrue(InstantTriggerQuery.Match("cs quarterly report", Cs, out var remainder));
+        Assert.IsTrue(PluginTriggerQuery.Match("cs quarterly report", Cs, out var remainder));
         Assert.AreEqual("quarterly report", remainder);
     }
 
@@ -44,7 +44,7 @@ public sealed class InstantTriggerQueryTests
     [TestMethod]
     public void Match_SecondDeclaredKeyword_AlsoClaimsTheQuery()
     {
-        Assert.IsTrue(InstantTriggerQuery.Match("bh site", Two, out var remainder));
+        Assert.IsTrue(PluginTriggerQuery.Match("bh site", Two, out var remainder));
         Assert.AreEqual("site", remainder);
     }
 
@@ -53,17 +53,29 @@ public sealed class InstantTriggerQueryTests
     [TestMethod]
     public void Match_BareKeywordWithNothingAfter_DoesNotStrip()
     {
-        Assert.IsFalse(InstantTriggerQuery.Match("cs", Cs, out var remainder));
+        Assert.IsFalse(PluginTriggerQuery.Match("cs", Cs, out var remainder));
         Assert.AreEqual("cs", remainder);
     }
 
-    // The space is what says "I am invoking the provider": the term just has not been typed yet, so this
-    // strips to empty, which every caller already treats as "keep typing" rather than as a search.
+    // A trailing space is not a term. Stripping here would hand the engine an empty query, which the quick
+    // window answers by clearing its results -- and the clear happens before the instant emission, so the
+    // provider's own list would vanish on the keystroke that asks for it.
     [TestMethod]
-    public void Match_KeywordWithTrailingSpaceOnly_StripsToEmpty()
+    public void Match_KeywordWithTrailingSpaceOnly_DoesNotStrip()
     {
-        Assert.IsTrue(InstantTriggerQuery.Match("cs ", Cs, out var remainder));
-        Assert.AreEqual(string.Empty, remainder);
+        Assert.IsFalse(PluginTriggerQuery.Match("cs ", Cs, out var remainder));
+        Assert.AreEqual("cs ", remainder);
+        Assert.IsFalse(PluginTriggerQuery.Match("cs    ", Cs, out remainder));
+    }
+
+    // Search actions contribute command words through the same collector ("mkdir sub" -> "sub").
+    [TestMethod]
+    public void Match_ActionCommandWordIsOneOfTheKeywords_StripAppliesToItToo()
+    {
+        IReadOnlyList<string> keywords = ["cs", "mkdir"];
+
+        Assert.IsTrue(PluginTriggerQuery.Match("mkdir quarterly", keywords, out var remainder));
+        Assert.AreEqual("quarterly", remainder);
     }
 
     // The whole first token has to be the keyword: a file called "csreport.docx" is still searchable, and
@@ -71,21 +83,21 @@ public sealed class InstantTriggerQueryTests
     [TestMethod]
     public void Match_KeywordOnlyPartOfFirstToken_DoesNotStrip()
     {
-        Assert.IsFalse(InstantTriggerQuery.Match("csreport draft", Cs, out var remainder));
+        Assert.IsFalse(PluginTriggerQuery.Match("csreport draft", Cs, out var remainder));
         Assert.AreEqual("csreport draft", remainder);
     }
 
     [TestMethod]
     public void Match_NoProviderDeclaresAKeyword_NeverStrips()
     {
-        Assert.IsFalse(InstantTriggerQuery.Match("cs report", Array.Empty<string>(), out var remainder));
+        Assert.IsFalse(PluginTriggerQuery.Match("cs report", Array.Empty<string>(), out var remainder));
         Assert.AreEqual("cs report", remainder);
     }
 
     [TestMethod]
     public void Match_EmptyQuery_LeavesItAlone()
     {
-        Assert.IsFalse(InstantTriggerQuery.Match(string.Empty, Cs, out var remainder));
+        Assert.IsFalse(PluginTriggerQuery.Match(string.Empty, Cs, out var remainder));
         Assert.AreEqual(string.Empty, remainder);
     }
 }
