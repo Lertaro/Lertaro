@@ -280,4 +280,65 @@ public sealed class FlowInstantResultProviderTests
 
         Assert.IsNotEmpty(results);
     }
+
+    // The bridge's own word has to stay first, and every loaded Flow plugin's ActionKeyword has to be
+    // published with it: ParseQuery dispatches on that first word, so the host must strip it off the file
+    // search or "gh lertaro" searches files for "gh lertaro". A "*" plugin answers to everything and has no
+    // word of its own, so it contributes none.
+    [TestMethod]
+    public void QueryTriggerKeywords_PublishesTheBridgeWordAndEachPluginsActionKeyword()
+    {
+        var host = new FlowPluginHost(new FlowSettingsStorage(Path.GetTempPath()), []);
+        host.RegisterPlugin(new PluginPair
+        {
+            Metadata = new PluginMetadata { ID = "gh", Name = "GitHub", ActionKeyword = "gh" },
+            Plugin = new FakeFlowPlugin()
+        });
+        host.RegisterPlugin(new PluginPair
+        {
+            Metadata = new PluginMetadata { ID = "any", Name = "Global", ActionKeyword = "*" },
+            Plugin = new FakeFlowPlugin()
+        });
+
+        var words = new FlowInstantResultProvider(new FlowQueryDispatcher(host), host).QueryTriggerKeywords;
+
+        Assert.HasCount(2, words);
+        Assert.AreEqual("flow", words[0]);
+        Assert.Contains("gh", words);
+        Assert.DoesNotContain("*", words);
+    }
+
+    // A keyword only disabled plugins answer to is not offered at dispatch time, so stripping it would take
+    // the word out of the user's file search with nothing on screen to show for it.
+    [TestMethod]
+    public void QueryTriggerKeywords_SkipsAKeywordOnlyDisabledPluginsAnswerTo()
+    {
+        var host = new FlowPluginHost(new FlowSettingsStorage(Path.GetTempPath()), []);
+        host.RegisterPlugin(new PluginPair
+        {
+            Metadata = new PluginMetadata { ID = "off", Name = "Disabled", ActionKeyword = "off", Disabled = true },
+            Plugin = new FakeFlowPlugin()
+        });
+
+        var words = new FlowInstantResultProvider(new FlowQueryDispatcher(host), host).QueryTriggerKeywords;
+
+        Assert.HasCount(1, words);
+        Assert.DoesNotContain("off", words);
+    }
+
+    [TestMethod]
+    public void QueryTriggerKeywords_DoesNotRepeatTheBridgeWordWhenAPluginAlsoUsesIt()
+    {
+        var host = new FlowPluginHost(new FlowSettingsStorage(Path.GetTempPath()), []);
+        host.RegisterPlugin(new PluginPair
+        {
+            Metadata = new PluginMetadata { ID = "flow2", Name = "Flow Clone", ActionKeyword = "flow" },
+            Plugin = new FakeFlowPlugin()
+        });
+
+        var words = new FlowInstantResultProvider(new FlowQueryDispatcher(host), host).QueryTriggerKeywords;
+
+        Assert.HasCount(1, words);
+        Assert.AreEqual("flow", words[0]);
+    }
 }
