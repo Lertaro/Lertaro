@@ -27,6 +27,10 @@
             <DataTemplate x:Key="ResultTypeOrderItemTemplate">
                 <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
                     <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -81,6 +85,15 @@
                                     Command="{Binding DataContext.General.ResultTypeOrder.MoveDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}"/>
                         </StackPanel>
+
+                        <!-- Another type (or a plugin's trigger word) already answers to this character:
+                             the table keeps only one of them, so the collision is named here rather than
+                             left as a type whose trigger silently does nothing. Warned, never enforced. -->
+                        <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                                   Text="{Binding ConflictWarning}" FontSize="10"
+                                   Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                                   Margin="0,4,0,0" HorizontalAlignment="Left"
+                                   Visibility="{Binding ConflictWarning, Converter={StaticResource StringToVis}}"/>
                     </Grid>
                 </Border>
             </DataTemplate>

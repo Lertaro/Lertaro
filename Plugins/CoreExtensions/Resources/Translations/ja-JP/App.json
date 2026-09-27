@@ -1,6 +1,6 @@
 {
   "Settings_Title": "Lertaro 設定",
-  "Settings_TriggerWordTaken": "このトリガーワードは既に「{0}」が使用しています。ファイル検索は先に登録された機能が優先します。",
+  "Settings_TriggerWordTaken": "このトリガーワードは既に「{0}」が使用しています。両方が同時に反応し、ファイル検索ではこのワードが一度だけ取り除かれるため、区別できる別のワードにすることをおすすめします。",
   "Settings_SearchPlaceholder": " 設定を検索...",
   "Settings_SearchNoResults": "一致する設定項目が見つかりません。",
   "Settings_Service": "実行状態",
@@ -393,6 +393,7 @@
   "General_ResultTypeOrderHint": "クイックウィンドウで複数の同程度に一致する結果が並んだ場合に、どの結果タイプを優先するかを指定します。あるタイプを上に移動すると、実際のテキスト一致度に関わらず、下にあるタイプより常に優先されるようになります。履歴とお気に入りは常に最優先で、このリストの影響を受けません。任意で、あるタイプに1文字のトリガーを設定できます。検索の最初の文字としてそれを入力すると、そのタイプの結果のみが表示されます。",
   "General_ResultTypeFiles": "ファイル",
   "General_ResultTypeTriggerTooltip": "任意のトリガー文字です。検索の最初の文字としてこれを入力すると、このタイプの結果のみが表示されます。空欄で未設定にできます。",
+  "General_ResultTypeTriggerTaken": "このトリガー文字は既に「{0}」が使用しています。先に一致したものだけが有効になるため、別の文字を選んでください。",
   "General_PreviewWindowTitle": "プレビューウィンドウ",
   "General_PreviewWindowHint": "QuickLook プレビューウィンドウのサイズを設定します。このサイズは固定で、表示される結果の件数によって変化しません。",
   "General_PreviewWindowWidth": "プレビューの幅（px）",

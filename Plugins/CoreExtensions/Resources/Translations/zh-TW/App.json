@@ -1,6 +1,6 @@
 {
   "Settings_Title": "Lertaro 設定",
-  "Settings_TriggerWordTaken": "該觸發詞已被「{0}」使用，檔案搜尋將跟隨先註冊的一方。",
+  "Settings_TriggerWordTaken": "該觸發詞已被「{0}」使用，兩者會同時回應，檔案搜尋只會剝離這個詞一次；建議改用不同的詞以便區分。",
   "Settings_SearchPlaceholder": " 搜尋設定...",
   "Settings_SearchNoResults": "未找到匹配的設定項。",
   "Settings_Service": "執行狀態",
@@ -393,6 +393,7 @@
   "General_ResultTypeOrderHint": "當快速視窗裡幾個匹配結果不相上下時，決定哪種類型勝出：把某個類型上移，就能讓它始終排在下面的類型前面，不管實際上誰的文字匹配得更好。歷史記錄和收藏夾始終排最前，不受這個列表影響。也可以給某個類型配一個單字元觸發符——把它當成查詢的第一個字元打出來，就只會顯示這個類型的結果。",
   "General_ResultTypeFiles": "檔案",
   "General_ResultTypeTriggerTooltip": "可選的觸發字元。把它當成搜尋內容的第一個字元打出來，就只顯示這個類型的結果。留空表示不設定。",
+  "General_ResultTypeTriggerTaken": "該觸發字元已被「{0}」使用，只有先匹配的一項會生效；請換一個字元。",
   "General_PreviewWindowTitle": "預覽視窗",
   "General_PreviewWindowHint": "設定 QuickLook 預覽視窗的大小。這個尺寸是固定的，不會隨當前顯示的結果數量變化。",
   "General_PreviewWindowWidth": "預覽視窗寬度 (畫素)",

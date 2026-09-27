@@ -251,6 +251,13 @@
                        TextWrapping="Wrap" Margin="0,0,0,4" Visibility="{Binding Label, Converter={StaticResource StringToVis}}"/>
             <TextBlock Text="{Binding Description}" FontSize="10" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"
                        Margin="0,0,0,6" Visibility="{Binding Description, Converter={StaticResource StringToVis}}"/>
+            <!-- Two features answering to one trigger word, named at the field that is creating the
+                 collision. An array item's sub-fields render through THIS template rather than the
+                 implicit PluginConfigFieldViewModel one, so without this line every trigger word a plugin
+                 configures inside an array (a web-search engine's keyword, a custom command, a file
+                 filter) warned about nothing. -->
+            <TextBlock Text="{Binding ConflictWarning}" FontSize="10" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                       Margin="0,0,0,6" Visibility="{Binding ConflictWarning, Converter={StaticResource StringToVis}}"/>
             <ctrl:InlineEditorHost AutoExpandEnabled="{Binding SupportsInlineEditing}"
                                    EditorTemplate="{StaticResource PluginInlineEditorTemplate}"
                                    EditCompleted="ArrayInlineEditorHost_EditCompleted"
