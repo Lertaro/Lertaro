@@ -1,4 +1,5 @@
 using Lertaro.App.ViewModels.Search;
+using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions.Plugins;
@@ -44,13 +45,16 @@ internal static class SearchResultExecutionHelper
     }
 
     // The quick window strips a configured per-type trigger before the mappers run (see
-    // ResultTypeTriggerHandler.StripTrigger), so a searchable-item row's SearchQuery holds the stripped
-    // text while the search box still holds the raw one. Only these rows get the stripped form:
-    // BuildQuickResults deliberately hands instant-result plugins the raw text, a plugin action parses
-    // its own tokens out of it, and the inline window has no concept of a trigger at all.
+    // ResultTypeTriggerHandler.StripTrigger), AND a plugin's trigger word after that (see
+    // PluginTriggerQuery), so a searchable-item row's SearchQuery holds text with neither in it. Only these
+    // rows get the stripped form: BuildQuickResults deliberately hands instant-result plugins the raw text,
+    // a plugin action parses its own tokens out of it, and the inline window has no concept of a trigger at
+    // all. Re-deriving it from the box text while skipping the second of those two made Enter rebuild
+    // "set 路径" against a row that says "路径", fail to find the row the user was pointing at, and do
+    // nothing at all -- so both strips are applied here, in the order the pipeline applies them.
     internal static string ResolveSearchQuery(AppSearchResult result, string query, bool isInlineWindow,
         IReadOnlyDictionary<string, string> triggers) =>
         !isInlineWindow && !result.IsPluginSearchAction && result.SourceProvider is ISearchableItemProvider
-            ? SearchResultTypePriority.StripLeadingTrigger(query, triggers)
+            ? PluginTriggerQuery.Strip(SearchResultTypePriority.StripLeadingTrigger(query, triggers))
             : query;
 }

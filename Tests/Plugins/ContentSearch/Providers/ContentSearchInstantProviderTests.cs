@@ -59,4 +59,37 @@ public sealed class ContentSearchInstantProviderTests
         var mask = provider.GetHighlightMask("Hello world", "x world");
         Assert.IsNull(mask);
     }
+
+    // Providers are handed the untouched box text so they can still recognise their own word -- and with it
+    // the host's trailing ":token" syntax, which used to go straight into the full-text query: "cs world
+    // :jpg" asked the index for a document containing ":jpg". The tokens come off via the host's own
+    // stripper before the term is used, which is what this pins.
+    [TestMethod]
+    public void GetHighlightMask_TokenSuffixIsTakenOffTheSearchedTerm()
+    {
+        var wired = SearchQueryService.StripQueryTokensFunc;
+        SearchQueryService.StripQueryTokensFunc = q => q.Replace(" :jpg", string.Empty, StringComparison.Ordinal);
+        try
+        {
+            var mask = new ContentSearchInstantProvider().GetHighlightMask("Hello world test", "cs world :jpg");
+
+            Assert.IsNotNull(mask);
+            Assert.IsTrue(mask[6], "the term still highlights, so the token was not searched for");
+            Assert.IsFalse(mask[12]);
+        }
+        finally
+        {
+            SearchQueryService.StripQueryTokensFunc = wired;
+        }
+    }
+
+    // A full-width space is the other separator no copy of this rule used to accept.
+    [TestMethod]
+    public void GetHighlightMask_FullWidthSeparator_MasksTheTerm()
+    {
+        var mask = new ContentSearchInstantProvider().GetHighlightMask("Hello world test", "cs　world");
+
+        Assert.IsNotNull(mask);
+        Assert.IsTrue(mask[6]);
+    }
 }

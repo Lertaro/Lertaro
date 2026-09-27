@@ -81,24 +81,11 @@ public sealed class AudioDeviceSelectorInstantProvider : IInstantResultProvider
             : null;
     }
 
-    internal static bool TryParseQuery(string query, string keyword, out string searchTerm)
-    {
-        searchTerm = string.Empty;
-        if (string.IsNullOrWhiteSpace(query) || string.IsNullOrWhiteSpace(keyword))
-            return false;
-
-        var trimmedQuery = query.Trim();
-        var normalizedKeyword = keyword.Trim();
-        if (trimmedQuery.Equals(normalizedKeyword, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        var prefix = normalizedKeyword + " ";
-        if (!trimmedQuery.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        searchTerm = trimmedQuery[ prefix.Length..].Trim();
-        return true;
-    }
+    internal static bool TryParseQuery(string query, string keyword, out string searchTerm) =>
+        // Bare "ad" activates -- the device list IS the answer. Tokenizing is the host's own rule, so a
+        // keyword padded in the settings file cannot be stripped from the file search while going
+        // unrecognised here.
+        TriggerWord.TryMatch(query, keyword, out searchTerm);
 
     internal static string GetIconData(AudioDeviceDirection direction, bool isDefault) => isDefault
         ? DefaultDeviceIcon

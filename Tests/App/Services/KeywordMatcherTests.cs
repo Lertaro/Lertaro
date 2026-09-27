@@ -110,4 +110,30 @@ public sealed class KeywordMatcherTests
         Assert.IsNotNull(match);
         Assert.AreEqual("g", match.Value.Keyword);
     }
+
+    // An action's command word accepts a full-width or tab separator too, because the host strips the SAME
+    // word from the file search using the same rule: "mkdir　sub" has to dispatch on "mkdir" AND search for
+    // "sub", or the user gets the command beside a search for the whole line.
+    [TestMethod]
+    public void TryMatchKeyword_FullWidthOrTabSeparator_StillSplitsKeywordAndArgument()
+    {
+        IReadOnlyList<string> keywords = ["mkdir"];
+
+        var fullWidth = KeywordMatcher.TryMatchKeyword("mkdir　sub", keywords);
+        Assert.IsNotNull(fullWidth);
+        Assert.AreEqual("sub", fullWidth.Value.ArgumentText);
+
+        var tab = KeywordMatcher.TryMatchKeyword("mkdir\tsub", keywords);
+        Assert.IsNotNull(tab);
+        Assert.AreEqual("sub", tab.Value.ArgumentText);
+    }
+
+    // A separator ends the first token, so a half-typed word followed by one is a failed match rather than
+    // a completion -- otherwise "gi x" would silently run the Google action.
+    [TestMethod]
+    public void TryMatchKeyword_PartialWordWithSeparator_DoesNotMatch()
+    {
+        Assert.IsNull(KeywordMatcher.TryMatchKeyword("mk x", new[] { "mkdir" }));
+        Assert.IsNotNull(KeywordMatcher.TryMatchKeyword("mk", new[] { "mkdir" }));
+    }
 }

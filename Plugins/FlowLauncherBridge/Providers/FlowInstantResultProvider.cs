@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Flow.Launcher.Plugin;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.FlowLauncherBridge.Engine;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Providers;
@@ -33,53 +34,32 @@ public class FlowInstantResultProvider : IInstantResultProvider
     // copy, and changing the word in Settings takes effect on the next keystroke.
     public IReadOnlyList<string> QueryTriggerKeywords => [GetTriggerKeyword()];
 
-    private static string GetTriggerKeyword() => PluginSdk.Services.PluginSettingsService.GetSetting(
-            "Lertaro.Plugins.FlowLauncherBridge",
-            "TriggerKeyword",
-            "flow");
+    private static string GetTriggerKeyword()
+    {
+        var value = PluginSdk.Services.PluginSettingsService.GetSetting(
+            "Lertaro.Plugins.FlowLauncherBridge", "TriggerKeyword", "flow");
+        return TriggerWord.Normalize(value) is { Length: > 0 } word ? word : "flow";
+    }
 
     public IEnumerable<InstantResultItem> GetInstantResults(string query)
     {
-        if (string.IsNullOrWhiteSpace(query))
-            return [];
-
         var trimmed = query.Trim();
         var keyword = GetTriggerKeyword();
-        if (string.IsNullOrWhiteSpace(keyword))
-            keyword = "flow";
 
-        if (trimmed.Equals(keyword, StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith(keyword + " ", StringComparison.OrdinalIgnoreCase))
+        // "flow" alone lists the loaded plugins; "flow <filter>" filters that list, and the sub-commands
+        // below parse their own argument the same way. Every one of them was a hand-rolled offset into the
+        // text ("install " is 8 characters, so filter[8..]) -- TriggerWord parses the same shape everywhere
+        // else in the search box, including the sub-commands here.
+        if (TriggerWord.TryMatch(query, keyword, out var filter))
         {
-            var filter = trimmed.StartsWith(keyword + " ", StringComparison.OrdinalIgnoreCase)
-                ? trimmed[(keyword.Length + 1)..].Trim()
-                : string.Empty;
-
-            if (filter.Equals("install", StringComparison.OrdinalIgnoreCase) || filter.StartsWith("install ", StringComparison.OrdinalIgnoreCase))
-            {
-                var listFilter = filter.StartsWith("install ", StringComparison.OrdinalIgnoreCase)
-                    ? filter[8..].Trim()
-                    : string.Empty;
-
+            if (TriggerWord.TryMatch(filter, "install", out var listFilter))
                 return FlowCommunityListHelper.QueryCommunityPlugins(_host, keyword, listFilter, trimmed);
-            }
 
-            if (filter.Equals("update", StringComparison.OrdinalIgnoreCase) || filter.StartsWith("update ", StringComparison.OrdinalIgnoreCase))
-            {
-                var updateFilter = filter.StartsWith("update ", StringComparison.OrdinalIgnoreCase)
-                    ? filter[7..].Trim()
-                    : string.Empty;
-
+            if (TriggerWord.TryMatch(filter, "update", out var updateFilter))
                 return FlowCommunityUpdateHelper.QueryPluginUpdates(_host, keyword, updateFilter, trimmed);
-            }
 
-            if (filter.Equals("uninstall", StringComparison.OrdinalIgnoreCase) || filter.StartsWith("uninstall ", StringComparison.OrdinalIgnoreCase))
-            {
-                var uninstallFilter = filter.StartsWith("uninstall ", StringComparison.OrdinalIgnoreCase)
-                    ? filter[10..].Trim()
-                    : string.Empty;
-
+            if (TriggerWord.TryMatch(filter, "uninstall", out var uninstallFilter))
                 return FlowCommunityUninstallHelper.QueryInstalledPluginsForUninstall(_host, uninstallFilter);
-            }
 
             var allPlugins = _host.GetAllPlugins();
             if (allPlugins.Count == 0 && string.IsNullOrEmpty(filter))

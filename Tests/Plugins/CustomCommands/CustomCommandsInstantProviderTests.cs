@@ -117,4 +117,46 @@ public sealed class CustomCommandsInstantProviderTests
     [TestMethod]
     public void GetHighlightMask_EmptyQuery_ReturnsNull() =>
         Assert.IsNull(new CustomCommandsInstantProvider().GetHighlightMask("text", ""));
+
+    // The host strips only the words a provider publishes, and a user command IS a word the user typed to
+    // invoke something -- so an enabled command's keyword has to be in that list, or "build x" is both the
+    // command and a fuzzy search for the text "build". A DISABLED command has no feature behind its word,
+    // so the word stays searchable as plain text and is deliberately not published.
+    [TestMethod]
+    public void QueryTriggerKeywords_PublishesEnabledKeywordsTrimmedAndDeduplicated()
+    {
+        ConfigureCommands(new()
+        {
+            new() { Enabled = true, Keyword = " build ", Path = "x.exe" },
+            new() { Enabled = true, Keyword = "deploy", Path = "y.exe" },
+            new() { Enabled = true, Keyword = "BUILD", Path = "z.exe" },
+            new() { Enabled = false, Keyword = "off", Path = "w.exe" },
+            new() { Enabled = true, Keyword = " 　 ", Path = "v.exe" },
+        });
+
+        CollectionAssert.AreEqual(
+            new[] { "build", "deploy" },
+            new CustomCommandsInstantProvider().QueryTriggerKeywords.ToList());
+    }
+
+    // Same separator rule as the host's strip, so a full-width space cannot leave the command firing while
+    // the file search still carries "build　x" (or the reverse).
+    [TestMethod]
+    public void GetInstantResults_FullWidthSeparator_PassesTheRestAsInput()
+    {
+        ConfigureCommands(new() { new() { Enabled = true, Keyword = "build", Path = "msbuild.exe", Parameter = "%s" } });
+
+        var result = new CustomCommandsInstantProvider().GetInstantResults("build　My App.sln").Single();
+
+        Assert.AreEqual("msbuild.exe \"My App.sln\"", result.ActionArgument);
+    }
+
+    // A word that only STARTS a longer first token is not the command: "builder x" is a search, not "build".
+    [TestMethod]
+    public void GetInstantResults_KeywordOnlyPartOfFirstToken_ReturnsNothing()
+    {
+        ConfigureCommands(new() { new() { Enabled = true, Keyword = "build", Path = "x.exe" } });
+
+        Assert.IsEmpty(new CustomCommandsInstantProvider().GetInstantResults("builder x"));
+    }
 }

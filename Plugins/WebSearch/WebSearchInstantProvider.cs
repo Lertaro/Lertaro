@@ -99,25 +99,13 @@ public class WebSearchInstantProvider : IInstantResultProvider
         if (string.IsNullOrEmpty(query))
             yield break;
 
-        var sources = LoadSearchSources();
-        SearchSourceItem? matchedSource = null;
-        var prefix = "";
-
-        foreach (var src in sources)
-        {
-            var pfx = src.Keyword + " ";
-            if (query.StartsWith(pfx, StringComparison.OrdinalIgnoreCase))
-            {
-                matchedSource = src;
-                prefix = pfx;
-                break;
-            }
-        }
-
-        if (matchedSource == null)
+        if (!TryMatchSource(query, out var matchedSource, out var searchTerm))
             yield break;
 
-        var searchTerm = query.Substring(prefix.Length).Trim();
+        // What a Tab completion writes back into the box (and what the suggestion fetch re-checks the box
+        // against): the engine's own word plus one separator, so a padded keyword cannot make the
+        // completion text something neither this provider nor the host recognises.
+        var prefix = TriggerWord.Normalize(matchedSource.Keyword) + " ";
 
         var searchEngineName = !string.IsNullOrWhiteSpace(matchedSource.Name)
             ? matchedSource.Name
@@ -214,26 +202,34 @@ public class WebSearchInstantProvider : IInstantResultProvider
     public bool[]? GetHighlightMask(string text, string query)
     {
         if (string.IsNullOrEmpty(query)) return null;
-        var sources = LoadSearchSources();
-        SearchSourceItem? matchedSource = null;
-        var prefix = "";
 
-        foreach (var src in sources)
-        {
-            var pfx = src.Keyword + " ";
-            if (query.StartsWith(pfx, StringComparison.OrdinalIgnoreCase))
-            {
-                matchedSource = src;
-                prefix = pfx;
-                break;
-            }
-        }
+        // Null when no engine's word is on the front of it -- that is this contract's way of saying "host,
+        // mask it your way", which matters because the text a row carries is not always the raw box text.
+        if (!TryMatchSource(query, out _, out var searchTerm)) return null;
 
-        if (matchedSource == null) return null;
         var mask = new bool[text.Length];
-        var searchTerm = query.Substring(prefix.Length).Trim();
         if (string.IsNullOrEmpty(searchTerm)) return mask;
 
         return FuzzyMatchService.GetHighlightMask(text, searchTerm) ?? mask;
+    }
+
+    // Which engine the typed word selects, and what to search for. There used to be two verbatim copies of
+    // this scan -- one for results, one for highlighting -- each rebuilding the prefix as "keyword + one
+    // space", so a keyword stored with padding was recognised by neither while the host still stripped the
+    // trimmed word off the file search. One scan, on the shared tokenizing rule the host uses too.
+    // Source-list order decides a tie: the first engine whose keyword matches wins.
+    private static bool TryMatchSource(string query, out SearchSourceItem matchedSource, out string searchTerm)
+    {
+        foreach (var candidate in LoadSearchSources())
+        {
+            if (!TriggerWord.TryMatchInvoked(query, candidate.Keyword, out searchTerm))
+                continue;
+            matchedSource = candidate;
+            return true;
+        }
+
+        searchTerm = string.Empty;
+        matchedSource = null!;
+        return false;
     }
 }

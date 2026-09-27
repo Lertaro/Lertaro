@@ -79,7 +79,15 @@ public static class SearchResultMapper
         {
             var probe = rawQuery ?? query;
             if (probe.Length > 0)
+            {
                 triggeredTypeId = SearchResultTypePriority.ResolveTrigger(probe[0], UserSettings.Load().ResultTypeTriggers);
+                // The same precedence SearchDispatchController applies before it cuts the character off the
+                // searched text: a word some plugin owns outranks the character that merely starts it, or
+                // the exclusive filter below would compete a "set 路径" search on the leftover "et ". Read
+                // from the raw probe, since `query` has already had that word stripped out of it here.
+                if (triggeredTypeId != null && PluginTriggerQuery.ClaimsLeadingWord(probe))
+                    triggeredTypeId = null;
+            }
         }
 
         // Favorites, history-matched files, searchable items (apps/settings), and remaining file

@@ -2,6 +2,7 @@ using System.IO;
 using System.IO.Pipes;
 using Lertaro.Core;
 using Lertaro.App.ViewModels.Search;
+using Lertaro.App.ViewModels.Search.Dispatch;
 
 using Lertaro.Core.Services.Search;
 using Lertaro.Core.Services.Pipe;
@@ -165,6 +166,12 @@ public static class AppSearchPipeService
             var globalPrefixChar = GetGlobalTokenPrefixChar();
             var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
             var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+            // The same trigger-word strip the full window applies, so a CLI query and the identical text
+            // typed in the window search the same thing rather than matching "cs" against file names here.
+            // ponytail: this runs on the pipe's thread while the GUI runs it on the UI thread; a provider
+            // reading its own settings is a dictionary lookup, but a plugin with non-thread-safe state in
+            // QueryTriggerKeywords could be read concurrently. Upgrade path: marshal to the dispatcher.
+            cleanQuery = PluginTriggerQuery.Strip(cleanQuery);
 
             if (tokens.Count > 0)
                 await RunTokenizedSearchAsync(cleanQuery, tokens, directoryFilter, bypassExclusions, buffered, token);

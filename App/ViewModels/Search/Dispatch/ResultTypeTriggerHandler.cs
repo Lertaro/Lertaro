@@ -43,14 +43,27 @@ internal sealed class ResultTypeTriggerHandler
     // in this class), but has no concept of a per-type trigger at all -- BuildQuickResults' own
     // detection already skips it for isInlineWindow, so this must too, or an inline query that
     // happens to start with someone's configured trigger character would silently search the wrong
-    // (one-character-short) text.
+    // (one-character-short) text. A configured trigger WORD outranks this whole mechanism when the typed
+    // first token is one -- see the ClaimsLeadingWord guard below, which is where that precedence lives.
     public (string CleanQuery, string? TriggeredTypeId) StripTrigger(string raw, string cleanQuery)
     {
         if (_getIsInlineSearchContext() || raw.Length == 0 || cleanQuery.Length == 0 || cleanQuery[0] != raw[0])
             return (cleanQuery, null);
 
         var typeId = SearchResultTypePriority.ResolveTrigger(raw[0], UserSettings.Load().ResultTypeTriggers);
-        return typeId != null ? (cleanQuery.Substring(1), typeId) : (cleanQuery, null);
+        if (typeId == null)
+            return (cleanQuery, null);
+
+        // A character trigger only ever inspects one character, so it would cut "set 路径" down to
+        // "et 路径" the moment anyone assigns "s" to a type: the file search runs on the mangled text and
+        // the word's own owner still recognises the raw input, so the user gets the provider's rows beside
+        // garbage. A typed word that matches a registered trigger word outright wins over the character.
+        // Consulted only once a character actually matches, so the common case (no type trigger at all,
+        // which is the shipped default) pays nothing for this.
+        if (PluginTriggerQuery.ClaimsLeadingWord(cleanQuery))
+            return (cleanQuery, null);
+
+        return (cleanQuery.Substring(1), typeId);
     }
 
     // Same "nothing to search yet" situation as SearchDispatchController.ClearForTokenOnlyQuery, but for

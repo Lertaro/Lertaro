@@ -36,13 +36,19 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
     public string Name => TranslationService.Get("Translator_ProviderName");
     public string Description => TranslationService.Get("Translator_ProviderDesc");
 
+    // The word the user types to invoke this provider, published for the host so it can strip it before
+    // matching/highlighting file names. Read live from the plugin's own settings: the host never keeps a
+    // copy, and changing the word in Settings takes effect on the next keystroke.
+    public IReadOnlyList<string> QueryTriggerKeywords => [GetTriggerKeyword()];
+
     public IEnumerable<InstantResultItem> GetInstantResults(string query)
     {
-        var trigger = GetTriggerPrefix();
-        if (string.IsNullOrEmpty(query) || !query.StartsWith(trigger, StringComparison.OrdinalIgnoreCase))
+        // "tr" alone is still a search for the text "tr"; the translator needs the separator typed first.
+        var word = GetTriggerKeyword();
+        if (!TriggerWord.TryMatchInvoked(query, word, out var input))
             yield break;
 
-        var parsed = TranslationQueryParser.Parse(query[trigger.Length..], TranslationService.GetCurrentCulture());
+        var parsed = TranslationQueryParser.Parse(input, TranslationService.GetCurrentCulture());
         var text = parsed.Text;
         if (text.Length == 0)
         {
@@ -75,7 +81,7 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
             yield break;
         }
 
-        EnsureFetchStarted(key, text, targetLanguage, trigger, query);
+        EnsureFetchStarted(key, text, targetLanguage, word, query);
         yield return CreateItem(TranslationService.Get("Translator_LoadingTitle"), TranslationService.Get("Translator_LoadingDesc"), "None");
     }
 
@@ -89,10 +95,10 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
         ActionArgument = actionArgument
     };
 
-    private static string GetTriggerPrefix()
+    private static string GetTriggerKeyword()
     {
-        _cachedTrigger ??= PluginSettingsService.GetSetting(PluginId, "TranslationTrigger", DefaultTrigger).Trim();
-        return (_cachedTrigger.Length > 0 ? _cachedTrigger : DefaultTrigger) + " ";
+        _cachedTrigger ??= TriggerWord.Normalize(PluginSettingsService.GetSetting(PluginId, "TranslationTrigger", DefaultTrigger));
+        return _cachedTrigger.Length > 0 ? _cachedTrigger : DefaultTrigger;
     }
 
     private static bool TryGetCached(string key, out TranslationCacheEntry entry)
@@ -113,7 +119,7 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
         }
     }
 
-    private static void EnsureFetchStarted(string key, string text, string targetLanguage, string trigger, string requestQuery)
+    private static void EnsureFetchStarted(string key, string text, string targetLanguage, string triggerWord, string requestQuery)
     {
         lock (PendingRequests)
         {
@@ -161,7 +167,7 @@ public sealed class TranslationInstantProvider : IInstantResultProvider
             }
 
             SearchRefreshService.RefreshIfMatches(currentQuery =>
-                currentQuery.StartsWith(trigger, StringComparison.OrdinalIgnoreCase) &&
+                TriggerWord.TryMatchInvoked(currentQuery, triggerWord, out _) &&
                 string.Equals(currentQuery, requestQuery, StringComparison.Ordinal));
         });
     }

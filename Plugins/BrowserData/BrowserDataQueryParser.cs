@@ -1,5 +1,7 @@
 namespace Lertaro.Plugins.BrowserData;
 
+using Lertaro.PluginSdk.Services;
+
 internal enum BrowserDataSearchScope
 {
     None,
@@ -28,20 +30,8 @@ internal static class BrowserDataQueryParser
         return new BrowserDataQuery(BrowserDataSearchScope.None, string.Empty);
     }
 
-    private static bool TryStripKeyword(string query, string keyword, out string searchTerm)
-    {
-        searchTerm = string.Empty;
-        keyword = keyword.Trim();
-        if (keyword.Length == 0)
-            return false;
-
-        var trimmed = query.Trim();
-        if (string.Equals(trimmed, keyword, StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (!trimmed.StartsWith(keyword + " ", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        searchTerm = trimmed.Substring(keyword.Length + 1).Trim();
-        return true;
-    }
+    private static bool TryStripKeyword(string query, string keyword, out string searchTerm) =>
+        // A bare "bb" activates and lists the bookmarks; the token rule is the host's own, shared with the
+        // words it strips off the file search, so the two cannot disagree on a padded keyword.
+        TriggerWord.TryMatch(query, keyword, out searchTerm);
 }

@@ -30,24 +30,24 @@ public class SearchSettingsInstantProvider : IInstantResultProvider
 
     private static string? _cachedTrigger;
 
-    private static string GetTriggerPrefix()
+    private static string GetTriggerKeyword()
     {
-        // "trigger word" + " ", matching WebSearchInstantProvider's own prefix convention.
-        _cachedTrigger ??= PluginSettingsService.GetSetting(PluginId, "SearchSettingsTrigger", DefaultTriggerWord).Trim();
-        return (_cachedTrigger.Length > 0 ? _cachedTrigger : DefaultTriggerWord) + " ";
+        _cachedTrigger ??= TriggerWord.Normalize(PluginSettingsService.GetSetting(PluginId, "SearchSettingsTrigger", DefaultTriggerWord));
+        return _cachedTrigger.Length > 0 ? _cachedTrigger : DefaultTriggerWord;
     }
 
     public string Name => TranslationService.Get("SearchSettings_Name");
     // The configured word, published so the host strips it before matching file names.
-    public IReadOnlyList<string> QueryTriggerKeywords => [GetTriggerPrefix().Trim()];
+    public IReadOnlyList<string> QueryTriggerKeywords => [GetTriggerKeyword()];
 
     public IEnumerable<InstantResultItem> GetInstantResults(string query)
     {
-        var trigger = GetTriggerPrefix();
-        if (string.IsNullOrEmpty(query) || !query.StartsWith(trigger, StringComparison.OrdinalIgnoreCase))
+        // "set" with nothing after it is still a legitimate search for the text "set" -- the browse-all
+        // view needs the separator typed first, which is also where this stops fighting the host's rule
+        // that a bare word is never stripped off the file search.
+        if (!TriggerWord.TryMatchInvoked(query, GetTriggerKeyword(), out var term))
             yield break;
 
-        var term = query.Substring(trigger.Length).Trim();
         var browseAll = term.Length == 0;
 
         IEnumerable<SettingsSearchEntryInfo> entries = SettingsSearchService.GetEntries();
@@ -73,18 +73,18 @@ public class SearchSettingsInstantProvider : IInstantResultProvider
                 IconColor = "DefaultPluginIconColor",
                 ActionType = "None",
                 OnExecute = () => SettingsWindowService.ShowEntry(entry),
-                TabCompletion = trigger + entry.Label
+                TabCompletion = $"{GetTriggerKeyword()} {entry.Label}"
             };
         }
     }
 
     public bool[]? GetHighlightMask(string text, string query)
     {
-        var trigger = GetTriggerPrefix();
-        if (string.IsNullOrEmpty(query) || !query.StartsWith(trigger, StringComparison.OrdinalIgnoreCase))
+        // Null when the word isn't on the front: that is this contract's way of declining, and the host
+        // then masks the row with its own matcher.
+        if (!TriggerWord.TryMatchInvoked(query, GetTriggerKeyword(), out var term))
             return null;
 
-        var term = query.Substring(trigger.Length).Trim();
         var mask = new bool[text.Length];
         if (term.Length == 0)
             return mask;

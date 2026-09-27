@@ -139,4 +139,32 @@ public sealed class PluginTriggerQueryTests
     public void FirstOtherOwner_SeesNonStrippingWordsFromOtherFeatures()
         => Assert.AreEqual("文件筛选", PluginTriggerQuery.FirstOtherOwner(
                new[] { E("tf", "文件筛选", strips: false) }, "tf", "内容搜索"));
+
+    // A full-width or tab separator has to work on this side too: the provider that owns the word sees the
+    // untouched box text, so if only one of the two accepted "cs　report" the word would be stripped from
+    // the file search while the provider stayed silent (or the reverse).
+    [TestMethod]
+    public void Match_FullWidthOrTabSeparator_StripsDownToTheTerm()
+    {
+        Assert.IsTrue(PluginTriggerQuery.Match("cs　report", Cs, out var remainder));
+        Assert.AreEqual("report", remainder);
+
+        Assert.IsTrue(PluginTriggerQuery.Match("cs\treport", Cs, out remainder));
+        Assert.AreEqual("report", remainder);
+    }
+
+    [TestMethod]
+    public void Match_KeywordStoredWithPadding_StillStrips()
+    {
+        Assert.IsTrue(PluginTriggerQuery.Match("cs report", ["  cs  "], out var remainder));
+        Assert.AreEqual("report", remainder);
+    }
+
+    // A separator alone is not a term: "cs " must not leave an empty query for the engine.
+    [TestMethod]
+    public void Match_KeywordWithFullWidthSpaceOnly_DoesNotStrip()
+    {
+        Assert.IsFalse(PluginTriggerQuery.Match("cs　", Cs, out var remainder));
+        Assert.AreEqual("cs　", remainder);
+    }
 }

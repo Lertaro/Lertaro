@@ -7,6 +7,16 @@ public class CustomCommandsInstantProvider : IInstantResultProvider
 {
     public string Name => TranslationService.Get("CustomCommands_ProviderName");
 
+    // Every ENABLED command's keyword, published so the host strips the one the user typed before matching
+    // file names -- the same treatment "mkdir" and "cs" get. A disabled command has no feature to serve, so
+    // its word stays searchable as text.
+    public IReadOnlyList<string> QueryTriggerKeywords =>
+        LoadCommands()
+            .Where(c => c.Enabled && !string.IsNullOrWhiteSpace(c.Keyword))
+            .Select(c => TriggerWord.Normalize(c.Keyword))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
     public class CommandItem
     {
         public bool Enabled { get; set; } = true;
@@ -54,14 +64,13 @@ public class CustomCommandsInstantProvider : IInstantResultProvider
         if (cmds == null || cmds.Count == 0)
             yield break;
 
-        var parts = query.Split(new[] { ' ' }, 2);
-        var keyword = parts[0];
-        var argSuffix = parts.Length > 1 ? parts[1] : string.Empty;
-
-        var matchedCmds = cmds.Where(c => c.Enabled && string.Equals(c.Keyword, keyword, StringComparison.OrdinalIgnoreCase));
-
-        foreach (var cmd in matchedCmds)
+        foreach (var cmd in cmds)
         {
+            // The keyword has to be the whole first token, matched the same way the host matches it before
+            // stripping it from the file search; a bare keyword runs the command with its configured
+            // parameters and no input.
+            if (!cmd.Enabled || !TriggerWord.TryMatch(query, cmd.Keyword, out var argSuffix))
+                continue;
             // Compile final target executable path, arguments, working directory, and window style.
             // If WorkingDir is set, or RunSilently is true, we serialize options into a JSON payload starting with 'cc_exec:'
             // to let the executor launch the process directly without wrapping in cmd.exe /c start.

@@ -1,6 +1,7 @@
 using Lertaro.Core;
 using Lertaro.App.Services.Plugin;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.App.ViewModels.Search.Dispatch;
 
@@ -10,11 +11,17 @@ namespace Lertaro.App.ViewModels.Search.Dispatch;
 /// trigger inside every result row it dragged in.
 /// </summary>
 /// <remarks>
-/// Two families of word, collected from live plugin state so the host never keeps a copy of either: an
-/// instant provider's configured word (<see cref="IInstantResultProvider.QueryTriggerKeywords"/>, read per
-/// call so a Settings change takes effect on the next keystroke) and a search action's own
-/// <em>Keywords</em> ("mkdir", "touch", "cmd" -- the words KeywordMatcher already
-/// treats as a command with an argument, which today also get matched as text and highlighted).
+/// Every word the search box can answer to is inventoried here from live plugin state, so the host keeps no
+/// copy of any of them: an instant provider's configured word
+/// (<see cref="IInstantResultProvider.QueryTriggerKeywords"/>, read per call so a Settings change takes
+/// effect on the next keystroke), a search action's own <em>Keywords</em> ("mkdir", "touch", "cmd"), a file
+/// filter's scope keyword, and a per-type trigger character. The last two are collected for the collision
+/// report only -- their own resolvers strip them, so stripping them here would strip twice.
+///
+/// The comparison itself is <see cref="TriggerWord"/>, shared with <see cref="KeywordMatcher"/> and
+/// <see cref="FileFilterScopeResolver"/> and with every provider that owns a word, because the host and the
+/// owner have to agree: a word the host strips but its owner does not recognise leaves the user with
+/// neither the feature nor their search text.
 ///
 /// Same shape as <see cref="FileFilterScopeResolver"/>: a thin collector over PluginManager and a pure
 /// <see cref="Match"/> holding the activation rules, so the rules are testable without the registry.
@@ -75,20 +82,20 @@ internal static class PluginTriggerQuery
             if (declared == null) continue;
             foreach (var keyword in declared)
                 if (!string.IsNullOrWhiteSpace(keyword))
-                    collected.Add(new Entry(keyword.Trim(), provider.Name, true));
+                    collected.Add(new Entry(TriggerWord.Normalize(keyword), provider.Name, true));
         }
 
-        // Search actions (mkdir / touch / cmd ...): KeywordMatcher already treats "mkdir sub" as the action
-        // with argument "sub", so the command word is a trigger by the same right -- and today the file list
-        // beside it is matched and highlighted against "mkdir sub", which is neither what the argument means
-        // nor anything the user wanted.
+        // Search actions (mkdir / touch / cmd ...): KeywordMatcher treats "mkdir sub" as the action with
+        // argument "sub", so the command word is a trigger by the same right -- and before they were
+        // collected here the file list beside it was matched and highlighted against "mkdir sub", which is
+        // neither what the argument means nor anything the user wanted.
         foreach (var action in PluginManager.Instance.Actions)
         {
             try
             {
                 foreach (var keyword in action.Action.Keywords ?? Array.Empty<string>())
                     if (!string.IsNullOrWhiteSpace(keyword))
-                        collected.Add(new Entry(keyword.Trim(), action.Action.GetType().Name, true));
+                        collected.Add(new Entry(TriggerWord.Normalize(keyword), action.Action.GetType().Name, true));
             }
             catch (Exception ex)
             {
@@ -104,7 +111,7 @@ internal static class PluginTriggerQuery
             {
                 foreach (var scope in provider.GetSearchScopes() ?? Array.Empty<SearchScope>())
                     if (!string.IsNullOrWhiteSpace(scope.Keyword))
-                        collected.Add(new Entry(scope.Keyword.Trim(), provider.Name, false));
+                        collected.Add(new Entry(TriggerWord.Normalize(scope.Keyword), provider.Name, false));
             }
             catch (Exception ex)
             {
@@ -114,7 +121,7 @@ internal static class PluginTriggerQuery
 
         foreach (var pair in UserSettings.Load().ResultTypeTriggers ?? new Dictionary<string, string>())
             if (!string.IsNullOrWhiteSpace(pair.Value))
-                collected.Add(new Entry(pair.Value.Trim(), pair.Key, false));
+                collected.Add(new Entry(TriggerWord.Normalize(pair.Value), pair.Key, false));
 
         return collected;
     }
@@ -136,25 +143,35 @@ internal static class PluginTriggerQuery
         if (string.IsNullOrEmpty(query) || keywords.Count == 0)
             return false;
 
-        var trimmed = query.TrimStart();
-        var spaceIndex = trimmed.IndexOf(' ');
-        if (spaceIndex <= 0)
+        // Which characters separate a word from its term, and where the term starts, is TriggerWord's
+        // call -- the same answer the word's own owner gives. The only policy held here is that a word
+        // with nothing after it is not stripped.
+        if (!TriggerWord.TryMatchAny(query, keywords, out _, out var term) || term.Length == 0)
             return false;
 
-        var firstToken = trimmed[..spaceIndex].Trim();
-        if (firstToken.Length == 0)
+        remainder = term;
+        return true;
+    }
+
+    /// <summary>
+    /// Whether a registered multi-character word owns <paramref name="query"/>'s first token, with or
+    /// without a term after it. The quick window consults this before applying a per-type trigger
+    /// CHARACTER, which only ever inspects the first character it is given: configure "s" as a type trigger
+    /// and "set 路径" is cut down to "et 路径" -- the word its owner still needs is gone, the file search
+    /// runs on garbage, and the collision report never sees it because it compares whole words. A word
+    /// beats a character for the same reason a more specific prefix beats a less specific one.
+    ///
+    /// Multi-character entries only: a single-character entry IS the type-trigger family this is guarding
+    /// against, so letting it claim the token would put us back where we started.
+    /// </summary>
+    public static bool ClaimsLeadingWord(string query)
+    {
+        if (string.IsNullOrEmpty(query))
             return false;
 
-        for (var i = 0; i < keywords.Count; i++)
-        {
-            if (!string.Equals(firstToken, keywords[i], StringComparison.OrdinalIgnoreCase))
-                continue;
-            var rest = trimmed[(spaceIndex + 1)..].Trim();
-            if (rest.Length == 0)
-                return false;
-            remainder = rest;
-            return true;
-        }
+        foreach (var entry in Collect())
+            if (entry.Word.Length > 1 && TriggerWord.TryMatch(query, entry.Word, out _))
+                return true;
 
         return false;
     }
@@ -168,7 +185,7 @@ internal static class PluginTriggerQuery
         if (string.IsNullOrWhiteSpace(word))
             return null;
 
-        var candidate = word.Trim();
+        var candidate = TriggerWord.Normalize(word);
         foreach (var entry in entries)
         {
             // An owner matching itself is a plugin reusing its own word across two of its own fields, not a
@@ -183,7 +200,11 @@ internal static class PluginTriggerQuery
     }
 
     // One line per distinct set of collisions: a page refresh or a keystroke must not repeat the same
-    // warning forever while the user has not decided what to rename.
+    // warning forever while the user has not decided what to rename. Guarded, because remembering it is a
+    // read-compare-write on one piece of state and a search can be dispatched from more than one thread --
+    // unsynchronised, two keystrokes can both see the old value and log the identical line. The decision is
+    // taken under the lock and the write happens outside it, so no I/O runs while it is held.
+    private static readonly object WarningGate = new();
     private static string? _warnedSignature;
 
     private static void WarnAboutCollisions(IReadOnlyList<Entry> entries)
@@ -197,16 +218,23 @@ internal static class PluginTriggerQuery
                 report.Add($"{entry.Word}' ({entry.Owner} / {other})");
         }
 
-        if (report.Count == 0)
+        string? signatureToLog = null;
+        lock (WarningGate)
         {
-            _warnedSignature = null;
-            return;
+            if (report.Count == 0)
+                _warnedSignature = null;
+            else
+            {
+                var signature = string.Join("|", report);
+                if (signature != _warnedSignature)
+                {
+                    _warnedSignature = signature;
+                    signatureToLog = signature;
+                }
+            }
         }
 
-        var signature = string.Join("|", report);
-        if (signature == _warnedSignature)
-            return;
-        _warnedSignature = signature;
-        Logger.Log($"[PluginTriggerQuery] more than one feature answers to the same trigger word, so the file search follows whichever registers first: {signature}", LogLevel.Warn);
+        if (signatureToLog != null)
+            Logger.Log($"[PluginTriggerQuery] more than one feature answers to the same trigger word, so the file search follows whichever registers first: {signatureToLog}", LogLevel.Warn);
     }
 }

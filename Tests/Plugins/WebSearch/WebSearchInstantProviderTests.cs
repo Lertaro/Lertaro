@@ -125,4 +125,41 @@ public sealed class WebSearchInstantProviderSettingsTests
     [TestMethod]
     public void GetHighlightMask_EmptyQuery_ReturnsNull() =>
         Assert.IsNull(new WebSearchInstantProvider().GetHighlightMask("text", ""));
+
+    // A keyword saved with padding used to be invisible to this provider (it compared against "keyword +
+    // one space") while the host stripped the TRIMMED word off the file search: no engine row, and no way
+    // to search files for that text either. Both sides now read the same normalized word.
+    [TestMethod]
+    public void PaddedKeyword_IsPublishedTrimmedAndStillMatches()
+    {
+        ConfigureSources(new() { MakeSource(keyword: "  g  ") });
+        var provider = new WebSearchInstantProvider();
+
+        Assert.AreEqual("g", provider.QueryTriggerKeywords.Single());
+        Assert.HasCount(1, provider.GetInstantResults("g hello").ToList());
+    }
+
+    // Two sources on one keyword is a real config accident waiting to happen; the list order decides, and
+    // it decides the SAME way on both sides of the strip.
+    [TestMethod]
+    public void DuplicateKeywords_FirstSourceInListOrderWins()
+    {
+        ConfigureSources(new()
+        {
+            new WebSearchInstantProvider.SearchSourceItem { Name = "First", Keyword = "g", Url = "https://a/?q=%s" },
+            new WebSearchInstantProvider.SearchSourceItem { Name = "Second", Keyword = "g", Url = "https://b/?q=%s" },
+        });
+
+        var item = new WebSearchInstantProvider().GetInstantResults("g x").Single();
+
+        Assert.AreEqual("https://a/?q=x", item.ActionArgument);
+    }
+
+    [TestMethod]
+    public void GetInstantResults_FullWidthSeparator_MatchesTheSameSource()
+    {
+        ConfigureSources(new() { MakeSource(keyword: "g") });
+
+        Assert.HasCount(1, new WebSearchInstantProvider().GetInstantResults("g　hello").ToList());
+    }
 }

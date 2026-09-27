@@ -96,4 +96,30 @@ public sealed class WindowSwitcherInstantProviderFuzzyMatchTests
 
         Assert.IsNull(tier);
     }
+
+    // The host strips only the words a provider publishes, and "win" was missing from that list: typing
+    // "win 记事本" fuzzy-matched "win" against every file name and highlighted it in the results beside the
+    // window rows. Publishing it is what makes the two agree.
+    [TestMethod]
+    public void QueryTriggerKeywords_PublishesTheConfiguredWordTrimmed()
+    {
+        PluginSdk.Services.PluginSettingsService.GetSettingFunc = (pluginId, key, defaultValue) =>
+            pluginId == "Lertaro.Plugins.WindowSwitcher" && key == "TriggerKeyword" ? "  窗口  " : defaultValue;
+        try
+        {
+            CollectionAssert.AreEqual(
+                new[] { "窗口" },
+                new WindowSwitcherInstantProvider().QueryTriggerKeywords.ToList());
+        }
+        finally
+        {
+            PluginSdk.Services.PluginSettingsService.GetSettingFunc = null;
+        }
+    }
+
+    // "windows" merely starts with the word: it is a search, not an invocation. Enumerating real windows is
+    // out of scope here, so this asserts only the negative side of the boundary.
+    [TestMethod]
+    public void GetInstantResults_WordOnlyPartOfFirstToken_ReturnsNothing() =>
+        Assert.IsEmpty(new WindowSwitcherInstantProvider().GetInstantResults("windows notepad"));
 }

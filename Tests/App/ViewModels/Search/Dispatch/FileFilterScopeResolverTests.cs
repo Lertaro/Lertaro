@@ -3,10 +3,11 @@ using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.App.Tests.ViewModels.Search.Dispatch;
 
-// Pins the activation rules of the "tf report" leading-keyword scope syntax: the first token must
-// hit a registered keyword and be followed by a space, everything after it is the searched term,
-// and only index-covered folders make it into the directive. FileFilterScopeResolver.Resolve itself
-// (PluginManager + SearchScopeCoverage wiring) is deliberately not exercised here.
+// Pins the activation rules of the "tf report" leading-keyword scope syntax: a typed first token must
+// hit a registered keyword, something must follow it, and everything after it is the searched term --
+// and only index-covered folders make it into the directive. Tokenizing is TriggerWord's, shared with
+// the rest of the search box, so these tests also pin what counts as a separator. FileFilterScopeResolver.
+// Resolve itself (PluginManager + SearchScopeCoverage wiring) is deliberately not exercised here.
 [TestClass]
 public sealed class FileFilterScopeResolverTests
 {
@@ -33,8 +34,37 @@ public sealed class FileFilterScopeResolverTests
     [TestMethod]
     public void UnknownKeyword_DoesNotActivate() => Assert.IsNull(Match("xyz report", Scopes(TfFilter), ["C:\\Movies"], out _));
 
+    // Leading whitespace used to be the one place a scope and the rest of the search box disagreed:
+    // PluginTriggerQuery trimmed it and this did not, so " tf report" quietly searched for the text
+    // "tf report" instead of scoping anything. One tokenizer now answers for both.
     [TestMethod]
-    public void LeadingSpace_DoesNotActivate() => Assert.IsNull(Match(" tf report", Scopes(TfFilter), ["C:\\Movies"], out _));
+    public void LeadingSpace_StillActivates()
+    {
+        var directive = Match(" tf report", Scopes(TfFilter), ["C:\\Movies"], out var remainder);
+
+        Assert.IsNotNull(directive);
+        Assert.AreEqual("report", remainder);
+    }
+
+    // A Chinese IME in full-width mode emits U+3000, and text pasted from a document can carry a
+    // non-breaking space; neither separated the keyword from its term at all before.
+    [TestMethod]
+    public void FullWidthSpace_SeparatesKeywordFromTerm()
+    {
+        var directive = Match("tf　report", Scopes(TfFilter), ["C:\\Movies"], out var remainder);
+
+        Assert.IsNotNull(directive);
+        Assert.AreEqual("report", remainder);
+    }
+
+    [TestMethod]
+    public void Tab_SeparatesKeywordFromTerm()
+    {
+        var directive = Match("tf\treport", Scopes(TfFilter), ["C:\\Movies"], out var remainder);
+
+        Assert.IsNotNull(directive);
+        Assert.AreEqual("report", remainder);
+    }
 
     [TestMethod]
     public void KeywordPlusTerm_Activates_WithTrimmedRemainder()

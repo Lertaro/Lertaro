@@ -39,7 +39,7 @@ public class BrowserDataInstantProvider : IInstantResultProvider
     private static string GetTriggerKeyword(string settingKey, string defaultValue)
     {
         var value = PluginSettingsService.GetSetting("Lertaro.Plugins.BrowserData", settingKey, defaultValue);
-        return string.IsNullOrWhiteSpace(value) ? defaultValue : value.Trim();
+        return TriggerWord.Normalize(value) is { Length: > 0 } word ? word : defaultValue;
     }
 
     public IEnumerable<InstantResultItem> GetInstantResults(string query)

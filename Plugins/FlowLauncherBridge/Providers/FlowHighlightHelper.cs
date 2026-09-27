@@ -13,40 +13,39 @@ public static class FlowHighlightHelper
         if (string.IsNullOrEmpty(query))
             return null;
 
-        var trimmed = query.Trim();
-        var kw = string.IsNullOrWhiteSpace(triggerKeyword) ? "flow" : triggerKeyword;
+        // Whatever is left once the word and any subcommand come off is what to highlight, so a bare
+        // "flow" or "flow install" leaves nothing and masks nothing -- which is what the hand-written
+        // empty-mask returns used to say.
+        return ComputeMask(text, ResolveTerm(host, triggerKeyword, query));
+    }
 
-        if (trimmed.Equals(kw, StringComparison.OrdinalIgnoreCase))
-            return new bool[text.Length];
+    private static string ResolveTerm(FlowPluginHost host, string triggerKeyword, string query)
+    {
+        var word = TriggerWord.Normalize(triggerKeyword);
+        if (word.Length == 0)
+            word = "flow";
 
-        if (trimmed.StartsWith(kw + " ", StringComparison.OrdinalIgnoreCase))
-        {
-            var rest = trimmed[(kw.Length + 1)..].TrimStart();
-            foreach (var sub in new[] { "install", "update", "uninstall" })
-            {
-                if (rest.Equals(sub, StringComparison.OrdinalIgnoreCase))
-                    return new bool[text.Length];
+        if (TriggerWord.TryMatch(query, word, out var rest))
+            return SubcommandTerm(rest);
 
-                if (rest.StartsWith(sub + " ", StringComparison.OrdinalIgnoreCase))
-                {
-                    var term = rest[(sub.Length + 1)..].Trim();
-                    return ComputeMask(text, term);
-                }
-            }
+        // A Flow plugin's own action keyword ("gh lertaro") is the other prefix that reaches here.
+        foreach (var (actionKeyword, _) in host.KeywordPlugins)
+            if (TriggerWord.TryMatch(query, actionKeyword, out var actionTerm))
+                return actionTerm;
 
-            return ComputeMask(text, rest);
-        }
+        // Nothing owns the prefix -- and on the quick-window path the host already stripped the word it
+        // did own, so what the row carries IS the term.
+        return query.Trim();
+    }
 
-        foreach (var (actionKw, _) in host.KeywordPlugins)
-        {
-            if (trimmed.StartsWith(actionKw + " ", StringComparison.OrdinalIgnoreCase))
-            {
-                var term = trimmed[(actionKw.Length + 1)..].Trim();
-                return ComputeMask(text, term);
-            }
-        }
+    // "install lertaro" is a search for "lertaro"; "install" alone has nothing to highlight.
+    private static string SubcommandTerm(string rest)
+    {
+        foreach (var sub in new[] { "install", "update", "uninstall" })
+            if (TriggerWord.TryMatch(rest, sub, out var term))
+                return term;
 
-        return ComputeMask(text, trimmed);
+        return rest;
     }
 
     private static bool[] ComputeMask(string text, string searchTerm)

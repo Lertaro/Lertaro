@@ -157,7 +157,7 @@ internal sealed class SearchDispatchController
             appLimit,
             (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope, fileFilterScope: scopeDirective, folderScope: folderScope),
             state => _setIsSearching(state),
-            (results, status, final) => ApplySearchResults(originalValue, results, status, final),
+            (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final),
             HandleLocalServiceUnavailable,
             () => _getResultsCount() == 0,
             _bypassExclusions,
@@ -243,7 +243,10 @@ internal sealed class SearchDispatchController
     }
     private void HandleLocalServiceUnavailable() => _mainVm.TriggerIndexBuild();
 
-    private void ApplySearchResults(string query, List<AppSearchResult> uiResults, string statusText, bool final)
+    // `query` is the untouched box text (what the staleness check compares against); `searchQuery` is what
+    // the rows were actually matched and highlighted against, with a plugin's trigger word taken off. The
+    // "N more" row describes the search, so it is built from the second one -- see ComposeAndApplyAsync.
+    private void ApplySearchResults(string query, string searchQuery, List<AppSearchResult> uiResults, string statusText, bool final)
     {
         if (_getSearchQuery() != query)
             return;
@@ -258,7 +261,7 @@ internal sealed class SearchDispatchController
             return;
         }
 
-        _ = ComposeAndApplyGuardedAsync(query, uiResults, _queryTokens, statusText, final);
+        _ = ComposeAndApplyGuardedAsync(query, searchQuery, uiResults, _queryTokens, statusText, final);
     }
 
     /// <summary>
@@ -269,11 +272,11 @@ internal sealed class SearchDispatchController
     /// rather than "one plugin failed". Rendering the untokenized rows is the honest fallback: the search
     /// still answers, just without the token's refinement.
     /// </summary>
-    private async Task ComposeAndApplyGuardedAsync(string query, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final)
+    private async Task ComposeAndApplyGuardedAsync(string query, string searchQuery, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final)
     {
         try
         {
-            await ComposeAndApplyAsync(query, uiResults, tokensSnapshot, statusText, final).ConfigureAwait(false);
+            await ComposeAndApplyAsync(query, searchQuery, uiResults, tokensSnapshot, statusText, final).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -304,7 +307,7 @@ internal sealed class SearchDispatchController
     // file rows] and caps the combined count like an ordinary quick search. QueryTokenDispatcher only
     // transforms a plain list -- deciding what any of this means for the rest of the UI (capping, "no
     // results", visibility) lives here.
-    private async Task ComposeAndApplyAsync(string query, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final)
+    private async Task ComposeAndApplyAsync(string query, string searchQuery, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final)
     {
         var fileRows = uiResults.Where(IsFileOrDirectory).ToList();
         // ResultKind == "InstantResult" alone isn't enough: ISearchableItemProvider (a static catalog --
@@ -319,7 +322,7 @@ internal sealed class SearchDispatchController
         if (_getSearchQuery() != query || !ReferenceEquals(_queryTokens, tokensSnapshot))
             return; // superseded by a newer query/token set while the token chain was running
 
-        var composed = QueryTokenResultComposer.Compose(instantRows, processedFileRows, query);
+        var composed = QueryTokenResultComposer.Compose(instantRows, processedFileRows, searchQuery);
 
         // A filter token (or an unclaimed one) can legitimately drop every file/directory result -- this
         // window has no separate "no results" hint of its own (unlike the full search window), it

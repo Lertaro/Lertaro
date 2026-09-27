@@ -140,4 +140,32 @@ public sealed class SearchSettingsInstantProviderTests
         Assert.IsNotNull(mask);
         Assert.IsTrue(mask.All(b => !b));
     }
+
+    // The host strips the word off the file search with TriggerWord's rule, and this provider decides what
+    // to show with the same one -- so a full-width space (what a Chinese IME emits in full-width mode) has
+    // to count as a separator on BOTH sides, or the word disappears from the search and the settings rows
+    // never appear beside it.
+    [TestMethod]
+    public void GetInstantResults_FullWidthSeparator_FiltersOnTheTerm()
+    {
+        FuzzyMatchService.IsMatchFunc = (term, text) => text.Contains(term, StringComparison.OrdinalIgnoreCase);
+        ConfigureEntries(
+            new SettingsSearchEntryInfo("界面语言", "通用", 0),
+            new SettingsSearchEntryInfo("快捷键", "通用", 1));
+
+        var results = new SearchSettingsInstantProvider().GetInstantResults("set　界面").ToList();
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual("界面语言", results[0].Title);
+    }
+
+    // "set" on its own is still a legitimate search for that text, so it must not put every settings row on
+    // screen; the browse-all view starts at the separator.
+    [TestMethod]
+    public void GetInstantResults_BareTriggerWord_ReturnsNothing()
+    {
+        ConfigureEntries(new SettingsSearchEntryInfo("界面语言", "通用", 0));
+
+        Assert.IsEmpty(new SearchSettingsInstantProvider().GetInstantResults("set"));
+    }
 }

@@ -199,6 +199,17 @@ internal static class PluginSdkBridge
         PluginSdk.Services.FuzzyMatchService.GetHighlightMaskFunc = FuzzyMatcher.ComputeHighlightMask;
         PluginSdk.Services.FuzzyMatchService.GetMatchScoreFunc = FuzzyMatcher.ComputeMatchWeight;
 
+        // Providers get the untouched box text so a trigger word they own is still there to recognise, and
+        // with it the host's own trailing ":token" syntax. A provider that searches the remainder AS TEXT
+        // (ContentSearch's full-text query) has to take the tokens back off, and this is the only place
+        // that knows the token syntax and the configured prefix character.
+        PluginSdk.Services.SearchQueryService.StripQueryTokensFunc = query =>
+        {
+            var prefix = UserSettings.Load().GlobalTokenPrefix;
+            return Lertaro.Core.SearchIndex.Query.SearchQuerySortParser.Strip(
+                query, out _, !string.IsNullOrEmpty(prefix) ? prefix[0] : ':');
+        };
+
         // Wire up the directory search delegate for plugins using CoreDirectoryIndexManager
         PluginSdk.Services.DirectoryIndexerService.SearchPluginDirectoriesFunc = async (pluginId, query, token) =>
         {

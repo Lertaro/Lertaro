@@ -8,13 +8,18 @@ public class WindowSwitcherInstantProvider : IInstantResultProvider
 {
     public string Name => TranslationService.Get("WindowSwitcher_Name");
 
+    // The word the user types to invoke this provider, published for the host so it can strip it before
+    // matching/highlighting file names. Read live from the plugin's own settings: the host never keeps a
+    // copy, and changing the word in Settings takes effect on the next keystroke.
+    public IReadOnlyList<string> QueryTriggerKeywords => [GetTriggerKeyword()];
+
     // Falls back to the default even if an empty string was already persisted before RequireNonEmpty
     // started enforcing this at save time -- an empty keyword should never silently make this
     // unreachable. Same defensive pattern as ProcessManagerInstantProvider.GetTriggerKeyword.
     private static string GetTriggerKeyword()
     {
         var value = PluginSettingsService.GetSetting("Lertaro.Plugins.WindowSwitcher", "TriggerKeyword", "win");
-        return string.IsNullOrWhiteSpace(value) ? "win" : value;
+        return TriggerWord.Normalize(value) is { Length: > 0 } word ? word : "win";
     }
 
     private static string GetProcessPath(Process proc)
@@ -55,25 +60,11 @@ public class WindowSwitcherInstantProvider : IInstantResultProvider
 
     public IEnumerable<InstantResultItem> GetInstantResults(string query)
     {
-        if (string.IsNullOrWhiteSpace(query))
-            yield break;
-
         var keyword = GetTriggerKeyword();
-        if (string.IsNullOrWhiteSpace(keyword))
+        // Bare "win" lists the switchable windows, a term filters them. One shared tokenizing rule with the
+        // host's own word-stripping, so the two cannot disagree about a configured keyword.
+        if (!TriggerWord.TryMatch(query, keyword, out var searchTerm))
             yield break;
-
-        var trimmed = query.Trim();
-        var isTriggered = string.Equals(trimmed, keyword, StringComparison.OrdinalIgnoreCase) ||
-                           trimmed.StartsWith(keyword + " ", StringComparison.OrdinalIgnoreCase);
-
-        if (!isTriggered)
-            yield break;
-
-        var searchTerm = "";
-        if (trimmed.StartsWith(keyword + " ", StringComparison.OrdinalIgnoreCase))
-        {
-            searchTerm = trimmed.Substring(keyword.Length + 1).Trim();
-        }
 
         List<WindowEnumerator.SwitchableWindow> windows;
         try

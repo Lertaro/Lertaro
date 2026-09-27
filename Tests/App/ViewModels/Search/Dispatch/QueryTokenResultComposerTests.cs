@@ -42,6 +42,17 @@ public sealed class QueryTokenResultComposerTests
         Assert.AreEqual("__SHOW_MORE__", result[^1].FullPath);
     }
 
+    // The "N more" row describes the search, so it carries the text the rows were matched with -- the same
+    // one BuildQuickResults gives it on the non-token path. Passing the untouched box text here made the
+    // same synthetic row read two different ways depending on whether a ":token" happened to be active.
+    [TestMethod]
+    public void Compose_ShowMoreRow_CarriesTheDisplayedQuery()
+    {
+        var result = QueryTokenResultComposer.Compose([], CreateRows(60, "File"), "report");
+
+        Assert.AreEqual("report", result[^1].SearchQuery);
+    }
+
     private static List<AppSearchResult> CreateRows(int count, string resultKind) =>
         Enumerable.Range(0, count)
             .Select(index => new AppSearchResult

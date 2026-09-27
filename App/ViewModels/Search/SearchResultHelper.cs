@@ -10,6 +10,14 @@ internal static class SearchResultHelper
     public static HistoryEntryKind HistoryKindOf(AppSearchResult result) =>
         result.IsApplication ? HistoryEntryKind.Application : result.IsDir ? HistoryEntryKind.Folder : HistoryEntryKind.File;
 
+    // Which keyword a recorded open is filed under. Every row carries the text it was matched and
+    // highlighted against -- a plugin's trigger word already taken off -- so history learns the
+    // association the user actually searched for: opening a file while the box holds "set 路径" feeds the
+    // "路径" bucket instead of inventing a bucket for the whole command line, which the next plain "路径"
+    // search could not use. Falls back to the box text for a row that carries none.
+    public static string HistoryKeywordOf(AppSearchResult result, string boxText) =>
+        string.IsNullOrWhiteSpace(result.SearchQuery) ? boxText : result.SearchQuery;
+
     public static void AddSectionHeader(List<AppSearchResult> uiResults, string title, string query) => uiResults.Add(new AppSearchResult
     {
         Name = title,

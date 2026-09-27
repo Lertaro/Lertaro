@@ -241,7 +241,7 @@ public class QuickSearchWindowInputHandler
         _window.RecordKeywordHistory();
         if (!result.IsPluginSearchAction && !result.IsInstantResult)
         {
-            SearchHistoryStore.Record(_window.TxtSearch.Text, result.FullPath, SearchResultHelper.HistoryKindOf(result));
+            SearchHistoryStore.Record(SearchResultHelper.HistoryKeywordOf(result, _window.TxtSearch.Text), result.FullPath, SearchResultHelper.HistoryKindOf(result));
         }
         if (result.IsPluginSearchAction)
         {
