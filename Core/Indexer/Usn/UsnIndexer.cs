@@ -55,9 +55,12 @@ public partial class UsnIndexer : IDisposable
         }
     }
 
-    // JournalId/NextUsn here are the LIVE catch-up position, updated on every USN batch; a LiveIndex's
-    // own Snapshot.JournalId/NextUsn only reflect the position as of its last compaction. The other
-    // fields are immutable identity, carried straight through from the store that first built this drive.
+    // JournalId/NextUsn here are the LIVE catch-up position: the monitor advances them through
+    // UsnIndexerDurabilityExtensions.AdvanceJournalWatermark after every batch it actually applied, which
+    // is what a persisted snapshot gets stamped with and therefore where the next cold start replays
+    // FROM. A LiveIndex's own Snapshot.JournalId/NextUsn only reflect the position as of its last
+    // compaction. The other fields are immutable identity, carried straight through from the store that
+    // first built this drive.
     internal sealed class DriveRuntimeMetadata
     {
         public FileRecordSourceKind SourceKind { get; init; }
@@ -67,6 +70,12 @@ public partial class UsnIndexer : IDisposable
         public UInt128 RootId { get; init; }
         public ulong JournalId { get; set; }
         public long NextUsn { get; set; }
+        // Set when a USN batch had nowhere to land, which stops NextUsn from moving again for the
+        // lifetime of THIS instance: a stamp that walks past a batch nothing applied would turn one
+        // dropped batch into a change nothing can ever replay. Deliberately per-instance rather than
+        // keyed by drive letter, so the next rebuild or cold-start catch-up (which installs a fresh
+        // metadata) starts unpinned again on its own consistent index/watermark pair.
+        public bool JournalWatermarkPinned { get; set; }
         // False for a mid-walk checkpoint or a scan interrupted before finishing -- see
         // UsnIndexerCacheExtensions.IsDriveIndexComplete, the local-drive counterpart of
         // NetworkIndexer.Configure's own IsComplete-gated cold-start resume.

@@ -21,10 +21,15 @@ public static class UsnIndexerExtensions
         | Win32Api.USN_REASON_HARD_LINK_CHANGE | Win32Api.USN_REASON_REPARSE_POINT_CHANGE;
     private const uint AttributeRefreshReasons = MetadataRefreshReasons;
     private const uint DirectoryChangeReasons = MetadataRefreshReasons | Win32Api.USN_REASON_RENAME_OLD_NAME;
-    public static void ApplyUsnRecord(this UsnIndexer indexer, string drive, ParsedUsnRecord record)
+    // Returns whether the batch landed in this drive's live index. UsnMonitor needs that to decide
+    // whether the drive's durable journal watermark may advance (see UsnIndexerDurabilityExtensions):
+    // a batch with nowhere to go must never be stamped as applied, or the next cold start replays from
+    // past it and the changes it described are lost for good. True means "applied", NOT "every record
+    // matched a row" -- an unmatched removal is reported separately below.
+    public static bool ApplyUsnRecord(this UsnIndexer indexer, string drive, ParsedUsnRecord record)
         => indexer.ApplyUsnRecords(drive, new[] { record });
 
-    public static void ApplyUsnRecords(this UsnIndexer indexer, string drive, IReadOnlyList<ParsedUsnRecord> records)
+    public static bool ApplyUsnRecords(this UsnIndexer indexer, string drive, IReadOnlyList<ParsedUsnRecord> records)
     {
         Logger.Log($"[UsnIndexer] Applying {records.Count} USN records to drive {drive}", LogLevel.Debug);
 
@@ -32,12 +37,26 @@ public static class UsnIndexerExtensions
         lock (indexer.LockObj)
         {
             if (!indexer._recordIndexes.TryGetValue(drive, out live))
-                return;
+            {
+                // Nothing to apply to: the drive's LiveIndex is briefly absent while a rebuild owns it
+                // (OnDriveCompleted drops the old one, then writes/GC's/reopens the fresh one outside the
+                // lock) or after a PNP unload. Flag the same way ApplyFolderChange does when a rebuild is
+                // running, and pin the watermark so no later persist stamps past what was dropped here.
+                var rebuildOwnsDrive = MarkMissedIfRebuilding(indexer, drive);
+                indexer.PinJournalWatermark(drive);
+                Logger.Log($"[UsnIndexer] Dropped {records.Count} USN record(s) for drive {drive}: no live index ({(rebuildOwnsDrive ? "a rebuild owns this drive" : "the drive is unloaded")}); its journal watermark is pinned so the next cold start replays them.", LogLevel.Warn);
+                return false;
+            }
         }
 
         var namePool = new FileRecordNamePool();
         var pendingMetadataFrns = new HashSet<UInt128>();
         var hardLinks = new List<ParsedUsnRecord>();
+        // Removal records that matched no link the index held. Benign when a cold-start catch-up replays
+        // a delete this session already applied (which idle compaction deliberately allows, see
+        // UsnIndexerDurabilityExtensions.CompactIdleDeltas), but otherwise exactly how a stale row is
+        // born -- so it is counted and reported rather than dropped on the floor.
+        var unmatchedRemovals = 0;
         // Collected here rather than derived afterwards from the delta: the record names its parent
         // directly, so this costs a hash insert per record and no path work at all for the (many)
         // batches that turn out to be several changes in the same folder.
@@ -71,11 +90,13 @@ public static class UsnIndexerExtensions
                 {
                     // Unlike a real delete, the FRN survives under a new name (RENAME_NEW_NAME follows),
                     // so a directory's children must not cascade-remove here.
-                    DeltaLinkOps.RemoveLinkForRename(delta, frn, parentFrn, linkName);
+                    if (!DeltaLinkOps.RemoveLinkForRename(delta, frn, parentFrn, linkName))
+                        unmatchedRemovals++;
                 }
                 else if ((record.Reason & Win32Api.USN_REASON_FILE_DELETE) != 0)
                 {
-                    DeltaLinkOps.RemoveLink(delta, frn, parentFrn, linkName);
+                    if (!DeltaLinkOps.RemoveLink(delta, frn, parentFrn, linkName))
+                        unmatchedRemovals++;
                 }
                 else if ((record.Reason & (Win32Api.USN_REASON_FILE_CREATE | Win32Api.USN_REASON_RENAME_NEW_NAME)) != 0)
                 {
@@ -94,6 +115,9 @@ public static class UsnIndexerExtensions
                     DeltaLinkOps.UpdateFlags(delta, frn, linkFlags);
             }
         });
+
+        if (unmatchedRemovals > 0)
+            Logger.Log($"[UsnIndexer] {drive}: {unmatchedRemovals} of {records.Count} USN removal record(s) matched no indexed link (harmless for a replayed delete; otherwise the rows they named stay visible until a rebuild)", LogLevel.Warn);
 
         UsnHardLinkReconciler.Apply(live, hardLinks);
         // Child changes also update parent directory metadata without a separate parent USN record.
@@ -123,6 +147,7 @@ public static class UsnIndexerExtensions
             UsnMetadataReader.Refresh(live, pendingMetadataFrns);
 
         indexer.PublishStatusChanged();
+        return true;
     }
 
     public static void ApplyFolderChange(this UsnIndexer indexer, string drive, WatcherChangeTypes changeType, string path, string? oldPath = null)

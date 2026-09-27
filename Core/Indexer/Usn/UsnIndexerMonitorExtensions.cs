@@ -24,8 +24,9 @@ internal static class UsnIndexerMonitorExtensions
 
     // Stops (without replacing) whatever monitor is currently registered for this one drive, if any --
     // called right before a single-drive rebuild starts, but ONLY for a journal-backed (NTFS/ReFS) drive.
-    // Its UsnMonitor has no missed-change tracking of its own (see ApplyUsnRecords) because it doesn't
-    // need one -- JournalReader.IndexDrive captures the USN watermark before the walk starts, so the next
+    // Its UsnMonitor has no missed-change tracking of its own (see ApplyUsnRecords, which only pins the
+    // drive's durable watermark rather than queueing a replay of its own) because it doesn't need one --
+    // JournalReader.IndexDrive captures the USN watermark before the walk starts, so the next
     // monitor (started fresh once the rebuild finishes) always replays from there regardless of what a
     // stale old monitor did or didn't apply meanwhile. Leaving it running through its own rebuild instead
     // would only add risk for no benefit: it's still the SAME UsnIndexer instance and drive key, so a

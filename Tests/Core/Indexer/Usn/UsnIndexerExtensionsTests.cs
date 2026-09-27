@@ -268,6 +268,40 @@ public sealed class UsnIndexerExtensionsTests
         Assert.IsFalse(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
     }
 
+    // ApplyUsnRecords' return value is what UsnMonitor keys the durable journal watermark off (an applied
+    // batch may move it, a dropped one must not), so "nothing to apply to" has to be distinguishable from
+    // "applied" instead of the silent no-op it used to be.
+    [TestMethod]
+    public void ApplyUsnRecords_DriveHasNoLiveIndex_ReportsNotAppliedAndPinsWatermark()
+    {
+        var indexer = new UsnIndexer();
+        indexer._driveMetadata["C"] = new UsnIndexer.DriveRuntimeMetadata { FileSystemType = "NTFS", JournalId = 7, NextUsn = 100 };
+
+        Assert.IsFalse(indexer.ApplyUsnRecords("C", new[] { CreateRecord(2, "link") }));
+
+        Assert.IsTrue(indexer.IsJournalWatermarkPinned("C"));
+        Assert.AreEqual(100L, indexer._driveMetadata["C"].NextUsn);
+    }
+
+    [TestMethod]
+    public void ApplyUsnRecords_LoadedDrive_ReportsApplied()
+    {
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+
+        Assert.IsTrue(indexer.ApplyUsnRecords("C", new[] { CreateRecord(2, "link") }));
+        Assert.AreEqual(1, fixture.Index.ToStore().Records.Count(r => r.Id == 2));
+    }
+
+    private static ParsedUsnRecord CreateRecord(ulong frn, string name) => new()
+    {
+        FileReferenceNumber = frn,
+        ParentFileReferenceNumber = 1,
+        FileName = name,
+        Reason = Win32Api.USN_REASON_FILE_CREATE,
+    };
+
     private sealed class TempDirectory : IDisposable
     {
         public string Path { get; } = Directory.CreateTempSubdirectory("lertaro-tests-").FullName;

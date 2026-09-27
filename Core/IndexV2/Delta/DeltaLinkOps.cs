@@ -30,17 +30,22 @@ public static class DeltaLinkOps
         delta.CountAdded(flags.HasFlag(FileRecordFlags.Directory));
     }
 
-    public static void RemoveLink(DeltaOverlay delta, UInt128 frn, UInt128 parentFrn, string name)
+    // Returns whether the record named a link the index actually held. A removal that matches nothing is
+    // a change the row count will never reflect (the file is gone but its row stays visible), so the
+    // bool lets ApplyUsnRecords report it instead of the mismatch staying silent like it used to.
+    public static bool RemoveLink(DeltaOverlay delta, UInt128 frn, UInt128 parentFrn, string name)
     {
         var baseRow = FindMatchingBaseRow(delta, frn, parentFrn, name);
         if (baseRow >= 0)
         {
             delta.TombstoneCascade(baseRow);
-            return;
+            return true;
         }
         var added = FindMatchingAdded(delta, frn, parentFrn, name);
-        if (added != null)
-            delta.RemoveAddedCascade(added);
+        if (added == null)
+            return false;
+        delta.RemoveAddedCascade(added);
+        return true;
     }
 
     // RENAME_OLD_NAME: the FRN survives under a new name, so children must NOT cascade -- the row is
@@ -48,7 +53,8 @@ public static class DeltaLinkOps
     // (mirrors HardLinkDelta.RemoveLinkForRename + ReorphanChildren). Counted as removed immediately,
     // like the old engine's MarkRowDeleted -- AddLink re-counts it when the new-name row lands, so a
     // mid-rename status poll sees a brief -1/+1 dip, matching RuntimeIndex's own behavior exactly.
-    public static void RemoveLinkForRename(DeltaOverlay delta, UInt128 frn, UInt128 parentFrn, string name)
+    // Returns whether anything matched, same contract as RemoveLink.
+    public static bool RemoveLinkForRename(DeltaOverlay delta, UInt128 frn, UInt128 parentFrn, string name)
     {
         var baseRow = FindMatchingBaseRow(delta, frn, parentFrn, name);
         if (baseRow >= 0)
@@ -57,18 +63,18 @@ public static class DeltaLinkOps
             delta.CountRemoved(wasDirectory);
             delta.RenamedAway[baseRow] = frn;
             delta.BaseOverrides.Remove(baseRow);
-            return;
+            return true;
         }
         var added = FindMatchingAdded(delta, frn, parentFrn, name);
-        if (added != null)
-        {
-            // Children resolve their parent by FRN dynamically (see GetFullPath/GetParentPath), so
-            // marking this record Removed is enough for them to fall through to the source root until
-            // the next AddLink recreates a live record under the same FRN -- no separate forwarding
-            // bookkeeping needed for in-session (never-yet-compacted) directories.
-            added.Removed = true;
-            delta.CountRemoved((added.Flags & (ushort)FileRecordFlags.Directory) != 0);
-        }
+        if (added == null)
+            return false;
+        // Children resolve their parent by FRN dynamically (see GetFullPath/GetParentPath), so
+        // marking this record Removed is enough for them to fall through to the source root until
+        // the next AddLink recreates a live record under the same FRN -- no separate forwarding
+        // bookkeeping needed for in-session (never-yet-compacted) directories.
+        added.Removed = true;
+        delta.CountRemoved((added.Flags & (ushort)FileRecordFlags.Directory) != 0);
+        return true;
     }
 
     // HARD_LINK_CHANGE can't say add vs remove: if this exact link exists it was removed, else added.

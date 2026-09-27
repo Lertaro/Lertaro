@@ -63,9 +63,37 @@ public sealed class DeltaLinkOpsTests
         {
             var baseRow = snapshot.FirstRowForId(3);
 
-            DeltaLinkOps.RemoveLink(delta, 3, 2, "readme.txt");
+            Assert.IsTrue(DeltaLinkOps.RemoveLink(delta, 3, 2, "readme.txt"));
 
             Assert.IsTrue(delta.IsVisiblyDeleted(baseRow));
+        });
+    }
+
+    // The match is by the whole (FRN, parent, name) triple, so a record naming a link the index does not
+    // hold has to report that: it is the one signal that a row is about to stay visible forever, which is
+    // otherwise invisible from the outside (ApplyUsnRecords warns on it, and a cold-start replay of an
+    // already-applied delete is the benign case).
+    [TestMethod]
+    public void RemoveLink_RecordNamesNoIndexedLink_ReportsNoMatch()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((snapshot, delta) =>
+        {
+            Assert.IsFalse(DeltaLinkOps.RemoveLink(delta, 3, 2, "renamed-elsewhere.txt")); // live FRN, wrong name
+            Assert.IsFalse(DeltaLinkOps.RemoveLink(delta, 3, 9, "readme.txt"));             // live FRN, wrong parent
+            Assert.IsFalse(DeltaLinkOps.RemoveLink(delta, 999, 2, "readme.txt"));           // no such FRN
+            Assert.IsFalse(delta.IsVisiblyDeleted(snapshot.FirstRowForId(3)));               // none of them tombstoned it
+        });
+    }
+
+    [TestMethod]
+    public void RemoveLink_AfterTheLinkWasAlreadyRemoved_ReportsNoMatch()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((_, delta) =>
+        {
+            Assert.IsTrue(DeltaLinkOps.RemoveLink(delta, 3, 2, "readme.txt"));
+            Assert.IsFalse(DeltaLinkOps.RemoveLink(delta, 3, 2, "readme.txt")); // a replay, not a hole
         });
     }
 
@@ -77,11 +105,22 @@ public sealed class DeltaLinkOpsTests
         {
             var baseRow = snapshot.FirstRowForId(3);
 
-            DeltaLinkOps.RemoveLinkForRename(delta, 3, 2, "readme.txt");
+            Assert.IsTrue(DeltaLinkOps.RemoveLinkForRename(delta, 3, 2, "readme.txt"));
 
             Assert.IsTrue(delta.RenamedAway.ContainsKey(baseRow));
             Assert.DoesNotContain(baseRow, delta.DeletedBase);
             Assert.IsTrue(delta.IsVisiblyDeleted(baseRow)); // gone under its OLD identity either way
+        });
+    }
+
+    [TestMethod]
+    public void RemoveLinkForRename_RecordNamesNoIndexedLink_ReportsNoMatch()
+    {
+        using var fixture = BuildSampleDrive();
+        fixture.Index.Mutate((snapshot, delta) =>
+        {
+            Assert.IsFalse(DeltaLinkOps.RemoveLinkForRename(delta, 3, 2, "other.txt"));
+            Assert.IsFalse(delta.RenamedAway.Any());
         });
     }
 
