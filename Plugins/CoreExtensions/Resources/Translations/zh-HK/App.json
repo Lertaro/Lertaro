@@ -1,5 +1,6 @@
 {
   "Settings_Title": "Lertaro 設定",
+  "Settings_TriggerWordTaken": "該觸發詞已被「{0}」使用，檔案搜尋將跟隨先註冊的一方。",
   "Settings_SearchPlaceholder": " 搜尋設定...",
   "Settings_SearchNoResults": "找不到相符的設定項目。",
   "Settings_Service": "執行狀態",

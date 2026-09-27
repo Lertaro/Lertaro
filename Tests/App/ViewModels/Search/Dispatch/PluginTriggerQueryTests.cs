@@ -100,7 +100,8 @@ public sealed class PluginTriggerQueryTests
         Assert.IsFalse(PluginTriggerQuery.Match(string.Empty, Cs, out var remainder));
         Assert.AreEqual(string.Empty, remainder);
     }
-    private static PluginTriggerQuery.Entry E(string word, string owner, bool strips = true) => new(word, owner, strips);
+    private static PluginTriggerQuery.Entry E(string word, string owner, bool strips = true, string ownerId = "") =>
+        new(word, owner, strips, ownerId);
 
     [TestMethod]
     public void FirstOtherOwner_TwoFeaturesOnOneWord_NamesTheOtherOwner()
@@ -167,4 +168,22 @@ public sealed class PluginTriggerQueryTests
         Assert.IsFalse(PluginTriggerQuery.Match("cs　", Cs, out var remainder));
         Assert.AreEqual("cs　", remainder);
     }
+
+    // The Settings page identifies a plugin by its id (the assembly name it is configuring), never by the
+    // localized name an entry displays -- so an entry that carries an id is excluded by id, which is what
+    // lets a field warn about every other feature while staying quiet about its own plugin's two fields.
+    [TestMethod]
+    public void FirstOtherOwner_WithOwnerIds_ComparesById()
+        => Assert.AreEqual("内容搜索", PluginTriggerQuery.FirstOtherOwner(
+               new[] { E("cs", "内容搜索", ownerId: "Lertaro.Plugins.ContentSearch") }, "cs", "Lertaro.Plugins.WindowSwitcher"));
+
+    [TestMethod]
+    public void FirstOtherOwner_TwoFieldsOfOnePlugin_AreNotAClashById()
+        => Assert.IsNull(PluginTriggerQuery.FirstOtherOwner(
+               new[]
+               {
+                   E("bb", "浏览器书签", ownerId: "Lertaro.Plugins.BrowserData"),
+                   E("bb", "浏览器历史", ownerId: "Lertaro.Plugins.BrowserData"),
+               },
+               "bb", "Lertaro.Plugins.BrowserData"));
 }

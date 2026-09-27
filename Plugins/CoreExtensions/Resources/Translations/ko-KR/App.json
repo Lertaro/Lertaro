@@ -1,5 +1,6 @@
 {
   "Settings_Title": "Lertaro 설정",
+  "Settings_TriggerWordTaken": "이 트리거 단어는 이미 '{0}'에서 사용 중입니다. 파일 검색은 먼저 등록된 기능을 따릅니다.",
   "Settings_SearchPlaceholder": " 설정 검색...",
   "Settings_SearchNoResults": "일치하는 설정을 찾을 수 없습니다.",
   "Settings_Service": "실행 상태",

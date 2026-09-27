@@ -38,7 +38,20 @@ internal static class PluginTriggerQuery
     /// <param name="StripsFileSearch">Whether the host takes this word off the file/application search. The
     /// other group already strips its own elsewhere (a file-filter keyword in FileFilterScopeResolver, a
     /// per-type trigger in ResultTypeTriggerHandler), so listing them as strippers would strip twice.</param>
-    public readonly record struct Entry(string Word, string Owner, bool StripsFileSearch);
+    /// <param name="OwnerId">A stable identity for the owner (its assembly name, or a fixed id for the host's
+    /// own settings), which the Settings page needs: it knows only the plugin it is configuring, never the
+    /// localized display name an entry carries. Empty lets comparisons fall back to <paramref name="Owner"/>,
+    /// which is what the pure rules in the tests use.</param>
+    public readonly record struct Entry(string Word, string Owner, bool StripsFileSearch, string OwnerId = "");
+
+    /// <summary>
+    /// The other feature that already answers to <paramref name="word"/> -- its display name, or null when
+    /// the word is free. <paramref name="selfOwnerId"/> is the asking component's own id: a plugin reusing
+    /// one word across two of its own fields is not a clash between features, since the user sees one list
+    /// of results either way.
+    /// </summary>
+    public static string? FindOtherOwner(string word, string selfOwnerId) =>
+        FirstOtherOwner(Collect(), word, selfOwnerId);
 
     public static string Strip(string query)
     {
@@ -80,9 +93,10 @@ internal static class PluginTriggerQuery
             }
 
             if (declared == null) continue;
+            var ownerId = OwnerIdOf(provider);
             foreach (var keyword in declared)
                 if (!string.IsNullOrWhiteSpace(keyword))
-                    collected.Add(new Entry(TriggerWord.Normalize(keyword), provider.Name, true));
+                    collected.Add(new Entry(TriggerWord.Normalize(keyword), provider.Name, true, ownerId));
         }
 
         // Search actions (mkdir / touch / cmd ...): KeywordMatcher treats "mkdir sub" as the action with
@@ -95,7 +109,7 @@ internal static class PluginTriggerQuery
             {
                 foreach (var keyword in action.Action.Keywords ?? Array.Empty<string>())
                     if (!string.IsNullOrWhiteSpace(keyword))
-                        collected.Add(new Entry(TriggerWord.Normalize(keyword), action.Action.GetType().Name, true));
+                        collected.Add(new Entry(TriggerWord.Normalize(keyword), action.Action.GetType().Name, true, OwnerIdOf(action.Plugin)));
             }
             catch (Exception ex)
             {
@@ -111,7 +125,7 @@ internal static class PluginTriggerQuery
             {
                 foreach (var scope in provider.GetSearchScopes() ?? Array.Empty<SearchScope>())
                     if (!string.IsNullOrWhiteSpace(scope.Keyword))
-                        collected.Add(new Entry(TriggerWord.Normalize(scope.Keyword), provider.Name, false));
+                        collected.Add(new Entry(TriggerWord.Normalize(scope.Keyword), provider.Name, false, OwnerIdOf(provider)));
             }
             catch (Exception ex)
             {
@@ -121,10 +135,17 @@ internal static class PluginTriggerQuery
 
         foreach (var pair in UserSettings.Load().ResultTypeTriggers ?? new Dictionary<string, string>())
             if (!string.IsNullOrWhiteSpace(pair.Value))
-                collected.Add(new Entry(TriggerWord.Normalize(pair.Value), pair.Key, false));
+                collected.Add(new Entry(TriggerWord.Normalize(pair.Value), pair.Key, false, HostOwnerId));
 
         return collected;
     }
+
+    // The host's own per-type triggers are one "component" as far as a clash is concerned.
+    private const string HostOwnerId = "Lertaro.Settings.ResultTypeTriggers";
+
+    // A plugin's assembly name is what the settings page knows about it (its PluginId), so this is the one
+    // identity that lets a field tell its own plugin's words apart from somebody else's.
+    private static string OwnerIdOf(object component) => component.GetType().Assembly.GetName().Name ?? string.Empty;
 
     /// <summary>
     /// Whether <paramref name="query"/> opens with one of <paramref name="keywords"/> as its entire first
@@ -189,8 +210,13 @@ internal static class PluginTriggerQuery
         foreach (var entry in entries)
         {
             // An owner matching itself is a plugin reusing its own word across two of its own fields, not a
-            // clash between features -- the user sees one list of results either way.
-            if (string.Equals(entry.Owner, selfOwner, StringComparison.Ordinal))
+            // clash between features -- the user sees one list of results either way. Compared by component
+            // identity when the entry carries one (that is what the Settings page can supply: it knows a
+            // plugin's id, never the localized name an entry shows), falling back to the display name.
+            var isSelf = entry.OwnerId.Length > 0
+                ? string.Equals(entry.OwnerId, selfOwner, StringComparison.Ordinal)
+                : string.Equals(entry.Owner, selfOwner, StringComparison.Ordinal);
+            if (isSelf)
                 continue;
             if (string.Equals(entry.Word, candidate, StringComparison.OrdinalIgnoreCase))
                 return entry.Owner;
@@ -212,7 +238,7 @@ internal static class PluginTriggerQuery
         var report = new List<string>();
         foreach (var entry in entries)
         {
-            var other = FirstOtherOwner(entries, entry.Word, entry.Owner);
+            var other = FirstOtherOwner(entries, entry.Word, entry.OwnerId);
             // Report each pair once, from the owner that sorts first.
             if (other != null && string.CompareOrdinal(entry.Owner, other) < 0)
                 report.Add($"{entry.Word}' ({entry.Owner} / {other})");

@@ -79,6 +79,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
             new()
             {
                 Key = "TriggerKeyword",
+                IsTriggerWord = true,
                 LabelKey = "ContentSearch_Config_TriggerLabel",
                 DescriptionKey = "ContentSearch_Config_TriggerDesc",
                 FieldType = ConfigFieldType.Text,

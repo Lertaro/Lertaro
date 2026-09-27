@@ -35,6 +35,11 @@ public class PluginConfigField
     /// instead of persisting the empty value -- for a field like a trigger keyword, where an empty value would
     /// silently make the depending feature unreachable rather than just "no value set".</summary>
     public bool RequireNonEmpty { get; set; }
+    /// <summary>For Text fields holding the word the user types to invoke the plugin: the settings page warns,
+    /// without blocking the save, when another feature already answers to the same word. Two features on one
+    /// word is otherwise silent -- the file search follows whichever registered first and the other's rows just
+    /// stop appearing, with nothing telling the user which one to rename.</summary>
+    public bool IsTriggerWord { get; set; }
     /// <summary>For Text fields: maximum character length (0 or unset means no length restriction).</summary>
     public int MaxLength { get; set; }
     /// <summary>For Text fields: zero-based initial selection start in the prompt editor.</summary>

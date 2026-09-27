@@ -17,6 +17,7 @@ public sealed class AudioDeviceSelectorPlugin : IPlugin, IConfigurable
             new PluginConfigField
             {
                 Key = "TriggerKeyword",
+                IsTriggerWord = true,
                 LabelKey = "AudioDeviceSelector_Config_TriggerKeywordLabel",
                 DescriptionKey = "AudioDeviceSelector_Config_TriggerKeywordDesc",
                 FieldType = ConfigFieldType.Text,

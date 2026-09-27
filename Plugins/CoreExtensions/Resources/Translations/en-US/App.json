@@ -1,5 +1,6 @@
 {
   "Settings_Title": "Lertaro Settings",
+  "Settings_TriggerWordTaken": "This trigger word is already used by {0}. File search follows whichever feature registered first.",
   "Settings_SearchPlaceholder": " Search settings...",
   "Settings_SearchNoResults": "No matching settings found.",
   "Settings_Service": "Running Status",

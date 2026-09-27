@@ -32,6 +32,7 @@ public class BrowserDataPlugin : IPlugin, IConfigurable
             new PluginConfigField
             {
                 Key = "BookmarkTriggerKeyword",
+                IsTriggerWord = true,
                 LabelKey = "BrowserData_Config_BookmarkTriggerKeywordLabel",
                 DescriptionKey = "BrowserData_Config_BookmarkTriggerKeywordDesc",
                 FieldType = ConfigFieldType.Text,
@@ -41,6 +42,7 @@ public class BrowserDataPlugin : IPlugin, IConfigurable
             new PluginConfigField
             {
                 Key = "HistoryTriggerKeyword",
+                IsTriggerWord = true,
                 LabelKey = "BrowserData_Config_HistoryTriggerKeywordLabel",
                 DescriptionKey = "BrowserData_Config_HistoryTriggerKeywordDesc",
                 FieldType = ConfigFieldType.Text,

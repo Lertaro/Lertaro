@@ -1,5 +1,6 @@
 {
   "Settings_Title": "Configuración de Lertaro",
+  "Settings_TriggerWordTaken": "Esta palabra de activación ya la usa «{0}». La búsqueda de archivos sigue a la registrada primero.",
   "Settings_SearchPlaceholder": " Buscar configuración...",
   "Settings_SearchNoResults": "No se encontraron configuraciones coincidentes.",
   "Settings_Service": "Estado de Ejecución",

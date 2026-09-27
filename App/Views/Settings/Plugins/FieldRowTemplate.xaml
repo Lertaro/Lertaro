@@ -43,6 +43,10 @@
                             Visibility="{Binding IsSimpleField, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" HorizontalAlignment="Left" Visibility="{Binding Label, Converter={StaticResource StringToVis}}"/>
                     <TextBlock Text="{Binding Description}" FontSize="10" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" HorizontalAlignment="Left" Margin="0,2,0,0" Visibility="{Binding Description, Converter={StaticResource StringToVis}}"/>
+                    <!-- Two features answering to one trigger word: the file search follows whichever registered
+                         first and the other's rows silently disappear. Named here, at the field where the
+                         collision is being created, and never enforced. -->
+                    <TextBlock Text="{Binding ConflictWarning}" FontSize="10" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" HorizontalAlignment="Left" Margin="0,2,0,0" Visibility="{Binding ConflictWarning, Converter={StaticResource StringToVis}}"/>
                 </StackPanel>
 
                 <!-- Custom Control layout for embedded plugin host panels -->
