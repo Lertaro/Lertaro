@@ -31,6 +31,14 @@ public interface IInstantResultProvider : IPluginComponent
     /// trigger itself and highlighting it in the result rows. <see cref="GetInstantResults"/> still
     /// receives the untouched box text: the provider that owns a word has to keep recognising it, so
     /// declaring the word here is what removes it from OTHER results, not from the provider's own.
+    ///
+    /// Where a word counts as typed is <see cref="Lertaro.PluginSdk.Services.TriggerWord"/>'s rule
+    /// -- the same one the host
+    /// applies, which is the point: a provider that recognised its word by some other rule could be
+    /// silently out of sync with the strip. The one difference is deliberate and is each side's policy, not
+    /// a drift: an <see cref="ISearchResultAction"/> keyword also activates BARE ("mkdir" with no argument)
+    /// and completes a word still being typed ("mk"), because there the row IS what the user asked for,
+    /// while a file search for the text "mkdir" is worth keeping until a term follows the word.
     /// </remarks>
     IReadOnlyList<string> QueryTriggerKeywords => [];
 }

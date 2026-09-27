@@ -15,7 +15,15 @@ public interface IDynamicActionProvider : IPluginComponent
     /// <summary>Display order in the action menu. Lower values appear first. Default: 0.</summary>
     int Priority => 0;
 
-    /// <summary>Keywords that expose this provider as a search result instead of an action-menu provider.</summary>
+    /// <summary>
+    /// The words this provider is reachable by. Their only effect today is the one <see cref="IsVisibleInMenu"/>
+    /// shows: a provider that declares keywords opts OUT of the root actions menu, because it is meant to be
+    /// reached by typing rather than by clicking. The host does NOT match these words against the search box
+    /// (unlike <see cref="ISearchResultAction.Keywords"/>, which dispatches on them, and
+    /// <see cref="IInstantResultProvider.QueryTriggerKeywords"/>, which the host strips off the file search),
+    /// and they are not in its trigger-word inventory either -- so a provider that declares keywords and
+    /// expects them to answer in the search box will sit unreachable there.
+    /// </summary>
     IReadOnlyList<string> Keywords => Array.Empty<string>();
 
     /// <summary>Parameter names used for displaying the search-result form of this provider.</summary>
