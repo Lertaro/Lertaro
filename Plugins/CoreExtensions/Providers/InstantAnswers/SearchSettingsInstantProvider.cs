@@ -38,6 +38,8 @@ public class SearchSettingsInstantProvider : IInstantResultProvider
     }
 
     public string Name => TranslationService.Get("SearchSettings_Name");
+    // The configured word, published so the host strips it before matching file names.
+    public IReadOnlyList<string> QueryTriggerKeywords => [GetTriggerPrefix().Trim()];
 
     public IEnumerable<InstantResultItem> GetInstantResults(string query)
     {

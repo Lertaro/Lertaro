@@ -100,4 +100,43 @@ public sealed class PluginTriggerQueryTests
         Assert.IsFalse(PluginTriggerQuery.Match(string.Empty, Cs, out var remainder));
         Assert.AreEqual(string.Empty, remainder);
     }
+    private static PluginTriggerQuery.Entry E(string word, string owner, bool strips = true) => new(word, owner, strips);
+
+    [TestMethod]
+    public void FirstOtherOwner_TwoFeaturesOnOneWord_NamesTheOtherOwner()
+    {
+        var entries = new[] { E("cs", "内容搜索"), E("cs", "浏览器书签") };
+
+        Assert.AreEqual("内容搜索", PluginTriggerQuery.FirstOtherOwner(entries, "cs", "浏览器书签"));
+    }
+
+    // Case-insensitive, because the strip matches case-insensitively too: "CS" and "cs" are one collision.
+    [TestMethod]
+    public void FirstOtherOwner_DifferentCase_IsStillACollision()
+        => Assert.AreEqual("XYplorer", PluginTriggerQuery.FirstOtherOwner(
+               new[] { E("CS", "XYplorer") }, "cs", "内容搜索"));
+
+    // Surrounding spaces in a stored value must not hide a clash from the user.
+    [TestMethod]
+    public void FirstOtherOwner_PaddedValues_AreTrimmedForComparison()
+        => Assert.AreEqual("进程管理", PluginTriggerQuery.FirstOtherOwner(
+               new[] { E("ps", "进程管理") }, "  ps  ", "内容搜索"));
+
+    [TestMethod]
+    public void FirstOtherOwner_FreeWord_ReportsNothing()
+        => Assert.IsNull(PluginTriggerQuery.FirstOtherOwner(
+               new[] { E("cs", "内容搜索"), E("ps", "进程管理") }, "cs", "内容搜索"));
+
+    // A plugin reusing one word across two of its own fields is not a clash between features.
+    [TestMethod]
+    public void FirstOtherOwner_OwnerMatchingItself_IsNotAClash()
+        => Assert.IsNull(PluginTriggerQuery.FirstOtherOwner(
+               new[] { E("cs", "内容搜索"), E("cs", "内容搜索") }, "cs", "内容搜索"));
+
+    // Words that only the other resolvers consume (a scope keyword, a per-type trigger) still collide with a
+    // provider's word, so the report must see them -- they are in the inventory, just not in the strip.
+    [TestMethod]
+    public void FirstOtherOwner_SeesNonStrippingWordsFromOtherFeatures()
+        => Assert.AreEqual("文件筛选", PluginTriggerQuery.FirstOtherOwner(
+               new[] { E("tf", "文件筛选", strips: false) }, "tf", "内容搜索"));
 }

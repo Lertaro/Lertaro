@@ -27,17 +27,35 @@ namespace Lertaro.App.ViewModels.Search.Dispatch;
 /// </remarks>
 internal static class PluginTriggerQuery
 {
+    /// <summary>One trigger word plus the component that owns it.</summary>
+    /// <param name="StripsFileSearch">Whether the host takes this word off the file/application search. The
+    /// other group already strips its own elsewhere (a file-filter keyword in FileFilterScopeResolver, a
+    /// per-type trigger in ResultTypeTriggerHandler), so listing them as strippers would strip twice.</param>
+    public readonly record struct Entry(string Word, string Owner, bool StripsFileSearch);
+
     public static string Strip(string query)
     {
-        var keywords = CollectKeywords();
-        return Match(query, keywords, out var remainder) ? remainder : query;
+        var entries = Collect();
+        WarnAboutCollisions(entries);
+
+        var words = new List<string>();
+        foreach (var entry in entries)
+            if (entry.StripsFileSearch)
+                words.Add(entry.Word);
+
+        return Match(query, words, out var remainder) ? remainder : query;
     }
 
-    private static IReadOnlyList<string> CollectKeywords()
+    /// <summary>
+    /// Every trigger word the search box currently recognises, with its owner. Collected from live plugin
+    /// state so the host keeps no copy of any of them, and shared by the strip rule and the collision report
+    /// -- two collectors would drift, and the Settings warning would stop matching what actually happens.
+    /// </summary>
+    public static IReadOnlyList<Entry> Collect()
     {
-        var collected = new List<string>();
+        var collected = new List<Entry>();
 
-        // Instant providers: each reads its own configured word out of its plugin settings, and the host
+        // Instant providers: each reads its own configured word(s) out of its plugin settings, so the host
         // only ever sees what the user actually set.
         foreach (var provider in PluginManager.Instance.InstantResultProviders)
         {
@@ -57,27 +75,46 @@ internal static class PluginTriggerQuery
             if (declared == null) continue;
             foreach (var keyword in declared)
                 if (!string.IsNullOrWhiteSpace(keyword))
-                    collected.Add(keyword.Trim());
+                    collected.Add(new Entry(keyword.Trim(), provider.Name, true));
         }
 
         // Search actions (mkdir / touch / cmd ...): KeywordMatcher already treats "mkdir sub" as the action
         // with argument "sub", so the command word is a trigger by the same right -- and today the file list
         // beside it is matched and highlighted against "mkdir sub", which is neither what the argument means
-        // nor anything the user wanted. Same cost to pay: a first token that happens to be an action word is
-        // no longer searchable as text, so this only ever fires when a term follows the word.
+        // nor anything the user wanted.
         foreach (var action in PluginManager.Instance.Actions)
         {
             try
             {
                 foreach (var keyword in action.Action.Keywords ?? Array.Empty<string>())
                     if (!string.IsNullOrWhiteSpace(keyword))
-                        collected.Add(keyword.Trim());
+                        collected.Add(new Entry(keyword.Trim(), action.Action.GetType().Name, true));
             }
             catch (Exception ex)
             {
                 Logger.Log($"[PluginTriggerQuery] an action's Keywords failed: {ex.Message}", LogLevel.Error);
             }
         }
+
+        // File-filter scope keywords and per-type triggers: not stripped here (their own resolver owns that),
+        // but they collide with everything above, so they belong in the report.
+        foreach (var provider in PluginManager.Instance.SearchScopeProviders)
+        {
+            try
+            {
+                foreach (var scope in provider.GetSearchScopes() ?? Array.Empty<SearchScope>())
+                    if (!string.IsNullOrWhiteSpace(scope.Keyword))
+                        collected.Add(new Entry(scope.Keyword.Trim(), provider.Name, false));
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[PluginTriggerQuery] {provider.GetType().Name}.GetSearchScopes failed: {ex.Message}", LogLevel.Error);
+            }
+        }
+
+        foreach (var pair in UserSettings.Load().ResultTypeTriggers ?? new Dictionary<string, string>())
+            if (!string.IsNullOrWhiteSpace(pair.Value))
+                collected.Add(new Entry(pair.Value.Trim(), pair.Key, false));
 
         return collected;
     }
@@ -91,8 +128,7 @@ internal static class PluginTriggerQuery
     /// legitimate file search for "cs": the word is what the user has, so far, asked to find, the provider
     /// answers alongside it either way, and an empty remainder would hand the engine a query it treats as
     /// "nothing to do" -- which in the quick window also suppresses the instant results this very keystroke
-    /// is waiting for. Same activation rule FileFilterScopeResolver documents. "cs " (keyword plus the space that starts the term, term not yet typed) does match, and
-    /// strips down to empty, which the caller already handles as "keep typing" rather than as a search.
+    /// is waiting for. Same activation rule FileFilterScopeResolver documents.
     /// </summary>
     internal static bool Match(string query, IReadOnlyList<string> keywords, out string remainder)
     {
@@ -121,5 +157,56 @@ internal static class PluginTriggerQuery
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Who else already owns this word, or null when it is free. Pure, so a Settings field can warn on the
+    /// same rule the log line uses instead of a second approximation of it.
+    /// </summary>
+    internal static string? FirstOtherOwner(IReadOnlyList<Entry> entries, string word, string selfOwner)
+    {
+        if (string.IsNullOrWhiteSpace(word))
+            return null;
+
+        var candidate = word.Trim();
+        foreach (var entry in entries)
+        {
+            // An owner matching itself is a plugin reusing its own word across two of its own fields, not a
+            // clash between features -- the user sees one list of results either way.
+            if (string.Equals(entry.Owner, selfOwner, StringComparison.Ordinal))
+                continue;
+            if (string.Equals(entry.Word, candidate, StringComparison.OrdinalIgnoreCase))
+                return entry.Owner;
+        }
+
+        return null;
+    }
+
+    // One line per distinct set of collisions: a page refresh or a keystroke must not repeat the same
+    // warning forever while the user has not decided what to rename.
+    private static string? _warnedSignature;
+
+    private static void WarnAboutCollisions(IReadOnlyList<Entry> entries)
+    {
+        var report = new List<string>();
+        foreach (var entry in entries)
+        {
+            var other = FirstOtherOwner(entries, entry.Word, entry.Owner);
+            // Report each pair once, from the owner that sorts first.
+            if (other != null && string.CompareOrdinal(entry.Owner, other) < 0)
+                report.Add($"{entry.Word}' ({entry.Owner} / {other})");
+        }
+
+        if (report.Count == 0)
+        {
+            _warnedSignature = null;
+            return;
+        }
+
+        var signature = string.Join("|", report);
+        if (signature == _warnedSignature)
+            return;
+        _warnedSignature = signature;
+        Logger.Log($"[PluginTriggerQuery] more than one feature answers to the same trigger word, so the file search follows whichever registers first: {signature}", LogLevel.Warn);
     }
 }

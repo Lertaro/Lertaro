@@ -9,6 +9,21 @@ public class WebSearchInstantProvider : IInstantResultProvider
 
     public string Description => TranslationService.Get("WebSearch_ProviderDesc");
 
+    // One word per configured search source ("g" for Google, "bd" for Baidu, ...), so the host strips the
+    // one the user typed before matching file names -- "g report" searched files for "g report" and
+    // highlighted the engine prefix inside every row.
+    public IReadOnlyList<string> QueryTriggerKeywords
+    {
+        get
+        {
+            var words = new List<string>();
+            foreach (var source in LoadSearchSources())
+                if (!string.IsNullOrWhiteSpace(source.Keyword))
+                    words.Add(source.Keyword.Trim());
+            return words;
+        }
+    }
+
     public class SearchSourceItem
     {
         public string Name { get; set; } = string.Empty;
