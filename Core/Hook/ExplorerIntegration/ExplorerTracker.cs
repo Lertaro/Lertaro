@@ -285,6 +285,13 @@ public class ExplorerTracker : IDisposable
     // authoritative and will catch up -- and keep plugin reads to a fraction of a typical hook timeout.
     public void ReclassifyActiveWindowBounded(IntPtr hwnd)
         => _classifier.CheckActiveWindow(hwnd, lockWaitMs: 50, pluginTimeoutMs: 300);
+
+    // Who is waiting for the tracked host's path. The poller consults this before entering the target
+    // process, because entering it is not free for the target: a host that answers a path query by running a
+    // script on its own UI thread loses the tooltip/preview it was in the middle of showing. Pointer
+    // movement inside the host is never an answer -- see ExplorerHostReadFloor.
+    public void RequestHostPathRead() => _pathPoller.RequestHostPathRead();
+    public void SetInlineWindowOnScreen(bool onScreen) => _pathPoller.SetInlineWindowOnScreen(onScreen);
     public void UpdatePath(string path, bool isDesktop, bool? isDialog = null)
     {
         if (PathNormalizer != null)
@@ -463,7 +470,7 @@ public class ExplorerTracker : IDisposable
             if (root == ExplorerNativeHooks.GetForegroundWindow())
                 _classifier.CheckActiveWindow(root);
         }
-        _pathPoller.Poll(this, eventType);
+        _pathPoller.Poll(this, eventType, hwnd);
     }
     internal void Deactivate()
     {

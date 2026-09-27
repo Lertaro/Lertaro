@@ -98,6 +98,9 @@ public sealed class HookCommandHandler
                     break;
                 case IpcMessageId.SetInlineWindowOnScreen:
                     _process.KeyboardHook?.IsInlineWindowOnScreen = msg.BoolVal;
+                    // Steady demand for the host's path: while the window is up its scope and dock have to
+                    // keep following, and a host read is otherwise suppressed as pointer noise.
+                    _process.ExplorerTracker?.SetInlineWindowOnScreen(msg.BoolVal);
                     break;
                 case IpcMessageId.RequestOpenedFolders:
                     PublishOpenedFoldersOffThread();

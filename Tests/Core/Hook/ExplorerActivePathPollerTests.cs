@@ -257,4 +257,61 @@ public sealed class ExplorerActivePathPollerTests
         Assert.IsLessThan(1000L, claimed.ElapsedMilliseconds,
             "the claim waited on the re-ask, so it ran on the thread that carries every event");
     }
+
+    // Regression coverage for XYplorer's own file-info tooltip being destroyed the moment it appeared while
+    // the XYplorer plugin was enabled: showing a tooltip raises EVENT_OBJECT_FOCUS / EVENT_OBJECT_NAMECHANGE,
+    // and an immediate poll for those answers with a synchronous read into the application that just showed
+    // it (for XYplorer a WM_COPYDATA `<curpath>` script round trip on its UI thread), which dismisses the
+    // tooltip and fires another event. Collapsing the burst instead of dropping it keeps a tab switch's path
+    // change observable -- that is the same family of events.
+    [TestMethod]
+    public void PollsImmediately_OnlyAForegroundChangePollsOnTheSpot()
+    {
+        Assert.IsTrue(ExplorerActivePathPoller.PollsImmediately(ExplorerNativeHooks.EVENT_SYSTEM_FOREGROUND));
+        Assert.IsFalse(ExplorerActivePathPoller.PollsImmediately(ExplorerNativeHooks.EVENT_OBJECT_FOCUS));
+        Assert.IsFalse(ExplorerActivePathPoller.PollsImmediately(ExplorerNativeHooks.EVENT_OBJECT_NAMECHANGE));
+        Assert.IsFalse(ExplorerActivePathPoller.PollsImmediately(ExplorerNativeHooks.EVENT_OBJECT_LOCATIONCHANGE));
+    }
+
+    // The measured case: XYplorer's file info tip is a tooltips_class32 whose root owner is itself, so on
+    // every event it raises the poller used to answer with a script round trip into XYplorer's UI thread --
+    // which dismissed the tip (171-218ms of life per attempt, the 218 being the settle period itself).
+    [TestMethod]
+    public void RelatesToTrackedWindow_ForeignPopupRaisesNoPoll()
+        => Assert.IsFalse(ExplorerActivePathPoller.RelatesToTrackedWindow(
+               ExplorerNativeHooks.EVENT_OBJECT_FOCUS, Tip, Tip, Main, Main));
+
+    [TestMethod]
+    public void RelatesToTrackedWindow_EventFromInsideTheTrackedWindowStillPolls()
+    {
+        // A pane/tab/address bar is a child of the window being tracked, and a folder change inside the
+        // host is exactly such a child event -- dropping these is what would stop the card following.
+        Assert.IsTrue(ExplorerActivePathPoller.RelatesToTrackedWindow(
+            ExplorerNativeHooks.EVENT_OBJECT_FOCUS, Pane, Main, Main, Main));
+        Assert.IsTrue(ExplorerActivePathPoller.RelatesToTrackedWindow(
+            ExplorerNativeHooks.EVENT_OBJECT_LOCATIONCHANGE, Main, Main, Main, Main));
+    }
+
+    [TestMethod]
+    public void RelatesToTrackedWindow_WhileNothingIsTracked_HeedsEveryEvent() =>
+        // Regression cover for the never-claimed window (see UnclaimedDialogRetryLimit's reason for
+        // existing): with no tracked window, an event from anywhere is the only chance to find it.
+        Assert.IsTrue(ExplorerActivePathPoller.RelatesToTrackedWindow(
+            ExplorerNativeHooks.EVENT_OBJECT_FOCUS, Tip, Tip, IntPtr.Zero, Other));
+
+    [TestMethod]
+    public void RelatesToTrackedWindow_ForegroundWindowIsAlwaysInteresting()
+    {
+        // The event source differs from the tracked window and owns no relation to it, but it IS the
+        // foreground window now -- a poll is how that switch gets noticed.
+        Assert.IsTrue(ExplorerActivePathPoller.RelatesToTrackedWindow(
+            ExplorerNativeHooks.EVENT_OBJECT_NAMECHANGE, Other, Other, Main, Other));
+        Assert.IsTrue(ExplorerActivePathPoller.RelatesToTrackedWindow(
+            ExplorerNativeHooks.EVENT_SYSTEM_FOREGROUND, Other, Other, Main, Other));
+    }
+
+    private static readonly IntPtr Main = new(0x1000);
+    private static readonly IntPtr Pane = new(0x1001);   // a child of Main
+    private static readonly IntPtr Tip = new(0x1002);    // a tooltip: its own root owner
+    private static readonly IntPtr Other = new(0x1003);
 }

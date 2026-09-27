@@ -222,6 +222,9 @@ public sealed class HookProcess : IDisposable
             _keyboardHook.IsInlineSearchVisible = false;
             _keyboardHook.IsInlineWindowOnScreen = false;
             _keyboardHook.IsQuickSearchWindowVisible = false;
+            // No window left to want the host's path, so stop reading it: a dropped App link must not leave
+            // steady demand latched on.
+            _explorerTracker?.SetInlineWindowOnScreen(false);
             Logger.Log("[HookProcess] App link dropped; inline and quick-window suppression flags cleared.", LogLevel.Debug);
         };
     }

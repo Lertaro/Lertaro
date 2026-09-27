@@ -94,6 +94,12 @@ internal static class KeyboardHookServiceInlineSearchExtensions
                 {
                     return false;
                 }
+
+                // This keystroke may summon the card, and the card's folder comes from the path the hook last
+                // captured -- so ask now, from the one moment that proves the user is acting rather than
+                // merely moving the pointer. Runs on the low-level hook thread: a request is a flag write, and
+                // the read itself happens on the poller's thread.
+                service._explorerTracker.RequestHostPathRead();
             }
             return service.HandleInlineSearchTriggerKey(vkCode, hookStruct, fgHwnd);
         }
