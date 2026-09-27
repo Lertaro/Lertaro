@@ -206,7 +206,7 @@ internal static class PluginSdkBridge
         PluginSdk.Services.SearchQueryService.StripQueryTokensFunc = query =>
         {
             var prefix = UserSettings.Load().GlobalTokenPrefix;
-            return Lertaro.Core.SearchIndex.Query.SearchQuerySortParser.Strip(
+            return Core.SearchIndex.Query.SearchQuerySortParser.Strip(
                 query, out _, !string.IsNullOrEmpty(prefix) ? prefix[0] : ':');
         };
 

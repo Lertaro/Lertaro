@@ -128,8 +128,8 @@ public class InlineSearchWindowPositioner
         var geometry = hasValidRect
             ? _geometry.Request(tracker.ActiveHwnd, rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top)
             : default;
-        Core.Hook.ExplorerTracker.RECT? anchor = geometry.Anchor;
-        Core.Hook.ExplorerTracker.RECT? fileList = geometry.FileList;
+        var anchor = geometry.Anchor;
+        var fileList = geometry.FileList;
         var mousePosition = System.Windows.Forms.Control.MousePosition;
 
         var hwnd = new WindowInteropHelper(_window).Handle;

@@ -25,28 +25,21 @@ public sealed class SearchResultExecutionHelperTests
     };
 
     [TestMethod]
-    public void SearchableRowUnderATrigger_IsResolvedAgainstTheStrippedQuery()
-    {
+    public void SearchableRowUnderATrigger_IsResolvedAgainstTheStrippedQuery() =>
         // The whole bug: this comparison is what decided whether the on-screen row was still current.
         Assert.AreEqual("环境",
             SearchResultExecutionHelper.ResolveSearchQuery(SettingsRow("环境"), "，环境", isInlineWindow: false, CommaTriggers));
-    }
 
     [TestMethod]
-    public void SearchableRowWithNoTriggerForItsFirstCharacter_KeepsTheQueryAsTyped()
-    {
-        Assert.AreEqual("环境",
+    public void SearchableRowWithNoTriggerForItsFirstCharacter_KeepsTheQueryAsTyped() => Assert.AreEqual("环境",
             SearchResultExecutionHelper.ResolveSearchQuery(SettingsRow("环境"), "环境", isInlineWindow: false, CommaTriggers));
-    }
 
     [TestMethod]
-    public void SearchableRowInTheInlineWindow_KeepsTheRawQuery()
-    {
+    public void SearchableRowInTheInlineWindow_KeepsTheRawQuery() =>
         // The inline window has no concept of a per-type trigger, so stripping one there would search
         // one character short.
         Assert.AreEqual("，环境",
             SearchResultExecutionHelper.ResolveSearchQuery(SettingsRow("环境"), "，环境", isInlineWindow: true, CommaTriggers));
-    }
 
     [TestMethod]
     public void InstantProviderRow_KeepsTheRawQuery()
