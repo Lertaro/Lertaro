@@ -47,6 +47,8 @@ When the Quick Search Window is summoned without prefilled text, a non-empty cli
 
 By typing a short **trigger keyword + space** followed by your query, you can invoke dedicated plugin capabilities. All keywords can be customized under [**Settings → Plugins**](./settings/plugins).
 
+A half-width space, a full-width space or a tab all separate the keyword from what follows, and the keyword itself never takes part in file-name matching or highlighting. If two features answer to the same keyword, the plugin's configuration page flags it in amber under that field and names the other one -- saving is not blocked.
+
 | Default Keyword | Plugin Name | Description & Use Case | Example Usage |
 | :--- | :--- | :--- | :--- |
 | `ps` | **Process Manager** | Search running processes by name, PID, or window title (supports pinyin). Press Enter to terminate. | `ps chrome` or `ps 1234` |

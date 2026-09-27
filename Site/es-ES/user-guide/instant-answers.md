@@ -47,6 +47,8 @@ Al mostrar la ventana de búsqueda rápida sin texto prellenado, importa y selec
 
 Escribe una breve **palabra clave activadora + espacio** seguida de tu consulta para invocar funciones específicas de plugins. Todas las palabras clave se pueden personalizar en [**Configuración → Plugins**](./settings/plugins).
 
+Como separador vale un espacio simple, un espacio de ancho completo o una tabulación, y la palabra de activación en sí nunca interviene en la concordancia por nombre de archivo ni en el resaltado. Si dos funciones usan la misma palabra, la configuración del complemento lo advierte en ámbar bajo ese campo, sin bloquear el guardado.
+
 | Palabra clave predeterminada | Nombre del plugin | Descripción y caso de uso | Ejemplo de uso |
 | :--- | :--- | :--- | :--- |
 | `ps` | **Gestor de procesos** | Busca procesos en ejecución por nombre, PID o título de ventana (con pinyin). Pulsa Enter para finalizar. | `ps chrome` o `ps 1234` |
