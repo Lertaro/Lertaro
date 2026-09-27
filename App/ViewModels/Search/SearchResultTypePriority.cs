@@ -33,12 +33,14 @@ public static class SearchResultTypePriority
     }
 
     // The reverse lookup for UserSettings.ResultTypeTriggers -- a handful of entries at most, so a
-    // linear scan beats maintaining a second reversed dictionary in sync.
+    // linear scan beats maintaining a second reversed dictionary in sync. Compared case-insensitively,
+    // like every other keyword comparison in the search box: a configured "A" has to fire for a typed "a",
+    // or a trigger character would be the one rule silently depending on the Shift key.
     public static string? ResolveTrigger(char firstChar, IReadOnlyDictionary<string, string> triggers)
     {
         foreach (var (typeId, trigger) in triggers)
         {
-            if (trigger.Length == 1 && trigger[0] == firstChar)
+            if (trigger is { Length: 1 } && char.ToUpperInvariant(trigger[0]) == char.ToUpperInvariant(firstChar))
                 return typeId;
         }
         return null;

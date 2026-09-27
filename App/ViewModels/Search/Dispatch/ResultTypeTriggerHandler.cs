@@ -2,6 +2,8 @@ using System.Windows;
 using Lertaro.Core;
 
 using Lertaro.App.ViewModels.Search.Mapping;
+
+using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
 namespace Lertaro.App.ViewModels.Search.Dispatch;
 
 // Handles the quick-window-only "per-type search trigger character" feature on behalf of
@@ -45,12 +47,35 @@ internal sealed class ResultTypeTriggerHandler
     // happens to start with someone's configured trigger character would silently search the wrong
     // (one-character-short) text. A configured trigger WORD outranks this whole mechanism when the typed
     // first token is one -- see the ClaimsLeadingWord guard below, which is where that precedence lives.
-    public (string CleanQuery, string? TriggeredTypeId) StripTrigger(string raw, string cleanQuery)
+    public (string CleanQuery, string? TriggeredTypeId) StripTrigger(string raw, string cleanQuery) =>
+        Match(
+            raw,
+            cleanQuery,
+            _getIsInlineSearchContext(),
+            UserSettings.Load().ResultTypeTriggers ?? new Dictionary<string, string>(),
+            // The inventory consulted for the word-beats-character precedence is the quick window's
+            // (SearchWindowType.Main -- the value PluginSearchResultMapper hands SearchActionItems for this
+            // same window). The inline window has already returned above.
+            query => PluginTriggerQuery.ClaimsLeadingWord(query, SearchWindowType.Main));
+
+    /// <summary>
+    /// The decision itself, pure: given the two query strings, the window, the configured per-type triggers
+    /// and a way to ask whether a registered WORD owns the token, which character (if any) comes off the
+    /// text and which type it selects. Kept free of UserSettings and PluginManager so a test can pin every
+    /// branch -- the precedence between a configured character and a configured word is the part that used
+    /// to be wrong and the part a running window cannot show.
+    /// </summary>
+    internal static (string CleanQuery, string? TriggeredTypeId) Match(
+        string raw,
+        string cleanQuery,
+        bool isInlineSearchContext,
+        IReadOnlyDictionary<string, string> triggers,
+        Func<string, bool> claimsLeadingWord)
     {
-        if (_getIsInlineSearchContext() || raw.Length == 0 || cleanQuery.Length == 0 || cleanQuery[0] != raw[0])
+        if (isInlineSearchContext || raw.Length == 0 || cleanQuery.Length == 0 || cleanQuery[0] != raw[0])
             return (cleanQuery, null);
 
-        var typeId = SearchResultTypePriority.ResolveTrigger(raw[0], UserSettings.Load().ResultTypeTriggers);
+        var typeId = SearchResultTypePriority.ResolveTrigger(raw[0], triggers);
         if (typeId == null)
             return (cleanQuery, null);
 
@@ -60,7 +85,7 @@ internal sealed class ResultTypeTriggerHandler
         // garbage. A typed word that matches a registered trigger word outright wins over the character.
         // Consulted only once a character actually matches, so the common case (no type trigger at all,
         // which is the shipped default) pays nothing for this.
-        if (PluginTriggerQuery.ClaimsLeadingWord(cleanQuery))
+        if (claimsLeadingWord(cleanQuery))
             return (cleanQuery, null);
 
         return (cleanQuery.Substring(1), typeId);

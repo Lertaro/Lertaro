@@ -12,6 +12,8 @@ using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
 namespace Lertaro.App.Services.Pipe;
 
+using SearchWindowType = PluginSdk.Abstractions.SearchWindowType;
+
 // Prototype: lets an external client (e.g. a CLI) reuse the App's own already-initialized search state
 // -- AliasProviderRegistry's loaded plugins, UserNetworkDriveSearch's configured network/WSL/folder
 // indexes -- instead of replicating that initialization itself. A bare client talking directly to the
@@ -168,10 +170,11 @@ public static class AppSearchPipeService
             var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
             // The same trigger-word strip the full window applies, so a CLI query and the identical text
             // typed in the window search the same thing rather than matching "cs" against file names here.
+            // The full window's own inventory (SearchWindowType.Main) is what a CLI client is asking for.
             // ponytail: this runs on the pipe's thread while the GUI runs it on the UI thread; a provider
             // reading its own settings is a dictionary lookup, but a plugin with non-thread-safe state in
             // QueryTriggerKeywords could be read concurrently. Upgrade path: marshal to the dispatcher.
-            cleanQuery = PluginTriggerQuery.Strip(cleanQuery);
+            cleanQuery = PluginTriggerQuery.Strip(cleanQuery, SearchWindowType.Main);
 
             if (tokens.Count > 0)
                 await RunTokenizedSearchAsync(cleanQuery, tokens, directoryFilter, bypassExclusions, buffered, token);

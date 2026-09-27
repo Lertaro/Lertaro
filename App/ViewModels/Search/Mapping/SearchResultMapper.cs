@@ -2,6 +2,8 @@ using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 using Lertaro.App.ViewModels.Search.Dispatch;
 
+using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
+
 namespace Lertaro.App.ViewModels.Search.Mapping;
 
 public static class SearchResultMapper
@@ -84,8 +86,9 @@ public static class SearchResultMapper
                 // The same precedence SearchDispatchController applies before it cuts the character off the
                 // searched text: a word some plugin owns outranks the character that merely starts it, or
                 // the exclusive filter below would compete a "set 路径" search on the leftover "et ". Read
-                // from the raw probe, since `query` has already had that word stripped out of it here.
-                if (triggeredTypeId != null && PluginTriggerQuery.ClaimsLeadingWord(probe))
+                // from the raw probe, since `query` has already had that word stripped out of it here. This
+                // is the quick/inline mapper, so the word inventory is the quick window's (Main).
+                if (triggeredTypeId != null && PluginTriggerQuery.ClaimsLeadingWord(probe, SearchWindowType.Main))
                     triggeredTypeId = null;
             }
         }

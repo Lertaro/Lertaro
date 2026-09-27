@@ -3,6 +3,8 @@ using Lertaro.App.Services.Plugin;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Services;
 
+using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
+
 namespace Lertaro.App.ViewModels.Search.Dispatch;
 
 /// <summary>
@@ -16,7 +18,15 @@ namespace Lertaro.App.ViewModels.Search.Dispatch;
 /// (<see cref="IInstantResultProvider.QueryTriggerKeywords"/>, read per call so a Settings change takes
 /// effect on the next keystroke), a search action's own <em>Keywords</em> ("mkdir", "touch", "cmd"), a file
 /// filter's scope keyword, and a per-type trigger character. The last two are collected for the collision
-/// report only -- their own resolvers strip them, so stripping them here would strip twice.
+/// report only (<see cref="PluginTriggerCollisionReport"/>, which owns the "who else owns this word" rule
+/// and the Settings warning) -- their own resolvers strip them, so stripping them here would strip twice.
+///
+/// The inventory is <em>per window</em>. A word is only stripped where its owner can actually be offered:
+/// an action whose <c>IsVisibleInSearch</c> refuses this window contributes nothing (CoreExtensions'
+/// mkdir/touch/cmd are inline-only, so in the quick window they used to take "mkdir" out of a file search
+/// for a row that window never shows). <see cref="Collect()"/> is the window-agnostic inventory, which is
+/// what the Settings warning needs -- a collision is worth naming whether or not the current window offers
+/// both features.
 ///
 /// The comparison itself is <see cref="TriggerWord"/>, shared with <see cref="KeywordMatcher"/> and
 /// <see cref="FileFilterScopeResolver"/> and with every provider that owns a word, because the host and the
@@ -34,7 +44,9 @@ namespace Lertaro.App.ViewModels.Search.Dispatch;
 /// </remarks>
 internal static class PluginTriggerQuery
 {
-    /// <summary>One trigger word plus the component that owns it.</summary>
+    /// <summary>
+    /// One trigger word plus the component that owns it.
+    /// </summary>
     /// <param name="StripsFileSearch">Whether the host takes this word off the file/application search. The
     /// other group already strips its own elsewhere (a file-filter keyword in FileFilterScopeResolver, a
     /// per-type trigger in ResultTypeTriggerHandler), so listing them as strippers would strip twice.</param>
@@ -44,19 +56,10 @@ internal static class PluginTriggerQuery
     /// which is what the pure rules in the tests use.</param>
     public readonly record struct Entry(string Word, string Owner, bool StripsFileSearch, string OwnerId = "");
 
-    /// <summary>
-    /// The other feature that already answers to <paramref name="word"/> -- its display name, or null when
-    /// the word is free. <paramref name="selfOwnerId"/> is the asking component's own id: a plugin reusing
-    /// one word across two of its own fields is not a clash between features, since the user sees one list
-    /// of results either way.
-    /// </summary>
-    public static string? FindOtherOwner(string word, string selfOwnerId) =>
-        FirstOtherOwner(Collect(), word, selfOwnerId);
-
-    public static string Strip(string query)
+    public static string Strip(string query, SearchWindowType windowType)
     {
-        var entries = Collect();
-        WarnAboutCollisions(entries);
+        var entries = Collect(windowType);
+        PluginTriggerCollisionReport.WarnAboutCollisions(entries);
 
         var words = new List<string>();
         foreach (var entry in entries)
@@ -67,11 +70,22 @@ internal static class PluginTriggerQuery
     }
 
     /// <summary>
-    /// Every trigger word the search box currently recognises, with its owner. Collected from live plugin
-    /// state so the host keeps no copy of any of them, and shared by the strip rule and the collision report
-    /// -- two collectors would drift, and the Settings warning would stop matching what actually happens.
+    /// Every trigger word the search box recognises in <paramref name="windowType"/>, with its owner. Use
+    /// this where the answer decides what the user's own typed text means (the strip, the trigger-character
+    /// precedence); use the window-agnostic <see cref="Collect()"/> where the answer is only about which
+    /// features exist (the Settings collision warning).
     /// </summary>
-    public static IReadOnlyList<Entry> Collect()
+    public static IReadOnlyList<Entry> Collect(SearchWindowType windowType) => CollectCore(windowType);
+
+    /// <summary>
+    /// Every trigger word the search box recognises in ANY window, with its owner. Collected from live
+    /// plugin state so the host keeps no copy of any of them, and shared by the strip rule and the collision
+    /// report -- two collectors would drift, and the Settings warning would stop matching what actually
+    /// happens.
+    /// </summary>
+    public static IReadOnlyList<Entry> Collect() => CollectCore(null);
+
+    private static IReadOnlyList<Entry> CollectCore(SearchWindowType? windowType)
     {
         var collected = new List<Entry>();
 
@@ -102,8 +116,10 @@ internal static class PluginTriggerQuery
         // Search actions (mkdir / touch / cmd ...): KeywordMatcher treats "mkdir sub" as the action with
         // argument "sub", so the command word is a trigger by the same right -- and before they were
         // collected here the file list beside it was matched and highlighted against "mkdir sub", which is
-        // neither what the argument means nor anything the user wanted.
-        foreach (var action in PluginManager.Instance.Actions)
+        // neither what the argument means nor anything the user wanted. Only the ones this window can
+        // actually offer: a word whose row is never shown here (an inline-only action in the quick window)
+        // must not take text out of the user's search.
+        foreach (var action in windowType is { } type ? PluginManager.Instance.ActionsVisibleIn(type) : PluginManager.Instance.Actions)
         {
             try
             {
@@ -135,13 +151,10 @@ internal static class PluginTriggerQuery
 
         foreach (var pair in UserSettings.Load().ResultTypeTriggers ?? new Dictionary<string, string>())
             if (!string.IsNullOrWhiteSpace(pair.Value))
-                collected.Add(new Entry(TriggerWord.Normalize(pair.Value), pair.Key, false, HostOwnerId));
+                collected.Add(new Entry(TriggerWord.Normalize(pair.Value), pair.Key, false, PluginTriggerCollisionReport.HostTriggerOwnerId));
 
         return collected;
     }
-
-    // The host's own per-type triggers are one "component" as far as a clash is concerned.
-    private const string HostOwnerId = "Lertaro.Settings.ResultTypeTriggers";
 
     // A plugin's assembly name is what the settings page knows about it (its PluginId), so this is the one
     // identity that lets a field tell its own plugin's words apart from somebody else's.
@@ -185,82 +198,22 @@ internal static class PluginTriggerQuery
     /// Multi-character entries only: a single-character entry IS the type-trigger family this is guarding
     /// against, so letting it claim the token would put us back where we started.
     /// </summary>
-    public static bool ClaimsLeadingWord(string query)
+    public static bool ClaimsLeadingWord(string query, SearchWindowType windowType) =>
+        ClaimsLeadingWord(query, Collect(windowType));
+
+    /// <summary>
+    /// The rule above, over an inventory the caller already holds -- pure, so a test can pin the
+    /// word-beats-character precedence (and the multi-character cutoff) without a plugin registry.
+    /// </summary>
+    internal static bool ClaimsLeadingWord(string query, IReadOnlyList<Entry> entries)
     {
         if (string.IsNullOrEmpty(query))
             return false;
 
-        foreach (var entry in Collect())
+        foreach (var entry in entries)
             if (entry.Word.Length > 1 && TriggerWord.TryMatch(query, entry.Word, out _))
                 return true;
 
         return false;
-    }
-
-    /// <summary>
-    /// Who else already owns this word, or null when it is free. Pure, so a Settings field can warn on the
-    /// same rule the log line uses instead of a second approximation of it.
-    /// </summary>
-    internal static string? FirstOtherOwner(IReadOnlyList<Entry> entries, string word, string selfOwner)
-    {
-        if (string.IsNullOrWhiteSpace(word))
-            return null;
-
-        var candidate = TriggerWord.Normalize(word);
-        foreach (var entry in entries)
-        {
-            // An owner matching itself is a plugin reusing its own word across two of its own fields, not a
-            // clash between features -- the user sees one list of results either way. Compared by component
-            // identity when the entry carries one (that is what the Settings page can supply: it knows a
-            // plugin's id, never the localized name an entry shows), falling back to the display name.
-            var isSelf = entry.OwnerId.Length > 0
-                ? string.Equals(entry.OwnerId, selfOwner, StringComparison.Ordinal)
-                : string.Equals(entry.Owner, selfOwner, StringComparison.Ordinal);
-            if (isSelf)
-                continue;
-            if (string.Equals(entry.Word, candidate, StringComparison.OrdinalIgnoreCase))
-                return entry.Owner;
-        }
-
-        return null;
-    }
-
-    // One line per distinct set of collisions: a page refresh or a keystroke must not repeat the same
-    // warning forever while the user has not decided what to rename. Guarded, because remembering it is a
-    // read-compare-write on one piece of state and a search can be dispatched from more than one thread --
-    // unsynchronised, two keystrokes can both see the old value and log the identical line. The decision is
-    // taken under the lock and the write happens outside it, so no I/O runs while it is held.
-    private static readonly object WarningGate = new();
-    private static string? _warnedSignature;
-
-    private static void WarnAboutCollisions(IReadOnlyList<Entry> entries)
-    {
-        var report = new List<string>();
-        foreach (var entry in entries)
-        {
-            var other = FirstOtherOwner(entries, entry.Word, entry.OwnerId);
-            // Report each pair once, from the owner that sorts first.
-            if (other != null && string.CompareOrdinal(entry.Owner, other) < 0)
-                report.Add($"{entry.Word}' ({entry.Owner} / {other})");
-        }
-
-        string? signatureToLog = null;
-        lock (WarningGate)
-        {
-            if (report.Count == 0)
-                _warnedSignature = null;
-            else
-            {
-                var signature = string.Join("|", report);
-                if (signature != _warnedSignature)
-                {
-                    _warnedSignature = signature;
-                    signatureToLog = signature;
-                }
-            }
-        }
-
-        if (signatureToLog != null)
-            Logger.Log($"[PluginTriggerQuery] more than one feature answers to the same trigger word, so the file search follows whichever registers first: {signatureToLog}", LogLevel.Warn);
     }
 }

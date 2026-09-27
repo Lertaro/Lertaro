@@ -4,6 +4,8 @@ using Lertaro.App.Services;
 using Lertaro.PluginSdk.Services;
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
+
+using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
 namespace Lertaro.App.ViewModels.Search.Dispatch;
 // Owns query-token parsing, dispatching a search (debounced/quick vs. blocking), and rendering the
 // resulting rows on behalf of SearchExecutionViewModel -- extracted into its own class (composition,
@@ -53,6 +55,13 @@ internal sealed class SearchDispatchController
             setResultsSeparatorVisibility,
             replaceResults);
     }
+    // Which window's inventory of command words applies to this controller. The inline window is its own
+    // window type; everything else here is the quick window, which is SearchWindowType.Main -- the same
+    // value PluginSearchResultMapper hands SearchActionItems for these two windows, so the words the host
+    // strips are exactly the ones whose rows this window can offer.
+    private SearchWindowType ActionWindowType =>
+        _getIsInlineSearchContext() ? SearchWindowType.Inline : SearchWindowType.Main;
+
     public void DispatchSearch(string value)
     {
         var globalPrefixChar = GetGlobalTokenPrefixChar();
@@ -76,7 +85,7 @@ internal sealed class SearchDispatchController
         // a file-filter scope already claimed the leading keyword -- two prefixes cannot both win, and the
         // scope is the more specific feature. Instant providers still receive the raw text (instantQuery).
         if (scopeDirective == null)
-            searchQuery = PluginTriggerQuery.Strip(searchQuery);
+            searchQuery = PluginTriggerQuery.Strip(searchQuery, ActionWindowType);
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
             _engine.CancelPendingSearch();
@@ -225,7 +234,7 @@ internal sealed class SearchDispatchController
         // a file-filter scope already claimed the leading keyword -- two prefixes cannot both win, and the
         // scope is the more specific feature. Instant providers still receive the raw text (instantQuery).
         if (scopeDirective == null)
-            searchQuery = PluginTriggerQuery.Strip(searchQuery);
+            searchQuery = PluginTriggerQuery.Strip(searchQuery, ActionWindowType);
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
             if (triggeredTypeId != null)

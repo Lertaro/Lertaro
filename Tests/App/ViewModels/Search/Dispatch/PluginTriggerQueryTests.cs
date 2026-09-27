@@ -1,3 +1,4 @@
+using System.IO;
 using Lertaro.App.ViewModels.Search.Dispatch;
 
 namespace Lertaro.App.Tests.ViewModels.Search.Dispatch;
@@ -103,44 +104,6 @@ public sealed class PluginTriggerQueryTests
     private static PluginTriggerQuery.Entry E(string word, string owner, bool strips = true, string ownerId = "") =>
         new(word, owner, strips, ownerId);
 
-    [TestMethod]
-    public void FirstOtherOwner_TwoFeaturesOnOneWord_NamesTheOtherOwner()
-    {
-        var entries = new[] { E("cs", "内容搜索"), E("cs", "浏览器书签") };
-
-        Assert.AreEqual("内容搜索", PluginTriggerQuery.FirstOtherOwner(entries, "cs", "浏览器书签"));
-    }
-
-    // Case-insensitive, because the strip matches case-insensitively too: "CS" and "cs" are one collision.
-    [TestMethod]
-    public void FirstOtherOwner_DifferentCase_IsStillACollision()
-        => Assert.AreEqual("XYplorer", PluginTriggerQuery.FirstOtherOwner(
-               new[] { E("CS", "XYplorer") }, "cs", "内容搜索"));
-
-    // Surrounding spaces in a stored value must not hide a clash from the user.
-    [TestMethod]
-    public void FirstOtherOwner_PaddedValues_AreTrimmedForComparison()
-        => Assert.AreEqual("进程管理", PluginTriggerQuery.FirstOtherOwner(
-               new[] { E("ps", "进程管理") }, "  ps  ", "内容搜索"));
-
-    [TestMethod]
-    public void FirstOtherOwner_FreeWord_ReportsNothing()
-        => Assert.IsNull(PluginTriggerQuery.FirstOtherOwner(
-               new[] { E("cs", "内容搜索"), E("ps", "进程管理") }, "cs", "内容搜索"));
-
-    // A plugin reusing one word across two of its own fields is not a clash between features.
-    [TestMethod]
-    public void FirstOtherOwner_OwnerMatchingItself_IsNotAClash()
-        => Assert.IsNull(PluginTriggerQuery.FirstOtherOwner(
-               new[] { E("cs", "内容搜索"), E("cs", "内容搜索") }, "cs", "内容搜索"));
-
-    // Words that only the other resolvers consume (a scope keyword, a per-type trigger) still collide with a
-    // provider's word, so the report must see them -- they are in the inventory, just not in the strip.
-    [TestMethod]
-    public void FirstOtherOwner_SeesNonStrippingWordsFromOtherFeatures()
-        => Assert.AreEqual("文件筛选", PluginTriggerQuery.FirstOtherOwner(
-               new[] { E("tf", "文件筛选", strips: false) }, "tf", "内容搜索"));
-
     // A full-width or tab separator has to work on this side too: the provider that owns the word sees the
     // untouched box text, so if only one of the two accepted "cs　report" the word would be stripped from
     // the file search while the provider stayed silent (or the reverse).
@@ -169,21 +132,57 @@ public sealed class PluginTriggerQueryTests
         Assert.AreEqual("cs　", remainder);
     }
 
-    // The Settings page identifies a plugin by its id (the assembly name it is configuring), never by the
-    // localized name an entry displays -- so an entry that carries an id is excluded by id, which is what
-    // lets a field warn about every other feature while staying quiet about its own plugin's two fields.
+    // A per-type trigger character only ever inspects ONE character, so a registered word has to win the
+    // token first: with "s" assigned to a type, "set 路径" would otherwise be cut down to "et 路径" and the
+    // file search would run on text its owner never typed.
     [TestMethod]
-    public void FirstOtherOwner_WithOwnerIds_ComparesById()
-        => Assert.AreEqual("内容搜索", PluginTriggerQuery.FirstOtherOwner(
-               new[] { E("cs", "内容搜索", ownerId: "Lertaro.Plugins.ContentSearch") }, "cs", "Lertaro.Plugins.WindowSwitcher"));
+    public void ClaimsLeadingWord_MultiCharacterWordOnTheToken_ClaimsIt()
+    {
+        Assert.IsTrue(PluginTriggerQuery.ClaimsLeadingWord("set 路径", [E("set", "核心扩展")]));
+        Assert.IsTrue(PluginTriggerQuery.ClaimsLeadingWord("SET 路径", [E("set", "核心扩展")]), "case-insensitive like every other keyword comparison");
+        Assert.IsTrue(PluginTriggerQuery.ClaimsLeadingWord("set", [E("set", "核心扩展")]), "the bare word is claimed too -- the character would cut it in half");
+        Assert.IsTrue(PluginTriggerQuery.ClaimsLeadingWord("  set 路径", [E("  set ", "核心扩展")]), "a padded stored word still claims");
+    }
+
+    // A single-character entry IS the type-trigger family this guards against: letting it claim the token
+    // would put the character strip back exactly where it was.
+    [TestMethod]
+    public void ClaimsLeadingWord_SingleCharacterEntryNeverClaims()
+        => Assert.IsFalse(PluginTriggerQuery.ClaimsLeadingWord("s 路径", [E("s", "某插件")]));
 
     [TestMethod]
-    public void FirstOtherOwner_TwoFieldsOfOnePlugin_AreNotAClashById()
-        => Assert.IsNull(PluginTriggerQuery.FirstOtherOwner(
-               new[]
-               {
-                   E("bb", "浏览器书签", ownerId: "Lertaro.Plugins.BrowserData"),
-                   E("bb", "浏览器历史", ownerId: "Lertaro.Plugins.BrowserData"),
-               },
-               "bb", "Lertaro.Plugins.BrowserData"));
+    public void ClaimsLeadingWord_WholeTokenOnly()
+    {
+        Assert.IsFalse(PluginTriggerQuery.ClaimsLeadingWord("setreport draft", [E("set", "核心扩展")]));
+        Assert.IsFalse(PluginTriggerQuery.ClaimsLeadingWord(string.Empty, [E("set", "核心扩展")]));
+        Assert.IsFalse(PluginTriggerQuery.ClaimsLeadingWord("set 路径", Array.Empty<PluginTriggerQuery.Entry>()));
+    }
+
+    // Wiring guard. The rule behind which command words exist in a window is PluginManager.ActionsVisibleIn
+    // (IsVisibleInSearch plus the component filter, pinned by the plugin-side tests); what cannot be executed
+    // here is the call that makes it apply -- and one edit back to the window-agnostic Actions silently
+    // returns the inline-only mkdir/touch/cmd words to eating the quick window's first token.
+    [TestMethod]
+    public void TheActionInventoryIsAskedForTheCallersWindow()
+    {
+        var source = Source("App/ViewModels/Search/Dispatch/PluginTriggerQuery.cs");
+
+        Assert.Contains("PluginManager.Instance.ActionsVisibleIn(type)", source,
+            "the action words have to come from the window-aware gate");
+        Assert.Contains(": PluginManager.Instance.Actions)", source,
+            "and the window-agnostic branch has to keep every action, for the Settings warning");
+    }
+
+    private static string Source(string relativePath) =>
+        File.ReadAllText(Path.Combine(RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar)))
+            .Replace("\r\n", "\n");
+
+    private static string RepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "AGENTS.md")))
+            dir = dir.Parent;
+        Assert.IsNotNull(dir, "could not locate the repository root");
+        return dir!.FullName;
+    }
 }

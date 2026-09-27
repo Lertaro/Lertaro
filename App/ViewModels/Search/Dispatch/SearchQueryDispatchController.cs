@@ -5,6 +5,8 @@ using Lertaro.App.ViewModels.Service;
 
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
+
+using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
 namespace Lertaro.App.ViewModels.Search.Dispatch;
 
 // Owns query-token parsing and search dispatch for the full search window's SearchViewModel --
@@ -65,10 +67,20 @@ internal sealed class SearchQueryDispatchController
         var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
         _queryTokens = tokens;
         var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        // A file-filter scope keyword ("tf report" -> search "report" only inside the tf filter's folders)
+        // resolves first, in the same order SearchDispatchController applies it: the scope is the more
+        // specific prefix and its own resolver owns stripping its word, so the trigger-word strip below is
+        // skipped when it claimed the leading token. Without this, "Show more"/Ctrl+F carrying a scoped
+        // quick-window query landed here as literal text and this window searched for "tf report".
+        var scopedQuery = cleanQuery;
+        var scopeDirective = FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery);
         // Same rule as the quick/inline windows: a leading trigger word ("cs report" ->
         // search "report") must not be fuzzy-matched against file names or highlighted. Overwritten in
-        // place so the streaming accumulator below ranks by the very term being searched.
-        cleanQuery = PluginTriggerQuery.Strip(cleanQuery);
+        // place so the streaming accumulator below ranks by the very term being searched. This window is
+        // the full search window, so its action-word inventory is SearchWindowType.Main's.
+        cleanQuery = scopeDirective != null
+            ? scopedQuery
+            : PluginTriggerQuery.Strip(cleanQuery, SearchWindowType.Main);
 
         if (string.IsNullOrWhiteSpace(cleanQuery))
         {
@@ -163,7 +175,9 @@ internal sealed class SearchQueryDispatchController
                     // no TYPE filter is selected they are prepended (priority); once a type is
                     // selected (e.g. "文件") they are excluded entirely -- a type filter means
                     // "exactly this type", and the extra content rows are outside that contract.
-                    if (final && !_isTypeFilterSelected())
+                    // A file-filter scope excludes them for the same reason: the scope says the
+                    // folders it configures are the whole result domain.
+                    if (final && !_isTypeFilterSelected() && scopeDirective == null)
                     {
                         // The RAW box text, not cleanQuery: a content provider recognises its own trigger word,
                         // and the host already stripped it out of what the file index searches (above). Handing
@@ -205,6 +219,9 @@ internal sealed class SearchQueryDispatchController
             shouldEmitInstantResults: () => false,
             bypassExclusions: bypassExclusions,
             resultMapperConsumesBatches: true,
+            // A resolved file-filter scope: the engine runs one query per configured folder and keeps only
+            // file names matching the filter's pattern, exactly as the quick window's scoped search does.
+            scopeDirective: scopeDirective,
             // The untouched box text: this window's providers still have to recognise a trigger word that
             // cleanQuery above has already had stripped.
             instantQuery: query,

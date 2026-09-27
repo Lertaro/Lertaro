@@ -106,7 +106,11 @@ internal sealed class SearchExecutionEngine : IDisposable
         }
 
         var token = cts.Token;
-        EmitInstantResults(instantQuery ?? query, isInlineSearchContext, searchVersion, token, onResultsUpdated, shouldEmitInstantResults);
+        // Providers are invoked with the box text as typed (the owner of a trigger word has to keep
+        // recognising it), but their rows are highlighted against `query` -- what the file search beside
+        // them was matched with, with that word (and any :token suffix) already taken off. Same split
+        // BuildQuickResults makes, so a row painted from either path highlights identically.
+        EmitInstantResults(instantQuery ?? query, query, isInlineSearchContext, searchVersion, token, onResultsUpdated, shouldEmitInstantResults);
         _ = Task.Run(async () =>
         {
             try
@@ -254,6 +258,7 @@ internal sealed class SearchExecutionEngine : IDisposable
 
     private void EmitInstantResults(
         string query,
+        string highlightQuery,
         bool isInlineSearchContext,
         int searchVersion,
         CancellationToken token,
@@ -261,7 +266,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         Func<bool>? shouldEmitInstantResults) => _ = Task.Run(() =>
                                                       {
                                                           var instantResults = new List<AppSearchResult>();
-                                                          PluginSearchResultMapper.AddInstantResults(instantResults, query, null, isInlineSearchContext);
+                                                          PluginSearchResultMapper.AddInstantResults(instantResults, query, highlightQuery, isInlineSearchContext);
                                                           if (instantResults.Count == 0 || token.IsCancellationRequested)
                                                               return;
 
