@@ -56,7 +56,11 @@ public class WebSearchPlugin : IPlugin, IConfigurable
                             Key = "Keyword",
                             LabelKey = "WebSearch_Config_KeywordLabel",
                             FieldType = ConfigFieldType.Text,
-                            DefaultValue = ""
+                            DefaultValue = "",
+                            // One word per engine, published to the host and stripped off the file search
+                            // (WebSearchInstantProvider.QueryTriggerKeywords), so a word another feature
+                            // already answers to is warned about at the field that sets it.
+                            IsTriggerWord = true
                         },
                         new PluginConfigField
                         {

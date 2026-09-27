@@ -34,7 +34,10 @@ public class CustomCommandsPlugin : IPlugin, IConfigurable
                         Key = "Keyword",
                         LabelKey = "CustomCommands_Config_KeywordLabel",
                         FieldType = ConfigFieldType.Text,
-                        DefaultValue = ""
+                        DefaultValue = "",
+                        // A command word the search box dispatches on (and the host strips off the file
+                        // search), so a clash with another feature is warned about where it is created.
+                        IsTriggerWord = true
                     },
                     new PluginConfigField
                     {

@@ -42,7 +42,10 @@ public class FileFiltersPlugin : IPlugin, IConfigurable
                         LabelKey = "FileFilters_Config_KeywordLabel",
                         DescriptionKey = "FileFilters_Config_KeywordDesc",
                         FieldType = ConfigFieldType.Text,
-                        DefaultValue = ""
+                        DefaultValue = "",
+                        // A scope keyword the file search answers to ("tf report"), so a clash with another
+                        // feature is warned about at the field that sets it.
+                        IsTriggerWord = true
                     },
                     new PluginConfigField
                     {
