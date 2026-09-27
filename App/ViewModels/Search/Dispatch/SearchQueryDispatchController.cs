@@ -213,7 +213,7 @@ internal sealed class SearchQueryDispatchController
         {
             try
             {
-                var items = PluginPerformanceMonitor.Measure(provider, () => provider.GetFileResults(query, 20));
+                var items = PluginPerformanceMonitor.Measure(provider, () => provider.GetFileResults(query, 2000));
                 PluginSearchResultMapper.AddInstantResultItems(extras, items, query, provider);
             }
             catch (Exception ex)
