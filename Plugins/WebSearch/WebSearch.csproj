@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Lertaro.Plugins.WebSearch</AssemblyName>
-    <Version>1.1.2</Version>
+    <Version>1.1.3</Version>
       <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
