@@ -17,8 +17,9 @@ internal sealed class PluginConfigFieldDisplaySupport
     internal PluginConfigFieldDisplaySupport(PluginConfigFieldViewModel field) => _field = field;
 
     // A schema string is a translation KEY when it resolves, and literal text when it does not, which is
-    // how a plugin can put a plain label next to its localizable ones.
-    private static string ResolveText(string? keyOrText)
+    // how a plugin can put a plain label next to its localizable ones. Internal because the field's own
+    // messages (the trigger-word collision warning) resolve their template through the same lookup.
+    internal static string ResolveText(string? keyOrText)
     {
         if (string.IsNullOrEmpty(keyOrText)) return string.Empty;
         if (TranslationService.TryGet(keyOrText, out var translated))

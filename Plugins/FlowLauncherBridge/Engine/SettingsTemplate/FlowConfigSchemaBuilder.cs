@@ -27,9 +27,6 @@ public static class FlowConfigSchemaBuilder
             DefaultValue = "flow",
             RequireNonEmpty = true,
             MaxLength = 10,
-            // A live trigger word (FlowInstantResultProvider.QueryTriggerKeywords publishes it), so two
-            // features on one word has to be named at the field where it is being created.
-            IsTriggerWord = true,
             Validation = ConfigFieldValidation.TriggerKeyword
         });
 
@@ -64,9 +61,9 @@ public static class FlowConfigSchemaBuilder
                     FieldType = ConfigFieldType.Text, DefaultValue = pair.Metadata.ActionKeyword ?? string.Empty,
                     RequireNonEmpty = true, MaxLength = 16,
                     // Typing this word dispatches straight to this Flow plugin, and
-                    // FlowInstantResultProvider publishes it to the host as a trigger word -- so a clash
-                    // with another feature is warned about right here.
-                    IsTriggerWord = true,
+                    // FlowInstantResultProvider publishes it to the host as a trigger word -- so it is
+                    // declared here and named when another feature already answers to it.
+                    Validation = ConfigFieldValidation.TriggerKeyword,
                     GetValue = () => host.GetPluginActionKeyword(capturedName),
                     SetValue = val => { var kw = val?.ToString()?.Trim(); if (!string.IsNullOrEmpty(kw)) host.UpdatePluginActionKeyword(capturedName, kw); }
                 });

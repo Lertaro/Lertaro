@@ -43,15 +43,17 @@ public class PluginConfigFieldViewModel : ViewModelBase
     {
         get
         {
-            if (!SchemaField.IsTriggerWord && SchemaField.Validation != ConfigFieldValidation.TriggerKeyword)
+            if (SchemaField.Validation != ConfigFieldValidation.TriggerKeyword)
                 return string.Empty;
 
-            var word = TriggerWord.Normalize(Value as string);
+            var word = PluginSdk.Services.TriggerWord.Normalize(Value as string);
             if (word.Length == 0)
                 return string.Empty;
 
             var other = Search.Dispatch.PluginTriggerCollisionReport.FindOtherOwner(word, PluginId);
-            return other == null ? string.Empty : string.Format(ResolveText("Settings_TriggerWordTaken"), other);
+            return other == null
+                ? string.Empty
+                : string.Format(PluginConfigFieldDisplaySupport.ResolveText("Settings_TriggerWordTaken"), other);
         }
     }
     public string GroupKey => SchemaField.GroupKey;

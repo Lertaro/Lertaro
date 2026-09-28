@@ -65,12 +65,10 @@ public class PluginConfigField
     /// instead of persisting the empty value -- for a field like a trigger keyword, where an empty value would
     /// silently make the depending feature unreachable rather than just "no value set".</summary>
     public bool RequireNonEmpty { get; set; }
-    /// <summary>For Text fields holding the word the user types to invoke the plugin: the settings page warns,
-    /// without blocking the save, when another feature already answers to the same word. Both features then
-    /// answer to it while the file search strips the word once, so nothing tells the user which one to
-    /// rename.</summary>
-    public bool IsTriggerWord { get; set; }
-    /// <summary>The extra rule the host validates this field's value against; see <see cref="ConfigFieldValidation"/>.</summary>
+    /// <summary>The extra rule the host validates this field's value against; see <see cref="ConfigFieldValidation"/>.
+    /// This is also how the host recognizes a trigger keyword: <see cref="ConfigFieldValidation.TriggerKeyword"/>
+    /// fields are the ones checked against the reserved leading characters, migrated when the syntax gains a
+    /// new one, and warned about when another feature already answers to the same word.</summary>
     public ConfigFieldValidation Validation { get; set; }
     /// <summary>For Text fields: maximum character length (0 or unset means no length restriction).</summary>
     public int MaxLength { get; set; }

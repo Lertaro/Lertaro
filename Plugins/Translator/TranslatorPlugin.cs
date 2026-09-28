@@ -16,7 +16,6 @@ public sealed class TranslatorPlugin : IPlugin, IConfigurable
             new()
             {
                 Key = "TranslationTrigger",
-                IsTriggerWord = true,
                 LabelKey = "Translator_Config_TriggerLabel",
                 DescriptionKey = "Translator_Config_TriggerDesc",
                 FieldType = ConfigFieldType.Text,

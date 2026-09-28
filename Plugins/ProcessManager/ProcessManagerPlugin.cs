@@ -16,7 +16,6 @@ public class ProcessManagerPlugin : IPlugin, IConfigurable
             new PluginConfigField
             {
                 Key = "TriggerKeyword",
-                IsTriggerWord = true,
                 LabelKey = "ProcessManager_Config_TriggerKeywordLabel",
                 DescriptionKey = "ProcessManager_Config_TriggerKeywordDesc",
                 FieldType = ConfigFieldType.Text,

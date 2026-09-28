@@ -36,8 +36,10 @@ public class CustomCommandsPlugin : IPlugin, IConfigurable
                         FieldType = ConfigFieldType.Text,
                         DefaultValue = "",
                         // A command word the search box dispatches on (and the host strips off the file
-                        // search), so a clash with another feature is warned about where it is created.
-                        IsTriggerWord = true
+                        // search), so it is a trigger keyword by the same right as an instant answer's:
+                        // declaring it is what gets it checked against the reserved leading characters and
+                        // named when another feature already answers to it.
+                        Validation = ConfigFieldValidation.TriggerKeyword
                     },
                     new PluginConfigField
                     {
