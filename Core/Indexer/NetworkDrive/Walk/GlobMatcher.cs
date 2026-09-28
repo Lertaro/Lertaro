@@ -40,6 +40,9 @@ internal sealed class NetworkGlobPattern
         }
     }
 
+    /// <summary>The pattern as configured, before compilation. See ExclusionRuleSet.</summary>
+    internal string RawPattern => _rawPattern;
+
     /// <summary>Whether this pattern has been abandoned for exceeding the match timeout.</summary>
     internal bool IsAbandoned => _abandoned;
 

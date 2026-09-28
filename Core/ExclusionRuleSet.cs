@@ -10,6 +10,12 @@ public sealed class ExclusionRuleSet
     private readonly Regex[] _ignoredRegexes;
     private readonly string? _root;
 
+    /// <summary>
+    /// Whether any pattern can tell the two separator spellings apart, and so whether the slash form of a
+    /// path is worth building at all. See the constructor for why a backslash-spelled glob cannot.
+    /// </summary>
+    private readonly bool _anyPatternCanTellSeparatorsApart;
+
     // Concurrent because the streaming search calls in from its local-drive and network tasks at once
     // (see SearchService.SearchStreamingAsync). Bounded by the number of distinct directories the
     // results live in, and scoped to this instance, so it needs no invalidation of its own.
@@ -22,6 +28,14 @@ public sealed class ExclusionRuleSet
         _ignoredGlobs = ignoredGlobs;
         _ignoredRegexes = ignoredRegexes;
         _root = root;
+        // A glob only cares which spelling a separator took if it can say something about one: GlobToRegex
+        // normalizes the pattern's separators and compiles each to a class matching either spelling, so a
+        // plain `*\Cache\*` answers the same on both forms. Inside a character class the characters go out
+        // verbatim, and a user regex reaches the matcher untouched -- both are the cases that keep the
+        // converted form in play. Everything else gets to skip building it per result.
+        _anyPatternCanTellSeparatorsApart =
+            ignoredGlobs.Any(g => g.RawPattern.Contains('/', StringComparison.Ordinal) || g.RawPattern.Contains('[', StringComparison.Ordinal))
+            || ignoredRegexes.Any(r => r.ToString().Contains('/', StringComparison.Ordinal));
     }
 
     public static ExclusionRuleSet Empty { get; } = new(Array.Empty<string>(), Array.Empty<NetworkGlobPattern>(), Array.Empty<Regex>());
@@ -189,14 +203,21 @@ public sealed class ExclusionRuleSet
 
     // currentWithSeparator only differs from pathForGlob for a drive root, where GetRelativePath's
     // StartsWith(_root) check needs the separator to recognise the root as the root.
+    //
+    // The forms are an OR per pattern, so testing them in the cheapest order first costs a pattern an
+    // extra comparison at most and changes no answer: the path as the index holds it, then its path
+    // relative to the search root, then -- only when some pattern can tell the two separator spellings
+    // apart, see _anyPatternCanTellSeparatorsApart -- the same path with '/' separators, built once.
     private bool MatchesIgnorePatterns(string currentWithSeparator, string pathForGlob)
     {
         var relativePath = GetRelativePath(currentWithSeparator);
-        var slashPath = pathForGlob.Replace('\\', '/');
+        string? slashPath = null;
 
         foreach (var glob in _ignoredGlobs)
         {
-            if (glob.IsMatch(pathForGlob) || glob.IsMatch(slashPath) || glob.IsMatch(relativePath))
+            if (glob.IsMatch(pathForGlob) || glob.IsMatch(relativePath))
+                return true;
+            if (_anyPatternCanTellSeparatorsApart && glob.IsMatch(slashPath ??= pathForGlob.Replace('\\', '/')))
                 return true;
         }
 
@@ -206,7 +227,9 @@ public sealed class ExclusionRuleSet
         var name = Path.GetFileName(pathForGlob);
         foreach (var regex in _ignoredRegexes)
         {
-            if (regex.IsMatch(name) || regex.IsMatch(pathForGlob) || regex.IsMatch(slashPath) || regex.IsMatch(relativePath))
+            if (regex.IsMatch(name) || regex.IsMatch(pathForGlob) || regex.IsMatch(relativePath))
+                return true;
+            if (_anyPatternCanTellSeparatorsApart && regex.IsMatch(slashPath ??= pathForGlob.Replace('\\', '/')))
                 return true;
         }
 

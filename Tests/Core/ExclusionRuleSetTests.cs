@@ -296,4 +296,68 @@ public sealed class ExclusionRuleSetTests
         Assert.IsTrue(rules.IsExcludedPath(@"c:\data\file.txt", isDirectory: false));
         Assert.IsTrue(rules.IsExcludedPath(@"c:\app\node_modules\file.txt", isDirectory: false, exemptRoot: @"c:\data"));
     }
+
+    [TestMethod]
+    public void IsExcludedPath_GlobSpelledWithBackslashes_ExcludesAWindowsPath()
+    {
+        // The common configuration, and the one where ExclusionRuleSet skips building the '/'-separated
+        // form of the path altogether: GlobToRegex compiles every separator in a glob to a class matching
+        // either spelling, so the path as the index holds it already answers. If that ever stops being
+        // true, this is the test that says so.
+        var settings = EmptySettings();
+        settings.IgnoredPathGlobs.Add(@"**\Cache\**");
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+
+        Assert.IsTrue(rules.IsExcludedPath(@"c:\users\me\app\Cache\blob.bin", isDirectory: false));
+        Assert.IsFalse(rules.IsExcludedPath(@"c:\users\me\app\Data\blob.bin", isDirectory: false));
+    }
+
+    [TestMethod]
+    public void IsExcludedPath_GlobSpelledWithSlashes_StillExcludesAWindowsPath()
+    {
+        var settings = EmptySettings();
+        settings.IgnoredPathGlobs.Add("**/Cache/**");
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+
+        Assert.IsTrue(rules.IsExcludedPath(@"c:\users\me\app\Cache\blob.bin", isDirectory: false));
+    }
+
+    [TestMethod]
+    public void IsExcludedPath_RegexSpelledWithSlashes_StillExcludesAWindowsPath()
+    {
+        // Unlike a glob, a regex reaches the matcher verbatim: "/Cache/" genuinely cannot match
+        // "C:\Cache", so this is the case that needs the converted form.
+        var settings = EmptySettings();
+        settings.IgnoredPathRegexes.Add(@"/Cache/");
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+
+        Assert.IsTrue(rules.IsExcludedPath(@"c:\users\me\app\Cache\blob.bin", isDirectory: false));
+    }
+
+    [TestMethod]
+    public void IsExcludedPath_MixedSeparatorsInOneRuleSet_EachFormStillTested()
+    {
+        // One slash-spelled pattern anywhere in the set puts the converted form back in play for every
+        // pattern in it -- they are matched as an OR per path, so the flag is per set.
+        var settings = EmptySettings();
+        settings.IgnoredPathGlobs.Add(@"**\Temp\**");
+        settings.IgnoredPathGlobs.Add("**/Cache/**");
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+
+        Assert.IsTrue(rules.IsExcludedPath(@"c:\build\Temp\out.dll", isDirectory: false), "the backslash pattern");
+        Assert.IsTrue(rules.IsExcludedPath(@"c:\build\Cache\out.dll", isDirectory: false), "the slash pattern");
+        Assert.IsFalse(rules.IsExcludedPath(@"c:\build\Keep\out.dll", isDirectory: false));
+    }
+
+    [TestMethod]
+    public void IsExcludedPath_CharacterClassGlob_KeepsBothSeparatorFormsInPlay()
+    {
+        // A character class is the one place GlobToRegex passes a separator through verbatim rather than
+        // compiling it to "either spelling", so a '/' inside one has to keep the converted path alive.
+        var settings = EmptySettings();
+        settings.IgnoredPathGlobs.Add(@"**/Cache[\\/]*");
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+
+        Assert.IsTrue(rules.IsExcludedPath(@"c:\users\me\app\Cache\blob.bin", isDirectory: false));
+    }
 }
