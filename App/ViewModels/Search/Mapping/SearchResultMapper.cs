@@ -8,20 +8,69 @@ namespace Lertaro.App.ViewModels.Search.Mapping;
 
 public static class SearchResultMapper
 {
+    /// <summary>
+    /// One pass over the instant-result providers and the search-action plugins, kept for the rest of a
+    /// search so it runs once per keystroke instead of once per paint.
+    /// </summary>
+    /// <remarks>
+    /// Filled on first use, and by whoever asks, so no caller has to know whether someone already paid
+    /// for it: <see cref="BuildQuickResults"/> takes an optional one and a caller that passes nothing keeps
+    /// the old build-one-for-this-call behaviour. Rows are shared across paints on purpose -- the
+    /// streaming accumulator has handed the same row instances to successive renders all along, and
+    /// SearchResultsReconciler is built to keep a row whose content matches.
+    ///
+    /// What this is for: the pass reaches every instant provider in the process, including the ones that
+    /// answer by enumerating live system state (open windows and their thumbnails, running processes,
+    /// audio endpoints) and the ones that answer from a database. On a search that streams, doing that per
+    /// paint costs seconds and, worse, gates the file rows behind it -- the paint cannot show the index
+    /// matches until every provider has answered again.
+    /// </remarks>
+    internal sealed class InstantPassCache
+    {
+        public bool Collected;
+        public readonly List<AppSearchResult> Rows = new();
+        public bool HasPluginSearchActions;
+    }
+
+    private static void CollectInstantPass(InstantPassCache pass, string rawQuery, string query, bool isInlineWindow, string? contextDirectory)
+    {
+        if (pass.Collected)
+            return;
+
+        // Instant-result plugins get the untouched raw text (keyword + any " :xxx" token suffix) rather
+        // than the stripped keyword everything else here uses -- a plugin like a calculator or unit
+        // converter may care about the suffix itself, and it has no other way to see it since the token
+        // is consumed before reaching here for every other purpose (file search, highlighting, ...).
+        PluginSearchResultMapper.AddInstantResults(pass.Rows, rawQuery, query, isInlineWindow);
+
+        // Plugin actions keep their own grouped-by-GroupName display (unlike everything below, these
+        // are explicit keyword triggers the user deliberately typed, not fuzzy-guessed candidates, so
+        // "how well did this match the query text" isn't a meaningful way to rank them against files/
+        // apps/favorites) -- positioned right after instant results, before the weighted candidates.
+        // Raw text, for the same reason as the instant results above and now more strongly: a command word
+        // ("mkdir sub") is stripped out of `query` so it stops being matched and highlighted as file text,
+        // and matching the action against that stripped remainder would delete the very row the word asked
+        // for. ArgumentText is the action's own business, and KeywordMatcher reads it from here.
+        pass.HasPluginSearchActions = PluginSearchResultMapper.AddPluginSearchActionResults(pass.Rows, rawQuery, contextDirectory, isInlineWindow);
+        pass.Collected = true;
+    }
+
     // skipDisplayCap: token mode (SearchDispatchController.ComposeAndApplyAsync) still applies its own
     // final 50-item cap AFTER filtering by the token, but needs the FULL ranked candidate set to filter
     // over first -- capping to the usual ~50 here, before a "::xxx"/directory-segment token ever runs,
     // silently drops the token's real matches whenever they don't also happen to be in the top ~50 by
     // plain filename weight (e.g. a common substring like "1080" already fills that cap with unrelated
     // files before the directory filter gets a chance to run at all).
-    public static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false)
+    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null)
     {
         var uiResults = new List<AppSearchResult>();
-        // Instant-result plugins get the untouched raw text (keyword + any " :xxx" token suffix) rather
-        // than the stripped keyword everything else here uses -- a plugin like a calculator or unit
-        // converter may care about the suffix itself, and it has no other way to see it since the token
-        // is consumed before reaching here for every other purpose (file search, highlighting, ...).
-        PluginSearchResultMapper.AddInstantResults(uiResults, rawQuery ?? query, query, isInlineWindow);
+        // One pass over the plugin providers per search, not per paint. This method IS a paint callback --
+        // the quick and inline windows re-run it on every intermediate paint of a streaming search, and a
+        // paint cannot reach the screen until the pass below finishes. See InstantPassCache.
+        instantPass ??= new InstantPassCache();
+        CollectInstantPass(instantPass, rawQuery ?? query, query, isInlineWindow, contextDirectory);
+        uiResults.AddRange(instantPass.Rows);
+        var hasPluginSearchActions = instantPass.HasPluginSearchActions;
 
         RemoveQueriedDirectoryItself(fileResults, query);
 
@@ -46,16 +95,6 @@ public static class SearchResultMapper
         bool InFileFilterScope(string normalizedPath) => normalizedScopeFolders != null && normalizedScopeFolders.Any(f =>
             SearchResultHelper.IsPathInsideScope(normalizedPath, f)
             && !string.Equals(normalizedPath, f, StringComparison.OrdinalIgnoreCase));
-
-        // Plugin actions keep their own grouped-by-GroupName display (unlike everything below, these
-        // are explicit keyword triggers the user deliberately typed, not fuzzy-guessed candidates, so
-        // "how well did this match the query text" isn't a meaningful way to rank them against files/
-        // apps/favorites) -- positioned right after instant results, before the weighted candidates.
-        // Raw text, for the same reason as the instant results above and now more strongly: a command word
-        // ("mkdir sub") is stripped out of `query` so it stops being matched and highlighted as file text,
-        // and matching the action against that stripped remainder would delete the very row the word asked
-        // for. ArgumentText is the action's own business, and KeywordMatcher reads it from here.
-        var hasPluginSearchActions = PluginSearchResultMapper.AddPluginSearchActionResults(uiResults, rawQuery ?? query, contextDirectory, isInlineWindow);
 
         var historySnapshot = SearchHistoryStore.Snapshot();
 

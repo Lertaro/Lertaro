@@ -158,13 +158,16 @@ internal sealed class SearchDispatchController
         // paths above already use, for the same reason: the rows the card may keep have to arrive first.
         var fileLimit = hasTokens || hasScope || folderScope ? SearchViewModel.TokenQuickSearchFileLimit : 51;
         var appLimit = hasScope ? 0 : hasTokens ? SearchViewModel.FullSearchAppLimit : 51;
+        // Per search, not per paint: the mapper below is the render callback, and it asks every instant
+        // provider and search-action plugin on each call. See SearchResultMapper.InstantPassCache.
+        var instantPass = new SearchResultMapper.InstantPassCache();
         engineCall(
             searchQuery,
             hasScope ? null : _getSearchScope(),
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope, fileFilterScope: scopeDirective, folderScope: folderScope),
+            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass),
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final),
             HandleLocalServiceUnavailable,
