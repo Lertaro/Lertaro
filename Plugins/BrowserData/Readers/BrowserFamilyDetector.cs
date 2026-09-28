@@ -18,7 +18,13 @@ internal static class BrowserFamilyDetector
     {
         if (File.Exists(Path.Combine(profileDir, "places.sqlite")))
             return BrowserFamily.Firefox;
-        if (File.Exists(Path.Combine(profileDir, "Bookmarks")) || File.Exists(Path.Combine(profileDir, "History")))
+        // AccountBookmarks counts on its own: it is one of the stores ChromiumBookmarksReader reads, so a
+        // profile holding only that would otherwise never be traversed at all -- discovery decides which
+        // folders reach the reader. The .bak names deliberately do not count, same as Bookmarks.bak: a
+        // folder whose only bookmark file is a leftover backup is not a profile being used.
+        if (File.Exists(Path.Combine(profileDir, "AccountBookmarks"))
+            || File.Exists(Path.Combine(profileDir, "Bookmarks"))
+            || File.Exists(Path.Combine(profileDir, "History")))
             return BrowserFamily.Chromium;
         return BrowserFamily.Unknown;
     }

@@ -45,6 +45,27 @@ public sealed class BrowserFamilyDetectorTests
     }
 
     [TestMethod]
+    public void Detect_AccountBookmarksOnly_ReturnsChromium()
+    {
+        // Discovery decides which folders ever reach the reader, so a profile whose bookmarks live only in
+        // the account store has to be recognised -- otherwise the reader's first candidate is unreachable.
+        using var dir = new TempDirectory();
+        File.WriteAllText(Path.Combine(dir.Path, "AccountBookmarks"), "{}");
+
+        Assert.AreEqual(BrowserFamily.Chromium, BrowserFamilyDetector.Detect(dir.Path));
+    }
+
+    [TestMethod]
+    public void Detect_OnlyABackupBookmarkFile_ReturnsUnknown()
+    {
+        // A leftover .bak with no live store is not a profile in use, so it stays out of discovery.
+        using var dir = new TempDirectory();
+        File.WriteAllText(Path.Combine(dir.Path, "AccountBookmarks.bak"), "{}");
+
+        Assert.AreEqual(BrowserFamily.Unknown, BrowserFamilyDetector.Detect(dir.Path));
+    }
+
+    [TestMethod]
     public void Detect_NoMarkerFiles_ReturnsUnknown()
     {
         using var dir = new TempDirectory();
