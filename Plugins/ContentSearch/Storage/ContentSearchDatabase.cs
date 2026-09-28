@@ -196,14 +196,30 @@ public sealed class ContentSearchDatabase : IDisposable
 
     public IReadOnlyList<SearchHitItem> SearchFts(string rawQuery, int limit = 30)
     {
-        if (string.IsNullOrWhiteSpace(rawQuery) || !File.Exists(_dbPath))
+        if (string.IsNullOrWhiteSpace(rawQuery) || limit <= 0 || !File.Exists(_dbPath))
             return Array.Empty<SearchHitItem>();
 
         Initialize();
 
         using var conn = OpenConnection();
         var ftsQuery = DatabaseFtsQueryHelper.BuildFtsQuery(rawQuery);
-        return DatabaseSearchHelper.Search(conn, rawQuery, ftsQuery, limit);
+
+        // Collected behind a catch rather than letting a failure reach the caller: the walk yields hits as
+        // it finds them, and a query that dies halfway through still has real matches in hand. Showing the
+        // part that answered beats showing nothing, which is what a thrown exception would cost -- the
+        // caller's own catch drops the provider's rows entirely.
+        var hits = new List<SearchHitItem>();
+        try
+        {
+            foreach (var hit in DatabaseSearchHelper.Search(conn, rawQuery, ftsQuery, limit))
+                hits.Add(hit);
+        }
+        catch (Exception ex)
+        {
+            PluginSdk.Logger.Log($"[ContentSearch] '{rawQuery}' stopped after {hits.Count} hit(s): {ex.Message}", PluginSdk.LogLevel.Warn);
+        }
+
+        return hits;
     }
 
     public (int TotalFiles, int TotalChunks) GetStats()
