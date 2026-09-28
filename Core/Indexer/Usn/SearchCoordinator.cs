@@ -36,7 +36,6 @@ internal static class SearchCoordinator
             return;
         }
 
-        var writeLock = new object();
         var emitted = 0;
         Parallel.For(
             0,
@@ -53,26 +52,32 @@ internal static class SearchCoordinator
                 // every hit was forwarded, so a limit=200 query on a 4-drive machine streamed up to 800
                 // rows to the wire layer, and the count a user saw changed as drives were attached or
                 // removed -- while the single-drive path above was correct, which made it worse.
-                int alreadyEmitted;
-                lock (writeLock)
-                    alreadyEmitted = emitted;
+                var alreadyEmitted = Volatile.Read(ref emitted);
                 if (alreadyEmitted >= limit)
                     return;
 
                 IndexV2Searcher.SearchStreaming(drives[i], query, limit - alreadyEmitted, result =>
                 {
                     token.ThrowIfCancellationRequested();
-                    lock (writeLock)
+                    // Reserve the slot atomically, then emit with no lock held. Wrapping onResult in a
+                    // lock serialised every drive's emission behind whichever pipe write is currently
+                    // parked on the pump's backpressure, so one slow client stalled every other drive as
+                    // well. The wire itself stays serialised -- the pump has one consumer task writing the
+                    // response -- but the callback is now reachable concurrently, which is why
+                    // SearchStreamPump.CreateResultChannel sets SingleWriter = false. Cross-drive arrival
+                    // order was never meaningful either: consumers merge by the shared RankSortKey, not by
+                    // when a drive happened to finish.
+                    //
+                    // ponytail: an in-flight drive search is not aborted once the budget runs out, it
+                    // just stops forwarding rows -- stopping it would need its own cancellation token.
+                    // The per-drive limit above already bounds how long that can go on.
+                    if (Interlocked.Increment(ref emitted) > limit)
                     {
-                        // ponytail: an in-flight drive search is not aborted once the budget runs out, it
-                        // just stops forwarding rows -- stopping it would need its own cancellation token.
-                        // The per-drive limit above already bounds how long that can go on.
-                        if (emitted >= limit)
-                            return;
-
-                        emitted++;
-                        onResult(result);
+                        Interlocked.Decrement(ref emitted);
+                        return;
                     }
+
+                    onResult(result);
                 }, token, directoryFilter, fileNameFilter);
             });
     }

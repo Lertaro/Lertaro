@@ -18,7 +18,12 @@ public static class SearchStreamPump
         new BoundedChannelOptions(ResultBufferCapacity)
         {
             SingleReader = true,
-            SingleWriter = true,
+            // SearchCoordinator's multi-drive fan-out hands results straight to this callback from every
+            // drive's own thread concurrently (it used to serialise them through one global lock, which
+            // meant one client parked on backpressure stalled every other drive as well). BoundedChannel's
+            // SingleWriter fast path skips the mutex around its item queue, so it is only correct under a
+            // promise the fan-out no longer keeps.
+            SingleWriter = false,
             FullMode = BoundedChannelFullMode.Wait
         });
 
