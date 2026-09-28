@@ -17,9 +17,9 @@ public sealed class ChromiumBookmarksReaderTests
         }
     }
 
-    private static string WriteBookmarksFile(TempDirectory dir, string json)
+    private static string WriteBookmarksFile(TempDirectory dir, string json, string fileName = "Bookmarks")
     {
-        var path = Path.Combine(dir.Path, "Bookmarks");
+        var path = Path.Combine(dir.Path, fileName);
         File.WriteAllText(path, json);
         return path;
     }
@@ -28,6 +28,74 @@ public sealed class ChromiumBookmarksReaderTests
     public void Read_NoBookmarksFile_ReturnsEmpty()
     {
         using var dir = new TempDirectory();
+
+        Assert.IsEmpty(ChromiumBookmarksReader.Read(dir.Path));
+    }
+
+    // Bookmarks.bak is what Chrome/Edge leave behind when they rewrite Bookmarks, so it is the candidate
+    // substitute when Bookmarks cannot answer. These pin the whole rule: use it when needed, never when
+    // Bookmarks can, and only for a file that actually holds a tree.
+
+    [TestMethod]
+    public void Read_NoBookmarksFile_ReadsTheBakCopy()
+    {
+        using var dir = new TempDirectory();
+        WriteBookmarksFile(dir, """
+        { "roots": { "bookmark_bar": { "type": "folder", "children": [
+            { "type": "url", "name": "From Backup", "url": "https://bak.example.com" }
+        ] } } }
+        """, fileName: "Bookmarks.bak");
+
+        var entry = ChromiumBookmarksReader.Read(dir.Path).Single();
+
+        Assert.AreEqual("From Backup", entry.Title);
+        Assert.IsTrue(entry.IsBookmark);
+    }
+
+    [TestMethod]
+    public void Read_BothFilesPresent_NeverReadsTheBakCopy()
+    {
+        using var dir = new TempDirectory();
+        WriteBookmarksFile(dir, """
+        { "roots": { "bookmark_bar": { "type": "folder", "children": [
+            { "type": "url", "name": "Current", "url": "https://live.example.com" }
+        ] } } }
+        """);
+        // The .bak holds the PREVIOUS contents, so reading it while Bookmarks is intact would resurrect a
+        // bookmark the user already deleted.
+        WriteBookmarksFile(dir, """
+        { "roots": { "bookmark_bar": { "type": "folder", "children": [
+            { "type": "url", "name": "Deleted", "url": "https://gone.example.com" }
+        ] } } }
+        """, fileName: "Bookmarks.bak");
+
+        var entries = ChromiumBookmarksReader.Read(dir.Path);
+
+        CollectionAssert.AreEqual(new[] { "Current" }, entries.Select(e => e.Title).ToList());
+    }
+
+    [TestMethod]
+    public void Read_BookmarksFileUnparsable_FallsBackToTheBakCopy()
+    {
+        using var dir = new TempDirectory();
+        // The interrupted-write case the backup exists for: the file is there, and is not a tree.
+        WriteBookmarksFile(dir, "{ not valid json");
+        WriteBookmarksFile(dir, """
+        { "roots": { "bookmark_bar": { "type": "folder", "children": [
+            { "type": "url", "name": "Recovered", "url": "https://recovered.example.com" }
+        ] } } }
+        """, fileName: "Bookmarks.bak");
+
+        var entry = ChromiumBookmarksReader.Read(dir.Path).Single();
+
+        Assert.AreEqual("Recovered", entry.Title);
+    }
+
+    [TestMethod]
+    public void Read_BakCopyWithNoRoots_YieldsNothing()
+    {
+        using var dir = new TempDirectory();
+        WriteBookmarksFile(dir, """{ "version": 1 }""", fileName: "Bookmarks.bak");
 
         Assert.IsEmpty(ChromiumBookmarksReader.Read(dir.Path));
     }

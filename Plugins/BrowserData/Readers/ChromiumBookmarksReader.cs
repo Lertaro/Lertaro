@@ -8,10 +8,17 @@ namespace Lertaro.Plugins.BrowserData.Readers;
 // {type:"folder", children:[...]} and {type:"url", name, url} nodes.
 internal static class ChromiumBookmarksReader
 {
+    // Chrome and Edge rewrite Bookmarks by first copying it to Bookmarks.bak, so the previous -- and for a
+    // crashed or interrupted write, sometimes the only intact -- copy of the same tree sits one file name
+    // away in the same folder. Read it when Bookmarks cannot supply a tree of its own, and never when it
+    // can: the fallback is the older of the two, so preferring it would show bookmarks the user deleted.
+    //
+    // A Bookmarks that exists but will not parse counts as "cannot supply a tree" too, which is the case
+    // the .bak is actually there for.
     public static List<BrowserEntry> Read(string profileDir)
     {
-        var path = Path.Combine(profileDir, "Bookmarks");
-        var doc = TryParse(path);
+        var doc = TryParse(Path.Combine(profileDir, "Bookmarks"))
+            ?? TryParse(Path.Combine(profileDir, "Bookmarks.bak"));
         if (doc == null)
             return new List<BrowserEntry>();
 

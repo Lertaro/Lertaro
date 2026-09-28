@@ -314,6 +314,18 @@ public sealed class BrowserDataCacheTests
     }
 
     [TestMethod]
+    public void HaveIndexedFilesChanged_NewerBakCopy_ReturnsTrue()
+    {
+        // A profile whose bookmarks currently live only in Bookmarks.bak (the reader's fallback) still has
+        // to answer a bookmark added seconds ago, rather than waiting for the coarse refresh.
+        using var dir = new TempDirectory();
+        WriteDatedFile(dir.Path, "Bookmarks.bak", new DateTime(2025, 1, 3, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.IsTrue(BrowserDataCache.HaveIndexedFilesChanged(
+            [dir.Path], new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc)));
+    }
+
+    [TestMethod]
     public void HaveIndexedFilesChanged_NothingIndexedYet_ReturnsFalse() =>
         // The coarse re-walk owns discovering a profile for the first time; per query this must say "no"
         // rather than reloading against an empty snapshot forever.

@@ -39,7 +39,9 @@ internal static class BrowserDataCache
     private static readonly HashSet<string> MonitoredFileNames =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            "Bookmarks", "History", "History-wal", "Favicons", "Favicons-wal",
+            // Bookmarks.bak is watched because ChromiumBookmarksReader falls back to it: a profile whose
+            // bookmarks live only there would otherwise wait for the coarse refresh to notice a change.
+            "Bookmarks", "Bookmarks.bak", "History", "History-wal", "Favicons", "Favicons-wal",
             "places.sqlite", "places.sqlite-wal", "favicons.sqlite", "favicons.sqlite-wal",
         };
 
