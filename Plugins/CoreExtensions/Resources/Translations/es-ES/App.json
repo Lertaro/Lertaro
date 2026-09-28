@@ -421,7 +421,6 @@
   "General_ResultTypeOrderHint": "Elige qué tipo de resultado gana cuando varias coincidencias igual de buenas empatan en la ventana rápida: sube un tipo para que siempre tenga prioridad sobre los que están debajo, independientemente de cuál coincida realmente mejor con el texto de la consulta. El Historial y los Favoritos siempre aparecen primero y no se ven afectados por esta lista. Opcionalmente, asigna a un tipo un activador de un solo carácter a continuación: al escribirlo como primer carácter se mostrarán solo los resultados de ese tipo.",
   "General_ResultTypeFiles": "Archivos",
   "General_ResultTypeTriggerTooltip": "Carácter de activación opcional. Al escribirlo como primer carácter de tu búsqueda se mostrarán solo los resultados de este tipo. Déjalo vacío para no usar ninguno.",
-  "General_ResultTypeTriggerTaken": "Este carácter de activación ya lo usa «{0}». Solo se aplica la primera coincidencia; elige otro carácter.",
   "General_PreviewWindowTitle": "Ventana de Vista Previa",
   "General_PreviewWindowHint": "Establece el tamaño de la ventana de vista previa de QuickLook. Este tamaño es fijo y no cambia con el número de resultados mostrados.",
   "General_PreviewWindowWidth": "Ancho de la Vista Previa (px)",
