@@ -44,7 +44,12 @@ internal sealed class SearchExecutionEngine : IDisposable
         // already stripped a plugin's own trigger word out of `query` so it is not fuzzy-matched against
         // file names, but the provider that owns that word must still recognise it. Null (every other
         // caller) means "nothing was stripped", which is the same query for both purposes.
-        string? instantQuery = null)
+        string? instantQuery = null,
+        // False for a window that can never show an instant row. `shouldEmitInstantResults` below is a
+        // LATE check -- it runs after every provider has already been asked -- so leaving it at its
+        // default made the full search window pay a full provider pass per keystroke and throw the
+        // answer away. This is the early check the late one could not be.
+        bool emitInstantResults = true)
     {
         _debounceCts?.Cancel();
         _debounceCts?.Dispose();
@@ -54,7 +59,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 150 : 30);
         if (delay == 0)
         {
-            PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery);
+            PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults);
             return;
         }
 
@@ -63,7 +68,7 @@ internal sealed class SearchExecutionEngine : IDisposable
             if (t.IsCanceled)
                 return;
             _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery)));
+                PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults)));
         }, cts.Token);
     }
 
@@ -86,7 +91,10 @@ internal sealed class SearchExecutionEngine : IDisposable
         // already stripped a plugin's own trigger word out of `query` so it is not fuzzy-matched against
         // file names, but the provider that owns that word must still recognise it. Null (every other
         // caller) means "nothing was stripped", which is the same query for both purposes.
-        string? instantQuery = null)
+        string? instantQuery = null,
+        // See QueueSearch: false skips the provider pass entirely instead of running it and
+        // discarding what comes back.
+        bool emitInstantResults = true)
     {
         Logger.Log($"[SearchExecutionEngine] Performing search: '{query}', scope: '{searchScope}'", LogLevel.Debug);
         CancelPendingSearch();
@@ -110,7 +118,8 @@ internal sealed class SearchExecutionEngine : IDisposable
         // recognising it), but their rows are highlighted against `query` -- what the file search beside
         // them was matched with, with that word (and any :token suffix) already taken off. Same split
         // BuildQuickResults makes, so a row painted from either path highlights identically.
-        EmitInstantResults(instantQuery ?? query, query, isInlineSearchContext, searchVersion, token, onResultsUpdated, shouldEmitInstantResults);
+        if (emitInstantResults)
+            EmitInstantResults(instantQuery ?? query, query, isInlineSearchContext, searchVersion, token, onResultsUpdated, shouldEmitInstantResults);
         _ = Task.Run(async () =>
         {
             try

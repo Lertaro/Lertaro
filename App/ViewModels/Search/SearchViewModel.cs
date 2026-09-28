@@ -35,6 +35,10 @@ public class SearchViewModel : ViewModelBase, IDisposable
 
     private string _advancedQuery = string.Empty;
     private List<AppSearchResult> _allResults = new();
+    // Whether _allResults holds content-provider rows (ContentSearch's "cs " hits), reported by the code
+    // that puts them in. Needed because a TYPE filter has to drop them, and finding out by asking the list
+    // costs a full scan of it -- see _filterSource.
+    private bool _allResultsHoldContentRows;
     private string _resultCountText = "";
     private bool _isSearching;
     private bool _isResultsListEnabled = true;
@@ -74,7 +78,11 @@ public class SearchViewModel : ViewModelBase, IDisposable
             _searchEngine,
             _serviceStatus,
             getAllResults: () => _allResults,
-            setAllResults: v => _allResults = v,
+            setAllResults: (v, holdsContentRows) =>
+            {
+                _allResults = v;
+                _allResultsHoldContentRows = holdsContentRows;
+            },
             setIsSearching: v => IsSearching = v,
             setLoadingPanelVisibility: v => LoadingPanelVisibility = v,
             setIsSearchBoxEnabled: v => IsSearchBoxEnabled = v,
@@ -244,7 +252,11 @@ public class SearchViewModel : ViewModelBase, IDisposable
             .Select(p => p!)
             .ToList();
 
-        _filterSource = IsTypeFilterSelected
+        // The copy costs a full pass over a list that can hold hundreds of thousands of rows, so it happens
+        // only when a type filter is open AND this list actually holds content rows. Those arrive once per
+        // query, on the append that adds them -- every streaming paint before that was paying the copy to
+        // filter a list that had nothing in it to filter.
+        _filterSource = IsTypeFilterSelected && _allResultsHoldContentRows
             ? _allResults.Where(r => !r.IsFullSearchFileResult).ToList()
             : _allResults;
 

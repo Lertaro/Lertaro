@@ -129,7 +129,7 @@ internal sealed class SearchDispatchController
     // DispatchSearch (debounced) and PerformSearch (blocking) both resolve to the same set of
     // search parameters -- only which SearchExecutionEngine method runs them differs.
     private void RunEngineSearch(
-        Action<string, string?, bool, int, int, Func<List<SearchResult>?, string?, List<AppSearchResult>>, Action<bool>, Action<List<AppSearchResult>, string, bool>, Action?, Func<bool>?, bool, bool, Action<int>?, FileFilterScopeDirective?, string?> engineCall,
+        Action<string, string?, bool, int, int, Func<List<SearchResult>?, string?, List<AppSearchResult>>, Action<bool>, Action<List<AppSearchResult>, string, bool>, Action?, Func<bool>?, bool, bool, Action<int>?, FileFilterScopeDirective?, string?, bool> engineCall,
         string originalValue,
         string searchQuery,
         FileFilterScopeDirective? scopeDirective)
@@ -175,7 +175,11 @@ internal sealed class SearchDispatchController
             scopeDirective,
             // What the instant-result providers are handed: the untouched box text, so a provider that owns a
             // trigger word still recognises it after the word was stripped from the file-search query above.
-            originalValue
+            originalValue,
+            // The quick window does show instant rows; the late shouldEmitInstantResults above is its only
+            // gate, and it has to stay late because "is the list still empty?" is only answerable once the
+            // rows land.
+            true
         );
     }
     public void PerformSearch(string query)
