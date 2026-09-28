@@ -20,11 +20,14 @@ public static class DatabaseSchemaHelper
         }
 
         using var tableCmd = conn.CreateCommand();
-        // ponytail: content_hash and content_ref carry no index by design; both back
-        // dedup lookups and cascade deletions that scan the whole files table, which is
-        // fine at the current corpus size (see FindIndexedSourceByHash's tripwire
-        // warning). If the corpus outgrows it, add:
+        // ponytail: content_hash carries no index by design; it backs dedup lookups that scan the
+        // whole files table, which is fine at the current corpus size (see
+        // FindIndexedSourceByHash's tripwire warning). If the corpus outgrows it, add:
         // CREATE INDEX idx_files_content_hash ON files(content_hash);
+        //
+        // content_ref IS indexed, unlike content_hash: every content-search hit expands to its
+        // duplicate rows through it, so an unindexed content_ref turned a search into one full
+        // scan of `files` per hit.
         //
         tableCmd.CommandText = """
                 CREATE TABLE IF NOT EXISTS files (
@@ -52,6 +55,12 @@ public static class DatabaseSchemaHelper
         AddColumnIfMissing(conn, "files", "content_hash", "TEXT");
         AddColumnIfMissing(conn, "files", "content_ref", "INTEGER");
         AddColumnIfMissing(conn, "files", "missing_count", "INTEGER NOT NULL DEFAULT 0");
+
+        // After the ALTERs above: on a database that predates the column, it does not exist yet when
+        // tableCmd runs.
+        using var contentRefIndexCmd = conn.CreateCommand();
+        contentRefIndexCmd.CommandText = "CREATE INDEX IF NOT EXISTS idx_files_content_ref ON files(content_ref);";
+        contentRefIndexCmd.ExecuteNonQuery();
     }
 
     /// <summary>
