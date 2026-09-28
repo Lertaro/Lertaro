@@ -128,8 +128,30 @@ internal sealed class SearchDispatchController
     }
     // DispatchSearch (debounced) and PerformSearch (blocking) both resolve to the same set of
     // search parameters -- only which SearchExecutionEngine method runs them differs.
+    //
+    // Its own delegate rather than Action<...>: the two engine methods take seventeen arguments between
+    // them, and Action stops at sixteen.
+    private delegate void EngineSearchCall(
+        string query,
+        string? searchScope,
+        bool isInlineSearchContext,
+        int fileLimit,
+        int appLimit,
+        Func<List<SearchResult>?, string?, List<AppSearchResult>> resultMapper,
+        Action<bool> onSearchStateChanged,
+        Action<List<AppSearchResult>, string, bool> onResultsUpdated,
+        Action? onLocalServiceUnavailable,
+        Func<bool>? shouldEmitInstantResults,
+        bool bypassExclusions,
+        bool resultMapperConsumesBatches,
+        Action<int>? onReceivedCountUpdated,
+        FileFilterScopeDirective? scopeDirective,
+        string? instantQuery,
+        bool emitInstantResults,
+        Action? beforeSearch);
+
     private void RunEngineSearch(
-        Action<string, string?, bool, int, int, Func<List<SearchResult>?, string?, List<AppSearchResult>>, Action<bool>, Action<List<AppSearchResult>, string, bool>, Action?, Func<bool>?, bool, bool, Action<int>?, FileFilterScopeDirective?, string?, bool> engineCall,
+        EngineSearchCall engineCall,
         string originalValue,
         string searchQuery,
         FileFilterScopeDirective? scopeDirective)
@@ -182,7 +204,10 @@ internal sealed class SearchDispatchController
             // The quick window does show instant rows; the late shouldEmitInstantResults above is its only
             // gate, and it has to stay late because "is the list still empty?" is only answerable once the
             // rows land.
-            true
+            true,
+            // Nothing to start alongside a quick-window search: the rows this window can show all come from
+            // the one search already, and its instant providers are folded into the mapper above.
+            null
         );
     }
     public void PerformSearch(string query)

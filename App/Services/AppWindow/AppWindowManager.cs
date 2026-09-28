@@ -176,19 +176,66 @@ public static class AppWindowManager
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             var current = System.Windows.Application.Current;
+            var seedRows = ReadQuickSearchRows(query);
             var existing = UserSettings.Load().MainWindow.SingleInstance
                 ? current.Windows.OfType<SearchWindow>().FirstOrDefault()
                 : null;
             if (existing == null)
             {
-                ShowAndActivateSearchWindow(new SearchWindow(query, restorePreview), bringToFront: false);
+                ShowAndActivateSearchWindow(new SearchWindow(query, restorePreview, seedRows), bringToFront: false);
                 return;
             }
 
+            if (seedRows != null)
+                existing.HandOffQuickSearchResults(seedRows);
             existing.SearchTextBox.Text = query;
             existing.SearchTextBox.SelectionStart = query.Length;
             ShowAndActivateSearchWindow(existing, bringToFront: false);
         });
+    }
+
+    /// <summary>
+    /// The rows the quick window is showing for exactly this query, as far as the full window can list them.
+    /// </summary>
+    /// <remarks>
+    /// "Show more" carries the TEXT only, so the full window used to open on an empty grid and fill in when
+    /// its own -- much wider, unbounded -- search first answered. On a big index that gap is seconds of
+    /// nothing where the user left a list they were already reading. Null (the ordinary case for any other
+    /// route in) just means no hand-off, and the window behaves as it always did.
+    /// </remarks>
+    private static IReadOnlyList<AppSearchResult>? ReadQuickSearchRows(string query)
+    {
+        if (System.Windows.Application.Current.MainWindow is not QuickSearchWindow quick)
+            return null;
+
+        var search = quick.ViewModel.Search;
+        // The rows have to belong to the text being carried over, or this window opens showing an answer to
+        // a query nobody asked. Callers hand over the box text with the result-type trigger already
+        // stripped, so strip it the same way instead of comparing against what the box holds.
+        var carried = search.SearchQuery ?? string.Empty;
+        if (!string.Equals(ViewModels.Search.SearchResultTypePriority.StripLeadingTrigger(carried), query, StringComparison.Ordinal))
+            return null;
+
+        return OnlyListableRows(search.Results);
+    }
+
+    /// <summary>
+    /// The subset of another window's rows this one can actually list, or null when there are none.
+    /// </summary>
+    internal static IReadOnlyList<AppSearchResult>? OnlyListableRows(IEnumerable<AppSearchResult> rows)
+    {
+        List<AppSearchResult>? kept = null;
+        foreach (var row in rows)
+        {
+            // Real files and folders only: "show more" and "no results" are the quick window's own UI (and
+            // arrive with a "__" sentinel path), applications have no place in this grid, and a plugin row
+            // carries no path, size or type for its columns to show.
+            if (row.ResultKind != "File" || row.FullPath.Length == 0 || row.FullPath[0] == '_')
+                continue;
+            (kept ??= new List<AppSearchResult>()).Add(row);
+        }
+
+        return kept;
     }
 
     private static void ShowAndActivateSearchWindow(SearchWindow window, bool bringToFront)

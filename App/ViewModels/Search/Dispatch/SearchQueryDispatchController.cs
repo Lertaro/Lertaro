@@ -41,6 +41,14 @@ internal sealed class SearchQueryDispatchController
     // Bumped per query so an append that lands after the user typed again cannot paint stale rows.
     private int _contentAppendGeneration;
 
+    // One per query, built before the search is issued: the content append has to reach it whether or not
+    // the file search is still running, and the rows it holds are the list every paint hands back.
+    private StreamingResultAccumulator? _accumulator;
+
+    // The file search's final render has happened, so the render pump is gone and nothing else will pick
+    // up a queued content prefix. Only then does the append have to paint for itself.
+    private volatile bool _searchSettled;
+
     public SearchQueryDispatchController(
         SearchExecutionEngine searchEngine,
         SearchServiceStatusViewModel serviceStatus,
@@ -107,25 +115,35 @@ internal sealed class SearchQueryDispatchController
         // row from scratch each time is what made painting expensive enough to have to ration. The
         // accumulator maps and ranks only what arrived since the previous paint and merges it into the
         // order already established, so the total cost of painting twenty times is the cost of painting
-        // once. See StreamingResultAccumulator.
-        StreamingResultAccumulator? accumulator = null;
+        // once. Built here rather than on the first mapper call because the content append has to reach it
+        // even when the file search never answers. See StreamingResultAccumulator.
+        var accumulator = new StreamingResultAccumulator(cleanQuery, new Dictionary<string, int>());
+        _accumulator = accumulator;
+        _searchSettled = false;
 
         // Content-style file providers (e.g. ContentSearch's "cs " hits) answer from their own database, and
-        // building the rows means one row per hit. Started here instead of during the settled render so it
-        // overlaps the file search rather than extending it, and so the UI thread never waits on it: when it
-        // ran inside the final render, a large content index held the one thread every window's paint,
-        // status callback and cancellation runs on -- the app stopped answering input and could not even be
-        // cancelled out of it.
+        // building the rows means one row per hit. Started alongside the file search rather than during the
+        // settled render so it overlaps it instead of extending it, and so the UI thread never waits on it:
+        // when it ran inside the final render, a large content index held the one thread every window's
+        // paint, status callback and cancellation runs on -- the app stopped answering input and could not
+        // even be cancelled out of it.
+        //
+        // Deferred to the search's own debounce tick, though NOT run here: this method fires for every
+        // keystroke, and the walk these providers do is the most expensive part of the query. Asking once
+        // per settled query is the difference between one scan and one per character typed.
         //
         // Not created for a file-filter scope: the scope says the folders it configures are the whole result
         // domain, so its rows would be dropped again. Nor for a query carrying a :token -- that render path
         // never merges them either. Whether a TYPE filter is active is deliberately NOT checked here: that is
         // UI-thread state, and waiting to read it is exactly what blocked the render above. It is checked
         // where the rows land instead.
+        var wantsContentRows = scopeDirective == null && _queryTokens.Count == 0;
         var queryGeneration = Interlocked.Increment(ref _contentAppendGeneration);
-        var contentRowsTask = scopeDirective == null && _queryTokens.Count == 0
-            ? Task.Run(() => BuildFullSearchFileRows(query))
-            : null;
+        void StartContentRowAppend()
+        {
+            if (wantsContentRows)
+                ScheduleContentRowAppend(Task.Run(() => BuildFullSearchFileRows(query)), queryGeneration);
+        }
 
         _searchEngine.QueueSearch(
             cleanQuery,
@@ -145,7 +163,6 @@ internal sealed class SearchQueryDispatchController
                     return new List<AppSearchResult>();
                 // The full window is a file-browser-style view: only rank actual index matches here.
                 // Quick and inline search retain their separate history/favorite learning behavior.
-                accumulator ??= new StreamingResultAccumulator(cleanQuery, new Dictionary<string, int>());
                 return accumulator.AbsorbBatch(fileResults);
             },
             searching => _setIsSearching(searching),
@@ -169,7 +186,7 @@ internal sealed class SearchQueryDispatchController
                 if (final)
                     _replaceSidebarCounts(filteredResults);
                 else
-                    _updateSidebarCounts(accumulator?.LastBatchRows ?? Array.Empty<AppSearchResult>(), false);
+                    _updateSidebarCounts(accumulator.LastBatchRows, false);
                 // Token providers (e.g. the built-in ":[SCMA]"/".ext"/"::expr" sort+filter+match
                 // plugin) render via a follow-up ApplyFiltersAndRender inside
                 // RefreshAfterTokenDispatchAsync instead of the call below -- a provider with no
@@ -194,17 +211,20 @@ internal sealed class SearchQueryDispatchController
                 }
                 else
                 {
-                    _setAllResults(filteredResults, false);
-                    _applyFiltersAndRender(extendsContent, accumulator?.FirstChangedIndex ?? 0);
-                    // Content rows are real files and belong in this window's grid, but only once the file
-                    // search has settled -- added mid-stream they would be re-ordered away by the next paint.
-                    // The fetch that produced them started with the query; this only schedules the paint for
-                    // whenever it actually finishes.
-                    if (final && contentRowsTask != null)
-                        ScheduleContentRowAppend(contentRowsTask, queryGeneration);
+                    // Content rows sit at the front of the very list the accumulator hands back, so they
+                    // survive every later paint instead of being reordered away by the next one -- which is
+                    // what lets them show up the moment their provider answers rather than only once the
+                    // whole file search has settled.
+                    _setAllResults(filteredResults, accumulator.ContentPrefixCount > 0);
+                    _applyFiltersAndRender(extendsContent, accumulator.FirstChangedIndex);
                 }
                 if (final)
+                {
+                    // No further paint is coming, so an append that lands after this point has to render
+                    // itself. See ScheduleContentRowAppend.
+                    _searchSettled = true;
                     _setIsSearching(false);
+                }
             },
             () => _serviceStatus.CheckServiceStatusOnStartup(),
             // Unlike the quick/inline windows' SearchResultMapper.BuildQuickResults, this window's own
@@ -232,13 +252,14 @@ internal sealed class SearchQueryDispatchController
             {
                 if (_queryTokens.Count == 0)
                     _setReceivedCount(count);
-            }
+            },
+            beforeSearch: StartContentRowAppend
         );
     }
 
     /// <summary>
     /// Asks every content-style file provider for its rows. Runs on the thread pool -- see
-    /// <see cref="OnAdvancedQueryChanged"/>, where the task for the current query is started.
+    /// <see cref="OnAdvancedQueryChanged"/>, where it is scheduled onto the search's own debounce tick.
     /// </summary>
     /// <param name="query">The RAW box text, not the stripped query: a content provider recognises its own
     /// trigger word, and the host has already taken that word out of what the file index searches. Handing
@@ -263,17 +284,18 @@ internal sealed class SearchQueryDispatchController
     }
 
     /// <summary>
-    /// Paints <paramref name="contentRowsTask"/>'s rows ahead of the settled file results as soon as the
-    /// provider finishes, so the settled render itself never waits on plugin I/O.
+    /// Puts <paramref name="contentRowsTask"/>'s rows at the front of the result list as soon as the
+    /// provider finishes, so no render ever waits on plugin I/O.
     /// </summary>
     /// <remarks>
-    /// Once per query, on the final render only: content rows come from a different source than the index
-    /// matches and are prepended, so adding them while the file search still streams would just be
-    /// re-ordered away by the next paint.
+    /// Once per query, whenever the provider lands: the rows ride at the front of the accumulator's own
+    /// list (see QueueContentPrefix), so a search that is still streaming picks them up on its next paint
+    /// and one that has already settled is repainted here instead. Taking them up only at the settled
+    /// render is what made a slow file search delay content hits by however long it took.
     ///
-    /// A selected TYPE filter drops them here -- a type filter means "exactly this type", and the extra
-    /// content rows are outside that contract. That check can only be made on the UI thread, which is the
-    /// whole reason this is a second paint rather than part of the first one.
+    /// A selected TYPE filter drops them -- a type filter means "exactly this type", and these rows are
+    /// outside that contract. That check can only be made on the UI thread, which is why this is a second
+    /// render rather than part of the first one.
     /// </remarks>
     private void ScheduleContentRowAppend(Task<List<AppSearchResult>> contentRowsTask, int generation)
     {
@@ -296,16 +318,19 @@ internal sealed class SearchQueryDispatchController
                 if (generation != Volatile.Read(ref _contentAppendGeneration) || _isTypeFilterSelected())
                     return;
 
-                var fileRows = _getAllResults();
-                var merged = new List<AppSearchResult>(extras.Count + fileRows.Count);
-                // Content-search hits lead the list, ahead of the regular file-index matches, per this
-                // window's content-search priority rule.
-                merged.AddRange(extras);
-                merged.AddRange(fileRows);
-                _setAllResults(merged, true);
-                // Prepending changes every row's position, so no scroll anchor can survive; this is a fresh
-                // result set as far as the view is concerned.
-                _applyFiltersAndRender(false, 0);
+                var accumulator = _accumulator;
+                if (accumulator == null)
+                    return;
+
+                accumulator.QueueContentPrefix(extras);
+                if (!_searchSettled)
+                    return;
+
+                // The file search is done, so nothing else will take the prefix up: absorb an empty batch,
+                // which is how the accumulator applies a queued prefix and hands the same list back.
+                _setAllResults(accumulator.AbsorbBatch(Array.Empty<Core.SearchResult>()), true);
+                // Prepending moves every row that was already there, so no scroll anchor survives this one.
+                _applyFiltersAndRender(false, accumulator.FirstChangedIndex);
             });
         }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
     }
@@ -354,6 +379,8 @@ internal sealed class SearchQueryDispatchController
         Interlocked.Increment(ref _contentAppendGeneration);
         _searchEngine.CancelPendingSearch();
         _setIsSearching(false);
+        _accumulator = null;
+        _searchSettled = false;
         _getAllResults().Clear();
         _applyFiltersAndRender(false, 0);
         _setLoadingPanelVisibility(Visibility.Collapsed);

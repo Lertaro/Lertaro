@@ -272,7 +272,7 @@ public sealed class StreamingResultAccumulatorTests
         Assert.AreEqual(2, accumulator.FirstChangedIndex);
     }
 
-    [TestMethod]
+        [TestMethod]
     public void FirstChangedIndex_NeverUnderstatesWhatMoved()
     {
         // The promise the view acts on: every row before FirstChangedIndex must already be correct on
@@ -295,5 +295,118 @@ public sealed class StreamingResultAccumulatorTests
                 Assert.AreEqual(previous[i], paths[i], $"round {round}: row {i} moved but was reported unchanged");
             previous = paths;
         }
+    }
+
+    private static AppSearchResult ContentRow(string path) => new()
+    {
+        Name = System.IO.Path.GetFileName(path),
+        FullPath = path,
+        ResultKind = "File"
+    };
+
+    private static List<AppSearchResult> ContentRows(params string[] paths) =>
+        paths.Select(ContentRow).ToList();
+
+    [TestMethod]
+    public void QueueContentPrefix_LandsAtTheFrontOnTheNextAbsorb()
+    {
+        var accumulator = new StreamingResultAccumulator("a", NoHistory);
+        accumulator.Absorb(Arrivals(@"D:\aaa"));
+
+        accumulator.QueueContentPrefix(ContentRows(@"D:\hit.md"));
+        var rows = accumulator.Absorb(Arrivals(@"D:\aaa", @"D:\aa"));
+
+        CollectionAssert.AreEqual(new[] { @"D:\hit.md", @"D:\aa", @"D:\aaa" }, Paths(rows));
+    }
+
+    [TestMethod]
+    public void QueueContentPrefix_ThePaintThatCarriesItReportsZero()
+    {
+        // Prepending moves every row that was already there, so the view cannot skip comparing any of
+        // them. Reporting the merge's own position instead would leave the whole list showing rows that
+        // are now one or more places further down.
+        var accumulator = new StreamingResultAccumulator("a", NoHistory);
+        accumulator.Absorb(Arrivals(@"D:\a", @"D:\aa"));
+
+        accumulator.QueueContentPrefix(ContentRows(@"D:\hit.md"));
+        accumulator.Absorb(Arrivals(@"D:\a", @"D:\aa", @"D:\aaa"));
+
+        Assert.AreEqual(0, accumulator.FirstChangedIndex);
+    }
+
+    [TestMethod]
+    public void QueueContentPrefix_AfterTheSearchSettles_AnEmptyAbsorbAppliesIt()
+    {
+        // No further batch is coming once the file search has answered, so the append takes the prefix up
+        // by absorbing nothing at all -- and the view must still be handed the same list it had before.
+        var accumulator = new StreamingResultAccumulator("a", NoHistory);
+        var rows = accumulator.Absorb(Arrivals(@"D:\aaa"));
+
+        accumulator.QueueContentPrefix(ContentRows(@"D:\hit.md"));
+        var after = accumulator.AbsorbBatch(new List<SearchResult>());
+
+        Assert.AreSame(rows, after);
+        CollectionAssert.AreEqual(new[] { @"D:\hit.md", @"D:\aaa" }, Paths(after));
+        Assert.AreEqual(0, accumulator.FirstChangedIndex);
+    }
+
+    [TestMethod]
+    public void QueueContentPrefix_SurvivesEveryLaterPaint()
+    {
+        // The whole point of holding them here rather than merging them in afterwards: a paint that
+        // rebuilt the list from the ranked index matches alone would drop the content hits off the top as
+        // soon as the next batch arrived, which is what made them wait for the end of the search.
+        var accumulator = new StreamingResultAccumulator("a", NoHistory);
+        accumulator.AbsorbBatch(Arrivals(@"D:\a"));
+        accumulator.QueueContentPrefix(ContentRows(@"D:\hit1.md", @"D:\hit2.md"));
+        accumulator.AbsorbBatch(Arrivals(@"D:\aa"));
+
+        for (var i = 3; i < 8; i++)
+            accumulator.AbsorbBatch(Arrivals(@"D:\" + new string('x', i)));
+
+        var rows = accumulator.Rows;
+        CollectionAssert.AreEqual(new[] { @"D:\hit1.md", @"D:\hit2.md" }, rows.Take(2).Select(r => r.FullPath).ToArray());
+        Assert.AreEqual(2, accumulator.ContentPrefixCount);
+    }
+
+    [TestMethod]
+    public void QueueContentPrefix_RowIndexesCountThePrefix()
+    {
+        var accumulator = new StreamingResultAccumulator("a", NoHistory);
+        accumulator.AbsorbBatch(Arrivals(@"D:\a", @"D:\aa"));
+        accumulator.QueueContentPrefix(ContentRows(@"D:\hit1.md", @"D:\hit2.md"));
+
+        var rows = accumulator.AbsorbBatch(Arrivals(@"D:\aaa"));
+
+        CollectionAssert.AreEqual(new[] { 0, 1, 2, 3, 4 }, rows.Select(r => r.Index).ToList());
+    }
+
+    [TestMethod]
+    public void FirstChangedIndex_WithAPrefixAlreadyDown_PointsPastIt()
+    {
+        // Once the prefix is on screen it is stable, so a later append still only disturbs the tail -- but
+        // the tail's position is now measured from after the prefix, and a view told "nothing moved before
+        // row 2" would be handed the content rows to compare against as though they were index matches.
+        var accumulator = new StreamingResultAccumulator("a", NoHistory);
+        accumulator.AbsorbBatch(Arrivals(@"D:\a", @"D:\aa"));
+        accumulator.QueueContentPrefix(ContentRows(@"D:\hit.md"));
+        accumulator.AbsorbBatch(new List<SearchResult>());
+
+        accumulator.AbsorbBatch(Arrivals(@"D:\aaa"));
+
+        Assert.AreEqual(3, accumulator.FirstChangedIndex, "1 prefix row + 2 rows already ranked below it");
+    }
+
+    [TestMethod]
+    public void QueueContentPrefix_EmptyOrAbsent_ChangesNothing()
+    {
+        var accumulator = new StreamingResultAccumulator("a", NoHistory);
+        accumulator.AbsorbBatch(Arrivals(@"D:\a"));
+
+        accumulator.QueueContentPrefix(new List<AppSearchResult>());
+        var rows = accumulator.AbsorbBatch(new List<SearchResult>());
+
+        Assert.AreEqual(0, accumulator.ContentPrefixCount);
+        CollectionAssert.AreEqual(new[] { @"D:\a" }, Paths(rows));
     }
 }

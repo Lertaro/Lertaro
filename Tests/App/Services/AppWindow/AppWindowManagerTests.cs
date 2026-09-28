@@ -65,6 +65,57 @@ public sealed class AppWindowManagerTests
             "the visible-full-window cases have to be handled before the setting is read");
     }
 
+    [TestMethod]
+    public void OnlyListableRows_KeepsRealFilesInOrder()
+    {
+        var rows = new[]
+        {
+            Row("File", @"D:\a.txt"),
+            Row("File", @"D:\b.txt"),
+        };
+
+        CollectionAssert.AreEqual(new[] { @"D:\a.txt", @"D:\b.txt" },
+            AppWindowManager.OnlyListableRows(rows)!.Select(r => r.FullPath).ToArray());
+    }
+
+    [TestMethod]
+    public void OnlyListableRows_DropsEverythingTheFullWindowCannotList()
+    {
+        // The quick window's list is a mix: its own "show more" and "no results" rows are UI, not
+        // results, and an application or plugin row has no path, size or type for this grid's columns.
+        // Carrying them over would paint rows the full window's own search would never have produced.
+        var rows = new[]
+        {
+            Row("File", @"D:\keep.txt"),
+            Row("Application", @"C:\Windows\notepad.exe"),
+            Row("InstantResult", "https://example.com"),
+            Row("Action", "__SHOW_MORE__"),
+            Row("Empty", "__NO_RESULTS__"),
+            Row("SectionHeader", ""),
+            Row("File", ""),
+            Row("File", "__SEARCHABLE_ITEM__:App:Title"),
+        };
+
+        CollectionAssert.AreEqual(new[] { @"D:\keep.txt" },
+            AppWindowManager.OnlyListableRows(rows)!.Select(r => r.FullPath).ToArray());
+    }
+
+    [TestMethod]
+    public void OnlyListableRows_NothingQualifies_ReturnsNull()
+    {
+        // Null rather than an empty list: an empty hand-off must read as "no hand-off at all", which is
+        // what lets the window fall back to its normal behavior instead of showing an empty grid.
+        Assert.IsNull(AppWindowManager.OnlyListableRows(new[] { Row("Action", "__SHOW_MORE__") }));
+        Assert.IsNull(AppWindowManager.OnlyListableRows(Array.Empty<AppSearchResult>()));
+    }
+
+    private static AppSearchResult Row(string kind, string path) => new()
+    {
+        ResultKind = kind,
+        FullPath = path,
+        Name = Path.GetFileName(path),
+    };
+
     private static AppWindowManager.SearchWindowHotkeyAction Decide(bool isVisible, bool isActive, bool closeOnRepeatHotkey = false) =>
         AppWindowManager.DetermineSearchWindowHotkeyAction(isVisible, isActive, closeOnRepeatHotkey);
 

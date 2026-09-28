@@ -49,7 +49,11 @@ internal sealed class SearchExecutionEngine : IDisposable
         // LATE check -- it runs after every provider has already been asked -- so leaving it at its
         // default made the full search window pay a full provider pass per keystroke and throw the
         // answer away. This is the early check the late one could not be.
-        bool emitInstantResults = true)
+        bool emitInstantResults = true,
+        // Invoked on the UI thread at the moment the search itself is issued -- so after the debounce,
+        // once per settled query rather than once per keystroke. For work that must overlap the search
+        // but must not be repeated for characters the user typed and then replaced.
+        Action? beforeSearch = null)
     {
         _debounceCts?.Cancel();
         _debounceCts?.Dispose();
@@ -59,7 +63,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 150 : 30);
         if (delay == 0)
         {
-            PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults);
+            PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults, beforeSearch);
             return;
         }
 
@@ -68,7 +72,7 @@ internal sealed class SearchExecutionEngine : IDisposable
             if (t.IsCanceled)
                 return;
             _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults)));
+                PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults, beforeSearch)));
         }, cts.Token);
     }
 
@@ -94,7 +98,12 @@ internal sealed class SearchExecutionEngine : IDisposable
         string? instantQuery = null,
         // See QueueSearch: false skips the provider pass entirely instead of running it and
         // discarding what comes back.
-        bool emitInstantResults = true)
+        bool emitInstantResults = true,
+        // Invoked here, on the UI thread, as this search starts. Every search funnels through this method,
+        // whether it was issued directly or waited out QueueSearch's keystroke debounce, so a caller with
+        // work that should overlap the search -- and must not be repeated for every character typed --
+        // hangs it here rather than reimplementing the delay.
+        Action? beforeSearch = null)
     {
         Logger.Log($"[SearchExecutionEngine] Performing search: '{query}', scope: '{searchScope}'", LogLevel.Debug);
         CancelPendingSearch();
@@ -105,6 +114,7 @@ internal sealed class SearchExecutionEngine : IDisposable
             return;
         }
 
+        beforeSearch?.Invoke();
         onSearchStateChanged(true);
         var cts = new CancellationTokenSource();
         var searchVersion = Interlocked.Increment(ref _searchVersion);

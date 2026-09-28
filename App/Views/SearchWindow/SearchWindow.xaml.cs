@@ -32,7 +32,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     // selection handler and would close a preview opened any earlier.
     private bool _restorePreviewOnFirstResult;
     internal readonly string PowerWindowId = "full:" + Guid.NewGuid().ToString("N");
-    public SearchWindow(string initialQuery = "", bool restorePreview = false)
+    public SearchWindow(string initialQuery = "", bool restorePreview = false, IReadOnlyList<AppSearchResult>? quickSearchRows = null)
     {
         InitializeComponent();
         _restorePreviewOnFirstResult = restorePreview;
@@ -61,7 +61,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         // The maximized-size cap that keeps the window off the taskbar is applied per-monitor in
         // SearchWindowChromeHandler.HandleStateChanged, so it stays correct on secondary screens.
 
-        _viewModel = new SearchViewModel(initialQuery);
+        _viewModel = new SearchViewModel(initialQuery, quickSearchRows);
         this.DataContext = _viewModel;
         QuickLookManager.Instance.Reset();
 
@@ -135,6 +135,12 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     public bool UsesFloatingActionsMenu => true;
     bool ISearchWindow.KeepWindowOpenAfterActionsHotkey => true;
     public string SearchText => SearchBox.SearchTextBox.Text;
+
+    /// <summary>
+    /// Carries the quick window's rows across for the query about to be set into the box. Only needed on
+    /// this path -- a window built for the query gets them through its constructor.
+    /// </summary>
+    public void HandOffQuickSearchResults(IReadOnlyList<AppSearchResult> rows) => _viewModel.HandOffQuickSearchResults(rows);
     public TextBox SearchTextBox => SearchBox.SearchTextBox;
 
     public bool IsInActionsMode
