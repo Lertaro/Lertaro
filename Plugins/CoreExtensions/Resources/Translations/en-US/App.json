@@ -424,7 +424,6 @@
   "General_ResultTypeOrderHint": "Choose which result type wins when several equally-good matches tie in the quick window -- move a type up to make it always outrank the ones below it, regardless of which one actually matched the query text better. History and Favorites always come first and aren't affected by this list. Optionally, give a type a single-character trigger below -- typing it as the very first character shows only that type's results.",
   "General_ResultTypeFiles": "Files",
   "General_ResultTypeTriggerTooltip": "Optional trigger character. Typing this as the first character of your search shows only this type's results. Leave empty for none.",
-  "General_ResultTypeTriggerTaken": "This trigger character is already used by {0}. Only the first match takes effect; pick another character.",
   "General_PreviewWindowTitle": "Preview Window",
   "General_PreviewWindowHint": "Set the QuickLook preview window's size. This size is fixed and does not change with the number of results showing.",
   "General_PreviewWindowWidth": "Preview Width (px)",
