@@ -214,15 +214,12 @@ internal static class PluginSdkBridge
         PluginSdk.Services.FuzzyMatchService.GetMatchScoreFunc = FuzzyMatcher.ComputeMatchWeight;
 
         // Providers get the untouched box text so a trigger word they own is still there to recognise, and
-        // with it the host's own trailing ":token" syntax. A provider that searches the remainder AS TEXT
-        // (ContentSearch's full-text query) has to take the tokens back off, and this is the only place
-        // that knows the token syntax and the configured prefix character.
+        // with it the host's own trailing "<prefix>token" syntax. A provider that searches the remainder AS
+        // TEXT (ContentSearch's full-text query) has to take the tokens back off. The tokenizer and the
+        // prefix both come from their single source of truth (Core's QueryTokenScanner, and the prefix the
+        // search syntax itself reads), so this wire-up carries no copy of either.
         PluginSdk.Services.SearchQueryService.StripQueryTokensFunc = query =>
-        {
-            var prefix = UserSettings.Load().GlobalTokenPrefix;
-            return Core.SearchIndex.Query.SearchQuerySortParser.Strip(
-                query, out _, !string.IsNullOrEmpty(prefix) ? prefix[0] : ':');
-        };
+            Core.SearchIndex.Query.QueryTokenScanner.Scan(query, GlobalTokenPrefix.Current).Text;
 
         // Wire up the directory search delegate for plugins using CoreDirectoryIndexManager
         PluginSdk.Services.DirectoryIndexerService.SearchPluginDirectoriesFunc = async (pluginId, query, token) =>
