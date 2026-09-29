@@ -104,8 +104,8 @@ public static class LiveDirectorySearcher
 
                 // Checked after the result is delivered, not before it is built: `maxProcessed` is a cap on
                 // what the caller gets, so stopping here yields exactly that many rows. Stopping at the top
-                // of the body returned one fewer, and the truncated list is what SearchService's
-                // _sessionDirectoryCache then handed to every later keystroke on that directory.
+                // of the body returned one fewer, and the truncated list is what LiveScanCache then handed
+                // to every later keystroke on that directory.
                 if (processedCount >= maxProcessed)
                     break;
             }
