@@ -136,13 +136,20 @@ public static class AppSearchPipeService
         }
     }
 
-    // Mirrors SearchQueryDispatchController.OnAdvancedQueryChanged in full, including the part an
-    // earlier version of this method skipped: a trailing " :a,b,c" suffix (SearchQuerySortParser.Strip)
-    // isn't part of the fuzzy search text at all -- it's dispatched, AFTER the file search completes, to
-    // whichever IQueryTokenProvider plugin (the built-in "::expr"/".ext"/etc.) claims each token, which
-    // can filter or reorder the already-ranked results. Passing the raw (unstripped) query straight into
-    // SearchStreamingAsync -- what this used to do -- searched for the literal ":xxx" substring instead
-    // of treating it as an operator, which is why that syntax silently did nothing here.
+    // Mirrors SearchQueryDispatchController.OnAdvancedQueryChanged's query preparation -- including the
+    // part an earlier version of this method skipped: a trailing " :a,b,c" suffix
+    // (SearchQuerySortParser.Strip) isn't part of the fuzzy search text at all -- it's dispatched, AFTER
+    // the file search completes, to whichever IQueryTokenProvider plugin (the built-in "::expr"/".ext"/etc.)
+    // claims each token, which can filter or reorder the already-ranked results. Passing the raw
+    // (unstripped) query straight into SearchStreamingAsync -- what this used to do -- searched for the
+    // literal ":xxx" substring instead of treating it as an operator, which is why that syntax silently
+    // did nothing here.
+    // One deliberate gap, so that "mirrors" is not read stronger than it is: there is no
+    // FileFilterScopeResolver.Resolve here, so a configured file-filter scope keyword searches its
+    // filter's folders in the GUI but is matched as literal text here ("lff tf report" finds nothing the
+    // window's "tf report" finds). Closing it is not a call away -- the directive rides all the way
+    // through SearchExecutionEngine into SearchResultMapper's row construction, which this wire path
+    // replaces with its own serialization.
     // Every result used to be its own write straight onto the pipe. That is a syscall each, and a
     // whole-drive query returns hundreds of thousands of them -- the same shape, on the GUI's own pipe,
     // measured 30us a result against 2.1 once the bytes were batched. Buffered here with the flush
