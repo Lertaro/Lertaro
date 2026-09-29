@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
+using Lertaro.Core;
 
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
 
@@ -58,8 +59,37 @@ internal sealed class QuickSearchWindowLayoutManager
         _window.Dispatcher.BeginInvoke(new Action(() =>
         {
             Interlocked.Exchange(ref _layoutUpdateQueued, 0);
-            ApplyResultsLayout();
+            ApplyResultsLayoutProtected();
         }), DispatcherPriority.Normal);
+    }
+
+    // ApplyResultsLayout runs a synchronous layout pass, and a layout pass ends by walking the UI
+    // Automation peer tree and raising property-changed events out of this process (every
+    // ContextLayoutManager.UpdateLayout() calls fireAutomationEvents()). Once an accessibility client --
+    // or any tool that attached to this window -- is listening, those outgoing calls can pump this
+    // thread's message queue, dispatch a re-entrant WM_GETOBJECT, and block inside a second UIA round
+    // trip; the window then sits there unresponsive while the user watches it. DisableProcessing is the
+    // framework's own answer to exactly this shape: it stops CLR locks pumping messages internally and
+    // refuses nested DispatcherFrames, which is what AutomationPeer's static constructor uses it for
+    // ("Disable message processing to avoid re-entrancy (WM_GETOBJECT)"). While it is in force here, a
+    // re-entrant WM_GETOBJECT cannot be dispatched, so it cannot nest inside the pass.
+    //
+    // Cost, accepted deliberately: if UIA does try to nest, that call throws instead of hanging, so this
+    // swallows it and keeps one dropped layout instead of a frozen window. The queued flag is cleared
+    // before this runs, so the next results update queues a fresh attempt and the geometry self-corrects.
+    private void ApplyResultsLayoutProtected()
+    {
+        try
+        {
+            using (_window.Dispatcher.DisableProcessing())
+            {
+                ApplyResultsLayout();
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            Logger.Log($"[QuickSearchWindow] Deferred results layout was refused while dispatcher processing was disabled: {ex.Message}", LogLevel.Warn);
+        }
     }
 
     // Runs the actual height computation immediately instead of deferring -- needed by
@@ -96,8 +126,8 @@ internal sealed class QuickSearchWindowLayoutManager
         ScrollViewer.SetCanContentScroll(_window.LstResults, true);
 
         // Shortcut hints (Ctrl+1..9) depend on which rows are visible, not on the panel's own height, so
-        // they need refreshing on every call regardless of what's below -- but the SizeToContent toggle is
-        // a full window measure/arrange, and re-running it when the height hasn't actually moved (common
+        // they need refreshing on every call regardless of what's below -- but the forced layout pass is a
+        // full window measure/arrange, and re-running it when the height hasn't actually moved (common
         // while typing: narrowing an already 9+-result query keeps summing to the same 9-row total) was
         // pure waste stacked on every keystroke's results update.
         UpdateShortcutHints();
@@ -107,8 +137,7 @@ internal sealed class QuickSearchWindowLayoutManager
 
         _window.LstResults.Height = resultsHeight;
         _window.ResultsPanelControl.Height = resultsHeight;
-        _window.SizeToContent = SizeToContent.Manual;
-        _window.SizeToContent = SizeToContent.WidthAndHeight;
+        ForceLayoutSoTheWindowResizes();
     }
 
     private void ApplyActionsResultHeight()
@@ -119,9 +148,18 @@ internal sealed class QuickSearchWindowLayoutManager
 
         _window.LstResults.Height = maxResultHeight;
         _window.ResultsPanelControl.Height = maxResultHeight;
-        _window.SizeToContent = SizeToContent.Manual;
-        _window.SizeToContent = SizeToContent.WidthAndHeight;
+        ForceLayoutSoTheWindowResizes();
     }
+
+    // This used to spell "force layout" as a Manual -> WidthAndHeight SizeToContent round trip. That
+    // toggle was only ever an indirect way to make WPF run the pending measure/arrange immediately
+    // instead of letting the next paint pass pick it up; InlineSearchWindowLayoutManager does the same
+    // job with a plain UpdateLayout(). Measured against the real window, an explicit UpdateLayout()
+    // resizes it to the new height identically, and this window's content width is fixed (see
+    // QuickSearchWindow.xaml), so dropping the WidthAndHeight half of the round trip cannot change the
+    // width either way. Left as one named place so the sizing behavior is re-measurable in one spot if
+    // the window's sizing model ever changes.
+    private void ForceLayoutSoTheWindowResizes() => _window.UpdateLayout();
 
     public void UpdateShortcutHints() =>
         QuickSearchShortcutHelper.UpdateShortcutHints(_window, WpfUiHelper.GetScrollViewer(_window.LstResults));

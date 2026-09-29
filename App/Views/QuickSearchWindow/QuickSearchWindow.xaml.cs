@@ -143,8 +143,8 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         // raise many CollectionChanged events in a row (a Replace per changed row, then a RemoveAt per
         // trimmed tail row -- see SearchResultsReconciler/ObservableRangeCollection.ReconcileTo), and
         // LstResults's own ItemContainerGenerator is ALSO a subscriber to this same event, updating its
-        // internal bookkeeping in response. Forcing a layout pass mid-batch (ApplyResultsLayout's
-        // SizeToContent toggle does exactly that) before the generator finishes reconciling that same
+        // internal bookkeeping in response. Forcing a layout pass mid-batch (ApplyResultsLayout's forced
+        // layout does exactly that) before the generator finishes reconciling that same
         // notification throws "ItemsControl inconsistent with its items source" -- confirmed by an actual
         // crash log after trying exactly that. See QuickSearchWindowLayoutManager.QueueResultsLayoutUpdate
         // for why Render priority isn't early enough either (real frame data caught a fully composited,
