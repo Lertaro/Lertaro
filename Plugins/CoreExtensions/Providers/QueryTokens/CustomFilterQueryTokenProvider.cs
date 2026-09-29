@@ -11,7 +11,9 @@ namespace Lertaro.Plugins.CoreExtensions.Providers.QueryTokens;
 // Each category keyword is resolved to the regex its configured rule denotes -- "\audio" becomes
 // "\.(?:ogg|m4a|mp3|wav|flac|aac)$" -- and matched against the result's file name. The rule field keeps
 // its historical "*.ext; *.ext2" spelling; it is translated to a regex internally (see RuleToRegex), so
-// existing user settings keep working unchanged.
+// existing user settings keep working unchanged. Keyword references between rules (\audio inside another
+// rule's text) are expanded first, exactly as the sidebar path does -- the field's own description tells
+// the user a keyword is "the name other rules use to reference it".
 public class CustomFilterQueryTokenProvider : IQueryTokenProvider
 {
     public const string PluginId = "Lertaro.Plugins.CoreExtensions";
@@ -22,7 +24,13 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
     // from the search syntax itself, through SearchSyntaxService.
     public const string LegacyPrefixSettingKey = "CustomFilterPrefix";
 
-    private static readonly RegexOptions MatchOptions = RegexOptions.IgnoreCase | RegexOptions.Compiled;
+    // CultureInvariant is not decoration: IgnoreCase alone folds through CurrentCulture, and the app only
+    // sets CurrentUICulture (see TranslationManager), so on a tr-TR machine 'I' folds to 'ı' and "\.gif$"
+    // stops matching PHOTO.GIF. The compiled result then sits in RegexCache carrying the wrong folding for
+    // the rest of the process. This path replaced FileSystemName.MatchesSimpleExpression, which was
+    // ordinal, so losing it here is a behaviour change rather than a pre-existing quirk -- and four other
+    // regexes in this project already pass the flag.
+    private static readonly RegexOptions MatchOptions = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled;
 
     // Compiled regexes are cached per translated pattern. A filter runs on every keystroke against the
     // whole fetched result set, so recompiling here would be the single most expensive thing in the
@@ -62,11 +70,56 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
         if (filter == null || string.IsNullOrWhiteSpace(filter.Rule))
             return Task.FromResult<IReadOnlyList<ISearchResult>>(Array.Empty<ISearchResult>());
 
-        var regex = GetRegex(filter.Rule);
-        if (regex == null)
-            return Task.FromResult(results);
+        // A rule's keyword references have to be expanded BEFORE it is translated: "the name other rules
+        // use to reference it" is what the field's own description promises the user, and a bare
+        // RuleToRegex turns "\audio" into the literal name pattern "\.\audio$" -- which no Windows file
+        // name can contain, so the reference silently contributed nothing, and a rule made only of
+        // references emptied the result set with no explanation on screen. The sidebar path (see
+        // BuildPredicate) has always expanded; this path had dropped it.
+        var (nameRegex, admitDirs, admitAnyFile) = TranslateRule(ExpandRule(filter.Rule, GetConfiguredFilters(), prefix));
+        if (nameRegex == null && !admitDirs && !admitAnyFile)
+            // Nothing in the rule can select a row -- an empty rule, or one whose every token was a
+            // reference to another filter that resolved to nothing.
+            return Task.FromResult<IReadOnlyList<ISearchResult>>(Array.Empty<ISearchResult>());
 
-        return Task.FromResult<IReadOnlyList<ISearchResult>>(results.Where(r => !r.IsDir && regex.IsMatch(r.Name)).ToList());
+        return Task.FromResult<IReadOnlyList<ISearchResult>>(results.Where(r => r.IsDir
+            ? admitDirs
+            : admitAnyFile || (nameRegex?.IsMatch(r.Name) ?? false)).ToList());
+    }
+
+    // Splits an already-expanded rule into the one name regex it implies plus the two things a name regex
+    // cannot express. "folder", "dir" and ":f" are statements about directory-ness, and "file"/":-f" about
+    // the absence of it -- BuildPredicate reads them that way, so translating them into name alternatives
+    // instead made the two paths answer differently for one rule text, and left the token path unable to
+    // return a folder at all. Name tokens deliberately stay files-only here (unlike the sidebar, which
+    // matches a name against rows of either kind): a category filter such as "\img" should not surface a
+    // DIRECTORY called photos.jpg.
+    private static (Regex? NameRegex, bool AdmitDirs, bool AdmitAnyFile) TranslateRule(string expandedRule)
+    {
+        List<string>? nameTokens = null;
+        var admitDirs = false;
+        var admitAnyFile = false;
+        foreach (var raw in expandedRule.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            switch (raw.ToLowerInvariant())
+            {
+                case "folder":
+                case "dir":
+                case ":f":
+                    admitDirs = true;
+                    break;
+                case "file":
+                case ":-f":
+                    admitAnyFile = true;
+                    break;
+                default:
+                    (nameTokens ??= []).Add(raw);
+                    break;
+            }
+        }
+
+        // Rejoined with the separator RuleToRegex splits on, so the cache key stays one per distinct rule.
+        return (nameTokens is { Count: > 0 } ? GetRegex(string.Join("; ", nameTokens)) : null, admitDirs, admitAnyFile);
     }
 
     public string? GetHighlightText(string token) => null;
@@ -128,18 +181,15 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
     // alternation anchored at the end of the name. Anything that already carries wildcard syntax keeps
     // being treated as a wildcard pattern rather than a regex, so rules written before the rewrite
     // behave as they did.
+    //
+    // Only NAME tokens reach here -- TranslateRule has already taken the directory-ness words out, since
+    // an alternative like "(?:folder|dir)" against a file name matches directory.txt and no folder at all.
     internal static string RuleToRegex(string rule)
     {
         var alternatives = new List<string>();
         foreach (var raw in rule.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var token = raw.ToLowerInvariant();
-            if (token == "folder" || token == "dir")
-            {
-                alternatives.Add(Regex.Escape(token));
-                continue;
-            }
-
             if (token.Contains('*') || token.Contains('?'))
             {
                 alternatives.Add(WildcardToRegex(token));

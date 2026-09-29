@@ -234,6 +234,99 @@ public class CustomFilterQueryTokenProviderTests
             Assert.Contains(ext, zipRule, $"zip rule missing {ext}");
     }
 
+    [TestMethod]
+    public async Task ApplyAsync_RuleThatReferencesAnotherKeyword_ExpandsTheReference()
+    {
+        // "the name other rules use to reference it" is what the keyword field's own description promises.
+        // Without expansion the reference "\scripts" is translated into the NAME pattern "\.\scripts$",
+        // which no Windows file name can contain -- so the referenced half of the rule silently vanished,
+        // and a rule made ONLY of references emptied the result set with nothing on screen to explain it.
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
+            ? new List<CustomFilterItem>
+            {
+                new() { Keyword = "scripts", Rule = "*.cmd" },
+                new() { Keyword = "tools", Rule = "\\scripts; *.bat" },
+                new() { Keyword = "refonly", Rule = "\\scripts" }
+            }
+            : fallback;
+
+        var provider = new CustomFilterQueryTokenProvider();
+        var results = new List<ISearchResult>
+        {
+            new FakeSearchResult { Name = "build.cmd", FullPath = @"C:\t\build.cmd" },
+            new FakeSearchResult { Name = "run.bat", FullPath = @"C:\t\run.bat" },
+            new FakeSearchResult { Name = "notes.txt", FullPath = @"C:\t\notes.txt" },
+        };
+
+        var mixed = await provider.ApplyAsync("\\tools", results);
+        CollectionAssert.AreEquivalent(new[] { "build.cmd", "run.bat" }, mixed.Select(r => r.Name).ToArray());
+
+        var referenceOnly = await provider.ApplyAsync("\\refonly", results);
+        CollectionAssert.AreEqual(new[] { "build.cmd" }, referenceOnly.Select(r => r.Name).ToArray());
+    }
+
+    [TestMethod]
+    public async Task ApplyAsync_FolderRule_SelectsDirectoriesRatherThanNamesContainingTheWord()
+    {
+        // "folder"/"dir"/":f" are statements about directory-ness. Translated into name alternatives they
+        // matched directory.txt and Addir.png while the row filter rejected every actual folder -- so the
+        // token path answered the OPPOSITE of BuildPredicate, which the sidebar uses for the same rule text.
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
+            ? new List<CustomFilterItem>
+            {
+                new() { Keyword = "folders", Rule = "folder" },
+                new() { Keyword = "mixed", Rule = "*.pdf; dir" }
+            }
+            : fallback;
+
+        var provider = new CustomFilterQueryTokenProvider();
+        var results = new List<ISearchResult>
+        {
+            new FakeSearchResult { Name = "directory.txt", FullPath = @"C:\t\directory.txt" },
+            new FakeSearchResult { Name = "Addir.png", FullPath = @"C:\t\Addir.png" },
+            new FakeSearchResult { Name = "reports", FullPath = @"C:\t\reports", IsDir = true },
+            new FakeSearchResult { Name = "report.pdf", FullPath = @"C:\t\report.pdf" },
+        };
+
+        var folders = await provider.ApplyAsync("\\folders", results);
+        CollectionAssert.AreEqual(new[] { "reports" }, folders.Select(r => r.Name).ToArray());
+
+        var mixed = await provider.ApplyAsync("\\mixed", results);
+        CollectionAssert.AreEquivalent(new[] { "reports", "report.pdf" }, mixed.Select(r => r.Name).ToArray());
+    }
+
+    [TestMethod]
+    public async Task ApplyAsync_TurkishCulture_StillFoldsAsciiNamesOrdinally()
+    {
+        // The rule regex replaced FileSystemName.MatchesSimpleExpression, which is ordinal. RegexOptions
+        // .IgnoreCase WITHOUT CultureInvariant folds through CurrentCulture instead, and the app only sets
+        // CurrentUICulture -- so on a tr-TR machine 'I' folds to dotless 'ı' and PHOTO.GIF stops matching
+        // *.gif. The compiled regex then sits in the cache carrying that folding for the whole process.
+        var original = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("tr-TR");
+            PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
+                ? new List<CustomFilterItem> { new() { Keyword = "gifs", Rule = "*.gif" } }
+                : fallback;
+
+            var provider = new CustomFilterQueryTokenProvider();
+            var results = new List<ISearchResult>
+            {
+                new FakeSearchResult { Name = "PHOTO.GIF", FullPath = @"C:\t\PHOTO.GIF" },
+                new FakeSearchResult { Name = "ANIMATION.GIF", FullPath = @"C:\t\ANIMATION.GIF" },
+            };
+
+            var filtered = await provider.ApplyAsync("\\gifs", results);
+
+            Assert.HasCount(2, filtered, "an ASCII rule has to match an ASCII name in every locale");
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = original;
+        }
+    }
+
     // A compiled rule regex is cached per translated pattern. The key space is one entry per distinct
     // rule TEXT, and every intermediate state of editing a rule is a distinct text, so the cache is fed
     // by unbounded input even though a user configures only a handful of filters at a time.
