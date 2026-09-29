@@ -15,7 +15,11 @@ public static class AliasProviderRegistry
     // highlight mask, which asks once per candidate -- thousands of times per keystroke. Registration
     // already knows the answer, so it records it here.
     private static readonly ConcurrentDictionary<IAliasProvider, byte> IdByInstance = new(ReferenceEqualityComparer.Instance);
-    private static byte _nextId = 0;
+    // Registration is the only writer of the id tables, and it has to be serialized: the id is a
+    // positional identity that baked alias data is keyed on, so two providers landing the same id would
+    // silently attribute one's aliases to the other's rules. See Register.
+    private static readonly object RegistrationGate = new();
+    private static byte _nextId;
 
     // Provider id -> the syllable separator that provider declares (see IAliasProvider.SyllableSeparator).
     // Baked aliases are stored as bare bytes with only their provider id, so the alignment rule has no
@@ -27,23 +31,40 @@ public static class AliasProviderRegistry
     public static void Register(IAliasProvider provider)
     {
         if (provider == null) return;
-        Providers.Add(provider);
 
         var componentId = GetComponentId(provider);
-        var id = ProviderIdMap.GetOrAdd(componentId, _ => _nextId++);
-        IdByInstance[provider] = id;
-        SeparatorById[id] = provider.SyllableSeparator;
+        byte id;
+        // Under one lock rather than ConcurrentDictionary.GetOrAdd's factory: that factory may run more
+        // than once under contention and discards all but one result, so a plain _nextId++ inside it could
+        // burn an id AND hand the same id to two component ids. The id maps are also published BEFORE the
+        // provider joins the bag, because the bag is what every scan enumerates -- adding first opened a
+        // window in which a concurrent reader saw the provider but not its id and fell through to the
+        // not-found sentinel below.
+        lock (RegistrationGate)
+        {
+            id = ProviderIdMap.GetOrAdd(componentId, _ => _nextId++);
+            IdByInstance[provider] = id;
+            SeparatorById[id] = provider.SyllableSeparator;
+            Providers.Add(provider);
+        }
+
         Logger.Log($"[AliasProviderRegistry] Registered alias provider: {provider.Name} with ID: {id} ({componentId})");
     }
 
     /// <summary>The syllable separator the provider with this id declares, or '\0' when it declares none.</summary>
     public static char GetSyllableSeparator(byte providerId) => SeparatorById.TryGetValue(providerId, out var separator) ? separator : '\0';
 
+    // Same not-found sentinel as GetProviderIdByComponentId. It used to be 0, which is also the id of the
+    // first registered provider: a lookup during the registration window above answered "provider 0", so an
+    // unregistered provider was indistinguishable from a real one and got judged against provider 0's
+    // disabled state instead of its own.
     public static byte GetProviderId(IAliasProvider provider)
         => IdByInstance.TryGetValue(provider, out var cached) ? cached
-            : ProviderIdMap.TryGetValue(GetComponentId(provider), out var id) ? id : (byte)0;
+            : ProviderIdMap.TryGetValue(GetComponentId(provider), out var id) ? id : NotFoundProviderId;
 
-    public static byte GetProviderIdByComponentId(string componentId) => ProviderIdMap.TryGetValue(componentId, out var id) ? id : (byte)255; // 255 represents not found
+    public static byte GetProviderIdByComponentId(string componentId) => ProviderIdMap.TryGetValue(componentId, out var id) ? id : NotFoundProviderId;
+
+    private const byte NotFoundProviderId = 255;
 
     private static string GetComponentId(IAliasProvider provider)
     {

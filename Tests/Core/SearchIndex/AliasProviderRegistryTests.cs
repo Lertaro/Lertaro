@@ -1,4 +1,5 @@
 using Lertaro.Core.SearchIndex;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.Core.Tests.SearchIndex;
 
@@ -42,5 +43,29 @@ public sealed class AliasProviderRegistryTests
         var id = AliasProviderRegistry.GetProviderIdByComponentId("definitely-not-registered::AliasProvider::Nothing");
 
         Assert.AreEqual((byte)255, id);
+    }
+
+    [TestMethod]
+    public void GetProviderId_UnknownProvider_ReturnsTheSameSentinelAsTheComponentIdLookup()
+    {
+        // The two lookups used to disagree: this one answered 0, which is also the id the FIRST registered
+        // provider receives, so an unresolved lookup was indistinguishable from a genuine provider-0 hit --
+        // and every caller tests the result against SearchContext.DisabledAliasIds, so an unregistered
+        // provider was judged by provider 0's enabled state instead of its own.
+        var id = AliasProviderRegistry.GetProviderId(new NeverRegisteredProvider());
+
+        Assert.AreEqual((byte)255, id, "0 was the old answer, and 0 is a valid provider id");
+        Assert.AreEqual(AliasProviderRegistry.GetProviderIdByComponentId("no-such-component::AliasProvider::Nothing"), id);
+    }
+
+    // Deliberately NOT registered: this file's whole policy (see the header) is that Register leaks a
+    // provider into every other test's process-wide registry state, so the id-allocation and visibility
+    // order that Register now establishes under its own lock are pinned structurally rather than here.
+    private sealed class NeverRegisteredProvider : IAliasProvider
+    {
+        public bool CanHandle(string text) => false;
+        public IEnumerable<string> GetAliases(string text) => Array.Empty<string>();
+        public IReadOnlyList<(char Start, char End)> InputRanges { get; } = Array.Empty<(char, char)>();
+        public IReadOnlyList<(char Start, char End)> OutputRanges { get; } = Array.Empty<(char, char)>();
     }
 }
