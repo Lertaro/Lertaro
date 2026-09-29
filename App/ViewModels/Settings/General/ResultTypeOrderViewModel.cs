@@ -189,17 +189,29 @@ public class ResultTypeOrderViewModel : ViewModelBase
     private void OnTriggerCharChanged() => ValidateTriggers();
 
     /// <summary>
-    /// Every trigger error this list is showing, each row named. Read by the Settings window's Apply gate
+    /// The trigger errors that must block saving, each row named. Read by the Settings window's Apply gate
     /// -- see GeneralSettingsViewModel.ValidationErrors.
     /// </summary>
+    /// <remarks>
+    /// Only a character the user staged in THIS session blocks. A build before this one validated nothing,
+    /// so a carried-over settings file can already hold a reserved character or two types on the same
+    /// character; refusing to save on those showed an error on the Layout page that locked the user out of
+    /// saving every other setting anywhere in the window, until they found the row and retyped it. The
+    /// row still shows its error either way, which is the same split QueryTokenPrefixRules.BlocksSaving
+    /// applies to the app-wide prefix field -- reported always, blocking only on a staged edit.
+    /// </remarks>
     internal IEnumerable<string> ValidationErrors
     {
         get
         {
+            var stored = _userSettings.ResultTypeTriggers;
             foreach (var item in Items)
             {
-                if (item.Error is { Length: > 0 } error)
-                    yield return $"{item.DisplayName}: {error}";
+                if (item.Error is not { Length: > 0 } error)
+                    continue;
+                if (string.Equals(stored.GetValueOrDefault(item.Id, string.Empty), item.TriggerChar, StringComparison.Ordinal))
+                    continue; // untouched since load: carried over, not staged
+                yield return $"{item.DisplayName}: {error}";
             }
         }
     }

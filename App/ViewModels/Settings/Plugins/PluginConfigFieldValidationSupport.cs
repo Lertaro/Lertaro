@@ -21,7 +21,16 @@ internal sealed class PluginConfigFieldValidationSupport
     /// before the provider is ever asked and the trigger silently stops working. Only fields that declare
     /// <see cref="ConfigFieldValidation.TriggerKeyword"/> are checked.
     /// </summary>
+    /// <remarks>
+    /// A blank is reported as fine, because it is not an unusable keyword -- it is an unset one. Clearing the
+    /// box is the supported way to give a keyword back to the plugin's own schema default (see the
+    /// RequireNonEmpty branch in PluginConfigFieldCommitSupport), and ValidateLeadingCharacter answers blank
+    /// with "Enter a value", which combined with <see cref="BlocksSaving"/> used to mean that clearing a
+    /// trigger field refused to save EVERY other pending setting in the window and would not close on OK.
+    /// The app-wide prefix field already has exactly this exemption; the plugin field had not caught up.
+    /// </remarks>
     internal string? TriggerKeywordError => _field.SchemaField.Validation == ConfigFieldValidation.TriggerKeyword
+        && !string.IsNullOrWhiteSpace(_field.Value as string)
         ? QueryTokenPrefixRules.TriggerKeywordConflict(_field.Value as string)
         : null;
 

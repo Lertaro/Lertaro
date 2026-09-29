@@ -5,22 +5,30 @@ using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.Helpers;
 
-// Clears an instant-answer trigger keyword a plugin persisted before '?' became the precision-inversion
-// trigger.
+// Clears an instant-answer trigger keyword a plugin persisted with a leading character that QueryTokenScanner
+// lifts the whole word away for.
 //
 // Why this cannot live in Core with the other legacy checks: which plugin settings ARE trigger keywords is
 // only knowable from each plugin's config schema (ConfigFieldValidation.TriggerKeyword), and Core cannot see
 // plugin assemblies. So the schema walk happens here, in the App, and only the DECISION is pure -- the
 // candidate fields are handed in, which is what makes the rule testable without loading a single plugin.
 //
-// A keyword starting with '?' is dead, not merely misread: the parser strips the '?' as the precision trigger
-// before any provider is asked, so the trigger can never fire. Clearing the stored value is therefore not a
-// loss -- the plugin falls back to the keyword its own schema ships, which works.
+// What actually makes such a keyword unusable is being lifted out of the query before the file search runs:
+// the scanner treats any word opening with the configured token prefix, or with '<' or '>', as a token, and a
+// token no provider claims empties the file result list (see QueryTokenDispatcher). The keyword still reaches
+// instant providers, which are handed the untouched box text, so this is "your file search goes blank every
+// time you use it" rather than "the trigger never fires".
+//
+// It used to claim the precision-inversion character for that list, which is wrong on two counts: '?' is not
+// one of the characters the scanner lifts, and PluginTriggerQuery.Strip removes an invoked trigger word from
+// the file-search text anyway -- so a '?' keyword worked, and wiping it destroyed a working setting while the
+// balloon gave the user a reason that did not hold.
 internal static class PluginTriggerKeywordMigration
 {
     /// <summary>
-    /// Clears every trigger-keyword setting whose stored value starts with the precision-inversion character,
-    /// returning what was cleared so the caller can say so. Mutates: the caller has to save the settings.
+    /// Clears every trigger-keyword setting whose stored value opens with a character the scanner lifts the
+    /// word away for, returning what was cleared so the caller can say so. Mutates: the caller has to save
+    /// the settings.
     /// </summary>
     /// <remarks>
     /// Idempotent (the removed key is what makes it unrepeatable), and driven by the schema rather than by a
@@ -32,6 +40,7 @@ internal static class PluginTriggerKeywordMigration
         IEnumerable<(string PluginId, string PluginName, PluginConfigField Field)> candidates)
     {
         var cleared = new List<(string, string, string, string)>();
+        var lifted = LiftedLeadingCharacters(settings);
 
         foreach (var (pluginId, pluginName, field) in candidates)
         {
@@ -39,7 +48,7 @@ internal static class PluginTriggerKeywordMigration
                 continue;
 
             var value = settings.GetPluginSetting<string?>(pluginId, field.Key, null);
-            if (value is not { Length: > 0 } || value[0] != SearchSyntaxReserved.PrecisionInversionCharacter)
+            if (value is not { Length: > 0 } || !lifted.Contains(value[0]))
                 continue;
 
             settings.SetPluginSetting(pluginId, field.Key, null);
@@ -47,6 +56,21 @@ internal static class PluginTriggerKeywordMigration
         }
 
         return cleared;
+    }
+
+    // The set QueryTokenScanner.IsToken lifts by: the configured token prefix (blank means the shipped
+    // default) and the two sort/filter triggers, which are hardcoded in the scanner rather than
+    // configurable, so they are spelled out here to match it. Read from the caller's settings instance so
+    // the rule stays a pure function of (settings, candidates).
+    private static HashSet<char> LiftedLeadingCharacters(UserSettings settings)
+    {
+        var prefix = settings.GlobalTokenPrefix;
+        return new HashSet<char>
+        {
+            string.IsNullOrEmpty(prefix) ? GlobalTokenPrefix.Default : prefix[0],
+            '<',
+            '>',
+        };
     }
 
     /// <summary>

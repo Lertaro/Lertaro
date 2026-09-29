@@ -73,6 +73,34 @@ public sealed class PluginConfigFieldValidationSupportTests
     }
 
     [TestMethod]
+    public void TriggerKeywordError_ClearingTheKeyword_DoesNotBlockSaving()
+    {
+        // Clearing the box is the supported way to hand a keyword back to the schema default -- the commit
+        // path forces DefaultValue in for a RequireNonEmpty field left blank. But ValidateLeadingCharacter
+        // answers a blank with "Enter a value", and BlocksSaving asks only "was this field edited", so
+        // clearing a trigger field produced a BLOCKING error: Apply refused to save any other pending
+        // setting in the window and OK would not close it. The app-wide prefix field already exempted an
+        // empty value from blocking; this is that rule catching up here.
+        var field = Field(Schema("keyword", "audio", validation: ConfigFieldValidation.TriggerKeyword));
+        field.Value = string.Empty;
+
+        Assert.IsTrue(field.IsDirty, "the blank is a staged edit -- the point is that it is not an error");
+        Assert.IsNull(field.TriggerKeywordError);
+        Assert.IsEmpty(field.Validation.Errors.ToList());
+    }
+
+    [TestMethod]
+    public void TriggerKeywordError_WhitespaceOnlyKeyword_CountsAsClearing()
+    {
+        // Normalize trims on the way in, so "   " is the same reset rather than a keyword with a space in it.
+        var field = Field(Schema("keyword", "audio", validation: ConfigFieldValidation.TriggerKeyword));
+        field.Value = "   ";
+
+        Assert.IsNull(field.TriggerKeywordError);
+        Assert.IsEmpty(field.Validation.Errors.ToList());
+    }
+
+    [TestMethod]
     public void TriggerKeywordError_FieldWithoutTheTriggerKeywordValidation_IsNotReported()
     {
         // The keyword rule only applies where the schema declares the field as one; a reserved leading

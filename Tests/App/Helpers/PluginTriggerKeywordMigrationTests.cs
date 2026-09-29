@@ -4,11 +4,15 @@ using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.Tests.Helpers;
 
-// Instant-answer trigger keywords that were saved before '?' became the precision-inversion trigger.
+// Instant-answer trigger keywords saved with a leading character the query-token scanner lifts the whole word
+// away for -- the configured token prefix, '<' or '>'. Such a keyword blanks the file results every time it is
+// used (the lifted word is a token no provider claims), which is what makes it worth resetting to the keyword
+// the plugin's own schema ships. The stored value is cleared and reported once -- the removal is what makes it
+// unrepeatable.
 //
-// Such a keyword is dead rather than misread: the parser strips the '?' before any provider is asked, so the
-// trigger can never fire. The stored value is cleared (the plugin's own schema default then applies, which
-// works) and reported once -- the removal is what makes it unrepeatable.
+// Note what is NOT in that list: the precision-inversion character. Instant providers are handed the untouched
+// box text, so a "?word" keyword fires, and PluginTriggerQuery.Strip takes it out of the file-search text like
+// any other trigger word. This migration used to clear those anyway.
 //
 // Only the RULE is covered here; which plugin settings are trigger keywords is discovered by walking loaded
 // plugin assemblies' schemas, which is assembly-bound with no injectable seam. The candidate fields are handed
@@ -17,11 +21,12 @@ namespace Lertaro.App.Tests.Helpers;
 public sealed class PluginTriggerKeywordMigrationTests
 {
     private const string PrecisionTrigger = "?";
+    private const string LiftedTrigger = "\\";
 
     [TestMethod]
-    public void TakeUnusable_PrecisionPrefixedKeyword_IsClearedAndReported()
+    public void TakeUnusable_ScannerLiftedKeyword_IsClearedAndReported()
     {
-        var settings = WithKeyword("Lertaro.Plugins.AudioDeviceSelector", "TriggerKeyword", PrecisionTrigger + "ad");
+        var settings = WithKeyword("Lertaro.Plugins.AudioDeviceSelector", "TriggerKeyword", LiftedTrigger + "ad");
 
         var cleared = PluginTriggerKeywordMigration.TakeUnusable(settings, Candidates(("Lertaro.Plugins.AudioDeviceSelector", "AudioDeviceSelector", "TriggerKeyword", ConfigFieldValidation.TriggerKeyword)));
 
@@ -29,9 +34,37 @@ public sealed class PluginTriggerKeywordMigrationTests
         Assert.AreEqual("Lertaro.Plugins.AudioDeviceSelector", cleared[0].PluginId);
         Assert.AreEqual("AudioDeviceSelector", cleared[0].PluginName);
         Assert.AreEqual("TriggerKeyword", cleared[0].Key);
-        Assert.AreEqual(PrecisionTrigger + "ad", cleared[0].Value);
+        Assert.AreEqual(LiftedTrigger + "ad", cleared[0].Value);
         Assert.IsNull(settings.GetPluginSetting<string?>("Lertaro.Plugins.AudioDeviceSelector", "TriggerKeyword", null),
-            "the dead value must be gone, so the provider falls back to the keyword its schema ships");
+            "the unusable value must be gone, so the provider falls back to the keyword its schema ships");
+    }
+
+    [TestMethod]
+    public void TakeUnusable_SortFilterTriggerKeyword_IsCleared()
+    {
+        // '<' and '>' are lifted whatever the configured prefix is, so they are not exempt the way a
+        // user-chosen prefix character would be.
+        var settings = WithKeyword("plugin", "TriggerKeyword", "<calc");
+
+        var cleared = PluginTriggerKeywordMigration.TakeUnusable(settings, Candidates(("plugin", "Plugin", "TriggerKeyword", ConfigFieldValidation.TriggerKeyword)));
+
+        Assert.HasCount(1, cleared);
+        Assert.IsNull(settings.GetPluginSetting<string?>("plugin", "TriggerKeyword", null));
+    }
+
+    [TestMethod]
+    public void TakeUnusable_PrecisionInversionKeyword_IsKept()
+    {
+        // The regression this replaces: '?' was treated as dead on the theory that the parser eats it before
+        // any provider is asked. It is not one of the characters the scanner lifts and providers get the raw
+        // box text, so the keyword worked -- and clearing it destroyed a working setting while the balloon gave
+        // the user a reason that did not hold.
+        var settings = WithKeyword("plugin", "TriggerKeyword", PrecisionTrigger + "note");
+
+        var cleared = PluginTriggerKeywordMigration.TakeUnusable(settings, Candidates(("plugin", "Plugin", "TriggerKeyword", ConfigFieldValidation.TriggerKeyword)));
+
+        Assert.IsEmpty(cleared);
+        Assert.AreEqual(PrecisionTrigger + "note", settings.GetPluginSetting<string?>("plugin", "TriggerKeyword", null));
     }
 
     [TestMethod]
@@ -48,14 +81,15 @@ public sealed class PluginTriggerKeywordMigrationTests
     [TestMethod]
     public void TakeUnusable_FieldThatIsNotATriggerKeyword_IsLeftAlone()
     {
-        // A '?' anywhere else is the user's own text: only a field that declares itself a trigger keyword is
-        // matched against the start of the query, so only one of those can have been retired by the operator.
-        var settings = WithKeyword("plugin", "SomeLabel", PrecisionTrigger + "readme");
+        // A lifted character anywhere else is the user's own text: only a field that declares itself a trigger
+        // keyword is matched against the start of the query, so only one of those can be spoiled by the token
+        // scanner lifting it.
+        var settings = WithKeyword("plugin", "SomeLabel", LiftedTrigger + "readme");
 
         var cleared = PluginTriggerKeywordMigration.TakeUnusable(settings, Candidates(("plugin", "Plugin", "SomeLabel", ConfigFieldValidation.None)));
 
         Assert.IsEmpty(cleared);
-        Assert.AreEqual(PrecisionTrigger + "readme", settings.GetPluginSetting<string?>("plugin", "SomeLabel", null));
+        Assert.AreEqual(LiftedTrigger + "readme", settings.GetPluginSetting<string?>("plugin", "SomeLabel", null));
     }
 
     [TestMethod]
@@ -72,7 +106,7 @@ public sealed class PluginTriggerKeywordMigrationTests
     public void TakeUnusable_IsIdempotent()
     {
         // What makes the notice it feeds a one-time thing: after the clear there is nothing left to detect.
-        var settings = WithKeyword("plugin", "TriggerKeyword", PrecisionTrigger + "calc");
+        var settings = WithKeyword("plugin", "TriggerKeyword", LiftedTrigger + "calc");
         var candidates = Candidates(("plugin", "Plugin", "TriggerKeyword", ConfigFieldValidation.TriggerKeyword));
 
         Assert.HasCount(1, PluginTriggerKeywordMigration.TakeUnusable(settings, candidates));
