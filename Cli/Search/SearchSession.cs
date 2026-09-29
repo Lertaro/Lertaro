@@ -143,7 +143,11 @@ public sealed class SearchSession
         // server's token-ordered result.
         var configuredPrefix = UserSettings.Load().GlobalTokenPrefix;
         var prefix = !string.IsNullOrEmpty(configuredPrefix) ? configuredPrefix[0] : '\\';
-        var parsedTokens = QueryTokenScanner.Scan(q, prefix).Tokens;
+        // Strip the leading '*' bypass marker first, exactly as the App's pipe handler does before it scans.
+        // It is not a token trigger, so scanning the raw text sees a first word like "*>s" instead of ">s",
+        // answers "no tokens", and re-sorts here a result the server already put in token order -- which for
+        // the non-interactive path also means truncating to a DIFFERENT set of files than the window shows.
+        var parsedTokens = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(q, out _), prefix).Tokens;
         var hasTokens = parsedTokens.Count > 0;
 
         void ShowSnapshot(List<(SearchResult, int[])> snapshot)
