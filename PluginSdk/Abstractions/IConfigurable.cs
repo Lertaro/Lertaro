@@ -70,6 +70,33 @@ public class PluginConfigField
     /// fields are the ones checked against the reserved leading characters, migrated when the syntax gains a
     /// new one, and warned about when another feature already answers to the same word.</summary>
     public ConfigFieldValidation Validation { get; set; }
+    /// <summary>Superseded by <see cref="Validation"/> equal to
+    /// <see cref="ConfigFieldValidation.TriggerKeyword"/>.</summary>
+    /// <remarks>
+    /// Exists only for binary compatibility, and must not be used by new code. This was replaced by
+    /// <see cref="Validation"/> while the assembly version stayed at 2.0.0, and plugins reference
+    /// Lertaro.PluginSdk.dll from an installed copy with <c>&lt;Private&gt;false&lt;/Private&gt;</c> -- so a
+    /// plugin built against the earlier 2.0.0 still binds, then throws MissingMethodException on its own
+    /// <c>set_IsTriggerWord</c> call the first time the host asks it for a schema. The host swallows that
+    /// exception, which takes the plugin's entire settings page and its default-value fallback down with it
+    /// and shows the user nothing. Forwarding the getter and setter costs no behaviour of its own and makes
+    /// those plugins work again.
+    /// <para>
+    /// Setting false is deliberately a no-op rather than a reset to <see cref="ConfigFieldValidation.None"/>:
+    /// None is what an unset field already holds, and resetting here would let an initializer that writes
+    /// <c>Validation = TokenKeyword</c> before <c>IsTriggerWord = false</c> silently lose the first.
+    /// </para>
+    /// </remarks>
+    [Obsolete("Use Validation = ConfigFieldValidation.TriggerKeyword. Kept only so plugins compiled against an earlier 2.0.0 PluginSdk still load.")]
+    public bool IsTriggerWord
+    {
+        get => Validation == ConfigFieldValidation.TriggerKeyword;
+        set
+        {
+            if (value)
+                Validation = ConfigFieldValidation.TriggerKeyword;
+        }
+    }
     /// <summary>For Text fields: maximum character length (0 or unset means no length restriction).</summary>
     public int MaxLength { get; set; }
     /// <summary>For Text fields: zero-based initial selection start in the prompt editor.</summary>
