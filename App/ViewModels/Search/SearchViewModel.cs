@@ -5,8 +5,6 @@ using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.App.ViewModels.Service;
-
-using Lertaro.Core;
 using Lertaro.Core.Services.Search;
 
 using Lertaro.App.Services.Plugin;
@@ -182,10 +180,6 @@ public class SearchViewModel : ViewModelBase, IDisposable
             if (SetProperty(ref _advancedQuery, value))
             {
                 _sidebarCountHelper?.Reset();
-                // Start each query with a clean complaint list: the report is about THIS query, so a clause
-                // the user has since fixed or deleted must not keep being named. Cleared before the dispatch
-                // below, which is what refills it.
-                SearchContext.ClearInvalidRegexes();
                 if (string.IsNullOrWhiteSpace(value))
                 {
                     _searchEngine.CancelPendingSearch();

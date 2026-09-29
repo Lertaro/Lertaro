@@ -57,62 +57,60 @@ public sealed class RegexClauseCompilationTests
         Assert.IsFalse(pattern.TryMatch("anything.txt", out _, FzfScoringScheme.Default));
     }
 
-    // Matching nothing is right, but it is also indistinguishable from a genuine miss, so the failure is
-    // REPORTED: the UI names the clause rather than claiming the search was simply too narrow.
-    //
-    // The report is process-wide and other tests compile patterns of their own, so every assertion here is
-    // on a UNIQUE pattern's presence or absence rather than on the list's total contents -- MSTest gives no
-    // ordering guarantee, and a test that expects an empty list would depend on nothing else having run.
+    // Matching nothing is right, but it is also indistinguishable from a genuine miss, so the failure has to
+    // be NAMEABLE by whoever is explaining an empty result. That is a question about a query, not state some
+    // earlier search left behind -- see the remarks on SearchContext.UncompilableClauses.
     [TestMethod]
-    public void InvalidPatterns_ReportsTheClauseThatCouldNotCompile()
+    public void IsUncompilable_ReportsOnlyPatternsTheEngineRefuses()
     {
-        Assert.IsFalse(RegexClauses.AllMatch([@"zz-probe-unique("], "zz-probe-unique(x"));
-
-        CollectionAssert.Contains(RegexClauses.InvalidPatterns.ToList(), @"zz-probe-unique(");
+        Assert.IsTrue(RegexClauses.IsUncompilable(@"zz-probe-bad("));
+        Assert.IsTrue(RegexClauses.IsUncompilable("*"));
+        Assert.IsFalse(RegexClauses.IsUncompilable(@"^zz-probe-ok\.md$"));
+        // Lookaround and backreferences are refused by NonBacktracking but accepted by the timed fallback,
+        // so they are not user errors and must not be reported.
+        Assert.IsFalse(RegexClauses.IsUncompilable(@"^(?!.*tmp).*zz-probe-alt\.md$"));
+        Assert.IsFalse(RegexClauses.IsUncompilable(@"^(zz-probe-br)\1$"));
     }
 
     [TestMethod]
-    public void InvalidPatterns_ValidPatterns_ReportNothing()
+    public void IsUncompilable_AfterTheClauseHasBeenCompiled_StillReports()
     {
-        // Every pattern here compiles, so none of them may appear in the report whatever else has.
-        Assert.IsTrue(RegexClauses.AllMatch([@"^zz-probe-valid\.md$"], "zz-probe-valid.md"));
-        Assert.IsFalse(RegexClauses.AllMatch([@"^(?!.*tmp).*zz-probe-valid\.md$"], "tmp.md"));
-
-        CollectionAssert.DoesNotContain(RegexClauses.InvalidPatterns.ToList(), @"^zz-probe-valid\.md$");
-        CollectionAssert.DoesNotContain(RegexClauses.InvalidPatterns.ToList(), @"^(?!.*tmp).*zz-probe-valid\.md$");
+        // The regression this replaces: the report used to be a side effect of COMPILING, so a clause that
+        // was already in the compile cache reported nothing. Typing one character back and again hits the
+        // cache, and the hint vanished exactly when the user was editing the typo.
+        Assert.IsFalse(RegexClauses.AllMatch([@"zz-probe-cached("], "zz-probe-cached(x"));
+        Assert.IsTrue(RegexClauses.IsUncompilable(@"zz-probe-cached("));
+        Assert.IsTrue(RegexClauses.IsUncompilable(@"zz-probe-cached("), "and asking twice is stable");
     }
 
-    // A half-typed pattern is compiled on every keystroke, so the same broken clause is seen repeatedly.
-    // It has to be named once, not once per attempt.
     [TestMethod]
-    public void InvalidPatterns_SameClauseSeenTwice_ReportedOnce()
+    public void UncompilableClauses_NamesTheBrokenOnesInQueryOrder()
     {
-        Assert.IsFalse(RegexClauses.AllMatch([@"zz-probe-dupe("], "zz-probe-dupe(x"));
-        Assert.IsFalse(RegexClauses.AllMatch([@"zz-probe-dupe("], "zz-probe-dupe(xy"));
+        // Each clause has to CLOSE with "/" or the parser leaves it as ordinary text (an unclosed clause
+        // must never swallow the rest of the query), and then nothing is compiled and nothing is broken.
+        var invalid = SearchContext.UncompilableClauses(@"report /zz-probe-mix(/ /\.md$/ /zz-probe-two(/");
 
-        Assert.AreEqual(1, RegexClauses.InvalidPatterns.Count(p => p == @"zz-probe-dupe("));
+        CollectionAssert.AreEqual(new[] { @"zz-probe-mix(", @"zz-probe-two(" }, invalid.ToList());
     }
 
-    // A pattern the NonBacktracking engine refuses but the timed fallback accepts is NOT a failure: the
-    // second attempt has to be the one that decides, or every lookaround would be reported as broken.
     [TestMethod]
-    public void InvalidPatterns_FallbackSupportedPattern_IsNotReported()
+    public void UncompilableClauses_AnswersAboutItsOwnQueryAlone()
     {
-        Assert.IsTrue(RegexClauses.AllMatch([@"^(zz-probe-br)\1$"], "zz-probe-brzz-probe-br"));
-
-        CollectionAssert.DoesNotContain(RegexClauses.InvalidPatterns.ToList(), @"^(zz-probe-br)\1$");
+        // Two queries the user typed in succession both have to answer for themselves: the old shared list
+        // let a superseded search still running contribute ITS clause, so the hint named text that was no
+        // longer in the box. There is no longer any shared state to cross.
+        Assert.HasCount(1, SearchContext.UncompilableClauses(@"report /zz-probe-a(/"));
+        Assert.IsEmpty(SearchContext.UncompilableClauses(@"report /zz-probe-b/"));
+        Assert.HasCount(1, SearchContext.UncompilableClauses(@"report /zz-probe-a(/"),
+            "and re-asking after an unrelated query gives the same answer");
     }
 
-    // The report is surfaced to the UI through SearchContext, which is the App-visible channel (RegexClauses
-    // is internal to Core). Same list, so the two cannot drift.
     [TestMethod]
-    public void SearchContext_ExposesAndClearsTheInvalidClauses()
+    public void UncompilableClauses_NothingToReport_ForQueriesWithoutClauses()
     {
-        Assert.IsFalse(RegexClauses.AllMatch([@"zz-probe-ctx("], "zz-probe-ctx(x"));
-
-        CollectionAssert.Contains(SearchContext.InvalidRegexes.ToList(), @"zz-probe-ctx(");
-
-        SearchContext.ClearInvalidRegexes();
-        Assert.IsEmpty(SearchContext.InvalidRegexes);
+        Assert.IsEmpty(SearchContext.UncompilableClauses(null));
+        Assert.IsEmpty(SearchContext.UncompilableClauses(string.Empty));
+        Assert.IsEmpty(SearchContext.UncompilableClauses("plain report"));
+        Assert.IsEmpty(SearchContext.UncompilableClauses(@"report /\.md$/"));
     }
 }

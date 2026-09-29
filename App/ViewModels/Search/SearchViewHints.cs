@@ -50,12 +50,20 @@ public sealed class SearchViewHints(SearchViewModel viewModel) : INotifyProperty
     {
         get
         {
-            if (!ShowNoResultsHint || SearchContext.InvalidRegexes.Count == 0)
+            if (!ShowNoResultsHint)
+                return null;
+
+            // Asked of the query being displayed rather than read out of shared state, so the answer cannot
+            // be stale (a search the user has already typed past), missing (a clause the compile cache
+            // answered without re-reporting), or empty for the common case (a clause compiled in the
+            // service process, whose report never came back).
+            var invalid = SearchContext.UncompilableClauses(viewModel.AdvancedQuery);
+            if (invalid.Count == 0)
                 return null;
 
             return string.Format(
                 TranslationManager.Instance["Search_InvalidRegex"],
-                string.Join(" ", SearchContext.InvalidRegexes.Select(p => $"/{p}/")));
+                string.Join(" ", invalid.Select(p => $"/{p}/")));
         }
     }
 

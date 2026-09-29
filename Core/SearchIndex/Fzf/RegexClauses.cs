@@ -73,9 +73,6 @@ internal static class RegexClauses
             if (Cache.Count >= MaxCacheEntries)
             {
                 Cache.Clear();
-                // The complaints go with it: they describe patterns the user has already moved past, and
-                // keeping them would let a finished-with typo resurface on a later query.
-                InvalidPatternsList.Clear();
             }
 
             var compiled = Compile(pattern);
@@ -99,51 +96,48 @@ internal static class RegexClauses
         }
         catch (ArgumentException)
         {
-            return Unmatchable(pattern);
+            return Unmatchable;
         }
     }
 
     // An invalid pattern still returns a regex that matches nothing -- one broken clause must not abandon
-    // the whole search -- but it is REMEMBERED, so the query can tell the user why it returned no results.
-    // The report is the point: compiling to "(?!)" silently is what made a single stray bracket look like
-    // "this search finds nothing" with nothing on screen to explain it.
+    // the whole search -- but the failure has to stay VISIBLE, because "matches nothing" is otherwise
+    // indistinguishable from a genuine miss and the user sees only "your search is too narrow".
     //
-    // ponytail: the report is a side effect of a compile rather than a second lookup table -- same tier as
-    // the compiled regexes it sits beside, so it needs no lifetime of its own.
-    private static Regex Unmatchable(string pattern)
+    // Reporting is deliberately NOT done here. It used to be a side effect of compiling, into a
+    // process-wide list, and that shape caused three separate problems at once: a cached clause never
+    // re-reported (so the hint vanished on the second keystroke that hit the cache), a superseded search
+    // still running could write its own stale clause into the shared list, and the list lived in the App
+    // process while the clauses for an indexed local drive are compiled in the service process -- so the
+    // common path reported nothing at all.
+    //
+    // Whether a pattern compiles is a pure function of its text, so a caller that has the query can simply
+    // ask (see IsUncompilable and SearchContext.UncompilableClauses) and no shared mutable state is needed.
+    // One shared instance marks those patterns, which is what makes the question answerable from the cache.
+    private static readonly Regex Unmatchable = new("(?!)", BaseOptions);
+
+    // True when this clause can never be compiled, so a caller holding a query can name the part of it that
+    // is broken. Reads the compile cache when the clause is already in it -- which is the normal case, since
+    // a query's clauses have been compiled by the time anyone wants to explain the empty result.
+    internal static bool IsUncompilable(string pattern)
     {
-        lock (InvalidPatternsList)
+        if (Cache.TryGetValue(pattern, out var cached))
+            return ReferenceEquals(cached, Unmatchable);
+
+        try
         {
-            if (!InvalidPatternsList.Contains(pattern, StringComparer.Ordinal))
-                InvalidPatternsList.Add(pattern);
+            // The same two attempts Compile makes, because a pattern NonBacktracking merely REFUSES is not
+            // a user error: lookaround and backreferences are legal and the timed engine accepts them.
+            _ = new Regex(pattern, BaseOptions | RegexOptions.NonBacktracking);
+            return false;
         }
-
-        return new Regex("(?!)", BaseOptions);
-    }
-
-    // Every distinct pattern this process failed to compile, in the order it was first seen. Guarded by its
-    // own lock rather than CacheGate: AllMatch calls GetOrCreate on the fast path without the cache lock,
-    // so a pattern can be compiled while another thread is reading this list.
-    private static readonly List<string> InvalidPatternsList = new();
-
-    /// <summary>
-    /// The distinct regex clauses the search failed to compile, so a caller can tell the user which part of
-    /// their query could never match anything. Snapshot on purpose: a bounded copy rather than the live list,
-    /// so a caller reading it while a concurrent search compiles another pattern sees a stable value.
-    /// </summary>
-    internal static IReadOnlyList<string> InvalidPatterns
-    {
-        get
+        catch (NotSupportedException)
         {
-            lock (InvalidPatternsList)
-                return InvalidPatternsList.ToArray();
+            return false;
         }
-    }
-
-    // Forgets the collected complaints -- see SearchContext.ClearInvalidRegexes, its public caller.
-    internal static void ClearInvalidPatterns()
-    {
-        lock (InvalidPatternsList)
-            InvalidPatternsList.Clear();
+        catch (ArgumentException)
+        {
+            return true;
+        }
     }
 }

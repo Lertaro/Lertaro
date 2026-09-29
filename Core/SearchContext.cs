@@ -1,5 +1,3 @@
-using Lertaro.Core.SearchIndex.Fzf;
-
 namespace Lertaro.Core;
 
 public static class SearchContext
@@ -57,22 +55,38 @@ public static class SearchContext
     }
 
     /// <summary>
-    /// The "/.../" clauses the most recent search could not compile, in the order they were first seen, so
-    /// a caller can tell the user which part of their query could never match anything. Empty when every
-    /// clause compiled.
+    /// The "/.../" clauses in <paramref name="query"/> that the regex engine cannot compile, in the order
+    /// they appear, so a caller can tell the user which part of their query could never match anything.
+    /// Empty when every clause compiles.
     /// </summary>
     /// <remarks>
-    /// Lives here rather than on the regex machinery because that is internal to Core while this report is
-    /// for the UI, and this is already the static channel the app reads process-wide search state from
-    /// (<see cref="DefaultFuzzyMatchEnabled"/>). An uncompilable clause is otherwise indistinguishable from
-    /// a genuine miss: it matches nothing, so a query mixing one with ordinary words returns no results
-    /// while the only explanation on screen says the search was too narrow.
+    /// A pure function of the query text, and that is the whole point. This used to be a process-wide list
+    /// that compiling wrote into as a side effect, which could not answer "what is wrong with THIS query":
+    /// a clause already in the compile cache reported nothing, so the hint disappeared the second time the
+    /// user typed it; a superseded search still running reported ITS clauses into the shared list; and the
+    /// clauses for an indexed local drive are compiled in the elevated service process, so the App's copy
+    /// stayed empty on the common path. Whether a pattern compiles depends only on its text, so asking is
+    /// cheaper than remembering, and works from either process.
     ///
-    /// Callers that DISPLAY this are expected to call <see cref="ClearInvalidRegexes"/> once they have,
-    /// so a clause the user has since fixed or deleted cannot be reported again on the next search.
+    /// Takes the query as typed. Regex clauses survive token lifting and the '*' bypass marker, so a clause
+    /// named here is one the search will also have seen.
     /// </remarks>
-    public static IReadOnlyList<string> InvalidRegexes => RegexClauses.InvalidPatterns;
+    public static IReadOnlyList<string> UncompilableClauses(string? query)
+    {
+        if (string.IsNullOrEmpty(query))
+            return Array.Empty<string>();
 
-    /// <summary>Forgets the collected invalid clauses -- see <see cref="InvalidRegexes"/>.</summary>
-    public static void ClearInvalidRegexes() => RegexClauses.ClearInvalidPatterns();
+        SearchIndex.Query.RegexQueryParser.Split(query, out var patterns);
+        if (patterns is not { Length: > 0 })
+            return Array.Empty<string>();
+
+        List<string>? invalid = null;
+        foreach (var pattern in patterns)
+        {
+            if (SearchIndex.Fzf.RegexClauses.IsUncompilable(pattern))
+                (invalid ??= []).Add(pattern);
+        }
+
+        return invalid ?? (IReadOnlyList<string>)Array.Empty<string>();
+    }
 }

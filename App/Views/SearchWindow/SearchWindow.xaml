@@ -199,7 +199,11 @@
                                    TextAlignment="Center"
                                    Foreground="{DynamicResource ErrorBrush}"
                                    Visibility="{Binding Hints.InvalidRegexHint, Converter={StaticResource NullToVis}}"/>
-                        <!-- No Results Hint -->
+                        <!-- No Results Hint. Suppressed while the specific hint above has something to say:
+                             the two are unprefixed children of the same single-cell Grid, both centered, and
+                             InvalidRegexHint is only ever non-null when ShowNoResultsHint is already true.
+                             Without this second condition they rendered on top of each other in exactly the
+                             situation the block above exists for. -->
                         <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_NoResult]}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
@@ -210,9 +214,13 @@
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Hints.ShowNoResultsHint}" Value="True">
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding Hints.ShowNoResultsHint}" Value="True"/>
+                                                <Condition Binding="{Binding Hints.InvalidRegexHint}" Value="{x:Null}"/>
+                                            </MultiDataTrigger.Conditions>
                                             <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
+                                        </MultiDataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </TextBlock.Style>
