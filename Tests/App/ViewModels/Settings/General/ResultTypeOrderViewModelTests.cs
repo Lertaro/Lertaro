@@ -88,3 +88,73 @@ public sealed class ResultTypeOrderViewModelTests
         Assert.IsNull(ResultTypeOrderViewModel.FindDuplicateTrigger(items, apps));
     }
 }
+
+// Pins what Save writes back. Items only carries the ENABLED providers, so the merge has to tell three
+// cases apart: a row the user can see (this dialog owns it, including clearing it), a type id that is still
+// loaded but has no row because its provider is switched off (keep it exactly as stored), and an id that is
+// neither (an uninstalled plugin's leftovers -- drop it, which is the one thing the old wholesale replace
+// got right).
+[TestClass]
+public sealed class ResultTypeOrderSaveMergeTests
+{
+    [TestMethod]
+    public void MergeTriggers_DisabledProvidersType_KeepsTheTriggerItConfigured()
+    {
+        // Regression: disabling a plugin's provider and then pressing Apply on ANY settings page used to
+        // delete that type's trigger character permanently.
+        var stored = new Dictionary<string, string> { ["files"] = "f", ["plugins"] = "p" };
+
+        var merged = ResultTypeOrderViewModel.MergeTriggers(
+            new[] { ("files", "f") }, stored, hidden: new[] { "plugins" });
+
+        Assert.AreEqual("p", merged["plugins"], "switched off is not the same as deleted");
+        Assert.AreEqual("f", merged["files"]);
+    }
+
+    [TestMethod]
+    public void MergeTriggers_RowTheUserCleared_IsRemovedRatherThanLeftAtItsStoredValue()
+    {
+        var stored = new Dictionary<string, string> { ["files"] = "f", ["plugins"] = "p" };
+
+        var merged = ResultTypeOrderViewModel.MergeTriggers(
+            new[] { ("files", string.Empty) }, stored, hidden: new[] { "plugins" });
+
+        Assert.IsFalse(merged.ContainsKey("files"), "an empty TriggerChar means the user took the trigger away");
+        Assert.AreEqual("p", merged["plugins"]);
+    }
+
+    [TestMethod]
+    public void MergeTriggers_UninstalledPluginLeftover_IsDropped()
+    {
+        var stored = new Dictionary<string, string> { ["files"] = "f", ["uninstalled-long-ago"] = "z" };
+
+        var merged = ResultTypeOrderViewModel.MergeTriggers(
+            new[] { ("files", "f") }, stored, hidden: Array.Empty<string>());
+
+        CollectionAssert.AreEqual(new[] { "files" }, merged.Keys);
+    }
+
+    [TestMethod]
+    public void MergeOrder_VisibleRowsComeFirst_AndHiddenOnesKeepTheirRelativeOrder()
+    {
+        var stored = new List<string> { "plugins", "files", "apps" };
+
+        var merged = ResultTypeOrderViewModel.MergeOrder(
+            new[] { "apps", "files" }, stored, hidden: new[] { "plugins" });
+
+        CollectionAssert.AreEqual(new[] { "apps", "files", "plugins" }, merged);
+    }
+
+    [TestMethod]
+    public void MergeOrder_DoesNotListAnIdTwice()
+    {
+        // "files" is visible AND present in the stored order; the hidden filter is what keeps the merge from
+        // appending a second copy behind the row that already carries it.
+        var stored = new List<string> { "files", "plugins" };
+
+        var merged = ResultTypeOrderViewModel.MergeOrder(new[] { "files" }, stored, hidden: new[] { "plugins" });
+
+        CollectionAssert.AreEqual(new[] { "files", "plugins" }, merged);
+        Assert.AreEqual(2, merged.Distinct().Count());
+    }
+}

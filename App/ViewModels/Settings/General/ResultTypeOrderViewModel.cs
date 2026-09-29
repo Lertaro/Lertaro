@@ -134,10 +134,54 @@ public class ResultTypeOrderViewModel : ViewModelBase
 
     public void Save()
     {
-        _userSettings.ResultTypeOrder = Items.Select(x => x.Id).ToList();
-        _userSettings.ResultTypeTriggers = Items
-            .Where(x => !string.IsNullOrEmpty(x.TriggerChar))
-            .ToDictionary(x => x.Id, x => x.TriggerChar);
+        var visible = Items.Select(x => x.Id).ToList();
+        // Items is seeded from the ENABLED SearchableItemProviders, so it is not the whole table: a provider
+        // the user merely switched off on the plugin page has its type id still live in the saved settings
+        // but no row here. Writing Items out wholesale therefore deleted that type's trigger character and
+        // its rank -- silently, permanently, and it returned as "no trigger configured" once the provider
+        // was re-enabled. An id that is neither visible nor loaded is an uninstalled plugin's leftover,
+        // which is exactly the garbage the wholesale replace usefully cleaned, so those stay dropped.
+        var hidden = PluginManager.Instance.AllSearchableItemProviders
+            .Select(SearchResultTypePriority.GetProviderTypeId)
+            .ToHashSet();
+        hidden.ExceptWith(visible);
+
+        _userSettings.ResultTypeOrder = MergeOrder(visible, _userSettings.ResultTypeOrder, hidden);
+        _userSettings.ResultTypeTriggers = MergeTriggers(
+            Items.Select(x => (x.Id, x.TriggerChar)).ToList(), _userSettings.ResultTypeTriggers, hidden);
+    }
+
+    // The two merge rules, pure and static for the same reason FindDuplicateTrigger is: the settings graph
+    // and the plugin registry are both process-wide singletons, and this is the part worth pinning down.
+
+    // Visible types in the order the dialog now shows them, then the loaded-but-disabled ones in whatever
+    // relative order they had. An unlisted id already sorts to the end (see SearchResultTypePriority.Rank),
+    // so trailing them costs nothing a query-time sort would not have done anyway.
+    internal static List<string> MergeOrder(IReadOnlyList<string> visible, IReadOnlyList<string> stored, IReadOnlyCollection<string> hidden)
+    {
+        var merged = new List<string>(visible.Count + hidden.Count);
+        merged.AddRange(visible);
+        merged.AddRange(stored.Where(hidden.Contains));
+        return merged;
+    }
+
+    // A row this dialog shows owns its trigger outright: clearing it must really remove the entry, which is
+    // why the visible ids are rewritten rather than merged over. Only a hidden id's stored value survives
+    // untouched.
+    internal static Dictionary<string, string> MergeTriggers(
+        IReadOnlyList<(string Id, string TriggerChar)> visible,
+        IReadOnlyDictionary<string, string> stored,
+        IReadOnlyCollection<string> hidden)
+    {
+        var merged = stored.Where(entry => hidden.Contains(entry.Key))
+            .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
+        foreach (var (id, triggerChar) in visible)
+        {
+            if (triggerChar.Length > 0)
+                merged[id] = triggerChar;
+        }
+
+        return merged;
     }
 
     public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
