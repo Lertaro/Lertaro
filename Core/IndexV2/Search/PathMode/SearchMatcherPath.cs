@@ -14,7 +14,11 @@ internal readonly record struct PathUniqueMatch(int Uid, FzfPatternResult Match,
 // old filePattern == null branch.
 internal static class SearchMatcherPath
 {
-    internal static List<PathUniqueMatch> MatchUniquesForPath(Snapshot snapshot, FzfPattern? pattern)
+    // token has to reach ParallelOptions (and the dir-only loop below) for the same reason it does in
+    // SearchMatcher.MatchUniques: a path-mode scan of a whole drive can touch most of the unique table, and
+    // without it a scan the next keystroke already superseded still runs to completion -- several abandoned
+    // scans at once, each pinning every core. See the comment on that method.
+    internal static List<PathUniqueMatch> MatchUniquesForPath(Snapshot snapshot, FzfPattern? pattern, CancellationToken token = default)
     {
         var merged = new List<PathUniqueMatch>();
         if (pattern == null)
@@ -22,6 +26,10 @@ internal static class SearchMatcherPath
             var worker = SearchMatcher.RentWorker();
             for (var uid = 0; uid < snapshot.UniqueCount; uid++)
             {
+                // The dir-only query takes the serial branch, so it needs the check itself rather than
+                // getting it from ParallelOptions. Cheap on an already-cancelled token, and this loop is
+                // over every unique name on the drive.
+                token.ThrowIfCancellationRequested();
                 var utf8 = snapshot.UniqueNameUtf8(uid);
                 if (utf8.Length == 0)
                     continue;
@@ -38,6 +46,7 @@ internal static class SearchMatcherPath
         Parallel.For(
             0,
             Math.Max(chunkCount, 1),
+            new ParallelOptions { CancellationToken = token },
             SearchMatcher.RentWorker,
             (chunk, _, worker) =>
             {

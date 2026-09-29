@@ -124,7 +124,7 @@ internal static class PathSearchFuzzy
         FzfTopN topN, int keep, CancellationToken token, NameSearch.DirectoryContext directoryContext)
     {
         var gate = new PathGate(snapshot, delta, dirQuery);
-        var matches = SearchMatcherPath.MatchUniquesForPath(snapshot, filePattern);
+        var matches = SearchMatcherPath.MatchUniquesForPath(snapshot, filePattern, token);
 
         // Bounded per-worker top-N sets keep the parallel fanout's memory flat even when a broad
         // dir-only query admits most of the drive; a caller asking for an enormous keep (no real UI
@@ -246,7 +246,10 @@ internal static class PathSearchFuzzy
         var membership = directoryContext.FilterLower != null ? new Dictionary<int, bool>() : null;
 
         var hits = SearchMatcher.RentHitList();
-        SearchMatcher.MatchUniques(snapshot, pattern, hits);
+        // The token reaches the scan, not just the emission loop below: without it a filename-only
+        // path-mode query runs a full-index MatchUniques to the end even once a newer keystroke has
+        // superseded it -- which is precisely what NameSearch's identical call already avoids.
+        SearchMatcher.MatchUniques(snapshot, pattern, hits, token);
         foreach (var m in hits)
         {
             token.ThrowIfCancellationRequested();

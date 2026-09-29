@@ -1,4 +1,5 @@
 using Lertaro.Core.IndexV2.Search.PathMode;
+using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.Tests.IndexV2.Search.PathMode;
 
@@ -24,6 +25,52 @@ public sealed class PathSearchFuzzyTests
             // AggregateException, which is a different type the assertion below would reject.
             Assert.ThrowsExactly<OperationCanceledException>(() =>
                 PathSearchFuzzy.SearchStreaming(snapshot, delta, @"z\report", 10, _ => { }, cancelled.Token, null));
+            return null;
+        });
+    }
+
+    [TestMethod]
+    public void ACancelledPhaseAScan_DoesNotWalkTheWholeUniqueTable()
+    {
+        // Phase A used to take no token at all, so a broad path-mode query superseded by the next keystroke
+        // still scanned every unique name on the drive -- several abandoned scans at once, each pinning
+        // every core, which is the exact problem SearchMatcher.MatchUniques' own token exists to prevent.
+        using var fixture = BuildFixture();
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+
+        fixture.Index.Read<object?>((snapshot, delta) =>
+        {
+            Assert.ThrowsExactly<OperationCanceledException>(() =>
+                SearchMatcherPath.MatchUniquesForPath(snapshot, FzfPattern.Parse("report"), cancelled.Token));
+            return null;
+        });
+    }
+
+    [TestMethod]
+    public void ACancelledDirOnlyScan_AbortsTheSerialBranchToo()
+    {
+        // A dir-only query ("src\") passes a null pattern and takes the serial branch rather than the
+        // Parallel.For, so it never sees ParallelOptions' cancellation and needs the check in the loop.
+        using var fixture = BuildFixture();
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+
+        fixture.Index.Read<object?>((snapshot, delta) =>
+        {
+            Assert.ThrowsExactly<OperationCanceledException>(() =>
+                SearchMatcherPath.MatchUniquesForPath(snapshot, null, cancelled.Token));
+            return null;
+        });
+    }
+
+    [TestMethod]
+    public void AnUncancelledPhaseA_StillReturnsEveryMatchingUnique()
+    {
+        using var fixture = BuildFixture();
+        fixture.Index.Read<object?>((snapshot, delta) =>
+        {
+            Assert.HasCount(UniqueNames, SearchMatcherPath.MatchUniquesForPath(snapshot, FzfPattern.Parse("report")));
             return null;
         });
     }
