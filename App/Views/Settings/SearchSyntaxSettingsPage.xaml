@@ -48,6 +48,13 @@
                             Tag="Basic" Click="ChapterTab_Click">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <!-- TabHeaderButtonStyle sets Focusable=False for the big section tabs, which
+                             are labels rather than controls. These five are real navigation: they are the
+                             only way to reach four of this page's five chapters, and with the style's value
+                             inherited they sat outside the tab order entirely, leaving a keyboard user on
+                             Basics. Focusable again means Tab reaches them and Space activates Click, which
+                             is what the handler already listens for. -->
+                                <Setter Property="Focusable" Value="True"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Basic">
                                         <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
@@ -74,6 +81,13 @@
                             Tag="Regex" Click="ChapterTab_Click">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <!-- TabHeaderButtonStyle sets Focusable=False for the big section tabs, which
+                             are labels rather than controls. These five are real navigation: they are the
+                             only way to reach four of this page's five chapters, and with the style's value
+                             inherited they sat outside the tab order entirely, leaving a keyboard user on
+                             Basics. Focusable again means Tab reaches them and Space activates Click, which
+                             is what the handler already listens for. -->
+                                <Setter Property="Focusable" Value="True"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Regex">
                                         <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
@@ -100,6 +114,13 @@
                             Tag="SortFilter" Click="ChapterTab_Click">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <!-- TabHeaderButtonStyle sets Focusable=False for the big section tabs, which
+                             are labels rather than controls. These five are real navigation: they are the
+                             only way to reach four of this page's five chapters, and with the style's value
+                             inherited they sat outside the tab order entirely, leaving a keyboard user on
+                             Basics. Focusable again means Tab reaches them and Space activates Click, which
+                             is what the handler already listens for. -->
+                                <Setter Property="Focusable" Value="True"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="SortFilter">
                                         <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
@@ -126,6 +147,13 @@
                             Tag="Tokens" Click="ChapterTab_Click">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <!-- TabHeaderButtonStyle sets Focusable=False for the big section tabs, which
+                             are labels rather than controls. These five are real navigation: they are the
+                             only way to reach four of this page's five chapters, and with the style's value
+                             inherited they sat outside the tab order entirely, leaving a keyboard user on
+                             Basics. Focusable again means Tab reaches them and Space activates Click, which
+                             is what the handler already listens for. -->
+                                <Setter Property="Focusable" Value="True"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Tokens">
                                         <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
@@ -152,6 +180,13 @@
                             Tag="PathJump" Click="ChapterTab_Click">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <!-- TabHeaderButtonStyle sets Focusable=False for the big section tabs, which
+                             are labels rather than controls. These five are real navigation: they are the
+                             only way to reach four of this page's five chapters, and with the style's value
+                             inherited they sat outside the tab order entirely, leaving a keyboard user on
+                             Basics. Focusable again means Tab reaches them and Space activates Click, which
+                             is what the handler already listens for. -->
+                                <Setter Property="Focusable" Value="True"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding SelectedChapter, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="PathJump">
                                         <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
