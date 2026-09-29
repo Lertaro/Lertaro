@@ -29,6 +29,8 @@ public sealed class SortFilterQueryTokenProviderTests
     [DataRow(">f")]
     [DataRow("<s>20m")]
     [DataRow("<c>2008.8.3")]
+    [DataRow("<s>")] // dangling threshold: sorts, does not filter -- see ApplyAsync_DanglingThresholdTrigger
+    [DataRow(">c<")]
     public void CanHandle_SortTokens_ReturnsTrue(string token) => Assert.IsTrue(Provider.CanHandle(token));
 
     [TestMethod]
@@ -36,8 +38,25 @@ public sealed class SortFilterQueryTokenProviderTests
     [DataRow(":s")]
     [DataRow("<")]
     [DataRow("<x")]
-    [DataRow("<s>")]
     public void CanHandle_NoLongerClaimedTokens_ReturnsFalse(string token) => Assert.IsFalse(Provider.CanHandle(token));
+
+    [TestMethod]
+    public async Task ApplyAsync_DanglingThresholdTrigger_OrdersWithoutFiltering()
+    {
+        // Refusing "<s>" did not hand the text back to the search: the scanner had already lifted the word
+        // out, and an unclaimed token empties the file results. Accepting it loses nothing instead, because
+        // a trigger with nothing after it simply carries no threshold.
+        var results = new ISearchResult[]
+        {
+            new FakeResult { Name = "big", Metadata = new FileMetadata(300, default, default, default) },
+            new FakeResult { Name = "small", Metadata = new FileMetadata(100, default, default, default) },
+            new FakeResult { Name = "middle", Metadata = new FileMetadata(200, default, default, default) },
+        };
+
+        var sorted = await Provider.ApplyAsync("<s>", results);
+
+        CollectionAssert.AreEqual(new[] { "small", "middle", "big" }, sorted.Select(r => r.Name).ToArray());
+    }
 
     [TestMethod]
     public async Task ApplyAsync_AscendingSort_OrdersSmallestFirst()

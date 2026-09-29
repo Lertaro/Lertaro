@@ -42,8 +42,12 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
     // A token is "<" or ">" followed by a key letter, and optionally a second "<"/">" plus a threshold
     // ("<s>20m", ">c>2008.8.3").
     //
-    // The second trigger must be present only as part of a threshold: a lone "<s>" is not a sort token,
-    // it is an unparseable query, and claiming it would swallow the user's text and return nothing.
+    // A dangling second trigger ("<s>") is accepted and simply sorts. It used to be refused, on the
+    // reasoning that claiming it would swallow the user's text and return nothing -- but that is backwards:
+    // QueryTokenScanner lifts ANY word opening with '<' or '>' out of the search text before any provider is
+    // asked, so refusing this one did not give the text back. It handed the scanner a token no provider
+    // claims, which is what empties the result set (see QueryTokenDispatcher.ApplyAsync). Claiming it is the
+    // option that loses nothing: with no threshold to read, ApplyAsync just reorders.
     public bool CanHandle(string token)
     {
         if (token.Length < 2 || !IsTrigger(token[0]))
@@ -52,9 +56,9 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
         if (!KeysByLetter.ContainsKey(token[1].ToString()))
             return false;
 
-        // A bare "<s" (no threshold) is complete. Anything longer must be a well-formed threshold, i.e.
-        // a trigger followed by something -- "<s>" has a dangling trigger and is rejected.
-        return token.Length == 2 || (IsTrigger(token[2]) && token.Length > 3);
+        // A bare "<s" is a complete token. Anything longer opens its threshold with a trigger; the threshold
+        // itself may be empty ("<s>"), which ApplyAsync reads as "sort, do not filter".
+        return token.Length == 2 || (IsTrigger(token[2]) && token.Length >= 3);
     }
 
     private static bool IsTrigger(char c) => c == AscendingTrigger || c == DescendingTrigger;
