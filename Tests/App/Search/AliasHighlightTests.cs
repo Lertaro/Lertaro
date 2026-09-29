@@ -222,6 +222,26 @@ public sealed class AliasHighlightTests
         Assert.IsEmpty(Lit("甲乙丙丁", "'" + MixedShapeQuery));
     }
 
+    // The mixed-alphabet tier answers a BARE single fuzzy term and nothing else -- TrySegmentPattern refuses
+    // a term with an OR partner or an AND neighbour, because no rule exists for how a mixed sub-match
+    // combines with the rest of a query. Every match site reads that one answer; the mask re-derived it per
+    // term instead, so the same word could light characters in the highlight that the engine had already
+    // refused to match on -- and ComputeRank then took a leftmost position and a coverage weight from them.
+    private const string MixedAlphabetTerm = "甲tq";
+
+    [TestMethod]
+    public void AMixedTermInABiggerQuery_LightsNothingTheMatcherRefused()
+    {
+        SearchContext.DefaultFuzzyMatchEnabled = true;
+
+        Assert.IsTrue(FuzzyMatcher.IsMatch(MixedAlphabetTerm, "甲乙丙丁"), "alone, this term does reach the mixed tier");
+        Assert.IsNotEmpty(Lit("甲乙丙丁", MixedAlphabetTerm), "and reaches it in the highlight too");
+
+        var refused = $"{MixedAlphabetTerm} | zzz";
+        Assert.IsFalse(FuzzyMatcher.IsMatch(refused, "甲乙丙丁"), "'zzz' matches nothing either, so the set is a no-match");
+        Assert.IsEmpty(Lit("甲乙丙丁", refused), "the mask must not paint a match the engine never admitted");
+    }
+
     // Turning a provider off has to reach the highlight too, and the way it reaches it differs by
     // process. The UI filters the provider list against the user's settings; the service cannot -- it
     // runs under an account whose LocalApplicationData is not the user's, so it reads an empty settings

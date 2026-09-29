@@ -151,16 +151,14 @@ internal static class AliasHighlightMarker
 
     // Mixed-alphabet fallback (a query mixing a native-script character with alias-initial letters,
     // matched against a candidate starting with that same character): only reached once both the
-    // plain-alias tier above and the term's own literal/direct-fuzzy tiers have failed. Segments the term
-    // by an active provider's own InputRanges/OutputRanges and, on a genuine mix, paints via
-    // MixedQueryMatcher -- see its header comment for the run-by-run algorithm.
-    public static void MarkViaMixedQuery(string text, string term, bool caseSensitive, Span<bool> highlights)
+    // plain-alias tier above and the term's own literal/direct-fuzzy tiers have failed. Takes the
+    // already-segmented term rather than segmenting it here, because the gate on WHICH term may use this
+    // tier belongs to the pattern, not to the word -- see MixedQueryMatcher.TrySegmentPattern and its note
+    // that a term inside a richer query is deliberately ineligible. Paints via MixedQueryMatcher; see its
+    // header comment for the run-by-run algorithm.
+    public static void MarkViaMixedQuery(string text, MixedTerm mixedTerm, Span<bool> highlights)
     {
-        if (caseSensitive)
-            return;
-
-        var mixedTerm = MixedQueryMatcher.TrySegment(term);
-        if (mixedTerm == null || !mixedTerm.Provider.CanHandle(text))
+        if (!mixedTerm.Provider.CanHandle(text))
             return;
 
         foreach (var aliasGroup in mixedTerm.Provider.GetAliases(text))
