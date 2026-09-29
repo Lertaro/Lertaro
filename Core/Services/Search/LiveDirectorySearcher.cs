@@ -67,8 +67,6 @@ public static class LiveDirectorySearcher
                 FileAttributes attrs;
                 try { attrs = entry.Attributes; } catch { continue; }
                 processedCount++;
-                if (processedCount >= maxProcessed)
-                    break;
 
                 var isDir = attrs.HasFlag(FileAttributes.Directory);
                 var result = new SearchResult
@@ -88,6 +86,13 @@ public static class LiveDirectorySearcher
 
                 if (onLiveMatch != null && TryMatchEntry(result, livePattern, liveSlab, onlyDirectChildren, normalizedParent))
                     onLiveMatch(result);
+
+                // Checked after the result is delivered, not before it is built: `maxProcessed` is a cap on
+                // what the caller gets, so stopping here yields exactly that many rows. Stopping at the top
+                // of the body returned one fewer, and the truncated list is what SearchService's
+                // _sessionDirectoryCache then handed to every later keystroke on that directory.
+                if (processedCount >= maxProcessed)
+                    break;
             }
         }
         Logger.Log($"[LiveDirectorySearcher] ScanDirectory finished for '{directory}'. Found: {results.Count}", LogLevel.Debug);

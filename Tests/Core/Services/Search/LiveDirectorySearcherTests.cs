@@ -70,15 +70,37 @@ public sealed class LiveDirectorySearcherTests
     }
 
     [TestMethod]
-    public void ScanDirectory_MaxProcessedLimitsResultCount()
+    public void ScanDirectory_MaxProcessedIsAnExactCeiling_NotOneLess()
     {
+        // The cap used to be checked at the top of the loop body, before the row was built, so
+        // maxProcessed=N returned N-1 -- and this method's own caller caches that truncated list and hands
+        // the same missing row to every later keystroke on the directory. The old assertion here was
+        // IsLessThanOrEqualTo(3, ...), which the off-by-one satisfied.
         using var dir = new TempDirectory();
         for (var i = 0; i < 10; i++)
             File.WriteAllText(Path.Combine(dir.Path, $"file{i}.txt"), "x");
 
         var results = LiveDirectorySearcher.ScanDirectory(dir.Path, 3, CancellationToken.None);
 
-        Assert.IsLessThanOrEqualTo(3, results.Count);
+        Assert.HasCount(3, results);
+    }
+
+    [TestMethod]
+    public void ScanDirectory_MaxProcessedAlsoCapsTheLiveStream()
+    {
+        // The capped row must still reach onLiveMatch: delivery used to sit behind the same early break.
+        using var dir = new TempDirectory();
+        for (var i = 0; i < 10; i++)
+            File.WriteAllText(Path.Combine(dir.Path, $"file{i}.txt"), "x");
+        var streamed = new List<SearchResult>();
+
+        var results = LiveDirectorySearcher.ScanDirectory(dir.Path, 3, CancellationToken.None,
+            liveQuery: "", onLiveMatch: streamed.Add);
+
+        Assert.HasCount(3, results);
+        Assert.HasCount(3, streamed);
+        Assert.IsTrue(streamed.Select(r => r.Path).SequenceEqual(results.Select(r => r.Path)),
+            "the live stream must carry exactly the rows the list carries");
     }
 
     [TestMethod]
