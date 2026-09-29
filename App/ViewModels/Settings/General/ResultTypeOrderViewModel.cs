@@ -88,7 +88,6 @@ public class ResultTypeOrderViewModel : ViewModelBase
 
     public void Save()
     {
-<<<<<<< HEAD
         var visible = Items.Select(x => x.Id).ToList();
         // Items is seeded from the ENABLED SearchableItemProviders, so it is not the whole table: a provider
         // the user merely switched off on the plugin page has its type id still live in the saved settings
@@ -147,7 +146,6 @@ public class ResultTypeOrderViewModel : ViewModelBase
         }
 
         return merged;
-    }
     }
 
     // Reports, per row, whether its trigger character can actually work:
