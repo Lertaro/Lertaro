@@ -115,10 +115,14 @@ Los plugins que necesiten añadir filas de archivos o carpetas reales a la venta
 public interface IFullSearchFileResultProvider : IPluginComponent
 {
     IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit);
+
+    // Opcional. El cuerpo por defecto recorre GetFileResults, así que un proveedor escrito antes de que
+    // existiera este miembro sigue funcionando sin cambios.
+    IEnumerable<InstantResultItem> GetFileResultsStreamed(string query, int limit);
 }
 ```
 
-El anfitrión llama a `GetFileResults` únicamente durante el renderizado final de la ventana de búsqueda completa. Devuelve una lista vacía cuando el plugin no gestiona la consulta. Cada `InstantResultItem` devuelto debe representar un archivo o carpeta existente para que las columnas de ruta, tamaño y tipo sigan siendo útiles. Este componente usa el mismo interruptor de activación y desactivación que el proveedor de resultados instantáneos del plugin.
+El anfitrión llama al proveedor en un hilo de fondo mientras la búsqueda de archivos de la propia ventana completa aún está llegando en streaming, y pinta sus filas en cuanto aparecen en lugar de esperar a que la búsqueda termine. Devuelve una lista vacía cuando el plugin no gestiona la consulta. Cada `InstantResultItem` devuelto debe representar un archivo o carpeta existente para que las columnas de ruta, tamaño y tipo sigan siendo útiles. Un proveedor cuya respuesta tarde segundos —un recorrido del índice de texto completo, por ejemplo— puede anular `GetFileResultsStreamed` para entregar coincidencias según las encuentra, lo que muestra las primeras filas mientras aún se buscan las demás; anularlo es opcional porque el cuerpo por defecto de la interfaz recorre `GetFileResults`. Este componente usa el mismo interruptor de activación y desactivación que el proveedor de resultados instantáneos del plugin.
 
 ## 6. Resolución de rutas configuradas por el usuario `UserPathResolver`
 

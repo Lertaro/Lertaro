@@ -115,10 +115,14 @@ Plugins that need to contribute real file or folder rows to the full search wind
 public interface IFullSearchFileResultProvider : IPluginComponent
 {
     IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit);
+
+    // Optional. The default body walks GetFileResults, so a provider written before this member
+    // existed keeps working unchanged.
+    IEnumerable<InstantResultItem> GetFileResultsStreamed(string query, int limit);
 }
 ```
 
-The host calls `GetFileResults` only during the full search window's final render. Return an empty list when the provider does not handle the query. Every returned `InstantResultItem` must represent an existing file or folder so the full window's path, size, and type columns remain meaningful. The component is managed by the same enable/disable switch as the plugin's instant-result provider.
+The host calls the provider on a background thread while the full search window's own file search is still streaming, and paints its rows as soon as they arrive rather than once the search has settled. Return an empty list when the provider does not handle the query. Every returned `InstantResultItem` must represent an existing file or folder so the full window's path, size, and type columns remain meaningful. A provider whose answer takes seconds -- a full-text index walk, for instance -- can override `GetFileResultsStreamed` to hand out hits as it finds them, which puts the first rows on screen while the rest are still being looked up; overriding it is optional because the interface's default body walks `GetFileResults`. The component is managed by the same enable/disable switch as the plugin's instant-result provider.
 
 ## 6. User-configured path resolution `UserPathResolver`
 

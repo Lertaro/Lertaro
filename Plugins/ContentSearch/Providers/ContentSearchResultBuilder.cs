@@ -14,19 +14,26 @@ public static class ContentSearchResultBuilder
     public static IEnumerable<InstantResultItem> BuildResultItems(IReadOnlyList<SearchHitItem> hits)
     {
         foreach (var hit in hits)
-        {
-            var desc = string.IsNullOrWhiteSpace(hit.DirectoryPath)
-                ? hit.Snippet
-                : $"{hit.Snippet}  ·  {hit.DirectoryPath}";
+            yield return CreateResultItem(hit);
+    }
 
-            yield return new InstantResultItem
-            {
-                Title = hit.FileName,
-                Description = desc,
-                ActionType = "Execute",
-                ActionArgument = hit.FilePath
-            };
-        }
+    /// <summary>
+    /// One hit, one row. Split out of <see cref="BuildResultItems"/> so a caller that receives hits as the
+    /// index finds them can map each one without collecting the walk first.
+    /// </summary>
+    public static InstantResultItem CreateResultItem(SearchHitItem hit)
+    {
+        var desc = string.IsNullOrWhiteSpace(hit.DirectoryPath)
+            ? hit.Snippet
+            : $"{hit.Snippet}  ·  {hit.DirectoryPath}";
+
+        return new InstantResultItem
+        {
+            Title = hit.FileName,
+            Description = desc,
+            ActionType = "Execute",
+            ActionArgument = hit.FilePath
+        };
     }
 
     public static InstantResultItem CreatePlaceholderItem(int totalFiles, bool isIndexing, int pendingCount = 0)

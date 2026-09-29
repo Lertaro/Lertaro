@@ -115,10 +115,13 @@ new PluginConfigField
 public interface IFullSearchFileResultProvider : IPluginComponent
 {
     IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit);
+
+    // 선택 사항입니다. 기본 구현은 GetFileResults를 순회하므로 이 멤버가 생기기 전에 작성된 제공자는 그대로 동작합니다.
+    IEnumerable<InstantResultItem> GetFileResultsStreamed(string query, int limit);
 }
 ```
 
-호스트는 전체 검색 창의 최종 렌더링 단계에서만 `GetFileResults`를 호출합니다. 현재 쿼리를 처리하지 않을 때는 빈 목록을 반환하세요. 반환하는 각 `InstantResultItem`은 실제로 존재하는 파일 또는 폴더를 나타내야 전체 검색 창의 경로, 크기, 유형 열을 의미 있게 표시할 수 있습니다. 이 구성 요소는 플러그인의 즉시 결과 제공자와 동일한 활성화/비활성화 스위치로 관리됩니다.
+호스트는 전체 검색 창 자신의 파일 검색이 아직 스트리밍되는 동안 백그라운드 스레드에서 제공자를 호출하고, 검색이 확정되기를 기다리지 않고 결과가 도착하는 순서대로 렌더링합니다. 현재 쿼리를 처리하지 않을 때는 빈 목록을 반환하세요. 반환하는 각 `InstantResultItem`은 실제로 존재하는 파일 또는 폴더를 나타내야 전체 검색 창의 경로, 크기, 유형 열을 의미 있게 표시할 수 있습니다. 응답에 수 초가 걸리는 제공자(예: 전문 인덱스 순회)는 `GetFileResultsStreamed`를 재정의해 찾히는 대로 항목을 넘길 수 있으며, 그러면 검색은 계속되는 동안 첫 몇 줄이 먼저 화면에 나타납니다. 기본 구현은 `GetFileResults`를 순회할 뿐이므로 재정의는 선택 사항입니다. 이 구성 요소는 플러그인의 즉시 결과 제공자와 동일한 활성화/비활성화 스위치로 관리됩니다.
 
 ## 6. 사용자 설정 경로 확인 `UserPathResolver`
 

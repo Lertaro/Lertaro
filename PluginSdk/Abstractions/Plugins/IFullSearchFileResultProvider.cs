@@ -14,9 +14,25 @@ public interface IFullSearchFileResultProvider : IPluginComponent
     /// </summary>
     /// <remarks>
     /// Called from a background thread while the full search window's own file search is still streaming,
-    /// and the answer is painted once that search has settled. It must not touch UI state, and it is given
-    /// the time a whole-index scan needs: a provider that answers in seconds delays its own rows, not the
-    /// window.
+    /// and its rows are painted as soon as it answers -- not once the search has settled. It must not touch
+    /// UI state. A provider that answers in seconds delays its own rows, not the window.
     /// </remarks>
     IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit);
+
+    /// <summary>
+    /// The same results, handed out one at a time as they are found.
+    /// </summary>
+    /// <remarks>
+    /// Exists because a provider that walks a large index knows the first hit long before it knows the
+    /// last, and the window can paint what it has. <see cref="GetFileResults"/> is the whole answer at
+    /// once, so a provider that only implements that keeps working: this member's default body simply
+    /// walks it, and the caller cannot tell the difference. Override it only if the provider can really
+    /// produce hits incrementally -- and keep it side-effect free, on a background thread, like the member
+    /// above.
+    /// </remarks>
+    IEnumerable<InstantResultItem> GetFileResultsStreamed(string query, int limit)
+    {
+        foreach (var item in GetFileResults(query, limit))
+            yield return item;
+    }
 }

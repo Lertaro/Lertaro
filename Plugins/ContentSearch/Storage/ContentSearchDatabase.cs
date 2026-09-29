@@ -194,32 +194,78 @@ public sealed class ContentSearchDatabase : IDisposable
         return DatabaseMetadataReader.GetAllIndexedPaths(conn);
     }
 
-    public IReadOnlyList<SearchHitItem> SearchFts(string rawQuery, int limit = 30)
+    public IReadOnlyList<SearchHitItem> SearchFts(string rawQuery, int limit = 30) => SearchFtsStreamed(rawQuery, limit).ToList();
+
+    /// <summary>
+    /// The same walk, handed out one hit at a time as the index reaches it.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="DatabaseSearchHelper.Search"/> has always been an iterator, and its own comment says why:
+    /// on a real corpus the short-token scan takes seconds, and the first hit leaves the engine in under a
+    /// millisecond. Collecting it here turned that into "nothing at all, then everything" -- so a caller
+    /// that can paint incrementally gets the walk incrementally instead.
+    ///
+    /// The connection lives as long as the enumeration does, and closes when it ends: early, when the
+    /// caller abandons the stream because the user typed again, or normally at the last hit. Enumerating
+    /// off-thread is fine (that is what it is for); the walk stays side-effect free and touches no UI.
+    ///
+    /// A failure partway is logged and ends the enumeration rather than throwing at the caller, exactly as
+    /// <see cref="SearchFts"/> collected the partial answer: hits already yielded are real matches and stay
+    /// with whoever took them.
+    /// </summary>
+    public IEnumerable<SearchHitItem> SearchFtsStreamed(string rawQuery, int limit)
     {
         if (string.IsNullOrWhiteSpace(rawQuery) || limit <= 0 || !File.Exists(_dbPath))
-            return Array.Empty<SearchHitItem>();
+            yield break;
 
         Initialize();
 
-        using var conn = OpenConnection();
-        var ftsQuery = DatabaseFtsQueryHelper.BuildFtsQuery(rawQuery);
-
-        // Collected behind a catch rather than letting a failure reach the caller: the walk yields hits as
-        // it finds them, and a query that dies halfway through still has real matches in hand. Showing the
-        // part that answered beats showing nothing, which is what a thrown exception would cost -- the
-        // caller's own catch drops the provider's rows entirely.
-        var hits = new List<SearchHitItem>();
+        var conn = OpenConnection();
+        var yielded = 0;
+        IEnumerable<SearchHitItem> walk;
         try
         {
-            foreach (var hit in DatabaseSearchHelper.Search(conn, rawQuery, ftsQuery, limit))
-                hits.Add(hit);
+            walk = DatabaseSearchHelper.Search(conn, rawQuery, DatabaseFtsQueryHelper.BuildFtsQuery(rawQuery), limit);
         }
         catch (Exception ex)
         {
-            PluginSdk.Logger.Log($"[ContentSearch] '{rawQuery}' stopped after {hits.Count} hit(s): {ex.Message}", PluginSdk.LogLevel.Warn);
+            conn.Dispose();
+            PluginSdk.Logger.Log($"[ContentSearch] '{rawQuery}' failed before it answered: {ex.Message}", PluginSdk.LogLevel.Warn);
+            yield break;
         }
 
-        return hits;
+        // The walk is driven through an enumerator rather than a foreach so the yield sits outside the
+        // try-with-catch: C# will not let an iterator yield from inside a try that has a catch, and the
+        // catch is what keeps a failure halfway through a partial answer instead of losing it. The outer
+        // finally is what closes the connection when a caller abandons the stream early -- which is the
+        // normal outcome when the user types again mid-walk.
+        try
+        {
+            using var hits = walk.GetEnumerator();
+            while (true)
+            {
+                bool hasHit;
+                try
+                {
+                    hasHit = hits.MoveNext();
+                }
+                catch (Exception ex)
+                {
+                    PluginSdk.Logger.Log($"[ContentSearch] '{rawQuery}' stopped after {yielded} hit(s): {ex.Message}", PluginSdk.LogLevel.Warn);
+                    break;
+                }
+
+                if (!hasHit)
+                    break;
+
+                yielded++;
+                yield return hits.Current;
+            }
+        }
+        finally
+        {
+            conn.Dispose();
+        }
     }
 
     public (int TotalFiles, int TotalChunks) GetStats()

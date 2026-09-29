@@ -115,10 +115,13 @@ new PluginConfigField
 public interface IFullSearchFileResultProvider : IPluginComponent
 {
     IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit);
+
+    // 選填。預設實作會走訪 GetFileResults，所以在這個成員出現之前寫的提供者無需改動。
+    IEnumerable<InstantResultItem> GetFileResultsStreamed(string query, int limit);
 }
 ```
 
-主機只會在完整搜尋視窗的最終繪製階段呼叫 `GetFileResults`。外掛模組不處理目前查詢時應傳回空清單。傳回的每個 `InstantResultItem` 都必須對應一個實際存在的檔案或資料夾，這樣完整視窗的路徑、大小和類型欄位才有意義。此元件與外掛模組的即時結果提供者共用同一個啟用/停用開關。
+主機在完整搜尋視窗自身的檔案搜尋仍在串流返回時，於背景執行緒呼叫提供者，並在結果一到就繪製，而不是等到搜尋結束。外掛模組不處理目前查詢時應傳回空清單。傳回的每個 `InstantResultItem` 都必須對應一個實際存在的檔案或資料夾，這樣完整視窗的路徑、大小和類型欄位才有意義。若提供者的回答需要數秒（例如全文索引遍歷），可改寫 `GetFileResultsStreamed`，邊找到邊交出命中，讓前幾列先上螢幕、其餘繼續查詢；因為介面的預設實作只是走訪 `GetFileResults`，改寫是選填的。此元件與外掛模組的即時結果提供者共用同一個啟用/停用開關。
 
 ## 6. 使用者設定路徑解析 `UserPathResolver`
 

@@ -60,19 +60,26 @@ public sealed class ContentSearchInstantProvider : IInstantResultProvider, IFull
         }
     }
 
-    public IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit)
+    public IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit) => GetFileResultsStreamed(query, limit).ToList();
+
+    /// <summary>
+    /// The walk out of the content index, one row per hit, handed over as the index reaches it. The whole
+    /// answer would otherwise arrive only after a short term has read every indexed document, which on a
+    /// real corpus is seconds -- and seconds of an empty grid is the complaint this exists to answer.
+    /// </summary>
+    public IEnumerable<InstantResultItem> GetFileResultsStreamed(string query, int limit)
     {
         // Only a real content-search keyword ("cs xxx") contributes hits; the bare "cs " placeholder has
         // no file rows to show there.
         if (!TryGetSearchTerm(query, out var keyword) || keyword.Length == 0)
-            return Array.Empty<InstantResultItem>();
+            yield break;
 
         var database = ContentSearchPlugin.Database;
         if (database == null)
-            return Array.Empty<InstantResultItem>();
+            yield break;
 
-        var hits = database.SearchFts(keyword, limit);
-        return ContentSearchResultBuilder.BuildResultItems(hits).ToList();
+        foreach (var hit in database.SearchFtsStreamed(keyword, limit))
+            yield return ContentSearchResultBuilder.CreateResultItem(hit);
     }
 
     public bool[]? GetHighlightMask(string text, string query)

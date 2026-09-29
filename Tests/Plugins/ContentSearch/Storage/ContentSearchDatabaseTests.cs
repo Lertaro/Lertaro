@@ -178,4 +178,100 @@ public sealed class ContentSearchDatabaseTests
             }
         }
     }
+
+    private static T WithOneDocument<T>(string text, Func<ContentSearchDatabase, T> ask)
+    {
+        var dbPath = Path.Combine(Path.GetTempPath(), $"test_db_window_{Guid.NewGuid():N}.db");
+        var docPath = Path.Combine(Path.GetTempPath(), $"test_doc_window_{Guid.NewGuid():N}.txt");
+        try
+        {
+            File.WriteAllText(docPath, text);
+            using var db = new ContentSearchDatabase(dbPath);
+            db.Initialize();
+            db.InsertOrUpdateFile(docPath, DateTime.UtcNow, text.Length, text);
+            return ask(db);
+        }
+        finally
+        {
+            if (File.Exists(dbPath))
+            {
+                try { File.Delete(dbPath); } catch { }
+            }
+
+            if (File.Exists(docPath))
+            {
+                try { File.Delete(docPath); } catch { }
+            }
+        }
+    }
+
+    // A term of one or two characters cannot be answered by the trigram index, so the short-token scan
+    // reads every indexed document. Reading them is unavoidable; SHIPPING them was not -- asking for 2000
+    // rows used to hand the caller the whole text of each match (measured at 35 MB over 496 documents) to
+    // render about 120 characters of excerpt. These pin both halves of the change: the excerpt still
+    // reaches a match buried deep in a document, and it stays a excerpt.
+    [TestMethod]
+    public void SearchFts_ShortTokenMatchedDeepInALargeDocument_ExcerptStillCentersOnIt()
+    {
+        var filler = new string('蓄', 60_000);
+        var text = filler + "他的成绩表已公布" + filler;
+
+        var hits = WithOneDocument(text, db => db.SearchFts("他的", 10));
+
+        Assert.HasCount(1, hits);
+        Assert.Contains("他的", hits[0].Snippet, $"the excerpt lost a match {filler.Length} characters in: {hits[0].Snippet}");
+        Assert.IsLessThanOrEqualTo(300, hits[0].Snippet.Length,
+            "the excerpt must stay bounded however long the document is; that bound is the whole point");
+    }
+
+    [TestMethod]
+    public void SearchFts_ShortTokenMatchedOnlyCaseInsensitively_StillReturnsTheFile()
+    {
+        // The WHERE folds ASCII case the way LIKE always has, but the window is centered with instr(),
+        // which does not. A term that matched only case-insensitively therefore has no position to center
+        // on and shows the document's opening instead. Losing the ROW would be the real regression, so
+        // that is what this pins.
+        var filler = new string('蓄', 4_000);
+        var text = filler + "NetWORK adapter note";
+
+        var hits = WithOneDocument(text, db => db.SearchFts("wo", 10));
+
+        Assert.HasCount(1, hits);
+        Assert.IsGreaterThan(0, hits[0].Snippet.Length);
+    }
+
+    private static List<string> Shape(IEnumerable<SearchHitItem> hits) =>
+        hits.Select(h => $"{h.FilePath}|{h.Snippet}|{h.Score}").ToList();
+
+    [TestMethod]
+    public void SearchFtsStreamed_AnswersTheSameHitsInTheSameOrderAsSearchFts()
+    {
+        // One database asked both ways: the streamed answer has to be the collected one row for row, or
+        // streaming would be quietly reordering or rewording the hits while it made them arrive sooner.
+        var text = "喜羊羊与灰太狼：这是一个关于全文本地语义检索与在线云南支付结算的技术文档。NetworkAdapter 3cudjz.";
+
+        var both = WithOneDocument(text, db => (
+            collected: db.SearchFts("云南", 10).ToList(),
+            streamed: db.SearchFtsStreamed("云南", 10).ToList()));
+
+        CollectionAssert.AreEqual(Shape(both.collected), Shape(both.streamed));
+    }
+
+    [TestMethod]
+    public void SearchFtsStreamed_AbandonedHalfway_LeavesTheIndexUsable()
+    {
+        // The host drops an in-flight stream the moment a newer query arrives. The enumerator's cleanup is
+        // what releases the connection it holds, so an early drop must not strand the database.
+        var text = "喜羊羊与灰太狼：这是一个关于全文本地语义检索与在线云南支付结算的技术文档。";
+
+        WithOneDocument(text, db =>
+        {
+            var walk = db.SearchFtsStreamed("云南", 10).GetEnumerator();
+            Assert.IsTrue(walk.MoveNext(), "the walk must produce its first hit before it can be dropped");
+            walk.Dispose();
+
+            Assert.HasCount(1, db.SearchFts("云南", 10), "and the index still answers after it was dropped");
+            return true;
+        });
+    }
 }

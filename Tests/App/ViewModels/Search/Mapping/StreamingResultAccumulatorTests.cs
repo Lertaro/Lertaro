@@ -398,6 +398,42 @@ public sealed class StreamingResultAccumulatorTests
     }
 
     [TestMethod]
+    public void QueueContentPrefix_SecondBatchExtendsTheFirst_RatherThanReplacingIt()
+    {
+        // A provider that streams answers in batches, and the host paints each one. The old hand-off kept a
+        // single queued list, so a second batch landing before the pump took up the first silently threw
+        // the first away -- rows the user had already been shown would vanish mid-search.
+        var accumulator = new StreamingResultAccumulator("a", NoHistory);
+        accumulator.AbsorbBatch(Arrivals(@"D:\aaa"));
+
+        accumulator.QueueContentPrefix(ContentRows(@"D:\hit1.md"));
+        accumulator.QueueContentPrefix(ContentRows(@"D:\hit2.md", @"D:\hit3.md"));
+        var rows = accumulator.AbsorbBatch(new List<SearchResult>());
+
+        CollectionAssert.AreEqual(
+            new[] { @"D:\hit1.md", @"D:\hit2.md", @"D:\hit3.md", @"D:\aaa" }, Paths(rows));
+        Assert.AreEqual(3, accumulator.ContentPrefixCount);
+        CollectionAssert.AreEqual(new[] { 0, 1, 2, 3 }, rows.Select(r => r.Index).ToList());
+        Assert.AreEqual(0, accumulator.FirstChangedIndex, "the growth moves the index matches, so nothing on screen can be trusted");
+    }
+
+    [TestMethod]
+    public void QueueContentPrefix_GrowthAfterThePaintBefore_KeepsEarlierRowsInPlace()
+    {
+        var accumulator = new StreamingResultAccumulator("a", NoHistory);
+        accumulator.AbsorbBatch(Arrivals(@"D:\a"));
+        accumulator.QueueContentPrefix(ContentRows(@"D:\hit1.md"));
+        var firstBlock = accumulator.AbsorbBatch(new List<SearchResult>());
+        var settledRow = firstBlock[1];
+
+        accumulator.QueueContentPrefix(ContentRows(@"D:\hit2.md"));
+        accumulator.AbsorbBatch(new List<SearchResult>());
+
+        Assert.AreEqual(@"D:\hit1.md", accumulator.Rows[0].FullPath, "the batch already shown must not move");
+        Assert.AreSame(settledRow, accumulator.Rows[2], "nor be rebuilt");
+    }
+
+    [TestMethod]
     public void QueueContentPrefix_EmptyOrAbsent_ChangesNothing()
     {
         var accumulator = new StreamingResultAccumulator("a", NoHistory);

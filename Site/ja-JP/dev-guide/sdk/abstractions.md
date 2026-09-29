@@ -115,10 +115,13 @@ new PluginConfigField
 public interface IFullSearchFileResultProvider : IPluginComponent
 {
     IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit);
+
+    // 省略可。既定の実装は GetFileResults を走査するため、このメンバーが導入される前に書かれたプロバイダーはそのまま動きます。
+    IEnumerable<InstantResultItem> GetFileResultsStreamed(string query, int limit);
 }
 ```
 
-ホストはフル検索ウィンドウの最終描画時だけ `GetFileResults` を呼び出します。現在のクエリを処理しない場合は空のリストを返してください。返す各 `InstantResultItem` は実在するファイルまたはフォルダーを表す必要があります。これにより、フル検索ウィンドウのパス、サイズ、種類の列を正しく表示できます。このコンポーネントは、プラグインのインスタント結果プロバイダーと同じ有効化・無効化スイッチで管理されます。
+ホストはフル検索ウィンドウ自身のファイル検索がまだストリーミング中に、バックグラウンドスレッドでプロバイダーを呼び出し、検索が確定するのを待たずに、行が到着した順に描画します。現在のクエリを処理しない場合は空のリストを返してください。返す各 `InstantResultItem` は実在するファイルまたはフォルダーを表す必要があります。これにより、フル検索ウィンドウのパス、サイズ、種類の列を正しく表示できます。応答に数秒かかるプロバイダー（全文インデックスの走査など）は `GetFileResultsStreamed` をオーバーライドして、見つけた候補をその場で渡すことができます。最初の数行が画面に出た後も残りの検索が続きます。既定の実装は `GetFileResults` を走査するだけなので、オーバーライドは省略できます。このコンポーネントは、プラグインのインスタント結果プロバイダーと同じ有効化・無効化スイッチで管理されます。
 
 ## 6. ユーザー設定パスの解決 `UserPathResolver`
 

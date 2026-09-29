@@ -5,6 +5,7 @@ using Lertaro.App.ViewModels.Service;
 
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 
 using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
 namespace Lertaro.App.ViewModels.Search.Dispatch;
@@ -40,6 +41,12 @@ internal sealed class SearchQueryDispatchController
 
     // Bumped per query so an append that lands after the user typed again cannot paint stale rows.
     private int _contentAppendGeneration;
+
+    // How many rows a content-style provider is asked for, and how few it has to answer before the first
+    // batch goes on screen. The limit is unchanged; the small first batch is what makes a provider that
+    // takes seconds put something visible on screen in the first frame instead of at the end.
+    private const int FullSearchFileRowLimit = 2000;
+    private const int FirstContentBatchRows = 60;
 
     // One per query, built before the search is issued: the content append has to reach it whether or not
     // the file search is still running, and the rows it holds are the list every paint hands back.
@@ -142,7 +149,7 @@ internal sealed class SearchQueryDispatchController
         void StartContentRowAppend()
         {
             if (wantsContentRows)
-                ScheduleContentRowAppend(Task.Run(() => BuildFullSearchFileRows(query)), queryGeneration);
+                Task.Run(() => StreamFullSearchFileRows(query, queryGeneration));
         }
 
         _searchEngine.QueueSearch(
@@ -237,7 +244,7 @@ internal sealed class SearchQueryDispatchController
             // (an "InstantResult" row has no real path/size/type, so those columns render nonsense for
             // it). Suppressed at the source rather than by the late shouldEmitInstantResults hook: the
             // late hook still makes every provider do the work, and this window throws all of it away --
-            // its content rows come from BuildFullSearchFileRows above, which asks the same providers for
+            // its content rows come from StreamFullSearchFileRows above, which asks the same providers for
             // the file-shaped view they are worth here.
             emitInstantResults: false,
             bypassExclusions: bypassExclusions,
@@ -258,21 +265,60 @@ internal sealed class SearchQueryDispatchController
     }
 
     /// <summary>
-    /// Asks every content-style file provider for its rows. Runs on the thread pool -- see
+    /// Walks every content-style file provider on the thread pool and hands its rows over in batches as the
+    /// provider finds them -- see
     /// <see cref="OnAdvancedQueryChanged"/>, where it is scheduled onto the search's own debounce tick.
     /// </summary>
     /// <param name="query">The RAW box text, not the stripped query: a content provider recognises its own
     /// trigger word, and the host has already taken that word out of what the file index searches. Handing
     /// it the stripped text would ask it to match a prefix that is no longer there.</param>
-    private static List<AppSearchResult> BuildFullSearchFileRows(string query)
+    private void StreamFullSearchFileRows(string query, int generation)
     {
-        var extras = new List<AppSearchResult>();
+        var pending = new List<InstantResultItem>();
+        IPluginComponent? pendingProvider = null;
+        var nextFlush = FirstContentBatchRows;
+
+        void Flush()
+        {
+            if (pending.Count == 0)
+                return;
+
+            var rows = new List<AppSearchResult>(pending.Count);
+            PluginSearchResultMapper.AddInstantResultItems(rows, pending, query, pendingProvider!);
+            pending.Clear();
+            AppendContentRows(rows, generation);
+        }
+
         foreach (var provider in PluginManager.Instance.FullSearchFileResultProviders)
         {
+            // A newer query owns the list, so stop walking instead of mapping rows nobody will paint.
+            // Breaking out of the provider's enumeration is what closes its database connection early.
+            if (generation != Volatile.Read(ref _contentAppendGeneration))
+                return;
+
+            // Items accumulate under one provider only, because the mapping marks each row with the
+            // component it came from -- so a provider switch has to land what is in hand first.
+            if (pendingProvider != null && !ReferenceEquals(pendingProvider, provider))
+                Flush();
+
             try
             {
-                var items = PluginPerformanceMonitor.Measure(provider, () => provider.GetFileResults(query, 2000));
-                PluginSearchResultMapper.AddInstantResultItems(extras, items, query, provider);
+                pendingProvider = provider;
+                PluginPerformanceMonitor.Measure(provider, () =>
+                {
+                    foreach (var item in provider.GetFileResultsStreamed(query, FullSearchFileRowLimit))
+                    {
+                        pending.Add(item);
+                        if (pending.Count < nextFlush)
+                            continue;
+                        // Growing, because a batch landing in front of the list moves every row already on
+                        // screen and that paint has to compare from the top. The first batch is small for
+                        // the sake of the user's eyes; the growth keeps a full answer to a handful of
+                        // reconciles however many rows the provider has.
+                        nextFlush = Math.Min(nextFlush * 4, FullSearchFileRowLimit);
+                        Flush();
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -280,59 +326,50 @@ internal sealed class SearchQueryDispatchController
             }
         }
 
-        return extras;
+        Flush();
     }
 
     /// <summary>
-    /// Puts <paramref name="contentRowsTask"/>'s rows at the front of the result list as soon as the
-    /// provider finishes, so no render ever waits on plugin I/O.
+    /// Puts one batch of a streamed provider's rows at the front of the result list, so no render ever
+    /// waits on plugin I/O and the first rows are on screen long before the last one is found.
     /// </summary>
     /// <remarks>
-    /// Once per query, whenever the provider lands: the rows ride at the front of the accumulator's own
-    /// list (see QueueContentPrefix), so a search that is still streaming picks them up on its next paint
-    /// and one that has already settled is repainted here instead. Taking them up only at the settled
-    /// render is what made a slow file search delay content hits by however long it took.
+    /// The rows ride at the front of the accumulator's own list (see
+    /// <see cref="StreamingResultAccumulator.QueueContentPrefix"/>), so a search that is still streaming
+    /// picks them up on its next paint and one that has already settled is repainted here instead. Taking
+    /// them up only at the settled render is what made a slow file search delay content hits by however
+    /// long it took.
     ///
     /// A selected TYPE filter drops them -- a type filter means "exactly this type", and these rows are
-    /// outside that contract. That check can only be made on the UI thread, which is why this is a second
-    /// render rather than part of the first one.
+    /// outside that contract. That check can only be made on the UI thread, which is why this lands here
+    /// rather than on the thread doing the walking.
     /// </remarks>
-    private void ScheduleContentRowAppend(Task<List<AppSearchResult>> contentRowsTask, int generation)
+    private void AppendContentRows(List<AppSearchResult> rows, int generation)
     {
-        _ = contentRowsTask.ContinueWith(t =>
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null)
+            return;
+
+        _ = dispatcher.InvokeAsync(() =>
         {
-            if (generation != Volatile.Read(ref _contentAppendGeneration))
+            // Re-checked: the user may have typed again or selected a type filter while the provider ran.
+            if (generation != Volatile.Read(ref _contentAppendGeneration) || _isTypeFilterSelected())
                 return;
 
-            var extras = t.Result;
-            if (extras.Count == 0)
+            var accumulator = _accumulator;
+            if (accumulator == null)
                 return;
 
-            var dispatcher = System.Windows.Application.Current?.Dispatcher;
-            if (dispatcher == null)
+            accumulator.QueueContentPrefix(rows);
+            if (!_searchSettled)
                 return;
 
-            _ = dispatcher.InvokeAsync(() =>
-            {
-                // Re-checked: the user may have typed again or selected a type filter while the provider ran.
-                if (generation != Volatile.Read(ref _contentAppendGeneration) || _isTypeFilterSelected())
-                    return;
-
-                var accumulator = _accumulator;
-                if (accumulator == null)
-                    return;
-
-                accumulator.QueueContentPrefix(extras);
-                if (!_searchSettled)
-                    return;
-
-                // The file search is done, so nothing else will take the prefix up: absorb an empty batch,
-                // which is how the accumulator applies a queued prefix and hands the same list back.
-                _setAllResults(accumulator.AbsorbBatch(Array.Empty<Core.SearchResult>()), true);
-                // Prepending moves every row that was already there, so no scroll anchor survives this one.
-                _applyFiltersAndRender(false, accumulator.FirstChangedIndex);
-            });
-        }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
+            // The file search is done, so nothing else will take the prefix up: absorb an empty batch,
+            // which is how the accumulator applies a queued prefix and hands the same list back.
+            _setAllResults(accumulator.AbsorbBatch(Array.Empty<Core.SearchResult>()), true);
+            // Prepending moves every row that was already there, so no scroll anchor survives this one.
+            _applyFiltersAndRender(false, accumulator.FirstChangedIndex);
+        });
     }
 
     private async Task RefreshAfterTokenDispatchAsync(List<AppSearchResult> resultsSnapshot, IReadOnlyList<string> tokensSnapshot, bool extendsContent)

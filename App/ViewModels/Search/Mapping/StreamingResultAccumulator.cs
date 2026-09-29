@@ -42,9 +42,11 @@ internal sealed class StreamingResultAccumulator
     // composed them into a fresh list would be a multi-megabyte copy of a search that can hold six
     // hundred thousand rows.
     //
-    // Queued rather than inserted directly: the pump maps on its own thread, so this is the handoff, and
-    // Volatile gives the provider's fully built list to whichever thread takes it next.
-    private List<AppSearchResult>? _queuedPrefix;
+    // A QUEUE rather than a single hand-off, and guarded rather than volatile: a provider that streams
+    // answers in batches, and a second batch arriving before the pump takes up the first must extend it,
+    // not replace it. The pump is the only reader; the UI thread is the only writer.
+    private readonly List<AppSearchResult> _pendingPrefix = new();
+    private readonly object _prefixLock = new();
     private int _prefixCount;
     // Absolute position in _rows, so it carries the prefix's own width. See FirstChangedIndex.
     private int _firstChanged;
@@ -116,27 +118,37 @@ internal sealed class StreamingResultAccumulator
     public int ContentPrefixCount => _prefixCount;
 
     /// <summary>
-    /// Hands rows to sit at the front of the list from the next <see cref="Absorb"/> on. Callable from any
-    /// thread while the search streams -- see <see cref="_queuedPrefix"/>.
+    /// Adds rows to the front block, to be taken up by the next <see cref="Absorb"/>. Callable from any
+    /// thread while the search streams; batches already placed stay, later ones extend them.
     /// </summary>
     public void QueueContentPrefix(List<AppSearchResult> rows)
     {
         if (rows.Count == 0)
             return;
-        Volatile.Write(ref _queuedPrefix, rows);
+        lock (_prefixLock)
+        {
+            _pendingPrefix.AddRange(rows);
+        }
     }
 
     private bool ApplyQueuedPrefix()
     {
-        var queued = Volatile.Read(ref _queuedPrefix);
-        if (queued == null)
-            return false;
+        List<AppSearchResult> queued;
+        lock (_prefixLock)
+        {
+            if (_pendingPrefix.Count == 0)
+                return false;
+            // Copied out rather than swapped: another batch can be queued while this one goes in.
+            queued = new List<AppSearchResult>(_pendingPrefix);
+            _pendingPrefix.Clear();
+        }
 
-        Volatile.Write(ref _queuedPrefix, null);
-        // Stamped here rather than by RewriteRows, which only ever walks the ranked index matches.
+        // Behind whatever prefix is already displayed, so a streamed answer grows the block instead of
+        // reordering the rows the user is looking at. Stamped here because RewriteRows only ever walks the
+        // ranked index matches.
         for (var i = 0; i < queued.Count; i++)
-            queued[i].Index = i;
-        _rows.InsertRange(0, queued);
+            queued[i].Index = _prefixCount + i;
+        _rows.InsertRange(_prefixCount, queued);
         _prefixCount += queued.Count;
         return true;
     }

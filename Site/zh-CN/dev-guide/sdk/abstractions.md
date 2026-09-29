@@ -115,10 +115,13 @@ new PluginConfigField
 public interface IFullSearchFileResultProvider : IPluginComponent
 {
     IReadOnlyList<InstantResultItem> GetFileResults(string query, int limit);
+
+    // 可选。默认实现会遍历 GetFileResults，所以在这个成员出现之前写的提供者无需改动。
+    IEnumerable<InstantResultItem> GetFileResultsStreamed(string query, int limit);
 }
 ```
 
-宿主只会在完整搜索窗口的最终渲染阶段调用 `GetFileResults`。插件不处理当前查询时应返回空列表。返回的每个 `InstantResultItem` 都必须对应一个实际存在的文件或文件夹，这样完整窗口的路径、大小和类型列才有意义。该组件与插件的即时结果提供者共用同一个启用/禁用开关。
+宿主在完整搜索窗口自身的文件搜索仍在流式返回时，于后台线程调用提供者，并在其结果一到达就绘制，而不是等到搜索结束。插件不处理当前查询时应返回空列表。返回的每个 `InstantResultItem` 都必须对应一个实际存在的文件或文件夹，这样完整窗口的路径、大小和类型列才有意义。若提供者的回答需要数秒（例如全文索引遍历），可以改写 `GetFileResultsStreamed`，边找到边交出命中，让前几行先上屏、其余继续查找；由于接口的默认实现只是遍历 `GetFileResults`，改写是可选的。该组件与插件的即时结果提供者共用同一个启用/禁用开关。
 
 ## 6. 用户配置路径解析 `UserPathResolver`
 

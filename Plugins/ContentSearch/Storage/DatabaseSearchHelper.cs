@@ -94,8 +94,22 @@ public static class DatabaseSearchHelper
             for (var i = 0; i < tokens.Length; i++)
                 cmd.Parameters.AddWithValue($"@token{i}", "%" + tokens[i] + "%");
             cmd.Parameters.AddWithValue("@limit", limit);
+            // A window, not the document. The WHERE already reads every indexed document, but returning
+            // `content` handed the caller the WHOLE of every match on top of that: measured on a 496-document
+            // index asking for 2000 rows, 35 MB of text materialised into .NET strings per query -- and the
+            // snippet only ever shows ~120 characters of it. Centering a 1000-character window on the first
+            // token cuts that to 26 KB while leaving SnippetGenerator the same reach it had before (its own
+            // fuzzy probe is bounded at 1000 characters).
+            //
+            // instr() is case-sensitive where LIKE is not, so a term that matched only case-insensitively
+            // centers at 0 and the window falls back to the document's opening -- which is exactly what
+            // SnippetGenerator already does when it finds no match. ponytail: the tail "..." that means
+            // "the document continues" is now decided against the window, so it can be missing on a
+            // truncated hit. Upgrade path: return length(content) too and decide the ellipsis from that.
+            cmd.Parameters.AddWithValue("@window", tokens[0]);
             cmd.CommandText = $"""
-                SELECT f.id, f.path, files_fts.rowid, files_fts.content
+                SELECT f.id, f.path, files_fts.rowid,
+                       substr(files_fts.content, max(1, instr(files_fts.content, @window) - 300), 1000)
                 FROM files_fts
                 JOIN files f ON f.id = files_fts.rowid
                 WHERE {string.Join(" AND ", tokens.Select((_, i) => $"files_fts.content LIKE @token{i}"))}
