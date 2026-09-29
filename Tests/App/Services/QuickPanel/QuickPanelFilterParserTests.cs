@@ -54,14 +54,17 @@ public sealed class QuickPanelFilterParserTests
     }
 
     [TestMethod]
-    public void Parse_OldAtMarkerForm_IsNoLongerAToken()
+    public void Parse_OldAtMarkerForm_IsMigratedToTheCurrentToken()
     {
-        // ":@doc" was the old spelling (global ':' prefix plus an '@' category marker). Both characters
-        // are gone from the token grammar now, so the entry is just an unmatched glob.
+        // ":@doc" was the old spelling (a ':' prefix plus an '@' category marker). The marker is gone from
+        // the grammar, but this test used to assert that the entry is "just an unmatched glob" -- and that is
+        // not a benign outcome: a source whose only positive entry cannot match enumerates nothing, so an
+        // upgraded install lost the tab's contents with no message. The spelling is now read as the token it
+        // meant; Parse_LegacyAtForms_AllSpellingsResolveToTheCurrentToken covers the rest.
         var spec = QuickPanelFilterParser.Parse(":@doc");
 
-        Assert.HasCount(0, spec.TokenFilters);
-        CollectionAssert.AreEqual(new[] { ":@doc" }, spec.GlobPatterns);
+        CollectionAssert.AreEqual(new[] { @"\doc" }, spec.TokenFilters);
+        Assert.HasCount(0, spec.GlobPatterns);
     }
 
     [TestMethod]
@@ -134,5 +137,32 @@ public sealed class QuickPanelFilterParserTests
         var spec = QuickPanelFilterParser.Parse("!*.tmp;!*.tmp");
 
         CollectionAssert.AreEqual(new[] { "*.tmp" }, spec.ExcludedGlobPatterns);
+    }
+
+    [TestMethod]
+    public void Parse_LegacyAtForms_AllSpellingsResolveToTheCurrentToken()
+    {
+        foreach (var legacy in new[] { ":@doc|img", "@doc|img" })
+        {
+            var spec = QuickPanelFilterParser.Parse(legacy);
+
+            CollectionAssert.AreEqual(new[] { @"\doc|img" }, spec.TokenFilters, legacy);
+            Assert.IsEmpty(spec.GlobPatterns, legacy);
+        }
+    }
+
+    [TestMethod]
+    public void Parse_AtInsideARealGlob_IsLeftAlone()
+    {
+        // Only a bare keyword list after the marker is a retired token. Rewriting anything with an '@' in it
+        // would turn a user's path or e-mail-shaped glob into a token nobody claims, which empties the
+        // source -- the exact failure the migration above exists to prevent.
+        foreach (var glob in new[] { "mail@*", "*@acme*", @"C:\team\bob@acme\*" })
+        {
+            var spec = QuickPanelFilterParser.Parse(glob);
+
+            Assert.IsEmpty(spec.TokenFilters, glob);
+            CollectionAssert.AreEqual(new[] { glob }, spec.GlobPatterns, glob);
+        }
     }
 }
