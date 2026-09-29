@@ -130,7 +130,8 @@ internal static class NameSearch
         => entryIndex >= snapshot.Count ? delta.Added[entryIndex - snapshot.Count].Name : delta.NameOf(entryIndex);
 
     // Mirrors Searcher's drive gate: a foreign-drive query returns nothing; a bare drive prefix with
-    // no terms ("t:") matches everything (TryMatch trivially succeeds on an empty pattern).
+    // no terms ("t:") matches everything -- via the matchAll set here, NOT because TryMatch accepts an
+    // empty pattern, since FzfPatternMatcher refuses a pattern with no positive term.
     private static bool DriveAdmits(Snapshot snapshot, FzfPattern pattern, out bool matchAll)
     {
         matchAll = false;

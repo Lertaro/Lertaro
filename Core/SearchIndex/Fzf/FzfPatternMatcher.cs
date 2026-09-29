@@ -94,9 +94,13 @@ internal static class FzfPatternMatcher
             return false;
         }
 
-        // Nothing left to combine -- a regex-only query (the name satisfied the regex; no text offsets to
-        // report, since the regex's own match span is not tracked) or a bare drive spec. Either way the
-        // prefilter has already done the work, so this is a match.
+        // Nothing left to combine: a regex-only query, where the name satisfied the regex and there are no
+        // text offsets to report because the regex's own match span is not tracked. The prefilter has
+        // already done the work, so this is a match.
+        //
+        // Not a bare drive spec: a pattern with no terms at all is refused by the HasPositiveTerm guard
+        // above, which runs first, so "c:" never reaches here. NameSearch.DriveAdmits is what answers a
+        // drive-only query, and it does so with its own matchAll branch rather than through this method.
         if (pattern.TermSets.Length == 0 && pattern.OrGroups == null)
         {
             result = new FzfPatternResult(0, -1, -1, 0, false);

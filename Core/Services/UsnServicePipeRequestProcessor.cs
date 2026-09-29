@@ -135,7 +135,9 @@ internal static class UsnServicePipeRequestProcessor
     // Read/query commands are deliberately open -- Ping, Status, GetMachineSettings, GetFileMetadata,
     // GetRecentFiles, GetSpaceEntries -- because they are how any client (including the CLI and the
     // installer) finds out whether the service is up. That openness is a decision about this pipe's ACL
-    // (PipeSecurityFactory.Create grants every local authenticated user access to it), NOT a claim that the
+    // (PipeSecurityFactory.Create grants Everyone -- the WorldSid, which includes the anonymous and guest
+    // principals, not merely signed-in users -- read access to it; that breadth is deliberate and pinned by
+    // Tests/Core/Services/Pipe/PipeSecurityFactoryTests), NOT a claim that the
     // data is otherwise reachable: these commands return names, paths and metadata for anything the index
     // covers, which is a broader read than the caller's own token may have on disk. Commands the server
     // handles itself (Search, SearchDir, EnumerateDir, SubscribeStatus, SubscribeDirectoryChanges) never

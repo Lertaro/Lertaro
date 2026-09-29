@@ -100,10 +100,11 @@ internal static class AliasHighlightMarker
 
                         var aliasLower = caseSensitive ? alias : alias.ToLowerInvariant();
                         // Follow the same rule matching does -- which is this TERM's kind, not the
-                        // fuzzy setting. Reading the setting instead was right until a "'" was
-                        // involved, since that flips one term's exactness against it: with fuzzy off,
-                        // "'abc" searches as a subsequence but was highlighted as a contiguous run,
-                        // found nothing, and lit up nothing at all while the row itself was a hit.
+                        // fuzzy setting. Reading the setting instead was right until a precision
+                        // inversion was involved, since that flips one term's exactness against it: with
+                        // fuzzy off, "?abc" searches as a subsequence but was highlighted as a
+                        // contiguous run, found nothing, and lit up nothing at all while the row itself
+                        // was a hit.
                         //
                         // Contiguous for every other kind, because a scattered subsequence lights up
                         // characters that had nothing to do with the hit: "gsh" matches 格式化 through
@@ -188,7 +189,8 @@ internal static class AliasHighlightMarker
     // 'a','n' from 愿 before it ever reaches 王菲, so a candidate matched on 王菲 alone lights 我愿 as well --
     // characters the user never typed, and a mask that disagrees with the match that produced the row.
     //
-    // So every occurrence of the term's first character is tried and the TIGHTEST alignment wins. That is
+    // So the occurrences of the term's first character are tried and the TIGHTEST alignment wins -- up to
+    // the cap named below, so "every" is bounded in practice. That is
     // what the real fzf backtrace would have answered here anyway (its consecutive-match bonus makes the
     // late, near-contiguous run the best-scoring one), without paying for the backtrace per alias: a
     // polyphonic name expands to dozens of alias candidates, and this runs once per candidate.

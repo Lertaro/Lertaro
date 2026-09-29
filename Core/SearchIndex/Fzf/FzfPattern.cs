@@ -3,10 +3,9 @@ using Lertaro.Core.SearchIndex.Query;
 namespace Lertaro.Core.SearchIndex.Fzf;
 
 // Alias-fallback quality-gating (IsAcceptableAliasMatch/WeightAliasMatch and their private helpers) lives
-// in FzfPatternAliasMatchExtensions.cs and the pattern factories (Empty/FromTermSets) in
-// FzfPatternShapeExtensions.cs -- extension methods, not partials, to keep this file under the project's
-// line limit. Pattern parsing is delegated to FzfPatternParser for the same reason; this file keeps the
-// immutable pattern state and core text-matching algorithm.
+// in FzfPatternAliasMatchExtensions.cs -- an extension method rather than a partial, to keep this file under
+// the project's line limit. Pattern parsing is delegated to FzfPatternParser for the same reason; this file
+// keeps the immutable pattern state and core text-matching algorithm.
 internal sealed class FzfPattern
 {
     internal FzfPattern(string? targetDrive, FzfTermSet[] termSets)
@@ -74,8 +73,11 @@ internal sealed class FzfPattern
         foreach (var pattern in regexes)
         {
             var literal = RegexLiteralExtractor.ExtractRequiredLiteral(pattern);
-            // Every clause must match, so the longest single-run requirement wins; the caller ORs the
-            // per-clause masks together, which keeps a clause with no literal from disabling the others.
+            // Every clause must match, so each one's required literal is required of the whole query --
+            // keep the longest, which is the strongest single prefilter available. A clause with no literal
+            // contributes nothing and cannot weaken the others, since it never becomes the longest. The
+            // caller folds the ONE string this returns into the same character mask the terms use, so no
+            // per-clause mask ever exists.
             if (literal.Length > best.Length)
                 best = literal;
         }

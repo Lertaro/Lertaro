@@ -95,8 +95,11 @@ public static class LegacySettingsAdvisor
     // The precision-inversion trigger, as the parser reads it from a term's first character (see
     // TermTriggers, the one place that reads it). The App mirrors this in SearchSyntaxReserved, which is also
     // where the settings-time warning about it lives.
-    private const char PrecisionInversion = SearchIndex.Fzf.TermTriggers.PrecisionInversion;
-    private const string PrecisionInversionText = "?";
+    // Derived from the parser's own character rather than spelled out beside it: this used to be a const char
+    // nobody read next to a hardcoded "?", which is two answers to one question and only one of them moved
+    // when the trigger changed.
+    private static readonly string PrecisionInversionText =
+        SearchIndex.Fzf.TermTriggers.PrecisionInversion.ToString();
 
     /// <summary>
     /// True when a saved value can no longer work because '?' became the precision-inversion trigger after it
