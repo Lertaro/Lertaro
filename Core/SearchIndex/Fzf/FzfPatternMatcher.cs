@@ -81,7 +81,14 @@ internal static class FzfPatternMatcher
 
         // Regex clauses are ANDed with everything else and checked first: a miss here is a miss for the
         // whole pattern, and the regex engine is the most expensive step in the chain.
-        if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, text))
+        //
+        // They read exclusionText, which is the candidate's own NAME on both tiers -- the same reason
+        // exclusions do (see TryMatchAlias). A regex describes characters that are really in the name, and
+        // never reaches a match through a pinyin alias, so evaluating it against the alias text got both
+        // directions wrong: an alias that happened to satisfy the clause admitted a name that did not, and
+        // a name that did satisfy it was rejected because its alias did not. The index prefilter is built
+        // from the name's characters too (SearchMatcher.BuildContext), which is the same contract.
+        if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, exclusionText))
         {
             result = default;
             return false;
@@ -176,6 +183,7 @@ internal static class FzfPatternMatcher
     {
         best = default;
         var foundPositive = false;
+        var absentInverse = false;
         foreach (var term in set.Terms)
         {
             // An exclusion reads exclusionText -- the candidate's own name, which is `text` itself on the
@@ -185,10 +193,15 @@ internal static class FzfPatternMatcher
             var current = FzfAlgorithm.Match(term.Kind, term.Inverse ? exclusionText : text, term.Text, term.CaseSensitive, scheme, slab);
             if (term.Inverse)
             {
-                // In an OR set, a negative alternative is satisfied when its text is absent. Do not
-                // return false merely because it is present: a later positive alternative may still match.
+                // An absent inverse term satisfies the set, but it must not END the evaluation: returning
+                // as soon as one was found absent threw away whatever a later positive alternative had
+                // already scored, so ":temp | report" handed back a zero-score, no-offset result for a
+                // candidate that "report | :temp" ranked by its real match. The name tier then only
+                // ranked it wrongly; the alias tier gates on score (IsAcceptableAliasMatch needs
+                // queryLen*5), so the same query and the same candidate matched or not purely on which
+                // side of the '|' the exclusion was typed.
                 if (!current.IsMatch)
-                    return true;
+                    absentInverse = true;
                 continue;
             }
 
@@ -199,6 +212,6 @@ internal static class FzfPatternMatcher
             }
         }
 
-        return foundPositive;
+        return foundPositive || absentInverse;
     }
 }

@@ -214,6 +214,55 @@ public sealed class FzfPatternExclusionTests
         Assert.IsFalse(TryMatchBytes(pattern, "temp.txt"));
     }
 
+    // The two ordering tests above pin the boolean answer and would have kept passing through the whole
+    // bug: an OR set that met an absent inverse term BEFORE its positive alternative returned true with
+    // best = default, so the row carried score 0 and no valid offset. That is only a ranking problem on the
+    // name tier -- the alias tier gates on the score itself (IsAcceptableAliasMatch needs queryLen*5), so
+    // which side of the '|' the user typed the exclusion decided whether a real alias hit was returned at
+    // all. "b, or a name without c" is documented as the same search either way, so the RESULT has to
+    // ignore the order too.
+    [TestMethod]
+    public void TryMatch_OrWithExclusion_ScoreAndOffsetsAlsoIgnoreTermOrder()
+    {
+        Assert.IsTrue(FzfPattern.Parse("report | :temp").TryMatch("report.txt", out var leftFirst, FzfScoringScheme.Default));
+        Assert.IsTrue(FzfPattern.Parse(":temp | report").TryMatch("report.txt", out var exclusionFirst, FzfScoringScheme.Default));
+
+        Assert.AreNotEqual(0, leftFirst.Score, "the positive alternative has to be the one that produced this result");
+        Assert.AreEqual(leftFirst.Score, exclusionFirst.Score);
+        Assert.AreEqual(leftFirst.MinBegin, exclusionFirst.MinBegin);
+        Assert.AreEqual(leftFirst.MaxEnd, exclusionFirst.MaxEnd);
+        Assert.AreEqual(leftFirst.ValidOffsetFound, exclusionFirst.ValidOffsetFound);
+    }
+
+    [TestMethod]
+    public void BytePattern_OrWithExclusion_ScoreAndOffsetsAlsoIgnoreTermOrder()
+    {
+        var leftFirst = FzfBytePattern.From(FzfPattern.Parse("report | :temp"));
+        var exclusionFirst = FzfBytePattern.From(FzfPattern.Parse(":temp | report"));
+
+        Assert.IsTrue(TryMatchBytes(leftFirst, "report.txt", out var left));
+        Assert.IsTrue(TryMatchBytes(exclusionFirst, "report.txt", out var right));
+
+        Assert.AreNotEqual(0, left.Score);
+        Assert.AreEqual(left.Score, right.Score);
+        Assert.AreEqual(left.MinBegin, right.MinBegin);
+        Assert.AreEqual(left.MaxEnd, right.MaxEnd);
+    }
+
+    [TestMethod]
+    public void TryMatch_OrWithExclusion_StillMatchesWhenOnlyTheInverseIsSatisfied()
+    {
+        // The flip side: an absent inverse is a legitimate way to satisfy the set on its own, so the
+        // positive alternative must not become mandatory.
+        Assert.IsTrue(FzfPattern.Parse(":temp | report").TryMatch("notes.txt", out _, FzfScoringScheme.Default));
+        Assert.IsTrue(FzfPattern.Parse("report | :temp").TryMatch("notes.txt", out _, FzfScoringScheme.Default));
+        Assert.IsFalse(FzfPattern.Parse("report | :temp").TryMatch("draft-temp.txt", out _, FzfScoringScheme.Default),
+            "and a PRESENT inverse still cannot veto a positive alternative that does not match either");
+    }
+
     private static bool TryMatchBytes(FzfBytePattern pattern, string text)
-        => pattern.TryMatch(Encoding.ASCII.GetBytes(text), out _, FzfScoringScheme.Default, new FzfSlab(), new FzfByteBuffers());
+        => TryMatchBytes(pattern, text, out _);
+
+    private static bool TryMatchBytes(FzfBytePattern pattern, string text, out FzfPatternResult result)
+        => pattern.TryMatch(Encoding.ASCII.GetBytes(text), out result, FzfScoringScheme.Default, new FzfSlab(), new FzfByteBuffers());
 }

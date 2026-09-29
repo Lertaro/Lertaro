@@ -172,6 +172,7 @@ internal sealed class FzfBytePattern
     {
         best = default;
         var foundPositive = false;
+        var absentInverse = false;
         foreach (var term in set.Terms)
         {
             var current = term.Bytes == null
@@ -179,10 +180,12 @@ internal sealed class FzfBytePattern
                 : Match(term.Kind, text, term.Bytes, term.CaseSensitive, scheme, slab, buffers);
             if (term.Inverse)
             {
-                // Keep OR evaluation commutative: an absent inverse term satisfies the set, while a present
-                // inverse term does not prevent a later positive alternative from matching.
+                // Keep OR evaluation commutative: an absent inverse term satisfies the set, but it must not
+                // end the evaluation either -- see FzfPatternMatcher.TryMatchSet, whose byte twin this is.
+                // Returning here discarded a positive alternative already scored later in the same set, so
+                // the written order decided the score the alias tier then gates on.
                 if (!current.IsMatch)
-                    return true;
+                    absentInverse = true;
                 continue;
             }
 
@@ -193,7 +196,7 @@ internal sealed class FzfBytePattern
             }
         }
 
-        return foundPositive;
+        return foundPositive || absentInverse;
     }
 
     // '|' polyphonic-alias segmentation on bytes -- mirrors FzfPattern.TryMatch's segmented branch.
