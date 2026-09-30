@@ -7,64 +7,92 @@ namespace Lertaro.App.Tests.ViewModels.Settings.Plugins;
 [TestClass]
 public sealed class PluginManagementViewModelSortTests
 {
-    // Rank bands (configurable > switchable > inert) and disabled state, without a live plugin dir.
+    // Name order and disabled state, without a live plugin dir. A translation/theme-only component has no
+    // switch, so its plugin can never count as fully disabled.
     private static PluginInfoViewModel MakePlugin(
         string name,
         bool fullyDisabled = false,
-        bool hasConfigFields = false,
-        bool hasToggleable = true)
+        bool hasToggleable = true,
+        string? dll = null)
     {
-        var components = new List<PluginComponentViewModel>();
-        if (hasConfigFields)
+        var components = new List<PluginComponentViewModel>
         {
-            var field = new PluginConfigFieldViewModel(
-                name, new PluginSdk.Abstractions.PluginConfigField { Key = "k", FieldType = PluginSdk.Abstractions.ConfigFieldType.Text, DefaultValue = "" },
-                new Core.UserSettings(), () => { });
-            return new PluginInfoViewModel(name, "1.0", name + ".dll", "1.0-sdk", components, [field]);
-        }
-
-        if (hasToggleable)
-        {
-            components.Add(new PluginComponentViewModel(name + "::c", PluginComponentType.Action, name, isEnabled: !fullyDisabled));
-        }
-        else
-        {
-            // Translation/theme-only plugins cannot be disabled and never count as fully disabled.
-            components.Add(new PluginComponentViewModel(name + "::t", PluginComponentType.TranslationProvider, name, isEnabled: true));
-        }
-
-        return new PluginInfoViewModel(name, "1.0", name + ".dll", "1.0-sdk", components, []);
+            new(name + "::c", hasToggleable ? PluginComponentType.Action : PluginComponentType.TranslationProvider,
+                name, isEnabled: hasToggleable ? !fullyDisabled : true)
+        };
+        return new PluginInfoViewModel(name, "1.0", dll ?? name + ".dll", "1.0-sdk", components, []);
     }
 
-    [TestMethod]
-    public void SortForDisplay_DefaultOrder_IsRankThenName()
-    {
-        var inert = MakePlugin("Inert", hasToggleable: false);
-        var plain = MakePlugin("Plain");
-        var configurable = MakePlugin("Config", hasConfigFields: true);
-        var disabled = MakePlugin("Disabled", fullyDisabled: true);
-
-        var sorted = PluginLoaderHelper.SortForDisplay(new List<PluginInfoViewModel> { inert, disabled, plain, configurable });
-
-        // Disabled state does NOT sink a plugin in the default order: configurable first, then
-        // switchable, then inert -- alphabetical within each band.
-        CollectionAssert.AreEqual(new[] { "Config", "Disabled", "Plain", "Inert" }, sorted.Select(p => p.Name).ToList());
-    }
+    private static List<string> Names(IEnumerable<PluginInfoViewModel> plugins) =>
+        plugins.Select(p => p.Name).ToList();
 
     [TestMethod]
-    public void SortPluginsList_Default_IsRankThenName()
+    public void DisplayNameOrder_ZhCN_SortsChineseNamesByPinyin()
     {
         var plugins = new List<PluginInfoViewModel>
         {
-            MakePlugin("Zed", hasToggleable: false),
-            MakePlugin("Alpha"),
-            MakePlugin("Mid", fullyDisabled: true),
-            MakePlugin("ACfg", hasConfigFields: true),
+            MakePlugin("自定义动作插件"),
+            MakePlugin("内容搜索"),
+            MakePlugin("动漫主题"),
+            MakePlugin("窗口切换器"),
         };
 
-        var sorted = PluginManagementViewModel.SortPluginsList(plugins, disabledLast: false);
+        CollectionAssert.AreEqual(
+            new[] { "窗口切换器", "动漫主题", "内容搜索", "自定义动作插件" },
+            Names(plugins.OrderBy(p => p, PluginLoaderHelper.DisplayNameOrder("zh-CN"))));
+    }
 
-        CollectionAssert.AreEqual(new[] { "ACfg", "Alpha", "Mid", "Zed" }, sorted.Select(p => p.Name).ToList());
+    [TestMethod]
+    public void DisplayNameOrder_AsciiNames_SortAtoZIgnoringCase()
+    {
+        var plugins = new List<PluginInfoViewModel>
+            { MakePlugin("wps"), MakePlugin("Bandizip"), MakePlugin("AutoCAD"), MakePlugin("files") };
+
+        CollectionAssert.AreEqual(
+            new[] { "AutoCAD", "Bandizip", "files", "wps" },
+            Names(plugins.OrderBy(p => p, PluginLoaderHelper.DisplayNameOrder("zh-CN"))));
+    }
+
+    [TestMethod]
+    public void DisplayNameOrder_MixedName_JoinsTheBlockOfItsLeadingCharacter()
+    {
+        // The leading "F" makes this a Latin name even though most of it is Chinese, and the Chinese
+        // block goes first.
+        var plugins = new List<PluginInfoViewModel>
+            { MakePlugin("Flow.Launcher 插件桥接"), MakePlugin("网页搜索与快捷直达插件") };
+
+        CollectionAssert.AreEqual(
+            new[] { "网页搜索与快捷直达插件", "Flow.Launcher 插件桥接" },
+            Names(plugins.OrderBy(p => p, PluginLoaderHelper.DisplayNameOrder("zh-CN"))));
+    }
+
+    [TestMethod]
+    public void DisplayNameOrder_FollowsTheInterfaceLanguageNotTheOsCulture()
+    {
+        // zh-CN orders Han by pinyin (chuang before dong) while the Traditional locales order them by
+        // stroke count (动's 6 beats 窗's 12). Pinning both keeps the order tied to the UI language.
+        var plugins = new List<PluginInfoViewModel> { MakePlugin("窗口切换器"), MakePlugin("动漫主题") };
+
+        CollectionAssert.AreEqual(new[] { "窗口切换器", "动漫主题" },
+            Names(plugins.OrderBy(p => p, PluginLoaderHelper.DisplayNameOrder("zh-CN"))));
+        CollectionAssert.AreEqual(new[] { "动漫主题", "窗口切换器" },
+            Names(plugins.OrderBy(p => p, PluginLoaderHelper.DisplayNameOrder("zh-TW"))));
+    }
+
+    [TestMethod]
+    public void SortForDisplay_NameOrder_SplitsNativeScriptFromAsciiAndPinsGalleriesLast()
+    {
+        var plugins = new List<PluginInfoViewModel>
+        {
+            MakePlugin("Bandizip"),
+            MakePlugin("内容搜索"),
+            MakePlugin("AutoCAD"),
+            MakePlugin("动漫主题", hasToggleable: false, dll: "Lertaro.Plugins.AnimeThemes.dll"),
+        };
+
+        CollectionAssert.AreEqual(
+            new[] { "内容搜索", "AutoCAD", "Bandizip", "动漫主题" },
+            Names(PluginLoaderHelper.SortForDisplay(plugins)));
     }
 
     [TestMethod]
@@ -72,17 +100,35 @@ public sealed class PluginManagementViewModelSortTests
     {
         var plugins = new List<PluginInfoViewModel>
         {
-            MakePlugin("Zed", hasToggleable: false),
+            MakePlugin("Zed"),
             MakePlugin("DisabledB", fullyDisabled: true),
             MakePlugin("Alpha"),
             MakePlugin("DisabledA", fullyDisabled: true),
         };
 
-        var sorted = PluginManagementViewModel.SortPluginsList(plugins, disabledLast: true);
+        CollectionAssert.AreEqual(new[] { "Alpha", "Zed", "DisabledA", "DisabledB" },
+            Names(PluginManagementViewModel.SortPluginsList(plugins, disabledLast: true)));
 
-        // Active first (rank then name), then the disabled tail (rank then name).
-        CollectionAssert.AreEqual(
-            new[] { "Alpha", "Zed", "DisabledA", "DisabledB" }, sorted.Select(p => p.Name).ToList());
+        // The name-first mode leaves a disabled plugin in its alphabetical position.
+        CollectionAssert.AreEqual(new[] { "Alpha", "DisabledA", "DisabledB", "Zed" },
+            Names(PluginManagementViewModel.SortPluginsList(plugins, disabledLast: false)));
+    }
+
+    [TestMethod]
+    public void SortPluginsList_PinnedGalleries_StayLastInBothModes()
+    {
+        var plugins = new List<PluginInfoViewModel>
+        {
+            MakePlugin("Alpha"),
+            MakePlugin("Anime", hasToggleable: false, dll: "Lertaro.Plugins.AnimeThemes.dll"),
+            MakePlugin("Zed"),
+            MakePlugin("Curated", hasToggleable: false, dll: "Lertaro.Plugins.CuratedThemes.dll"),
+        };
+
+        foreach (var disabledLast in new[] { true, false })
+            CollectionAssert.AreEqual(new[] { "Alpha", "Zed", "Anime", "Curated" },
+                Names(PluginManagementViewModel.SortPluginsList(plugins, disabledLast)),
+                "disabledLast=" + disabledLast);
     }
 
     [TestMethod]

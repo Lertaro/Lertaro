@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.IO;
 using System.Reflection;
+using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Settings.Plugins;
 using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions;
@@ -96,24 +98,47 @@ public static class PluginLoaderHelper
         return SortForDisplay(result);
     }
 
-    /// <summary>Final display order of the plugin list: the actionable-first rank bands, then name.
+    /// <summary>Final display order of the plugin list: the pinned galleries last, then name.
     /// Fully-disabled plugins stay in place here -- sinking them is a separate toggle on the page, not
     /// part of the load order (a plugin must not jump just because its last component was toggled).</summary>
     internal static List<PluginInfoViewModel> SortForDisplay(IEnumerable<PluginInfoViewModel> plugins) => plugins
-        .OrderBy(p => DisplayRank(p.HasConfigFields, p.RawComponents.Any(c => c.IsToggleable)))
-        .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+        .OrderBy(SortsLast)
+        .ThenBy(p => p, DisplayNameOrder())
         .ToList();
 
-    /// <summary>Which band a plugin sorts into: what you can act on first, alphabetical within each.</summary>
-    /// <remarks>
-    /// Deliberately not PluginInfoViewModel.HasToggleableComponents, which is "more than one" because it
-    /// gates the Select All link. A plugin with exactly one switch is still a plugin with something to
-    /// switch, and reusing that property would have filed it under "nothing to do here".
-    /// </remarks>
-    internal static int DisplayRank(bool hasConfigFields, bool hasAnyToggleableComponent) =>
-        hasConfigFields ? 0
-        : hasAnyToggleableComponent ? 1
-        : 2;
+    /// <summary>Whether the plugin sits after every other one, in both sort modes. These two galleries own
+    /// no toggleable component, so the enabled/disabled split can never move them; keyed on the DLL file
+    /// name rather than the display name so the rule holds when the name is localized.</summary>
+    internal static bool SortsLast(PluginInfoViewModel plugin) => AlwaysLastDlls.Contains(plugin.DllFileName);
+
+    private static readonly HashSet<string> AlwaysLastDlls = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Lertaro.Plugins.AnimeThemes.dll",
+        "Lertaro.Plugins.CuratedThemes.dll",
+    };
+
+    /// <summary>Display-name order for the current interface language.</summary>
+    internal static IComparer<PluginInfoViewModel> DisplayNameOrder() =>
+        DisplayNameOrder(TranslationManager.Instance.CurrentCulture);
+
+    /// <summary>Display-name order for one language: names led by that language's own script ahead of names
+    /// led by ASCII, each block in the language's native collation -- pinyin under zh-CN, stroke count under
+    /// zh-TW/zh-HK, jamo under ko-KR, gojūon under ja-JP. Taking it from the interface language is what makes
+    /// the localized names readable; the OS culture is deliberately not consulted.</summary>
+    internal static IComparer<PluginInfoViewModel> DisplayNameOrder(string cultureName)
+    {
+        var collation = StringComparer.Create(new CultureInfo(cultureName), ignoreCase: true);
+        return Comparer<PluginInfoViewModel>.Create((x, y) =>
+        {
+            var block = LeadingNameBlock(x.Name).CompareTo(LeadingNameBlock(y.Name));
+            return block != 0 ? block : collation.Compare(x.Name, y.Name);
+        });
+    }
+
+    // Only the first character picks the block, so "Flow.Launcher 插件桥接" and "QuickLook 桥接" count as
+    // ASCII-led names and sort with the Latin block, whatever script follows.
+    private static int LeadingNameBlock(string name) =>
+        name.Length > 0 && (char.IsAsciiLetter(name[0]) || char.IsAsciiDigit(name[0])) ? 1 : 0;
 
     /// <summary>Resolves the display name shown for a plugin -- Plugin Management's card header, and
     /// any other UI that groups components by their owning plugin (e.g. the plugin page's own component

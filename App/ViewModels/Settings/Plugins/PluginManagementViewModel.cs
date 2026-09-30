@@ -25,10 +25,10 @@ public class PluginManagementViewModel : ViewModelBase
         Plugins = new ObservableCollection<PluginInfoViewModel>(PluginLoaderHelper.BuildPluginList(_userSettings));
         ShowPluginManagementCommand = new RelayCommand(() => IsRuntimeStatusTab = false);
         ShowRuntimeStatusCommand = new RelayCommand(() => IsRuntimeStatusTab = true);
-        // The default sort is "enabled" (disabled sink to the bottom), so reconcile the freshly built
-        // list to it once here -- BuildPluginList only returns rank-then-name order. Selecting happens
-        // AFTER the sort, so the initial selection lands on the first enabled plugin, not whatever
-        // happened to sort first by name.
+        // The default sort splits enabled from disabled, so reconcile the freshly built list to it once
+        // here -- BuildPluginList only returns plain name order. Selecting happens AFTER the sort, so the
+        // initial selection lands on the first enabled plugin, not whatever happened to sort first by
+        // name.
         ApplyPluginSort();
         _selectedPlugin = Plugins.FirstOrDefault();
 
@@ -175,14 +175,14 @@ public class PluginManagementViewModel : ViewModelBase
         ApplyRuntimeStatusFilterAndSort();
     }
 
-    // Single sortable column: it toggles between the default rank order and "disabled sink to the
-    // bottom". The header text follows the mode. TogglePluginSort is the header's click handler;
+    // Single sortable column: it toggles the enabled/disabled split on (default) or off, leaving plain name
+    // order. The header text follows the mode. TogglePluginSort is the header's click handler;
     // ApplyPluginSort reorders Plugins in place with Move so the selected row keeps its VM and stays
-    // selected. Defaults to "enabled" (disabled sink to the bottom), matching the upstream ordering.
+    // selected.
     private bool _disabledLast = true;
 
-    /// <summary>The column header text for the current sort rule: "name" while in the default rank
-    /// order, "enabled" while disabled plugins are sunk to the bottom.</summary>
+    /// <summary>The column header text for the current sort rule: "enabled" while disabled plugins are sunk
+    /// to the bottom, "name" while the list is in plain name order.</summary>
     public string PluginSortLabel => TranslationManager.Instance[_disabledLast ? "Plugins_ColumnEnabled" : "Plugins_ColumnName"];
 
     /// <summary>Raised after the list is reordered, so the view can scroll the selection back into view.</summary>
@@ -195,19 +195,18 @@ public class PluginManagementViewModel : ViewModelBase
         ApplyPluginSort();
     }
 
-    /// <summary>Pure ordering for the plugin list: default rank order, or rank with disabled sunk last.</summary>
+    /// <summary>Pure ordering for the plugin list: display-name order, with the pinned galleries always
+    /// last and, in the default mode, fully-disabled plugins sunk below every active one.</summary>
     internal static List<PluginInfoViewModel> SortPluginsList(
         IReadOnlyList<PluginInfoViewModel> plugins, bool disabledLast)
     {
-        // Disabled plugins sink below every active one (IsFullyDisabled false < true); within each side
-        // the rank bands then name still apply. In the default order there is no disabled split.
-        var ordered = disabledLast
-            ? plugins.OrderBy(p => p.IsFullyDisabled)
-            : (IOrderedEnumerable<PluginInfoViewModel>)plugins.OrderBy(_ => 0);
-
-        return ordered
-            .ThenBy(p => PluginLoaderHelper.DisplayRank(p.HasConfigFields, p.RawComponents.Any(c => c.IsToggleable)))
-            .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+        // The pinned key goes first so those two galleries land last in BOTH modes, including behind a
+        // disabled plugin. Disabled plugins then sink below every active one (false < true), each side
+        // still in name order. In the name-first mode there is no disabled split.
+        return plugins
+            .OrderBy(PluginLoaderHelper.SortsLast)
+            .ThenBy(p => disabledLast && p.IsFullyDisabled)
+            .ThenBy(p => p, PluginLoaderHelper.DisplayNameOrder())
             .ToList();
     }
 
