@@ -98,13 +98,21 @@ public static class PluginLoaderHelper
         return SortForDisplay(result);
     }
 
-    /// <summary>Final display order of the plugin list: the pinned galleries last, then name.
-    /// Fully-disabled plugins stay in place here -- sinking them is a separate toggle on the page, not
-    /// part of the load order (a plugin must not jump just because its last component was toggled).</summary>
+    /// <summary>Final display order of the plugin list: the core plugin first, then name, with the pinned
+    /// galleries last. Fully-disabled plugins stay in place here -- sinking them is a separate toggle on the
+    /// page, not part of the load order (a plugin must not jump just because its last component was
+    /// toggled).</summary>
     internal static List<PluginInfoViewModel> SortForDisplay(IEnumerable<PluginInfoViewModel> plugins) => plugins
         .OrderBy(SortsLast)
+        .ThenBy(p => SortsFirst(p) ? 0 : 1)
         .ThenBy(p => p, DisplayNameOrder())
         .ToList();
+
+    /// <summary>Whether the plugin sits before every other one in whichever enabled/disabled block it is
+    /// currently in. The core plugin is the one the page explains the rest of, so it leads while enabled and
+    /// leads the disabled tail once the user turns it off -- it never jumps above the enabled block.</summary>
+    internal static bool SortsFirst(PluginInfoViewModel plugin) =>
+        plugin.DllFileName.Equals("Lertaro.Plugins.CoreExtensions.dll", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Whether the plugin sits after every other one, in both sort modes. These two galleries own
     /// no toggleable component, so the enabled/disabled split can never move them; keyed on the DLL file

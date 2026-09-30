@@ -195,17 +195,19 @@ public class PluginManagementViewModel : ViewModelBase
         ApplyPluginSort();
     }
 
-    /// <summary>Pure ordering for the plugin list: display-name order, with the pinned galleries always
-    /// last and, in the default mode, fully-disabled plugins sunk below every active one.</summary>
+    /// <summary>Pure ordering for the plugin list: display-name order, with the core plugin leading each
+    /// block and the pinned galleries always last.</summary>
     internal static List<PluginInfoViewModel> SortPluginsList(
         IReadOnlyList<PluginInfoViewModel> plugins, bool disabledLast)
     {
         // The pinned key goes first so those two galleries land last in BOTH modes, including behind a
         // disabled plugin. Disabled plugins then sink below every active one (false < true), each side
-        // still in name order. In the name-first mode there is no disabled split.
+        // still in name order -- and the leading key sits inside that split, so a disabled core plugin
+        // leads the disabled tail rather than the whole list. In the name-first mode there is no split.
         return plugins
             .OrderBy(PluginLoaderHelper.SortsLast)
             .ThenBy(p => disabledLast && p.IsFullyDisabled)
+            .ThenBy(p => PluginLoaderHelper.SortsFirst(p) ? 0 : 1)
             .ThenBy(p => p, PluginLoaderHelper.DisplayNameOrder())
             .ToList();
     }

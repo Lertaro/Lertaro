@@ -132,6 +132,55 @@ public sealed class PluginManagementViewModelSortTests
     }
 
     [TestMethod]
+    public void SortPluginsList_CoreExtensionsLeadsItsBlock()
+    {
+        // Named so plain name order would file it last, isolating the leading pin from the collation.
+        var plugins = new List<PluginInfoViewModel>
+        {
+            MakePlugin("Alpha"),
+            MakePlugin("Zulu", dll: "Lertaro.Plugins.CoreExtensions.dll"),
+            MakePlugin("Bravo", fullyDisabled: true),
+            MakePlugin("Zed"),
+        };
+
+        CollectionAssert.AreEqual(new[] { "Zulu", "Alpha", "Zed", "Bravo" },
+            Names(PluginManagementViewModel.SortPluginsList(plugins, disabledLast: true)));
+
+        // The name-first mode has no blocks to lead, so it is simply first.
+        CollectionAssert.AreEqual(new[] { "Zulu", "Alpha", "Bravo", "Zed" },
+            Names(PluginManagementViewModel.SortPluginsList(plugins, disabledLast: false)));
+    }
+
+    [TestMethod]
+    public void SortPluginsList_DisabledCoreExtensions_LeadsTheDisabledBlock()
+    {
+        var plugins = new List<PluginInfoViewModel>
+        {
+            MakePlugin("Alpha"),
+            MakePlugin("Zulu", fullyDisabled: true, dll: "Lertaro.Plugins.CoreExtensions.dll"),
+            MakePlugin("Bravo", fullyDisabled: true),
+        };
+
+        // It leads the disabled tail rather than jumping above the enabled block it left.
+        CollectionAssert.AreEqual(new[] { "Alpha", "Zulu", "Bravo" },
+            Names(PluginManagementViewModel.SortPluginsList(plugins, disabledLast: true)));
+    }
+
+    [TestMethod]
+    public void SortForDisplay_CoreExtensionsLeadsAndGalleriesRemainLast()
+    {
+        var plugins = new List<PluginInfoViewModel>
+        {
+            MakePlugin("内容搜索"),
+            MakePlugin("Zulu", dll: "Lertaro.Plugins.CoreExtensions.dll"),
+            MakePlugin("动漫主题", hasToggleable: false, dll: "Lertaro.Plugins.AnimeThemes.dll"),
+        };
+
+        CollectionAssert.AreEqual(new[] { "Zulu", "内容搜索", "动漫主题" },
+            Names(PluginLoaderHelper.SortForDisplay(plugins)));
+    }
+
+    [TestMethod]
     public void SyncRuntimeStatusCollection_UnchangedOrder_DoesNotRaiseCollectionChanges()
     {
         var first = new PluginRuntimeStatusItemViewModel(MakePlugin("First"));
