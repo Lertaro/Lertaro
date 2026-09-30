@@ -227,7 +227,10 @@ public class QuickSearchWindowController
                 StayOpenChanged?.Invoke(false);
             }
 
-            _window.ViewModel.SearchQuery = string.Empty;
+            // KeepSearchText: leave the query (and its results) alone so the next summon resumes where the
+            // user left off. ShowSupport re-selects that text when the window comes back, so typing still
+            // replaces it instead of appending to it.
+            if (!UserSettings.Load().SearchWindow.KeepSearchText) _window.ViewModel.SearchQuery = string.Empty;
 
             _window.UpdateLayout();
             _window.Hide();

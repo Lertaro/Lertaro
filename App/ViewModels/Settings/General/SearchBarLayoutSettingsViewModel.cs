@@ -15,6 +15,7 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
     private bool _showClock;
     private bool _reopenAsFullWindowOnRepeatHotkey;
     private bool _lockPosition;
+    private bool _keepSearchText;
     // Reset() clears the quick window's remembered screen position -- there's no bound field for it
     // (the window itself owns Left/Top), so this just stages the intent for Save() to commit.
     private bool _resetPosition;
@@ -27,6 +28,7 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         _showClock = userSettings.SearchWindow.ShowClock;
         _reopenAsFullWindowOnRepeatHotkey = userSettings.SearchWindow.ReopenAsFullWindowOnRepeatHotkey;
         _lockPosition = userSettings.SearchWindow.LockPosition;
+        _keepSearchText = userSettings.SearchWindow.KeepSearchText;
     }
 
     public double SearchBarWidth
@@ -73,6 +75,12 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         set => SetProperty(ref _lockPosition, value);
     }
 
+    public bool KeepSearchText
+    {
+        get => _keepSearchText;
+        set => SetProperty(ref _keepSearchText, value);
+    }
+
     public ICommand ResetCommand => new RelayCommand(Reset);
 
     private void Reset()
@@ -84,6 +92,7 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         // Unlocked as well as re-centred: Reset exists to undo a layout you no longer want, and leaving
         // the lock on would hand back a window that cannot be moved off wherever it lands.
         LockPosition = false;
+        KeepSearchText = false;
         _resetPosition = true;
     }
 
@@ -94,6 +103,7 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         _userSettings.SearchWindow.ShowClock = _showClock;
         _userSettings.SearchWindow.ReopenAsFullWindowOnRepeatHotkey = _reopenAsFullWindowOnRepeatHotkey;
         _userSettings.SearchWindow.LockPosition = _lockPosition;
+        _userSettings.SearchWindow.KeepSearchText = _keepSearchText;
         if (_resetPosition)
         {
             _userSettings.SearchWindow.RelativeLeft = null;
