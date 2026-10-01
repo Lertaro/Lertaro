@@ -189,7 +189,10 @@ public static class AppWindowManager
             if (seedRows != null)
                 existing.HandOffQuickSearchResults(seedRows);
             existing.SearchTextBox.Text = query;
-            existing.SearchTextBox.SelectionStart = query.Length;
+            if (SearchInputHelper.ShouldSelectCarriedText(query, UserSettings.Load().SearchWindow.KeepSearchText))
+                existing.SearchTextBox.SelectAll();
+            else
+                existing.SearchTextBox.SelectionStart = query.Length;
             ShowAndActivateSearchWindow(existing, bringToFront: false);
         });
     }
@@ -309,6 +312,8 @@ public static class AppWindowManager
             timer.Stop();
             window.SearchTextBox.Focus();
             Keyboard.Focus(window.SearchTextBox);
+            if (SearchInputHelper.ShouldSelectCarriedText(window.SearchTextBox.Text, UserSettings.Load().SearchWindow.KeepSearchText))
+                window.SearchTextBox.SelectAll();
         };
         timer.Start();
     }
