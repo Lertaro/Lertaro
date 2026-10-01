@@ -32,6 +32,10 @@ public static class LayeredSurface
         window.AllowsTransparency = true;
         window.Background = System.Windows.Media.Brushes.Transparent;
         surface.CornerRadius = (CornerRadius)window.FindResource("CornerRadiusWindow");
+        // The clip is what makes the corner real here: a Border paints its own rounded fill but leaves its
+        // children square, and only a layered window can show that flap at all, since an opaque one is
+        // rounded by the window manager instead.
+        RoundedClip.SetIsEnabled(surface, true);
         // The dim belongs on the content, not the window: the fade animates the window's own opacity, and the
         // two multiply, so a theme at 0.95 fades 0 to 0.95 without the fade math knowing about it.
         WindowEffectHelper.ApplyThemeEffects(window, theme);

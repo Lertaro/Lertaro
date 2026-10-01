@@ -149,11 +149,18 @@ internal static class NotificationService
         // ActualHeight is only known after the first layout, and the stack is measured in it, so the
         // placement runs twice: once to get the window roughly on screen, once when it knows its own size.
         Restack(animated: false);
+        // The fade starts from the first rendered frame on purpose. A window sitting at alpha 0 has nothing
+        // composited yet, so raising its alpha before WPF has produced a frame reveals the uninitialised
+        // surface instead: a black card that fades in and only then turns into the notification.
         window.ContentRendered += (_, _) =>
         {
-            lock (_gate) Restack(animated: false);
+            lock (_gate)
+            {
+                if (!_runners.ContainsKey(item)) return;
+                Restack(animated: false);
+                FadeTo(window, 1.0, FadeSeconds(), () => SettleOpacity(window));
+            }
         };
-        FadeTo(window, 1.0, FadeSeconds(), () => SettleOpacity(window));
     }
 
     /// <summary>Takes a finished fade-in off the layered path. A window whose opacity is animated stays
