@@ -15,7 +15,7 @@ namespace Lertaro.App.Services.Notifications;
 internal sealed class NotificationQueue(
     Func<bool> isFullscreen,
     Action<NotificationItem> show,
-    Action<NotificationItem> hide,
+    Action<NotificationItem, bool> hide,
     Action<string> logWarning)
 {
     internal const int VisibleCardLimit = 5;
@@ -70,8 +70,13 @@ internal sealed class NotificationQueue(
     {
         item.Complete(NotificationResult.Success);
         if (ReferenceEquals(_notice, item)) _notice = null;
+        var hadWindow = item.ReachedScreen;
         _cards.Remove(item);
         _pending.Remove(item);
+        // A caller dismissing its own notification has no window to close: only this path ends a
+        // notification that is on screen right now, and the paths that already took their window down
+        // (a fade-out, a replacement) find nothing left to do here.
+        if (hadWindow) hide(item, true);
         if (!_batching) Refill();
     }
 
@@ -119,8 +124,9 @@ internal sealed class NotificationQueue(
         from?.Remove(item);
         if (clearNotice) _notice = null;
         item.Complete(NotificationResult.Failed(reason));
-        // Only a notification that reached the screen has a window to take down.
-        if (item.ReachedScreen) hide(item);
+        // Only a notification that reached the screen has a window to take down, and a cancellation is
+        // meant to be immediate rather than wait out an animation.
+        if (item.ReachedScreen) hide(item, false);
     }
 
     private void AdmitCard(NotificationItem item)
@@ -134,7 +140,7 @@ internal sealed class NotificationQueue(
         {
             _cards[_cards.IndexOf(previous)] = item;
             previous.Complete(NotificationResult.Failed(NotificationFailure.Replaced));
-            hide(previous);
+            hide(previous, false);
             item.ReachedScreen = true;
             show(item);
             return;
@@ -176,7 +182,7 @@ internal sealed class NotificationQueue(
         previous.Complete(NotificationResult.Failed(NotificationFailure.Replaced));
         logWarning($"[Notifications] a bottom notice was replaced before its time was up: " +
                    $"{previous.SourceName}, \"{Truncate(previous.Request.Message, 120)}\"");
-        hide(previous);
+        hide(previous, false);
         item.ReachedScreen = true;
         show(item);
     }
@@ -223,15 +229,18 @@ internal sealed class NotificationQueue(
 
     /// <summary>Clamps an explicit duration to the position's own closed range, and supplies that
     /// position's default when the caller gave none. A value the caller did pass is never rejected, only
-    /// moved to the nearest bound, so 0 and a negative both land on the lower bound.</summary>
+    /// moved to the nearest bound, so 0 and a negative both land on the lower bound. A value that cannot be
+    /// compared at all lands there too: it asked for a duration, and the shortest legal one is the only
+    /// answer that keeps it from sitting on screen far longer than intended.</summary>
     internal static double ClipDuration(NotificationPosition position, double? requested)
     {
-        if (requested is not { } value || double.IsNaN(value))
-            return position == NotificationPosition.CardStack ? CardDefaultSeconds : NoticeDefaultSeconds;
+        var (min, max, fallback) = position == NotificationPosition.CardStack
+            ? (CardMinSeconds, CardMaxSeconds, CardDefaultSeconds)
+            : (NoticeMinSeconds, NoticeMaxSeconds, NoticeDefaultSeconds);
 
-        return position == NotificationPosition.CardStack
-            ? Math.Clamp(value, CardMinSeconds, CardMaxSeconds)
-            : Math.Clamp(value, NoticeMinSeconds, NoticeMaxSeconds);
+        if (requested is not { } value) return fallback;
+        if (double.IsNaN(value) || value < min) return min;
+        return value > max ? max : value;
     }
 
     private static string Truncate(string? text, int limit)

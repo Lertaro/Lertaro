@@ -19,7 +19,11 @@ public class NotificationQueueTests
         _queue = new NotificationQueue(
             () => _screen.Fullscreen,
             item => _screen.Shown.Add(item),
-            item => _screen.Hidden.Add(item),
+            (item, fade) =>
+            {
+                _screen.Hidden.Add(item);
+                if (fade) _screen.FadedOut.Add(item);
+            },
             message => _screen.Warnings.Add(message));
 
     [TestMethod]
@@ -43,9 +47,12 @@ public class NotificationQueueTests
             NotificationQueue.ClipDuration(NotificationPosition.BottomNotice, 60));
         Assert.AreEqual(9, NotificationQueue.ClipDuration(NotificationPosition.BottomNotice, 9));
 
-        // A value that cannot be compared is treated as no value rather than throwing at the caller.
-        Assert.AreEqual(NotificationQueue.CardDefaultSeconds,
+        // A value that cannot be compared asked for a duration, so it lands on the lower bound rather than
+        // outliving every notification that was given a real one.
+        Assert.AreEqual(NotificationQueue.CardMinSeconds,
             NotificationQueue.ClipDuration(NotificationPosition.CardStack, double.NaN));
+        Assert.AreEqual(NotificationQueue.NoticeMinSeconds,
+            NotificationQueue.ClipDuration(NotificationPosition.BottomNotice, double.NaN));
     }
 
     [TestMethod]
@@ -100,6 +107,8 @@ public class NotificationQueueTests
         Assert.HasCount(1, _screen.Visible);
         Assert.AreEqual(second, _screen.Shown[1]);
         Assert.AreEqual(first, _screen.Hidden[0]);
+        // A replacement paints over the old card rather than fading it out first.
+        CollectionAssert.DoesNotContain(_screen.FadedOut, first);
     }
 
     [TestMethod]
@@ -296,6 +305,34 @@ public class NotificationQueueTests
     }
 
     [TestMethod]
+    public void DismissOfAShownCard_TakesItsWindowDown()
+    {
+        var card = ShowCard("withdrawn by its caller");
+        var hiddenBefore = _screen.Hidden.Count;
+
+        card.Dismiss();
+
+        Assert.AreEqual(NotificationResult.Success, ResultOf(card));
+        // Ending a notification that is on screen has to reach the window too. Deciding the queue's side
+        // only left a card nobody owned sitting there until its original duration ran out.
+        Assert.HasCount(hiddenBefore + 1, _screen.Hidden);
+        CollectionAssert.Contains(_screen.FadedOut, card);
+    }
+
+    [TestMethod]
+    public void WithdrawingAnAlreadyReplacedNotice_LeavesTheNewOneAlone()
+    {
+        var first = ShowNotice("withdrawn after the fact");
+        var replacement = ShowNotice("the line now showing");
+
+        first.Dismiss();
+
+        Assert.AreEqual(NotificationFailure.Replaced, ResultOf(first).Failure);
+        Assert.IsTrue(IsOutstanding(replacement));
+        CollectionAssert.DoesNotContain(_screen.FadedOut, replacement);
+    }
+
+    [TestMethod]
     public void EveryRequestThatWasAccepted_ReachesAnEndState()
     {
         var items = Enumerable.Range(0, 24)
@@ -346,5 +383,9 @@ public class NotificationQueueTests
 
         /// <summary>What a real screen would still be showing: presented and not taken down again.</summary>
         public List<NotificationItem> Visible => Shown.Where(item => !Hidden.Contains(item)).ToList();
+
+        /// <summary>The ones taken down politely, as opposed to the replacements and cancellations that had
+        /// to go immediately.</summary>
+        public List<NotificationItem> FadedOut { get; } = [];
     }
 }

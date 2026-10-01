@@ -87,10 +87,18 @@ internal static class NotificationService
 
     private static void Present(NotificationItem item) => OnOrOver(() => ShowWindow(item));
 
-    private static void Discard(NotificationItem item) => OnOrOver(() =>
+    /// <param name="fade">Whether it is going away because someone asked it to end, which fades it out like
+    /// a time-out does, or because it was replaced or cancelled, which takes it down right now.</param>
+    private static void Discard(NotificationItem item, bool fade) => OnOrOver(() =>
     {
         if (!_runners.TryGetValue(item, out var runner)) return;
-        // No fade: a replacement or a cancellation is meant to be immediate.
+        if (fade && !runner.IsClosing)
+        {
+            runner.IsClosing = true;
+            FadeTo(runner.Window, 0.0, FadeSeconds(), () => Finish(runner));
+            return;
+        }
+
         CloseNow(runner);
         // Freeing the slot is what lets the queue hand it to the next waiting request.
         Queue.NotifyClosed(item);
@@ -409,6 +417,11 @@ internal static class NotificationService
                 _sessionLocked = locked;
                 foreach (var runner in _runners.Values)
                     runner.Window.Visibility = locked ? Visibility.Hidden : Visibility.Visible;
+                // Logged at the default level because whether this fires at all is the only way to tell a
+                // frozen countdown from a fast one after the fact.
+                Logger.Log($"[Notifications] session {(locked ? "locked" : "unlocked")}: " +
+                           $"{_runners.Count} notification(s) {(locked ? "hidden and their countdowns frozen" : "shown again, counting down from where they stopped")}.",
+                    LogLevel.Info);
             }
         }));
     }
