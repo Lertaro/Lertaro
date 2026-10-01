@@ -3,6 +3,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Shapes;
+using Lertaro.App.Helpers.Visuals;
 using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.Views.Notifications;
@@ -24,7 +25,12 @@ public partial class NotificationCardWindow : Window
     /// because taking back a position the user just chose would fight them for it.</summary>
     public bool IsUserMoved { get; private set; }
 
-    public NotificationCardWindow() => InitializeComponent();
+    public NotificationCardWindow()
+    {
+        InitializeComponent();
+        // Chosen here because the theme decides the window kind and that choice is frozen with the handle.
+        LayeredSurface.Apply(this, Surface);
+    }
 
     public void SetContent(NotificationRequest request, string sourceName)
     {

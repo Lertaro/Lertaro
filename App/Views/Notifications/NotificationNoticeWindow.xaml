@@ -26,7 +26,7 @@
          for a window floating over someone else's content. It is opaque now, and the corners are the window
          manager's rounding rather than a painted radius: a see-through notification would have to be a
          layered window again, which is the one thing that cost both ClearType and every animation frame. -->
-    <Border Height="36" Padding="12,0" Background="{DynamicResource ContentBg}"
+    <Border x:Name="Surface" Height="36" Padding="12,0" Background="{DynamicResource ContentBg}"
             BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
         <TextBlock x:Name="Line"
                    FontSize="12"

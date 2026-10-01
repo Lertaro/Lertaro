@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
-using System.Windows.Interop;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Lertaro.App.Helpers.Visuals;
@@ -142,12 +141,10 @@ internal static class NotificationService
 
         _runners[item] = new Runner(item, window);
         window.Opacity = 0;
-        // The handle must exist before the window manager is asked to round it, and asking after Show is what
-        // lets the corners visibly snap. ShowActivated=False on both kinds: a notification that takes the
-        // foreground is worse than one that never arrived, for anyone typing.
-        new WindowInteropHelper(window).EnsureHandle();
+        // ShowActivated=False on both kinds: a notification that takes the foreground is worse than one that
+        // never arrived, for anyone typing. Which kind of window this is was decided by the window itself from
+        // the active theme's opacity, before it had a handle to commit that with.
         AltTabExcluder.Attach(window);
-        DwmWindowCorners.ApplyRound(window);
         window.Show();
         // ActualHeight is only known after the first layout, and the stack is measured in it, so the
         // placement runs twice: once to get the window roughly on screen, once when it knows its own size.

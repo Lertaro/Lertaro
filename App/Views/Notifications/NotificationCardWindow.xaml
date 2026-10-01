@@ -55,7 +55,8 @@
          rounded by the window manager itself (see DwmWindowCorners), so the header band and the level bar are
          clipped by the window's real shape and text keeps ClearType. A 1 DIP rule just inside the window edge
          stands in for the border the transparent version drew. -->
-    <Border Background="{DynamicResource CardBackground}"
+    <Border x:Name="Surface"
+            Background="{DynamicResource CardBackground}"
             BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
         <Grid>
             <Grid.ColumnDefinitions>
