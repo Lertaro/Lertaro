@@ -36,6 +36,18 @@ public sealed class KeepSearchTextGateTests
         Assert.IsFalse(QuickSearchWindowShowSupport.ShouldKeepSearchText(settingEnabled: true, newQuery: "", existingQuery: ""));
 
     [TestMethod]
+    public void ANullBoxIsTheFirstSummonNotSomethingToKeep() =>
+        // The view model's query field starts out null and is only ever assigned by the show path, so the
+        // very first summon reaches this gate with null. Reading .Length on it crashed the tray icon.
+        Assert.IsFalse(QuickSearchWindowShowSupport.ShouldKeepSearchText(settingEnabled: true, newQuery: "", existingQuery: null));
+
+    [TestMethod]
+    public void ANullIncomingQueryCountsAsNoIntent() =>
+        // Symmetrical guard: the show path supplies a non-null query today, but the gate does not lean on
+        // that staying true.
+        Assert.IsTrue(QuickSearchWindowShowSupport.ShouldKeepSearchText(settingEnabled: true, newQuery: null, existingQuery: "old"));
+
+    [TestMethod]
     public void TheSettingDefaultsToOff() =>
         // Keeping the box dirty is a change nobody asked for on upgrade.
         Assert.IsFalse(new SearchWindowSettings().KeepSearchText);
