@@ -1,0 +1,151 @@
+<UserControl x:Class="Lertaro.Plugins.Calendar.View.AlmanacPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:ClassModifier="internal"
+             TextOptions.TextFormattingMode="Display"
+             UseLayoutRounding="True">
+    <UserControl.Resources>
+        <!-- The reference sheet is a table: every run sits centred in its box, a label band beside or
+             above the value it names, and the four long lists across the full width. Its hairline cell
+             borders are left out, since a TextBlock carries no border of its own and the shaded bands and
+             the gaps between sections already say which cells belong together. -->
+        <Style x:Key="CellStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="2,3"/>
+            <Setter Property="Margin" Value="0,1,0,1"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style x:Key="ValueStyle" TargetType="TextBlock" BasedOn="{StaticResource CellStyle}"/>
+        <Style x:Key="BandStyle" TargetType="TextBlock" BasedOn="{StaticResource CellStyle}">
+            <Setter Property="Background" Value="{DynamicResource HoverBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+        </Style>
+        <!-- 宜, 忌, 吉神 and 凶神 are as long as the day's data makes them: they wrap when they have to and
+             take one line when they do not. The gap under each is the only thing separating it from the
+             next section's band, so it is wider than the 1px elsewhere in the table. -->
+        <Style x:Key="ListStyle" TargetType="TextBlock" BasedOn="{StaticResource ValueStyle}">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style x:Key="SectionBandStyle" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource HoverBackground}"/>
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="Margin" Value="0,0,0,1"/>
+        </Style>
+        <Style x:Key="BadgeStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="10,2"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Almanac column, full height. Its values are the library's own Chinese data; only the labels
+         beside them come from the translation files. The padding keeps the table off the divider line on
+         one side and off the window edge on the other: either one flush makes the last column look cut. -->
+    <Border Margin="10,0,0,0" Padding="6,0,6,0" BorderThickness="1,0,0,0"
+            BorderBrush="{DynamicResource BorderColor}">
+        <Grid VerticalAlignment="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="AlmanacLunarText" Grid.Row="0" Grid.ColumnSpan="3" FontSize="18" VerticalAlignment="Center" HorizontalAlignment="Center"
+                       FontWeight="SemiBold" MinHeight="34" Style="{StaticResource ValueStyle}"/>
+
+            <UniformGrid x:Name="PillarRow" Grid.Row="1" Grid.ColumnSpan="3" Columns="4">
+                <TextBlock x:Name="AlmanacYearText" FontSize="13" Style="{StaticResource ValueStyle}"/>
+                <TextBlock x:Name="AlmanacMonthText" FontSize="13" Style="{StaticResource ValueStyle}"/>
+                <TextBlock x:Name="AlmanacDayText" FontSize="13" Style="{StaticResource ValueStyle}"/>
+                <TextBlock x:Name="AlmanacWeekdayText" FontSize="13" Style="{StaticResource ValueStyle}"/>
+            </UniformGrid>
+
+            <TextBlock x:Name="FiveElementsLabelText" Grid.Row="3" Style="{StaticResource BandStyle}"/>
+            <TextBlock x:Name="FiveElementsText" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
+                       Style="{StaticResource ValueStyle}"/>
+            <TextBlock x:Name="ChongShaLabelText" Grid.Row="4" Style="{StaticResource BandStyle}"/>
+            <TextBlock x:Name="ChongShaText" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2"
+                       Style="{StaticResource ValueStyle}"/>
+            <TextBlock x:Name="LuckLabelText" Grid.Row="5" Style="{StaticResource BandStyle}"/>
+            <TextBlock x:Name="LuckText" Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2"
+                       Style="{StaticResource ValueStyle}"/>
+            <TextBlock x:Name="PengZuLabelText" Grid.Row="6" Style="{StaticResource BandStyle}"/>
+            <StackPanel Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" VerticalAlignment="Center">
+                <TextBlock x:Name="PengZuGanText" Style="{StaticResource ValueStyle}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="PengZuZhiText" Style="{StaticResource ValueStyle}" TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <!-- The three direction columns sit side by side and their bands are shaded, so with no gap
+                 between them the row reads as one band with three words in it. Two device-independent
+                 pixels of air on the inner edges is enough to say they are three cells. -->
+            <TextBlock x:Name="JoyGodLabelText" Grid.Row="8" Style="{StaticResource BandStyle}"/>
+            <TextBlock x:Name="FortuneGodLabelText" Grid.Row="8" Grid.Column="1" Margin="2,0,0,1"
+                       Style="{StaticResource BandStyle}"/>
+            <TextBlock x:Name="WealthGodLabelText" Grid.Row="8" Grid.Column="2" Margin="2,0,0,1"
+                       Style="{StaticResource BandStyle}"/>
+            <TextBlock x:Name="JoyGodText" Grid.Row="9" Style="{StaticResource ValueStyle}"/>
+            <TextBlock x:Name="FortuneGodText" Grid.Row="9" Grid.Column="1" Margin="2,0,0,0"
+                       Style="{StaticResource ValueStyle}"/>
+            <TextBlock x:Name="WealthGodText" Grid.Row="9" Grid.Column="2" Margin="2,0,0,0"
+                       Style="{StaticResource ValueStyle}"/>
+
+            <Border Grid.Row="11" Grid.ColumnSpan="3" Style="{StaticResource SectionBandStyle}">
+                <!-- Green for what a day invites and red for what it warns off holds in every theme, so
+                     these two fills are the plugin's only literal colours. -->
+                <Border Background="#008000" Style="{StaticResource BadgeStyle}">
+                    <TextBlock x:Name="YiBadgeText" FontWeight="SemiBold" Foreground="White"/>
+                </Border>
+            </Border>
+            <TextBlock x:Name="YiText" Grid.Row="12" Grid.ColumnSpan="3" Style="{StaticResource ListStyle}"/>
+
+            <Border Grid.Row="13" Grid.ColumnSpan="3" Style="{StaticResource SectionBandStyle}">
+                <Border Background="#FF0000" Style="{StaticResource BadgeStyle}">
+                    <TextBlock x:Name="JiBadgeText" FontWeight="SemiBold" Foreground="White"/>
+                </Border>
+            </Border>
+            <TextBlock x:Name="JiText" Grid.Row="14" Grid.ColumnSpan="3" Style="{StaticResource ListStyle}"/>
+
+            <Border Grid.Row="16" Grid.ColumnSpan="3" Style="{StaticResource SectionBandStyle}">
+                <TextBlock x:Name="LuckySpiritsLabelText" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"
+                           HorizontalAlignment="Center"/>
+            </Border>
+            <TextBlock x:Name="LuckySpiritsText" Grid.Row="17" Grid.ColumnSpan="3"
+                       Style="{StaticResource ListStyle}"/>
+
+            <Border Grid.Row="18" Grid.ColumnSpan="3" Style="{StaticResource SectionBandStyle}">
+                <TextBlock x:Name="EvilSpiritsLabelText" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"
+                           HorizontalAlignment="Center"/>
+            </Border>
+            <TextBlock x:Name="EvilSpiritsText" Grid.Row="19" Grid.ColumnSpan="3"
+                       Style="{StaticResource ListStyle}"/>
+        </Grid>
+    </Border>
+</UserControl>

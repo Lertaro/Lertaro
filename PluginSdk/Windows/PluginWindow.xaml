@@ -57,7 +57,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="38"/>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="52"/>
+                    <RowDefinition x:Name="FooterRow" Height="52"/>
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0" Background="{DynamicResource HeaderBg}"
@@ -78,7 +78,7 @@
 
                 <ContentControl x:Name="ContentHost" Grid.Row="1" Margin="20,18,20,18"/>
 
-                <Border Grid.Row="2" Background="{DynamicResource StatusBarBg}"
+                <Border x:Name="FooterBar" Grid.Row="2" Background="{DynamicResource StatusBarBg}"
                         BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
                     <Grid Margin="12,0">
                         <StackPanel x:Name="FooterHost" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"/>

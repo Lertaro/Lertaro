@@ -1,0 +1,263 @@
+<UserControl x:Class="Lertaro.Plugins.Calendar.View.CalendarView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Lertaro.Plugins.Calendar.View"
+             TextOptions.TextFormattingMode="Display"
+             UseLayoutRounding="True"
+             MinWidth="760" MaxHeight="790">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <!-- The whole width chain, so no level ever asks for more than the one above it hands out:
+                 PluginWindow is 860 wide, its chrome takes 16 margin + 2 border + 40 ContentHost margin, so
+                 this view gets 802. The almanac is a fixed 280 and the month grid is the star column, so it
+                 gets the remaining 522, which is 74 a cell: enough for a four-character 农历 sublabel.
+                 MinWidth 480 here plus the almanac's 280 is what MinWidth on the view itself has to equal: 760.
+                 The almanac keeps its width on the panel rather than on a star column so that hiding it for
+                 a non-Chinese language takes this column to nothing and the month grid absorbs the slack. -->
+            <ColumnDefinition Width="*" MinWidth="480"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <Grid>
+            <!-- The month grid takes its natural, fixed height and the reminder pane is the flexible row.
+                 The other way round made the grid a star-sized row, so the pane growing with however many
+                 reminders the clicked day holds took height straight out of the calendar. -->
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="280"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="MonthTitleText" FontSize="16" FontWeight="SemiBold"
+                           VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
+
+                <!-- Star sizing needs a container whose width is already known, which a StackPanel never
+                     gives it: a horizontal StackPanel measures its children at infinite width, so a
+                     percentage there has nothing to be a percentage of. A Grid with a definite 280 column
+                     does, and each button then gets a share of it. MinWidth="0" is not optional: the
+                     SettingsButton style sets MinWidth 92, and WPF lets MinWidth override MaxWidth, so
+                     without it every one of these buttons is silently 92 wide. -->
+                <Grid Grid.Column="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="1.5*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button x:Name="PinButton" Grid.Column="0" MinWidth="0" Margin="0"
+                            Content="&#xE718;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                            Style="{DynamicResource SettingsButton}" Padding="8,2" Click="Pin_Click"/>
+                    <Button x:Name="PrevMonthButton" Grid.Column="1" MinWidth="0" Margin="6,0,0,0"
+                            Content="&#xE76B;" FontFamily="Segoe MDL2 Assets" FontSize="16"
+                            Style="{DynamicResource SettingsButton}" Padding="8,2" Click="PrevMonth_Click"/>
+                    <Button x:Name="TodayButton" Grid.Column="2" MinWidth="0" Margin="6,0,0,0"
+                            FontSize="16" Style="{DynamicResource SettingsButton}"
+                            Padding="10,2" Click="Today_Click"/>
+                    <Button x:Name="NextMonthButton" Grid.Column="3" MinWidth="0" Margin="6,0,0,0"
+                            Content="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="16"
+                            Style="{DynamicResource SettingsButton}" Padding="8,2" Click="NextMonth_Click"/>
+                </Grid>
+            </Grid>
+
+            <UniformGrid x:Name="WeekdayHeader" Grid.Row="1" Rows="1" Columns="7" Margin="4,0,4,4"/>
+
+            <Border Grid.Row="2" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                    Background="{DynamicResource ControlBackground}" CornerRadius="6">
+                <ItemsControl x:Name="DayGrid" Margin="3">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="6" Columns="7"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border x:Name="Cell" Background="Transparent" Cursor="Hand"
+                                    MouseLeftButtonUp="DayCell_Click">
+                                <Border x:Name="CellFill" Background="Transparent" CornerRadius="5"
+                                        MinHeight="52" Margin="2" Padding="2,4,2,4" BorderThickness="1"
+                                        BorderBrush="Transparent">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <!-- A star row, so the number is centred in whatever height the cell
+                                                 has left over. With the lunar second line hidden (the other
+                                                 interface languages) two Auto rows leave the number pinned to the
+                                                 top of the cell instead of in the middle of it. -->
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- A day that already has a reminder is the one worth finding in the
+                                             month, so it takes the accent colour underneath everything else.
+                                             Low opacity rather than a solid fill keeps the number legible in
+                                             every theme; being a child of CellFill means an out-of-month cell
+                                             dims together with its own tint. -->
+                                        <Border x:Name="ReminderTint" Grid.RowSpan="2" CornerRadius="3"
+                                                Background="{DynamicResource AccentBlue}" Opacity="0.25"
+                                                Margin="1,-2,1,-2"
+                                                Visibility="Collapsed"/>
+                                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Width="30">
+                                            <Rectangle Width="28" Height="28" RadiusX="3" RadiusY="3"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                     Fill="{DynamicResource AccentBlue}"
+                                                     Visibility="{Binding IsToday, Converter={StaticResource BoolToVis}}"/>
+                                            <TextBlock x:Name="DayNumber" Text="{Binding Day}"
+                                                       FontSize="16" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextPrimary}"/>
+                                        </Grid>
+
+                                        <Border HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                MinWidth="16" CornerRadius="3" Padding="0"
+                                                BorderThickness="1"
+                                                Background="{DynamicResource BadgeBackground}"
+                                                BorderBrush="{DynamicResource BadgeBackground}"
+                                                Visibility="{Binding HasDuty, Converter={StaticResource BoolToVis}}">
+                                            <!-- A solid chip rather than a hairline frame with nothing behind
+                                                 it: this badge shares the top-right of the cell with the
+                                                 today square and the reminder tint, and an open frame let
+                                                 both read through it. BadgeText is the pack's own
+                                                 on-BadgeBackground text colour, so it stays strong in all
+                                                 five, where the muted TextSecondary it used is not. -->
+                                            <TextBlock Text="{Binding DutyBadgeText}" FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource BadgeText}"/>
+                                        </Border>
+
+                                        <TextBlock x:Name="SubLabel" Grid.Row="1" Text="{Binding SubLabel}"
+                                                   FontSize="12.5" Margin="0,1,0,0"
+                                                   HorizontalAlignment="Center"
+                                                   Foreground="{DynamicResource TextSecondary}"/>
+                                    </Grid>
+                                </Border>
+                            </Border>
+
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding HasReminder}" Value="True">
+                                    <Setter TargetName="ReminderTint" Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                                <!-- An empty second line still costs a line of height, which is what pushed
+                                     the number 8px above the cell's centre whenever the lunar line was
+                                     switched off. Collapsed, the star row owns the whole cell again. -->
+                                <DataTrigger Binding="{Binding SubLabel}" Value="">
+                                    <Setter TargetName="SubLabel" Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsToday}" Value="True">
+                                    <Setter TargetName="DayNumber" Property="Foreground" Value="White"/>
+                                    <Setter TargetName="DayNumber" Property="FontWeight" Value="SemiBold"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                    <Setter TargetName="CellFill" Property="Background" Value="{DynamicResource HoverBackground}"/>
+                                    <Setter TargetName="CellFill" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding InMonth}" Value="False">
+                                    <Setter TargetName="CellFill" Property="Opacity" Value="0.38"/>
+                                </DataTrigger>
+                                <!-- A solar term or a traditional festival is the interesting thing about a
+                                     day, so it takes the accent colour; a bare lunar day stays muted.
+                                     SidebarAccent rather than AccentBlue: three of the five packs define
+                                     AccentBlue as a pale tint (Nord's #88C0D0, Sakura's #FF8DA1) that is
+                                     lighter than the muted lunar text beside it, so the term name read as
+                                     a watermark. This is the packs' own strong accent, and the weight is
+                                     what lifts it in the packs where even the accent is low-contrast. -->
+                                <DataTrigger Binding="{Binding ShowAccent}" Value="True">
+                                    <Setter TargetName="SubLabel" Property="Foreground" Value="{DynamicResource SidebarAccent}"/>
+                                    <Setter TargetName="SubLabel" Property="FontWeight" Value="SemiBold"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+
+            <Grid Grid.Row="3" Margin="0,10,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Grid>
+                    <TextBlock x:Name="SelectedDateText" Margin="0,0,0,4"
+                               VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock x:Name="FootnoteText" HorizontalAlignment="Right" FontSize="11"
+                               VerticalAlignment="Center" Visibility="Collapsed"
+                               Foreground="{DynamicResource TextSecondary}"/>
+                </Grid>
+
+                <Border x:Name="ReminderPaneBorder" Grid.Row="1"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        CornerRadius="6" Background="{DynamicResource ControlBackground}" MinHeight="46" MaxHeight="200">
+                    <Grid>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                            <ItemsControl x:Name="ReminderList" Margin="4">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="2,1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="75"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="50"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding TimeText}" VerticalAlignment="Center"
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="{DynamicResource AccentBlue}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Text}" Margin="6,0"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource TextPrimary}"/>
+                                            <Button Grid.Column="2" Content="&#xE738;"
+                                                    FontFamily="Segoe MDL2 Assets"
+                                                    Style="{DynamicResource SettingsButton}" MinWidth="0"
+                                                    Margin="0" Padding="6,2"
+                                                    ToolTipService.ToolTip="{Binding DeleteLabel}"
+                                                    AutomationProperties.Name="{Binding DeleteLabel}"
+                                                    Tag="{Binding Id}" Click="DeleteReminder_Click"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        <TextBlock x:Name="NoRemindersText" HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondary}" Visibility="Collapsed"/>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="2" Margin="0,6,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="TimePromptText" VerticalAlignment="Center" Margin="0,0,6,0"
+                               Foreground="{DynamicResource TextSecondary}"/>
+                    <TextBox x:Name="TimeInput" Grid.Column="1" Width="58"
+                             VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                             MaxLength="5"/>
+                    <TextBox x:Name="ReminderText" Grid.Column="2" Margin="6,0"
+                             VerticalContentAlignment="Center" KeyDown="ReminderText_KeyDown"/>
+                    <Button x:Name="AddReminderButton" Grid.Column="3" IsDefault="True"
+                            Style="{DynamicResource PrimarySettingsButton}" FontSize="12" Padding="12,4"
+                            Click="AddReminder_Click"/>
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <local:AlmanacPanel x:Name="AlmanacColumn" Grid.Column="1" Width="280"/>
+
+    </Grid>
+</UserControl>

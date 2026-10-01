@@ -1,0 +1,112 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Lertaro.Plugins.Calendar</AssemblyName>
+    <Version>1.0.3</Version>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <!-- lunar-csharp is a single managed netstandard2.0 assembly with no dependencies and no native code
+         of its own, so unlike BrowserData/ContentSearch this needs no RuntimeIdentifier at all: an IL-only
+         assembly runs on x86, x64 and arm64 alike. CopyLocalLockFileAssemblies is what gets lunar.dll
+         copied out in the first place, since GenerateDependencyFile is off and nothing else would place it. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- Nest the output only when it IS the shared Plugins directory the loader scans. build_and_run.bat
+         passes /p:OutputPath=.../debug/Plugins/ and make.bat passes -o .../Plugins, both rooted, while a
+         plain build of this project (or of Tests.slnx, which reaches it through a ProjectReference) leaves
+         OutputPath relative at bin\Debug\... . In that private shape the flat DLL has to stay exactly
+         where $(TargetDir) says it is, because the test project's copy-local step reads that path, and
+         its XAML code-behind needs a real XAML compile, so compiling the sources into the test assembly
+         the way BrowserData's tests do is not an option here. -->
+    <NestPluginOutput Condition="$([System.IO.Path]::IsPathRooted('$(OutputPath)'))">true</NestPluginOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\PluginSdk\PluginSdk.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="lunar-csharp" Version="1.6.8" />
+    <!-- OpenCC's dictionaries behind a managed binding: the almanac needs phrase-level Simplified to
+         Traditional (谷雨 is 穀雨 while 干支 must stay 干支), which the OS's character mapping cannot do.
+         This binding ships the dictionaries compressed inside the assembly (hence ZstdSharp and Cbor),
+         takes no further dependencies and converts synchronously, so a first call costs ~30ms on the
+         calling thread and nothing is ever awaited on it. -->
+    <PackageReference Include="OpenccNetLib" Version="1.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lertaro.Plugins.Calendar.Tests" />
+    <EmbeddedResource Include="Resources\Translations\**\*.json" />
+  </ItemGroup>
+
+  <!-- OpenccNetLib ships its dictionaries as contentFiles, so a plain reference drops a 22-file dicts/
+       folder next to the output. The library does not read it at run time: its own README says the
+       built-in dictionary is embedded in the assembly as a Zstandard resource, loaded lazily, and the
+       external files exist only for DictionaryLib.FromDicts and the dictgen/custom-dictionary workflow
+       this plugin never calls. Left in place the folder would land flat in the shared Plugins/ directory
+       (it is not part of the nest lists below), which is exactly the clutter those lists exist to avoid. -->
+  <Target Name="DropOpenccDictionaryContent" BeforeTargets="AssignTargetPaths;GetCopyToOutputDirectoryItems">
+    <ItemGroup>
+      <None Remove="@(None)" Condition="'%(None.NuGetPackageId)' == 'OpenccNetLib'" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Outputs into its own Plugins/Lertaro.Plugins.Calendar/ subdirectory instead of the flat shared
+       Plugins/ folder, so its dependency assemblies don't sit in the directory every other plugin loads
+       from. The loader scans Plugins/ recursively but only treats Lertaro.Plugins.*.dll as an entry
+       assembly, so the nested dependencies are never mistaken for a plugin, and Assembly.LoadFrom
+       resolves them from the loaded assembly's own directory. That is why every one of them has to be
+       nested, not just lunar.dll: a dependency left flat beside Plugins/ is outside that probe path and
+       the first conversion would throw FileNotFound. Lertaro.PluginSdk.dll is deliberately absent:
+       Private="false" keeps it out of the copy, because the App already loads its own copy.
+
+       Named lists rather than a $(TargetDir)*.dll wildcard, for the reason BrowserData spells out: under
+       a shared /p:OutputPath every plugin builds into the same folder, and a wildcard here would collect
+       and then delete files that belong to other projects. -->
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <ItemGroup>
+      <CalendarOutput Include="$(TargetDir)$(TargetName).dll" Condition="Exists('$(TargetDir)$(TargetName).dll')" />
+      <CalendarOutput Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+      <CalendarOutput Include="$(TargetDir)lunar.dll" Condition="Exists('$(TargetDir)lunar.dll')" />
+      <CalendarOutput Include="$(TargetDir)OpenccNetLib.dll" Condition="Exists('$(TargetDir)OpenccNetLib.dll')" />
+      <CalendarOutput Include="$(TargetDir)ZstdSharp.dll" Condition="Exists('$(TargetDir)ZstdSharp.dll')" />
+      <CalendarOutput Include="$(TargetDir)System.Formats.Cbor.dll" Condition="Exists('$(TargetDir)System.Formats.Cbor.dll')" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(CalendarOutput)" DestinationFolder="$(TargetDir)$(AssemblyName)\" SkipUnchangedFiles="true" Condition="'$(NestPluginOutput)' == 'true'" />
+    <!-- Also drops any stale flat copy left by an earlier build, which the loader would otherwise pick up
+         as a second registration of the same plugin. -->
+    <Delete Files="@(CalendarOutput)" Condition="'$(NestPluginOutput)' == 'true'" />
+
+    <ItemGroup Condition="'$(NestPluginOutput)' == 'true'">
+      <CalendarNested Include="$(TargetDir)$(AssemblyName)\$(TargetName).dll" Condition="Exists('$(TargetDir)$(AssemblyName)\$(TargetName).dll')" />
+      <CalendarNested Include="$(TargetDir)$(AssemblyName)\$(TargetName).pdb" Condition="Exists('$(TargetDir)$(AssemblyName)\$(TargetName).pdb')" />
+      <CalendarNested Include="$(TargetDir)$(AssemblyName)\lunar.dll" Condition="Exists('$(TargetDir)$(AssemblyName)\lunar.dll')" />
+      <CalendarNested Include="$(TargetDir)$(AssemblyName)\OpenccNetLib.dll" Condition="Exists('$(TargetDir)$(AssemblyName)\OpenccNetLib.dll')" />
+      <CalendarNested Include="$(TargetDir)$(AssemblyName)\ZstdSharp.dll" Condition="Exists('$(TargetDir)$(AssemblyName)\ZstdSharp.dll')" />
+      <CalendarNested Include="$(TargetDir)$(AssemblyName)\System.Formats.Cbor.dll" Condition="Exists('$(TargetDir)$(AssemblyName)\System.Formats.Cbor.dll')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(CalendarNested)" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\$(AssemblyName)\" SkipUnchangedFiles="true" Condition="'$(NestPluginOutput)' == 'true'" />
+
+    <Copy SourceFiles="@(CalendarOutput)" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\" SkipUnchangedFiles="true" Condition="'$(NestPluginOutput)' != 'true'" />
+  </Target>
+
+  <!-- `dotnet publish Lertaro.Plugins.slnx -o <dir>/Plugins` is a third build shape: -o sets $(PublishDir),
+       not $(OutputPath), so PostBuild above never sees the shared folder. Same nest-and-delete, retargeted. -->
+  <Target Name="PostPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <CalendarPublishOutput Include="$(PublishDir)$(TargetName).dll" Condition="Exists('$(PublishDir)$(TargetName).dll')" />
+      <CalendarPublishOutput Include="$(PublishDir)$(TargetName).pdb" Condition="Exists('$(PublishDir)$(TargetName).pdb')" />
+      <CalendarPublishOutput Include="$(PublishDir)lunar.dll" Condition="Exists('$(PublishDir)lunar.dll')" />
+      <CalendarPublishOutput Include="$(PublishDir)OpenccNetLib.dll" Condition="Exists('$(PublishDir)OpenccNetLib.dll')" />
+      <CalendarPublishOutput Include="$(PublishDir)ZstdSharp.dll" Condition="Exists('$(PublishDir)ZstdSharp.dll')" />
+      <CalendarPublishOutput Include="$(PublishDir)System.Formats.Cbor.dll" Condition="Exists('$(PublishDir)System.Formats.Cbor.dll')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(CalendarPublishOutput)" DestinationFolder="$(PublishDir)$(AssemblyName)\" SkipUnchangedFiles="true" />
+    <Delete Files="@(CalendarPublishOutput)" />
+  </Target>
+
+</Project>

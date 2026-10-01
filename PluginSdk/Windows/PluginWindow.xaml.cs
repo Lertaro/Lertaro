@@ -11,9 +11,26 @@ namespace Lertaro.PluginSdk.Windows;
 /// </summary>
 public partial class PluginWindow : Window
 {
+    private bool _showFooter = true;
+
     public ContentControl ContentHostControl => ContentHost;
 
     public Panel Footer => FooterHost;
+
+    /// <summary>
+    /// Whether the footer strip is reserved. Plugins that own no confirm/cancel actions can drop it and
+    /// give the 52 rows back to their content. Defaults to true, so a plugin that never asks is unaffected.
+    /// </summary>
+    public bool ShowFooter
+    {
+        get => _showFooter;
+        set
+        {
+            _showFooter = value;
+            FooterBar.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+            FooterRow.Height = value ? new GridLength(52) : GridLength.Auto;
+        }
+    }
 
     public PluginWindow(
         string title,

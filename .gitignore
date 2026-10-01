@@ -126,4 +126,3 @@ Site/.vitepress/public/favicon.ico
 # Claude Code local project state (per-machine, not shared)
 .claude/
 
-

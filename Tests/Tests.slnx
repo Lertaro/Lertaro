@@ -27,4 +27,5 @@
   <Project Path="Plugins/ContentSearch/ContentSearch.csproj" />
   <Project Path="Plugins/FileUnlocker/FileUnlocker.csproj" />
   <Project Path="Plugins/AudioDeviceSelector/AudioDeviceSelector.csproj" />
+  <Project Path="Plugins/Calendar/Calendar.csproj" />
 </Solution>

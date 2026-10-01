@@ -3,6 +3,7 @@ using Lertaro.Core.SearchIndex;
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services.AppWindow;
+using Lertaro.App.Services.Tray;
 using Lertaro.App.ViewModels.Settings.Plugins;
 namespace Lertaro.App.Services.Plugin;
 
@@ -56,6 +57,26 @@ internal static class PluginSdkBridge
         PluginSdk.Services.PluginMessageBoxService.ShowFunc =
             (messageBoxText, caption, button, icon, _) =>
                 Views.Controls.Dialogs.CustomMessageBox.Show(messageBoxText, caption, button, icon);
+
+        // Route plugin background notifications through the host's own tray icon, so a plugin that needs to
+        // reach the user while the launcher is hidden does not have to add a second tray icon of its own.
+        // ShowBalloonTip is the one place the "hide tray icon" preference and the self-unsubscribing click
+        // callback are already handled, and LegacySettingsNoticeService is in-repo precedent that this is
+        // how the app gets attention from the background. The NotifyIcon was created on the WPF UI thread,
+        // so a call arriving on a plugin's own thread has to be handed over rather than made directly; the
+        // return value therefore means "accepted for display", not "rendered".
+        PluginSdk.Services.PluginNotificationService.ShowFunc = (title, text, onClick) =>
+        {
+            var tray = TrayIconService.Instance;
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (tray == null || dispatcher == null) return false;
+
+            if (dispatcher.CheckAccess())
+                tray.ShowBalloonTip(title, text, ToolTipIcon.Info, onClick);
+            else
+                dispatcher.BeginInvoke(() => tray.ShowBalloonTip(title, text, ToolTipIcon.Info, onClick));
+            return true;
+        };
 
         // Wire up directory opening and file locating to respect configured file managers.
         PluginSdk.Services.ExplorerService.OpenDirectoryFunc = (directoryPath, fileNameOrFilePath) =>
