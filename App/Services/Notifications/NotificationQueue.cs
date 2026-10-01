@@ -271,10 +271,17 @@ internal sealed class NotificationItem(
     /// <summary>Whether this ever had a window, which decides whether cancelling has anything to take down.</summary>
     internal bool ReachedScreen { get; set; }
 
+    /// <summary>True once an end state has been delivered, so a presentation already handed to the UI thread
+    /// can be dropped instead of painted.</summary>
+    internal bool IsSettled { get; private set; }
+
     public Task<NotificationResult> Completion => _completion.Task;
 
     public void Dismiss() => owner?.NotifyClosed(this);
 
     /// <summary>First end state wins, so a close that arrives after a cancellation cannot rewrite it.</summary>
-    internal void Complete(NotificationResult result) => _ = _completion.TrySetResult(result);
+    internal void Complete(NotificationResult result)
+    {
+        if (_completion.TrySetResult(result)) IsSettled = true;
+    }
 }

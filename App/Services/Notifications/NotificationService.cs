@@ -118,6 +118,11 @@ internal static class NotificationService
 
     private static void ShowWindow(NotificationItem item)
     {
+        // The submitting thread handed this over and may have dismissed, replaced or cancelled the item
+        // since. Painting it then would leave a window that is in no list, nobody times out, and nobody
+        // ever closes.
+        if (item.IsSettled) return;
+
         BindScreenEvents();
         EnsureTicker();
 
