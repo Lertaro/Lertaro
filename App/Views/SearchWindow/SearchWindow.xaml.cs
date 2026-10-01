@@ -3,6 +3,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Lertaro.App.Views.SearchWindow;
 using Lertaro.App.Services;
+using Lertaro.App.Helpers;
+using Lertaro.Core;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using Size = System.Windows.Size;
 using TextBox = System.Windows.Controls.TextBox;
@@ -79,7 +81,10 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
                 Keyboard.Focus(txtSearch);
                 if (initialQuery != null)
                 {
-                    txtSearch.SelectionStart = initialQuery.Length;
+                    if (SearchInputHelper.ShouldSelectCarriedText(initialQuery, UserSettings.Load().SearchWindow.KeepSearchText))
+                        txtSearch.SelectAll();
+                    else
+                        txtSearch.SelectionStart = initialQuery.Length;
                 }
             }), System.Windows.Threading.DispatcherPriority.Input);
         };
@@ -279,7 +284,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     {
         var size = WindowState == WindowState.Normal ? new Size(Width, Height) : RestoreBounds.Size;
         if (size.Width <= 0 || size.Height <= 0) return;
-        var settings = Core.UserSettings.Load();
+        var settings = UserSettings.Load();
         settings.MainWindow.Width = UiMetrics.RoundWindowSize(size.Width);
         settings.MainWindow.Height = UiMetrics.RoundWindowSize(size.Height);
         settings.Save();

@@ -50,8 +50,16 @@ internal sealed class QuickSearchWindowShowSupport
             searchQuery = clipboardText;
         }
 
-        window.ViewModel.SearchQuery = searchQuery;
-        window.ViewModel.RefreshEmptyState();
+        // KeepSearchText: the box may still hold the previous summon's text, because FinishHide skipped
+        // wiping it. Leave that text (and its results) in place -- the ActivateAndFocus below selects it
+        // all, so the next keystroke replaces it. An explicit query, a clipboard refill, or an already
+        // empty box all keep the old behaviour.
+        var keepSearchText = ShouldKeepSearchText(UserSettings.Load().SearchWindow.KeepSearchText, searchQuery, window.ViewModel.SearchQuery);
+        if (!keepSearchText)
+        {
+            window.ViewModel.SearchQuery = searchQuery;
+            window.ViewModel.RefreshEmptyState();
+        }
         window.ViewModel.RefreshLayoutSettings();
         window.UpdateLayout();
         window.ApplyResultsLayoutImmediate();
@@ -77,6 +85,21 @@ internal sealed class QuickSearchWindowShowSupport
         }
 
         _controller.ForegroundWatcher.Start();
-        _controller.ActivateAndFocus(useClipboardText, caretAtEnd);
+        // Selecting the kept text is what makes it usable instead of in the way: the next keystroke
+        // overwrites it, so the window still reads as a fresh search box.
+        _controller.ActivateAndFocus(useClipboardText || keepSearchText, caretAtEnd);
     }
+
+    /// <summary>
+    /// True when the window reopens showing the text it was dismissed with instead of the query this summon
+    /// carries. Only an empty incoming query counts as "no intent" -- an explicit query and a clipboard
+    /// refill are both meant to replace the kept text, and an empty box has nothing worth keeping.
+    /// </summary>
+    /// <remarks>
+    /// Both queries are tested with IsNullOrEmpty because the view model's own query field is only ever
+    /// assigned by this window's show path: on the very first summon it is still null, and reading it
+    /// eagerly is what used to throw a NullReferenceException here.
+    /// </remarks>
+    internal static bool ShouldKeepSearchText(bool settingEnabled, string? newQuery, string? existingQuery)
+        => settingEnabled && string.IsNullOrEmpty(newQuery) && !string.IsNullOrEmpty(existingQuery);
 }

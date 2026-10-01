@@ -388,6 +388,8 @@
   "General_LayoutLockPositionHint": "Stops this window being dragged, so a stray press cannot nudge it off the spot you put it on. Right-clicking the status icon still resets its position.",
   "General_LayoutAutoFillClipboard": "Automatically fill the quick search box with clipboard text",
   "General_LayoutAutoFillClipboardHint": "When the quick search window opens without pre-filled text, use new non-empty clipboard text as the search query. Manual paste and other windows are unaffected.",
+  "General_KeepSearchText": "Keep search box content after closing",
+  "General_KeepSearchTextHint": "Neither closing the quick search window nor pressing Escape in the full window empties the search box. This lasts for the current session only: the text itself is never saved.",
   "General_LayoutReset": "Reset Layout Settings",
   "General_ResultTypeOrderTitle": "Result Type Priority",
   "General_ResultTypeOrderHint": "Choose which result type wins when several equally-good matches tie in the quick window -- move a type up to make it always outrank the ones below it, regardless of which one actually matched the query text better. History and Favorites always come first and aren't affected by this list. Optionally, give a type a single-character trigger below -- typing it as the very first character shows only that type's results.",

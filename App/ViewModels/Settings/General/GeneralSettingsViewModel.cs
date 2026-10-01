@@ -22,6 +22,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _enableFuzzyMatch;
     private bool _orFirstPrecedence;
     private bool _enableQuickSearchClipboardAutoFill;
+    private bool _keepSearchText;
     private bool _enableEverythingIpc;
     private bool _showOpenedFoldersInInlineSearch;
     private bool _hideTrayIcon;
@@ -61,6 +62,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _enableFuzzyMatch = userSettings.EnableFuzzyMatch;
         _orFirstPrecedence = userSettings.OrFirstPrecedence;
         _enableQuickSearchClipboardAutoFill = userSettings.EnableQuickSearchClipboardAutoFill;
+        _keepSearchText = userSettings.SearchWindow.KeepSearchText;
         _enableEverythingIpc = userSettings.EnableEverythingIpc;
         _showOpenedFoldersInInlineSearch = userSettings.ShowOpenedFoldersInInlineSearch;
         _hideTrayIcon = userSettings.HideTrayIcon;
@@ -237,6 +239,15 @@ public class GeneralSettingsViewModel : ViewModelBase
         }
     }
 
+    // Governs both windows: the quick one keeps its box on hide, the full one stops emptying it on Escape.
+    // Stored under SearchWindow settings; the row lives on the System tab because it is not a per-window
+    // layout option any more.
+    public bool KeepSearchText
+    {
+        get => _keepSearchText;
+        set => SetProperty(ref _keepSearchText, value);
+    }
+
     public void Apply() => GeneralSettingsApplier.Apply(
         this,
         _userSettings,
@@ -247,6 +258,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _enableFuzzyMatch,
         _orFirstPrecedence,
         _enableQuickSearchClipboardAutoFill,
+        _keepSearchText,
         _enableEverythingIpc,
         _showOpenedFoldersInInlineSearch,
         _hideTrayIcon,

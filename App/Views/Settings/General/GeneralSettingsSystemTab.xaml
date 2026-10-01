@@ -97,6 +97,13 @@
                 <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_OrFirstPrecedenceDesc]}"
                            Style="{StaticResource SettingsHintText}" TextWrapping="Wrap"/>
 
+                <CheckBox x:Name="RowKeepSearchText"
+                          Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_KeepSearchText]}"
+                          IsChecked="{Binding General.KeepSearchText, Mode=TwoWay}"
+                          Margin="0,12,0,0"/>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_KeepSearchTextHint]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap"/>
+
                 <Grid x:Name="RowGlobalTokenPrefix" Margin="0,12,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>

@@ -21,6 +21,18 @@ public class SearchWindowInputHandler
         _columnActivation = new SearchWindowColumnActivation(window);
     }
 
+    /// <summary>
+    /// Escape closes this window instead of merely emptying the box whenever there is nothing to empty, or
+    /// the box is being kept across closes anyway.
+    /// </summary>
+    /// <remarks>
+    /// With "keep search box content" on, emptying on the first Escape would leave the user looking at a box
+    /// they explicitly asked to keep, needing a second press to get out -- the same two presses, but with the
+    /// retained text destroyed in between.
+    /// </remarks>
+    internal static bool ShouldCloseOnEscape(string? boxText, bool keepSearchText) =>
+        string.IsNullOrEmpty(boxText) || keepSearchText;
+
     public void HandleWindowPreviewKeyDown(KeyEventArgs e)
     {
         if (SearchInputHelper.HandleCommonSearchKeys(e, _window, _window.MenuPresenter))
@@ -39,7 +51,7 @@ public class SearchWindowInputHandler
 
         if (e.Key == Key.Escape && Keyboard.Modifiers == ModifierKeys.None)
         {
-            if (string.IsNullOrEmpty(_window.TxtSearchBoxControl.Text))
+            if (ShouldCloseOnEscape(_window.TxtSearchBoxControl.Text, UserSettings.Load().SearchWindow.KeepSearchText))
             {
                 _window.Close();
             }

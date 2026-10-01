@@ -22,6 +22,14 @@ public static class SearchInputHelper
         && window.SearchTextBox.SelectionLength == 0
         && window.SearchTextBox.CaretIndex >= window.SearchTextBox.Text.Length;
 
+    // Shared by both search windows for the "keep search box content" setting: with it on, the text a
+    // window opens with is selected whole, so the first keystroke replaces it. The quick window applies
+    // this to what FinishHide kept, and the full window to the query it was handed (from "show more", a
+    // plugin, or a repeat summon). With the setting off the caret keeps its old behaviour -- parked after
+    // the text in the full window, so typing still appends instead of replacing.
+    public static bool ShouldSelectCarriedText(string? carriedText, bool keepSearchText) =>
+        keepSearchText && !string.IsNullOrEmpty(carriedText);
+
     public static bool HandleActionsModeKeys(System.Windows.Input.KeyEventArgs e, ISearchWindow? window, ShellMenuPresenter? menuPresenter)
     {
         if (menuPresenter == null || !menuPresenter.IsInActionsMode)
