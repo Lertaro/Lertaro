@@ -15,7 +15,7 @@ namespace Lertaro.App.Services.Notifications;
 internal sealed class NotificationQueue(
     Func<bool> isFullscreen,
     Action<NotificationItem> show,
-    Action<NotificationItem, bool> hide,
+    Action<NotificationItem> hide,
     Action<string> logWarning)
 {
     internal const int VisibleCardLimit = 5;
@@ -73,10 +73,10 @@ internal sealed class NotificationQueue(
         var hadWindow = item.ReachedScreen;
         _cards.Remove(item);
         _pending.Remove(item);
-        // A caller dismissing its own notification has no window to close: only this path ends a
-        // notification that is on screen right now, and the paths that already took their window down
-        // (a fade-out, a replacement) find nothing left to do here.
-        if (hadWindow) hide(item, true);
+        // A caller dismissing its own notification, or clicking its body, ends something still on screen, and
+        // this is the only path that reaches the window then: the paths that tore it down themselves (a
+        // replacement, a cancellation) find nothing left to do inside.
+        if (hadWindow) hide(item);
         if (!_batching) Refill();
     }
 
@@ -124,9 +124,8 @@ internal sealed class NotificationQueue(
         from?.Remove(item);
         if (clearNotice) _notice = null;
         item.Complete(NotificationResult.Failed(reason));
-        // Only a notification that reached the screen has a window to take down, and a cancellation is
-        // meant to be immediate rather than wait out an animation.
-        if (item.ReachedScreen) hide(item, false);
+        // Only a notification that reached the screen has a window to take down.
+        if (item.ReachedScreen) hide(item);
     }
 
     private void AdmitCard(NotificationItem item)
@@ -140,7 +139,7 @@ internal sealed class NotificationQueue(
         {
             _cards[_cards.IndexOf(previous)] = item;
             previous.Complete(NotificationResult.Failed(NotificationFailure.Replaced));
-            hide(previous, false);
+            hide(previous);
             item.ReachedScreen = true;
             show(item);
             return;
@@ -177,12 +176,11 @@ internal sealed class NotificationQueue(
         }
 
         // The line the user had not finished reading is gone with no trace on screen, so it is worth a
-        // record. The newer line appears without a fade, which is what keeps a run of notices from
-        // strobing.
+        // record, and the newer line simply paints over the old one.
         previous.Complete(NotificationResult.Failed(NotificationFailure.Replaced));
         logWarning($"[Notifications] a bottom notice was replaced before its time was up: " +
                    $"{previous.SourceName}, \"{Truncate(previous.Request.Message, 120)}\"");
-        hide(previous, false);
+        hide(previous);
         item.ReachedScreen = true;
         show(item);
     }
@@ -274,7 +272,7 @@ internal sealed class NotificationItem(
     /// collapsed into the notice line.</summary>
     public NotificationPosition EffectivePosition { get; set; } = effectivePosition;
 
-    /// <summary>Seconds already clipped to range, counted from the start of the fade-in.</summary>
+    /// <summary>Seconds already clipped to the position's range: how long it will be on screen.</summary>
     public double DurationSeconds { get; set; } = durationSeconds;
 
     /// <summary>Whether this ever had a window, which decides whether cancelling has anything to take down.</summary>

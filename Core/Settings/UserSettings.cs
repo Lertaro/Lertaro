@@ -177,15 +177,6 @@ public class UserSettings
     /// </summary>
     public Dictionary<string, string> ResultTypeTriggers { get; set; } = new();
 
-    /// <summary>
-    /// How long a notification takes to fade in and, on the same clock, to fade out. One shared value for
-    /// both directions on purpose: a notification that fades in slower than it leaves reads as a glitch.
-    /// The notification's own display time is counted from the start of the fade-in and includes it, so the
-    /// time on screen is this number plus the duration the sender asked for. The service clamps what it reads
-    /// to 0.2..3 seconds, so a hand-edited settings file cannot ask for a fade longer than the notification.
-    /// </summary>
-    public double NotificationFadeSeconds { get; set; } = 1.0;
-
     public Dictionary<string, Dictionary<string, object>> PluginSettings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public T GetPluginSetting<T>(string pluginId, string key, T defaultValue) =>

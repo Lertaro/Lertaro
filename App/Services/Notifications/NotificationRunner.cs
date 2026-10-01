@@ -15,19 +15,11 @@ internal sealed class NotificationRunner(NotificationItem item, Window window)
     public NotificationItem Item { get; } = item;
     public Window Window { get; } = window;
 
-    /// <summary>Milliseconds left of the notification's own display time. Hover and the session lock hold it;
-    /// the fade-out is not part of it.</summary>
+    /// <summary>Milliseconds left of the notification's own display time. Hover and a locked session hold it;
+    /// nothing else shortens or lengthens it.</summary>
     public double RemainingMs { get; set; } = item.DurationSeconds * 1000;
 
-    /// <summary>Set once the notification is on its way out, so nothing closes it twice or counts it down
-    /// while it is already fading.</summary>
-    public bool IsClosing { get; set; }
-
     public bool IsMoving { get; set; }
-
-    /// <summary>Set once the fade-in has started, whether that came from the first rendered frame or from the
-    /// watchdog armed alongside it.</summary>
-    public bool FadeStarted { get; set; }
 
     /// <summary>Arrival order, which is what decides the vertical order of the stack.</summary>
     public int Sequence { get; } = Interlocked.Increment(ref _sequence);

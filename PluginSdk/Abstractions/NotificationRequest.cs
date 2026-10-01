@@ -81,11 +81,9 @@ public sealed class NotificationRequest
     public NotificationPosition Position { get; init; } = NotificationPosition.CardStack;
 
     /// <summary>
-    /// How long the notification stays, counted from the start of the fade-in and including it; the
-    /// fade-out is on top. Leave it <see langword="null"/> for the position's own default. An explicit
-    /// value outside the position's range is clipped to the nearest bound rather than rejected, so
-    /// <see cref="double.NaN"/> and negative values are the caller's problem only in that it lands on
-    /// the lower bound.
+    /// How long the notification stays on screen. Leave it <see langword="null"/> for the position's own
+    /// default. An explicit value outside the position's range is clipped to the nearest bound rather than
+    /// rejected, so a negative or an uncomparable one lands on the shorter end of that range.
     /// </summary>
     public double? DurationSeconds { get; init; }
 

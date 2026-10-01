@@ -26,7 +26,7 @@ internal static class NotificationService
 {
     private const int TickIntervalMs = 100;
 
-    private static readonly NotificationWindowManager Windows = new(FadeSeconds, OnNotificationGone);
+    private static readonly NotificationWindowManager Windows = new(OnNotificationGone);
 
     private static readonly NotificationQueue Queue = new(
         () => FullscreenHelper.IsForegroundWindowFullScreen(),
@@ -64,8 +64,8 @@ internal static class NotificationService
         lock (_gate) Queue.CancelPlugin(pluginKey);
     }
 
-    /// <summary>Closes everything on screen and ends every outstanding request. Waits for no answer and for no
-    /// fade: the launcher is going away.</summary>
+    /// <summary>Closes everything on screen and ends every outstanding request. The launcher is going away, so
+    /// this waits for nothing.</summary>
     internal static void Shutdown()
     {
         lock (_gate)
@@ -89,9 +89,9 @@ internal static class NotificationService
         }
     });
 
-    private static void TakeDown(NotificationItem item, bool fade) => OnOrOver(() =>
+    private static void TakeDown(NotificationItem item) => OnOrOver(() =>
     {
-        lock (_gate) Windows.TakeDown(item, fade);
+        lock (_gate) Windows.TakeDown(item);
     });
 
     /// <summary>Called once a notification's window is really gone: frees its slot, which is what lets the queue
@@ -165,25 +165,15 @@ internal static class NotificationService
         {
             foreach (var runner in Windows.Countdown())
             {
-                if (runner.IsClosing) continue;
-                // Hovering holds the time, not the animation: a card mid fade-in keeps fading in.
+                // Hovering holds the time: a card the pointer is resting on is not being read yet.
                 if (runner.Window.IsMouseOver) continue;
 
                 runner.RemainingMs -= elapsedMs;
                 if (runner.RemainingMs > 0) continue;
 
-                Windows.FadeOut(runner);
+                Windows.Close(runner);
             }
         }
-    }
-
-    /// <summary>The shared fade setting, clamped again here: a hand-edited settings file must not be able to ask
-    /// for a fade longer than the notification it is animating.</summary>
-    private static double FadeSeconds()
-    {
-        var seconds = UserSettings.Load().NotificationFadeSeconds;
-        if (double.IsNaN(seconds) || double.IsInfinity(seconds)) seconds = 1.0;
-        return Math.Clamp(seconds, UiMetrics.MinNotificationFadeSeconds, UiMetrics.MaxNotificationFadeSeconds);
     }
 
     /// <summary>Names the sender on the card. A plugin cannot choose this: it comes from the assembly the SDK

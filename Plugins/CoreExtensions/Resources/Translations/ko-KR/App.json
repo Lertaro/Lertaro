@@ -352,8 +352,6 @@
   "General_AutoSilentUpdate": "자동 무음 업데이트(새 버전 감지 시)",
   "General_HardwareAcceleration": "하드웨어 가속 사용(다시 시작 필요)",
   "General_HideTrayIcon": "트레이 아이콘 숨기기",
-  "General_NotificationFade": "알림 페이드 시간",
-  "General_NotificationFadeDesc": "알림이 페이드 인과 페이드 아웃에 각각 쓰는 초입니다. 표시 시간은 페이드 인 시작부터 계산되므로 알림이 요청한 시간에 더해집니다.",
   "General_EnableEverythingIpc": "Everything IPC 에뮬레이션 사용",
   "General_EnableEverythingIpcDesc": "Directory Opus, Total Commander, Flow Launcher 등 Everything에 의존하는 서드파티 도구가 Lertaro를 사용하여 검색 및 폴더 크기 계산을 수행할 수 있도록 허용합니다.",
   "General_EnableFuzzyMatch": "퍼지 매칭 사용",

@@ -19,11 +19,7 @@ public class NotificationQueueTests
         _queue = new NotificationQueue(
             () => _screen.Fullscreen,
             item => _screen.Shown.Add(item),
-            (item, fade) =>
-            {
-                _screen.Hidden.Add(item);
-                if (fade) _screen.FadedOut.Add(item);
-            },
+            item => _screen.Hidden.Add(item),
             message => _screen.Warnings.Add(message));
 
     [TestMethod]
@@ -107,8 +103,6 @@ public class NotificationQueueTests
         Assert.HasCount(1, _screen.Visible);
         Assert.AreEqual(second, _screen.Shown[1]);
         Assert.AreEqual(first, _screen.Hidden[0]);
-        // A replacement paints over the old card rather than fading it out first.
-        CollectionAssert.DoesNotContain(_screen.FadedOut, first);
     }
 
     [TestMethod]
@@ -316,7 +310,7 @@ public class NotificationQueueTests
         // Ending a notification that is on screen has to reach the window too. Deciding the queue's side
         // only left a card nobody owned sitting there until its original duration ran out.
         Assert.HasCount(hiddenBefore + 1, _screen.Hidden);
-        CollectionAssert.Contains(_screen.FadedOut, card);
+        CollectionAssert.Contains(_screen.Hidden, card);
     }
 
     [TestMethod]
@@ -329,7 +323,7 @@ public class NotificationQueueTests
 
         Assert.AreEqual(NotificationFailure.Replaced, ResultOf(first).Failure);
         Assert.IsTrue(IsOutstanding(replacement));
-        CollectionAssert.DoesNotContain(_screen.FadedOut, replacement);
+        Assert.IsFalse(_screen.Hidden.Contains(replacement));
     }
 
     [TestMethod]
@@ -383,9 +377,5 @@ public class NotificationQueueTests
 
         /// <summary>What a real screen would still be showing: presented and not taken down again.</summary>
         public List<NotificationItem> Visible => Shown.Where(item => !Hidden.Contains(item)).ToList();
-
-        /// <summary>The ones taken down politely, as opposed to the replacements and cancellations that had
-        /// to go immediately.</summary>
-        public List<NotificationItem> FadedOut { get; } = [];
     }
 }

@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Media.Animation;
-using System.Windows.Threading;
 using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Views.Notifications;
 using Lertaro.Core;
@@ -9,16 +8,20 @@ using Lertaro.PluginSdk.Abstractions;
 namespace Lertaro.App.Services.Notifications;
 
 /// <summary>
-/// The windows themselves: one per notification, where they sit, how they fade in and out, and how they are
-/// taken down again.
+/// The windows themselves: one per notification, where they sit, and how they are taken down.
 /// </summary>
 /// <remarks>
 /// Split out of <see cref="NotificationService"/>, which is the queue and the clock: this half holds no policy
-/// and decides nothing about order or duration, only what is on screen. Every path that leaves a notification
-/// ends in <see cref="TearDown"/>, exactly once, and every animation another party waits on carries a watchdog,
-/// because a compositor that never reports a frame would otherwise strand both a window and a caller's task.
+/// and decides nothing about order or duration, only what is on screen.
+///
+/// There is deliberately no fade. Fading a whole window means animating its opacity, and an opaque window only
+/// does that by becoming a layered one first -- which costs ClearType and a per-pixel composite on every frame,
+/// and flips between the two states at each end of the animation. Both of those were observed on screen here:
+/// soft text at small sizes, and a black rectangle where the card had not been painted yet. So notifications
+/// appear and go away instantly, and the only animation left is the 200ms slide of the stack making room, which
+/// moves a window rather than compositing one.
 /// </remarks>
-internal sealed class NotificationWindowManager(Func<double> fadeSeconds, Action<NotificationItem> onGone)
+internal sealed class NotificationWindowManager(Action<NotificationItem> onGone)
 {
     internal const double CardWidthDip = 360;
     internal const double CardMaxHeightDip = 260;
@@ -36,7 +39,7 @@ internal sealed class NotificationWindowManager(Func<double> fadeSeconds, Action
 
     internal IEnumerable<NotificationRunner> Countdown() => _runners.Values.ToArray();
 
-    /// <summary>Builds and shows the window for an accepted notification, and arms its fade.</summary>
+    /// <summary>Builds and shows the window for an accepted notification.</summary>
     internal void Present(NotificationItem item)
     {
         // The submitting thread handed this over and may have dismissed, replaced or cancelled the item since.
@@ -47,9 +50,7 @@ internal sealed class NotificationWindowManager(Func<double> fadeSeconds, Action
             ? CreateCard(item)
             : (Window)CreateNotice(item);
 
-        var runner = new NotificationRunner(item, window);
-        _runners[item] = runner;
-        window.Opacity = 0;
+        _runners[item] = new NotificationRunner(item, window);
         // ShowActivated=False on both kinds: a notification that takes the foreground is worse than one that
         // never arrived, for anyone typing. Which kind of window this is was decided by the window itself from
         // the active theme's opacity, before it had a handle to commit that with.
@@ -58,93 +59,45 @@ internal sealed class NotificationWindowManager(Func<double> fadeSeconds, Action
         // ActualHeight is only known after the first layout, and the stack is measured in it, so the placement
         // runs twice: once to get the window roughly on screen, once when it knows its own size.
         Restack(animated: false);
-        // The fade waits for the first rendered frame on purpose. A window sitting at alpha 0 has nothing
-        // composited yet, so raising its alpha before WPF has produced a frame reveals the uninitialised
-        // surface instead: a black card that fades in and only then turns into the notification. The watchdog
-        // is there because a first frame is not guaranteed to be reported at all, and a notification that never
-        // fades in is a notification nobody sees.
-        window.ContentRendered += (_, _) => BeginFadeIn(runner);
-        OneShot(fadeSeconds() + 0.5, () => BeginFadeIn(runner));
+        window.ContentRendered += (_, _) => Restack(animated: false);
     }
 
-    private void BeginFadeIn(NotificationRunner runner)
+    /// <summary>Takes a notification down by its item, for the queue's side of a dismissal. An item with no
+    /// window here is one that was still queued, and the queue has already dropped it.</summary>
+    internal void TakeDown(NotificationItem item)
     {
-        if (!_runners.ContainsKey(runner.Item) || runner.FadeStarted) return;
-        runner.FadeStarted = true;
-        Restack(animated: false);
-        FadeTo(runner.Window, 1.0, fadeSeconds(), () => SettleOpacity(runner.Window));
+        if (_runners.TryGetValue(item, out var runner)) Close(runner);
     }
 
-    /// <summary>Takes a finished fade-in off the layered path. A window whose opacity is animated stays
-    /// per-window alpha layered, and a layered window has no ClearType: settling it back to a plain 1 is what
-    /// gives the text its crispness for as long as it is actually being read.</summary>
-    private static void SettleOpacity(Window window)
+    /// <summary>Closes a runner and tells the owner its slot is free. Removal from the table is the claim, so
+    /// nothing can be handed over twice.</summary>
+    internal void Close(NotificationRunner runner)
     {
-        window.BeginAnimation(UIElement.OpacityProperty, null);
-        window.Opacity = 1.0;
-    }
-
-    /// <summary>Ends a notification politely: fade it out, then take it away. Watchdog included, because the
-    /// queue is waiting on this path for both a freed slot and a caller's completed task.</summary>
-    internal void FadeOut(NotificationRunner runner)
-    {
-        if (runner.IsClosing) return;
-        runner.IsClosing = true;
-        var seconds = fadeSeconds();
-        FadeTo(runner.Window, 0.0, seconds, () => Finish(runner));
-        OneShot(seconds + 1.0, () => Finish(runner));
-    }
-
-    /// <summary>Takes a notification down without an animation: a replacement or a cancellation is meant to be
-    /// immediate, so waiting for a fade would both flicker and delay the line that is replacing it.</summary>
-    internal void TakeDown(NotificationItem item, bool fade)
-    {
-        if (!_runners.TryGetValue(item, out var runner)) return;
-        if (fade)
-        {
-            FadeOut(runner);
-            return;
-        }
-        Finish(runner);
-    }
-
-    private void Finish(NotificationRunner runner)
-    {
-        if (!TearDown(runner)) return;
+        if (!_runners.Remove(runner.Item)) return;
+        runner.Window.Close();
         onGone(runner.Item);
     }
 
-    /// <summary>Removes the runner and closes its window. The removal is the claim: whoever takes it first owns
-    /// the teardown, so a watchdog and the animation it was watching cannot both hand the same item over.</summary>
-    private bool TearDown(NotificationRunner runner)
-    {
-        if (!_runners.Remove(runner.Item)) return false;
-        // Clearing the animation before Close stops a fade still running from being reported against a window
-        // that is going away.
-        runner.Window.BeginAnimation(UIElement.OpacityProperty, null);
-        runner.Window.Close();
-        return true;
-    }
-
-    /// <summary>The title bar's "mark all read": every visible card goes at once, each fading in parallel.</summary>
+    /// <summary>The title bar's "mark all read": every visible card goes, each as a success. The queue refills
+    /// the freed slots straight away, which is why a new batch can arrive immediately.</summary>
     internal void DismissAllCards()
     {
         foreach (var runner in _runners.Values
-                     .Where(runner => runner.Item.EffectivePosition == NotificationPosition.CardStack && !runner.IsClosing)
+                     .Where(r => r.Item.EffectivePosition == NotificationPosition.CardStack)
                      .ToArray())
         {
-            FadeOut(runner);
+            Close(runner);
         }
     }
 
-    /// <summary>Closes everything on screen now, for when the launcher is going away. No animation: the process
-    /// is leaving, and waiting for one would hold the exit up.</summary>
+    /// <summary>Closes everything on screen now, for when the launcher is going away. The queue has already
+    /// ended the requests by the time this runs, so it takes the windows down without reporting each one back.</summary>
     internal void CloseEverything()
     {
         foreach (var runner in _runners.Values.ToArray())
         {
-            if (!TearDown(runner)) continue;
-            onGone(runner.Item);
+            if (!_runners.Remove(runner.Item)) continue;
+            runner.Window.Close();
         }
     }
 
@@ -209,6 +162,8 @@ internal sealed class NotificationWindowManager(Func<double> fadeSeconds, Action
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         };
+        // A slide that never reports back only leaves this card excluded from the next animation, so it needs
+        // no watchdog: the position itself is already decided by the stack's order.
         move.Completed += (_, _) =>
         {
             card.BeginAnimation(Window.TopProperty, null);
@@ -216,38 +171,6 @@ internal sealed class NotificationWindowManager(Func<double> fadeSeconds, Action
             runner.IsMoving = false;
         };
         card.BeginAnimation(Window.TopProperty, move);
-    }
-
-    private static void FadeTo(Window window, double to, double seconds, Action onDone)
-    {
-        if (seconds <= 0)
-        {
-            window.Opacity = to;
-            onDone();
-            return;
-        }
-
-        var fade = new DoubleAnimation(to, TimeSpan.FromSeconds(seconds))
-        {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-        };
-        // Completed only fires for a timeline that actually ran, so it is attached before the fade starts.
-        var dispatcher = window.Dispatcher;
-        fade.Completed += (_, _) => dispatcher.BeginInvoke(onDone);
-        window.BeginAnimation(UIElement.OpacityProperty, fade);
-    }
-
-    /// <summary>Runs <paramref name="action"/> once, on the UI thread, after the given slack. Every animation
-    /// that something else waits on gets one of these.</summary>
-    private static void OneShot(double seconds, Action action)
-    {
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(Math.Max(0.25, seconds)) };
-        timer.Tick += (_, _) =>
-        {
-            timer.Stop();
-            action();
-        };
-        timer.Start();
     }
 
     private NotificationCardWindow CreateCard(NotificationItem item)
@@ -274,9 +197,9 @@ internal sealed class NotificationWindowManager(Func<double> fadeSeconds, Action
     /// sender asked to happen on a click.</summary>
     private void CloseByUser(NotificationItem item)
     {
-        if (!_runners.TryGetValue(item, out var runner) || runner.IsClosing) return;
+        if (!_runners.TryGetValue(item, out var runner)) return;
         RunClickCallback(item);
-        FadeOut(runner);
+        Close(runner);
     }
 
     /// <summary>The caller's click handler is plugin code, and a notification must never carry an exception back

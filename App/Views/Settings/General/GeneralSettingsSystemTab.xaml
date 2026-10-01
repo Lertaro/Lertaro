@@ -79,17 +79,6 @@
                            IsChecked="{Binding General.HideTrayIcon, Mode=TwoWay}"
                            Margin="0,4"/>
 
-                <Grid x:Name="RowNotificationFadeSeconds" Margin="0,4,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>
-                        <ColumnDefinition Width="150"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_NotificationFade]}" Margin="0,0,16,0" VerticalAlignment="Center"/>
-                    <TextBox Grid.Column="1" Style="{StaticResource SettingsTextBox}" Text="{Binding General.NotificationFadeSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
-                </Grid>
-                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_NotificationFadeDesc]}"
-                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap"/>
-
                 <CheckBox x:Name="RowEnableEverythingIpc" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_EnableEverythingIpc]}"
                            IsChecked="{Binding General.EnableEverythingIpc, Mode=TwoWay}"
                            Margin="0,4"/>

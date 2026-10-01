@@ -28,7 +28,6 @@ internal static class GeneralSettingsApplier
         bool hideTrayIcon,
         bool openFoldersInNewExplorerTabs,
         string globalTokenPrefix,
-        double notificationFadeSeconds,
         string logLevel)
     {
         var logLevelChanged = userSettings.LogLevel != logLevel;
@@ -54,7 +53,6 @@ internal static class GeneralSettingsApplier
         userSettings.HideTrayIcon = hideTrayIcon;
         userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs = openFoldersInNewExplorerTabs;
         userSettings.GlobalTokenPrefix = string.IsNullOrWhiteSpace(globalTokenPrefix) ? ":" : globalTokenPrefix;
-        userSettings.NotificationFadeSeconds = notificationFadeSeconds;
         userSettings.LogLevel = logLevel;
         // The third-party-file-manager fields are owned by their own sub-VM now; see vm.FileManager.Save
         // below rather than a copy of them threaded through this signature.

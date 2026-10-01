@@ -352,8 +352,6 @@
   "General_AutoSilentUpdate": "Actualización silenciosa automática (al detectar una nueva versión)",
   "General_HardwareAcceleration": "Activar aceleración por hardware (requiere reiniciar)",
   "General_HideTrayIcon": "Ocultar icono de la bandeja del sistema",
-  "General_NotificationFade": "Tiempo de fundido de las notificaciones",
-  "General_NotificationFadeDesc": "Segundos que una notificación tarda en aparecer y en desvanecerse. El tiempo de visualización cuenta desde el inicio del fundido, así que se suma a lo que cada notificación pida.",
   "General_EnableEverythingIpc": "Habilitar emulación Everything IPC",
   "General_EnableEverythingIpcDesc": "Permite que herramientas de terceros dependientes de Everything (como Directory Opus, Total Commander o Flow Launcher) usen Lertaro para búsquedas y cálculo del tamaño de carpetas.",
   "General_EnableFuzzyMatch": "Activar coincidencia difusa",

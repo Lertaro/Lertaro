@@ -352,8 +352,6 @@
   "General_AutoSilentUpdate": "Auto silent update (when new version is detected)",
   "General_HardwareAcceleration": "Enable hardware acceleration (requires restart)",
   "General_HideTrayIcon": "Hide tray icon",
-  "General_NotificationFade": "Notification fade time",
-  "General_NotificationFadeDesc": "Seconds a notification takes to fade in and out. Display time counts from the start of the fade-in, so this is added to what each notification asks for.",
   "General_EnableEverythingIpc": "Enable Everything IPC emulation",
   "General_EnableEverythingIpcDesc": "Allows third-party tools that depend on Everything (e.g. Directory Opus, Total Commander, Flow Launcher) to use Lertaro for search and folder size calculation.",
   "General_EnableFuzzyMatch": "Enable fuzzy matching",
