@@ -23,6 +23,7 @@
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | 사용자 전용 데이터 폴더(개인 설정용) 및 머신 공용 데이터 폴더(Python/Node 런타임 등) 경로 반환. |
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | `app.log`에 로그를 기록하고 설정 센터의 실시간 로그 뷰어에 동기화. |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | 스키마를 기반으로 자동 렌더링되는 경량 모달 입력 대화상자 표시. |
+| **`PluginNotificationService`** | `INotificationHandle Show(NotificationRequest request)`<br>`Task<NotificationResult> ShowAsync(NotificationRequest request)`<br>`bool Show(string title, string text, Action? onClick = null)` | 호스트 자신의 창으로 배경 알림을 표시합니다. 오른쪽 아래 카드 더미(`NotificationPosition.CardStack`)와 화면 아래 중앙의 한 줄 알림(`BottomNotice`) 중 하나를 고릅니다. 호스트가 해당 위치가 허용하는 범위로 표시 시간을 자르고, 호출한 어셈블리에서 보낸 주체를 적으므로 플러그인 자기 표시를 조작할 수는 없습니다. 독점 전체 화면 앱이 화면을 차지하는 동안에는 카드가 한 줄 알림으로 줄어듭니다. 예외가 플러그인의 백그라운드 스레드로 되돌아가는 일은 없고, 화면에 아무것도 나타나지 않은 경우를 포함해 핸들 대기 작업은 반드시 끝나며, `bool` 오버로드는 호스트가 요청을 받아들였는지만 알려립니다. 답변이 필요하면 `PluginMessageBoxService`를 쓰십시오. |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | 호스트가 관리하는 메시지 상자를 표시하여 플러그인이 호스트 테마 UI를 사용하도록 하며, 호스트 처리기가 등록되지 않은 경우 시스템 메시지 상자로 대체합니다. |
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 지정된 디렉터리를 열거나 파일을 탐색하며, 호스트에 구성된 서드파티 파일 관리자(또는 탐색기 탭)를 따르고 미설정 시 시스템 파일 탐색기로 대체합니다. |
 

@@ -58,25 +58,11 @@ internal static class PluginSdkBridge
             (messageBoxText, caption, button, icon, _) =>
                 Views.Controls.Dialogs.CustomMessageBox.Show(messageBoxText, caption, button, icon);
 
-        // Route plugin background notifications through the host's own tray icon, so a plugin that needs to
-        // reach the user while the launcher is hidden does not have to add a second tray icon of its own.
-        // ShowBalloonTip is the one place the "hide tray icon" preference and the self-unsubscribing click
-        // callback are already handled, and LegacySettingsNoticeService is in-repo precedent that this is
-        // how the app gets attention from the background. The NotifyIcon was created on the WPF UI thread,
-        // so a call arriving on a plugin's own thread has to be handed over rather than made directly; the
-        // return value therefore means "accepted for display", not "rendered".
-        PluginSdk.Services.PluginNotificationService.ShowFunc = (title, text, onClick) =>
-        {
-            var tray = TrayIconService.Instance;
-            var dispatcher = System.Windows.Application.Current?.Dispatcher;
-            if (tray == null || dispatcher == null) return false;
-
-            if (dispatcher.CheckAccess())
-                tray.ShowBalloonTip(title, text, ToolTipIcon.Info, onClick);
-            else
-                dispatcher.BeginInvoke(() => tray.ShowBalloonTip(title, text, ToolTipIcon.Info, onClick));
-            return true;
-        };
+        // Plugin notifications are the launcher's own windows, not the shell's: the toast pipeline cannot be
+        // pointed at a chosen monitor, given an exact duration, or relied on to display at all outside a
+        // packaged app. Whatever the SDK hands over as the calling assembly is what names the sender on the
+        // card, so a plugin cannot pick the attribution a user reads.
+        PluginSdk.Services.PluginNotificationService.ShowRequestFunc = Notifications.NotificationService.Show;
 
         // Wire up directory opening and file locating to respect configured file managers.
         PluginSdk.Services.ExplorerService.OpenDirectoryFunc = (directoryPath, fileNameOrFilePath) =>

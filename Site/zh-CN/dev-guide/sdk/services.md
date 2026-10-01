@@ -23,6 +23,7 @@
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | 获取当前用户的专属数据目录（存放私有配置）与机器级全局共享数据目录（共享 Python/Node 运行时）。 |
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | 统一输出日志至 `app.log`，并在设置中心的实时日志查看器中同步呈现。 |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | 弹出基于 Schema 自动渲染的小型模态输入对话框，向用户请求一次性输入。 |
+| **`PluginNotificationService`** | `INotificationHandle Show(NotificationRequest request)`<br>`Task<NotificationResult> ShowAsync(NotificationRequest request)`<br>`bool Show(string title, string text, Action? onClick = null)` | 由宿主自己的窗口显示后台通知：右下角的卡片堆（`NotificationPosition.CardStack`），或屏幕下方居中的一行提示（`BottomNotice`）。宿主会把请求的时长裁剪到该位置允许的范围，按调用方程序集标注发送者（插件无法伪造自己的来源），并在独占全屏应用占据屏幕时把卡片降级成那一行提示。它不会把异常抛进插件的后台线程，句柄的任务也一定会完成，包括什么都没显示出来的情况；`bool` 重载只表示宿主是否受理了请求。需要用户应答而不是单纯告知时，改用 `PluginMessageBoxService`。 |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | 请求由宿主显示消息框，使插件能够使用宿主的主题化界面；未注册宿主处理器时回退到系统消息框。 |
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 打开指定文件夹或定位指定文件，遵循宿主配置的第三方文件管理器（或资源管理器多标签页），未配置时回退到系统资源管理器。 |
 

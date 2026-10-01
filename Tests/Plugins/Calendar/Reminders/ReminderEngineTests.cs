@@ -49,9 +49,8 @@ public sealed class ReminderEngineTests
         for (var i = 0; i < 4; i++)
             harness.Store.Add(Morning, "item " + i);
 
-        // The host shows balloons through a single tray icon and a second call while one is up replaces
-        // it, so four reminders for the same minute have to drain over four ticks rather than collapse
-        // into whichever was handed over last.
+        // One reminder per tick by design (see ReminderEngine's pacing comment), so four reminders for the
+        // same minute drain over four ticks in a stable order.
         for (var tick = 1; tick <= 4; tick++)
         {
             Assert.AreEqual(1, harness.Engine.Reconcile(Morning.AddMinutes(tick)), $"tick {tick}");

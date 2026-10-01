@@ -23,6 +23,7 @@
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | 獲取當前使用者的專屬資料目錄（存放私有設定）與機器級全域共用資料目錄（共用 Python/Node 執行階段）。 |
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | 統一輸出記錄至 `app.log`，並在設定中心的即時記錄檢視器中同步呈現。 |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | 快顯基於 Schema 自動轉譯的小型強制回應輸入對話方塊，向使用者請求一次性輸入。 |
+| **`PluginNotificationService`** | `INotificationHandle Show(NotificationRequest request)`<br>`Task<NotificationResult> ShowAsync(NotificationRequest request)`<br>`bool Show(string title, string text, Action? onClick = null)` | 由宿主自身的視窗顯示背景通知：右下角的卡片堆（`NotificationPosition.CardStack`），或螢幕下方置中的一行提示（`BottomNotice`）。宿主會把要求的時長裁剪到該位置允許的範圍，依呼叫端組件標記發送者（外掛程式無法偽造自己的來源），並在獨佔全螢幕應用佔用螢幕時把卡片降級成那一行提示。它不會把例外拋進外掛程式的背景執行緒，句柄的工作也必然完成，包括什麼都沒顯示出來的情況；`bool` 多載只表示宿主是否受理了請求。要取得回覆而非單純告知時，改用 `PluginMessageBoxService`。 |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | 請求由宿主顯示訊息方塊，讓外掛模組使用宿主的主題化介面；未註冊宿主處理器時回退至系統訊息方塊。 |
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 開啟指定資料夾或定位指定檔案，遵循宿主配置的第三方檔案管理員（或檔案總管分頁），未配置時回退至系統檔案總管。 |
 

@@ -281,6 +281,16 @@ public class PluginManagementViewModel : ViewModelBase
                 disabled.Add(c.ComponentId);
         }
 
+        // A plugin whose every component the user has just switched off stops reaching the user with it: its
+        // notifications go, and whoever is waiting on one learns why through CancelledByPluginUnload. A plugin
+        // that owns no components cannot be "fully disabled" this way, so its notifications are left alone.
+        foreach (var plugin in Plugins)
+        {
+            var componentIds = plugin.RawComponents.Select(component => component.ComponentId).ToList();
+            if (componentIds.Count == 0 || !componentIds.All(disabled.Contains)) continue;
+            Services.Notifications.NotificationService.CancelPlugin(plugin.DllFileName);
+        }
+
         _userSettings.DisabledPluginComponents = disabled.ToList();
 
         // Every plugin the user edited is written here, not just the one on screen: staged edits survive

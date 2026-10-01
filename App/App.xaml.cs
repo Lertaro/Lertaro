@@ -294,6 +294,9 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         Core.Services.LocalSend.LocalSendServiceManager.Instance.Stop();
+        // Before anything else: a notification still open must be ended rather than left with a caller
+        // awaiting a task no one will ever complete.
+        Services.Notifications.NotificationService.Shutdown();
         _favoriteHotkeys?.Dispose(); _favoriteHotkeys = null;
         foreach (var provider in PluginManager.Instance.AllSearchScopeProviders.OfType<IDisposable>()) provider.Dispose();
         HookClient?.Stop(); HookClient?.Dispose(); HookClient = null;

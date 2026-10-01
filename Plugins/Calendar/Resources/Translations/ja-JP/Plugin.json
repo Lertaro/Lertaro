@@ -19,6 +19,8 @@
   "Calendar_Config_LunarHidden": "表示しない",
   "Calendar_Config_HolidaysLabel": "法定祝日と振替出勤を表示",
   "Calendar_Config_HolidaysDesc": "各日付に休と勤のマークを付けます。",
+  "Calendar_Config_DurationLabel": "リマインダーの表示時間",
+  "Calendar_Config_DurationDesc": "各リマインダーが画面に表示される秒数です。その位置が許す範囲を超えた値は境界まで調整されます。",
   "Calendar_Config_TestLabel": "テスト通知を送信",
   "Calendar_Config_TestDesc": "ただちに有効なリマインダーを追加して通知の全経路を実行し、実際に届くことを確認できます。",
   "Calendar_TestReminderText": "これはテスト通知です。",

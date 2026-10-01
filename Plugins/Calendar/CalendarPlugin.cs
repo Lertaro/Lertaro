@@ -33,6 +33,11 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
     internal const string PluginId = "Lertaro.Plugins.Calendar";
     internal const string DefaultTriggerKeyword = "date";
 
+    /// <summary>The reminder's own display time, which this plugin's settings page owns. The host clips it
+    /// to whatever range the notification position allows.</summary>
+    internal const string ReminderDurationKey = "ReminderDurationSeconds";
+    internal const int DefaultReminderDurationSeconds = 8;
+
     private static readonly string PluginDllName = Path.GetFileName(typeof(CalendarPlugin).Assembly.Location);
     private static readonly object RuntimeLock = new();
 
@@ -114,6 +119,14 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
             },
             new PluginConfigField
             {
+                Key = ReminderDurationKey,
+                LabelKey = "Calendar_Config_DurationLabel",
+                DescriptionKey = "Calendar_Config_DurationDesc",
+                FieldType = ConfigFieldType.Integer,
+                DefaultValue = DefaultReminderDurationSeconds
+            },
+            new PluginConfigField
+            {
                 Key = "SendTestReminder",
                 LabelKey = "Calendar_Config_TestLabel",
                 DescriptionKey = "Calendar_Config_TestDesc",
@@ -154,6 +167,9 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
     internal static bool ShowStatutoryHolidays() =>
         PluginSettingsService.GetSetting(PluginId, "ShowStatutoryHolidays", true);
 
+    internal static int ReminderDurationSeconds() =>
+        PluginSettingsService.GetSetting(PluginId, ReminderDurationKey, DefaultReminderDurationSeconds);
+
     private static void UpdateRuntimeState()
     {
         lock (RuntimeLock)
@@ -182,7 +198,7 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
 
             var now = DateTime.Now;
             // Due immediately rather than a minute out, so the whole path, file write, tick, host
-            // balloon and click-back, is checkable in seconds instead of on a delay.
+            // notification and click-back, is checkable in seconds instead of on a delay.
             Store.Add(new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, DateTimeKind.Unspecified),
                 TranslationService.Get("Calendar_TestReminderText"));
             Engine.ReconcileSoon();

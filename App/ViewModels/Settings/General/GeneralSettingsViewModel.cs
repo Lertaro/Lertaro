@@ -28,6 +28,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _hideTrayIcon;
     private bool _openFoldersInNewExplorerTabs;
     private string _globalTokenPrefix;
+    private double _notificationFadeSeconds;
 
     // Tab navigation for the System/Layout/Preview Window split of this page.
     private string _selectedTab = "System";
@@ -68,6 +69,8 @@ public class GeneralSettingsViewModel : ViewModelBase
         _hideTrayIcon = userSettings.HideTrayIcon;
         _openFoldersInNewExplorerTabs = userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs;
         _globalTokenPrefix = userSettings.GlobalTokenPrefix;
+        _notificationFadeSeconds = Math.Clamp(userSettings.NotificationFadeSeconds,
+            UiMetrics.MinNotificationFadeSeconds, UiMetrics.MaxNotificationFadeSeconds);
 
         _selectedLogLevel = LogLevelOptions.FirstOrDefault(o => o.Value == SettingsOptionGenerator.NormalizeLogLevel(_userSettings.LogLevel))
                             ?? LogLevelOptions[2]; // Default to Info
@@ -248,6 +251,24 @@ public class GeneralSettingsViewModel : ViewModelBase
         set => SetProperty(ref _keepSearchText, value);
     }
 
+    /// <summary>How long a notification takes to fade in and out, in seconds. One shared value for both
+    /// directions on purpose: a notification that arrives slower than it leaves reads as a glitch. The
+    /// notification's own display time is counted from the start of the fade-in, so this is added to what the
+    /// sender asked for rather than taken from it.</summary>
+    public double NotificationFadeSeconds
+    {
+        get => _notificationFadeSeconds;
+        set
+        {
+            if (value < UiMetrics.MinNotificationFadeSeconds || value > UiMetrics.MaxNotificationFadeSeconds)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value),
+                    $"NotificationFadeSeconds must be between {UiMetrics.MinNotificationFadeSeconds} and {UiMetrics.MaxNotificationFadeSeconds}.");
+            }
+            SetProperty(ref _notificationFadeSeconds, value);
+        }
+    }
+
     public void Apply() => GeneralSettingsApplier.Apply(
         this,
         _userSettings,
@@ -264,6 +285,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _hideTrayIcon,
         _openFoldersInNewExplorerTabs,
         _globalTokenPrefix,
+        _notificationFadeSeconds,
         LogLevel);
 
     public SearchBarLayoutSettingsViewModel Layout { get; }

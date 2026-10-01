@@ -19,6 +19,8 @@
   "Calendar_Config_LunarHidden": "표시 안 함",
   "Calendar_Config_HolidaysLabel": "법정 공휴일과 대체 출근 표시",
   "Calendar_Config_HolidaysDesc": "각 날짜에 휴와 근 표지를 붙입니다.",
+  "Calendar_Config_DurationLabel": "미리 알림 표시 시간",
+  "Calendar_Config_DurationDesc": "각 미리 알림이 화면에 머무는 초입니다. 해당 위치가 허용하는 범위를 넘는 값은 경계로 조정됩니다.",
   "Calendar_Config_TestLabel": "테스트 알림 보내기",
   "Calendar_Config_TestDesc": "즉시 발동하는 알림을 추가해 알림 경로 전체를 실행하므로, 실제로 도달하는지 확인할 수 있습니다.",
   "Calendar_TestReminderText": "테스트 알림입니다.",

@@ -19,6 +19,8 @@
   "Calendar_Config_LunarHidden": "不显示",
   "Calendar_Config_HolidaysLabel": "显示法定节假日与调休",
   "Calendar_Config_HolidaysDesc": "在日期上标注休与班。",
+  "Calendar_Config_DurationLabel": "提醒显示时长",
+  "Calendar_Config_DurationDesc": "每条提醒在屏幕上停留的秒数。超出该通知位置允许的范围时，会被裁剪到边界。",
   "Calendar_Config_TestLabel": "发送测试提醒",
   "Calendar_Config_TestDesc": "立即安排一条提醒并走完整个通知链路，用于确认提醒确实能送达。",
   "Calendar_TestReminderText": "这是一条测试提醒。",

@@ -79,6 +79,11 @@ public static class UiMetrics
     public const double MinPreviewWindowHeight = 250;
     public const double MaxPreviewWindowHeight = 1200;
 
+    // Range for the shared notification fade time in seconds (General settings page). The settings field
+    // and the service both read these, so "what is a legal fade" has exactly one answer.
+    public const double MinNotificationFadeSeconds = 0.2;
+    public const double MaxNotificationFadeSeconds = 3.0;
+
     // Range for the user-configurable main SearchWindow default size (General settings page).
     // Min matches SearchWindow.xaml's own MinWidth/MinHeight resize floor.
     public const double DefaultMainWindowWidth = 854;

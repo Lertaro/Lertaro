@@ -87,9 +87,10 @@ internal sealed class ReminderEngine : IDisposable
             }
         }
 
-        // One per tick, because the host shows balloons through a single tray icon and a second call while
-        // one is still up replaces it. Four reminders set for the same minute therefore drain over four
-        // ticks, in a stable order, instead of collapsing into whichever one was handed over last.
+        // One per tick: reminders sharing a minute arrive as a trickle instead of as a wall of cards at the
+        // same moment. This is pacing kept on purpose -- the reason it was introduced (a single tray balloon
+        // that a second call replaced) is gone now that the host stacks up to five cards, and the order below
+        // is stable either way.
         var next = due
             .OrderBy(d => d.Reminder.At)
             .ThenBy(d => d.Reminder.Id, StringComparer.Ordinal)

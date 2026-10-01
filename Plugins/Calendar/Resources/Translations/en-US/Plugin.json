@@ -19,6 +19,8 @@
   "Calendar_Config_LunarHidden": "Hidden",
   "Calendar_Config_HolidaysLabel": "Show statutory holidays and make-up days",
   "Calendar_Config_HolidaysDesc": "Marks each date with an Off or Work badge.",
+  "Calendar_Config_DurationLabel": "Reminder display time",
+  "Calendar_Config_DurationDesc": "Seconds each reminder stays on screen. A value outside what the notification's position allows is clipped to its bounds.",
   "Calendar_Config_TestLabel": "Send a test reminder",
   "Calendar_Config_TestDesc": "Adds a reminder due immediately and runs the whole delivery path, so you can confirm reminders actually reach you.",
   "Calendar_TestReminderText": "This is a test reminder.",

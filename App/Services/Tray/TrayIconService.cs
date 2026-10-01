@@ -103,24 +103,6 @@ public class TrayIconService : IDisposable
         }
     }
 
-    public void ShowBalloonTip(string title, string text, ToolTipIcon icon = ToolTipIcon.Info, Action? onClick = null)
-    {
-        if (_notifyIcon == null) return;
-        _notifyIcon.Visible = true;
-        if (onClick != null)
-        {
-            EventHandler balloonClicked = null!;
-            balloonClicked = (_, _) =>
-            {
-                _notifyIcon.BalloonTipClicked -= balloonClicked;
-                onClick();
-            };
-            _notifyIcon.BalloonTipClicked += balloonClicked;
-        }
-        _notifyIcon.ShowBalloonTip(5000, title, text, icon);
-        ApplyTrayIconVisible();
-    }
-
     public void Dispose()
     {
         ThemeManager.Instance.ThemeChanged -= UpdateTrayIconThemeColor;

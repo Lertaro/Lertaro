@@ -23,6 +23,7 @@
 | **`UserDataService`** | `string GetUserDataDirectory()`<br>`string GetSharedDataDirectory()` | ユーザー専用データフォルダー（個別設定用）およびマシン共通データフォルダー（Python/Node ランタイム等）を取得。 |
 | **`Logger`** | `void Log(string message, LogLevel level = LogLevel.Info)` | `app.log` にログを出力し、設定画面のログビューアーにリアルタイム同期。 |
 | **`PluginPromptService`** | `Task<Dictionary<string, object?>?> Prompt(string title, IEnumerable<PluginConfigField> fields, ...)` | スキーマに基づいて自動生成される軽量なモーダル入力ダイアログを表示。 |
+| **`PluginNotificationService`** | `INotificationHandle Show(NotificationRequest request)`<br>`Task<NotificationResult> ShowAsync(NotificationRequest request)`<br>`bool Show(string title, string text, Action? onClick = null)` | ホスト自身のウィンドウで背景通知を表示します。右下のカードスタック（`NotificationPosition.CardStack`）と、画面下部中央の1行表示（`BottomNotice`）があります。ホストがその位置で許される範囲に表示時間を収め、呼び出し元アセンブリから送信者を表記するので、プラグイン自身が帰属を偽ることはできません。排他的な全画面アプリが画面を占有している間はカードが1行表示に縮み、例外がプラグインのバックグラウンドスレッドへ投げ返されることもありません。何も画面に出なかった場合も含めてハンドル待ちのタスクは必ず完了し、`bool` のオーバーロードはホストが要求を受け付けたかどうかだけを返します。返答が必要なら `PluginMessageBoxService` を使ってください。 |
 | **`PluginMessageBoxService`** | `MessageBoxResult Show(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)` | ホスト管理のメッセージボックスを表示し、プラグインがホストのテーマ UI を利用できるようにします；ホストのハンドラーが未登録の場合はシステムのメッセージボックスへフォールバックします。 |
 | **`ExplorerService`** | `void OpenDirectory(string directoryPath, string? fileNameOrFilePath = null)` | 指定されたディレクトリを開くかファイルを特定し、ホスト設定のサードパーティ製ファイルマネージャー（またはエクスプローラーのタブ）を尊重します。未設定時はシステムのエクスプローラーにフォールバックします。 |
 
