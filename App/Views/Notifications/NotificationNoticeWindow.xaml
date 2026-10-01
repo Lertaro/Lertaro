@@ -1,13 +1,11 @@
 <Window x:Class="Lertaro.App.Views.Notifications.NotificationNoticeWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
         Title="Notification"
         SizeToContent="WidthAndHeight"
-        Background="Transparent"
+        Background="{DynamicResource ContentBg}"
         WindowStyle="None"
         ResizeMode="NoResize"
-        AllowsTransparency="True"
         ShowActivated="False"
         ShowInTaskbar="False"
         Topmost="True"
@@ -25,13 +23,11 @@
 
     <!-- One line, nothing to click: this window exists to say something briefly, and every control on it
          would be a place the user's pointer has to be aimed at. ContentBg is the surface this project keeps
-         for a window floating over someone else's content, held just translucent so it reads as an overlay.
-         Rounded once, at the window's own corner, and clipped by that same shape. -->
-    <Border Height="36" Padding="12,0" Opacity="0.93"
-            CornerRadius="{StaticResource CornerRadiusWindow}"
-            Background="{DynamicResource ContentBg}"
-            BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
-            helpers:RoundedClip.IsEnabled="True">
+         for a window floating over someone else's content. It is opaque now, and the corners are the window
+         manager's rounding rather than a painted radius: a see-through notification would have to be a
+         layered window again, which is the one thing that cost both ClearType and every animation frame. -->
+    <Border Height="36" Padding="12,0" Background="{DynamicResource ContentBg}"
+            BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
         <TextBlock x:Name="Line"
                    FontSize="12"
                    VerticalAlignment="Center"

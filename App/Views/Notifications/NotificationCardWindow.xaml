@@ -2,14 +2,12 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:services="clr-namespace:Lertaro.App.Services"
-        xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
         Title="Notification"
         Width="360"
         SizeToContent="Height"
-        Background="Transparent"
+        Background="{DynamicResource CardBackground}"
         WindowStyle="None"
         ResizeMode="NoResize"
-        AllowsTransparency="True"
         ShowActivated="False"
         ShowInTaskbar="False"
         Topmost="True"
@@ -24,8 +22,8 @@
                 <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- The two title-bar buttons: a 24x24 hit area around a glyph. No corner of their own, so the
-                 only rounding on screen is the window's. -->
+            <!-- The two title-bar buttons: a 24x24 hit area around a glyph, with no chrome of their own
+                 until the pointer is on them. -->
             <Style x:Key="TitleBarButton" TargetType="Button">
                 <Setter Property="Width" Value="24"/>
                 <Setter Property="Height" Value="24"/>
@@ -53,14 +51,12 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <!-- One rounded boundary, at the window's own CornerRadiusWindow: the content is clipped by that same
-         shape (RoundedClip) instead of being wrapped in a second, concentric-but-not rounded Border, which is
-         what made the corners read as two different arcs. No drop shadow either, since a bitmap effect costs
-         a software render pass on every animation frame of a transparent window. -->
-    <Border CornerRadius="{StaticResource CornerRadiusWindow}"
-            Background="{DynamicResource CardBackground}"
-            BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
-            helpers:RoundedClip.IsEnabled="True">
+    <!-- No AllowsTransparency and no painted corner: this is an opaque borderless window whose corners are
+         rounded by the window manager itself (see DwmWindowCorners), so the header band and the level bar are
+         clipped by the window's real shape and text keeps ClearType. A 1 DIP rule just inside the window edge
+         stands in for the border the transparent version drew. -->
+    <Border Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="3"/>
@@ -113,7 +109,7 @@
 
                 <!-- Scrolls instead of growing the card past its budget, and never sideways. Deferred
                      scrolling is off: dragging the thumb then repainting on release is the smear it buys,
-                     and a notification nobody is reading for long does not need it. -->
+                     and a notification nobody reads for long does not need it. -->
                 <ScrollViewer x:Name="BodyScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled" Margin="12,6,8,12" Padding="0,0,4,0"
                               IsDeferredScrollingEnabled="False" CanContentScroll="False">

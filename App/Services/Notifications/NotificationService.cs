@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Views.Notifications;
 using Lertaro.Core;
 using Lertaro.Core.Hook;
@@ -140,8 +142,12 @@ internal static class NotificationService
 
         _runners[item] = new Runner(item, window);
         window.Opacity = 0;
-        // ShowActivated=False on both kinds: a notification that takes the foreground is worse than one
-        // that never arrived, for anyone typing.
+        // The handle must exist before the window manager is asked to round it, and asking after Show is what
+        // lets the corners visibly snap. ShowActivated=False on both kinds: a notification that takes the
+        // foreground is worse than one that never arrived, for anyone typing.
+        new WindowInteropHelper(window).EnsureHandle();
+        AltTabExcluder.Attach(window);
+        DwmWindowCorners.ApplyRound(window);
         window.Show();
         // ActualHeight is only known after the first layout, and the stack is measured in it, so the
         // placement runs twice: once to get the window roughly on screen, once when it knows its own size.
@@ -150,7 +156,16 @@ internal static class NotificationService
         {
             lock (_gate) Restack(animated: false);
         };
-        FadeTo(window, 1.0, FadeSeconds(), onDone: null);
+        FadeTo(window, 1.0, FadeSeconds(), () => SettleOpacity(window));
+    }
+
+    /// <summary>Takes a finished fade-in off the layered path. A window whose opacity is animated stays
+    /// per-window alpha layered, and a layered window has no ClearType: settling it back to a plain 1 is what
+    /// gives the text its crispness for as long as it is actually being read.</summary>
+    private static void SettleOpacity(Window window)
+    {
+        window.BeginAnimation(UIElement.OpacityProperty, null);
+        window.Opacity = 1.0;
     }
 
     private static NotificationCardWindow CreateCard(NotificationItem item)
