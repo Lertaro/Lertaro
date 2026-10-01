@@ -22,6 +22,7 @@ internal static class GeneralSettingsApplier
         bool enableFuzzyMatch,
         bool orFirstPrecedence,
         bool enableQuickSearchClipboardAutoFill,
+        bool keepSearchText,
         bool enableEverythingIpc,
         bool showOpenedFoldersInInlineSearch,
         bool hideTrayIcon,
@@ -40,6 +41,9 @@ internal static class GeneralSettingsApplier
         userSettings.EnableFuzzyMatch = enableFuzzyMatch;
         userSettings.OrFirstPrecedence = orFirstPrecedence;
         userSettings.EnableQuickSearchClipboardAutoFill = enableQuickSearchClipboardAutoFill;
+        // Stored under SearchWindow because both windows read it (the quick one on hide, the full one on
+        // Escape), but it is a system-wide search behaviour, so its row lives on the System tab.
+        userSettings.SearchWindow.KeepSearchText = keepSearchText;
         SearchContext.DefaultFuzzyMatchEnabled = enableFuzzyMatch;
         // This process matches outside the search pipeline too (plugin catalog, favorites, shell-menu
         // filtering, highlighting), which only ever sees the process-wide value -- see SearchContext.
