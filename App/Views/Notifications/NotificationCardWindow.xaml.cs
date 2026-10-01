@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Shapes;
 using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.Views.Notifications;
@@ -46,12 +47,14 @@ public partial class NotificationCardWindow : Window
     // instead of leaving last theme's colour behind.
     private void ApplyLevel(NotificationLevel level)
     {
-        (LevelIcon.Text, LevelBar.Visibility) = level switch
+        var (glyph, barBrushKey) = level switch
         {
-            NotificationLevel.Warn => ("\uE7BA", Visibility.Collapsed),
-            NotificationLevel.Error => ("\uE783", Visibility.Visible),
-            _ => ("\uE946", Visibility.Collapsed),
+            NotificationLevel.Warn => ("\uE7BA", "WarningBrush"),
+            NotificationLevel.Error => ("\uE783", "ErrorBrush"),
+            // Info carries no edge bar at all: it is the level that needs nothing pointed at it.
+            _ => ("\uE946", null),
         };
+        LevelIcon.Text = glyph;
         LevelIcon.SetResourceReference(TextBlock.ForegroundProperty, level switch
         {
             NotificationLevel.Warn => "WarningBrush",
@@ -60,6 +63,15 @@ public partial class NotificationCardWindow : Window
             // the one that already means "information" here.
             _ => "AccentBlue",
         });
+
+        if (barBrushKey == null)
+        {
+            LevelBar.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        LevelBar.SetResourceReference(Shape.FillProperty, barBrushKey);
+        LevelBar.Visibility = Visibility.Visible;
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

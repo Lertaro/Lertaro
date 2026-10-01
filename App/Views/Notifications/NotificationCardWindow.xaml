@@ -35,7 +35,7 @@
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="Plate" Background="{TemplateBinding Background}" CornerRadius="4">
+                            <Border x:Name="Plate" Background="{TemplateBinding Background}" CornerRadius="{StaticResource CornerRadiusControl}">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -50,15 +50,15 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <!-- CornerRadiusPopover is this repository's 8 DIP corner for flyout-shaped surfaces, which is what a
-         notification card is. -->
-    <Border CornerRadius="{StaticResource CornerRadiusPopover}"
+    <!-- CornerRadiusWindow is this repository's corner for a top-level card window, so the card rounds the
+         same way the search, settings and quick-look windows do. -->
+    <Border CornerRadius="{StaticResource CornerRadiusWindow}"
             Background="{DynamicResource CardBackground}"
             BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
         <Border.Effect>
             <DropShadowEffect BlurRadius="18" ShadowDepth="2" Opacity="0.22" Color="{DynamicResource ShadowColor}"/>
         </Border.Effect>
-        <Border CornerRadius="{StaticResource CornerRadiusPopover}" helpers:RoundedClip.IsEnabled="True">
+        <Border CornerRadius="{StaticResource CornerRadiusWindow}" helpers:RoundedClip.IsEnabled="True">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="3"/>
