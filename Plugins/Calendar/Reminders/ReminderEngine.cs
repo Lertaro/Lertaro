@@ -19,8 +19,8 @@ internal enum ReminderOutcome
 /// is a chance to miss one silently, which is the worst failure this feature has. Worse, both
 /// <see cref="Timer"/> and <see cref="Task.Delay"/> count against the system's unbiased tick, which does
 /// not advance in S3 or hibernation, so a reminder armed for Monday while the laptop closes over the
-/// weekend goes off two days of *awake* time later; and a plugin has no power or session event to recover
-/// from, because the only SystemEvents subscription in the whole app is the theme watcher's. A poll has
+/// weekend goes off two days of *awake* time later; and a plugin has no power event to recover from, because
+/// the only system events a plugin can see are the ones the host happens to subscribe to. A poll has
 /// one code path, compare the data to now, and that same path is what catches up after the app was closed
 /// outright: the first tick after startup is Reconcile, with no separate cold-start branch to get wrong.
 /// </remarks>
@@ -62,7 +62,7 @@ internal sealed class ReminderEngine : IDisposable
     }
 
     /// <summary>
-    /// One pass of the whole list: drop what is gone past, deliver at most one thing, and report how many
+    /// One pass of the whole list: drop what is gone past, deliver everything that is due, and report how many
     /// were delivered. Shared by every tick, the first tick after startup, an edit made in the view, and
     /// the settings page's test button, so there is no second catch-up implementation to drift.
     /// </summary>
@@ -87,32 +87,27 @@ internal sealed class ReminderEngine : IDisposable
             }
         }
 
-        // One per tick: reminders sharing a minute arrive as a trickle instead of as a wall of cards at the
-        // same moment. This is pacing kept on purpose -- the reason it was introduced (a single tray balloon
-        // that a second call replaced) is gone now that the host stacks up to five cards, and the order below
-        // is stable either way.
-        var next = due
+        var batch = due
             .OrderBy(d => d.Reminder.At)
             .ThenBy(d => d.Reminder.Id, StringComparer.Ordinal)
-            .FirstOrDefault();
+            .ToList();
 
-        var fired = new List<string>();
-        if (next.Reminder != null)
-            fired.Add(next.Reminder.Id);
-
-        if (fired.Count > 0 || removed.Count > 0)
+        if (batch.Count > 0 || removed.Count > 0)
         {
-            // Persisted before the toast is handed over, so delivery is at-most-once: a crash in between
-            // costs one notification rather than re-announcing the same one on every start from now on.
-            _store.Apply(fired, removed, now);
+            // Persisted before the notifications are handed over, so delivery is at-most-once: a crash in
+            // between costs those reminders rather than re-announcing them on every start from now on.
+            _store.Apply(batch.Select(d => d.Reminder.Id).ToList(), removed, now);
         }
 
-        if (next.Reminder != null)
-            _present(next.Reminder, next.Late);
+        // All of them, oldest first: a backlog reads as "here is what you missed", and the host stacks five
+        // cards with five more queued behind them per plugin. What is past even that is refused by the host,
+        // which logs each one it drops -- the designed overflow, not a silence from here.
+        foreach (var (reminder, late) in batch)
+            _present(reminder, late);
 
         NoteTickGap(now);
         _lastTick = now;
-        return next.Reminder == null ? 0 : 1;
+        return batch.Count;
     }
 
     /// <summary>Asks for a pass off the calling thread; used by the view and the settings test button.</summary>

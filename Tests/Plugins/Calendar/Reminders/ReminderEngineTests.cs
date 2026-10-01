@@ -42,22 +42,18 @@ public sealed class ReminderEngineTests
             Morning, Morning.AddSeconds(3), Morning.AddMinutes(5), ReminderEngine.Grace, ReminderEngine.LateAfter));
 
     [TestMethod]
-    public void Reconcile_DeliversOneReminderPerTickSoSimultaneousOnesAllReachTheUser()
+    public void Reconcile_DeliversEveryReminderDueOnTheSameTick()
     {
         using var harness = new Harness();
 
         for (var i = 0; i < 4; i++)
             harness.Store.Add(Morning, "item " + i);
 
-        // One reminder per tick by design (see ReminderEngine's pacing comment), so four reminders for the
-        // same minute drain over four ticks in a stable order.
-        for (var tick = 1; tick <= 4; tick++)
-        {
-            Assert.AreEqual(1, harness.Engine.Reconcile(Morning.AddMinutes(tick)), $"tick {tick}");
-            Assert.AreEqual(tick, harness.Presented.Count);
-        }
+        // Four reminders for the same minute go out on one pass: the host stacks five cards with five more
+        // queued behind them, so there is no reason to spread a single moment's reminders over a minute each.
+        Assert.AreEqual(4, harness.Engine.Reconcile(Morning));
+        Assert.AreEqual(0, harness.Engine.Reconcile(Morning.AddMinutes(1)), "and none of them is left to fire again");
 
-        Assert.AreEqual(0, harness.Engine.Reconcile(Morning.AddMinutes(5)));
         CollectionAssert.AreEqual(
             new[] { "item 0", "item 1", "item 2", "item 3" },
             harness.Presented.Select(p => p.Reminder.Text).OrderBy(t => t, StringComparer.Ordinal).ToList());
@@ -75,16 +71,16 @@ public sealed class ReminderEngineTests
         harness.Store.Add(Morning.AddHours(-30), "older than the grace window");
 
         // First tick after startup is the catch-up, so there is no separate cold-start path to get wrong.
-        // A backlog reads as "here is what you missed", oldest first: the two beyond the 24 hour grace are
-        // dropped silently on that same pass rather than announced a day late.
-        Assert.AreEqual(1, harness.Engine.Reconcile(Morning));
-        Assert.AreEqual("yesterday morning", harness.Presented.Single().Reminder.Text);
-        Assert.IsTrue(harness.Presented.Single().Late, "a reminder that went out hours late says so");
-        Assert.AreEqual(2, harness.Store.Snapshot().Count, "the two past the grace window are already gone");
+        // Everything still inside the 24 hour grace is announced on that pass, oldest first, and the two
+        // beyond it are dropped silently rather than announced a day late.
+        Assert.AreEqual(2, harness.Engine.Reconcile(Morning));
+        Assert.AreEqual("yesterday morning", harness.Presented[0].Reminder.Text);
+        Assert.AreEqual("three hours ago", harness.Presented[1].Reminder.Text);
+        Assert.IsTrue(harness.Presented.All(p => p.Late), "reminders that went out hours late say so");
+        Assert.AreEqual(2, harness.Store.Snapshot().Count, "the two past the grace window are gone, and the two " +
+            "just delivered stay only until the next tick prunes them");
 
-        Assert.AreEqual(1, harness.Engine.Reconcile(Morning.AddMinutes(1)));
-        Assert.AreEqual("three hours ago", harness.Presented[^1].Reminder.Text);
-        Assert.AreEqual(0, harness.Engine.Reconcile(Morning.AddMinutes(2)));
+        Assert.AreEqual(0, harness.Engine.Reconcile(Morning.AddMinutes(1)), "a stamped reminder never fires twice");
         Assert.AreEqual(0, harness.Store.Snapshot().Count);
     }
 
@@ -108,8 +104,8 @@ public sealed class ReminderEngineTests
 
         // The notifier throwing stands in for a host that refuses the notification. Reconcile itself does
         // not swallow it, the tick loop does, so what has to hold either way is that the record was
-        // already written: delivery is at-most-once, and a lost toast beats a toast that returns on every
-        // start for the rest of the day.
+        // already written: delivery is at-most-once, and a lost reminder beats one that returns on every
+        // start for the rest of the day. The real notifier cannot throw, which is why nothing here catches.
         Assert.ThrowsExactly<InvalidOperationException>(() => harness.Engine.Reconcile(Morning));
 
         Assert.AreEqual(0, harness.Engine.Reconcile(Morning.AddMinutes(1)));
