@@ -6,15 +6,15 @@ Lertaro embraces a keyboard-first interaction philosophy while offering rich mou
 
 | Action | Default Hotkey | Description & Interaction Details |
 | :--- | :--- | :--- |
-| **Toggle Quick Window** | Double-tap `Ctrl` | Can be set to a double-tap mode or standard key combinations (e.g. `Alt+Space`, `Win+Space`). When **Open full panel by default** is enabled, this shortcut opens the Full Window instead: it is brought to the foreground once when first shown, refocused when visible but inactive, and closed when already active. It is not automatically kept topmost. |
+| **Toggle Quick Window** | Double-tap `Ctrl` | Can be set to a double-tap mode or standard key combinations (e.g. `Alt+Space`, `Win+Space`). A double-tap is two presses of the **same** modifier key released **100–300 ms** apart — left and right `Ctrl` are different keys, and any other key pressed in between restarts the count. In the double-tap form the modifier itself is never swallowed, so ordinary `Ctrl`+`C` style shortcuts keep working. When **Open full panel by default** is enabled, this shortcut opens the Full Window instead: it is brought to the foreground once when first shown, refocused when visible but inactive, and closed when already active. It is not automatically kept topmost. |
 | **Quick Jump** | `Ctrl+G` | Jumps file dialogs directly to the directory most recently browsed in a supported file manager or Quick Panel. |
 | **Quick Navigation Menu** | No default | An optional global shortcut opens the cascading Quick Navigation menu. From the desktop or an ordinary app it uses desktop context; in File Explorer and native file dialogs it uses the active window context. File managers and file dialogs remain allowed even when ordinary foreground protections suppress global hotkeys. |
 | **Select Next Item** | `Ctrl+N` or `↓` | Moves highlight down. Navigates seamlessly across groups in the Quick Panel. In Quick Launch, the arrow keys follow the visible grid; **←** and **→** cross row boundaries, while **↑** and **↓** seek the nearest item in the same column, including across groups. If that column has no item anywhere in the adjacent direction, selection stays where it is. When Quick Launch is visible with an empty query, `Ctrl+N` cycles to the next data source and wraps at the end. |
 | **Select Previous Item** | `Ctrl+P` or `↑` | Moves highlight up. Navigates seamlessly across groups in the Quick Panel. In Quick Launch, the arrow keys follow the visible grid; **←** and **→** cross row boundaries, while **↑** and **↓** seek the nearest item in the same column, including across groups. If that column has no item anywhere in the adjacent direction, selection stays where it is. When Quick Launch is visible with an empty query, `Ctrl+P` cycles to the previous data source and wraps at the beginning. |
-| **Jump to Results 1–9** | `Ctrl` + `1`–`9` | Modifier is customizable. Number badges appear next to visible items for instant activation. |
-| **Open Action Menu** | `Ctrl+O` or `→` | Expands the context action menu (copy path, properties, run as admin, file operations, etc.). |
+| **Jump to Results 1–9** | `Ctrl` + `1`–`9` | Modifier is customizable. Number badges appear next to visible items for instant activation. The number means the Nth selectable row **from the first visible row**, so the badges renumber as you scroll; `0` is not bound. The Quick Launch panel is the exception — it binds `1`–`9`, `0` and `A`–`Z` for up to 36 tiles. |
+| **Open Action Menu** | `Ctrl+O` or `→` | Expands the context action menu (copy path, properties, run as admin, file operations, etc.). Works in the Quick Window and in the inline card **outside** file dialogs; the Full Window opens the same menu with right-click or the `Apps` key (`Shift+F10`) instead. |
 | **Autocomplete from Selection** | `Ctrl+Tab` | Fills the search box with the selected item's name or full path for secondary refinement. |
-| **QuickLook Instant Preview** | `Alt+P` | Opens or closes the side preview panel (images, documents, audio/video playback, folder trees). |
+| **QuickLook Instant Preview** | `Alt+P` | Opens or closes the side preview panel (images, documents, audio/video playback, folder trees). Available in the Quick and Full Windows and the Quick Panel, not in the inline card; middle-clicking a previewable row toggles the same panel. |
 | **Previous Search Term** | `Alt+Up` | Steps backward through recent search query history. |
 | **Next Search Term** | `Alt+Down` | Steps forward through recent search query history. |
 | **Delete Search History Term** | `Ctrl+Delete` | Removes the currently displayed keyword from search history. |
@@ -26,6 +26,23 @@ Lertaro embraces a keyboard-first interaction philosophy while offering rich mou
 ### Empty Inline Search in File Dialogs
 
 When an inline search box is embedded in a native file dialog and the query is empty, the list shows the **Previous Directory** group first. If **Show Currently Open Folders in Inline Search** is enabled, it also shows a **Currently Open Folders** group collected from supported file managers. The dialog's current folder is omitted, duplicate paths are removed, empty groups stay hidden, and group headers do not receive shortcut badges. The setting is enabled by default and can be changed under [**Settings → General → System**](./settings/general). This behavior applies only to inline search in file dialogs; Quick and Full Windows are unchanged.
+
+### Summoning and Focus Handover in the Inline Window
+
+A card docked in a native file dialog deliberately **does not steal the keyboard**: the dialog keeps focus, so you keep typing into its own file-name field while the card mirrors the query. The gestures that move the caret are:
+
+| Gesture | Effect | Conditions |
+| :--- | :--- | :--- |
+| **Type a letter or digit** | Summons the card and carries that first character into the search box; further keystrokes keep flowing in | Real keystrokes only — synthesized input from automation tools is passed through untouched, and nothing is captured while a context or system menu is open |
+| **`Ctrl+K`** | Puts the caret in the card's own search box | Hardcoded (non-configurable). Requires the card to be on screen over a **file dialog** with the Quick Window closed. The key is consumed, so the host's own `Ctrl+K` does not fire as well |
+| **Double-tap `Ctrl`** | Same hand-over as `Ctrl+K`. When the box already has the caret and the query is empty, it instead clears the query and hands focus back to the dialog's field, keeping the card open | Follows your configured Toggle hotkey |
+| **`Escape`** | While the **dialog** holds the keyboard, the card closes. While the **card** holds it, the query is cleared and focus returns to the dialog (in a file dialog) or the card closes (docked over a plain Explorer window) | |
+| **`Backspace`** on an empty box | Leaves the search exactly like `Escape` | Only when the card has the caret; while the dialog holds the keyboard the key only edits the card's query |
+| **`Enter`** on an empty box | Leaves the search like `Escape` | Only when the card has the caret — while the dialog holds the keyboard, `Enter` opens the highlighted browsing row |
+| **`Tab`** | Always stays the dialog's own control traversal, so reach the card with `Ctrl+K` or a double-tap instead | |
+
+> [!NOTE]
+> Inside a file dialog the action menu is unavailable for the card (`Ctrl+O`, `→` and right-click do nothing there), and `Alt+P` preview is not offered either. Mouse still works on the rows: **left-click** opens the highlighted result, **`Ctrl`+click** opens it as administrator, a row can be **dragged out** into the dialog, and simply **hovering** moves the selection — which the host file manager mirrors.
 
 ## 2. Search Box Icon & Mouse Gestures
 
@@ -43,8 +60,20 @@ The small logo inside the search box is not just an indicator — it provides se
 
 ### Inline and Full Window Icons
 
-- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows.
+- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows. Dragging the logo moves the card itself, and the offset is re-applied on every later dock.
 - **Full Window**: Left-clicking the logo opens the context menu; **Open Full Window** is hidden there because the window is already open. Middle-clicking toggles the window's pinned state.
+
+### Search Box Gestures (Quick Window)
+
+- **Mouse wheel over the box**: Steps backward/forward through recent search terms — the same navigation as `Alt+Up` / `Alt+Down`, without lifting your hand from the mouse.
+- **Middle-click on the box**: Deletes the history entry currently shown. This gesture is hardcoded and is not the configurable `Ctrl+Delete` binding.
+- **Typing at any time** ends the history session, so the next wheel notch starts again from your current query. History does not wrap: the oldest term stops there, and the newest returns the query you started from.
+
+### System Tray Icon
+
+- **Left-click**: Toggles the Quick Window, exactly like the summon hotkey.
+- **Right-click** (or a second click, since no double-click handler exists): Opens the menu at the cursor — Show Main Window, Send to other devices (only while LocalSend is enabled), Disable/Enable Hotkeys, Settings, About, Clean Exit (only when Lertaro is the only running process) and Exit.
+- **Hide System Tray Icon** ([**Settings → General → System**](./settings/general)) removes the icon but never the in-window logo menu. While hotkeys are disabled from that menu, the icon is forced back on so you cannot lock yourself out.
 
 ## 3. Quick Navigation (Mouse Triggers)
 
@@ -74,20 +103,29 @@ To ensure consistent and deterministic interaction, the following keys behave id
 
 | Key | Context | Standard Behavior |
 | :--- | :--- | :--- |
-| `Enter` | Result List | Opens the selected item (file, folder, app, or action). |
+| `Enter` | Result List | Opens the selected item (file, folder, app, or action). In the Full Window it opens **every** selected row. On an empty inline search box it leaves the search instead — there is no top match to open. |
 | `Ctrl+Enter` | Result List | Reveals and selects the item in Windows File Explorer. |
 | `Ctrl+Shift+Enter` | Result List | Launches the selected item with administrative privileges. |
-| `Escape` | Any Context | Clears the query if text exists; closes the window or exits the menu if already empty. |
+| `Escape` | Quick Window | Hides the window. It never empties the box in that press — the query is kept or dropped by **Keep search box content after closing** instead. |
+| `Escape` | Full Window | Clears the query and refocuses the box; closes the window when the box is already empty, or straight away when **Keep search box content after closing** is on (so you never press it twice for nothing). |
+| `Escape` | Inline card | See **Summoning and Focus Handover in the Inline Window** above: it closes the card while the dialog holds the keyboard, and hands focus back while the card holds it. |
+| `Escape` | Action Menu | One press per level: clears the action filter, then steps back out of the submenu, then leaves the menu and restores the original query. |
 | `Backspace` | Action Menu | Exits the action menu back to the search list when filter text is empty. |
-| `←` / `→` Arrow Keys | Action Menu | Left arrow navigates back to parent menu; right arrow enters submenus. |
+| `←` / `→` Arrow Keys | Action Menu | Left arrow navigates back to parent menu; right arrow enters submenus. `Tab` enters a submenu too, unless you have bound it to the next/previous-item hotkey. |
+| `Tab` | Inline card | Swallowed so focus cannot leave the search box, while `Tab` inside the dialog itself keeps traversing its own controls as usual. |
+| `Tab` | Action Menu | Enters the highlighted submenu — unless you have bound `Tab` to the next/previous-item hotkey, which wins. |
+| `Ctrl+K` | Inline card over a file dialog | Puts the caret in the search box without the dialog noticing; consumed, so the host's own `Ctrl+K` does not also fire. |
+| `Apps` / `Shift+F10` | Full Window | Opens the action menu for the current selection, exactly like right-click. |
 | `Alt+Space` | All Lertaro Windows | Suppressed to prevent triggering system titlebar menus on borderless windows. |
-| `Alt+F4` | Full / Settings Windows | Closes window normally; suppressed on Quick, Inline, and Preview floating windows. |
+| `Alt+F4` | Full / Settings Windows | Closes window normally; suppressed on Quick, Inline, Quick Panel, Preview, LocalSend and in-app dialog windows. |
 
 ## 5. Plugin Action Hotkeys & Process Blacklist
 
 ### Plugin Action Hotkeys
 
-Plugins can register specific action shortcuts (e.g. `Ctrl+Shift+C` for copying paths, or file operations: Cut `Ctrl+X`, Copy `Ctrl+C`, Paste `Ctrl+V`, Delete `Delete`, Permanent Delete `Shift+Delete`). Manage and rebind them under **Settings → Hotkeys → Plugin Actions**.
+Built-in file actions ship with these defaults: Copy Path `Ctrl+Shift+C`, Copy File `Ctrl+C`, Copy Name `Shift+C`, Reveal in Explorer `Ctrl+Enter`, Run as Administrator `Ctrl+Shift+Enter`.
+
+**Cut, Paste, Delete and Permanent Delete have no default on purpose.** They used to mirror Explorer (`Ctrl+X`, `Ctrl+V`, `Delete`, `Shift+Delete`), but here those keys sit under a search box where `Delete` means "delete a character", and users reported firing them by accident — Permanent Delete irreversibly. The actions are still in the menu, and each one is bindable again under **Settings → Hotkeys → Plugin Actions** if you want the key: the difference between inheriting it and choosing it.
 
 ### Process Blacklist & Fullscreen Bypass
 

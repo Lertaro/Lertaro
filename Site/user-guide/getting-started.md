@@ -37,7 +37,7 @@ Lertaro is not limited to a single search window. It adapts to different workflo
 | :--- | :--- | :--- | :--- |
 | **Quick Window** | Double-tap `Ctrl` (Customizable) | Compact centered floating bar, optimized for muscle memory, number key jumps, and pure keyboard navigation | Frequent app launching, quick calculations, translations, and fast file lookup |
 | **Full Window** | Taskbar/Start shortcut, or `Ctrl+F` | Full-featured large window with tabular results, sidebar filter groups, column sorting, and built-in Space Analyzer | Deep file browsing, broad exploration, disk space cleaning, and batch management |
-| **Inline Window** | Automatically docks in file dialogs or Explorer | Embedded seamlessly into standard Windows file dialogs or third-party file managers | Quick destination locating when opening or saving files in external software |
+| **Inline Window** | Type a letter or digit inside a file dialog / file manager (or dock it in Explorer) | Embedded seamlessly into standard Windows file dialogs or third-party file managers. The card never steals the keyboard: keep typing in the dialog's own field, and press `Ctrl+K` (or double-tap `Ctrl`) to move the caret into the card | Quick destination locating when opening or saving files in external software |
 
 All three window modes share the exact same underlying search engine, shortcut scheme, filter rules, and action menus.
 
@@ -57,4 +57,4 @@ Simply open the search window and start typing. Results appear in real time (sub
 
 ### Action Menu & Context Actions
 
-Press `Ctrl+O` or `→` on any highlighted item to expand the comprehensive **Action Menu**, offering path copying, file operations, properties, and plugin extensions. Read [**Actions & Preview**](./actions-and-preview) and [**Hotkeys**](./hotkeys) for more tips.
+Press `Ctrl+O` or `→` on the highlighted item to expand the comprehensive **Action Menu**, offering path copying, file operations, properties, and plugin extensions. Those two keys belong to the Quick Window (and to the inline card outside file dialogs); in the Full Window use right-click or the `Apps` key instead. Read [**Actions & Preview**](./actions-and-preview) and [**Hotkeys**](./hotkeys) for more tips.

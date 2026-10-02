@@ -18,7 +18,7 @@ Provides dedicated key recording controls accepting custom single keys or combin
 
 - **Select Next / Previous Item**: Default `Ctrl+N` / `Ctrl+P` (equivalent to `↓` / `↑`).
 - **Jump to Result Modifier**: Default `Ctrl`, used with numbers `1`–`9` for instant activation.
-- **Open Action Menu**: Default `Ctrl+O` (equivalent to `→`).
+- **Open Action Menu**: Default `Ctrl+O` (equivalent to `→`). Both apply to the Quick Window and to the inline card outside file dialogs; the Full Window opens the same menu with right-click or the `Apps` key.
 - **Autocomplete from Selection**: Default `Ctrl+Tab`.
 - **QuickLook Instant Preview**: Default `Alt+P`.
 - **Previous / Next Search Term**: Default `Alt+Up` / `Alt+Down`.
@@ -30,8 +30,24 @@ Provides dedicated key recording controls accepting custom single keys or combin
 
 ### Quick Navigation Mouse Triggers Group
 
-- **Double-click left button on blank area**: Checkbox (default enabled). Pops up the Quick Navigation menu on desktop or File Explorer empty spaces.
+- **Double-click left button on blank area**: Checkbox (**disabled by default**). Pops up the Quick Navigation menu on desktop or File Explorer empty spaces.
 - **Middle-click on blank area**: Checkbox (default enabled). Pops up the Quick Navigation menu on desktop, File Explorer, or open/save file dialogs.
+
+Only the desktop and File Explorer honor the double-click form; third-party file managers accept middle-click alone. Both triggers are skipped while the pointer is over Lertaro's own card, and both stay alive for file managers and dialogs even when a blacklist or fullscreen would normally silence global triggers.
+
+### Recording a Hotkey
+
+Every key press goes into the box instead of the app behind it, which makes the recorder itself a set of gestures:
+
+- **`Escape`** cancels the recording and clears the value. There is no "discard and restore" — the box is empty the moment you press it.
+- **`✕`** clears the box; **`↺`** restores that row's factory default. Exactly one of the two is shown at a time — clear while a combination is set, restore once it is empty.
+- **A bare modifier** (`Ctrl`, `Alt`, `Shift`) is accepted only on rows that mean something by itself — the summon hotkey, which becomes a double-tap, and the jump modifier. On an ordinary combination row, pressing and releasing a lone modifier **clears** the row rather than saving a value that could never fire.
+- **Windows-reserved combinations** (`Win+E`, `Win+D`, …) are refused: the value is coerced to empty, so the box simply goes blank.
+- **No conflict detection.** Two rows can hold the same chord and nothing warns you; only favorite-item hotkeys report a duplicate or an OS-refused combination, and only after you apply.
+
+### Per-Favorite Hotkeys
+
+Every favorite ([**Settings → Favorites**](./favorites)) can carry its own **OS-level global** hotkey, which works even when Lertaro has no window open and jumps the foreground file manager to that folder. Unlike the recorder rows above it requires a modifier, refuses a lone modifier, and cannot use `F12`.
 
 ## 2. Plugin Actions
 

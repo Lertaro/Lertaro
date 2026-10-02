@@ -6,9 +6,12 @@ Lertaro va más allá de ser un lanzador independiente: se integra profundamente
 
 En función de las características de la ventana anfitriona, Lertaro ofrece hasta tres funciones de integración:
 
-- **Búsqueda incrustada (Inline Search)**: La barra de búsqueda rápida de Lertaro se incrusta en la parte superior de la ventana o dentro del diálogo, permitiendo buscar en el directorio actual o globalmente sin cambiar de contexto.
-- **Navegación rápida (Quick Navigation)**: Haz clic central (o doble clic izquierdo) en zonas vacías o en el logotipo incrustado para desplegar un menú en cascada con carpetas abiertas, favoritos, historial y categorías personalizadas.
+- **Búsqueda incrustada (Inline Search)**: La barra de búsqueda rápida de Lertaro se incrusta en la parte superior de la ventana o dentro del diálogo, permitiendo buscar en el directorio actual o globalmente sin cambiar de contexto. Aparece en cuanto escribes una letra o un dígito en una lista de archivos compatible, y se lleva ese primer carácter a su propio cuadro.
+- **Navegación rápida (Quick Navigation)**: Haz clic central (o doble clic izquierdo si lo activas, **desactivado de forma predeterminada**) en zonas vacías o en el logotipo incrustado para desplegar un menú en cascada con carpetas abiertas, favoritos, historial y categorías personalizadas. Los exploradores de terceros solo admiten el clic central.
 - **Detección de ruta activa (Active Path Detection)**: Reconoce en tiempo real el directorio físico abierto en la ventana anfitriona, limitando automáticamente el ámbito de búsqueda y resolviendo rutas relativas.
+
+> [!TIP]
+> Una tarjeta incrustada acoplada en un diálogo de archivos **deja el teclado en el lado del diálogo** a propósito, así que escribir sigue funcionando exactamente igual que antes. Pulsa `Ctrl+K` — o una doble pulsación de `Ctrl` — para mover el cursor a la tarjeta, y vuelve a pulsarlo con la tarjeta vacía para devolver el foco. Consulta la sección "Invocación y traspaso del foco en la Ventana incrustada" de [**Atajos de teclado**](./hotkeys).
 
 ## 2. Componentes nativos de Windows (Integrados de serie)
 
@@ -16,7 +19,7 @@ Compatibles directamente con el motor central de Lertaro sin necesidad de plugin
 
 | Tipo de ventana anfitriona | Búsqueda incrustada | Activador de Navegación rápida | Detección de ruta activa |
 | :--- | :--- | :--- | :--- |
-| **Explorador de archivos de Windows** | Compatible | Doble clic izquierdo o clic central en zonas vacías | Compatible |
+| **Explorador de archivos de Windows** | Compatible | Clic central en zonas vacías, o doble clic izquierdo una vez activado | Compatible |
 | **Diálogos modernos de Abrir/Guardar** | Compatible (Incrustado directamente) | Clic central, o clic izquierdo en el logotipo incrustado | — |
 | **Diálogos clásicos de Abrir/Guardar** | Compatible | Clic central, o clic izquierdo en el logotipo incrustado | — |
 | **Diálogos clásicos "Buscar carpeta"** | Compatible | Clic central, o clic izquierdo en el logotipo incrustado | — |

@@ -37,7 +37,7 @@ Lertaro no se limita a una única ventana fija, sino que se adapta a tus flujos 
 | :--- | :--- | :--- | :--- |
 | **Ventana rápida (Quick Window)** | Doble pulsación de `Ctrl` (personalizable) | Barra flotante centrada en pantalla, optimizada para memoria muscular, atajos numéricos y control total con teclado | Inicio frecuente de apps, búsqueda rápida de archivos, cálculos y traducciones |
 | **Ventana principal (Full Window)** | Barra de tareas/Menú Inicio, o `Ctrl+F` | Ventana completa con vista de tabla para grandes volúmenes de resultados, filtros laterales, ordenación y Analizador de espacio | Exploración profunda de archivos, gestión masiva, limpieza de disco y filtrado avanzado |
-| **Ventana incrustada (Inline Window)** | Se incrusta automáticamente en diálogos o Explorador | Integrada perfectamente en diálogos de Windows y exploradores de archivos compatibles sin cambiar de contexto | Localización rápida de destinos al "Abrir" o "Guardar como" en software externo |
+| **Ventana incrustada (Inline Window)** | Escribe una letra o un dígito dentro de un diálogo de archivos o de un explorador (o acóplala en el Explorador) | Integrada perfectamente en diálogos de Windows y exploradores de archivos compatibles. La tarjeta nunca roba el teclado: sigue escribiendo en el campo propio del diálogo y pulsa `Ctrl+K` (o doble pulsación de `Ctrl`) para mover el cursor a la tarjeta | Localización rápida de destinos al "Abrir" o "Guardar como" en software externo |
 
 Las tres modalidades comparten exactamente el mismo motor de búsqueda, combinaciones de teclas, reglas de filtrado y menús de acción.
 
@@ -57,4 +57,4 @@ Abre la ventana de búsqueda y empieza a escribir. Los resultados aparecen en ti
 
 ### Menú de acciones y operaciones avanzadas
 
-Pulsa `Ctrl+O` o la flecha derecha `→` en un elemento seleccionado para desplegar el **Menú de acciones**, que permite copiar rutas, ver propiedades, manipular archivos o invocar extensiones de plugins. Consulta [**Acciones y vista previa**](./actions-and-preview) y [**Atajos de teclado**](./hotkeys) para más detalles.
+Pulsa `Ctrl+O` o la flecha derecha `→` en el elemento resaltado para desplegar el **Menú de acciones**, que permite copiar rutas, ver propiedades, manipular archivos o invocar extensiones de plugins. Esas dos teclas pertenecen a la Ventana rápida (y a la tarjeta incrustada fuera de los diálogos de archivos); en la Ventana principal usa en su lugar el clic derecho o la tecla `Apps`. Consulta [**Acciones y vista previa**](./actions-and-preview) y [**Atajos de teclado**](./hotkeys) para más detalles.

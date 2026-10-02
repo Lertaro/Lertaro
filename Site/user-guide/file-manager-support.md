@@ -6,9 +6,12 @@ Lertaro is more than a standalone search launcher — it deeply embeds into Wind
 
 Depending on the host window's characteristics, Lertaro provides up to three distinct integration features:
 
-- **Inline Search**: Lertaro's fast search box embeds directly at the top of the host window or file dialog, enabling instant directory-scoped or global searches without context switching.
-- **Quick Navigation**: Middle-click (or double-left-click) empty areas or click the embedded logo to summon a cascading menu of active folders, favorites, history, and custom categories.
+- **Inline Search**: Lertaro's fast search box embeds directly at the top of the host window or file dialog, enabling instant directory-scoped or global searches without context switching. It appears the moment you type a letter or digit in a supported file list, carrying that first character into its own box.
+- **Quick Navigation**: Middle-click (or, if you enable it, double-left-click — **off by default**) empty areas or click the embedded logo to summon a cascading menu of active folders, favorites, history, and custom categories. Third-party file managers support middle-click only.
 - **Active Path Detection**: Senses the physical directory currently opened in the host window, scoping searches automatically and resolving relative path actions.
+
+> [!TIP]
+> An inline card docked in a file dialog deliberately **keeps the keyboard on the dialog's side**, so typing continues to work exactly as before. Press `Ctrl+K` — or double-tap `Ctrl` — to move the caret into the card, and press it again on an empty card to hand focus back. See [**Hotkeys**](./hotkeys), section "Summoning and Focus Handover in the Inline Window".
 
 ## 2. Native Windows Components (Built-in Out of the Box)
 
@@ -16,7 +19,7 @@ These native components are supported directly by Lertaro's core engine without 
 
 | Host Window Type | Inline Search | Quick Navigation Trigger | Active Path Detection |
 | :--- | :--- | :--- | :--- |
-| **Windows File Explorer** | Supported | Double-left-click or middle-click empty areas | Supported |
+| **Windows File Explorer** | Supported | Middle-click empty areas, or double-left-click once enabled | Supported |
 | **Modern Open/Save Dialogs** | Supported (Directly embedded) | Middle-click, or left-click the embedded logo | — |
 | **Legacy Open/Save Dialogs** | Supported | Middle-click, or left-click the embedded logo | — |
 | **Legacy Browse for Folder Dialogs** | Supported | Middle-click, or left-click the embedded logo | — |

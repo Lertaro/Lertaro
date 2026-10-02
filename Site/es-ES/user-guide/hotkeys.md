@@ -6,15 +6,15 @@ Lertaro adopta una filosofía de interacción centrada en el teclado, complement
 
 | Acción | Atajo predeterminado | Descripción y detalles de interacción |
 | :--- | :--- | :--- |
-| **Mostrar/Ocultar Ventana rápida** | Doble pulsación de `Ctrl` | Configurable en modo doble pulsación o combinación estándar (p. ej. `Alt+Space`, `Win+Space`). Si se activa **Abrir el panel principal de forma predeterminada**, este atajo abre la Ventana principal: al mostrarla por primera vez solo la lleva al primer plano y le da el foco una vez; si está visible pero inactiva la vuelve a activar, y si ya está activa la cierra al pulsar de nuevo. No se mantiene automáticamente siempre encima. |
+| **Mostrar/Ocultar Ventana rápida** | Doble pulsación de `Ctrl` | Configurable en modo doble pulsación o combinación estándar (p. ej. `Alt+Space`, `Win+Space`). Una doble pulsación son dos pulsaciones del **mismo** modificador, soltadas con **100–300 ms** de diferencia: la `Ctrl` izquierda y la derecha son teclas distintas, y cualquier otra tecla pulsada en medio reinicia el conteo. En la forma de doble pulsación el modificador nunca se consume, así que los atajos normales del estilo `Ctrl`+`C` siguen funcionando. Si se activa **Abrir el panel principal de forma predeterminada**, este atajo abre la Ventana principal: al mostrarla por primera vez solo la lleva al primer plano y le da el foco una vez; si está visible pero inactiva la vuelve a activar, y si ya está activa la cierra al pulsar de nuevo. No se mantiene automáticamente siempre encima. |
 | **Salto rápido (Quick Jump)** | `Ctrl+G` | En cuadros de diálogo, salta directamente a la carpeta consultada recientemente en exploradores o en el Panel rápido. |
 | **Menú de Navegación rápida** | Sin valor predeterminado | Un atajo global opcional abre el menú de Navegación rápida en cascada. Desde el escritorio o una aplicación normal usa el contexto del escritorio; en el Explorador de archivos y los cuadros de diálogo nativos usa el contexto de la ventana activa. Los exploradores y los cuadros de diálogo siguen permitidos aunque la protección normal de primer plano suprima los atajos globales. |
 | **Seleccionar elemento siguiente** | `Ctrl+N` o `↓` | Mueve el resaltado hacia abajo. En el Panel rápido se desplaza fluidamente entre grupos. En el Panel de inicio rápido, las flechas siguen la cuadrícula visible: **←** y **→** atraviesan los límites de las filas, mientras **↑** y **↓** buscan el elemento más cercano de la misma columna en la dirección correspondiente, incluso entre grupos. Si no existe ningún elemento de esa columna en toda la dirección adyacente, la selección permanece donde está. Con el Panel de inicio rápido visible y la consulta vacía, `Ctrl+N` recorre la siguiente fuente y vuelve a la primera al llegar al final. |
 | **Seleccionar elemento anterior** | `Ctrl+P` o `↑` | Mueve el resaltado hacia arriba. En el Panel rápido también se desplaza entre grupos. En el Panel de inicio rápido, las flechas siguen la cuadrícula visible: **←** y **→** atraviesan los límites de las filas, mientras **↑** y **↓** buscan el elemento más cercano de la misma columna en la dirección correspondiente, incluso entre grupos. Si no existe ningún elemento de esa columna en toda la dirección adyacente, la selección permanece donde está. Con el Panel de inicio rápido visible y la consulta vacía, `Ctrl+P` recorre la fuente anterior y vuelve a la última al llegar al principio. |
-| **Saltar a resultados 1–9** | `Ctrl` + `1`–`9` | Modificador personalizable. Aparecen distintivos numéricos junto a los resultados para apertura instantánea. |
-| **Abrir Menú de acciones** | `Ctrl+O` o `→` | Despliega el menú contextual de acciones (copiar ruta, propiedades, ejecutar como admin, operaciones de archivo, etc.). |
+| **Saltar a resultados 1–9** | `Ctrl` + `1`–`9` | Modificador personalizable. Aparecen distintivos numéricos junto a los resultados para apertura instantánea. El número indica la N.ª fila seleccionable **a partir de la primera fila visible**, así que los distintivos se renumeran al desplazar; la `0` no está asignada. El panel de Inicio rápido es la excepción: asigna `1`–`9`, `0` y `A`–`Z` para hasta 36 mosaicos. |
+| **Abrir Menú de acciones** | `Ctrl+O` o `→` | Despliega el menú contextual de acciones (copiar ruta, propiedades, ejecutar como admin, operaciones de archivo, etc.). Funciona en la Ventana rápida y en la tarjeta incrustada **fuera** de los diálogos de archivos; la Ventana principal abre el mismo menú con el clic derecho o la tecla `Apps` (`Shift+F10`). |
 | **Autocompletar desde selección** | `Ctrl+Tab` | Rellena la barra de búsqueda con el nombre o ruta completa del elemento seleccionado para refinamiento. |
-| **Vista previa instantánea QuickLook** | `Alt+P` | Abre/cierra el panel lateral de vista previa (imágenes, documentos, reproducción de audio/vídeo, árboles de carpetas). |
+| **Vista previa instantánea QuickLook** | `Alt+P` | Abre/cierra el panel lateral de vista previa (imágenes, documentos, reproducción de audio/vídeo, árboles de carpetas). Disponible en la Ventana rápida, la Ventana principal y el Panel rápido, no en la tarjeta incrustada; hacer clic central en una fila previsualizable alterna el mismo panel. |
 | **Término de búsqueda anterior** | `Alt+Up` | Retrocede por el historial reciente de búsquedas. |
 | **Término de búsqueda siguiente** | `Alt+Down` | Avanza por el historial reciente de búsquedas. |
 | **Eliminar término de historial** | `Ctrl+Delete` | Elimina la palabra clave mostrada actualmente del historial de búsqueda. |
@@ -26,6 +26,23 @@ Lertaro adopta una filosofía de interacción centrada en el teclado, complement
 ### Búsqueda en línea vacía en diálogos de archivos
 
 Cuando un cuadro de búsqueda en línea está integrado en un diálogo de archivos nativo y la consulta está vacía, la lista muestra primero el grupo **Directorio anterior**. Si está activado **Mostrar las carpetas abiertas actualmente en la búsqueda integrada**, también muestra el grupo **Carpetas abiertas actualmente**, recopilado desde los exploradores compatibles. Se excluye la carpeta actual del diálogo, las rutas duplicadas se unifican, los grupos vacíos permanecen ocultos y los encabezados de grupo no muestran insignias de atajos. La opción está activada de forma predeterminada y se puede cambiar en [**Configuración → General → Sistema**](./settings/general). Este comportamiento solo se aplica a la búsqueda en línea de los diálogos de archivos; las ventanas Rápida y Completa no cambian.
+
+### Invocación y traspaso del foco en la Ventana incrustada
+
+Una tarjeta acoplada en un diálogo de archivos nativo **no roba el teclado** a propósito: el diálogo conserva el foco, así que sigues escribiendo en su propio campo de nombre de archivo mientras la tarjeta refleja la consulta. Los gestos que mueven el cursor son:
+
+| Gesto | Efecto | Condiciones |
+| :--- | :--- | :--- |
+| **Escribir una letra o un dígito** | Invoca la tarjeta y lleva ese primer carácter al cuadro de búsqueda; las pulsaciones siguientes siguen entrando | Solo pulsaciones reales: la entrada sintetizada por herramientas de automatización pasa intacta, y no se captura nada mientras haya un menú contextual o del sistema abierto |
+| **`Ctrl+K`** | Coloca el cursor en el cuadro de búsqueda propio de la tarjeta | Fijo (no configurable). Requiere que la tarjeta esté en pantalla sobre un **diálogo de archivos** con la Ventana rápida cerrada. La tecla se consume, así que el `Ctrl+K` propio del anfitrión no se activa también |
+| **Doble pulsación de `Ctrl`** | El mismo traspaso que `Ctrl+K`. Cuando el cuadro ya tiene el cursor y la consulta está vacía, en cambio borra la consulta y devuelve el foco al campo del diálogo, manteniendo la tarjeta abierta | Sigue el atajo de Mostrar/Ocultar que tengas configurado |
+| **`Escape`** | Mientras el **diálogo** tiene el teclado, la tarjeta se cierra. Mientras lo tiene la **tarjeta**, se borra la consulta y el foco vuelve al diálogo (en un diálogo de archivos) o la tarjeta se cierra (acoplada sobre una ventana normal del Explorador) | |
+| **`Backspace`** en un cuadro vacío | Abandona la búsqueda exactamente igual que `Escape` | Solo cuando la tarjeta tiene el cursor; mientras el diálogo tiene el teclado la tecla solo edita la consulta de la tarjeta |
+| **`Enter`** en un cuadro vacío | Abandona la búsqueda como `Escape` | Solo cuando la tarjeta tiene el cursor: mientras el diálogo tiene el teclado, `Enter` abre la fila de navegación resaltada |
+| **`Tab`** | Siempre queda como el recorrido de controles propio del diálogo, así que llega a la tarjeta con `Ctrl+K` o con una doble pulsación | |
+
+> [!NOTE]
+> Dentro de un diálogo de archivos el menú de acciones no está disponible para la tarjeta (`Ctrl+O`, `→` y el clic derecho no hacen nada ahí), y tampoco se ofrece la vista previa con `Alt+P`. El ratón sigue funcionando sobre las filas: el **clic izquierdo** abre el resultado resaltado, **`Ctrl`+clic** lo abre como administrador, una fila se puede **arrastrar hacia fuera** hacia el diálogo y simplemente **pasar el ratón por encima** mueve la selección, que el explorador anfitrión refleja.
 
 ## 2. Icono de búsqueda y gestos de ratón
 
@@ -43,8 +60,20 @@ El pequeño logotipo en la barra de búsqueda no es solo estético: ofrece múlt
 
 ### Iconos en la Ventana incrustada y Ventana principal
 
-- **Ventana incrustada**: Al incrustarse en diálogos nativos (Abrir/Guardar/Examinar), hacer clic izquierdo en el icono abre el menú de [**Navegación rápida**](#3-navegacion-rapida-activadores-de-raton); desactivado en el Explorador ordinario.
+- **Ventana incrustada**: Al incrustarse en diálogos nativos (Abrir/Guardar/Examinar), hacer clic izquierdo en el icono abre el menú de [**Navegación rápida**](#3-navegacion-rapida-activadores-de-raton); desactivado en el Explorador ordinario. Arrastrar el icono mueve la propia tarjeta, y el desplazamiento se vuelve a aplicar en cada acoplamiento posterior.
 - **Ventana principal**: Al hacer clic izquierdo en el icono se abre el menú contextual; **Mostrar ventana principal** se oculta porque la ventana ya está abierta. El clic central alterna el estado de fijación de la ventana.
+
+### Gestos del cuadro de búsqueda (Ventana rápida)
+
+- **Rueda del ratón sobre el cuadro**: Retrocede o avanza por los términos de búsqueda recientes, la misma navegación que `Alt+Up` / `Alt+Down` y sin quitar la mano del ratón.
+- **Clic central en el cuadro**: Elimina la entrada del historial que se está mostrando. Este gesto es fijo y no es la asignación configurable de `Ctrl+Delete`.
+- **Escribir en cualquier momento** termina la sesión del historial, así que el siguiente clic de rueda empieza de nuevo desde tu consulta actual. El historial no da la vuelta: el término más antiguo se detiene ahí, y el más reciente devuelve la consulta desde la que empezaste.
+
+### Icono de la bandeja del sistema
+
+- **Clic izquierdo**: Alterna la Ventana rápida, exactamente igual que el atajo de invocación.
+- **Clic derecho** (o un segundo clic, ya que no existe controlador de doble clic): Abre el menú en el cursor: Mostrar ventana principal, Enviar a otros dispositivos (solo mientras LocalSend esté activo), Desactivar/Activar atajos, Configuración, Acerca de, Salida limpia (solo cuando Lertaro es el único proceso en ejecución) y Salir.
+- **Ocultar icono de la bandeja del sistema** ([**Configuración → General → Sistema**](./settings/general)) quita el icono, pero nunca el menú del icono dentro de la ventana. Mientras los atajos estén desactivados desde ese menú, el icono se muestra de nuevo a la fuerza para que no puedas quedarte fuera.
 
 ## 3. Navegación rápida (Activadores de ratón)
 
@@ -74,20 +103,29 @@ Para garantizar un comportamiento coherente y determinista, las siguientes tecla
 
 | Tecla | Contexto | Comportamiento estándar |
 | :--- | :--- | :--- |
-| `Enter` | Lista de resultados | Abre el elemento seleccionado (archivo, carpeta, app o acción). |
+| `Enter` | Lista de resultados | Abre el elemento seleccionado (archivo, carpeta, app o acción). En la Ventana principal abre **todas** las filas seleccionadas. En un cuadro de búsqueda incrustado vacío, en cambio, abandona la búsqueda: no hay ninguna mejor coincidencia que abrir. |
 | `Ctrl+Enter` | Lista de resultados | Muestra y selecciona el elemento en el Explorador de archivos de Windows. |
 | `Ctrl+Shift+Enter` | Lista de resultados | Ejecuta la aplicación seleccionada con privilegios de administrador. |
-| `Escape` | Cualquier contexto | Borra el texto de búsqueda si lo hay; cierra la ventana o sale del menú si ya está vacía. |
+| `Escape` | Ventana rápida | Oculta la ventana. Nunca vacía el cuadro en esa pulsación: la consulta se conserva o se descarta según **Mantener el contenido del cuadro de búsqueda al cerrar**. |
+| `Escape` | Ventana principal | Borra la consulta y vuelve a enfocar el cuadro; cierra la ventana cuando el cuadro ya está vacío, o directamente cuando **Mantener el contenido del cuadro de búsqueda al cerrar** está activado (así no tienes que pulsarlo dos veces en vano). |
+| `Escape` | Tarjeta incrustada | Consulta **Invocación y traspaso del foco en la Ventana incrustada** más arriba: cierra la tarjeta mientras el diálogo tiene el teclado y devuelve el foco mientras lo tiene la tarjeta. |
+| `Escape` | Menú de acciones | Una pulsación por nivel: borra el filtro de acciones, luego sale del submenú y después abandona el menú y restaura la consulta original. |
 | `Backspace` | Menú de acciones | Sale del menú de acciones hacia la lista de resultados cuando el filtro está vacío. |
-| `←` / `→` Flechas | Menú de acciones | Flecha izquierda vuelve al menú superior; flecha derecha entra en submenús. |
+| `←` / `→` Flechas | Menú de acciones | Flecha izquierda vuelve al menú superior; flecha derecha entra en submenús. `Tab` entra en un submenú también, salvo que la hayas asignado al atajo de elemento siguiente/anterior. |
+| `Tab` | Tarjeta incrustada | Se consume para que el foco no pueda salir del cuadro de búsqueda, mientras que `Tab` dentro del diálogo sigue recorriendo sus propios controles como siempre. |
+| `Tab` | Menú de acciones | Entra en el submenú resaltado, salvo que hayas asignado `Tab` al atajo de elemento siguiente/anterior, que gana. |
+| `Ctrl+K` | Tarjeta incrustada sobre un diálogo de archivos | Coloca el cursor en el cuadro de búsqueda sin que el diálogo se entere; se consume, así que el `Ctrl+K` propio del anfitrión no se activa también. |
+| `Apps` / `Shift+F10` | Ventana principal | Abre el menú de acciones de la selección actual, exactamente igual que el clic derecho. |
 | `Alt+Space` | Todas las ventanas | Bloqueado para evitar activar el menú del sistema en ventanas sin marco. |
-| `Alt+F4` | Ventanas Principal / Config | Cierra la ventana normalmente; bloqueado en ventanas Rápida, Incrustada y Vista previa. |
+| `Alt+F4` | Ventanas Principal / Config | Cierra la ventana normalmente; bloqueado en las ventanas Rápida, Incrustada, Panel rápido, Vista previa, LocalSend y los diálogos internos de la aplicación. |
 
 ## 5. Atajos de acciones de plugins y lista negra
 
 ### Atajos de acciones de plugins
 
-Los plugins pueden registrar atajos propios (p. ej. `Ctrl+Shift+C` para copiar rutas, o gestión de archivos: Cortar `Ctrl+X`, Copiar `Ctrl+C`, Pegar `Ctrl+V`, Eliminar `Delete`, Eliminación permanente `Shift+Delete`). Puedes consultarlos y reasignarlos en **Configuración → Atajos de teclado → Acciones de plugins**.
+Las acciones de archivo integradas llegan con estos valores predeterminados: Copiar ruta completa `Ctrl+Shift+C`, Copiar archivo `Ctrl+C`, Copiar nombre `Shift+C`, Mostrar en Explorador `Ctrl+Enter`, Ejecutar como administrador `Ctrl+Shift+Enter`.
+
+**Cortar, Pegar, Eliminar y Eliminación permanente no tienen valor predeterminado a propósito.** Antes replicaban las del Explorador (`Ctrl+X`, `Ctrl+V`, `Delete`, `Shift+Delete`), pero aquí esas teclas quedan debajo de un cuadro de búsqueda donde `Delete` significa "borrar un carácter", y los usuarios informaron de haberlas activado por accidente — la Eliminación permanente, de forma irreversible. Las acciones siguen estando en el menú, y cada una se puede volver a asignar en **Configuración → Atajos de teclado → Acciones de plugins** si quieres la tecla: la diferencia entre heredarla y elegirla.
 
 ### Lista negra de procesos y omisión en pantalla completa
 

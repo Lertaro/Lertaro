@@ -4,29 +4,34 @@ Lertaro does more than find files at blazing speeds — it integrates a comprehe
 
 ## 1. Action Menu Deep Dive
 
-Press `Ctrl+O` or `→` on any search result (file, folder, application, or plugin entry) to expand the contextual action menu. In the Full Search Window, right-clicking a result opens the same menu for that result.
+In the Quick Window, press `Ctrl+O` or `→` on the highlighted result to expand the contextual action menu — `→` only when the caret is already at the end of the query, so it never hijacks cursor movement while you are editing earlier in the text. The same keys work in the inline card **outside** file dialogs; a card docked in an Open/Save/Browse dialog has no action menu at all. In the Full Search Window neither key is wired: right-click a result, or press `Apps` (`Shift+F10`), to open the same menu there.
+
+Not every row has a menu. It is withheld from the **Show More** row, plugin-provided results, web-link favorites, instant results that no provider claims, applications outside the Quick Window, and every file dialog — on such a row the menu keys do nothing instead of opening an empty panel.
 
 ### Built-in Core Actions Cheat Sheet
 
 | Action | Default Hotkey | Description |
 | :--- | :--- | :--- |
-| **Open** | `Enter` | Opens the selected item or launches the application with the system default program. |
+| **Open** | `Enter` | Opens the selected item or launches the application with the system default program. In the Full Search Window, `Enter` and double-click act on **every** selected row. |
 | **Reveal in Explorer** | `Ctrl+Enter` | Opens the parent directory and highlights the item in Windows File Explorer. |
 | **Run as Administrator** | `Ctrl+Shift+Enter` | Launches the selected application or script with elevated administrative permissions. |
 | **Copy Full Path** | `Ctrl+Shift+C` | Copies the absolute path (e.g. `D:\Projects\app.exe`) to the clipboard. |
-| **Cut / Copy File** | `Ctrl+X` / `Ctrl+C` | Places the file itself on the clipboard, ready to paste into Explorer or any folder. |
-| **Paste into Folder** | `Ctrl+V` | When a folder is highlighted, pastes clipboard files directly into that directory. |
-| **Delete (Recycle Bin)** | `Delete` | Safely moves the selected file or directory to the Windows Recycle Bin. |
-| **Permanent Delete** | `Shift+Delete` | Permanently deletes the selected item (prompts for confirmation; cannot be recovered). |
+| **Copy Name** | `Shift+C` | Copies the names of the selected files or folders to the clipboard, without their paths. |
+| **Copy File** | `Ctrl+C` | Places the file itself on the clipboard, ready to paste into Explorer or any folder. |
+| **Cut / Paste into Folder** | — | Both are in the menu but ship **without a default key**, as do Delete and Permanent Delete: they used to mirror Explorer's `Ctrl+X` / `Ctrl+V` / `Delete` / `Shift+Delete`, and under a search box those keys were being fired by accident. Bind any of them again under [**Settings → Hotkeys**](./settings/hotkeys-page) (Plugin Actions tab). |
+| **Delete (Recycle Bin)** | — | Safely moves the selected file or directory to the Windows Recycle Bin. |
+| **Permanent Delete** | — | Permanently deletes the selected item (prompts for confirmation; cannot be recovered). |
 | **Rename** | — | Renames one existing file or folder through the Windows Shell. The dialog preselects the filename portion for convenient replacement. |
 | **Windows Context Menu** | — | Expands the full native Windows Explorer context menu with third-party extensions and "Send to". |
 
 ### Action Menu Interaction & Filtering
 
-- **Type to Filter**: Once the action menu opens, type immediately to filter actions by name (e.g., typing `copy` narrows the list to copy-related actions).
+- **Type to Filter**: Once the action menu opens, type immediately to filter actions by name (e.g., typing `copy` narrows the list to copy-related actions). The filter box takes the keyboard, so navigating away never touches your original query.
+- **Mnemonic Letters**: Every action may show a highlighted letter. Pressing it **runs the action at once** — it does not merely highlight it — but only while the filter box is still empty, so the first letter you type for a filter is never stolen.
 - **Independent Search Box**: The action menu has its own focused search box, so filtering actions never changes the main search query. Moving to another menu level clears the action filter and focuses the new level's search box.
 - **Floating Action Panel**: In the Quick Window, Quick Launch panel, and Full Search Window, actions appear in a floating panel anchored to the active result. The Quick Launch panel expands to the action menu's full working height and returns to its compact height when the menu closes.
-- **Hierarchical Navigation**: On items with submenus (such as "Send to"), press `→` or `Enter` to enter; press `←` or `Backspace` (when filter text is empty) to return to the parent level. In a nested menu, `Escape` and right-click return to the parent; at the root level they close the action menu.
+- **Hierarchical Navigation**: On items with submenus (such as "Send to"), press `→`, `Tab` or `Enter` to enter; press `←` or `Backspace` (when filter text is empty) to return to the parent level. In a nested menu, `Escape` and right-click return to the parent; at the root level they close the action menu.
+- **Navigation Keys Still Work**: Your configured Next/Previous Item hotkeys (`Ctrl+N` / `Ctrl+P` by default) move the highlight inside the action list too, wrapping past the first and last entry and skipping separators, headers and disabled actions. `Tab` only enters a submenu when you have not bound it to one of those keys.
 - **Click Away to Close**: Clicking outside a floating action panel closes it. Right-clicking another result replaces the current action target in place when the host supports it.
 - **Action Hotkeys**: Provider-defined action shortcuts work while the action panel is focused. Executing one closes the floating panel while keeping the Full Search Window or Quick Launch panel open.
 
@@ -34,15 +39,23 @@ Press `Ctrl+O` or `→` on any search result (file, folder, application, or plug
 
 The Full Search Window (`Ctrl+F`) is designed for high-density file management and exploration:
 
-- **Double-click Path Column**: Double-clicking the **Name** column opens the file; double-clicking the **Path** column opens the containing parent folder directly.
-- **Infinite Streaming Results**: When scanning millions of items, results stream into the view incrementally without waiting for the full index scan to conclude. You can interact with rows immediately as they arrive.
-- **Wrap-around Navigation**: Pressing `↑` on the top row wraps around to the last item; pressing `↓` on the bottom row wraps back to the first.
+- **Double-click Path Column**: Double-clicking the **Name** column opens the file; double-clicking the **Path** column opens the containing parent folder directly. Double-click means the *left* button only, and a double-click on a column header maximizes or restores the window instead.
+- **Multi-Selection**: The grid is a normal Windows list — `Ctrl`+click adds or removes rows, `Shift`+click takes a range, and `Enter` or double-click then acts on **all** selected rows at once. Right-clicking a row that is already part of a selection keeps the whole selection instead of collapsing it to that one row.
+- **Infinite Streaming Results**: When scanning millions of items, results stream into the view incrementally without waiting for the full index scan to conclude. You can interact with rows immediately as they arrive, and appending new rows keeps your selection and scroll position; a genuinely new result set starts again from the top.
+- **Wrap-around Navigation**: Pressing `↑` on the top row wraps around to the last item; pressing `↓` on the bottom row wraps back to the first. The same wrap applies in the Quick Window and the inline card — pressing `↑` with nothing selected yet lands on the last row, `↓` on the first. Only the Quick Panel walks its groups as one continuous list **without** wrapping.
+- **Horizontal Scrolling**: `Shift` + mouse wheel over the grid scrolls three columns per notch, which is how you reach the far columns on a narrow window.
+- **Drag Files Out**: Any row can be dragged straight into Explorer, a dialog, or a chat window as a real file drop; with a multi-selection, dragging one of its members carries **all** of them. Dropping outside Lertaro hides the window, and the close is held back while a drag is in flight so the drag cursor cannot stick.
 - **Selection Summary**: When multiple rows are selected, the status bar shows the selected item count next to the total result count.
+- **Hover Previews**: Moving the pointer over a row retargets an already-open preview panel without changing the selection, so you can flip through candidates and press `Enter` on the row you came back to.
 - **Window Dragging & Size Memory**: Drag the non-interactive top area of the window to reposition it; manually resized dimensions are automatically remembered across sessions.
 
 ## 3. Built-in QuickLook Instant Preview
 
-Press `Alt+P` on any result to summon the docked preview panel alongside the search window:
+Press `Alt+P` on a previewable result to summon the docked preview panel alongside the search window — or **middle-click the row**, which toggles the same panel. Neither gesture exists in the inline file-dialog card; the Quick Panel supports both.
+
+### Preview Has No Keyboard
+
+The panel is deliberately non-activating: it never takes focus from the search window, so there is nothing to type into and `Escape` does not close it. Toggle it with `Alt+P` or hide it by closing the window it is docked to. All its controls — the media playback bar, scrollbars, plugin cards — are mouse-only, and keyboard focus stays exactly where it was.
 
 ### Supported Formats & Rich Capabilities
 
@@ -54,8 +67,10 @@ Press `Alt+P` on any result to summon the docked preview panel alongside the sea
 ### Adaptive Layout & Pop-up Handling
 
 - **Adaptive Screen Bounds**: Preview dimensions can be customized under [**Settings → General → Preview**](./settings/general#preview); Lertaro guarantees the panel remains within the visible monitor bounds.
+- **Docking Side**: The panel docks to the **right** of its search window and flips to the left only when the right cannot fit it — it does not chase the roomier side, so it stays put while you scroll a wide window. It then follows the owner as you move or resize that window.
+- **Resize Memory Is Per Session**: Dragging the resize grip or moving the panel is remembered while the preview stays in play, but the next time the search window is hidden or closed the panel returns to the configured size and docking side.
 - **Native Dialog Avoidance**: When previewing password-protected Office documents, Lertaro temporarily hides both windows so the native password dialog can be interacted with, restoring seamlessly afterwards.
-- **Drag Source**: The top area of the preview panel acts as a drag source — drag the previewed file directly into editors, browsers, or chat applications.
+- **Drag Source**: The top area of the preview panel acts as a drag source — drag the previewed file directly into editors, browsers, or chat applications. The footer bar drags the panel itself.
 
 ## 4. Plugin Interactive & Rich Text Previews
 

@@ -18,7 +18,7 @@ Controles independientes de grabación de teclas que aceptan combinaciones perso
 
 - **Seleccionar elemento siguiente / anterior**: Por defecto `Ctrl+N` / `Ctrl+P` (equivalente a `↓` / `↑`).
 - **Modificador de salto numérico**: Por defecto `Ctrl`, combinado con números `1`–`9`.
-- **Abrir Menú de acciones**: Por defecto `Ctrl+O` (equivalente a `→`).
+- **Abrir Menú de acciones**: Por defecto `Ctrl+O` (equivalente a `→`). Las dos teclas se aplican a la Ventana rápida y a la tarjeta incrustada fuera de los diálogos de archivos; la Ventana principal abre el mismo menú con el clic derecho o la tecla `Apps`.
 - **Autocompletar desde selección**: Por defecto `Ctrl+Tab`.
 - **Vista previa instantánea QuickLook**: Por defecto `Alt+P`.
 - **Término anterior / siguiente en historial**: Por defecto `Alt+Up` / `Alt+Down`.
@@ -30,8 +30,24 @@ Controles independientes de grabación de teclas que aceptan combinaciones perso
 
 ### Activadores de ratón para Navegación rápida
 
-- **Doble clic izquierdo en zona vacía**: Casilla (activada por defecto). Abre el menú de Navegación rápida en el escritorio o en el Explorador.
+- **Doble clic izquierdo en zona vacía**: Casilla (**desactivada por defecto**). Abre el menú de Navegación rápida en el escritorio o en el Explorador.
 - **Clic central en zona vacía**: Casilla (activada por defecto). Abre el menú en el escritorio, Explorador o cuadros de diálogo.
+
+Solo el escritorio y el Explorador hacen caso de la forma de doble clic; los exploradores de terceros aceptan únicamente el clic central. Los dos activadores se ignoran mientras el puntero está sobre la propia tarjeta de Lertaro, y ambos siguen vivos para los exploradores y los diálogos incluso cuando una lista negra o una pantalla completa silenciaría los activadores globales.
+
+### Grabar un atajo
+
+Cada pulsación de tecla va al cuadro en lugar de a la aplicación que hay detrás, lo que convierte al propio grabador en un conjunto de gestos:
+
+- **`Escape`** cancela la grabación y borra el valor. No existe un "descartar y restaurar": el cuadro queda vacío en el momento en que lo pulsas.
+- **`✕`** vacía el cuadro; **`↺`** devuelve el valor de fábrica de esa fila. Solo se muestra uno de los dos a la vez: vaciar mientras hay una combinación asignada, restaurar cuando ya está vacío.
+- **Un modificador aislado** (`Ctrl`, `Alt`, `Shift`) se acepta únicamente en las filas que significan algo por sí solas — el atajo de invocación, que pasa a ser de doble pulsación, y el modificador de salto numérico. En una fila de combinación normal, pulsar y soltar un modificador solo **vacía** la fila en lugar de guardar un valor que nunca podría activarse.
+- **Las combinaciones reservadas por Windows** (`Win+E`, `Win+D`, …) se rechazan: el valor se fuerza a vacío, así que el cuadro simplemente se queda en blanco.
+- **Sin detección de conflictos.** Dos filas pueden contener la misma combinación y nada te avisa; solo los atajos de los elementos favoritos informan de un duplicado o de una combinación rechazada por el sistema, y solo después de aplicar.
+
+### Atajos de cada favorito
+
+Cada favorito ([**Configuración → Favoritos**](./favorites)) puede llevar su propio atajo **global a nivel de sistema**, que funciona incluso cuando Lertaro no tiene ninguna ventana abierta y lleva el explorador de archivos en primer plano hasta esa carpeta. A diferencia de las filas del grabador de arriba, requiere un modificador, rechaza un modificador aislado y no puede usar `F12`.
 
 ## 2. Acciones de plugins
 
