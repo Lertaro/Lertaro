@@ -22,7 +22,7 @@ public interface IOpenedFolderCollector : IPluginComponent
 }
 ```
 
-Un adaptador devuelve una entrada por ventana abierta, así que un gestor con cinco pestañas reporta cinco carpetas; el anfitrión deduplica por ruta.
+Un adaptador devuelve una entrada por ventana abierta, así que un gestor con cinco pestañas reporta cinco carpetas. El registro entrega esa lista **con los duplicados intactos a propósito**: una carpeta vista por dos colectores, o por un colector dos veces, aparece dos veces; los llamadores que quieran un conjunto se deduplican por ruta ellos mismos.
 
 ## 2. Colector de ruta activa `IActivePathCollector`
 
@@ -67,13 +67,15 @@ public interface IFileDialogAdapter : IPluginComponent
     bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => true;
 
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);          // dónde acoplar la tarjeta
-    bool RestoreFocus(IntPtr hwnd);
 
-    // Sondas del diseño de controles: distinguen un diálogo de selección de carpetas de uno de
-    // selección de archivos cuando el título y los nombres de los campos no dicen nada, y ambas
-    // responden por defecto "no lo sé".
+    // Sondas de colocación: dónde está el propio campo de destino del diálogo y dónde está su lista
+    // de archivos. La tarjeta incrustada lee ambas para decidir dónde colgarse: bajo el campo, sobre
+    // la lista, o donde quepa cuando no hay sitio debajo. Devolver false en cualquiera de ellas hace
+    // que el anfitrión recurra a GetDockBounds. Las dos responden por defecto "no veo ese control".
     bool TryGetTargetFieldBounds(IntPtr hwnd, out AdapterRect bounds) { bounds = default; return false; }
     bool TryGetFileListBounds(IntPtr hwnd, out AdapterRect bounds) { bounds = default; return false; }
+
+    bool RestoreFocus(IntPtr hwnd);
 }
 
 public struct AdapterRect   // píxeles físicos
@@ -83,7 +85,7 @@ public struct AdapterRect   // píxeles físicos
 ```
 
 - **`TargetIsFolderOnly`**: Con `true`, si el usuario selecciona un archivo desde los resultados de búsqueda, el anfitrión resuelve automáticamente su carpeta contenedora antes de invocar `NavigateTo`.
-- **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**: Las usa el alcance de carpetas de la ventana incrustada del anfitrión para distinguir un diálogo que tiene un campo de nombre de archivo de uno que solo tiene un árbol de carpetas. Un adaptador que no pueda resolverlas devuelve `false` y el anfitrión recurre a sus otras señales.
+- **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**: Solo para la colocación de la tarjeta. El posicionador prefiere colgar la tarjeta bajo el campo de destino del diálogo y usa la lista de archivos como ancla de respaldo; un diálogo cuyo adaptador no resuelva ninguna de las dos simplemente recibe el rectángulo de `GetDockBounds`.
 - **`RestoreFocus`**: Devuelve el teclado al propio campo de edición del diálogo. El anfitrión la llama cuando el usuario abandona la tarjeta incrustada (`Escape`, o el atajo de invocación pulsado de nuevo con la tarjeta vacía), así que no debe activar nada más.
 
 ## 4. Adaptador de búsqueda incrustada `IInlineSearchAdapter`
@@ -166,6 +168,6 @@ El anfitrión busca los adaptadores a través de cuatro registros estáticos en 
 | `ActivePathCollectorRegistry` | `Register(IActivePathCollector)`, `GetCollectors()`, `GetAllCollectors()` |
 | `FileDialogAdapterRegistry` | `Register(IFileDialogAdapter)`, `GetMatchingAdapter(hwnd, className, processName)`, `GetAdapters()`, `GetAllAdapters()` |
 | `InlineSearchAdapterRegistry` | `Register(IInlineSearchAdapter)`, `GetMatchingAdapter(hwnd, className, processName)`, `GetAdapters()`, `GetAllAdapters()` |
-| `OpenedFolderCollectorRegistry` | `GetOpenedFolders()`: agrega los resultados de todos los colectores y deduplica por ruta |
+| `OpenedFolderCollectorRegistry` | `GetOpenedFolders()`: concatena lo que informa cada colector activado; los duplicados se **conservan por diseño**, y un colector que lance una excepción se omite para que un gestor de archivos averiado no hunda la instantánea entera |
 
-Los tres primeros exponen cada uno un `Func<T, bool> FilterFunc` asignado por el anfitrión: este lo reduce a los componentes que el usuario tiene activados, así que `GetCollectors()` / `GetAdapters()` devuelven la vista filtrada mientras `GetAllCollectors()` / `GetAllAdapters()` devuelven todo lo registrado. Un plugin nunca lo asigna. El orden de coincidencia es el orden de registro, y el primer adaptador cuyo `CanHandle` responda `true` es el dueño de la ventana, que es por lo que un adaptador genérico de diálogos `#32770` no debe reclamar una ventana que un adaptador especializado ya cubre.
+Los tres primeros exponen cada uno un `Func<T, bool> FilterFunc` asignado por el anfitrión: este lo reduce a los componentes que el usuario tiene activados, así que `GetCollectors()` / `GetAdapters()` devuelven la vista filtrada mientras `GetAllCollectors()` / `GetAllAdapters()` devuelven todo lo registrado. Un plugin nunca lo asigna. El orden de coincidencia es el orden de registro, y el primer adaptador cuyo `CanHandle` responda `true` es el dueño de la ventana, que es por lo que un adaptador genérico de diálogos `#32770` no debe reclamar una ventana que un adaptador especializado ya cubre. El registro de diálogos añade además un veto: una vez que un adaptador reclama la ventana, un título de ventana presente en la lista de bloqueo hace que la búsqueda de adaptador devuelva `null` en lugar de continuar con el siguiente, de modo que ningún adaptador atiende esa ventana.

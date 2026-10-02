@@ -22,7 +22,7 @@ public interface IOpenedFolderCollector : IPluginComponent
 }
 ```
 
-어댑자는 열린 창 하나당 항목 하나를 반환하므로, 탭이 다섯 개인 관리자는 폴더 다섯 개를 보고합니다. 호스트는 경로 기준으로 중복을 제거합니다.
+어댑자는 열린 창 하나당 항목 하나를 반환하므로, 탭이 다섯 개인 관리자는 폴더 다섯 개를 보고합니다. 레지스트리는 그 목록을 **중복을 의도적으로 남긴 채** 그대로 넘깁니다 — 두 수집기가 본 폴더, 또는 하나의 수집기가 두 번 본 폴더는 두 번 나타나고, 집합이 필요한 호출 측이 경로 기준으로 직접 중복을 제거합니다.
 
 ## 2. 활성 경로 수집기 `IActivePathCollector`
 
@@ -66,12 +66,15 @@ public interface IFileDialogAdapter : IPluginComponent
     bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => true;
 
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);          // 카드를 도킹할 위치
-    bool RestoreFocus(IntPtr hwnd);
 
-    // 컨트롤 레이아웃 프로브: 제목과 필드명이 아무것도 말해 주지 않을 때 폴더 선택 대화상자와
-    // 파일 선택 대화상자를 구분하는 수단이며, 둘 다 "모른다"가 기본값이다.
+    // 배치 프로브: 대화상자 자신의 대상 필드가 어디 있고 파일 목록이 어디 있는지를 알려 준다.
+    // 인라인 카드는 이 둘을 읽어 자기 위치를 정한다 -- 필드 아래, 목록 위, 또는 아래에 자리가
+    // 없을 때는 들어갈 수 있는 곳. 어느 쪽이든 false를 반환하면 호스트는 GetDockBounds로
+    // 물러난다. 둘 다 "그 컨트롤은 확인할 수 없다"가 기본값이다.
     bool TryGetTargetFieldBounds(IntPtr hwnd, out AdapterRect bounds) { bounds = default; return false; }
     bool TryGetFileListBounds(IntPtr hwnd, out AdapterRect bounds) { bounds = default; return false; }
+
+    bool RestoreFocus(IntPtr hwnd);
 }
 
 public struct AdapterRect   // 물리 픽셀
@@ -81,7 +84,7 @@ public struct AdapterRect   // 물리 픽셀
 ```
 
 - **`TargetIsFolderOnly`**: `true`이면 사용자가 검색 결과에서 파일을 선택했을 때 호스트가 `NavigateTo`를 호출하기 전에 부모 폴더를 자동으로 해석합니다.
-- **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**: 호스트의 인라인 윈도우 폴더 범위가 파일 이름 필드가 있는 대화상자와 폴더 트리만 있는 대화상자를 구분하는 데 씁니다. 확인할 수 없는 어댑자는 `false`를 반환하고 호스트는 다른 신호로 물러납니다.
+- **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**: 카드 배치 전용입니다. 배치기는 카드를 대화상자의 대상 필드 아래에 거는 것을 선호하고 파일 목록을 대체 기준점으로 쓰며, 어댑자가 둘 중 어느 것도 확인할 수 없는 대화상자는 단순히 `GetDockBounds` 사각형을 받습니다.
 - **`RestoreFocus`**: 키보드를 대화상자 자신의 입력 필드로 돌려줍니다. 사용자가 인라인 카드를 떠날 때(`Escape`, 또는 검색어가 빈 카드에서 소환 단축키를 다시 누른 경우) 호스트가 호출하므로, 이 메서드는 다른 것을 활성화하면 안 됩니다.
 
 ## 4. 인라인 검색 어댑터 `IInlineSearchAdapter`
@@ -163,6 +166,6 @@ public interface IQuickNavigationProvider : IPluginComponent
 | `ActivePathCollectorRegistry` | `Register(IActivePathCollector)`, `GetCollectors()`, `GetAllCollectors()` |
 | `FileDialogAdapterRegistry` | `Register(IFileDialogAdapter)`, `GetMatchingAdapter(hwnd, className, processName)`, `GetAdapters()`, `GetAllAdapters()` |
 | `InlineSearchAdapterRegistry` | `Register(IInlineSearchAdapter)`, `GetMatchingAdapter(hwnd, className, processName)`, `GetAdapters()`, `GetAllAdapters()` |
-| `OpenedFolderCollectorRegistry` | `GetOpenedFolders()` — 모든 수집기를 집계하고 경로 기준으로 중복을 제거 |
+| `OpenedFolderCollectorRegistry` | `GetOpenedFolders()` — 활성화된 모든 수집기가 보고하는 내용을 이어 붙입니다. 중복은 **의도적으로 보존**하고, 예외를 던진 수집기 하나는 건너뛰므로 파일 관리자 하나가 망가져도 전체 스냅샷이 함께 무너지지 않습니다 |
 
-앞의 세 레지스트리에는 호스트가 대입하는 `Func<T, bool> FilterFunc`가 하나씩 있습니다. 호스트가 사용자가 활성화한 컴포넌트로 범위를 좁히므로 `GetCollectors()` / `GetAdapters()`는 필터된 뷰를, `GetAllCollectors()` / `GetAllAdapters()`는 등록된 전부를 반환합니다. 플러그인은 이 델리게이트에 값을 넣지 않습니다. 일치 판정은 등록 순서대로 진행되며 `CanHandle`이 먼저 `true`라고 답한 어댑자가 그 창을 가져갑니다. 그래서 범용 `#32770` 대화상자 어댑자가 특화 어댑자가 이미 다루는 창을 주장하면 안 됩니다.
+앞의 세 레지스트리에는 호스트가 대입하는 `Func<T, bool> FilterFunc`가 하나씩 있습니다. 호스트가 사용자가 활성화한 컴포넌트로 범위를 좁히므로 `GetCollectors()` / `GetAdapters()`는 필터된 뷰를, `GetAllCollectors()` / `GetAllAdapters()`는 등록된 전부를 반환합니다. 플러그인은 이 델리게이트에 값을 넣지 않습니다. 일치 판정은 등록 순서대로 진행되며 `CanHandle`이 먼저 `true`라고 답한 어댑자가 그 창을 가져갑니다. 그래서 범용 `#32770` 대화상자 어댑자가 특화 어댑자가 이미 다루는 창을 주장하면 안 됩니다. 대화상자 레지스트리는 여기에 더해 거부권 하나를 더 행사합니다. 어댑자가 창을 주장한 뒤에도 차단 목록에 오른 창 제목이면 조회는 다음 어댑자로 넘어가지 않고 `null`을 반환하므로, 그 창은 어떤 어댑자도 담당하지 않게 됩니다.

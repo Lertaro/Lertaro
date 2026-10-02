@@ -16,8 +16,8 @@ public interface ISearchResult
     string ContextDirectory { get; }      // 親フォルダーパス（例: "C:\Program Files\Lertaro"）
     bool IsDir { get; }                   // ディレクトリかどうか
     bool IsApplication { get; }           // 実行ファイルまたはショートカットかどうか
-    FileMetadata Metadata => default;     // 高精度なファイルメタデータ（サイズ、更新日時等）
     bool[]? GetHighlightMask(string text, string query) => null; // 文字単位のハイライトマスク
+    FileMetadata Metadata => default;     // 高精度なファイルメタデータ（サイズ、更新日時等）
     string? InstantActionArgument => null; // インスタント結果が対象とするもの
 }
 ```
@@ -72,18 +72,19 @@ public interface IConfigurable
 | フィールド型 | UI コントロールと動作 |
 | :--- | :--- |
 | **`Boolean`** | トグルスイッチまたはチェックボックス。 |
-| **`Text`** | テキストボックス。`RequireNonEmpty` を有効にすると、空欄時に `DefaultValue` へ自動フォールバック。 |
-| **テキスト選択** | `SelectionStart` と `SelectionLength` で、`Text` フィールドの入力ダイアログにおける 0 始まりの初期選択範囲を指定します。 |
+| **`Text`** | テキストボックス。ユーザーが空欄にすると `RequireNonEmpty` が `DefaultValue` へフォールバックさせ、`MaxLength` が文字数を制限します（0 または未設定なら無制限）。`SelectionStart` / `SelectionLength` は、このフィールドのために開く入力エディターにおける 0 始まりの初期選択範囲を指定します。 |
 | **`Integer`** | 最小値・最大値を指定可能な数値スピンボックス。 |
 | **`Choice`** | `Choices` または `ChoiceOptions` の一覧から選ぶドロップダウンリスト。 |
-| **`Array`** | 一覧の値。`SubFields` を伴う場合は**レコード**のリストであり、マスター／ディテールエディター（1 項目につき 1 つの入れ子フォーム）として描画されます（ファイルフィルター、カスタムコマンド、Web 検索プラグインがこの形を使います）。`SubFields` がなければスカラーの素朴なリストとなり、コンパクトな単一カラムのエディターとして描画されます。`DefaultValue` は空の `List<object>` です。 |
+| **`Array`** | 一覧の値。`SubFields` を伴う場合は**レコード**のリストであり、マスター／ディテールエディター（1 項目につき 1 つの入れ子フォーム）として描画されます（ファイルフィルター、カスタムコマンド、Web 検索プラグインがこの形を使います）。`SubFields` がなければスカラーの素朴なリストとなり、コンパクトな単一カラムのエディターとして描画されます。SDK は `DefaultValue` に既定値をまったく与えていません（宣言では `object?`、`null!`）。そのため本リポジトリーのプラグインはすべて、空のリストには `new List<object>()` を渡しています。 |
 | **`Object`** | `SubFields` 経由で編集する単一の構造化値。`Array` が備える一覧操作機能はありません。 |
+| **`Group`** | 折りたたみ可能なカード形式のサブフィールドグループ（`SubFields`）。 |
+| **`StringList`** | 項目の追加・削除・並び替えと自動折り返しに対応した複数行リスト。実際の改行は表示上のマーカーで示され、設定値には含まれません。 |
 | **`Hotkey`** | キー入力登録コントロール（`RequireModifier = true` で修飾キーを必須化可能）。 |
 | **`FilePath` / `FolderPath`** | 参照ダイアログボタン付きのパス入力コントロール。 |
-| **`StringList`** | 項目の追加・削除・並び替えと自動折り返しに対応した複数行リスト。実際の改行は表示上のマーカーで示され、設定値には含まれません。 |
-| **`Group`** | 折りたたみ可能なカード形式のサブフィールドグループ（`SubFields`）。 |
-| **`CustomControl`** | プラグインが作成したカスタム WPF `UIElement` を直接埋め込み。 |
+| **`CustomControl`** | プラグインが作成したカスタム WPF `UIElement` を直接埋め込み（`CustomControl` 経由でも到達できます）。 |
 | **`Button`** | 操作ボタンを表示し、フィールドの `OnClick` デリゲートを呼び出します。設定値は保存しません。 |
+
+その他の `PluginConfigField` のメンバーは、ホストがこれらの型のまわりで描画・永続化に使うものです。`Key`（永続化される設定名）、`GroupKey`（フィールドが収まる `Group` カード）、`LabelKey` / `DescriptionKey`（リテラルの文字列ではなく翻訳キー）、`RequireNonEmpty`、`Choices` / `ChoiceOptions` / `SubFields`、`IsTriggerWord`（[**検索コアとアクション**](./core-search-actions) の「トリガーワード」参照）、`MaxLength`、`SelectionStart` / `SelectionLength`、`CustomControl`、`OnClick`、そしてプラグインが値をホストの設定ストア以外の場所に保存できるようにする 2 つのデリゲート `Func<object?>? GetValue` と `Action<object?>? SetValue` です。
 
 ### アイコンフィールド
 
@@ -126,16 +127,24 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 }
 ```
 
-ホストはフル検索ウィンドウ自身のファイル検索がまだストリーミング中に、バックグラウンドスレッドでプロバイダーを呼び出し、検索が確定するのを待たずに、行が到着した順に描画します。現在のクエリを処理しない場合は空のリストを返してください。返す各 `InstantResultItem` は実在するファイルまたはフォルダーを表す必要があります。これにより、フル検索ウィンドウのパス、サイズ、種類の列を正しく表示できます。応答に数秒かかるプロバイダー（全文インデックスの走査など）は `GetFileResultsStreamed` をオーバーライドして、見つけた候補をその場で渡すことができます。最初の数行が画面に出た後も残りの検索が続きます。既定の実装は `GetFileResults` を走査するだけなので、オーバーライドは省略できます。このコンポーネントは、プラグインのインスタント結果プロバイダーと同じ有効化・無効化スイッチで管理されます。
+ホストはフル検索ウィンドウ自身のファイル検索がまだストリーミング中に、バックグラウンドスレッドでプロバイダーを呼び出し、検索が確定するのを待たずに、行が到着した順に描画します。現在のクエリを処理しない場合は空のリストを返してください。返す各 `InstantResultItem` は実在するファイルまたはフォルダーを表す必要があります。これにより、フル検索ウィンドウのパス、サイズ、種類の列を正しく表示できます。応答に数秒かかるプロバイダー（全文インデックスの走査など）は `GetFileResultsStreamed` をオーバーライドして、見つけた候補をその場で渡すことができます。最初の数行が画面に出た後も残りの検索が続きます。既定の実装は `GetFileResults` を走査するだけなので、オーバーライドは省略できます。このコンポーネントは **設定 → プラグイン** 配下に**独自の**有効化・無効化スイッチを持ち、スイッチはそのコンポーネント型をキーにします。プラグインのインスタント結果プロバイダーを無効にしてもこのコンポーネントは無効にならず、その逆も同じです。
 
 ## 6. ユーザー設定パスの解決 `UserPathResolver`
 
 ユーザーが入力したパスや設定に保存されたパスを受け取るプラグインは、ファイルシステム API を呼び出す前に `Lertaro.PluginSdk.Helpers.UserPathResolver` を使用して、環境変数と Windows Shell 仮想パスを同じ規則で処理してください。
 
 ```csharp
-string expanded = UserPathResolver.Expand(rawPath);
+string expanded = UserPathResolver.Expand(rawPath);            // 引数は string?、戻り値は string
 bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
-string resolved = UserPathResolver.Resolve(rawPath);
+string resolved = UserPathResolver.Resolve(rawPath);           // 2 番目の引数は省略可（下記）
+
+// Resolve と ResolveForNavigation はどちらも、省略可能な Func<string, string>? を受け取ります。
+// これは、ファイルシステムに尋ねる前に、解析できない仮想トークンを実在するパスへ変換するために使われます。
+// リゾルバーを渡さず解析できるものもない場合、最後の手段として入力がそのまま返されます。
+
+// パスを開いたり参照したりする直前なら、Resolve ではなく ResolveForNavigation を使います。
+// こちらはさらに、仮想シェル アイテムをホストがナビゲートできるファイルシステムのターゲットへ正規化します。
+string target = UserPathResolver.ResolveForNavigation(rawPath);
 ```
 
 `Expand` は前後の空白を取り除き、`%USERPROFILE%` などの環境変数を展開します。`Resolve` は展開後、`shell:Downloads` や `::{CLSID}` などのトークンを可能な場合に物理パスへ解決します。`shell:AppsFolder` のように物理パスを持たない仮想フォルダーは、代わりに正規の `::{CLSID}` 名へ解決されるため、同じフォルダーのさまざまな書き方が一致します。その結果は依然として仮想パスです。Shell がまったく解析できないトークンのみがそのまま返されます。ファイルシステム API に渡す前に `IsVirtualPath` で結果を確認してください。ディレクトリインデックス API で列挙できるのは、実在し、インデックス対象になっているフォルダーへ解決されたパスだけです。

@@ -12,33 +12,35 @@ Lertaro/
 ├── Lertaro.PluginSdk.dll
 └── Plugins/
     └── MyCustomPlugin/
-        ├── MyCustomPlugin.dll           (插件主程序集)
-        ├── ThirdParty.Managed.dll       (托管第三方依赖)
-        └── x64/
-            └── NativeLibrary.dll        (原生 C/C++ 动态链接库)
+        ├── Lertaro.Plugins.MyCustomPlugin.dll   (插件主程序集)
+        ├── ThirdParty.Managed.dll              (托管第三方依赖)
+        └── NativeLibrary.dll                   (原生 C/C++ 依赖——平铺放置)
 ```
 
 - **依赖自动探测**：Lertaro 的程序集加载器通过 `Assembly.LoadFrom` 机制加载主 DLL，.NET 运行时会自动从该子目录中解析并加载其同级依赖库，绝不会与其他插件相互干扰。
-- **原生文件容错**：扫描过程中若遇到原生 DLL（如 `e_sqlite3.dll`）或非托管资源，加载器会以 `Debug` 调试级别记录并安全跳过，绝不产生误报 `Error` 报错。
+- **原生依赖与 DLL 同级，而不是放在 `runtimes\<rid>\native` 下**：随包发布的插件工程都设置了 `<GenerateDependencyFile>false</GenerateDependencyFile>`，因此不会生成 `.deps.json`，运行时也就没有可据以解析 RID 子目录的依赖图。原生库必须能在应用程序基目录中被发现——所以要平铺复制。这也是两种架构要分别发布为独立产物、而不是合成一个安装包的原因：那个平铺的加载目录只能容纳一种架构的原生副本。
+- **原生文件容错**：程序集扫描遇到非 .NET 的原生二进制文件（如 `e_sqlite3.dll`）时，加载器会以 `Debug` 级别记录后继续，而不是抛出误报的 `Error`。
 
 ## 2. 自动化构建复制配置（PostBuild）
 
-在插件工程的 `.csproj` 文件中配置 `PostBuild` 目标，可以在每次编译成功后自动将产物复制到 Lertaro App 的 `Plugins/` 调试目录下，实现即改即测：
+在插件工程的 `.csproj` 文件中配置 `PostBuild` 目标，可在每次编译成功后自动把产物复制到 Lertaro 的调试目录。仓库内的插件工程实际就是这样做的——注意**平铺**的目标目录，以及**为 Service 准备的第二份复制**，正是它让别名或翻译提供者同时可用于索引器与界面：
 
 ```xml
 <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-  <ItemGroup>
-    <PluginOutputFiles Include="$(TargetDir)**\*.*" />
-  </ItemGroup>
-  <Copy SourceFiles="@(PluginOutputFiles)"
-        DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\$(TargetName)\%(RecursiveDir)"
+  <Copy SourceFiles="$(TargetDir)$(TargetName).dll"
+        DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\"
+        SkipUnchangedFiles="true" />
+  <Copy SourceFiles="$(TargetDir)$(TargetName).dll"
+        DestinationFolder="..\..\Service\bin\$(Configuration)\net10.0-windows\Plugins\"
         SkipUnchangedFiles="true" />
 </Target>
 ```
 
+如果你的插件在加载时需要第三方托管或原生依赖，请用同级的 `<Copy>` 项把它们复制到同一个目录。
+
 ## 3. 内嵌多语言资源文件
 
-若你的插件实现了 [`ITranslationProvider`](./sdk/ui-extensions#itranslationprovider) 多语言接口，推荐将翻译 JSON 文件作为**程序集内嵌资源**打包，避免因外部文件遗失导致界面乱码：
+若你的插件实现了 [`ITranslationProvider`](./sdk/ui-extensions) 多语言接口，推荐将翻译 JSON 文件作为**程序集内嵌资源**打包，避免因外部文件遗失导致界面乱码：
 
 ```xml
 <ItemGroup>
@@ -46,7 +48,7 @@ Lertaro/
 </ItemGroup>
 ```
 
-JSON 文件组织建议遵循 `Resources/Translations/{CultureName}/{TypeName}.json` 规范（例如 `zh-CN/MyCustomPlugin.json`、`en-US/MyCustomPlugin.json`）。在代码中直接调用 `TranslationService.LoadEmbeddedTranslations` 即可自动按当前系统界面语言解析。
+按 `Resources/Translations/{culture}/{type}.json` 组织文件，其中 `{type}` 就是你传给 `TranslationService.LoadEmbeddedTranslations(assembly, cultureKey, typeName)` 的 `typeName`。本仓库中每个插件都使用固定文件名 **`Plugin.json`**（`Resources/Translations/zh-CN/Plugin.json`、`Resources/Translations/en-US/Plugin.json`……）并传入 `"Plugin"`；`App.json` 并不是插件的约定——它只存在于 CoreExtensions 中，因为后者还要提供宿主自身的界面文案。语言文件夹跟随应用的七种界面语言，某个语言没有对应文件夹时，直接回退到调用方给出的默认文本。
 
 ## 4. 插件版本与元数据定义
 
@@ -65,9 +67,8 @@ JSON 文件组织建议遵循 `Resources/Translations/{CultureName}/{TypeName}.j
 
 ## 5. Release 构建与架构产物
 
-在 Windows 上从仓库根目录运行 `make.bat` 前，需要安装 .NET SDK 和[64 位 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)。脚本会分别为 x64 和 `win-arm64` 创建发布目录，并在 `dist/` 中生成以下文件：
+在 Windows 上从仓库根目录运行 `make.bat` 前，需要安装 .NET SDK 和[64 位 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)。就现状而言，该脚本**只调用了一次构建例程，用于 x64**，产出：
 
-- x64：`Lertaro-Setup.exe` 与 `Lertaro-Portable.zip`。
-- ARM64：`Lertaro-Setup-arm64.exe` 与 `Lertaro-Portable-arm64.zip`。
+- 位于 `dist/` 中的 `Lertaro-Setup.exe` 与 `Lertaro-Portable.zip`。
 
-ARM64 产物中的应用程序本体是原生 ARM64。ARM64 安装包使用兼容性的 Inno Setup 引导程序，x64 安装包则使用 64 位 Inno Setup 7 壳程序。请确保架构对应的应用程序载荷和文件名后缀在 `make.bat`、`Installer/installer.iss` 与发布工作流中保持一致。
+脚本的头部注释描述了两种架构（“x64 不带 RID 发布，一如既往；arm64 是一次交叉发布”），结尾横幅也会打印 arm64 的路径，但并没有第二次 `:build_arch` 调用把 `ARCH=x64` 换成 `arm64`，所以本地运行并不会生成 `Lertaro-Setup-arm64.exe` 或 `Lertaro-Portable-arm64.zip`——尽管发布工作流恰恰按这两个名字计算哈希并上传。在看到那条横幅之前请牢记这一点。arm64 安装包与 x64 安装包的差别只有 `Installer/installer.iss` 中的 `ArchitecturesAllowed`（`arm64` 对 `x64compatible`）以及 `SetupArchitecture=x64`；每个包内的应用程序载荷都是各自架构的原生版本。请保持产物命名与 `make.bat`、`Installer/installer.iss` 以及发布工作流的资源清单一致。

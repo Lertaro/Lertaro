@@ -16,8 +16,8 @@ public interface ISearchResult
     string ContextDirectory { get; }      // Ruta de la carpeta contenedora
     bool IsDir { get; }                   // Indica si es una carpeta
     bool IsApplication { get; }           // Indica si es un ejecutable o acceso directo
-    FileMetadata Metadata => default;     // Metadatos de archivo de alta precisión
     bool[]? GetHighlightMask(string text, string query) => null; // Máscara de resaltado
+    FileMetadata Metadata => default;     // Metadatos de archivo de alta precisión
     string? InstantActionArgument => null; // A qué apunta un resultado instantáneo
 }
 ```
@@ -72,18 +72,19 @@ public interface IConfigurable
 | Tipo de campo | Control visual y comportamiento |
 | :--- | :--- |
 | **`Boolean`** | Interruptor de alternancia o casilla de verificación. |
-| **`Text`** | Campo de texto. Admite `RequireNonEmpty` para volver a `DefaultValue` si se vacía. |
-| **Selección de texto** | `SelectionStart` y `SelectionLength` especifican la selección inicial, basada en cero, en el editor de diálogo de un campo `Text`. |
+| **`Text`** | Campo de texto. `RequireNonEmpty` vuelve a `DefaultValue` cuando el usuario lo vacía; `MaxLength` limita la longitud (0 o sin definir significa sin límite); `SelectionStart` / `SelectionLength` fijan la selección inicial, basada en cero, en el editor de diálogo que se abre para este campo. |
 | **`Integer`** | Control numérico con límites mínimos y máximos. |
 | **`Choice`** | Selector desplegable basado en una colección `Choices` o `ChoiceOptions`. |
-| **`Array`** | Un valor de lista. Con `SubFields` es una lista de **registros** renderizada como un editor maestro/detalle (un formulario anidado por entrada —la forma que usan los plugins de filtros de archivos, comandos personalizados y búsqueda web—); sin `SubFields` es una lista simple de escalares renderizada como un editor compacto de una sola columna. `DefaultValue` es un `List<object>` vacío. |
+| **`Array`** | Un valor de lista. Con `SubFields` es una lista de **registros** renderizada como un editor maestro/detalle (un formulario anidado por entrada —la forma que usan los plugins de filtros de archivos, comandos personalizados y búsqueda web—); sin `SubFields` es una lista simple de escalares renderizada como un editor compacto de una sola columna. El SDK no asigna ningún valor por defecto a `DefaultValue` (`object?`, `null!` en la declaración), por eso todos los plugins del repositorio pasan `new List<object>()` para una lista vacía. |
 | **`Object`** | Un único valor estructurado que se edita a través de sus `SubFields`, sin las opciones de lista de `Array`. |
+| **`Group`** | Agrupación en tarjeta plegable con campos secundarios (`SubFields`). |
+| **`StringList`** | Lista multilínea editable con adición, eliminación, reordenación y ajuste de línea visual; los saltos reales se marcan en pantalla, pero las marcas no forman parte del valor de configuración. |
 | **`Hotkey`** | Grabador de teclas con `RequireModifier = true` opcional. |
 | **`FilePath` / `FolderPath`** | Campo de texto con botón para abrir el diálogo nativo de Windows. |
-| **`StringList`** | Lista multilínea editable con adición, eliminación, reordenación y ajuste de línea visual; los saltos reales se marcan en pantalla, pero las marcas no forman parte del valor de configuración. |
-| **`Group`** | Agrupación en tarjeta plegable con campos secundarios (`SubFields`). |
-| **`CustomControl`** | Inserta directamente un control WPF `UIElement` personalizado. |
+| **`CustomControl`** | Inserta directamente un control WPF `UIElement` personalizado (también accesible mediante `CustomControl`). |
 | **`Button`** | Muestra un botón de acción e invoca el delegado `OnClick` del campo; no almacena ningún valor. |
+
+Los demás miembros de `PluginConfigField` son lo que el anfitrión muestra o persiste alrededor de esos tipos: `Key` (el nombre de la opción guardada), `GroupKey` (en qué tarjeta `Group` está el campo), `LabelKey` / `DescriptionKey` (claves de traducción, no texto literal), `RequireNonEmpty`, `Choices` / `ChoiceOptions` / `SubFields`, `IsTriggerWord` (ver [**Búsqueda central y acciones**](./core-search-actions), «Palabras disparadoras»), `MaxLength`, `SelectionStart` / `SelectionLength`, `CustomControl`, `OnClick`, y dos delegados que permiten a un plugin guardar un valor en algún sitio distinto del almacén de opciones del anfitrión: `Func<object?>? GetValue` y `Action<object?>? SetValue`.
 
 ### Campos de icono
 
@@ -127,16 +128,24 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 }
 ```
 
-El anfitrión llama al proveedor en un hilo de fondo mientras la búsqueda de archivos de la propia ventana completa aún está llegando en streaming, y pinta sus filas en cuanto aparecen en lugar de esperar a que la búsqueda termine. Devuelve una lista vacía cuando el plugin no gestiona la consulta. Cada `InstantResultItem` devuelto debe representar un archivo o carpeta existente para que las columnas de ruta, tamaño y tipo sigan siendo útiles. Un proveedor cuya respuesta tarde segundos —un recorrido del índice de texto completo, por ejemplo— puede anular `GetFileResultsStreamed` para entregar coincidencias según las encuentra, lo que muestra las primeras filas mientras aún se buscan las demás; anularlo es opcional porque el cuerpo por defecto de la interfaz recorre `GetFileResults`. Este componente usa el mismo interruptor de activación y desactivación que el proveedor de resultados instantáneos del plugin.
+El anfitrión llama al proveedor en un hilo de fondo mientras la búsqueda de archivos de la propia ventana completa aún está llegando en streaming, y pinta sus filas en cuanto aparecen en lugar de esperar a que la búsqueda termine. Devuelve una lista vacía cuando el plugin no gestiona la consulta. Cada `InstantResultItem` devuelto debe representar un archivo o carpeta existente para que las columnas de ruta, tamaño y tipo sigan siendo útiles. Un proveedor cuya respuesta tarde segundos —un recorrido del índice de texto completo, por ejemplo— puede anular `GetFileResultsStreamed` para entregar coincidencias según las encuentra, lo que muestra las primeras filas mientras aún se buscan las demás; anularlo es opcional porque el cuerpo por defecto de la interfaz recorre `GetFileResults`. Este componente tiene **su propio** interruptor de activación y desactivación en **Configuración → Plugins**, ligado a su propio tipo de componente: desactivar el proveedor de resultados instantáneos del plugin no desactiva este componente, ni a la inversa.
 
 ## 6. Resolución de rutas configuradas por el usuario `UserPathResolver`
 
 Cuando un plugin acepta una ruta introducida por el usuario o guardada en su configuración, usa `Lertaro.PluginSdk.Helpers.UserPathResolver` para aplicar las mismas reglas de variables de entorno y rutas virtuales de Windows Shell antes de llamar a las API del sistema de archivos:
 
 ```csharp
-string expanded = UserPathResolver.Expand(rawPath);
+string expanded = UserPathResolver.Expand(rawPath);            // recibe string?, devuelve string
 bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
-string resolved = UserPathResolver.Resolve(rawPath);
+string resolved = UserPathResolver.Resolve(rawPath);           // segundo argumento opcional, más abajo
+
+// Tanto Resolve como ResolveForNavigation aceptan un Func<string, string>? opcional que convierte
+// un token virtual imposible de analizar en una ruta real antes de preguntar al sistema de
+// archivos; sin resolvedor y sin nada que analizar, la entrada se devuelve como último recurso.
+
+// Usa ResolveForNavigation, no Resolve, cuando la ruta va a abrirse o recorrerse: además normaliza
+// un elemento virtual del Shell a la ruta de destino al que el anfitrión puede navegar.
+string target = UserPathResolver.ResolveForNavigation(rawPath);
 ```
 
 `Expand` recorta los espacios exteriores y expande variables como `%USERPROFILE%`. `Resolve` realiza esa expansión y después intenta convertir tokens como `shell:Downloads` o `::{CLSID}` en una ruta física. Una carpeta virtual sin ruta física, como `shell:AppsFolder`, se resuelve en su nombre canónico `::{CLSID}`, de modo que todas sus grafías coinciden; ese resultado sigue siendo virtual. Solo un token que Shell no puede analizar en absoluto se devuelve sin cambios. Comprueba el resultado con `IsVirtualPath` antes de pasarlo a las API del sistema de archivos. Las API de indexación de directorios solo pueden enumerar una ruta cuando se resuelve en una carpeta real cubierta por el índice.

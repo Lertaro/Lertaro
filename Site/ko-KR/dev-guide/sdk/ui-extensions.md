@@ -114,7 +114,8 @@ namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
 
 public interface IFilePreviewProvider : IPluginComponent
 {
-    // 여러 제공자가 같은 파일을 주장할 때의 우선순위. 높은 쪽이 이긴다.
+    // Priority는 동률 처리에만 쓰입니다. 사용자가 설정해 둔 제공자 순서(설정 → 일반 →
+    // 미리보기 및 썸네일)가 먼저 적용되고, Priority는 그 안에서 정렬하며 높은 쪽이 앞에 선다.
     int Priority => 0;
 
     bool CanPreview(string path, bool isDir);
@@ -128,10 +129,11 @@ public interface IFilePreviewProvider : IPluginComponent
 
 #### 미리보기 생명주기 및 재사용 계약
 
-반환하는 `UIElement`가 다음 선택적 계약 중 하나를 구현하면 호스트가 미리보기 생명주기를 최적화합니다.
+아래 첫 계약을 **제공자**가 구현하거나, 반환하는 `UIElement`가 두 번째 계약을 구현하면 호스트가 미리보기 생명주기를 최적화합니다.
 
-- **`IPreviewSessionAware`** — `void EndPreviewSession();` 제공자는 프로세스 안의 컨트롤만이 아니라 실제 외부 창을 소유합니다(`HwndHost`, 또는 네이티브 `IPreviewHandler`와 그 `prevhost` 서로게이트). 그래서 패널이 가려지거나 미리보기 세션 전체가 끝날 때 세션을 종료하도록 통보받습니다. 이것이 없으면 호스트의 창이 아무 참조도 없이 남게 됩니다.
-- **`IReusablePreview`** — `bool TrySetTarget(string path, bool isDir);` 사용자가 방향키로 유사한 파일 사이를 이동할 때 호스트는 컨트롤을 폐기하고 다시 만드는 대신 같은 컨트롤에 대상 재지정을 요청하며, 이것이 깜빡임을 없애 줍니다. 새 대상이 이 인스턴스에 맞지 않으면 `false`를 반환하고, 호스트는 새 미리보기를 만드는 방식으로 물러납니다.
+- **`IPreviewSessionAware`** — 반환한 컨트롤이 아니라 **제공자**에 캐스팅되는 `void EndPreviewSession();`. 제공자는 프로세스 안의 컨트롤만이 아니라 실제 외부 창을 소유합니다(`HwndHost`, 또는 네이티브 `IPreviewHandler`와 그 `prevhost` 서로게이트). 그래서 소유 창이 닫힐 때 세션을 종료하도록 통보받고, 프로세스 안에서 렌더링하는 제공자의 경우에는 미리보기 패널이 가려지거나 세션이 끝날 때만 통보받습니다. 이것이 없으면 호스트의 창이 아무 참조도 없이 남게 됩니다.
+- **`IReusablePreview`** — 반환한 요소에 캐스팅되는 `bool TrySetTarget(string path, bool isDir);` 사용자가 방향키로 유사한 파일 사이를 이동할 때 호스트는 컨트롤을 폐기하고 다시 만드는 대신 같은 컨트롤에 대상 재지정을 요청하며, 이것이 깜빡임을 없애 줍니다. 새 대상이 이 인스턴스에 맞지 않으면 `false`를 반환하고, 호스트는 새 미리보기를 만드는 방식으로 물러납니다.
+- **`IReceivesPreviewPanelBounds`** — `void OnPreviewPanelBoundsAvailable(int left, int top, int width, int height);` 자기 프로세스 밖의 창을 호스팅하는 제공자는 패널이 차지하는 사각형을 알아야 그 안에 창을 넣거나 배치할 수 있습니다. 그 사각형이 확인되는 대로 통보받으려면 이 계약을 구현하세요.
 
 ### 커스텀 썸네일 제공자 `IThumbnailProvider`
 
@@ -142,12 +144,17 @@ namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
 
 public interface IThumbnailProvider : IPluginComponent
 {
+    // 미리보기와 같은 규칙이다. 사용자가 설정해 둔 썸네일 제공자 순서가 먼저 정하고,
+    // Priority는 그 안에서만 정렬한다.
     int Priority => 0;
 
     bool CanProvideThumbnail(string path, bool isDir);
 
-    // 동기식이다. 결과 목록 렌더링 경로에서 실행되기 때문이다. 빠르게 유지하고 경로와 크기 기준으로
-    // 직접 캐시할 것 -- 호스트는 결과를 대신 메모이제이션하지 않는다.
+    // 동기식이다. 결과 목록 렌더링 경로에서 실행되기 때문이다 -- 빠르게 유지할 것.
+    // 메모이제이션할 필요가 없다. 호스트가 반환한 결과를 캐시하기 때문이다(물리 항목이나
+    // 가상 항목은 경로 기준으로, 그 외에는 확장자 기준으로). 결론은 두 가지 -- `size`는 셸
+    // 이미지 목록에서 가져온 호스트 자신의 선택이므로 특정한 값을 기대하지 말 것, 그리고
+    // 제공자는 디렉터리에 대해 아예 질문받지 않는다.
     ImageSource? GetThumbnail(string path, int size);
 }
 ```
@@ -165,6 +172,10 @@ public interface IThemeProvider : IPluginComponent
 {
     IEnumerable<ITheme> GetThemes();
 }
+```
+
+```csharp
+namespace Lertaro.PluginSdk.Abstractions;   // 참고: 테마 자체는 한 단계 위입니다
 
 public interface ITheme
 {
@@ -173,9 +184,11 @@ public interface ITheme
     bool IsDark { get; }
     ResourceDictionary GetResources();
 
-    // 1.0 미만에서는 호스트가 테두리 없는 창을 레이어드 반투명 서피스로 렌더링하고, 1.0에서는
-    // 불투명으로 남아 ClearType을 유지한다. 창이 어떤 종류로 만들어지는지는 이 값이 결정하며,
-    // 창이 만들어진 뒤에는 바꿀 수 없다.
+    // 1.0 미만에서는 호스트의 레이어드 서피스 헬퍼로 만들어진 창이 모서리를 직접 그리고
+    // 클리핑해야 하는 레이어드 반투명 창이 되고, 1.0에서는 불투명으로 남아 창 관리자가
+    // 모서리를 둥글게 처리하며 ClearType이 유지된다. 이 선택은 생성자에서 한 번 이루어지는데,
+    // 핸들이 만들어진 뒤에는 AllowsTransparency를 바꿀 수 없기 때문이다. 현재는 알림 창에
+    // 적용되며, 창이 화면에 떠 있는 동안 테마가 바뀌어도 창은 다시 만들어지지 않는다.
     double WindowOpacity => 1.0;
 }
 ```

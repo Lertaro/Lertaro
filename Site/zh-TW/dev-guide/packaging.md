@@ -12,33 +12,35 @@ Lertaro/
 ├── Lertaro.PluginSdk.dll
 └── Plugins/
     └── MyCustomPlugin/
-        ├── MyCustomPlugin.dll           (外掛模組主組件)
-        ├── ThirdParty.Managed.dll       (託管第三方相依)
-        └── x64/
-            └── NativeLibrary.dll        (原生 C/C++ 動態連結庫)
+        ├── Lertaro.Plugins.MyCustomPlugin.dll   (外掛模組主組件)
+        ├── ThirdParty.Managed.dll              (託管第三方相依)
+        └── NativeLibrary.dll                   (原生 C/C++ 相依——平放)
 ```
 
 - **相依性自動探測**：Lertaro 的組件載入器透過 `Assembly.LoadFrom` 機制載入主 DLL，.NET 執行階段會自動從該子目錄中解析並載入其同級相依庫，絕不會與其他外掛模組相互干擾。
-- **原生檔案容錯**：掃描過程中若遇到原生 DLL（如 `e_sqlite3.dll`）或非託管資源，載入器會以 `Debug` 偵錯層級記錄並安全跳過，絕不產生誤報 `Error` 報錯。
+- **原生相依要放在 DLL 旁邊，而不是 `runtimes\<rid>\native` 之下**：隨包的外掛模組專案都設定 `<GenerateDependencyFile>false</GenerateDependencyFile>`，因此不會產生 `.deps.json`，執行階段也沒有可供解析 RID 子資料夾的相依清單可用。原生程式庫必須能在應用程式基礎目錄中被找到——所以請平放複製。這也是兩種架構要發布成個別產物、而非合併成單一安裝包的原因：那個平放的載入目錄只能由一種架構的原生複本佔用。
+- **原生檔案容錯**：當組件掃描遇到非 .NET 的原生二進位檔（如 `e_sqlite3.dll`）時，載入器會以 `Debug` 層級記錄後繼續處理，而不會拋出誤報的 `Error`。
 
 ## 2. 自動化建置複製設定（PostBuild）
 
-在外掛模組工程的 `.csproj` 檔案中設定 `PostBuild` 目標，可以在每次編譯成功後自動將產物複製到 Lertaro App 的 `Plugins/` 偵錯目錄下，實現即改即測：
+在外掛模組工程的 `.csproj` 檔案中設定 `PostBuild` 目標，即可在每次編譯成功後把產物部署到 Lertaro 的偵錯目錄。以下範例正是本儲存庫內外掛模組專案實際的做法——請留意**平放**的複製目的地，以及**給 Service 的第二份複製**，別名提供者與翻譯提供者正是因此才能同時供索引器與介面使用：
 
 ```xml
 <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-  <ItemGroup>
-    <PluginOutputFiles Include="$(TargetDir)**\*.*" />
-  </ItemGroup>
-  <Copy SourceFiles="@(PluginOutputFiles)"
-        DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\$(TargetName)\%(RecursiveDir)"
+  <Copy SourceFiles="$(TargetDir)$(TargetName).dll"
+        DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\"
+        SkipUnchangedFiles="true" />
+  <Copy SourceFiles="$(TargetDir)$(TargetName).dll"
+        DestinationFolder="..\..\Service\bin\$(Configuration)\net10.0-windows\Plugins\"
         SkipUnchangedFiles="true" />
 </Target>
 ```
 
+若你的外掛模組在載入時需要第三方託管或原生相依，請在平行的 `<Copy>` 項目中把它們複製到同一個資料夾。
+
 ## 3. 內嵌多語言資源檔案
 
-若你的外掛模組實作了 [`ITranslationProvider`](./sdk/ui-extensions#itranslationprovider) 多語言介面，推薦將翻譯 JSON 檔案作為**組件內嵌資源**打包，避免因外部檔案遺失導致介面亂碼：
+若你的外掛模組實作了 [`ITranslationProvider`](./sdk/ui-extensions) 多語言介面，推薦將翻譯 JSON 檔案作為**組件內嵌資源**打包，避免因外部檔案遺失導致介面亂碼：
 
 ```xml
 <ItemGroup>
@@ -46,7 +48,7 @@ Lertaro/
 </ItemGroup>
 ```
 
-JSON 檔案組織建議遵循 `Resources/Translations/{CultureName}/{TypeName}.json` 規範（例如 `zh-CN/MyCustomPlugin.json`、`en-US/MyCustomPlugin.json`）。在程式碼中直接呼叫 `TranslationService.LoadEmbeddedTranslations` 即可自動按目前系統介面語言解析。
+檔案請依 `Resources/Translations/{culture}/{type}.json` 組織，其中 `{type}` 就是你在呼叫 `TranslationService.LoadEmbeddedTranslations(assembly, cultureKey, typeName)` 時傳入的 `typeName`。本儲存庫的每個外掛模組都使用固定檔名 **`Plugin.json`**（`Resources/Translations/zh-CN/Plugin.json`、`Resources/Translations/en-US/Plugin.json`……）並傳入 `"Plugin"`；`App.json` 不是外掛模組的慣例——它只存在於 CoreExtensions，因為該專案也提供宿主自己的介面字串。語系資料夾對應應用程式的七種介面語言，沒有對應資料夾的語系就直接退回呼叫端傳入的預設文字。
 
 ## 4. 外掛模組版本與中繼資料定義
 
@@ -65,9 +67,8 @@ JSON 檔案組織建議遵循 `Resources/Translations/{CultureName}/{TypeName}.j
 
 ## 5. Release 建置與架構產物
 
-在 Windows 上從儲存庫根目錄執行 `make.bat` 前，需要安裝 .NET SDK 和 [64 位元 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)。指令碼會分別為 x64 和 `win-arm64` 建立發行目錄，並在 `dist/` 中產生以下檔案：
+在 Windows 上從儲存庫根目錄執行 `make.bat` 前，需要安裝 .NET SDK 和 [64 位元 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)。就目前的情形而言，指令碼只會**呼叫其建置常式一次，用於 x64**，並產生：
 
-- x64：`Lertaro-Setup.exe` 與 `Lertaro-Portable.zip`。
-- ARM64：`Lertaro-Setup-arm64.exe` 與 `Lertaro-Portable-arm64.zip`。
+- `dist/` 中的 `Lertaro-Setup.exe` 與 `Lertaro-Portable.zip`。
 
-ARM64 產物中的應用程式本體是原生 ARM64。ARM64 安裝包使用相容的 Inno Setup 引導程式，x64 安裝包則使用 64 位元 Inno Setup 7 外殼程式。請確保架構對應的應用程式載荷和檔名後綴在 `make.bat`、`Installer/installer.iss` 與發行工作流程中保持一致。
+它的檔頭註解談到兩種架構（「x64 一如往常不帶 RID 發行；arm64 則是跨平台發行」），結尾橫幅也會印出 arm64 的路徑，但並沒有第二次 `:build_arch` 呼叫把 `ARCH=x64` 換成 `arm64`，所以本機執行不會建立 `Lertaro-Setup-arm64.exe` 或 `Lertaro-Portable-arm64.zip`——儘管發行工作流程確實照著這些檔名計算雜湊並上傳。在采信那個橫幅之前請先記住這點。arm64 安裝包與 x64 安裝包的差異只在 `Installer/installer.iss` 的 `ArchitecturesAllowed`（`arm64` 對比 `x64compatible`）加上 `SetupArchitecture=x64`；每個安裝包內的應用程式載荷都原生於各自的架構。請確保產物名稱與 `make.bat`、`Installer/installer.iss` 以及發行工作流程的資產清單保持一致。

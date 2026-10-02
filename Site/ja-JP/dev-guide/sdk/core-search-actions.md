@@ -7,7 +7,7 @@
 すべてのプラグインコンポーネントは `IPluginComponent` を継承してメタデータをホストに提供します。
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 public interface IPluginComponent
 {
@@ -17,7 +17,10 @@ public interface IPluginComponent
 
 public interface IPlugin : IPluginComponent
 {
-    // プラグインアセンブリのメインエントリポイント
+    // プラグインアセンブリのメインエントリポイント。ウェブサイト関連のメンバーは
+    // どちらも省略可能で、WebsiteUrl が null なら設定カードにリンク自体が表示されません。
+    string? WebsiteUrl => null;
+    string? WebsiteLabel => null;
 }
 ```
 
@@ -45,6 +48,10 @@ public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
     bool[]? GetHighlightMask(string text, string query) => null; // カスタムハイライトマスク
+
+    // このプロバイダーを起動するワード。ホスト自身の除去処理がこの値を読むため、
+    // ホスト側の除去とプラグイン側の一致判定がずれません。第 6 章「トリガーワード」を参照。
+    IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 ```
 
@@ -181,8 +188,8 @@ public interface IDynamicActionProvider : IPluginComponent
 
 ## 4. 補助データ構造
 
-- **`SearchableItem` / `InstantResultItem`**：`Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（ホストが自動解放）、`ResultKind`（プラグインが選択するタグで、ホストのフィルターや列がこれを手がかりにする）、および 2 つの実行コールバックを保持します。使い捨てであれば `OnExecute`（`Action`）、アクションが成否を報告する必要がある場合は `OnExecuteFunc`（`Func<bool>`）を使い、ホストはその戻り値を、たとえばウィンドウを閉じるかどうかの判断に利用します。
-- **`DynamicMenuItem`**：`Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsActionable`（既定は `true`。`false` はサブメニューを開くだけの行を示す）、`HBitmapItem`（ミラー対象の Shell メニューから取得するネイティブのアイコンハンドル）、`ShortcutHint`（ニーモニックキーが一致させる文字）、`IsContinuation`（この項目がホストの既存グループの続きであることを示す）、`IsHeader`（操作ボタン付きのグループヘッダー行として描画）を保持します。
+- **`SearchableItem`**：`Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（ホストが自動解放）、`ResultKind`（プラグインが選択するタグで、ホストのフィルターや列がこれを手がかりにする）、および 2 つの実行コールバックを保持します。使い捨てであれば `OnExecute`（`Action`）、アクションが成否を報告する必要がある場合は `OnExecuteFunc`（`Func<bool>`）を使い、ホストはその戻り値を、たとえばウィンドウを閉じるかどうかの判断に利用します。`InstantResultItem` は表示用・コールバック系のメンバーを同じく持ちますが、**`ResultKind` だけは除かれます**。これは検索アイテム側のモデルだけに存在するメンバーです。
+- **`DynamicMenuItem`**：`Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsActionable`（既定は `true`。`false` はサブメニューを開くだけの行を示す）、`HBitmapItem`（ミラー対象の Shell メニューから取得するネイティブのアイコンハンドル）、`ShortcutHint`（ニーモニックキーが一致させる文字）、`IsContinuation`（ページング用カーソル。このバッチがホストがまだ埋め途中のメニューの続きであることを示し、値が立っている間ホストは要求を続けます）、`IsHeader`（操作ボタン付きのグループヘッダー行として描画）を保持します。
 - **`SearchWindowType`**：`Main`（メイン検索窓）、`Quick`（クイック検索バー）、`Inline`（インラインダイアログ）の列挙型。
 
 ## 5. 名前付き検索スコープ `ISearchScopeProvider`

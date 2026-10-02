@@ -18,13 +18,13 @@ Lertaro 採用先進的多處理程序隔離架構與模組化分層設計，確
 
 - **執行身分**：標準 Windows 使用者態、Session 隔離的 WPF 前景桌面應用程式。
 - **職責範圍**：承載快速搜尋置中浮動視窗、完整主搜尋視窗、設定中心、全域快速鍵分發、動作功能表（`Ctrl+O`）以及 QuickLook 檔案即時預覽介面。
-- **IPC 橋樑與 CLI 裝載**：透過雙向具名管道（`Core.Services.SearchService`）向背景 Service 發送搜尋請求與目錄管理指令；同時，App 自身還裝載了一條面向目前使用者的專屬具名管道服務（`AppSearchPipeService`），使外部伴隨工具（如 `lff` 命令列工具）能直接複用 App 已經建置好的記憶體別名表、外掛模組提供者與網路磁碟快取，無需重複初始化。
+- **IPC 橋樑與 CLI 裝載**：透過雙向具名管道 `LertaroPipe` 與背景 Service 溝通（`Core.Services.Search.SearchService` 是 App 側的客戶端）；同時，App 自身還裝載了一條面向目前使用者的專屬具名管道服務（`AppSearchPipeService`），使外部伴隨工具（如 `lff` 命令列工具）能直接複用 App 已經建置好的記憶體別名表、外掛模組提供者與網路磁碟快取，無需重複初始化。
 
 ### 3. 全域鍵盤攔截與視窗適配處理程序（`Lertaro.Service --hook`）
 
-- **執行身分**：由背景服務按需拉起的獨立特權輔助處理程序。
+- **執行身分**：由背景服務拉起的獨立輔助處理程序。只有當登入帳號是真正的管理員時，它才會**以提權方式啟動**；否則它沿用使用者自己的權杖，因此下述的權限突破只在這類機器上可用。
 - **職責範圍**：裝載低階全域鍵盤攔截（Low-Level Keyboard Hook）與滑鼠全域監聽。
-- **UIPI 權限突破與當機隔離**：在 Windows 安全體系中，低完整性級別的使用者態處理程序無法向以管理員身分執行的最高權限視窗發送視窗訊息或模擬輸入（UIPI 隔離）。透過在該特權 Hook 處理程序中執行視窗整合適配器（[`IActivePathCollector`、`IFileDialogAdapter`、`IInlineSearchAdapter`](./sdk/system-adapters)），Lertaro 能夠毫無阻礙地識別並嵌入由管理員身分啟動的檔案總管、Total Commander 或第三方對話方塊。同時，即使底層攔截因第三方遊戲的反作弊模組產生異常，也不會影響主 App 處理程序的正常執行。
+- **UIPI 權限突破與當機隔離**：在 Windows 安全體系中，低完整性級別的使用者態處理程序無法向以管理員身分執行的最高權限視窗發送視窗訊息或模擬輸入（UIPI 隔離）。透過在該 Hook 處理程序中執行視窗整合適配器（[`IActivePathCollector`、`IFileDialogAdapter`、`IInlineSearchAdapter`](./sdk/system-adapters)），只要 Hook 是以提權方式啟動的，Lertaro 就能讀取並驅動由管理員身分啟動的檔案總管、Total Commander 或第三方對話方塊。同時，即使底層攔截因第三方遊戲的反作弊模組產生異常，也不會影響主 App 處理程序的正常執行。
 
 ## 2. 共用核心層（Shared Core Library）
 
@@ -39,5 +39,5 @@ Lertaro 採用先進的多處理程序隔離架構與模組化分層設計，確
 
 所有第三方及內建外掛模組均基於 `Lertaro.PluginSdk` 建置，由 `Lertaro.App` 處理程序在啟動時自動反映掃描並載入：
 
-- **零特權直接通訊**：外掛模組通常只與 App 處理程序進行互動，不直接與底層 Service 通訊。若外掛模組需要註冊自訂實體目錄進行長效索引，可透過 SDK 提供的 `DirectoryIndexerService` 向宿主發起代理請求。
-- **雙重載入機制**：常規的搜尋來源、動作與介面擴充僅在 App 處理程序中執行；而實作了系統與視窗適配介面（`IActivePathCollector` 等）的元件會被宿主額外載入一份至 Hook 處理程序中執行，以確保跨權限視窗自動化的穩定性。
+- **零特權直接通訊**：外掛模組自身的程式碼與載入它的處理程序在同程序內執行——通常是 App，但 Service 也會載入的兩種類別請看下一項。程式碼本身不會自行跨越處理程序邊界，因此需要註冊自訂目錄索引的外掛模組會透過 `DirectoryIndexerService` 委派這項工作，而不是自己去周遊磁碟。
+- **選擇性雙重載入機制**：搜尋來源、動作與介面擴充元件僅在 App 處理程序中執行。有三類元件會被額外載入到其他處理程序：視窗與檔案對話方塊適配器（`IActivePathCollector`、`IFileDialogAdapter`、`IInlineSearchAdapter`）會進入 Hook 處理程序，以處理跨權限的視窗自動化；而 `IAliasProvider` 與 `ITranslationProvider` 也會由 **Service** 載入（`ServicePluginLoader`），因為索引器要建置別名資料列，需要與介面顯示相同的轉寫與命名。

@@ -12,7 +12,7 @@ El plugin `CoreExtensions` constituye el paquete de extensiones principal de Ler
 - **Integración con menús Shell de Windows (`IDynamicActionProvider`)**: Se comunica con las interfaces COM del Shell mediante `ShellMenuActionProvider`, renderizando menús contextuales completos (con submenús como "Enviar a", 7-Zip, VS Code) dentro del menú `Ctrl+O`.
 - **Formularios de configuración por esquemas (`IConfigurable`)**: Define esquemas con grupos anidados (`Group`), listas de cadenas (`StringList`) y asignación de atajos (`Hotkey`), generando formularios nativos en Configuración sin escribir XAML.
 - **Pestañas para el Panel rápido (`IQuickPanelTabProvider`)**:
-  - `FavoritesTabProvider` / `HistoryTabProvider`: Devuelve colecciones en memoria con cero coste de E/S.
+  - `FavoritesTabProvider` / `HistoryTabProvider`: sirven los favoritos y el historial que el anfitrión ya tiene cargados, en lugar de volver a leerlos del disco; la consulta del historial se despacha fuera del hilo de interfaz (`Task.Run`), así que invocar el panel nunca espera por ella.
   - `WindowsRecentTabProvider`: Recorre la carpeta `Recent` en segundo plano, resuelve accesos directos COM y añade `Metadata.Modified` para su ordenación.
   - `LastDirectoryTabProvider` / `RecentFilesTabProvider`: Consulta directamente [`ExplorerPathService`](./sdk/services) y `RecentFilesService` del anfitrión.
 
@@ -22,7 +22,7 @@ El plugin `CoreExtensions` constituye el paquete de extensiones principal de Ler
 
 ### Puntos clave de implementación
 
-- **Límites de alfabetos (`InputRanges` / `OutputRanges`)**: Declara los bloques ideográficos CJK como entrada y `a`–`z` en minúsculas como salida, permitiendo dividir consultas mixtas en segmentos literales y de alias.
+- **Límites de alfabetos (`InputRanges` / `OutputRanges`)**: Declara un único rango ideográfico CJK (U+3007–U+9FFD) como límite de entrada y `a`–`z` en minúsculas como salida, permitiendo dividir consultas mixtas en segmentos literales y de alias.
 - **Comprobación previa rápida (`CanHandle(text)`)**: Detecta si el texto contiene caracteres chinos antes de generar alias, devolviendo `false` inmediatamente para cadenas en inglés.
 - **Combinaciones polifónicas (`GetAliases(text)`)**: Construye un mapa silábico y genera combinaciones unidas por `|` (hasta un máximo de 32 para evitar saturación), permitiendo búsquedas paralelas.
 - **Localización incrustada y caché segura**: Traduce el nombre del plugin mediante `ITranslationProvider` y almacena los JSON analizados en un diccionario protegido con `lock`.
@@ -34,7 +34,7 @@ El plugin `FlowLauncherBridge` demuestra la creación de un sistema de puente a 
 ### Puntos clave de implementación
 
 - **Puente multiproceso y multilenguaje**: Ejecuta plugins escritos en C# (.NET), Python 3.12, Node.js v20 LTS y binarios `.exe`.
-- **Entornos autónomos aislados**: Despliega entornos de Python y Node.js en la carpeta de datos de Lertaro y se comunica mediante tuberías con nombre usando JSON-RPC sin modificar la variable PATH.
+- **Entornos autónomos aislados**: Despliega los entornos aislados de Python y Node.js bajo el **directorio de datos compartido** de Lertaro (`SharedDataDirectory\FlowData\PythonEmbeded-{arch}`), no en la carpeta de datos de cada usuario. Cada plugin habla con su intérprete a través de **la entrada/salida estándar redirigida** que transporta JSON-RPC: no hay tubería con nombre y nunca se toca la variable PATH del sistema.
 - **Formularios dinámicos y vistas previas en WebView2**: Asigna formularios `SettingsTemplate.yaml`/`.json` a `PluginConfigSchema` y renderiza tarjetas interactivas (diccionarios, tiempo, etc.) dentro de QuickLook.
 
 ## 4. FileUnlocker —— Acción para liberar la ocupación de archivos

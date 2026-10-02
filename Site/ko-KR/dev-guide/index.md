@@ -7,7 +7,7 @@ Lertaro 개발자 참조 매뉴얼에 오신 것을 환영합니다. Lertaro는 
 - **[시스템 아키텍처 설계](./architecture)** —— SYSTEM 권한 Windows 서비스, 사용자 모드 WPF UI, 키보드 후크 프로세스의 3 프로세스 격리 모델과 명명된 파이프 IPC 통신 구조.
 - **[빠른 시작 가이드](./getting-started)** —— 클래스 라이브러리 프로젝트 생성, SDK 참조, `IPlugin` 진입점 구현 및 로컬 디버깅 모범 사례.
 - **[패키징 및 배포](./packaging)** —— 어셈블리 디렉토리 구조 표준, 서드파티 관리/네이티브 DLL 패키징, 다국어 JSON 리소스 임베딩 및 PostBuild 자동 배포.
-- **[공식 플러그인 예제 분석](./examples)** —— 오픈소스로 제공되는 `CoreExtensions`, `PinyinAlias`, `FlowLauncherBridge` 플러그인의 실전 코드 심층 분석.
+- **[공식 플러그인 예제 분석](./examples)** —— 오픈소스로 제공되는 `CoreExtensions`, `PinyinAlias`, `FlowLauncherBridge`, `FileUnlocker` 플러그인의 실전 코드 심층 분석.
 
 ## 2. 플러그인 SDK API 레퍼런스
 
@@ -21,4 +21,4 @@ Lertaro 개발자 참조 매뉴얼에 오신 것을 환영합니다. Lertaro는 
 | **[알림](./sdk/notifications)** | `PluginNotificationService`<br>`NotificationRequest`<br>`INotificationHandle`<br>`NotificationLevel`<br>`NotificationPosition`<br>`NotificationResult`<br>`NotificationFailure` | 호스트 자신의 창을 통한 배경 알림: 오른쪽 아래 카드 더미 또는 하단 중앙의 한 줄 알림, 호스트가 잘라내는 표시 시간, `Id` 기반 대체, 플러그인별 제한, 반드시 끝나는 완료 작업. |
 
 > [!NOTE]
-> 본 매뉴얼의 모든 인터페이스 시그니처, 매개변수 및 동작 계약은 `Lertaro.PluginSdk` 소스 코드를 바탕으로 직접 작성 및 검증되었습니다.
+> 이 페이지들의 인터페이스 시그니처와 멤버명, 기본값, 매개변수 순서는 `Lertaro.PluginSdk` 소스에서 그대로 읽은 것입니다. 페이지가 플러그인 호출에 대한 **호스트**의 반응까지 설명하는 문장은 현재 동작의 기록일 뿐, 플러그인이 의존할 수 있는 계약이 아닙니다.

@@ -12,7 +12,7 @@
 - **原生 Shell 功能表整合（`IDynamicActionProvider`）**：透過 `ShellMenuActionProvider` 與 Windows Shell COM 介面互動，將完整的 Windows 快顯階層式功能表（如「傳送到」、7-Zip、VS Code 開啟等）無縫轉譯至 Lertaro 的 `Ctrl+O` 動作功能表中。
 - **結構描述驅動的設定表單（`IConfigurable`）**：展示了如何定義包含巢狀分組（`Group`）、多行字串清單（`StringList`）與快速鍵錄製（`Hotkey`）的複雜設定表單，無需手寫任何 XAML 即可在設定中心中自動產生。
 - **多樣化的快速面板索引標籤（`IQuickPanelTabProvider`）**：
-  - `FavoritesTabProvider` / `HistoryTabProvider`：直接將記憶體中的結構化清單包裝為結果集，屬於零 I/O 極簡實作。
+  - `FavoritesTabProvider` / `HistoryTabProvider`：提供宿主已經載入的我的最愛與歷程清單，而不是重新從磁碟讀取；歷程查詢會派發到 UI 執行緒之外（`Task.Run`），因此喚起面板時從不等待它。
   - `WindowsRecentTabProvider`：在背景任務中周遊系統 `Recent` 目錄並透過 COM 剖析捷徑目標，預先截斷並填入 `Metadata.Modified` 時間戳記以實現「最新在前」。
   - `LastDirectoryTabProvider` / `RecentFilesTabProvider`：直接呼叫宿主公開的 [`ExplorerPathService`](./sdk/services) 與 `RecentFilesService` 查詢宿主已有狀態。
 
@@ -22,7 +22,7 @@
 
 ### 核心實作要點
 
-- **輸入/輸出字母表邊界（`InputRanges` / `OutputRanges`）**：宣告輸入來源字元範圍為 CJK 表意文字區塊，輸出字元範圍為小寫 `a`–`z`。宿主利用該邊界智慧將「大cj」等混合查詢切分為字面比對與拼音別名比對。
+- **輸入/輸出字母表邊界（`InputRanges` / `OutputRanges`）**：宣告單一 CJK 表意文字範圍（U+3007–U+9FFD）作為輸入邊界，輸出字元範圍則為小寫 `a`–`z`。宿主利用該邊界智慧將「大cj」等混合查詢切分為字面比對與拼音別名比對。
 - **快速預檢過濾（`CanHandle(text)`）**：在產生別名前先掃描文字中是否存在中文字元，對於純英文字串直接返回 `false`，完全跳過後續開銷。
 - **多音字組合與別名建置（`GetAliases(text)`）**：先建置字元級音節表，對於含多音字的檔案名稱（如「重」、「長」），自動產生各常見讀音組合並使用 `|` 管道符連接（上限 32 種組合以防爆炸），供搜尋引擎作為候選集並行比對。
 - **內嵌多語言與執行緒安全快取**：透過 `ITranslationProvider` 提供外掛模組顯示名稱與描述的多語言當地語系化，並在內部使用帶 `lock` 保護的字典快取剖析後的 JSON 翻譯，避免每次查詢重複剖析。
@@ -34,7 +34,7 @@
 ### 核心實作要點
 
 - **多語言跨處理程序橋接**：相容 C# (.NET)、Python 3.12、Node.js v20 LTS 及獨立 `.exe` 形式的 Flow Launcher 外掛模組。
-- **純淨自包含環境**：在使用者資料目錄中自動隔離部署 Python / Node.js 執行階段，並透過具名管道與子處理程序進行 JSON-RPC 通訊。
+- **純淨自包含環境**：在 Lertaro 的**共用資料目錄**（`SharedDataDirectory\FlowData\PythonEmbeded-{arch}`）下隔離部署 Python / Node.js 執行階段，而不是放進個別使用者的資料目錄。每個外掛模組與自己的直譯器透過**重導向的標準輸入/輸出**溝通，其上承載 JSON-RPC——完全沒有具名管道，也絕不觸碰系統 PATH。
 - **動態設定與富文字預覽**：剖析外部外掛模組的 `SettingsTemplate.yaml`/`.json` 並動態對應為 `PluginConfigSchema`；在 QuickLook 預覽面板中利用 WebView2 轉譯外部外掛模組返回的富文字卡片（如詞典釋義、即時天氣等）。
 
 ## 4. FileUnlocker —— 解除檔案佔用動作

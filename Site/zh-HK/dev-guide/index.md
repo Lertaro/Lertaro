@@ -7,7 +7,7 @@
 - **[系統架構設計](./architecture)** —— 詳解 SYSTEM 級 Windows 索引服務、用戶態 WPF 互動程序與獨立鍵盤掛鉤程序的三程序隔離模型與具名管道 IPC 通訊機制。
 - **[快速上手指南](./getting-started)** —— 從零建立外掛模組類別庫專案、引用 SDK、實作 `IPlugin` 入口以及本機偵錯的最佳實踐。
 - **[打包與分發](./packaging)** —— 外掛模組組件目錄結構規範、第三方託管/原生相依庫打包、多語言 JSON 資源內嵌與 PostBuild 自動部署。
-- **[官方外掛模組範例](./examples)** —— 深度剖析隨包開源的 `CoreExtensions`、`PinyinAlias` 與 `FlowLauncherBridge` 等真實外掛模組的最佳實踐程式碼。
+- **[官方外掛模組範例](./examples)** —— 深度剖析隨包開源的 `CoreExtensions`、`PinyinAlias`、`FlowLauncherBridge` 與 `FileUnlocker` 等真實外掛模組的最佳實踐程式碼。
 
 ## 2. 外掛模組 SDK 介面參考
 
@@ -21,4 +21,4 @@
 | **[通知卡片](./sdk/notifications)** | `PluginNotificationService`<br>`NotificationRequest`<br>`INotificationHandle`<br>`NotificationLevel`<br>`NotificationPosition`<br>`NotificationResult`<br>`NotificationFailure` | 透過宿主自身的視窗從背景取得注意：右下角卡片堆或下方置中的單行提示、由宿主裁剪的時長、以 `Id` 取代、外掛模組個別上限，以及一定會完成的結案工作。 |
 
 > [!NOTE]
-> 本手冊所有介面簽章、方法參數與行為契約均直接對照 `Lertaro.PluginSdk` 原始碼嚴格編寫並校驗。
+> 本手冊各頁的介面簽章、成員名稱、預設值與參數順序，均直接自 `Lertaro.PluginSdk` 原始碼抄錄。當某頁同時描述**宿主**對外掛模組呼叫的反應時，該句只是目前行為的文件，並非外掛模組可以依賴的契約。

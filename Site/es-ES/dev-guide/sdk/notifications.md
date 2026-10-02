@@ -10,7 +10,7 @@
 | `Task<NotificationResult> ShowAsync(NotificationRequest request)` | el estado final | solo te importa cómo terminó |
 | `bool Show(string title, string text, Action? onClick = null)` | si un anfitrión la aceptó | forma heredada de dos argumentos; un `false` significa que no hay ningún anfitrión conectado, así que queda disponible un respaldo |
 
-Todos los puntos de entrada pueden invocarse con seguridad desde el hilo de segundo plano del propio plugin y **nunca lanzan excepciones** —una excepción que escapara se llevaría el bucle del llamador por delante—. Fuera del lanzador en ejecución (sin delegado del anfitrión asignado, o si el anfitrión la rechaza) la petición se registra con nivel `Warn` y se responde con un identificador cuya tarea ya ha terminado como `Unavailable`.
+Todos los puntos de entrada pueden invocarse con seguridad desde el hilo de segundo plano del propio plugin y **nunca lanzan excepciones** —una excepción que escapara se llevaría el bucle del llamador por delante—. Cuando no hay asignado ningún delegado del anfitrión (un plugin ejecutándose fuera del lanzador) la llamada es un no-op silencioso y la respuesta es un identificador cuya tarea ya ha terminado llevando `Unavailable`; la petición solo se registra, con nivel `Warn`, cuando lo que lanzó la excepción fue el delegado del propio anfitrión.
 
 `INotificationHandle` tiene exactamente dos miembros: `Task<NotificationResult> Completion` y `void Dismiss()`. `Completion` **siempre** termina, incluso cuando nada llegó a la pantalla, así que un `await` sobre ella no puede dejar un hilo en pausa. `Dismiss()` cierra una tarjeta mostrada como si el usuario la hubiera descartado, no hace nada una vez que ha desaparecido y nunca revierte un resultado ya entregado.
 
@@ -22,7 +22,7 @@ Un plugin que necesite una ventana propia usa [`Windows.PluginWindow`](./service
 | :--- | :--- | :--- |
 | `string? Id` | `null` | Dos peticiones con el mismo `Id` se dirigen a la misma notificación. Consulta **Reemplazo por Id** (§4). |
 | `string Title` | `string.Empty` | Cabecera de la tarjeta. `BottomNotice` la ignora, porque no tiene fila de título. |
-| `string Message` | `string.Empty` | Texto del cuerpo. Una petición con **ambos**, `Title` y `Message`, vacíos se rechaza como `InvalidRequest`: no hay nada que mostrar. |
+| `string Message` | `string.Empty` | Texto del cuerpo. Una petición cuyo `Title` y `Message` estén ambos en blanco o solo con espacios se rechaza como `InvalidRequest`: no hay nada que mostrar. |
 | `NotificationLevel Level` | `Info` | `Info` / `Warn` / `Error`. Determina el icono y el color semántico, y nada más. |
 | `NotificationPosition Position` | `CardStack` | `CardStack` o `BottomNotice`. Cada una tiene su propia cola y sus propias reglas; nunca se bloquean entre sí. |
 | `double? DurationSeconds` | `null` | `null` toma el valor por defecto de esa posición. Un valor explícito fuera del rango de esa posición se **recorta al límite más cercano**, nunca se rechaza; `NaN` o un negativo caen en el extremo más corto. |
@@ -42,7 +42,7 @@ Un plugin que necesite una ventana propia usa [`Windows.PluginWindow`](./service
 Otros dos números de cadencia conviene conocerlos cuando se emite una ráfaga:
 
 - El anfitrión ejecuta un único **tick de 100 ms**, y promueve **como máximo una** tarjeta en cola por tick. Una ráfaga españa por tanto sus propias llegadas y, como cada tarjeta cuenta su tiempo desde el momento en que apareció, espaciar las llegadas también espacia los vencimientos: una ráfaga ya no arranca cinco huecos de la pila de un solo movimiento.
-- **Un plugin puede tener como máximo 10 peticiones aceptadas** (en pantalla *y* en cola, sumadas). La undécima se descarta como `QueueFull` y se registra. No hay un tope global de pendientes entre plugins, así que un plugin no puede quedar hambriento por la ráfaga de otro, pero tampoco un productor desbocado está limitado de forma global.
+- **Un plugin puede tener como máximo 10 peticiones de tarjeta aceptadas** (en pantalla *y* en cola, sumadas). La undécima se descarta como `QueueFull` y se registra. El tope se aplica solo en la ruta de admisión de tarjetas: una petición `BottomNotice` nunca cuenta contra él, porque el aviso es un único hueco que se sobreescribe a sí mismo. No hay un tope global de pendientes entre plugins, así que un plugin no puede quedar hambriento por la ráfaga de otro, pero tampoco un productor desbocado está limitado de forma global.
 
 ## 4. Reemplazo por Id
 
@@ -57,9 +57,9 @@ Un límite a respetar: la deduplicación se compara con las tarjetas que hay act
 | `NotificationFailure` | Cuándo |
 | :--- | :--- |
 | `Unavailable` | Ningún anfitrión atendió la petición: un plugin ejecutándose fuera del lanzador, o un delegado del anfitrión que lanzó una excepción. |
-| `InvalidRequest` | `Title` y `Message` estaban ambos vacíos. |
-| `QueueFull` | Este plugin ya tenía 10 peticiones aceptadas. |
-| `Replaced` | Una petición más reciente llevaba el mismo `Id`. |
+| `InvalidRequest` | `Title` y `Message` estaban ambos en blanco o solo con espacios. |
+| `QueueFull` | Este plugin ya tenía 10 peticiones de tarjeta aceptadas. |
+| `Replaced` | Una petición más reciente llevaba el mismo `Id`. Un reemplazo de `BottomNotice` completa así la petición sustituida **incluso cuando ninguna de las dos lleva `Id`**, porque el aviso es un único hueco que siempre se sobreescribe. |
 | `CancelledByPluginUnload` | El plugin fue desactivado o descargado mientras su tarjeta se mostraba o estaba en cola. |
 | `HostShuttingDown` | El lanzador se está cerrando y se llevó la notificación consigo. |
 
@@ -79,7 +79,7 @@ El nombre impreso en la tarjeta procede de `Assembly.GetCallingAssembly()`, leí
 
 - **Qué pantalla**: la de la ventana en primer plano; si no, la del cursor; si no, la principal. El área de trabajo se convierte a DIP a través de los DPI de ese monitor, así que una tarjeta ocupa el mismo tamaño físico en un panel escalado al 200 % que en uno al 100 %.
 - **Orden de la pila**: abajo a la derecha, ordenadas por secuencia de llegada; las tarjetas por encima de una retirada vuelven a deslizarse (es la única animación, ~200 ms con una caída de entrada de 40 DIP).
-- **Tamaño**: una tarjeta ocupa como máximo la mitad del alto del área de trabajo (`min(260 px, 50 %)`), así que un mensaje largo no puede zamparse un monitor pequeño.
+- **Tamaño**: una tarjeta ocupa como máximo la mitad del alto del área de trabajo (`min(260 DIP, 50 %)`), así que un mensaje largo no puede zamparse un monitor pequeño.
 - **Arrastre**: una tarjeta solo se puede arrastrar desde su barra de título, y una tarjeta arrastrada conserva su propia esquina. Un cambio en la configuración de pantalla reancla la pila, lo que descarta el arrastre del usuario: el intercambio más barato que dejar una tarjeta fuera de la pantalla.
 - **Tipo de superficie**: se decide una única vez, en la construcción, a partir del `WindowOpacity` del tema activo. Un tema totalmente opaco obtiene una ventana normal cuyos bordes redondea el gestor de ventanas, lo que conserva ClearType; un tema translúcido obtiene una ventana por capa cuyo borde tiene que pintarse y recortarse. Una tarjeta mostrada a través de un cambio de tema conserva, por tanto, el tipo con el que nació hasta que desaparece.
 - **Topmost** está siempre activo, y las ventanas quedan excluidas de Alt+Tab (`WS_EX_TOOLWINDOW`). Las notificaciones no se desvanecen: nada anima `Window.Opacity`, porque eso costaría ClearType y una composición píxel a píxel en cada fotograma. La marca de llegada es un destello del borde dentro de una ventana ya opaca (~750 ms).

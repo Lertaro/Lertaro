@@ -7,7 +7,7 @@
 모든 플러그인 컴포넌트는 `IPluginComponent`를 상속하여 호스트에 메타데이터를 제공합니다.
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 public interface IPluginComponent
 {
@@ -17,7 +17,10 @@ public interface IPluginComponent
 
 public interface IPlugin : IPluginComponent
 {
-    // 플러그인 어셈블리 메인 진입점 식별자
+    // 플러그인 어셈블리 메인 진입점. 두 웹사이트 멤버는 모두 선택 사항이고,
+    // WebsiteUrl이 null이면 설정 카드에는 링크가 아예 표시되지 않는다.
+    string? WebsiteUrl => null;
+    string? WebsiteLabel => null;
 }
 ```
 
@@ -45,6 +48,10 @@ public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
     bool[]? GetHighlightMask(string text, string query) => null; // 커스텀 하이라이트 마스크
+
+    // 이 제공자를 호출하는 단어어들. 호스트 자신의 제거 단계가 이 값을 읽으므로
+    // 호스트의 제거와 플러그인의 일치가 서로 어긋날 수 없다. 6장 "트리거 단어" 참조.
+    IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 ```
 
@@ -179,8 +186,8 @@ public interface IDynamicActionProvider : IPluginComponent
 
 ## 4. 보조 데이터 구조
 
-- **`SearchableItem` / `InstantResultItem`**: `Title`, `Description`, `IconData`, `IconColor`, `ActionType`(`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon`(호스트 자동 해제), `ResultKind`(호스트의 필터와 열이 기준으로 삼을 수 있는, 플러그인이 선택한 태그), 실행 콜백 두 개(`OnExecute`(`Action`)는 fire-and-forget용, 작업이 성공 여부를 알려야 할 때는 `OnExecuteFunc`(`Func<bool>`) — 호스트는 그 답변으로 예를 들어 창을 닫을지 결정함)를 포함합니다.
-- **`DynamicMenuItem`**: `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute`, `IsActionable`(기본값 `true`; `false`는 하위 메뉴를 여는 일 외에는 동작하지 않는 행을 표시), `HBitmapItem`(미러링 중인 Shell 메뉴의 네이티브 아이콘 핸들), `ShortcutHint`(메모닉 키가 일치시키는 문자), `IsContinuation`(호스트가 이미 시작한 그룹을 이어가는 항목), `IsHeader`(선택적 액션 버튼이 있는 그룹 헤더로 렌더링)를 포함합니다.
+- **`SearchableItem`**: `Title`, `Description`, `IconData`, `IconColor`, `ActionType`(`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon`(호스트 자동 해제), `ResultKind`(호스트의 필터와 열이 기준으로 삼을 수 있는, 플러그인이 선택한 태그), 실행 콜백 두 개(`OnExecute`(`Action`)는 fire-and-forget용, 작업이 성공 여부를 알려야 할 때는 `OnExecuteFunc`(`Func<bool>`) — 호스트는 그 답변으로 예를 들어 창을 닫을지 결정함)를 포함합니다. `InstantResultItem`은 표시 및 콜백 멤버를 똑같이 갖지만 **`ResultKind`는 없습니다**. `ResultKind`는 검색 가능 항목 모델에만 있는 멤버입니다.
+- **`DynamicMenuItem`**: `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute`, `IsActionable`(기본값 `true`; `false`는 하위 메뉴를 여는 일 외에는 동작하지 않는 행을 표시), `HBitmapItem`(미러링 중인 Shell 메뉴의 네이티브 아이콘 핸들), `ShortcutHint`(메모닉 키가 일치시키는 문자), `IsContinuation`(페이지 나누기 커서 — 이번 묶음이 호스트가 아직 채우고 있는 메뉴의 연속이며, 이 값이 설정되어 있는 동안 호스트는 계속 요청함), `IsHeader`(선택적 액션 버튼이 있는 그룹 헤더로 렌더링)를 포함합니다.
 - **`SearchWindowType`**: `Main`(메인 창), `Quick`(퀵 검색창), `Inline`(인라인 파일 대화상자) 열거형.
 
 ## 5. 명명된 검색 범위 `ISearchScopeProvider`

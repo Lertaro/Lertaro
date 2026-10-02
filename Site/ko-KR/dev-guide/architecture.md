@@ -18,13 +18,13 @@ Lertaro는 밀리초 단위의 초고속 검색과 광범위한 데스크톱 통
 
 - **실행 권한**: 표준 사용자 모드 세션 격리 WPF 데스크톱 애플리케이션.
 - **주요 역할**: 퀵 검색창, 메인 검색 윈도우, 설정 센터, 전역 단축키 처리, 액션 메뉴(`Ctrl+O`), QuickLook 파일 즉시 미리보기를 담당합니다.
-- **IPC 통신 및 CLI 호스팅**: 양방향 명명된 파이프(`Core.Services.SearchService`)를 통해 백그라운드 서비스와 통신합니다. 또한 사용자 전용 파이프(`AppSearchPipeService`)를 호스팅하여 `lff` CLI 도구가 App의 초기화된 메모리 별칭 테이블과 플러그인을 중복 초기화 없이 그대로 활용할 수 있도록 지원합니다.
+- **IPC 통신 및 CLI 호스팅**: 양방향 명명된 파이프 `LertaroPipe`를 통해 백그라운드 서비스와 통신합니다(`Core.Services.Search.SearchService`가 App 쪽 클라이언트입니다). 또한 사용자 전용 파이프(`AppSearchPipeService`)를 호스팅하여 `lff` CLI 도구가 App의 초기화된 메모리 별칭 테이블과 플러그인을 중복 초기화 없이 그대로 활용할 수 있도록 지원합니다.
 
 ### 3. 전역 키보드 후크 및 창 어댑터 프로세스 (`Lertaro.Service --hook`)
 
-- **실행 권한**: 백그라운드 서비스에서 필요에 따라 실행하는 전용 권한 보조 프로세스.
+- **실행 권한**: 백그라운드 서비스가 시작하는 전용 보조 프로세스입니다. 로그인한 계정이 실제 관리자일 때만 **승격(elevated)되어 실행**되고, 그 외에는 사용자 자신의 토큰으로 동작하므로 아래의 우회는 그 기기에서만 사용할 수 있습니다.
 - **주요 역할**: 저수준 전역 키보드 후크 및 마우스 이벤트 감지.
-- **UIPI 권한 우회 및 충돌 격리**: Windows UIPI(사용자 인터페이스 권한 격리) 규칙에 따라 일반 권한 프로세스는 관리자 권한으로 실행된 창에 메시지를 보낼 수 없습니다. 이 특권 Hook 프로세스에서 창 통합 어댑터([`IActivePathCollector`, `IFileDialogAdapter`, `IInlineSearchAdapter`](./sdk/system-adapters))를 실행함으로써 관리자 권한의 탐색기 및 대화상자에도 완벽하게 내장됩니다. 또한 후크 오류가 발생해도 메인 App의 동작은 안전하게 유지됩니다.
+- **UIPI 권한 우회 및 충돌 격리**: Windows UIPI(사용자 인터페이스 권한 격리) 규칙에 따라 일반 권한 프로세스는 관리자 권한으로 실행된 창에 메시지를 보낼 수 없습니다. 이 Hook 프로세스에서 창 통합 어댑터([`IActivePathCollector`, `IFileDialogAdapter`, `IInlineSearchAdapter`](./sdk/system-adapters))를 실행함으로써, 후크가 승격되어 실행된 경우에는 관리자 권한으로 실행된 탐색기와 Total Commander, 파일 대화상자도 읽고 조작할 수 있습니다. 또한 후크 오류가 발생해도 메인 App의 동작은 안전하게 유지됩니다.
 
 ## 2. 공유 코어 라이브러리 (`Lertaro.Core`)
 
@@ -39,5 +39,5 @@ Lertaro는 밀리초 단위의 초고속 검색과 광범위한 데스크톱 통
 
 모든 플러그인은 `Lertaro.PluginSdk`를 기반으로 빌드되며 `Lertaro.App` 실행 시 동적으로 로드됩니다.
 
-- **표준 플러그인**: 검색 소스, 액션, UI 확장은 App 프로세스 내부에서만 동작하며 서비스와 직접 통신하지 않습니다(폴더 인덱싱 요청은 `DirectoryIndexerService` 프록시를 통해 전달).
-- **특권 어댑터 이중 로드**: 창 통합 어댑터(`IActivePathCollector` 등)는 관리자 권한 창과의 상호작용을 위해 Hook 프로세스에도 추가 로드되어 실행됩니다.
+- **무권한 직접 접근**: 플러그인 자신의 코드는 자신을 로드한 프로세스 안에서 동작합니다 — 보통은 App이며, Service도 로드하는 두 종류는 다음 항목을 보세요. 플러그인이 스스로 프로세스 경계를 넘는 일은 없으므로, 사용자 지정 폴더 인덱싱이 필요한 플러그인은 디스크를 직접 훑는 대신 `DirectoryIndexerService`에 작업을 넘깁니다.
+- **선별적 이중 로드**: 검색 소스와 액션, UI 확장은 App 프로세스에서만 동작합니다. 다른 프로세스에도 함께 로드되는 것은 세 가지입니다. 창 및 파일 대화상자 어댑터(`IActivePathCollector`, `IFileDialogAdapter`, `IInlineSearchAdapter`)는 권한 격리를 넘는 창 자동화를 위해 Hook 프로세스에 로드되고, `IAliasProvider`와 `ITranslationProvider`는 **Service**에도 로드됩니다(`ServicePluginLoader`). 인덱서가 별칭 행을 만들기 때문에 화면에 보이는 것과 같은 음역 표기와 이름이 인덱스에도 필요하기 때문입니다.

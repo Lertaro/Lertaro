@@ -114,7 +114,8 @@ namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
 
 public interface IFilePreviewProvider : IPluginComponent
 {
-    // 多個提供者都宣稱同一個檔案時的決勝依據；數值較大者勝出。
+    // 只負責打破平手。使用者設定的提供者順序（設定 → 一般 → 預覽與縮圖）會先套用，
+    // Priority 只是在該順序內部再排序，數值較大者在前。
     int Priority => 0;
 
     bool CanPreview(string path, bool isDir);
@@ -128,10 +129,11 @@ public interface IFilePreviewProvider : IPluginComponent
 
 #### 預覽生命週期與複用契約
 
-當你返回的 `UIElement` 實作了下列任一選填契約時，宿主會對預覽生命週期進行最佳化：
+當你的**提供者**實作了下面第一個契約、或你返回的 `UIElement` 實作了第二個契約時，宿主會對預覽生命週期進行最佳化：
 
-- **`IPreviewSessionAware`** — `void EndPreviewSession();` 提供者持有的是真正的外部視窗（`HwndHost`、原生 `IPreviewHandler` 及其 `prevhost` 代理），而不只是程序內的控制項，因此在面板隱藏或整個預覽會話結束時，宿主會通知它結束自己的會話。缺少這個成員時，宿主的視窗會滯留在那裡而沒有任何物件指向它。
-- **`IReusablePreview`** — `bool TrySetTarget(string path, bool isDir);` 使用者用方向鍵在同類檔案間逐行移動時，宿主會要求同一個控制項改換目標，而不是先銷毀再重建，閃爍正是由這個步驟消除的。新目標不適合這個實例時返回 `false`，宿主會退回建立一個全新的預覽。
+- **`IPreviewSessionAware`** — 宿主是對著**提供者**做型別轉換，而不是對著它返回的控制項：`void EndPreviewSession();`。提供者持有的是真正的外部視窗（`HwndHost`、原生 `IPreviewHandler` 及其 `prevhost` 代理），而不只是程序內的控制項，因此當擁有它的視窗關閉時，宿主會通知它結束自己的會話；而對在自己程序內轉譯的提供者，只有在預覽面板隱藏或整個預覽會話結束時才會收到通知。缺少這個成員時，宿主的視窗會滯留在那裡而沒有任何物件指向它。
+- **`IReusablePreview`** — 宿主是對著返回的那個元素做型別轉換：`bool TrySetTarget(string path, bool isDir);`。使用者用方向鍵在同類檔案間逐行移動時，宿主會要求同一個控制項改換目標，而不是先銷毀再重建，閃爍正是由這個步驟消除的。新目標不適合這個實例時返回 `false`，宿主會退回建立一個全新的預覽。
+- **`IReceivesPreviewPanelBounds`** — `void OnPreviewPanelBoundsAvailable(int left, int top, int width, int height);`。自行承載跨程序視窗的提供者需要知道面板所佔據的矩形，才能把自己掛到該矩形裡或在其中定位；實作這個契約，矩形一旦確定就會交到你手上。
 
 ### 自訂縮圖提供者 `IThumbnailProvider`
 
@@ -142,12 +144,16 @@ namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
 
 public interface IThumbnailProvider : IPluginComponent
 {
+    // 與預覽相同的規則：使用者設定的縮圖提供者順序先決定，
+    // Priority 只在該順序之內排序。
     int Priority => 0;
 
     bool CanProvideThumbnail(string path, bool isDir);
 
-    // 同步呼叫，因為它跑在結果列表的渲染路徑上。請保持快速，並自行依路徑與尺寸做快取
-    // ——宿主不會替你記住結果。
+    // 同步呼叫，因為它跑在結果列表的渲染路徑上——請保持快速。
+    // 你「不必」自行記憶：宿主會快取你返回的內容（實體或虛擬項目以路徑為鍵，
+    // 其餘以副檔名為鍵）。兩點後果：`size` 是宿主自己的選擇，取自 Shell 的
+    // 影像清單，所以別指望某個特定的數值；而且提供者永遠不會被問到目錄。
     ImageSource? GetThumbnail(string path, int size);
 }
 ```
@@ -165,6 +171,10 @@ public interface IThemeProvider : IPluginComponent
 {
     IEnumerable<ITheme> GetThemes();
 }
+```
+
+```csharp
+namespace Lertaro.PluginSdk.Abstractions;   // 注意：主題介面本身在上層命名空間
 
 public interface ITheme
 {
@@ -173,8 +183,10 @@ public interface ITheme
     bool IsDark { get; }
     ResourceDictionary GetResources();
 
-    // 低於 1.0 時，宿主會以分層、半透明的載體渲染它的無邊框視窗；為 1.0 時視窗保持不透明
-    // 並保留 ClearType。這個數值決定了視窗以哪一種形式建立，而視窗一旦存在就再也無法改變它。
+    // 低於 1.0 時，經宿主分層載體輔助方法建立的視窗會成為分層、半透明的視窗，其圓角必須
+    // 自行繪製並裁剪；為 1.0 時視窗保持不透明、由視窗管理員負責圓角，並保留 ClearType。
+    // 這個選擇在視窗的建構函式中一次決定，因為 AllowsTransparency 在控制代碼存在之後
+    // 就無法變更。目前它作用的是那兩個通知視窗；視窗仍在畫面上時切換主題並不會重建它。
     double WindowOpacity => 1.0;
 }
 ```

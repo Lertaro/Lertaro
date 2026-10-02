@@ -16,8 +16,8 @@ public interface ISearchResult
     string ContextDirectory { get; }      // 所在父級目錄路徑（如 "C:\Program Files\Lertaro"）
     bool IsDir { get; }                   // 是否為目錄/資料夾
     bool IsApplication { get; }           // 是否為可執行程式或捷徑
-    FileMetadata Metadata => default;     // 高效能檔案中繼資料（大小、修改時間等）
     bool[]? GetHighlightMask(string text, string query) => null; // 字元級反白遮罩計算
+    FileMetadata Metadata => default;     // 高效能檔案中繼資料（大小、修改時間等）
     string? InstantActionArgument => null; // 即時結果所指向的目標
 }
 ```
@@ -72,18 +72,19 @@ public interface IConfigurable
 | 欄位類型 | 轉譯控制項與說明 |
 | :--- | :--- |
 | **`Boolean`** | 切換開關（Toggle Switch）或核取方塊。 |
-| **`Text`** | 文字輸入框。支援設定 `RequireNonEmpty`，為空時自動回復為 `DefaultValue`。 |
-| **文字選取** | `SelectionStart` 和 `SelectionLength` 用於指定 `Text` 欄位輸入對話方塊中從 0 開始計算的初始選取範圍。 |
+| **`Text`** | 文字輸入框。使用者清空時 `RequireNonEmpty` 會自動回復為 `DefaultValue`；`MaxLength` 會限制長度（0 或未設定表示不限制）；`SelectionStart` / `SelectionLength` 設定這個欄位所開啟的輸入對話方塊中從 0 開始計算的初始選取範圍。 |
 | **`Integer`** | 數字微調輸入框。支援設定最小值與最大值範圍。 |
 | **`Choice`** | 下拉式選單。透過 `Choices` 或 `ChoiceOptions` 清單指定可選項目。 |
-| **`Array`** | 清單值。帶有 `SubFields` 時，它是一個**記錄**的清單，以主從編輯器轉譯（每個項目一個巢狀表單——檔案篩選、自訂命令與網頁搜尋外掛模組所使用的形態）；沒有 `SubFields` 時，它是一個純量的簡單清單，以精簡的單欄編輯器轉譯。`DefaultValue` 是一個空的 `List<object>`。 |
+| **`Array`** | 清單值。帶有 `SubFields` 時，它是一個**記錄**的清單，以主從編輯器轉譯（每個項目一個巢狀表單——檔案篩選、自訂命令與網頁搜尋外掛模組所使用的形態）；沒有 `SubFields` 時，它是一個純量的簡單清單，以精簡的單欄編輯器轉譯。SDK 完全沒有給 `DefaultValue` 預設值（宣告中是 `object?`、`null!`），這就是儲存庫內每個外掛模組要表示空清單時都傳入 `new List<object>()` 的原因。 |
 | **`Object`** | 透過其 `SubFields` 編輯的單一結構化值，沒有 `Array` 的清單附加功能。 |
+| **`Group`** | 包含子欄位清單（`SubFields`）的可折疊卡片分組。 |
+| **`StringList`** | 支援多行編輯、項目增刪排序與自動換行的多行清單方塊；實際換行只以視覺標記顯示，不會寫入設定值。 |
 | **`Hotkey`** | 專屬按鍵錄製框。可設定 `RequireModifier = true` 強制要求必須包含修飾鍵。 |
 | **`FilePath` / `FolderPath`** | 附帶「瀏覽...」檔案/資料夾原生選取器按鈕的路徑輸入框。 |
-| **`StringList`** | 支援多行編輯、項目增刪排序與自動換行的多行清單方塊；實際換行只以視覺標記顯示，不會寫入設定值。 |
-| **`Group`** | 包含子欄位清單（`SubFields`）的可折疊卡片分組。 |
-| **`CustomControl`** | 允許外掛模組直接掛載一個自訂的 WPF `UIElement` 控制項執行個體。 |
+| **`CustomControl`** | 允許外掛模組直接掛載一個自訂的 WPF `UIElement` 控制項執行個體（也可經由 `CustomControl` 這條路徑抵達）。 |
 | **`Button`** | 顯示操作按鈕並呼叫欄位的 `OnClick` 委派，不儲存設定值。 |
+
+其餘的 `PluginConfigField` 成員是宿主圍繞這些類型所繪製或持久化的資訊：`Key`（持久化的設定名稱）、`GroupKey`（該欄位位於哪張 `Group` 卡片）、`LabelKey` / `DescriptionKey`（翻譯鍵，而非字面文字）、`RequireNonEmpty`、`Choices` / `ChoiceOptions` / `SubFields`、`IsTriggerWord`（見 [**核心檢索與動作**](./core-search-actions) 的「觸發詞」一節）、`MaxLength`、`SelectionStart` / `SelectionLength`、`CustomControl`、`OnClick`，以及兩個讓外掛模組把值存放在宿主設定儲存區之外的委派：`Func<object?>? GetValue` 與 `Action<object?>? SetValue`。
 
 ### 圖示欄位
 
@@ -126,16 +127,24 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 }
 ```
 
-主機在完整搜尋視窗自身的檔案搜尋仍在串流返回時，於背景執行緒呼叫提供者，並在結果一到就繪製，而不是等到搜尋結束。外掛模組不處理目前查詢時應傳回空清單。傳回的每個 `InstantResultItem` 都必須對應一個實際存在的檔案或資料夾，這樣完整視窗的路徑、大小和類型欄位才有意義。若提供者的回答需要數秒（例如全文索引遍歷），可改寫 `GetFileResultsStreamed`，邊找到邊交出命中，讓前幾列先上螢幕、其餘繼續查詢；因為介面的預設實作只是走訪 `GetFileResults`，改寫是選填的。此元件與外掛模組的即時結果提供者共用同一個啟用/停用開關。
+主機在完整搜尋視窗自身的檔案搜尋仍在串流返回時，於背景執行緒呼叫提供者，並在結果一到就繪製，而不是等到搜尋結束。外掛模組不處理目前查詢時應傳回空清單。傳回的每個 `InstantResultItem` 都必須對應一個實際存在的檔案或資料夾，這樣完整視窗的路徑、大小和類型欄位才有意義。若提供者的回答需要數秒（例如全文索引遍歷），可改寫 `GetFileResultsStreamed`，邊找到邊交出命中，讓前幾列先上螢幕、其餘繼續查詢；因為介面的預設實作只是走訪 `GetFileResults`，改寫是選填的。此元件在**設定 → 外掛模組**中有**自己**的啟用/停用開關，以自己的元件類型為準——關掉外掛模組的即時結果提供者並不會連它一起關掉，反之亦然。
 
 ## 6. 使用者設定路徑解析 `UserPathResolver`
 
 當外掛模組接受使用者輸入或設定中的路徑時，應使用 `Lertaro.PluginSdk.Helpers.UserPathResolver`，在呼叫檔案系統 API 前統一處理環境變數和 Windows Shell 虛擬路徑：
 
 ```csharp
-string expanded = UserPathResolver.Expand(rawPath);
+string expanded = UserPathResolver.Expand(rawPath);            // 接收 string?，返回 string
 bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
-string resolved = UserPathResolver.Resolve(rawPath);
+string resolved = UserPathResolver.Resolve(rawPath);           // 選填的第二參數見下方說明
+
+// Resolve 與 ResolveForNavigation 都接受一個選填的 Func<string, string>?，用來在詢問檔案
+// 系統之前，把無法解析的虛擬 Token 轉成真實路徑；若沒有提供解析委派、也沒有東西可解析，
+// 作為最後手段就會原封不動地返回傳入的內容。
+
+// 當路徑即將被開啟或瀏覽時，請用 ResolveForNavigation 而不是 Resolve：它還會額外把一個
+// 虛擬 Shell 項目標準化為宿主得以導航的檔案系統目標。
+string target = UserPathResolver.ResolveForNavigation(rawPath);
 ```
 
 `Expand` 會移除前後空白並展開 `%USERPROFILE%` 等環境變數。`Resolve` 會先展開環境變數，再盡可能將 `shell:Downloads` 或 `::{CLSID}` 等標記解析為實體路徑。對於 `shell:AppsFolder` 這類沒有實體路徑的虛擬資料夾，`Resolve` 會改為傳回其標準名 `::{CLSID}`，讓同一個資料夾的各種寫法彼此相等；該結果仍然是虛擬路徑。只有 Shell 完全無法解析的標記才會原樣傳回。傳給檔案系統 API 前應使用 `IsVirtualPath` 檢查結果。目錄索引 API 只有在路徑解析為真實且被索引涵蓋的資料夾後才能列舉內容。

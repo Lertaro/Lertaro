@@ -22,7 +22,7 @@ public interface IOpenedFolderCollector : IPluginComponent
 }
 ```
 
-適配器會為每個開啟的視窗返回一筆項目，因此有五個分頁的管理器會報告五個資料夾；宿主會依路徑去重。
+適配器會為每個開啟的視窗返回一筆項目，因此有五個分頁的管理器會報告五個資料夾。註冊表會把那份清單**刻意保留重複**地交下去——被兩個收集器看見、或被同一個收集器看見兩次的資料夾就會出現兩次；想要集合形式的呼叫端得自行依路徑去重。
 
 ## 2. 活動路徑收集器 `IActivePathCollector`
 
@@ -66,12 +66,14 @@ public interface IFileDialogAdapter : IPluginComponent
     bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => true;
 
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);          // 卡片要停靠在何處
-    bool RestoreFocus(IntPtr hwnd);
 
-    // 控制版面配置探測：當標題與欄位名稱都看不出端倪時，用於分辨一個選資料夾的對話方塊
-    // 與一個選檔案的對話方塊，兩者都預設為「我不知道」。
+    // 位置探測：對話方塊自己的目標欄位在哪裡、它的檔案清單又在哪裡。內嵌卡片會讀取這兩個
+    // 結果來決定要把自己掛在哪——欄位下方、清單上方，或下方沒空間時能放下的地方。任一項返回
+    // false 時，宿主就退回 GetDockBounds。兩者都預設為「我看不到那個控制項」。
     bool TryGetTargetFieldBounds(IntPtr hwnd, out AdapterRect bounds) { bounds = default; return false; }
     bool TryGetFileListBounds(IntPtr hwnd, out AdapterRect bounds) { bounds = default; return false; }
+
+    bool RestoreFocus(IntPtr hwnd);
 }
 
 public struct AdapterRect   // 實體像素
@@ -81,7 +83,7 @@ public struct AdapterRect   // 實體像素
 ```
 
 - **`TargetIsFolderOnly`**：為 `true` 時，若使用者從搜尋結果中選取了一個檔案，宿主會在呼叫 `NavigateTo` 前自動解析出它的父資料夾。
-- **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**：供宿主的內嵌視窗資料夾範圍使用，以區分「有一個檔案名稱欄位」與「只有一個資料夾樹」的對話方塊。無法解析它們的適配器返回 `false`，宿主便退回它的其他訊號。
+- **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**：只用於卡片的位置安排。定位器偏好把卡片掛在對話方塊目標欄位的下方，並拿檔案清單作為退路錨點；適配器兩者都解析不了的對話方塊，就直接取用 `GetDockBounds` 的矩形。
 - **`RestoreFocus`**：把鍵盤交還給對話方塊自己的編輯欄。宿主在使用者離開內嵌卡片時（`Escape`，或在一張空白卡片上再次按下呼出快速鍵）呼叫它，因此它不得啟用其他任何東西。
 
 ## 4. 內嵌搜尋適配器 `IInlineSearchAdapter`
@@ -161,6 +163,6 @@ public interface IQuickNavigationProvider : IPluginComponent
 | `ActivePathCollectorRegistry` | `Register(IActivePathCollector)`、`GetCollectors()`、`GetAllCollectors()` |
 | `FileDialogAdapterRegistry` | `Register(IFileDialogAdapter)`、`GetMatchingAdapter(hwnd, className, processName)`、`GetAdapters()`、`GetAllAdapters()` |
 | `InlineSearchAdapterRegistry` | `Register(IInlineSearchAdapter)`、`GetMatchingAdapter(hwnd, className, processName)`、`GetAdapters()`、`GetAllAdapters()` |
-| `OpenedFolderCollectorRegistry` | `GetOpenedFolders()`——彙整所有收集器並依路徑去重 |
+| `OpenedFolderCollectorRegistry` | `GetOpenedFolders()`——串接每個已啟用收集器所回報的內容；重複項目是**刻意保留**的，而擲出例外的某個收集器會被跳過，這樣一個壞掉的檔案管理器就無法拖垮整份快照 |
 
-前三個註冊表各自暴露一個由宿主指派的 `Func<T, bool> FilterFunc`：宿主會把它收窄到使用者已啟用的元件，因此 `GetCollectors()` / `GetAdapters()` 返回篩選後的視圖，而 `GetAllCollectors()` / `GetAllAdapters()` 返回所有已註冊的項目。外掛模組永遠不會指派它。比對順序就是註冊順序，而且第一個 `CanHandle` 回答 `true` 的適配器就擁有該視窗——這正是為何一個通用的 `#32770` 對話方塊適配器不得聲稱某個已被特化適配器涵蓋的視窗。
+前三個註冊表各自暴露一個由宿主指派的 `Func<T, bool> FilterFunc`：宿主會把它收窄到使用者已啟用的元件，因此 `GetCollectors()` / `GetAdapters()` 返回篩選後的視圖，而 `GetAllCollectors()` / `GetAllAdapters()` 返回所有已註冊的項目。外掛模組永遠不會指派它。比對順序就是註冊順序，而且第一個 `CanHandle` 回答 `true` 的適配器就擁有該視窗——這正是為何一個通用的 `#32770` 對話方塊適配器不得聲稱某個已被特化適配器涵蓋的視窗。對話方塊註冊表在此之上還多加了一項否決權：適配器認領某個視窗之後，若視窗標題落在封鎖清單上，這次查詢就會返回 `null`，而不會繼續往下嘗試下一個適配器，也就是說沒有任何適配器會服務那個視窗。

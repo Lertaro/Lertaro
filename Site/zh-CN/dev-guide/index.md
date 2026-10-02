@@ -7,7 +7,7 @@
 - **[系统架构设计](./architecture)** —— 详解 SYSTEM 级 Windows 索引服务、用户态 WPF 交互进程与独立键盘钩子进程的三进程隔离模型与命名管道 IPC 通信机制。
 - **[快速上手指南](./getting-started)** —— 从零创建插件类库工程、引用 SDK、实现 `IPlugin` 入口以及本地调试的最佳实践。
 - **[打包与分发](./packaging)** —— 插件程序集目录结构规范、第三方托管/原生依赖库打包、多语言 JSON 资源内嵌与 PostBuild 自动部署。
-- **[官方插件范例](./examples)** —— 深度剖析随包开源的 `CoreExtensions`、`PinyinAlias` 与 `FlowLauncherBridge` 等真实插件的最佳实践代码。
+- **[官方插件范例](./examples)** —— 深度剖析随包开源的 `CoreExtensions`、`PinyinAlias`、`FlowLauncherBridge` 与 `FileUnlocker` 等真实插件的最佳实践代码。
 
 ## 2. 插件 SDK 接口参考
 
@@ -21,4 +21,4 @@
 | **[通知](./sdk/notifications)** | `PluginNotificationService`<br>`NotificationRequest`<br>`INotificationHandle`<br>`NotificationLevel`<br>`NotificationPosition`<br>`NotificationResult`<br>`NotificationFailure` | 通过宿主自己的窗口在后台获得用户注意：右下角的卡片堆或底部居中的一行提示、由宿主裁剪的时长、按 `Id` 替换、按插件计数的上限，以及一定会完成的结束任务。 |
 
 > [!NOTE]
-> 本手册所有接口签名、方法参数与行为契约均直接对照 `Lertaro.PluginSdk` 源码严格编写并校验。
+> 本手册各页的接口签名、成员名称、默认值与参数顺序均直接读取自 `Lertaro.PluginSdk` 源码。若某页同时描述了**宿主**对插件调用的反应，该句只是对当前行为的说明，并非插件可以依赖的契约。

@@ -22,7 +22,7 @@ public interface IOpenedFolderCollector : IPluginComponent
 }
 ```
 
-アダプターは開いているウィンドウ 1 つにつき 1 項目を返すため、5 つのタブを持つファイラーは 5 つのフォルダーを報告します。ホストはパスによって重複排除します。
+アダプターは開いているウィンドウ 1 つにつき 1 項目を返すため、5 つのタブを持つファイラーは 5 つのフォルダーを報告します。レジストリはその一覧を **意図的に重複を残したまま** 引き渡します。2 つのコレクターに見えるフォルダー、または 1 つのコレクターに 2 度見えるフォルダーは 2 回現れます。重複のない集合が必要なら、呼び出し元が自身でパスにより重複排除してください。
 
 ## 2. アクティブパスコレクター `IActivePathCollector`
 
@@ -67,12 +67,16 @@ public interface IFileDialogAdapter : IPluginComponent
     bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => true;
 
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);          // カードをドッキングする位置
-    bool RestoreFocus(IntPtr hwnd);
 
-    // コントロールレイアウトのプローブ。タイトルやフィールド名が何も語らないときに、フォルダー
-    // 選択ダイアログとファイル選択ダイアログを見分けます。どちらも既定は「不明」です。
+    // 配置用プローブ。ダイアログ自身のターゲット フィールドがどこにあり、ファイル一覧が
+    // どこにあるかを教えます。インラインカードはこの 2 つを読んで自分の掛かる位置を決めます。
+    // フィールドの下、一覧の上、または下に余地がないときの収まる場所。どちらかを false で
+    // 返せば、ホストは GetDockBounds にフォールバックします。どちらも既定は「そのコントロール
+    // は見えません」。
     bool TryGetTargetFieldBounds(IntPtr hwnd, out AdapterRect bounds) { bounds = default; return false; }
     bool TryGetFileListBounds(IntPtr hwnd, out AdapterRect bounds) { bounds = default; return false; }
+
+    bool RestoreFocus(IntPtr hwnd);
 }
 
 public struct AdapterRect   // 物理ピクセル
@@ -82,7 +86,7 @@ public struct AdapterRect   // 物理ピクセル
 ```
 
 - **`TargetIsFolderOnly`**：`true` の場合、ユーザーが検索結果でファイルを選択した際に、ホストは `NavigateTo` を呼ぶ前にその親フォルダーを自動解決します。
-- **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**：ホストのインラインウィンドウがフォルダー範囲を決める際に使われ、ファイル名フィールドを持つダイアログとフォルダーツリーだけのダイアログを区別します。解決できないアダプターは `false` を返し、ホストは他の手掛かりへフォールバックします。
+- **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**：カードの配置専用です。配置側はダイアログのターゲット フィールドの下にカードを掛けることを優先し、ファイル一覧をフォールバックの基準位置として使います。いずれも解決できないダイアログには、そのまま `GetDockBounds` の矩形が当てられます。
 - **`RestoreFocus`**：キーボードをダイアログ自身の編集フィールドへ返します。ホストはユーザーがインラインカードを離れるとき（`Escape`、または空のカードで呼び出しホットキーをもう一度押したとき）にこれを呼ぶため、他に何もアクティブにしてはいけません。
 
 ## 4. インライン検索アダプター `IInlineSearchAdapter`
@@ -165,6 +169,6 @@ public interface IQuickNavigationProvider : IPluginComponent
 | `ActivePathCollectorRegistry` | `Register(IActivePathCollector)`、`GetCollectors()`、`GetAllCollectors()` |
 | `FileDialogAdapterRegistry` | `Register(IFileDialogAdapter)`、`GetMatchingAdapter(hwnd, className, processName)`、`GetAdapters()`、`GetAllAdapters()` |
 | `InlineSearchAdapterRegistry` | `Register(IInlineSearchAdapter)`、`GetMatchingAdapter(hwnd, className, processName)`、`GetAdapters()`、`GetAllAdapters()` |
-| `OpenedFolderCollectorRegistry` | `GetOpenedFolders()` — あらゆるコレクターを跨いで集約し、パスで重複排除する |
+| `OpenedFolderCollectorRegistry` | `GetOpenedFolders()` — 有効なすべてのコレクターが報告したものを連結する。重複は**設計上そのまま保持**され、例外を投げたコレクターはスキップされるため、壊れたファイラーがスナップショット全体を沈めることはありません |
 
-先頭の 3 つはそれぞれ、ホストが代入する `Func<T, bool> FilterFunc` を公開します。ホストはこれをユーザーが有効にしたコンポーネントへ絞り込むため、`GetCollectors()` / `GetAdapters()` は絞り込み後のビューを、`GetAllCollectors()` / `GetAllAdapters()` は登録されたすべてを返します。プラグインがこれを代入することは一切ありません。一致判定の順序は登録順で、`CanHandle` が `true` と答えた最初のアダプターがそのウィンドウを占有します。汎用の `#32770` ダイアログ用アダプターが、特化したアダプターがすでにカバーしているウィンドウを自分のものとして宣言してはいけないのはこのためです。
+先頭の 3 つはそれぞれ、ホストが代入する `Func<T, bool> FilterFunc` を公開します。ホストはこれをユーザーが有効にしたコンポーネントへ絞り込むため、`GetCollectors()` / `GetAdapters()` は絞り込み後のビューを、`GetAllCollectors()` / `GetAllAdapters()` は登録されたすべてを返します。プラグインがこれを代入することは一切ありません。一致判定の順序は登録順で、`CanHandle` が `true` と答えた最初のアダプターがそのウィンドウを占有します。汎用の `#32770` ダイアログ用アダプターが、特化したアダプターがすでにカバーしているウィンドウを自分のものとして宣言してはいけないのはこのためです。ダイアログのレジストリはこの上に拒否権を 1 つ追加しています。アダプターがウィンドウを占有したあとでも、タイトルがブロックリストに載っているとその検索は `null` を返し、次のアダプターへは通り抜けないため、そのウィンドウにはどのアダプターも付きません。

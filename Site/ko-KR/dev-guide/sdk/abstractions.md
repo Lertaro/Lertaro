@@ -16,8 +16,8 @@ public interface ISearchResult
     string ContextDirectory { get; }      // 부모 디렉토리 경로 (예: "C:\Program Files\Lertaro")
     bool IsDir { get; }                   // 디렉토리 여부
     bool IsApplication { get; }           // 실행 파일 또는 바로가기 여부
-    FileMetadata Metadata => default;     // 고성능 파일 메타데이터 (크기, 수정일 등)
     bool[]? GetHighlightMask(string text, string query) => null; // 문자 단위 하이라이트 마스크 계산
+    FileMetadata Metadata => default;     // 고성능 파일 메타데이터 (크기, 수정일 등)
     string? InstantActionArgument => null; // 즉시 결과가 가리키는 대상
 }
 ```
@@ -72,18 +72,19 @@ public interface IConfigurable
 | 필드 타입 | 컨트롤 및 동작 설명 |
 | :--- | :--- |
 | **`Boolean`** | 토글 스위치 또는 체크박스. |
-| **`Text`** | 텍스트 입력 상자. `RequireNonEmpty` 활성화 시 빈 문자열일 때 `DefaultValue`로 자동 폴백. |
-| **텍스트 선택** | `SelectionStart`와 `SelectionLength`로 `Text` 필드 입력 대화상자의 0부터 시작하는 초기 선택 범위를 지정합니다. |
+| **`Text`** | 텍스트 입력 상자. 사용자가 값을 지우면 `RequireNonEmpty`가 `DefaultValue`로 폴백하고, `MaxLength`가 길이를 제한하며(0이거나 설정하지 않으면 제한 없음), `SelectionStart` / `SelectionLength`는 이 필드에서 열리는 입력 대화상자의 0부터 시작하는 초기 선택 범위를 지정합니다. |
 | **`Integer`** | 최솟값과 최댓값을 지정할 수 있는 숫자 조절 상자. |
 | **`Choice`** | `Choices` 또는 `ChoiceOptions` 목록에서 선택하는 드롭다운. |
-| **`Array`** | 목록 값입니다. `SubFields`가 있으면 **레코드**의 목록으로 렌더링되어 마스터/디테일 편집기(항목당 중첩 폼 하나 — 파일 필터, 커스텀 명령, 웹 검색 플러그인이 사용하는 형태)가 되고, `SubFields`가 없으면 스칼라 단순 목록으로 컴팩트한 단일 열 편집기가 됩니다. `DefaultValue`는 빈 `List<object>`입니다. |
+| **`Array`** | 목록 값입니다. `SubFields`가 있으면 **레코드**의 목록으로 렌더링되어 마스터/디테일 편집기(항목당 중첩 폼 하나 — 파일 필터, 커스텀 명령, 웹 검색 플러그인이 사용하는 형태)가 되고, `SubFields`가 없으면 스칼라 단순 목록으로 컴팩트한 단일 열 편집기가 됩니다. SDK는 `DefaultValue`에 기본값을 아예 주지 않습니다(선언에서는 `object?`, `null!`). 그래서 저장소 안의 모든 플러그인은 빈 목록을 나타내려고 `new List<object>()`를 넘깁니다. |
 | **`Object`** | `SubFields`로 편집하는 하나의 구조화된 값이며, `Array`가 제공하는 목록 장치는 없습니다. |
+| **`Group`** | 접을 수 있는 카드 형태의 하위 필드 그룹(`SubFields`). |
+| **`StringList`** | 항목 추가, 삭제, 순서 변경 및 자동 줄바꿈을 지원하는 여러 줄 목록 상자이며, 실제 줄바꿈은 시각적 표시로만 나타나고 설정 값에는 포함되지 않습니다. |
 | **`Hotkey`** | 키 녹화 컨트롤(`RequireModifier = true`로 수식키 필수화 가능). |
 | **`FilePath` / `FolderPath`** | 찾아보기 대화상자 버튼이 포함된 경로 입력 컨트롤. |
-| **`StringList`** | 항목 추가, 삭제, 순서 변경 및 자동 줄바꿈을 지원하는 여러 줄 목록 상자이며, 실제 줄바꿈은 시각적 표시로만 나타나고 설정 값에는 포함되지 않습니다. |
-| **`Group`** | 접을 수 있는 카드 형태의 하위 필드 그룹(`SubFields`). |
-| **`CustomControl`** | 커스텀 WPF `UIElement` 컨트롤을 직접 임베드. |
+| **`CustomControl`** | 커스텀 WPF `UIElement` 컨트롤을 직접 임베드합니다(`CustomControl` 필드로도 지정할 수 있습니다). |
 | **`Button`** | 작업 버튼을 표시하고 필드의 `OnClick` 델리게이트를 호출하며 설정 값은 저장하지 않습니다. |
+
+`PluginConfigField`의 나머지 멤버들은 호스트가 위 타입들을 놓고 렌더링하거나 저장하는 것들입니다: `Key`(저장되는 설정 이름), `GroupKey`(필드가 들어가는 `Group` 카드), `LabelKey` / `DescriptionKey`(일반 텍스트가 아니라 번역 키), `RequireNonEmpty`, `Choices` / `ChoiceOptions` / `SubFields`, `IsTriggerWord`([**검색 코어 및 액션**](./core-search-actions)의 "트리거 단어" 참조), `MaxLength`, `SelectionStart` / `SelectionLength`, `CustomControl`, `OnClick`, 그리고 플러그인이 호스트의 설정 저장소가 아닌 다른 곳에 값을 보관할 수 있게 하는 두 델리게이트 `Func<object?>? GetValue`와 `Action<object?>? SetValue`.
 
 ### 아이콘 필드
 
@@ -126,16 +127,24 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 }
 ```
 
-호스트는 전체 검색 창 자신의 파일 검색이 아직 스트리밍되는 동안 백그라운드 스레드에서 제공자를 호출하고, 검색이 확정되기를 기다리지 않고 결과가 도착하는 순서대로 렌더링합니다. 현재 쿼리를 처리하지 않을 때는 빈 목록을 반환하세요. 반환하는 각 `InstantResultItem`은 실제로 존재하는 파일 또는 폴더를 나타내야 전체 검색 창의 경로, 크기, 유형 열을 의미 있게 표시할 수 있습니다. 응답에 수 초가 걸리는 제공자(예: 전문 인덱스 순회)는 `GetFileResultsStreamed`를 재정의해 찾히는 대로 항목을 넘길 수 있으며, 그러면 검색은 계속되는 동안 첫 몇 줄이 먼저 화면에 나타납니다. 기본 구현은 `GetFileResults`를 순회할 뿐이므로 재정의는 선택 사항입니다. 이 구성 요소는 플러그인의 즉시 결과 제공자와 동일한 활성화/비활성화 스위치로 관리됩니다.
+호스트는 전체 검색 창 자신의 파일 검색이 아직 스트리밍되는 동안 백그라운드 스레드에서 제공자를 호출하고, 검색이 확정되기를 기다리지 않고 결과가 도착하는 순서대로 렌더링합니다. 현재 쿼리를 처리하지 않을 때는 빈 목록을 반환하세요. 반환하는 각 `InstantResultItem`은 실제로 존재하는 파일 또는 폴더를 나타내야 전체 검색 창의 경로, 크기, 유형 열을 의미 있게 표시할 수 있습니다. 응답에 수 초가 걸리는 제공자(예: 전문 인덱스 순회)는 `GetFileResultsStreamed`를 재정의해 찾히는 대로 항목을 넘길 수 있으며, 그러면 검색은 계속되는 동안 첫 몇 줄이 먼저 화면에 나타납니다. 기본 구현은 `GetFileResults`를 순회할 뿐이므로 재정의는 선택 사항입니다. 이 구성 요소는 **설정 → 플러그인**에 자기 컴포넌트 유형을 키로 한 **자체** 활성화/비활성화 스위치를 가집니다 — 플러그인의 즉시 결과 제공자를 꺼도 이 구성 요소는 꺼지지 않고, 그 반대도 마찬가지입니다.
 
 ## 6. 사용자 설정 경로 확인 `UserPathResolver`
 
 플러그인이 사용자가 입력했거나 설정에 저장된 경로를 받을 때는 파일 시스템 API를 호출하기 전에 `Lertaro.PluginSdk.Helpers.UserPathResolver`를 사용하여 환경 변수와 Windows 셸 가상 경로를 동일한 규칙으로 처리하세요.
 
 ```csharp
-string expanded = UserPathResolver.Expand(rawPath);
+string expanded = UserPathResolver.Expand(rawPath);            // 인자는 string?, 반환은 string
 bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
-string resolved = UserPathResolver.Resolve(rawPath);
+string resolved = UserPathResolver.Resolve(rawPath);           // 아래에 선택적 두 번째 인수가 있음
+
+// Resolve와 ResolveForNavigation 모두 선택적인 Func<string, string>?를 받습니다. 셸이 해석하지
+// 못하는 가상 토큰을 파일 시스템에 묻기 전에 실제 경로로 바꿔 주는 델리게이트이고, 리졸버가 없고
+// 해석할 것도 없으면 마지막 수단으로 입력값이 그대로 돌아옵니다.
+
+// 경로를 열거나 탐색하려 할 때는 Resolve가 아니라 ResolveForNavigation을 쓰세요. 호스트가
+// 탐색할 수 있는 파일 시스템 대상으로 가상 셸 항목까지 정규화해서 돌려받습니다.
+string target = UserPathResolver.ResolveForNavigation(rawPath);
 ```
 
 `Expand`는 앞뒤 공백을 제거하고 `%USERPROFILE%` 같은 환경 변수를 확장합니다. `Resolve`는 확장 후 `shell:Downloads` 또는 `::{CLSID}` 같은 토큰을 가능한 경우 실제 경로로 확인합니다. `shell:AppsFolder`처럼 실제 경로가 없는 가상 폴더는 대신 정규 `::{CLSID}` 이름으로 확인되므로 같은 폴더의 여러 표기가 서로 일치합니다. 그 결과는 여전히 가상 경로입니다. 셸이 전혀 해석할 수 없는 토큰만 변경하지 않고 반환됩니다. 파일 시스템 API에 전달하기 전에 `IsVirtualPath`로 결과를 확인하세요. 디렉터리 인덱싱 API는 실제 폴더로 확인되고 호스트 인덱스 대상인 경로만 열거할 수 있습니다.

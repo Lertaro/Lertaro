@@ -12,7 +12,7 @@
 - **네이티브 Shell 메뉴 통합 (`IDynamicActionProvider`)**: `ShellMenuActionProvider`를 통해 Windows Shell COM 인터페이스와 연동하여 "보내기", 7-Zip, VS Code 등 계단식 우클릭 메뉴를 `Ctrl+O` 액션 메뉴 내에 렌더링.
 - **스키마 기반 설정 폼 (`IConfigurable`)**: 그룹화(`Group`), 문자열 목록(`StringList`), 단축키 녹화(`Hotkey`)를 포함한 폼 스키마를 정의하여 XAML 작성 없이 설정 센터에 네이티브 UI 자동 생성.
 - **다양한 퀵 패널 탭 (`IQuickPanelTabProvider`)**:
-  - `FavoritesTabProvider` / `HistoryTabProvider`: 메모리 상의 목록을 그대로 결과로 반환하는 제로 I/O 최소 구성.
+  - `FavoritesTabProvider` / `HistoryTabProvider`: 디스크에서 다시 읽는 대신 호스트가 이미 로드해 둔 즐겨찾기와 기록을 그대로 결과로 넘깁니다. 기록 조회는 `Task.Run`으로 UI 스레드 밖으로 넘기므로, 패널을 소환할 때 그 조회를 기다리는 일이 없습니다.
   - `WindowsRecentTabProvider`: 백그라운드에서 `Recent` 폴더를 탐색하고 COM으로 바로가기 대상을 해석하여 `Metadata.Modified`를 채워 정렬 지원.
   - `LastDirectoryTabProvider` / `RecentFilesTabProvider`: 호스트가 제공하는 [`ExplorerPathService`](./sdk/services) 및 `RecentFilesService`를 직접 조회.
 
@@ -22,7 +22,7 @@
 
 ### 핵심 구현 사항
 
-- **입출력 문자 집합 경계 (`InputRanges` / `OutputRanges`)**: 입력 범위를 CJK 한자 블록, 출력 범위를 소문자 `a`–`z`로 선언. 호스트는 이 경계를 활용해 한자와 영문이 섞인 쿼리를 자면 매칭과 병음 매칭으로 자동 분할.
+- **입출력 문자 집합 경계 (`InputRanges` / `OutputRanges`)**: 입력 경계를 CJK 한자 블록 하나(U+3007–U+9FFD)로, 출력 범위를 소문자 `a`–`z`로 선언. 호스트는 이 경계를 활용해 한자와 영문이 섞인 쿼리를 자면 매칭과 병음 매칭으로 자동 분할.
 - **빠른 사전 검사 (`CanHandle(text)`)**: 별칭 생성 전 한자가 포함되어 있는지 먼저 스캔하여 순수 영문 문자열은 즉시 `false`를 반환하고 후속 처리를 건너뜀.
 - **다음자 조합 및 별칭 구성 (`GetAliases(text)`)**: 음절 맵을 구성하고 여러 발음이 있는 경우 파이프 기호 `|`로 연결된 후보군을 최대 32개까지 생성하여 병렬 일치 수행.
 - **임베디드 다국어 및 스레드 안전 캐싱**: `ITranslationProvider`를 통해 표시 이름을 다국어화하고, 내부에서는 `lock` 기반 딕셔너리로 JSON 번역을 캐싱하여 반복 파싱 방지.
@@ -34,7 +34,7 @@
 ### 핵심 구현 사항
 
 - **다중 언어 프로세스 간 브리지**: C# (.NET), Python 3.12, Node.js v20 LTS 및 `.exe` 플러그인을 원활히 실행.
-- **완전 격리 독립 런타임**: 사용자 데이터 디렉토리 내에 Python / Node.js 런타임을 자동 배치하고 명명된 파이프를 통해 JSON-RPC 통신 수행.
+- **완전 격리 독립 런타임**: Python / Node.js 런타임을 사용자별 데이터 폴더가 아니라 Lertaro의 **공용 데이터 디렉토리**(`SharedDataDirectory\FlowData\PythonEmbeded-{arch}`) 아래에 자동 배치합니다. 각 플러그인은 자기 인터프리터와 **리디렉션된 표준 입출력**으로 JSON-RPC를 주고받으며, 명명된 파이프는 쓰지 않고 시스템 PATH에도 손대지 않습니다.
 - **동적 설정 폼 및 WebView2 리치 미리보기**: 외부 플러그인의 `SettingsTemplate.yaml`/`.json`을 `PluginConfigSchema`로 동적 매핑하고 사전이나 날씨 등의 HTML 카드를 QuickLook 내에 렌더링.
 
 ## 4. FileUnlocker —— 파일 점유 해제 액션

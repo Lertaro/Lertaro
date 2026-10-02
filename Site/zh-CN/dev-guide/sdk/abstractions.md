@@ -16,8 +16,8 @@ public interface ISearchResult
     string ContextDirectory { get; }      // 所在父级目录路径（如 "C:\Program Files\Lertaro"）
     bool IsDir { get; }                   // 是否为目录/文件夹
     bool IsApplication { get; }           // 是否为可执行程序或快捷方式
-    FileMetadata Metadata => default;     // 高性能文件元数据（大小、修改时间等）
     bool[]? GetHighlightMask(string text, string query) => null; // 字符级高亮掩码计算
+    FileMetadata Metadata => default;     // 高性能文件元数据（大小、修改时间等）
     string? InstantActionArgument => null; // 即时结果真正指向的目标
 }
 ```
@@ -72,18 +72,19 @@ public interface IConfigurable
 | 字段类型 | 渲染控件与说明 |
 | :--- | :--- |
 | **`Boolean`** | 切换开关（Toggle Switch）或复选框。 |
-| **`Text`** | 文本输入框。支持配置 `RequireNonEmpty`，为空时自动回退为 `DefaultValue`。 |
-| **文本选择** | `SelectionStart` 和 `SelectionLength` 用于指定 `Text` 字段输入对话框中从 0 开始计算的初始选中范围。 |
+| **`Text`** | 文本输入框。用户把它清空时，`RequireNonEmpty` 会回退为 `DefaultValue`；`MaxLength` 限定最大长度（为 0 或未设置表示不限长）；`SelectionStart` / `SelectionLength` 设定该字段的输入对话框打开时从 0 开始计算的初始选中范围。 |
 | **`Integer`** | 数字微调输入框。支持配置最小值与最大值范围。 |
 | **`Choice`** | 下拉选择框。通过 `Choices` 或 `ChoiceOptions` 列表指定可选条目。 |
-| **`Array`** | 列表值。带 `SubFields` 时它是**记录**列表，渲染为主从明细编辑器（每个条目一张嵌套表单——文件筛选、自定义命令与网页搜索插件用的正是这种形态）；不带 `SubFields` 时它是普通的标量列表，渲染为紧凑的单列编辑器。`DefaultValue` 是一个空的 `List<object>`。 |
+| **`Array`** | 列表值。带 `SubFields` 时它是**记录**列表，渲染为主从明细编辑器（每个条目一张嵌套表单——文件筛选、自定义命令与网页搜索插件用的正是这种形态）；不带 `SubFields` 时它是普通的标量列表，渲染为紧凑的单列编辑器。SDK 根本不给 `DefaultValue` 设默认值（声明里是 `object?`、`null!`），这就是仓库内每个插件都用 `new List<object>()` 来表示空列表的原因。 |
 | **`Object`** | 单个结构化值，通过其 `SubFields` 编辑，但不具备 `Array` 的那些列表操作能力。 |
+| **`Group`** | 包含子字段列表（`SubFields`）的可折叠卡片分组。 |
+| **`StringList`** | 支持多行编辑、条目增删排序与自动折行的多行列表框；真实换行仅以视觉标记显示，不会写入配置值。 |
 | **`Hotkey`** | 专属按键录制框。可配置 `RequireModifier = true` 强制要求必须包含修饰键。 |
 | **`FilePath` / `FolderPath`** | 附带“浏览...”文件/文件夹原生选择器按钮的路径输入框。 |
-| **`StringList`** | 支持多行编辑、条目增删排序与自动折行的多行列表框；真实换行仅以视觉标记显示，不会写入配置值。 |
-| **`Group`** | 包含子字段列表（`SubFields`）的可折叠卡片分组。 |
-| **`CustomControl`** | 允许插件直接挂载一个自定义的 WPF `UIElement` 控件实例。 |
+| **`CustomControl`** | 允许插件直接挂载一个自定义的 WPF `UIElement` 控件实例（经由 `CustomControl` 成员提供）。 |
 | **`Button`** | 渲染操作按钮并调用字段的 `OnClick` 委托，不存储设置值。 |
+
+`PluginConfigField` 其余的成员，是宿主围绕这些类型负责渲染或持久化的部分：`Key`（持久化用的设置名）、`GroupKey`（该字段位于哪张 `Group` 卡片里）、`LabelKey` / `DescriptionKey`（翻译键，而非字面文本）、`RequireNonEmpty`、`Choices` / `ChoiceOptions` / `SubFields`、`IsTriggerWord`（见 [**核心检索与动作**](./core-search-actions) 的“触发词”一节）、`MaxLength`、`SelectionStart` / `SelectionLength`、`CustomControl`、`OnClick`，以及两个让插件把值存到宿主设置存储之外的委托：`Func<object?>? GetValue` 与 `Action<object?>? SetValue`。
 
 ### 图标字段
 
@@ -126,16 +127,24 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 }
 ```
 
-宿主在完整搜索窗口自身的文件搜索仍在流式返回时，于后台线程调用提供者，并在其结果一到达就绘制，而不是等到搜索结束。插件不处理当前查询时应返回空列表。返回的每个 `InstantResultItem` 都必须对应一个实际存在的文件或文件夹，这样完整窗口的路径、大小和类型列才有意义。若提供者的回答需要数秒（例如全文索引遍历），可以改写 `GetFileResultsStreamed`，边找到边交出命中，让前几行先上屏、其余继续查找；由于接口的默认实现只是遍历 `GetFileResults`，改写是可选的。该组件与插件的即时结果提供者共用同一个启用/禁用开关。
+宿主在完整搜索窗口自身的文件搜索仍在流式返回时，于后台线程调用提供者，并在其结果一到达就绘制，而不是等到搜索结束。插件不处理当前查询时应返回空列表。返回的每个 `InstantResultItem` 都必须对应一个实际存在的文件或文件夹，这样完整窗口的路径、大小和类型列才有意义。若提供者的回答需要数秒（例如全文索引遍历），可以改写 `GetFileResultsStreamed`，边找到边交出命中，让前几行先上屏、其余继续查找；由于接口的默认实现只是遍历 `GetFileResults`，改写是可选的。该组件在**设置 → 插件**下拥有**属于它自己**的启用/禁用开关，按它自身的组件类型记账——把插件的即时结果提供者关掉并不会连带关掉它，反之亦然。
 
 ## 6. 用户配置路径解析 `UserPathResolver`
 
 当插件接受用户输入或配置中的路径时，应使用 `Lertaro.PluginSdk.Helpers.UserPathResolver`，在调用文件系统 API 前统一处理环境变量和 Windows Shell 虚拟路径：
 
 ```csharp
-string expanded = UserPathResolver.Expand(rawPath);
+string expanded = UserPathResolver.Expand(rawPath);            // 接收 string?，返回 string
 bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
-string resolved = UserPathResolver.Resolve(rawPath);
+string resolved = UserPathResolver.Resolve(rawPath);           // 可选的第二个参数见下方说明
+
+// Resolve 与 ResolveForNavigation 都接受一个可选的 Func<string, string>?，
+// 它在向文件系统发问之前，把一个无法解析的虚拟标记改写成一个真实路径；
+// 既没给出该委托、又没有可解析的内容时，作为最后兜底原样返回传入的值。
+
+// 当这个路径即将被打开或浏览时，请用 ResolveForNavigation 而不是 Resolve：
+// 它还会把虚拟 Shell 项规范化为宿主能够导航过去的文件系统目标。
+string target = UserPathResolver.ResolveForNavigation(rawPath);
 ```
 
 `Expand` 会去除首尾空白并展开 `%USERPROFILE%` 等环境变量。`Resolve` 会先展开环境变量，再尽可能将 `shell:Downloads` 或 `::{CLSID}` 等标记解析为物理路径。对于 `shell:AppsFolder` 这类没有物理路径的虚拟文件夹，`Resolve` 会改而返回其规范名 `::{CLSID}`，使同一文件夹的各种写法彼此相等；该结果仍然是虚拟路径。只有 Shell 完全无法解析的标记才会原样返回。传给文件系统 API 前应使用 `IsVirtualPath` 检查结果。目录索引 API 只有在路径解析为真实且被索引覆盖的文件夹后才能枚举内容。

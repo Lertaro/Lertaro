@@ -7,7 +7,7 @@ Bienvenido al Manual de referencia para desarrolladores de Lertaro. Diseñado so
 - **[Arquitectura del sistema](./architecture)** —— Explicación del modelo de aislamiento de tres procesos (Servicio de Windows a nivel SYSTEM, App WPF en modo usuario y proceso de interceptación de teclado Hook) y la comunicación IPC por tuberías con nombre.
 - **[Guía de inicio rápido](./getting-started)** —— Guía paso a paso para crear un proyecto de librería, referenciar el SDK, implementar `IPlugin` y depurar localmente.
 - **[Empaquetado y distribución](./packaging)** —— Estructura de carpetas de plugins, inclusión de librerías dependientes administradas y nativas, recursos i18n incrustados y automatización PostBuild.
-- **[Ejemplos de plugins](./examples)** —— Análisis en profundidad del código de los plugins oficiales de código abierto `CoreExtensions`, `PinyinAlias` y `FlowLauncherBridge`.
+- **[Ejemplos de plugins](./examples)** —— Análisis en profundidad del código de los plugins oficiales de código abierto `CoreExtensions`, `PinyinAlias`, `FlowLauncherBridge` y `FileUnlocker`.
 
 ## 2. Referencia de la API del SDK
 
@@ -21,4 +21,4 @@ Bienvenido al Manual de referencia para desarrolladores de Lertaro. Diseñado so
 | **[Notificaciones](./sdk/notifications)** | `PluginNotificationService`<br>`NotificationRequest`<br>`INotificationHandle`<br>`NotificationLevel`<br>`NotificationPosition`<br>`NotificationResult`<br>`NotificationFailure` | Atención desde segundo plano a través de las propias ventanas del anfitrión: una pila de tarjetas abajo a la derecha o una línea de aviso centrada abajo, duraciones recortadas por el anfitrión, reemplazo por `Id`, límites por plugin y una tarea de finalización que siempre termina. |
 
 > [!NOTE]
-> Todas las firmas de métodos, parámetros y contratos de comportamiento de este manual han sido contrastados directamente con el código fuente de `Lertaro.PluginSdk`.
+> Las firmas de interfaz, los nombres de miembros, los valores por defecto y el orden de los parámetros de estas páginas se han leído del código fuente de `Lertaro.PluginSdk`. Cuando una página además describe cómo reacciona el **anfitrión** a la llamada de un plugin, esa frase documenta el comportamiento actual, no un contrato en el que un plugin pueda apoyarse.

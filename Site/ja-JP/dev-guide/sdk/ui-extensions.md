@@ -115,7 +115,9 @@ namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
 
 public interface IFilePreviewProvider : IPluginComponent
 {
-    // 複数のプロバイダーが同じファイルを対象にしたときのタイブレーク。高いほうが勝ち。
+    // タイブレークにのみ使われます。まずユーザーが設定したプロバイダーの順序
+    // （設定 → 一般 → プレビューとサムネイル）が適用され、Priority はその中で
+    // 高いものから並べる役割を持ちます。
     int Priority => 0;
 
     bool CanPreview(string path, bool isDir);
@@ -129,10 +131,11 @@ public interface IFilePreviewProvider : IPluginComponent
 
 #### プレビューのライフサイクルと再利用の契約
 
-返す `UIElement` が以下のオプション契約のいずれかを実装する場合、ホストはプレビューのライフサイクルを最適化します：
+**プロバイダー**が以下の 1 つ目の契約を実装する場合、または返した `UIElement` が 2 つ目の契約を実装する場合、ホストはプレビューのライフサイクルを最適化します：
 
-- **`IPreviewSessionAware`** — `void EndPreviewSession();` プロバイダーがプロセス内のコントロールではなく実際の外部ウィンドウ（`HwndHost`、ネイティブの `IPreviewHandler` とその `prevhost` サロゲート）を所有しているため、パネルが隠れるかプレビューセッション全体が終わったときにセッションを終了するよう通知されます。これがないと、ホストのウィンドウが何も参照しないまま残り続けます。
-- **`IReusablePreview`** — `bool TrySetTarget(string path, bool isDir);` ユーザーが矢印キーで同種のファイル間を移動するとき、ホストはコントロールを破棄・再生成せず同じコントロールへ再ターゲットを依頼します。これがチラつきを除去します。新しい対象がこのインスタンスに合わなければ `false` を返し、ホストは新しいプレビューを構築するほうへフォールバックします。
+- **`IPreviewSessionAware`** — 返されたコントロールではなく **プロバイダー** に対してキャストされます：`void EndPreviewSession();` プロバイダーがプロセス内のコントロールではなく実際の外部ウィンドウ（`HwndHost`、ネイティブの `IPreviewHandler` とその `prevhost` サロゲート）を所有しているため、オーナーウィンドウが閉じるときにセッションを終了するよう通知されます。プロセス内で描画するプロバイダーの場合は、パネルが隠れるかセッションが終わったときのみです。これがないと、ホストのウィンドウが何も参照しないまま残り続けます。
+- **`IReusablePreview`** — 返された要素に対してキャストされます：`bool TrySetTarget(string path, bool isDir);` ユーザーが矢印キーで同種のファイル間を移動するとき、ホストはコントロールを破棄・再生成せず同じコントロールへ再ターゲットを依頼します。これがチラつきを除去します。新しい対象がこのインスタンスに合わなければ `false` を返し、ホストは新しいプレビューを構築するほうへフォールバックします。
+- **`IReceivesPreviewPanelBounds`** — `void OnPreviewPanelBoundsAvailable(int left, int top, int width, int height);` 自前のプロセス外ウィンドウをホストするプロバイダーは、パネルが占める矩形を知ってそこに親設定や配置を行う必要があります。このメンバーを実装すれば、矩形が確定した時点で受け取れます。
 
 ### カスタムサムネイルプロバイダー `IThumbnailProvider`
 
@@ -143,12 +146,18 @@ namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
 
 public interface IThumbnailProvider : IPluginComponent
 {
+    // プレビューと同じ規則です。まずユーザーが設定したサムネイル プロバイダーの
+    // 順序が決まり、Priority はその中での並べ替えにのみ使われます。
     int Priority => 0;
 
     bool CanProvideThumbnail(string path, bool isDir);
 
-    // 同期的。結果一覧の描画パスで実行されるためです。高速に保ち、パスとサイズ
-    // 自身のキャッシュは自分で管理してください。ホストは結果をメモ化しません。
+    // 同期的。結果一覧の描画パスで実行されるため、高速に保ってください。
+    // メモ化は不要です。ホストが返り値をキャッシュします（実在または仮想の
+    // アイテムはパスをキーに、それ以外は拡張子をキーにします）。つまり
+    // `size` はホストが Shell のイメージリストから選ぶ値なので、特定の数を
+    // 期待しないでください。また、ディレクトリについてプロバイダーが尋ねられることは
+    // 一切ありません。
     ImageSource? GetThumbnail(string path, int size);
 }
 ```
@@ -166,6 +175,10 @@ public interface IThemeProvider : IPluginComponent
 {
     IEnumerable<ITheme> GetThemes();
 }
+```
+
+```csharp
+namespace Lertaro.PluginSdk.Abstractions;   // 注意：テーマ自体は 1 つ上位の名前空間です
 
 public interface ITheme
 {
@@ -174,9 +187,13 @@ public interface ITheme
     bool IsDark { get; }
     ResourceDictionary GetResources();
 
-    // 1.0 未満では、ホストはフレームレスウィンドウをレイヤード型の半透明サーフェスとして
-    // 描画します。1.0 では不透明のまま ClearType を保ちます。この値がどちらの種のウィンドウと
-    // して構築されるかを決め、ウィンドウが存在したあとは変更できません。
+    // 1.0 未満では、ホストのレイヤード サーフェス用ヘルパー経由で構築されたウィンドウが
+    // レイヤード型の半透明ウィンドウになり、角は自分で描画してクリップする必要があります。
+    // 1.0 なら不透明のまま、ウィンドウマネージャーによって角が丸められ、ClearType を保ちます。
+    // 判定はウィンドウのコンストラクターで 1 度だけ行われます。AllowsTransparency は
+    // ハンドル生成後に変更できないためです。
+    // 現時点で適用されるのは通知ウィンドウだけです。テーマ切り替えが画面に出ている
+    // ウィンドウがあっても、そのウィンドウは再構築されません。
     double WindowOpacity => 1.0;
 }
 ```

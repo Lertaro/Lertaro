@@ -7,7 +7,7 @@ Este capítulo describe las interfaces y estructuras principales de `Lertaro.Plu
 Todos los componentes de plugins heredan de `IPluginComponent`:
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 public interface IPluginComponent
 {
@@ -17,7 +17,11 @@ public interface IPluginComponent
 
 public interface IPlugin : IPluginComponent
 {
-    // Identificador del punto de entrada principal del plugin
+    // Punto de entrada principal del ensamblado del plugin. Los dos miembros de sitio web
+    // son opcionales: con WebsiteUrl en null la tarjeta de Configuración no muestra
+    // enlace alguno.
+    string? WebsiteUrl => null;
+    string? WebsiteLabel => null;
 }
 ```
 
@@ -45,6 +49,11 @@ public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
     bool[]? GetHighlightMask(string text, string query) => null; // Máscara de resaltado
+
+    // Las palabras que invocan a este proveedor, que el propio paso de recorte del anfitrión
+    // lee para que su recorte y tu coincidencia no puedan desviarse. Ver la sección 6,
+    // «Palabras disparadoras».
+    IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 ```
 
@@ -183,8 +192,8 @@ public interface IDynamicActionProvider : IPluginComponent
 
 ## 4. Estructuras auxiliares
 
-- **`SearchableItem` / `InstantResultItem`**: Contiene `Title`, `Description`, `IconData`, `IconColor`, `ActionType` (`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon` (liberado automáticamente por el anfitrión), `ResultKind` (una etiqueta elegida por el plugin sobre la que pueden apoyarse los filtros y las columnas del anfitrión) y dos devoluciones de llamada de ejecución: `OnExecute` (`Action`) para fire-and-forget, u `OnExecuteFunc` (`Func<bool>`) cuando la acción necesita informar de si tuvo éxito; el anfitrión usa esa respuesta para decidir, por ejemplo, si cierra la ventana.
-- **`DynamicMenuItem`**: Contiene `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute`, `IsActionable` (por defecto `true`; `false` marca una fila que solo abre un submenú), `HBitmapItem` (un manejador de icono nativo del menú del Shell que se está reflejando), `ShortcutHint` (la letra con la que coincide una tecla mnemotécnica), `IsContinuation` (este elemento continúa un grupo que el anfitrión ya empezó) e `IsHeader` (se renderiza como encabezado de grupo con un botón de acción opcional).
+- **`SearchableItem`**: Contiene `Title`, `Description`, `IconData`, `IconColor`, `ActionType` (`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon` (liberado automáticamente por el anfitrión), `ResultKind` (una etiqueta elegida por el plugin sobre la que pueden apoyarse los filtros y las columnas del anfitrión) y dos devoluciones de llamada de ejecución: `OnExecute` (`Action`) para fire-and-forget, u `OnExecuteFunc` (`Func<bool>`) cuando la acción necesita informar de si tuvo éxito; el anfitrión usa esa respuesta para decidir, por ejemplo, si cierra la ventana. `InstantResultItem` lleva los mismos miembros de presentación y de devolución de llamada **salvo `ResultKind`**, que solo existe en el modelo de elemento consultable.
+- **`DynamicMenuItem`**: Contiene `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute`, `IsActionable` (por defecto `true`; `false` marca una fila que solo abre un submenú), `HBitmapItem` (un manejador de icono nativo del menú del Shell que se está reflejando), `ShortcutHint` (la letra con la que coincide una tecla mnemotécnica), `IsContinuation` (un cursor de paginación: este lote continúa un menú que el anfitrión aún está rellenando, y el anfitrión sigue preguntando mientras esté activo) e `IsHeader` (se renderiza como encabezado de grupo con un botón de acción opcional).
 - **`SearchWindowType`**: Enumerador con `Main` (Ventana principal), `Quick` (Ventana rápida) e `Inline` (Diálogo de archivos incrustado).
 
 ## 5. Alcances de búsqueda con nombre `ISearchScopeProvider`

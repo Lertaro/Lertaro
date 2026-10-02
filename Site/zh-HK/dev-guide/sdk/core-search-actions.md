@@ -7,7 +7,7 @@
 所有外掛模組擴充元件均直接或間接繼承自 `IPluginComponent`，用於向宿主宣告元件的中繼資料：
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 public interface IPluginComponent
 {
@@ -17,7 +17,10 @@ public interface IPluginComponent
 
 public interface IPlugin : IPluginComponent
 {
-    // 外掛模組主組件進入點識別項
+    // 外掛模組主組件的進入點。兩個網站成員都是選填的：`WebsiteUrl` 為 null 時，
+    // 設定卡片根本就不顯示連結。
+    string? WebsiteUrl => null;
+    string? WebsiteLabel => null;
 }
 ```
 
@@ -45,6 +48,10 @@ public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
     bool[]? GetHighlightMask(string text, string query) => null; // 自訂比對反白遮罩
+
+    // 叫用此提供者的詞，由宿主自己的後綴剝除步驟讀取，使宿主的剝除與你的比對不會各走各路。
+    // 見第 6 節「觸發詞」。
+    IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 ```
 
@@ -179,8 +186,8 @@ public interface IDynamicActionProvider : IPluginComponent
 
 ## 4. 輔助資料結構
 
-- **`SearchableItem` / `InstantResultItem`**：包含 `Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（GDI 點陣圖控制代碼，宿主自動接管釋放）、`ResultKind`（由外掛模組自選的標籤，宿主的篩選器與資料欄可以據以判斷），以及兩個執行回呼：即發即忘用的 `OnExecute`（`Action`），或動作需要回報成功與否時改用的 `OnExecuteFunc`（`Func<bool>`）——宿主會拿這個答案去決定例如是否關閉視窗。
-- **`DynamicMenuItem`**：包含 `Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsActionable`（預設 `true`；`false` 標記的是只會打開子選單的列）、`HBitmapItem`（來自被鏡像的 Shell 選單之原生圖示控制代碼）、`ShortcutHint`（記憶按鍵比對時對應的字母）、`IsContinuation`（此項目接續宿主已經開啟的分組），以及 `IsHeader`（轉譯為帶可選操作按鈕的分組標題列）。
+- **`SearchableItem`**：包含 `Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（GDI 點陣圖控制代碼，宿主自動接管釋放）、`ResultKind`（由外掛模組自選的標籤，宿主的篩選器與資料欄可以據以判斷），以及兩個執行回呼：即發即忘用的 `OnExecute`（`Action`），或動作需要回報成功與否時改用的 `OnExecuteFunc`（`Func<bool>`）——宿主會拿這個答案去決定例如是否關閉視窗。`InstantResultItem` 帶有相同的顯示與回呼成員，但**沒有 `ResultKind`**，那個成員只有可搜尋項目模型才有。
+- **`DynamicMenuItem`**：包含 `Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsActionable`（預設 `true`；`false` 標記的是只會打開子選單的列）、`HBitmapItem`（來自被鏡像的 Shell 選單之原生圖示控制代碼）、`ShortcutHint`（記憶按鍵比對時對應的字母）、`IsContinuation`（一個分頁游標：這批項目接續的仍是宿主還在填的選單，只要它被設定，宿主就會繼續索要下一批），以及 `IsHeader`（轉譯為帶可選操作按鈕的分組標題列）。
 - **`SearchWindowType`**：列舉值包括 `Main`（主搜尋視窗）、`Quick`（置中快速浮動視窗）與 `Inline`（嵌入式檔案對話方塊）。
 
 ## 5. 具名搜尋範圍 `ISearchScopeProvider`

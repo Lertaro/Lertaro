@@ -7,7 +7,7 @@
 所有插件扩展组件均直接或间接继承自 `IPluginComponent`，用于向宿主声明组件的元数据：
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 public interface IPluginComponent
 {
@@ -17,7 +17,10 @@ public interface IPluginComponent
 
 public interface IPlugin : IPluginComponent
 {
-    // 插件主程序集入口点标识
+    // 插件主程序集入口点标识。两个 Website 成员都是可选的：
+    // WebsiteUrl 为 null 时，设置卡片完全不显示链接。
+    string? WebsiteUrl => null;
+    string? WebsiteLabel => null;
 }
 ```
 
@@ -45,6 +48,10 @@ public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
     bool[]? GetHighlightMask(string text, string query) => null; // 自定义匹配高亮掩码
+
+    // 唤起该提供者的那些词，宿主自己的剥离步骤读的就是它，这样宿主的剥离
+    // 与你的匹配就不会各自漂移。见第 6 节“触发词”。
+    IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 ```
 
@@ -179,8 +186,8 @@ public interface IDynamicActionProvider : IPluginComponent
 
 ## 4. 辅助数据结构
 
-- **`SearchableItem` / `InstantResultItem`**：包含 `Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（宿主自动接管释放）、`ResultKind`（由插件自选的标记，宿主的筛选器与列都可以依据它来匹配），以及两个执行回调：`OnExecute`（`Action`）用于发出去就不管，或当动作需要汇报成功与否时用 `OnExecuteFunc`（`Func<bool>`）——宿主会用这个答复来决定例如是否关闭窗口。
-- **`DynamicMenuItem`**：包含 `Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsActionable`（默认 `true`；`false` 标记的是只用于打开子菜单的那一行）、`HBitmapItem`（来自被镜像的 Shell 菜单的原生图标句柄）、`ShortcutHint`（助记键所匹配的字母）、`IsContinuation`（本条目延续的是宿主已经开始的分组），以及 `IsHeader`（渲染为带可选操作按钮的分组标题行）。
+- **`SearchableItem`**：包含 `Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（宿主自动接管释放）、`ResultKind`（由插件自选的标记，宿主的筛选器与列都可以依据它来匹配），以及两个执行回调：`OnExecute`（`Action`）用于发出去就不管，或当动作需要汇报成功与否时用 `OnExecuteFunc`（`Func<bool>`）——宿主会用这个答复来决定例如是否关闭窗口。`InstantResultItem` 带有同样的展示与回调成员，**只是不含 `ResultKind`**，那个只有可搜索条目模型才有。
+- **`DynamicMenuItem`**：包含 `Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsActionable`（默认 `true`；`false` 标记的是只用于打开子菜单的那一行）、`HBitmapItem`（来自被镜像的 Shell 菜单的原生图标句柄）、`ShortcutHint`（助记键所匹配的字母）、`IsContinuation`（一个分页游标：这一批延续的是宿主仍在填充的菜单，只要它置位，宿主就会接着向你要下一批），以及 `IsHeader`（渲染为带可选操作按钮的分组标题行）。
 - **`SearchWindowType`**：枚举值包括 `Main`（主搜索窗口）、`Quick`（居中快速浮窗）与 `Inline`（嵌入式文件对话框）。
 
 ## 5. 具名搜索作用范围 `ISearchScopeProvider`

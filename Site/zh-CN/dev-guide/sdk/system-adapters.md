@@ -22,7 +22,7 @@ public interface IOpenedFolderCollector : IPluginComponent
 }
 ```
 
-适配器为每个打开的窗口返回一条记录，因此开了五个标签页的管理器会报告五个文件夹；宿主按路径去重。
+适配器为每个打开的窗口返回一条记录，因此开了五个标签页的管理器会报告五个文件夹。注册表把这份列表**刻意带着重复原样**交下去——被两个收集器看到、或被同一个收集器看到两次的文件夹会出现两次；想要集合的调用方自己按路径去重。
 
 ## 2. 活动目录收集器 `IActivePathCollector`
 
@@ -66,12 +66,14 @@ public interface IFileDialogAdapter : IPluginComponent
     bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => true;
 
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);          // 卡片停靠到哪里
-    bool RestoreFocus(IntPtr hwnd);
 
-    // 控件布局探针：当标题和字段名都给不出线索时，它们用来分辨选文件夹的对话框和选文件的
-    // 对话框；两者的默认回答都是“我不知道”。
+    // 摆放探针：对话框自己的目标字段在哪里、它的文件列表在哪里。内嵌卡片两个都读，
+    // 用来决定把自己挂在字段下方、列表上方，还是下方放不下时放得下的地方。
+    // 任一探针返回 false，宿主就退回 GetDockBounds。两者的默认回答都是“看不见那个控件”。
     bool TryGetTargetFieldBounds(IntPtr hwnd, out AdapterRect bounds) { bounds = default; return false; }
     bool TryGetFileListBounds(IntPtr hwnd, out AdapterRect bounds) { bounds = default; return false; }
+
+    bool RestoreFocus(IntPtr hwnd);
 }
 
 public struct AdapterRect   // 物理像素
@@ -81,7 +83,7 @@ public struct AdapterRect   // 物理像素
 ```
 
 - **`TargetIsFolderOnly`**：为 `true` 时，若用户从搜索结果里选中了一个文件，宿主会在调用 `NavigateTo` 之前先解析出它所在的父文件夹。
-- **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**：宿主的内嵌窗口文件夹作用范围用它们来区分“带有文件名输入框的对话框”和“只有文件夹树的对话框”。解析不出来的适配器返回 `false`，宿主退回自己的其他信号。
+- **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**：只用于卡片摆放。定位器优先把卡片挂在对话框的目标字段下方，并把文件列表当作兜底锚点；两个都解析不出来的对话框，拿到的就是 `GetDockBounds` 的矩形。
 - **`RestoreFocus`**：把键盘交还给对话框自己的编辑框。宿主在用户离开内嵌卡片时调用它（`Escape`，或卡片内容为空时再按一次呼出快捷键），因此它绝不能再激活别的东西。
 
 ## 4. 内嵌搜索适配器 `IInlineSearchAdapter`
@@ -161,6 +163,6 @@ public interface IQuickNavigationProvider : IPluginComponent
 | `ActivePathCollectorRegistry` | `Register(IActivePathCollector)`、`GetCollectors()`、`GetAllCollectors()` |
 | `FileDialogAdapterRegistry` | `Register(IFileDialogAdapter)`、`GetMatchingAdapter(hwnd, className, processName)`、`GetAdapters()`、`GetAllAdapters()` |
 | `InlineSearchAdapterRegistry` | `Register(IInlineSearchAdapter)`、`GetMatchingAdapter(hwnd, className, processName)`、`GetAdapters()`、`GetAllAdapters()` |
-| `OpenedFolderCollectorRegistry` | `GetOpenedFolders()` —— 汇总所有收集器并按路径去重 |
+| `OpenedFolderCollectorRegistry` | `GetOpenedFolders()` —— 把每个已启用收集器所报告的内容依次拼接起来；重复项是**有意保留**的，而抛出异常的那个收集器会被跳过，这样一个坏掉的文件管理器就无法拖垮整份快照 |
 
-前三个各自暴露一个由宿主赋值的 `Func<T, bool> FilterFunc`：宿主把它收窄到用户已启用的那些组件，因此 `GetCollectors()` / `GetAdapters()` 返回过滤后的视图，而 `GetAllCollectors()` / `GetAllAdapters()` 返回全部注册项。插件绝不给它赋值。匹配顺序就是注册顺序，第一个 `CanHandle` 回答 `true` 的适配器拥有该窗口——这也是为什么一个通用的 `#32770` 对话框适配器不能去认领已被某个专门适配器覆盖的窗口。
+前三个各自暴露一个由宿主赋值的 `Func<T, bool> FilterFunc`：宿主把它收窄到用户已启用的那些组件，因此 `GetCollectors()` / `GetAdapters()` 返回过滤后的视图，而 `GetAllCollectors()` / `GetAllAdapters()` 返回全部注册项。插件绝不给它赋值。匹配顺序就是注册顺序，第一个 `CanHandle` 回答 `true` 的适配器拥有该窗口——这也是为什么一个通用的 `#32770` 对话框适配器不能去认领已被某个专门适配器覆盖的窗口。对话框注册表在此之上还多加了一道否决：某个适配器认领窗口之后，如果该窗口的标题位于屏蔽名单里，查找会返回 `null` 而不是继续落到下一个适配器，于是没有任何适配器为那个窗口服务。
