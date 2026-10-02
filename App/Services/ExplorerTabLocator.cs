@@ -63,10 +63,16 @@ internal static class ExplorerTabLocator
         }
     }
 
-    public static bool HasAvailableExplorerWindow() => ExplorerShellWindowsHelper.FindExplorerWindowHandle(IntPtr.Zero) != IntPtr.Zero;
+    public static bool HasAvailableExplorerWindow()
+    {
+        if (Volatile.Read(ref _tabStripState) == TabStripAbsent) return false;
+        return TabBearingWindowSeen();
+    }
 
     public static bool WaitForAvailableExplorerWindow()
     {
+        if (Volatile.Read(ref _tabStripState) == TabStripAbsent) return false;
+
         var deadline = Stopwatch.GetTimestamp() + Stopwatch.Frequency * 2;
         while (Stopwatch.GetTimestamp() < deadline)
         {
@@ -76,6 +82,45 @@ internal static class ExplorerTabLocator
 
         return false;
     }
+
+    /// <summary>
+    /// Whether the running shell hosts Explorer's tab strip at all.
+    /// </summary>
+    /// <remarks>
+    /// Windows 10 has no tab strip, so the probe can never see a <c>ShellTabWindowClass</c> there and every
+    /// single folder open paid the full two-second wait for a window class that does not exist on that OS --
+    /// on a ShellThread worker, holding the serialized folder-open gate while it slept. One honest look is
+    /// enough for the rest of the process, and once it says "no tabs" the tab route stops being taken at all
+    /// instead of failing at its first step every time.
+    /// ponytail: cached for the process lifetime; a shell that gains tabs mid-session (a feature update) has
+    /// to be restarted to be noticed.
+    /// </remarks>
+    internal const int TabStripUnknown = 0;
+    internal const int TabStripPresent = 1;
+    internal const int TabStripAbsent = 2;
+    private static int _tabStripState = TabStripUnknown;
+
+    // The one look at the shell, folded into the cache. Every writer here states a true observation of the
+    // same machine state, so a lost update between two threads only decides which true answer to keep.
+    private static bool TabBearingWindowSeen()
+    {
+        var tabBearing = ExplorerShellWindowsHelper.FindExplorerWindowHandle(IntPtr.Zero) != IntPtr.Zero;
+        Interlocked.Exchange(ref _tabStripState,
+            TabStripStateAfter(Volatile.Read(ref _tabStripState), tabBearing, tabBearing || ExplorerShellWindowsHelper.HasExplorerWindow()));
+        return tabBearing;
+    }
+
+    /// <summary>
+    /// The cache after one look: a tab-bearing window settles it one way, a window without a tab settles it
+    /// the other, and no window at all is not evidence.
+    /// </summary>
+    /// <remarks>
+    /// The last case is the one worth keeping honest. A cold Explorer behind a slow share can take longer to
+    /// appear than the wait gives it, and latching "this shell has no tabs" on that would switch the feature
+    /// off for a Windows 11 shell that does have them.
+    /// </remarks>
+    internal static int TabStripStateAfter(int previous, bool tabBearingWindow, bool anyExplorerWindow) =>
+        tabBearingWindow ? TabStripPresent : anyExplorerWindow ? TabStripAbsent : previous;
 
     /// <summary>
     /// The tab window that was not there before, or <see cref="IntPtr.Zero"/> when nothing new appeared.

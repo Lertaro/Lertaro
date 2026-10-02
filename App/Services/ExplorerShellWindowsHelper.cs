@@ -47,6 +47,13 @@ internal static class ExplorerShellWindowsHelper
     public static bool IsExplorerWindow(IntPtr hwnd) => hwnd != IntPtr.Zero && HasClassName(hwnd, ExplorerWindowClass);
 
     /// <summary>
+    /// Whether an Explorer window exists at all, tab strip or not. The difference decides whether a
+    /// tab-less answer is evidence about the shell (it has no tabs) or only about timing (nothing is there
+    /// yet) -- see <see cref="ExplorerTabLocator.TabStripStateAfter"/>.
+    /// </summary>
+    public static bool HasExplorerWindow() => FindWindowEx(IntPtr.Zero, IntPtr.Zero, ExplorerWindowClass, null) != IntPtr.Zero;
+
+    /// <summary>
     /// The Explorer window a tab request should target: the one it was handed, else the foreground one,
     /// else the first Explorer window that actually has a tab.
     /// </summary>
