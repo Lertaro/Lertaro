@@ -22,7 +22,7 @@ public enum NotificationPosition
 
     /// <summary>
     /// Bottom-centre single line. No title, no source, no controls: a new one replaces whatever was
-    /// showing without waiting for it to fade out.
+    /// showing immediately, with no teardown to wait out.
     /// </summary>
     BottomNotice
 }

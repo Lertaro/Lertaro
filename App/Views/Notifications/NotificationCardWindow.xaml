@@ -4,6 +4,7 @@
         xmlns:services="clr-namespace:Lertaro.App.Services"
         Title="Notification"
         Width="360"
+        MaxHeight="260"
         SizeToContent="Height"
         Background="{DynamicResource CardBackground}"
         WindowStyle="None"
@@ -16,6 +17,8 @@
         TextOptions.TextFormattingMode="Display"
         TextElement.Foreground="{DynamicResource TextPrimary}">
 
+    <!-- MaxHeight is NotificationWindowManager.CardMaxHeightDip, stated here rather than assigned at runtime so
+         the card's height is final before the stack first measures it. -->
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -119,6 +122,14 @@
                                MouseLeftButtonUp="Body_MouseLeftButtonUp"/>
                 </ScrollViewer>
             </Grid>
+
+            <!-- Drawn once, on arrival, and faded out: the accent rim is what tells a card that has just come in
+                 from one that has merely been sitting there. Last child so it paints over the content, no fill so
+                 it cannot catch a click meant for the body, and the radius is the window's own so the rim follows
+                 the corner the window manager rounded. -->
+            <Border x:Name="ArrivalRim" Grid.ColumnSpan="2" Opacity="0" IsHitTestVisible="False"
+                    BorderThickness="2" BorderBrush="{DynamicResource AccentBlue}"
+                    CornerRadius="{DynamicResource CornerRadiusWindow}"/>
         </Grid>
     </Border>
 </Window>

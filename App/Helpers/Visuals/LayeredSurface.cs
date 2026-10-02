@@ -18,7 +18,7 @@ namespace Lertaro.App.Helpers.Visuals;
 /// </remarks>
 public static class LayeredSurface
 {
-    public static bool Apply(Window window, Border surface)
+    public static void Apply(Window window, Border surface)
     {
         var theme = ThemeManager.Instance.ActiveTheme;
         if (theme == null || theme.WindowOpacity >= 1.0)
@@ -26,7 +26,7 @@ public static class LayeredSurface
             // Rounded by the window manager, which needs a handle to be told about, hence the event rather
             // than a call here: it fires before the first paint, so the corners never visibly change.
             window.SourceInitialized += (_, _) => DwmWindowCorners.ApplyRound(window);
-            return false;
+            return;
         }
 
         window.AllowsTransparency = true;
@@ -36,9 +36,8 @@ public static class LayeredSurface
         // children square, and only a layered window can show that flap at all, since an opaque one is
         // rounded by the window manager instead.
         RoundedClip.SetIsEnabled(surface, true);
-        // The dim belongs on the content, not the window: the fade animates the window's own opacity, and the
-        // two multiply, so a theme at 0.95 fades 0 to 0.95 without the fade math knowing about it.
+        // The dim belongs on the content, not on Window.Opacity: a window-level opacity is the composited path,
+        // and this window is already layered once for the theme's own transparency.
         WindowEffectHelper.ApplyThemeEffects(window, theme);
-        return true;
     }
 }

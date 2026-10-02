@@ -46,6 +46,11 @@ public static class FullscreenHelper
     private const uint MONITOR_DEFAULTTOPRIMARY = 1;
     private const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
 
+    // Reused because the notification queue reads this on its way to a refill, on the UI thread, and a fresh
+    // 256-character buffer per read is a Gen0 allocation that never says anything new. The capacity is the
+    // documented limit for a class name, so a real one is never truncated into a different answer.
+    [ThreadStatic] private static StringBuilder? _className;
+
     public static bool IsForegroundWindowFullScreen()
     {
         try
@@ -54,7 +59,8 @@ public static class FullscreenHelper
             if (fgHwnd == IntPtr.Zero) return false;
 
             // Ignore Desktop/Tray windows
-            var sbClass = new StringBuilder(256);
+            var sbClass = _className ??= new StringBuilder(256);
+            sbClass.Clear();
             GetClassName(fgHwnd, sbClass, sbClass.Capacity);
             var cls = sbClass.ToString();
             if (cls.Equals("Progman", StringComparison.OrdinalIgnoreCase) ||

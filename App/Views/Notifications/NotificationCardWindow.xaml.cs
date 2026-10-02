@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using Lertaro.App.Helpers.Visuals;
 using Lertaro.PluginSdk.Abstractions;
@@ -14,6 +15,10 @@ namespace Lertaro.App.Views.Notifications;
 /// </summary>
 public partial class NotificationCardWindow : Window
 {
+    // Long enough to be noticed as "the new one", short enough that a card still on screen for twenty seconds is
+    // not wearing it. Not tuned against anything: it is a legibility choice, not a measurement.
+    private const int ArrivalFlashMs = 750;
+
     /// <summary>Runs when the card should go away: its time ended, the user closed it, the user clicked
     /// its body, or the caller dismissed it through its handle.</summary>
     public event Action? DismissRequested;
@@ -100,6 +105,17 @@ public partial class NotificationCardWindow : Window
 
     /// <summary>Hands the card back to the stack's layout, for when the screen it was dragged onto is gone.</summary>
     public void ClearUserMove() => IsUserMoved = false;
+
+    /// <summary>Marks the card as the one that has just come in: an accent rim is drawn around it and fades out
+    /// over the next three quarters of a second.</summary>
+    /// <remarks>
+    /// The animation is on an element inside a window that is already opaque, which is the half of "notifications
+    /// have no fade" this can afford. What was cut was animating the <see cref="Window"/>'s own opacity: that only
+    /// works by turning the window into a layered one, which costs ClearType and a per-pixel composite on every
+    /// frame, and flips state at both ends of the animation.
+    /// </remarks>
+    public void FlashArrival() => ArrivalRim.BeginAnimation(OpacityProperty,
+        new DoubleAnimation(0, TimeSpan.FromMilliseconds(ArrivalFlashMs)) { From = 0.85 });
 
     // Clicking the body means "I have read it", which is the same outcome as the close button.
     private void Body_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => DismissRequested?.Invoke();

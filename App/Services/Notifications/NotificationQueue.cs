@@ -10,16 +10,22 @@ namespace Lertaro.App.Services.Notifications;
 /// Owns no window, reads no clock and knows nothing about DPI: the service decides when something is
 /// actually gone (via <see cref="NotifyClosed"/>) and paints it, and this class keeps the ordering rules
 /// in one place so they can be read and tested without a screen. Split out of the service for both
-/// reasons, not for file length.
+/// reasons, not for file length. The <paramref name="gate"/> it is handed is the service's own, which is
+/// what makes dismissing through a handle as thread-safe as submitting through one was.
 /// </remarks>
 internal sealed class NotificationQueue(
     Func<bool> isFullscreen,
     Action<NotificationItem> show,
     Action<NotificationItem> hide,
-    Action<string> logWarning)
+    Action<string> logWarning,
+    object gate)
 {
     internal const int VisibleCardLimit = 5;
-    internal const int PerPluginPendingLimit = 5;
+    /// <summary>What one plugin may have on screen and waiting at once: five slots plus the five that used to be
+    /// the pending cap. Saying it as one number matters now that arrivals are paced, because a burst's cards sit
+    /// in the queue instead of on screen, and counting only the queue would quietly halve what a plugin can get
+    /// shown.</summary>
+    internal const int PerPluginAcceptedLimit = 10;
     internal const double CardMinSeconds = 2;
     internal const double CardMaxSeconds = 30;
     internal const double CardDefaultSeconds = 8;
@@ -65,7 +71,9 @@ internal sealed class NotificationQueue(
     }
 
     /// <summary>Called once per notification when it stops existing, whether its time ran out, the user
-    /// dismissed it, the caller closed it through its handle, or it never got on screen.</summary>
+    /// dismissed it, the caller closed it through its handle, or it never got on screen. The caller already
+    /// holds the gate, except when it is a plugin's thread, in which case it came through
+    /// <see cref="CloseFromHandle"/>.</summary>
     public void NotifyClosed(NotificationItem item)
     {
         item.Complete(NotificationResult.Success);
@@ -77,7 +85,42 @@ internal sealed class NotificationQueue(
         // this is the only path that reaches the window then: the paths that tore it down themselves (a
         // replacement, a cancellation) find nothing left to do inside.
         if (hadWindow) hide(item);
-        if (!_batching) Refill();
+        if (!_batching) PromoteOne();
+    }
+
+    /// <summary>Offers the screen one more waiting card, for whoever runs the clock. The queue keeps no time of
+    /// its own, so the service asks this on its tick and a burst is fed a card at a time.</summary>
+    internal void Feed() => PromoteOne();
+
+    /// <summary>Whether anything is still waiting to be offered. The clock must keep running while this is true,
+    /// because the tick is the only thing that promotes: an empty screen is not proof of an empty queue once
+    /// presentations are handed to the dispatcher, and a stopped clock there strands every waiting request with a
+    /// task that never finishes.</summary>
+    internal bool HasWaiting => _pending.Count > 0;
+
+    /// <summary>Ends a notification on its caller's behalf. Locked because a plugin holds the handle and may
+    /// call from its own thread while the launcher's UI thread is walking the same lists from the countdown.</summary>
+    internal void CloseFromHandle(NotificationItem item)
+    {
+        lock (gate) NotifyClosed(item);
+    }
+
+    /// <summary>Ends a batch the screen already took down, which is "mark all read" and several notifications
+    /// coming due on one tick: deciding about the freed slots once is the whole point, because deciding per card
+    /// promotes and re-lays out the stack again while the rest of the batch is still being pulled out from under
+    /// it.</summary>
+    public void CloseBatch(IReadOnlyList<NotificationItem> items)
+    {
+        _batching = true;
+        try
+        {
+            foreach (var item in items) NotifyClosed(item);
+        }
+        finally
+        {
+            _batching = false;
+        }
+        PromoteOne();
     }
 
     /// <summary>Cancels everything the given plugin still has outstanding, shown or queued.</summary>
@@ -98,7 +141,7 @@ internal sealed class NotificationQueue(
         {
             _batching = false;
         }
-        Refill();
+        PromoteOne();
     }
 
     /// <summary>Ends every outstanding request because the launcher is closing. Takes the animation, and
@@ -138,6 +181,9 @@ internal sealed class NotificationQueue(
         if (previous != null)
         {
             _cards[_cards.IndexOf(previous)] = item;
+            // The stack is laid out by arrival order, not by the list's, so a replacement that keeps a fresh
+            // sequence number jumps to the top of the pile instead of overwriting the card it replaced.
+            item.Sequence = previous.Sequence;
             previous.Complete(NotificationResult.Failed(NotificationFailure.Replaced));
             hide(previous);
             item.ReachedScreen = true;
@@ -145,7 +191,7 @@ internal sealed class NotificationQueue(
             return;
         }
 
-        if (_cards.Count < VisibleCardLimit)
+        if (_cards.Count == 0 && _pending.Count == 0)
         {
             _cards.Add(item);
             item.ReachedScreen = true;
@@ -153,9 +199,15 @@ internal sealed class NotificationQueue(
             return;
         }
 
-        if (_pending.Count(pending => pending.PluginKey == item.PluginKey) >= PerPluginPendingLimit)
+        // Everything else waits its turn behind the clock, which feeds the screen one card per tick. Admitting a
+        // burst straight to the slots was admitting a burst that all goes off together: five cards given the same
+        // eight seconds in the same frame come due on the same tick later, and the stack above them falls five
+        // slots in one move. Spacing the arrivals spaces their expiries with the same mechanism, and a card still
+        // spends the time it was given -- counted from when it appeared, as it always was.
+        if (_cards.Count(c => c.PluginKey == item.PluginKey)
+            + _pending.Count(p => p.PluginKey == item.PluginKey) >= PerPluginAcceptedLimit)
         {
-            logWarning($"[Notifications] {item.SourceName} already has {PerPluginPendingLimit} cards queued; " +
+            logWarning($"[Notifications] {item.SourceName} already has {PerPluginAcceptedLimit} cards accepted; " +
                        $"dropped \"{Truncate(item.Request.Message, 120)}\" as QueueFull.");
             item.Complete(NotificationResult.Failed(NotificationFailure.QueueFull));
             return;
@@ -197,25 +249,28 @@ internal sealed class NotificationQueue(
         return item;
     }
 
-    private void Refill()
+    private void PromoteOne()
     {
-        while (_pending.Count > 0)
-        {
-            if (isFullscreen())
-            {
-                // Feed the collapsed cards through the single notice line one at a time instead of all at
-                // once, or each would replace the one before it before anyone could read it.
-                if (_notice != null) return;
-                ShowNotice(Collapse(TakePending()));
-                return;
-            }
+        if (_pending.Count == 0) return;
 
-            if (_cards.Count >= VisibleCardLimit) return;
-            var next = TakePending();
-            _cards.Add(next);
-            next.ReachedScreen = true;
-            show(next);
+        // One waiting card per pass, and the service's clock runs the next pass while room remains. A burst of
+        // requests given the same duration is admitted in one frame, and if every free slot were filled in that
+        // same frame their countdowns would all be due on the same tick several seconds later -- which is what
+        // arrived as four cards vanishing and the whole stack re-sliding inside twelve milliseconds.
+        if (isFullscreen())
+        {
+            // Feed the collapsed cards through the single notice line one at a time instead of all at
+            // once, or each would replace the one before it before anyone could read it.
+            if (_notice != null) return;
+            ShowNotice(Collapse(TakePending()));
+            return;
         }
+
+        if (_cards.Count >= VisibleCardLimit) return;
+        var next = TakePending();
+        _cards.Add(next);
+        next.ReachedScreen = true;
+        show(next);
     }
 
     private NotificationItem TakePending()
@@ -245,50 +300,5 @@ internal sealed class NotificationQueue(
     {
         if (string.IsNullOrEmpty(text)) return "(empty)";
         return text.Length <= limit ? text : string.Concat(text.AsSpan(0, limit), "...");
-    }
-}
-
-/// <summary>
-/// One accepted notification: the request, the decision about how it is being shown, and the task the
-/// caller waits on. This is what a plugin holds through <see cref="INotificationHandle"/>.
-/// </summary>
-internal sealed class NotificationItem(
-    NotificationRequest request,
-    string pluginKey,
-    string sourceName,
-    NotificationPosition effectivePosition,
-    double durationSeconds,
-    NotificationQueue? owner) : INotificationHandle
-{
-    // Continuations run elsewhere on purpose: completing this from the UI thread would hand a plugin's
-    // continuation the thread that is in the middle of closing the notification's window.
-    private readonly TaskCompletionSource<NotificationResult> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-    public NotificationRequest Request { get; } = request;
-    public string PluginKey { get; } = pluginKey;
-    public string SourceName { get; } = sourceName;
-
-    /// <summary>The position it is actually rendered as, which differs from the request for a card
-    /// collapsed into the notice line.</summary>
-    public NotificationPosition EffectivePosition { get; set; } = effectivePosition;
-
-    /// <summary>Seconds already clipped to the position's range: how long it will be on screen.</summary>
-    public double DurationSeconds { get; set; } = durationSeconds;
-
-    /// <summary>Whether this ever had a window, which decides whether cancelling has anything to take down.</summary>
-    internal bool ReachedScreen { get; set; }
-
-    /// <summary>True once an end state has been delivered, so a presentation already handed to the UI thread
-    /// can be dropped instead of painted.</summary>
-    internal bool IsSettled { get; private set; }
-
-    public Task<NotificationResult> Completion => _completion.Task;
-
-    public void Dismiss() => owner?.NotifyClosed(this);
-
-    /// <summary>First end state wins, so a close that arrives after a cancellation cannot rewrite it.</summary>
-    internal void Complete(NotificationResult result)
-    {
-        if (_completion.TrySetResult(result)) IsSettled = true;
     }
 }

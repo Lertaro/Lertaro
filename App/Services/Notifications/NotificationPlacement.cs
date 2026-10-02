@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using Lertaro.Core.Hook;
 
 namespace Lertaro.App.Services.Notifications;
@@ -34,14 +35,7 @@ internal static class NotificationPlacement
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT { public int X; public int Y; }
 
-    internal readonly record struct Target(Rect WorkAreaDip, double ScaleX)
-    {
-        /// <summary>The x of the work area's right edge, in DIP.</summary>
-        public double Right => WorkAreaDip.X + WorkAreaDip.Width;
-
-        /// <summary>The y of the work area's bottom edge, in DIP.</summary>
-        public double Bottom => WorkAreaDip.Y + WorkAreaDip.Height;
-    }
+    internal readonly record struct Target(Rect WorkAreaDip);
 
     /// <summary>Resolves the screen a notification should be placed on, right now.</summary>
     internal static Target Resolve()
@@ -72,13 +66,25 @@ internal static class NotificationPlacement
                 }, MonitorDefaultToNearest);
         }
 
-        if (screen == null) return new Target(new Rect(0, 0, 0, 0), 1.0);
+        if (screen == null) return new Target(new Rect(0, 0, 0, 0));
 
         var area = screen.WorkingArea;
         var scale = DpiScaleFor(monitor);
-        return new Target(
-            new Rect(area.X / scale, area.Y / scale, area.Width / scale, area.Height / scale),
-            scale);
+        return new Target(new Rect(area.X / scale, area.Y / scale, area.Width / scale, area.Height / scale));
+    }
+
+    /// <summary>Whether the pointer sits over a window right now. WPF's IsMouseOver only updates when a mouse
+    /// message is routed, so a card that appears under a pointer nobody moved counts as unhovered and starts
+    /// running down on somebody who is plainly looking at it.</summary>
+    internal static bool IsPointerOver(Window window)
+    {
+        // PointFromScreen does the cross-monitor DPI arithmetic that hand-written scaling gets wrong, which is
+        // the reason to ask it rather than compare the cursor against the window's own Left and Top.
+        if (PresentationSource.FromVisual(window) is not HwndSource) return false;
+        if (!GetCursorPos(out var cursor)) return false;
+        var point = window.PointFromScreen(new System.Windows.Point(cursor.X, cursor.Y));
+        return point.X >= 0 && point.X <= window.ActualWidth
+            && point.Y >= 0 && point.Y <= window.ActualHeight;
     }
 
     /// <summary>The monitor's horizontal DPI as a scale factor, 1.0 when there is no monitor to ask.</summary>
