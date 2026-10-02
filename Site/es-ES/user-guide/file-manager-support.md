@@ -11,7 +11,7 @@ En función de las características de la ventana anfitriona, Lertaro ofrece has
 - **Detección de ruta activa (Active Path Detection)**: Reconoce en tiempo real el directorio físico abierto en la ventana anfitriona, limitando automáticamente el ámbito de búsqueda y resolviendo rutas relativas.
 
 > [!TIP]
-> Una tarjeta incrustada acoplada en un diálogo de archivos **deja el teclado en el lado del diálogo** a propósito, así que escribir sigue funcionando exactamente igual que antes. Pulsa `Ctrl+K` — o una doble pulsación de `Ctrl` — para mover el cursor a la tarjeta, y vuelve a pulsarlo con la tarjeta vacía para devolver el foco. Consulta la sección "Invocación y traspaso del foco en la Ventana incrustada" de [**Atajos de teclado**](./hotkeys).
+> Una tarjeta incrustada acoplada en un diálogo de archivos **deja el teclado en el lado del diálogo** a propósito, así que escribir sigue funcionando exactamente igual que antes. Una doble pulsación de `Ctrl` — o el atajo de invocación que configures — mueve el cursor a la tarjeta, y vuelve a pulsarlo con la tarjeta vacía para devolver el foco. Consulta la sección "Invocación y traspaso del foco en la Ventana incrustada" de [**Atajos de teclado**](./hotkeys).
 
 ## 2. Componentes nativos de Windows (Integrados de serie)
 

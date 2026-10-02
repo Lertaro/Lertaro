@@ -18,9 +18,10 @@ No todas las filas tienen menú. No está disponible en la fila **Ver más**, en
 | **Copiar ruta completa** | `Ctrl+Shift+C` | Copia la ruta absoluta (p. ej. `D:\Projects\app.exe`) al portapapeles. |
 | **Copiar nombre** | `Shift+C` | Copia al portapapeles los nombres de los archivos o carpetas seleccionados, sin sus rutas. |
 | **Copiar archivo** | `Ctrl+C` | Coloca el archivo en el portapapeles, listo para pegarlo en el Explorador o cualquier carpeta. |
-| **Cortar / Pegar en esta carpeta** | — | Ambas están en el menú, pero llegan **sin tecla predeterminada**, igual que Eliminar y Eliminación permanente: antes replicaban las `Ctrl+X` / `Ctrl+V` / `Delete` / `Shift+Delete` del Explorador, y bajo un cuadro de búsqueda esas teclas se activaban por accidente. Vuelve a asignar cualquiera de ellas en [**Configuración → Atajos de teclado**](./settings/hotkeys-page) (pestaña Acciones de plugins). |
-| **Eliminar (Papelera de reciclaje)** | — | Mueve el archivo o carpeta seleccionado a la Papelera de reciclaje de Windows de forma segura. |
-| **Eliminación permanente** | — | Elimina permanentemente el elemento (solicita confirmación; no se puede recuperar). |
+| **Cortar / Copiar archivo** | `Ctrl+X` / `Ctrl+C` | Coloca el archivo en el portapapeles, listo para pegarlo en el Explorador o cualquier carpeta. Si hay texto seleccionado en el cuadro de búsqueda, estas teclas siguen siendo órdenes sobre el texto. |
+| **Pegar en esta carpeta** | `Ctrl+V` | Cuando una carpeta está resaltada, pega los archivos del portapapeles directamente en ese directorio. Necesita una lista real de archivos en el portapapeles, así que pegar texto en la consulta no se ve afectado. |
+| **Eliminar (Papelera de reciclaje)** | `Delete` | Mueve el archivo o carpeta seleccionado a la Papelera de reciclaje de Windows de forma segura. Una tecla aislada solo llega a la acción cuando el cursor ya está al final de la consulta, y después llega la confirmación nativa de la Papelera. |
+| **Eliminación permanente** | `Shift+Delete` | Elimina permanentemente el elemento (aviso nativo de "¿eliminar definitivamente?"; después de eso no se puede recuperar). |
 | **Cambiar nombre** | — | Cambia el nombre de un único archivo o carpeta existente mediante Windows Shell. El diálogo selecciona de antemano la parte del nombre para facilitar su sustitución. |
 | **Menú contextual de Windows** | — | Despliega el menú contextual nativo completo de Windows Explorer (incluyendo opciones de terceros y "Enviar a"). |
 

@@ -34,12 +34,11 @@ Una tarjeta acoplada en un diálogo de archivos nativo **no roba el teclado** a 
 | Gesto | Efecto | Condiciones |
 | :--- | :--- | :--- |
 | **Escribir una letra o un dígito** | Invoca la tarjeta y lleva ese primer carácter al cuadro de búsqueda; las pulsaciones siguientes siguen entrando | Solo pulsaciones reales: la entrada sintetizada por herramientas de automatización pasa intacta, y no se captura nada mientras haya un menú contextual o del sistema abierto |
-| **`Ctrl+K`** | Coloca el cursor en el cuadro de búsqueda propio de la tarjeta | Fijo (no configurable). Requiere que la tarjeta esté en pantalla sobre un **diálogo de archivos** con la Ventana rápida cerrada. La tecla se consume, así que el `Ctrl+K` propio del anfitrión no se activa también |
-| **Doble pulsación de `Ctrl`** | El mismo traspaso que `Ctrl+K`. Cuando el cuadro ya tiene el cursor y la consulta está vacía, en cambio borra la consulta y devuelve el foco al campo del diálogo, manteniendo la tarjeta abierta | Sigue el atajo de Mostrar/Ocultar que tengas configurado |
+| **Doble pulsación de `Ctrl`** (o el atajo de invocación que configures) | Coloca el cursor en el cuadro de búsqueda propio de la tarjeta. Cuando el cuadro ya tiene el cursor y la consulta está vacía, en cambio borra la consulta y devuelve el foco al campo del diálogo, manteniendo la tarjeta abierta | Es el mismo atajo que en cualquier otra parte, así que reasignarlo en [**Configuración → Atajos de teclado**](./settings/hotkeys-page) también mueve esto. Un diálogo de archivos sigue permitido incluso cuando una lista negra o la pantalla completa suelen silenciar los atajos globales |
 | **`Escape`** | Mientras el **diálogo** tiene el teclado, la tarjeta se cierra. Mientras lo tiene la **tarjeta**, se borra la consulta y el foco vuelve al diálogo (en un diálogo de archivos) o la tarjeta se cierra (acoplada sobre una ventana normal del Explorador) | |
 | **`Backspace`** en un cuadro vacío | Abandona la búsqueda exactamente igual que `Escape` | Solo cuando la tarjeta tiene el cursor; mientras el diálogo tiene el teclado la tecla solo edita la consulta de la tarjeta |
 | **`Enter`** en un cuadro vacío | Abandona la búsqueda como `Escape` | Solo cuando la tarjeta tiene el cursor: mientras el diálogo tiene el teclado, `Enter` abre la fila de navegación resaltada |
-| **`Tab`** | Siempre queda como el recorrido de controles propio del diálogo, así que llega a la tarjeta con `Ctrl+K` o con una doble pulsación | |
+| **`Tab`** | Siempre queda como el recorrido de controles propio del diálogo, así que llega a la tarjeta con el atajo de invocación | |
 
 > [!NOTE]
 > Dentro de un diálogo de archivos el menú de acciones no está disponible para la tarjeta (`Ctrl+O`, `→` y el clic derecho no hacen nada ahí), y tampoco se ofrece la vista previa con `Alt+P`. El ratón sigue funcionando sobre las filas: el **clic izquierdo** abre el resultado resaltado, **`Ctrl`+clic** lo abre como administrador, una fila se puede **arrastrar hacia fuera** hacia el diálogo y simplemente **pasar el ratón por encima** mueve la selección, que el explorador anfitrión refleja.
@@ -114,7 +113,6 @@ Para garantizar un comportamiento coherente y determinista, las siguientes tecla
 | `←` / `→` Flechas | Menú de acciones | Flecha izquierda vuelve al menú superior; flecha derecha entra en submenús. `Tab` entra en un submenú también, salvo que la hayas asignado al atajo de elemento siguiente/anterior. |
 | `Tab` | Tarjeta incrustada | Se consume para que el foco no pueda salir del cuadro de búsqueda, mientras que `Tab` dentro del diálogo sigue recorriendo sus propios controles como siempre. |
 | `Tab` | Menú de acciones | Entra en el submenú resaltado, salvo que hayas asignado `Tab` al atajo de elemento siguiente/anterior, que gana. |
-| `Ctrl+K` | Tarjeta incrustada sobre un diálogo de archivos | Coloca el cursor en el cuadro de búsqueda sin que el diálogo se entere; se consume, así que el `Ctrl+K` propio del anfitrión no se activa también. |
 | `Apps` / `Shift+F10` | Ventana principal | Abre el menú de acciones de la selección actual, exactamente igual que el clic derecho. |
 | `Alt+Space` | Todas las ventanas | Bloqueado para evitar activar el menú del sistema en ventanas sin marco. |
 | `Alt+F4` | Ventanas Principal / Config | Cierra la ventana normalmente; bloqueado en las ventanas Rápida, Incrustada, Panel rápido, Vista previa, LocalSend y los diálogos internos de la aplicación. |
@@ -123,9 +121,9 @@ Para garantizar un comportamiento coherente y determinista, las siguientes tecla
 
 ### Atajos de acciones de plugins
 
-Las acciones de archivo integradas llegan con estos valores predeterminados: Copiar ruta completa `Ctrl+Shift+C`, Copiar archivo `Ctrl+C`, Copiar nombre `Shift+C`, Mostrar en Explorador `Ctrl+Enter`, Ejecutar como administrador `Ctrl+Shift+Enter`.
+Las acciones de archivo integradas llegan con estos valores predeterminados: Cortar `Ctrl+X`, Copiar archivo `Ctrl+C`, Pegar `Ctrl+V`, Eliminar `Delete`, Eliminación permanente `Shift+Delete`, Copiar ruta completa `Ctrl+Shift+C`, Copiar nombre `Shift+C`, Mostrar en Explorador `Ctrl+Enter`, Ejecutar como administrador `Ctrl+Shift+Enter`.
 
-**Cortar, Pegar, Eliminar y Eliminación permanente no tienen valor predeterminado a propósito.** Antes replicaban las del Explorador (`Ctrl+X`, `Ctrl+V`, `Delete`, `Shift+Delete`), pero aquí esas teclas quedan debajo de un cuadro de búsqueda donde `Delete` significa "borrar un carácter", y los usuarios informaron de haberlas activado por accidente — la Eliminación permanente, de forma irreversible. Las acciones siguen estando en el menú, y cada una se puede volver a asignar en **Configuración → Atajos de teclado → Acciones de plugins** si quieres la tecla: la diferencia entre heredarla y elegirla.
+Dos salvaguardas hacen que las teclas destructivas sean seguras bajo un cuadro de búsqueda. Una combinación solo llega a una acción cuando el cuadro de búsqueda **no tiene texto seleccionado**, así que `Ctrl+X` / `Ctrl+C` / `Ctrl+V` siguen cortando, copiando y pegando tu consulta como siempre. Una tecla aislada como `Delete` solo llega a una acción cuando el cursor **ya está al final** de la consulta, donde no le queda ningún carácter que borrar; en cualquier otra posición del texto sigue siendo una tecla de escritura. Y las dos acciones de borrado pasan por el `IFileOperation` propio del shell, así que el aviso nativo de "¿mover a la Papelera de reciclaje?" / "¿eliminar definitivamente?" sigue interponiéndose entre la tecla y los archivos. Reasigna o vacía cualquiera de ellas en **Configuración → Atajos de teclado → Acciones de plugins**.
 
 ### Lista negra de procesos y omisión en pantalla completa
 

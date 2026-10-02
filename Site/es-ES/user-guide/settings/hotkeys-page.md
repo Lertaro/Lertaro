@@ -51,7 +51,7 @@ Cada favorito ([**Configuración → Favoritos**](./favorites)) puede llevar su 
 
 ## 2. Acciones de plugins
 
-Muestra todos los atajos registrados por plugins (p. ej. Copiar ruta completa `Ctrl+Shift+C`, Cortar `Ctrl+X`, Copiar `Ctrl+C`, Pegar `Ctrl+V`, Eliminar `Delete`, Eliminación permanente `Shift+Delete`).
+Muestra todos los atajos registrados por plugins (p. ej. Copiar ruta completa `Ctrl+Shift+C`, Copiar nombre `Shift+C`, Cortar `Ctrl+X`, Copiar `Ctrl+C`, Pegar `Ctrl+V`, Eliminar `Delete`, Eliminación permanente `Shift+Delete`).
 
 - **Vista agrupada**: Organizado con claridad por plugin de origen.
 - **Reasignación individual**: Cada acción cuenta con su propio control de grabación.
