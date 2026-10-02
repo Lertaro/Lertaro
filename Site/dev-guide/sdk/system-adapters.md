@@ -22,7 +22,7 @@ public interface IOpenedFolderCollector : IPluginComponent
 }
 ```
 
-An adapter returns one entry per open window, so a manager with five tabs reports five folders; the host deduplicates by path.
+An adapter returns one entry per open window, so a manager with five tabs reports five folders. The registry hands that list on **with duplicates intact on purpose** — a folder seen by two collectors, or by one collector twice, appears twice; callers that want a set deduplicate by path themselves.
 
 ## 2. Active Path Collector `IActivePathCollector`
 
@@ -67,12 +67,15 @@ public interface IFileDialogAdapter : IPluginComponent
     bool CanShowQuickNav(IntPtr hwndUnderCursor, string classNameUnderCursor) => true;
 
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);          // where to dock the card
-    bool RestoreFocus(IntPtr hwnd);
 
-    // Control-layout probes: they tell a folder-picking dialog from a file-picking one when the
-    // title and the field names say nothing, and both default to "I do not know".
+    // Placement probes: where the dialog's own target field is, and where its file list is. The
+    // inline card reads both to decide where to hang itself -- under the field, over the list, or
+    // where it fits when there is no room below. Return false for either and the host falls back to
+    // GetDockBounds. Both default to "I cannot see that control".
     bool TryGetTargetFieldBounds(IntPtr hwnd, out AdapterRect bounds) { bounds = default; return false; }
     bool TryGetFileListBounds(IntPtr hwnd, out AdapterRect bounds) { bounds = default; return false; }
+
+    bool RestoreFocus(IntPtr hwnd);
 }
 
 public struct AdapterRect   // physical pixels
@@ -82,7 +85,7 @@ public struct AdapterRect   // physical pixels
 ```
 
 - **`TargetIsFolderOnly`**: When `true`, if the user selects a file from search results, the host automatically resolves its parent folder before invoking `NavigateTo`.
-- **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**: Used by the host's inline-window folder scope to distinguish a dialog that has a file-name field from one that only has a folder tree. An adapter that cannot resolve them returns `false` and the host falls back to its other signals.
+- **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**: Card placement only. The positioner prefers to hang the card under the dialog's target field, and uses the file list as the fallback anchor; a dialog whose adapter cannot resolve either simply gets the `GetDockBounds` rectangle.
 - **`RestoreFocus`**: Hands the keyboard back to the dialog's own edit field. The host calls it when the user leaves the inline card (`Escape`, or the summon hotkey pressed again on an empty card), so this must not activate anything else.
 
 ## 4. Inline Search Adapter `IInlineSearchAdapter`
@@ -164,6 +167,6 @@ The host looks adapters up through four static registries in `Lertaro.PluginSdk.
 | `ActivePathCollectorRegistry` | `Register(IActivePathCollector)`, `GetCollectors()`, `GetAllCollectors()` |
 | `FileDialogAdapterRegistry` | `Register(IFileDialogAdapter)`, `GetMatchingAdapter(hwnd, className, processName)`, `GetAdapters()`, `GetAllAdapters()` |
 | `InlineSearchAdapterRegistry` | `Register(IInlineSearchAdapter)`, `GetMatchingAdapter(hwnd, className, processName)`, `GetAdapters()`, `GetAllAdapters()` |
-| `OpenedFolderCollectorRegistry` | `GetOpenedFolders()` — aggregates across every collector and deduplicates by path |
+| `OpenedFolderCollectorRegistry` | `GetOpenedFolders()` — concatenates what every enabled collector reports; duplicates are **retained by design**, and one collector that throws is skipped so a broken file manager cannot sink the whole snapshot |
 
-The first three each expose a host-assigned `Func<T, bool> FilterFunc`: the host narrows it to the components the user has enabled, so `GetCollectors()` / `GetAdapters()` return the filtered view while `GetAllCollectors()` / `GetAllAdapters()` return everything registered. A plugin never assigns it. Matching order is registration order, and the first adapter whose `CanHandle` answers `true` owns the window — which is why a generic `#32770` dialog adapter must not claim a window a specialised one already covers.
+The first three each expose a host-assigned `Func<T, bool> FilterFunc`: the host narrows it to the components the user has enabled, so `GetCollectors()` / `GetAdapters()` return the filtered view while `GetAllCollectors()` / `GetAllAdapters()` return everything registered. A plugin never assigns it. Matching order is registration order, and the first adapter whose `CanHandle` answers `true` owns the window — which is why a generic `#32770` dialog adapter must not claim a window a specialised one already covers. The dialog registry adds one veto on top of that: after an adapter claims a window, a block-listed window caption makes the lookup return `null` instead of falling through to the next adapter, so no adapter serves that window at all.

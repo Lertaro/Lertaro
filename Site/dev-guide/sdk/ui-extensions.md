@@ -114,7 +114,8 @@ namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
 
 public interface IFilePreviewProvider : IPluginComponent
 {
-    // Tie-break when several providers claim the same file; higher wins.
+    // Breaks ties only. The user's configured provider order (Settings → General →
+    // Previews & Thumbnails) is applied first; Priority sorts inside it, higher first.
     int Priority => 0;
 
     bool CanPreview(string path, bool isDir);
@@ -128,10 +129,11 @@ public interface IFilePreviewProvider : IPluginComponent
 
 #### Preview Lifecycle & Reuse Contracts
 
-When the `UIElement` you return implements either of these optional contracts, the host optimizes the preview lifecycle:
+When your **provider** implements the first contract below, or the `UIElement` you return implements the second, the host optimizes the preview lifecycle:
 
-- **`IPreviewSessionAware`** — `void EndPreviewSession();` The provider owns a real external window (an `HwndHost`, a native `IPreviewHandler` and its `prevhost` surrogate), not just an in-process control, so it is told to end its session when the panel hides or the whole preview session ends. Without this the host's window would linger with nothing pointing at it.
-- **`IReusablePreview`** — `bool TrySetTarget(string path, bool isDir);` When the user steps between similar files with the arrow keys, the host asks the same control to retarget instead of destroying and rebuilding it, which is what removes the flicker. Return `false` when the new target does not suit this instance and the host falls back to building a fresh preview.
+- **`IPreviewSessionAware`** — cast on the **provider**, not on the control it returned: `void EndPreviewSession();`. The provider owns a real external window (an `HwndHost`, a native `IPreviewHandler` and its `prevhost` surrogate), not just an in-process control, so it is told to end its session when the owner window closes, and — for providers that render in-process — only when the preview panel hides or the session ends. Without this the host's window would linger with nothing pointing at it.
+- **`IReusablePreview`** — cast on the returned element: `bool TrySetTarget(string path, bool isDir);`. When the user steps between similar files with the arrow keys, the host asks the same control to retarget instead of destroying and rebuilding it, which is what removes the flicker. Return `false` when the new target does not suit this instance and the host falls back to building a fresh preview.
+- **`IReceivesPreviewPanelBounds`** — `void OnPreviewPanelBoundsAvailable(int left, int top, int width, int height);`. A provider hosting its own out-of-process window needs to know the rectangle the panel occupies so it can parent or position into it; implement this to be handed that rectangle once it is known.
 
 ### Custom Thumbnail Provider `IThumbnailProvider`
 
@@ -142,12 +144,17 @@ namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
 
 public interface IThumbnailProvider : IPluginComponent
 {
+    // Same rule as previews: the user's configured thumbnail-provider order decides first,
+    // Priority only sorts within it.
     int Priority => 0;
 
     bool CanProvideThumbnail(string path, bool isDir);
 
-    // Synchronous, because it runs on the result-list rendering path. Keep it fast, and cache
-    // by path and size yourself -- the host does not memoise the result for you.
+    // Synchronous, because it runs on the result-list rendering path -- keep it fast.
+    // You do NOT have to memoise: the host caches what you return (keyed by path for a
+    // physical or virtual item, by extension otherwise). Two consequences: `size` is the
+    // host's own choice, taken from the shell image list, so do not expect a particular
+    // number; and a provider is never asked about a directory at all.
     ImageSource? GetThumbnail(string path, int size);
 }
 ```
@@ -165,6 +172,10 @@ public interface IThemeProvider : IPluginComponent
 {
     IEnumerable<ITheme> GetThemes();
 }
+```
+
+```csharp
+namespace Lertaro.PluginSdk.Abstractions;   // note: the theme itself is one level up
 
 public interface ITheme
 {
@@ -173,9 +184,12 @@ public interface ITheme
     bool IsDark { get; }
     ResourceDictionary GetResources();
 
-    // Below 1.0 the host renders its borderless windows as layered, translucent surfaces;
-    // at 1.0 they stay opaque and keep ClearType. This value is what decides which kind a
-    // window is built as, and it cannot change after the window exists.
+    // Below 1.0 a window built through the host's layered-surface helper becomes a layered,
+    // translucent window whose corner has to be painted and clipped; at 1.0 it stays opaque,
+    // is rounded by the window manager, and keeps ClearType. The choice is made once, in the
+    // window's constructor, because AllowsTransparency cannot change after the handle exists.
+    // Applied to the notification windows today; a theme switch while a window is on screen
+    // does not rebuild it.
     double WindowOpacity => 1.0;
 }
 ```

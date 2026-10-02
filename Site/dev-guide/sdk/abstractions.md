@@ -16,8 +16,8 @@ public interface ISearchResult
     string ContextDirectory { get; }      // Parent folder path
     bool IsDir { get; }                   // True if directory
     bool IsApplication { get; }           // True if executable / app
-    FileMetadata Metadata => default;     // High-precision file metadata
     bool[]? GetHighlightMask(string text, string query) => null; // Highlight bitmask
+    FileMetadata Metadata => default;     // High-precision file metadata
     string? InstantActionArgument => null; // What an instant result points at
 }
 ```
@@ -72,18 +72,19 @@ public interface IConfigurable
 | Field Type | Visual Control & Behavior |
 | :--- | :--- |
 | **`Boolean`** | Toggle switch or checkbox. |
-| **`Text`** | Text input box. Supports `RequireNonEmpty` to fall back to `DefaultValue` when cleared. |
-| **Text selection** | `SelectionStart` and `SelectionLength` specify the zero-based initial selection in a `Text` field's prompt editor. |
+| **`Text`** | Text input box. `RequireNonEmpty` falls back to `DefaultValue` when the user clears it; `MaxLength` caps the length (0 or unset means no cap); `SelectionStart` / `SelectionLength` set the zero-based initial selection in the prompt editor that opens for this field. |
 | **`Integer`** | Numeric stepper with minimum and maximum bounds. |
 | **`Choice`** | Dropdown selector backed by a `Choices` or `ChoiceOptions` collection. |
-| **`Array`** | A list value. With `SubFields` it is a list of **records** rendered as a master/detail editor (one nested form per entry — the shape the file-filter, custom-command and web-search plugins use); without `SubFields` it is a plain list of scalars rendered as a compact single-column editor. `DefaultValue` is an empty `List<object>`. |
+| **`Array`** | A list value. With `SubFields` it is a list of **records** rendered as a master/detail editor (one nested form per entry — the shape the file-filter, custom-command and web-search plugins use); without `SubFields` it is a plain list of scalars rendered as a compact single-column editor. The SDK gives `DefaultValue` no default at all (`object?`, `null!` in the declaration), which is why every in-repo plugin passes `new List<object>()` for an empty list. |
 | **`Object`** | A single structured value edited through its `SubFields`, without the list affordances of `Array`. |
+| **`Group`** | Collapsible card grouping containing nested `SubFields`. |
+| **`StringList`** | Editable multi-line list box supporting addition, deletion, reordering, and soft wrapping. Real line breaks are marked visually, but the markers are not part of the setting value. |
 | **`Hotkey`** | Key recording box with optional `RequireModifier = true`. |
 | **`FilePath` / `FolderPath`** | Text box with native Windows file/folder browse dialog picker buttons. |
-| **`StringList`** | Editable multi-line list box supporting addition, deletion, reordering, and soft wrapping. Real line breaks are marked visually, but the markers are not part of the setting value. |
-| **`Group`** | Collapsible card grouping containing nested `SubFields`. |
-| **`CustomControl`** | Mounts a custom WPF `UIElement` control directly. |
+| **`CustomControl`** | Mounts a custom WPF `UIElement` control directly (also reachable through `CustomControl`). |
 | **`Button`** | Renders an action button and invokes the field's `OnClick` delegate; it stores no setting value. |
+
+The remaining `PluginConfigField` members are what the host renders or persists around those types: `Key` (the persisted setting name), `GroupKey` (which `Group` card the field sits in), `LabelKey` / `DescriptionKey` (translation keys, not literal text), `RequireNonEmpty`, `Choices` / `ChoiceOptions` / `SubFields`, `IsTriggerWord` (see [**Core Search & Actions**](./core-search-actions), "Trigger Words"), `MaxLength`, `SelectionStart` / `SelectionLength`, `CustomControl`, `OnClick`, and two delegates that let a plugin store a value somewhere other than the host's settings store: `Func<object?>? GetValue` and `Action<object?>? SetValue`.
 
 ### Icon fields
 
@@ -127,16 +128,24 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 }
 ```
 
-The host calls the provider on a background thread while the full search window's own file search is still streaming, and paints its rows as soon as they arrive rather than once the search has settled. Return an empty list when the provider does not handle the query. Every returned `InstantResultItem` must represent an existing file or folder so the full window's path, size, and type columns remain meaningful. A provider whose answer takes seconds -- a full-text index walk, for instance -- can override `GetFileResultsStreamed` to hand out hits as it finds them, which puts the first rows on screen while the rest are still being looked up; overriding it is optional because the interface's default body walks `GetFileResults`. The component is managed by the same enable/disable switch as the plugin's instant-result provider.
+The host calls the provider on a background thread while the full search window's own file search is still streaming, and paints its rows as soon as they arrive rather than once the search has settled. Return an empty list when the provider does not handle the query. Every returned `InstantResultItem` must represent an existing file or folder so the full window's path, size, and type columns remain meaningful. A provider whose answer takes seconds -- a full-text index walk, for instance -- can override `GetFileResultsStreamed` to hand out hits as it finds them, which puts the first rows on screen while the rest are still being looked up; overriding it is optional because the interface's default body walks `GetFileResults`. The component has **its own** enable/disable switch under **Settings → Plugins**, keyed by its own component type — turning the plugin's instant-result provider off does not turn this off, or vice versa.
 
 ## 6. User-configured path resolution `UserPathResolver`
 
 Use `Lertaro.PluginSdk.Helpers.UserPathResolver` whenever a plugin accepts a path from the user or its settings. It applies the same rules for environment variables and Windows Shell virtual paths before filesystem APIs are called:
 
 ```csharp
-string expanded = UserPathResolver.Expand(rawPath);
+string expanded = UserPathResolver.Expand(rawPath);            // takes string?, returns string
 bool isVirtual = UserPathResolver.IsVirtualPath(expanded);
-string resolved = UserPathResolver.Resolve(rawPath);
+string resolved = UserPathResolver.Resolve(rawPath);           // optional 2nd arg below
+
+// Both Resolve and ResolveForNavigation accept an optional Func<string, string>? used to
+// turn an unparseable virtual token into a real path before the filesystem is asked; with no
+// resolver and nothing to parse, the input comes back as a last resort.
+
+// Use ResolveForNavigation, not Resolve, when the path is about to be opened or browsed: it
+// additionally normalises a virtual shell item to the filesystem target the host can navigate to.
+string target = UserPathResolver.ResolveForNavigation(rawPath);
 ```
 
 `Expand` trims the input and expands references such as `%USERPROFILE%`. `Resolve` performs that expansion and resolves tokens such as `shell:Downloads` or `::{CLSID}` to a physical path when possible. A virtual folder that has no physical path, such as `shell:AppsFolder`, resolves to its canonical `::{CLSID}` name instead, so every spelling of it compares equal; that result is still virtual. Only a token the Shell cannot parse at all comes back unchanged. Test the result with `IsVirtualPath` before passing it to filesystem APIs. Directory indexing APIs can only enumerate a path after it resolves to a real, index-covered folder.

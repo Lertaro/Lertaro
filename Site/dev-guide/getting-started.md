@@ -13,31 +13,37 @@ A Lertaro plugin is a standard .NET 10 class library project. Create a new C# cl
     <Nullable>enable</Nullable>
     <!-- Enable UseWPF only if your plugin renders custom XAML/WPF controls -->
     <UseWPF>true</UseWPF>
-    <AssemblyName>YourCompany.Plugins.MyCustomPlugin</AssemblyName>
+    <!-- MANDATORY prefix: the loader skips any DLL whose assembly name does not
+         start with "Lertaro.Plugins." (case-insensitive) -->
+    <AssemblyName>Lertaro.Plugins.MyCustomPlugin</AssemblyName>
     <Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Reference Lertaro.PluginSdk.dll from your Lertaro installation directory -->
+    <!-- Reference the SDK from the installed Lertaro application folder. In this
+         repository the shipped plugins use a <ProjectReference> to PluginSdk/ instead. -->
     <Reference Include="Lertaro.PluginSdk">
-      <HintPath>..\..\App\Lertaro.PluginSdk.dll</HintPath>
+      <HintPath>C:\Program Files\Lertaro\Lertaro.PluginSdk.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
 </Project>
 ```
 
+> [!WARNING]
+> The `Lertaro.Plugins.` prefix is a hard filter, not a convention: the recursive `Plugins\**\*.dll` scan reads the assembly name and never even reflects over a DLL that does not start with it, so a plugin named `YourCompany.MyPlugin.dll` is silently not loaded. Keep the prefix in `AssemblyName` and set `<Private>false</Private>` so the SDK is not copied into your output.
+
 > [!TIP]
-> Pure logic plugins (such as search providers, alias engines, or CLI helpers) do not require `<UseWPF>`. Setting `<Private>false</Private>` on `PluginSdk.dll` avoids redundant copying of the SDK into your build output.
+> Pure logic plugins (such as search providers, alias engines, or CLI helpers) do not require `<UseWPF>`.
 
 ## 2. Implementing the `IPlugin` Entry Point
 
-Every plugin assembly must contain exactly one public class implementing the `IPlugin` interface as its primary entry point:
+Every plugin assembly contains at least one public class implementing `IPlugin`, which the loader instantiates as the plugin's entry point:
 
 ```csharp
-using Lertaro.PluginSdk;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 
-namespace YourCompany.Plugins.MyCustomPlugin;
+namespace Lertaro.Plugins.MyCustomPlugin;
 
 public class MyCustomPlugin : IPlugin
 {
@@ -46,21 +52,26 @@ public class MyCustomPlugin : IPlugin
 }
 ```
 
+Reflection finds **every** `IPlugin` implementation in the DLL and creates one instance each, so putting two on screen registers two plugins with two settings cards. Ship one unless you genuinely want two entries.
+
 From here, you can implement additional SDK interfaces on the same class or on separate component classes. For instance, implement `IInstantResultProvider` to calculate dynamic answers or `IConfigurable` to provide a schema-driven configuration form.
 
 ## 3. Deployment & Loading
 
-1. Build your project to produce `YourCompany.Plugins.MyCustomPlugin.dll`.
-2. Place the compiled DLL (along with any third-party dependencies) into a subfolder under `Plugins\MyCustomPlugin\` within the Lertaro App root.
-3. Start or restart Lertaro; the App process will automatically scan `Plugins/` and load the assembly.
+1. Build your project to produce `Lertaro.Plugins.MyCustomPlugin.dll`.
+2. Place the compiled DLL (along with any third-party dependencies) under the `Plugins\` folder of the Lertaro App root. A dedicated subfolder per plugin is the convention and the scan is recursive (`Plugins\**\*.dll`), so `Plugins\MyCustomPlugin\` works; the in-repo build automation drops the DLLs flat into `Plugins\` and that works too.
+3. Start or restart Lertaro; the App process scans `Plugins\` and loads every assembly whose name carries the prefix.
 4. Navigate to **Settings → Plugins** to inspect your active components and settings.
+
+> [!NOTE]
+> If your plugin contributes an `IAliasProvider` or an `ITranslationProvider`, the background **Service** needs the same DLL: those two kinds are also loaded there so indexed rows carry the right aliases and labels. That is why the shipped plugin projects copy their output into both `App\bin\...\Plugins\` and `Service\bin\...\Plugins\`.
 
 ## 4. Debugging & Logging
 
-Use `PluginSdk.Services.Logger` for all application logging inside your plugin:
+Use `Logger` (note: it lives in the root `Lertaro.PluginSdk` namespace, not in `Lertaro.PluginSdk.Services`) for all application logging inside your plugin:
 
 ```csharp
-using Lertaro.PluginSdk.Services;
+using Lertaro.PluginSdk;
 
 Logger.Log("Plugin initialized successfully and mounted services.", LogLevel.Info);
 ```

@@ -7,7 +7,7 @@ This chapter covers the core interfaces and data structures in `Lertaro.PluginSd
 All plugin components inherit directly or indirectly from `IPluginComponent`:
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 public interface IPluginComponent
 {
@@ -17,7 +17,10 @@ public interface IPluginComponent
 
 public interface IPlugin : IPluginComponent
 {
-    // Primary plugin assembly entry point
+    // Primary plugin assembly entry point. Both website members are optional: with
+    // WebsiteUrl null the Settings card shows no link at all.
+    string? WebsiteUrl => null;
+    string? WebsiteLabel => null;
 }
 ```
 
@@ -45,6 +48,10 @@ public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
     bool[]? GetHighlightMask(string text, string query) => null; // Custom highlight mask
+
+    // The words that invoke this provider, read by the host's own strip step so its
+    // stripping and your matching cannot drift apart. See section 6, "Trigger Words".
+    IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 ```
 
@@ -179,8 +186,8 @@ public interface IDynamicActionProvider : IPluginComponent
 
 ## 4. Supporting Models
 
-- **`SearchableItem` / `InstantResultItem`**: Contains `Title`, `Description`, `IconData`, `IconColor`, `ActionType` (`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon` (auto-disposed by host), `ResultKind` (a plugin-chosen tag the host's filters and columns can key off), and two execute callbacks: `OnExecute` (`Action`) for fire-and-forget, or `OnExecuteFunc` (`Func<bool>`) when the action needs to report success — the host uses that answer, for example, to decide whether to close the window.
-- **`DynamicMenuItem`**: Contains `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute`, `IsActionable` (default `true`; `false` marks a row that only opens a submenu), `HBitmapItem` (a native icon handle from the Shell menu being mirrored), `ShortcutHint` (the letter a mnemonic key matches), `IsContinuation` (this item continues a group the host already started), and `IsHeader` (renders as a group header with an optional action button).
+- **`SearchableItem`**: Contains `Title`, `Description`, `IconData`, `IconColor`, `ActionType` (`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon` (auto-disposed by host), `ResultKind` (a plugin-chosen tag the host's filters and columns can key off), and two execute callbacks: `OnExecute` (`Action`) for fire-and-forget, or `OnExecuteFunc` (`Func<bool>`) when the action needs to report success — the host uses that answer, for example, to decide whether to close the window. `InstantResultItem` carries the same display and callback members **except `ResultKind`**, which only the searchable-item model has.
+- **`DynamicMenuItem`**: Contains `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute`, `IsActionable` (default `true`; `false` marks a row that only opens a submenu), `HBitmapItem` (a native icon handle from the Shell menu being mirrored), `ShortcutHint` (the letter a mnemonic key matches), `IsContinuation` (a paging cursor: this batch continues a menu the host is still filling, and the host keeps asking while it is set), and `IsHeader` (renders as a group header with an optional action button).
 - **`SearchWindowType`**: Enum with `Main`, `Quick`, and `Inline`.
 
 ## 5. Named Search Scopes `ISearchScopeProvider`

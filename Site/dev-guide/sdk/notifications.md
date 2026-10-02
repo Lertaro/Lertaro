@@ -10,7 +10,7 @@
 | `Task<NotificationResult> ShowAsync(NotificationRequest request)` | the end state | you only care how it ended |
 | `bool Show(string title, string text, Action? onClick = null)` | whether a host accepted it | legacy two-argument shape; a `false` return means no host is wired, so a fallback is available |
 
-Every entry point is safe to call from a plugin's own background thread and **never throws** — an escaping exception would take the caller's loop down with it. Outside the running launcher (no host delegate assigned, or the host refused) the request is logged at `Warn` and answered with a handle whose task is already finished as `Unavailable`.
+Every entry point is safe to call from a plugin's own background thread and **never throws** — an escaping exception would take the caller's loop down with it. When no host delegate is assigned at all (a plugin running outside the launcher) the call is a quiet no-op and the answer is a finished handle carrying `Unavailable`; the request is only logged, at `Warn`, when the host's own delegate threw.
 
 `INotificationHandle` has exactly two members: `Task<NotificationResult> Completion` and `void Dismiss()`. `Completion` **always** finishes, including when nothing ever reached the screen, so an `await` on it cannot park a thread. `Dismiss()` closes a shown card as if the user had dismissed it, is a no-op once it is gone, and never reverses a result already delivered.
 
@@ -22,7 +22,7 @@ A plugin that needs a window it owns uses [`Windows.PluginWindow`](./services); 
 | :--- | :--- | :--- |
 | `string? Id` | `null` | Two requests with the same `Id` address the same notification. See **Replacing by Id** (§4). |
 | `string Title` | `string.Empty` | Card header. Ignored by `BottomNotice`, which has no title row. |
-| `string Message` | `string.Empty` | Body text. A request with **both** `Title` and `Message` empty is rejected as `InvalidRequest` — there is nothing to show. |
+| `string Message` | `string.Empty` | Body text. A request whose `Title` and `Message` are both blank or whitespace-only is rejected as `InvalidRequest` — there is nothing to show. |
 | `NotificationLevel Level` | `Info` | `Info` / `Warn` / `Error`. Drives the icon and the semantic colour, nothing else. |
 | `NotificationPosition Position` | `CardStack` | `CardStack` or `BottomNotice`. Each has its own queue and its own rules; they never block one another. |
 | `double? DurationSeconds` | `null` | `null` takes the position's own default. An explicit value outside that position's range is **clipped to the nearest bound**, never rejected; `NaN` or a negative lands on the shorter end. |
@@ -42,7 +42,7 @@ A plugin that needs a window it owns uses [`Windows.PluginWindow`](./services); 
 Two more pacing numbers are worth knowing when you emit a burst:
 
 - The host runs one **100 ms tick**, and it promotes **at most one** waiting card per tick. A burst therefore spaces its own arrivals, and because each card counts its time from the moment it appeared, spacing the arrivals also spaces the expiries — a burst no longer takes five slots out of the stack in one move.
-- **One plugin may have at most 10 accepted requests** (on screen *and* waiting combined). The eleventh is dropped as `QueueFull` and logged. There is no global pending cap across plugins, so a plugin cannot be starved by another's burst, but neither is a runaway producer limited globally.
+- **One plugin may have at most 10 accepted card requests** (on screen *and* waiting combined). The eleventh is dropped as `QueueFull` and logged. The cap is enforced on the card-admission path only: a `BottomNotice` request is never counted against it, because the notice is a single slot that overwrites itself. There is no global pending cap across plugins, so a plugin cannot be starved by another's burst, but neither is a runaway producer limited globally.
 
 ## 4. Replacing by Id
 
@@ -57,9 +57,9 @@ One limit to respect: deduplication is matched against the cards currently on sc
 | `NotificationFailure` | When |
 | :--- | :--- |
 | `Unavailable` | No host served the request — a plugin running outside the launcher, or a host delegate that threw. |
-| `InvalidRequest` | Both `Title` and `Message` were empty. |
-| `QueueFull` | This plugin already had 10 requests accepted. |
-| `Replaced` | A newer request carried the same `Id`. |
+| `InvalidRequest` | `Title` and `Message` were both blank or whitespace-only. |
+| `QueueFull` | This plugin already had 10 card requests accepted. |
+| `Replaced` | A newer request carried the same `Id`. A `BottomNotice` overwrite completes the superseded request this way **even when neither carries an `Id`**, because the notice is a single slot that always overwrites. |
 | `CancelledByPluginUnload` | The plugin was disabled or unloaded while its card was showing or queued. |
 | `HostShuttingDown` | The launcher is closing and took the notification with it. |
 
@@ -79,7 +79,7 @@ The name printed on the card comes from `Assembly.GetCallingAssembly()`, read in
 
 - **Which screen**: the foreground window's screen, else the cursor's, else the primary. The work area is converted to DIPs through that monitor's DPI, so a card is the same physical size on a 200 %-scaled panel as on a 100 % one.
 - **Stack order**: bottom-right, ordered by arrival sequence; cards above a removed one re-slide (the only animation, ~200 ms with a 40 DIP entry drop).
-- **Size**: a card is at most half the work area tall (`min(260 px, 50 %)`), so a long message cannot eat a small monitor.
+- **Size**: a card is at most half the work area tall (`min(260 DIP, 50 %)`), so a long message cannot eat a small monitor.
 - **Drag**: a card is draggable by its title bar only, and a dragged card keeps its own corner. A display-settings change re-anchors the stack, which drops a user's drag — the cheaper trade than keeping a card off-screen.
 - **Surface kind**: decided once, at construction, from the active theme's `WindowOpacity`. A fully opaque theme gets a plain window whose corners are rounded by the window manager, which keeps ClearType; a translucent theme gets a layered window whose corner has to be painted and clipped instead. A card shown across a theme switch therefore keeps whichever kind it started as until it goes away.
 - **Topmost** is always on, and the windows are excluded from Alt+Tab (`WS_EX_TOOLWINDOW`). Notifications do not fade: nothing animates `Window.Opacity`, because that would cost ClearType and a per-pixel composite on every frame. The arrival marker is a rim flash inside an already-opaque window (~750 ms).
