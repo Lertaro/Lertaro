@@ -62,7 +62,6 @@ public static class PipeRequestBinarySerializer
             case IpcMessageId.KeyDown:
             case IpcMessageId.KeyLeft:
             case IpcMessageId.KeyRight:
-            case IpcMessageId.FocusInlineSearch:
             case IpcMessageId.ClearHookLog:
                 break;
             case IpcMessageId.SetAppProcessId:
@@ -185,7 +184,6 @@ public static class PipeRequestBinarySerializer
             case IpcMessageId.KeyDown:
             case IpcMessageId.KeyLeft:
             case IpcMessageId.KeyRight:
-            case IpcMessageId.FocusInlineSearch:
             case IpcMessageId.ClearHookLog:
                 break;
 
