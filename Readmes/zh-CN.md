@@ -23,7 +23,7 @@ Lertaro 是一款基于 **.NET 10 (WPF)** 打造的超轻量、极速、高度�
 - 🧩 **开放插件 SDK 与生态兼容** —— 基于 .NET 10 的官方强类型 C# SDK，并兼容运行 Flow Launcher 社区插件与自定义工作流。
 - 🛡️ **三进程架构与离线隐私** —— SYSTEM 索引服务（`Lertaro.Service`）、用户态 App（`Lertaro.App`）与独立 Hook 进程（`Lertaro.Service --hook`）安全隔离；纯本地离线运行，零云端遥测。
 
-搜索语法、每一个热键、每一项设置详见[用户手册](https://lertaro.github.io/zh-CN/user-guide/)；架构设计与插件 SDK 参考详见[开发手册](https://lertaro.github.io/zh-CN/dev-guide/)。
+搜索语法、每一个快捷键、每一项设置详见[用户手册](https://lertaro.github.io/zh-CN/user-guide/)；架构设计与插件 SDK 参考详见[开发手册](https://lertaro.github.io/zh-CN/dev-guide/)。
 
 ## 下载
 

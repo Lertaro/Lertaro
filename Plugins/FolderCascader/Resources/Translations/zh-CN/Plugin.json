@@ -24,7 +24,7 @@
   "FolderCascader_Favorites": "收藏夹",
   "FolderCascader_NoFavorites": "(无收藏项)",
   "FolderCascader_Group_Content": "内容设置",
-  "FolderCascader_PluginDesc": "级联文件夹浏览器插件。允许用户通过热键或右键/中键菜单在文件管理器中以树状级联菜单的形式，快速层级化地浏览、打开和收藏本地及虚拟系统文件夹。",
+  "FolderCascader_PluginDesc": "级联文件夹浏览器插件。允许用户通过快捷键或右键/中键菜单在文件管理器中以树状级联菜单的形式，快速层级化地浏览、打开和收藏本地及虚拟系统文件夹。",
   "Plugin_Comp_Desc_Provider": "在选中的目录或搜索结果上右键/中键时，提供树形层级展开的级联文件夹浏览菜单。",
   "Plugin_Comp_Desc_TranslationProvider": "为级联文件夹浏览器插件本身提供界面多语言与本地化配置服务。"
 }

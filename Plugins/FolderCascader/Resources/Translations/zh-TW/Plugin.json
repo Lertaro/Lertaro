@@ -24,7 +24,7 @@
   "FolderCascader_Favorites": "收藏夾",
   "FolderCascader_NoFavorites": "(無收藏項)",
   "FolderCascader_Group_Content": "內容設定",
-  "FolderCascader_PluginDesc": "級聯資料夾瀏覽器外掛。允許使用者透過熱鍵或右鍵/中鍵選單在檔案管理員中以樹狀級聯選單的形式，快速層級化地瀏覽、開啟和收藏本地及虛擬系統資料夾。",
+  "FolderCascader_PluginDesc": "級聯資料夾瀏覽器外掛。允許使用者透過快捷鍵或右鍵/中鍵選單在檔案管理員中以樹狀級聯選單的形式，快速層級化地瀏覽、開啟和收藏本地及虛擬系統資料夾。",
   "Plugin_Comp_Desc_Provider": "在選中的目錄或搜尋結果上右鍵/中鍵時，提供樹形層級展開的級聯資料夾瀏覽選單。",
   "Plugin_Comp_Desc_TranslationProvider": "為級聯資料夾瀏覽器外掛本身提供介面多語言與本地化配置服務。"
 }

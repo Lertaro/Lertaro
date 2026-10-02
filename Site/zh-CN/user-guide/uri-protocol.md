@@ -11,7 +11,7 @@ Lertaro 在首次运行时会自动在 Windows 系统中注册自定义协议 **
 
 | URI 指令格式 | 功能说明与交互效果 |
 | :--- | :--- |
-| `lertaro://` | 激活并显示快速搜索窗口（效果等同于双击 `Ctrl` 全局热键）。 |
+| `lertaro://` | 激活并显示快速搜索窗口（效果等同于双击 `Ctrl` 全局快捷键）。 |
 | `lertaro://search/[关键词]` | 激活快速搜索窗口，并预先填入指定的 `[关键词]` 并立即过滤。 |
 | `lertaro://fullsearch/[关键词]` | 打开大尺寸完整搜索主窗口，并预先填入指定的 `[关键词]`。 |
 | `lertaro://settings/page/[分区]` | 打开设置窗口，并直接切换到指定的顶层分区标签页。 |
@@ -29,7 +29,7 @@ Service      - 运行状态
 Index        - 索引设置
 General      - 通用设置
 Appearance   - 外观与主题
-Hotkeys      - 热键设置
+Hotkeys      - 快捷键设置
 Plugins      - 插件管理
 Favorites    - 收藏夹
 History      - 历史记录
