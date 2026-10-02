@@ -7,7 +7,7 @@
 在 Lertaro 的架構中，外掛模組對搜尋結果的觀察始終基於唯讀契約 `ISearchResult`，禁止直接篡改宿主底層的核心索引資料結構：
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions;
 
 public interface ISearchResult
 {
@@ -16,10 +16,13 @@ public interface ISearchResult
     string ContextDirectory { get; }      // 所在父級目錄路徑（如 "C:\Program Files\Lertaro"）
     bool IsDir { get; }                   // 是否為目錄/資料夾
     bool IsApplication { get; }           // 是否為可執行程式或捷徑
-    FileMetadata Metadata { get; }        // 高效能檔案中繼資料（大小、修改時間等）
-    bool[]? GetHighlightMask(string text, string query); // 字元級反白遮罩計算
+    FileMetadata Metadata => default;     // 高效能檔案中繼資料（大小、修改時間等）
+    bool[]? GetHighlightMask(string text, string query) => null; // 字元級反白遮罩計算
+    string? InstantActionArgument => null; // 即時結果所指向的目標
 }
 ```
+
+`FullPath` 是大多數動作據以工作的識別碼，因此一個作用於「非路徑」事物的即時結果——`activatewindow:12345`、`kill:4321`、自訂命令的載入內容——會改將該目標攜帶在 `InstantActionArgument` 中，而提供者就在那裡讀取它。對於其他每一種列，它都保持 `null`：一般的檔案與資料夾結果、外掛模組搜尋動作、歷程項目。
 
 > [!NOTE]
 > `ISearchResult.Metadata` 包含的資料由宿主底層的 USN / MFT 記憶體索引直接注入，**讀取該屬性完全不產生任何磁碟 I/O 或 IPC 呼叫**。僅當你需要查詢不屬於目前結果集的外部路徑時，才需要呼叫 `FileMetadataService.GetMetadataAsync`。
@@ -73,6 +76,8 @@ public interface IConfigurable
 | **文字選取** | `SelectionStart` 和 `SelectionLength` 用於指定 `Text` 欄位輸入對話方塊中從 0 開始計算的初始選取範圍。 |
 | **`Integer`** | 數字微調輸入框。支援設定最小值與最大值範圍。 |
 | **`Choice`** | 下拉式選單。透過 `Choices` 或 `ChoiceOptions` 清單指定可選項目。 |
+| **`Array`** | 清單值。帶有 `SubFields` 時，它是一個**記錄**的清單，以主從編輯器轉譯（每個項目一個巢狀表單——檔案篩選、自訂命令與網頁搜尋外掛模組所使用的形態）；沒有 `SubFields` 時，它是一個純量的簡單清單，以精簡的單欄編輯器轉譯。`DefaultValue` 是一個空的 `List<object>`。 |
+| **`Object`** | 透過其 `SubFields` 編輯的單一結構化值，沒有 `Array` 的清單附加功能。 |
 | **`Hotkey`** | 專屬按鍵錄製框。可設定 `RequireModifier = true` 強制要求必須包含修飾鍵。 |
 | **`FilePath` / `FolderPath`** | 附帶「瀏覽...」檔案/資料夾原生選取器按鈕的路徑輸入框。 |
 | **`StringList`** | 支援多行編輯、項目增刪排序與自動換行的多行清單方塊；實際換行只以視覺標記顯示，不會寫入設定值。 |

@@ -1,109 +1,155 @@
 # UI とプレビューの拡張
 
-この章では、メインウィンドウのサイドバー、詳細テーブルのカスタム列、クイックパネルの動的タブ、QuickLook プレビュー描画、サムネイル抽出、WPF テーマ、多言語対応に関する `Lertaro.PluginSdk` の UI 拡張インターフェイスを解説します。
+この章では、検索ウィンドウのサイドバー拡張、カスタムテーブル列の追加、クイックパネルの動的タブ提供、QuickLook ファイルプレビューアとサムネイル抽出器の構築、WPF テーマおよび i18n 多言語パックの同梱に関する `Lertaro.PluginSdk` のインターフェイスを解説します。
+
+これらのうちすべては `Lertaro.PluginSdk.Abstractions.Plugins` 配下（プレビュー系プロバイダーは `…Abstractions.Plugins.Preview` 配下）に置かれ、いずれも `IPluginComponent` を継承します。`IPluginComponent` が、ホストが **設定 → プラグイン** で表示する `Name` を供給します。
 
 ## 1. サイドバーフィルタープロバイダー `ISidebarFilterProvider`
 
-メイン検索ウィンドウの左側サイドバーに独自のカテゴリフィルターツリーを追加します。
+検索ウィンドウの左サイドバーへカスタムのフィルターカテゴリを注入します：
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 public interface ISidebarFilterProvider : IPluginComponent
 {
     IEnumerable<SidebarFilterGroup> GetFilterGroups();
+
+    // 並び順の重み。値が小さいほど先に描画される。
+    int SortOrder => 100;
 }
 
-public sealed class SidebarFilterGroup
+public class SidebarFilterGroup
 {
-    public required string GroupName { get; init; }
-    public required IReadOnlyList<SidebarFilterItem> FilterItems { get; init; }
+    // ホストが既知のグループに対して認識する任意の安定 ID（例: 組み込みの結果種別
+    // フィルターなら "Type"）。グループが完全にプラグイン定義の場合は空にする。
+    public string Id { get; set; } = string.Empty;
+    public string Header { get; set; } = string.Empty;
+    public List<SidebarFilterItem> Items { get; set; } = new();
+
+    // このグループ内で複数の項目を同時に有効にできるかどうか。
+    public bool AllowMultiSelect { get; set; }
 }
 
-public sealed class SidebarFilterItem
+public class SidebarFilterItem
 {
-    public required string Id { get; init; }
-    public required string DisplayName { get; init; }
-    public ImageSource? Icon { get; init; }
-    public required Func<ISearchResult, bool> FilterFunc { get; init; } // 一致判定デリゲート
+    public string Id { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+
+    // 2 とおりのアイコン経路。どちらもテーマ対応で、IconData はアクティブテーマの
+    // 文字色で描画されるグリフ、IconKey はホストが既に所有するリソース名。
+    // どちらも null にすればアイコンなし。
+    public string? IconData { get; set; }
+    public string? IconKey { get; set; }
+
+    // この項目に一致するために結果が満たすべき述語。既定は「何も一致しない」ため、
+    // 一度も設定しない項目は表示されるものの、何も選択できません。
+    public Func<ISearchResult, bool> MatchPredicate { get; set; } = _ => false;
 }
 ```
 
-`SidebarFilterGroup.Id` は任意の安定したグループ識別子です。ホストは `Type` など認識済みの識別子に対して組み込みの動作を適用できます。プラグイン独自のグループでは空欄にしてください。
+グループと項目は record ではなく可変クラスです。必要なプロパティだけを埋め、残りは既定値のままにしてください。
 
 ## 2. テーブルカスタム列プロバイダー `IResultColumnProvider`
 
-メイン検索ウィンドウの「詳細」テーブルビューにカスタム列を追加します（例: メディア再生時間、コード行数、Git ブランチ名等）。
+フル検索ウィンドウの「詳細」テーブルビューへカスタムのデータ列を追加します（例: メディアの再生時間、コード行数、Git ブランチ）。プロバイダーは自身の列を一度だけ説明し、セル単位の値は要求に応じて返します：
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
 public interface IResultColumnProvider : IPluginComponent
 {
-    string ColumnId { get; }
-    string HeaderText { get; }
-    double DefaultWidth => 120;
-    double MinWidth => 40;
-    bool IsVisibleByDefault => false;
-    string? GetCellText(ISearchResult result);
-    int Compare(ISearchResult a, ISearchResult b) => 0; // 列ヘッダーのソート比較デリゲート
+    IEnumerable<ResultColumnDefinition> GetColumns();
+    string GetCellValue(ISearchResult result, string columnId);
+}
+
+public class ResultColumnDefinition
+{
+    public string ColumnId { get; set; } = string.Empty;
+    public string HeaderText { get; set; } = string.Empty;
+    public double Width { get; set; } = 120;
+
+    // 任意：適用先の合わない結果ではこの列を非表示にする。
+    public Func<ISearchResult, bool>? VisibilityPredicate { get; set; }
+
+    // 任意：列ヘッダーのクリックによるカスタムソート。x < y なら負、x > y なら正。
+    public Func<ISearchResult, ISearchResult, int>? SortComparer { get; set; }
+
+    // 任意：フルウィンドウにおいてこの列のセルをダブルクリックしたときの動作。
+    // 未設定なら、セルのダブルクリックは行の他の場所と同じ挙動になります。
+    public Action<ISearchResult>? OnDoubleClick { get; set; }
 }
 ```
 
-## 3. クイックパネル動的タブプロバイダー `IQuickPanelTabProvider`
+`GetCellValue` は一覧の描画中に呼び出されるため、低コストである必要があります。ディスクに触れるのではなく、事前に計算した値を返すかキャッシュを読んでください。
 
-クイック検索バー下部の [**クイックパネル**](../../user-guide/settings/quick-panel) に動的なワークスペースタブを追加します。
+## 3. クイックパネルタブプロバイダー `IQuickPanelTabProvider`
+
+[**クイックパネル**](../../user-guide/settings/quick-panel) へ動的なワークスペースタブを追加します：
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
 public interface IQuickPanelTabProvider : IPluginComponent
 {
-    string TabId { get; }
-    string Title { get; }
-    string? IconPath => null;
-    Task<IReadOnlyList<ISearchResult>> GetItemsAsync(CancellationToken token);
-
-    // ドラッグ＆ドロップ受け入れ処理
-    bool CanHandleDragOver(IDataObject data) => false;
-    Task HandleDropAsync(IDataObject data, CancellationToken token) => Task.CompletedTask;
-
-    // ドラッグによる並び替えのサポート
-    bool SupportsReorder => false;
-    Task SaveOrderAsync(IReadOnlyList<ISearchResult> orderedItems) => Task.CompletedTask;
-
-    // タブ専用のアクションコンテキスト
-    DynamicActionContext CreateActionContext() => DynamicActionContext.Default;
+    // 今まさに表示すべき項目。パネルが呼び出されるたびに実行される。
+    Task<IReadOnlyList<ISearchResult>> GetEntriesAsync(CancellationToken cancellationToken = default);
 }
 ```
+
+この 1 つのメソッドが契約のすべてです。ドロップ受け入れ、並び替え、アクションコンテキストを実装する必要はありません。
+
+- `CancellationToken` はパネルが閉じられるとキャンセルされます。これを観測するのはタブ自身のリストだけで、プラグインの他の挙動は変わりません。
+- ソースが更新日時を知っているなら `ISearchResult` の `Metadata.Modified` を埋めてください。既定の新しい物先順の並びはこの値を使うためです。既定値のままにすると、返した順序が保たれます。
+- 何も返さないプロバイダーにはタブが現れません。その動作に設定項目はありません。
+- ユーザーが追加する必要のあるフォルダーとは違い、タブはプラグインと同じ時点で存在します。ストリップから閉じることができ、**設定 → クイックパネル** で再度開けます。これは **設定 → プラグイン** でコンポーネントを無効化するのとは別問題です（後者は読み込み自体を止めます）。
 
 ## 4. ファイルプレビューとサムネイル
 
 ### カスタムファイルプレビュープロバイダー `IFilePreviewProvider`
 
-QuickLook（スペースキー）プレビューウィンドウでの描画ロジックを独自に実装します。
+QuickLook パネル内でのプレビューを描画します。パネルはユーザーが `Alt+P`、またはプレビュー可能な行の中クリックで開きます（[**アクションメニューと即時プレビュー**](../../user-guide/actions-and-preview) 参照）：
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
+
 public interface IFilePreviewProvider : IPluginComponent
 {
-    bool CanPreview(string filePath);
-    int Priority => 0;                  // 複数の一致がある場合の優先度
-    FrameworkElement CreatePreviewControl(string filePath);
+    // 複数のプロバイダーが同じファイルを対象にしたときのタイブレーク。高いほうが勝ち。
+    int Priority => 0;
+
+    bool CanPreview(string path, bool isDir);
+    UIElement CreatePreview(string path, bool isDir);
+
+    // パネル内に配置される WPF コンテンツを返すのではなく、外部ウィンドウを自前で
+    // ホストする場合に true（QuickLook ブリッジプラグインがこの形です）。
+    bool RendersExternally => false;
 }
 ```
 
-#### プレビューのライフサイクルと再利用
+#### プレビューのライフサイクルと再利用の契約
 
-WPF `FrameworkElement` が以下のインターフェイスを実装している場合、ホスト側で表示処理が最適化されます。
+返す `UIElement` が以下のオプション契約のいずれかを実装する場合、ホストはプレビューのライフサイクルを最適化します：
 
-- **`IPreviewSessionAware`**：`void OnPreviewClosed()` を実装し、プレビュー終了時や別形式ファイルへの切り替え時にメディアプレーヤーや WebView2 インスタンス、ファイルハンドルを安全に解放します。
-- **`IReusablePreview`**：`void UpdatePreview(string filePath)` を実装し、同種ファイル間を上下キーで移動する際にコントロールを破棄・再生成せずインプレース更新してチラつきを防ぎます。
+- **`IPreviewSessionAware`** — `void EndPreviewSession();` プロバイダーがプロセス内のコントロールではなく実際の外部ウィンドウ（`HwndHost`、ネイティブの `IPreviewHandler` とその `prevhost` サロゲート）を所有しているため、パネルが隠れるかプレビューセッション全体が終わったときにセッションを終了するよう通知されます。これがないと、ホストのウィンドウが何も参照しないまま残り続けます。
+- **`IReusablePreview`** — `bool TrySetTarget(string path, bool isDir);` ユーザーが矢印キーで同種のファイル間を移動するとき、ホストはコントロールを破棄・再生成せず同じコントロールへ再ターゲットを依頼します。これがチラつきを除去します。新しい対象がこのインスタンスに合わなければ `false` を返し、ホストは新しいプレビューを構築するほうへフォールバックします。
 
 ### カスタムサムネイルプロバイダー `IThumbnailProvider`
 
-Shell 拡張が未登録の特殊な形式（`.blend`, `.psd`, `.dwg` 等）の高解像度サムネイルを生成・抽出します。
+ネイティブの Shell ハンドラーがない形式（`.blend`、`.psd`、`.dwg`）のサムネイルを抽出します：
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
+
 public interface IThumbnailProvider : IPluginComponent
 {
-    bool CanProvide(string filePath);
-    Task<ImageSource?> GetThumbnailAsync(string filePath, int targetSize, CancellationToken token);
+    int Priority => 0;
+
+    bool CanProvideThumbnail(string path, bool isDir);
+
+    // 同期的。結果一覧の描画パスで実行されるためです。高速に保ち、パスとサイズ
+    // 自身のキャッシュは自分で管理してください。ホストは結果をメモ化しません。
+    ImageSource? GetThumbnail(string path, int size);
 }
 ```
 
@@ -111,24 +157,45 @@ public interface IThumbnailProvider : IPluginComponent
 
 ### テーマプロバイダー `IThemeProvider`
 
-独自の配色と WPF リソースディクショナリを提供します。
+カラーパレットと WPF リソースディクショナリを提供します：
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
 public interface IThemeProvider : IPluginComponent
 {
-    string ThemeId { get; }
+    IEnumerable<ITheme> GetThemes();
+}
+
+public interface ITheme
+{
+    string Id { get; }
     string DisplayName { get; }
-    ResourceDictionary GetResourceDictionary(bool isDark);
+    bool IsDark { get; }
+    ResourceDictionary GetResources();
+
+    // 1.0 未満では、ホストはフレームレスウィンドウをレイヤード型の半透明サーフェスとして
+    // 描画します。1.0 では不透明のまま ClearType を保ちます。この値がどちらの種のウィンドウと
+    // して構築されるかを決め、ウィンドウが存在したあとは変更できません。
+    double WindowOpacity => 1.0;
 }
 ```
 
+1 つのプロバイダーが任意の数のテーマを提供でき、ダーク版をプロバイダーが別に出す形ではなく、各テーマが自身のライト／ダークフラグを持ちます。
+
 ### 多言語化プロバイダー `ITranslationProvider`
 
-動的な多言語翻訳ディクショナリを提供します。
+翻訳ディクショナリを動的に提供します：
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
 public interface ITranslationProvider : IPluginComponent
 {
+    // このプロバイダーが供給できるカルチャーコード。何も読み込む前にホストが
+    // 設定画面で提示できるようになります。既定は空で、「要求された内容から発見する」ことを意味します。
+    IReadOnlyList<string> SupportedCultures => Array.Empty<string>();
+
     IReadOnlyDictionary<string, string> GetTranslations(string cultureName);
 }
 ```

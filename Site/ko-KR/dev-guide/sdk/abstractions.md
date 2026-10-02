@@ -7,7 +7,7 @@
 Lertaro 아키텍처에서 플러그인은 검색 결과에 대해 항상 읽기 전용 인터페이스 `ISearchResult`를 통해 접근합니다.
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions;
 
 public interface ISearchResult
 {
@@ -16,10 +16,13 @@ public interface ISearchResult
     string ContextDirectory { get; }      // 부모 디렉토리 경로 (예: "C:\Program Files\Lertaro")
     bool IsDir { get; }                   // 디렉토리 여부
     bool IsApplication { get; }           // 실행 파일 또는 바로가기 여부
-    FileMetadata Metadata { get; }        // 고성능 파일 메타데이터 (크기, 수정일 등)
-    bool[]? GetHighlightMask(string text, string query); // 문자 단위 하이라이트 마스크 계산
+    FileMetadata Metadata => default;     // 고성능 파일 메타데이터 (크기, 수정일 등)
+    bool[]? GetHighlightMask(string text, string query) => null; // 문자 단위 하이라이트 마스크 계산
+    string? InstantActionArgument => null; // 즉시 결과가 가리키는 대상
 }
 ```
+
+`FullPath`는 대부분의 액션이 기준으로 삼는 식별자이므로, 경로가 아닌 대상을 다루는 즉시 결과(`activatewindow:12345`, `kill:4321`, 커스텀 명령 페이로드)는 그 대상을 `InstantActionArgument`에 담고, 제공자는 그곳에서 읽습니다. 그 밖의 모든 행 — 일반 파일 및 폴더 결과, 플러그인 검색 액션, 기록 항목 — 에서는 `null`로 남습니다.
 
 > [!NOTE]
 > `ISearchResult.Metadata`는 인메모리 USN/MFT 인덱스에서 직접 주입되므로 **이 속성에 접근할 때 디스크 I/O나 IPC 호출이 전혀 발생하지 않습니다**. 결과 세트에 포함되지 않은 외부 경로를 조회할 때만 `FileMetadataService.GetMetadataAsync`를 호출하세요.
@@ -73,6 +76,8 @@ public interface IConfigurable
 | **텍스트 선택** | `SelectionStart`와 `SelectionLength`로 `Text` 필드 입력 대화상자의 0부터 시작하는 초기 선택 범위를 지정합니다. |
 | **`Integer`** | 최솟값과 최댓값을 지정할 수 있는 숫자 조절 상자. |
 | **`Choice`** | `Choices` 또는 `ChoiceOptions` 목록에서 선택하는 드롭다운. |
+| **`Array`** | 목록 값입니다. `SubFields`가 있으면 **레코드**의 목록으로 렌더링되어 마스터/디테일 편집기(항목당 중첩 폼 하나 — 파일 필터, 커스텀 명령, 웹 검색 플러그인이 사용하는 형태)가 되고, `SubFields`가 없으면 스칼라 단순 목록으로 컴팩트한 단일 열 편집기가 됩니다. `DefaultValue`는 빈 `List<object>`입니다. |
+| **`Object`** | `SubFields`로 편집하는 하나의 구조화된 값이며, `Array`가 제공하는 목록 장치는 없습니다. |
 | **`Hotkey`** | 키 녹화 컨트롤(`RequireModifier = true`로 수식키 필수화 가능). |
 | **`FilePath` / `FolderPath`** | 찾아보기 대화상자 버튼이 포함된 경로 입력 컨트롤. |
 | **`StringList`** | 항목 추가, 삭제, 순서 변경 및 자동 줄바꿈을 지원하는 여러 줄 목록 상자이며, 실제 줄바꿈은 시각적 표시로만 나타나고 설정 값에는 포함되지 않습니다. |

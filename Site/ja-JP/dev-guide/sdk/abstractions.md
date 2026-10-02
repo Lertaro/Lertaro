@@ -7,7 +7,7 @@
 プラグインが検索結果を参照する際は、常に読み取り専用インターフェイス `ISearchResult` を使用します。
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions;
 
 public interface ISearchResult
 {
@@ -16,10 +16,13 @@ public interface ISearchResult
     string ContextDirectory { get; }      // 親フォルダーパス（例: "C:\Program Files\Lertaro"）
     bool IsDir { get; }                   // ディレクトリかどうか
     bool IsApplication { get; }           // 実行ファイルまたはショートカットかどうか
-    FileMetadata Metadata { get; }        // 高精度なファイルメタデータ（サイズ、更新日時等）
-    bool[]? GetHighlightMask(string text, string query); // 文字単位のハイライトマスク
+    FileMetadata Metadata => default;     // 高精度なファイルメタデータ（サイズ、更新日時等）
+    bool[]? GetHighlightMask(string text, string query) => null; // 文字単位のハイライトマスク
+    string? InstantActionArgument => null; // インスタント結果が対象とするもの
 }
 ```
+
+`FullPath` は多くのアクションが識別に用いる基準です。そのため、パスではない対象に対して働くインスタント結果（`activatewindow:12345`、`kill:4321`、カスタムコマンドのペイロードなど）は、そのターゲットを代わりに `InstantActionArgument` に保持し、プロバイダーはそこから読み取ります。その他の種の行——通常のファイル・フォルダー結果、プラグインの検索アクション、履歴項目——では常に `null` のままです。
 
 > [!NOTE]
 > `ISearchResult.Metadata` はインメモリインデックスから直接提供されるため、**アクセス時にディスク I/O や IPC 呼び出しは一切発生しません**。結果セットに含まれない外部パスの情報を取得する場合のみ `FileMetadataService.GetMetadataAsync` を使用してください。
@@ -73,6 +76,8 @@ public interface IConfigurable
 | **テキスト選択** | `SelectionStart` と `SelectionLength` で、`Text` フィールドの入力ダイアログにおける 0 始まりの初期選択範囲を指定します。 |
 | **`Integer`** | 最小値・最大値を指定可能な数値スピンボックス。 |
 | **`Choice`** | `Choices` または `ChoiceOptions` の一覧から選ぶドロップダウンリスト。 |
+| **`Array`** | 一覧の値。`SubFields` を伴う場合は**レコード**のリストであり、マスター／ディテールエディター（1 項目につき 1 つの入れ子フォーム）として描画されます（ファイルフィルター、カスタムコマンド、Web 検索プラグインがこの形を使います）。`SubFields` がなければスカラーの素朴なリストとなり、コンパクトな単一カラムのエディターとして描画されます。`DefaultValue` は空の `List<object>` です。 |
+| **`Object`** | `SubFields` 経由で編集する単一の構造化値。`Array` が備える一覧操作機能はありません。 |
 | **`Hotkey`** | キー入力登録コントロール（`RequireModifier = true` で修飾キーを必須化可能）。 |
 | **`FilePath` / `FolderPath`** | 参照ダイアログボタン付きのパス入力コントロール。 |
 | **`StringList`** | 項目の追加・削除・並び替えと自動折り返しに対応した複数行リスト。実際の改行は表示上のマーカーで示され、設定値には含まれません。 |

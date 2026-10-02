@@ -18,6 +18,7 @@
 | **[介面與預覽擴充](./sdk/ui-extensions)** | `ISidebarFilterProvider`<br>`IResultColumnProvider`<br>`IQuickPanelTabProvider`<br>`IFilePreviewProvider`<br>`IThumbnailProvider`<br>`IThemeProvider`<br>`ITranslationProvider` | 擴充側邊欄篩選分類、表格檢視自訂欄、快速面板動態工作區標籤、QuickLook 自訂轉譯器與縮圖擷取、WPF 資源字典主題包與多語言 i18n。 |
 | **[共用抽象契約](./sdk/abstractions)** | `ISearchResult`<br>`FileMetadata`<br>`IPluginSearchWindow`<br>`IConfigurable` | 檢索結果唯讀資料契約、奈秒級檔案時間戳記與大小中繼資料、宿主視窗安全控制控制代碼與基於架構驅動的原生設定表單。 |
 | **[宿主開放服務](./sdk/services)** | `FuzzyMatchService`<br>`TranslationService`<br>`IconService`<br>`FavoritesService`<br>`HistoryService`<br>`FileMetadataService`<br>`DirectoryIndexerService`<br>`MemoryMaintenanceService`<br>`RecentFilesService`<br>`ExplorerPathService`<br>`PluginSettingsService`<br>`SettingsSearchService`<br>`SettingsWindowService`<br>`SearchRefreshService`<br>`UserDataService`<br>`Logger` | 宿主暴露的高效能基礎設施：fzf 模糊比對與反白遮罩、多語言剖析、帶快取圖示擷取、收藏管理與歷程讀取、後台目錄索引代理、延遲記憶體維護、使用者資料目錄隔離及 Shell 原生檔案操作。 |
+| **[通知卡片](./sdk/notifications)** | `PluginNotificationService`<br>`NotificationRequest`<br>`INotificationHandle`<br>`NotificationLevel`<br>`NotificationPosition`<br>`NotificationResult`<br>`NotificationFailure` | 透過宿主自身的視窗從背景取得注意：右下角卡片堆或下方置中的單行提示、由宿主裁剪的時長、以 `Id` 取代、外掛模組個別上限，以及一定會完成的結案工作。 |
 
 > [!NOTE]
 > 本手冊所有介面簽章、方法參數與行為契約均直接對照 `Lertaro.PluginSdk` 原始碼嚴格編寫並校驗。

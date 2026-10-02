@@ -1,134 +1,200 @@
 # 界面与预览扩展
 
-本章节介绍 `Lertaro.PluginSdk` 中用于深度扩展主界面侧边栏、表格自定义数据列、快速面板动态工作区标签、QuickLook 自定义文件预览器、缩略图提取、WPF 资源字典主题包以及多语言本地化的 UI 扩展接口。
+本章节介绍 `Lertaro.PluginSdk` 中用于扩展主搜索窗口侧边栏、追加自定义表格列、提供快速面板动态工作区标签页、构建 QuickLook 文件预览器与缩略图提取器，以及发布 WPF 主题与 i18n 语言包的接口。
 
-## 1. 侧边栏筛选分类 `ISidebarFilterProvider`
+这些接口全部位于 `Lertaro.PluginSdk.Abstractions.Plugins` 命名空间下（预览类提供者位于 `…Abstractions.Plugins.Preview`），并且每一个都派生自 `IPluginComponent`，后者提供宿主在**设置 → 插件**中显示的 `Name`。
 
-用于在主搜索窗口的左侧侧边栏中注入自定义的分类筛选树：
+## 1. 侧边栏筛选分类提供者 `ISidebarFilterProvider`
+
+向主搜索窗口的左侧侧边栏注入自定义筛选分类：
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 public interface ISidebarFilterProvider : IPluginComponent
 {
     IEnumerable<SidebarFilterGroup> GetFilterGroups();
+
+    // 排序权重；值越小越先渲染。
+    int SortOrder => 100;
 }
 
-public sealed class SidebarFilterGroup
+public class SidebarFilterGroup
 {
-    public required string GroupName { get; init; }
-    public required IReadOnlyList<SidebarFilterItem> FilterItems { get; init; }
+    // 宿主认识的可选稳定分组标识，用于已知分组（例如内置的结果类型筛选对应 "Type"）。
+    // 分组完全由插件自定义时留空即可。
+    public string Id { get; set; } = string.Empty;
+    public string Header { get; set; } = string.Empty;
+    public List<SidebarFilterItem> Items { get; set; } = new();
+
+    // 该分组内是否允许同时有多个条目生效。
+    public bool AllowMultiSelect { get; set; }
 }
 
-public sealed class SidebarFilterItem
+public class SidebarFilterItem
 {
-    public required string Id { get; init; }
-    public required string DisplayName { get; init; }
-    public ImageSource? Icon { get; init; }
-    public required Func<ISearchResult, bool> FilterFunc { get; init; } // 命中判断委托
+    public string Id { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+
+    // 两条图标路径，都能感知主题：IconData 是按当前主题文字颜色绘制的字形，
+    // IconKey 指向宿主已经拥有的资源。两者都留 null 即不显示图标。
+    public string? IconData { get; set; }
+    public string? IconKey { get; set; }
+
+    // 结果必须满足该委托，此条目才算命中。默认“永不命中”，
+    // 因此从不设置它的条目会显示出来，却永远选不到任何内容。
+    public Func<ISearchResult, bool> MatchPredicate { get; set; } = _ => false;
 }
 ```
 
-`SidebarFilterGroup.Id` 是可选的稳定分组标识。宿主可以根据 `Type` 等已知标识应用内置行为；如果分组完全由插件自定义，则留空即可。
+分组与条目是可变的 class，而不是 record：填好你需要的属性，其余保持默认值即可。
 
-## 2. 结果表格自定义数据列 `IResultColumnProvider`
+## 2. 结果表格自定义列提供者 `IResultColumnProvider`
 
-在主搜索窗口的“详细信息”多列表格视图中追加自定义数据列（例如：提取并展示音视频时长、代码行数或 Git 仓库分支名）：
+为完整搜索窗口的“详细信息”多列表格视图追加自定义数据列（例如媒体时长、代码行数、Git 分支）。提供者一次性描述自己的各列，并按需回答每个单元格的值：
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
 public interface IResultColumnProvider : IPluginComponent
 {
-    string ColumnId { get; }
-    string HeaderText { get; }
-    double DefaultWidth => 120;
-    double MinWidth => 40;
-    bool IsVisibleByDefault => false;
-    string? GetCellText(ISearchResult result);
-    int Compare(ISearchResult a, ISearchResult b) => 0; // 点击表头时的排序列排序规则
+    IEnumerable<ResultColumnDefinition> GetColumns();
+    string GetCellValue(ISearchResult result, string columnId);
+}
+
+public class ResultColumnDefinition
+{
+    public string ColumnId { get; set; } = string.Empty;
+    public string HeaderText { get; set; } = string.Empty;
+    public double Width { get; set; } = 120;
+
+    // 可选：对不适用的结果隐藏该列。
+    public Func<ISearchResult, bool>? VisibilityPredicate { get; set; }
+
+    // 可选：点击表头时的自定义排序。x < y 时为负，x > y 时为正。
+    public Func<ISearchResult, ISearchResult, int>? SortComparer { get; set; }
+
+    // 可选：在完整窗口中双击该列单元格时触发。不设置它，双击该单元格
+    // 就与双击这一行上任何其他位置的行为一致。
+    public Action<ISearchResult>? OnDoubleClick { get; set; }
 }
 ```
 
-## 3. 快速面板动态标签页 `IQuickPanelTabProvider`
+`GetCellValue` 在列表渲染期间被调用，因此必须足够廉价；请交回预先算好的值或读取缓存，而不是去碰磁盘。
 
-为居中快速浮窗底部的[**快速面板**](../../user-guide/settings/quick-panel)提供动态工作区标签页：
+## 3. 快速面板标签页提供者 `IQuickPanelTabProvider`
+
+为[**快速面板**](../../user-guide/settings/quick-panel)贡献一个动态工作区标签页：
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
 public interface IQuickPanelTabProvider : IPluginComponent
 {
-    string TabId { get; }
-    string Title { get; }
-    string? IconPath => null;
-    Task<IReadOnlyList<ISearchResult>> GetItemsAsync(CancellationToken token);
-
-    // 拖拽文件/链接移入该标签页时的接收逻辑
-    bool CanHandleDragOver(IDataObject data) => false;
-    Task HandleDropAsync(IDataObject data, CancellationToken token) => Task.CompletedTask;
-
-    // 是否支持用户手动拖拽调整条目顺序
-    bool SupportsReorder => false;
-    Task SaveOrderAsync(IReadOnlyList<ISearchResult> orderedItems) => Task.CompletedTask;
-
-    // 自定义该标签页专用的上下文动作菜单上下文
-    DynamicActionContext CreateActionContext() => DynamicActionContext.Default;
+    // 此刻要展示的条目。每次面板被呼出时都会调用。
+    Task<IReadOnlyList<ISearchResult>> GetEntriesAsync(CancellationToken cancellationToken = default);
 }
 ```
 
-## 4. 文件即时预览与缩略图
+这唯一的方法就是全部契约——没有拖拽接收、重排序或动作上下文要去实现。
 
-### 自定义文件预览器 `IFilePreviewProvider`
+- `CancellationToken` 会在面板关闭时被取消。只有该标签页自己的列表观察它；你的插件其他一切都不会因此改变。
+- 数据源知道 `ISearchResult` 的 `Metadata.Modified` 时就把它填上，因为默认的“最新在前”排序用的就是它。保持默认值，条目就会按你返回时的顺序排列。
+- 什么都不返回的提供者不会得到标签页，也没有任何配置项为此存在。
+- 标签页随插件存在而存在，这与用户必须自己添加的文件夹不同。它可以在标签条上关闭，并在**设置 → 快速面板**里重新打开，这与在**设置 → 插件**里禁用该组件是两个不同的问题（后者会让它彻底不再加载）。
 
-接管并自定义特定文件类型在 QuickLook（空格键预览）浮窗中的可视化渲染逻辑：
+## 4. 文件预览与缩略图
+
+### 自定义文件预览提供者 `IFilePreviewProvider`
+
+在 QuickLook 面板内渲染预览，用户通过 `Alt+P` 或在可预览的行上点击鼠标中键打开该面板（见[**动作菜单与预览**](../../user-guide/actions-and-preview)）：
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
+
 public interface IFilePreviewProvider : IPluginComponent
 {
-    bool CanPreview(string filePath);
-    int Priority => 0;                  // 多插件冲突时的仲裁优先级（值越大越优先）
-    FrameworkElement CreatePreviewControl(string filePath);
+    // 多个提供者都声称能处理同一文件时的仲裁；值越大越优先。
+    int Priority => 0;
+
+    bool CanPreview(string path, bool isDir);
+    UIElement CreatePreview(string path, bool isDir);
+
+    // 为 true 表示提供者挂载的是它自己的外部窗口，而不是交回 WPF 内容让面板排布
+    // （QuickLook 桥接插件就是这种）。
+    bool RendersExternally => false;
 }
 ```
 
-#### 预览生命周期与复用优化契约
+#### 预览生命周期与复用契约
 
-若插件返回的 WPF `FrameworkElement` 实现了以下可选契约，宿主会在预览生命周期内执行高级优化：
+当你返回的 `UIElement` 实现下面任一可选契约时，宿主会对预览生命周期做进阶优化：
 
-- **`IPreviewSessionAware`**：实现 `void OnPreviewClosed()`，在用户关闭预览窗口或切换到其他不匹配的文件时触发，用于安全释放音视频播放器句柄、WebView2 实例或大文件流。
-- **`IReusablePreview`**：实现 `void UpdatePreview(string filePath)`。当用户按下上下箭头连续在同类文件间切换时，宿主不会销毁并重建控件，而是直接调用此方法就地更新内容，消除界面白屏与闪烁。
+- **`IPreviewSessionAware`** —— `void EndPreviewSession();` 提供者拥有的是一个真正的外部窗口（一个 `HwndHost`、一个原生 `IPreviewHandler` 及其 `prevhost` 代理进程），而不仅仅是进程内的控件，因此在面板隐藏或整个预览会话结束时会被通知结束会话。没有它，宿主留下的窗口将没有任何东西指向它。
+- **`IReusablePreview`** —— `bool TrySetTarget(string path, bool isDir);` 当用户用上/下方向键在同类文件之间移动时，宿主会请求同一个控件就地更换目标，而不是销毁并重建它，正是这一点消除了闪烁。新目标不适合这个实例时返回 `false`，宿主退回构建一个全新的预览。
 
-### 自定义缩略图提取器 `IThumbnailProvider`
+### 自定义缩略图提供者 `IThumbnailProvider`
 
-为未安装系统 Shell 缩略图扩展的专有文件格式（如 `.blend`、`.psd`、`.dwg`）提取高分辨率缩略图：
+为没有原生 Shell 处理器的格式（`.blend`、`.psd`、`.dwg`）提取缩略图：
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
+
 public interface IThumbnailProvider : IPluginComponent
 {
-    bool CanProvide(string filePath);
-    Task<ImageSource?> GetThumbnailAsync(string filePath, int targetSize, CancellationToken token);
+    int Priority => 0;
+
+    bool CanProvideThumbnail(string path, bool isDir);
+
+    // 同步方法，因为它运行在结果列表的渲染路径上。请保持快速，并按路径与尺寸自行缓存
+    // ——宿主不会替你记住结果。
+    ImageSource? GetThumbnail(string path, int size);
 }
 ```
 
-## 5. 外观主题与多语言
+## 5. 主题与多语言
 
-### 自定义主题包 `IThemeProvider`
+### 主题提供者 `IThemeProvider`
 
-为 Lertaro 贡献自定义的色彩方案与 WPF 资源字典：
+贡献配色方案与 WPF 资源字典：
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
 public interface IThemeProvider : IPluginComponent
 {
-    string ThemeId { get; }
+    IEnumerable<ITheme> GetThemes();
+}
+
+public interface ITheme
+{
+    string Id { get; }
     string DisplayName { get; }
-    ResourceDictionary GetResourceDictionary(bool isDark);
+    bool IsDark { get; }
+    ResourceDictionary GetResources();
+
+    // 小于 1.0 时，宿主把自己的无边框窗口渲染成分层的半透明表面；等于 1.0 时窗口保持
+    // 不透明并保住 ClearType。这个取值决定的就是窗口被构建成哪一种，而窗口一旦存在就再也
+    // 无法改变。
+    double WindowOpacity => 1.0;
 }
 ```
 
-### 多语言本地化 `ITranslationProvider`
+一个提供者可以贡献任意数量的主题，每个主题各自携带自己的明/暗标志，而不是由提供者对外暴露一个暗色变体。
 
-为插件自身及宿主贡献动态多语言键值对：
+### 本地化提供者 `ITranslationProvider`
+
+动态提供翻译字典：
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
 public interface ITranslationProvider : IPluginComponent
 {
+    // 该提供者能够服务的语言代码，以便宿主在加载任何东西之前就把它们列进设置界面。
+    // 默认为空，含义是“按被问到的内容自行发现”。
+    IReadOnlyList<string> SupportedCultures => Array.Empty<string>();
+
     IReadOnlyDictionary<string, string> GetTranslations(string cultureName);
 }
 ```

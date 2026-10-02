@@ -18,6 +18,7 @@
 | **[界面与预览扩展](./sdk/ui-extensions)** | `ISidebarFilterProvider`<br>`IResultColumnProvider`<br>`IQuickPanelTabProvider`<br>`IFilePreviewProvider`<br>`IThumbnailProvider`<br>`IThemeProvider`<br>`ITranslationProvider` | 扩展侧边栏筛选分类、表格视图自定义列、快速面板动态工作区标签、QuickLook 自定义渲染器与缩略图提取、WPF 资源字典主题包与多语言 i18n。 |
 | **[共享抽象契约](./sdk/abstractions)** | `ISearchResult`<br>`FileMetadata`<br>`IPluginSearchWindow`<br>`IConfigurable` | 检索结果只读数据契约、纳秒级文件时间戳与大小元数据、宿主窗口安全控制句柄与基于模式驱动的原生配置表单。 |
 | **[宿主开放服务](./sdk/services)** | `FuzzyMatchService`<br>`TranslationService`<br>`IconService`<br>`FavoritesService`<br>`HistoryService`<br>`FileMetadataService`<br>`DirectoryIndexerService`<br>`MemoryMaintenanceService`<br>`RecentFilesService`<br>`ExplorerPathService`<br>`PluginSettingsService`<br>`SettingsSearchService`<br>`SettingsWindowService`<br>`SearchRefreshService`<br>`UserDataService`<br>`Logger` | 宿主暴露的高性能基础设施：fzf 模糊匹配与高亮掩码、多语言解析、带缓存图标提取、收藏管理与历史读取、后台目录索引代理、延迟内存维护、用户数据目录隔离及 Shell 原生文件操作。 |
+| **[通知](./sdk/notifications)** | `PluginNotificationService`<br>`NotificationRequest`<br>`INotificationHandle`<br>`NotificationLevel`<br>`NotificationPosition`<br>`NotificationResult`<br>`NotificationFailure` | 通过宿主自己的窗口在后台获得用户注意：右下角的卡片堆或底部居中的一行提示、由宿主裁剪的时长、按 `Id` 替换、按插件计数的上限，以及一定会完成的结束任务。 |
 
 > [!NOTE]
 > 本手册所有接口签名、方法参数与行为契约均直接对照 `Lertaro.PluginSdk` 源码严格编写并校验。

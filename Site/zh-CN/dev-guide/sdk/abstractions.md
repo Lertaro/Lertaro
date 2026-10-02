@@ -7,7 +7,7 @@
 在 Lertaro 的架构中，插件对搜索结果的观察始终基于只读契约 `ISearchResult`，禁止直接篡改宿主底层的核心索引数据结构：
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions;
 
 public interface ISearchResult
 {
@@ -16,10 +16,13 @@ public interface ISearchResult
     string ContextDirectory { get; }      // 所在父级目录路径（如 "C:\Program Files\Lertaro"）
     bool IsDir { get; }                   // 是否为目录/文件夹
     bool IsApplication { get; }           // 是否为可执行程序或快捷方式
-    FileMetadata Metadata { get; }        // 高性能文件元数据（大小、修改时间等）
-    bool[]? GetHighlightMask(string text, string query); // 字符级高亮掩码计算
+    FileMetadata Metadata => default;     // 高性能文件元数据（大小、修改时间等）
+    bool[]? GetHighlightMask(string text, string query) => null; // 字符级高亮掩码计算
+    string? InstantActionArgument => null; // 即时结果真正指向的目标
 }
 ```
+
+`FullPath` 是大多数动作据以工作的身份标识，因此一个作用于“并非路径之物”的即时结果——`activatewindow:12345`、`kill:4321`、一段自定义命令的载荷——会把那个目标改放在 `InstantActionArgument` 里，提供者也从那里读取它。对其他任何种类的行它都保持 `null`：普通的文件与文件夹结果、插件搜索动作、历史记录条目。
 
 > [!NOTE]
 > `ISearchResult.Metadata` 包含的数据由宿主底层的 USN / MFT 内存索引直接注入，**读取该属性完全不产生任何磁盘 I/O 或 IPC 调用**。仅当你需要查询不属于当前结果集的外部路径时，才需要调用 `FileMetadataService.GetMetadataAsync`。
@@ -73,6 +76,8 @@ public interface IConfigurable
 | **文本选择** | `SelectionStart` 和 `SelectionLength` 用于指定 `Text` 字段输入对话框中从 0 开始计算的初始选中范围。 |
 | **`Integer`** | 数字微调输入框。支持配置最小值与最大值范围。 |
 | **`Choice`** | 下拉选择框。通过 `Choices` 或 `ChoiceOptions` 列表指定可选条目。 |
+| **`Array`** | 列表值。带 `SubFields` 时它是**记录**列表，渲染为主从明细编辑器（每个条目一张嵌套表单——文件筛选、自定义命令与网页搜索插件用的正是这种形态）；不带 `SubFields` 时它是普通的标量列表，渲染为紧凑的单列编辑器。`DefaultValue` 是一个空的 `List<object>`。 |
+| **`Object`** | 单个结构化值，通过其 `SubFields` 编辑，但不具备 `Array` 的那些列表操作能力。 |
 | **`Hotkey`** | 专属按键录制框。可配置 `RequireModifier = true` 强制要求必须包含修饰键。 |
 | **`FilePath` / `FolderPath`** | 附带“浏览...”文件/文件夹原生选择器按钮的路径输入框。 |
 | **`StringList`** | 支持多行编辑、条目增删排序与自动折行的多行列表框；真实换行仅以视觉标记显示，不会写入配置值。 |

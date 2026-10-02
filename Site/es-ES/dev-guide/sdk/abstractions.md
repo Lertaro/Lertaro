@@ -7,7 +7,7 @@ Este capítulo resume los modelos de datos fundamentales, los contratos de solo 
 Los plugins observan los resultados de búsqueda mediante la interfaz de solo lectura `ISearchResult`:
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions;
 
 public interface ISearchResult
 {
@@ -16,10 +16,13 @@ public interface ISearchResult
     string ContextDirectory { get; }      // Ruta de la carpeta contenedora
     bool IsDir { get; }                   // Indica si es una carpeta
     bool IsApplication { get; }           // Indica si es un ejecutable o acceso directo
-    FileMetadata Metadata { get; }        // Metadatos de archivo de alto rendimiento
-    bool[]? GetHighlightMask(string text, string query); // Máscara de resaltado
+    FileMetadata Metadata => default;     // Metadatos de archivo de alta precisión
+    bool[]? GetHighlightMask(string text, string query) => null; // Máscara de resaltado
+    string? InstantActionArgument => null; // A qué apunta un resultado instantáneo
 }
 ```
+
+`FullPath` es la identidad desde la que trabaja la mayoría de las acciones, así que un resultado instantáneo que actúe sobre algo que no es una ruta —`activatewindow:12345`, `kill:4321`, la carga útil de una orden personalizada— lleva ese objetivo en `InstantActionArgument`, y los proveedores lo leen allí. Sigue siendo `null` para cualquier otro tipo de fila: resultados normales de archivos y carpetas, acciones de búsqueda de plugins y entradas del historial.
 
 > [!NOTE]
 > `ISearchResult.Metadata` se inyecta directamente desde el índice en memoria. **Acceder a esta propiedad no genera E/S de disco ni llamadas IPC**. Utiliza `FileMetadataService.GetMetadataAsync` únicamente al consultar rutas externas al conjunto de resultados.
@@ -73,6 +76,8 @@ public interface IConfigurable
 | **Selección de texto** | `SelectionStart` y `SelectionLength` especifican la selección inicial, basada en cero, en el editor de diálogo de un campo `Text`. |
 | **`Integer`** | Control numérico con límites mínimos y máximos. |
 | **`Choice`** | Selector desplegable basado en una colección `Choices` o `ChoiceOptions`. |
+| **`Array`** | Un valor de lista. Con `SubFields` es una lista de **registros** renderizada como un editor maestro/detalle (un formulario anidado por entrada —la forma que usan los plugins de filtros de archivos, comandos personalizados y búsqueda web—); sin `SubFields` es una lista simple de escalares renderizada como un editor compacto de una sola columna. `DefaultValue` es un `List<object>` vacío. |
+| **`Object`** | Un único valor estructurado que se edita a través de sus `SubFields`, sin las opciones de lista de `Array`. |
 | **`Hotkey`** | Grabador de teclas con `RequireModifier = true` opcional. |
 | **`FilePath` / `FolderPath`** | Campo de texto con botón para abrir el diálogo nativo de Windows. |
 | **`StringList`** | Lista multilínea editable con adición, eliminación, reordenación y ajuste de línea visual; los saltos reales se marcan en pantalla, pero las marcas no forman parte del valor de configuración. |
