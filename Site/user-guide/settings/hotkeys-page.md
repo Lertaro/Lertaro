@@ -51,7 +51,7 @@ Every favorite ([**Settings → Favorites**](./favorites)) can carry its own **O
 
 ## 2. Plugin Actions
 
-All action shortcuts registered by plugins (e.g. Copy Full Path `Ctrl+Shift+C`, Cut `Ctrl+X`, Copy `Ctrl+C`, Paste `Ctrl+V`, Delete `Delete`, Permanent Delete `Shift+Delete`) are grouped here.
+All action shortcuts registered by plugins (e.g. Copy Full Path `Ctrl+Shift+C`, Copy Name `Shift+C`, Cut `Ctrl+X`, Copy `Ctrl+C`, Paste `Ctrl+V`, Delete `Delete`, Permanent Delete `Shift+Delete`) are grouped here.
 
 - **Categorized View**: Neatly organized by the originating plugin.
 - **Rebindable**: Each action includes its own key recording control.

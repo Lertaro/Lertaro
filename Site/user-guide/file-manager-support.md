@@ -11,7 +11,7 @@ Depending on the host window's characteristics, Lertaro provides up to three dis
 - **Active Path Detection**: Senses the physical directory currently opened in the host window, scoping searches automatically and resolving relative path actions.
 
 > [!TIP]
-> An inline card docked in a file dialog deliberately **keeps the keyboard on the dialog's side**, so typing continues to work exactly as before. Press `Ctrl+K` — or double-tap `Ctrl` — to move the caret into the card, and press it again on an empty card to hand focus back. See [**Hotkeys**](./hotkeys), section "Summoning and Focus Handover in the Inline Window".
+> An inline card docked in a file dialog deliberately **keeps the keyboard on the dialog's side**, so typing continues to work exactly as before. Double-tap `Ctrl` — or whatever summon hotkey you configured — to move the caret into the card, and press it again on an empty card to hand focus back. See [**Hotkeys**](./hotkeys), section "Summoning and Focus Handover in the Inline Window".
 
 ## 2. Native Windows Components (Built-in Out of the Box)
 

@@ -18,9 +18,10 @@ Not every row has a menu. It is withheld from the **Show More** row, plugin-prov
 | **Copy Full Path** | `Ctrl+Shift+C` | Copies the absolute path (e.g. `D:\Projects\app.exe`) to the clipboard. |
 | **Copy Name** | `Shift+C` | Copies the names of the selected files or folders to the clipboard, without their paths. |
 | **Copy File** | `Ctrl+C` | Places the file itself on the clipboard, ready to paste into Explorer or any folder. |
-| **Cut / Paste into Folder** | — | Both are in the menu but ship **without a default key**, as do Delete and Permanent Delete: they used to mirror Explorer's `Ctrl+X` / `Ctrl+V` / `Delete` / `Shift+Delete`, and under a search box those keys were being fired by accident. Bind any of them again under [**Settings → Hotkeys**](./settings/hotkeys-page) (Plugin Actions tab). |
-| **Delete (Recycle Bin)** | — | Safely moves the selected file or directory to the Windows Recycle Bin. |
-| **Permanent Delete** | — | Permanently deletes the selected item (prompts for confirmation; cannot be recovered). |
+| **Cut / Copy File** | `Ctrl+X` / `Ctrl+C` | Places the file itself on the clipboard, ready to paste into Explorer or any folder. With text selected in the search box these stay text commands. |
+| **Paste into Folder** | `Ctrl+V` | When a folder is highlighted, pastes clipboard files directly into that directory. Needs a real file list on the clipboard, so pasting text into the query is unaffected. |
+| **Delete (Recycle Bin)** | `Delete` | Safely moves the selected file or directory to the Windows Recycle Bin. A bare key only reaches the action when the caret is already at the end of the query, and the native Recycle Bin confirmation follows. |
+| **Permanent Delete** | `Shift+Delete` | Permanently deletes the selected item (native "permanently delete?" prompt; after that it cannot be recovered). |
 | **Rename** | — | Renames one existing file or folder through the Windows Shell. The dialog preselects the filename portion for convenient replacement. |
 | **Windows Context Menu** | — | Expands the full native Windows Explorer context menu with third-party extensions and "Send to". |
 

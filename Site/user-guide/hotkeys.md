@@ -34,12 +34,11 @@ A card docked in a native file dialog deliberately **does not steal the keyboard
 | Gesture | Effect | Conditions |
 | :--- | :--- | :--- |
 | **Type a letter or digit** | Summons the card and carries that first character into the search box; further keystrokes keep flowing in | Real keystrokes only — synthesized input from automation tools is passed through untouched, and nothing is captured while a context or system menu is open |
-| **`Ctrl+K`** | Puts the caret in the card's own search box | Hardcoded (non-configurable). Requires the card to be on screen over a **file dialog** with the Quick Window closed. The key is consumed, so the host's own `Ctrl+K` does not fire as well |
-| **Double-tap `Ctrl`** | Same hand-over as `Ctrl+K`. When the box already has the caret and the query is empty, it instead clears the query and hands focus back to the dialog's field, keeping the card open | Follows your configured Toggle hotkey |
+| **Double-tap `Ctrl`** (or your configured summon hotkey) | Puts the caret in the card's own search box. When the box already has the caret and the query is empty, it instead clears the query and hands focus back to the dialog's field, keeping the card open | The same hotkey as everywhere else, so rebinding it under [**Settings → Hotkeys**](./settings/hotkeys-page) moves this too. A file dialog stays eligible even when a blacklist or fullscreen would normally silence global hotkeys |
 | **`Escape`** | While the **dialog** holds the keyboard, the card closes. While the **card** holds it, the query is cleared and focus returns to the dialog (in a file dialog) or the card closes (docked over a plain Explorer window) | |
 | **`Backspace`** on an empty box | Leaves the search exactly like `Escape` | Only when the card has the caret; while the dialog holds the keyboard the key only edits the card's query |
 | **`Enter`** on an empty box | Leaves the search like `Escape` | Only when the card has the caret — while the dialog holds the keyboard, `Enter` opens the highlighted browsing row |
-| **`Tab`** | Always stays the dialog's own control traversal, so reach the card with `Ctrl+K` or a double-tap instead | |
+| **`Tab`** | Always stays the dialog's own control traversal, so reach the card with the summon hotkey instead | |
 
 > [!NOTE]
 > Inside a file dialog the action menu is unavailable for the card (`Ctrl+O`, `→` and right-click do nothing there), and `Alt+P` preview is not offered either. Mouse still works on the rows: **left-click** opens the highlighted result, **`Ctrl`+click** opens it as administrator, a row can be **dragged out** into the dialog, and simply **hovering** moves the selection — which the host file manager mirrors.
@@ -114,7 +113,6 @@ To ensure consistent and deterministic interaction, the following keys behave id
 | `←` / `→` Arrow Keys | Action Menu | Left arrow navigates back to parent menu; right arrow enters submenus. `Tab` enters a submenu too, unless you have bound it to the next/previous-item hotkey. |
 | `Tab` | Inline card | Swallowed so focus cannot leave the search box, while `Tab` inside the dialog itself keeps traversing its own controls as usual. |
 | `Tab` | Action Menu | Enters the highlighted submenu — unless you have bound `Tab` to the next/previous-item hotkey, which wins. |
-| `Ctrl+K` | Inline card over a file dialog | Puts the caret in the search box without the dialog noticing; consumed, so the host's own `Ctrl+K` does not also fire. |
 | `Apps` / `Shift+F10` | Full Window | Opens the action menu for the current selection, exactly like right-click. |
 | `Alt+Space` | All Lertaro Windows | Suppressed to prevent triggering system titlebar menus on borderless windows. |
 | `Alt+F4` | Full / Settings Windows | Closes window normally; suppressed on Quick, Inline, Quick Panel, Preview, LocalSend and in-app dialog windows. |
@@ -123,9 +121,9 @@ To ensure consistent and deterministic interaction, the following keys behave id
 
 ### Plugin Action Hotkeys
 
-Built-in file actions ship with these defaults: Copy Path `Ctrl+Shift+C`, Copy File `Ctrl+C`, Copy Name `Shift+C`, Reveal in Explorer `Ctrl+Enter`, Run as Administrator `Ctrl+Shift+Enter`.
+Built-in file actions ship with these defaults: Cut `Ctrl+X`, Copy File `Ctrl+C`, Paste `Ctrl+V`, Delete `Delete`, Permanent Delete `Shift+Delete`, Copy Path `Ctrl+Shift+C`, Copy Name `Shift+C`, Reveal in Explorer `Ctrl+Enter`, Run as Administrator `Ctrl+Shift+Enter`.
 
-**Cut, Paste, Delete and Permanent Delete have no default on purpose.** They used to mirror Explorer (`Ctrl+X`, `Ctrl+V`, `Delete`, `Shift+Delete`), but here those keys sit under a search box where `Delete` means "delete a character", and users reported firing them by accident — Permanent Delete irreversibly. The actions are still in the menu, and each one is bindable again under **Settings → Hotkeys → Plugin Actions** if you want the key: the difference between inheriting it and choosing it.
+Two guards make the destructive keys safe under a search box. A chord only reaches an action when the search box has **no text selected**, so `Ctrl+X` / `Ctrl+C` / `Ctrl+V` still cut, copy and paste your query as usual. A bare key like `Delete` only reaches an action when the caret is **already at the end** of the query, where it has no character left to delete; anywhere else in the text it stays a typing key. And both delete actions go through the shell's own `IFileOperation`, so the native "move to Recycle Bin?" / "permanently delete?" prompt still stands between the key and the files. Rebind or clear any of them under **Settings → Hotkeys → Plugin Actions**.
 
 ### Process Blacklist & Fullscreen Bypass
 

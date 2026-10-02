@@ -37,7 +37,7 @@ Lertaro is not limited to a single search window. It adapts to different workflo
 | :--- | :--- | :--- | :--- |
 | **Quick Window** | Double-tap `Ctrl` (Customizable) | Compact centered floating bar, optimized for muscle memory, number key jumps, and pure keyboard navigation | Frequent app launching, quick calculations, translations, and fast file lookup |
 | **Full Window** | Taskbar/Start shortcut, or `Ctrl+F` | Full-featured large window with tabular results, sidebar filter groups, column sorting, and built-in Space Analyzer | Deep file browsing, broad exploration, disk space cleaning, and batch management |
-| **Inline Window** | Type a letter or digit inside a file dialog / file manager (or dock it in Explorer) | Embedded seamlessly into standard Windows file dialogs or third-party file managers. The card never steals the keyboard: keep typing in the dialog's own field, and press `Ctrl+K` (or double-tap `Ctrl`) to move the caret into the card | Quick destination locating when opening or saving files in external software |
+| **Inline Window** | Type a letter or digit inside a file dialog / file manager (or dock it in Explorer) | Embedded seamlessly into standard Windows file dialogs or third-party file managers. The card never steals the keyboard: keep typing in the dialog's own field, and double-tap `Ctrl` (your configured summon hotkey) to move the caret into the card | Quick destination locating when opening or saving files in external software |
 
 All three window modes share the exact same underlying search engine, shortcut scheme, filter rules, and action menus.
 
