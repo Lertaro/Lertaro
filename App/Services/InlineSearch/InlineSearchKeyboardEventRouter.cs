@@ -129,7 +129,7 @@ internal sealed class InlineSearchKeyboardEventRouter
 
         _keyboardHook.OnCtrlNumberPressed += num => Application.Current.Dispatcher.BeginInvoke(new Action(() => _getWindow()?.LaunchByShortcutIndex(num)));
 
-        // Ctrl+F, pressed in the file dialog our panel is docked over: hand the keyboard to the search box.
+        // Ctrl+K, pressed in the file dialog our panel is docked over: hand the keyboard to the search box.
         // ActivateAndFocusSearchBox is the same entry point a summon uses -- it crosses the foreground lock
         // (the dialog is the real foreground window) and puts the caret in the box, which is why this can be
         // the whole handler. Guarded on visibility because that entry point would otherwise activate a window
