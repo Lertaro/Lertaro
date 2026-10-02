@@ -336,6 +336,9 @@ public class ExplorerTracker : IDisposable
     public void Start()
     {
         if (_isRunning) return;
+        // Build the apartments the event callback hands its cross-process reads to before anything can be
+        // dispatched to them: starting a thread from the WinEvent thread is making the shell wait on it.
+        ExplorerStaInvoker.Start();
         _winEventDelegate = new ExplorerNativeHooks.WinEventDelegate(WinEventProc);
         _hForegroundHook = ExplorerNativeHooks.SetWinEventHook(
             ExplorerNativeHooks.EVENT_SYSTEM_FOREGROUND, ExplorerNativeHooks.EVENT_SYSTEM_FOREGROUND,
