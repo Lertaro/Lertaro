@@ -88,7 +88,9 @@ public sealed class NotificationRequest
     public double? DurationSeconds { get; init; }
 
     /// <summary>
-    /// Runs when the user clicks the card body, in addition to closing it. Ignored by
+    /// Runs when the user dismisses the card by any route -- clicking its body or its close button are the
+    /// same outcome to the host -- in addition to closing it. Not run when the countdown simply expires, nor
+    /// by <see cref="INotificationHandle.Dismiss"/>. Ignored by
     /// <see cref="NotificationPosition.BottomNotice"/>, which has no interactive parts.
     /// </summary>
     public Action? OnClick { get; init; }
