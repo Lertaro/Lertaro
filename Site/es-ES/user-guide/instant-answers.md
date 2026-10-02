@@ -37,7 +37,7 @@ Ejecuta comandos directamente sin abrir una terminal previamente:
 
 ### Apertura directa de URLs
 
-Escribe o pega cualquier dirección que comience por `http://` o `https://` y pulsa `Enter` para abrirla de inmediato en tu navegador predeterminado. Al introducir una dirección web válida sin protocolo, como `example.com`, la ventana de búsqueda rápida genera dos resultados instantáneos: `https://...` y `http://...`. Cada resultado usa la presentación de dos líneas con la indicación para abrirlo en el navegador; el texto de búsqueda no se modifica y una dirección que ya incluye un protocolo produce un solo resultado.
+Escribe o pega cualquier dirección que comience por `http://` o `https://` y pulsa `Enter` para abrirla de inmediato en tu navegador predeterminado. Al introducir una dirección web válida sin protocolo, como `example.com`, la ventana de búsqueda rápida genera dos resultados instantáneos: `https://...` y `http://...`. La detección sin protocolo solo se aplica a una lista integrada de sufijos de dominio habituales (`.com`, `.net`, `.org`, `.cn`, `.io`, ...). Esa lista está fija en el código y no es configurable; cualquier otro texto sigue siendo una búsqueda de archivos, así que `abc.txt` ya no genera una fila del navegador. Escribe tú mismo el protocolo para abrir una dirección con un sufijo que no esté en la lista. Cada resultado usa la presentación de dos líneas con la indicación para abrirlo en el navegador; el texto de búsqueda no se modifica y una dirección que ya incluye un protocolo produce un solo resultado.
 
 ### Importar texto del portapapeles en la ventana de búsqueda rápida
 

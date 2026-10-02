@@ -64,6 +64,51 @@ public sealed class WebUrlInstantProviderTests
     public void GetInstantResults_NonHttpScheme_ReturnsNothing() => Assert.IsEmpty(Provider.GetInstantResults("ftp://example.com/file"));
 
     [TestMethod]
+    public void GetInstantResults_FileName_ReturnsNothing()
+    {
+        // The suffix whitelist is what keeps a file search a file search. .md, .so, .app, .py and .sh are
+        // real TLDs that are deliberately left out, because typing them means the file extension.
+        var fileNames = new[]
+        {
+            "abc.txt", "report.pdf", "notes.md", "index.html", "photo.jpg", "data.json", "readme",
+            "my.website-is-great", "libfoo.so", "Calculator.app", "main.py", "deploy.sh"
+        };
+
+        foreach (var fileName in fileNames)
+            Assert.IsEmpty(Provider.GetInstantResults(fileName), fileName);
+    }
+
+    [TestMethod]
+    public void GetInstantResults_SuffixNotWhitelistedButStartingWithOne_ReturnsNothing() =>
+        Assert.IsEmpty(Provider.GetInstantResults("example.company"));
+
+    [TestMethod]
+    public void GetInstantResults_WhitelistedSuffix_IsMatchedCaseInsensitiveAndIncludesInternationalisedOnes()
+    {
+        Assert.HasCount(2, Provider.GetInstantResults("WWW.Example.COM").ToList());
+        Assert.HasCount(2, Provider.GetInstantResults("example.中国").ToList());
+    }
+
+    [TestMethod]
+    public void GetInstantResults_ExplicitScheme_IgnoresTheWhitelist()
+    {
+        const string input = "https://localhost:8080/report.pdf";
+
+        var result = Provider.GetInstantResults(input).Single();
+
+        Assert.AreEqual(input, result.ActionArgument);
+    }
+
+    [TestMethod]
+    public void GetInstantResults_BareIpAddress_ReturnsHttpsThenHttpResults()
+    {
+        var results = Provider.GetInstantResults("192.168.1.10:3000").ToList();
+
+        Assert.HasCount(2, results);
+        Assert.AreEqual("https://192.168.1.10:3000", results[0].ActionArgument);
+    }
+
+    [TestMethod]
     public void GetInstantResults_PlainText_ReturnsNothing() => Assert.IsEmpty(Provider.GetInstantResults("just some search text"));
 
     [TestMethod]
