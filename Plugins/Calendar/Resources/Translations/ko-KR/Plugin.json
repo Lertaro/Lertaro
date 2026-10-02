@@ -37,6 +37,7 @@
   "Calendar_Delete": "삭제",
   "Calendar_TimeHint": "시각 HH:MM",
   "Calendar_TextHint": "알림 내용",
+  "Calendar_TextAdvice": "5개까지 권장",
   "Calendar_NoReminders": "이 날에는 알림이 없습니다",
   "Calendar_NoHolidayData": "해당 연도 공휴일 배치가 아직 발표되지 않았습니다",
   "Calendar_BadgeOff": "휴",

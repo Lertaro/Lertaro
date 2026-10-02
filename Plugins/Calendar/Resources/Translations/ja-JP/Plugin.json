@@ -37,6 +37,7 @@
   "Calendar_Delete": "削除",
   "Calendar_TimeHint": "時刻 HH:MM",
   "Calendar_TextHint": "リマインダー内容",
+  "Calendar_TextAdvice": "5件までを推奨",
   "Calendar_NoReminders": "この日のリマインダーはありません",
   "Calendar_NoHolidayData": "この年の祝日安排はまだ発表されていません",
   "Calendar_BadgeOff": "休",

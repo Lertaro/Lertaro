@@ -37,6 +37,7 @@
   "Calendar_Delete": "Eliminar",
   "Calendar_TimeHint": "Hora HH:MM",
   "Calendar_TextHint": "Texto del aviso",
+  "Calendar_TextAdvice": "Se recomiendan 5 o menos",
   "Calendar_NoReminders": "Sin avisos este día",
   "Calendar_NoHolidayData": "Los festivos de este año aún no se han publicado",
   "Calendar_BadgeOff": "Libre",

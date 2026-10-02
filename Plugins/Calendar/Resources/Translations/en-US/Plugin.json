@@ -37,6 +37,7 @@
   "Calendar_Delete": "Delete",
   "Calendar_TimeHint": "Time HH:MM",
   "Calendar_TextHint": "Reminder text",
+  "Calendar_TextAdvice": "Up to 5 is recommended",
   "Calendar_NoReminders": "No reminders on this day",
   "Calendar_NoHolidayData": "Holiday arrangements for this year have not been announced yet",
   "Calendar_BadgeOff": "Off",

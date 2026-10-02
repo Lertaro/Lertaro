@@ -37,6 +37,7 @@
   "Calendar_Delete": "删除",
   "Calendar_TimeHint": "时间 HH:MM",
   "Calendar_TextHint": "提醒内容",
+  "Calendar_TextAdvice": "不推荐超过5条",
   "Calendar_NoReminders": "这一天没有提醒",
   "Calendar_NoHolidayData": "该年度的放假安排尚未公布",
   "Calendar_BadgeOff": "休",

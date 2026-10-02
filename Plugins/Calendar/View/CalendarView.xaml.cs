@@ -32,6 +32,11 @@ public partial class CalendarView : UserControl
     private int _month;
     private DateTime _selected = DateTime.Today;
 
+    /// <summary>The sentence currently written inside the reminder box, in the language it was written in. Held
+    /// so a language switch can replace its own copy and so the Add path can tell that text from what the user
+    /// typed. See <see cref="ApplyLabels"/>.</summary>
+    private string _advice = string.Empty;
+
     /// <summary>
     /// Read per rebuild rather than cached at construction, so moving the setting takes effect on the open
     /// window instead of only on the next one.
@@ -62,6 +67,13 @@ public partial class CalendarView : UserControl
         // nothing, so a mistyped time never looks like a reminder that was silently dropped.
         TimeInput.TextChanged += (_, _) => AddReminderButton.IsEnabled = CanAdd();
         ReminderText.TextChanged += (_, _) => AddReminderButton.IsEnabled = CanAdd();
+        // Clicking or tabbing into a box that still holds the advice has to let the first keystroke replace it,
+        // or the reminder is spelled in front of the sentence and reads "买牛奶不推荐超过5条". Once there is real
+        // text in the box the caret stays exactly where the pointer put it.
+        ReminderText.GotKeyboardFocus += (_, _) =>
+        {
+            if (string.Equals(ReminderText.Text, _advice, StringComparison.Ordinal)) ReminderText.SelectAll();
+        };
 
         AddReminderButton.IsEnabled = CanAdd();
         UpdatePinButton();
@@ -82,6 +94,16 @@ public partial class CalendarView : UserControl
         NoRemindersText.Text = TranslationService.Get("Calendar_NoReminders");
         ReminderText.ToolTip = TranslationService.Get("Calendar_TextHint");
         TimeInput.ToolTip = TranslationService.Get("Calendar_TimeHint");
+
+        var advice = TranslationService.Get("Calendar_TextAdvice");
+        // The advice about how many reminders are sensible goes inside the box rather than beside it, because
+        // that is where the eye already is. It is offered once, on the window's construction -- the box is empty
+        // then -- and again on a language switch, where the only text allowed to be overwritten is the copy we
+        // put there ourselves. Once the user has typed over it, or added a reminder and emptied the box, it is
+        // never restored from here: the row is theirs after that.
+        if (string.IsNullOrWhiteSpace(ReminderText.Text) || ReminderText.Text == _advice)
+            ReminderText.Text = advice;
+        _advice = advice;
     }
 
     private void SettingChanged(string pluginId, string _)
@@ -275,7 +297,13 @@ public partial class CalendarView : UserControl
         DateTime.TryParseExact(TimeInput.Text?.Trim(), "HH:mm", CultureInfo.InvariantCulture,
             DateTimeStyles.None, out time);
 
-    private bool CanAdd() => TryParseTime(out _) && !string.IsNullOrWhiteSpace(ReminderText.Text);
+    /// <summary>Whether the box holds something to add. The advice the window opens with is text in the box like
+    /// any other, so it has to be ruled out here and at the add itself: without that, pressing Enter without
+    /// typing files a reminder whose text is the advice.</summary>
+    private bool IsUsableText => !string.IsNullOrWhiteSpace(ReminderText.Text)
+        && !string.Equals(ReminderText.Text, _advice, StringComparison.Ordinal);
+
+    private bool CanAdd() => TryParseTime(out _) && IsUsableText;
 
     private void AddReminder_Click(object sender, RoutedEventArgs e) => AddReminder();
 
@@ -286,7 +314,7 @@ public partial class CalendarView : UserControl
 
     private void AddReminder()
     {
-        if (!TryParseTime(out var time) || string.IsNullOrWhiteSpace(ReminderText.Text)) return;
+        if (!TryParseTime(out var time) || !IsUsableText) return;
         if (CalendarPlugin.Store == null) return;
 
         var at = _selected.AddHours(time.Hour).AddMinutes(time.Minute);
