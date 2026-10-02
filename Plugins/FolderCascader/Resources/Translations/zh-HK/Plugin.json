@@ -24,7 +24,7 @@
   "FolderCascader_Favorites": "我的最愛",
   "FolderCascader_NoFavorites": "（無最愛項目）",
   "FolderCascader_Group_Content": "內容設定",
-  "FolderCascader_PluginDesc": "階層式資料夾瀏覽器外掛程式。允許使用者透過快捷鍵或右鍵/中鍵選單在檔案總管中以樹狀階層式選單的形式，快速分層瀏覽、開啟和收藏本機及虛擬系統資料夾。",
+  "FolderCascader_PluginDesc": "階層式資料夾瀏覽器外掛程式。允許使用者透過快速鍵或右鍵/中鍵選單在檔案總管中以樹狀階層式選單的形式，快速分層瀏覽、開啟和收藏本機及虛擬系統資料夾。",
   "Plugin_Comp_Desc_Provider": "在選取的目錄或搜尋結果上按右鍵/中鍵時，提供樹狀階層展開的階層式資料夾瀏覽選單。",
   "Plugin_Comp_Desc_TranslationProvider": "為階層式資料夾瀏覽器外掛程式本身提供介面多國語言與在地化設定服務。"
 }

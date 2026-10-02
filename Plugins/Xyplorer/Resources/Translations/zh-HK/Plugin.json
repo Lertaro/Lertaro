@@ -1,6 +1,6 @@
 {
   "Plugins_Xyplorer_EnableInlineSearch": "啟用內嵌搜尋",
-  "Plugins_Xyplorer_EnableInlineSearchDesc": "允許在 XYplorer 視窗中雙擊或按快捷鍵彈出內建搜尋列",
+  "Plugins_Xyplorer_EnableInlineSearchDesc": "允許在 XYplorer 視窗中雙擊或按快速鍵彈出內建搜尋列",
   "Plugins_Xyplorer_EnableQuickNav": "啟用快速導航選單",
   "Plugins_Xyplorer_EnableQuickNavDesc": "允許在 XYplorer 的檔案清單中按中鍵彈出快速導航選單",
   "Xyplorer_PluginDesc": "XYplorer 強化整合外掛程式。讀取 XYplorer 的目前路徑並在其中快捷跳轉。",

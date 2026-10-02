@@ -82,7 +82,7 @@ public struct AdapterRect   // 實體像素
 
 - **`TargetIsFolderOnly`**：為 `true` 時，若使用者從搜尋結果中選取了一個檔案，宿主會在呼叫 `NavigateTo` 之前自動解析其父級資料夾。
 - **`TryGetTargetFieldBounds` / `TryGetFileListBounds`**：供宿主的內嵌視窗資料夾範圍使用，用來分辨帶有檔案名稱欄位的對話方塊與只有資料夾樹的對話方塊。無法解析這兩者的適配器返回 `false`，宿主會退回使用它的其他訊號。
-- **`RestoreFocus`**：把鍵盤交還給對話方塊自己的編輯欄位。宿主會在使用者離開內嵌卡片時呼叫它（按 `Escape`，或在卡片為空時再按一次呼出快捷鍵），因此這個方法不得再去啟用任何別的東西。
+- **`RestoreFocus`**：把鍵盤交還給對話方塊自己的編輯欄位。宿主會在使用者離開內嵌卡片時呼叫它（按 `Escape`，或在卡片為空時再按一次呼出快速鍵），因此這個方法不得再去啟用任何別的東西。
 
 ## 4. 內嵌搜尋適配器 `IInlineSearchAdapter`
 
@@ -150,7 +150,7 @@ public interface IQuickNavigationProvider : IPluginComponent
 
 - **`HeaderAction`**：在根分組標題上附加一個操作按鈕（例如書籤提供者加上「釘選目前資料夾」）。隨包 Folder Cascader 外掛模組那個「儲存你所在資料夾」的 `+` 按鈕就是這個成員。
 - **`DynamicMenuItem.IsHeader`**：在巢狀子選單中返回 `IsHeader = true` 的項目，可以渲染出帶有操作按鈕的互動式分組標題列。
-- **`MouseTriggerType`**：指出可以開啟選單的兩種全域滑鼠手勢。其中哪幾種生效是使用者設定，不是提供者的決定——詳見[**快捷鍵 → 快速導覽滑鼠觸發**](../../user-guide/settings/hotkeys-page)。
+- **`MouseTriggerType`**：指出可以開啟選單的兩種全域滑鼠手勢。其中哪幾種生效是使用者設定，不是提供者的決定——詳見[**快速鍵 → 快速導覽滑鼠觸發**](../../user-guide/settings/hotkeys-page)。
 
 ## 6. 註冊表
 

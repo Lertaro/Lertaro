@@ -1,6 +1,6 @@
 {
   "Plugins_DirectoryOpus_EnableInlineSearch": "啟用內嵌搜尋",
-  "Plugins_DirectoryOpus_EnableInlineSearchDesc": "允許在 Directory Opus 視窗中雙擊或按快捷鍵彈出內建搜尋欄",
+  "Plugins_DirectoryOpus_EnableInlineSearchDesc": "允許在 Directory Opus 視窗中雙擊或按快速鍵彈出內建搜尋欄",
   "Plugins_DirectoryOpus_EnableQuickNav": "啟用快速導航選單",
   "Plugins_DirectoryOpus_EnableQuickNavDesc": "允許在 Directory Opus 的檔案列表中中鍵點選彈出快速導航選單",
   "Plugins_DirectoryOpus_EnableSizeColumn": "啟用 Lertaro 大小欄",

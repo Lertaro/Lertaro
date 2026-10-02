@@ -111,7 +111,7 @@ public interface IActionProvider
 
 ### 靜態動作契約 `ISearchResultAction`
 
-表示一個明確的靜態操作（如「複製完整路徑」、「以管理員身分執行」等），呈現在 `Ctrl+O` 動作選單中或綁定為全域動作快捷鍵：
+表示一個明確的靜態操作（如「複製完整路徑」、「以管理員身分執行」等），呈現在 `Ctrl+O` 動作選單中或綁定為全域動作快速鍵：
 
 ```csharp
 namespace Lertaro.PluginSdk.Abstractions;
@@ -123,7 +123,7 @@ public interface ISearchResultAction : Plugins.IPluginComponent
     // 動作是以顯示名稱來定址的，因此 Name 由 DisplayName 對應而來，並非另行撰寫：
     string Plugins.IPluginComponent.Name => DisplayName;
 
-    // 不可為 null，但帶有預設值。空字串代表「沒有快捷鍵」，那些會破壞檔案的動作在拿回
+    // 不可為 null，但帶有預設值。空字串代表「沒有快速鍵」，那些會破壞檔案的動作在拿回
     // 檔案總管的按鍵組合之前，就是這樣保持未綁定的。
     string Hotkey => string.Empty;
     IReadOnlyList<string> Keywords => Array.Empty<string>();

@@ -11,7 +11,7 @@
   "CustomActions_Config_WorkingDirLabel": "工作目錄",
   "CustomActions_Config_RunSilentlyLabel": "靜默執行",
   "CustomActions_Config_RunAsAdminLabel": "以管理員身份執行",
-  "CustomActions_Config_HotkeyLabel": "快捷鍵",
+  "CustomActions_Config_HotkeyLabel": "快速鍵",
   "CustomActions_Config_FolderOnlyLabel": "僅對資料夾生效",
   "CustomActions_Config_MultiSelectLabel": "適配多項選擇 (選中多項時一次傳入全部路徑)",
   "CustomActions_Config_ExtensionsLabel": "限制副檔名 (例如 .txt,.log; 為空表示不限制)",
