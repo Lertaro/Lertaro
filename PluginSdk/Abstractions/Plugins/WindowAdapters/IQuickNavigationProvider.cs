@@ -8,8 +8,9 @@ public enum MouseTriggerType
 
 /// <summary>
 /// Defines a provider that supplies items for the Quick Navigation menu. Purely a content source --
-/// whether the popup should open at all for a given click is a separate concern, decided by
-/// <see cref="IQuickNavigationTriggerGate"/> (or, for file dialogs, <see cref="IFileDialogAdapter.CanShowQuickNav"/>).
+/// whether the popup should open at all for a given click is decided on the host side (its
+/// QuickNavigationTriggerGate, and <see cref="IFileDialogAdapter.CanShowQuickNav"/> for dialogs),
+/// not here.
 /// Most plugins only need to implement this interface.
 /// </summary>
 public interface IQuickNavigationProvider : IPluginComponent
