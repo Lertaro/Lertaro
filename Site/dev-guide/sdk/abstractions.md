@@ -7,7 +7,7 @@ This chapter summarizes fundamental data models, read-only contracts, and schema
 Plugins interact with search results through the read-only `ISearchResult` interface:
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions;
 
 public interface ISearchResult
 {
@@ -16,10 +16,13 @@ public interface ISearchResult
     string ContextDirectory { get; }      // Parent folder path
     bool IsDir { get; }                   // True if directory
     bool IsApplication { get; }           // True if executable / app
-    FileMetadata Metadata { get; }        // High-precision file metadata
-    bool[]? GetHighlightMask(string text, string query); // Highlight bitmask
+    FileMetadata Metadata => default;     // High-precision file metadata
+    bool[]? GetHighlightMask(string text, string query) => null; // Highlight bitmask
+    string? InstantActionArgument => null; // What an instant result points at
 }
 ```
+
+`FullPath` is the identity most actions work from, so an instant result that acts on something which is not a path — `activatewindow:12345`, `kill:4321`, a custom command payload — carries that target in `InstantActionArgument` instead, and providers read it there. It stays `null` for every other kind of row: ordinary file and folder results, plugin search actions, history entries.
 
 > [!NOTE]
 > `ISearchResult.Metadata` is populated directly by the in-memory USN/MFT index. **Accessing this property incurs zero disk I/O and zero IPC calls**. Use `FileMetadataService.GetMetadataAsync` only when querying external paths not present in the active result set.
@@ -73,6 +76,8 @@ public interface IConfigurable
 | **Text selection** | `SelectionStart` and `SelectionLength` specify the zero-based initial selection in a `Text` field's prompt editor. |
 | **`Integer`** | Numeric stepper with minimum and maximum bounds. |
 | **`Choice`** | Dropdown selector backed by a `Choices` or `ChoiceOptions` collection. |
+| **`Array`** | A list value. With `SubFields` it is a list of **records** rendered as a master/detail editor (one nested form per entry — the shape the file-filter, custom-command and web-search plugins use); without `SubFields` it is a plain list of scalars rendered as a compact single-column editor. `DefaultValue` is an empty `List<object>`. |
+| **`Object`** | A single structured value edited through its `SubFields`, without the list affordances of `Array`. |
 | **`Hotkey`** | Key recording box with optional `RequireModifier = true`. |
 | **`FilePath` / `FolderPath`** | Text box with native Windows file/folder browse dialog picker buttons. |
 | **`StringList`** | Editable multi-line list box supporting addition, deletion, reordering, and soft wrapping. Real line breaks are marked visually, but the markers are not part of the setting value. |

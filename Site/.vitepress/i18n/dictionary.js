@@ -41,6 +41,7 @@ export const dictionary = {
     dgSdkUi: 'UI & Preview Extensions',
     dgSdkAbstractions: 'Shared Abstractions',
     dgSdkServices: 'Host Services',
+    dgSdkNotifications: 'Notifications',
     dgExamples: 'Example Plugins',
     dgPackaging: 'Packaging & Deployment',
 
@@ -114,6 +115,7 @@ export const dictionary = {
     dgSdkUi: '界面与预览扩展',
     dgSdkAbstractions: '共享抽象契约',
     dgSdkServices: '宿主服务',
+    dgSdkNotifications: '通知卡片',
     dgExamples: '插件示例',
     dgPackaging: '打包与发布',
 
@@ -184,6 +186,7 @@ export const dictionary = {
     dgSdkUi: '介面與預覽擴展',
     dgSdkAbstractions: '共享抽象契約',
     dgSdkServices: '宿主服務',
+    dgSdkNotifications: '通知卡片',
     dgExamples: '插件示例',
     dgPackaging: '打包與發佈',
 
@@ -254,6 +257,7 @@ export const dictionary = {
     dgSdkUi: '介面與預覽擴充',
     dgSdkAbstractions: '共用抽象契約',
     dgSdkServices: '宿主服務',
+    dgSdkNotifications: '通知卡片',
     dgExamples: '外掛範例',
     dgPackaging: '封裝與發布',
 
@@ -324,6 +328,7 @@ export const dictionary = {
     dgSdkUi: 'UI・プレビュー拡張',
     dgSdkAbstractions: '共有抽象化',
     dgSdkServices: 'ホストサービス',
+    dgSdkNotifications: '通知表示',
     dgExamples: 'サンプルプラグイン',
     dgPackaging: 'パッケージングと配布',
 
@@ -394,6 +399,7 @@ export const dictionary = {
     dgSdkUi: 'UI 및 미리보기 확장',
     dgSdkAbstractions: '공유 추상화',
     dgSdkServices: '호스트 서비스',
+    dgSdkNotifications: '알림 카드',
     dgExamples: '예제 플러그인',
     dgPackaging: '패키징 및 배포',
 
@@ -464,6 +470,7 @@ export const dictionary = {
     dgSdkUi: 'Extensiones de interfaz y vista previa',
     dgSdkAbstractions: 'Abstracciones compartidas',
     dgSdkServices: 'Servicios del host',
+    dgSdkNotifications: 'Notificaciones',
     dgExamples: 'Plugins de ejemplo',
     dgPackaging: 'Empaquetado y despliegue',
 

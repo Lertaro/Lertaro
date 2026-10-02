@@ -1,109 +1,154 @@
 # UI & Preview Extensions
 
-This chapter introduces `Lertaro.PluginSdk` interfaces for extending the main sidebar, adding custom table columns, providing dynamic Quick Panel tabs, crafting QuickLook file previewers, extracting thumbnails, and building WPF themes and i18n localization packs.
+This chapter introduces `Lertaro.PluginSdk` interfaces for extending the search window sidebar, adding custom table columns, providing dynamic Quick Panel tabs, building QuickLook file previewers and thumbnail extractors, and shipping WPF themes and i18n localization packs.
+
+All of these live under `Lertaro.PluginSdk.Abstractions.Plugins` (preview providers under `…Abstractions.Plugins.Preview`) and every one of them derives from `IPluginComponent`, which supplies the `Name` the host shows in **Settings → Plugins**.
 
 ## 1. Sidebar Filter Provider `ISidebarFilterProvider`
 
-Injects custom category filter trees into the left sidebar of the Full Search window:
+Injects custom filter categories into the left sidebar of the search window:
 
 ```csharp
-namespace Lertaro.PluginSdk;
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 public interface ISidebarFilterProvider : IPluginComponent
 {
     IEnumerable<SidebarFilterGroup> GetFilterGroups();
+
+    // Ordering weight; lower values render first.
+    int SortOrder => 100;
 }
 
-public sealed class SidebarFilterGroup
+public class SidebarFilterGroup
 {
-    public required string GroupName { get; init; }
-    public required IReadOnlyList<SidebarFilterItem> FilterItems { get; init; }
+    // Optional stable id the host recognises for well-known groups (e.g. "Type" for the
+    // built-in result-type filter). Empty when the group is entirely plugin-defined.
+    public string Id { get; set; } = string.Empty;
+    public string Header { get; set; } = string.Empty;
+    public List<SidebarFilterItem> Items { get; set; } = new();
+
+    // Whether several items in this group can be active at once.
+    public bool AllowMultiSelect { get; set; }
 }
 
-public sealed class SidebarFilterItem
+public class SidebarFilterItem
 {
-    public required string Id { get; init; }
-    public required string DisplayName { get; init; }
-    public ImageSource? Icon { get; init; }
-    public required Func<ISearchResult, bool> FilterFunc { get; init; } // Match predicate
+    public string Id { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+
+    // Two icon routes, both theme-aware: IconData is a glyph drawn in the active theme's
+    // text colour, IconKey names a resource the host already owns. Leave both null for none.
+    public string? IconData { get; set; }
+    public string? IconKey { get; set; }
+
+    // The predicate a result must satisfy for this item to match. Defaults to "matches nothing",
+    // so an item that never sets it is shown but can never select anything.
+    public Func<ISearchResult, bool> MatchPredicate { get; set; } = _ => false;
 }
 ```
 
-`SidebarFilterGroup.Id` is an optional stable group identifier. The host can use recognised identifiers such as `Type` to apply built-in behaviour; leave it empty when the group is entirely plugin-defined.
+Groups and items are mutable classes, not records: fill in the properties you need and leave the rest at their defaults.
 
 ## 2. Custom Table Column Provider `IResultColumnProvider`
 
-Appends custom data columns to the "Details" table view of the Full Search window (e.g. displaying media duration, lines of code, or Git branches):
+Appends custom data columns to the "Details" table view of the Full Search window (e.g. media duration, lines of code, Git branch). The provider describes its columns once and answers per-cell values on demand:
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
 public interface IResultColumnProvider : IPluginComponent
 {
-    string ColumnId { get; }
-    string HeaderText { get; }
-    double DefaultWidth => 120;
-    double MinWidth => 40;
-    bool IsVisibleByDefault => false;
-    string? GetCellText(ISearchResult result);
-    int Compare(ISearchResult a, ISearchResult b) => 0; // Header click sort comparer
+    IEnumerable<ResultColumnDefinition> GetColumns();
+    string GetCellValue(ISearchResult result, string columnId);
+}
+
+public class ResultColumnDefinition
+{
+    public string ColumnId { get; set; } = string.Empty;
+    public string HeaderText { get; set; } = string.Empty;
+    public double Width { get; set; } = 120;
+
+    // Optional: hide the column for results it does not apply to.
+    public Func<ISearchResult, bool>? VisibilityPredicate { get; set; }
+
+    // Optional: custom sort on header click. Negative when x < y, positive when x > y.
+    public Func<ISearchResult, ISearchResult, int>? SortComparer { get; set; }
+
+    // Optional: a double-click on this column's cell in the Full window. Leave it unset and
+    // double-clicking the cell behaves like double-clicking anywhere else on the row.
+    public Action<ISearchResult>? OnDoubleClick { get; set; }
 }
 ```
+
+`GetCellValue` is called during list rendering, so it must be cheap; hand back pre-computed values or read a cache rather than touching disk.
 
 ## 3. Quick Panel Tab Provider `IQuickPanelTabProvider`
 
-Contributes dynamic workspace tabs to the [**Quick Panel**](../../user-guide/settings/quick-panel) under the Quick Search bar:
+Contributes a dynamic workspace tab to the [**Quick Panel**](../../user-guide/settings/quick-panel):
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
 public interface IQuickPanelTabProvider : IPluginComponent
 {
-    string TabId { get; }
-    string Title { get; }
-    string? IconPath => null;
-    Task<IReadOnlyList<ISearchResult>> GetItemsAsync(CancellationToken token);
-
-    // Drag-and-drop acceptance logic
-    bool CanHandleDragOver(IDataObject data) => false;
-    Task HandleDropAsync(IDataObject data, CancellationToken token) => Task.CompletedTask;
-
-    // Drag-to-reorder support
-    bool SupportsReorder => false;
-    Task SaveOrderAsync(IReadOnlyList<ISearchResult> orderedItems) => Task.CompletedTask;
-
-    // Custom tab action context
-    DynamicActionContext CreateActionContext() => DynamicActionContext.Default;
+    // The entries to show right now. Called each time the panel is summoned.
+    Task<IReadOnlyList<ISearchResult>> GetEntriesAsync(CancellationToken cancellationToken = default);
 }
 ```
+
+That single method is the whole contract — there is no drop handling, reordering, or action context to implement.
+
+- The `CancellationToken` is cancelled when the panel closes. Only the tab's own list observes it; nothing else about your plugin changes.
+- Fill in `ISearchResult`'s `Metadata.Modified` where the source knows one, because the default newest-first ordering uses it. Leave it at its default and the entries keep the order you returned them in.
+- A provider that returns nothing gets no tab, and there is nothing to configure for that.
+- The tab exists as soon as the plugin does, unlike a folder the user has to add. It can be closed from the strip and reopened under **Settings → Quick Panel**, which is a different question from disabling the component under **Settings → Plugins** (that stops it loading at all).
 
 ## 4. File Previews & Thumbnails
 
 ### Custom File Preview Provider `IFilePreviewProvider`
 
-Renders interactive previews inside the QuickLook window (triggered via `Space`):
+Renders previews inside the QuickLook panel, which the user opens with `Alt+P` or a middle-click on a previewable row (see [**Actions & Preview**](../../user-guide/actions-and-preview)):
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
+
 public interface IFilePreviewProvider : IPluginComponent
 {
-    bool CanPreview(string filePath);
-    int Priority => 0;                  // Priority when multiple providers match
-    FrameworkElement CreatePreviewControl(string filePath);
+    // Tie-break when several providers claim the same file; higher wins.
+    int Priority => 0;
+
+    bool CanPreview(string path, bool isDir);
+    UIElement CreatePreview(string path, bool isDir);
+
+    // True when the provider hosts an external window of its own rather than returning WPF
+    // content to be laid out inside the panel (the QuickLook bridge plugin does this).
+    bool RendersExternally => false;
 }
 ```
 
 #### Preview Lifecycle & Reuse Contracts
 
-When your returned WPF `FrameworkElement` implements the following optional contracts, the host optimizes the preview lifecycle:
+When the `UIElement` you return implements either of these optional contracts, the host optimizes the preview lifecycle:
 
-- **`IPreviewSessionAware`**: Implements `void OnPreviewClosed()`, triggered when the preview window closes or navigates to an incompatible file, ensuring safe disposal of media players, WebView2 instances, or file streams.
-- **`IReusablePreview`**: Implements `void UpdatePreview(string filePath)`. When navigating continuously between similar files via arrow keys, the host updates content in-place without destroying and recreating the control, eliminating UI flicker.
+- **`IPreviewSessionAware`** — `void EndPreviewSession();` The provider owns a real external window (an `HwndHost`, a native `IPreviewHandler` and its `prevhost` surrogate), not just an in-process control, so it is told to end its session when the panel hides or the whole preview session ends. Without this the host's window would linger with nothing pointing at it.
+- **`IReusablePreview`** — `bool TrySetTarget(string path, bool isDir);` When the user steps between similar files with the arrow keys, the host asks the same control to retarget instead of destroying and rebuilding it, which is what removes the flicker. Return `false` when the new target does not suit this instance and the host falls back to building a fresh preview.
 
 ### Custom Thumbnail Provider `IThumbnailProvider`
 
-Extracts high-resolution thumbnails for proprietary formats without native Shell thumbnail handlers (e.g. `.blend`, `.psd`, `.dwg`):
+Extracts thumbnails for formats with no native Shell handler (`.blend`, `.psd`, `.dwg`):
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins.Preview;
+
 public interface IThumbnailProvider : IPluginComponent
 {
-    bool CanProvide(string filePath);
-    Task<ImageSource?> GetThumbnailAsync(string filePath, int targetSize, CancellationToken token);
+    int Priority => 0;
+
+    bool CanProvideThumbnail(string path, bool isDir);
+
+    // Synchronous, because it runs on the result-list rendering path. Keep it fast, and cache
+    // by path and size yourself -- the host does not memoise the result for you.
+    ImageSource? GetThumbnail(string path, int size);
 }
 ```
 
@@ -111,24 +156,45 @@ public interface IThumbnailProvider : IPluginComponent
 
 ### Theme Provider `IThemeProvider`
 
-Contributes custom color palettes and WPF Resource Dictionaries to Lertaro:
+Contributes color palettes and WPF resource dictionaries:
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
 public interface IThemeProvider : IPluginComponent
 {
-    string ThemeId { get; }
+    IEnumerable<ITheme> GetThemes();
+}
+
+public interface ITheme
+{
+    string Id { get; }
     string DisplayName { get; }
-    ResourceDictionary GetResourceDictionary(bool isDark);
+    bool IsDark { get; }
+    ResourceDictionary GetResources();
+
+    // Below 1.0 the host renders its borderless windows as layered, translucent surfaces;
+    // at 1.0 they stay opaque and keep ClearType. This value is what decides which kind a
+    // window is built as, and it cannot change after the window exists.
+    double WindowOpacity => 1.0;
 }
 ```
 
+One provider can contribute any number of themes, and each theme carries its own light-or-dark flag rather than the provider exposing a dark variant.
+
 ### Localization Provider `ITranslationProvider`
 
-Supplies localized translation dictionaries dynamically:
+Supplies translation dictionaries dynamically:
 
 ```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
 public interface ITranslationProvider : IPluginComponent
 {
+    // The culture codes this provider can serve, so the host can offer them in Settings
+    // before anything is loaded. Empty by default, which means "discover from what is asked".
+    IReadOnlyList<string> SupportedCultures => Array.Empty<string>();
+
     IReadOnlyDictionary<string, string> GetTranslations(string cultureName);
 }
 ```

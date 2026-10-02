@@ -52,6 +52,7 @@ export const navSchema = [
           { id: 'dgSdkUi', slug: 'dev-guide/sdk/ui-extensions' },
           { id: 'dgSdkAbstractions', slug: 'dev-guide/sdk/abstractions' },
           { id: 'dgSdkServices', slug: 'dev-guide/sdk/services' },
+          { id: 'dgSdkNotifications', slug: 'dev-guide/sdk/notifications' },
         ],
       },
       { id: 'dgExamples', slug: 'dev-guide/examples' },
