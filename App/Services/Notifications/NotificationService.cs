@@ -80,6 +80,9 @@ internal static class NotificationService
         var sourceName = DescribeSource(source);
         lock (_gate)
         {
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher == null) return null;
+            if (dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished) Queue.Shutdown();
             return Queue.Submit(request, pluginKey, sourceName);
         }
     }
@@ -176,7 +179,7 @@ internal static class NotificationService
     private static void OnOrOver(Action work)
     {
         var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher == null) return;
+        if (dispatcher == null || dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished) return;
         if (dispatcher.CheckAccess())
         {
             // Reached with the gate already held by whoever submitted the request.

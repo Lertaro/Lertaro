@@ -366,6 +366,39 @@ public class NotificationQueueTests
     }
 
     [TestMethod]
+    public void Shutdown_RejectsLaterRequestsWithoutSchedulingPresentation()
+    {
+        var before = ShowCard("before shutdown");
+        _queue.Shutdown();
+        _queue.Shutdown();
+
+        var card = ShowCard("submitted by a disposing plugin");
+        var notice = ShowNotice("late notice");
+        _queue.Feed();
+
+        foreach (var item in new[] { before, card, notice })
+            Assert.AreEqual(NotificationFailure.HostShuttingDown, ResultOf(item).Failure);
+        Assert.HasCount(1, _screen.Shown);
+        Assert.HasCount(1, _screen.Hidden);
+        Assert.IsFalse(_queue.HasWaiting);
+    }
+
+    [TestMethod]
+    public void Shutdown_ClosesAdmissionBeforeCallingWindowTeardown()
+    {
+        NotificationItem? late = null;
+        _queue = new NotificationQueue(() => false, _screen.Show,
+            _ => late = ShowCard("reentrant submission"), _screen.Warn, _gate);
+        ShowCard("still visible");
+
+        _queue.Shutdown();
+
+        Assert.IsNotNull(late);
+        Assert.AreEqual(NotificationFailure.HostShuttingDown, ResultOf(late).Failure);
+        Assert.HasCount(1, _screen.Shown);
+    }
+
+    [TestMethod]
     public void DismissFromTheHandle_EndsAQueuedRequestWithoutShowingIt()
     {
         var shown = ShowCards(1, 5);

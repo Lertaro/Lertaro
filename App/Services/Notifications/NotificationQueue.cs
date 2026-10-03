@@ -38,6 +38,7 @@ internal sealed class NotificationQueue(
     private readonly List<NotificationItem> _cards = [];
     private readonly List<NotificationItem> _pending = [];
     private NotificationItem? _notice;
+    private bool _stopping;
 
     // Suppresses the refill that a close would otherwise trigger while a bulk cancellation is still
     // pulling items out from under it, so a cancel cannot show a card it is about to cancel.
@@ -47,10 +48,12 @@ internal sealed class NotificationQueue(
     /// the caller's task uncompleted: a rejected request comes back already failed.</summary>
     public NotificationItem Submit(NotificationRequest request, string pluginKey, string sourceName)
     {
-        if (string.IsNullOrWhiteSpace(request.Title) && string.IsNullOrWhiteSpace(request.Message))
+        if (_stopping || (string.IsNullOrWhiteSpace(request.Title) && string.IsNullOrWhiteSpace(request.Message)))
         {
             var rejected = new NotificationItem(request, pluginKey, sourceName, request.Position, 0, null);
-            rejected.Complete(NotificationResult.Failed(NotificationFailure.InvalidRequest));
+            rejected.Complete(NotificationResult.Failed(_stopping
+                ? NotificationFailure.HostShuttingDown
+                : NotificationFailure.InvalidRequest));
             return rejected;
         }
 
@@ -148,6 +151,9 @@ internal sealed class NotificationQueue(
     /// with it any wait for an answer, with it.</summary>
     public void Shutdown()
     {
+        if (_stopping) return;
+        // Close admission before completing anything: disposal can submit again, including through a callback.
+        _stopping = true;
         const NotificationFailure reason = NotificationFailure.HostShuttingDown;
         _batching = true;
         try
