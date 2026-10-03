@@ -51,7 +51,7 @@ public sealed class UpdateRelaunchMarkerTests
     [DataRow("123\tnot-a-session\tC:\\app.exe", "unreadable session id")]
     [DataRow("123\t0\tC:\\app.exe", "session zero is not a logon session")]
     [DataRow("123\t-1\tC:\\app.exe", "negative session id")]
-    [DataTestMethod]
+    [TestMethod]
     public void TryParse_MalformedNote_IsRefusedWithoutThrowing(string content, string because)
     {
         Assert.IsFalse(UpdateRelaunchMarker.TryParse(content, Now, out var sessionId, out var appPath), because);

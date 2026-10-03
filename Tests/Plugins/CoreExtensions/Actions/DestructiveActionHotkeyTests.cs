@@ -2,22 +2,22 @@ using Lertaro.Plugins.CoreExtensions.Actions;
 
 namespace Lertaro.Plugins.CoreExtensions.Tests.Actions;
 
-// The four actions that move or destroy files ship with no hotkey bound. They used to carry Explorer's
-// own keys (Ctrl+X, Ctrl+V, Delete, Shift+Delete), which reads as obvious until you remember where they
-// sit: under a search box, where Delete means "delete a character" and Ctrl+V means "paste text". Users
-// reported firing them by accident, and Shift+Delete is the one mistake in this set that nothing can
-// undo. All four are still in the actions menu and still bindable in Settings -- this only stops them
-// being inherited by someone who never asked for them.
+// The four actions that move or destroy files carry Explorer's own keys (Ctrl+X, Ctrl+V, Delete,
+// Shift+Delete). That reads as obvious until you remember where they sit -- under a search box, where
+// Delete means "delete a character" and Ctrl+V means "paste text" -- so they are only offered while the
+// box has nothing selected (see SearchInputHelper.TryActionHotkey), and the native prompts behind delete
+// stay as the backstop. This test pins the defaults because dropping one is a user-visible change with a
+// documented rationale on both sides of it, not an internal detail.
 [TestClass]
 public sealed class DestructiveActionHotkeyTests
 {
     [TestMethod]
-    public void DestructiveActions_HaveNoDefaultHotkey()
+    public void DestructiveActions_KeepTheirExplorerDefaults()
     {
-        Assert.IsEmpty(new CutFileAction().Hotkey);
-        Assert.IsEmpty(new PasteFileAction().Hotkey);
-        Assert.IsEmpty(new DeleteFileAction().Hotkey);
-        Assert.IsEmpty(new PermanentDeleteFileAction().Hotkey);
+        Assert.AreEqual("Ctrl+X", new CutFileAction().Hotkey);
+        Assert.AreEqual("Ctrl+V", new PasteFileAction().Hotkey);
+        Assert.AreEqual("Delete", new DeleteFileAction().Hotkey);
+        Assert.AreEqual("Shift+Delete", new PermanentDeleteFileAction().Hotkey);
     }
 
     // The non-destructive ones keep theirs: this is about what a key does, not about clearing defaults
