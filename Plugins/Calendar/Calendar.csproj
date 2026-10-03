@@ -6,7 +6,7 @@
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Lertaro.Plugins.Calendar</AssemblyName>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <!-- lunar-csharp is a single managed netstandard2.0 assembly with no dependencies and no native code
          of its own, so unlike BrowserData/ContentSearch this needs no RuntimeIdentifier at all: an IL-only
