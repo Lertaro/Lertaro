@@ -131,6 +131,11 @@ internal static class NotificationService
         {
             lock (_gate)
             {
+                if (item.IsSettled)
+                {
+                    StopTickerIfIdle();
+                    return;
+                }
                 BindScreenEvents();
                 EnsureTicker();
                 Windows.Present(item);
@@ -140,7 +145,11 @@ internal static class NotificationService
 
     private static void TakeDown(NotificationItem item) => OnOrOver(() =>
     {
-        lock (_gate) Windows.TakeDown(item);
+        lock (_gate)
+        {
+            Windows.TakeDown(item);
+            StopTickerIfIdle();
+        }
     });
 
     /// <summary>Called once a notification's window is really gone: frees its slot, which is what lets the queue
@@ -232,6 +241,9 @@ internal static class NotificationService
 
         lock (_gate)
         {
+            StopTickerIfIdle();
+            if (_ticker == null) return;
+
             // A locked session counts for nothing, and the reference point already moved with it above, so the
             // remaining time is whatever it was when the screen went dark. That flag is written by the session
             // handler under this gate, which is why the check lives here and not out with the timestamp.
