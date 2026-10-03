@@ -1,8 +1,9 @@
 using Lertaro.App.Helpers;
 using Lertaro.App.Services.AppWindow;
-using Lertaro.App.Services.Tray;
+using Lertaro.App.Services.Notifications;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
+using Lertaro.PluginSdk.Abstractions;
 using Application = System.Windows.Application;
 
 namespace Lertaro.App.Services;
@@ -16,21 +17,21 @@ public static class LegacySettingsNoticeService
 {
     /// <summary>
     /// Shows the notice when the saved settings still carry a legacy value, and does nothing otherwise. Run
-    /// after the window is up, so the balloon has a tray icon to attach to.
+    /// after the window is up, so the notice does not arrive ahead of the startup windows.
     /// </summary>
     /// <remarks>
-    /// Three different legacies, one balloon: at most one of them is worth interrupting startup for, and they
+    /// Three different legacies, one notice: at most one of them is worth interrupting startup for, and they
     /// are checked in the order of how much the user needs to know.
     ///
     /// Every check MUTATES the settings (that is what makes each one unrepeatable), so the save below is not
-    /// optional: without it the same balloon comes back on the next launch.
+    /// optional: without it the same notice comes back on the next launch.
     /// </remarks>
     public static void RunOnStartup() => _ = Task.Run(async () =>
     {
         try
         {
-            // Same delay as the update check: the tray icon is created with the quick window, and a balloon
-            // shown before that has nothing to render in.
+            // Same delay as the update check: the quick window and the tray icon are both created during
+            // startup, and a notice that lands before they are merely competes with them.
             await Task.Delay(4000);
 
             var settings = UserSettings.Load();
@@ -38,20 +39,24 @@ public static class LegacySettingsNoticeService
             if (title == null)
                 return;
 
-            // Saved before the balloon is shown. The recorded values are one-time pieces of guidance, and a
-            // failure between here and the balloon must not turn them into a once-per-launch nag.
+            // Saved before the notice is shown. The recorded values are one-time pieces of guidance, and a
+            // failure between here and the notice must not turn them into a once-per-launch nag.
             if (changed)
                 settings.Save();
 
-            // A balloon is the right surface: this is a notice about a saved setting, not a question, and it
+            // A card is the right surface: this is a notice about a saved setting, not a question, and it
             // must not block startup. Clicking it jumps straight to the prefix field -- the same entry the
             // settings search box resolves that key to.
             Application.Current?.Dispatcher.BeginInvoke(new Action(
-                () => TrayIconService.Instance?.ShowBalloonTip(
-                    title,
-                    text!,
-                    ToolTipIcon.Warning,
-                    onClick: OpenTokenPrefixSetting)));
+                () => NotificationService.Show(
+                    new NotificationRequest
+                    {
+                        Title = title,
+                        Message = text!,
+                        Level = NotificationLevel.Warn,
+                        OnClick = OpenTokenPrefixSetting,
+                    },
+                    typeof(LegacySettingsNoticeService).Assembly)));
         }
         catch (Exception ex)
         {
