@@ -40,7 +40,7 @@ Use standalone folder indexing when you want to target specific working director
 
 ## 5. Exclusions
 
-Exclusion rules apply globally across local drives, network storage, and custom folders, organized into three sub-tabs:
+Exclusion rules filter search results and bound how far the network, WSL and folder-index walks descend. They do not stop a local drive from being indexed: a local volume is always walked in full, so a path such as `E:\` in this list only hides its results. To stop indexing a local drive, turn it off under **Local Drives** above. The rules are organized into three sub-tabs:
 
 ### Path Exclusions
 
