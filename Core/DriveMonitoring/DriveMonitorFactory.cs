@@ -36,7 +36,14 @@ internal static class DriveMonitorFactory
             return;
         }
 
-        var folderMonitor = new FolderDriveMonitor(drive, (changeType, path, oldPath) => indexer.ApplyFolderChange(drive, changeType, path, oldPath), parentToken);
+        var folderMonitor = new FolderDriveMonitor(
+            drive,
+            (changeType, path, oldPath) => indexer.ApplyFolderChange(drive, changeType, path, oldPath),
+            parentToken,
+            // A FAT32/exFAT watcher that dies silently loses every change made while it was down; a
+            // per-drive re-walk is the only way to reconcile, the same callback a removed-and-reattached
+            // drive uses.
+            () => onReindexRequired?.Invoke(drive));
         var folderRemoval = RegisterRemovalMonitor(indexer, drive, parentToken, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
         indexer.RegisterDriveMonitor(drive, new DriveMonitorRegistration(folderMonitor, folderRemoval));
         folderMonitor.Start();

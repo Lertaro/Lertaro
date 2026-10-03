@@ -32,7 +32,10 @@ internal static class NativeFileEnumerator
         // The first FindFirstFileEx call above is deliberately NOT deferred into the iterator below:
         // TreeBuilder's retry loop catches enumeration failures from the call to Enumerate, matching
         // Directory.EnumerateFileSystemEntries's eager path validation. The iterator only ever runs
-        // after a valid handle and first entry have been obtained.
+        // after a valid handle and first entry have been obtained. A failure raised from INSIDE the
+        // iterator (FindNextFile below, e.g. the share dropping mid-listing) is caught by
+        // TreeBuilderEnumerationExtensions.ConsumeChildren instead, which leaves that one directory
+        // un-Listed rather than faulting the worker that happened to walk it.
         return EnumerateCore(handle, findData);
     }
 
