@@ -152,6 +152,47 @@ public sealed class ContentIndexSchedulerMissingObservationTests
         }
     }
 
+    [TestMethod]
+    public async Task TriggerFullScan_FileMissedByBatchThenGenuinelyGone_IsDeletedByRetention()
+    {
+        // The batch-time "discovered but not visible" path and the scan-time retention pass
+        // share one grace counter, so the two cannot disagree: the batch's single miss leaves
+        // the row intact, and two further scans of genuine absence then remove it.
+        var tempDir = Path.Combine(Path.GetTempPath(), "TestIndexSchedulerMissing_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var file = Path.Combine(tempDir, "note.txt");
+
+        try
+        {
+            await File.WriteAllTextAsync(file, "indexed text");
+            _database.InsertOrUpdateFile(file, DateTime.UtcNow.AddMinutes(-5), new FileInfo(file).Length, "indexed text");
+            File.Delete(file);
+
+            var processor = new IndexBatchProcessor(_database);
+            await processor.ProcessBatchAsync(new[] { file }, new ContentIndexConfig
+            {
+                MonitoredFolders = new List<string> { tempDir },
+                AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".txt" }
+            }, CancellationToken.None);
+
+            Assert.IsNotNull(_database.GetFileRecord(file), "the batch miss alone must not delete the row");
+            Assert.AreEqual(1, _database.GetFileRecord(file)!.MissingCount);
+
+            using var scheduler = CreateScheduler(tempDir);
+            scheduler.TriggerFullScan();
+            await WaitUntilAsync(() => _database.GetFileRecord(file) is { MissingCount: 2 });
+            Assert.IsNotNull(_database.GetFileRecord(file), "still inside the grace period");
+
+            scheduler.TriggerFullScan();
+            await WaitUntilAsync(() => _database.GetFileRecord(file) == null);
+            Assert.IsNull(_database.GetFileRecord(file));
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+    }
+
     private ContentIndexScheduler CreateScheduler(string monitoredFolder)
     {
         var scheduler = new ContentIndexScheduler(_database);

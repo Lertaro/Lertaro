@@ -8,7 +8,7 @@
   "ContentSearch_Config_FoldersLabel": "Carpetas monitorizadas permitidas",
   "ContentSearch_Config_FoldersDesc": "Lista de carpetas locales a indexar, admite variables de entorno (p. ej. %USERPROFILE%)",
   "ContentSearch_Config_MaxSizeLabel": "Tamaño máximo por archivo (MB)",
-  "ContentSearch_Config_MaxSizeDesc": "Los archivos que superen este tamaño se omitirán para ahorrar memoria y rendimiento",
+  "ContentSearch_Config_MaxSizeDesc": "Los archivos que superen este tamaño se omitirán para ahorrar memoria y rendimiento (0 = sin límite)",
   "ContentSearch_Config_ExtensionsLabel": "Extensiones de archivo indexadas",
   "ContentSearch_Config_ExtensionsDesc": "Lista separada por comas de extensiones de archivo (p. ej. txt,md,docx,pdf)",
   "ContentSearch_Config_ExclusionsLabel": "Patrones de ruta excluidos",

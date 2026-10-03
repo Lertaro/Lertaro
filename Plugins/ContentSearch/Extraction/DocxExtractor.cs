@@ -89,7 +89,7 @@ public sealed class DocxExtractor : ITextExtractor
     {
         if (entry == null) return;
 
-        using var stream = entry.Open();
+        using var stream = ExtractionLimits.ReadEntryBounded(entry);
         var xDoc = XDocument.Load(stream);
         if (xDoc.Root == null) return;
 
@@ -104,7 +104,7 @@ public sealed class DocxExtractor : ITextExtractor
     {
         if (entry == null) return;
 
-        using var stream = entry.Open();
+        using var stream = ExtractionLimits.ReadEntryBounded(entry);
         var xDoc = XDocument.Load(stream);
         if (xDoc.Root == null) return;
 
@@ -126,7 +126,7 @@ public sealed class DocxExtractor : ITextExtractor
     {
         if (entry == null) return;
 
-        using var stream = entry.Open();
+        using var stream = ExtractionLimits.ReadEntryBounded(entry);
         var xDoc = XDocument.Load(stream);
         if (xDoc.Root == null) return;
 
@@ -173,6 +173,9 @@ public sealed class DocxExtractor : ITextExtractor
         }
 
         if (text.Length > 0)
+        {
             builder.AppendLine(text.ToString());
+            ExtractionLimits.ThrowIfOverTextLimit(builder);
+        }
     }
 }

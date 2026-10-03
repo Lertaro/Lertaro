@@ -5,11 +5,13 @@ using Lertaro.Plugins.ContentSearch.Storage;
 namespace Lertaro.Plugins.ContentSearch.Tests.Indexing;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class DuplicateContentResolverTests
 {
     private string _tempDir = null!;
     private string _tempDbPath = null!;
     private ContentSearchDatabase _database = null!;
+    private readonly List<string> _logLines = new();
 
     [TestInitialize]
     public void SetUp()
@@ -19,11 +21,14 @@ public sealed class DuplicateContentResolverTests
         _tempDbPath = Path.Combine(_tempDir, "test.db");
         _database = new ContentSearchDatabase(_tempDbPath);
         _database.Initialize();
+        _logLines.Clear();
+        PluginSdk.Logger.LogAction = (message, level) => _logLines.Add($"{level}: {message}");
     }
 
     [TestCleanup]
     public void TearDown()
     {
+        PluginSdk.Logger.LogAction = null;
         _database.Dispose();
         try { Directory.Delete(_tempDir, recursive: true); } catch { }
     }
@@ -48,6 +53,23 @@ public sealed class DuplicateContentResolverTests
         // difference must not collide.
         Assert.AreEqual(hashA, DuplicateContentResolver.ComputeHashIfLarge(fileB, new FileInfo(fileB).Length));
         Assert.AreNotEqual(hashA, DuplicateContentResolver.ComputeHashIfLarge(fileC, new FileInfo(fileC).Length));
+    }
+
+    [TestMethod]
+    public async Task ComputeHashIfLarge_CancelledToken_ReturnsNoHashWithOneWarning()
+    {
+        // A stalled share must not hang the dedup read: the caller's deadline token has to
+        // turn the hash into a clean "no hash" (logged once), never an exception that would
+        // abort the extraction lane and, through Task.WhenAll, the whole batch.
+        var (fileA, _, _) = await WriteLargeFilesAsync();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var hash = DuplicateContentResolver.ComputeHashIfLarge(fileA, new FileInfo(fileA).Length, cts.Token);
+
+        Assert.IsNull(hash);
+        Assert.AreEqual(1, _logLines.Count(l => l.Contains("Gave up hashing", StringComparison.Ordinal)),
+            $"Expected exactly one give-up warning: [{string.Join("; ", _logLines)}]");
     }
 
     [TestMethod]

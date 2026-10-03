@@ -24,9 +24,10 @@ public sealed class DuplicateContentResolver
 
     /// <summary>
     /// Streams the file through XxHash-128 and returns the hex digest, or null for files
-    /// below the dedup threshold (no hashing) and unreadable files.
+    /// below the dedup threshold (no hashing) and unreadable files. The token bounds the
+    /// read: a stalled network share must not block the extraction lane that called this.
     /// </summary>
-    public static string? ComputeHashIfLarge(string filePath, long fileLength)
+    public static string? ComputeHashIfLarge(string filePath, long fileLength, CancellationToken cancellationToken = default)
     {
         if (fileLength < HashThresholdBytes)
             return null;
@@ -34,15 +35,31 @@ public sealed class DuplicateContentResolver
         try
         {
             using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            // Disposing the stream from the deadline token unblocks a read that is already
+            // stuck on a hung share (same trick the extractors use); the abandoned read then
+            // throws instead of blocking this lane forever.
+            using var cancellationRegistration = cancellationToken.Register(stream.Dispose);
             var hasher = new XxHash128();
             var buffer = new byte[64 * 1024];
             int read;
             while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return LogGaveUpHashing(filePath);
+                }
+
                 hasher.Append(buffer.AsSpan(0, read));
             }
 
             return Convert.ToHexString(hasher.GetCurrentHash());
+        }
+        catch (Exception) when (cancellationToken.IsCancellationRequested)
+        {
+            // Timeout or shutdown, not a parse-style failure: report no hash and carry on,
+            // exactly like a timed-out extraction, instead of letting the exception abort
+            // the whole batch.
+            return LogGaveUpHashing(filePath);
         }
         catch (Exception ex)
         {
@@ -51,6 +68,14 @@ public sealed class DuplicateContentResolver
                 PluginSdk.LogLevel.Warn);
             return null;
         }
+    }
+
+    private static string? LogGaveUpHashing(string filePath)
+    {
+        PluginSdk.Logger.Log(
+            $"[ContentSearch] Gave up hashing '{filePath}' for duplicate detection (cancelled or timed out)",
+            PluginSdk.LogLevel.Warn);
+        return null;
     }
 
     /// <summary>

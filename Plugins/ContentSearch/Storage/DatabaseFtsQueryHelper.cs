@@ -24,7 +24,11 @@ public static class DatabaseFtsQueryHelper
 
             if (sb.Length > 0) sb.Append(" AND ");
 
-            // In FTS5 trigram, 1 or 2 character tokens require a trailing '*' for prefix matching.
+            // FTS5's trigram tokenizer indexes three-character sequences only, so a one- or
+            // two-character term has no entry to match against: it can never match anything in
+            // this index, with or without a trailing '*'. The prefix form below is still emitted
+            // for completeness, but nothing in the search path relies on it -- DatabaseSearchHelper
+            // answers any query holding such a term with its content scan instead.
             if (cleaned.Length < 3)
             {
                 sb.Append('"').Append(cleaned).Append("\"*");

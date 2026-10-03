@@ -8,7 +8,7 @@
   "ContentSearch_Config_FoldersLabel": "監測資料夾白名單",
   "ContentSearch_Config_FoldersDesc": "需要進行內容索引的本機資料夾清單，支援環境變數（如 %USERPROFILE%）",
   "ContentSearch_Config_MaxSizeLabel": "單一檔案大小上限 (MB)",
-  "ContentSearch_Config_MaxSizeDesc": "超過此大小的檔案將被跳過索引，以防止記憶體與效能過度消耗",
+  "ContentSearch_Config_MaxSizeDesc": "超過此大小的檔案將被跳過索引，以防止記憶體與效能過度消耗（0 = 不限制）",
   "ContentSearch_Config_ExtensionsLabel": "索引副檔名",
   "ContentSearch_Config_ExtensionsDesc": "以逗號分隔的副檔名清單（如 txt,md,docx,pdf）",
   "ContentSearch_Config_ExclusionsLabel": "排除路徑正規表達式（黑名單）",
