@@ -8,7 +8,7 @@
   "ContentSearch_Config_FoldersLabel": "Monitored Folders Whitelist",
   "ContentSearch_Config_FoldersDesc": "List of local folders to index, supports environment variables (e.g. %USERPROFILE%)",
   "ContentSearch_Config_MaxSizeLabel": "Max Single File Size (MB)",
-  "ContentSearch_Config_MaxSizeDesc": "Files exceeding this size will be skipped to prevent excessive memory and CPU consumption",
+  "ContentSearch_Config_MaxSizeDesc": "Files exceeding this size will be skipped to prevent excessive memory and CPU consumption (0 = unlimited)",
   "ContentSearch_Config_ExtensionsLabel": "Indexed File Extensions",
   "ContentSearch_Config_ExtensionsDesc": "Comma-separated list of file extensions (e.g. txt,md,docx,pdf)",
   "ContentSearch_Config_ExclusionsLabel": "Excluded Path Patterns",

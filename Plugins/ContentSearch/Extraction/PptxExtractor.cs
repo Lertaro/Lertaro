@@ -98,7 +98,7 @@ public sealed class PptxExtractor : ITextExtractor
 
     private static void AppendSlideText(ZipArchiveEntry entry, StringBuilder builder, CancellationToken ct, bool skipSlideNumberFields)
     {
-        using var slideStream = entry.Open();
+        using var slideStream = ExtractionLimits.ReadEntryBounded(entry);
         var xDoc = XDocument.Load(slideStream);
         if (xDoc.Root == null) return;
 
@@ -123,7 +123,10 @@ public sealed class PptxExtractor : ITextExtractor
             }
 
             if (text.Length > 0)
+            {
                 builder.AppendLine(text.ToString());
+                ExtractionLimits.ThrowIfOverTextLimit(builder);
+            }
 
         }
     }

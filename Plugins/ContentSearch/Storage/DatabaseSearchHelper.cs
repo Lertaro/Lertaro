@@ -29,7 +29,11 @@ public static class DatabaseSearchHelper
         var tokens = rawQuery.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
         var emitted = 0;
 
-        if (!string.IsNullOrWhiteSpace(ftsQuery) && tokens.Any(t => t.Length >= 3))
+        // The trigram index holds three-character sequences only, so a query carrying any
+        // shorter term cannot be answered by it: that term's half of the AND matches nothing and
+        // the whole query comes back empty however much the document matches. Such a query is
+        // answered by the content scan below instead, which evaluates every term of it.
+        if (!string.IsNullOrWhiteSpace(ftsQuery) && !RequiresContentScan(tokens))
         {
             foreach (var hit in ExecuteFts(conn, ftsQuery, limit - emitted, seenFileIds))
             {
@@ -55,15 +59,23 @@ public static class DatabaseSearchHelper
             yield break;
         }
 
-        // FTS5's trigram index cannot answer a term shorter than three characters, so those fall to a scan
-        // of the text itself. A query holding any long-enough term is answered by the index above and never
-        // comes here.
-        if (tokens.Length == 0 || tokens.Any(t => t.Length >= 3))
+        // No terms at all (a query of separators only) would build the scan's WHERE clause with
+        // no conditions, i.e. match every indexed document; stop instead.
+        if (tokens.Length == 0)
             yield break;
 
         foreach (var hit in ScanContentForShortTokens(conn, tokens, rawQuery, limit - emitted, seenFileIds))
             yield return hit;
     }
+
+    /// <summary>
+    /// True when the term set has to be answered by the content scan rather than by the trigram
+    /// index: FTS5's trigram tokenizer indexes three-character sequences only, so a one- or
+    /// two-character term has no entry to match and ANDing it into an index query discards every
+    /// hit. Kept out of the iterator so the branch decision is testable on its own.
+    /// </summary>
+    internal static bool RequiresContentScan(IReadOnlyList<string> tokens) =>
+        tokens.Any(t => t.Length < 3);
 
     // How many matched sources one duplicate-expansion query carries. Bounded only because a statement's
     // parameter count is -- the expansion itself is capped by nothing but the matches above it, exactly as

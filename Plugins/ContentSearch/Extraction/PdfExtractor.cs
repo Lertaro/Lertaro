@@ -9,11 +9,11 @@ namespace Lertaro.Plugins.ContentSearch.Extraction;
 /// </summary>
 public sealed class PdfExtractor : ITextExtractor
 {
-    // Extraction is not bounded by page or character count: a long reference PDF can put the
-    // term of interest hundreds of pages in (the Merck Veterinary Manual reaches page 300+
-    // before its index entries start). Fixed page/character caps truncate exactly those
-    // documents, so the page loop runs to the end of the document; the database-level size
-    // cap is the only index-size guard.
+    // Page and character counts are bounded only by deliberate hard ceilings (see
+    // ExtractionLimits): a long reference PDF can put the term of interest hundreds of pages
+    // in (the Merck Veterinary Manual reaches page 300+ before its index entries start), so
+    // the ceilings sit far above real documents and only stop a declared-huge document from
+    // driving the page loop or holding gigabytes of text in the App process.
 
     // An unbroken run of this many unparseable pages gives up on the whole document:
     // a long failing run predicts the rest fails the same way, even when the overall
@@ -44,6 +44,14 @@ public sealed class PdfExtractor : ITextExtractor
                 // the abandoned extraction then throws and exits instead of running forever.
                 using var timeoutRegistration = timeoutCts.Token.Register(fileStream.Dispose);
                 using var document = PdfDocument.Open(fileStream);
+
+                if (document.NumberOfPages > ExtractionLimits.MaxPdfPages)
+                {
+                    PluginSdk.Logger.Log(
+                        $"[ContentSearch] Giving up on PDF '{filePath}': {document.NumberOfPages} pages exceeds the {ExtractionLimits.MaxPdfPages}-page extraction limit",
+                        PluginSdk.LogLevel.Warn);
+                    return null;
+                }
 
                 var builder = new StringBuilder();
                 var failedPages = 0;
@@ -96,6 +104,14 @@ public sealed class PdfExtractor : ITextExtractor
                     if (!string.IsNullOrWhiteSpace(pageText))
                     {
                         builder.AppendLine(pageText);
+                    }
+
+                    if (builder.Length > ExtractionLimits.MaxExtractedTextChars)
+                    {
+                        PluginSdk.Logger.Log(
+                            $"[ContentSearch] Giving up on PDF '{filePath}': extracted text exceeds the {ExtractionLimits.MaxExtractedTextChars}-character extraction limit",
+                            PluginSdk.LogLevel.Warn);
+                        return null;
                     }
 
                 }

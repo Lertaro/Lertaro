@@ -9,12 +9,14 @@ namespace Lertaro.Plugins.ContentSearch.Indexing;
 /// successful text is FTS-indexed, failures are recorded as failed rows, and files that
 /// vanished or became excluded by configuration are deleted from the index.
 /// Split out of ContentIndexScheduler purely to keep that file under the repository's
-/// per-file line limit; this class holds no state of its own beyond the database reference.
+/// per-file line limit; this class holds no state beyond the database reference and the
+/// index-size pause monitor.
 /// </summary>
 public sealed class IndexBatchProcessor
 {
     private readonly ContentSearchDatabase _database;
     private readonly DuplicateContentResolver _duplicateResolver;
+    private readonly IndexCapPauseMonitor _capPause = new();
 
     public IndexBatchProcessor(ContentSearchDatabase database)
     {
@@ -30,19 +32,16 @@ public sealed class IndexBatchProcessor
         var writeBatch = new ConcurrentBag<FileIndexBatchItem>();
         var failedBatch = new ConcurrentBag<FileIndexBatchItem>();
         var deleteBatch = new ConcurrentBag<string>();
+        var missingUpdates = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        // Budget guard: past the configured index size cap, whole batches are skipped
-        // (their deletions are re-evaluated on the next scan) until the user raises the
-        // cap or clears the index. One warning per batch; identical repeats are
-        // condensed by the logger.
-        var indexBytes = _database.GetDatabasePageBytes();
-        if (indexBytes > config.MaxIndexSizeBytes)
-        {
-            PluginSdk.Logger.Log(
-                $"[ContentSearch] Index size cap reached ({indexBytes / (1024 * 1024)} MB of {config.MaxIndexSizeBytes / (1024 * 1024)} MB), skipping {filePaths.Count} file(s)",
-                PluginSdk.LogLevel.Warn);
-            return;
-        }
+        // Budget guard: past the configured index size cap nothing is extracted or written, but
+        // the batch's deletions still are -- a row whose file vanished, moved out of scope or
+        // became excluded is stale however full the index is, and holding it back would keep it
+        // searchable until the user acts. The pause is reported once per episode, not once per
+        // batch. Discovery re-enqueues every file whose row is absent or outdated, so the paths
+        // this batch skipped are found again by a later full scan once the cap is raised or the
+        // index cleared.
+        var paused = _capPause.IsPaused(_database.GetDatabasePageBytes(), config.MaxIndexSizeBytes);
 
         using var semaphore = new SemaphoreSlim(ContentIndexScheduler.GetExtractorParallelism(Environment.ProcessorCount));
         var tasks = filePaths.Select(async filePath =>
@@ -50,7 +49,7 @@ public sealed class IndexBatchProcessor
             await semaphore.WaitAsync(ct);
             try
             {
-                await ProcessSingleFileAsync(filePath, config, ct, writeBatch, failedBatch, deleteBatch);
+                await ProcessSingleFileAsync(filePath, config, ct, paused, writeBatch, failedBatch, deleteBatch, missingUpdates);
             }
             finally
             {
@@ -65,69 +64,42 @@ public sealed class IndexBatchProcessor
         // rows that are still valid and should survive until the next scan re-checks them.
         ct.ThrowIfCancellationRequested();
 
-        WriteBatchesWithIntraBatchDedup(writeBatch, deleteBatch);
+        if (paused)
+        {
+            // Deletions only: writing an extracted document while the cap is reached is exactly
+            // what the cap forbids, and nothing was extracted to write anyway.
+            if (!deleteBatch.IsEmpty)
+                _database.DeleteFilesBatch(deleteBatch);
+
+            if (!missingUpdates.IsEmpty)
+                _database.UpdateMissingCounts(missingUpdates);
+
+            return;
+        }
+
+        var writeFailures = DatabaseBatchWriteHelper.Write(writeBatch.ToList(), _database.InsertOrUpdateBatch);
+        foreach (var failedItem in writeFailures)
+            failedBatch.Add(failedItem);
 
         if (!deleteBatch.IsEmpty)
             _database.DeleteFilesBatch(deleteBatch);
 
+        if (!missingUpdates.IsEmpty)
+            _database.UpdateMissingCounts(missingUpdates);
+
         if (!failedBatch.IsEmpty)
             _database.InsertOrUpdateBatch(failedBatch.ToList());
-    }
-
-    /// <summary>
-    /// Writes successfully extracted items. Files processed in the same batch never see
-    /// each other in the database, so duplicates of the same content are resolved here:
-    /// the first item for a content hash stays the source row, the rest become duplicates
-    /// referencing it once its row id is known.
-    /// </summary>
-    private void WriteBatchesWithIntraBatchDedup(ConcurrentBag<FileIndexBatchItem> writeBatch, ConcurrentBag<string> deleteBatch)
-    {
-        if (writeBatch.IsEmpty) return;
-
-        var sources = new List<FileIndexBatchItem>(writeBatch.Count);
-        var duplicates = new List<(FileIndexBatchItem Item, string SourcePath)>();
-        var hashToSourcePath = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        foreach (var item in writeBatch)
-        {
-            // Items that already reference a source (their DB lookup hit) are final.
-            if (item.ContentHash is null || item.ContentRef is not null)
-            {
-                sources.Add(item);
-                continue;
-            }
-
-            if (hashToSourcePath.TryGetValue(item.ContentHash, out var sourcePath))
-            {
-                // Keep the original content as the fallback for the (unreachable in
-                // practice) case where the source row ends up missing from the write.
-                duplicates.Add((item, sourcePath));
-                continue;
-            }
-
-            hashToSourcePath[item.ContentHash] = item.Path;
-            sources.Add(item);
-        }
-
-        var idByPath = _database.InsertOrUpdateBatch(sources);
-
-        var resolvedDuplicates = duplicates
-            .Select(d => idByPath.TryGetValue(d.SourcePath, out var sourceId)
-                ? d.Item with { Content = string.Empty, ContentRef = sourceId }
-                : d.Item) // degrade to a normal indexed row if the source is missing
-            .ToList();
-
-        if (resolvedDuplicates.Count > 0)
-            _database.InsertOrUpdateBatch(resolvedDuplicates);
     }
 
     private async Task ProcessSingleFileAsync(
         string filePath,
         ContentIndexConfig config,
         CancellationToken ct,
+        bool paused,
         ConcurrentBag<FileIndexBatchItem> writeBatch,
         ConcurrentBag<FileIndexBatchItem> failedBatch,
-        ConcurrentBag<string> deleteBatch)
+        ConcurrentBag<string> deleteBatch,
+        ConcurrentDictionary<string, int> missingUpdates)
     {
         try
         {
@@ -137,9 +109,17 @@ public sealed class IndexBatchProcessor
             // deleteBatch entry here would delete a valid row on shutdown.
             if (ct.IsCancellationRequested) return;
 
-            if (!ContentIndexScheduler.IsFileInMonitoredFolders(filePath, config) || !File.Exists(filePath))
+            if (!ContentIndexScheduler.IsFileInMonitoredFolders(filePath, config))
             {
+                // Out of scope by configuration: no later scan can make this row valid, so
+                // it goes immediately (unlike a file that is merely unreachable right now).
                 deleteBatch.Add(filePath);
+                return;
+            }
+
+            if (!File.Exists(filePath))
+            {
+                ObserveMissingFile(filePath, deleteBatch, missingUpdates);
                 return;
             }
 
@@ -149,6 +129,12 @@ public sealed class IndexBatchProcessor
                 deleteBatch.Add(filePath);
                 return;
             }
+
+            // Paused at the size cap: the checks above still ran, because the deletions that
+            // depend on them are applied even while the cap holds, but nothing may be extracted
+            // or written.
+            if (paused)
+                return;
 
             // Oversized and empty files are kept as failed rows (not deleted) so an
             // unchanged file is not re-discovered and re-checked on every full scan.
@@ -161,10 +147,20 @@ public sealed class IndexBatchProcessor
                 return;
             }
 
+            // Hard per-file cap, covering both the dedup hash read and the extraction below: a
+            // pathological file (e.g. a PDF whose parser never returns to a token check) or a
+            // hash read stuck on a stalled share would otherwise block this lane forever and,
+            // through Task.WhenAll, the whole batch. Waiting on the same budget guarantees the
+            // batch moves on; abandoned work unblocks when its stream is disposed.
+            var hardTimeout = ExtractorTimeoutPolicy.ForFileSize(fileInfo.Length).Add(TimeSpan.FromSeconds(5));
+            using var hardTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            hardTimeoutCts.CancelAfter(hardTimeout);
+
             // Large files are hashed before parsing: a duplicate of an already-indexed
             // document reuses the source row's text instead of paying for a second parse
-            // and a second full copy of the text and FTS entry.
-            var contentHash = DuplicateContentResolver.ComputeHashIfLarge(filePath, fileInfo.Length);
+            // and a second full copy of the text and FTS entry. A hash that times out or is
+            // cancelled yields no hash (logged once) rather than an exception.
+            var contentHash = DuplicateContentResolver.ComputeHashIfLarge(filePath, fileInfo.Length, hardTimeoutCts.Token);
             if (_duplicateResolver.FindDuplicateSource(contentHash, filePath) is { } sourceId)
             {
                 PluginSdk.Logger.Log(
@@ -175,15 +171,6 @@ public sealed class IndexBatchProcessor
                 return;
             }
 
-            // Hard per-file cap: the extractors apply their own cooperative timeout, but a
-            // pathological file (e.g. a PDF whose parser never returns to a token check)
-            // would otherwise block this lane forever and, through Task.WhenAll, the whole
-            // batch. WaitAsync guarantees the batch moves on; the extractors dispose their
-            // file stream when their timeout token cancels, so the abandoned extraction
-            // unblocks and exits instead of running on indefinitely.
-            var hardTimeout = ExtractorTimeoutPolicy.ForFileSize(fileInfo.Length).Add(TimeSpan.FromSeconds(5));
-            using var hardTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            hardTimeoutCts.CancelAfter(hardTimeout);
             string? text;
             try
             {
@@ -248,6 +235,23 @@ public sealed class IndexBatchProcessor
                 // Metadata unavailable; leave no row so the next scan retries it.
             }
         }
+    }
+
+    /// <summary>
+    /// Records one missed observation for a path that discovery enqueued but that is not
+    /// visible now. A stalled share makes File.Exists a momentary lie, so the row keeps its
+    /// text until the shared retry limit is reached, exactly the grace the scan-time
+    /// retention pass applies to files it did not discover.
+    /// </summary>
+    private void ObserveMissingFile(string filePath, ConcurrentBag<string> deleteBatch, ConcurrentDictionary<string, int> missingUpdates)
+    {
+        var (newCount, prune) = MissingObservationHelper.ObserveMiss(
+            _database.GetFileRecord(filePath)?.MissingCount ?? 0);
+
+        if (prune)
+            deleteBatch.Add(filePath);
+        else
+            missingUpdates[filePath] = newCount;
     }
 
     internal static bool IsFileTimeout(CancellationToken fileTimeoutToken, CancellationToken batchToken) =>

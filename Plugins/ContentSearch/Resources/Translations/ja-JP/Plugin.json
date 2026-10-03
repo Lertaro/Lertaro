@@ -8,7 +8,7 @@
   "ContentSearch_Config_FoldersLabel": "監視フォルダのホワイトリスト",
   "ContentSearch_Config_FoldersDesc": "インデックスを作成するローカルフォルダのリスト。環境変数をサポート（例: %USERPROFILE%）",
   "ContentSearch_Config_MaxSizeLabel": "単一ファイルの最大サイズ (MB)",
-  "ContentSearch_Config_MaxSizeDesc": "メモリとパフォーマンスの消費を抑えるため、このサイズを超えるファイルはスキップされます",
+  "ContentSearch_Config_MaxSizeDesc": "メモリとパフォーマンスの消費を抑えるため、このサイズを超えるファイルはスキップされます（0 = 無制限）",
   "ContentSearch_Config_ExtensionsLabel": "インデックス対象の拡張子",
   "ContentSearch_Config_ExtensionsDesc": "カンマ区切りのファイル拡張子リスト（例: txt,md,docx,pdf）",
   "ContentSearch_Config_ExclusionsLabel": "除外パスパターン",
