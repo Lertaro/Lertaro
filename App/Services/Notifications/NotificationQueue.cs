@@ -37,7 +37,11 @@ internal sealed class NotificationQueue(
 
     private readonly List<NotificationItem> _cards = [];
     private readonly List<NotificationItem> _pending = [];
+    private readonly HashSet<string> _disabledPlugins = new(StringComparer.OrdinalIgnoreCase);
     private NotificationItem? _notice;
+    private bool _stopping;
+    private double _availableHeightDip = double.PositiveInfinity;
+    private double _cardHeightCapDip = double.PositiveInfinity;
 
     // Suppresses the refill that a close would otherwise trigger while a bulk cancellation is still
     // pulling items out from under it, so a cancel cannot show a card it is about to cancel.
@@ -47,10 +51,14 @@ internal sealed class NotificationQueue(
     /// the caller's task uncompleted: a rejected request comes back already failed.</summary>
     public NotificationItem Submit(NotificationRequest request, string pluginKey, string sourceName)
     {
-        if (string.IsNullOrWhiteSpace(request.Title) && string.IsNullOrWhiteSpace(request.Message))
+        NotificationFailure? rejection = _stopping ? NotificationFailure.HostShuttingDown
+            : _disabledPlugins.Contains(pluginKey) ? NotificationFailure.CancelledByPluginUnload
+            : string.IsNullOrWhiteSpace(request.Title) && string.IsNullOrWhiteSpace(request.Message)
+                ? NotificationFailure.InvalidRequest : null;
+        if (rejection is { } reason)
         {
             var rejected = new NotificationItem(request, pluginKey, sourceName, request.Position, 0, null);
-            rejected.Complete(NotificationResult.Failed(NotificationFailure.InvalidRequest));
+            rejected.Complete(NotificationResult.Failed(reason));
             return rejected;
         }
 
@@ -76,11 +84,12 @@ internal sealed class NotificationQueue(
     /// <see cref="CloseFromHandle"/>.</summary>
     public void NotifyClosed(NotificationItem item)
     {
+        var isNotice = ReferenceEquals(_notice, item);
+        var removed = _cards.Remove(item) | _pending.Remove(item);
+        if (!isNotice && !removed) return;
+        if (isNotice) _notice = null;
         item.Complete(NotificationResult.Success);
-        if (ReferenceEquals(_notice, item)) _notice = null;
         var hadWindow = item.ReachedScreen;
-        _cards.Remove(item);
-        _pending.Remove(item);
         // A caller dismissing its own notification, or clicking its body, ends something still on screen, and
         // this is the only path that reaches the window then: the paths that tore it down themselves (a
         // replacement, a cancellation) find nothing left to do inside.
@@ -97,6 +106,23 @@ internal sealed class NotificationQueue(
     /// presentations are handed to the dispatcher, and a stopped clock there strands every waiting request with a
     /// task that never finishes.</summary>
     internal bool HasWaiting => _pending.Count > 0;
+
+    internal void SetCardCapacity(double availableHeightDip, double cardHeightCapDip)
+    {
+        _availableHeightDip = availableHeightDip;
+        _cardHeightCapDip = cardHeightCapDip;
+    }
+
+    /// <summary>Returns a measured card that does not fit to the queue without ending its handle.</summary>
+    internal void Defer(NotificationItem item, double heightDip, double remainingMs)
+    {
+        if (!_cards.Remove(item)) return;
+        item.ReachedScreen = false;
+        item.MeasuredHeightDip = heightDip;
+        item.RemainingMs = remainingMs;
+        var index = _pending.FindIndex(waiting => waiting.Sequence > item.Sequence);
+        _pending.Insert(index < 0 ? _pending.Count : index, item);
+    }
 
     /// <summary>Ends a notification on its caller's behalf. Locked because a plugin holds the handle and may
     /// call from its own thread while the launcher's UI thread is walking the same lists from the countdown.</summary>
@@ -123,18 +149,22 @@ internal sealed class NotificationQueue(
         PromoteOne();
     }
 
-    /// <summary>Cancels everything the given plugin still has outstanding, shown or queued.</summary>
+    /// <summary>Reopens admission for a plugin whose components are being re-enabled.</summary>
+    internal void EnablePlugin(string pluginKey) => _disabledPlugins.Remove(pluginKey);
+
+    /// <summary>Closes admission and cancels everything the given plugin still has outstanding.</summary>
     public void CancelPlugin(string pluginKey)
     {
+        _disabledPlugins.Add(pluginKey);
         const NotificationFailure reason = NotificationFailure.CancelledByPluginUnload;
         _batching = true;
         try
         {
-            foreach (var item in _pending.Where(item => item.PluginKey == pluginKey).ToArray())
+            foreach (var item in _pending.Where(item => string.Equals(item.PluginKey, pluginKey, StringComparison.OrdinalIgnoreCase)).ToArray())
                 FinishCancelled(item, _pending, reason);
-            foreach (var item in _cards.Where(item => item.PluginKey == pluginKey).ToArray())
+            foreach (var item in _cards.Where(item => string.Equals(item.PluginKey, pluginKey, StringComparison.OrdinalIgnoreCase)).ToArray())
                 FinishCancelled(item, _cards, reason);
-            if (_notice?.PluginKey == pluginKey)
+            if (_notice != null && string.Equals(_notice.PluginKey, pluginKey, StringComparison.OrdinalIgnoreCase))
                 FinishCancelled(_notice, null, reason, clearNotice: true);
         }
         finally
@@ -148,6 +178,9 @@ internal sealed class NotificationQueue(
     /// with it any wait for an answer, with it.</summary>
     public void Shutdown()
     {
+        if (_stopping) return;
+        // Close admission before completing anything: disposal can submit again, including through a callback.
+        _stopping = true;
         const NotificationFailure reason = NotificationFailure.HostShuttingDown;
         _batching = true;
         try
@@ -185,7 +218,7 @@ internal sealed class NotificationQueue(
             // sequence number jumps to the top of the pile instead of overwriting the card it replaced.
             item.Sequence = previous.Sequence;
             previous.Complete(NotificationResult.Failed(NotificationFailure.Replaced));
-            hide(previous);
+            // Present updates the existing slot in place. Taking it down first would animate a temporary gap.
             item.ReachedScreen = true;
             show(item);
             return;
@@ -243,6 +276,7 @@ internal sealed class NotificationQueue(
     {
         item.EffectivePosition = NotificationPosition.BottomNotice;
         item.DurationSeconds = Math.Min(item.DurationSeconds, CollapsedCardMaxSeconds);
+        if (item.RemainingMs is { } remaining) item.RemainingMs = Math.Min(remaining, item.DurationSeconds * 1000);
         logWarning($"[Notifications] a card was collapsed into the bottom notice because a fullscreen app owns " +
                    $"the screen, losing its title and source: {item.SourceName}, " +
                    $"title \"{Truncate(item.Request.Title, 80)}\", text \"{Truncate(item.Request.Message, 120)}\"");
@@ -267,6 +301,8 @@ internal sealed class NotificationQueue(
         }
 
         if (_cards.Count >= VisibleCardLimit) return;
+        if (_pending[0].MeasuredHeightDip is { } height && Math.Min(height, _cardHeightCapDip) > _availableHeightDip)
+            return;
         var next = TakePending();
         _cards.Add(next);
         next.ReachedScreen = true;

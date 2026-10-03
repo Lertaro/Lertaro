@@ -30,11 +30,11 @@ No todas las filas tienen menú. No está disponible en la fila **Ver más**, en
 - **Escribir para filtrar**: Al abrir el menú de acciones, escribe directamente para filtrar por nombre (p. ej., teclear `copy` reduce la lista a las acciones de copiado). El cuadro de filtro se queda con el teclado, así que navegar hacia otro sitio nunca toca tu consulta original.
 - **Letra mnemotécnica**: Cada acción puede mostrar una letra resaltada. Pulsarla **ejecuta la acción de inmediato** — no se limita a resaltarla —, pero solo mientras el cuadro de filtro esté aún vacío, de modo que nunca te roba la primera letra que tecleas para filtrar.
 - **Cuadro de búsqueda independiente**: El menú de acciones tiene su propio cuadro de búsqueda, que recibe el foco automáticamente al abrirse. Filtrar acciones no cambia la consulta principal. Al cambiar de nivel se borra el filtro de acciones y el cuadro del nuevo nivel recibe el foco.
-- **Panel de acciones flotante**: En la Ventana rápida, el panel de Inicio rápido y la Ventana principal, las acciones aparecen en un panel flotante anclado al elemento activo. El panel de Inicio rápido se amplía temporalmente a la altura de trabajo completa de la lista de acciones y vuelve a su tamaño compacto al cerrarse.
+- **Panel de acciones flotante**: En la Ventana rápida, el panel de Página inicial y la Ventana principal, las acciones aparecen en un panel flotante anclado al elemento activo. El panel de Página inicial se amplía temporalmente a la altura de trabajo completa de la lista de acciones y vuelve a su tamaño compacto al cerrarse.
 - **Navegación jerárquica**: En elementos con submenús (como "Enviar a"), pulsa `→`, `Tab` o `Enter` para entrar; pulsa `←` o `Backspace` (con el filtro vacío) para regresar al nivel superior. En un menú anidado, `Escape` o el clic derecho regresan al nivel superior; en la raíz cierran el menú de acciones.
 - **Las teclas de navegación siguen funcionando**: Los atajos configurados de elemento siguiente/anterior (`Ctrl+N` / `Ctrl+P` por defecto) también mueven el resaltado dentro de la lista de acciones, dando la vuelta al primer y último elemento y saltando separadores, encabezados y acciones deshabilitadas. `Tab` entra en un submenú solo si no la has asignado a una de esas teclas.
 - **Cerrar al hacer clic fuera**: Al hacer clic fuera de un panel flotante, este se cierra. Si el anfitrión lo permite, hacer clic derecho en otro resultado mientras el panel está abierto reemplaza el objetivo en el mismo lugar.
-- **Atajos de acciones**: Mientras el panel tiene el foco puedes usar los atajos definidos por los proveedores. Al ejecutarlos se cierra el panel flotante, pero la Ventana principal o el panel de Inicio rápido permanecen abiertos.
+- **Atajos de acciones**: Mientras el panel tiene el foco puedes usar los atajos definidos por los proveedores. Al ejecutarlos se cierra el panel flotante, pero la Ventana principal o el panel de Página inicial permanecen abiertos.
 
 ## 2. Características de la lista de la Ventana principal
 
@@ -67,7 +67,7 @@ El panel es deliberadamente no activador: nunca le quita el foco a la ventana de
 
 ### Ajuste de pantalla y gestión de ventanas emergentes
 
-- **Ajuste automático de límites**: Las dimensiones de la vista previa se pueden personalizar en [**Configuración → General → Vista previa**](./settings/general#vista-previa); Lertaro garantiza que nunca sobrepase el área visible del monitor.
+- **Ajuste automático de límites**: Las dimensiones de la vista previa se pueden personalizar en [**Configuración → General → Vista previa**](./settings/general#_4-ventana-de-vista-previa); Lertaro garantiza que nunca sobrepase el área visible del monitor.
 - **Lado de acoplamiento**: El panel se acopla a la **derecha** de su ventana de búsqueda y pasa a la izquierda solo cuando a la derecha no cabe; no persigue el lado más espacioso, así que se queda quieto mientras desplazas una ventana ancha. Después sigue a su ventana propietaria cuando la mueves o la redimensionas.
 - **La memoria de tamaño dura la sesión**: Arrastrar el asa de redimensionado o mover el panel se recuerda mientras la vista previa siga en juego, pero la próxima vez que la ventana de búsqueda se oculte o se cierre el panel vuelve al tamaño y al lado de acoplamiento configurados.
 - **Evitación de diálogos nativos**: Al previsualizar documentos de Office protegidos con contraseña, Lertaro oculta temporalmente sus ventanas para que puedas introducir la contraseña sin bloqueos, restaurándose después con normalidad.

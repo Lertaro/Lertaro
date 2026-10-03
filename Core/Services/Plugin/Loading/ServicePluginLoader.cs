@@ -12,6 +12,28 @@ public static class ServicePluginLoader
 
     public static void LoadForHook() => LoadPlugins(loadHookPlugins: true);
 
+    // The trust model for Plugins/, stated once because everything below depends on it: the directory
+    // ships with the installation, and an assembly placed in it is loaded into this process and runs with
+    // its privileges. There is no sandbox and no signature check here, so the ONLY thing separating a
+    // plugin from a bundled dependency is the naming rule in IsPluginEntryAssembly -- enforced, not
+    // assumed. A caller who can write into Plugins/ can already run code as this process, so the rule is
+    // about not widening that by accident (probing third-party code for our own contracts, or letting a
+    // stray DLL inject a provider), not about containing a hostile plugin.
+    //
+    // Mirrors App/Services/PluginManagerCore/PluginLoader.Load's identical rule; the two loaders must
+    // agree, because AliasProviderRegistry assigns each provider's numeric id by registration order --
+    // a provider registered in one process but not the other would shift every later id and misattribute
+    // already-baked alias data.
+    internal static bool IsPluginEntryAssembly(string dllPath)
+        => Path.GetFileName(dllPath).StartsWith("Lertaro.Plugins.", StringComparison.OrdinalIgnoreCase);
+
+    // The rule plus the ordering, as one pure step, so both halves of the decision are pinned by a test
+    // rather than only exercised through a real Plugins/ tree. Ordering is part of the trust decision
+    // rather than a nicety: AliasProviderRegistry assigns ids by registration order, so an unstable order
+    // here would reassign ids between restarts.
+    internal static string[] SelectPluginEntryAssemblies(IEnumerable<string> dllPaths)
+        => [.. dllPaths.Where(IsPluginEntryAssembly).OrderBy(f => f, StringComparer.OrdinalIgnoreCase)];
+
     private static void LoadPlugins(bool loadHookPlugins)
     {
         try
@@ -39,7 +61,17 @@ public static class ServicePluginLoader
             // Recursive: a plugin with its own dependency DLLs can sit in its own subdirectory (they
             // colocate with Assembly.LoadFrom's own implicit same-directory probing for dependency
             // resolution) instead of every DLL needing to live flat in Plugins/ directly.
-            var dllFiles = Directory.GetFiles(pluginsDir, "*.dll", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToArray();
+            var candidates = Directory.GetFiles(pluginsDir, "*.dll", SearchOption.AllDirectories);
+            var dllFiles = SelectPluginEntryAssemblies(candidates);
+
+            // Recorded, not silent: which files were treated as plugin entries and which were dismissed
+            // as dependencies is the whole of this loader's trust decision, and the only way to audit it
+            // after the fact is to have written it down. Loading a dependency here would probe
+            // third-party code (Microsoft.Data.Sqlite, UglyToad.PdfPig, Flow.Launcher.Plugin, a native
+            // e_sqlite3, ...) for our own contracts for no gain -- its types are reachable anyway once
+            // the plugin entry assembly that needs it loads.
+            Logger.Log($"[ServicePluginLoader] {dllFiles.Length} plugin entry assembly/assemblies of {candidates.Length} DLL(s) under {pluginsDir}; the rest are treated as bundled dependencies.", LogLevel.Debug);
+
             foreach (var dllFile in dllFiles)
             {
                 try
@@ -92,10 +124,10 @@ public static class ServicePluginLoader
                 }
                 catch (BadImageFormatException)
                 {
-                    // Not a .NET assembly at all -- expected for a plugin's own bundled native
-                    // dependency (e.g. a SQLite provider's e_sqlite3.dll) now that the scan is
-                    // recursive into each plugin's own subdirectory. Not a failure, so not worth an
-                    // Error-level log line.
+                    // Not a .NET assembly at all. The naming filter above means a plugin's bundled native
+                    // dependency (e.g. a SQLite provider's e_sqlite3.dll) never reaches this loop, so what
+                    // lands here is a file that IS named like a plugin entry (Lertaro.Plugins.*.dll) without
+                    // being a managed assembly -- worth knowing about, but not a load failure either.
                     Logger.Log($"[ServicePluginLoader] Skipped non-.NET file: {Path.GetFileName(dllFile)}", LogLevel.Debug);
                 }
                 catch (Exception ex)

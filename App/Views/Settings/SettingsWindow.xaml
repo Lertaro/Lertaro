@@ -24,6 +24,8 @@
                 <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
                 <ResourceDictionary Source="../../Resources/Styles/Windows/SettingsSidebar.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <local:NullToVisibilityConverter x:Key="NullToVis"/>
+            <local:BoolToVisibilityConverter x:Key="InvertBoolToVis" Invert="True"/>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -163,6 +165,12 @@
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                      ScrollViewer.VerticalScrollBarVisibility="Disabled"
                                      SelectionChanged="LstSectionsBottom_SelectionChanged">
+                                <ListBoxItem Tag="SearchSyntax" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_SearchSyntax]}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
+                                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_SearchSyntax]}" Style="{StaticResource SidebarNavigationLabel}"/>
+                                    </StackPanel>
+                                </ListBoxItem>
                                 <ListBoxItem Tag="Appearance" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Appearance]}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE790;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SidebarNavigationIcon}"/>
@@ -269,9 +277,25 @@
                 <Border Grid.Row="2" Background="{DynamicResource StatusBarBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0"
                         CornerRadius="{StaticResource CornerRadiusWindowBottom}">
                     <Grid Margin="16,0">
-                        <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_SaveTip]}" 
-                                   Foreground="{DynamicResource TextSecondary2}" VerticalAlignment="Center"/>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <!-- Two columns, because these share the bar with the buttons. In a single cell the
+                             TextBlock is measured against the FULL width, so it ran underneath OK/Cancel/Apply
+                             (later in document order, so drawn on top) and CharacterEllipsis only armed at the
+                             cell's right edge, behind the buttons, which is why it never showed. Localised
+                             refusals are the longest, so this is where they lost their tail. -->
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_SaveTip]}" 
+                                   Foreground="{DynamicResource TextSecondary2}" VerticalAlignment="Center"
+                                   Visibility="{Binding Validation.HasRefusal, Converter={StaticResource InvertBoolToVis}}"/>
+                        <!-- Why the last OK/Apply was refused: the buttons stay enabled by design (CanApply
+                             excludes page errors) and the page-level warning can sit on another tab. -->
+                        <TextBlock Grid.Column="0" Text="{Binding Validation.RefusalMessage}"
+                                   Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Visibility="{Binding Validation.RefusalMessage, Converter={StaticResource NullToVis}}"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <Button Style="{StaticResource PrimarySettingsButton}"
                                     Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_OK]}"
                                     IsEnabled="{Binding CanApply}" Click="BtnOk_Click"/>

@@ -28,40 +28,38 @@ public sealed class FzfPatternTests
         Assert.AreEqual("readme", pattern.TermSets[0].Terms[0].Text);
     }
 
-    // The space after the drive is optional. It used not to be: the drive test matched on the first two
-    // characters and then dropped the WHOLE token, so "c:readme" searched drive C for nothing at all
-    // while "c: readme" searched it for readme -- reported by a user who could see the two behaved
-    // differently but had no way to tell why.
+    // Only the bare "c:" token is a drive now. "c:readme" is NOT -- the colon stays literal, because
+    // guessing a drive out of the first two characters produced false positives on real names containing
+    // a colon, and Windows file names cannot contain one anyway.
     [TestMethod]
-    public void Parse_DriveLetterWithNoSpace_KeepsTheRestAsATerm()
+    public void Parse_DriveLetterWithNoSpace_IsNotADrive()
     {
         var pattern = FzfPattern.Parse("c:readme");
 
-        Assert.AreEqual("c", pattern.TargetDrive);
+        Assert.IsNull(pattern.TargetDrive);
         Assert.HasCount(1, pattern.TermSets);
-        Assert.AreEqual("readme", pattern.TermSets[0].Terms[0].Text);
+        Assert.AreEqual("c:readme", pattern.TermSets[0].Terms[0].Text);
     }
 
     [TestMethod]
-    public void Parse_DriveLetterWithAndWithoutASpace_AgreeExactly()
+    public void Parse_DriveLetterWithAndWithoutASpace_NowDiffer()
     {
+        // The space is what separates the drive spec from the query -- without it there is no drive.
         var spaced = FzfPattern.Parse("c: readme report");
         var joined = FzfPattern.Parse("c:readme report");
 
-        Assert.AreEqual(spaced.TargetDrive, joined.TargetDrive);
-        Assert.HasCount(spaced.TermSets.Length, joined.TermSets);
-        for (var i = 0; i < spaced.TermSets.Length; i++)
-            Assert.AreEqual(spaced.TermSets[i].Terms[0].Text, joined.TermSets[i].Terms[0].Text);
+        Assert.AreEqual("c", spaced.TargetDrive);
+        Assert.IsNull(joined.TargetDrive);
     }
 
     [TestMethod]
-    public void Parse_DriveLetterWithNoSpace_LeavesLaterTermsAlone()
+    public void Parse_DriveLetterWithNoSpace_KeepsTheColonInTheTerm()
     {
         var pattern = FzfPattern.Parse("c:readme report");
 
-        Assert.AreEqual("c", pattern.TargetDrive);
+        Assert.IsNull(pattern.TargetDrive);
         Assert.HasCount(2, pattern.TermSets);
-        Assert.AreEqual("readme", pattern.TermSets[0].Terms[0].Text);
+        Assert.AreEqual("c:readme", pattern.TermSets[0].Terms[0].Text);
         Assert.AreEqual("report", pattern.TermSets[1].Terms[0].Text);
     }
 
@@ -114,52 +112,41 @@ public sealed class FzfPatternTests
     }
 
     [TestMethod]
-    public void TryMatch_InverseTerm_RejectsTextContainingIt()
+    public void TryMatch_ExclamationPrefix_IsLiteralTextNotAnExclusion()
     {
         var pattern = FzfPattern.Parse("read !md");
 
-        Assert.IsTrue(pattern.TryMatch("readme.txt", out _, FzfScoringScheme.Default));
-        Assert.IsFalse(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
+        // '!' is no longer an operator, so this is two ANDed literal terms and "readme.txt" fails it.
+        Assert.IsTrue(pattern.TryMatch("read !md.txt", out _, FzfScoringScheme.Default));
+        Assert.IsFalse(pattern.TryMatch("readme.txt", out _, FzfScoringScheme.Default));
     }
 
     [TestMethod]
-    public void TryMatch_PrefixTerm_OnlyMatchesAtStart()
+    public void TryMatch_CaretPrefix_IsLiteralTextNotAPrefixAnchor()
     {
         var pattern = FzfPattern.Parse("^read");
 
-        Assert.IsTrue(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
+        // The caret is literal now, so it must actually appear in the name.
+        Assert.IsTrue(pattern.TryMatch("^readme.md", out _, FzfScoringScheme.Default));
         Assert.IsFalse(pattern.TryMatch("unread.md", out _, FzfScoringScheme.Default));
     }
 
     [TestMethod]
-    public void TryMatch_SuffixTerm_OnlyMatchesAtEnd()
+    public void TryMatch_DollarSuffix_IsLiteralTextNotASuffixAnchor()
     {
         var pattern = FzfPattern.Parse("md$");
 
-        Assert.IsTrue(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
+        // "md5sum.txt" contains the literal "md$"? No -- so this no longer matches at all.
         Assert.IsFalse(pattern.TryMatch("md5sum.txt", out _, FzfScoringScheme.Default));
     }
 
     [TestMethod]
-    public void TryMatch_EqualTerm_RequiresExactWholeTextMatch()
+    public void TryMatch_CaretDollarPair_IsLiteralTextNotAWholeMatch()
     {
         var pattern = FzfPattern.Parse("^readme.md$");
 
-        Assert.IsTrue(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
-        Assert.IsFalse(pattern.TryMatch("readme.md.bak", out _, FzfScoringScheme.Default));
-    }
-
-    [TestMethod]
-    public void TryMatch_ExactBoundaryTerm_RequiresWholeSegmentMatch()
-    {
-        var pattern = FzfPattern.Parse("'read'");
-
-        // "read" is its own dot-delimited segment in "my.read.txt" -- a boundary on both sides.
-        Assert.IsTrue(pattern.TryMatch("my.read.txt", out _, FzfScoringScheme.Default));
-        // In "readme.md" the match would end mid-word (right before "me"), which is not a boundary.
+        // Not the old whole-text equality: the literal carets/dollar must appear in the name.
         Assert.IsFalse(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
-        // Not even a contiguous substring here.
-        Assert.IsFalse(pattern.TryMatch("r-e-a-d.md", out _, FzfScoringScheme.Default));
     }
 
     // Matching ignores case in both directions -- the query's case never makes a term case-sensitive.
@@ -193,8 +180,7 @@ public sealed class FzfPatternTests
 
     // Reachable through this API only, never from the search box: a backslash anywhere in a query
     // makes SearchQueryParser classify it as path mode, which routes to PathSearch before
-    // FzfPattern.Parse is ever called. Quoting ("'my file'") is the only search-box route to a term
-    // containing a space.
+    // FzfPattern.Parse is ever called.
     [TestMethod]
     public void TryMatch_EscapedSpace_IsTreatedAsLiteralSpaceInOneTerm()
     {

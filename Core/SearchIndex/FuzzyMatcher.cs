@@ -6,9 +6,15 @@ namespace Lertaro.Core.SearchIndex;
 // index scan already applies per record (see RecordSearch/CacheExtensions.cs and its siblings), for
 // callers that need identical matching semantics without running an actual index scan -- e.g. a query
 // token provider filtering already-fetched results by fzf pattern against something other than a
-// record's own name (a path segment, in PathExclusionQueryTokenProvider's case). FzfPattern itself stays
-// internal; this is the one seam meant to cross the assembly boundary (see PluginSdk.Services.
-// FuzzyMatchService, wired to this in PluginManager).
+// record's own name (a path segment, say). FzfPattern itself stays internal; this is the one seam meant
+// to cross the assembly boundary (see PluginSdk.Services.FuzzyMatchService, wired to this in
+// PluginManager).
+//
+// The query is read by FzfPattern.Parse -- the search box's own parser -- so every caller of this seam
+// (the plugin catalog, bookmark titles, the quick panel's filter box, the shell-menu filter, the settings
+// filter boxes, a plugin's own IsMatch, the CLI pipe's highlight mask) reads a typed query exactly as the
+// file list does. It used to carry a private, older operator set here instead, which meant '!', "'", '^'
+// and '$' filtered a catalog while searching for literal text in the file list; see TermTriggers.
 public static class FuzzyMatcher
 {
     public static bool IsMatch(string pattern, string text)
@@ -18,17 +24,10 @@ public static class FuzzyMatcher
 
         var fzf = FzfPattern.Parse(pattern);
 
-        // A pattern that's entirely a drive spec ("d:\") parses down to zero real search terms once
-        // Parse strips the prefix into TargetDrive -- meaningful for the index/path searchers (IndexV2,
-        // LiveDirectorySearcher), which track TargetDrive themselves and treat "no terms" as "list
-        // everything on that drive". This seam has no such drive-scoped listing mode: it matches
-        // free-standing text (app names, bookmark titles, ...) with no concept of a drive, so an empty
-        // term set has nothing left to compare against and must not fall into FzfPattern.TryMatchSingle's
-        // own "no term sets to check" -> true shortcut, which would otherwise match every candidate.
-        if (fzf.IsEmpty)
-            return false;
-
-        return IsMatch(fzf, text);
+        // A query with nothing left to compare against (empty, or nothing but an operator) must not fall
+        // into FzfPattern.TryMatchSingle's own "no term sets to check" -> true shortcut, which would
+        // otherwise match every candidate.
+        return !fzf.IsEmpty && IsMatch(fzf, text);
     }
 
     // Overload for callers that already hold the parsed pattern -- avoids re-parsing (and re-running
@@ -58,7 +57,10 @@ public static class FuzzyMatcher
 
             foreach (var alias in provider.GetAliases(text))
             {
-                if (!fzf.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default))
+                // `text` is this candidate's own name, so it is also what the pattern's exclusions read
+                // (see FzfPattern.TryMatchAlias). Matching the alias alone would let ':term' pass on the
+                // alias's silence and hand back a name the user excluded.
+                if (!fzf.TryMatchAlias(alias, text, out var aliasMatch, FzfScoringScheme.Default))
                     continue;
 
                 // A precise query must not match a full transliteration mid-syllable -- see

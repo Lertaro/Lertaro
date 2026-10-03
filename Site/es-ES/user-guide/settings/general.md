@@ -13,7 +13,7 @@ Configuración general abarca el comportamiento central del sistema, las dimensi
 - **Habilitar coincidencia difusa**: Activado por defecto. Permite coincidencias no consecutivas; si se desactiva, solo coincidirán subcadenas continuas (ver [**Sintaxis de búsqueda**](../search-syntax)). Surte efecto inmediato.
 - **Mantener el contenido del cuadro de búsqueda al cerrar**: Desactivado por defecto. Cuando está activo, ni ocultar la Ventana rápida ni pulsar `Escape` en la Ventana principal vacían el cuadro — y `Escape` en la Ventana principal cierra la ventana a la primera pulsación en lugar de pedirlo dos veces. La consulta que recibe una ventana en su siguiente invocación llega **seleccionada completa**, así que la primera tecla la sustituye en lugar de añadirse. Esto solo dura la ejecución actual; el texto nunca se escribe en disco.
 - **Mostrar las carpetas abiertas actualmente en la búsqueda integrada**: Cuando la ventana integrada está acoplada a un cuadro de diálogo de archivos, muestra las carpetas abiertas actualmente en ese diálogo cuando la consulta está vacía. Está activado de forma predeterminada.
-- **Delimitador de tokens de consulta**: Campo de un solo carácter (por defecto `:`). Define el prefijo para los tokens de sufijo (p. ej. `:.pdf`, `:@doc`, `:[S]`).
+- **Prefijo de tokens de consulta de plugins**: Campo de texto de un solo carácter (por defecto `\`). Define el carácter inicial de un token de consulta de plugin (p. ej. `\audio`, `\doc`). No puede estar vacío, ni puede ser un carácter que ya lea la sintaxis de búsqueda (`<` `>` `:` `*` `/` `?`): el campo lo informa en lugar de dejar que un significado gane en silencio (ver [**Sintaxis de búsqueda**](../search-syntax)).
 - **Nivel de registro**: Selecciona Error / Advertencia / Información (predeterminado) / Depuración para la verbosidad de los registros.
 - **Idioma de la interfaz**: Selecciona el idioma global de la aplicación.
 
@@ -34,7 +34,7 @@ Permite ajustar con precisión las dimensiones geométricas y las prioridades de
 ### Prioridad de tipos de resultado y activadores
 
 - **Lista de ordenación de prioridades**: Arrastra los controles para cambiar la precedencia de aplicaciones, ajustes, archivos y extensiones de plugins.
-- **Carácter activador exclusivo**: Asigna un prefijo de un solo carácter (p. ej. `;` para Filtros de archivos) para aislar las búsquedas a ese tipo concreto.
+- **Carácter activador exclusivo**: Asigna un prefijo de un solo carácter (p. ej. `;` para Filtros de archivos) para aislar las búsquedas a ese tipo concreto. No puede ser uno de los caracteres que la propia sintaxis de búsqueda utiliza (`\` `<` `>` `:` `*` `/` `?`), porque la sintaxis lo consume antes de leer el activador y este dejaría de funcionar en silencio; dos tipos tampoco pueden compartir el mismo carácter. El campo de ajustes avisa en ambos casos. Las respuestas instantáneas integradas también usan sus propios caracteres iniciales: `#` y `$` ejecutan un comando y `%` busca variables de entorno, así que tampoco están disponibles.
 
 ## 3. Ventana de búsqueda principal
 

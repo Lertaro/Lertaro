@@ -47,6 +47,7 @@ public partial class SettingsWindow : Window
     private Views.Settings.QuickPanel.QuickPanelSettingsPage? _pageQuickPanel;
     private Views.Settings.LocalSend.LocalSendSettingsPage? _pageLocalSend;
     private AboutSettingsPage? _pageAbout;
+    private SearchSyntaxSettingsPage? _pageSearchSyntax;
     private FrameworkElement? _currentPage;
     private readonly SettingsPagePrewarmer _pagePrewarmer;
 
@@ -66,6 +67,7 @@ public partial class SettingsWindow : Window
     internal Views.Settings.QuickPanel.QuickPanelSettingsPage PageQuickPanel => _pageQuickPanel ??= AddPage(new Views.Settings.QuickPanel.QuickPanelSettingsPage { DataContext = ((SettingsViewModel)DataContext).QuickPanel });
     internal Views.Settings.LocalSend.LocalSendSettingsPage PageLocalSend => _pageLocalSend ??= AddPage(new Views.Settings.LocalSend.LocalSendSettingsPage { DataContext = ((SettingsViewModel)DataContext).LocalSend });
     internal AboutSettingsPage PageAbout => _pageAbout ??= AddPage(new AboutSettingsPage());
+    internal SearchSyntaxSettingsPage PageSearchSyntax => _pageSearchSyntax ??= AddPage(new SearchSyntaxSettingsPage());
 
     private T AddPage<T>(T page) where T : FrameworkElement
     {
@@ -147,10 +149,9 @@ public partial class SettingsWindow : Window
         else
             _validationErrorCount--;
 
-        if (DataContext is SettingsViewModel vm)
-        {
-            vm.CanApply = _validationErrorCount == 0;
-        }
+        // Reported to the view model rather than assigned onto CanApply here: the gate also depends on
+        // service readiness, so writing the flag from this handler erased whatever that had set it to.
+        (DataContext as SettingsViewModel)?.SetBindingErrorCount(_validationErrorCount);
     }
 
     // Case-insensitive: callers may provide a section name from the host UI, SDK, or external URI
@@ -241,10 +242,12 @@ public partial class SettingsWindow : Window
 
     private void BtnOk_Click(object sender, RoutedEventArgs e)
     {
-        if (DataContext is SettingsViewModel vm)
-            vm.ApplyCommand.Execute(null);
-
-        Close();
+        // Only closes on a save that actually happened: closing after a refused Apply would throw the
+        // staged edits away (Cleanup rolls an unsaved window back) with nothing left on screen to explain
+        // why. Apply refuses only for a page-reported error -- the button is already disabled while the
+        // service is unreachable -- so staying open is the honest outcome here.
+        if (DataContext is not SettingsViewModel vm || vm.Apply())
+            Close();
     }
 
     // The bottom-docked "About" entry lives in its own ListBox (see XAML comment on LstSectionsBottom) so

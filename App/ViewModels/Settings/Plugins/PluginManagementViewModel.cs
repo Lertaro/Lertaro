@@ -19,6 +19,9 @@ public class PluginManagementViewModel : ViewModelBase
 
     private readonly UserSettings _userSettings;
 
+    /// <summary>Every trigger error in this page's config fields, for the Settings window's Apply gate.</summary>
+    internal IEnumerable<string> ValidationErrors => Plugins.SelectMany(p => p.ConfigFields).SelectMany(f => f.Validation.Errors);
+
     public PluginManagementViewModel(UserSettings userSettings)
     {
         _userSettings = userSettings;
@@ -281,14 +284,15 @@ public class PluginManagementViewModel : ViewModelBase
                 disabled.Add(c.ComponentId);
         }
 
-        // A plugin whose every component the user has just switched off stops reaching the user with it: its
-        // notifications go, and whoever is waiting on one learns why through CancelledByPluginUnload. A plugin
-        // that owns no components cannot be "fully disabled" this way, so its notifications are left alone.
+        // Close admission before clearing requests or stopping producers: a worker already delivering can
+        // still call Show during the later component refresh. Re-enabling reopens admission before restart.
+        // A plugin with no components cannot be fully disabled here.
         foreach (var plugin in Plugins)
         {
             var componentIds = plugin.RawComponents.Select(component => component.ComponentId).ToList();
-            if (componentIds.Count == 0 || !componentIds.All(disabled.Contains)) continue;
-            Services.Notifications.NotificationService.CancelPlugin(plugin.DllFileName);
+            if (componentIds.Count == 0) continue;
+            Services.Notifications.NotificationService.SetPluginEnabled(
+                plugin.DllFileName, !componentIds.All(disabled.Contains));
         }
 
         _userSettings.DisabledPluginComponents = disabled.ToList();

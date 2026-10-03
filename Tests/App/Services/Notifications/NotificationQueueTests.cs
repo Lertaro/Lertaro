@@ -350,6 +350,53 @@ public class NotificationQueueTests
     }
 
     [TestMethod]
+    public void CancelPlugin_BlocksInFlightProducerSubmissionsUntilReenabled()
+    {
+        var before = ShowCard("before disabling");
+        var notice = ShowNotice("before disabling");
+        _queue.CancelPlugin(PluginA.ToUpperInvariant());
+
+        var lateCard = ShowCard("worker finishes its reconcile pass");
+        var lateNotice = ShowNotice("late notice");
+        foreach (var item in new[] { before, notice, lateCard, lateNotice })
+            Assert.AreEqual(NotificationFailure.CancelledByPluginUnload, ResultOf(item).Failure);
+        Assert.HasCount(2, _screen.Shown);
+        Assert.IsEmpty(_screen.Visible);
+
+        _queue.EnablePlugin(PluginA);
+        var resumed = ShowCard("after re-enabling");
+        Assert.IsTrue(IsOutstanding(resumed));
+        Assert.AreSame(resumed, Assert.ContainsSingle(_screen.Visible));
+        Assert.AreEqual(NotificationFailure.CancelledByPluginUnload, ResultOf(lateCard).Failure);
+    }
+
+    [TestMethod]
+    public void CancelPlugin_ClosesAdmissionBeforeWindowTeardownCanSubmitAgain()
+    {
+        NotificationItem? late = null;
+        _queue = new NotificationQueue(() => false, _screen.Show,
+            _ => late = ShowCard("reentrant producer"), _screen.Warn, _gate);
+        ShowCard("visible");
+
+        _queue.CancelPlugin(PluginA);
+
+        Assert.IsNotNull(late);
+        Assert.AreEqual(NotificationFailure.CancelledByPluginUnload, ResultOf(late).Failure);
+        Assert.HasCount(1, _screen.Shown);
+    }
+
+    [TestMethod]
+    public void ReenablingPlugin_CannotReopenAStoppedHost()
+    {
+        _queue.CancelPlugin(PluginA);
+        _queue.Shutdown();
+        _queue.EnablePlugin(PluginA);
+
+        Assert.AreEqual(NotificationFailure.HostShuttingDown, ResultOf(ShowCard("late")).Failure);
+        Assert.IsEmpty(_screen.Shown);
+    }
+
+    [TestMethod]
     public void Shutdown_EndsEverythingWithHostShuttingDown()
     {
         var card = ShowCard("still running");
@@ -363,6 +410,39 @@ public class NotificationQueueTests
         {
             Assert.AreEqual(NotificationFailure.HostShuttingDown, ResultOf(item).Failure);
         }
+    }
+
+    [TestMethod]
+    public void Shutdown_RejectsLaterRequestsWithoutSchedulingPresentation()
+    {
+        var before = ShowCard("before shutdown");
+        _queue.Shutdown();
+        _queue.Shutdown();
+
+        var card = ShowCard("submitted by a disposing plugin");
+        var notice = ShowNotice("late notice");
+        _queue.Feed();
+
+        foreach (var item in new[] { before, card, notice })
+            Assert.AreEqual(NotificationFailure.HostShuttingDown, ResultOf(item).Failure);
+        Assert.HasCount(1, _screen.Shown);
+        Assert.HasCount(1, _screen.Hidden);
+        Assert.IsFalse(_queue.HasWaiting);
+    }
+
+    [TestMethod]
+    public void Shutdown_ClosesAdmissionBeforeCallingWindowTeardown()
+    {
+        NotificationItem? late = null;
+        _queue = new NotificationQueue(() => false, _screen.Show,
+            _ => late = ShowCard("reentrant submission"), _screen.Warn, _gate);
+        ShowCard("still visible");
+
+        _queue.Shutdown();
+
+        Assert.IsNotNull(late);
+        Assert.AreEqual(NotificationFailure.HostShuttingDown, ResultOf(late).Failure);
+        Assert.HasCount(1, _screen.Shown);
     }
 
     [TestMethod]
@@ -466,6 +546,56 @@ public class NotificationQueueTests
     }
 
     [TestMethod]
+    [DataRow("dismissed")]
+    [DataRow("replaced")]
+    [DataRow("rejected")]
+    [DataRow("cancelled")]
+    public void DismissOfAnEndedHandle_DoesNotHideOrPromoteAnything(string ending)
+    {
+        var ended = ShowCard("old handle", id: "job");
+        switch (ending)
+        {
+            case "dismissed": ended.Dismiss(); break;
+            case "replaced": ShowCard("replacement", id: "job"); break;
+            case "rejected":
+                ShowCards(2, 10);
+                ended = ShowCard("rejected");
+                break;
+            case "cancelled": _queue.CancelPlugin(PluginA); break;
+        }
+        Assert.IsTrue(ended.Completion.IsCompleted);
+        ShowCards(1, 4, PluginB, SourceB);
+        var shown = _screen.Shown.Count;
+        var hidden = _screen.Hidden.Count;
+        var reads = _screen.ScreenReads;
+        var result = ResultOf(ended);
+
+        for (var i = 0; i < 10; i++) ended.Dismiss();
+
+        Assert.HasCount(shown, _screen.Shown);
+        Assert.HasCount(hidden, _screen.Hidden);
+        Assert.AreEqual(reads, _screen.ScreenReads);
+        Assert.AreEqual(result, ResultOf(ended));
+    }
+
+    [TestMethod]
+    public void Dismiss_WithSynchronousWindowCloseCallback_PromotesOnlyOnce()
+    {
+        _queue = new NotificationQueue(() => false, _screen.Show, item =>
+        {
+            _screen.Hide(item);
+            _queue.NotifyClosed(item);
+        }, _screen.Warn, _gate);
+        var cards = ShowCards(1, 4);
+
+        cards[0].Dismiss();
+
+        Assert.HasCount(1, _screen.Hidden);
+        Assert.HasCount(2, _screen.Shown);
+        Assert.AreSame(cards[1], _screen.Shown[^1]);
+    }
+
+    [TestMethod]
     public void WithdrawingAnAlreadyReplacedNotice_LeavesTheNewOneAlone()
     {
         var first = ShowNotice("withdrawn after the fact");
@@ -476,6 +606,32 @@ public class NotificationQueueTests
         Assert.AreEqual(NotificationFailure.Replaced, ResultOf(first).Failure);
         Assert.IsTrue(IsOutstanding(replacement));
         Assert.IsFalse(_screen.Hidden.Contains(replacement));
+    }
+
+    [TestMethod]
+    public void DeferredCard_WaitsForCapacityAndCanBeCancelledWithoutAWindow()
+    {
+        var first = ShowCard("first");
+        var next = ShowCard("next");
+        _screen.Hide(first);
+        _queue.Defer(first, 260, 1234);
+        _queue.SetCardCapacity(200, 260);
+        for (var i = 0; i < 10; i++) _queue.Feed();
+        Assert.HasCount(1, _screen.Shown);
+        Assert.IsFalse(first.Completion.IsCompleted);
+        Assert.AreEqual(1234, first.RemainingMs);
+
+        _queue.SetCardCapacity(300, 260);
+        _queue.Feed();
+        Assert.AreSame(first, _screen.Shown[^1]);
+        Assert.HasCount(2, _screen.Shown);
+        _screen.Hide(first);
+        _queue.Defer(first, 260, 1000);
+        var hidden = _screen.Hidden.Count;
+        first.Dismiss();
+        Assert.HasCount(hidden, _screen.Hidden);
+        Assert.AreEqual(NotificationResult.Success, ResultOf(first));
+        Assert.AreSame(next, _screen.Shown[^1]);
     }
 
     [TestMethod]
@@ -550,7 +706,13 @@ public class NotificationQueueTests
 
         public void Show(NotificationItem item)
         {
-            lock (_recorded) Shown.Add(item);
+            lock (_recorded)
+            {
+                // A presentation with the same slot updates the window without an intermediate removal.
+                var previous = Visible.FirstOrDefault(candidate => candidate.Sequence == item.Sequence);
+                if (previous != null) Hidden.Add(previous);
+                Shown.Add(item);
+            }
         }
 
         public void Hide(NotificationItem item)

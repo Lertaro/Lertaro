@@ -21,6 +21,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../../Resources/Styles/Windows/SearchWindow.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <converters:NullToVisibilityConverter x:Key="NullToVis"/>
         </ResourceDictionary>
     </Window.Resources>
     <!-- Main border with shadow -->
@@ -151,7 +152,7 @@
                             <Style TargetType="space:SpaceAnalyzerView">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding ShowWelcomeHint}" Value="True">
+                                    <DataTrigger Binding="{Binding Hints.ShowWelcomeHint}" Value="True">
                                         <Setter Property="Visibility" Value="Visible"/>
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -162,7 +163,7 @@
                         <Grid.Style>
                             <Style TargetType="Grid">
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding ShowWelcomeHint}" Value="True">
+                                    <DataTrigger Binding="{Binding Hints.ShowWelcomeHint}" Value="True">
                                         <Setter Property="Visibility" Value="Collapsed"/>
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -185,7 +186,24 @@
                                             UsesFloatingActionsLayout="True"
                                             UseRoomyActionRows="True"
                                             Visibility="Visible"/>
-                        <!-- No Results Hint -->
+                        <!-- Invalid regex clause: a specific reason, shown in place of the generic hint.
+                             An uncompilable "/.../" clause can never match, so the query returns nothing
+                             and the plain "no results" line mis-explains why. Empty unless the engine
+                             actually rejected a clause in this query, so the block costs nothing. -->
+                        <TextBlock Text="{Binding Hints.InvalidRegexHint}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontSize="13"
+                                   TextWrapping="Wrap"
+                                   MaxWidth="520"
+                                   TextAlignment="Center"
+                                   Foreground="{DynamicResource ErrorBrush}"
+                                   Visibility="{Binding Hints.InvalidRegexHint, Converter={StaticResource NullToVis}}"/>
+                        <!-- No Results Hint. Suppressed while the specific hint above has something to say:
+                             the two are unprefixed children of the same single-cell Grid, both centered, and
+                             InvalidRegexHint is only ever non-null when ShowNoResultsHint is already true.
+                             Without this second condition they rendered on top of each other in exactly the
+                             situation the block above exists for. -->
                         <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_NoResult]}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
@@ -196,9 +214,13 @@
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ShowNoResultsHint}" Value="True">
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding Hints.ShowNoResultsHint}" Value="True"/>
+                                                <Condition Binding="{Binding Hints.InvalidRegexHint}" Value="{x:Null}"/>
+                                            </MultiDataTrigger.Conditions>
                                             <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
+                                        </MultiDataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </TextBlock.Style>
@@ -217,7 +239,7 @@
                                 <DataTrigger Binding="{Binding FilteredResults.Count}" Value="0">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
-                                <DataTrigger Binding="{Binding ShowWelcomeHint}" Value="True">
+                                <DataTrigger Binding="{Binding Hints.ShowWelcomeHint}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
                             </Style.Triggers>

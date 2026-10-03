@@ -38,7 +38,7 @@ About        - バージョン情報
 ```
 
 > [!NOTE]
-> `lertaro://settings/entry/[ID番号]` の番号は、内蔵の [**設定検索**](./instant-answers#2-キーワード起動機能内蔵プラグイン) で動的に生成される内部 ID です。バージョン更新等で変化する可能性があるため、スクリプト等では `lertaro://settings/page/[セクション]` の使用を推奨します。
+> `lertaro://settings/entry/[ID番号]` の番号は、内蔵の [**設定検索**](./instant-answers#_2-キーワード起動機能-内蔵プラグイン) で動的に生成される内部 ID です。バージョン更新等で変化する可能性があるため、スクリプト等では `lertaro://settings/page/[セクション]` の使用を推奨します。
 
 ## 3. LocalSend パラメータとエンコード規則
 

@@ -7,18 +7,21 @@ public struct ParsedSearchQuery
     public string? PathPatternLower { get; }
     public string? ExactPathLower { get; }
     public bool PathEndsWithSeparator { get; }
+    internal string[]? Regexes { get; }
 
     public ParsedSearchQuery(
         bool isPathMode,
         string? targetDrive,
         string? pathPatternLower,
         string? exactPathLower,
-        bool pathEndsWithSeparator = false)
+        bool pathEndsWithSeparator = false,
+        string[]? regexes = null)
     {
         IsPathMode = isPathMode;
         TargetDrive = targetDrive;
         PathPatternLower = pathPatternLower;
         ExactPathLower = exactPathLower;
         PathEndsWithSeparator = pathEndsWithSeparator;
+        Regexes = regexes;
     }
 }

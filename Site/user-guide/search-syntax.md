@@ -1,6 +1,6 @@
 # Search Syntax
 
-Lertaro's search bar supports far more than simple plain-text search. Equipped with a blazing-fast matching algorithm, it supports fuzzy jump matching, boolean logic, word boundary operators, drive and path scoping, secondary filtering query tokens, and multilingual aliases. All syntaxes can be freely mixed within the same query.
+Lertaro's search bar supports far more than simple plain-text search. Equipped with a blazing-fast matching algorithm, it supports fuzzy jump matching, boolean logic, exclusion, drive and path scoping, sorting and filtering query tokens, and multilingual aliases. All syntaxes can be freely mixed within the same query.
 
 ## 1. Basic Matching & Case
 
@@ -14,13 +14,13 @@ Lertaro enables Fuzzy Matching by default. Simply enter any characters in order,
 | `vsc` | `Visual Studio Code.lnk` | Matches initial letters of each word (**V**isual **S**tudio **C**ode) |
 | `rt-fin` | `Q3-report-final.docx` | Matches contiguous substring (Q3-repo**rt-fin**al.docx) |
 
-Turn this off under **Settings → General → System → Enable fuzzy matching** and plain search terms (without operators) will require a contiguous substring — `abc` will only match names containing contiguous `abc`, no longer matching `a-b-c`. This toggle only affects bare terms; all operators described below maintain their exact behaviors either way.
+Turn this off under **Settings → General → System → Enable fuzzy matching** and every plain term requires a contiguous substring — `abc` will only match names containing contiguous `abc`, no longer matching `a-b-c`. This toggle only affects ordinary terms: exclusions are always exact (see below), the token syntax is unaffected either way, and a single term can still be flipped to the opposite reading with a leading `?` (see below).
 
 ### Case Insensitivity
 
 Matching always ignores case, in both directions — the case you type never changes what matches, and the case of the file name never does either. `myfile`, `MyFile` and `MYFILE` all match each other.
 
-There is no case-sensitive mode: typing a capital no longer narrows a term to exact-case matches.
+There is no case-sensitive mode: typing a capital never narrows a term to exact-case matches.
 
 ### Pinyin Aliases & Ranking
 
@@ -82,22 +82,29 @@ then means `(report OR summary) AND (2024 OR draft)`.
 
 The toggle only changes the precedence between the two operators — no new operator is introduced, and it has no effect on a query that uses only one of them (`read me` and `readme | rdm` mean the same thing under either setting).
 
-Note: `|` must be a standalone token with spaces on both sides — `a|b` or `a |b` is not parsed as OR. Do not put an `!` exclusion term inside a `|` OR group either (e.g. `b | !c`), which is parsed as "b matches or c does not"; to exclude a term globally, give it its own space-separated AND condition instead (e.g. `b !c`).
+Note: `|` must be a standalone token with spaces on both sides — `a|b` or `a |b` is not parsed as OR. This also applies to an exclusion: `b | :c` is read as "b, or not c", so to exclude something from the whole query, give the exclusion its own space-separated position instead (`b :c`).
 
-#### Quoting and precedence
+#### Precedence is not affected by quoting
 
-A quoted phrase `'...'` never spans a pipe — the pipe always ends the phrase's reach, so `'data | 'backup` is two OR alternatives (one per quoted word), not one phrase containing a pipe. This holds under both precedence settings.
+There is no quoting syntax that can change how precedence is read; grouping is fixed by the setting above. A `|` is only an OR when it is its own space-separated token, so putting one inside ordinary text such as `data|backup` simply searches for that literal string.
 
-### Escaping Spaces & Quoted Phrases
+### The Space Rule
 
-To search for a phrase containing spaces within a single term, escape the space with a backslash `\ `, or enclose the phrase in single quotes `'...'` or double quotes `"..."`:
+A space is the AND separator, so a query with spaces is always several ANDed terms — this is the one place where Lertaro reads punctuation as structure:
 
 ```text
-final\ report
-'final report'
+final report
 ```
 
-Both examples treat `final report` as a single phrase with space, rather than splitting it into two independent AND terms.
+is `final` AND `report`, which is not the same as a single phrase `final report`.
+
+**A backslash solves it; quotes do not.** `\ ` (backslash + space) keeps one literal space inside a single term: `final\ report` is one term containing a space — the same escape lets a plugin token's keyword carry a space. The term still follows the fuzzy setting, so write `?final\ report` (or turn fuzzy matching off) to require the words contiguously. Quoting solves nothing: `'final report'` and `"final report"` are not phrase syntax — quotes are matched as literal characters, so those queries look for names containing a quote mark, and they find nothing.
+
+So Lertaro needs no dedicated phrase operator: `?final\ report` is the exact phrase. When the two words are adjacent in the name you want, searching for the more distinctive half and letting the ranking put it on top also works — or use a regex clause, which matches the name as one whole string (see below):
+
+```text
+/^final report/
+```
 
 ### Pasting Multiple Lines Folded into OR
 
@@ -119,31 +126,48 @@ Pastes automatically as:
 
 ### Operators Table
 
-| Operator / Syntax | Type | Description | Input Example | Matching Result Example |
-| :--- | :--- | :--- | :--- | :--- |
-| *(none)* | Default Fuzzy | Characters appear in order anywhere in name (when fuzzy is on) | `report` | `Q3-report-final.docx` |
-| `!` | Exclude | Excludes all results whose name contains this exact substring | `!temp` | Filters out files containing `temp` |
-| `'` | Flip Exactness | Exact substring when fuzzy is on; fuzzy when fuzzy is off | `'report` | Must contain contiguous substring `report` |
-| `'...'` | Word Boundary | Exact substring matched on word boundaries (not inside larger word) | `'app'` | Matches `app.exe`, `my-app.log`; does not match `whatsapp.exe` |
-| `^` | Prefix Match | Name must start with this text | `^IMG` | `IMG_20240101.jpg` (does not match `MY_IMG.jpg`) |
-| `$` | Suffix Match | Name must end with this text | `.pdf$` | `document.pdf` (does not match `document.pdf.bak`) |
-| `^...$` | Exact Match | Name must equal this text exactly | `^readme.md$` | Matches only `readme.md` |
-| `\|` | OR Logic | Matches either side of the pipe | `doc \| pdf` | Matches names containing `doc` or `pdf` |
+| Operator / Syntax | Type | Description | Input Example |
+| :--- | :--- | :--- | :--- |
+| *(none)* | Default term | Fuzzy when fuzzy matching is on, exact substring when it is off | `report` |
+| `:` | Exclusion | Drops every result whose name contains this text (always exact, never fuzzy) | `:temp` |
+| `?` | Precision inversion | Flips the term between fuzzy and exact, the opposite of the current setting | `?report` |
+| `\|` | OR logic | Matches either side of the pipe | `doc \| pdf` |
+| `/.../` | Regular expression | Matches the name with a .NET regex (see below) | `/^report.*\.md$/` |
+| `*` | Bypass exclusions | One-off opt-out of your configured exclusion rules (query-opening character only) | `*node_modules` |
+| `<` `>` | Sort / filter token | Sorts and optionally filters the results (see [section 5](#_5-query-tokens-sorting-filtering)) | `<s>20m` |
+| `\` | Plugin token | Applies a plugin-provided filter, e.g. a file category (see [section 5](#_5-query-tokens-sorting-filtering)) | `\audio` |
 
 ### Detailed Operator Behaviors & Combinations
 
-1. **Exclusion `!`**: `!term` directly excludes results containing `term` as an exact substring. Excluded terms do not undergo pinyin/alias expansion to avoid over-exclusion.
-2. **Exactness Flip `'`**: When global fuzzy matching is enabled, prefixing `'` forces a specific term to match as an exact substring.
-   - For example, `lertaro 'v1.2` performs a fuzzy search for `lertaro` while requiring `v1.2` as an exact contiguous substring.
-   - Exact terms still match filenames that carry pinyin aliases: `'exe$` also finds `古恩希尔`, whose pinyin maps to `gexe`.
-3. **Word Boundary Exact Match `'...'`**: Enclosing a single word in quotes (e.g. `'app'`) checks for word boundaries (spaces, punctuation, hyphens, underscores, or string boundaries), preventing false positives inside larger words.
-4. **Exact Match `^...$`**: Only applies when `^` and `$` wrap the **same word**. When used on separate words (e.g. `^src md$`), they remain separate prefix and suffix filters.
+1. **Exclusion `:`** — `:term` drops every result whose name contains `term`. The exclusion is written **without a space** after the colon (`:temp`, not `: temp`), and it must not be the only thing in the query: because an exclusion can only remove results, a query of nothing but exclusions shows no results at all. In practice that means always keeping at least one ordinary term alongside it.
+2. **Exclusions are always exact** — they are matched as a contiguous substring even when fuzzy matching is on, and they are not expanded through pinyin aliases. A loose subsequence or a pinyin spelling would otherwise remove files you never named.
+3. **A lone colon is ignored** — `:` with nothing after it is not an operator; it is simply dropped from the query.
+4. **The drive colon is different** — a drive letter follows the colon (`d:`, see [section 4](#_4-path-mode-drive-scoping)) while an exclusion precedes it (`:temp`). The two can never be confused, and a colon inside a word (`c:\path`) is ordinary text.
+5. **A regex clause is lifted out before the query is read as a path or split into terms** — that is what keeps its backslashes and slashes from being mistaken for a path, and it means a clause can sit anywhere in the query (`/\.md$/ report` and `report /\.md$/` are the same search).
+6. **Precision inversion `?`** — `?term` takes the **opposite** of whatever the fuzzy-matching setting says: with fuzzy matching on the term becomes a contiguous substring, with fuzzy matching off it becomes a scattered subsequence. It is the only way to mix the two readings within one query — `?report draft` requires `report` contiguously while `draft` may be scattered. The trigger is read from the **first character of a word only**, so `rep?ort` is the literal text `rep?ort` (which cannot occur in a file name and therefore matches nothing), and it affects that word alone. Like a lone `:`, a lone `?` is dropped. The colon is read first, so `:?temp` excludes the literal text `?temp`.
 
 **Operator Combination Examples**:
 
-- `^IMG !.png$ 2024`: Finds files starting with `IMG`, containing `2024`, and **not** ending in `.png`.
-- `'data | 'backup ^2024 .zip$`: Finds archives starting with `2024`, ending in `.zip`, and containing the exact substring `data` or `backup`.
-- `^report '公告 | 'gw .pdf$ !draft`: Finds names starting with `report`, ending in `.pdf`, without `draft`, and exactly containing `公告`, `gw`, `公文`, or other text combinations matching the `gw` pinyin (`'公告 | 'gw` forms one OR group; the remaining space-separated conditions are ANDed with it).
+- `report :draft`: Finds names containing `report` and drops any whose name contains `draft`.
+- `IMG :png :gif`: Finds names containing `IMG` while dropping both `png` and `gif` files. Both exclusions are ANDed — a name survives only if it contains neither.
+- `log :temp :bak`: Keeps `log` files that are neither temp nor backup files.
+
+### Regular Expressions (`/.../`)
+
+Write a .NET regular expression between slashes to match a file **name** exactly as you describe it:
+
+```text
+/^report.*\.md$/
+```
+
+That finds names starting with `report` and ending in `.md`. The clause is ANDed with the rest of the query, so `report /\.pdf$/` keeps only PDFs among the `report` matches.
+
+Four things are worth knowing:
+
+- **It matches the name, not the path**, and not file contents. Use a path query for folders.
+- **It does not go through pinyin aliases.** A regex describes the characters actually in the name, so a Chinese name is matched by its own characters, not by a pinyin spelling of them.
+- **The slashes are the delimiter, and `\` escapes.** Write `\.` for a literal dot (`.` alone means any character). To match a literal slash, write `\/`. Because `/` is also Windows' alternate path separator, a clause has to be a whole word that both opens and closes with `/`, and an unescaped `/` inside it closes the clause — which is what keeps a forward-slash path such as `C:/Users/me`, `/mnt/c/Users` or `/usr/local/` an ordinary path rather than a regex. An unclosed clause is treated as ordinary text rather than swallowing the rest of the query.
+- **A regex cannot be accelerated the way a term can**, because it is not a fixed string. Lertaro pulls the longest run of literal characters the expression requires — `.exe` from `/\.exe$/`, nothing at all from `/^(ogg|mp3)$/` — and uses that to skip most candidates before running the real expression. Adding an ordinary word alongside a literal-free regex is the reliable way to keep such a search fast.
 
 ## 4. Path Mode & Drive Scoping
 
@@ -155,7 +179,7 @@ Start your query with a drive letter followed by a colon to restrict results str
 d: report
 ```
 
-The space is optional: `d:report` and `d: report` are identical.
+The drive spec must be a **standalone, two-character token**: the colon has to be followed by a space. `d:report` is no longer a drive spec — it is an ordinary term searching for the literal text `d:report`, because guessing a drive from the first two characters produced false positives. Only ASCII letters are recognized, so `中: x` is not a drive either.
 
 ### Full Path Mode
 
@@ -166,6 +190,24 @@ D:\Projects\Lertaro
 ```
 
 Ending with a path separator (e.g. `D:\Projects\`) searches the direct contents **inside** that folder.
+
+### Jumping To A Folder
+
+When the entire query is a complete path to a folder that exists, a row offering to open it appears above the path-mode results. Press Enter and the folder opens in Explorer:
+
+```text
+D:\Projects\Lertaro
+D:/Projects/
+%LOCALAPPDATA%\abc/d/e
+shell:Downloads\Tools
+\\server\share\docs
+"C:\Users\me\My Documents"
+```
+
+Every spelling below works, and they mix: `/` or `\` as the separator, with or without a trailing separator, `%VARIABLES%` anywhere in it, a `shell:` / `::{CLSID}` virtual folder, a network share, or the whole thing wrapped in quotes. What decides it is existence: a relative path such as `Core\SearchIndex` is never offered a jump, and neither is a folder that is not there yet -- in both cases you simply keep the ordinary path-mode results.
+
+> [!NOTE]
+> A plugin token also starts with `\` (for example `\audio`). Tokens are lifted out of the query before path mode is decided, so a query that only contains tokens and ordinary words (`report \audio`) stays a normal name search. Path mode only triggers when a separator is left in the remaining text. A query that opens with two separators (`\\server\share`) is read as a UNC path, so it stays search text.
 
 ### Folder Matching Fallback
 
@@ -180,89 +222,103 @@ Even if `dcj` never appears in the file's own name, Lertaro finds `d01j.txt` loc
 > [!NOTE]
 > This requires at least one term to match the filename itself, and only triggers when name-only matches have not filled the results. Fallback results are always ranked after direct filename matches.
 
-## 5. Query Tokens & Secondary Filtering
+## 5. Query Tokens: Sorting & Filtering
 
-Lertaro supports appending **Query Tokens** guided by a colon prefix `:` (customizable in **Settings → General → System → Query Token Global Prefix Character**) to perform chained secondary filtering and sorting on primary results.
+Query tokens are the words that start with a character that cannot occur in a Windows file name, so they can never be confused with text you want to search for. There are two families:
 
-Multiple tokens can be combined in a single `:` suffix separated by commas `,`, such as `report :@doc,M-,:-F`.
+| Family | Trigger | Example | Owned by |
+| :--- | :--- | :--- | :--- |
+| Sort / filter | `<` and `>` | `<s>20m` | The `CoreExtensions` plugin |
+| Plugin tokens | Your configured **Plugin Query Token Prefix** (default `\`) | `\audio` | Whichever plugin claims the token |
 
-### Category Filters (`:@<category>`)
+### Tokens work anywhere in the query
 
-Quickly apply preset file extension category rules, supporting `|` combinations:
+A token does **not** have to go at the end. Any of these are equivalent:
 
-- `:@doc`: Documents (`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps`)
-- `:@img`: Images (`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai`)
-- `:@video`: Videos (`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts`)
-- `:@audio`: Audio (`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape`)
-- `:@zip`: Archives (`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso`)
+```text
+report <s>20m \audio
+<s>20m report \audio
+\audio report <s>20m
+```
+
+A token only counts when it is the **whole word** and starts the word — `abc\def` is ordinary text, not a token.
+
+### Sorting and Thresholds (`<` and `>`)
+
+The first character picks the sort direction, the next letter picks the property:
+
+| Token | Meaning |
+| :--- | :--- |
+| `<s` | Sort by size, smallest first |
+| `>s` | Sort by size, largest first |
+| `<c` / `>c` | Sort by creation time, oldest / newest first |
+| `<m` / `>m` | Sort by modified time, oldest / newest first |
+| `<a` / `>a` | Sort by accessed time, oldest / newest first |
+| `<f` / `>f` | Sort files first / folders first |
+
+Add a second trigger plus a threshold to keep only one side of it:
+
+| Token | Meaning |
+| :--- | :--- |
+| `<s>20m` | Files larger than 20 MB |
+| `<s<20m` | Files smaller than 20 MB |
+| `>c>2008.8.3` | Items created after 2008-08-03 |
+
+The second trigger is a **comparison**, not a repetition of the sort arrow: `>` always means a lower bound and `<` always means an upper bound.
+
+Sizes accept `k`, `m`, `g` and `t` suffixes (binary units, so `1m` is 1 MiB) or a plain byte count. For the folder/file key, `<f>f` (or a threshold starting with `folder` / `dir`) keeps only folders; any other threshold, e.g. `<f<1`, keeps only files.
+
+Dates must be written **year first**. These shapes are accepted (a two-digit year is read as `20xx`):
+
+| Separator | Year width | Month/day width | Examples |
+| :--- | :--- | :--- | :--- |
+| `-` | 4 or 2 | padded or not | `2003-01-03`, `2003-1-3`, `03-1-3` |
+| `.` | 4 or 2 | padded or not | `2003.01.03`, `2003.1.3`, `03.1.3` |
+| `/` | 4 or 2 | padded or not | `2003/01/03`, `2003/1/3`, `03/1/3` |
+| none | 4 | — | `20030103` |
+
+Separators may not be mixed (`2003-08.03` is not a date), and the month-first reading `01-03-2003` is not accepted — the order is always year, month, day, so one query can never mean two different days on two machines. Year-only (`2008`) and year-month (`2008.8`) forms are also accepted, meaning "during 2008" and "during August 2008".
+
+### Plugin Tokens (`\`)
+
+Plugin tokens are provided by plugins, and the plugin decides what each one means. The bundled `CoreExtensions` plugin supplies file-category filters:
+
+- `\doc`: Documents (`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps`)
+- `\img`: Images (`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai`)
+- `\video`: Videos (`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts`)
+- `\audio`: Audio (`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape`)
+- `\zip`: Archives (`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd`)
 
 **Examples**:
 
-- `financial :@doc`: Search for "financial" among documents.
-- `wallpaper :@img`: Search for "wallpaper" among images.
-- `clip :@video|audio`: Search for "clip" among videos or audio files.
+- `financial \doc`: Search for "financial" among documents.
+- `wallpaper \img`: Search for "wallpaper" among images.
 
-You can customize rules or add new categories under **Settings → Plugins → CoreExtensions**.
+Rename the categories, change which extensions each one covers, or add your own under **Settings → Plugins → CoreExtensions**. The keyword itself is matched longest-first, so a `\a` rule and an `\audio` rule can coexist and `\audio` still wins.
 
-The full search window's left type-filter sidebar is configured separately in the same plugin's **Search Filters** group. Sidebar filter names are display-only; `@keyword` references are parsed only inside a sidebar filter rule and refer to keywords from the **Custom Filters** list, including disabled custom filters.
+The prefix character is configurable under **Settings → General → System → Plugin Query Token Prefix**. It cannot be empty, it cannot be a character the search syntax already consumes (`<` `>` `:` `*` `/` `?`) — `\` itself is the shipped default, so it is usable.
 
-### Specific Extension Filters (`:.ext` or `:.ext1.ext2`)
+The full search window's left type-filter sidebar is configured separately in the same plugin's **Search Filters** group. Sidebar filter names are display-only; prefix references are parsed only inside a sidebar filter rule and refer to keywords from the **Custom Filters** list, including disabled custom filters.
 
-Use a dot prefix to specify one or more file extensions (automatically excludes folders):
+### Chained Tokens
 
-- `report :.pdf`: Retains only `.pdf` files.
-- `data :.csv.xlsx`: Retains only `.csv` or `.xlsx` spreadsheet files.
+Because tokens are independent words, several can appear in one query and each one applies in turn:
 
-### Result Sorting & File/Folder Filters (`:[SCMAF]`)
-
-Use single letters to specify sorting attributes: `S` (Size), `C` (Created time), `M` (Modified time), `A` (Accessed time), `F` (Folder/File filter).
-
-The bare letter indicates **ascending order** (smallest / oldest first); adding a minus `-` (as a prefix or suffix, e.g. `M-` or `:-M`) indicates **descending order** (largest / newest first) or inverted filtering:
-
-| Token Syntax | Effect | Typical Use Case |
-| :--- | :--- | :--- |
-| `:S` | Sort by file size ascending (smallest first) | Locate empty or tiny files |
-| `:S-` or `:-S` | Sort by file size descending (largest first) | `log :S-` (troubleshoot massive log files) |
-| `:M` | Sort by modified time ascending (oldest first) | Find stale, unmaintained files |
-| `:M-` or `:-M` | Sort by modified time descending (newest first) | `report :M-` (find recently edited documents) |
-| `:C` / `:C-` | Sort by creation time ascending / descending | `build :C-` (find latest build outputs) |
-| `:A` / `:A-` | Sort by access time ascending / descending | `project :A-` (find recently opened projects) |
-| `:F` | **Folders only** (filters out regular files) | `config :F` (find only directories named config) |
-| `:-F` or `:F-` | **Files only** (filters out folders/directories) | `config :-F` (find only files named config) |
-
-### Wildcard Secondary Filters (`:?<expression>` or `?<expression>`)
-
-Use standard Windows wildcards (`?` for single character, `*` for zero or more characters) for precise matching, supporting `|` or `;` for multiple OR conditions:
-
-- `mp4 :?(2026???????????)`: Matches video files containing `2026` followed by an 11-digit timestamp.
-- `photo :?IMG_????.jpg|DSC_????.jpg`: Matches specific photo numbers across two camera formats.
-
-### Path Segment Filters (`::<path-expression>`)
-
-Requires ancestor directory names or the filename itself to match the specified fuzzy keyword:
-
-- `report ::2024`: Requires the parent folder hierarchy to contain `2024`.
-- `main ::"src\core"`: Requires files to be located under `src\core` and its subdirectories.
-
-### Chained Query Token Examples
-
-Tokens can be combined together after a single `:` prefix:
-
-- `report :@doc,M-`: Searches "report", filters to documents, sorted by modified time descending (newest first).
-- `backup :.zip,S-,:-F`: Searches "backup", filters to `.zip` archives, sorted by size descending, files only.
-- `icon ::assets,?*128*`: Searches "icon", located under `assets` paths, with `128` size tags in the name.
+- `report \doc >m`: Searches "report", keeps documents only, sorted by modified time (newest first).
+- `backup \zip <s`: Searches "backup", keeps `.zip` archives, sorted by size (smallest first).
+- `icon \img <s>1m`: Searches "icon", keeps images larger than 1 MB, smallest first.
 
 ## 6. Special Search Features
 
 ### Bypassing Exclusion Rules for One Search
 
-Prefix a query with `*` to temporarily bypass user-configured path exclusions, globs, and regular expressions in [**Exclusion Rules**](./settings/index-drives#exclusion-rules) for this single search, without modifying settings:
+Prefix a query with `*` to temporarily bypass user-configured path exclusions, globs, and regular expressions in [**Exclusion Rules**](./settings/index-drives#_5-exclusions) for this single search, without modifying settings:
 
 ```text
 *node_modules
 ```
 
-The leading `*` is stripped before matching. This only recalls already indexed files (excluded paths on network/WSL drives that were never indexed will not appear); system/hidden file filters remain active.
+The leading `*` is stripped before matching. This only recalls already indexed files (excluded paths on network/WSL drives that were never indexed will not appear); system/hidden file filters remain active. Note that this is the app's own exclusion **rules**, which is a different thing from a `:` exclusion term in the query.
 
 ### Result Type Trigger
 
@@ -274,7 +330,10 @@ Typing the trigger as the very first character in the quick search window displa
 ;vs
 ```
 
-If `;` is assigned to "Applications", the above query searches Visual Studio exclusively among applications. In Quick and Inline search windows, History and Favorites remain pinned at the top regardless of triggers.
+If `;` is assigned to "Applications", the above query searches Visual Studio exclusively among applications. The trigger must be the first character with nothing before it, and it applies to the Quick search window only. Favorites remain pinned at the top even under a trigger; history-sourced entries are filtered out together with every other type.
+
+> [!NOTE]
+> The trigger must be the first character of the query — a plugin token or sort token before it (`\img ;vs`) leaves the trigger unread, since the query no longer starts with it.
 
 ## 7. Multilingual Aliases
 
@@ -305,6 +364,6 @@ Matched characters (including accented vowels in the original name) are accurate
 Lertaro does not provide a generic "custom search alias/macro" mechanism. The closest native solutions:
 
 - [**Favorites**](./settings/favorites): pin any file, folder, or URL under a custom display name, making it searchable by that custom title (marked with a ★ icon in results).
-- **File Filters** (see [**Instant Answers**](./instant-answers#file-filters)): bind a trigger keyword to chosen folders, then typing `keyword term` in the quick search window restricts a normal index search to those folders.
+- **File Filters** (see [**Instant Answers**](./instant-answers#_5-file-filters)): bind a trigger keyword to chosen folders, then typing `keyword term` in the quick search window restricts a normal index search to those folders.
 
-If you want to trigger custom scripts or launch programs using custom keywords, see [**Custom Commands**](./instant-answers#custom-commands).
+If you want to trigger custom scripts or launch programs using custom keywords, see [**Custom Commands**](./instant-answers#_6-custom-commands).

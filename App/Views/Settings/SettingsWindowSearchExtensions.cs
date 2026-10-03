@@ -5,6 +5,7 @@ using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Settings;
 using Lertaro.App.ViewModels.Settings.Plugins;
 using Lertaro.App.ViewModels.Settings.QuickPanel;
+using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 
@@ -24,6 +25,42 @@ internal static class SettingsWindowSearchExtensions
         if (entry.SubTabLabelKey != null)
             parts.Add(TranslationManager.Instance[entry.SubTabLabelKey]);
         return string.Join(" › ", parts);
+    }
+
+    /// <summary>
+    /// The index <see cref="SettingsWindow.JumpToEntry"/> expects for the static entry with this label key,
+    /// or -1 when there is none.
+    /// </summary>
+    /// <remarks>
+    /// That index is the entry's position in the list <see cref="BuildAllEntries"/> produces, NOT its
+    /// position in <see cref="SettingsSearchIndex.Entries"/>. The two differ by however many entries with an
+    /// IsVisible predicate precede the target, because the evaluateConditionalVisibility: false build that
+    /// JumpToEntry and the SDK feed both use skips those outright. A caller holding only the raw index list
+    /// (see LegacySettingsNoticeService) therefore has to map through this rule rather than pass a raw
+    /// position, or it lands on a later row entirely.
+    /// </remarks>
+    internal static int JumpToEntryIndexFor(string labelKey)
+    {
+        var index = 0;
+        foreach (var entry in SettingsSearchIndex.Entries)
+        {
+            if (entry.IsVisible != null)
+            {
+                // Conditional entries hold no slot in the build JumpToEntry resolves against, so a target
+                // of that shape is not reachable by index at all.
+                if (entry.LabelKey == labelKey)
+                    return -1;
+
+                continue;
+            }
+
+            if (entry.LabelKey == labelKey)
+                return index;
+
+            index++;
+        }
+
+        return -1;
     }
 
     internal static List<SettingsSearchResultItem> BuildAllEntries(SettingsViewModel? vm, bool evaluateConditionalVisibility = true)
@@ -139,7 +176,35 @@ internal static class SettingsWindowSearchExtensions
                 Reveal: new SettingsSearchDynamicReveal("QuickPanelPluginTabsList", capturedTab)));
         }
 
+        // The launch panel's tabs are configured per source here, and the quick search window's tab
+        // strip offers "related settings" jumps landing on exactly this row -- so each source gets its
+        // own entry, not just the section heading.
+        var quickLaunchSectionLabel = TranslationManager.Instance["Settings_QuickLaunch"];
+        var quickLaunchSourcesLabel = TranslationManager.Instance["QuickLaunch_SourceTitle"];
+        var quickLaunchSources = vm?.QuickLaunch.Sources ?? (IEnumerable<QuickLaunchSourceOptionViewModel>)QuickLaunchSourceFallback();
+        foreach (var source in quickLaunchSources)
+        {
+            var capturedSource = source;
+            void SelectSourcesSection(SettingsViewModel v) => v.QuickLaunch.SelectedSection = "Sources";
+
+            results.Add(new SettingsSearchResultItem(capturedSource.Name, $"{quickLaunchSectionLabel} › {quickLaunchSourcesLabel}", "QuickLaunch", SelectSourcesSection,
+                Reveal: new SettingsSearchDynamicReveal("QuickLaunchSourcesList", capturedSource)));
+        }
+
         return results;
+    }
+
+    private static List<QuickLaunchSourceOptionViewModel> QuickLaunchSourceFallback()
+    {
+        var disabled = UserSettings.Load().QuickLaunch.DisabledSourceIds;
+        return QuickLaunchSourceCatalog.Providers
+            .Select(provider =>
+            {
+                var id = QuickLaunchSourceCatalog.GetId(provider);
+                return new QuickLaunchSourceOptionViewModel(id, provider.Name,
+                    !disabled.Contains(id, StringComparer.OrdinalIgnoreCase));
+            })
+            .ToList();
     }
 
     public static void OnSettingsSearchTextChanged(this SettingsWindow window)

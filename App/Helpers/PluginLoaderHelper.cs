@@ -179,6 +179,41 @@ public static class PluginLoaderHelper
         return defaultName;
     }
 
+    /// <summary>This assembly's declared config schema fields, or an empty list when it declares none.
+    /// Public because the startup trigger-keyword migration walks every loaded plugin's schema looking for
+    /// candidate fields (see PluginTriggerKeywordMigration). Group fields stay nested here: the caller that
+    /// only wants the declarations, rather than the defaults map, does its own walk.</summary>
+    public static List<PluginConfigField> ResolveConfigFields(Assembly assembly)
+    {
+        try
+        {
+            // Cached per assembly because GetConfigSchema() builds a brand-new field tree on every call and
+            // the plugin's own live instance is not usable here (it is absent while plugins are still
+            // loading), so the cached instance also keeps the field objects stable across calls. Its only
+            // caller runs once at startup, so this is about not rebuilding a tree per plugin per pass, not
+            // about a per-keystroke path.
+            return SchemaFieldsCache.GetOrAdd(assembly, static a => GetSchemaFields(a));
+        }
+        catch (Exception ex)
+        {
+            // A plugin whose schema throws would otherwise vanish from the migration's candidate list with
+            // no trace at all, which is indistinguishable from "this plugin declares no fields".
+            Logger.Log($"[PluginLoaderHelper] GetConfigSchema failed for {assembly.GetName().Name}: {ex.Message}", LogLevel.Warn);
+            return new List<PluginConfigField>();
+        }
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Assembly, List<PluginConfigField>> SchemaFieldsCache = new();
+
+    private static List<PluginConfigField> GetSchemaFields(Assembly assembly)
+    {
+        var configurableInstance = ResolveConfigurable(assembly, null);
+        var fields = configurableInstance?.GetConfigSchema()?.Fields;
+        // Stored eagerly (never as a lazy/empty placeholder) so the cache never has to be re-checked under
+        // a lock to decide whether an entry is a real result.
+        return fields is { Count: > 0 } ? fields : new List<PluginConfigField>();
+    }
+
     private static PluginConfigSchema? TryLoadConfigFields(Assembly assembly, string dllName, IPlugin? pluginInstance, UserSettings userSettings, List<PluginConfigFieldViewModel> configFields)
     {
         try
