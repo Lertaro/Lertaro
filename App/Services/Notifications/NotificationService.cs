@@ -242,14 +242,10 @@ internal static class NotificationService
                 (doomed ??= []).Add(runner);
             }
 
-            // One event for the whole group: cards given the same duration are due together, and closing them one
-            // at a time re-laid out the stack once per close.
+            // CloseBatch already refills once through OnNotificationsGone. An expiry tick must not also feed
+            // here, or two simultaneous expiries admit two cards in this same pass and synchronize them again.
             if (doomed != null) Windows.CloseBatch(doomed);
-
-            // One waiting card per tick, so a burst is fed a card at a time instead of in one frame. The queue
-            // keeps no clock of its own; this is the clock, and it is already running whenever anything is on
-            // screen with something still waiting behind it.
-            Queue.Feed();
+            else Queue.Feed();
         }
     }
 
