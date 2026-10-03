@@ -46,6 +46,7 @@ internal sealed class NotificationWindowManager(
     private const double EntryDropDip = 40;
 
     private readonly Dictionary<NotificationItem, NotificationRunner> _runners = [];
+    private bool _sessionHidden;
 
     internal int Count => _runners.Count;
 
@@ -104,6 +105,7 @@ internal sealed class NotificationWindowManager(
         // first pass; re-laying out when the first frame is up is left as the correction it now is, not as the
         // visible jump the window would otherwise make from the bottom edge of the screen.
         window.UpdateLayout();
+        if (_sessionHidden) window.Hide();
         Restack(animated: false);
         // Re-laid out when the first frame is up, and animated this time. A card's height is not final until it
         // has actually been arranged: the body text re-wraps against the pixel-rounded content width and can come
@@ -178,6 +180,7 @@ internal sealed class NotificationWindowManager(
     /// the service's business, so nothing here touches it.</summary>
     internal void HideForSession(bool hidden)
     {
+        _sessionHidden = hidden;
         foreach (var runner in _runners.Values)
             runner.Window.Visibility = hidden ? Visibility.Hidden : Visibility.Visible;
     }

@@ -157,6 +157,9 @@ public partial class App : Application
             Logger.Log($"[FavoriteHotkeys] Initialization failed: {ex}", LogLevel.Error);
         }
 
+        // Watch session state before any plugin can produce its first notification.
+        Services.Notifications.NotificationService.Initialize();
+
         // Force load all plugins (actions and alias providers) on startup
         _ = PluginManager.Instance;
         _ = Task.Delay(10000).ContinueWith(_ => Win32Api.TrimWorkingSet());

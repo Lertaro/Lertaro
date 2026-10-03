@@ -128,6 +128,28 @@ public sealed class NotificationWindowManagerTests
         }
     }
 
+    [StaTestMethod]
+    public void LockBeforeFirstPresentation_KeepsNewWindowsHiddenUntilUnlock()
+    {
+        var windows = new NotificationWindowManager(_ => { }, _ => { });
+        try
+        {
+            windows.HideForSession(true);
+            windows.Present(Item("arrived while locked"));
+            var runner = windows.Countdown().Single();
+
+            Assert.IsFalse(runner.Window.IsVisible);
+            Assert.AreEqual(8000, runner.RemainingMs);
+            windows.HideForSession(false);
+            Assert.IsTrue(runner.Window.IsVisible);
+            Assert.AreEqual(8000, runner.RemainingMs);
+        }
+        finally
+        {
+            windows.CloseEverything();
+        }
+    }
+
     private static NotificationRequest Request(string text) => new() { Title = text, Message = text };
 
     private static NotificationItem Item(string text) =>

@@ -49,6 +49,7 @@ internal static class NotificationService
     private static DispatcherTimer? _ticker;
     private static long _lastTick;
     private static bool _sessionLocked;
+    private static long _sessionReadStamp;
     private static bool _screenEventsBound;
     private static long _screenReadStamp;
     private static bool _screenIsFullScreen;
@@ -64,6 +65,13 @@ internal static class NotificationService
         _screenReadStamp = now;
         _screenIsFullScreen = FullscreenHelper.IsForegroundWindowFullScreen();
         return _screenIsFullScreen;
+    }
+
+    /// <summary>Subscribes before plugin startup, including a snapshot for an already locked session.</summary>
+    internal static void Initialize()
+    {
+        Application.Current?.Dispatcher.VerifyAccess();
+        lock (_gate) BindScreenEvents();
     }
 
     /// <summary>Accepts a request on behalf of the plugin that made it. Returns null only when there is no
@@ -223,7 +231,14 @@ internal static class NotificationService
             // A locked session counts for nothing, and the reference point already moved with it above, so the
             // remaining time is whatever it was when the screen went dark. That flag is written by the session
             // handler under this gate, which is why the check lives here and not out with the timestamp.
-            if (_sessionLocked || elapsedMs <= 0) return;
+            if (_sessionLocked)
+            {
+                // Also recovers from a missed unlock or an unavailable WTS snapshot on the secure desktop.
+                if (Stopwatch.GetElapsedTime(_sessionReadStamp, now).TotalSeconds >= 1)
+                    ApplySessionLock(NotificationSessionState.ReadLocked());
+                return;
+            }
+            if (elapsedMs <= 0) return;
 
             List<NotificationRunner>? doomed = null;
             foreach (var runner in Windows.Countdown())
@@ -269,14 +284,22 @@ internal static class NotificationService
             : name;
     }
 
+    private static void ApplySessionLock(bool locked)
+    {
+        _sessionLocked = locked;
+        _lastTick = _sessionReadStamp = Stopwatch.GetTimestamp();
+        Windows.HideForSession(locked);
+    }
+
     private static void BindScreenEvents()
     {
         if (_screenEventsBound) return;
         _screenEventsBound = true;
-        // Subscribed on the UI thread on purpose: SystemEvents needs a message pump on whichever thread
-        // registers, and Present can be reached from any plugin thread.
+        // Startup and the fallback presentation path both run on the UI thread, where SystemEvents has a pump.
+        // Subscribe before reading so a lock racing the snapshot is still delivered afterwards.
         SystemEvents.SessionSwitch += OnSessionSwitch;
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        ApplySessionLock(NotificationSessionState.ReadLocked());
     }
 
     /// <summary>SystemEvents outlives the window that registered for it, and a handler left attached past
@@ -298,8 +321,8 @@ internal static class NotificationService
         {
             lock (_gate)
             {
-                _sessionLocked = locked;
-                Windows.HideForSession(locked);
+                if (!_screenEventsBound) return;
+                ApplySessionLock(locked);
                 // Logged at the default level because whether this fires at all is the only way to tell a frozen
                 // countdown from a merely fast one after the fact.
                 Logger.Log($"[Notifications] session {(locked ? "locked" : "unlocked")}: " +
