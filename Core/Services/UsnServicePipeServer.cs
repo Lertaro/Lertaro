@@ -98,18 +98,22 @@ public sealed class UsnServicePipeServer : IDisposable
         {
             Logger.Log("[PipeServer] Client connected to pipe.", LogLevel.Debug);
 
+            // Who is asking, for every reply below that carries paths. Once per connection, after the first
+            // request: impersonating the client needs a message read from it first.
+            CallerVisibility? visibility = null;
             try
             {
                 while (!token.IsCancellationRequested && pipe.IsConnected)
                 {
                     var request = await SearchRequestBinarySerializer.ReadSearchRequestAsync(pipe, token);
+                    visibility ??= CallerVisibility.ForClient(pipe);
                     var verboseLog = request.Id != SearchRequestId.Search && request.Id != SearchRequestId.SearchDir;
                     if (verboseLog)
                         Logger.Log($"[PipeServer] Request received: {request.Id}", LogLevel.Debug);
 
                     if (request.Id is SearchRequestId.Search or SearchRequestId.SearchDir or SearchRequestId.EnumerateDir)
                     {
-                        await SearchStreamPump.RunAsync(_engine, request, pipe, token);
+                        await SearchStreamPump.RunAsync(_engine, request, pipe, visibility, token);
                         if (verboseLog)
                             Logger.Log("[PipeServer] Response sent.", LogLevel.Debug);
                         continue;
@@ -123,7 +127,7 @@ public sealed class UsnServicePipeServer : IDisposable
 
                     if (request.Id == SearchRequestId.SubscribeDirectoryChanges)
                     {
-                        await DirectoryChangeSubscription.ServeAsync(pipe, _engine, request.Directories, token).ConfigureAwait(false);
+                        await DirectoryChangeSubscription.ServeAsync(pipe, _engine, request.Directories, visibility, token).ConfigureAwait(false);
                         continue;
                     }
 
@@ -148,7 +152,7 @@ public sealed class UsnServicePipeServer : IDisposable
                         break;
                     }
 
-                    var response = UsnServicePipeRequestProcessor.Process(_engine, request, token, pipe);
+                    var response = UsnServicePipeRequestProcessor.Process(_engine, request, token, pipe, visibility);
 
                     if (verboseLog)
                         Logger.Log($"[PipeServer] Sending response: {response.Kind}...", LogLevel.Debug);

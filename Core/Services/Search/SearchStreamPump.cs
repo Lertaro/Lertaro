@@ -27,7 +27,8 @@ public static class SearchStreamPump
             FullMode = BoundedChannelFullMode.Wait
         });
 
-    public static async Task RunAsync(SearchEngine? engine, SearchRequestMessage msg, Stream stream, CancellationToken token)
+    internal static async Task RunAsync(SearchEngine? engine, SearchRequestMessage msg, Stream stream, CallerVisibility visibility,
+        CancellationToken token)
     {
         Logger.Log($"[SearchStreamPump] Starting query: '{msg.Query}', limit={msg.Limit}, appLimit={msg.AppLimit}, directoryFilter='{msg.DirectoryFilter}'", LogLevel.Debug);
         using var queryCts = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -72,6 +73,15 @@ public static class SearchStreamPump
             // results cannot say the difference between "not indexed" and "that directory is empty",
             // and only the first of those is worth walking the disk over.
             var notIndexed = false;
+            // Dropped before the channel, so a hidden result costs neither buffer space nor a write. The
+            // engine's own limit still counts it: ponytail, a caller who cannot see much of what matches can
+            // get fewer results than the limit; filtering inside the scan is the upgrade.
+            void Emit(SearchResult result)
+            {
+                if (visibility.IsVisible(result.Path))
+                    channel.Writer.WriteAsync(result, queryToken).AsTask().GetAwaiter().GetResult();
+            }
+
             var producer = Task.Run(() =>
             {
                 try
@@ -82,16 +92,14 @@ public static class SearchStreamPump
                         // No engine at all counts as not indexed: the client should fall back, not
                         // conclude the directory is empty.
                         notIndexed = engine == null || !engine.EnumerateDirectory(msg.DirectoryFilter ?? string.Empty,
-                            msg.Recursive, msg.Query ?? "*", msg.Limit,
-                            result => channel.Writer.WriteAsync(result, queryToken).AsTask().GetAwaiter().GetResult(), queryToken);
+                            msg.Recursive, msg.Query ?? "*", msg.Limit, Emit, queryToken);
                         channel.Writer.TryComplete();
                         return;
                     }
 
                     var directory = msg.Id == SearchRequestId.SearchDir ? msg.DirectoryFilter : null;
 
-                    engine?.SearchStreaming(msg.Query ?? string.Empty, msg.Limit, msg.AppLimit, directory,
-                        result => channel.Writer.WriteAsync(result, queryToken).AsTask().GetAwaiter().GetResult(), queryToken,
+                    engine?.SearchStreaming(msg.Query ?? string.Empty, msg.Limit, msg.AppLimit, directory, Emit, queryToken,
                         msg.FileNameFilter);
                     channel.Writer.TryComplete();
                 }

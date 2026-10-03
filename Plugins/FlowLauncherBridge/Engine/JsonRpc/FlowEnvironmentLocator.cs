@@ -5,9 +5,14 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 /// <summary>
 /// Discovers and provisions runtime interpreters for external Flow plugins (Python, Node.js).
-/// Strictly isolates runtimes into SharedDataDirectory\FlowData\PythonEmbeded-{arch} and NodeEmbeded-{arch}
-/// for machine-wide multi-user sharing.
+/// Strictly isolates runtimes into UserDataDirectory\FlowData\PythonEmbeded-{arch} and NodeEmbeded-{arch}.
 /// </summary>
+/// <remarks>
+/// Per user, not machine-wide: a runtime folder every user can add files to lets one user plant a DLL or
+/// sitecustomize.py that runs inside another user's App, and the machine data directory is locked to the
+/// service besides. ponytail: each user downloads their own copy (tens of MB); a shared copy would need the
+/// service to do the download.
+/// </remarks>
 public static class FlowEnvironmentLocator
 {
     private static string? _cachedPythonPath;
@@ -91,12 +96,9 @@ public static class FlowEnvironmentLocator
         return null;
     }
 
-    public static string GetEmbeddedPythonDirectory() => Path.Combine(GetSharedDataRoot(), "FlowData", $"PythonEmbeded-{GetArchSuffix()}");
+    public static string GetEmbeddedPythonDirectory() => Path.Combine(FlowPipManager.GetFlowDataDirectory(), $"PythonEmbeded-{GetArchSuffix()}");
 
-    public static string GetEmbeddedNodeDirectory() => Path.Combine(GetSharedDataRoot(), "FlowData", $"NodeEmbeded-{GetArchSuffix()}");
-
-    private static string GetSharedDataRoot() => PluginSdk.Services.UserDataService.GetSharedDataDirectory()
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Lertaro");
+    public static string GetEmbeddedNodeDirectory() => Path.Combine(FlowPipManager.GetFlowDataDirectory(), $"NodeEmbeded-{GetArchSuffix()}");
 
     private static string GetArchSuffix() => RuntimeInformation.ProcessArchitecture == Architecture.Arm64
         ? "arm64"

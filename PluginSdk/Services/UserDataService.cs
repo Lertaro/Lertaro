@@ -14,6 +14,10 @@ public static class UserDataService
     /// <summary>Set by the host application during startup.</summary>
     public static Func<string?>? GetSharedDataDirectoryFunc { get; set; }
 
-    /// <summary>Gets the resolved machine-wide shared data directory, or null when the host has not wired it.</summary>
+    /// <summary>
+    /// Gets the resolved machine-wide shared data directory, or null when the host has not wired it. Only the
+    /// service writes there; a plugin running in the App can read it but must keep its own files under
+    /// <see cref="GetUserDataDirectory"/>.
+    /// </summary>
     public static string? GetSharedDataDirectory() => GetSharedDataDirectoryFunc?.Invoke();
 }

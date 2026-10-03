@@ -1,4 +1,5 @@
 using Lertaro.Core;
+using Lertaro.Core.Services.Installation;
 
 namespace Lertaro.Service;
 
@@ -8,6 +9,12 @@ namespace Lertaro.Service;
 // has nothing to do with either of those.
 static class ServiceInstaller
 {
+#if DEBUG
+    private const bool IsDebugBuild = true;
+#else
+    private const bool IsDebugBuild = false;
+#endif
+
     public static void Install()
     {
         try
@@ -17,6 +24,21 @@ static class ServiceInstaller
             serviceExePath = Path.GetFullPath(serviceExePath);
 
             Console.WriteLine($"Installing service from path: {serviceExePath}");
+
+            // A portable copy lives wherever it was unzipped, usually somewhere every user can write, and the
+            // service about to run from it as LocalSystem would load whatever anyone put there. Locked before
+            // the service is pointed at it; a folder that cannot be locked is not one to install it from.
+            // ponytail: not in a Debug build, which is a developer's build output (build_and_run.bat's debug\)
+            // that the next non-elevated build has to delete and rewrite. Release zips are what ship.
+            if (InstallationDetector.Detect() == InstallationMode.Portable && !IsDebugBuild)
+            {
+                Logger.Log("Locking the portable folder to SYSTEM and Administrators before installing the service.");
+                var report = PortableDirectoryLock.Lock(Path.GetDirectoryName(serviceExePath)!);
+                foreach (var path in report.Removed)
+                    Logger.Log($"[InstallDirectoryLock] Removed a link that was not this product's: {path}", LogLevel.Warn);
+                if (report.Failed.Count > 0)
+                    throw new InvalidOperationException($"Could not lock the portable folder: {string.Join("; ", report.Failed)}");
+            }
 
             // Stop an existing service before changing its executable path. Updating it in place avoids
             // the SCM's asynchronous "marked for deletion" window that makes delete-then-create fragile.

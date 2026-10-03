@@ -14,19 +14,10 @@ internal sealed class SearchPipeClient
 {
     private static async Task<NamedPipeClientStream> GetPipeAsync(CancellationToken token)
     {
-        var pipe = new NamedPipeClientStream(".", "LertaroPipe", PipeDirection.InOut, PipeOptions.Asynchronous);
-        try
-        {
-            await pipe.ConnectAsync(2000, token).ConfigureAwait(false);
-        }
-        catch
-        {
-            // This is the per-keystroke streaming entry point, and connect failures are expected for as
-            // long as the service is cold, so an undisposed stream here drops one kernel handle per typed
-            // character until the service comes up. The non-streaming path already uses `using var pipe`.
-            pipe.Dispose();
-            throw;
-        }
+        // ServicePipe disposes the stream itself when the connect or the server check fails: this is the
+        // per-keystroke streaming entry point, and connect failures are expected for as long as the service
+        // is cold, so an undisposed stream would drop one kernel handle per typed character.
+        var pipe = await ServicePipe.ConnectAsync(2000, token).ConfigureAwait(false);
         // The service listening is the readiness signal: until this first succeeds, connect
         // failures elsewhere log as cold-start noise instead of real faults.
         ServicePipeReadinessGate.Instance.MarkConnected();
@@ -95,9 +86,7 @@ internal sealed class SearchPipeClient
             var verboseLog = msg.Id != SearchRequestId.Search && msg.Id != SearchRequestId.SearchDir;
             if (verboseLog)
                 Logger.Log($"[PipeClient] Connecting to pipe for command: {msg.Id}...", LogLevel.Debug);
-            using var pipe = new NamedPipeClientStream(".", "LertaroPipe", PipeDirection.InOut, PipeOptions.Asynchronous);
-
-            await pipe.ConnectAsync(2000, token).ConfigureAwait(false);
+            using var pipe = await ServicePipe.ConnectAsync(2000, token).ConfigureAwait(false);
             if (verboseLog)
                 Logger.Log("[PipeClient] Connected. Writing command...", LogLevel.Debug);
             await SearchRequestBinarySerializer.WriteSearchRequestAsync(pipe, msg, token).ConfigureAwait(false);

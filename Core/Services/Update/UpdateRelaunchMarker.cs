@@ -1,3 +1,5 @@
+using System.Security.Principal;
+
 namespace Lertaro.Core.Services.Update;
 
 /// <summary>
@@ -29,12 +31,17 @@ public static class UpdateRelaunchMarker
     /// Records the request. Best effort: when this fails the App will not come back on its own after the
     /// update, so it says so at Error rather than swallowing it.
     /// </summary>
-    public static void Write(int sessionId, string appExePath, DateTimeOffset now)
+    /// <remarks>
+    /// Deleted first so the note is created afresh by this process and carries its owner: a note left
+    /// behind by anyone else keeps that owner through an overwrite, and <see cref="TryTake"/> refuses it.
+    /// </remarks>
+    public static void Write(int sessionId, DateTimeOffset now)
     {
         try
         {
             Directory.CreateDirectory(Logger.SharedDataDir);
-            File.WriteAllText(FilePath, $"{now.UtcTicks}\t{sessionId}\t{appExePath}");
+            File.Delete(FilePath);
+            File.WriteAllText(FilePath, $"{now.UtcTicks}	{sessionId}");
         }
         catch (Exception ex)
         {
@@ -61,17 +68,24 @@ public static class UpdateRelaunchMarker
     /// <summary>
     /// Reads and consumes the note, whether or not it is acted on -- a note is only ever for one start-up.
     /// </summary>
-    public static bool TryTake(out int sessionId, out string appExePath, DateTimeOffset now)
+    /// <remarks>
+    /// The note decides which session gets a process started in it, so only a note this service (or an
+    /// administrator) wrote is acted on: the directory it lives in has not always been closed to other
+    /// users, and one of them could otherwise pick the session. Which program starts is not read from the
+    /// note at all; the caller always starts its own install's App.
+    /// </remarks>
+    public static bool TryTake(out int sessionId, DateTimeOffset now)
     {
         sessionId = 0;
-        appExePath = string.Empty;
 
         string content;
+        SecurityIdentifier? owner;
         try
         {
             if (!File.Exists(FilePath))
                 return false;
 
+            owner = new FileInfo(FilePath).GetAccessControl().GetOwner(typeof(SecurityIdentifier)) as SecurityIdentifier;
             content = File.ReadAllText(FilePath);
             File.Delete(FilePath);
         }
@@ -81,26 +95,35 @@ public static class UpdateRelaunchMarker
             return false;
         }
 
-        if (!TryParse(content, now, out sessionId, out appExePath))
+        if (owner is null || !IsTrustedOwner(owner))
+        {
+            Logger.Log($"[UpdateRelaunch] Rejected a relaunch note owned by {owner?.Value ?? "nobody"}; only SYSTEM or Administrators may write it.", LogLevel.Warn);
             return false;
+        }
 
-        // An App that has since been uninstalled or moved is not worth a failing launch over.
-        return File.Exists(appExePath);
+        return TryParse(content, now, out sessionId);
     }
 
     /// <summary>
-    /// Splits the note's <c>ticks TAB session TAB path</c> and applies the freshness window. Split out of
-    /// the file read because the value being parsed came from another process's write, and that is the part
-    /// worth pinning down. On any refusal both outputs are left at their zero values, so a caller cannot
-    /// read a session id out of a note that was just rejected.
+    /// Whether a note owned by <paramref name="owner"/> can have come from this service. A file LocalSystem
+    /// creates is owned by LocalSystem or, depending on the token's default owner, by Administrators.
     /// </summary>
-    internal static bool TryParse(string content, DateTimeOffset now, out int sessionId, out string appExePath)
+    internal static bool IsTrustedOwner(SecurityIdentifier owner) =>
+        owner.IsWellKnown(WellKnownSidType.LocalSystemSid) || owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid);
+
+    /// <summary>
+    /// Splits the note's <c>ticks TAB session</c> and applies the freshness window. Split out of the file
+    /// read because the value being parsed came from another process's write, and that is the part worth
+    /// pinning down. A third field (the App path an older service wrote there) is accepted and ignored, so
+    /// the note written by the service being replaced still brings the App back. On any refusal the session
+    /// is left at zero, so a caller cannot read a session id out of a note that was just rejected.
+    /// </summary>
+    internal static bool TryParse(string content, DateTimeOffset now, out int sessionId)
     {
         sessionId = 0;
-        appExePath = string.Empty;
 
-        var parts = content.Split('\t', 3);
-        if (parts.Length != 3 || parts[2].Length == 0)
+        var parts = content.Split('	', 3);
+        if (parts.Length < 2)
             return false;
 
         if (!long.TryParse(parts[0], out var writtenTicks) ||
@@ -121,7 +144,6 @@ public static class UpdateRelaunchMarker
         }
 
         sessionId = session;
-        appExePath = parts[2];
         return true;
     }
 }

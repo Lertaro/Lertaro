@@ -16,6 +16,7 @@ Puedes obtener la última versión en la página principal oficial. Cada versió
 - **Descomprimir y usar**: Descomprime en cualquier carpeta y ejecútalo inmediatamente sin necesidad de instalación formal.
 - **Dependencias de entorno**: Si tu sistema no cuenta con el entorno de ejecución de escritorio de .NET, ejecuta el script `install-dotnet-runtime.bat` incluido en el directorio descomprimido.
 - **Aislamiento de datos**: La versión portátil guarda los datos globales del equipo en `Data\Machine` junto al ejecutable, y las configuraciones de usuario en `Data\Users\<SID hash>`. Si el directorio `Data` aún no existe, leerá `%ProgramData%\Lertaro` y `%LocalAppData%\Lertaro` por compatibilidad; una vez creado, priorizará los datos locales como un entorno completamente autónomo.
+- **Carpeta protegida al instalar el servicio**: Al instalar el servicio en segundo plano (aceptando una solicitud de UAC), la carpeta portátil queda protegida. Solo los administradores pueden modificar los archivos de la aplicación, `Data\Machine` solo lo escribe el servicio y la carpeta `Data\Users\<hash del SID>` de cada usuario es privada para ese usuario. Por eso, actualizar o eliminar una copia portátil requiere permisos de administrador; `portable-cleanup.bat` los solicita por sí mismo.
 - **Desinstalación limpia**: Antes de eliminar la carpeta portátil, ejecuta el script `portable-cleanup.bat`. Este detiene y desinstala el servicio en segundo plano, y elimina los registros URI `lertaro://` y las entradas de inicio del usuario actual.
 
 > [!TIP]

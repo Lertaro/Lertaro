@@ -37,8 +37,6 @@ internal static class UpdateApplyRequestHandler
     /// <summary>Subdirectory of the install directory the verified payload is unpacked into for the copier.</summary>
     internal const string PayloadStagingFolderName = "update-payload";
 
-    private const string AppExeFileName = "Lertaro.App.exe";
-
     public static PipeResponse Handle(NamedPipeServerStream pipe, string? sourceDir)
     {
         try
@@ -61,12 +59,20 @@ internal static class UpdateApplyRequestHandler
             if (Directory.Exists(unpackDir))
                 Directory.Delete(unpackDir, true);
 
-            if (!UpdatePackage.TryVerifyAndExtract(sourceDir, unpackDir, out var payloadDir, out var packageError))
-                return Reject(packageError ?? "Unusable update package.");
+            // Read as the caller, not as LocalSystem: the staging directory is the caller's to name, and
+            // this process must not reach into it (or through a link in it, or out to a share) with its own
+            // rights and credentials. What was read is then verified and unpacked from memory, so the files
+            // can change afterwards without it mattering. Deleting the staging directory is the App's job;
+            // it owns it, and a delete by LocalSystem of a path someone else chose is a delete of anything.
+            byte[]? zip = null, signature = null;
+            string? readError = null;
+            var read = false;
+            pipe.RunAsClient(() => read = UpdatePackage.TryReadStagedPackage(sourceDir, out zip, out signature, out readError));
+            if (!read)
+                return Reject(readError ?? "Unusable update package.");
 
-            // The payload now sits where the copier will read it from, so the downloaded zip and signature
-            // have served their purpose. Best effort: this is the last moment anything knows where they are.
-            TryDeleteDirectory(sourceDir!);
+            if (!UpdatePackage.TryVerifyAndExtract(zip!, signature!, unpackDir, out var payloadDir, out var packageError))
+                return Reject(packageError ?? "Unusable update package.");
 
             // cmd.exe rather than a copy of this executable, because whatever does the copying must not be
             // one of the files being copied: an applier running from the install directory would hold
@@ -75,10 +81,15 @@ internal static class UpdateApplyRequestHandler
             //
             // Recorded before the copier starts, because the copier stops this service and this service is
             // the only process that can hand the App back to the session at its own integrity level.
-            UpdateRelaunchMarker.Write(sessionId, Path.Combine(installDir, AppExeFileName), DateTimeOffset.UtcNow);
+            UpdateRelaunchMarker.Write(sessionId, DateTimeOffset.UtcNow);
 
-            var arguments = $"/c \"\"{updaterBat}\" \"{payloadDir}\" \"{installDir}\"\"";
-            var cmdExe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe");
+            // /d: no HKCU\...\Command Processor\AutoRun, which the (non-elevated) user controls and this
+            // cmd.exe would otherwise run elevated. System32 goes to the script as an argument because the
+            // environment it inherits is built from the user's settings, and the script calls every tool by
+            // full path from there rather than trusting PATH or SystemRoot.
+            var system32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
+            var arguments = $"/d /c \"\"{updaterBat}\" \"{payloadDir}\" \"{installDir}\" \"{system32}\"\"";
+            var cmdExe = Path.Combine(system32, "cmd.exe");
             if (!SessionProcessLauncher.TryLaunch(sessionId, cmdExe, arguments, requestElevation: true,
                     detachFromConsole: false, out var pid, out var error))
             {
@@ -95,19 +106,6 @@ internal static class UpdateApplyRequestHandler
         {
             Logger.Log($"[UsnService] ApplyUpdate error: {ex.Message}", LogLevel.Error);
             return new PipeResponse { Kind = PipeResponseKind.Error, Message = ex.Message };
-        }
-    }
-
-    private static void TryDeleteDirectory(string path)
-    {
-        try
-        {
-            if (Directory.Exists(path))
-                Directory.Delete(path, true);
-        }
-        catch (Exception ex)
-        {
-            Logger.Log($"[UsnService] Could not clean up {path}: {ex.Message}", LogLevel.Warn);
         }
     }
 

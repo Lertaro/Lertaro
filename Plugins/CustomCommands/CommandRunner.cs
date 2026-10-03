@@ -63,13 +63,18 @@ internal static class CommandRunner
             }
         }
 
-        // Positional placeholders: %s1/{1} .. %sn/{n} -> the n-th argument (1-based).
-        // Single regex pass so %s1 can't match inside %s10, and so a leftover positional
-        // token can't be clobbered by the "all arguments" replacement below.
-        // Out-of-range indices resolve to an empty string. We quote each value ourselves
+        // Every placeholder in one regex pass, so text already substituted in (an argument that itself
+        // contains "%s" or "{}") is never scanned again. Positional ones come first in the alternation:
+        // %s1/{1} .. %sn/{n} -> the n-th argument (1-based), and %s1 can't match inside %s10.
+        // Out-of-range indices resolve to an empty string. Then "all arguments as one": %s or {} -> the
+        // whole input as a single quoted argument (empty input -> nothing). We quote each value ourselves
         // so it stays a single argument — users must NOT quote placeholders themselves.
-        resolvedParam = Regex.Replace(resolvedParam, @"%s(\d+)|\{(\d+)\}", m =>
+        var allArgs = string.IsNullOrEmpty(argSuffix) ? string.Empty : ArgQuoting.Quote(argSuffix);
+        return Regex.Replace(resolvedParam, @"%s(\d+)|\{(\d+)\}|%s|\{\}", m =>
         {
+            if (!m.Groups[1].Success && !m.Groups[2].Success)
+                return allArgs;
+
             var digits = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
             var value = int.TryParse(digits, out var n) && n >= 1 && n <= parsedArgs.Count
                 ? parsedArgs[n - 1]
@@ -77,20 +82,6 @@ internal static class CommandRunner
             // A missing/out-of-range argument vanishes rather than becoming an empty "".
             return value.Length == 0 ? string.Empty : ArgQuoting.Quote(value);
         });
-
-        // "All arguments as one" placeholders: %s or {} -> the whole input as a single
-        // quoted argument (empty input -> nothing).
-        var allArgs = string.IsNullOrEmpty(argSuffix) ? string.Empty : ArgQuoting.Quote(argSuffix);
-        if (resolvedParam.Contains("%s"))
-        {
-            resolvedParam = resolvedParam.Replace("%s", allArgs);
-        }
-        if (resolvedParam.Contains("{}"))
-        {
-            resolvedParam = resolvedParam.Replace("{}", allArgs);
-        }
-
-        return resolvedParam;
     }
 
     // Launches cmd directly via Process.Start -- used by the quick navigation menu entry, which

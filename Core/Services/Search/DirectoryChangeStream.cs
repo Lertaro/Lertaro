@@ -1,5 +1,3 @@
-using System.IO.Pipes;
-
 using Lertaro.Core.Wire;
 
 namespace Lertaro.Core.Services.Search;
@@ -19,8 +17,7 @@ public static class DirectoryChangeStream
 {
     public static async Task SubscribeAsync(IReadOnlyList<string> watched, Action<IReadOnlyList<string>> onChanged, CancellationToken token)
     {
-        using var pipe = new NamedPipeClientStream(".", "LertaroPipe", PipeDirection.InOut, PipeOptions.Asynchronous);
-        await pipe.ConnectAsync(2000, token).ConfigureAwait(false);
+        using var pipe = await ServicePipe.ConnectAsync(2000, token).ConfigureAwait(false);
         await SearchRequestBinarySerializer.WriteSearchRequestAsync(pipe, new SearchRequestMessage
         {
             Id = SearchRequestId.SubscribeDirectoryChanges,

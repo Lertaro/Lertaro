@@ -90,7 +90,12 @@ public class UsnService : ServiceBase
     /// </remarks>
     private static void RelaunchAppAfterUpdate()
     {
-        if (!UpdateRelaunchMarker.TryTake(out var sessionId, out var appExePath, DateTimeOffset.UtcNow))
+        if (!UpdateRelaunchMarker.TryTake(out var sessionId, DateTimeOffset.UtcNow))
+            return;
+
+        // Always this install's own App, never a path from the note: see UpdateRelaunchMarker.TryTake.
+        var appExePath = Path.Combine(AppContext.BaseDirectory, "Lertaro.App.exe");
+        if (!File.Exists(appExePath))
             return;
 
         if (!SessionProcessLauncher.TryLaunch(sessionId, appExePath, string.Empty, requestElevation: false,

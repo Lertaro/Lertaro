@@ -243,6 +243,13 @@ public sealed class BuildDefaultFileManagerArgumentsTests
             FileExecutor.BuildDefaultFileManagerArguments(@"C:\Program Files", "/O /T /R={}"));
 
     [TestMethod]
+    public void BuildDefaultFileManagerArguments_PathContainingAPlaceholder_IsSubstitutedExactlyOnce() =>
+        // A folder name with "{}" in it, dropped in for %s, must not then be expanded again by the {} pass.
+        Assert.AreEqual(
+            "/R=\"C:\\odd {} folder\"",
+            FileExecutor.BuildDefaultFileManagerArguments(@"C:\odd {} folder", "/R=%s"));
+
+    [TestMethod]
     public void BuildDefaultFileManagerArguments_MultiplePlaceholders_SubstitutesAll() =>
         Assert.AreEqual(
             "/L=\"C:\\Program Files\" /R=\"C:\\Program Files\"",

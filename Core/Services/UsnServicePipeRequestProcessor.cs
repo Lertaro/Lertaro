@@ -1,6 +1,7 @@
 using System.IO.Pipes;
 using Lertaro.Core.Services.HookLaunch;
 using Lertaro.Core.Services.Pipe;
+using Lertaro.Core.Services.Search;
 using Lertaro.Core.Wire;
 
 namespace Lertaro.Core.Services;
@@ -10,7 +11,8 @@ namespace Lertaro.Core.Services;
 // single response) -- extracted to keep UsnServicePipeServer.cs under the project's line limit.
 internal static class UsnServicePipeRequestProcessor
 {
-    public static PipeResponse Process(SearchEngine? engine, SearchRequestMessage msg, CancellationToken token, NamedPipeServerStream pipe)
+    public static PipeResponse Process(SearchEngine? engine, SearchRequestMessage msg, CancellationToken token, NamedPipeServerStream pipe,
+        CallerVisibility visibility)
     {
         try
         {
@@ -83,17 +85,21 @@ internal static class UsnServicePipeRequestProcessor
                     return new PipeResponse { Kind = PipeResponseKind.Ok };
 
                 case SearchRequestId.GetFileMetadata:
-                    var paths = msg.FilePaths ?? new List<string>();
+                    // The request's own paths are filtered, not just the reply: an answer at all says whether
+                    // the file exists.
+                    var paths = (msg.FilePaths ?? new List<string>()).Where(visibility.IsVisible).ToList();
                     var metadata = engine?.GetFileMetadataBatch(paths) ?? new Dictionary<string, FileMetadataEntry>();
                     return new PipeResponse { Kind = PipeResponseKind.FileMetadata, FileMetadata = metadata };
 
                 case SearchRequestId.GetRecentFiles:
                     var directories = msg.Directories ?? new List<string>();
-                    var recentFiles = engine?.GetRecentFiles(directories, msg.Limit, msg.MaxAgeMinutes) ?? new List<SearchResult>();
+                    var recentFiles = (engine?.GetRecentFiles(directories, msg.Limit, msg.MaxAgeMinutes) ?? new List<SearchResult>())
+                        .Where(result => visibility.IsVisible(result.Path)).ToList();
                     return new PipeResponse { Kind = PipeResponseKind.RecentFiles, RecentFiles = recentFiles };
 
                 case SearchRequestId.GetSpaceEntries:
-                    var spaceEntries = engine?.GetSpaceEntries(msg.Drive) ?? new List<IndexV2.Space.SpaceIndexEntry>();
+                    var spaceEntries = (engine?.GetSpaceEntries(msg.Drive) ?? new List<IndexV2.Space.SpaceIndexEntry>())
+                        .Where(entry => visibility.IsVisible(entry.Path)).ToList();
                     return new PipeResponse { Kind = PipeResponseKind.SpaceEntries, SpaceEntries = spaceEntries };
 
                 case SearchRequestId.ClearServiceLog:

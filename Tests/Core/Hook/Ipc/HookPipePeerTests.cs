@@ -8,10 +8,10 @@ namespace Lertaro.Core.Tests.Hook.Ipc;
 public sealed class HookPipePeerTests
 {
     [TestMethod]
-    [DataRow(null, 42, false)]
+    [DataRow(null, 42, true)]
     [DataRow(42, 42, false)]
     [DataRow(7, 42, true)]
-    [DataRow(7, 0, false)]
-    public void IsImpersonation_RejectsOnlyAKnownDifferentOwner(int? serverPid, int launchedHookPid, bool expected) =>
+    [DataRow(7, 0, true)]
+    public void IsImpersonation_AcceptsOnlyTheLaunchedHook(int? serverPid, int launchedHookPid, bool expected) =>
         Assert.AreEqual(expected, HookPipePeer.IsImpersonation(serverPid, launchedHookPid));
 }

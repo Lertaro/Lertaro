@@ -159,12 +159,37 @@ public sealed class UpdatePackageTests : IDisposable
     }
 
     [TestMethod]
-    public void TryVerifyAndExtract_FlatPackage_UnpacksAndReturnsTargetRoot()
+    [DataRow(@"\\server\share\LertaroUpdate-abc", "a UNC share")]
+    [DataRow(@"\\?\UNC\server\share\LertaroUpdate-abc", "a UNC share in device-path form")]
+    [DataRow("//server/share/LertaroUpdate-abc", "a UNC share written with forward slashes")]
+    [DataRow(@"\\.\C:\Temp\LertaroUpdate-abc", "a device path")]
+    public void TryGetStagedPackage_NetworkOrDevicePath_IsRefused(string stagingDir, string because)
+    {
+        // Refused on the name alone, before anything touches the path: even looking for the files would have
+        // the service authenticate to whatever server the caller named.
+        Assert.IsFalse(UpdatePackage.TryGetStagedPackage(stagingDir, out _, out _, out var error), because);
+        StringAssert.Contains(error!, "Not a staged update directory");
+    }
+
+    [TestMethod]
+    public void TryReadStagedPackage_MissingSignature_ReadsNothing()
     {
         var stagingDir = CreateStagedPackage();
+        RenameSignatureOutOfPlace(stagingDir);
+
+        Assert.IsFalse(UpdatePackage.TryReadStagedPackage(stagingDir, out var zip, out var signature, out var error));
+        Assert.IsNull(zip);
+        Assert.IsNull(signature);
+        StringAssert.Contains(error!, "incomplete");
+    }
+
+    [TestMethod]
+    public void TryVerifyAndExtract_FlatPackage_UnpacksAndReturnsTargetRoot()
+    {
+        var (zip, signature) = Read(CreateStagedPackage());
         var targetDir = Path.Combine(_root, "unpacked-flat");
 
-        Assert.IsTrue(UpdatePackage.TryVerifyAndExtract(stagingDir, targetDir, _publicKeyPem, out var payloadDir, out var error));
+        Assert.IsTrue(UpdatePackage.TryVerifyAndExtract(zip, signature, targetDir, _publicKeyPem, out var payloadDir, out var error));
         Assert.AreEqual(targetDir, payloadDir);
         Assert.IsNull(error);
         Assert.IsTrue(File.Exists(Path.Combine(payloadDir!, "Lertaro.App.exe")));
@@ -174,36 +199,38 @@ public sealed class UpdatePackageTests : IDisposable
     [TestMethod]
     public void TryVerifyAndExtract_PackageWrappedInLertaroFolder_ReturnsTheInnerFolder()
     {
-        var stagingDir = CreateStagedPackage(wrapInLertaroFolder: true);
+        var (zip, signature) = Read(CreateStagedPackage(wrapInLertaroFolder: true));
         var targetDir = Path.Combine(_root, "unpacked-wrapped");
 
-        Assert.IsTrue(UpdatePackage.TryVerifyAndExtract(stagingDir, targetDir, _publicKeyPem, out var payloadDir, out var error));
+        Assert.IsTrue(UpdatePackage.TryVerifyAndExtract(zip, signature, targetDir, _publicKeyPem, out var payloadDir, out _));
         Assert.AreEqual(Path.Combine(targetDir, "Lertaro"), payloadDir);
         Assert.IsTrue(File.Exists(Path.Combine(payloadDir!, "Lertaro.App.exe")));
     }
 
     [TestMethod]
-    public void TryVerifyAndExtract_UnsignedPackage_UnpacksNothing()
+    public void TryVerifyAndExtract_ZipModifiedAfterSigning_UnpacksNothing()
     {
-        var stagingDir = CreateStagedPackage();
-        RenameSignatureOutOfPlace(stagingDir);
-        var targetDir = Path.Combine(_root, "unpacked-unsigned");
+        var (zip, signature) = Read(CreateStagedPackage(tamperAfterSigning: true));
+        var targetDir = Path.Combine(_root, "unpacked-tampered");
 
-        Assert.IsFalse(UpdatePackage.TryVerifyAndExtract(stagingDir, targetDir, _publicKeyPem, out var payloadDir, out _));
+        Assert.IsFalse(UpdatePackage.TryVerifyAndExtract(zip, signature, targetDir, _publicKeyPem, out var payloadDir, out var error));
         Assert.IsNull(payloadDir);
+        StringAssert.Contains(error!, "signature");
         Assert.IsFalse(Directory.Exists(targetDir));
     }
 
     [TestMethod]
-    public void TryVerifyAndExtract_ZipSwappedAfterSigning_UnpacksNothing()
+    public void TryVerifyAndExtract_ZipSwappedOnDiskAfterTheRead_UnpacksWhatWasVerified()
     {
-        var stagingDir = CreateStagedPackage(tamperAfterSigning: true);
-        var targetDir = Path.Combine(_root, "unpacked-tampered");
+        // The swap an unprivileged process would attempt between the verdict and the copy: once the bytes are
+        // read, the staging files no longer matter.
+        var stagingDir = CreateStagedPackage();
+        var (zip, signature) = Read(stagingDir);
+        File.WriteAllText(Path.Combine(stagingDir, UpdatePackage.ZipFileName), "swapped");
+        var targetDir = Path.Combine(_root, "unpacked-after-swap");
 
-        Assert.IsFalse(UpdatePackage.TryVerifyAndExtract(stagingDir, targetDir, _publicKeyPem, out var payloadDir, out var error));
-        Assert.IsNull(payloadDir);
-        StringAssert.Contains(error!, "signature");
-        Assert.IsFalse(Directory.Exists(targetDir));
+        Assert.IsTrue(UpdatePackage.TryVerifyAndExtract(zip, signature, targetDir, _publicKeyPem, out var payloadDir, out _));
+        Assert.AreEqual("not really an executable", File.ReadAllText(Path.Combine(payloadDir!, "Lertaro.App.exe")));
     }
 
     [TestMethod]
@@ -211,9 +238,15 @@ public sealed class UpdatePackageTests : IDisposable
     {
         // The overload the service actually calls: whatever a test happens to accept, the real trust anchor
         // is the one that has to refuse a package signed by someone else.
-        var stagingDir = CreateStagedPackage();
+        var (zip, signature) = Read(CreateStagedPackage());
 
-        Assert.IsFalse(UpdatePackage.TryVerifyAndExtract(stagingDir, Path.Combine(_root, "unpacked-shipped-key"), out _, out _));
+        Assert.IsFalse(UpdatePackage.TryVerifyAndExtract(zip, signature, Path.Combine(_root, "unpacked-shipped-key"), out _, out _));
+    }
+
+    private static (byte[] Zip, byte[] Signature) Read(string stagingDir)
+    {
+        Assert.IsTrue(UpdatePackage.TryReadStagedPackage(stagingDir, out var zip, out var signature, out var error), error);
+        return (zip!, signature!);
     }
 
     [TestMethod]

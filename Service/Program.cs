@@ -1,6 +1,7 @@
 using System.ServiceProcess;
 
 using Lertaro.Core;
+using Lertaro.Core.Services.Installation;
 
 namespace Lertaro.Service;
 
@@ -24,6 +25,9 @@ static class Program
         }
         else
         {
+            // Before the log is opened: the service writes this directory as LocalSystem, and until it is
+            // locked any user may have planted a link in it that redirects exactly that write.
+            var (lockReport, lockError) = LockSharedDataDirectory();
             Logger.Initialize("service.log", Logger.SharedDataDir, overwrite: true);
             // Before the first line, so the level applies to everything this run writes. The service is
             // the one process that cannot read the per-user log-level setting -- it runs as LocalSystem
@@ -33,6 +37,12 @@ static class Program
             Logger.MinimumLevel = MachineSettings.Load().ResolveServiceLogLevel();
             Logger.Log("=========================================");
             Logger.Log($"Service starting with arguments: {string.Join(" ", args)}");
+            foreach (var path in lockReport.Removed)
+                Logger.Log($"[InstallDirectoryLock] Removed a link that was not this product's: {path}", LogLevel.Warn);
+            foreach (var failure in lockReport.Failed)
+                Logger.Log($"[InstallDirectoryLock] Could not reset {failure}", LogLevel.Error);
+            if (lockError is not null)
+                Logger.Log($"[InstallDirectoryLock] Could not lock {Logger.SharedDataDir}: {lockError.Message}", LogLevel.Error);
         }
 
         if (args.Length > 0)
@@ -79,6 +89,20 @@ static class Program
         };
         quitEvent.WaitOne();
         service.Stop();
+    }
+
+    // Only a process running as LocalSystem or elevated can do this; the debug console run by a plain user
+    // gets the error back and carries on, as it always has, with a directory it can write.
+    private static (InstallDirectoryLock.Report Report, Exception? Error) LockSharedDataDirectory()
+    {
+        try
+        {
+            return (InstallDirectoryLock.LockSharedDataDirectory(Logger.SharedDataDir), null);
+        }
+        catch (Exception ex)
+        {
+            return (new InstallDirectoryLock.Report(), ex);
+        }
     }
 }
 

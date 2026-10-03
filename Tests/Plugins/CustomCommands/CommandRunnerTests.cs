@@ -56,6 +56,24 @@ public sealed class CommandRunnerTests
     }
 
     [TestMethod]
+    public void ResolveParameter_ArgumentContainingAPlaceholder_IsSubstitutedExactlyOnce()
+    {
+        // The whole suffix contains "{}"; once it replaces %s it must not be expanded again by {}.
+        var result = CommandRunner.ResolveParameter(MakeCommand("%s"), "a {} b");
+
+        Assert.AreEqual("\"a {} b\"", result);
+    }
+
+    [TestMethod]
+    public void ResolveParameter_PositionalValueContainingAPlaceholder_IsNotRescanned()
+    {
+        // %s1 resolves to the literal argument "%s"; the all-arguments pass must not then replace it.
+        var result = CommandRunner.ResolveParameter(MakeCommand("%s1 {}"), "%s x");
+
+        Assert.AreEqual("%s \"%s x\"", result);
+    }
+
+    [TestMethod]
     public void ResolveParameter_BraceAllArgs_SubstitutesWholeSuffixQuoted()
     {
         var result = CommandRunner.ResolveParameter(MakeCommand("{}"), "a b");

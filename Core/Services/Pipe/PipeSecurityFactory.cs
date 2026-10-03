@@ -12,11 +12,14 @@ public static class PipeSecurityFactory
     // LertaroPipe's own pipe (UsnServicePipeServer): deliberately broad. That pipe is hosted by the
     // --service process, which runs as LocalSystem (a genuine Windows Service, not a per-user process --
     // see Service\Program.cs's "--service" branch), and is meant to be reachable by EVERY locally logged
-    // -in user asking about the same local filesystem -- local file existence isn't account-scoped data
-    // the way network-drive contents or search history are, so any authenticated user on this machine is
-    // already entitled to see it via Explorer regardless. Restricting this ACL to one SID would restrict
-    // it to LocalSystem's own SID (since that's who creates the pipe), which no real user account would
-    // ever match -- breaking local search for everyone, not narrowing who can reach it.
+    // -in user. Restricting this ACL to one SID would restrict it to LocalSystem's own SID (since that's
+    // who creates the pipe), which no real user account would ever match -- breaking local search for
+    // everyone, not narrowing who can reach it.
+    //
+    // Reaching the pipe is not the same as seeing everything the service indexed, though: the index holds
+    // every user's files, and the pipe server identifies each caller by impersonating it and filters what
+    // it returns (see CallerVisibility). An elevated administrator sees everything; anyone else does not
+    // see other users' profile folders.
     public static PipeSecurity? Create()
     {
         try
