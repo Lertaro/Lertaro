@@ -11,7 +11,13 @@ namespace Lertaro.App.Services.Notifications;
 /// </summary>
 internal sealed class NotificationRunner(NotificationItem item, Window window)
 {
-    public NotificationItem Item { get; } = item;
+    public NotificationItem Item { get; private set; } = item;
+
+    internal void Replace(NotificationItem replacement)
+    {
+        Item = replacement;
+        RemainingMs = replacement.DurationSeconds * 1000;
+    }
     public Window Window { get; } = window;
 
     /// <summary>Milliseconds left of the notification's own display time. Hover and a locked session hold it;

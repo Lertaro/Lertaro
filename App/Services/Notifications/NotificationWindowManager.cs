@@ -49,7 +49,7 @@ internal sealed class NotificationWindowManager(
 
     internal int Count => _runners.Count;
 
-    internal IEnumerable<NotificationRunner> Countdown() => _runners.Values.ToArray();
+    internal IEnumerable<NotificationRunner> Countdown() => _runners.Values.Where(r => !r.Item.IsSettled).ToArray();
 
     /// <summary>Builds and shows the window for an accepted notification.</summary>
     internal void Present(NotificationItem item)
@@ -58,17 +58,35 @@ internal sealed class NotificationWindowManager(
         // Painting it then would leave a window that is in no list, nobody times out, and nobody ever closes.
         if (item.IsSettled) return;
 
+        var existing = FindSlot(item);
+        if (existing?.Window is NotificationCardWindow existingCard)
+        {
+            _runners.Remove(existing.Item);
+            existing.Replace(item);
+            _runners[item] = existing;
+            existingCard.SetContent(item.Request, item.SourceName);
+            existingCard.FlashArrival();
+            existingCard.UpdateLayout();
+            Restack(animated: true);
+            return;
+        }
+
         var area = NotificationPlacement.Resolve().WorkAreaDip;
         var isCard = item.EffectivePosition == NotificationPosition.CardStack;
         var window = isCard ? CreateCard(item) : (Window)CreateNotice(item, area);
 
         var runner = new NotificationRunner(item, window) { Arriving = isCard };
         _runners[item] = runner;
+        if (window is NotificationCardWindow card)
+        {
+            card.DismissRequested += () => CloseByUser(runner.Item);
+            card.ReadAllRequested += DismissAllCards;
+        }
         window.Closed += (_, _) =>
         {
             // Alt+F4 and other system closes bypass TakeWindow. Claim the runner once; our own closes
             // already removed it, so a batch still produces only its single notification to the queue.
-            if (_runners.Remove(item)) onGone(item);
+            if (_runners.Remove(runner.Item)) onGone(runner.Item);
         };
         // ShowActivated=False on both kinds: a notification that takes the foreground is worse than one that
         // never arrived, for anyone typing. Which kind of window this is was decided by the window itself from
@@ -108,8 +126,16 @@ internal sealed class NotificationWindowManager(
     /// window here is one that was still queued, and the queue has already dropped it.</summary>
     internal void TakeDown(NotificationItem item)
     {
-        if (_runners.TryGetValue(item, out var runner)) Close(runner);
+        // A replacement can be cancelled before its queued presentation runs. The old window still owns the
+        // same slot then, possibly across several replacements, and must not be left behind.
+        var runner = FindSlot(item);
+        if (runner != null) Close(runner);
     }
+
+    private NotificationRunner? FindSlot(NotificationItem item) =>
+        _runners.GetValueOrDefault(item) ?? (item.EffectivePosition == NotificationPosition.CardStack
+            ? _runners.Values.FirstOrDefault(r => r.Item.Sequence == item.Sequence)
+            : null);
 
     /// <summary>Closes a runner and tells the owner its slot is free.</summary>
     internal void Close(NotificationRunner runner)
@@ -268,8 +294,6 @@ internal sealed class NotificationWindowManager(
         // Every card that is built here is being built because it is about to be shown for the first time, so the
         // rim marks exactly the arrivals and nothing else.
         window.FlashArrival();
-        window.DismissRequested += () => CloseByUser(item);
-        window.ReadAllRequested += DismissAllCards;
         return window;
     }
 

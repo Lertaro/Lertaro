@@ -633,7 +633,13 @@ public class NotificationQueueTests
 
         public void Show(NotificationItem item)
         {
-            lock (_recorded) Shown.Add(item);
+            lock (_recorded)
+            {
+                // A presentation with the same slot updates the window without an intermediate removal.
+                var previous = Visible.FirstOrDefault(candidate => candidate.Sequence == item.Sequence);
+                if (previous != null) Hidden.Add(previous);
+                Shown.Add(item);
+            }
         }
 
         public void Hide(NotificationItem item)

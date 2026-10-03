@@ -192,7 +192,7 @@ internal sealed class NotificationQueue(
             // sequence number jumps to the top of the pile instead of overwriting the card it replaced.
             item.Sequence = previous.Sequence;
             previous.Complete(NotificationResult.Failed(NotificationFailure.Replaced));
-            hide(previous);
+            // Present updates the existing slot in place. Taking it down first would animate a temporary gap.
             item.ReachedScreen = true;
             show(item);
             return;

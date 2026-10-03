@@ -113,12 +113,8 @@ internal static class NotificationService
     {
         var dispatcher = Application.Current?.Dispatcher;
         if (dispatcher == null) return;
-        // Always handed over, and at Background rather than Normal. A dump of the launcher mid-flood caught the UI
-        // thread inside window.Show() -- which creates the HWND, applies the rounded-corner attribute and runs the
-        // card's first layout -- in the very operation that had just started the surviving cards sliding. Those
-        // frames are drawn at Render, which is above Background and below the countdown's own priority, so the
-        // slide gets to finish before a window is ever built, and the build happens in its own operation instead
-        // of eating the frames of the movement it was meant to make room for.
+        // Background gives rendering a chance between presentations; it does not wait for an animation to
+        // complete. Same-slot replacements keep the existing window and retarget any movement in place.
         dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
         {
             lock (_gate)

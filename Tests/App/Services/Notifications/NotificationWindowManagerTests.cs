@@ -4,6 +4,7 @@ using Lertaro.PluginSdk.Abstractions;
 namespace Lertaro.App.Tests.Services.Notifications;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class NotificationWindowManagerTests
 {
     [StaTestMethod]
@@ -59,6 +60,70 @@ public sealed class NotificationWindowManagerTests
         }
         finally
         {
+            windows.CloseEverything();
+        }
+    }
+
+    [StaTestMethod]
+    public void SameSlotReplacement_KeepsTheWindowAndSurvivorsSlide()
+    {
+        var gone = new List<NotificationItem>();
+        var windows = new NotificationWindowManager(gone.Add, _ => { });
+        try
+        {
+            var first = Item("first");
+            windows.Present(first);
+            windows.Present(Item("later"));
+            var original = windows.Countdown().First();
+            var survivor = windows.Countdown().Last();
+            var slide = survivor.Moving;
+            var top = survivor.Window.Top;
+            original.RemainingMs = 1;
+            first.Complete(NotificationResult.Failed(NotificationFailure.Replaced));
+            var replacement = Item("updated");
+            replacement.Sequence = first.Sequence;
+
+            windows.Present(replacement);
+
+            Assert.AreEqual(2, windows.Count);
+            Assert.AreSame(original, windows.Countdown().First(r => r.Item == replacement));
+            Assert.AreEqual(8000, original.RemainingMs);
+            Assert.AreEqual(slide, survivor.Moving);
+            Assert.AreEqual(top, survivor.Window.Top, 0.1);
+            Assert.IsEmpty(gone);
+            original.Window.Close();
+            Assert.AreSame(replacement, Assert.ContainsSingle(gone));
+        }
+        finally
+        {
+            windows.CloseEverything();
+        }
+    }
+
+    [StaTestMethod]
+    public void CancelledReplacement_BeforePresentation_ClosesTheOriginalSlot()
+    {
+        var pending = new List<NotificationItem>();
+        var windows = new NotificationWindowManager(_ => { }, _ => { });
+        var queue = new NotificationQueue(() => false, pending.Add, windows.TakeDown, _ => { }, new object());
+        try
+        {
+            NotificationItem Submit(string text) => queue.Submit(
+                new NotificationRequest { Title = text, Id = "same slot" }, "plugin", "Plugin");
+            var first = Submit("first");
+            windows.Present(first);
+            Submit("middle");
+            var replacement = Submit("last");
+
+            replacement.Dismiss();
+            foreach (var item in pending) windows.Present(item);
+
+            Assert.AreEqual(0, windows.Count);
+            Assert.AreEqual(NotificationResult.Success, replacement.Completion.Result);
+        }
+        finally
+        {
+            queue.Shutdown();
             windows.CloseEverything();
         }
     }
