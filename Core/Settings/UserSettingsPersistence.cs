@@ -125,6 +125,11 @@ internal static class UserSettingsPersistence
             _lastJsonOnDisk = json;
         }
         ExclusionRuleSet.InvalidateCache();
+        // The walk's exclusion rules are consumed by the --service process, which cannot read this file
+        // (see MachineSettings.SyncExclusionRulesFrom), so every accepted save refreshes the machine copy
+        // the service does read. A no-op when the three lists already match, and never throws: a machine
+        // file that cannot be written must not turn a saved setting into a failed one.
+        MachineSettings.MirrorExclusionRules(settings);
         return true;
     }
 
@@ -147,13 +152,17 @@ internal static class UserSettingsPersistence
 
     public static void RestoreFrom(string sourcePath)
     {
+        UserSettings restored;
         lock (CacheLock)
         {
-            var restored = WriteRestored(sourcePath, SettingsPath, BackupCount, out var json);
+            restored = WriteRestored(sourcePath, SettingsPath, BackupCount, out var json);
             _cachedSettings = restored;
             _lastJsonOnDisk = json;
         }
         ExclusionRuleSet.InvalidateCache();
+        // Same mirror as Save(): an import/restore is a user settings write, and the rules it brought in
+        // have to reach the service without waiting for some unrelated settings change to save them.
+        MachineSettings.MirrorExclusionRules(restored);
     }
 
     public static UserSettings WriteRestored(string sourcePath, string settingsPath, int backupCount, out string json)

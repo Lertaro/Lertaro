@@ -178,8 +178,10 @@ public class SettingsViewModel : ViewModelBase
             Path = f.Path,
             RefreshMode = f.RefreshMode
         }).ToList();
-        var localDriveSnapshots = LocalDrive.LocalDrives
-            .Select(d => new LocalDriveSnapshot(d.Drive, d.Id, d.IsEnabled))
+        var localDriveLetters = LocalDrive.LocalDrives
+            .Where(d => !string.IsNullOrWhiteSpace(d.Drive))
+            .Select(d => d.Drive)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         _userSettings.NetworkDrives = newNetworkDrives;
         _userSettings.WslSettings = newWslDrives;
@@ -252,8 +254,15 @@ public class SettingsViewModel : ViewModelBase
                 }
             }
 
-            if (exclusionsChanged)
-                await SettingsApplyHelpers.RebuildScanBasedLocalDrivesAsync(_searchService, localDriveSnapshots, machineSettings.LocalDrives);
+            // Queue-only, and not waiting is the whole point: a rules change has to take effect on an
+            // already-built scan-based index without a restart, but pressing Apply is not itself a
+            // rebuild request the way the Local page's own button is -- so the request is handed to the
+            // service and the status monitor follows it from there.
+            ExclusionRebuildQueue.QueueForChangedExclusions(
+                _searchService,
+                machineSettings,
+                localDriveLetters,
+                exclusionsChanged);
 
             if (aliasProviderEnabled)
                 await _searchService.InitializeOrLoadIndexAsync(false);

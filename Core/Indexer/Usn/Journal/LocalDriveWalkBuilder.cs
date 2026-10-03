@@ -9,28 +9,27 @@ namespace Lertaro.Core.Indexer.Usn.Journal;
 // filesystem code with no network/UNC/WSL coupling in the traversal itself -- calling it directly from this
 // (elevated-service-process) namespace needs no porting, just an orchestrator modeled on NetworkIndex.Build.
 //
-// Deliberately does NOT apply exclusion/ignore rules (WalkOptions is always empty/no-op below) -- local
-// drives never have, and this refactor isn't the place to introduce that as a new behavior change.
+// The exclusion/ignore rules are not read here: they arrive as `options` from the caller, because this
+// walk runs in the --service process, where UserSettings resolves to a per-user directory that does not
+// exist for LocalSystem -- reading it there silently produced defaults, so the user's exclusions never
+// reached the walk at all. The production caller passes WalkOptions.FromMachineSettings, the source the
+// service can actually read.
 internal static class LocalDriveWalkBuilder
 {
-    private static readonly WalkOptions NoFiltering = new(
-        ExcludedPaths: Array.Empty<string>(),
-        IgnoredPathGlobs: Array.Empty<string>(),
-        IgnoredPathRegexes: Array.Empty<string>(),
-        MaxDepth: 0,
-        WorkerCount: 0,
-        UseIgnoreFiles: false);
-
     // `root` is taken as an explicit parameter (not derived from `drive` internally) so this can be pointed
     // at a real temp directory in tests, mirroring NetworkIndex.Build's own decoupled drive/root/physicalRoot
     // parameters -- the production caller just passes "{drive}:\\" for both `root` and `drive`'s volume-
-    // identity lookup, same effective behavior FolderDriveScanner had.
+    // identity lookup, same effective behavior FolderDriveScanner had. `options` is required rather than
+    // defaulted for the same reason it exists: a default would have to mean "walk unfiltered", which is
+    // precisely the silent no-op that made the user's exclusions unreachable. A caller that genuinely
+    // wants no filtering says so with WalkOptions.From([], [], []).
     public static FileRecordStore Build(
         string drive,
         string root,
         FileRecordStore? previousStore,
         Action<int, int> onProgress,
         CancellationToken token,
+        WalkOptions options,
         bool forceFullScan = false,
         Action<FileRecordStore, NetworkDriveWalkStats>? onCheckpoint = null)
     {
@@ -56,7 +55,12 @@ internal static class LocalDriveWalkBuilder
             lastWriteTimeUnixSeconds: rootLastWriteTime));
 
         var diffBaseline = forceFullScan ? null : TreeDiffBaseline.From(previousStore);
-        var builder = new TreeBuilder(store, root, root, NoFiltering, token, onProgress, onCheckpoint, diffBaseline, recheckExclusions: false);
+        // recheckExclusions is unconditionally true here, unlike NetworkIndex.Build's fingerprint comparison:
+        // a local MFT store never carries ExclusionRulesFingerprint (see FileRecordStore's own comment on
+        // it), so that comparison would always be "" != "" and never recheck. Unconditional is also the
+        // correct answer for this path -- the caller's rules can change between passes (the App mirrors a
+        // new ExcludedPaths into machine-settings.json) with no signal reaching this walk.
+        var builder = new TreeBuilder(store, root, root, options, token, onProgress, onCheckpoint, diffBaseline, recheckExclusions: true);
         var stats = builder.Run();
 
         // Reaching here without cancellation only means TreeBuilder.Run() drained its queue -- NOT that

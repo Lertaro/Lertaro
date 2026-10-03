@@ -103,8 +103,15 @@ public class SearchEngine : IDisposable
 
         var drivesChanged = !oldDrives.OrderBy(d => d).SequenceEqual(newDrives.OrderBy(d => d), StringComparer.OrdinalIgnoreCase);
 
-        settings.LocalDriveSelectionConfigured = true;
-        _machineSettings = settings;
+        // The pipe carries only the drive selection (see SearchRequestValueCodec), while the file holds
+        // fields this message never contained: the log level, and the App's mirror of the user's walk
+        // exclusion rules (WalkOptions.FromMachineSettings). Saving the message as-is would wipe them, so
+        // take the selection off the message and everything else off the file. This is not this process
+        // authoring the rules -- it never reads UserSettings; it carries over what the App wrote.
+        var merged = MachineSettings.Load();
+        merged.LocalDrives = newDrives;
+        merged.LocalDriveSelectionConfigured = true;
+        _machineSettings = merged;
         _machineSettings.Save();
 
         if (drivesChanged)
