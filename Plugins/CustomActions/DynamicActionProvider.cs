@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Services;
@@ -117,16 +118,23 @@ public class DynamicActionProvider : IDynamicActionProvider
         return true;
     }
 
+    /// <summary>
+    /// %s and {} expand to every selected path, each quoted so it stays one argument, joined by spaces --
+    /// a single invocation receives all files (e.g. tool "a" "b" "c"). For a single selection this is just
+    /// the one path. Users must NOT wrap the placeholder in quotes. Both placeholders are replaced in one
+    /// pass, so a path that itself contains "{}" or "%s" is never expanded a second time.
+    /// </summary>
+    internal static string BuildArguments(string? parameter, IReadOnlyList<string> paths)
+    {
+        var allPaths = string.Join(" ", paths.Select(ArgQuoting.Quote));
+        return string.IsNullOrWhiteSpace(parameter) ? allPaths : Regex.Replace(parameter, @"%s|\{\}", _ => allPaths);
+    }
+
     private static void RunMulti(ActionItem cmd, IReadOnlyList<ISearchResult> results)
     {
         if (results.Count == 0) return;
 
-        // %s and {} expand to every selected path, each quoted so it stays one argument, joined
-        // by spaces — a single invocation receives all files (e.g. tool "a" "b" "c"). For a single
-        // selection this is just the one path. Users must NOT wrap the placeholder in quotes.
-        var allPaths = string.Join(" ", results.Select(r => ArgQuoting.Quote(r.FullPath)));
-        var param = string.IsNullOrWhiteSpace(cmd.Parameter) ? allPaths
-            : cmd.Parameter.Replace("%s", allPaths).Replace("{}", allPaths);
+        var param = BuildArguments(cmd.Parameter, results.Select(r => r.FullPath).ToList());
 
         var first = results[0];
         var workDir = cmd.WorkingDir;

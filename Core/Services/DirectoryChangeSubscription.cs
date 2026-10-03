@@ -1,6 +1,7 @@
 using System.IO.Pipes;
 
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
+using Lertaro.Core.Services.Search;
 using Lertaro.Core.Wire;
 
 namespace Lertaro.Core.Services;
@@ -13,14 +14,16 @@ namespace Lertaro.Core.Services;
 // line limit.
 internal static class DirectoryChangeSubscription
 {
-    public static async Task ServeAsync(NamedPipeServerStream pipe, SearchEngine? engine, IReadOnlyList<string>? watched, CancellationToken token)
+    public static async Task ServeAsync(NamedPipeServerStream pipe, SearchEngine? engine, IReadOnlyList<string>? watched,
+        CallerVisibility visibility, CancellationToken token)
     {
         if (engine == null)
             return;
 
-        // Copied, because the request message it came from does not outlive this call.
+        // Copied, because the request message it came from does not outlive this call. A directory the
+        // caller may not see is dropped here: a change notification says someone is working in it.
         var watchList = (watched ?? new List<string>())
-            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Where(path => !string.IsNullOrWhiteSpace(path) && visibility.IsVisible(path))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 

@@ -16,6 +16,7 @@ You can get the latest release from the official homepage. Each release provides
 - **Extract and Run**: Unzip to any folder and run immediately without installation.
 - **Runtime Dependency**: If your system lacks the required .NET desktop runtime, run the bundled `install-dotnet-runtime.bat` script once.
 - **Self-Contained Data Storage**: The portable edition saves machine-wide data to `Data\Machine` alongside the application, and user settings to `Data\Users\<SID hash>`. If the `Data` directory does not exist yet, it falls back to `%ProgramData%\Lertaro` and `%LocalAppData%\Lertaro` for compatibility; once created, it prioritizes local data as a fully self-contained instance.
+- **Locked When the Service Is Installed**: Installing the background service (you approve one UAC prompt) locks the portable folder. Only administrators can change the application files, `Data\Machine` is written by the service alone, and each user's `Data\Users\<SID hash>` folder is private to that user. Updating or removing a portable copy therefore needs administrator rights; `portable-cleanup.bat` asks for them itself.
 - **Clean Removal**: Before deleting the portable folder, run the bundled `portable-cleanup.bat` script. It stops and uninstalls the background service, and removes current-user `lertaro://` URI registrations and startup entries.
 
 > [!TIP]

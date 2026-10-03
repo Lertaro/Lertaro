@@ -7,15 +7,18 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Tests.Engine.JsonRpc;
 [DoNotParallelize]
 public sealed class FlowEnvironmentLocatorTests
 {
+    private string? _tempUser;
     private string? _tempShared;
 
     [TestInitialize]
     public void Setup()
     {
         FlowEnvironmentLocator.ResetCache();
+        _tempUser = Path.Combine(Path.GetTempPath(), "LertaroTestUser_" + Guid.NewGuid().ToString("N"));
         _tempShared = Path.Combine(Path.GetTempPath(), "LertaroTestShared_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_tempShared);
+        Directory.CreateDirectory(_tempUser);
 
+        UserDataService.GetUserDataDirectoryFunc = () => _tempUser;
         UserDataService.GetSharedDataDirectoryFunc = () => _tempShared;
     }
 
@@ -23,33 +26,37 @@ public sealed class FlowEnvironmentLocatorTests
     public void Cleanup()
     {
         FlowEnvironmentLocator.ResetCache();
+        UserDataService.GetUserDataDirectoryFunc = null;
         UserDataService.GetSharedDataDirectoryFunc = null;
 
-        try { if (_tempShared != null && Directory.Exists(_tempShared)) Directory.Delete(_tempShared, true); } catch { }
+        try { if (_tempUser != null && Directory.Exists(_tempUser)) Directory.Delete(_tempUser, true); } catch { }
     }
 
     [TestMethod]
-    public void GetEmbeddedPythonDirectory_ResolvesUnderSharedDataDirectory()
+    public void GetEmbeddedPythonDirectory_ResolvesUnderUserDataDirectory()
     {
+        // Not the machine-wide directory: a runtime there could be seeded by another user.
         var dir = FlowEnvironmentLocator.GetEmbeddedPythonDirectory();
-        Assert.IsTrue(dir.StartsWith(_tempShared!, StringComparison.OrdinalIgnoreCase));
+        Assert.AreEqual(Path.Combine(_tempUser!, "FlowData"), Path.GetDirectoryName(dir));
         Assert.Contains("PythonEmbeded-", dir);
+        Assert.IsFalse(dir.StartsWith(_tempShared!, StringComparison.OrdinalIgnoreCase));
     }
 
     [TestMethod]
-    public void GetEmbeddedNodeDirectory_ResolvesUnderSharedDataDirectory()
+    public void GetEmbeddedNodeDirectory_ResolvesUnderUserDataDirectory()
     {
         var dir = FlowEnvironmentLocator.GetEmbeddedNodeDirectory();
-        Assert.IsTrue(dir.StartsWith(_tempShared!, StringComparison.OrdinalIgnoreCase));
+        Assert.AreEqual(Path.Combine(_tempUser!, "FlowData"), Path.GetDirectoryName(dir));
         Assert.Contains("NodeEmbeded-", dir);
+        Assert.IsFalse(dir.StartsWith(_tempShared!, StringComparison.OrdinalIgnoreCase));
     }
 
     [TestMethod]
-    public void FindPythonExecutable_WhenInSharedDirectory_ReturnsSharedPath()
+    public void FindPythonExecutable_WhenInUserDirectory_ReturnsThatPath()
     {
-        var sharedEmbed = FlowEnvironmentLocator.GetEmbeddedPythonDirectory();
-        Directory.CreateDirectory(sharedEmbed);
-        var dummyExe = Path.Combine(sharedEmbed, "python.exe");
+        var embed = FlowEnvironmentLocator.GetEmbeddedPythonDirectory();
+        Directory.CreateDirectory(embed);
+        var dummyExe = Path.Combine(embed, "python.exe");
         File.WriteAllText(dummyExe, "dummy");
 
         var found = FlowEnvironmentLocator.FindPythonExecutable();
@@ -57,11 +64,11 @@ public sealed class FlowEnvironmentLocatorTests
     }
 
     [TestMethod]
-    public void FindNodeExecutable_WhenInSharedDirectory_ReturnsSharedPath()
+    public void FindNodeExecutable_WhenInUserDirectory_ReturnsThatPath()
     {
-        var sharedEmbed = FlowEnvironmentLocator.GetEmbeddedNodeDirectory();
-        Directory.CreateDirectory(sharedEmbed);
-        var dummyExe = Path.Combine(sharedEmbed, "node.exe");
+        var embed = FlowEnvironmentLocator.GetEmbeddedNodeDirectory();
+        Directory.CreateDirectory(embed);
+        var dummyExe = Path.Combine(embed, "node.exe");
         File.WriteAllText(dummyExe, "dummy");
 
         var found = FlowEnvironmentLocator.FindNodeExecutable();

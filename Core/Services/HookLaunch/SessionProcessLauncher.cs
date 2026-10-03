@@ -38,6 +38,7 @@ public static class SessionProcessLauncher
         var linkedToken = IntPtr.Zero;
         var primaryToken = IntPtr.Zero;
         var envBlock = IntPtr.Zero;
+        var filteredEnvBlock = IntPtr.Zero;
         try
         {
             if (!WTSQueryUserToken((uint)sessionId, out userToken))
@@ -70,12 +71,21 @@ public static class SessionProcessLauncher
                 return false;
             }
 
+            // Keyed on the request, not on which token won: with UAC off an administrator's plain token is
+            // already the elevated one, and that launch needs the same cleaning.
+            var environment = envBlock;
+            if (requestElevation)
+            {
+                filteredEnvBlock = Marshal.StringToHGlobalUni(FilterEnvironment(ReadEnvironmentBlock(envBlock), PinnedFromThisProcess()));
+                environment = filteredEnvBlock;
+            }
+
             var startupInfo = new STARTUPINFO { cb = Marshal.SizeOf<STARTUPINFO>(), lpDesktop = @"winsta0\default" };
             var commandLine = $"\"{exePath}\" {arguments}";
             var creationFlags = CREATE_UNICODE_ENVIRONMENT | (detachFromConsole ? DETACHED_PROCESS : CREATE_NO_WINDOW);
 
             if (!CreateProcessAsUser(primaryToken, null, commandLine, IntPtr.Zero, IntPtr.Zero, false,
-                    creationFlags, envBlock, null, ref startupInfo, out var processInfo))
+                    creationFlags, environment, null, ref startupInfo, out var processInfo))
             {
                 error = $"CreateProcessAsUser failed (error {Marshal.GetLastWin32Error()}).";
                 return false;
@@ -94,11 +104,64 @@ public static class SessionProcessLauncher
         }
         finally
         {
+            if (filteredEnvBlock != IntPtr.Zero) Marshal.FreeHGlobal(filteredEnvBlock);
             if (envBlock != IntPtr.Zero) DestroyEnvironmentBlock(envBlock);
             if (primaryToken != IntPtr.Zero) CloseHandle(primaryToken);
             if (linkedToken != IntPtr.Zero) CloseHandle(linkedToken);
             if (userToken != IntPtr.Zero) CloseHandle(userToken);
         }
+    }
+
+    // Variables the .NET runtime reads at start-up to load extra code: startup hooks, profilers, a different
+    // runtime or host. The user can set any of them in HKCU\Environment without elevation, so an elevated
+    // child inheriting them would load the user's code at high integrity with no UAC prompt.
+    private static readonly string[] RuntimeHookPrefixes = ["DOTNET_", "COMPlus_", "CORECLR_", "COR_"];
+
+    // Also user-overridable, and what cmd.exe and the updater script resolve system paths and commands
+    // through. Pinned to this service's own (machine) values rather than dropped, since those are always set.
+    // ponytail: PATH is left as the user has it -- the hook may start the user's own tools by name -- so a
+    // DLL an elevated child fails to find in the system directories is still searched for along the user's
+    // PATH. Replacing PATH with the machine PATH for elevated launches is the upgrade.
+    private static readonly string[] PinnedVariables = ["SystemRoot", "windir", "ComSpec", "PATHEXT"];
+
+    /// <summary>
+    /// The environment for an elevated child: <paramref name="block"/> (NUL-separated <c>NAME=value</c>
+    /// entries, double-NUL terminated, as CreateEnvironmentBlock returns it) without the runtime-hook
+    /// variables, with <paramref name="pinned"/> replacing any same-named entries, sorted by name the way
+    /// CreateProcess expects.
+    /// </summary>
+    internal static string FilterEnvironment(string block, IReadOnlyDictionary<string, string> pinned)
+    {
+        // Entries such as "=C:=C:\dir" (per-drive current directories) start with '=', so the name ends at
+        // the first '=' after the first character.
+        static string NameOf(string entry) => entry[..Math.Max(entry.IndexOf('=', 1), 0)];
+
+        var kept = block.Split('\0', StringSplitOptions.RemoveEmptyEntries)
+            .Where(entry => !RuntimeHookPrefixes.Any(prefix => entry.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+            .Where(entry => !pinned.ContainsKey(NameOf(entry)))
+            .Concat(pinned.Select(pair => $"{pair.Key}={pair.Value}"))
+            .OrderBy(NameOf, StringComparer.OrdinalIgnoreCase);
+        return string.Join('\0', kept) + "\0\0";
+    }
+
+    private static Dictionary<string, string> PinnedFromThisProcess()
+    {
+        var pinned = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in PinnedVariables)
+        {
+            if (Environment.GetEnvironmentVariable(name) is { Length: > 0 } value)
+                pinned[name] = value;
+        }
+
+        return pinned;
+    }
+
+    private static string ReadEnvironmentBlock(IntPtr block)
+    {
+        var entries = new List<string>();
+        for (var cursor = block; Marshal.PtrToStringUni(cursor) is { Length: > 0 } entry; cursor += (entry.Length + 1) * sizeof(char))
+            entries.Add(entry);
+        return string.Join('\0', entries) + "\0\0";
     }
 
     private static bool TryGetLinkedToken(IntPtr token, out IntPtr linkedToken)

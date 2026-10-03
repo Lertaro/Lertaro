@@ -110,6 +110,8 @@ public class UpdateInstaller
                 return false;
             }
 
+            // The service has already read the package and unpacked it under the install directory.
+            DeleteStagingDirectory(stagingDir);
             return true;
         }
         catch (Exception ex)
@@ -121,8 +123,8 @@ public class UpdateInstaller
     }
 
     // Best effort. What's left behind is a few megabytes in this user's own temp directory, which is the
-    // least harmful place in this flow to be untidy; the service deletes the directory itself once it has
-    // unpacked the payload from it.
+    // least harmful place in this flow to be untidy. Always this process's job, on success too: the service
+    // runs as LocalSystem and deliberately never deletes a directory a caller named.
     private static void DeleteStagingDirectory(string stagingDir)
     {
         try

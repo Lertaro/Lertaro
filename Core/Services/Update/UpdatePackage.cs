@@ -52,24 +52,29 @@ public static class UpdatePackage
     /// </summary>
     /// <remarks>
     /// The prefix check keeps a mispaired client from pointing the elevated copy at an arbitrary tree;
-    /// it is not the trust boundary. <see cref="Verify"/> over the bytes it is about to extract is, so a
-    /// caller that can name any directory still cannot get a single unsigned byte written to the install
-    /// directory -- and the redirected <c>%TEMP%</c> some users run with stays usable.
+    /// it is not the trust boundary. <see cref="Verify(byte[], byte[], string)"/> over the bytes about to be
+    /// extracted is, so a caller that can name any directory still cannot get a single unsigned byte written
+    /// to the install directory -- and the redirected <c>%TEMP%</c> some users run with stays usable.
+    ///
+    /// UNC and device paths (anything starting <c>\\</c> once normalised, <c>\\?\UNC\</c> included) are
+    /// refused outright: the package is always staged in a local temp directory, and a share would have the
+    /// service authenticate to a server the caller picked.
     /// </remarks>
     public static bool TryGetStagedPackage(string? stagingDir, out string? zipPath, out string? signaturePath, out string? error)
     {
         zipPath = null;
         signaturePath = null;
 
-        if (string.IsNullOrWhiteSpace(stagingDir) || !Path.IsPathRooted(stagingDir) ||
-            !Path.GetFileName(Path.GetFullPath(stagingDir)).StartsWith(StagingDirPrefix, StringComparison.OrdinalIgnoreCase))
+        var fullPath = string.IsNullOrWhiteSpace(stagingDir) || !Path.IsPathRooted(stagingDir) ? null : Path.GetFullPath(stagingDir);
+        if (fullPath is null || fullPath.StartsWith(@"\\", StringComparison.Ordinal) ||
+            !Path.GetFileName(fullPath).StartsWith(StagingDirPrefix, StringComparison.OrdinalIgnoreCase))
         {
             error = "Not a staged update directory.";
             return false;
         }
 
-        var zip = Path.Combine(stagingDir, ZipFileName);
-        var signature = Path.Combine(stagingDir, SignatureFileName);
+        var zip = Path.Combine(fullPath, ZipFileName);
+        var signature = Path.Combine(fullPath, SignatureFileName);
         if (!File.Exists(zip) || !File.Exists(signature))
         {
             error = "Staged update package is incomplete.";
@@ -82,45 +87,65 @@ public static class UpdatePackage
         return true;
     }
 
-    public static bool Verify(string zipPath, string signaturePath) => Verify(zipPath, signaturePath, PUBLIC_KEY_PEM);
-
     /// <summary>
-    /// Verifies the staged zip and unpacks it into <paramref name="targetDir"/>, returning the directory
-    /// that actually holds the payload files.
+    /// Reads the staged zip and its signature into memory. The service calls this while impersonating the
+    /// App that asked, so the read happens with that user's rights (and, through any link the user planted,
+    /// that user's credentials) rather than LocalSystem's.
     /// </summary>
-    /// <remarks>
-    /// The zip is opened once, for read, with no write sharing, and that handle is held across verification
-    /// and extraction. Same-user code can't be trusted to stay out of a temp directory, but it also can't
-    /// open the file for writing while this handle is up, so the bytes the signature covers are the bytes
-    /// that get unpacked -- which is the whole point of running this from the service rather than
-    /// believing a verdict some other process reached earlier.
-    /// </remarks>
-    public static bool TryVerifyAndExtract(string? stagingDir, string targetDir, out string? payloadDir, out string? error) =>
-        TryVerifyAndExtract(stagingDir, targetDir, PUBLIC_KEY_PEM, out payloadDir, out error);
-
-    /// <overloads>
-    /// Takes the trust anchor as a parameter so the whole verify-then-unpack path can be exercised by a
-    /// test that generated its own key pair.
-    /// </overloads>
-    internal static bool TryVerifyAndExtract(string? stagingDir, string targetDir, string publicKeyPem, out string? payloadDir, out string? error)
+    public static bool TryReadStagedPackage(string? stagingDir, out byte[]? zip, out byte[]? signature, out string? error)
     {
-        payloadDir = null;
-
+        zip = null;
+        signature = null;
         if (!TryGetStagedPackage(stagingDir, out var zipPath, out var signaturePath, out error))
             return false;
 
         try
         {
-            using (new FileStream(zipPath!, FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                if (!Verify(zipPath!, signaturePath!, publicKeyPem))
-                {
-                    error = "Update package failed signature verification.";
-                    return false;
-                }
+            zip = File.ReadAllBytes(zipPath!);
+            signature = File.ReadAllBytes(signaturePath!);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            zip = null;
+            error = ex.Message;
+            return false;
+        }
+    }
 
-                ZipFile.ExtractToDirectory(zipPath!, targetDir, overwriteFiles: true);
-            }
+    public static bool Verify(string zipPath, string signaturePath) => Verify(zipPath, signaturePath, PUBLIC_KEY_PEM);
+
+    /// <summary>
+    /// Verifies the package bytes and unpacks them into <paramref name="targetDir"/>, returning the directory
+    /// that actually holds the payload files.
+    /// </summary>
+    /// <remarks>
+    /// Works on bytes already read, never on the staging files again: the signature covers exactly what gets
+    /// unpacked, so nothing that can write the (user-owned) staging directory can swap the zip between the
+    /// verdict and the extraction.
+    /// </remarks>
+    public static bool TryVerifyAndExtract(byte[] zip, byte[] signature, string targetDir, out string? payloadDir, out string? error) =>
+        TryVerifyAndExtract(zip, signature, targetDir, PUBLIC_KEY_PEM, out payloadDir, out error);
+
+    /// <overloads>
+    /// Takes the trust anchor as a parameter so the whole verify-then-unpack path can be exercised by a
+    /// test that generated its own key pair.
+    /// </overloads>
+    internal static bool TryVerifyAndExtract(byte[] zip, byte[] signature, string targetDir, string publicKeyPem,
+        out string? payloadDir, out string? error)
+    {
+        payloadDir = null;
+
+        if (!Verify(zip, signature, publicKeyPem))
+        {
+            error = "Update package failed signature verification.";
+            return false;
+        }
+
+        try
+        {
+            using var archive = new ZipArchive(new MemoryStream(zip), ZipArchiveMode.Read);
+            archive.ExtractToDirectory(targetDir, overwriteFiles: true);
         }
         catch (Exception ex)
         {
@@ -146,21 +171,31 @@ public static class UpdatePackage
             : extractPath;
     }
 
-    /// <summary>
-    /// False on any problem at all -- unreadable files, a malformed signature, a key that won't import.
-    /// A package this cannot positively vouch for is a package that does not get installed.
-    /// </summary>
     internal static bool Verify(string zipPath, string signaturePath, string publicKeyPem)
     {
         try
         {
-            var fileBytes = File.ReadAllBytes(zipPath);
-            var signatureBytes = File.ReadAllBytes(signaturePath);
+            return Verify(File.ReadAllBytes(zipPath), File.ReadAllBytes(signaturePath), publicKeyPem);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[UpdatePackage] Could not read the package to verify it: {ex.Message}", LogLevel.Error);
+            return false;
+        }
+    }
 
+    /// <summary>
+    /// False on any problem at all -- a malformed signature, a key that won't import. A package this cannot
+    /// positively vouch for is a package that does not get installed.
+    /// </summary>
+    internal static bool Verify(byte[] zip, byte[] signature, string publicKeyPem)
+    {
+        try
+        {
             using var ecdsa = ECDsa.Create();
             ecdsa.ImportFromPem(publicKeyPem);
 
-            return ecdsa.VerifyData(fileBytes, signatureBytes, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
+            return ecdsa.VerifyData(zip, signature, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
         }
         catch (Exception ex)
         {

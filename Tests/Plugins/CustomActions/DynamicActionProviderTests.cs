@@ -161,6 +161,22 @@ public sealed class DynamicActionProviderTests
     }
 
     [TestMethod]
+    public void BuildArguments_NoTemplate_PassesEveryPathQuoted() =>
+        Assert.AreEqual("\"C:\\a b.txt\" C:\\c.txt",
+            DynamicActionProvider.BuildArguments(null, [@"C:\a b.txt", @"C:\c.txt"]));
+
+    [TestMethod]
+    public void BuildArguments_BothPlaceholders_EachGetsThePaths() =>
+        Assert.AreEqual("--left C:\\c.txt --right C:\\c.txt",
+            DynamicActionProvider.BuildArguments("--left %s --right {}", [@"C:\c.txt"]));
+
+    [TestMethod]
+    public void BuildArguments_PathContainingAPlaceholder_IsSubstitutedExactlyOnce() =>
+        // A file named with "{}", dropped in for %s, must not then be expanded again by the {} pass.
+        Assert.AreEqual("--open \"C:\\odd {} name.txt\"",
+            DynamicActionProvider.BuildArguments("--open %s", [@"C:\odd {} name.txt"]));
+
+    [TestMethod]
     public void ClearSession_InvalidatesCache_SoLaterConfigChangeIsPickedUp()
     {
         ConfigureActions(new() { MakeAction(enabled: false) });

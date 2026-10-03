@@ -13,14 +13,14 @@ namespace Lertaro.Core.Hook.Ipc;
 internal static class HookPipePeer
 {
     /// <summary>
-    /// Whether a connection whose server is owned by <paramref name="serverPid"/> is really the hook
-    /// process identified by <paramref name="launchedHookPid"/>. A null <paramref name="serverPid"/>
-    /// means the OS could not answer (already-disconnected handle, unsupported configuration), and a
-    /// zero <paramref name="launchedHookPid"/> means there is nothing to compare against; neither is
-    /// evidence of an impostor, so both are accepted rather than breaking the product's own hook.
+    /// Whether a connection whose server is owned by <paramref name="serverPid"/> is NOT the hook process
+    /// identified by <paramref name="launchedHookPid"/>. Fails closed: a null <paramref name="serverPid"/>
+    /// (the OS could not answer) is treated as an impostor, because the connection is about to be trusted
+    /// with tool-run requests and "could not tell" is not a reason to trust it. The hook just launched and
+    /// its pipe just connected, so the OS answering is the normal case; a failure costs one retry of the
+    /// connect loop, not the hook.
     /// </summary>
-    internal static bool IsImpersonation(int? serverPid, int launchedHookPid) =>
-        serverPid.HasValue && launchedHookPid != 0 && serverPid.Value != launchedHookPid;
+    internal static bool IsImpersonation(int? serverPid, int launchedHookPid) => serverPid != launchedHookPid;
 
     /// <summary>The PID owning the pipe server behind <paramref name="pipe"/>, or null when unknown.</summary>
     internal static int? TryGetServerProcessId(NamedPipeClientStream pipe)
