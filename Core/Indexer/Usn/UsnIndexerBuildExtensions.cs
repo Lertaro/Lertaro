@@ -2,6 +2,7 @@ using Lertaro.Core.IndexV2;
 
 using Lertaro.Core.DriveMonitoring;
 using Lertaro.Core.IndexV2.Persistence;
+using Lertaro.Core.Indexer.NetworkDrive.Walk;
 using Lertaro.Core.Indexer.Usn.Journal;
 namespace Lertaro.Core.Indexer.Usn;
 
@@ -83,7 +84,11 @@ public static class UsnIndexerBuildExtensions
             (drive, onProgress, token) =>
             {
                 var previousStore = GetPreviousStore(drive);
+                // The machine copy, not the per-user settings: this walk runs in the --service process,
+                // whose UserSettings path does not exist. Read per build rather than captured once so a
+                // rules change the App mirrored in is picked up by the next rebuild.
                 return LocalDriveWalkBuilder.Build(drive, $"{drive}:\\", previousStore, onProgress ?? ((_, _) => { }), token,
+                    WalkOptions.FromMachineSettings(MachineSettings.Load()),
                     forceFullScan,
                     onCheckpoint: (checkpointStore, _) => indexer.PublishLocalDriveCheckpoint(cacheDir, drive, checkpointStore, token));
             },

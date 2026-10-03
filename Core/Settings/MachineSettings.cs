@@ -31,6 +31,25 @@ public class MachineSettings
     /// </remarks>
     public string ServiceLogLevel { get; set; } = "Info";
 
+    // The walk's exclusion/ignore rules, mirrored from the interactive user's settings. Here rather than
+    // only in the per-user file because the local (FAT32/exFAT) drive walk runs in the --service process
+    // as LocalSystem: UserSettings there resolves to Data\Users\<that SID's hash>, which does not exist,
+    // so the service read defaults and ExcludedPaths never reached the walk at all. The App writes these
+    // (see MirrorExclusionRules), the service only reads them -- same split LocalDrives already uses.
+    public List<string> ExcludedPaths { get; set; } = new();
+    public List<string> IgnoredPathGlobs { get; set; } = new();
+    public List<string> IgnoredPathRegexes { get; set; } = new();
+
+    /// <summary>
+    /// Copies the walk's three rule lists off the interactive user's settings.
+    /// </summary>
+    public void SyncExclusionRulesFrom(UserSettings settings)
+    {
+        ExcludedPaths = settings.ExcludedPaths?.ToList() ?? new();
+        IgnoredPathGlobs = settings.IgnoredPathGlobs?.ToList() ?? new();
+        IgnoredPathRegexes = settings.IgnoredPathRegexes?.ToList() ?? new();
+    }
+
     private static readonly Lazy<string> SharedDataDirectory = new(() =>
     {
         SettingsDataDirectoryMigrator.Migrate(Logger.SharedDataDir, updateUserSettings: false);
@@ -143,4 +162,57 @@ public class MachineSettings
         Directory.CreateDirectory(Logger.SharedDataDir);
         AtomicFileStore.Write(SettingsPath, JsonSerializer.Serialize(this, WriteOptions), BackupPath);
     }
+
+    /// <summary>
+    /// Refreshes the machine copy of the walk's exclusion rules from the interactive user's settings.
+    /// </summary>
+    /// <remarks>
+    /// Called by the App only: on every user-settings save, on a settings restore, and once at startup
+    /// (for an install whose machine-settings.json predates these fields, where waiting for the next
+    /// settings edit would leave the service filtering by nothing). The service never calls this -- it
+    /// cannot read the per-user file, which is exactly why the rules are mirrored here -- and nothing
+    /// else may call it, because a write built from anything but the user's own settings would clobber
+    /// them with values nobody chose.
+    ///
+    /// The raw file is read rather than <see cref="Load"/>, deliberately: Load runs the legacy
+    /// drive-selection migration, which would stamp the drives detected at this moment into the file as
+    /// an explicit selection. A machine file that never listed drives has to keep meaning "every drive
+    /// detected at service start", and this write is only ever about the rules.
+    /// </remarks>
+    public static void MirrorExclusionRules(UserSettings settings) => MirrorExclusionRules(settings, SettingsPath);
+
+    internal static void MirrorExclusionRules(UserSettings settings, string path)
+    {
+        try
+        {
+            // An existing file that cannot be read right now (locked by the service's own write, or
+            // corrupt) is left untouched rather than replaced from an empty object: that write would
+            // drop the drive selection this method knows nothing about. The next save retries.
+            var mirror = File.Exists(path) ? TryLoadFromFile(path) : new MachineSettings();
+            if (mirror == null)
+                return;
+
+            if (SameRules(mirror.ExcludedPaths, settings.ExcludedPaths)
+                && SameRules(mirror.IgnoredPathGlobs, settings.IgnoredPathGlobs)
+                && SameRules(mirror.IgnoredPathRegexes, settings.IgnoredPathRegexes))
+                return;
+
+            mirror.SyncExclusionRulesFrom(settings);
+            mirror.Save(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A machine file this process cannot write must not fail the user's own settings save: the
+            // service then keeps the previous rules, and the next save (or the next launch) retries.
+            Logger.Log($"[MachineSettings] Could not mirror the exclusion rules to '{path}': {ex.Message}", LogLevel.Warn);
+        }
+    }
+
+    private static bool SameRules(List<string>? left, List<string>? right) =>
+        (left ?? new()).SequenceEqual(right ?? new(), StringComparer.OrdinalIgnoreCase);
+
+    // The destination as a parameter, the same shape UserSettingsPersistence.TryPersist uses for the
+    // same reason: the mirror has to be exercisable against a temp directory, not the real machine file.
+    internal void Save(string path) =>
+        AtomicFileStore.Write(path, JsonSerializer.Serialize(this, WriteOptions), path + ".bak");
 }

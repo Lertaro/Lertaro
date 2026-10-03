@@ -40,7 +40,7 @@ Aparece automáticamente si se detecta al menos una distribución WSL instalada:
 
 ## 5. Reglas de exclusión
 
-Se aplican globalmente a discos locales, red y carpetas, organizadas en tres subpestañas:
+Las reglas de exclusión filtran los resultados de búsqueda y además delimitan el recorrido en recursos de red, WSL, índices de carpetas y discos locales FAT32/exFAT, donde una carpeta excluida no se indexa. Los discos locales NTFS/ReFS todavía se recorren por completo, así que en ellos una ruta como `E:\` solo oculta sus resultados. Para detener por completo la indexación de un disco local, desactívalo en **Unidades locales**. Las reglas se organizan en tres subpestañas:
 
 ### Exclusión de rutas
 
