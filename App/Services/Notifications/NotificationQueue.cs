@@ -40,6 +40,8 @@ internal sealed class NotificationQueue(
     private readonly HashSet<string> _disabledPlugins = new(StringComparer.OrdinalIgnoreCase);
     private NotificationItem? _notice;
     private bool _stopping;
+    private double _availableHeightDip = double.PositiveInfinity;
+    private double _cardHeightCapDip = double.PositiveInfinity;
 
     // Suppresses the refill that a close would otherwise trigger while a bulk cancellation is still
     // pulling items out from under it, so a cancel cannot show a card it is about to cancel.
@@ -104,6 +106,23 @@ internal sealed class NotificationQueue(
     /// presentations are handed to the dispatcher, and a stopped clock there strands every waiting request with a
     /// task that never finishes.</summary>
     internal bool HasWaiting => _pending.Count > 0;
+
+    internal void SetCardCapacity(double availableHeightDip, double cardHeightCapDip)
+    {
+        _availableHeightDip = availableHeightDip;
+        _cardHeightCapDip = cardHeightCapDip;
+    }
+
+    /// <summary>Returns a measured card that does not fit to the queue without ending its handle.</summary>
+    internal void Defer(NotificationItem item, double heightDip, double remainingMs)
+    {
+        if (!_cards.Remove(item)) return;
+        item.ReachedScreen = false;
+        item.MeasuredHeightDip = heightDip;
+        item.RemainingMs = remainingMs;
+        var index = _pending.FindIndex(waiting => waiting.Sequence > item.Sequence);
+        _pending.Insert(index < 0 ? _pending.Count : index, item);
+    }
 
     /// <summary>Ends a notification on its caller's behalf. Locked because a plugin holds the handle and may
     /// call from its own thread while the launcher's UI thread is walking the same lists from the countdown.</summary>
@@ -257,6 +276,7 @@ internal sealed class NotificationQueue(
     {
         item.EffectivePosition = NotificationPosition.BottomNotice;
         item.DurationSeconds = Math.Min(item.DurationSeconds, CollapsedCardMaxSeconds);
+        if (item.RemainingMs is { } remaining) item.RemainingMs = Math.Min(remaining, item.DurationSeconds * 1000);
         logWarning($"[Notifications] a card was collapsed into the bottom notice because a fullscreen app owns " +
                    $"the screen, losing its title and source: {item.SourceName}, " +
                    $"title \"{Truncate(item.Request.Title, 80)}\", text \"{Truncate(item.Request.Message, 120)}\"");
@@ -281,6 +301,8 @@ internal sealed class NotificationQueue(
         }
 
         if (_cards.Count >= VisibleCardLimit) return;
+        if (_pending[0].MeasuredHeightDip is { } height && Math.Min(height, _cardHeightCapDip) > _availableHeightDip)
+            return;
         var next = TakePending();
         _cards.Add(next);
         next.ReachedScreen = true;

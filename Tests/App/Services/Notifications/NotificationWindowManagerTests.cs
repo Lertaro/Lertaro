@@ -150,6 +150,152 @@ public sealed class NotificationWindowManagerTests
         }
     }
 
+    [StaTestMethod]
+    public void StackCapacity_DefersOverflowAndRestoresUnspentTime()
+    {
+        var area = new System.Windows.Rect(-100, -200, 800, 1040);
+        NotificationWindowManager? windows = null;
+        var queue = new NotificationQueue(() => false, item => windows!.Present(item),
+            item => windows!.TakeDown(item), _ => { }, new object());
+        windows = new NotificationWindowManager(item =>
+        {
+            windows!.Restack(false);
+            queue.NotifyClosed(item);
+        }, queue.CloseBatch, queue.Defer, queue.SetCardCapacity, () => area);
+        try
+        {
+            var items = Enumerable.Range(0, 5).Select(i => queue.Submit(new NotificationRequest
+            {
+                Title = $"card {i}", Message = string.Join("\n", Enumerable.Repeat("long body", 40))
+            }, "plugin", "Plugin")).ToArray();
+            for (var i = 0; i < 10; i++) queue.Feed();
+
+            Assert.AreEqual(3, windows.Count);
+            Assert.IsTrue(queue.HasWaiting);
+            Assert.IsTrue(items.All(item => !item.Completion.IsCompleted));
+            foreach (var runner in windows.Countdown())
+            {
+                Assert.AreEqual(260, runner.Window.ActualHeight, 0.1);
+                Assert.IsTrue(runner.Window.Top >= area.Top + NotificationWindowManager.EdgeMarginDip);
+                runner.RemainingMs = 1234;
+            }
+
+            area = new System.Windows.Rect(-100, -200, 800, 550);
+            windows.Reanchor();
+            Assert.AreEqual(1, windows.Count);
+            for (var i = 0; i < 10; i++) queue.Feed();
+            Assert.AreEqual(1, windows.Count);
+
+            area = new System.Windows.Rect(-100, -200, 800, 1800);
+            windows.Reanchor();
+            for (var i = 0; i < 10; i++) queue.Feed();
+            Assert.AreEqual(5, windows.Count);
+            Assert.AreEqual(1234, windows.Countdown().Single(r => r.Item == items[1]).RemainingMs);
+            Assert.IsTrue(items.All(item => !item.Completion.IsCompleted));
+        }
+        finally
+        {
+            queue.Shutdown();
+            windows.CloseEverything();
+        }
+    }
+
+    [StaTestMethod]
+    public void TallerReplacement_DefersOverflowWithoutCompletingIt()
+    {
+        NotificationWindowManager? windows = null;
+        var queue = new NotificationQueue(() => false, item => windows!.Present(item),
+            item => windows!.TakeDown(item), _ => { }, new object());
+        windows = new NotificationWindowManager(queue.NotifyClosed, queue.CloseBatch,
+            queue.Defer, queue.SetCardCapacity, () => new System.Windows.Rect(0, 0, 800, 550));
+        try
+        {
+            queue.Submit(new NotificationRequest { Title = "short", Id = "progress" }, "plugin", "Plugin");
+            var longBody = string.Join("\n", Enumerable.Repeat("long body", 40));
+            var later = queue.Submit(new NotificationRequest { Message = longBody }, "plugin", "Plugin");
+            queue.Feed();
+            Assert.AreEqual(2, windows.Count);
+            var original = windows.Countdown().First().Window;
+            windows.Countdown().Last().RemainingMs = 1234;
+
+            var replacement = queue.Submit(new NotificationRequest { Message = longBody, Id = "progress" },
+                "plugin", "Plugin");
+
+            Assert.AreEqual(1, windows.Count);
+            Assert.AreSame(original, windows.Countdown().Single().Window);
+            Assert.AreSame(replacement, windows.Countdown().Single().Item);
+            Assert.IsFalse(later.Completion.IsCompleted);
+            Assert.AreEqual(1234, later.RemainingMs);
+            Assert.IsTrue(queue.HasWaiting);
+        }
+        finally
+        {
+            queue.Shutdown();
+            windows.CloseEverything();
+        }
+    }
+
+    [StaTestMethod]
+    public void ClosingLastCard_RefreshesCapacityBeforeRefilling()
+    {
+        NotificationWindowManager? windows = null;
+        var queue = new NotificationQueue(() => false, item => windows!.Present(item),
+            item => windows!.TakeDown(item), _ => { }, new object());
+        windows = new NotificationWindowManager(item =>
+        {
+            windows!.Restack(false);
+            queue.NotifyClosed(item);
+        }, queue.CloseBatch, queue.Defer, queue.SetCardCapacity,
+            () => new System.Windows.Rect(0, 0, 800, 300));
+        try
+        {
+            NotificationItem Submit() => queue.Submit(new NotificationRequest
+            {
+                Message = string.Join("\n", Enumerable.Repeat("long body", 40))
+            }, "plugin", "Plugin");
+            var first = Submit();
+            var next = Submit();
+            queue.Feed();
+            Assert.AreEqual(1, windows.Count);
+            Assert.IsFalse(next.Completion.IsCompleted);
+            windows.Countdown().Single().Window.Close();
+            Assert.AreEqual(NotificationResult.Success, first.Completion.Result);
+            Assert.AreSame(next, windows.Countdown().Single().Item);
+        }
+        finally
+        {
+            queue.Shutdown();
+            windows.CloseEverything();
+        }
+    }
+
+    [StaTestMethod]
+    public void DragStart_CancelsSlideBeforeNestedRestacking()
+    {
+        var windows = new NotificationWindowManager(_ => { }, _ => { });
+        try
+        {
+            windows.Present(Item("drag me"));
+            var runner = windows.Countdown().Single();
+            var card = (Lertaro.App.Views.Notifications.NotificationCardWindow)runner.Window;
+            Assert.IsNotNull(runner.Moving);
+            card.BeginUserDrag();
+            Assert.IsNull(runner.Moving);
+            card.Top = 100;
+            card.Left = 200;
+            windows.Restack(true);
+            Assert.AreEqual(100, card.Top);
+            Assert.AreEqual(200, card.Left);
+            card.EndUserDrag();
+            Assert.AreEqual(100, card.Top);
+            Assert.IsNull(runner.Moving);
+        }
+        finally
+        {
+            windows.CloseEverything();
+        }
+    }
+
     private static NotificationRequest Request(string text) => new() { Title = text, Message = text };
 
     private static NotificationItem Item(string text) =>

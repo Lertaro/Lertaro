@@ -44,7 +44,9 @@ internal static class NotificationService
         message => ThreadPool.QueueUserWorkItem(_ => Logger.Log(message, LogLevel.Warn)),
         _gate);
 
-    private static readonly NotificationWindowManager Windows = new(OnNotificationGone, OnNotificationsGone);
+    private static readonly NotificationWindowManager Windows = new(OnNotificationGone, OnNotificationsGone,
+        (item, height, remaining) => { lock (_gate) Queue.Defer(item, height, remaining); },
+        (available, cap) => { lock (_gate) Queue.SetCardCapacity(available, cap); });
 
     private static DispatcherTimer? _ticker;
     private static long _lastTick;

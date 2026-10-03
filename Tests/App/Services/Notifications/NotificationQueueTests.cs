@@ -609,6 +609,32 @@ public class NotificationQueueTests
     }
 
     [TestMethod]
+    public void DeferredCard_WaitsForCapacityAndCanBeCancelledWithoutAWindow()
+    {
+        var first = ShowCard("first");
+        var next = ShowCard("next");
+        _screen.Hide(first);
+        _queue.Defer(first, 260, 1234);
+        _queue.SetCardCapacity(200, 260);
+        for (var i = 0; i < 10; i++) _queue.Feed();
+        Assert.HasCount(1, _screen.Shown);
+        Assert.IsFalse(first.Completion.IsCompleted);
+        Assert.AreEqual(1234, first.RemainingMs);
+
+        _queue.SetCardCapacity(300, 260);
+        _queue.Feed();
+        Assert.AreSame(first, _screen.Shown[^1]);
+        Assert.HasCount(2, _screen.Shown);
+        _screen.Hide(first);
+        _queue.Defer(first, 260, 1000);
+        var hidden = _screen.Hidden.Count;
+        first.Dismiss();
+        Assert.HasCount(hidden, _screen.Hidden);
+        Assert.AreEqual(NotificationResult.Success, ResultOf(first));
+        Assert.AreSame(next, _screen.Shown[^1]);
+    }
+
+    [TestMethod]
     public void EveryRequestThatWasAccepted_ReachesAnEndState()
     {
         var items = Enumerable.Range(0, 24)

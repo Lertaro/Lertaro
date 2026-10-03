@@ -40,6 +40,11 @@ internal sealed class NotificationItem(
     /// <summary>Seconds already clipped to the position's range: how long it will be on screen.</summary>
     public double DurationSeconds { get; set; } = durationSeconds;
 
+    // A measured card can return to the queue when the work area cannot hold it. Keep both its size and its
+    // unspent display time, so it neither rebuilds every tick nor starts a fresh countdown when room returns.
+    internal double? MeasuredHeightDip { get; set; }
+    internal double? RemainingMs { get; set; }
+
     /// <summary>Whether this ever had a window, which decides whether cancelling has anything to take down.</summary>
     internal bool ReachedScreen { get; set; }
 
