@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageVersion Include="lunar-csharp" Version="1.6.8" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Primitives" Version="10.0.12" />
@@ -12,6 +13,7 @@
     <PackageVersion Include="MSTest" Version="4.4.1" />
     <PackageVersion Include="MSTest.TestAdapter" Version="4.4.1" />
     <PackageVersion Include="MSTest.TestFramework" Version="4.4.1" />
+    <PackageVersion Include="OpenccNetLib" Version="1.7.0" />
     <PackageVersion Include="PdfPig" Version="0.1.16" />
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
     <PackageVersion Include="System.IO.Hashing" Version="10.0.12" />
