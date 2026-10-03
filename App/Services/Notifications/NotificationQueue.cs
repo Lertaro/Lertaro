@@ -79,11 +79,12 @@ internal sealed class NotificationQueue(
     /// <see cref="CloseFromHandle"/>.</summary>
     public void NotifyClosed(NotificationItem item)
     {
+        var isNotice = ReferenceEquals(_notice, item);
+        var removed = _cards.Remove(item) | _pending.Remove(item);
+        if (!isNotice && !removed) return;
+        if (isNotice) _notice = null;
         item.Complete(NotificationResult.Success);
-        if (ReferenceEquals(_notice, item)) _notice = null;
         var hadWindow = item.ReachedScreen;
-        _cards.Remove(item);
-        _pending.Remove(item);
         // A caller dismissing its own notification, or clicking its body, ends something still on screen, and
         // this is the only path that reaches the window then: the paths that tore it down themselves (a
         // replacement, a cancellation) find nothing left to do inside.

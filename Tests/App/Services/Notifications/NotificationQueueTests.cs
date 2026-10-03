@@ -499,6 +499,56 @@ public class NotificationQueueTests
     }
 
     [TestMethod]
+    [DataRow("dismissed")]
+    [DataRow("replaced")]
+    [DataRow("rejected")]
+    [DataRow("cancelled")]
+    public void DismissOfAnEndedHandle_DoesNotHideOrPromoteAnything(string ending)
+    {
+        var ended = ShowCard("old handle", id: "job");
+        switch (ending)
+        {
+            case "dismissed": ended.Dismiss(); break;
+            case "replaced": ShowCard("replacement", id: "job"); break;
+            case "rejected":
+                ShowCards(2, 10);
+                ended = ShowCard("rejected");
+                break;
+            case "cancelled": _queue.CancelPlugin(PluginA); break;
+        }
+        Assert.IsTrue(ended.Completion.IsCompleted);
+        ShowCards(1, 4, PluginB, SourceB);
+        var shown = _screen.Shown.Count;
+        var hidden = _screen.Hidden.Count;
+        var reads = _screen.ScreenReads;
+        var result = ResultOf(ended);
+
+        for (var i = 0; i < 10; i++) ended.Dismiss();
+
+        Assert.HasCount(shown, _screen.Shown);
+        Assert.HasCount(hidden, _screen.Hidden);
+        Assert.AreEqual(reads, _screen.ScreenReads);
+        Assert.AreEqual(result, ResultOf(ended));
+    }
+
+    [TestMethod]
+    public void Dismiss_WithSynchronousWindowCloseCallback_PromotesOnlyOnce()
+    {
+        _queue = new NotificationQueue(() => false, _screen.Show, item =>
+        {
+            _screen.Hide(item);
+            _queue.NotifyClosed(item);
+        }, _screen.Warn, _gate);
+        var cards = ShowCards(1, 4);
+
+        cards[0].Dismiss();
+
+        Assert.HasCount(1, _screen.Hidden);
+        Assert.HasCount(2, _screen.Shown);
+        Assert.AreSame(cards[1], _screen.Shown[^1]);
+    }
+
+    [TestMethod]
     public void WithdrawingAnAlreadyReplacedNotice_LeavesTheNewOneAlone()
     {
         var first = ShowNotice("withdrawn after the fact");
