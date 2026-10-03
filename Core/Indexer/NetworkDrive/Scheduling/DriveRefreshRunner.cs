@@ -36,14 +36,7 @@ internal static class DriveRefreshRunner
         try
         {
             setStatus(drive, "indexing", 0, null);
-            var settings = UserSettings.Load();
-            var options = new WalkOptions(
-                settings.ExcludedPaths,
-                settings.IgnoredPathGlobs,
-                settings.IgnoredPathRegexes,
-                0,
-                0,
-                true);
+            var options = WalkOptions.FromUserSettings(UserSettings.Load());
             var previousStore = getPreviousStore(drive);
             LogResumeProgress(drive, previousStore);
             var index = NetworkIndex.Build(
@@ -61,19 +54,39 @@ internal static class DriveRefreshRunner
             token.ThrowIfCancellationRequested();
             // Reaching here without cancellation only means TreeBuilder.Run() drained its queue -- NOT
             // that every directory's real contents were captured. A directory that failed to enumerate
-            // (network hiccup, permissions) is caught silently in WalkDirectory (CountError + return,
-            // never MarkListed), so it stays un-Listed for a future rebuild to retry regardless. This
-            // used to gate IsComplete on Errors == 0, but requiring a literal zero across a huge
-            // network/virtual-drive tree meant IsComplete could functionally never become true --
-            // forcing a full initial-refresh attempt on every single app start regardless of refresh
-            // mode (see NetworkIndexer.Configure's cachedDrives gate), since a scan of that size hitting
-            // at least one transient error somewhere is common. Always marking complete accepts that a
-            // directory which keeps failing every pass just stays permanently un-listed until the user
-            // notices and triggers a manual rebuild themselves, rather than perpetually retrying it.
+            // (network hiccup, permissions) is counted as an error and left un-Listed by the walker (see
+            // TreeBuilderEnumerationExtensions), so a future pass re-lists it. This used to gate
+            // IsComplete on Errors == 0, but requiring a literal zero across a huge network/virtual-drive
+            // tree meant IsComplete could functionally never become true -- forcing a full initial-refresh
+            // attempt on every single app start regardless of refresh mode (see NetworkIndexer.Configure's
+            // cachedDrives gate). "The walk finished" and "every directory was captured" are therefore two
+            // separate facts now: IsComplete stays true (this pass did finish), while a marker file next
+            // to the cache records the un-captured directories and keeps this index out of cachedDrives --
+            // so the next start/refresh revisits exactly those directories, incrementally (TreeDiffBaseline
+            // reuses every directory already Listed, it never re-lists the whole volume), and a pass that
+            // finishes with no enumeration errors clears the marker again. A directory that keeps failing
+            // forever thus costs one incremental pass per drive start rather than a full rescan.
             index.IsComplete = true;
-            if (index.Errors > 0)
-                Logger.Log($"[NetworkIndexer] {drive}: finished with {index.Errors} error(s) ({index.EnumerateErrors} enumerate, {index.AttributeErrors} attribute) -- marking complete anyway; affected directories stay un-Listed for a future manual rebuild to retry.", LogLevel.Warn);
+            var cachePath = IndexerHelper.GetCachePath(drive);
+            var uncaptured = index.EnumerateErrors > 0;
+            if (uncaptured)
+            {
+                Logger.Log($"[NetworkIndexer] {drive}: finished with {index.Errors} error(s) ({index.EnumerateErrors} enumerate, {index.AttributeErrors} attribute); {index.EnumerateErrors} directory listing(s) were never captured -- they stay un-Listed and are marked for another pass.", LogLevel.Warn);
+                // Marker BEFORE the cache write: interrupted between the two, a stale marker only costs
+                // one extra incremental pass, while a missing one would hide these directories behind
+                // "complete" again.
+                SetUncapturedMarker(cachePath, uncaptured: true);
+            }
+            else if (index.Errors > 0)
+            {
+                Logger.Log($"[NetworkIndexer] {drive}: finished with {index.Errors} error(s) ({index.EnumerateErrors} enumerate, {index.AttributeErrors} attribute).", LogLevel.Warn);
+            }
+
             IndexerHelper.Save(index);
+
+            // Cleared only AFTER the cache is on disk, for the same reason in the other direction.
+            if (!uncaptured)
+                SetUncapturedMarker(cachePath, uncaptured: false);
 
             stopwatch.Stop();
             Logger.Log($"[NetworkIndexer] {drive}: finished in {stopwatch.Elapsed.TotalSeconds:F1}s, {index.Count} records.");
@@ -94,6 +107,37 @@ internal static class DriveRefreshRunner
         {
             Logger.Log($"[NetworkIndexer] Failed to index {drive}: {ex.Message}", LogLevel.Error);
             setStatus(drive, "error", null, ex.Message);
+        }
+    }
+
+    // "Complete, but some directories were never captured" is persisted as a marker file next to the
+    // drive's cache, not as a field inside the index's own snapshot: adding one to IndexV2's header would
+    // change the on-disk format and invalidate every existing cache on upgrade (see SnapshotFormat.Version).
+    // The name deliberately does not end in ".idx", which NetworkDriveCacheLocator.EnumerateNetworkStores
+    // globs for when listing cached drives.
+    internal const string UncapturedMarkerSuffix = ".uncaptured";
+
+    internal static string GetUncapturedMarkerPath(string cachePath) => cachePath + UncapturedMarkerSuffix;
+
+    // What tells "complete" apart from "complete, but directories are missing" -- the one fact
+    // NetworkIndexer.Configure's cachedDrives gate needs.
+    internal static bool HasUncapturedMarker(string cachePath) => File.Exists(GetUncapturedMarkerPath(cachePath));
+
+    internal static void SetUncapturedMarker(string cachePath, bool uncaptured)
+    {
+        var path = GetUncapturedMarkerPath(cachePath);
+        try
+        {
+            if (uncaptured)
+                File.WriteAllText(path, string.Empty);
+            else
+                File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            // A marker that could not be written is the pre-existing behavior (the index still works, it
+            // just looks fully cached), so it must never fail a refresh that otherwise succeeded.
+            Logger.Log($"[NetworkIndexer] Failed to update the un-captured-directory marker {path}: {ex.Message}", LogLevel.Warn);
         }
     }
 

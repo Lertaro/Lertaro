@@ -143,15 +143,16 @@ public sealed class NetworkIndexer : IDisposable
                         _indexes[drive] = index;
                         _statuses[drive] = NetworkIndexerHelper.CreateStatus(drive, "cached", index.Count, index, null);
                         // An incomplete cache (interrupted scan) must not be mistaken for "nothing to do" --
-                        // only a fully-finished index skips the initial refresh below.
-                        if (index.IsComplete)
+                        // and neither must a complete one that finished with directories it never captured
+                        // (see IsFullyCached). Only a fully captured index skips the initial refresh below.
+                        if (IsFullyCached(index.IsComplete, DriveRefreshRunner.HasUncapturedMarker(IndexerHelper.GetCachePath(drive))))
                             cachedDrives.Add(drive);
                         lastUpdatedTimes[drive] = index.LastUpdated;
                     }
                 }
                 else
                 {
-                    if (_indexes[drive].IsComplete)
+                    if (IsFullyCached(_indexes[drive].IsComplete, DriveRefreshRunner.HasUncapturedMarker(IndexerHelper.GetCachePath(drive))))
                         cachedDrives.Add(drive);
                     lastUpdatedTimes[drive] = _indexes[drive].LastUpdated;
                 }
@@ -168,6 +169,15 @@ public sealed class NetworkIndexer : IDisposable
         foreach (var root in changedRoots)
             NotifyDirectoriesChanged(root, null);
     }
+
+    // "Complete" on its own only means the walk drained its queue; an index that finished with enumeration
+    // errors still holds directories it never captured (persisted as DriveRefreshRunner's marker file).
+    // Treating that as fully cached is what left those directories missing under the default Manual refresh
+    // mode: nothing ever ran a second pass. Not fully cached instead means Scheduler.StartRefresh queues one
+    // more pass, which stays incremental -- TreeDiffBaseline reuses every directory already Listed and only
+    // the un-Listed (never captured) ones are listed again.
+    internal static bool IsFullyCached(bool isComplete, bool hasUncapturedDirectories)
+        => isComplete && !hasUncapturedDirectories;
 
     public bool RefreshDrive(string drive)
     {

@@ -128,80 +128,40 @@ internal sealed class TreeBuilder
         {
             while (reader.TryRead(out var current))
             {
-                _token.ThrowIfCancellationRequested();
-                WalkDirectory(current);
-                if (Interlocked.Decrement(ref _pendingDirectories) == 0)
-                    _pending.Writer.TryComplete();
+                try
+                {
+                    _token.ThrowIfCancellationRequested();
+                    WalkDirectory(current);
+                }
+                finally
+                {
+                    // Retired even when the item throws: this is the walker's ONLY decrement and its only
+                    // TryComplete, so an item that faulted its worker without reaching them left every
+                    // surviving worker blocked in WaitToReadAsync forever -- a drive stuck on "indexing"
+                    // with nothing watching for it. The faulted task itself is still observed by the
+                    // ContinueWith in Run().
+                    if (Interlocked.Decrement(ref _pendingDirectories) == 0)
+                        _pending.Writer.TryComplete();
+                }
             }
         }
     }
 
     private void WalkDirectory(WorkItem current)
     {
-        IReadOnlyList<NativeFileEntry>? liveEntries = null;
-        if (_diffBaseline != null && this.TryReuseUnchangedDirectory(current, out liveEntries))
+        if (_diffBaseline != null && this.TryReuseUnchangedDirectory(current, out _))
             return;
 
         var ignoreRules = _filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules);
         var stopwatch = Stopwatch.StartNew();
-        IEnumerable<NativeFileEntry> children = liveEntries ?? null!;
-        var success = liveEntries != null;
-        for (var attempt = 0; !success && attempt < 3; attempt++)
+        if (!this.TryEnumerateChildren(current.Path, out var children, out var failure))
         {
-            try { children = NativeFileEnumerator.Enumerate(current.Path); success = true; break; }
-            catch when (attempt < 2 && !_token.IsCancellationRequested) { Thread.Sleep(100 * (attempt + 1)); }
-            catch { break; }
-        }
-        if (!success) { this.CountError(ref _enumerateErrors); return; }
-
-        var batch = new List<FileRecord>(RecordBatchSize);
-        foreach (var child in children)
-        {
-            _token.ThrowIfCancellationRequested();
-
-            var childPath = current.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar + child.Name;
-            var createResult = this.TryCreateRecord(child, current.LogicalPath, current.LocalId, out var record, out var isDirectory, out var logicalFullPath);
-            if (createResult != WalkRecordResult.Success)
-            {
-                this.CountCreateFailure(createResult);
-                continue;
-            }
-
-            if (!_filter.ShouldIndex(logicalFullPath, record.Name, isDirectory, record.Attributes, ignoreRules))
-            {
-                Interlocked.Increment(ref _skippedItems);
-                continue;
-            }
-
-            batch.Add(record);
-            if (batch.Count >= RecordBatchSize)
-                FlushRecords(batch);
-
-            var indexedItems = Interlocked.Increment(ref _indexedItems);
-            if (isDirectory) Interlocked.Increment(ref _indexedDirs); else Interlocked.Increment(ref _indexedFiles);
-
-            if (isDirectory && _filter.ShouldDescend(logicalFullPath, record.Attributes, current.Depth + 1, ignoreRules))
-            {
-                // A directory just added to batch isn't in _indexById until its batch is flushed -- another
-                // worker can dequeue and finish this child (including its own MarkListed) before that
-                // happens, silently leaving it un-Listed forever. Flush now so the child's own record is
-                // registered before anyone else can possibly touch it.
-                FlushRecords(batch);
-                EnqueueDirectory(childPath, logicalFullPath, record.Id, current.Depth + 1, ignoreRules, current.Ancestors,
-                    (record.Attributes & FileAttributes.ReparsePoint) != 0);
-            }
-
-            if (Interlocked.Increment(ref _countSinceProgress) >= ProgressBatchSize)
-            {
-                Interlocked.Exchange(ref _countSinceProgress, 0);
-                _onProgress(Volatile.Read(ref _indexedFiles), Volatile.Read(ref _indexedDirs));
-            }
-
-            this.MaybeCheckpoint(indexedItems);
+            this.CountEnumerationFailure(current.Path, failure!);
+            return;
         }
 
-        FlushRecords(batch);
-        this.MarkListed(current.LocalId);
+        this.ConsumeChildren(current, ignoreRules, children);
+
         if (stopwatch.ElapsedMilliseconds >= 2_000)
             Interlocked.Increment(ref _slowDirectories);
     }

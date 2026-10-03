@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Threading.Channels;
+
 using Lertaro.Core.Indexer.NetworkDrive.Walk;
 
 namespace Lertaro.Core.Tests.Indexer.NetworkDrive.Walk;
@@ -32,6 +35,42 @@ public sealed class TreeBuilderTests
 
         Assert.AreEqual(3, builder._indexedFiles);
         Assert.AreEqual(2, builder._indexedDirs);
+    }
+
+    // Regression coverage for a work item that faults its worker: the pending-directory decrement and the
+    // channel completion used to sit AFTER WalkDirectory, so the faulting worker skipped both and every
+    // other worker stayed blocked in WaitToReadAsync forever -- a drive stuck on "indexing" with no
+    // watchdog to notice. Two workers, so the second one is genuinely parked on the channel when the first
+    // one throws.
+    [TestMethod]
+    public void Run_WorkItemThrows_WorkersStillFinishInsteadOfBlockingOnTheChannel()
+    {
+        using var dir = new TempDirectory();
+        File.WriteAllText(Path.Combine(dir.Path, "a.txt"), "x");
+        // Only the fallback that releases a worker nobody completed -- a wedge must fail the assertions
+        // below rather than hang the whole test run.
+        using var fallback = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var builder = new TreeBuilder(
+            new FileRecordStore(), dir.Path, dir.Path,
+            new WalkOptions([], [], [], MaxDepth: 0, WorkerCount: 2, UseIgnoreFiles: false),
+            fallback.Token, (_, _) => throw new InvalidOperationException("progress callback blew up"));
+        builder._store.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot));
+        builder.RegisterDirectoryIndices(0, builder._store.Records);
+        // The single file below is enough to cross the progress threshold and invoke that callback.
+        builder._countSinceProgress = TreeBuilder.ProgressBatchSize - 1;
+
+        var stopwatch = Stopwatch.StartNew();
+        // WaitAll observes the faulted worker, exactly as it already did -- what must not happen is the
+        // walk surviving on the fallback token above.
+        Assert.ThrowsExactly<AggregateException>(() => builder.Run());
+        stopwatch.Stop();
+
+        Assert.IsLessThan(5_000L, stopwatch.ElapsedMilliseconds,
+            "the surviving worker must be released by the channel completing, not by the test's own cancellation");
+        // The channel really was completed: a further enqueue is refused instead of being accepted by a
+        // channel whose readers have all given up on it.
+        Assert.ThrowsExactly<ChannelClosedException>(() =>
+            builder.EnqueueDirectory(dir.Path, dir.Path, parentId: 77, depth: 1, NetworkIgnoreRuleSet.Empty));
     }
 
     [TestMethod]
