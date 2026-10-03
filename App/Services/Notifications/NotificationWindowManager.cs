@@ -64,6 +64,12 @@ internal sealed class NotificationWindowManager(
 
         var runner = new NotificationRunner(item, window) { Arriving = isCard };
         _runners[item] = runner;
+        window.Closed += (_, _) =>
+        {
+            // Alt+F4 and other system closes bypass TakeWindow. Claim the runner once; our own closes
+            // already removed it, so a batch still produces only its single notification to the queue.
+            if (_runners.Remove(item)) onGone(item);
+        };
         // ShowActivated=False on both kinds: a notification that takes the foreground is worse than one that
         // never arrived, for anyone typing. Which kind of window this is was decided by the window itself from
         // the active theme's opacity, before it had a handle to commit that with.
