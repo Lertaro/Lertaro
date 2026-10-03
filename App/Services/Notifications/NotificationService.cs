@@ -95,10 +95,14 @@ internal static class NotificationService
         }
     }
 
-    /// <summary>Cancels a plugin's outstanding requests, for when its last enabled component goes off.</summary>
-    internal static void CancelPlugin(string pluginKey)
+    /// <summary>Changes admission before plugin producers are stopped or restarted by settings refresh.</summary>
+    internal static void SetPluginEnabled(string pluginKey, bool enabled)
     {
-        lock (_gate) Queue.CancelPlugin(pluginKey);
+        lock (_gate)
+        {
+            if (enabled) Queue.EnablePlugin(pluginKey);
+            else Queue.CancelPlugin(pluginKey);
+        }
     }
 
     /// <summary>Closes everything on screen and ends every outstanding request. The launcher is going away, so

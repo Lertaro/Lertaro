@@ -350,6 +350,53 @@ public class NotificationQueueTests
     }
 
     [TestMethod]
+    public void CancelPlugin_BlocksInFlightProducerSubmissionsUntilReenabled()
+    {
+        var before = ShowCard("before disabling");
+        var notice = ShowNotice("before disabling");
+        _queue.CancelPlugin(PluginA.ToUpperInvariant());
+
+        var lateCard = ShowCard("worker finishes its reconcile pass");
+        var lateNotice = ShowNotice("late notice");
+        foreach (var item in new[] { before, notice, lateCard, lateNotice })
+            Assert.AreEqual(NotificationFailure.CancelledByPluginUnload, ResultOf(item).Failure);
+        Assert.HasCount(2, _screen.Shown);
+        Assert.IsEmpty(_screen.Visible);
+
+        _queue.EnablePlugin(PluginA);
+        var resumed = ShowCard("after re-enabling");
+        Assert.IsTrue(IsOutstanding(resumed));
+        Assert.AreSame(resumed, Assert.ContainsSingle(_screen.Visible));
+        Assert.AreEqual(NotificationFailure.CancelledByPluginUnload, ResultOf(lateCard).Failure);
+    }
+
+    [TestMethod]
+    public void CancelPlugin_ClosesAdmissionBeforeWindowTeardownCanSubmitAgain()
+    {
+        NotificationItem? late = null;
+        _queue = new NotificationQueue(() => false, _screen.Show,
+            _ => late = ShowCard("reentrant producer"), _screen.Warn, _gate);
+        ShowCard("visible");
+
+        _queue.CancelPlugin(PluginA);
+
+        Assert.IsNotNull(late);
+        Assert.AreEqual(NotificationFailure.CancelledByPluginUnload, ResultOf(late).Failure);
+        Assert.HasCount(1, _screen.Shown);
+    }
+
+    [TestMethod]
+    public void ReenablingPlugin_CannotReopenAStoppedHost()
+    {
+        _queue.CancelPlugin(PluginA);
+        _queue.Shutdown();
+        _queue.EnablePlugin(PluginA);
+
+        Assert.AreEqual(NotificationFailure.HostShuttingDown, ResultOf(ShowCard("late")).Failure);
+        Assert.IsEmpty(_screen.Shown);
+    }
+
+    [TestMethod]
     public void Shutdown_EndsEverythingWithHostShuttingDown()
     {
         var card = ShowCard("still running");

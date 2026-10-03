@@ -37,6 +37,7 @@ internal sealed class NotificationQueue(
 
     private readonly List<NotificationItem> _cards = [];
     private readonly List<NotificationItem> _pending = [];
+    private readonly HashSet<string> _disabledPlugins = new(StringComparer.OrdinalIgnoreCase);
     private NotificationItem? _notice;
     private bool _stopping;
 
@@ -48,12 +49,14 @@ internal sealed class NotificationQueue(
     /// the caller's task uncompleted: a rejected request comes back already failed.</summary>
     public NotificationItem Submit(NotificationRequest request, string pluginKey, string sourceName)
     {
-        if (_stopping || (string.IsNullOrWhiteSpace(request.Title) && string.IsNullOrWhiteSpace(request.Message)))
+        NotificationFailure? rejection = _stopping ? NotificationFailure.HostShuttingDown
+            : _disabledPlugins.Contains(pluginKey) ? NotificationFailure.CancelledByPluginUnload
+            : string.IsNullOrWhiteSpace(request.Title) && string.IsNullOrWhiteSpace(request.Message)
+                ? NotificationFailure.InvalidRequest : null;
+        if (rejection is { } reason)
         {
             var rejected = new NotificationItem(request, pluginKey, sourceName, request.Position, 0, null);
-            rejected.Complete(NotificationResult.Failed(_stopping
-                ? NotificationFailure.HostShuttingDown
-                : NotificationFailure.InvalidRequest));
+            rejected.Complete(NotificationResult.Failed(reason));
             return rejected;
         }
 
@@ -127,18 +130,22 @@ internal sealed class NotificationQueue(
         PromoteOne();
     }
 
-    /// <summary>Cancels everything the given plugin still has outstanding, shown or queued.</summary>
+    /// <summary>Reopens admission for a plugin whose components are being re-enabled.</summary>
+    internal void EnablePlugin(string pluginKey) => _disabledPlugins.Remove(pluginKey);
+
+    /// <summary>Closes admission and cancels everything the given plugin still has outstanding.</summary>
     public void CancelPlugin(string pluginKey)
     {
+        _disabledPlugins.Add(pluginKey);
         const NotificationFailure reason = NotificationFailure.CancelledByPluginUnload;
         _batching = true;
         try
         {
-            foreach (var item in _pending.Where(item => item.PluginKey == pluginKey).ToArray())
+            foreach (var item in _pending.Where(item => string.Equals(item.PluginKey, pluginKey, StringComparison.OrdinalIgnoreCase)).ToArray())
                 FinishCancelled(item, _pending, reason);
-            foreach (var item in _cards.Where(item => item.PluginKey == pluginKey).ToArray())
+            foreach (var item in _cards.Where(item => string.Equals(item.PluginKey, pluginKey, StringComparison.OrdinalIgnoreCase)).ToArray())
                 FinishCancelled(item, _cards, reason);
-            if (_notice?.PluginKey == pluginKey)
+            if (_notice != null && string.Equals(_notice.PluginKey, pluginKey, StringComparison.OrdinalIgnoreCase))
                 FinishCancelled(_notice, null, reason, clearNotice: true);
         }
         finally
