@@ -122,7 +122,7 @@ public sealed class KeyboardUtilsTests
     // The parse is cached by the spec string now, so these pin that the cached answer is exactly what the
     // per-keystroke string walk produced -- including the spellings that must stay inert. The mask is
     // passed as an int because the enum lives inside an internal type.
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("Ctrl", (int)KeyboardUtils.ModifierMask.Control)]
     [DataRow("CONTROL", (int)KeyboardUtils.ModifierMask.Control)]
     [DataRow(" ctrl ", (int)KeyboardUtils.ModifierMask.Control)]
