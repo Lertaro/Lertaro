@@ -94,9 +94,12 @@ public sealed class TypeFilterProviderTests
     {
         PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key switch
         {
+            // The rule reference uses the same trigger character the query tokens use (see
+            // CustomFilterQueryTokenProvider.GetConfiguredPrefix, which reads the host's
+            // SearchSyntaxService), so with no host wired in this test the default backslash applies.
             CustomFilterQueryTokenProvider.SettingKey => new List<CustomFilterItem>
             {
-                new() { Keyword = "executables", Rule = "@scripts; *.exe", ShowAsRow = true },
+                new() { Keyword = "executables", Rule = @"\scripts; *.exe", ShowAsRow = true },
                 // The referenced entry is disabled on purpose: a row may still borrow its rule, which is the
                 // one way the merged list differs from "enabled means reachable" -- the keyword is unreachable,
                 // the reference is not.
@@ -115,7 +118,7 @@ public sealed class TypeFilterProviderTests
     public void GetFilterGroups_CustomFilterWithMissingRuleReference_IsOmitted()
     {
         PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
-            ? new List<CustomFilterItem> { new() { Keyword = "missing", Rule = "@unknown", ShowAsRow = true } }
+            ? new List<CustomFilterItem> { new() { Keyword = "missing", Rule = @"\unknown", ShowAsRow = true } }
             : fallback;
 
         var ids = new TypeFilterProvider().GetFilterGroups().Single().Items.Select(i => i.Id).ToList();
