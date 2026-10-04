@@ -29,7 +29,9 @@
 ## 5. El menú de candidatos IME no aparece en la Ventana incrustada
 
 - **Diseño sin foco**: La [Ventana incrustada](./getting-started#_3-tres-modalidades-de-ventana) no toma el foco del teclado para evitar parpadeos al cerrarse. Dado que los menús de candidatos de ciertos métodos de entrada (IME) requieren foco real de ventana, pueden no mostrarse en modo incrustado.
-- **Solución recomendada**: Usa la Ventana rápida (doble pulsación de `Ctrl`), la cual cuenta con foco completo.
+- **Soluciones recomendadas**:
+  1. **Escribir pinyin directamente**: Lertaro incorpora un motor de alias por pinyin; basta escribir las letras del pinyin para que coincida con nombres de archivo en chino sin abrir el menú del método de entrada (consulta [**Sintaxis de búsqueda**](./search-syntax#_7-alias-multilingues)).
+  2. **Cambiar a la Ventana rápida**: la doble pulsación de `Ctrl` abre la Ventana rápida con foco completo, donde todos los métodos de entrada funcionan con normalidad.
 
 ## 6. Consulta de registros y reporte de errores
 
