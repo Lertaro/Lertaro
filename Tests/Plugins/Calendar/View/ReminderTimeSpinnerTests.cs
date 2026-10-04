@@ -43,7 +43,7 @@ public sealed class ReminderTimeSpinnerTests
     [DataRow(0, false, 59)]
     public void Adjust_MinuteMovesOneAtATimeAndWrapsWithinTheHour(int minute, bool forward, int expected)
     {
-        // One, not five: every value in the hour is reachable, and a notch never skips over one.
+        // One per notch: every value in the hour is reachable, and a notch never skips over one.
         var (_, actualMinute) = ReminderTimeSpinner.Adjust(9, minute, isHour: false, forward);
 
         Assert.AreEqual(expected, actualMinute);

@@ -13,7 +13,7 @@ internal static class ReminderTimeSpinner
     /// <summary>
     /// <paramref name="hour"/> and <paramref name="minute"/> moved one notch on whichever field
     /// <paramref name="isHour"/> selects. Both step by one, so a notch always means the next or the previous
-    /// value and never a jump to some coarser grid.
+    /// value.
     /// </summary>
     /// <remarks>
     /// The two fields wrap inside their own range instead of carrying into each other, so stepping the minutes

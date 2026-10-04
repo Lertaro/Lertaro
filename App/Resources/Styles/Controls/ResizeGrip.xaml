@@ -15,7 +15,7 @@
          unmistakable and gives the eye something to aim at. Drawn faint, the same as the window chrome it
          sits against.
 
-         ALIGNMENT IS THE POINT, and getting it wrong is what made an earlier attempt hard to grab. The
+         ALIGNMENT IS THE POINT. The
          element Window creates spans the window's bottom-right corner, window rect included, so a
          template rooted in a plain Grid puts its drawing wherever that Grid's own alignment puts it. The
          root here is aligned bottom-right and sized to the drawing, which lands the lines just inside the
@@ -25,11 +25,11 @@
 
          KEYLESS, AND IT HAS TO LIVE HERE rather than in a window's own dictionary. Resources/Styles.xaml
          is merged once by App.xaml, so this style is in Application.Resources and every window that asks
-         Windows for a grip picks it up, which is what the grip needs, because eight windows set
+         Windows for a grip picks it up. That is what the grip needs, because eight windows set
          ResizeMode="CanResizeWithGrip" (search, quick panel, quick look, settings, both LocalSend windows,
-         the plugin field prompt) and a per-window dictionary only reaches the windows that remember to
-         merge it. That is exactly how the settings, search and quick panel windows came to be restyled
-         while QuickLook and LocalSend were still on the theme's dotted triangle. -->
+         the plugin field prompt) and the grip is not a control any of them declares: a window can only
+         inherit it, never restyle it by declaring something, so a per-window dictionary reaches just the
+         windows that remember to merge that dictionary. -->
     <Style TargetType="{x:Type ResizeGrip}">
         <Setter Property="HorizontalAlignment" Value="Right"/>
         <Setter Property="VerticalAlignment" Value="Bottom"/>
