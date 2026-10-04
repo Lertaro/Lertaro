@@ -66,7 +66,7 @@ public readonly struct FuzzyQuery
         var rank = _pattern is null || string.IsNullOrEmpty(text)
             ? MatchRank.NoMatch
             : FuzzyMatcher.ComputeMatchRank(text, _pattern, out witness);
-        if (text is null || _pattern?.HasPositiveTerms != true)
+        if (text is null || _pattern?.HasPositiveTerm != true)
             return new MatchEvidenceResult(rank, MatchEvidence.LegacyUnknown);
 
         var acceptedVariant = witness.QueryVariant == MatchQueryVariant.LegacyUnknown

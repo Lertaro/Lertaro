@@ -26,6 +26,15 @@ internal static class AliasMatchRules
     /// none of its adjacencies is a syllable boundary. Only the START is constrained, so a match may still
     /// stop part-way through its last syllable -- which is what keeps "zhengsh" reaching 证书 mid-typing.
     ///
+    /// A boundary is the alias's own literal punctuation as well as the provider's separator. An alias keeps
+    /// the name's non-transliterated characters verbatim -- "wo\u0002yuan\u0002yi - wang\u0002fei.mp3" -- so
+    /// the syllables of a later word begin right after a space, '-' or '.', exactly where a user typing that
+    /// word's pinyin starts. Accepting only the separator there rejected every precise pinyin query aimed at
+    /// a word that is not the name's first ("?wangfei" found 王菲.txt but not 我愿意 - 王菲.mp3, while fuzzy
+    /// matching found both: a fuzzy term is not gated by this rule at all). Nothing is weakened by admitting
+    /// them: a splice needs the match to start INSIDE a syllable, where the preceding character is a letter,
+    /// and that is still rejected.
+    ///
     /// ponytail: the caller checks the start of the first occurrence it found. Rejecting a misaligned first
     /// occurrence while a later aligned one exists needs the same fragment to appear both mid-syllable and
     /// at a syllable start in one alias; the flat initials alias still covers any query the user actually
@@ -67,7 +76,10 @@ internal static class AliasMatchRules
     /// <remarks>
     /// For the hot path that matches a baked alias straight from its UTF-8 without decoding. Every
     /// separator a provider declares is ASCII (pinyin's is U+0002), so it is a single byte equal to the
-    /// char; a non-ASCII alias takes the decoded char path instead.
+    /// char; a non-ASCII alias takes the decoded char path instead. Any byte at or above 0x80 is part of a
+    /// multi-byte character, never an ASCII letter, so it counts as punctuation here -- and the char
+    /// overload agrees, because a non-ASCII character is not a letter of the alias's own writing system
+    /// either.
     /// </remarks>
     public static bool IsBoundaryAligned(char separator, ReadOnlySpan<byte> aliasUtf8, int matchStart)
     {
