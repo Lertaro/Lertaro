@@ -24,5 +24,13 @@
   "ContentSearch_NoResultsTitle": "未找到相符內容",
   "ContentSearch_NoResultsDesc": "未在已索引檔案中找到包含「{0}」的內容",
   "ContentSearch_IndexingDesc": "正在後台索引檔案（已索引 {0} 個檔案）...",
-  "ContentSearch_IndexingWithRemainingDesc": "正在後台索引檔案（已索引 {0} 個檔案，剩餘 {1} 個待索引）..."
+  "ContentSearch_IndexingWithRemainingDesc": "正在後台索引檔案（已索引 {0} 個檔案，剩餘 {1} 個待索引）...",
+  "ContentSearch_NotificationCapReachedTitle": "內容索引已達容量上限",
+  "ContentSearch_NotificationCapReachedMessage": "索引已暫停，直到提高索引體積上限或清空索引。",
+  "ContentSearch_NotificationIndexFinishedTitle": "內容索引已完成",
+  "ContentSearch_NotificationIndexFinishedMessage": "現有 {0} 個檔案可供檢索。",
+  "ContentSearch_NotificationIndexStoppedTitle": "內容索引已中斷",
+  "ContentSearch_NotificationIndexStoppedMessage": "索引已中斷，目前可檢索 {0} 個檔案。",
+  "ContentSearch_NotificationIndexPausedTitle": "內容索引已放棄",
+  "ContentSearch_NotificationIndexPausedMessage": "索引因達到體積上限而停止，目前可檢索 {0} 個檔案；提高上限或清空索引後可繼續。"
 }

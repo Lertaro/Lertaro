@@ -24,5 +24,13 @@
   "ContentSearch_NoResultsTitle": "No Matching Content Found",
   "ContentSearch_NoResultsDesc": "No content containing \"{0}\" was found in indexed files",
   "ContentSearch_IndexingDesc": "Indexing files in background (indexed {0} files)...",
-  "ContentSearch_IndexingWithRemainingDesc": "Indexing files in background (indexed {0} files, {1} remaining)..."
+  "ContentSearch_IndexingWithRemainingDesc": "Indexing files in background (indexed {0} files, {1} remaining)...",
+  "ContentSearch_NotificationCapReachedTitle": "Content index is full",
+  "ContentSearch_NotificationCapReachedMessage": "Indexing is paused until you raise the index size cap or clear the index.",
+  "ContentSearch_NotificationIndexFinishedTitle": "Content indexing finished",
+  "ContentSearch_NotificationIndexFinishedMessage": "{0} files are now searchable.",
+  "ContentSearch_NotificationIndexStoppedTitle": "Content indexing stopped",
+  "ContentSearch_NotificationIndexStoppedMessage": "Indexing was interrupted with {0} files searchable.",
+  "ContentSearch_NotificationIndexPausedTitle": "Content indexing gave up",
+  "ContentSearch_NotificationIndexPausedMessage": "Indexing stopped at the size cap with {0} files searchable; raise the cap or clear the index to continue."
 }

@@ -24,5 +24,13 @@
   "ContentSearch_NoResultsTitle": "一致するコンテンツが見つかりません",
   "ContentSearch_NoResultsDesc": "インデックス登録されたファイル内に「{0}」を含むコンテンツは見つかりませんでした",
   "ContentSearch_IndexingDesc": "バックグラウンドでファイルをインデックス中（{0} 個のファイル登録済み）...",
-  "ContentSearch_IndexingWithRemainingDesc": "バックグラウンドでファイルをインデックス中（{0} 個登録済み、残り {1} 個）..."
+  "ContentSearch_IndexingWithRemainingDesc": "バックグラウンドでファイルをインデックス中（{0} 個登録済み、残り {1} 個）...",
+  "ContentSearch_NotificationCapReachedTitle": "コンテンツインデックスが上限に達しました",
+  "ContentSearch_NotificationCapReachedMessage": "インデックスサイズ上限を引き上げるか、インデックスを削除するまでインデックス作成は停止しています。",
+  "ContentSearch_NotificationIndexFinishedTitle": "コンテンツインデックス作成が完了しました",
+  "ContentSearch_NotificationIndexFinishedMessage": "{0} 個のファイルを検索できるようになりました。",
+  "ContentSearch_NotificationIndexStoppedTitle": "コンテンツインデックス作成が中断されました",
+  "ContentSearch_NotificationIndexStoppedMessage": "インデックス作成は中断され、{0} 個のファイルを検索できます。",
+  "ContentSearch_NotificationIndexPausedTitle": "コンテンツインデックス作成を断念しました",
+  "ContentSearch_NotificationIndexPausedMessage": "サイズ上限に達してインデックス作成を停止しました。{0} 個のファイルを検索できます。続行するには上限を引き上げるかインデックスを削除してください。"
 }

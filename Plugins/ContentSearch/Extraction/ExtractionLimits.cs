@@ -31,11 +31,6 @@ public static class ExtractionLimits
     // keeping it well below SQLite's ~1 GB per-value limit.
     public const int MaxExtractedTextChars = 32 * 1024 * 1024;
 
-    // ponytail: page ceiling for the same reason, kept far above real documents (the
-    // 3000-page veterinary reference manual that motivated removing the old page cap still
-    // fits) while stopping a PDF that declares millions of pages from driving the page loop.
-    public const int MaxPdfPages = 5000;
-
     /// <summary>
     /// Opens a zip entry and materializes it, refusing to decompress more than
     /// <see cref="MaxEntryUncompressedBytes"/>. Reading the bytes first keeps the ceiling

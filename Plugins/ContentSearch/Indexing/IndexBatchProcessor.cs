@@ -18,12 +18,21 @@ public sealed class IndexBatchProcessor
     private readonly DuplicateContentResolver _duplicateResolver;
     private readonly IndexCapPauseMonitor _capPause = new();
 
+    /// <summary>
+    /// True while the last batch left the index paused at its size cap, the scheduler's cue that a
+    /// run which stops with files still queued gave up at the cap rather than being interrupted.
+    /// </summary>
+    public bool IsPausedAtCap => _capPause.IsPauseReported;
+
     public IndexBatchProcessor(ContentSearchDatabase database)
     {
         _database = database;
         _duplicateResolver = new DuplicateContentResolver(database);
     }
 
+    /// <summary>
+    /// Processes one batch of files.
+    /// </summary>
     public async Task ProcessBatchAsync(
         IReadOnlyList<string> filePaths,
         ContentIndexConfig config,

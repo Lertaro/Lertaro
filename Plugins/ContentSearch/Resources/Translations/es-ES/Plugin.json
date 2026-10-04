@@ -24,5 +24,13 @@
   "ContentSearch_NoResultsTitle": "No se encontraron resultados",
   "ContentSearch_NoResultsDesc": "No se encontró ningún archivo indexado que contenga \"{0}\"",
   "ContentSearch_IndexingDesc": "Indexando archivos en segundo plano ({0} archivos indexados)...",
-  "ContentSearch_IndexingWithRemainingDesc": "Indexando archivos en segundo plano ({0} archivos indexados, {1} restantes)..."
+  "ContentSearch_IndexingWithRemainingDesc": "Indexando archivos en segundo plano ({0} archivos indexados, {1} restantes)...",
+  "ContentSearch_NotificationCapReachedTitle": "El índice de contenido está lleno",
+  "ContentSearch_NotificationCapReachedMessage": "La indexación está en pausa hasta que aumente el límite de tamaño del índice o borre el índice.",
+  "ContentSearch_NotificationIndexFinishedTitle": "Indexación de contenido finalizada",
+  "ContentSearch_NotificationIndexFinishedMessage": "Ahora se pueden buscar {0} archivos.",
+  "ContentSearch_NotificationIndexStoppedTitle": "Indexación de contenido detenida",
+  "ContentSearch_NotificationIndexStoppedMessage": "La indexación se interrumpió con {0} archivos disponibles para buscar.",
+  "ContentSearch_NotificationIndexPausedTitle": "Indexación de contenido abandonada",
+  "ContentSearch_NotificationIndexPausedMessage": "La indexación se detuvo al alcanzar el límite de tamaño con {0} archivos disponibles para buscar; aumente el límite o borre el índice para continuar."
 }
