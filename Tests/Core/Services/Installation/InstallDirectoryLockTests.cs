@@ -153,6 +153,68 @@ public sealed class InstallDirectoryLockTests
         Assert.IsFalse(new DirectoryInfo(target).GetAccessControl().AreAccessRulesProtected);
     }
 
+    [TestMethod]
+    public void Lock_ReadOnlyForUsers_StillLetsAUserOpenAndReadAFile()
+    {
+        // Issue #316: the App, not elevated, could no longer read machine-settings.json once the service had
+        // locked the shared data dir. Granted to the current user here, since OwnedByMe's full control would
+        // hide it; the owner's implicit rights include neither reading nor listing.
+        var root = Directory.CreateDirectory(Path.Combine(_temp, "root")).FullName;
+        var settings = Path.Combine(root, "machine-settings.json");
+        File.WriteAllText(settings, "{}");
+        var users = InstallDirectoryLock.ReadOnlyForUsers.Aces.Single(ace => ace.SecurityIdentifier == InstallDirectoryLock.Users);
+        var readOnly = new InstallDirectoryLock.Zone(CurrentUser,
+            [new CommonAce(users.AceFlags, users.AceQualifier, users.AccessMask, CurrentUser, false, null)]);
+
+        try
+        {
+            InstallDirectoryLock.Lock(root, readOnly, _ => null);
+
+            Assert.AreEqual("{}", File.ReadAllText(settings));
+            Assert.HasCount(1, Directory.GetFiles(root));
+        }
+        finally
+        {
+            // The owner may always rewrite the DACL; inheritance carries it down so Cleanup can delete.
+            var restore = new DirectorySecurity();
+            restore.AddAccessRule(new FileSystemAccessRule(CurrentUser, FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+            new DirectoryInfo(root).SetAccessControl(restore);
+        }
+    }
+
+    [TestMethod]
+    public void Allow_GrantsSynchronize()
+    {
+        // FileSystemAccessRule adds it to every allow rule; a CommonAce built by hand has to, or a FileStream
+        // (which asks for GENERIC_READ or GENERIC_WRITE, both including SYNCHRONIZE) is refused outright.
+        var ace = InstallDirectoryLock.Allow(InstallDirectoryLock.Users, FileSystemRights.ReadAndExecute, AceFlags.None);
+
+        Assert.AreEqual(FileSystemRights.ReadAndExecute | FileSystemRights.Synchronize, (FileSystemRights)ace.AccessMask);
+    }
+
+    [TestMethod]
+    public void HasZone_OnlyForATreeLockedWithThatSameZone()
+    {
+        var root = Directory.CreateDirectory(Path.Combine(_temp, "root")).FullName;
+        var current = OwnedByMe();
+        // The zone as 5.8.2 wrote it: the Users ACE without SYNCHRONIZE.
+        var stale = current with
+        {
+            Aces = [.. current.Aces.Select(ace => ace.SecurityIdentifier == InstallDirectoryLock.Users
+                ? new CommonAce(ace.AceFlags, ace.AceQualifier, ace.AccessMask & ~(int)FileSystemRights.Synchronize, ace.SecurityIdentifier, false, null)
+                : ace)],
+        };
+
+        Assert.IsFalse(InstallDirectoryLock.HasZone(root, current), "never locked");
+
+        InstallDirectoryLock.Lock(root, stale, _ => null);
+        Assert.IsFalse(InstallDirectoryLock.HasZone(root, current), "locked by an older build");
+
+        InstallDirectoryLock.Lock(root, current, _ => null);
+        Assert.IsTrue(InstallDirectoryLock.HasZone(root, current));
+    }
+
     // The production zones make Administrators the owner, which a non-elevated test cannot assign; the walk
     // is the same whoever owns the result.
     private static InstallDirectoryLock.Zone OwnedByMe() => new(CurrentUser,

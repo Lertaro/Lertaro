@@ -15,6 +15,10 @@ static class ServiceInstaller
     private const bool IsDebugBuild = false;
 #endif
 
+    // ponytail: not in a Debug build, which is a developer's build output (build_and_run.bat's debug\) that the
+    // next non-elevated build has to delete and rewrite. Release zips are what ship.
+    internal static bool LocksPortableFolder => !IsDebugBuild && InstallationDetector.Detect() == InstallationMode.Portable;
+
     public static void Install()
     {
         try
@@ -28,9 +32,7 @@ static class ServiceInstaller
             // A portable copy lives wherever it was unzipped, usually somewhere every user can write, and the
             // service about to run from it as LocalSystem would load whatever anyone put there. Locked before
             // the service is pointed at it; a folder that cannot be locked is not one to install it from.
-            // ponytail: not in a Debug build, which is a developer's build output (build_and_run.bat's debug\)
-            // that the next non-elevated build has to delete and rewrite. Release zips are what ship.
-            if (InstallationDetector.Detect() == InstallationMode.Portable && !IsDebugBuild)
+            if (LocksPortableFolder)
             {
                 Logger.Log("Locking the portable folder to SYSTEM and Administrators before installing the service.");
                 var report = PortableDirectoryLock.Lock(Path.GetDirectoryName(serviceExePath)!);

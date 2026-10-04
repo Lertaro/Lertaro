@@ -85,6 +85,29 @@ public static class InstallDirectoryLock
             path => string.Equals(path, indexes, StringComparison.OrdinalIgnoreCase) ? PrivateToService : null);
     }
 
+    /// <summary>
+    /// Whether <paramref name="directory"/> already has the owner and protected DACL that <see cref="Lock"/>
+    /// gives the top of <paramref name="zone"/>. For a tree that is locked once and re-checked on every start:
+    /// the walk is only needed again when the zone itself has changed since (a tree locked by an older build).
+    /// </summary>
+    internal static bool HasZone(string directory, Zone zone)
+    {
+        var expected = Describe(zone, isZoneRoot: true, isDirectory: true);
+        var actual = new RawSecurityDescriptor(new DirectoryInfo(directory)
+            .GetAccessControl(AccessControlSections.Owner | AccessControlSections.Access).GetSecurityDescriptorBinaryForm(), 0);
+
+        return actual.Owner == expected.Owner &&
+               actual.ControlFlags.HasFlag(ControlFlags.DiscretionaryAclProtected) &&
+               actual.DiscretionaryAcl is { } acl && Binary(acl).SequenceEqual(Binary(expected.DiscretionaryAcl!));
+
+        static byte[] Binary(GenericAcl acl)
+        {
+            var bytes = new byte[acl.BinaryLength];
+            acl.GetBinaryForm(bytes, 0);
+            return bytes;
+        }
+    }
+
     internal static void Merge(Report into, Report from)
     {
         into.Removed.AddRange(from.Removed);
@@ -188,8 +211,14 @@ public static class InstallDirectoryLock
         return new CommonAce(childFlags, ace.AceQualifier, ace.AccessMask, sid, false, null);
     }
 
+    /// <summary>
+    /// An allow ACE for <paramref name="rights"/>, plus Synchronize. FileSystemAccessRule adds that to every
+    /// allow rule by itself; a raw ACE does not, and without it the grant is useless: FileStream and directory
+    /// enumeration ask for GENERIC_READ, which includes SYNCHRONIZE, so ReadAndExecute alone is refused outright
+    /// (issue #316: the App could no longer read machine-settings.json).
+    /// </summary>
     internal static CommonAce Allow(SecurityIdentifier sid, FileSystemRights rights, AceFlags flags) =>
-        new(flags, AceQualifier.AccessAllowed, (int)rights, sid, false, null);
+        new(flags, AceQualifier.AccessAllowed, (int)(rights | FileSystemRights.Synchronize), sid, false, null);
 
     /// <summary>
     /// Enables SeBackup/SeRestore for the walk: they let an elevated admin or SYSTEM open an entry whose

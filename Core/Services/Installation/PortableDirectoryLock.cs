@@ -68,6 +68,15 @@ public static class PortableDirectoryLock
     }
 
     /// <summary>
+    /// Whether the copy at <paramref name="appDirectory"/> is still locked the way <see cref="Lock"/> does it
+    /// now. False for a copy installed before the lock existed, or locked by a build whose zones were wrong
+    /// (5.8.2 granted Users read without SYNCHRONIZE, which refused even starting the App: issue #316). The
+    /// service applies updates in place, without running --install again, so it checks this on every start.
+    /// </summary>
+    public static bool IsCurrent(string appDirectory) =>
+        InstallDirectoryLock.HasZone(Path.TrimEndingDirectorySeparator(Path.GetFullPath(appDirectory)), ReadOnlyForUsers);
+
+    /// <summary>
     /// Which zone starts where in a portable copy at <paramref name="appDirectory"/> (null: inherit), and the
     /// per-user folders that belong to the accounts in <paramref name="profileSids"/>.
     /// </summary>

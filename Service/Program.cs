@@ -27,7 +27,7 @@ static class Program
         {
             // Before the log is opened: the service writes this directory as LocalSystem, and until it is
             // locked any user may have planted a link in it that redirects exactly that write.
-            var (lockReport, lockError) = LockSharedDataDirectory();
+            var (lockReport, lockErrors) = LockDirectories(isService: args.Length > 0 && args[0].Equals("--service", StringComparison.OrdinalIgnoreCase));
             Logger.Initialize("service.log", Logger.SharedDataDir, overwrite: true);
             // Before the first line, so the level applies to everything this run writes. The service is
             // the one process that cannot read the per-user log-level setting -- it runs as LocalSystem
@@ -41,8 +41,8 @@ static class Program
                 Logger.Log($"[InstallDirectoryLock] Removed a link that was not this product's: {path}", LogLevel.Warn);
             foreach (var failure in lockReport.Failed)
                 Logger.Log($"[InstallDirectoryLock] Could not reset {failure}", LogLevel.Error);
-            if (lockError is not null)
-                Logger.Log($"[InstallDirectoryLock] Could not lock {Logger.SharedDataDir}: {lockError.Message}", LogLevel.Error);
+            foreach (var error in lockErrors)
+                Logger.Log($"[InstallDirectoryLock] Could not lock {error}", LogLevel.Error);
         }
 
         if (args.Length > 0)
@@ -93,15 +93,35 @@ static class Program
 
     // Only a process running as LocalSystem or elevated can do this; the debug console run by a plain user
     // gets the error back and carries on, as it always has, with a directory it can write.
-    private static (InstallDirectoryLock.Report Report, Exception? Error) LockSharedDataDirectory()
+    //
+    // The service also re-locks a portable copy's own folder when that is no longer locked the way this build
+    // locks it: updates are applied in place without another --install, so this is the only point at which a
+    // copy installed before the lock existed, or locked by 5.8.2 (issue #316), gets the current one.
+    private static (InstallDirectoryLock.Report Report, List<string> Errors) LockDirectories(bool isService)
     {
-        try
+        var report = new InstallDirectoryLock.Report();
+        var errors = new List<string>();
+
+        Lock(Logger.SharedDataDir, () => InstallDirectoryLock.LockSharedDataDirectory(Logger.SharedDataDir));
+        var appDirectory = AppContext.BaseDirectory;
+        if (isService && ServiceInstaller.LocksPortableFolder)
+            Lock(appDirectory, () => PortableDirectoryLock.IsCurrent(appDirectory) ? null : PortableDirectoryLock.Lock(appDirectory));
+        return (report, errors);
+
+        void Lock(string directory, Func<InstallDirectoryLock.Report?> lockIt)
         {
-            return (InstallDirectoryLock.LockSharedDataDirectory(Logger.SharedDataDir), null);
-        }
-        catch (Exception ex)
-        {
-            return (new InstallDirectoryLock.Report(), ex);
+            try
+            {
+                if (lockIt() is { } locked)
+                {
+                    report.Removed.AddRange(locked.Removed);
+                    report.Failed.AddRange(locked.Failed);
+                }
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{directory}: {ex.Message}");
+            }
         }
     }
 }

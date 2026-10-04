@@ -21,7 +21,8 @@ public sealed class PortableDirectoryLockTests
             InstallDirectoryLock.Describe(PortableDirectoryLock.UsersDirectory, isZoneRoot: true, isDirectory: true));
 
         var users = aces.Single(ace => ace.SecurityIdentifier == InstallDirectoryLock.Users);
-        Assert.AreEqual(FileSystemRights.ReadAndExecute | FileSystemRights.CreateDirectories, (FileSystemRights)users.AccessMask);
+        Assert.AreEqual(FileSystemRights.ReadAndExecute | FileSystemRights.CreateDirectories | FileSystemRights.Synchronize,
+            (FileSystemRights)users.AccessMask);
         Assert.AreEqual(AceFlags.None, users.AceFlags, "this folder only: no rights inside anyone's own folder");
 
         var creatorOwner = aces.Single(ace => ace.SecurityIdentifier.IsWellKnown(WellKnownSidType.CreatorOwnerSid));
