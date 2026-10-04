@@ -93,7 +93,12 @@ public class UserSettings
     // user-settings.json is hand-editable, and a screen too short for the count gives fewer rows either way.
     public int InlineSearchWindowMaxRows { get; set; } = 10;
     public int InlineSearchDialogMaxRows { get; set; } = 4;
-    public string GlobalTokenPrefix { get; set; } = ":";
+    public string GlobalTokenPrefix { get; set; } = "\\";
+    // Whether the startup balloon for a carried-over, no-longer-usable token prefix has already been shown.
+    // Persisted so the notice is given ONCE rather than on every launch: the settings page keeps reporting
+    // the value itself (see QueryTokenPrefixRules), and repeating an unobtainable balloon every start is
+    // just noise. See LegacySettingsAdvisor.ShouldShowNotice.
+    public bool LegacyTokenPrefixNoticeShown { get; set; } = false;
     public string LogLevel { get; set; } = "Info";
     public string PreferredLanguage { get; set; } = GetDefaultSystemLanguage();
     public string Theme { get; set; } = "Light";
