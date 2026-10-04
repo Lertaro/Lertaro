@@ -190,6 +190,13 @@ internal static class PluginLoader
                     registry.AddSearchScopeProvider(provider);
                     Logger.Log($"[PluginManager] Loaded search scope provider: '{type.Name}' from {fileName}");
                 }
+
+                if (typeof(PluginSdk.Abstractions.Plugins.ICalendarTextProvider).IsAssignableFrom(type))
+                {
+                    var provider = (PluginSdk.Abstractions.Plugins.ICalendarTextProvider)Activator.CreateInstance(type)!;
+                    registry.AddCalendarTextProvider(provider);
+                    Logger.Log($"[PluginManager] Loaded calendar text provider: '{type.Name}' from {fileName}");
+                }
             }
         }
         catch (BadImageFormatException)

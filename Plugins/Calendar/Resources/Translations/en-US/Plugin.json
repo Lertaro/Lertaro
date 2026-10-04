@@ -4,6 +4,7 @@
   "Calendar_ProviderName": "Calendar",
   "Calendar_ProviderDesc": "Opens a month-view calendar with lunar dates, solar terms, holidays and make-up days.",
   "Plugin_Comp_Desc_CalendarInstantProvider": "Opens the month-view calendar with lunar dates, holidays and reminders.",
+  "Calendar_TextProviderDesc": "Supplies the lunar date, solar terms and festivals for the quick window's clock line.",
   "Plugin_Comp_Desc_CalendarTranslationProvider": "Provides UI translations and localization resources for the Calendar plugin.",
   "Calendar_Config_TriggerLabel": "Trigger keyword",
   "Calendar_Config_TriggerDesc": "Type this word in the search box to open the calendar.",

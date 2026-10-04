@@ -4,6 +4,7 @@
   "Calendar_ProviderName": "カレンダー",
   "Calendar_ProviderDesc": "旧暦・二十四気・祝日・振替出勤を表示する月表示カレンダーを開きます。",
   "Plugin_Comp_Desc_CalendarInstantProvider": "旧暦と祝日とリマインダー付きの月表示カレンダーを開きます。",
+  "Calendar_TextProviderDesc": "クイック検索ウィンドウの時計行に、旧暦・二十四節気・祝日を提供します。",
   "Plugin_Comp_Desc_CalendarTranslationProvider": "カレンダープラグインの UI 翻訳とローカライズ資源を提供します。",
   "Calendar_Config_TriggerLabel": "トリガーキーワード",
   "Calendar_Config_TriggerDesc": "検索ボックスに入力するとカレンダーが開きます。",

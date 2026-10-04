@@ -4,6 +4,7 @@
   "Calendar_ProviderName": "Calendario",
   "Calendar_ProviderDesc": "Abre un calendario mensual con fecha lunar, solsticios y equinoccios, festivos y días de trabajo recuperado.",
   "Plugin_Comp_Desc_CalendarInstantProvider": "Abre el calendario mensual con fecha lunar, festivos y avisos.",
+  "Calendar_TextProviderDesc": "Aporta la fecha lunar, los términos solares y las festividades para la línea del reloj de la ventana de búsqueda rápida.",
   "Plugin_Comp_Desc_CalendarTranslationProvider": "Aporta las traducciones y los recursos de localización del complemento Calendario.",
   "Calendar_Config_TriggerLabel": "Palabra clave activadora",
   "Calendar_Config_TriggerDesc": "Escribe esta palabra en el cuadro de búsqueda para abrir el calendario.",

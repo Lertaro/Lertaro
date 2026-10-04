@@ -25,4 +25,5 @@ internal interface PluginRegistry
     void AddQueryTokenProvider(IQueryTokenProvider provider);
     void AddQuickPanelTabProvider(IQuickPanelTabProvider provider);
     void AddSearchScopeProvider(ISearchScopeProvider provider);
+    void AddCalendarTextProvider(ICalendarTextProvider provider);
 }
