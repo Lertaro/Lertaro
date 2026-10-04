@@ -33,7 +33,7 @@ Hotkeys      - ホットキー設定
 Plugins      - プラグイン管理
 Favorites    - お気に入り
 History      - 検索履歴
-QuickLaunch  - クイック起動
+QuickLaunch  - スタートページ
 QuickPanel   - クイックパネル
 LocalSend    - LocalSend 転送
 About        - バージョン情報

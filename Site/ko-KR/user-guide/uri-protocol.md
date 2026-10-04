@@ -33,7 +33,7 @@ Hotkeys      - 단축키 설정
 Plugins      - 플러그인 관리
 Favorites    - 즐겨찾기
 History      - 검색 기록
-QuickLaunch  - 빠른 실행
+QuickLaunch  - 시작 페이지
 QuickPanel   - 퀵 패널
 LocalSend    - LocalSend 전송
 About        - 정보 및 업데이트
