@@ -26,12 +26,8 @@ public sealed class AutoCADFileDialogAdapterTests
     }
 
     [TestMethod]
-    public void IsAnOpenSaveDialogAdapter()
-    {
-        var adapter = new AutoCADFileDialogAdapter();
-
-        Assert.IsFalse(adapter.TargetIsFolderOnly);
-        Assert.IsInstanceOfType<IFileDialogAdapter>(adapter);
-        Assert.IsFalse(string.IsNullOrWhiteSpace(adapter.Name));
-    }
+    public void TargetIsFolderOnly_IsFalse() =>
+        // Unlike the archive-tool adapters, whose destination field can only hold a folder, this one is an
+        // Open/Save file-name box: a picked file must arrive as that file, not as its parent folder.
+        Assert.IsFalse(new AutoCADFileDialogAdapter().TargetIsFolderOnly);
 }

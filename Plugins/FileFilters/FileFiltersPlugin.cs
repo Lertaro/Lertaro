@@ -43,9 +43,10 @@ public class FileFiltersPlugin : IPlugin, IConfigurable
                         DescriptionKey = "FileFilters_Config_KeywordDesc",
                         FieldType = ConfigFieldType.Text,
                         DefaultValue = "",
-                        // A scope keyword the file search answers to ("tf report"), so a clash with another
-                        // feature is warned about at the field that sets it.
-                        IsTriggerWord = true
+                        // A scope keyword the file search answers to ("tf report"): a leading word like any
+                        // other trigger, so it is declared the same way and gets the same reserved-character
+                        // check and collision warning.
+                        Validation = ConfigFieldValidation.TriggerKeyword
                     },
                     new PluginConfigField
                     {
