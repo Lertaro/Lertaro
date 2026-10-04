@@ -245,9 +245,54 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock x:Name="TimePromptText" VerticalAlignment="Center" Margin="0,0,6,0"
                                Foreground="{DynamicResource TextSecondary}"/>
-                    <TextBox x:Name="TimeInput" Grid.Column="1" Width="58"
-                             VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
-                             MaxLength="5"/>
+                    <!-- Two fields in one themed frame rather than a single "HH:mm" box. Each half is its own
+                         TextBox, so a wheel notch or an arrow press moves the half the pointer or caret is
+                         already on, with nothing to work out from a character index. Both halves stay freely
+                         typable, which the themed ComboBox could not offer: its template is a ToggleButton
+                         with no editable text box part. The corner radius is a literal like its neighbours
+                         above rather than the CornerRadiusControl token, matching how this view is written. -->
+                    <Border x:Name="TimeFieldBorder" Grid.Column="1" Height="30" Padding="4,0"
+                            CornerRadius="6" BorderThickness="1">
+                        <Border.Style>
+                            <!-- All three brushes on the Style, never as attributes on the element: a local
+                                 value outranks a trigger, and the frame would then never light up on hover or
+                                 focus. Same accent-on-hover/focus the ThemedTextBox uses. -->
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+                                    </Trigger>
+                                    <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <!-- No VerticalAlignment on the panel: a horizontal StackPanel then hands its own
+                             height down, so both fields fill the frame and the whole box is a click and wheel
+                             target rather than just the glyph-height strip in the middle of it. The text stays
+                             centred through VerticalContentAlignment, which ThemedTextBox already sets. -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox x:Name="HourInput" Width="26" MaxLength="2" Padding="0"
+                                     Background="Transparent" BorderThickness="0"
+                                     HorizontalContentAlignment="Center"
+                                     GotKeyboardFocus="TimeField_GotKeyboardFocus"
+                                     TextChanged="TimeField_TextChanged"
+                                     PreviewKeyDown="TimeField_PreviewKeyDown"
+                                     PreviewMouseWheel="TimeField_PreviewMouseWheel"/>
+                            <TextBlock Text=":" VerticalAlignment="Center" Margin="0,0,0,1"
+                                       Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBox x:Name="MinuteInput" Width="26" MaxLength="2" Padding="0"
+                                     Background="Transparent" BorderThickness="0"
+                                     HorizontalContentAlignment="Center"
+                                     GotKeyboardFocus="TimeField_GotKeyboardFocus"
+                                     TextChanged="TimeField_TextChanged"
+                                     PreviewKeyDown="TimeField_PreviewKeyDown"
+                                     PreviewMouseWheel="TimeField_PreviewMouseWheel"/>
+                        </StackPanel>
+                    </Border>
                     <TextBox x:Name="ReminderText" Grid.Column="2" Margin="6,0"
                              VerticalContentAlignment="Center" KeyDown="ReminderText_KeyDown"/>
                     <Button x:Name="AddReminderButton" Grid.Column="3" IsDefault="True"
