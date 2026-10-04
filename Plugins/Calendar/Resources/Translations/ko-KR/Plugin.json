@@ -4,6 +4,7 @@
   "Calendar_ProviderName": "달력",
   "Calendar_ProviderDesc": "구력·24절기·공휴일·대체 출근을 보여주는 월간 달력을 엽니다.",
   "Plugin_Comp_Desc_CalendarInstantProvider": "구력·공휴일·알림이 있는 월간 달력을 엽니다.",
+  "Calendar_TextProviderDesc": "빠른 검색 창의 시계 줄에 음력, 절기, 명절을 제공합니다.",
   "Plugin_Comp_Desc_CalendarTranslationProvider": "달력 플러그인의 UI 번역 및 현지화 자료를 제공합니다.",
   "Calendar_Config_TriggerLabel": "트리거 키워드",
   "Calendar_Config_TriggerDesc": "검색창에 이 단어를 입력하면 달력이 열립니다.",

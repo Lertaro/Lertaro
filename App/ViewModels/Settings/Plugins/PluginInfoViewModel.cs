@@ -27,6 +27,8 @@ public enum PluginComponentType
     QueryTokenProvider,
     QuickPanelTabProvider,
     SearchScopeProvider,
+    /// <summary>Supplies the calendar text shown beside the quick window's clock.</summary>
+    CalendarTextProvider,
     /// <summary>Translation providers are displayed read-only; they cannot be disabled.</summary>
     TranslationProvider,
     /// <summary>Theme providers are displayed read-only; they cannot be disabled.</summary>

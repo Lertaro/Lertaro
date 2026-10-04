@@ -207,6 +207,13 @@ internal static class ChineseCalendar
     internal static bool YearHasDutyData(int year) => DutyMap(year).Count > 0;
 
     /// <summary>
+    /// The day's lunar month on its own, e.g. 八月 -- what a caller that composes its own line out of the
+    /// month and a day-or-note needs, since <see cref="DayInfo.LunarText"/> is only the month on a month's
+    /// first day and only the day on every other one.
+    /// </summary>
+    internal static string LunarMonthText(DateTime date) => SolarDay.FromDate(date).Lunar.MonthInChinese + "月";
+
+    /// <summary>
     /// ponytail: Numeric mode renders a leap month's M the same as its non-leap twin, because the only
     /// marker the library offers is the Chinese 闰 prefix and this mode exists for readers who would not
     /// know what that means. Leap months land on one month in roughly twenty-five. Upgrade path: carry a

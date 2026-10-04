@@ -4,6 +4,7 @@
   "Calendar_ProviderName": "日曆",
   "Calendar_ProviderDesc": "開啟月視圖日曆，顯示農曆、節氣、假日與調休。",
   "Plugin_Comp_Desc_CalendarInstantProvider": "開啟帶農曆、假日與提醒事項的月視圖日曆。",
+  "Calendar_TextProviderDesc": "為快速搜尋視窗的時鐘行提供農曆、節氣與節日。",
   "Plugin_Comp_Desc_CalendarTranslationProvider": "為日曆外掛提供介面翻譯與本地化資源。",
   "Calendar_Config_TriggerLabel": "觸發關鍵字",
   "Calendar_Config_TriggerDesc": "在搜尋框輸入該字以開啟日曆。",
