@@ -1,3 +1,4 @@
+using Lertaro.App.Helpers;
 using System.IO;
 using System.IO.Pipes;
 using System.Threading.Channels;
@@ -6,7 +7,6 @@ using Lertaro.App.ViewModels.Search;
 using Lertaro.App.ViewModels.Search.Dispatch;
 
 using Lertaro.Core.Services.Search;
-using Lertaro.Core.Services.Pipe;
 using Lertaro.Core.Wire;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Query;
@@ -25,72 +25,11 @@ using SearchWindowType = PluginSdk.Abstractions.SearchWindowType;
 // identical either way -- only the pipe name differs.
 public static class AppSearchPipeService
 {
-    // Two independent layers, matching how AppPipeService's own activation pipe scopes itself, plus one
-    // more: the per-SID and per-session suffix means a different Windows account's App instance never contends for
-    // the exact same pipe name in the first place (Windows named pipes live in the machine-wide \\.\pipe\
-    // namespace, not session-isolated by default), and the ACL below backs that with actual enforcement --
-    // the OS itself rejects a connection attempt from any SID but the current user's, so even a guessed/
-    // predicted name (Windows usernames aren't secret) can't cross accounts. This matters specifically for
-    // this pipe (unlike the plain activation one) because a search request can return another user's own
-    // file paths/network-drive contents.
-    private static readonly string PipeName = AppPipeNames.SearchPipeName;
-    private static bool _keepRunning = true;
     private static readonly SearchService SharedSearchService = new();
 
-    public static void StopServer() => _keepRunning = false;
+    public static void StopServer() => AppSearchPipeListener.Stop();
 
-    public static Task StartPipeServerAsync() => Task.Run(ListenLoopAsync);
-
-    private static async Task ListenLoopAsync()
-    {
-        // PipeSecurityFactory.CreateCurrentUserOnly's ACL (SID-based), not the simpler
-        // PipeOptions.CurrentUserOnly flag: this pipe needs to be reachable from an ELEVATED client too
-        // (`lff` run from an admin terminal), and PipeOptions.CurrentUserOnly's own client-side check
-        // compares token OWNER, not the actual user SID -- for a member of Administrators that's
-        // BUILTIN\Administrators on both the standard and elevated token, not this (non-elevated) App's
-        // own user SID, so an elevated client fails that check even though it's the very same logged-in
-        // user. See CreateCurrentUserOnly's own comment for the full explanation.
-        var pipeSecurity = PipeSecurityFactory.CreateCurrentUserOnly();
-        if (pipeSecurity == null)
-        {
-            // No PipeOptions.CurrentUserOnly fallback here (unlike an earlier version of this method) --
-            // that flag is precisely the buggy mechanism the ACL above replaced (see the comment on
-            // CreateCurrentUserOnly), so silently falling back to it would quietly reintroduce the exact
-            // "elevated client rejected" bug this exists to avoid, in whatever rare case
-            // WindowsIdentity.GetCurrent().User itself fails to resolve. Unlike HookIpcServer's own
-            // fallback (a plain, unrestricted pipe), this one also isn't an acceptable substitute here:
-            // this pipe's results can carry another user's own file paths/network-drive contents (see the
-            // PipeName comment above), so a broadened ACL is a real exposure, not just a shrug-worthy
-            // degradation. Refusing to start is the honest failure mode.
-            Logger.Log("[AppSearchPipeService] Could not resolve the current user's SID -- refusing to start (would otherwise need to either reintroduce a known bug or broaden this pipe's ACL, neither acceptable).", LogLevel.Error);
-            return;
-        }
-
-        while (_keepRunning)
-        {
-            NamedPipeServerStream? pipe = null;
-            try
-            {
-                pipe = NamedPipeServerStreamAcl.Create(
-                    PipeName,
-                    PipeDirection.InOut,
-                    NamedPipeServerStream.MaxAllowedServerInstances,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous,
-                    4096, 4096,
-                    pipeSecurity);
-
-                await pipe.WaitForConnectionAsync().ConfigureAwait(false);
-                _ = Task.Run(() => HandleClientAsync(pipe));
-            }
-            catch (Exception ex)
-            {
-                pipe?.Dispose();
-                Logger.Log($"[AppSearchPipeService] Server connection failed: {ex.Message}", LogLevel.Error);
-                await Task.Delay(1000).ConfigureAwait(false);
-            }
-        }
-    }
+    public static Task StartPipeServerAsync() => Task.Run(() => AppSearchPipeListener.ListenLoopAsync(HandleClientAsync));
 
     private static async Task HandleClientAsync(NamedPipeServerStream pipe)
     {
@@ -100,7 +39,11 @@ public static class AppSearchPipeService
             {
                 while (pipe.IsConnected)
                 {
-                    var request = await SearchRequestBinarySerializer.ReadSearchRequestAsync(pipe);
+                    // Bounded read: a stalled or silent client is dropped rather than parking this handler
+                    // (and its connection slot) indefinitely. The timeout is reported as cancellation, so
+                    // the catch below ends the connection quietly, as it does for any other disconnect.
+                    using var readCts = new CancellationTokenSource(AppSearchPipeListener.RequestReadTimeout);
+                    var request = await SearchRequestBinarySerializer.ReadSearchRequestAsync(pipe, readCts.Token);
                     if (request.Id == SearchRequestId.GetSpaceEntries)
                     {
                         await AppSearchPipeSpaceEntries.WriteAsync(SharedSearchService, request.Drive, pipe);
@@ -137,14 +80,13 @@ public static class AppSearchPipeService
         }
     }
 
-    // Mirrors SearchQueryDispatchController.OnAdvancedQueryChanged's query preparation -- including the
-    // part an earlier version of this method skipped: a trailing " :a,b,c" suffix
-    // (SearchQuerySortParser.Strip) isn't part of the fuzzy search text at all -- it's dispatched, AFTER
-    // the file search completes, to whichever IQueryTokenProvider plugin (the built-in "::expr"/".ext"/etc.)
-    // claims each token, which can filter or reorder the already-ranked results. Passing the raw
-    // (unstripped) query straight into SearchStreamingAsync -- what this used to do -- searched for the
-    // literal ":xxx" substring instead of treating it as an operator, which is why that syntax silently
-    // did nothing here.
+    // Mirrors SearchQueryDispatchController.OnAdvancedQueryChanged's query preparation, including the part an
+    // earlier version of this method skipped: query tokens ("\audio", "<s>20m") aren't part of the fuzzy
+    // search text at all -- they're dispatched, AFTER the file search completes, to whichever
+    // IQueryTokenProvider plugin claims each token, which can filter or reorder the already-ranked
+    // results. Passing the raw (unstripped) query straight into SearchStreamingAsync -- what this used to
+    // do -- searched for the literal token text instead of treating it as an operator, which is why that
+    // syntax silently did nothing here.
     // One deliberate gap, so that "mirrors" is not read stronger than it is: there is no
     // FileFilterScopeResolver.Resolve here, so a configured file-filter scope keyword searches its
     // filter's folders in the GUI but is matched as literal text here ("lff tf report" finds nothing the
@@ -173,9 +115,10 @@ public static class AppSearchPipeService
 
         if (!string.IsNullOrWhiteSpace(query))
         {
-            var globalPrefixChar = GetGlobalTokenPrefixChar();
-            var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
-            var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+            // The bypass marker is stripped before the scan (see QueryTokenScanner.StripExclusionBypass).
+            var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GlobalTokenPrefix.Current);
+            var cleanQuery = scan.Text;
+            var tokens = scan.Tokens;
             // The same trigger-word strip the full window applies, so a CLI query and the identical text
             // typed in the window search the same thing rather than matching "cs" against file names here.
             // The full window's own inventory (SearchWindowType.Main) is what a CLI client is asking for.
@@ -343,12 +286,13 @@ public static class AppSearchPipeService
             appResults.Add(SearchResultMapper.CreateUiResult(raw[i], query, i, isApplication: false, scope: null));
         }
 
-        var dispatched = await QueryTokenDispatcher.ApplyAsync(appResults, tokens);
+        var dispatched = await QueryTokenDispatcher.ApplyAsync(appResults, tokens, token);
 
         // Highlight against each item's own (possibly token-extended) SearchQuery -- not the bare
-        // `query` -- so a result kept alive by e.g. an "::expr" token highlights the same characters the
-        // real GUI's TextHighlighter would, since QueryTokenDispatcher.ApplyAsync can append extra
-        // highlight terms onto SearchQuery per result.
+        // `query` -- so a result kept alive by a token highlights the same characters the real GUI's
+        // TextHighlighter would, since QueryTokenDispatcher.ApplyAsync can append extra highlight terms
+        // onto SearchQuery per result. Both go through FzfPattern.Parse, so the two agree on what the
+        // query means as well as on which characters matched.
         var written = 0;
         foreach (var item in dispatched)
         {
@@ -364,11 +308,5 @@ public static class AppSearchPipeService
             if (written <= FlushEveryResultUntil || written % FlushEveryResults == 0)
                 await pipe.FlushAsync(token);
         }
-    }
-
-    private static char GetGlobalTokenPrefixChar()
-    {
-        var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
     }
 }
