@@ -200,6 +200,13 @@ internal static class PluginSdkBridge
         // fallback) instead of reimplementing a fuzzy matcher of their own
         PluginSdk.Services.FuzzyMatchService.IsMatchFunc = FuzzyMatcher.IsMatch;
 
+        // The token prefix is a property of the search syntax, so a plugin that recognizes a query token
+        // reads it here rather than storing its own copy. CoreExtensions used to store one
+        // ("CustomFilterPrefix"); when the two drifted apart the host still lifted the word out of the
+        // query, no provider claimed it, and the search returned nothing at all -- with no setting left to
+        // explain why. Reading the host's value is what makes that state unreachable rather than documented.
+        PluginSdk.Services.SearchSyntaxService.TokenPrefixFunc = () => GlobalTokenPrefix.Current;
+
         // Wire up the highlight-mask delegate so plugins share the exact same literal/fuzzy/alias
         // highlighting tiers (including CJK pinyin) as the host's own results, instead of each
         // reimplementing a literal-substring-only highlighter that misses fuzzy/alias matches
@@ -207,15 +214,15 @@ internal static class PluginSdkBridge
         PluginSdk.Services.FuzzyMatchService.GetMatchScoreFunc = FuzzyMatcher.ComputeMatchWeight;
 
         // Providers get the untouched box text so a trigger word they own is still there to recognise, and
-        // with it the host's own trailing ":token" syntax. A provider that searches the remainder AS TEXT
-        // (ContentSearch's full-text query) has to take the tokens back off, and this is the only place
-        // that knows the token syntax and the configured prefix character.
+        // with it the host's own trailing "<prefix>token" syntax. A provider that searches the remainder AS
+        // TEXT (ContentSearch's full-text query) has to take the tokens back off. The tokenizer and the
+        // prefix both come from their single source of truth (Core's QueryTokenScanner, and the prefix the
+        // search syntax itself reads), so this wire-up carries no copy of either. The bypass marker goes
+        // with the tokens: left in, it would be searched for as literal text no file name can contain.
         PluginSdk.Services.SearchQueryService.StripQueryTokensFunc = query =>
-        {
-            var prefix = UserSettings.Load().GlobalTokenPrefix;
-            return Core.SearchIndex.Query.SearchQuerySortParser.Strip(
-                query, out _, !string.IsNullOrEmpty(prefix) ? prefix[0] : ':');
-        };
+            Core.SearchIndex.Query.QueryTokenScanner.Scan(
+                Core.SearchIndex.Query.QueryTokenScanner.StripExclusionBypass(query, out _),
+                GlobalTokenPrefix.Current).Text;
 
         // Wire up the directory search delegate for plugins using CoreDirectoryIndexManager
         PluginSdk.Services.DirectoryIndexerService.SearchPluginDirectoriesFunc = async (pluginId, query, token) =>
