@@ -671,6 +671,8 @@
   "Theme_Cyberpunk": "Cyberpunk",
   "Plugins_ReadOnlyTooltip": "Este componente es obligatorio y no se puede desactivar",
   "Settings_Hotkeys": "Atajos de Teclado",
+  "Settings_HotkeyTakenTitle": "Atajo ya en uso",
+  "Settings_HotkeyTakenBody": "{0} ya está registrado por el sistema u otro programa y se ha restablecido a su valor predeterminado.",
   "Hotkeys_Title": "Atajos de Teclado",
   "Hotkeys_Hint": "Personaliza los atajos de teclado globales, los atajos de acciones comunes y las asociaciones de atajos para las acciones de los complementos.",
   "Hotkeys_Tab_Global": "Global",

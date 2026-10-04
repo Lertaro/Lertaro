@@ -156,6 +156,14 @@ public class KeyboardHookService : IDisposable
             // only while our own UI is on screen: with the search box showing and taking every other
             // keystroke, both are a misfire rather than an intent.
             //
+            // The one exception is a chord the user has configured as a summon hotkey (the toggle's or
+            // the quick panel's own). While the card is up, that chord is exactly what "the hotkey does
+            // not work" was complained about: swallowed here, it never reached the detection below, so
+            // the focus handoff -- and the panel, when the two share one combination -- stayed dead for
+            // as long as the card was on screen. Letting it through costs nothing in protection: the
+            // detection below consumes the key as a hotkey, so the host dialog never sees it. Every
+            // other Alt+Space still swallows, and Alt+F4 has no such form.
+            //
             // Gated on IsInlineWindowOnScreen, not IsInlineSearchVisible: that one means "forward
             // keystrokes to me" and is cleared the moment the window takes focus for itself, which is
             // the very case this has to cover.
@@ -165,7 +173,9 @@ public class KeyboardHookService : IDisposable
             // keystroke was headed for, so it reports nothing useful here.
             var isAltDown = (hookStruct.flags & KeyboardNativeMethods.LLKHF_ALTDOWN) != 0;
             if (IsInlineWindowOnScreen && isAltDown
-                && (vkCode == KeyboardNativeMethods.VK_SPACE || vkCode == KeyboardNativeMethods.VK_F4))
+                && (vkCode == KeyboardNativeMethods.VK_SPACE || vkCode == KeyboardNativeMethods.VK_F4)
+                && !_hotkeyDetector.IsToggleWindowComboDown(vkCode)
+                && !_hotkeyDetector.IsQuickPanelComboDown(vkCode))
             {
                 return (IntPtr)1;
             }
@@ -180,7 +190,12 @@ public class KeyboardHookService : IDisposable
                                          && !_explorerTracker.IsActiveWindowDialog;
             // The quick panel first: a plain combination with no bare-modifier form, so nothing below
             // is waiting to see whether this key turns out to be part of a tap.
-            if (!shouldDisableAllHooks && _hotkeyDetector.CheckQuickPanelHotkey(vkCode, out var consumeQuickPanel))
+            //
+            // While the inline card is up, its own summon chord belongs to the focus handoff even when
+            // the panel is bound to the same combination -- the card is what is on screen, and that key
+            // is what moves focus into it there. A chord only the panel claims still reaches it.
+            var inlineCardOwnsThisChord = IsInlineWindowOnScreen && _hotkeyDetector.IsToggleWindowComboDown(vkCode);
+            if (!shouldDisableAllHooks && !inlineCardOwnsThisChord && _hotkeyDetector.CheckQuickPanelHotkey(vkCode, out var consumeQuickPanel))
             {
                 OnQuickPanelHotkey?.Invoke();
                 if (consumeQuickPanel) return (IntPtr)1;

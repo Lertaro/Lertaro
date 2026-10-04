@@ -671,6 +671,8 @@
   "Theme_Cyberpunk": "賽博朋克",
   "Plugins_ReadOnlyTooltip": "此元件為必要項，不可禁用",
   "Settings_Hotkeys": "快速鍵",
+  "Settings_HotkeyTakenTitle": "快速鍵被占用",
+  "Settings_HotkeyTakenBody": "{0} 已被系統或其他程式註冊，已重設為預設值。",
   "Hotkeys_Title": "快速鍵",
   "Hotkeys_Hint": "自訂全域快速鍵、常用操作快速鍵，以及各外掛動作的快速鍵繫結。",
   "Hotkeys_Tab_Global": "全域",

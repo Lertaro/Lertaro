@@ -83,6 +83,29 @@ public sealed class GlobalHotkeyDetector
         return triggered;
     }
 
+    /// <summary>
+    /// Whether this keystroke is the toggle hotkey's chord form -- the same test the combo branch of
+    /// <see cref="CheckToggleWindowHotkey"/> applies, answered without touching the tap detectors'
+    /// state. False for the bare-modifier form, which no chord with a key of its own can be.
+    /// </summary>
+    internal bool IsToggleWindowComboDown(int vkCode)
+    {
+        if (HotkeyStringFormat.IsBareModifier(_settings.Hotkeys.ToggleWindowHotkey, out _))
+            return false;
+
+        HotkeyStringFormat.ParseCombo(_settings.Hotkeys.ToggleWindowHotkey, out var modifier, out var key);
+        var targetVk = KeyboardUtils.GetKeyVirtualCode(key);
+        return targetVk != 0 && vkCode == targetVk && CheckModifiersMatch(modifier);
+    }
+
+    /// <summary>Whether this keystroke is the quick panel's own combination, answered without consuming it.</summary>
+    internal bool IsQuickPanelComboDown(int vkCode)
+    {
+        HotkeyStringFormat.ParseCombo(_settings.Hotkeys.QuickPanelHotkey, out var modifier, out var key);
+        var targetVk = KeyboardUtils.GetKeyVirtualCode(key);
+        return targetVk != 0 && vkCode == targetVk && CheckModifiersMatch(modifier);
+    }
+
     /// <summary>The quick panel's own global combo. A plain combination, with no bare-modifier form.</summary>
     /// <remarks>
     /// The tap detectors the other two hotkeys carry exist because those can be configured as a bare

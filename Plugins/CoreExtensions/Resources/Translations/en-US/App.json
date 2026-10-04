@@ -671,6 +671,8 @@
   "Theme_Cyberpunk": "Cyberpunk",
   "Plugins_ReadOnlyTooltip": "This component is required and cannot be disabled",
   "Settings_Hotkeys": "Hotkeys",
+  "Settings_HotkeyTakenTitle": "Hotkey already in use",
+  "Settings_HotkeyTakenBody": "{0} is already registered by the system or another program and has been reset to its default.",
   "Hotkeys_Title": "Hotkeys",
   "Hotkeys_Hint": "Customize global hotkeys, common action shortcuts, and hotkey bindings for plugin actions.",
   "Hotkeys_Tab_Global": "Global",

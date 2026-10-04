@@ -671,6 +671,8 @@
   "Theme_Cyberpunk": "사이버펑크",
   "Plugins_ReadOnlyTooltip": "이 구성 요소는 필수이며 비활성화할 수 없습니다",
   "Settings_Hotkeys": "단축키",
+  "Settings_HotkeyTakenTitle": "단축키 사용 중",
+  "Settings_HotkeyTakenBody": "{0}은(는) 시스템 또는 다른 프로그램이 이미 등록하고 있어 기본값으로 되돌렸습니다.",
   "Hotkeys_Title": "단축키",
   "Hotkeys_Hint": "전역 단축키, 일반 동작 바로 가기, 플러그인 동작에 대한 단축키 바인딩을 사용자 지정합니다.",
   "Hotkeys_Tab_Global": "전역",

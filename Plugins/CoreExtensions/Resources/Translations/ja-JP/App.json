@@ -671,6 +671,8 @@
   "Theme_Cyberpunk": "サイバーパンク",
   "Plugins_ReadOnlyTooltip": "このコンポーネントは必須項目のため無効化できません",
   "Settings_Hotkeys": "ホットキー",
+  "Settings_HotkeyTakenTitle": "ホットキーは既に使用中",
+  "Settings_HotkeyTakenBody": "{0} はシステムまたは別のプログラムが既に登録しているため、既定値に戻しました。",
   "Hotkeys_Title": "ホットキー",
   "Hotkeys_Hint": "グローバルホットキー、よく使う操作のショートカット、およびプラグインアクションのホットキー割り当てをカスタマイズします。",
   "Hotkeys_Tab_Global": "グローバル",

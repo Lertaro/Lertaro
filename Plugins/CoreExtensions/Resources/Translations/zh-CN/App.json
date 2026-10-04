@@ -671,6 +671,8 @@
   "Theme_Cyberpunk": "赛博朋克",
   "Plugins_ReadOnlyTooltip": "此组件为必要项，不可禁用",
   "Settings_Hotkeys": "快捷键",
+  "Settings_HotkeyTakenTitle": "快捷键被占用",
+  "Settings_HotkeyTakenBody": "{0} 已被系统或其他程序注册，已重置为默认值。",
   "Hotkeys_Title": "快捷键",
   "Hotkeys_Hint": "自定义全局快捷键、常用操作快捷键，以及各插件动作的快捷键绑定。",
   "Hotkeys_Tab_Global": "全局",
