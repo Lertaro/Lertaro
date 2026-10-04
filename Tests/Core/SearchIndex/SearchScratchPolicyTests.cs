@@ -107,6 +107,8 @@ public sealed class SearchScratchPolicyTests
     [TestMethod]
     public void ClearAndTrim_AnOversizedDictionary_ReleasesItsBuckets()
     {
+        // The decision has to be made while the size is still observable: Count is zero after Clear, so
+        // judging afterwards would find every dictionary small and trim none of them.
         var map = new Dictionary<int, int>();
         for (var i = 0; i < 200_000; i++) map[i] = i;
         var before = GC.GetTotalMemory(true);
@@ -116,19 +118,5 @@ public sealed class SearchScratchPolicyTests
 
         Assert.IsEmpty(map);
         Assert.IsLessThan(before, after, "the buckets should have been handed back, not just emptied");
-    }
-
-    [TestMethod]
-    public void ClearAndTrim_JudgesADictionaryBeforeClearingIt()
-    {
-        // Count is zero after Clear, so deciding afterwards would find every dictionary small and trim
-        // none of them -- the check has to happen while the size is still observable.
-        var map = new Dictionary<int, int>();
-        for (var i = 0; i < 200_000; i++) map[i] = i;
-        var before = GC.GetTotalMemory(true);
-
-        SearchScratchPolicy.ClearAndTrim(map);
-
-        Assert.IsLessThan(before, GC.GetTotalMemory(true));
     }
 }

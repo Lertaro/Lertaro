@@ -4,7 +4,14 @@ public static class SearchQueryParser
 {
     public static ParsedSearchQuery Parse(string query)
     {
-        var normalizedQuery = NormalizePathSeparators(query.Trim()).ToLowerInvariant();
+        // Regex clauses are lifted out FIRST, because they are full of the very characters that decide
+        // path mode below: "/\.exe$/" contains a backslash and "/^a\/b/" a slash, and reading either as a
+        // path separator turned the whole query into a full-path search for a path that cannot exist,
+        // dropping every result. The rest of the query is what actually gets searched, so that is what the
+        // path/name decision has to be made from.
+        var withoutRegexes = RegexQueryParser.Split(query, out var regexes);
+
+        var normalizedQuery = NormalizePathSeparators(withoutRegexes.Trim()).ToLowerInvariant();
         if (ContainsPathSeparator(normalizedQuery))
         {
             string? pathTargetDrive = null;
@@ -24,7 +31,8 @@ public static class SearchQueryParser
                 pathTargetDrive,
                 pathPatternLower,
                 exactPathLower,
-                pathEndsWithSeparator);
+                pathEndsWithSeparator,
+                regexes);
         }
 
         string? targetDrive = null;
@@ -33,7 +41,7 @@ public static class SearchQueryParser
 
         foreach (var rawTerm in rawTerms)
         {
-            if (rawTerm.Length >= 2 && char.IsLetter(rawTerm[0]) && rawTerm[1] == Path.VolumeSeparatorChar)
+            if (IsBareDriveSpec(rawTerm))
             {
                 targetDrive = rawTerm[0].ToString();
             }
@@ -43,8 +51,17 @@ public static class SearchQueryParser
             isPathMode: false,
             targetDrive,
             pathPatternLower: null,
-            exactPathLower: null);
+            exactPathLower: null,
+            regexes: regexes);
     }
+
+    // The one reading of a drive spec, for every surface that looks for one: a standalone two-character
+    // "X:" whose letter is ASCII. Reading the first two characters instead made "d:report" a drive filter
+    // in one place and literal text in another, and "中: x" a scope on a drive that cannot exist.
+    public static bool IsBareDriveSpec(string term) =>
+        term.Length == 2 && IsAsciiLetter(term[0]) && term[1] == Path.VolumeSeparatorChar;
+
+    internal static bool IsAsciiLetter(char c) => (uint)(c | 0x20) - 'a' <= 'z' - 'a';
 
     private static bool ContainsPathSeparator(string text) => text.IndexOf(Path.DirectorySeparatorChar) >= 0 ||
                (Path.AltDirectorySeparatorChar != Path.DirectorySeparatorChar &&
@@ -59,7 +76,7 @@ public static class SearchQueryParser
         drive = null;
         normalizedPath = path;
 
-        if (path.Length < 2 || !char.IsLetter(path[0]))
+        if (path.Length < 2 || !IsAsciiLetter(path[0]))
             return false;
 
         if (path[1] == Path.VolumeSeparatorChar)

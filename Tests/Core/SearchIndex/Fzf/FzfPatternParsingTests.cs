@@ -4,34 +4,17 @@ namespace Lertaro.Core.Tests.SearchIndex.Fzf;
 
 // Split out from FzfPatternTests to keep the test files under the repository's 300-line limit. These
 // tests cover phrase parsing, fuzzy-mode switches, and term-length bookkeeping for FzfPattern.
+//
+// The historical operator prefixes ('!' "'" '^' '$') were removed in the search-syntax rewrite; the
+// tests that used to pin their behavior now pin the OPPOSITE -- that they are literal text.
+//
+// AND-first / OR-first precedence lives in FzfPatternPrecedenceTests; this file does not repeat it.
 [TestClass]
 [DoNotParallelize]
 public sealed class FzfPatternParsingTests
 {
     [TestMethod]
-    public void TryMatch_QuotedPhraseContainingSpaces_IsOneBoundaryTerm()
-    {
-        var pattern = FzfPattern.Parse("'cad acb'");
-
-        Assert.HasCount(1, pattern.TermSets);
-        Assert.HasCount(1, pattern.TermSets[0].Terms);
-        Assert.AreEqual(FzfTermKind.ExactBoundary, pattern.TermSets[0].Terms[0].Kind);
-        Assert.AreEqual("cad acb", pattern.TermSets[0].Terms[0].Text);
-        Assert.IsTrue(pattern.TryMatch("cad acb.txt", out _, FzfScoringScheme.Default));
-        Assert.IsFalse(pattern.TryMatch("cad-acb.txt", out _, FzfScoringScheme.Default));
-    }
-
-    [TestMethod]
-    public void TryMatch_NegatedQuotedPhraseContainingSpaces_IsOneInverseBoundaryTerm()
-    {
-        var pattern = FzfPattern.Parse("txt !'cad acb'");
-
-        Assert.IsTrue(pattern.TryMatch("other.txt", out _, FzfScoringScheme.Default));
-        Assert.IsFalse(pattern.TryMatch("cad acb.txt", out _, FzfScoringScheme.Default));
-    }
-
-    [TestMethod]
-    public void Parse_ApostropheInsideWord_DoesNotOpenAQuotedPhrase()
+    public void Parse_ApostropheInsideWord_IsLiteralText()
     {
         var pattern = FzfPattern.Parse("don't stop");
 
@@ -41,68 +24,130 @@ public sealed class FzfPatternParsingTests
     }
 
     [TestMethod]
-    public void Parse_UnmatchedOpeningQuote_KeepsTermByTermReading()
+    public void Parse_ApostrophePrefix_IsNoLongerExactnessFlip()
     {
-        var pattern = FzfPattern.Parse("'cad acb");
+        var pattern = FzfPattern.Parse("'cad");
 
-        Assert.HasCount(2, pattern.TermSets);
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
+    }
+
+    // The precision-inversion trigger: a leading '?' takes the opposite of whatever the fuzzy-matching
+    // setting says, so it is the one way to mix the two readings inside a single query. See TermTriggers.
+    [TestMethod]
+    public void Parse_PrecisionTrigger_WithFuzzyOn_MakesThatTermExact()
+    {
+        var pattern = FzfPattern.Parse("?report");
+
         Assert.AreEqual(FzfTermKind.Exact, pattern.TermSets[0].Terms[0].Kind);
-        Assert.AreEqual("cad", pattern.TermSets[0].Terms[0].Text);
-        Assert.AreEqual("acb", pattern.TermSets[1].Terms[0].Text);
+        Assert.AreEqual("report", pattern.TermSets[0].Terms[0].Text);
+        Assert.IsTrue(pattern.TryMatch("report.txt", out _, FzfScoringScheme.Default));
+        Assert.IsFalse(pattern.TryMatch("re-port.txt", out _, FzfScoringScheme.Default));
     }
 
     [TestMethod]
-    public void Parse_OrOfQuotedTerms_KeepsTheSeparatorInsteadOfMergingIntoOnePhrase()
+    public void Parse_PrecisionTrigger_WithFuzzyOff_MakesThatTermFuzzy() => WithFuzzyDisabled(() =>
     {
-        var pattern = FzfPattern.Parse("'foo | 'bar'");
+        var pattern = FzfPattern.Parse("?report");
+
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
+        Assert.IsTrue(pattern.TryMatch("re-port.txt", out _, FzfScoringScheme.Default));
+    });
+
+    [TestMethod]
+    public void Parse_PrecisionTrigger_AppliesToItsOwnWordOnly()
+    {
+        // The trigger is a property of the WORD, not of the query: only the word carrying it flips.
+        var pattern = FzfPattern.Parse("?read md");
+
+        Assert.AreEqual(FzfTermKind.Exact, pattern.TermSets[0].Terms[0].Kind);
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[1].Terms[0].Kind);
+    }
+
+    [TestMethod]
+    public void Parse_PrecisionTriggerInsideAWord_IsLiteralText()
+    {
+        // Only the FIRST character is ever read, so the '?' here is part of the text. '?' cannot occur in a
+        // Windows file name, so such a term matches nothing -- the same fate the old "'" had inside a word.
+        var pattern = FzfPattern.Parse("rep?ort");
+
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
+        Assert.AreEqual("rep?ort", pattern.TermSets[0].Terms[0].Text);
+    }
+
+    [TestMethod]
+    public void Parse_LonePrecisionTrigger_AddsNoTerm()
+    {
+        // Same treatment a lone ':' gets: a stray trigger leaves the rest of the query untouched rather
+        // than adding a term that can never match.
+        Assert.IsTrue(FzfPattern.Parse("?").IsEmpty);
+        Assert.AreEqual(FzfTermKind.Fuzzy, FzfPattern.Parse("? read").TermSets[0].Terms[0].Kind);
+    }
+
+    [TestMethod]
+    public void Parse_PrecisionTriggerAfterAnExclusion_IsLiteralText()
+    {
+        // ':' is read first, so ":?temp" excludes the literal text "?temp". An exclusion is already pinned
+        // to Exact, and a user who typed the colon first was writing a name, not an operator.
+        var term = FzfPattern.Parse(":?temp").TermSets[0].Terms[0];
+
+        Assert.IsTrue(term.Inverse);
+        Assert.AreEqual(FzfTermKind.Exact, term.Kind);
+        Assert.AreEqual("?temp", term.Text);
+    }
+
+    [TestMethod]
+    public void Parse_CaretPrefix_IsNoLongerAPrefixAnchor()
+    {
+        var pattern = FzfPattern.Parse("^read");
+
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
+    }
+
+    [TestMethod]
+    public void Parse_DollarSuffix_IsNoLongerASuffixAnchor()
+    {
+        var pattern = FzfPattern.Parse("md$");
+
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
+    }
+
+    [TestMethod]
+    public void Parse_QuotedPhrase_StaysOneLiteralTerm()
+    {
+        // The quote characters were dropped from the operator set, but the phrase merger still folds a matched
+        // pair into ONE term -- and the delimiters survive into its text, which is the documented behaviour
+        // rather than a defect: the user guide states that quoting is not phrase syntax, that the quotes are
+        // matched as literal characters, and that such a query therefore finds nothing (no file name contains
+        // an apostrophe). What the merger buys is that the phrase is not split into two ANDed words, which
+        // would match names the documentation says it cannot match.
+        var pattern = FzfPattern.Parse("'cad acb'");
 
         Assert.HasCount(1, pattern.TermSets);
-        Assert.HasCount(2, pattern.TermSets[0].Terms);
-        Assert.AreEqual("foo", pattern.TermSets[0].Terms[0].Text);
-        Assert.AreEqual("bar", pattern.TermSets[0].Terms[1].Text);
+        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
+        Assert.AreEqual("'cad acb'", pattern.TermSets[0].Terms[0].Text);
     }
 
     [TestMethod]
-    public void Parse_ExactMarkerBeforeEndAnchor_KeepsSuffixSemantics()
+    public void Parse_LeadingBangQuote_IsNotAQuotedPhrase()
     {
-        var pattern = FzfPattern.Parse("'md$");
+        // '!' was an operator only in the pre-rewrite syntax, so it is ordinary text here: "!'a b'" is the two
+        // words "!'a" and "b'", not one quoted phrase (which is what the merger used to make of it).
+        var pattern = FzfPattern.Parse("!'a b'");
 
-        Assert.AreEqual(FzfTermKind.Suffix, pattern.TermSets[0].Terms[0].Kind);
-        Assert.AreEqual("md", pattern.TermSets[0].Terms[0].Text);
-        Assert.IsTrue(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
-        Assert.IsFalse(pattern.TryMatch("md5sum.txt", out _, FzfScoringScheme.Default));
+        Assert.HasCount(2, pattern.TermSets);
+        Assert.AreEqual("!'a", pattern.TermSets[0].Terms[0].Text);
+        Assert.AreEqual("b'", pattern.TermSets[1].Terms[0].Text);
     }
 
     [TestMethod]
-    public void Parse_PrefixMarkerFollowedByExactMarker_DropsTheRedundantQuote()
+    public void Parse_FuzzyDisabled_LeavesEveryBareTermExact() => WithFuzzyDisabled(() =>
     {
-        var pattern = FzfPattern.Parse("^'read");
-
-        Assert.AreEqual(FzfTermKind.Prefix, pattern.TermSets[0].Terms[0].Kind);
-        Assert.AreEqual("read", pattern.TermSets[0].Terms[0].Text);
-        Assert.IsTrue(pattern.TryMatch("readme.md", out _, FzfScoringScheme.Default));
-    }
+        Assert.AreEqual(FzfTermKind.Exact, FzfPattern.Parse("^read").TermSets[0].Terms[0].Kind);
+        Assert.AreEqual(FzfTermKind.Exact, FzfPattern.Parse("md$").TermSets[0].Terms[0].Kind);
+        Assert.AreEqual(FzfTermKind.Exact, FzfPattern.Parse("'read'").TermSets[0].Terms[0].Kind);
+    });
 
     [TestMethod]
-    public void TryMatch_EscapedSpaceInsideQuotedPhrase_StillParsesAsOneTerm()
-    {
-        var pattern = FzfPattern.Parse(@"'cad\ acb'");
-
-        Assert.AreEqual(FzfTermKind.ExactBoundary, pattern.TermSets[0].Terms[0].Kind);
-        Assert.AreEqual("cad acb", pattern.TermSets[0].Terms[0].Text);
-        Assert.IsTrue(pattern.TryMatch("cad acb.txt", out _, FzfScoringScheme.Default));
-    }
-
-    private static void WithFuzzyDisabled(Action body)
-    {
-        var previous = SearchContext.FuzzyMatchEnabled;
-        SearchContext.FuzzyMatchEnabled = false;
-        try { body(); }
-        finally { SearchContext.FuzzyMatchEnabled = previous; }
-    }
-
-    [TestMethod]
-    [DoNotParallelize]
     public void Parse_ProcessDefaultDisabled_AppliesWithoutAnyPerRequestValue()
     {
         var previous = SearchContext.DefaultFuzzyMatchEnabled;
@@ -156,29 +201,11 @@ public sealed class FzfPatternParsingTests
     }
 
     [TestMethod]
-    public void Parse_FuzzyDisabled_ExactMarkerFlipsTheTermBackToFuzzy() => WithFuzzyDisabled(() =>
+    public void GetTotalTermLength_SumsEveryPositiveTerm()
     {
-        var pattern = FzfPattern.Parse("'ab");
+        var pattern = FzfPattern.Parse("read md");
 
-        Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
-        Assert.IsTrue(pattern.TryMatch("cad acb.txt", out _, FzfScoringScheme.Default));
-    });
-
-    [TestMethod]
-    public void Parse_FuzzyDisabled_LeavesExplicitOperatorsAlone() => WithFuzzyDisabled(() =>
-    {
-        Assert.AreEqual(FzfTermKind.Prefix, FzfPattern.Parse("^read").TermSets[0].Terms[0].Kind);
-        Assert.AreEqual(FzfTermKind.Suffix, FzfPattern.Parse("md$").TermSets[0].Terms[0].Kind);
-        Assert.AreEqual(FzfTermKind.Equal, FzfPattern.Parse("^readme.md$").TermSets[0].Terms[0].Kind);
-        Assert.AreEqual(FzfTermKind.ExactBoundary, FzfPattern.Parse("'read'").TermSets[0].Terms[0].Kind);
-    });
-
-    [TestMethod]
-    public void GetTotalTermLength_SumsPositiveTermsOnlyExcludingInverse()
-    {
-        var pattern = FzfPattern.Parse("read !md");
-
-        Assert.AreEqual("read".Length, pattern.GetTotalTermLength());
+        Assert.AreEqual("read".Length + "md".Length, pattern.GetTotalTermLength());
     }
 
     [TestMethod]
@@ -198,4 +225,49 @@ public sealed class FzfPatternParsingTests
         Assert.AreEqual("read".Length + "me".Length, pattern.GetTotalTermLength());
     }
 
+    [TestMethod]
+    public void Parse_DriveTokenAlone_SelectsTheDrive()
+        => Assert.AreEqual("d", FzfPattern.Parse("d: report").TargetDrive);
+
+    [TestMethod]
+    public void Parse_DriveTokenWithAttachedText_IsNoLongerADrive()
+    {
+        // "d:report" keeps the colon as literal text -- the drive rule needs the bare "d:" token.
+        var pattern = FzfPattern.Parse("d:report");
+
+        Assert.IsNull(pattern.TargetDrive);
+        Assert.AreEqual("d:report", pattern.TermSets[0].Terms[0].Text);
+    }
+
+    [TestMethod]
+    public void Parse_NonAsciiLetterBeforeColon_IsNotADrive()
+    {
+        var pattern = FzfPattern.Parse("中: x");
+
+        Assert.IsNull(pattern.TargetDrive);
+    }
+
+    // IsEmpty means "no query here", which is what its callers act on -- NameSearch's drive gate returns
+    // without searching, and FuzzyMatcher treats it as a non-match. A regex clause IS a query even though
+    // it carries no term, so counting term sets alone made "/\.exe$/" search for nothing at all.
+    [TestMethod]
+    public void IsEmpty_RegexOnlyPattern_IsNotEmpty() => Assert.IsFalse(FzfPattern.Parse(@"/\.exe$/").IsEmpty);
+
+    [TestMethod]
+    public void IsEmpty_RegexAlongsideATerm_IsNotEmpty() => Assert.IsFalse(FzfPattern.Parse(@"lertaro /\.exe$/").IsEmpty);
+
+    [TestMethod]
+    public void IsEmpty_NoTermsAndNoRegex_IsEmpty()
+    {
+        Assert.IsTrue(FzfPattern.Parse("").IsEmpty);
+        Assert.IsTrue(FzfPattern.Parse(":").IsEmpty);
+    }
+
+    private static void WithFuzzyDisabled(Action body)
+    {
+        var previous = SearchContext.FuzzyMatchEnabled;
+        SearchContext.FuzzyMatchEnabled = false;
+        try { body(); }
+        finally { SearchContext.FuzzyMatchEnabled = previous; }
+    }
 }
