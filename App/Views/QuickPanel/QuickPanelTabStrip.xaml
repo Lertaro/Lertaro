@@ -30,7 +30,12 @@
          Shown for even one workspace: the tab is also where that workspace's name and its close button
          are, so hiding it until a second one exists left the first unnamed and unclosable. It shares a
          row with the filter box, so it costs no height either way. -->
-    <ctrl:TabStripScrollView Visibility="{Binding HasTabStrip, Converter={StaticResource BoolToVis}}">
+    <!-- PreviewMouseWheel rather than MouseWheel: the group lists below re-raise the wheel at their
+         parent so the panel scrolls as one, and a strip that only listened on the way up would let that
+         reach it first. Handling it in the tunnel is what makes a roll over the tabs mean "switch tab"
+         and a roll anywhere else mean "scroll the list". -->
+    <ctrl:TabStripScrollView Visibility="{Binding HasTabStrip, Converter={StaticResource BoolToVis}}"
+                             PreviewMouseWheel="Strip_PreviewMouseWheel">
         <!-- Dragging a tab reorders the workspaces, and the tab itself is the handle: there is nowhere
              on a strip to put a grip, and a tab is already the thing you would reach for. IsHorizontal
              so the drop line stands between two tabs rather than lying across them. -->

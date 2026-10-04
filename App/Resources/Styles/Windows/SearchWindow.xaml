@@ -251,4 +251,42 @@
         </Setter>
     </Style>
 
+    <!-- The resize grip WPF draws for ResizeMode="CanResizeWithGrip", restyled.
+         
+         It is not a control of ours: Window creates a System.Windows.Controls.ResizeGrip (a Control, not
+         a Thumb) and sizes it against the bottom-right corner whenever ResizeMode is CanResizeWithGrip,
+         and that type takes its look from a theme style keyed by its own type. An implicit style here
+         therefore replaces the theme's without any of that machinery being touched, which matters because
+         the grip is also the only thing that hit-tests for CanResizeWithGrip (Window.HandleWmNcHitTestMsg
+         checks nothing else), so a window that dropped the type would stop resizing altogether.
+
+         Three stepped lines rather than the theme's dotted triangle: the theme's grip is a small field of
+         dots that reads as decoration at this size, and the corner rule Windows itself draws is
+         unmistakable and gives the eye something to aim at. Drawn faint, the same as the window chrome it
+         sits against.
+
+         ALIGNMENT IS THE POINT, and getting it wrong is what made an earlier attempt hard to grab. The
+         element Window creates spans the window's bottom-right corner, window rect included, so a
+         template rooted in a plain Grid puts its drawing wherever that Grid's own alignment puts it. The
+         root here is aligned bottom-right and sized to the drawing, which lands the lines just inside the
+         visible card rather than in the transparent shadow margin outside it. That margin is where a
+         resize band would need WindowChrome to work, and it does not for a transparent window, so a grip
+         drawn out there is one the pointer cannot reach.
+
+         Keyless on purpose. This dictionary is merged by the settings, search and quick panel windows
+         alike, so one entry restyles the grip in all three. -->
+    <Style TargetType="{x:Type ResizeGrip}">
+        <Setter Property="HorizontalAlignment" Value="Right"/>
+        <Setter Property="VerticalAlignment" Value="Bottom"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ResizeGrip}">
+                    <Path Stroke="{DynamicResource WindowChromeText}" StrokeThickness="1" Opacity="0.5"
+                          Margin="4,4,10,10"
+                          Data="M 12,0 L 0,12 M 12,4 L 4,12 M 12,8 L 8,12"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

@@ -39,6 +39,39 @@ public sealed class AppWindowManagerTests
             Decide(isVisible: true, isActive: false, closeOnRepeatHotkey: true));
 
     [TestMethod]
+    public void SummonTreatingTheFullWindowAsFocused_ClosesItRatherThanBringingItToFront()
+    {
+        // The tray icon's route. Clicking it takes the foreground away from the full window first, so by
+        // the time the summon runs the window is visible but not active -- and the ordinary decision would
+        // read that as "behind something else", return BringToFront, and appear to do nothing at all while
+        // double-Ctrl closed the window properly. Treating it as focused is what makes the two agree.
+        Assert.AreEqual(AppWindowManager.SearchWindowHotkeyAction.ReturnToQuickSearch,
+            AppWindowManager.DetermineSearchWindowHotkeyAction(isVisible: true, isActive: true, closeOnRepeatHotkey: false));
+
+        Assert.AreEqual(AppWindowManager.SearchWindowHotkeyAction.CloseFullWindow,
+            AppWindowManager.DetermineSearchWindowHotkeyAction(isVisible: true, isActive: true, closeOnRepeatHotkey: true));
+
+        // And the window still has to be VISIBLE for any of that: a tray click with no full window on
+        // screen is a summon, not a close.
+        Assert.AreEqual(AppWindowManager.SearchWindowHotkeyAction.NoFullWindowOnScreen,
+            AppWindowManager.DetermineSearchWindowHotkeyAction(isVisible: false, isActive: true, closeOnRepeatHotkey: true));
+    }
+
+    [TestMethod]
+    public void SummonTreatingTheFullWindowAsFocused_IsTheOnlyDifferenceFromTheHotkeyRoute()
+    {
+        // Both routes go through one handler, so the tray cannot drift from the keyboard again. The flag
+        // is the whole of the difference, and the hotkey route passes false.
+        var manager = Source("App/Services/AppWindow/AppWindowManager.cs");
+        var tray = Source("App/Services/Tray/TrayIconService.cs");
+
+        Assert.Contains("HandleSummon(treatFullWindowAsFocused: true)", tray,
+            "the tray icon must summon through the shared handler, treating the full window as focused");
+        Assert.Contains("HandleGlobalSummonHotkey() => HandleSummon(treatFullWindowAsFocused: false)", manager,
+            "the hotkey route must be the same handler with the flag off, not a second implementation");
+    }
+
+    [TestMethod]
     public void SummonHotkeyChecksForTheFullWindowBeforeTheOpenFullWindowSetting()
     {
         // The full window is reachable with OpenFullWindowByDefault OFF -- every route there passes

@@ -104,7 +104,20 @@ public static class AppWindowManager
     /// to the QUICK window's own visibility toggle -- the full window stayed on screen, so the key read as
     /// doing nothing.
     /// </remarks>
-    public static void HandleGlobalSummonHotkey()
+    public static void HandleGlobalSummonHotkey() => HandleSummon(treatFullWindowAsFocused: false);
+
+    /// <summary>
+    /// The same summon, for a route that starts by TAKING the foreground away from the full window.
+    /// </summary>
+    /// <param name="treatFullWindowAsFocused">
+    /// True when the caller is the tray icon. Clicking the tray icon moves the foreground to the shell, so
+    /// by the time this runs the full window reports IsActive false and the decision tree would read it as
+    /// "behind something else, bring it forward" -- which is a no-op when it is already the topmost window,
+    /// and is what made a tray click appear to do nothing while double-Ctrl closed the window properly.
+    /// The user did not click away from the window into another app; they clicked the icon belonging to
+    /// this one, so for this decision the window may as well still be focused.
+    /// </param>
+    public static void HandleSummon(bool treatFullWindowAsFocused)
     {
         if (System.Windows.Application.Current == null) return;
 
@@ -112,7 +125,8 @@ public static class AppWindowManager
         {
             var settings = UserSettings.Load();
             var visible = System.Windows.Application.Current.Windows.OfType<SearchWindow>().FirstOrDefault(w => w.IsVisible);
-            switch (DetermineSearchWindowHotkeyAction(visible != null, visible?.IsActive == true, settings.MainWindow.CloseOnRepeatHotkey))
+            var isActive = visible != null && (visible.IsActive || treatFullWindowAsFocused);
+            switch (DetermineSearchWindowHotkeyAction(visible != null, isActive, settings.MainWindow.CloseOnRepeatHotkey))
             {
                 case SearchWindowHotkeyAction.CloseFullWindow:
                     // Opt-in alternative to the return below: the user treats the full window as an

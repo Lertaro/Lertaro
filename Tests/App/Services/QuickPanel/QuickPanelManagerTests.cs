@@ -60,6 +60,68 @@ public sealed class QuickPanelManagerTests
         Assert.AreEqual(385.0, top * 1.5, 0.001);
     }
 
+    // A size the user dragged the panel to outlives the summon: the automatic figure is only ever a
+    // stand-in for someone who has not chosen one.
+    [TestMethod]
+    public void CalculatePhysicalDockPosition_AUserSize_ReplacesTheAutomaticOne()
+    {
+        var (width, height, _, _) = QuickPanelManager.CalculatePhysicalDockPosition(
+            hostLeft: 0, hostTop: 0, hostRight: 1000, hostBottom: 900,
+            hostDpi: 96,
+            waLeft: 0, waTop: 0, waWidth: 1920, waHeight: 1080,
+            userWidthDip: 640, userHeightDip: 300);
+
+        Assert.AreEqual(640.0, width, 0.001, "the user's width, not half the host");
+        Assert.AreEqual(300.0, height, 0.001);
+    }
+
+    // And it is NOT held to the automatic cap: that cap exists to stop the panel growing with a maximized
+    // host, and a size the user chose by hand is not the panel growing on its own.
+    [TestMethod]
+    public void CalculatePhysicalDockPosition_AUserSize_IsNotHeldToTheAutoCap()
+    {
+        var (width, height, _, _) = QuickPanelManager.CalculatePhysicalDockPosition(
+            hostLeft: 0, hostTop: 0, hostRight: 3840, hostBottom: 2160,
+            hostDpi: 96,
+            waLeft: 0, waTop: 0, waWidth: 3840, waHeight: 2160,
+            userWidthDip: 900, userHeightDip: 700);
+
+        Assert.IsGreaterThan(QuickPanelManager.MaxAutoWidth, width, "a hand-picked size may exceed the auto cap");
+        Assert.IsGreaterThan(QuickPanelManager.MaxAutoHeight, height);
+    }
+
+    // A user size still gets docked to the host's bottom-right rather than opening off the edge of it:
+    // the size is the panel's own, the position belongs to the host.
+    [TestMethod]
+    public void CalculatePhysicalDockPosition_AUserSize_IsStillDockedInsideTheHost()
+    {
+        var (width, height, physLeft, physTop) = QuickPanelManager.CalculatePhysicalDockPosition(
+            hostLeft: 100, hostTop: 100, hostRight: 900, hostBottom: 700,
+            hostDpi: 96,
+            waLeft: 0, waTop: 0, waWidth: 1920, waHeight: 1080,
+            userWidthDip: 400, userHeightDip: 300);
+
+        Assert.AreEqual(400.0, width, 0.001);
+        Assert.AreEqual(300.0, height, 0.001);
+        Assert.AreEqual(488.0, physLeft, 0.001, "the same bottom-right corner, less the margin");
+        Assert.AreEqual(388.0, physTop, 0.001);
+    }
+
+    // The floor still wins over a user size, so a settings file holding something absurd cannot produce a
+    // window too small to show anything.
+    [TestMethod]
+    public void CalculatePhysicalDockPosition_ATinyUserSize_IsRaisedToTheMinimum()
+    {
+        var (width, height, _, _) = QuickPanelManager.CalculatePhysicalDockPosition(
+            hostLeft: 0, hostTop: 0, hostRight: 1000, hostBottom: 900,
+            hostDpi: 96,
+            waLeft: 0, waTop: 0, waWidth: 1920, waHeight: 1080,
+            userWidthDip: 20, userHeightDip: 20);
+
+        Assert.AreEqual(280.0, width, 0.001);
+        Assert.AreEqual(200.0, height, 0.001);
+    }
+
     [TestMethod]
     public void CalculatePhysicalDockPosition_SameDpi_ComputesCorrectPhysicalCoordinates()
     {
@@ -72,6 +134,47 @@ public sealed class QuickPanelManagerTests
         Assert.AreEqual(300.0, height, 0.001);
         Assert.AreEqual(488.0, physLeft, 0.001);
         Assert.AreEqual(388.0, physTop, 0.001);
+    }
+
+    // Half of a maximized 4K window is a panel with more room than a screenful of files can fill, so the
+    // automatic size stops at the cap. A manual drag of the grip is not this path and is not capped.
+    [TestMethod]
+    public void CalculatePhysicalDockPosition_AVeryLargeHost_StopsAtTheAutomaticCap()
+    {
+        var (width, height, _, _) = QuickPanelManager.CalculatePhysicalDockPosition(
+            hostLeft: 0, hostTop: 0, hostRight: 3840, hostBottom: 2160,
+            hostDpi: 96,
+            waLeft: 0, waTop: 0, waWidth: 3840, waHeight: 2160);
+
+        Assert.AreEqual(QuickPanelManager.MaxAutoWidth, width, 0.001);
+        Assert.AreEqual(QuickPanelManager.MaxAutoHeight, height, 0.001);
+    }
+
+    // The floor still wins where it did: a small host gets a panel no smaller than the minimum, so the
+    // cap cannot be mistaken for a clamp that squeezes both ends.
+    [TestMethod]
+    public void CalculatePhysicalDockPosition_ATinyHost_StillGetsTheMinimum()
+    {
+        var (width, height, _, _) = QuickPanelManager.CalculatePhysicalDockPosition(
+            hostLeft: 0, hostTop: 0, hostRight: 120, hostBottom: 120,
+            hostDpi: 96,
+            waLeft: 0, waTop: 0, waWidth: 1920, waHeight: 1080);
+
+        Assert.AreEqual(280.0, width, 0.001);
+        Assert.AreEqual(200.0, height, 0.001);
+    }
+
+    // In between the two ends, the host still decides: the cap is a ceiling, not the size.
+    [TestMethod]
+    public void CalculatePhysicalDockPosition_AnOrdinaryHost_IsStillHalfOfIt()
+    {
+        var (width, height, _, _) = QuickPanelManager.CalculatePhysicalDockPosition(
+            hostLeft: 0, hostTop: 0, hostRight: 1000, hostBottom: 900,
+            hostDpi: 96,
+            waLeft: 0, waTop: 0, waWidth: 1920, waHeight: 1080);
+
+        Assert.AreEqual(500.0, width, 0.001);
+        Assert.AreEqual(450.0, height, 0.001);
     }
 
     [TestMethod]

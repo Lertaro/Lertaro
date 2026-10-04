@@ -18,8 +18,6 @@
         <ResourceDictionary Source="QuickPanelChromeResources.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
-    <!-- Five tiles to a row, sized from the list's own width: see the converter for why five. -->
-    <conv:QuickPanelTileMetrics x:Key="QuickPanelTileMetrics"/>
     <!-- The full window's row, rebuilt for a ListBox. SearchResultItemStyle itself cannot be
          reused: it targets ListViewItem and presents through a GridViewRowPresenter, neither of
          which a plain ListBox has. Everything that makes it behave the way it does is here,
@@ -193,13 +191,18 @@
              panel docked to a wide window gets thumbnails worth looking at rather than more of them. -->
         <Grid Margin="2,4,2,4">
             <!-- A box every tile shares, with the picture fitted inside it keeping its own shape. The
-                 box is wider than tall (see the converter): square left a band of empty tile above and
+                 box is wider than tall (see the tile metrics): square left a band of empty tile above and
                  below every 16:9 thumbnail, and letting each picture set its own height made every row
                  as tall as its tallest member, which is what turned a folder of mixed content ragged. -->
             <StackPanel x:Name="TileContent">
+            <!-- Sized from the panel that handed this tile its slot, not from the tile's own width: the
+                 panel is what knows how wide a slot is and how much of it the user asked the picture to
+                 take, and it publishes both sums as IconWidth/IconHeight. Binding to those is also what
+                 makes one Ctrl+wheel notch re-size every picture at once, since the value bound to has
+                 genuinely changed, which a binding on the container's own width would not have. -->
             <Border x:Name="TileIcon"
-                    Height="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource QuickPanelTileMetrics}, ConverterParameter=IconHeight}"
-                    Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource QuickPanelTileMetrics}, ConverterParameter=Icon}">
+                    Width="{Binding IconWidth, RelativeSource={RelativeSource AncestorType=local:QuickPanelNumberedWrapPanel}}"
+                    Height="{Binding IconHeight, RelativeSource={RelativeSource AncestorType=local:QuickPanelNumberedWrapPanel}}">
                 <Image Source="{Binding Icon}" Stretch="Uniform"
                        HorizontalAlignment="Center" VerticalAlignment="Center"
                        RenderOptions.BitmapScalingMode="HighQuality"/>

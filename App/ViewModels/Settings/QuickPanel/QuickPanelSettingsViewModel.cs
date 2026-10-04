@@ -60,7 +60,11 @@ public class QuickPanelSettingsViewModel : ViewModelBase
 
         _selectedTab = Tabs.FirstOrDefault(t => t.Id == panel.ActiveTabId) ?? Tabs.FirstOrDefault();
 
-        PluginTabs = QuickPanelPluginTabCatalog.Available(panel);
+        // A collection, not the catalog's plain list: the rows are reordered by dragging them, and a drag
+        // is a remove and an insert on whatever IList the control is bound to (see DragReorder). A List
+        // would look right and silently refuse to move.
+        foreach (var option in QuickPanelPluginTabCatalog.Available(panel))
+            PluginTabs.Add(option);
     }
 
     private readonly ICommand _rowMoveUp;
@@ -188,6 +192,20 @@ public class QuickPanelSettingsViewModel : ViewModelBase
         // whichever page saved last the winner.
         // Ordered by the strip, not by _models: the list on screen is what the user arranged.
         panel.Tabs = Tabs.Select(t => _models.First(m => m.Id == t.Id)).ToList();
+
+        // The plugin rows' order goes into the same list the panel's strip writes, since that one list is
+        // the order over both kinds of tab (see QuickPanelSettings.TabOrder).
+        //
+        // The ids are replaced IN PLACE rather than removed and appended. This page shows the plugin tabs
+        // on their own, but the list the panel reads interleaves them with the workspaces, so appending
+        // would drag every plugin tab to the end of the strip -- a reorder here would silently become a
+        // "move all plugin tabs after all workspaces" instead. Walking the stored order and substituting
+        // the next plugin id at each slot keeps the workspaces exactly where the user put them.
+        //
+        // An id with no row (a plugin currently switched off) simply stays where it is, for the same
+        // reason: nothing on this page is a statement about it.
+        panel.TabOrder = ReplaceInPlace(panel.TabOrder, PluginTabs.Select(option => option.Id).ToList());
+
         panel.ActiveTabId = SelectedTab?.Id ?? panel.Tabs.FirstOrDefault()?.Id ?? string.Empty;
 
         // Only the ones unticked here, and only among the tabs that exist right now: a plugin currently
@@ -196,6 +214,41 @@ public class QuickPanelSettingsViewModel : ViewModelBase
         var listed = PluginTabs.Select(option => option.Id).ToList();
         panel.ClosedPluginTabIds = Merge(panel.ClosedPluginTabIds, listed, option => !option.IsOpen);
         panel.ListViewPluginTabIds = Merge(panel.ListViewPluginTabIds, listed, option => option.ShowAsList);
+    }
+
+    /// <summary>
+    /// Puts <paramref name="rows"/> where their ids already sit in <paramref name="stored"/>, and appends
+    /// whatever has no slot yet.
+    /// </summary>
+    /// <remarks>
+    /// The rows are a SUBSET of the stored order -- this page lists plugin tabs, the stored order holds
+    /// workspaces too -- so a reorder among the rows says nothing about where the workspaces go. Each slot
+    /// the rows already occupy is refilled with the next row in turn, which is what makes moving a plugin
+    /// tab past another one land in the strip without disturbing anything else.
+    /// </remarks>
+    private static List<string> ReplaceInPlace(List<string> stored, List<string> rows)
+    {
+        var remaining = new Queue<string>(rows);
+        var result = new List<string>(stored.Count);
+
+        foreach (var id in stored)
+        {
+            if (!rows.Contains(id, StringComparer.OrdinalIgnoreCase))
+            {
+                result.Add(id);
+                continue;
+            }
+
+            if (remaining.Count > 0)
+                result.Add(remaining.Dequeue());
+        }
+
+        // Ids the stored order had never seen (a plugin that just appeared) go on the end, which is where
+        // an unordered id belongs -- see QuickPanelGroupOrdering.Resolve.
+        while (remaining.Count > 0)
+            result.Add(remaining.Dequeue());
+
+        return result;
     }
 
     /// <summary>Rewrites one of the per-plugin-tab lists from the rows, keeping what has no row.</summary>
@@ -212,7 +265,7 @@ public class QuickPanelSettingsViewModel : ViewModelBase
     /// group inside one. It briefly was the other way, and the settings said so -- Favorites had to be
     /// ticked into every workspace one at a time, and was missing from every new one.
     /// </remarks>
-    public IReadOnlyList<QuickPanelPluginTabOption> PluginTabs { get; }
+    public ObservableCollection<QuickPanelPluginTabOption> PluginTabs { get; } = new();
 
     public bool HasPluginTabs => PluginTabs.Count > 0;
 
@@ -266,6 +319,9 @@ public class QuickPanelSettingsViewModel : ViewModelBase
         {
             Id = QuickPanelTab.NewId(),
             Name = SelectedTab.EffectiveName,
+            // How the original is displayed is part of what is being forked: the copy exists to be
+            // varied, and one that came back on tiles would silently undo a choice already made.
+            ListView = source.ListView,
             DisabledGroupIds = source.DisabledGroupIds.ToList(),
         };
         var idMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

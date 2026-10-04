@@ -12,8 +12,15 @@ namespace Lertaro.App.ViewModels.Settings.QuickPanel;
 internal static class QuickPanelPluginTabCatalog
 {
     /// <summary>Every plugin tab that exists right now, each saying whether the strip shows it.</summary>
+    /// <remarks>
+    /// Returned in the strip's own order rather than the plugins' discovery order, so the list on screen
+    /// matches what the panel shows and a move made here starts from where the user last left it. The
+    /// ordering helper is the same one the panel resolves its strip with; two answers to "what order are
+    /// these tabs in" is how one of them ends up stale.
+    /// </remarks>
     public static List<QuickPanelPluginTabOption> Available(QuickPanelSettings settings)
-        => QuickPanelPluginTabs.Available
+    {
+        var options = QuickPanelPluginTabs.Available
             .Select(provider =>
             {
                 var id = QuickPanelPluginTabs.ComponentId(provider);
@@ -24,5 +31,11 @@ internal static class QuickPanelPluginTabCatalog
                     !settings.ClosedPluginTabIds.Contains(id, StringComparer.OrdinalIgnoreCase),
                     settings.ListViewPluginTabIds.Contains(id, StringComparer.OrdinalIgnoreCase));
             })
+            .ToDictionary(option => option.Id, StringComparer.OrdinalIgnoreCase);
+
+        return QuickPanelGroupOrdering
+            .Resolve(options.Keys, settings.TabOrder, disabled: null)
+            .Select(id => options[id])
             .ToList();
+    }
 }

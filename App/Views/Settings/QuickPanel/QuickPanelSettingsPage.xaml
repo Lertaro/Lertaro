@@ -297,6 +297,14 @@
                                     </TextBlock.Style>
                                 </TextBlock>
                             </Grid>
+
+                            <!-- The workspace-wide view default, over the per-source choice each
+                                 folder row carries below. A workspace assembled for documents wants
+                                 all of its folders listed, and asking that one folder at a time is
+                                 the same answer typed several times. -->
+                            <CheckBox Margin="0,0,0,12"
+                                      IsChecked="{Binding SelectedTab.ListView, Mode=TwoWay}"
+                                      Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_ViewList]}"/>
                         </StackPanel>
 
                         <local:QuickPanelWorkspaceTabs/>
@@ -318,28 +326,66 @@
                 </ScrollViewer.Style>
 
                 <Border Style="{StaticResource SettingsCard}">
-                    <ItemsControl x:Name="QuickPanelPluginTabsList" ItemsSource="{Binding PluginTabs}">
-                        <ItemsControl.ItemTemplate>
+                    <!-- A ListBox with the same six-dot drag handle the workspace list uses, rather than
+                         the up/down buttons this started with: the strip's order over the plugin tabs
+                         shares one list with the workspaces', and reordering the same thing two different
+                         ways in two panes of one page is a rule the user has to be told.
+
+                         HorizontalScrollBarVisibility="Disabled" for the reason the workspace list
+                         documents: left at the default each row is handed an unbounded width, and the
+                         Star column then resolves to however long a plugin's name happens to be. -->
+                    <ListBox x:Name="QuickPanelPluginTabsList" ItemsSource="{Binding PluginTabs}"
+                             ItemContainerStyle="{StaticResource WorkspaceItemStyle}"
+                             VerticalAlignment="Top"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.CanContentScroll="False"
+                             HorizontalContentAlignment="Stretch"
+                             BorderThickness="0" Background="Transparent"
+                             helpers:DragReorder.IsEnabled="True">
+                        <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
-                                    <Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="14"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- The drag handle, and the only place a drag may start from (see
+                                         DragReorder.IsHandle), so a press on a tick box does not pick the
+                                         row up by accident. -->
+                                    <Grid Grid.Column="0" Width="14" Height="22" Margin="0,0,6,0" Background="Transparent"
+                                          Cursor="SizeAll" helpers:DragReorder.IsHandle="True">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-
-                                        <CheckBox Grid.Column="0" Content="{Binding Name}" IsChecked="{Binding IsOpen, Mode=TwoWay}"/>
-
-                                        <!-- The one display choice a plugin tab has. A folder source is
-                                             asked this on its own row in a workspace's source list; a
-                                             plugin tab has no such row, so it is asked here. -->
-                                        <CheckBox Grid.Column="1" IsChecked="{Binding ShowAsList, Mode=TwoWay}"
-                                                  Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_ViewList]}"/>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <Ellipse Grid.Row="0" Grid.Column="0" Width="2" Height="2" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                        <Ellipse Grid.Row="0" Grid.Column="1" Width="2" Height="2" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                        <Ellipse Grid.Row="1" Grid.Column="0" Width="2" Height="2" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                        <Ellipse Grid.Row="1" Grid.Column="1" Width="2" Height="2" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                        <Ellipse Grid.Row="2" Grid.Column="0" Width="2" Height="2" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
+                                        <Ellipse Grid.Row="2" Grid.Column="1" Width="2" Height="2" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
                                     </Grid>
-                                </Border>
+
+                                    <CheckBox Grid.Column="1" Content="{Binding Name}" IsChecked="{Binding IsOpen, Mode=TwoWay}"
+                                              VerticalAlignment="Center"/>
+
+                                    <!-- The one display choice a plugin tab has. A folder source is
+                                         asked this on its own row in a workspace's source list; a
+                                         plugin tab has no such row, so it is asked here. -->
+                                    <CheckBox Grid.Column="2" VerticalAlignment="Center"
+                                              IsChecked="{Binding ShowAsList, Mode=TwoWay}"
+                                              Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_ViewList]}"/>
+                                </Grid>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Border>
             </ScrollViewer>
         </Grid>

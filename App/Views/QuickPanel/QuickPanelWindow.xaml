@@ -18,6 +18,8 @@
         WindowStartupLocation="Manual"
         Focusable="True"
         PreviewKeyDown="Window_PreviewKeyDown"
+        PreviewMouseWheel="Window_PreviewMouseWheel"
+        SizeChanged="Window_SizeChanged"
         ShowActivated="False">
     <Window.Resources>
         <ResourceDictionary>

@@ -48,6 +48,25 @@ public class QuickPanelSettings
 {
     public bool Enabled { get; set; } = true;
 
+    /// <summary>
+    /// The panel's size once the user has dragged it, in DIPs. Zero means they never have.
+    /// </summary>
+    /// <remarks>
+    /// Zero rather than a nullable, because this is a plain JSON round trip and a settings file written
+    /// before these existed deserializes to zero: "never sized" is exactly what that means, so the panel
+    /// falls back to its automatic size against the host. A real drag can never produce zero -- the
+    /// window's own MinWidth/MinHeight floor it -- so the two cases cannot be confused.
+    ///
+    /// Only the SIZE is remembered, not the position. The panel docks to whatever window is in front, so
+    /// reopening it wherever it was last left would defeat its purpose; the size, by contrast, is a
+    /// property of the panel itself.
+    /// </remarks>
+    public double UserWidth { get; set; }
+    public double UserHeight { get; set; }
+
+    /// <summary>Whether the user has ever sized the panel by hand.</summary>
+    public bool HasUserSize => UserWidth > 0 && UserHeight > 0;
+
     public List<QuickPanelTab> Tabs { get; set; } = new() { QuickPanelTab.CreateDefault() };
 
     /// <summary>The tab the panel reopens on. Falls back to the first tab when it no longer exists.</summary>
@@ -59,6 +78,41 @@ public class QuickPanelSettings
     /// window takes the foreground, and losing that is what dismisses the panel.
     /// </summary>
     public QuickPanelThumbnailSize ThumbnailIconSize { get; set; } = QuickPanelThumbnailSize.ExtraLarge;
+
+    /// <summary>
+    /// A multiplier on top of <see cref="ThumbnailIconSize"/>, adjusted with Ctrl+wheel over the panel.
+    /// </summary>
+    /// <remarks>
+    /// The two are not rivals: the tier says how big a tile is meant to be and is what the settings page
+    /// offers, and this is a fine adjustment on top of whichever tier is chosen -- the wheel is a gesture
+    /// for the moment, and the tier is a decision worth going to the page for.
+    ///
+    /// <para>1.0 leaves the tier exactly as it is, which is why it is the default: a user who never
+    /// touches the wheel sees the tiers behave precisely as the settings page describes them, and the
+    /// numbers here never have to be reconciled with those above.</para>
+    ///
+    /// <para>The floor is what still reads as a picture rather than a speck, and the ceiling is the tier
+    /// itself rather than something larger: past 1.0 the picture would be given more room than it can
+    /// fill, which is the one thing the tile metrics exist to avoid.</para>
+    ///
+    /// <para>Out-of-range values are clamped on read rather than rejected, so a hand-edited settings file
+    /// opens at a size that works instead of not opening. Zero means "never stored" -- a file written
+    /// before this existed -- and answers 1.0, since clamping that to the floor would open the panel with
+    /// every icon at its smallest and read as a bug.</para>
+    /// </remarks>
+    public double IconScale { get; set; } = DefaultIconScale;
+
+    public const double DefaultIconScale = 1.0;
+    public const double MinIconScale = 0.2;
+
+    /// <summary>The stored multiplier, brought back inside the range it is allowed to be.</summary>
+    public double EffectiveIconScale => ClampIconScale(IconScale);
+
+    /// <summary>
+    /// A stored multiplier brought into range, with "no value at all" answered as the default.
+    /// </summary>
+    public static double ClampIconScale(double value)
+        => double.IsNaN(value) || value <= 0 ? DefaultIconScale : Math.Clamp(value, MinIconScale, DefaultIconScale);
 
     /// <summary>
     /// Plugin-provided tabs the user has closed, by component id. Present unless closed, which is the
@@ -112,6 +166,21 @@ public class QuickPanelTab
     /// where deleting it means rebuilding the source list to get it back.
     /// </summary>
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Shows every group in this workspace as a detail list rather than as thumbnail tiles.
+    /// </summary>
+    /// <remarks>
+    /// A workspace-level default over the per-source choice, not a replacement for it: a source that has
+    /// its own preference set keeps it, and this only decides what a source with no opinion of its own
+    /// starts as. The point is the common case -- a workspace assembled for documents wants every one of
+    /// its folders listed, and asking that folder by folder is the same answer typed several times.
+    ///
+    /// Unlike the per-source flag, this one is stored rather than a per-session choice, because it is a
+    /// statement about the workspace: switching every folder back by hand on every summon is exactly the
+    /// work this exists to save.
+    /// </remarks>
+    public bool ListView { get; set; }
 
     /// <summary>
     /// Applications this workspace belongs to, by process name. Summon the panel while one of them is
@@ -176,6 +245,7 @@ public class QuickPanelTab
         Id = Id,
         Name = Name,
         Enabled = Enabled,
+        ListView = ListView,
         Processes = new List<string>(Processes),
         Folders = Folders.Select(f => new QuickPanelFolderSource
         {

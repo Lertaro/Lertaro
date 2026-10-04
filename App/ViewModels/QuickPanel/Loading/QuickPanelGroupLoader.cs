@@ -39,7 +39,7 @@ internal sealed class QuickPanelGroupLoader
 
             if (group == null)
             {
-                group = Create(source, preference, items, isLoading: true);
+                group = Create(source, preference, workspace.ListView, items, isLoading: true);
                 place(group);
             }
             else
@@ -72,7 +72,7 @@ internal sealed class QuickPanelGroupLoader
             if (completeItems.Count == 0)
                 return;
 
-            group = Create(source, preference, completeItems, isLoading: false);
+            group = Create(source, preference, workspace.ListView, completeItems, isLoading: false);
             place(group);
             return;
         }
@@ -86,9 +86,17 @@ internal sealed class QuickPanelGroupLoader
             Modified: ReadModified(result)))
         .ToList();
 
+    /// <summary>Builds one group, with the view it should start in.</summary>
+    /// <remarks>
+    /// The source's own preference wins where it has one; the workspace's choice is what a source with no
+    /// preference of its own falls back to. That order is the point of having both: a workspace set to
+    /// lists covers every folder in it at once, and a single folder that wants tiles still says so on its
+    /// own row without the other nine following it.
+    /// </remarks>
     private static QuickPanelGroupViewModel Create(
         QuickPanelFolderSource source,
         QuickPanelGroupPreference? preference,
+        bool workspaceWantsList,
         List<(AppSearchResult Item, DateTime? Modified)> items,
         bool isLoading) => new(
             source.Id,
@@ -96,7 +104,7 @@ internal sealed class QuickPanelGroupLoader
             FavoritePathResolver.Resolve(source.Path),
             items,
             QuickPanelGroupPreference.DefaultSortFor(source),
-            preference?.ThumbnailView ?? true,
+            preference?.ThumbnailView ?? !workspaceWantsList,
             preference?.Expanded ?? true,
             source.AcceptsDrops,
             isLoading: isLoading,

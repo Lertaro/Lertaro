@@ -156,4 +156,83 @@ public partial class QuickPanelWindow
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
             ClearSelection(VisualTreeHelper.GetChild(root, i));
     }
+
+    /// <summary>How much one Ctrl+wheel notch moves the tile scale.</summary>
+    /// <remarks>
+    /// A tenth per notch puts the whole 20%-to-100% range eight notches wide: coarse enough to cross it in
+    /// one flick, fine enough that a single notch is a visible step rather than a jump. The scale is
+    /// stored rounded to this same step so a value typed into the settings file still lands on a notch.
+    /// </remarks>
+    internal const double IconScaleStep = 0.1;
+
+    /// <summary>
+    /// The scale a wheel notch asks for: up for a forward roll, down for a backward one.
+    /// </summary>
+    /// <remarks>
+    /// This adjusts the multiplier over the tier the settings page chose, and does not touch the tier
+    /// itself: the wheel is the gesture for "a little bigger than this", not a second place to pick a
+    /// size from. See <see cref="Core.QuickPanelSettings.IconScale"/> for why the two are separate.
+    ///
+    /// <para>Rounded to the step before and after the move, so repeated notches cannot drift: adding 0.1
+    /// eight times in binary floating point otherwise lands just under 1.0 and the last notch does
+    /// nothing.</para>
+    ///
+    /// <para>The result is clamped directly, NOT through <see cref="Core.QuickPanelSettings.ClampIconScale"/>.
+    /// That method reads a value of zero or less as "nothing was ever stored" and answers the default,
+    /// which is right for a settings file read at startup and wrong here: one notch below the floor
+    /// rounds the step count to zero, and passing that through it made the smallest size jump back to the
+    /// default. A notch that would go past an end simply stays on it.</para>
+    /// </remarks>
+    internal static double ScaledIconScale(double current, int wheelDelta)
+    {
+        if (wheelDelta == 0) return Core.QuickPanelSettings.ClampIconScale(current);
+
+        var steps = Math.Round(Core.QuickPanelSettings.ClampIconScale(current) / IconScaleStep);
+        steps += wheelDelta > 0 ? 1 : -1;
+
+        var moved = Math.Round(steps * IconScaleStep, 2);
+        return Math.Clamp(moved, Core.QuickPanelSettings.MinIconScale, Core.QuickPanelSettings.DefaultIconScale);
+    }
+
+    /// <summary>Turns the tile scale up or down, and re-measures the panel around it.</summary>
+    /// <remarks>
+    /// Only while Ctrl is held, so a plain wheel still scrolls the groups -- that is the gesture the panel
+    /// is for, and it would be the one thing lost by claiming the wheel outright.
+    ///
+    /// Saved and applied immediately rather than on close: the panel is closed by losing the foreground as
+    /// often as by Escape, and a size that came back wrong on the next summon would read as broken. The
+    /// metrics read the multiplier during measure, so writing it and asking for a new layout is the whole
+    /// of the update -- nothing is reloaded, nothing re-fetched.
+    ///
+    /// This is the panel's own tile scale, deliberately not <c>UiMetrics</c>'s: that one is the app-wide
+    /// display scale every window shares, and turning it from here would resize the search windows too.
+    /// </remarks>
+    private void Window_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
+
+        var settings = Core.UserSettings.Load();
+        var scale = ScaledIconScale(settings.QuickPanel.EffectiveIconScale, e.Delta);
+
+        // Handled either way, including at the ends of the range, so a roll against the stop does not fall
+        // through and scroll the groups the user was not asking to move.
+        e.Handled = true;
+        if (Math.Abs(scale - settings.QuickPanel.EffectiveIconScale) < 0.0001) return;
+
+        settings.QuickPanel.IconScale = scale;
+        settings.Save();
+
+        ApplyIconScale();
+    }
+
+    /// <summary>Lays the panel out again at the scale the settings now hold.</summary>
+    /// <remarks>
+    /// Called after any layout that could have built new rows too, since a group materialized later is
+    /// measured at whatever the scale is by then.
+    /// </remarks>
+    internal void ApplyIconScale()
+    {
+        InvalidateMeasure();
+        UpdateLayout();
+    }
 }

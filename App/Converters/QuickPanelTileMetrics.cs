@@ -52,19 +52,34 @@ public sealed class QuickPanelTileMetrics : IValueConverter
     // at the picture's own 48px minimum plus the chrome, since a size that never went below the tiles'
     // old fixed width would not be one; ExtraLarge keeps that old fixed size as its floor, and its
     // ceiling is where it always stopped being able to use more width.
-    private static double MinSlot => IconSize == QuickPanelThumbnailSize.ExtraLarge ? 92 : 72;
+    //
+    // Both then move with the Ctrl+wheel multiplier, which is the same rule applied to a tile the user
+    // has asked to be finer or coarser: the floor is where a tile stays readable, and the ceiling is
+    // where the picture stops being able to fill what it is given. Scaling both is what makes the wheel
+    // fit more tiles in the same window rather than leaving each one in a cell it no longer fills.
+    // Scaling only one would let a shrunken tile be measured as though it were still full size.
+    private static double MinSlot => (IconSize == QuickPanelThumbnailSize.ExtraLarge ? 92 : 72) * IconScale;
 
     /// <summary>Where the picture stops being able to use more width.</summary>
-    private static double MaxIcon => IconSize switch
+    private static double MaxIcon => (IconSize switch
     {
         QuickPanelThumbnailSize.Small => 64,
         QuickPanelThumbnailSize.Medium => 88,
         QuickPanelThumbnailSize.Large => 120,
         _ => 160,
-    };
+    }) * IconScale;
 
     // The slot's own border margin and padding, plus the breathing room around the picture inside it.
     private const double SlotChrome = 24;
+
+    /// <summary>The Ctrl+wheel multiplier in force, read fresh so the panel's re-measure sees the new one.</summary>
+    /// <remarks>
+    /// Read from the settings rather than held beside <see cref="IconSize"/>, because the two are set by
+    /// different surfaces: the tier comes from the settings page before the window is built, while this
+    /// changes under the pointer. Read here, one wheel step lands on the next measure with nothing to
+    /// keep in step.
+    /// </remarks>
+    private static double IconScale => Core.UserSettings.Load().QuickPanel.EffectiveIconScale;
 
     /// <summary>The widest a tile is ever made: any more would be padding, so it buys another tile.</summary>
     internal static double MaxSlot => MaxIcon + SlotChrome;
@@ -75,10 +90,7 @@ public sealed class QuickPanelTileMetrics : IValueConverter
             return DependencyProperty.UnsetValue;
 
         var slot = SlotFor(available);
-
-        // Leaving the name room underneath: the tile is the picture plus up to two lines of text, and a
-        // picture that took the whole slot would push the name out of it.
-        var iconWidth = Math.Max(48, slot - SlotChrome);
+        var iconWidth = IconWidthFor(slot);
 
         return (parameter as string) switch
         {
@@ -89,8 +101,25 @@ public sealed class QuickPanelTileMetrics : IValueConverter
         };
     }
 
-    // Room under the picture for up to two lines of name, plus the tile's own padding.
-    private const double TextRoom = 52;
+    /// <summary>How wide the picture inside a slot is: the slot less its chrome, floored at the picture's own minimum.</summary>
+    /// <remarks>
+    /// Shared rather than written out at each call site: the tile template reaches it through the
+    /// converter above, and the wrap panel publishes the same number for the picture to bind to, so the
+    /// two have to agree on it or a tile's box and the cell it sits in would disagree about the chrome.
+    /// </remarks>
+    internal static double IconWidthFor(double slotWidth) => Math.Max(48, slotWidth - SlotChrome);
+
+    // Room under the picture for the name, plus the tile's own padding.
+    //
+    // Sized for ONE line, which is what the tile template actually draws: its TextBlock has no
+    // TextWrapping, so a long name is trimmed by the marquee rather than wrapped onto a second line. This
+    // was 52, the room two lines would have taken, and the difference showed up as a blank strip under
+    // every tile -- a row looked taller than its contents for no reason the user could see.
+    //
+    // The figure covers the gap above the name (the template's margin), one 11pt line, and the tile's own
+    // padding. Raising it back is only right if the template starts wrapping, in which case it needs the
+    // second line back rather than a few pixels more.
+    private const double TextRoom = 37;
 
     /// <summary>The height of a tile's picture box: wider than tall, and the same for every tile.</summary>
     /// <remarks>
@@ -104,7 +133,7 @@ public sealed class QuickPanelTileMetrics : IValueConverter
     /// height instead of stretching the row: both keep their own shape, and the grid stays a grid.
     /// </remarks>
     internal static double IconHeightFor(double slotWidth)
-        => Math.Floor(Math.Max(48, slotWidth - SlotChrome) * 2 / 3);
+        => Math.Floor(IconWidthFor(slotWidth) * 2 / 3);
 
     internal static double CellHeightFor(double slotWidth) => IconHeightFor(slotWidth) + TextRoom;
 

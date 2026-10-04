@@ -21,6 +21,7 @@ public class QuickPanelTabSettingsViewModel : ViewModelBase
         _model = model;
         _name = model.Name;
         _enabled = model.Enabled;
+        _listView = model.ListView;
         Processes = new ProcessBlacklistEditorViewModel(model.Processes);
 
         foreach (var id in QuickPanelGroupOrdering.Resolve(AvailableIds(model), model.GroupOrder, disabled: null))
@@ -63,8 +64,23 @@ public class QuickPanelTabSettingsViewModel : ViewModelBase
         set => SetProperty(ref _enabled, value);
     }
 
-    public ICommand MoveUpSelfCommand { get; private set; } = null!;
-    public ICommand MoveDownSelfCommand { get; private set; } = null!;
+    private bool _listView;
+
+    /// <summary>
+    /// Shows this workspace's groups as detail lists rather than as thumbnail tiles.
+    /// </summary>
+    /// <remarks>
+    /// The workspace-wide default over each source's own choice below. A source with a preference of its
+    /// own still wins -- this decides what the ones with no opinion start as, which is the case a
+    /// workspace of documents is entirely made of.
+    /// </remarks>
+    public bool ListView
+    {
+        get => _listView;
+        set => SetProperty(ref _listView, value);
+    }
+
+    public ICommand MoveUpSelfCommand { get; private set; } = null!;    public ICommand MoveDownSelfCommand { get; private set; } = null!;
     public ICommand RemoveSelfCommand { get; private set; } = null!;
 
     /// <summary>
@@ -100,6 +116,7 @@ public class QuickPanelTabSettingsViewModel : ViewModelBase
     {
         _model.Name = Name.Trim();
         _model.Enabled = Enabled;
+        _model.ListView = ListView;
         _model.Processes = Processes.ToSettingsList();
 
         foreach (var row in Sources)

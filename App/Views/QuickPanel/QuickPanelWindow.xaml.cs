@@ -184,6 +184,37 @@ public partial class QuickPanelWindow : Window,
     /// </remarks>
     public bool IsDraggingWindow { get; private set; }
 
+    /// <summary>Remembers a size the user dragged the panel to.</summary>
+    /// <remarks>
+    /// The one signal every resize route ends at -- the grip's drag, a programmatic size -- so it records
+    /// all of them without any of them having to say so.
+    ///
+    /// <para>Two guards, and both are load-bearing rather than defensive:</para>
+    ///
+    /// <para><c>IsLoaded</c> keeps the automatic placement out of it. QuickPanelManager positions the panel
+    /// before showing it, and that write raises this too; IsLoaded is false until the window is on screen,
+    /// so a size written before Show can never be mistaken for one the user chose.</para>
+    ///
+    /// <para>The size comparison keeps a CONTENT change out of it: switching workspace swaps every group
+    /// on screen, and that re-layout raises SizeChanged even though the window's own Width and Height are
+    /// untouched. Without this guard, clicking a tab recorded the panel's current size as a deliberate
+    /// choice, and the next automatic placement then honoured it.</para>
+    /// </remarks>
+    private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!IsLoaded) return;
+
+        // Compared against the window's own size, which is what the user actually changed -- e.NewSize is
+        // the size of the VISUAL, which a content change alone can alter.
+        if (Math.Abs(e.NewSize.Width - e.PreviousSize.Width) < 0.5 &&
+            Math.Abs(e.NewSize.Height - e.PreviousSize.Height) < 0.5)
+        {
+            return;
+        }
+
+        Services.QuickPanel.QuickPanelManager.Instance?.MarkUserSized();
+    }
+
     private void DragArea_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton != MouseButton.Left) return;

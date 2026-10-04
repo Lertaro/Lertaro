@@ -129,7 +129,11 @@ internal static class SettingsWindowSearchExtensions
 
         var quickPanelSectionLabel = TranslationManager.Instance["Settings_QuickPanel"];
         var quickPanelPluginTabsLabel = TranslationManager.Instance["QuickPanel_PluginTabs"];
-        var quickPanelPluginTabs = vm?.QuickPanel.PluginTabs ?? QuickPanelPluginTabCatalog.Available(UserSettings.Load().QuickPanel);
+        // Read through the interface, with the fallback cast to it: the page's own list is an
+        // ObservableCollection (it is reordered by dragging) while the catalog hands back a plain List,
+        // and ?? will not unite the two on its own -- the target type does not reach into its operands.
+        IEnumerable<QuickPanelPluginTabOption> quickPanelPluginTabs = vm?.QuickPanel.PluginTabs
+            ?? QuickPanelPluginTabCatalog.Available(UserSettings.Load().QuickPanel).AsEnumerable();
         foreach (var pluginTab in quickPanelPluginTabs)
         {
             var capturedTab = pluginTab;

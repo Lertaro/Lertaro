@@ -202,6 +202,38 @@ public sealed class QuickPanelViewModelTests
         Assert.IsFalse(vm.Groups[0].IsExpanded);
     }
 
+    // A workspace set to lists lists every folder in it, which is the whole reason the choice exists at
+    // the workspace level: a workspace assembled for documents wants all of its folders listed, and
+    // asking that folder by folder is the same answer typed several times.
+    [TestMethod]
+    public async Task Refresh_AWorkspaceShowingLists_OpensEveryGroupAsAList()
+    {
+        var settings = OneWorkspace(Folder(@"C:\a", "s1"), Folder(@"C:\b", "s2"));
+        settings.Tabs[0].ListView = true;
+
+        var vm = Build(settings);
+        await vm.RefreshAsync();
+
+        Assert.IsTrue(vm.Groups.All(g => !g.IsThumbnailView));
+    }
+
+    // But a folder that has said so for itself still wins: the workspace's choice is the default for
+    // sources with no opinion, not an override of the ones that have one. Otherwise a single folder that
+    // wants tiles could not be had without switching the other nine back by hand.
+    [TestMethod]
+    public async Task Refresh_AFolderWithItsOwnPreference_OutranksTheWorkspace()
+    {
+        var settings = OneWorkspace(Folder(@"C:\a", "s1"), Folder(@"C:\b", "s2"));
+        settings.Tabs[0].ListView = true;
+        settings.Tabs[0].GroupPreferences["s2"] = new QuickPanelGroupPreference { ThumbnailView = true };
+
+        var vm = Build(settings);
+        await vm.RefreshAsync();
+
+        Assert.IsFalse(vm.Groups.Single(g => g.SourceId == "s1").IsThumbnailView, "no preference of its own, so it follows the workspace");
+        Assert.IsTrue(vm.Groups.Single(g => g.SourceId == "s2").IsThumbnailView, "this one asked for tiles itself");
+    }
+
     // The whole way round, because the two halves agree only if every id survives the trip: the settings
     // page edits a clone, files the new name under the source's id, and Save puts the clone back -- and
     // the panel then has to find that entry again by the same id off the live settings object.

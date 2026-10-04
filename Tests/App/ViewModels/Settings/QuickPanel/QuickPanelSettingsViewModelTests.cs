@@ -96,9 +96,51 @@ public sealed class QuickPanelSettingsViewModelTests
         Assert.IsFalse(preference.ThumbnailView);
     }
 
+    // The workspace-wide view default, which is a plain flag rather than an entry per source: it is a
+    // statement about the workspace, so there is nothing per-source to key it by.
     [TestMethod]
-    public void Save_RemovedFolder_LeavesNothingBehind()
+    public void Save_WorkspaceListView_RoundTrips()
     {
+        var settings = BuildSettings(@"C:\a");
+        var vm = new QuickPanelSettingsViewModel(settings);
+        vm.Tabs.Single().ListView = true;
+
+        vm.Save();
+
+        Assert.IsTrue(settings.QuickPanel.Tabs.Single().ListView);
+        Assert.IsTrue(new QuickPanelSettingsViewModel(settings).Tabs.Single().ListView,
+            "reopening the page shows the box the way it was left");
+    }
+
+    [TestMethod]
+    public void AWorkspaceShowsTilesUntilItIsToldNotTo()
+    {
+        var settings = BuildSettings(@"C:\a");
+
+        new QuickPanelSettingsViewModel(settings).Save();
+
+        Assert.IsFalse(settings.QuickPanel.Tabs.Single().ListView,
+            "tiles are what a panel of files is for, so the default has to survive a save");
+    }
+
+    // Duplicating a workspace copies how it is displayed along with what it holds: the copy is meant to
+    // be a starting point for a variant, and one that came back on tiles would silently undo the choice
+    // the user made about the original.
+    [TestMethod]
+    public void Duplicate_CarriesTheListViewChoice()
+    {
+        var settings = BuildSettings(@"C:\a");
+        var vm = new QuickPanelSettingsViewModel(settings);
+        vm.Tabs.Single().ListView = true;
+
+        vm.DuplicateTabCommand.Execute(null);
+        vm.Save();
+
+        Assert.IsTrue(settings.QuickPanel.Tabs.All(t => t.ListView));
+    }
+
+    [TestMethod]
+    public void Save_RemovedFolder_LeavesNothingBehind()    {
         var settings = BuildSettings(@"C:\a", @"C:\b");
         var vm = new QuickPanelSettingsViewModel(settings);
         var tab = vm.Tabs.Single();
