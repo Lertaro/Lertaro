@@ -1,3 +1,4 @@
+using Lertaro.App.Helpers;
 using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services;
@@ -64,10 +65,9 @@ internal sealed class SearchDispatchController
 
     public void DispatchSearch(string value)
     {
-        var globalPrefixChar = GetGlobalTokenPrefixChar();
-        var strippedTrailing = SearchQuerySortParser.Strip(value, out var tokens, globalPrefixChar);
-        _queryTokens = tokens;
-        var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(value, out var bypassExclusions), GlobalTokenPrefix.Current);
+        _queryTokens = scan.Tokens;
+        var cleanQuery = scan.Text;
         _bypassExclusions = bypassExclusions;
         var (strippedClean, triggeredTypeId) = _resultTypeTrigger.StripTrigger(value, cleanQuery);
         cleanQuery = strippedClean;
@@ -249,10 +249,10 @@ internal sealed class SearchDispatchController
             }
             return;
         }
-        var globalPrefixChar = GetGlobalTokenPrefixChar();
-        var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
-        _queryTokens = tokens;
-        var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        // Same order as DispatchSearch: the bypass marker is stripped before the token scan.
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GlobalTokenPrefix.Current);
+        _queryTokens = scan.Tokens;
+        var cleanQuery = scan.Text;
         _bypassExclusions = bypassExclusions;
         var (strippedClean, triggeredTypeId) = _resultTypeTrigger.StripTrigger(query, cleanQuery);
         cleanQuery = strippedClean;
@@ -387,10 +387,4 @@ internal sealed class SearchDispatchController
 
     private static bool IsGenuineInstantResult(AppSearchResult r) =>
         r.ResultKind == "InstantResult" && r.SourceProvider is PluginSdk.Abstractions.Plugins.IInstantResultProvider;
-
-    private static char GetGlobalTokenPrefixChar()
-    {
-        var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
-    }
 }

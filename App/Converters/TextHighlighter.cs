@@ -8,6 +8,7 @@ using Brush = System.Windows.Media.Brush;
 using Color = System.Windows.Media.Color;
 
 using Lertaro.Core.SearchIndex;
+using Lertaro.Core.SearchIndex.Query;
 namespace Lertaro.App.Converters;
 
 /// <summary>
@@ -205,14 +206,14 @@ public static class TextHighlighter
         return new MaskPlan(parts.ToArray(), pathDrive);
     }
 
-    // Mirrors FzfPattern.Parse's own scan: a whitespace-separated token beginning "<letter>:" is a drive
-    // filter rather than a term, and the last one typed is the one that counts.
+    // The same drive spec FzfPattern.Parse folds away: a standalone "X:" token, last one typed wins. It is
+    // a filter rather than a term, so it is read with the parser's own rule instead of a second guess.
     private static string? FindDriveFilter(string query)
     {
         string? drive = null;
         foreach (var token in query.Split(' ', StringSplitOptions.RemoveEmptyEntries))
         {
-            if (token.Length >= 2 && char.IsLetter(token[0]) && token[1] == Path.VolumeSeparatorChar)
+            if (SearchQueryParser.IsBareDriveSpec(token))
                 drive = token[0].ToString();
         }
         return drive;
