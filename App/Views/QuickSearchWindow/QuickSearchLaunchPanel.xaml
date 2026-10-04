@@ -173,6 +173,12 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Grid Width="32" Height="38" Margin="2,0" ClipToBounds="False">
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_SourceSettings]}"
+                                                  Click="LaunchSourceSettings_Click"/>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
                                 <Button x:Name="LaunchSourceButton" Width="32" Height="38"
                                         HorizontalAlignment="Left" Panel.ZIndex="1" ClipToBounds="False"
                                         MouseEnter="SourceButton_MouseEnter" MouseLeave="SourceButton_MouseLeave"
