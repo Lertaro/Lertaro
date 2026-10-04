@@ -12,7 +12,6 @@ public class TrayIconService : IDisposable
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern bool DestroyIcon(IntPtr handle);
 
-    private readonly Action _toggleVisibilityAction;
     private readonly TrayMenuController _menu;
     private NotifyIcon? _notifyIcon;
     private IntPtr _hIcon;
@@ -20,11 +19,14 @@ public class TrayIconService : IDisposable
 
     public static TrayIconService? Instance { get; private set; }
 
-    public TrayIconService(QuickSearchViewModel viewModel, Action showWindowAction, Action toggleVisibilityAction)
+    /// <summary>
+    /// Takes no window callbacks any more: the tray icon summons through AppWindowManager, the same entry
+    /// point the global hotkey uses, so there is nothing for the window to hand in.
+    /// </summary>
+    /// <param name="viewModel">Accepted for the caller's sake and unused; see the note above.</param>
+    public TrayIconService(QuickSearchViewModel viewModel)
     {
         _ = viewModel;
-        _ = showWindowAction;
-        _toggleVisibilityAction = toggleVisibilityAction;
         _menu = new TrayMenuController(ApplyTrayIconVisible);
         InitializeNotifyIcon();
         ThemeManager.Instance.ThemeChanged += UpdateTrayIconThemeColor;
@@ -39,9 +41,25 @@ public class TrayIconService : IDisposable
         _notifyIcon.MouseClick += (_, e) =>
         {
             if (e.Button == MouseButtons.Left)
-                _toggleVisibilityAction();
+            {
+                // The same summon the global hotkey performs, not a second toggle of its own.
+                //
+                // It used to call ToggleVisibility, which decides through DetermineToggleAction: show,
+                // focus, hide, or reopen-as-full-window depending on the window's state and on the
+                // "reopen as full window on repeat hotkey" setting. Clicking the tray icon therefore
+                // cycled through those states -- the second click opened the full window and, because the
+                // quick window was only hidden behind it rather than dismissed, the third click brought
+                // the quick window back up again with the full one still open.
+                //
+                // treatFullWindowAsFocused, because this click has already taken the foreground away from
+                // the full window: without it the visible-but-unfocused branch says "bring it to front",
+                // which does nothing when it is already there. See that overload.
+                Services.AppWindow.AppWindowManager.HandleSummon(treatFullWindowAsFocused: true);
+            }
             else if (e.Button == MouseButtons.Right)
+            {
                 _menu.ShowAtMouse();
+            }
         };
     }
 
