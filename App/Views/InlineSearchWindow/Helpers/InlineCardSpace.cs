@@ -89,7 +89,7 @@ internal static class InlineCardSpace
 
         double activeWindowHeight = 0;
         double spaceBelow = 0;
-        double spaceBelowAnchorTop = double.MaxValue;
+        var spaceBelowAnchorTop = double.MaxValue;
         if (tracker.ActiveHwnd != IntPtr.Zero && !tracker.IsDesktop
             && tracker.TryGetActiveWindowRect(out var rect)
             && rect.Bottom - rect.Top > 100 && rect.Right - rect.Left > 100)
