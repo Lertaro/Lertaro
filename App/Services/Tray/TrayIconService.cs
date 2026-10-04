@@ -54,7 +54,7 @@ public class TrayIconService : IDisposable
                 // treatFullWindowAsFocused, because this click has already taken the foreground away from
                 // the full window: without it the visible-but-unfocused branch says "bring it to front",
                 // which does nothing when it is already there. See that overload.
-                Services.AppWindow.AppWindowManager.HandleSummon(treatFullWindowAsFocused: true);
+                AppWindow.AppWindowManager.HandleSummon(treatFullWindowAsFocused: true);
             }
             else if (e.Button == MouseButtons.Right)
             {

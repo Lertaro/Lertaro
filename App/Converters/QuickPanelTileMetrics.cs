@@ -79,7 +79,7 @@ public sealed class QuickPanelTileMetrics : IValueConverter
     /// changes under the pointer. Read here, one wheel step lands on the next measure with nothing to
     /// keep in step.
     /// </remarks>
-    private static double IconScale => Core.UserSettings.Load().QuickPanel.EffectiveIconScale;
+    private static double IconScale => UserSettings.Load().QuickPanel.EffectiveIconScale;
 
     /// <summary>The widest a tile is ever made: any more would be padding, so it buys another tile.</summary>
     internal static double MaxSlot => MaxIcon + SlotChrome;
