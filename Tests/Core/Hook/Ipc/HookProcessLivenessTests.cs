@@ -8,7 +8,7 @@ namespace Lertaro.Core.Tests.Hook.Ipc;
 [TestClass]
 public sealed class HookProcessLivenessTests
 {
-    [DataTestMethod]
+    [TestMethod]
     // the App this hook serves exited
     [DataRow(1234u, 1234u, true, true)]
     // still running, nothing to do

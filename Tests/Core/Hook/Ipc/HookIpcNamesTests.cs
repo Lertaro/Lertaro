@@ -24,7 +24,15 @@ public sealed class HookIpcNamesTests
     }
 
     [TestMethod]
-    public void EventPipeName_IsStableAcrossCalls() => Assert.AreEqual(HookIpcNames.EventPipeName, HookIpcNames.EventPipeName);
+    public void EventPipeName_IsStableAcrossCalls()
+    {
+        // The name is built from the current user's session hash on every access, so this has to compare
+        // two separate evaluations: reading one expression twice says nothing about the second call.
+        var first = HookIpcNames.EventPipeName;
+        var second = HookIpcNames.EventPipeName;
+
+        Assert.AreEqual(first, second);
+    }
 
     [TestMethod]
     public void EventPipeName_AndCmdPipeName_AreDistinct() => Assert.AreNotEqual(HookIpcNames.EventPipeName, HookIpcNames.CmdPipeName);
