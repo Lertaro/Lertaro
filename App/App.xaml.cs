@@ -68,6 +68,12 @@ public partial class App : Application
         // Initialize logger first so we can log elevation decisions and issues
         Logger.Initialize("app.log", overwrite: true);
 
+        // Before anything can ask the search routing whether a drive is indexed: the App cannot read
+        // machine-settings.json for itself once the service holds Data\Machine (see MachineSettings.Serve),
+        // and until the copy arrives every one of those questions is answered from defaults. Bounded, so a
+        // service that is not up yet costs startup a moment rather than the whole wait.
+        await Services.AppStartupServiceBootstrapper.ServeMachineSettingsEarlyAsync();
+
         // App-wide smooth wheel scrolling, keyed off ScrollViewer.CanContentScroll so virtualized lists
         // stay item-based while pixel-scrolling lists get the glide (see SmoothWheelScrollBehavior).
         Helpers.Visuals.SmoothWheelScrollBehavior.EnableGlobally();

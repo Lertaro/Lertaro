@@ -45,6 +45,35 @@ public class MachineSettings
 
     private static string BackupPath => SettingsPath + ".bak";
 
+    // The copy another process handed this one, when it cannot read the file itself. See Serve.
+    private static volatile MachineSettings? _served;
+
+    /// <summary>
+    /// Takes the machine settings from whoever owns the file, for a process that cannot read it.
+    /// </summary>
+    /// <remarks>
+    /// On a portable install the service locks <c>Data\Machine</c> for itself (see PortableDirectoryLock),
+    /// and its own comment says why: it writes that directory as LocalSystem, and until the directory is
+    /// locked any user could have planted a link in it that redirects exactly that write. The consequence
+    /// is that the App -- running as the interactive user -- cannot read machine-settings.json at all. It
+    /// is not a permission problem: the ACL still grants Users read, and it is the service's held
+    /// directory handle that refuses, so no grant can fix it from this side.
+    ///
+    /// So the App asks the service over the pipe (<c>GetMachineSettingsAsync</c>, which calls this) and
+    /// hands the answer here; <see cref="Load"/> then answers with what the process that DOES own the file
+    /// said. Left unset in the service, and in any process whose own read works, where Load reads the file
+    /// as it always has.
+    ///
+    /// Pass null to forget a copy -- the seam a test needs, and the honest state for a process whose
+    /// service went away.
+    ///
+    /// ponytail: one copy per process, refreshed when the pipe is asked or told, so a selection the
+    /// service changes on its own (a legacy-selection migration, say) stays stale here until the next
+    /// fetch. The alternative is a change notification over the pipe, which is more machinery than a
+    /// setting nobody edits outside the App's own settings page needs today.
+    /// </remarks>
+    public static void Serve(MachineSettings? settings) => _served = settings;
+
     /// <summary>
     /// <see cref="ServiceLogLevel"/> as a level, defaulting to Info for anything unrecognised.
     /// </summary>
@@ -67,6 +96,12 @@ public class MachineSettings
 
     public static MachineSettings Load()
     {
+        // Told, rather than read: see Serve. This is the whole of what a process the service has locked
+        // out of Data\Machine can know about the machine, and it is the same object the pipe handed over,
+        // so a caller cannot tell the two apart.
+        if (_served is { } served)
+            return served;
+
         // A missing file is a fresh install and gets defaults; an existing file that cannot be read
         // or parsed falls back to the backup the atomic writer left behind, because returning bare
         // defaults here would read as "no drives configured" and let the next Save() persist them
