@@ -65,7 +65,22 @@ public static class SearchServiceManagementExtensions
     public static async Task<MachineSettings> GetMachineSettingsAsync(this SearchService service, CancellationToken token = default)
     {
         var resp = await service.SendPipeCommandAsync(new SearchRequestMessage { Id = SearchRequestId.GetMachineSettings }, token).ConfigureAwait(false);
-        if (resp.Kind == PipeResponseKind.MachineSettings && resp.MachineSettings != null) return resp.MachineSettings;
+        if (resp.Kind == PipeResponseKind.MachineSettings && resp.MachineSettings != null)
+        {
+            // Handed on to MachineSettings for every reader in this process, the search routing and the
+            // scope checks included: those are synchronous and could not ask the pipe themselves, and in
+            // the App they cannot read the file either (see MachineSettings.Serve). Only a real answer is
+            // served -- the empty settings returned below are "no answer", and serving those would be
+            // worse than the file a caller would otherwise have read for itself.
+            MachineSettings.Serve(resp.MachineSettings);
+
+            // Anything decided before this answer arrived was decided from defaults, and the coverage
+            // verdicts are cached per path: drop them so the served selection is what they are decided
+            // against. Same reason the save below invalidates.
+            SearchScopeCoverage.Invalidate();
+            return resp.MachineSettings;
+        }
+
         if (resp.Kind == PipeResponseKind.Error) Logger.Log($"[SearchService] GetMachineSettings failed: {resp.Message}", LogLevel.Error);
         return new MachineSettings();
     }
@@ -74,7 +89,16 @@ public static class SearchServiceManagementExtensions
     {
         var resp = await service.SendPipeCommandAsync(new SearchRequestMessage { Id = SearchRequestId.SetMachineSettings, MachineSettings = settings }, token).ConfigureAwait(false);
         SearchScopeCoverage.Invalidate();
-        return resp.Kind == PipeResponseKind.Ok;
+        if (resp.Kind == PipeResponseKind.Ok)
+        {
+            // The service has taken this selection, so it is also what this process now believes: the App's
+            // own readers get it without waiting for the next fetch, and a failed save leaves the previous
+            // copy in place rather than pretending the new one landed.
+            MachineSettings.Serve(settings);
+            return true;
+        }
+
+        return false;
     }
 
     // In-memory index lookup only (no disk I/O) -- paths the service isn't tracking are simply

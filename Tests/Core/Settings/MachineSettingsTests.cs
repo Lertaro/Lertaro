@@ -4,6 +4,7 @@ namespace Lertaro.Core.Tests.Settings;
 // per-user setting the app and the hook both use, so before this it sat at a hardcoded default and
 // every LogLevel.Debug line in the indexer was unreachable no matter what the settings page said.
 [TestClass]
+[DoNotParallelize] // the served copy is process-wide state; see the Serve tests at the end
 public sealed class MachineSettingsTests
 {
     private string _dir = string.Empty;
@@ -147,5 +148,40 @@ public sealed class MachineSettingsTests
         {
             lockStream?.Dispose();
         }
+    }
+
+    // --- What a process the service has locked out of Data\Machine answers with ----------------------
+    // On a portable install the service holds that directory for itself, so the App -- running as the
+    // interactive user -- cannot read machine-settings.json at all, and the ACL is not the reason: the
+    // held directory handle refuses, so no grant fixes it from that side. The App takes the copy the
+    // service owns over the pipe instead, and hands it to Serve. Every reader in the process then has to
+    // see it, the synchronous routing checks included, which could never ask the pipe themselves.
+    [TestMethod]
+    public void Load_WithAServedCopy_AnswersWithThatCopy()
+    {
+        var served = new MachineSettings { LocalDrives = { "volume-z" }, LocalDriveSelectionConfigured = true };
+        try
+        {
+            MachineSettings.Serve(served);
+
+            Assert.AreSame(served, MachineSettings.Load());
+            Assert.IsTrue(MachineSettings.Load().IsLocalDriveEnabled("volume-z"));
+        }
+        finally
+        {
+            MachineSettings.Serve(null);
+        }
+    }
+
+    [TestMethod]
+    public void Load_AfterTheCopyIsForgotten_NoLongerAnswersWithIt()
+    {
+        var served = new MachineSettings();
+        MachineSettings.Serve(served);
+        MachineSettings.Serve(null);
+
+        // Without a copy it goes back to the file, which is what the service and a healthy App process
+        // read: never the instance that was served a moment ago.
+        Assert.AreNotSame(served, MachineSettings.Load());
     }
 }
