@@ -46,7 +46,10 @@ internal static class SearchMatcherRow
                 continue;
             var separator = AliasProviderRegistry.GetSyllableSeparator(providerId);
             var aliasPattern = pattern.ReadingFor(separator);
-            if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
+            // The alias stands in for the name only for the positive terms: an exclusion and any `/.../`
+            // clause still read `name`, or they would be answered by the alias's own silence
+            // (see FzfPattern.TryMatchAlias).
+            if (!aliasPattern.TryMatchAlias(alias, name, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.
@@ -125,7 +128,9 @@ internal static class SearchMatcherRow
                 continue;
             var separator = AliasProviderRegistry.GetSyllableSeparator(providerIds?[j] ?? 0);
             var aliasPattern = pattern.ReadingFor(separator);
-            if (!aliasPattern.TryMatch(aliases[j], out var aliasMatch, FzfScoringScheme.Default, slab))
+            // Same alias-vs-name split as MatchRow above: positives read the alias, the query's
+            // name-level clauses read `name`.
+            if (!aliasPattern.TryMatchAlias(aliases[j], name, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.

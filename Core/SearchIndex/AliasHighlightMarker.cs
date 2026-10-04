@@ -22,7 +22,8 @@ internal static class AliasHighlightMarker
     // up to 32 combinations), and unlike a real file/folder name a synthetic pinyin string has no
     // camelCase/word-boundary structure for the real algorithm's bonus scoring to add value from -- so
     // paying its full DP cost per candidate measured slower overall than this simpler scan, for a mask
-    // that (per real name/text) comes out effectively identical either way.
+    // that (per real name/text) comes out effectively identical either way. The tightest aligned
+    // occurrence, not the leftmost greedy one, is what painting takes -- see AliasHighlightPositions.
     //
     // The typed term plus a provider's own spellings of it. The rewritten forms are what actually
     // appear in its aliases -- a term typed as one run of letters is not present verbatim in an alias
@@ -117,10 +118,11 @@ internal static class AliasHighlightMarker
 
                         var aliasLower = caseSensitive ? alias : alias.ToLowerInvariant();
                         // Follow the same rule matching does -- which is this TERM's kind, not the
-                        // fuzzy setting. Reading the setting instead was right until a "'" was
-                        // involved, since that flips one term's exactness against it: with fuzzy off,
-                        // "'abc" searches as a subsequence but was highlighted as a contiguous run,
-                        // found nothing, and lit up nothing at all while the row itself was a hit.
+                        // fuzzy setting. Reading the setting instead was right until a precision
+                        // inversion was involved, since that flips one term's exactness against it: with
+                        // fuzzy off, "?abc" searches as a subsequence but was highlighted as a
+                        // contiguous run, found nothing, and lit up nothing at all while the row itself
+                        // was a hit.
                         //
                         // Matching now reads a term against an alias BOTH ways (a contiguous run if it can
                         // be, a subsequence otherwise -- see FzfPatternAliasReading), so painting offers the

@@ -130,13 +130,24 @@ public sealed class SearchSession
     {
         var rankComparer = new SearchResultRankComparer(SearchHistoryStore.Snapshot());
         var comparer = Comparer<(SearchResult Result, int[] Highlights)>.Create((a, b) => rankComparer.Compare(a.Result, b.Result));
-        // A trailing " :a,b,c" query-token suffix (same shared Core parser AppSearchPipeService itself
-        // uses to decide this) means the server already ran the full rank-sort + IQueryTokenProvider
-        // dispatch and sent back the finished, final-order result in one shot -- re-sorting here with a
-        // plain rank comparer would scramble whatever a token like "::expr" deliberately reordered by.
+        // A query-token word (same shared Core scanner AppSearchPipeService itself uses to decide this)
+        // means the server already ran the full rank-sort + IQueryTokenProvider dispatch and sent back the
+        // finished, final-order result in one shot -- re-sorting here with a plain rank comparer would
+        // scramble whatever a token like "<s" deliberately reordered by.
         // Progress snapshots are also moot in that case (the server never streams partial results for a
         // tokenized query), so this only really changes the final callback's behavior.
-        SearchQuerySortParser.Strip(q, out var parsedTokens);
+        //
+        // The prefix comes from the settings, exactly as NonInteractiveSearchResults and the App's own pipe
+        // handler read it: the scanner only recognizes the character it is handed, so scanning with the
+        // default would miss every token of a user who configured another one -- and then re-sort the
+        // server's token-ordered result.
+        var configuredPrefix = UserSettings.Load().GlobalTokenPrefix;
+        var prefix = !string.IsNullOrEmpty(configuredPrefix) ? configuredPrefix[0] : '\\';
+        // Strip the leading '*' bypass marker first, exactly as the App's pipe handler does before it scans.
+        // It is not a token trigger, so scanning the raw text sees a first word like "*>s" instead of ">s",
+        // answers "no tokens", and re-sorts here a result the server already put in token order -- which for
+        // the non-interactive path also means truncating to a DIFFERENT set of files than the window shows.
+        var parsedTokens = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(q, out _), prefix).Tokens;
         var hasTokens = parsedTokens.Count > 0;
 
         void ShowSnapshot(List<(SearchResult, int[])> snapshot)

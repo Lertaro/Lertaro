@@ -45,11 +45,15 @@ internal static class FzfPatternAliasReading
     internal static FzfPattern ReadingFor(this FzfPattern pattern, char separator)
         => separator == '\0' ? pattern : pattern.AliasReading;
 
+    // The clauses that read the candidate's own text have to survive the copy: the alias tiers answer a
+    // query through this view while handing them the NAME (FzfPattern.TryMatchAlias), and a view without
+    // them would silently answer a `/.../` query as if no clause had been typed.
     internal static FzfPattern Build(FzfPattern source)
         => new(
             source.TargetDrive,
             Twin(source.TermSets),
-            source.OrGroups == null ? null : TwinGroups(source.OrGroups));
+            source.OrGroups == null ? null : TwinGroups(source.OrGroups),
+            source.Regexes);
 
     private static FzfTermSet[] Twin(FzfTermSet[] sets)
     {
