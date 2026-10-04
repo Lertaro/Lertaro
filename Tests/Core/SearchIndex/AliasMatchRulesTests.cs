@@ -19,51 +19,67 @@ public sealed class AliasMatchRulesTests
     private const char Sep = (char)2;
 
     [TestMethod]
-    public void Alignment_AllowsTheStartOfTheAlias()
-    {
-        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 0));
-    }
+    public void Alignment_AllowsTheStartOfTheAlias() => Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 0));
 
     [TestMethod]
-    public void Alignment_AllowsAPositionRightAfterASeparator()
-    {
-        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 6));
-    }
+    public void Alignment_AllowsAPositionRightAfterASeparator() => Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 6));
 
     [TestMethod]
-    public void Alignment_RejectsAMidSyllableStart()
-    {
+    public void Alignment_RejectsAMidSyllableStart() =>
         // Index 3 is inside "zheng" -- matching there is what spliced xue+xi into "ex".
         Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 3));
-    }
 
     [TestMethod]
-    public void Alignment_RejectsAMidSyllableStartInTheLastSyllable()
-    {
+    public void Alignment_RejectsAMidSyllableStartInTheLastSyllable() =>
         // Only the START of a match is constrained; a match may still run to the end (that is what keeps a
         // half-typed trailing syllable working), but it may not START inside a syllable.
         Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 8));
-    }
 
     [TestMethod]
-    public void Alignment_FlatAliasIsAlignedEverywhere()
-    {
+    public void Alignment_FlatAliasIsAlignedEverywhere() =>
         // An alias with no separator is the per-character initials shape, where every position is a real
         // boundary -- "x" must be allowed to match the second character of "ex".
         Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, "ex", 1));
-    }
 
     [TestMethod]
-    public void Alignment_PolyphonicSegmentBoundaryCounts()
-    {
+    public void Alignment_PolyphonicSegmentBoundaryCounts() =>
         // A '|'-joined reading opens a fresh segment, so a match right after that character is aligned.
         Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zhong{Sep}guo|zhong{Sep}hua|zhong", 10));
+
+    [TestMethod]
+    public void Alignment_ProviderWithoutASeparatorIsNeverConstrained() => Assert.IsTrue(AliasMatchRules.IsBoundaryAligned('\0', "anything", 3));
+
+    // An alias keeps the name's own non-transliterated characters verbatim, so the syllables of a later word
+    // begin right after a space, '-' or '.'. Those are boundaries in exactly the sense this rule is about --
+    // a user typing that word's pinyin starts there -- and refusing them made a precise pinyin query miss
+    // every name whose pinyin word was not the first one. Reported: "?wangfei" found 王菲.txt but not
+    // "我愿意 - 王菲.mp3", whose full alias is "wo<sep>yuan<sep>yi - wang<sep>fei.mp3" (fuzzy matching found
+    // both, because a fuzzy term is not gated by this rule at all).
+    [TestMethod]
+    [DataRow(" ", DisplayName = "space")]
+    [DataRow("-", DisplayName = "hyphen")]
+    [DataRow(".", DisplayName = "dot")]
+    [DataRow("_", DisplayName = "underscore")]
+    public void Alignment_AllowsAStartAfterALiteralSeparator(string literal)
+    {
+        var alias = $"wo{Sep}yuan{Sep}yi{literal}wang{Sep}fei.mp3";
+        var start = alias.IndexOf($"{literal}wang", StringComparison.Ordinal) + 1;
+
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, alias, start));
     }
 
     [TestMethod]
-    public void Alignment_ProviderWithoutASeparatorIsNeverConstrained()
+    public void Alignment_StillRejectsAMidSyllableStartAfterLiteralText()
     {
-        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned('\0', "anything", 3));
+        // What the rule exists for, restated with a literal separator in front: a splice needs the match to
+        // start INSIDE a syllable, where the character before it is a letter -- and a literal is not that.
+        // The index below is the 'u' of "yuan": its predecessor is the 'y' that opens that syllable.
+        var alias = $"-wo{Sep}yuan{Sep}yi";
+        var insideYuan = alias.IndexOf('u', StringComparison.Ordinal);
+
+        Assert.AreEqual('u', alias[insideYuan]);
+        Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, alias, insideYuan), "a start inside 'yuan' must stay rejected");
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, alias, alias.IndexOf('y', StringComparison.Ordinal)), "while that syllable's own start is aligned");
     }
 
     [TestMethod]
@@ -80,6 +96,20 @@ public sealed class AliasMatchRulesTests
     }
 
     [TestMethod]
+    public void Alignment_Utf8Twin_AllowsAStartAfterALiteralSeparator()
+    {
+        // The byte overload decides the same thing as the char one where the hot path uses it: an ASCII alias
+        // keeps byte offsets equal to char offsets, and the literal in front of the second word is not a
+        // letter there either.
+        var alias = $"wo{Sep}yuan{Sep}yi - wang{Sep}fei.mp3";
+        var bytes = System.Text.Encoding.UTF8.GetBytes(alias);
+        var start = alias.IndexOf("wang", StringComparison.Ordinal);
+
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, bytes, start));
+        Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, bytes, alias.IndexOf('u', StringComparison.Ordinal)), "a mid-syllable start stays rejected");
+    }
+
+    [TestMethod]
     public void AllowsMatch_PreciseQueryAppliesTheRule()
     {
         Assert.IsFalse(AliasMatchRules.AllowsMatch(precise: true, Sep, $"zheng{Sep}shu", 3));
@@ -87,18 +117,13 @@ public sealed class AliasMatchRulesTests
     }
 
     [TestMethod]
-    public void AllowsMatch_FuzzyTermIsExempt()
-    {
+    public void AllowsMatch_FuzzyTermIsExempt() =>
         // A fuzzy term asked for a loose match, so the operator the user typed would be contradicted by
         // applying the boundary rule.
         Assert.IsTrue(AliasMatchRules.AllowsMatch(precise: false, Sep, $"zheng{Sep}shu", 3));
-    }
 
     [TestMethod]
-    public void Tier_LiteralNameBeatsEveryAliasShape()
-    {
-        Assert.AreEqual(MatchRank.TierName, AliasMatchRules.TierFor(Sep, matchedName: true, $"zheng{Sep}shu"));
-    }
+    public void Tier_LiteralNameBeatsEveryAliasShape() => Assert.AreEqual(MatchRank.TierName, AliasMatchRules.TierFor(Sep, matchedName: true, $"zheng{Sep}shu"));
 
     [TestMethod]
     public void Tier_InitialsBeatFullReading()
@@ -109,11 +134,9 @@ public sealed class AliasMatchRulesTests
     }
 
     [TestMethod]
-    public void Tier_ProviderWithoutASeparatorIsScoredAsInitials()
-    {
+    public void Tier_ProviderWithoutASeparatorIsScoredAsInitials() =>
         // Nothing distinguishes its two shapes, so it cannot be ranked as a full reading.
         Assert.AreEqual(MatchRank.TierInitials, AliasMatchRules.TierFor('\0', matchedName: false, "whatever"));
-    }
 
     [TestMethod]
     public void Tier_LiteralBeatsInitialsBeatsFull()
