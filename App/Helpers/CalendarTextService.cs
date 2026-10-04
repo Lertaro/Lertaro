@@ -18,9 +18,27 @@ internal static class CalendarTextService
     /// The plugin-supplied description of <paramref name="date"/>, or an empty string when no provider has
     /// anything to say.
     /// </summary>
-    internal static string Describe(DateTime date)
+    /// <remarks>
+    /// Asks <see cref="PluginManager.CalendarTextProviders"/>, which is the ENABLED projection: a plugin the
+    /// user disabled, or a calendar-text component switched off under it, is filtered out there and so is
+    /// never called here. That is the whole of "a disabled plugin is not asked" -- there is no second check
+    /// on this side, and deliberately so: one gate, in one place, is what makes the answer the same for every
+    /// consumer.
+    /// </remarks>
+    internal static string Describe(DateTime date) => Describe(PluginManager.Instance.CalendarTextProviders, date);
+
+    /// <summary>
+    /// The same, over a caller-supplied set of providers.
+    /// </summary>
+    /// <param name="providers">
+    /// Whom to ask, in order. Split out from the overload above so the asking rules can be tested without a
+    /// loaded plugin: an empty sequence is what a disabled plugin leaves behind, and a provider that throws
+    /// is third-party code on the UI thread.
+    /// </param>
+    /// <param name="date">The day to describe.</param>
+    internal static string Describe(IEnumerable<ICalendarTextProvider> providers, DateTime date)
     {
-        foreach (var provider in PluginManager.Instance.CalendarTextProviders)
+        foreach (var provider in providers)
         {
             try
             {

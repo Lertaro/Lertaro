@@ -52,6 +52,16 @@ public sealed class CalendarTextProviderTests
     [DataRow(2026, 9, 25, "八月中秋节")]
     [DataRow(2026, 9, 11, "八月初一")]
     [DataRow(2026, 2, 17, "正月春节")]
+    // Leap months. 2023 ran a 闰二月 from 2023-03-22 to 2023-04-19, 2020 a 闰四月 from 05-23, and 2025 a
+    // 闰六月 from 07-25; the whole point of the 闰 prefix is that a date in one of them must not read as the
+    // month it repeats, so these are the cases where losing it would go unnoticed.
+    [DataRow(2023, 3, 22, "闰二月初一")]
+    [DataRow(2023, 4, 14, "闰二月廿四")]
+    [DataRow(2023, 4, 19, "闰二月廿九")]
+    [DataRow(2023, 4, 5, "闰二月清明")]
+    [DataRow(2020, 5, 23, "闰四月初一")]
+    [DataRow(2025, 7, 25, "闰六月初一")]
+    [DataRow(2025, 8, 22, "闰六月廿九")]
     public void GetCalendarText_ReadsMonthThenDayTermOrFestival(int year, int month, int day, string expected)
     {
         UseChinese();
@@ -112,5 +122,25 @@ public sealed class CalendarTextProviderTests
         Assert.AreEqual("八月", ChineseCalendar.LunarMonthText(new DateTime(2026, 9, 11)));
         Assert.AreEqual("八月", ChineseCalendar.LunarMonthText(new DateTime(2026, 9, 25)));
         Assert.AreEqual("正月", ChineseCalendar.LunarMonthText(new DateTime(2026, 2, 17)));
+        // A leap month is a month of its own as far as the reader is concerned, and the library already
+        // carries the 闰 marker in MonthInChinese: the only way to lose it is to build the name by hand.
+        Assert.AreEqual("闰二月", ChineseCalendar.LunarMonthText(new DateTime(2023, 3, 22)));
+        Assert.AreEqual("闰四月", ChineseCalendar.LunarMonthText(new DateTime(2020, 5, 23)));
+        Assert.AreEqual("闰六月", ChineseCalendar.LunarMonthText(new DateTime(2025, 7, 25)));
+    }
+
+    [TestMethod]
+    public void GetCalendarText_KeepsALeapMonthApartFromTheOneItRepeats()
+    {
+        // 2023's 闰二月 follows its 二月, so the two months hold dates with the same day names. Without the 闰
+        // the pair below would be the same string printed twice, and a reminder or a glance at the clock line
+        // could not tell which of the two months it was in.
+        UseChinese();
+        var secondMonth = Provider.GetCalendarText(new DateTime(2023, 3, 14));
+        var leapSecondMonth = Provider.GetCalendarText(new DateTime(2023, 4, 14));
+
+        Assert.AreEqual("二月廿三", secondMonth);
+        Assert.AreEqual("闰二月廿四", leapSecondMonth);
+        Assert.AreNotEqual(secondMonth, leapSecondMonth);
     }
 }
