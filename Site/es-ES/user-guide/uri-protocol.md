@@ -33,7 +33,7 @@ Hotkeys      - Atajos de teclado
 Plugins      - Gestión de plugins
 Favorites    - Favoritos
 History      - Historial de búsqueda
-QuickLaunch  - Inicio rápido
+QuickLaunch  - Página inicial
 QuickPanel   - Panel rápido
 LocalSend    - Transferencia LocalSend
 About        - Acerca de y actualizaciones
