@@ -129,8 +129,13 @@ public sealed class SearchResultsReconcilerTests
     {
         var before = Result(@"C:\a", query: "a");
         var results = new ObservableRangeCollection<AppSearchResult> { before };
-        var raised = new List<string?>();
-        before.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        var raised = new List<string>();
+        before.PropertyChanged += (_, e) =>
+        {
+            // A null name means "every property changed", which is not what this test is watching for.
+            if (e.PropertyName is not null)
+                raised.Add(e.PropertyName);
+        };
 
         SearchResultsReconciler.Replace(results, new[] { Result(@"C:\a", query: "ab") }, null, _ => { });
 
