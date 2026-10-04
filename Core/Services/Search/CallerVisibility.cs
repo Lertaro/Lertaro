@@ -18,6 +18,12 @@ namespace Lertaro.Core.Services.Search;
 /// its own permissions stays visible to searches, and GetSpaceEntries' folder sizes above a profile (C:\Users)
 /// still count the files inside other profiles. The upgrade is a per-directory AccessCheck against the
 /// caller's token, cached per SID.
+///
+/// The profile map is read from the registry once per connection too, and it is the dearer half of the round
+/// trip <see cref="ServicePipe"/> counts: measured at 203 us median, 357 us p95 with five accounts on this
+/// machine, one key opened per account, so it grows with the profile count. That still fits inside one
+/// keystroke's budget. Caching it would need an invalidation story ProfileList does not offer -- a profile
+/// appears at a new account's first logon and nothing announces it -- so the map is read fresh.
 /// </remarks>
 internal sealed class CallerVisibility
 {

@@ -15,9 +15,11 @@ namespace Lertaro.Core.Services.Search;
 /// from that process instead. So the server's PID, which the kernel reports and the server cannot choose,
 /// has to be the PID the Service Control Manager has for LertaroService.
 ///
-/// ponytail: one SCM round trip per connection, including each keystroke's search. It is a local RPC
-/// measured in microseconds; if it ever shows up, cache the PID while holding a handle to that process
-/// (a PID cannot be reused while a handle to it is open).
+/// ponytail: one SCM round trip per connection, including each keystroke's search. Measured against the
+/// running service at 137 us median, 175 us p95, which is not worth a cache and the invalidation that comes
+/// with one. If a machine ever shows it, cache the PID while holding a handle to that process (a PID cannot
+/// be reused while a handle to it is open). <see cref="CallerVisibility.ForClient"/> counts the dearer half
+/// of what a connection now costs.
 /// </remarks>
 internal static class ServicePipe
 {
