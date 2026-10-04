@@ -33,7 +33,7 @@ Hotkeys      - Hotkeys & Shortcuts
 Plugins      - Plugin Management
 Favorites    - Favorites
 History      - Search History
-QuickLaunch  - Quick Launch
+QuickLaunch  - Start Page
 QuickPanel   - Quick Panel
 LocalSend    - LocalSend Transfer
 About        - About & Updates
