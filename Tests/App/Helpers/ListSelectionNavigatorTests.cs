@@ -102,7 +102,8 @@ public class ListSelectionNavigatorTests
     }
 
     [TestMethod]
-    public void FirstSelectable_ReturnsZeroWhenTheFirstRowIsSelectable() => Assert.AreEqual(0, ListSelectionNavigator.FirstSelectable(3, i => "sss"[i] == 's'));
+    public void FirstSelectable_ReturnsZeroWhenTheFirstRowIsSelectable()
+        => Assert.AreEqual(0, ListSelectionNavigator.FirstSelectable(3, i => "sss"[i] == 's'));
 
     [TestMethod]
     public void FirstSelectable_NothingSelectable_ReturnsMinusOne()
