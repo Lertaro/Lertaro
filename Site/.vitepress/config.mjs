@@ -37,6 +37,23 @@ function ogHeadFor(title, description) {
   ]
 }
 
+// Same chain as VitePress's built-in slugify, except the result is recomposed with NFC. The built-in
+// one normalizes NFKD and only strips combining marks in U+0300-U+036F, so Japanese voicing marks
+// (ド → ト + U+3099) and every Korean syllable stay decomposed in the generated heading id. The hrefs
+// in the markdown are composed, getElementById never matches, and every ja-JP/ko-KR anchor link is dead.
+function slugify(str) {
+  return str
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036F]/g, '')
+    .replace(/[\u0000-\u001f]/g, '')
+    .replace(/[\s~`!@#$%^&*()\-_+=[\]{}|\\;:"'“”‘’<>,.?/]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/^(\d)/, '_$1')
+    .toLowerCase()
+    .normalize('NFC')
+}
+
 function searchTranslationsFor(locale) {
   const t = dictionary[locale]
   return {
@@ -61,6 +78,9 @@ export default defineConfig({
   title: 'Lertaro',
   description: 'High-performance, extensible search utility for Windows / 高性能、可扩展的 Windows 全局检索系统',
   lastUpdated: true,
+  // markdown-it-anchor and the headers plugin both take a hardcoded slugify; each is overridable
+  // through its own options bag, and `anchor`/`headers` are the only two that name heading ids.
+  markdown: { anchor: { slugify }, headers: { slugify } },
   // Local search must be enabled once at the root themeConfig (not per-locale, unlike nav/sidebar/
   // etc.) -- VitePress only renders the search UI when it sees this at the top level. Per-locale
   // translations still come from dictionary.js, just nested under options.locales instead.
