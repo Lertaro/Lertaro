@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -48,12 +47,15 @@ public partial class CalendarView : UserControl
     {
         InitializeComponent();
 
+        // Before ApplyLabels: that writes the advice into the reminder box, which re-decides whether Add is
+        // usable, and that question reads the time fields through this object.
+        _timeField = new ReminderTimeFieldSupport(HourInput, MinuteInput,
+            () => AddReminderButton.IsEnabled = CanAdd());
+
         ApplyLabels();
 
         // Pre-fill the moment the window was opened, so the common case is "pick a day, type what, Add".
-        // Written in the same fixed HH:mm shape TryParseTime reads back, not the culture's own time
-        // pattern, which can be single-digit or carry an AM/PM the parser would reject.
-        TimeInput.Text = DateTime.Now.ToString("HH:mm", CultureInfo.InvariantCulture);
+        _timeField.Set(DateTime.Now.Hour, DateTime.Now.Minute);
 
         Unloaded += (_, _) =>
         {
@@ -64,8 +66,8 @@ public partial class CalendarView : UserControl
         PluginSettingsService.SettingChanged += SettingChanged;
 
         // The Add button says whether the row is usable rather than accepting the click and doing
-        // nothing, so a mistyped time never looks like a reminder that was silently dropped.
-        TimeInput.TextChanged += (_, _) => AddReminderButton.IsEnabled = CanAdd();
+        // nothing, so a mistyped time never looks like a reminder that was silently dropped. The time
+        // fields wire their own TextChanged in XAML, alongside the other handlers they share.
         ReminderText.TextChanged += (_, _) => AddReminderButton.IsEnabled = CanAdd();
         // Clicking or tabbing into a box that still holds the advice has to let the first keystroke replace it,
         // or the reminder is spelled in front of the sentence and reads "买牛奶不推荐超过5条". Once there is real
@@ -90,10 +92,16 @@ public partial class CalendarView : UserControl
         NextMonthButton.ToolTip = TranslationService.Get("Calendar_NextMonth");
         TodayButton.Content = TranslationService.Get("Calendar_Today");
         AddReminderButton.Content = TranslationService.Get("Calendar_Add");
-        TimePromptText.Text = TranslationService.Get("Calendar_TimeHint");
+        var timeHint = TranslationService.Get("Calendar_TimeHint");
+        TimePromptText.Text = timeHint;
         NoRemindersText.Text = TranslationService.Get("Calendar_NoReminders");
         ReminderText.ToolTip = TranslationService.Get("Calendar_TextHint");
-        TimeInput.ToolTip = TranslationService.Get("Calendar_TimeHint");
+        // One hint for the whole frame: ToolTipService walks up from whichever half the pointer is over, so
+        // the colon and the padding between the two fields are covered as well.
+        TimeFieldBorder.ToolTip = timeHint;
+        // The frame carries no label of its own, so each half takes the hint as its accessible name rather
+        // than the pair reading as two unlabelled edit boxes.
+        _timeField.SetAccessibleName(timeHint);
 
         var advice = TranslationService.Get("Calendar_TextAdvice");
         // The advice about how many reminders are sensible goes inside the box rather than beside it, because
@@ -293,9 +301,31 @@ public partial class CalendarView : UserControl
         }
     }
 
-    private bool TryParseTime(out DateTime time) =>
-        DateTime.TryParseExact(TimeInput.Text?.Trim(), "HH:mm", CultureInfo.InvariantCulture,
-            DateTimeStyles.None, out time);
+    /// <summary>
+    /// Reads the two halves as a time of day. Deliberately not the culture's own time pattern: the fields are
+    /// plain 0-23 and 0-59 numbers, and a single digit is accepted rather than rejected for its shape.
+    /// </summary>
+    private bool TryParseTime(out DateTime time) => _timeField.TryGetTime(out time);
+
+    /// <summary>
+    /// The reminder's two time fields and the gestures they answer to. See
+    /// <see cref="ReminderTimeFieldSupport"/>.
+    /// </summary>
+    private readonly ReminderTimeFieldSupport _timeField;
+
+    // The four handlers the two time fields share in XAML. Each one is a pass-through: the support object owns
+    // the behaviour, these exist only because a XAML event hook has to name a method on this class.
+    private void TimeField_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e) =>
+        _timeField.OnGotKeyboardFocus(sender, e);
+
+    private void TimeField_TextChanged(object sender, TextChangedEventArgs e) =>
+        _timeField.OnTextChanged(sender, e);
+
+    private void TimeField_PreviewKeyDown(object sender, KeyEventArgs e) =>
+        _timeField.OnPreviewKeyDown(sender, e);
+
+    private void TimeField_PreviewMouseWheel(object sender, MouseWheelEventArgs e) =>
+        _timeField.OnPreviewMouseWheel(sender, e);
 
     /// <summary>Whether the box holds something to add. The advice the window opens with is text in the box like
     /// any other, so it has to be ruled out here and at the add itself: without that, pressing Enter without
