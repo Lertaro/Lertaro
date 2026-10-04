@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+using Lertaro.Core;
 
 namespace Lertaro.App.Converters;
 
@@ -25,24 +26,48 @@ namespace Lertaro.App.Converters;
 ///
 /// What the picture can fill is where the ceiling comes from: icons arrive at 256px from a thumbnail
 /// provider and 96 from the shell's own path (see ShellImageListInterop), so past a point a bigger tile
-/// is only stretching what it already has.
+/// is only stretching what it already has. How high that ceiling sits is the user's call, as
+/// <see cref="IconSize"/>: Small draws the picture at two fifths of ExtraLarge's width, Medium at a bit
+/// over half and Large at three quarters, with ExtraLarge -- the size the tiles were before any of this
+/// was adjustable -- unchanged in every number.
 /// </remarks>
 public sealed class QuickPanelTileMetrics : IValueConverter
 {
     /// <summary>The most tiles a row is divided into, while they still have use for the width.</summary>
     public const int Columns = 5;
 
-    /// <summary>Never smaller than the tile was before this existed.</summary>
-    private const double MinSlot = 92;
+    /// <summary>
+    /// The size the panel's tiles draw at, set from the settings on every open.
+    /// </summary>
+    /// <remarks>
+    /// Ambient rather than bound through three layers that would each only carry it: the converter's
+    /// bindings, the wrap panel's layout math and the gutter's column count all answer to one value,
+    /// and everything that reads it is rebuilt with the window on every open. The manager sets this
+    /// before that window exists, so nothing on screen is ever sized from a stale one.
+    /// </remarks>
+    public static QuickPanelThumbnailSize IconSize { get; set; } = QuickPanelThumbnailSize.ExtraLarge;
+
+    // Per size: the floor below which a tile stops being worth looking at, and the widest picture one
+    // draws -- the slot's ceiling follows as the picture plus its chrome. Small, Medium and Large floor
+    // at the picture's own 48px minimum plus the chrome, since a size that never went below the tiles'
+    // old fixed width would not be one; ExtraLarge keeps that old fixed size as its floor, and its
+    // ceiling is where it always stopped being able to use more width.
+    private static double MinSlot => IconSize == QuickPanelThumbnailSize.ExtraLarge ? 92 : 72;
 
     /// <summary>Where the picture stops being able to use more width.</summary>
-    private const double MaxIcon = 160;
+    private static double MaxIcon => IconSize switch
+    {
+        QuickPanelThumbnailSize.Small => 64,
+        QuickPanelThumbnailSize.Medium => 88,
+        QuickPanelThumbnailSize.Large => 120,
+        _ => 160,
+    };
 
     // The slot's own border margin and padding, plus the breathing room around the picture inside it.
     private const double SlotChrome = 24;
 
     /// <summary>The widest a tile is ever made: any more would be padding, so it buys another tile.</summary>
-    internal const double MaxSlot = MaxIcon + SlotChrome;
+    internal static double MaxSlot => MaxIcon + SlotChrome;
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {

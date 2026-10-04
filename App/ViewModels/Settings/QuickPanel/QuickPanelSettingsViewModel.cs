@@ -2,8 +2,12 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 
 using Lertaro.App.Helpers;
+using Lertaro.App.Services;
 using Lertaro.Core;
 namespace Lertaro.App.ViewModels.Settings.QuickPanel;
+
+/// <summary>One entry of the thumbnail-size dropdown: the enum value and its translated label.</summary>
+public sealed record QuickPanelThumbnailSizeOption(QuickPanelThumbnailSize Value, string Label);
 
 /// <summary>
 /// Backs the Quick Panel settings page: the workspace tabs down the left, the selected one's sources on
@@ -25,6 +29,7 @@ public class QuickPanelSettingsViewModel : ViewModelBase
         _userSettings = userSettings;
         var panel = userSettings.QuickPanel;
         _enabled = panel.Enabled;
+        _thumbnailIconSize = panel.ThumbnailIconSize;
         _blacklistText = string.Join(Environment.NewLine, panel.BlacklistedProcesses);
 
         SelectSubTabCommand = new RelayCommand<string>(tab => SelectedSubTab = tab ?? "Sources");
@@ -76,6 +81,33 @@ public class QuickPanelSettingsViewModel : ViewModelBase
         get => _enabled;
         set => SetProperty(ref _enabled, value);
     }
+
+    private QuickPanelThumbnailSize _thumbnailIconSize;
+
+    /// <summary>How big the thumbnail tiles draw their pictures, panel-wide.</summary>
+    public QuickPanelThumbnailSize ThumbnailIconSize
+    {
+        get => _thumbnailIconSize;
+        set => SetProperty(ref _thumbnailIconSize, value);
+    }
+
+    /// <summary>What the size dropdown offers, as value+label pairs like every other Settings dropdown.</summary>
+    /// <remarks>
+    /// Built on demand rather than in the constructor so a language switch rebuilds it with the new
+    /// labels and the selection survives, matched on the value.
+    /// </remarks>
+    public IReadOnlyList<QuickPanelThumbnailSizeOption> ThumbnailIconSizeOptions
+        => _thumbnailIconSizeOptions ??= BuildThumbnailIconSizeOptions();
+
+    private IReadOnlyList<QuickPanelThumbnailSizeOption>? _thumbnailIconSizeOptions;
+
+    private static IReadOnlyList<QuickPanelThumbnailSizeOption> BuildThumbnailIconSizeOptions() => new[]
+    {
+        new QuickPanelThumbnailSizeOption(QuickPanelThumbnailSize.Small, TranslationManager.Instance["QuickPanel_ThumbnailSizeSmall"]),
+        new QuickPanelThumbnailSizeOption(QuickPanelThumbnailSize.Medium, TranslationManager.Instance["QuickPanel_ThumbnailSizeMedium"]),
+        new QuickPanelThumbnailSizeOption(QuickPanelThumbnailSize.Large, TranslationManager.Instance["QuickPanel_ThumbnailSizeLarge"]),
+        new QuickPanelThumbnailSizeOption(QuickPanelThumbnailSize.ExtraLarge, TranslationManager.Instance["QuickPanel_ThumbnailSizeExtraLarge"]),
+    };
 
     private string _selectedSubTab = "Sources";
 
@@ -150,6 +182,7 @@ public class QuickPanelSettingsViewModel : ViewModelBase
 
         var panel = _userSettings.QuickPanel;
         panel.Enabled = Enabled;
+        panel.ThumbnailIconSize = ThumbnailIconSize;
         // BlacklistedProcesses is not written here: it is edited on the Hotkeys page, beside the global
         // list it adds to, and saved by BlacklistSettingsViewModel. Writing it from both would make
         // whichever page saved last the winner.
@@ -194,6 +227,11 @@ public class QuickPanelSettingsViewModel : ViewModelBase
     /// </remarks>
     public void NotifyLanguageChanged()
     {
+        // Rebuilt rather than relabelled in place, like the kind dropdown: the selection survives the
+        // rebuild, matched on the value.
+        _thumbnailIconSizeOptions = null;
+        OnPropertyChanged(nameof(ThumbnailIconSizeOptions));
+
         foreach (var tab in Tabs)
         {
             tab.NotifyLanguageChanged();

@@ -73,6 +73,25 @@
             <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_HotkeyHint]}"
                        Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,0,0,14"/>
 
+            <!-- Panel-wide, above the per-workspace cards: every thumbnail view in the panel draws at
+                 one size, which is a comfort choice about the screen it is docked onto rather than a
+                 property of any folder. Applies on the next summon; the panel is never up while this
+                 page is, so that is immediate as far as the user can tell. -->
+            <Grid Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto" MinWidth="150"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickPanel_ThumbnailSize]}"
+                           VerticalAlignment="Center" Margin="0,0,16,0"/>
+                <ComboBox Grid.Column="1" VerticalAlignment="Center"
+                          Style="{StaticResource SettingsComboBox}"
+                          ItemsSource="{Binding ThumbnailIconSizeOptions}"
+                          DisplayMemberPath="Label"
+                          SelectedValuePath="Value"
+                          SelectedValue="{Binding ThumbnailIconSize, Mode=TwoWay}"/>
+            </Grid>
+
             <!-- The page's own two halves. Stacked, they pushed each other off the screen: both are
                  lists that grow, and the plugin tabs sat below a workspace card tall enough to hide
                  them. Same tab row the pane inside the workspace card uses for its own two halves. -->

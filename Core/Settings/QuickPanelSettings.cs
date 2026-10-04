@@ -25,6 +25,20 @@ public enum QuickPanelSourceKind
     FilesOnly,
 }
 
+/// <summary>How large the quick panel's thumbnail tiles draw their pictures.</summary>
+/// <remarks>
+/// Ordered smallest first, because that is the order a dropdown shows them in. ExtraLarge is what the
+/// tiles drew before the setting existed, and stays the default: nobody who never opens settings
+/// should see the panel change.
+/// </remarks>
+public enum QuickPanelThumbnailSize
+{
+    Small,
+    Medium,
+    Large,
+    ExtraLarge,
+}
+
 /// <summary>
 /// Backs the quick panel: the floating panel docked over whatever window is in front. Each tab is a
 /// workspace -- its own sources, its own order, its own display preferences -- and the panel shows one
@@ -38,6 +52,13 @@ public class QuickPanelSettings
 
     /// <summary>The tab the panel reopens on. Falls back to the first tab when it no longer exists.</summary>
     public string ActiveTabId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// How big the thumbnail tiles draw their pictures, panel-wide. Read once per panel open, so a
+    /// change lands on the next summon -- which is the only way it can land: opening the settings
+    /// window takes the foreground, and losing that is what dismisses the panel.
+    /// </summary>
+    public QuickPanelThumbnailSize ThumbnailIconSize { get; set; } = QuickPanelThumbnailSize.ExtraLarge;
 
     /// <summary>
     /// Plugin-provided tabs the user has closed, by component id. Present unless closed, which is the

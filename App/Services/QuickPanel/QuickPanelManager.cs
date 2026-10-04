@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Lertaro.App.Converters;
 using Lertaro.App.ViewModels.QuickPanel;
 using Lertaro.App.Views.QuickPanel;
 
@@ -173,6 +174,11 @@ public sealed partial class QuickPanelManager : IDisposable
         // emptying a panel that had already reopened behind it. A first frame painted from the previous
         // open's containers. Each was fixed on its own; none of them could have happened here. Building
         // one costs about 60ms, which lands inside the load this already awaits.
+        //
+        // The tiles' size is one of those window-owning things: read once per open, here where the window
+        // that will measure them is about to be built. It cannot need to reach a panel already up --
+        // losing the foreground to the settings window is what dismisses the panel.
+        QuickPanelTileMetrics.IconSize = Core.UserSettings.Load().QuickPanel.ThumbnailIconSize;
         _window = new QuickPanelWindow(_viewModel);
 
         // The way back out of a preview the user clicked into. That click suspended this panel's own

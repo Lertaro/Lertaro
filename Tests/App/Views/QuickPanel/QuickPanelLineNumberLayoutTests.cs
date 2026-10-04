@@ -1,8 +1,14 @@
+using Lertaro.App.Converters;
 using Lertaro.App.Views.QuickPanel;
+using Lertaro.Core;
 
 namespace Lertaro.App.Tests.Views.QuickPanel;
 
+// [DoNotParallelize] because ThumbnailColumnsFor answers to the panel's ambient thumbnail size, which
+// the tile-metrics tests set while they run. Pinned to ExtraLarge here: the column counts these assert
+// are the ones the panel has always shown.
 [TestClass]
+[DoNotParallelize]
 public sealed class QuickPanelLineNumberLayoutTests
 {
     [TestMethod]
@@ -24,7 +30,15 @@ public sealed class QuickPanelLineNumberLayoutTests
     [TestMethod]
     public void ThumbnailColumnsFor_ReservesTheGutterBeforeSizingTiles()
     {
-        Assert.AreEqual(5, QuickPanelLineNumberLayout.ThumbnailColumnsFor(800, 36));
-        Assert.AreEqual(3, QuickPanelLineNumberLayout.ThumbnailColumnsFor(380, 36));
+        QuickPanelTileMetrics.IconSize = QuickPanelThumbnailSize.ExtraLarge;
+        try
+        {
+            Assert.AreEqual(5, QuickPanelLineNumberLayout.ThumbnailColumnsFor(800, 36));
+            Assert.AreEqual(3, QuickPanelLineNumberLayout.ThumbnailColumnsFor(380, 36));
+        }
+        finally
+        {
+            QuickPanelTileMetrics.IconSize = QuickPanelThumbnailSize.ExtraLarge;
+        }
     }
 }
