@@ -92,9 +92,12 @@ public sealed class TypeFilterProviderTests
     {
         PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key switch
         {
+            // The rule reference uses the same trigger character the query tokens use (see
+            // CustomFilterQueryTokenProvider.GetConfiguredPrefix, which reads the host's
+            // SearchSyntaxService), so with no host wired in this test the default backslash applies.
             TypeFilterProvider.SidebarCustomFiltersKey => new List<CustomFilterItem>
             {
-                new() { Keyword = "executables", Rule = "@scripts; *.exe" }
+                new() { Keyword = "executables", Rule = @"\scripts; *.exe" }
             },
             CustomFilterQueryTokenProvider.SettingKey => new List<CustomFilterItem>
             {
@@ -113,7 +116,7 @@ public sealed class TypeFilterProviderTests
     public void GetFilterGroups_CustomFilterWithMissingRuleReference_IsOmitted()
     {
         PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == TypeFilterProvider.SidebarCustomFiltersKey
-            ? new List<CustomFilterItem> { new() { Keyword = "missing", Rule = "@unknown" } }
+            ? new List<CustomFilterItem> { new() { Keyword = "missing", Rule = @"\unknown" } }
             : fallback;
 
         var ids = new TypeFilterProvider().GetFilterGroups().Single().Items.Select(i => i.Id).ToList();
