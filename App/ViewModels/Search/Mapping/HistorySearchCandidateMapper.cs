@@ -44,8 +44,12 @@ internal static class HistorySearchCandidateMapper
             .Select(entry => (Entry: entry, Match: fuzzy.BestMatch(entry.Keyword)))
             .Where(candidate => candidate.Match.IsMatch)
             .OrderBy(candidate => candidate.Match.Start)
-            .ThenByDescending(candidate => candidate.Entry.Count)
+            // Most recent pick first: choosing the 10th result for "atlas" makes it the top one next time,
+            // even over something opened more often before.
             .ThenByDescending(candidate => candidate.Entry.Time)
+            .ThenByDescending(candidate => candidate.Entry.Count)
+            // Shape is match quality, and history deliberately ranks use above match quality.
+            .ThenBy(candidate => candidate.Match.Shape)
             .ThenByDescending(candidate => candidate.Match.Weight);
         var candidates = new List<SearchResultMapper.RankedCandidate>(MaxCandidates);
         var candidatePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -60,7 +64,7 @@ internal static class HistorySearchCandidateMapper
                 continue;
 
             // Negative priorities put a learned keyword match ahead of ordinary global history, whose
-            // priorities start at zero. Match position, usage count, recency, and match quality determine
+            // priorities start at zero. Match position, recency, usage count, and match quality determine
             // this list's order above.
             candidates.Add(new SearchResultMapper.RankedCandidate(
                 result,
@@ -74,7 +78,9 @@ internal static class HistorySearchCandidateMapper
         return candidates;
     }
 
-    private static bool TryCreateResult(
+    // Also builds WindowsRecentCandidateMapper's rows: a Recent Items hit is presented exactly like a
+    // history entry for the same path.
+    internal static bool TryCreateResult(
         HistoryEntry entry,
         string query,
         string? normalizedScope,
@@ -165,6 +171,23 @@ internal static class HistorySearchCandidateMapper
             merged[index].Index = index;
         return merged;
     }
+
+    // The full window ranks only rows the index returned, so it needs a path -> priority map rather than
+    // rows: learned keyword matches first, then any other history, then Windows Recent Items, then
+    // everything else -- the quick window's ladder. No existence probes: every row this is compared
+    // against came from the index, so it exists, and a probe could stall on a network share.
+    internal static IReadOnlyDictionary<string, int> RankingPriorities(
+        FuzzyQuery fuzzy,
+        IEnumerable<HistoryEntry> entries,
+        IReadOnlyDictionary<string, int> history,
+        IReadOnlyList<SearchResultMapper.RankedCandidate> recent)
+    {
+        var learned = Collect(fuzzy, null, entries, _ => true, _ => true);
+        return ApplyPriorities(history, [.. learned, .. recent]);
+    }
+
+    public static IReadOnlyDictionary<string, int> RankingPriorities(FuzzyQuery fuzzy) =>
+        RankingPriorities(fuzzy, SearchHistoryStore.GetEntries(), SearchHistoryStore.Snapshot(), WindowsRecentCandidateMapper.CollectForRanking(fuzzy));
 
     internal static IReadOnlyDictionary<string, int> ApplyPriorities(
         IReadOnlyDictionary<string, int> existing,

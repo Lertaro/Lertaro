@@ -6,7 +6,7 @@ namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 [TestClass]
 public sealed class RankAndDedupeTests
 {
-    private static AppSearchResult Result(string path) => new() { FullPath = path, Name = path };
+    private static AppSearchResult Result(string path, bool isDir = false) => new() { FullPath = path, Name = path, IsDir = isDir };
 
     private static SearchResultMapper.RankedCandidate Candidate(
         string path,
@@ -16,8 +16,84 @@ public sealed class RankAndDedupeTests
         double weight = 0,
         string? normalizedPath = null,
         int start = 0,
-        int tier = MatchRank.TierName) =>
-        new(Result(path), isCurated, priority, typeRank, new MatchRank(tier, start, weight), normalizedPath ?? path);
+        int tier = MatchRank.TierName,
+        int shape = MatchRank.ShapeWholeWord,
+        bool isDir = false,
+        int band = 0,
+        int depth = 0) =>
+        new(Result(path, isDir), isCurated, priority, typeRank, new MatchRank(tier, start, weight, shape), normalizedPath ?? path, band, depth);
+
+    // The reported case: for "atlas", the whole word in "code-atlas" (start 5) must beat a-t-l-a-s
+    // scattered across "AutofillStates" (start 0), and a word-start hit like "atlasing" too.
+    [TestMethod]
+    public void RankAndDedupe_BetterShapeBeatsEarlierStartAndHigherWeight()
+    {
+        var candidates = new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\AutofillStates", shape: MatchRank.ShapeScattered, start: 0, weight: 0.4),
+            Candidate(@"C:\atlasing", shape: MatchRank.ShapeWordStart, start: 0, weight: 0.6),
+            Candidate(@"D:\code-atlas", shape: MatchRank.ShapeWholeWord, start: 5, weight: 0.5),
+        };
+
+        var ranked = SearchResultMapper.RankAndDedupe(candidates);
+
+        CollectionAssert.AreEqual(
+            new[] { @"D:\code-atlas", @"C:\atlasing", @"C:\AutofillStates" },
+            ranked.Select(r => r.FullPath).ToArray());
+    }
+
+    // Second half of the reported case: within a shape, the shallow project folder beats names that start
+    // with the word but sit deep in game and package trees.
+    [TestMethod]
+    public void RankAndDedupe_ShallowerPathBeatsEarlierStart_WithinAShape()
+    {
+        var candidates = new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate("deep", start: 0, weight: 0.6, depth: 11),
+            Candidate("shallow", start: 5, weight: 0.5, depth: 3),
+        };
+
+        Assert.AreEqual("shallow", SearchResultMapper.RankAndDedupe(candidates)[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_RecencyBandBeatsDepth()
+    {
+        var candidates = new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate("old-shallow", band: RankSignals.BandOlder, depth: 1),
+            Candidate("today-deep", band: RankSignals.BandToday, depth: 9),
+        };
+
+        Assert.AreEqual("today-deep", SearchResultMapper.RankAndDedupe(candidates)[0].FullPath);
+    }
+
+    // A Chrome profile file rewritten every minute must not ride recency past a real word match.
+    [TestMethod]
+    public void RankAndDedupe_ShapeBeatsRecencyAndDepth()
+    {
+        var candidates = new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate("AutofillStates", shape: MatchRank.ShapeScattered, band: RankSignals.BandToday, depth: 1),
+            Candidate("code-atlas", band: RankSignals.BandOlder, depth: 12),
+        };
+
+        Assert.AreEqual("code-atlas", SearchResultMapper.RankAndDedupe(candidates)[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_FileBeatsFolder_WhenTheMatchIsOtherwiseEqual()
+    {
+        var candidates = new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\a", weight: 0.5, isDir: true),
+            Candidate(@"C:\b", weight: 0.5),
+        };
+
+        var ranked = SearchResultMapper.RankAndDedupe(candidates);
+
+        Assert.AreEqual(@"C:\b", ranked[0].FullPath);
+    }
 
     [TestMethod]
     public void RankAndDedupe_CuratedBeatsUncuratedRegardlessOfWeight()

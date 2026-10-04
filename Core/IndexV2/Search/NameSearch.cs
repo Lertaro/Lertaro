@@ -49,7 +49,7 @@ internal static class NameSearch
 
         var ranks = topN.Finish(scanKeep);
         if (!matchAll && !pattern.IsEmpty)
-            RefineWithWeight(snapshot, delta, pattern, ranks);
+            RefineRanks(snapshot, delta, pattern, ranks, limit);
 
         var seen = new HashSet<int>();
         var emitted = 0;
@@ -91,43 +91,91 @@ internal static class NameSearch
     }
 
     [ThreadStatic]
-    private static Dictionary<string, double>? _weightsByName;
+    private static Dictionary<string, MatchRank>? _ranksByName;
 
     // Bounded refinement: only ever runs over the scanKeep-sized headroom set above, never the full
-    // matched set. Ranking-only (FzfResultRank.ApplyWeight never rejects), so this can't drop a result.
-    private static void RefineWithWeight(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, List<FzfRank> ranks)
+    // matched set. Ranking-only (never rejects), so this can't drop a result.
+    //
+    // Rewrites each candidate's high 32 bits to the SAME relevance key SearchResultRelevance.Apply gives
+    // the emitted result, so the `limit` cut in SearchStreaming drops the rows every window would rank
+    // last. Cutting on the raw fzf score instead let a whole-word hit later in a name ("code-atlas") lose
+    // its slot to rows the windows then sorted below it.
+    //
+    // ponytail: the headroom set itself is still pre-selected by raw fzf score (scanKeep = limit * 40).
+    // Ceiling: more than scanKeep rows with a higher raw score can still crowd out a whole-word hit before
+    // it gets here. Upgrade path: classify MatchShape inside the hot scan and let FzfTopN keep by it.
+    //
+    // Recency and depth need the row's times and path, so they are only worked out when the limit can
+    // actually cut (the quick and inline windows). The full window keeps everything, Apply gives each
+    // emitted row its complete key, and building every path twice would only slow its broadest queries.
+    private static void RefineRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, List<FzfRank> ranks, int limit)
     {
-        // The weight depends on the name and the pattern, and on nothing else about the row -- so every
-        // row sharing a name shares its weight, and a set of a few thousand holds only about two thirds
-        // that many distinct names. Worth remembering because the calculation is not cheap for a query
-        // that matches through an alias: it has to ask the provider for the candidate's own spellings.
+        var cuts = ranks.Count > limit;
+        var nowUnix = FileTimeHelper.ToUnixSeconds(DateTime.UtcNow);
+        var depthByParent = cuts ? new Dictionary<int, int>() : null;
+        // The rank depends on the name and the pattern, and on nothing else about the row -- so every
+        // row sharing a name shares it, and a set of a few thousand holds only about two thirds that
+        // many distinct names. Worth remembering because the calculation is not cheap for a query that
+        // matches through an alias: it has to ask the provider for the candidate's own spellings.
         // Reused per thread rather than built per search: a query whose names all match literally gets
         // no benefit from the memo and should not pay to allocate one either.
-        var weights = _weightsByName ??= new Dictionary<string, double>(StringComparer.Ordinal);
-        weights.Clear();
+        var ranksByName = _ranksByName ??= new Dictionary<string, MatchRank>(StringComparer.Ordinal);
+        ranksByName.Clear();
         for (var i = 0; i < ranks.Count; i++)
         {
             var rank = ranks[i];
             var name = GetNameForEntry(snapshot, delta, rank.EntryIndex);
             if (name.Length == 0)
                 continue;
-            ref var weight = ref CollectionsMarshal.GetValueRefOrAddDefault(weights, name, out var known);
+            ref var match = ref CollectionsMarshal.GetValueRefOrAddDefault(ranksByName, name, out var known);
             if (!known)
-                weight = HighlightMask.ComputeWeight(name, pattern);
-            ranks[i] = FzfResultRank.ApplyWeight(rank, weight);
+                match = HighlightMask.ComputeRank(name, pattern);
+            var (band, depth) = cuts
+                ? RowSignals(snapshot, delta, rank.EntryIndex, nowUnix, depthByParent!)
+                : (RankSignals.BandOlder, 0);
+            var high = SearchResultRelevance.HighKey(match, IsEntryDirectory(snapshot, delta, rank.EntryIndex), band, depth);
+            ranks[i] = rank with { SortKey = ((ulong)high << 32) | (rank.SortKey & 0xFFFF_FFFFUL) };
         }
         FzfRankRadixSorter.Sort(ranks);
 
         // Emptied here rather than only on the way in. Clearing on entry leaves the buckets from the last
         // search sitting in a thread static for as long as the process is idle, and a whole-drive query
         // sizes them to its own name count -- see SearchScratchPolicy.
-        SearchScratchPolicy.ClearAndTrim(weights);
+        SearchScratchPolicy.ClearAndTrim(ranksByName);
+    }
+
+    // The same recency band and depth Apply derives from the built result. Depth is worked out once per
+    // parent folder, since a headroom set is mostly siblings; a row with no resolved parent (an orphan,
+    // or an added delta row) pays for its own path.
+    private static (int Band, int Depth) RowSignals(Snapshot snapshot, DeltaOverlay delta, int entryIndex, uint nowUnix, Dictionary<int, int> depthByParent)
+    {
+        if (entryIndex >= snapshot.Count)
+        {
+            var record = delta.Added[entryIndex - snapshot.Count];
+            return (RankSignals.RecencyBand(record.Creation, record.LastWrite, nowUnix), RankSignals.PathDepth(delta.GetFullPath(record)));
+        }
+
+        var (_, creation, lastWrite, _) = delta.MetadataOf(entryIndex);
+        var band = RankSignals.RecencyBand(creation, lastWrite, nowUnix);
+        var parent = delta.ParentOf(entryIndex);
+        if (parent < 0 || parent == entryIndex)
+            return (band, RankSignals.PathDepth(delta.GetFullPath(entryIndex)));
+
+        ref var parentDepth = ref CollectionsMarshal.GetValueRefOrAddDefault(depthByParent, parent, out var known);
+        if (!known)
+            parentDepth = RankSignals.PathDepth(delta.GetFullPath(parent));
+        return (band, parentDepth + 1);
     }
 
     // Mirrors ResultBuilder.ToResult's entryIndex->name resolution (base row, possibly overridden, vs
     // an Added delta record past Snapshot.Count).
     private static string GetNameForEntry(Snapshot snapshot, DeltaOverlay delta, int entryIndex)
         => entryIndex >= snapshot.Count ? delta.Added[entryIndex - snapshot.Count].Name : delta.NameOf(entryIndex);
+
+    private static bool IsEntryDirectory(Snapshot snapshot, DeltaOverlay delta, int entryIndex)
+        => entryIndex >= snapshot.Count
+            ? (delta.Added[entryIndex - snapshot.Count].Flags & (ushort)FileRecordFlags.Directory) != 0
+            : IsDirectory(snapshot, delta, entryIndex);
 
     // Drive gate: a foreign-drive query returns nothing; a bare drive prefix with
     // no terms ("t:") matches everything (TryMatch trivially succeeds on an empty pattern).

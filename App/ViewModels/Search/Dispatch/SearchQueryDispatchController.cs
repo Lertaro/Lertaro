@@ -3,6 +3,7 @@ using Lertaro.Core;
 using Lertaro.App.Services.Plugin;
 using Lertaro.App.ViewModels.Service;
 
+using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.PluginSdk.Abstractions.Plugins;
@@ -125,6 +126,7 @@ internal sealed class SearchQueryDispatchController
         // once. Built here rather than on the first mapper call because the content append has to reach it
         // even when the file search never answers. See StreamingResultAccumulator.
         var accumulator = new StreamingResultAccumulator(cleanQuery, new Dictionary<string, int>());
+        var prioritiesApplied = false;
         _accumulator = accumulator;
         _searchSettled = false;
 
@@ -171,8 +173,15 @@ internal sealed class SearchQueryDispatchController
             {
                 if (fileResults == null)
                     return new List<AppSearchResult>();
-                // The full window is a file-browser-style view: only rank actual index matches here.
-                // Quick and inline search retain their separate history/favorite learning behavior.
+                // Only index matches are shown here, but they rank like the quick window's: what the user
+                // picked before for this text, then other history, then Windows' Recent Items, then match
+                // quality. Rank-only -- nothing the index did not return is added. Worked out here, on the
+                // render callback's thread, before the first batch is ranked.
+                if (!prioritiesApplied)
+                {
+                    accumulator.UsePriorities(HistorySearchCandidateMapper.RankingPriorities(FuzzyQuery.Parse(cleanQuery)));
+                    prioritiesApplied = true;
+                }
                 return accumulator.AbsorbBatch(fileResults);
             },
             searching => _setIsSearching(searching),

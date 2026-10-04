@@ -16,6 +16,28 @@ Lertaro enables Fuzzy Matching by default. Simply enter any characters in order,
 
 Turn this off under **Settings → General → System → Enable fuzzy matching** and plain search terms (without operators) will require a contiguous substring — `abc` will only match names containing contiguous `abc`, no longer matching `a-b-c`. This toggle only affects bare terms; all operators described below maintain their exact behaviors either way.
 
+### How results are ranked
+
+Results are ordered first by **how** your text sits in the name, and only then by where it starts:
+
+1. **Whole word**: `atlas` finds `atlas`, `code-atlas`, `atlas.png` and `CodeAtlas`. A word starts at the beginning of the name, after a space, `-`, `_`, `.` or a path separator, at a lowercase-to-capital step, and where letters meet digits.
+2. **Start of a word**: `atlasing`.
+3. **Inside a word**: `metatlas.txt`.
+4. **Scattered letters**: fuzzy matches such as `AutofillStates` (**A**u**t**ofil**l**St**a**te**s**) always come last.
+
+Within each group:
+
+- Something created or changed **recently** comes first, in bands: today, the past week, the past month, then older. The later of the created and modified dates counts, so a file you have just copied or downloaded counts as new.
+- Then the **shallower path**: `D:\dev\code-atlas` comes before the same word ten folders down inside a game or package folder.
+- Then a match starting further left, then a tighter, fuller match.
+
+When everything else is equal, a file is listed before a folder (the Inline window's current-folder listing keeps folders first, like Explorer). With several terms, the weakest term decides the group.
+
+Two things come before all of this, in every window:
+
+1. **What you picked before**: open a result, and the next time you type the same text it is at the top. Your most recent pick comes first.
+2. **Windows' Recent Items**: files and folders you recently opened in any app that match what you typed.
+
 ### Case Insensitivity
 
 Matching always ignores case, in both directions — the case you type never changes what matches, and the case of the file name never does either. `myfile`, `MyFile` and `MYFILE` all match each other.
@@ -26,7 +48,7 @@ There is no case-sensitive mode: typing a capital no longer narrows a term to ex
 
 Chinese names are searchable by pinyin, in two forms: the **initials** (one letter per character — `ex` for 恶性) and the **full reading** (every syllable spelled out — `zhengshu` for 证书).
 
-**Ranking: match position > coverage > English > initials > full pinyin.** A match starting further left wins first; then a tighter, fuller match; English/initials/full-pinyin only separate results that already agree on both of those. So an English match no longer automatically outranks a pinyin one — it does when the two are equally well placed and equally tight. A partial last syllable still matches, so `zhengsh` keeps finding 证书 while you are still typing.
+**Ranking:** a pinyin match counts as a *start of a word* match (see "How results are ranked" above), so it sits below an English whole-word match and above an English match from the middle of a word. Within the same group the order is recency > path depth > match position > coverage > English > initials > full pinyin, so English/initials/full pinyin only separate results that already agree on everything else. A partial last syllable still matches, so `zhengsh` keeps finding 证书 while you are still typing.
 
 **With fuzzy matching off**, pinyin matches must line up with word starts. `ex` finds 恶性 (initials of two characters) but not 学习 (which would have to splice the end of `xue` onto the start of `xi`). With fuzzy matching on, that loose reading is what you asked for and remains available.
 

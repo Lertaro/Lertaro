@@ -108,13 +108,13 @@ public static class ExplorerSearchHelper
 
     // Rank given to a row no match produced (a curated history entry): top tier, so it sorts as the
     // "best match" its leading position already means.
-    private static readonly MatchRank TopTier = new(MatchRank.TierName, 0, 1.0);
+    private static readonly MatchRank TopTier = new(MatchRank.TierName, 0, 1.0, MatchRank.ShapeWholeWord);
 
     // Rows ordered by proximity to the window's folder, then by the rule that suits their level:
     //
-    //   * DIRECT children (tier 0) -- strongest match first: the row whose match starts furthest left in its
-    //     name leads, whatever it is. Folders lead files only at equal match positions (the grouping the user
-    //     asked for), then match TIER, then Explorer's own file-name order. The left-match weight leads the
+    //   * DIRECT children (tier 0) -- strongest match first: match SHAPE, then how far left in its name the
+    //     match STARTS, whatever the row is. Folders lead files only at equal shape and position (the grouping
+    //     the user asked for), then match TIER, then Explorer's own file-name order. The match keys lead the
     //     folder/file weight deliberately: a file matching at position 0 belongs above a folder matching at
     //     position 3, and ranking the groups outright buried exactly that file below the card's visible rows.
     //
@@ -122,11 +122,11 @@ public static class ExplorerSearchHelper
     //     matched-chars / name-length, which is bound to name length, so for the query "l" it ranked
     //     Lertaro (1/7), then lx-music (1/8), then LRC maker (1/9) -- "the shorter name first", the reported
     //     symptom. Explorer's own name order replaces it, which is also what the user is comparing against
-    //     in the one view that shows a single real folder. Tier still sits last of the match keys, as it
-    //     does everywhere else.
-    //   * Descendants and anything outside the folder -- the MatchRank order RankAndDedupe already
-    //     established (start, weight, tier), merely grouped by proximity depth. These are rows the user
-    //     did not just see in the folder listing, so relevance is the useful order.
+    //     in the one view that shows a single real folder. Shape is NOT bound to name length, so it leads
+    //     here as it does everywhere else; tier still sits last of the match keys.
+    //   * Descendants and anything outside the folder -- the order RankAndDedupe already established
+    //     (shape, recency, depth, start, weight, tier), merely grouped by proximity depth. These are rows the
+    //     user did not just see in the folder listing, so relevance is the useful order.
     internal static List<AppSearchResult> OrderByDirectoryTier(IEnumerable<RankedRow> rankedMatches, string contextDirectory)
     {
         var direct = new List<RankedRow>();
@@ -144,13 +144,14 @@ public static class ExplorerSearchHelper
             .OrderBy(row => DirectoryProximity.Tier(row.Result.FullPath, contextDirectory))
             .Select(row => row.Result);
 
-        // Direct children: strongest match first, then folders before files, then start -> tier -> Explorer
-        // name order. The match's own start leads because that is the weight the user asked for: how far left
-        // in the name the query hit outweighs whether the row is a folder or a file, so a file whose match
-        // starts before every matched folder's is the section's first row. Folders still lead files at equal
-        // match positions, which is the grouping the earlier request was about.
+        // Direct children: strongest match first (shape, then start), then folders before files, then tier ->
+        // Explorer name order. The match keys lead because that is the weight the user asked for: how well and
+        // how far left in the name the query hit outweighs whether the row is a folder or a file, so a file
+        // whose match beats every matched folder's is the section's first row. Folders still lead files at
+        // equal match shape and position, which is the grouping the earlier request was about.
         var orderedDirect = direct
-            .OrderBy(row => row.Match.Start)
+            .OrderBy(row => row.Match.Shape)
+            .ThenBy(row => row.Match.Start)
             .ThenBy(row => row.Result.IsDir ? 0 : 1)
             .ThenBy(row => row.Match.Tier)
             .ThenBy(row => row.Result.Name, NaturalNameComparer.Instance)
@@ -171,19 +172,23 @@ public static class ExplorerSearchHelper
                 f.Path.Length > 3 && f.Path[^1] == '\\' ? f.Path.TrimEnd('\\') : f.Path)),
             StringComparer.OrdinalIgnoreCase);
         var candidates = new List<SearchResultMapper.RankedCandidate>();
+        var nowUtc = DateTime.UtcNow;
 
         foreach (var match in matches)
         {
             var lookupPath = match.FullPath.Length > 3 && match.FullPath[^1] == '\\' ? match.FullPath.TrimEnd('\\') : match.FullPath;
             var normalizedPath = SearchResultHelper.NormalizePath(match.FullPath);
             var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
+            var (band, depth) = RankedCandidateOrdering.SignalsOf(match.Metadata, match.FullPath, nowUtc);
             candidates.Add(new SearchResultMapper.RankedCandidate(
                 match,
                 IsCurated: hasHistory || favoritePaths.Contains(normalizedPath),
                 hasHistory ? priority : int.MaxValue,
                 TypeRank: int.MaxValue,
                 fuzzy.Rank(match.Name),
-                normalizedPath));
+                normalizedPath,
+                band,
+                depth));
         }
 
         // Ordered by the same ladder the merged list uses, but returned as candidates so the caller still
