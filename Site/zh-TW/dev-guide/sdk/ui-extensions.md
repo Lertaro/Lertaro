@@ -1,6 +1,6 @@
 # 介面與預覽擴充
 
-本章節介紹 `Lertaro.PluginSdk` 中用於擴充搜尋視窗側邊欄、新增自訂表格資料欄、提供快速面板動態工作區索引標籤、建置 QuickLook 檔案預覽器與縮圖擷取器，以及發佈 WPF 主題與 i18n 當地語系化套件的各項介面。
+本章節介紹 `Lertaro.PluginSdk` 中用於擴充搜尋視窗側邊欄、新增自訂表格資料欄、提供快速面板動態工作區索引標籤、為搜尋視窗的時鐘列補充日期文字、建置 QuickLook 檔案預覽器與縮圖擷取器，以及發佈 WPF 主題與 i18n 當地語系化套件的各項介面。
 
 這一切都位於 `Lertaro.PluginSdk.Abstractions.Plugins`（預覽提供者位於 `…Abstractions.Plugins.Preview`）之下，而且每一個介面都衍生自 `IPluginComponent`，後者提供宿主在**設定 → 外掛模組**中顯示的 `Name`。
 
@@ -103,7 +103,26 @@ public interface IQuickPanelTabProvider : IPluginComponent
 - 什麼都不返回的提供者不會有索引標籤，這也無需任何設定。
 - 只要外掛模組存在，索引標籤就存在，這與使用者必須自行新增的資料夾不同。它可以從標籤列關閉，並在**設定 → 快速面板**重新開啟；這與在**設定 → 外掛模組**停用該元件（那會讓它完全不載入）是兩回事。
 
-## 4. 檔案預覽與縮圖
+## 4. 日曆文字提供者 `ICalendarTextProvider`
+
+為搜尋視窗的時鐘列提供日期描述。快速搜尋框為空時，宿主會在這一行自己的日期與時間之後追加這段文字：
+
+```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
+public interface ICalendarTextProvider : IPluginComponent
+{
+    // 該日期的附加描述。傳回空字串表示這次沒有什麼要補充的。
+    string GetCalendarText(DateTime date);
+}
+```
+
+- 第一個傳回非空文字的提供者勝出，第二個日曆外掛不會與第一個搶同一行。
+- 日期由宿主傳入，而不是由你讀時鐘：答案只取決於入參，也便於測試。
+- 農曆、節氣、節日這類資料的表由外掛自己持有，宿主不留副本——這正是這一行問外掛、而不是宿主自帶一張表的原因。
+- 該元件在**設定 → 外掛**裡被關閉、或整個外掛被停用之後，宿主就不會再呼叫它。
+
+## 5. 檔案預覽與縮圖
 
 ### 自訂檔案預覽提供者 `IFilePreviewProvider`
 
@@ -158,7 +177,7 @@ public interface IThumbnailProvider : IPluginComponent
 }
 ```
 
-## 5. 主題與當地語系化
+## 6. 主題與當地語系化
 
 ### 主題提供者 `IThemeProvider`
 

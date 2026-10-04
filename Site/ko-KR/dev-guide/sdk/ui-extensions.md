@@ -1,6 +1,6 @@
 # UI 및 미리보기 확장
 
-이 장에서는 검색 창 사이드바를 확장하고, 커스텀 테이블 열을 추가하며, 퀵 패널 동적 탭을 제공하고, QuickLook 파일 미리보기 렌더러와 썸네일 추출자를 만들고, WPF 테마와 다국어 언어 팩을 배포하기 위한 `Lertaro.PluginSdk` 인터페이스를 다룹니다.
+이 장에서는 검색 창 사이드바를 확장하고, 커스텀 테이블 열을 추가하며, 퀵 패널 동적 탭을 제공하고, 검색 창 시계 줄의 날짜 텍스트를 제공하며, QuickLook 파일 미리보기 렌더러와 썸네일 추출자를 만들고, WPF 테마와 다국어 언어 팩을 배포하기 위한 `Lertaro.PluginSdk` 인터페이스를 다룹니다.
 
 이 인터페이스들은 모두 `Lertaro.PluginSdk.Abstractions.Plugins` 아래에 위치하며(미리보기 제공자는 `…Abstractions.Plugins.Preview`) 전부 `IPluginComponent`에서 파생됩니다. `IPluginComponent`가 제공하는 `Name`이 **설정 → 플러그인**에 표시되는 이름입니다.
 
@@ -103,7 +103,26 @@ public interface IQuickPanelTabProvider : IPluginComponent
 - 아무것도 반환하지 않는 제공자에는 탭이 생기지 않으며, 이를 위해 설정할 항목은 없습니다.
 - 탭은 사용자가 직접 추가해야 하는 폴더와 달리 플러그인이 존재하는 순간 함께 존재합니다. 탭 스트립에서 닫고 **설정 → 퀵 패널**에서 다시 열 수 있는데, 이는 **설정 → 플러그인**에서 컴포넌트를 비활성화하는 것(아예 로드되지 않게 함)과는 별개의 문제입니다.
 
-## 4. 파일 미리보기 및 썸네일
+## 4. 달력 텍스트 제공자 `ICalendarTextProvider`
+
+검색 창 시계 줄에 표시할 날짜 설명을 제공합니다. 빠른 검색 상자가 비어 있을 때 호스트는 그 줄의 날짜와 시간 뒤에 이 텍스트를 덧붙입니다.
+
+```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
+public interface ICalendarTextProvider : IPluginComponent
+{
+    // 이 날짜에 대한 추가 설명. 빈 문자열은 이번에는 덧붙일 것이 없다는 뜻입니다.
+    string GetCalendarText(DateTime date);
+}
+```
+
+- 비어 있지 않은 텍스트를 처음 돌려준 제공자가 선택되므로, 두 번째 달력 플러그인이 같은 줄을 두고 경쟁하지 않습니다.
+- 날짜는 호스트가 넘겨줍니다. 구현이 시계를 읽지 않고 인자에만 의존하므로 그대로 테스트할 수 있습니다.
+- 음력·절기·명절 같은 표는 플러그인이 보유하며 호스트는 사본을 두지 않습니다. 이 줄이 호스트 내장 표가 아니라 플러그인에 묻는 이유입니다.
+- **설정 → 플러그인**에서 이 컴포넌트를 끄거나 플러그인 자체를 사용하지 않으면 호스트는 더 이상 호출하지 않습니다.
+
+## 5. 파일 미리보기 및 썸네일
 
 ### 커스텀 파일 미리보기 제공자 `IFilePreviewProvider`
 
@@ -159,7 +178,7 @@ public interface IThumbnailProvider : IPluginComponent
 }
 ```
 
-## 5. 테마 및 다국어
+## 6. 테마 및 다국어
 
 ### 테마 제공자 `IThemeProvider`
 

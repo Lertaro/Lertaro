@@ -1,6 +1,6 @@
 # UI & Preview Extensions
 
-This chapter introduces `Lertaro.PluginSdk` interfaces for extending the search window sidebar, adding custom table columns, providing dynamic Quick Panel tabs, building QuickLook file previewers and thumbnail extractors, and shipping WPF themes and i18n localization packs.
+This chapter introduces `Lertaro.PluginSdk` interfaces for extending the search window sidebar, adding custom table columns, providing dynamic Quick Panel tabs, supplying the date text shown on the search window's clock line, building QuickLook file previewers and thumbnail extractors, and shipping WPF themes and i18n localization packs.
 
 All of these live under `Lertaro.PluginSdk.Abstractions.Plugins` (preview providers under `…Abstractions.Plugins.Preview`) and every one of them derives from `IPluginComponent`, which supplies the `Name` the host shows in **Settings → Plugins**.
 
@@ -103,7 +103,26 @@ That single method is the whole contract — there is no drop handling, reorderi
 - A provider that returns nothing gets no tab, and there is nothing to configure for that.
 - The tab exists as soon as the plugin does, unlike a folder the user has to add. It can be closed from the strip and reopened under **Settings → Quick Panel**, which is a different question from disabling the component under **Settings → Plugins** (that stops it loading at all).
 
-## 4. File Previews & Thumbnails
+## 4. Calendar Text Provider `ICalendarTextProvider`
+
+Supplies the date description for the search window's clock line, which the host appends after its own date and time while the quick search box is empty:
+
+```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
+public interface ICalendarTextProvider : IPluginComponent
+{
+    // The extra description of this date. An empty string means nothing to add this time.
+    string GetCalendarText(DateTime date);
+}
+```
+
+- The first provider that returns non-empty text wins, so a second calendar plugin does not race the first for the same line.
+- The host passes the date in rather than letting you read the clock, so the answer stays a function of its argument and can be tested.
+- Tables of lunar dates, solar terms and festivals stay with the plugin; the host keeps no copy of them, which is the reason this line asks a plugin instead of carrying a table of its own.
+- The host stops calling it once this component is switched off under **Settings → Plugins**, or the whole plugin is disabled.
+
+## 5. File Previews & Thumbnails
 
 ### Custom File Preview Provider `IFilePreviewProvider`
 
@@ -159,7 +178,7 @@ public interface IThumbnailProvider : IPluginComponent
 }
 ```
 
-## 5. Themes & Localization
+## 6. Themes & Localization
 
 ### Theme Provider `IThemeProvider`
 

@@ -1,6 +1,6 @@
 # 界面与预览扩展
 
-本章节介绍 `Lertaro.PluginSdk` 中用于扩展主搜索窗口侧边栏、追加自定义表格列、提供快速面板动态工作区标签页、构建 QuickLook 文件预览器与缩略图提取器，以及发布 WPF 主题与 i18n 语言包的接口。
+本章节介绍 `Lertaro.PluginSdk` 中用于扩展主搜索窗口侧边栏、追加自定义表格列、提供快速面板动态工作区标签页、为搜索窗口的时钟行补充日期文字、构建 QuickLook 文件预览器与缩略图提取器，以及发布 WPF 主题与 i18n 语言包的接口。
 
 这些接口全部位于 `Lertaro.PluginSdk.Abstractions.Plugins` 命名空间下（预览类提供者位于 `…Abstractions.Plugins.Preview`），并且每一个都派生自 `IPluginComponent`，后者提供宿主在**设置 → 插件**中显示的 `Name`。
 
@@ -103,7 +103,26 @@ public interface IQuickPanelTabProvider : IPluginComponent
 - 什么都不返回的提供者不会得到标签页，也没有任何配置项为此存在。
 - 标签页随插件存在而存在，这与用户必须自己添加的文件夹不同。它可以在标签条上关闭，并在**设置 → 快速面板**里重新打开，这与在**设置 → 插件**里禁用该组件是两个不同的问题（后者会让它彻底不再加载）。
 
-## 4. 文件预览与缩略图
+## 4. 日历文字提供者 `ICalendarTextProvider`
+
+为搜索窗口的时钟行提供日期描述。快速搜索框为空时，宿主会在这行自己的日期与时间之后追加这段文字：
+
+```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
+public interface ICalendarTextProvider : IPluginComponent
+{
+    // 该日期的附加描述。交回空字符串表示这次没有什么要补充的。
+    string GetCalendarText(DateTime date);
+}
+```
+
+- 第一个交回非空文字的提供者获胜，第二个日历插件不会与第一个抢同一行。
+- 日期由宿主传入，而不是由你读时钟：答案只取决于入参，也便于测试。
+- 农历、节气、节日这类数据的表由插件自己持有，宿主不留副本——这正是这一行问插件、而不是宿主自带一张表的原因。
+- 该组件在**设置 → 插件**里被禁用、或整个插件被禁用之后，宿主就不会再调用它。
+
+## 5. 文件预览与缩略图
 
 ### 自定义文件预览提供者 `IFilePreviewProvider`
 
@@ -157,7 +176,7 @@ public interface IThumbnailProvider : IPluginComponent
 }
 ```
 
-## 5. 主题与多语言
+## 6. 主题与多语言
 
 ### 主题提供者 `IThemeProvider`
 
