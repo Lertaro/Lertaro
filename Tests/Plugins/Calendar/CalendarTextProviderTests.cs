@@ -8,7 +8,8 @@ namespace Lertaro.Plugins.Calendar.Tests;
 /// </summary>
 /// <remarks>
 /// The provider reads the interface language through the same PluginSdk seam every other translated string
-/// does, so these tests pin it (and restore it afterwards) rather than depending on the machine's locale.
+/// does, and its own switch through the plugin-settings seam, so these tests pin both (and restore them
+/// afterwards) rather than depending on the machine's locale or on a real settings file.
 /// </remarks>
 [TestClass]
 [DoNotParallelize]
@@ -16,18 +17,32 @@ public sealed class CalendarTextProviderTests
 {
     private static readonly CalendarTextProvider Provider = new();
     private Func<string> _originalCultureFunc = null!;
+    private Func<string, string, object?, object?>? _originalGetSettingFunc;
 
     [TestInitialize]
-    public void SaveSeam() => _originalCultureFunc = TranslationService.CurrentCultureFunc;
+    public void SaveSeams()
+    {
+        _originalCultureFunc = TranslationService.CurrentCultureFunc;
+        _originalGetSettingFunc = PluginSettingsService.GetSettingFunc;
+        // A clean slate, so every test starts from "nothing has ever been persisted" (the switch's default)
+        // rather than from whatever another test class happened to leave wired up.
+        PluginSettingsService.GetSettingFunc = null;
+    }
 
     [TestCleanup]
-    public void RestoreSeam()
+    public void RestoreSeams()
     {
         TranslationService.CurrentCultureFunc = _originalCultureFunc;
         TranslationService.NotifyCultureChanged(_originalCultureFunc());
+        PluginSettingsService.GetSettingFunc = _originalGetSettingFunc;
     }
 
     private static void UseChinese() => TranslationService.CurrentCultureFunc = () => "zh-CN";
+
+    /// <summary>Answers the plugin's own clock switch with <paramref name="enabled"/>, everything else default.</summary>
+    private static void UseClockSwitch(bool enabled) =>
+        PluginSettingsService.GetSettingFunc = (_, key, fallback) =>
+            key == CalendarPlugin.LunarInClockKey ? enabled : fallback;
 
     [TestMethod]
     [DataRow(2026, 10, 4, "八月廿四")]
@@ -52,6 +67,28 @@ public sealed class CalendarTextProviderTests
         TranslationService.CurrentCultureFunc = () => "en-US";
 
         Assert.AreEqual(string.Empty, Provider.GetCalendarText(new DateTime(2026, 9, 25)));
+    }
+
+    [TestMethod]
+    public void GetCalendarText_ShowsNothingWhileThePluginsOwnSwitchIsOff()
+    {
+        // The switch lives in this plugin's settings, not the host's, so this is the whole of what a user
+        // turning the clock's 农历 off has to produce.
+        UseChinese();
+        UseClockSwitch(enabled: false);
+
+        Assert.AreEqual(string.Empty, Provider.GetCalendarText(new DateTime(2026, 9, 25)));
+    }
+
+    [TestMethod]
+    public void GetCalendarText_IsOnWhenNothingHasEverBeenPersisted()
+    {
+        // The default is on, and a never-configured plugin has no stored value: the provider has to read the
+        // same default its schema declares, or the line would be blank until someone visited the settings page.
+        UseChinese();
+        PluginSettingsService.GetSettingFunc = null;
+
+        Assert.AreEqual("八月中秋节", Provider.GetCalendarText(new DateTime(2026, 9, 25)));
     }
 
     [TestMethod]

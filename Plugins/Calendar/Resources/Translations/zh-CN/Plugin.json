@@ -20,6 +20,8 @@
   "Calendar_Config_LunarHidden": "不显示",
   "Calendar_Config_HolidaysLabel": "显示法定节假日与调休",
   "Calendar_Config_HolidaysDesc": "在日期上标注休与班。",
+  "Calendar_Config_ClockLabel": "在快速搜索框的日期后显示农历",
+  "Calendar_Config_ClockDesc": "搜索框为空时，在日期后附加农历，含节气与节日。关闭后或本插件被禁用时不显示。",
   "Calendar_Config_DurationLabel": "提醒显示时长",
   "Calendar_Config_DurationDesc": "每条提醒在屏幕上停留的秒数。超出该通知位置允许的范围时，会被裁剪到边界。",
   "Calendar_Config_TestLabel": "发送测试提醒",

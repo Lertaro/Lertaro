@@ -20,6 +20,8 @@
   "Calendar_Config_LunarHidden": "표시 안 함",
   "Calendar_Config_HolidaysLabel": "법정 공휴일과 대체 출근 표시",
   "Calendar_Config_HolidaysDesc": "각 날짜에 휴와 근 표지를 붙입니다.",
+  "Calendar_Config_ClockLabel": "빠른 검색 상자의 날짜 뒤에 음력 표시",
+  "Calendar_Config_ClockDesc": "검색 상자가 비어 있을 때 날짜 뒤에 음력(절기와 명절 포함)을 덧붙입니다. 끄거나 이 플러그인을 사용하지 않으면 표시되지 않습니다.",
   "Calendar_Config_DurationLabel": "미리 알림 표시 시간",
   "Calendar_Config_DurationDesc": "각 미리 알림이 화면에 머무는 초입니다. 해당 위치가 허용하는 범위를 넘는 값은 경계로 조정됩니다.",
   "Calendar_Config_TestLabel": "테스트 알림 보내기",

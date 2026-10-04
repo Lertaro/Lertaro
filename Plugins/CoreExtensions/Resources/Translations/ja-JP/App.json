@@ -389,7 +389,6 @@
   "General_LayoutWidth": "検索バーの幅（px）",
   "General_LayoutHeight": "検索バーの高さ（px）",
   "General_LayoutShowClock": "検索ボックスが空のとき、プレースホルダーの文字を日付・曜日・時刻に置き換える",
-  "General_LayoutShowLunarCalendar": "上の日付に旧暦（二十四節気・祝日を含む）を追加する",
   "General_LayoutReopenFullWindowOnHotkey": "このウィンドウが開いている状態でホットキーをもう一度押すと、閉じる代わりにフルウィンドウに切り替える",
   "General_LayoutLockPosition": "位置を固定する",
   "General_LayoutLockPositionHint": "このウィンドウをドラッグできないようにし、誤ってつかんで置いた場所からずれてしまうのを防ぎます。ステータスアイコンの右クリックによる位置のリセットは引き続き使えます。",

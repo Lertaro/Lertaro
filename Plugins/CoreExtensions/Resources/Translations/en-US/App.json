@@ -389,7 +389,6 @@
   "General_LayoutWidth": "Search Bar Width (px)",
   "General_LayoutHeight": "Search Bar Height (px)",
   "General_LayoutShowClock": "Replace the placeholder text with the date, weekday, and time when the search box is empty",
-  "General_LayoutShowLunarCalendar": "Append the lunar date (with solar terms and festivals) to the date above",
   "General_LayoutReopenFullWindowOnHotkey": "Pressing the hotkey again while this window is already open switches to the full window instead of closing it",
   "General_LayoutLockPosition": "Lock position",
   "General_LayoutLockPositionHint": "Stops this window being dragged, so a stray press cannot nudge it off the spot you put it on. Right-clicking the status icon still resets its position.",

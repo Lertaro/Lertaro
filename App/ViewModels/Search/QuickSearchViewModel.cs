@@ -247,17 +247,16 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
 
     private void UpdateClockText()
     {
-        var settings = UserSettings.Load().SearchWindow;
         var culture = System.Globalization.CultureInfo.GetCultureInfo(Services.TranslationManager.Instance.CurrentCulture);
         var now = DateTime.Now;
         var dayName = culture.DateTimeFormat.GetAbbreviatedDayName(now.DayOfWeek);
-        // The 农历 reading, with a 节气 or festival in its place when one falls on today, comes from
-        // whichever loaded plugin offers it (the Calendar plugin does, see ICalendarTextProvider) rather
-        // than from a table here. It sits in parentheses after the date, leaving the weekday and the time
-        // where they have always been; a plugin that answers with nothing leaves the line exactly as it
-        // was before this option existed.
-        var lunar = settings.ShowLunarCalendar ? CalendarTextService.Describe(now) : string.Empty;
-        var date = lunar.Length > 0 ? $"{now.ToString("d", culture)}（{lunar}）" : now.ToString("d", culture);
+        // The 农历 reading, with a 节气 or festival in its place when one falls on today, comes from whichever
+        // enabled plugin offers it -- the Calendar plugin does, see ICalendarTextProvider. The host owns no
+        // switch for it and keeps no lunar table: whether 农历 belongs on this line is the plugin's own
+        // setting, and a disabled plugin is never asked, so nothing shows while it is off. A plugin that
+        // answers with nothing leaves the line exactly as it was before any of this existed.
+        var calendar = CalendarTextService.Describe(now);
+        var date = calendar.Length > 0 ? $"{now.ToString("d", culture)}（{calendar}）" : now.ToString("d", culture);
         // Leading space keeps the text off the caret, which otherwise renders flush against this
         // TextBlock's left edge (same slot as the search box's own cursor).
         ClockText = $" {date} {dayName} {now:HH:mm}";

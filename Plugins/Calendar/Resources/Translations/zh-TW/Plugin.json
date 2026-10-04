@@ -20,6 +20,8 @@
   "Calendar_Config_LunarHidden": "不顯示",
   "Calendar_Config_HolidaysLabel": "顯示法定假日與調休",
   "Calendar_Config_HolidaysDesc": "在日期上標註休與班。",
+  "Calendar_Config_ClockLabel": "在快速搜尋框的日期後顯示農曆",
+  "Calendar_Config_ClockDesc": "搜尋框為空時，在日期後附加農曆，含節氣與節日。關閉後或此外掛被停用時不顯示。",
   "Calendar_Config_DurationLabel": "提醒顯示時長",
   "Calendar_Config_DurationDesc": "每則提醒在畫面上停留的秒數。超出該通知位置允許的範圍時，會被調整至邊界。",
   "Calendar_Config_TestLabel": "傳送測試提醒",

@@ -20,6 +20,8 @@
   "Calendar_Config_LunarHidden": "Oculto",
   "Calendar_Config_HolidaysLabel": "Mostrar festivos legales y días recuperados",
   "Calendar_Config_HolidaysDesc": "Marca cada fecha con un distintivo Libre o Turno.",
+  "Calendar_Config_ClockLabel": "Mostrar la fecha lunar tras la fecha del cuadro de búsqueda rápida",
+  "Calendar_Config_ClockDesc": "Añade la fecha lunar, con términos solares y festividades, cuando el cuadro de búsqueda está vacío. No se muestra si esto está desactivado o el complemento está deshabilitado.",
   "Calendar_Config_DurationLabel": "Duración del recordatorio",
   "Calendar_Config_DurationDesc": "Segundos que cada recordatorio permanece en pantalla. Un valor fuera de lo que permite la posición se ajusta a su límite.",
   "Calendar_Config_TestLabel": "Enviar un aviso de prueba",

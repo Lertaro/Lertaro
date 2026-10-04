@@ -389,7 +389,6 @@
   "General_LayoutWidth": "검색창 너비 (px)",
   "General_LayoutHeight": "검색창 높이 (px)",
   "General_LayoutShowClock": "검색 상자가 비어 있을 때 안내 문구 대신 날짜, 요일, 시간 표시",
-  "General_LayoutShowLunarCalendar": "위 날짜 뒤에 음력(절기와 명절 포함)을 덧붙임",
   "General_LayoutReopenFullWindowOnHotkey": "이 창이 이미 열려 있을 때 단축키를 다시 누르면 닫는 대신 전체 창으로 전환",
   "General_LayoutLockPosition": "위치 잠금",
   "General_LayoutLockPositionHint": "이 창을 끌 수 없게 하여, 실수로 눌러 놓아둔 자리에서 밀려나는 일을 막습니다. 상태 아이콘 우클릭으로 위치를 초기화하는 것은 그대로 사용할 수 있습니다.",

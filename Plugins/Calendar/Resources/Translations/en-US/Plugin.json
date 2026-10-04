@@ -20,6 +20,8 @@
   "Calendar_Config_LunarHidden": "Hidden",
   "Calendar_Config_HolidaysLabel": "Show statutory holidays and make-up days",
   "Calendar_Config_HolidaysDesc": "Marks each date with an Off or Work badge.",
+  "Calendar_Config_ClockLabel": "Show the lunar date after the quick search box's date",
+  "Calendar_Config_ClockDesc": "Appends the lunar date, with solar terms and festivals, once the search box is empty. Shown nowhere while this is off or this plugin is disabled.",
   "Calendar_Config_DurationLabel": "Reminder display time",
   "Calendar_Config_DurationDesc": "Seconds each reminder stays on screen. A value outside what the notification's position allows is clipped to its bounds.",
   "Calendar_Config_TestLabel": "Send a test reminder",

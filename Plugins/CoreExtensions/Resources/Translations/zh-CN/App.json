@@ -389,7 +389,6 @@
   "General_LayoutWidth": "搜索栏宽度 (像素)",
   "General_LayoutHeight": "搜索栏高度 (像素)",
   "General_LayoutShowClock": "搜索框为空时，用日期、星期和时间替代提示文字",
-  "General_LayoutShowLunarCalendar": "在上面的日期后附加农历（含节气、节日）",
   "General_LayoutReopenFullWindowOnHotkey": "窗口已打开时再次按下快捷键，将改为打开完整窗口，而不是关闭窗口",
   "General_LayoutLockPosition": "锁定位置",
   "General_LayoutLockPositionHint": "禁止拖动此窗口，避免误按把它挪离你放好的位置。右键点击状态图标仍然可以重置位置。",

@@ -20,13 +20,17 @@ public sealed class CalendarTextProvider : ICalendarTextProvider
 
     /// <summary>
     /// 农历 month and day, with a 节气 or festival taking the day's place when one falls on that date --
-    /// 八月廿四 normally, 八月十五中秋 on Mid-Autumn, 八月白露 when the term lands there. The user's
-    /// "Lunar text" setting is deliberately not consulted: that setting is about the second line under each
-    /// date in the calendar window, while this is a one-line answer for the host's own clock.
+    /// 八月廿四 normally, 八月十五中秋 on Mid-Autumn, 八月白露 when the term lands there. The month grid's own
+    /// "Lunar text" setting is deliberately not consulted: that one is about the second line under each date,
+    /// while this is a one-line answer for the host's clock, and it has its own switch beside it.
     /// </summary>
     public string GetCalendarText(DateTime date)
     {
-        if (!CalendarText.ShowsChineseCalendar)
+        // Two independent gates, and both belong to this plugin rather than to the host: the calendar layer is
+        // a Chinese one, and the clock line can be switched off in this plugin's own settings. Neither is
+        // expressible host-side -- a host flag would still be asking a plugin the user had disabled, which is
+        // exactly what the "don't apply a disabled plugin's data" rule is meant to prevent.
+        if (!CalendarText.ShowsChineseCalendar || !CalendarPlugin.ShowLunarInClock())
             return string.Empty;
 
         var info = ChineseCalendar.Describe(date, ChineseCalendar.LunarChinese, showDuties: false);

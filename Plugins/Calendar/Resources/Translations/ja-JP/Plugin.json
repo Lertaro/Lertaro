@@ -20,6 +20,8 @@
   "Calendar_Config_LunarHidden": "表示しない",
   "Calendar_Config_HolidaysLabel": "法定祝日と振替出勤を表示",
   "Calendar_Config_HolidaysDesc": "各日付に休と勤のマークを付けます。",
+  "Calendar_Config_ClockLabel": "クイック検索ボックスの日付の後に旧暦を表示",
+  "Calendar_Config_ClockDesc": "検索ボックスが空のとき、日付の後に旧暦（二十四節気・祝日を含む）を追加します。オフのとき、またはこのプラグインが無効のときは表示されません。",
   "Calendar_Config_DurationLabel": "リマインダーの表示時間",
   "Calendar_Config_DurationDesc": "各リマインダーが画面に表示される秒数です。その位置が許す範囲を超えた値は境界まで調整されます。",
   "Calendar_Config_TestLabel": "テスト通知を送信",

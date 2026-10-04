@@ -175,12 +175,9 @@ public class SearchWindowSettings
     public double? RelativeLeft { get; set; }
     public double? RelativeTop { get; set; }
     // Replaces the quick window's empty-state placeholder text with date/time/day-of-week (see #101).
+    // The 农历 half of that line has no setting here on purpose: it is the Calendar plugin's own data and its
+    // own switch, so a plugin the user disabled is simply never asked for it (see ICalendarTextProvider).
     public bool ShowClock { get; set; } = false;
-    // Appends the 农历 date, with a 节气 or festival in its place when one falls on the day, to that same
-    // clock line -- described by whichever loaded plugin offers it (see ICalendarTextProvider), so this is
-    // the switch for the line's second half and not for the line itself. Off by default, and only ever has
-    // anything to add when ShowClock is on and the interface language is Chinese.
-    public bool ShowLunarCalendar { get; set; } = false;
     // When the quick window is already open, pressing the global toggle hotkey again normally hides
     // it -- this opts into opening the full SearchWindow (carrying over the current query) instead.
     public bool ReopenAsFullWindowOnRepeatHotkey { get; set; } = false;

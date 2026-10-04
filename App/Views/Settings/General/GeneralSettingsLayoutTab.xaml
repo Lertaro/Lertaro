@@ -133,12 +133,6 @@
                            IsChecked="{Binding General.Layout.ShowClock, Mode=TwoWay}"
                            Margin="0,12,0,0"/>
 
-                <!-- Indented under the clock row: this only ever adds to the line that row turns on, so a
-                     reader who has not enabled the clock should see it as belonging to that setting. -->
-                <CheckBox x:Name="RowLayoutShowLunarCalendar" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutShowLunarCalendar]}"
-                           IsChecked="{Binding General.Layout.ShowLunarCalendar, Mode=TwoWay}"
-                           Margin="24,6,0,0"/>
-
                 <CheckBox x:Name="RowLayoutReopenFullWindow" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_LayoutReopenFullWindowOnHotkey]}"
                            IsChecked="{Binding General.Layout.ReopenAsFullWindowOnRepeatHotkey, Mode=TwoWay}"
                            Margin="0,8,0,0"/>

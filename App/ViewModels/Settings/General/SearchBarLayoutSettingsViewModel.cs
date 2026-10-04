@@ -13,7 +13,6 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
     private double _searchBarWidth;
     private double _searchBarHeight;
     private bool _showClock;
-    private bool _showLunarCalendar;
     private bool _reopenAsFullWindowOnRepeatHotkey;
     private bool _lockPosition;
     // Reset() clears the quick window's remembered screen position -- there's no bound field for it
@@ -26,7 +25,6 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         _searchBarWidth = userSettings.SearchWindow.SearchBarWidth;
         _searchBarHeight = userSettings.SearchWindow.SearchBarHeight;
         _showClock = userSettings.SearchWindow.ShowClock;
-        _showLunarCalendar = userSettings.SearchWindow.ShowLunarCalendar;
         _reopenAsFullWindowOnRepeatHotkey = userSettings.SearchWindow.ReopenAsFullWindowOnRepeatHotkey;
         _lockPosition = userSettings.SearchWindow.LockPosition;
     }
@@ -63,12 +61,6 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         set => SetProperty(ref _showClock, value);
     }
 
-    public bool ShowLunarCalendar
-    {
-        get => _showLunarCalendar;
-        set => SetProperty(ref _showLunarCalendar, value);
-    }
-
     public bool ReopenAsFullWindowOnRepeatHotkey
     {
         get => _reopenAsFullWindowOnRepeatHotkey;
@@ -88,7 +80,6 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         SearchBarWidth = 570;
         SearchBarHeight = 60;
         ShowClock = false;
-        ShowLunarCalendar = false;
         ReopenAsFullWindowOnRepeatHotkey = false;
         // Unlocked as well as re-centred: Reset exists to undo a layout you no longer want, and leaving
         // the lock on would hand back a window that cannot be moved off wherever it lands.
@@ -101,7 +92,6 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         _userSettings.SearchWindow.SearchBarWidth = _searchBarWidth;
         _userSettings.SearchWindow.SearchBarHeight = _searchBarHeight;
         _userSettings.SearchWindow.ShowClock = _showClock;
-        _userSettings.SearchWindow.ShowLunarCalendar = _showLunarCalendar;
         _userSettings.SearchWindow.ReopenAsFullWindowOnRepeatHotkey = _reopenAsFullWindowOnRepeatHotkey;
         _userSettings.SearchWindow.LockPosition = _lockPosition;
         if (_resetPosition)
