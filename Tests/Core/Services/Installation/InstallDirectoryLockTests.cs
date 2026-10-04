@@ -153,11 +153,31 @@ public sealed class InstallDirectoryLockTests
         Assert.IsFalse(new DirectoryInfo(target).GetAccessControl().AreAccessRulesProtected);
     }
 
+    [TestMethod]
+    public void ReadOnlyForUsers_LeavesTheTreeReadableByAnOrdinaryAccount()
+    {
+        var root = Directory.CreateDirectory(Path.Combine(_temp, "root")).FullName;
+        var logs = Directory.CreateDirectory(Path.Combine(root, "logs")).FullName;
+        var file = Path.Combine(logs, "machine-settings.json");
+        File.WriteAllText(file, "content");
+
+        // The App reads the settings and the machine log as this account, so an account that is neither
+        // SYSTEM nor an elevated administrator has to get through the tree the walk leaves behind.
+        InstallDirectoryLock.Lock(root, ReadOnlyForUsersOwnedByMe(), _ => null);
+
+        Assert.IsNotEmpty(Directory.GetFileSystemEntries(logs));
+        Assert.AreEqual("content", File.ReadAllText(file));
+    }
+
     // The production zones make Administrators the owner, which a non-elevated test cannot assign; the walk
     // is the same whoever owns the result.
     private static InstallDirectoryLock.Zone OwnedByMe() => new(CurrentUser,
         [.. InstallDirectoryLock.ReadOnlyForUsers.Aces, InstallDirectoryLock.Allow(CurrentUser, FileSystemRights.FullControl,
             AceFlags.ObjectInherit | AceFlags.ContainerInherit)]);
+
+    // The same, minus the grant to this account: nothing but the Users ACE may let the walker back in.
+    private static InstallDirectoryLock.Zone ReadOnlyForUsersOwnedByMe() =>
+        new(CurrentUser, [.. InstallDirectoryLock.ReadOnlyForUsers.Aces]);
 
     internal static List<CommonAce> Aces(RawSecurityDescriptor descriptor) =>
         descriptor.DiscretionaryAcl!.Cast<CommonAce>().ToList();

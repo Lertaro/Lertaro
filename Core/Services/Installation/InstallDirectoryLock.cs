@@ -40,12 +40,19 @@ public static class InstallDirectoryLock
     /// </summary>
     internal sealed record Zone(SecurityIdentifier Owner, IReadOnlyList<CommonAce> Aces);
 
-    /// <summary>SYSTEM and Administrators full control, Users read and execute, applied to everything below.</summary>
+    /// <summary>
+    /// SYSTEM and Administrators full control, Users read and execute, applied to everything below.
+    ///
+    /// <see cref="FileSystemRights.ReadAndExecute"/> leaves out <see cref="FileSystemRights.Synchronize"/>, and
+    /// every CreateFile read asks for that bit (it is part of what GENERIC_READ and GENERIC_EXECUTE map to), so
+    /// granting the enum alone denies an ordinary user every read, not just their writes. FullControl is
+    /// GENERIC_ALL, which does map to Synchronize, which is why only the Users line needs it.
+    /// </summary>
     internal static Zone ReadOnlyForUsers { get; } = new(Administrators,
     [
         Allow(LocalSystem, FileSystemRights.FullControl, Inheritable),
         Allow(Administrators, FileSystemRights.FullControl, Inheritable),
-        Allow(Users, FileSystemRights.ReadAndExecute, Inheritable),
+        Allow(Users, FileSystemRights.ReadAndExecute | FileSystemRights.Synchronize, Inheritable),
     ]);
 
     /// <summary>

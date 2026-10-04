@@ -29,12 +29,15 @@ public static class PortableDirectoryLock
     /// <summary>
     /// A portable copy's <c>Data\Users</c>: every user may create a folder here (only here, not below) and
     /// owns what it creates, through CREATOR OWNER. Nobody gets into anyone else's.
+    ///
+    /// Synchronize joins the read grant for the reason given at <see cref="InstallDirectoryLock.ReadOnlyForUsers"/>.
     /// </summary>
     internal static Zone UsersDirectory { get; } = new(Administrators,
     [
         Allow(LocalSystem, FileSystemRights.FullControl, AceFlags.ObjectInherit | AceFlags.ContainerInherit),
         Allow(Administrators, FileSystemRights.FullControl, AceFlags.ObjectInherit | AceFlags.ContainerInherit),
-        Allow(Users, FileSystemRights.ReadAndExecute | FileSystemRights.CreateDirectories, AceFlags.None),
+        Allow(Users, FileSystemRights.ReadAndExecute | FileSystemRights.CreateDirectories | FileSystemRights.Synchronize,
+            AceFlags.None),
         Allow(new SecurityIdentifier(WellKnownSidType.CreatorOwnerSid, null), FileSystemRights.FullControl,
             AceFlags.ObjectInherit | AceFlags.ContainerInherit | AceFlags.InheritOnly),
     ]);
