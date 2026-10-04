@@ -11,12 +11,18 @@ namespace Lertaro.App.Services.Notifications;
 /// </summary>
 internal sealed class NotificationRunner(NotificationItem item, Window window)
 {
-    public NotificationItem Item { get; } = item;
+    public NotificationItem Item { get; private set; } = item;
+
+    internal void Replace(NotificationItem replacement)
+    {
+        Item = replacement;
+        RemainingMs = replacement.DurationSeconds * 1000;
+    }
     public Window Window { get; } = window;
 
     /// <summary>Milliseconds left of the notification's own display time. Hover and a locked session hold it;
     /// nothing else shortens or lengthens it.</summary>
-    public double RemainingMs { get; set; } = item.DurationSeconds * 1000;
+    public double RemainingMs { get; set; } = item.RemainingMs ?? item.DurationSeconds * 1000;
 
     /// <summary>Set when the window has never been on screen, and cleared by the first restack that places it.
     /// It is what turns that first placement into a drop into the slot rather than an arrival inside it.</summary>
@@ -30,7 +36,7 @@ internal sealed class NotificationRunner(NotificationItem item, Window window)
     internal readonly record struct Slide(DoubleAnimation Animation, double Target);
 
     /// <summary>A card the user dragged keeps the corner they left it in, until the screen under it changes.</summary>
-    public bool IsPinnedByDrag => Window is NotificationCardWindow { IsUserMoved: true };
+    public bool IsPinnedByDrag => Window is NotificationCardWindow card && (card.IsUserMoved || card.IsDragging);
 
     public void ResetDrag()
     {
