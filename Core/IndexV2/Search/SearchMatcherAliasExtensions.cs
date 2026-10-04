@@ -57,8 +57,10 @@ internal static class SearchMatcherAliasExtensions
 
     // Zero-copy alias fallback: each baked alias is matched from its raw UTF-8 (byte path for ASCII
     // aliases -- the common case, pinyin -- else decoded into the alias scratch), honoring
-    // SearchContext.DisabledAliasIds and the IsAcceptableAliasMatch quality gate.
-    internal static bool TryMatchAliases(Snapshot snapshot, SearchMatcher.QueryContext ctx, int uid, SearchMatcher.Worker worker, out FzfPatternResult best)
+    // SearchContext.DisabledAliasIds and the IsAcceptableAliasMatch quality gate. An ASCII alias decodes
+    // too when the query carries a regex clause, which the byte matcher cannot apply at all -- or an
+    // exclusion, which the byte matcher would evaluate against the ALIAS instead of `name`.
+    internal static bool TryMatchAliases(Snapshot snapshot, SearchMatcher.QueryContext ctx, int uid, SearchMatcher.Worker worker, ReadOnlySpan<char> name, out FzfPatternResult best)
     {
         best = default;
         var matched = false;
@@ -76,8 +78,20 @@ internal static class SearchMatcherAliasExtensions
             FzfPatternResult aliasMatch;
             bool hit;
             var decodedLength = -1; // -1: not decoded to chars yet (the ASCII/byte fast path below skips it)
-            var isAsciiAlias = Ascii.IsValid(aliasUtf8);
-            if (isAsciiAlias)
+            // A regex clause lives only in ctx.Pattern: the byte pattern has no regex support at all (see
+            // FzfBytePattern.HasRegexClauses). So the byte fast path is only correct when the query carries
+            // no clause -- otherwise this tier is reached precisely because the NAME failed the clause, and
+            // an alias satisfying just the terms would admit a row the clause excludes.
+            //
+            // An exclusion is the same hazard for the same reason: it reads the candidate's NAME, and the
+            // byte matcher has no bytes for a non-ASCII exclusion at all, so it would answer "absent" for
+            // every candidate. Queries that filter with ':' therefore decode and use the char path, which
+            // evaluates exclusions against `name` (see FzfPattern.TryMatchAlias).
+            // ponytail: an exclusion query pays one alias decode per candidate here; the byte path could be
+            // kept by encoding the name alongside the alias, which is not worth a second byte-pattern shape
+            // for a query shape this rare.
+            var useBytePath = Ascii.IsValid(aliasUtf8) && !ctx.BytePattern.HasRegexClauses && !ctx.Pattern.HasExclusions;
+            if (useBytePath)
             {
                 hit = ctx.BytePattern.TryMatchSegmented(aliasUtf8, out aliasMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers);
             }
@@ -86,7 +100,7 @@ internal static class SearchMatcherAliasExtensions
                 if (worker.AliasScratch.Length < aliasUtf8.Length)
                     worker.AliasScratch = new char[Math.Max(aliasUtf8.Length, worker.AliasScratch.Length * 2)];
                 decodedLength = Encoding.UTF8.GetChars(aliasUtf8, worker.AliasScratch);
-                hit = ctx.Pattern.TryMatch(worker.AliasScratch.AsSpan(0, decodedLength), out aliasMatch, FzfScoringScheme.Default, worker.Slab);
+                hit = ctx.Pattern.TryMatchAlias(worker.AliasScratch.AsSpan(0, decodedLength), name, out aliasMatch, FzfScoringScheme.Default, worker.Slab);
             }
 
             if (hit)
@@ -95,7 +109,7 @@ internal static class SearchMatcherAliasExtensions
                 // The alias's own provider is the only one that knows where its boundaries fall, and for a
                 // baked alias that provider is reachable only by its id.
                 var separator = AliasProviderRegistry.GetSyllableSeparator(snapshot.AliasProviderId(e));
-                var aligned = isAsciiAlias
+                var aligned = useBytePath
                     ? AliasMatchRules.AllowsMatchUtf8(ctx.Pattern, separator, aliasUtf8, aliasMatch.MinBegin)
                     : AliasMatchRules.AllowsMatch(ctx.Pattern, separator, worker.AliasScratch.AsSpan(0, decodedLength), aliasMatch.MinBegin);
                 if (!aligned)

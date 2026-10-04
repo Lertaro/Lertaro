@@ -103,6 +103,18 @@ internal static class SearchMatcher
             }
         }
 
+        // A regex clause cannot be mask-tested, but the literal its extractor pulled out of it can -- and
+        // that is the whole point of extracting one. Without this, "/^report.*\.md$/" ran the regex
+        // engine against every indexed name; with it, the same cheap character mask a literal query uses
+        // rejects the names that cannot possibly match first, and only the survivors reach the regex.
+        //
+        // The literal is required of every match, so demanding its characters is exactly as sound as
+        // demanding a term's. Folded into the same mask as the terms because both are conditions on the
+        // same text (the name): ORing the bit sets is the conjunction of "contains all of these".
+        var regexLiteral = pattern.RequiredRegexLiteral;
+        if (regexLiteral.Length > 0)
+            requiredMask |= FzfAlgorithm.GetCharMask(regexLiteral);
+
         return new QueryContext
         {
             Pattern = pattern,
@@ -228,28 +240,28 @@ internal static class SearchMatcher
             return;
 
         // Pure-ASCII name: bytes ARE the chars (same values, same offsets) -- match with zero decode.
-        if (snapshot.IsUniqueAscii(uid))
+        // Only when the query has no regex clause, though: the byte matcher cannot apply one, and its
+        // answer would be either "no match" for everything or a match that silently skipped the regex.
+        // Regex queries decode instead (see FzfBytePattern.HasRegexClauses).
+        if (snapshot.IsUniqueAscii(uid) && !ctx.BytePattern.HasRegexClauses)
         {
             if (ctx.BytePattern.TryMatch(utf8, out var byteMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers))
             {
                 worker.Hits.Add(new UniqueMatch(uid, byteMatch, FzfBytePattern.ForDefaultScheme(uid, utf8, byteMatch).SortKey));
                 return;
             }
-            if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, out var aliasBest))
+            // The exclusion side reads the name: decode it (defensive -- ASCII names carry no aliases).
+            if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, DecodeName(worker, utf8), out var aliasBest))
                 worker.Hits.Add(new UniqueMatch(uid, aliasBest, FzfBytePattern.ForDefaultScheme(uid, utf8, aliasBest).SortKey));
             return;
         }
 
-        if (worker.Scratch.Length < utf8.Length)
-            worker.Scratch = new char[Math.Max(utf8.Length, worker.Scratch.Length * 2)];
-        var written = Encoding.UTF8.GetChars(utf8, worker.Scratch);
-        var name = worker.Scratch.AsSpan(0, written);
-
+        var name = DecodeName(worker, utf8);
         if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
         {
             worker.Hits.Add(new UniqueMatch(uid, match, FzfResultRank.ForDefaultScheme(uid, name, match).SortKey));
         }
-        else if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, out var best))
+        else if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, name, out var best))
         {
             worker.Hits.Add(new UniqueMatch(uid, best, FzfResultRank.ForDefaultScheme(uid, name, best).SortKey));
         }
@@ -257,6 +269,14 @@ internal static class SearchMatcher
         {
             worker.Hits.Add(new UniqueMatch(uid, mixedBest, FzfResultRank.ForDefaultScheme(uid, name, mixedBest).SortKey));
         }
+    }
+
+    // Decodes one unique's UTF-8 name into the worker's reusable char scratch; every tier shares it.
+    internal static ReadOnlySpan<char> DecodeName(Worker worker, ReadOnlySpan<byte> utf8)
+    {
+        if (worker.Scratch.Length < utf8.Length)
+            worker.Scratch = new char[Math.Max(utf8.Length, worker.Scratch.Length * 2)];
+        return worker.Scratch.AsSpan(0, Encoding.UTF8.GetChars(utf8, worker.Scratch));
     }
 
     internal static bool HasDirectoryRow(Snapshot snapshot, int uid)
@@ -270,9 +290,10 @@ internal static class SearchMatcher
     }
 
     // Zero-copy alias fallback, also called directly by SearchMatcherPath: forwards to
-    // SearchMatcherAliasExtensions, which holds this tier's implementation alongside the
-    // mixed-alphabet last-resort tier (TryMatchMixed, used only from MatchOne above) -- split out
-    // there (composition, not a partial class) to keep this file under the project's line limit.
-    internal static bool TryMatchAliases(Snapshot snapshot, QueryContext ctx, int uid, Worker worker, out FzfPatternResult best)
-        => SearchMatcherAliasExtensions.TryMatchAliases(snapshot, ctx, uid, worker, out best);
+    // SearchMatcherAliasExtensions, which holds this tier's implementation alongside the mixed-alphabet
+    // last-resort tier (TryMatchMixed, used only from MatchOne above) -- split out there (composition,
+    // not a partial class) to keep this file under the project's line limit. `name` is the candidate's
+    // own name, which the tier's exclusion side reads (see FzfPattern.TryMatchAlias).
+    internal static bool TryMatchAliases(Snapshot snapshot, QueryContext ctx, int uid, Worker worker, ReadOnlySpan<char> name, out FzfPatternResult best)
+        => SearchMatcherAliasExtensions.TryMatchAliases(snapshot, ctx, uid, worker, name, out best);
 }
