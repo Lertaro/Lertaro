@@ -6,7 +6,7 @@ General Settings covers core application behaviors, search window dimensions and
 
 - **Start Lertaro on System Boot**: Automatically launches Lertaro upon Windows user login.
 - **Check for Updates on Startup**: Automatically checks online for new releases whenever Lertaro starts.
-- **Silent In-Place Updates**: Only available when "Check for Updates" is enabled. Downloads and installs updates silently in the background without pop-up interruptions.
+- **Silent In-Place Updates**: Only available when running as administrator with "Check for Updates" enabled. Downloads and installs updates silently in the background without pop-up interruptions.
 - **Enable Hardware Acceleration**: Enabled by default. If your dual-GPU laptop (e.g. NVIDIA Advanced Optimus) fails to switch graphics cards because Lertaro is active, disable this to use software rendering. Requires restarting Lertaro.
 - **Hide System Tray Icon**: Hides the icon from the Windows taskbar notification area. The logo inside the Quick Search bar continues to provide the full context menu, so access is never lost.
 - **Enable Everything Compatibility Service (IPC)**: Emulates the standard Everything Win32 IPC protocol in the background. Third-party software (such as Directory Opus and Total Commander) can query Lertaro's in-memory index directly.

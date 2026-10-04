@@ -1,6 +1,6 @@
 # 対応ファイルマネージャーとダイアログ統合
 
-Lertaro は単体のデスクトップランチャーにとどまらず、Windows エクスプローラー、サードパーティ製ファイラー、各種アプリのダイアログに深く組み込まれ、ファイルを開く・保存する・フォルダーを移動する作業を劇的に効率化します。
+Lertaro は単体のデスクトップランチャーとしても、Windows エクスプローラー、サードパーティ製ファイラー、各種アプリのダイアログに組み込まれた状態としても使え、ファイルを開く・保存する・フォルダーを移動する作業を効率化します。
 
 ## 1. 3 つの主要な統合機能
 
@@ -39,14 +39,14 @@ Lertaro は単体のデスクトップランチャーにとどまらず、Window
 | **Files** | 対応 | ファイル一覧領域で中クリック | 対応 | Windows UI Automation |
 | **One Commander** | 対応 | ファイル一覧領域で中クリック | 対応 | Windows UI Automation |
 
-### Directory Opus 向けの高度な統合
+### Directory Opus 向けの統合
 
-- **フォルダーサイズ列（Lertaro サイズ）**：Directory Opus プラグインで「Lertaro サイズ列を有効化」にすると、カスタムスクリプト列が追加されます。Lertaro のインメモリインデックスから再帰的な合計サイズを直接取得するため、**ディスク I/O ゼロ** でドライブ全体のフォルダーサイズを瞬時に表示できます。
+- **フォルダーサイズ列（Lertaro サイズ）**：Directory Opus プラグインで「Lertaro サイズ列を有効化」にすると、カスタムスクリプト列が追加されます。Lertaro のインメモリインデックスから再帰的な合計サイズを直接取得するため、**ディスク I/O ゼロ** でドライブ全体のフォルダーサイズを表示できます。
 - **設定の保存**：列セレクターで「Lertaro サイズ」を追加後、**フォルダー → フォルダー形式 → 保存 → すべてのフォルダーに形式を保存** をクリックして永続化します。
 
 ### Everything 互換サービス (IPC)
 
-[**設定 → 一般 → システム**](./settings/general#システム) で **Everything 互換サービス (IPC) を有効化** すると、標準の Everything Win32 IPC インターフェースをエミュレートします。Directory Opus、Total Commander、Flow Launcher などのツールから、Everything を起動することなく Lertaro のインメモリインデックスを直接利用できます。
+[**設定 → 一般 → システム**](./settings/general#_1-システム-system) で **Everything 互換サービス (IPC) を有効化** すると、標準の Everything Win32 IPC インターフェースをエミュレートします。Directory Opus、Total Commander、Flow Launcher などのツールから、Everything を起動することなく Lertaro のインメモリインデックスを直接利用できます。
 
 ## 4. 各種アプリの独自ダイアログ対応（専用プラグイン）
 

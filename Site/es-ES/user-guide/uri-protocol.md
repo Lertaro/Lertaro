@@ -33,12 +33,14 @@ Hotkeys      - Atajos de teclado
 Plugins      - Gestión de plugins
 Favorites    - Favoritos
 History      - Historial de búsqueda
+QuickLaunch  - Inicio rápido
 QuickPanel   - Panel rápido
+LocalSend    - Transferencia LocalSend
 About        - Acerca de y actualizaciones
 ```
 
 > [!NOTE]
-> El número en `lertaro://settings/entry/[id]` se genera dinámicamente mediante el plugin interno de [**Búsqueda en Configuración**](./instant-answers#2-extensiones-activadas-por-palabra-clave-plugins-integrados). Dado que los identificadores pueden variar entre versiones, se recomienda usar `lertaro://settings/page/[sección]` en scripts y enlaces externos.
+> El número en `lertaro://settings/entry/[id]` se genera dinámicamente mediante el plugin interno de [**Búsqueda en Configuración**](./instant-answers#_2-extensiones-activadas-por-palabra-clave-plugins-integrados). Dado que los identificadores pueden variar entre versiones, se recomienda usar `lertaro://settings/page/[sección]` en scripts y enlaces externos.
 
 ## 3. Parámetros de LocalSend y codificación
 

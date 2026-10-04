@@ -1,6 +1,6 @@
 # 宿主开放服务
 
-`Lertaro.PluginSdk.Services` 命名空间下提供了一组高性能的静态基础设施服务。这些服务对宿主内部的核心算法、缓存与平台接口进行了轻量级封装，使插件能够以极简的代码直接复用宿主能力。
+`Lertaro.PluginSdk.Services` 命名空间下提供了一组高性能的静态基础设施服务。它们轻量封装了宿主内部的核心算法、缓存与平台接口，使插件能够以少量代码直接复用宿主能力。
 
 ## 1. 核心静态服务一览
 
@@ -8,7 +8,7 @@
 | :--- | :--- | :--- |
 | **`FuzzyMatchService`** | `bool IsMatch(string pattern, string text)`<br>`bool[]? GetHighlightMask(string text, string query)`<br>`double GetMatchScore(string text, string query)` | 运行与宿主完全一致的 fzf 模糊匹配引擎，计算字符级的高亮布尔掩码（自动支持汉字拼音多级兜底），并提供用于统一排序的匹配质量评分。 |
 | **`TranslationService`** | `string Get(string key)`<br>`bool TryGet(string key, out string result)`<br>`string Format(string key, params object[] args)`<br>`string GetCurrentCulture()`<br>`IReadOnlyList<string> GetSupportedCultures(Assembly assembly)`<br>`Dictionary<string, string> LoadEmbeddedTranslations(Assembly assembly, string cultureKey, string typeName)`<br>`event Action<string>? CultureChanged` | 多语言动态解析与运行时变更广播。`GetCurrentCulture()` 返回用户在设置中心显式选择的界面语言代码（如 `"zh-CN"`），与系统默认值无关；订阅 `CultureChanged` 可在界面语言切换时动态刷新内部状态或重载字典。`TryGet` 回答某个键是否被解析成功，而 `Get` 在未命中时回退为可见的 `[key]` 占位文本而不是抛出异常。`GetSupportedCultures(assembly)` 列出某个程序集的内嵌资源覆盖了哪些语言；`LoadEmbeddedTranslations(assembly, cultureKey, typeName)` 返回其中一种语言的字典。 |
-| **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)`<br>`ImageSource? GetIconFromCacheOnly(string path, bool isDir, out bool needsLoad)` | 带内存与磁盘缓存的 Windows Shell 文件图标与缩略图提取服务。`GetIconFromCacheOnly` 完全不碰 Shell：它只返回已经缓存的内容，并通过 `needsLoad` 报告是否仍然需要一次真正的加载，列表正是靠这一点先瞬间画出、事后再把图标补齐。 |
+| **`IconService`** | `ImageSource? GetIcon(string path, bool isDir)`<br>`ImageSource? GetThumbnail(string path, int size)`<br>`ImageSource? GetIconFromCacheOnly(string path, bool isDir, out bool needsLoad)` | 带内存与磁盘缓存的 Windows Shell 文件图标与缩略图提取服务。`GetIconFromCacheOnly` 完全不碰 Shell：它只返回已经缓存的内容，并通过 `needsLoad` 报告是否仍然需要一次真正的加载，列表正是靠这一点先画出图标、事后再补齐。 |
 | **`FavoritesService`** | `IEnumerable<FavoriteItem> GetFavorites()`<br>`bool IsFavorite(string path)`<br>`bool TryAddFavorite(FavoriteItem favorite)` | 读取收藏夹、检查路径是否已登记，并通过宿主桥接添加收藏项。 |
 | **`HistoryService`** | `IEnumerable<HistoryEntry> GetHistoryEntries()` | 读取历史记录条目，按最近打开时间降序排列，包含关联的搜索关键词、文件类型与单条记录的使用次数。同一物理路径最多出现一次，并归属于最近一次打开它时使用的关键词。 |
 | **`FileMetadataService`** | `Task<IReadOnlyDictionary<string, FileMetadata>> GetMetadataAsync(IReadOnlyList<string> paths)` | 批量查询外部路径的物理文件大小与时间戳（仅用于查询未出现在当前搜索结果集中的外部路径）。 |

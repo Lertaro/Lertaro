@@ -1,6 +1,6 @@
 # Primeros pasos
 
-¡Te damos la bienvenida a Lertaro! Lertaro es un lanzador de búsqueda de archivos ultrarrápido y una herramienta de productividad diseñada a medida para Windows. Esta guía te explica las opciones de instalación, la arquitectura principal, las tres modalidades de ventana y las operaciones de búsqueda esenciales.
+¡Te damos la bienvenida a Lertaro! Lertaro es un lanzador de búsqueda de archivos y una herramienta de productividad diseñada a medida para Windows. Esta guía te explica las opciones de instalación, la arquitectura principal, las tres modalidades de ventana y las operaciones de búsqueda esenciales.
 
 ## 1. Descarga e instalación
 
@@ -8,8 +8,8 @@ Puedes obtener la última versión en la página principal oficial. Cada versió
 
 ### Paquete de instalación (`Lertaro-Setup.exe`, recomendado)
 
-- **Configuración automatizada**: El asistente registra automáticamente el servicio de indexación en segundo plano (`Lertaro.Service`), configura el inicio automático y detecta e instala el entorno de ejecución de escritorio de .NET necesario.
-- **Actualizaciones sencillas**: Admite comprobación automática de actualizaciones e instalación directa con un solo clic.
+- **Configuración automatizada**: El asistente detecta e instala el entorno de ejecución de escritorio de .NET necesario; al ejecutar Lertaro por primera vez, la propia aplicación registra el servicio de indexación en segundo plano y configura la entrada de inicio.
+- **Actualizaciones in situ**: Admite comprobación automática de actualizaciones e instalación directa con un solo clic.
 
 ### Edición portátil (`Lertaro-Portable.zip`)
 
@@ -23,21 +23,21 @@ Puedes obtener la última versión en la página principal oficial. Cada versió
 
 ## 2. Descripción de la arquitectura
 
-Al ejecutar Lertaro por primera vez, se instala e inicia un servicio de Windows en segundo plano (`Lertaro.Service`). Comprender este diseño te ayudará a aprovechar al máximo la herramienta:
+Al ejecutar Lertaro por primera vez, se instala e inicia un servicio de Windows en segundo plano (nombre de servicio `LertaroService`, ejecutable `Lertaro.Service.exe`). Comprender este diseño te ayudará a aprovechar al máximo la herramienta:
 
-- **Aplicación en primer plano (UI e interacción)**: Renderiza las ventanas de búsqueda, paneles flotantes, menús de acción, interceptores de teclado y previsualizaciones instantáneas. Mantiene un uso mínimo de memoria y respuesta instantánea en milisegundos.
-- **Servicio en segundo plano (Indexación y datos)**: Se ejecuta con privilegios de servicio en segundo plano, monitorizando los diarios de cambios USN de NTFS / ReFS, escuchando eventos en tiempo real de otros sistemas de archivos, gestionando recursos de red y manteniendo un árbol de índices ultrarrápido en memoria.
+- **Aplicación en primer plano (UI e interacción)**: Renderiza las ventanas de búsqueda, paneles flotantes, menús de acción, interceptores de teclado y previsualizaciones instantáneas. Mantiene un bajo consumo de memoria y respuesta instantánea.
+- **Servicio en segundo plano (Indexación y datos)**: Se ejecuta con privilegios de servicio en segundo plano, monitorizando los diarios de cambios USN de NTFS / ReFS, escuchando eventos en tiempo real de otros sistemas de archivos, gestionando recursos de red y manteniendo un árbol de índices en memoria.
 - **Ventajas arquitectónicas**: Reiniciar o actualizar la interfaz nunca borra el índice ni fuerza un reescaneo del disco. Las tareas pesadas de indexación nunca ralentizan tu escritura. Puedes comprobar el estado del servicio en cualquier momento en [**Configuración → Estado del servicio**](./settings/service-status).
 
 ## 3. Tres modalidades de ventana
 
-Lertaro no se limita a una única ventana fija, sino que se adapta a tus flujos de trabajo con tres modalidades de ventana diseñadas a medida:
+Lertaro ofrece tres modalidades de ventana diseñadas a medida para distintos flujos de trabajo:
 
 | Modalidad de ventana | Activador predeterminado | Características clave y diseño | Escenario ideal |
 | :--- | :--- | :--- | :--- |
-| **Ventana rápida (Quick Window)** | Doble pulsación de `Ctrl` (personalizable) | Barra flotante centrada en pantalla, optimizada para memoria muscular, atajos numéricos y control total con teclado | Inicio frecuente de apps, búsqueda rápida de archivos, cálculos y traducciones |
-| **Ventana principal (Full Window)** | Barra de tareas/Menú Inicio, o `Ctrl+F` | Ventana completa con vista de tabla para grandes volúmenes de resultados, filtros laterales, ordenación y Analizador de espacio | Exploración profunda de archivos, gestión masiva, limpieza de disco y filtrado avanzado |
-| **Ventana incrustada (Inline Window)** | Escribe una letra o un dígito dentro de un diálogo de archivos o de un explorador (o acóplala en el Explorador) | Integrada perfectamente en diálogos de Windows y exploradores de archivos compatibles. La tarjeta nunca roba el teclado: sigue escribiendo en el campo propio del diálogo y haz una doble pulsación de `Ctrl` (tu atajo de invocación configurado) para mover el cursor a la tarjeta | Localización rápida de destinos al "Abrir" o "Guardar como" en software externo |
+| **Ventana rápida (Quick Window)** | Doble pulsación de `Ctrl` (personalizable) | Barra flotante centrada en pantalla, con búsqueda al escribir, atajos numéricos y navegación completa con teclado | Inicio frecuente de apps, búsqueda rápida de archivos, cálculos y traducciones |
+| **Ventana principal (Full Window)** | Barra de tareas/Menú Inicio, o `Ctrl+F` | Ventana completa con vista de tabla para grandes volúmenes de resultados, filtros laterales, ordenación y Analizador de espacio | Exploración de archivos, gestión masiva, limpieza de disco y filtrado avanzado |
+| **Ventana incrustada (Inline Window)** | Escribe una letra o un dígito dentro de un diálogo de archivos o de un explorador (o acóplala en el Explorador) | Integrada directamente en los diálogos de Windows y en los exploradores de archivos compatibles. La tarjeta nunca roba el teclado: sigue escribiendo en el campo propio del diálogo y haz una doble pulsación de `Ctrl` (tu atajo de invocación configurado) para mover el cursor a la tarjeta | Localización rápida de destinos al "Abrir" o "Guardar como" en software externo |
 
 Las tres modalidades comparten exactamente el mismo motor de búsqueda, combinaciones de teclas, reglas de filtrado y menús de acción.
 

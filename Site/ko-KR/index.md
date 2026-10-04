@@ -13,13 +13,13 @@ securityWarning:
 features:
   - icon: 💡
     title: Listary의 오픈소스 대안
-    details: 모던하고 아름다운 디자인과 높은 확장성을 갖춘 Windows용 오픈소스 파일 검색 및 런처 도구입니다.
+    details: 확장성을 갖춘 Windows용 오픈소스 파일 검색 및 런처 도구입니다.
   - icon: ⚡
     title: USN & MFT 저수준 인덱싱
-    details: NTFS / ReFS 의 USN 저널과 $MFT 를 직접 읽어 초고속 인덱스를 구성하며, FAT32 / exFAT 변경 감지 및 네트워크 공유 캐시를 지원합니다.
+    details: NTFS / ReFS 의 USN 저널과 $MFT 를 직접 읽어 인덱스를 빠르게 구성하며, FAT32 / exFAT 변경 감지 및 네트워크 공유 캐시를 지원합니다.
   - icon: 🎯
     title: fzf 퍼지 매칭 및 별칭
-    details: 문자 점프 퍼지 일치와 경로 지정 연산자를 지원하며, 비 ASCII 별칭 변환 엔진을 통해 다국어 파일을 손쉽게 검색합니다.
+    details: 문자 점프 퍼지 일치와 경로 지정 연산자를 지원하며, 비 ASCII 별칭 변환 엔진을 통해 다국어 파일을 검색합니다.
   - icon: 🖱️
     title: 네이티브 파일 대화상자 도킹
     details: Windows 표준 "열기 / 다른 이름으로 저장" 창 및 탐색기, Total Commander에 자동 임베드되어 양방향 선택과 경로를 동기화합니다.

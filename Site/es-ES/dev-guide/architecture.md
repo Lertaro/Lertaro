@@ -1,6 +1,6 @@
 # Arquitectura del sistema
 
-Lertaro está construido sobre un modelo de aislamiento multiproceso y una arquitectura modular por capas, garantizando búsquedas en submilisegundos y una profunda integración de escritorio con el máximo nivel de seguridad y estabilidad.
+Lertaro está construido sobre un modelo de aislamiento multiproceso y una arquitectura modular por capas, garantizando búsquedas en submilisegundos y una integración de escritorio con seguridad y estabilidad.
 
 ![Diagrama de arquitectura de Lertaro](/architecture.svg)
 
@@ -8,7 +8,7 @@ Lertaro está construido sobre un modelo de aislamiento multiproceso y una arqui
 
 Para evitar que el fallo de un único componente provoque el cierre del sistema y para limitar los privilegios elevados al mínimo indispensable, la ejecución se divide en tres procesos independientes:
 
-### 1. Servicio de indexación en segundo plano (`Lertaro.Service`)
+### 1. Servicio de indexación en segundo plano (`Lertaro.Service.exe`)
 
 - **Identidad**: Se ejecuta de forma continua como un servicio de Windows con la cuenta `LocalSystem`.
 - **Responsabilidades**: Indexación del sistema de archivos y seguimiento de cambios. Lee los diarios USN y las tablas \$MFT de volúmenes NTFS / ReFS; monitoriza eventos de cambio en FAT32 / exFAT; escanea y almacena en caché recursos compartidos SMB / NAS.
@@ -24,7 +24,7 @@ Para evitar que el fallo de un único componente provoque el cierre del sistema 
 
 - **Identidad**: Proceso auxiliar iniciado por el servicio en segundo plano. Se lanza **elevado solo cuando la cuenta con la que se inició sesión es verdaderamente administradora**; en caso contrario se ejecuta con el token del propio usuario, así que la omisión descrita abajo solo está disponible en esa máquina.
 - **Responsabilidades**: Aloja los enlaces de teclado de bajo nivel y la escucha global de eventos de ratón.
-- **Omisión de UIPI y aislamiento de fallos**: El aislamiento de privilegios de interfaz (UIPI) de Windows impide que procesos de menor integridad envíen mensajes a ventanas elevadas. Al ejecutar los adaptadores de ventana ([`IActivePathCollector`, `IFileDialogAdapter`, `IInlineSearchAdapter`](./sdk/system-adapters)) dentro de este proceso, Lertaro puede leer y manejar instancias del Explorador y diálogos de archivos ejecutados como Administrador cuando el enlace se lanzó elevado. Además, los fallos en los enlaces de teclado no afectan a la aplicación principal.
+- **Omisión de UIPI y aislamiento de fallos**: El aislamiento de privilegios de interfaz (UIPI) de Windows impide que procesos de menor integridad envíen mensajes a ventanas elevadas. Al ejecutar los adaptadores de ventana ([`IActivePathCollector`, `IFileDialogAdapter`, `IInlineSearchAdapter`](./sdk/system-adapters)) dentro de este proceso, Lertaro puede leer y manejar instancias del Explorador y diálogos de archivos ejecutados como Administrador cuando el enlace se lanzó elevado. Los fallos en los enlaces de teclado tampoco afectan a la aplicación principal.
 
 ## 2. Librería central compartida (`Lertaro.Core`)
 

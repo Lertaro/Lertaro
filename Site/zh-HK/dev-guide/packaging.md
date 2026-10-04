@@ -48,7 +48,7 @@ Lertaro/
 </ItemGroup>
 ```
 
-檔案採 `Resources/Translations/{culture}/{type}.json` 結構組織，其中 `{type}` 就是你要傳給 `TranslationService.LoadEmbeddedTranslations(assembly, cultureKey, typeName)` 的 `typeName`。本倉庫的所有外掛模組都使用固定檔名 **`Plugin.json`**（`Resources/Translations/zh-CN/Plugin.json`、`Resources/Translations/en-US/Plugin.json`……）並傳入 `"Plugin"`；`App.json` 並非外掛模組的慣例——它只存在於 CoreExtensions 中，因為該外掛模組也一併提供宿主自身的 UI 字串。文化層級資料夾遵循應用程式的七種語系，而沒有對應資料夾的語系只會直接退回呼叫端提供的預設文字。
+檔案採 `Resources/Translations/{culture}/{type}.json` 結構組織，其中 `{type}` 就是你要傳給 `TranslationService.LoadEmbeddedTranslations(assembly, cultureKey, typeName)` 的 `typeName`。本倉庫的所有外掛模組都使用固定檔名 **`Plugin.json`**（`Resources/Translations/zh-CN/Plugin.json`、`Resources/Translations/en-US/Plugin.json`……）並傳入 `"Plugin"`；`App.json` 並非外掛模組的慣例——它只存在於 CoreExtensions 中，因為該外掛模組也一併提供宿主自身的 UI 字串。文化層級資料夾遵循應用程式的七種語系；當請求的文化沒有對應資料夾時，翻譯管理員會先回退到該外掛模組第一個支援的文化，再回退到 `en-US`，最後才使用 `[key]` 佔位符。
 
 ## 4. 外掛模組版本與中繼資料定義
 
@@ -67,8 +67,9 @@ Lertaro/
 
 ## 5. Release 建構與架構產物
 
-在 Windows 上從儲存庫根目錄執行 `make.bat` 前，需要安裝 .NET SDK 和[64 位元 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)。就目前的情況而言，該指令碼**只呼叫一次**它的建置常式，而且對象是 x64，產出：
+在 Windows 上從儲存庫根目錄執行 `make.bat` 前，需要安裝 .NET SDK 和[64 位元 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)（指令碼會驗證編譯器確實是 7.x）。它會呼叫 `:build_arch` 兩次：一次以 `ARCH=x64`（一如往常不使用 RID 發佈），一次以 `ARCH=arm64`（以 `-r win-arm64 --self-contained false` 跨架構發佈），在 `dist/` 中產出四個檔案：
 
-- `dist/` 中的 `Lertaro-Setup.exe` 與 `Lertaro-Portable.zip`。
+- `Lertaro-Setup.exe` 與 `Lertaro-Portable.zip`（x64）。
+- `Lertaro-Setup-arm64.exe` 與 `Lertaro-Portable-arm64.zip`（arm64）。
 
-它的頁首註解描述的是兩種架構（「x64 一如往常不使用 RID 發佈；arm64 則是跨架構發佈」），結尾的橫幅也會列印 arm64 的路徑，但並沒有第二次 `:build_arch` 呼叫把 `ARCH=x64`→`arm64`，因此本機執行並不會產生 `Lertaro-Setup-arm64.exe` 或 `Lertaro-Portable-arm64.zip`——儘管發佈工作流程恰恰就是對這些名稱計算雜湊並上傳的。在相信那個橫幅之前請先銘記此事。arm64 安裝程式與 x64 安裝程式的差異只有在 `Installer/installer.iss` 中的 `ArchitecturesAllowed`（`arm64` 對比 `x64compatible`）加上 `SetupArchitecture=x64`；兩者內部的載荷各自是其架構的原生版本。請保持產物名稱與 `make.bat`、`Installer/installer.iss` 以及發佈工作流程的資產清單一致。
+兩種架構以獨立產物而非單一合併安裝程式交付，原因是 BrowserData 外掛模組攜帶了一個原生程式庫，而它平鋪、無 `.deps.json` 的載入目錄只能容納一個架構的原生複本（見指令碼的頁首註解）。arm64 安裝程式與 x64 安裝程式在 `Installer/installer.iss` 中的差異包括：`ArchitecturesAllowed`（`arm64` 對比 `x64compatible`）、`ArchitecturesInstallIn64BitMode`、`SetupArchitecture=x64`（僅 x64 設定）、內嵌的 .NET 桌面執行階段檔案與下載 URL、`PublishDir` 以及輸出檔名；兩者內部的載荷各自是其架構的原生版本。發佈工作流程恰恰就是對這四個名稱計算雜湊並上傳，而 `UpdateAssetSelector` 依名稱比對舊版安裝——重新命名產物會讓現有使用者無法被更新比對到。請保持產物名稱與 `make.bat`、`Installer/installer.iss` 以及發佈工作流程的資產清單一致。

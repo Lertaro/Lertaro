@@ -1,6 +1,6 @@
 # 官方插件范例
 
-为了帮助开发者深入理解 `Lertaro.PluginSdk` 的各模块协同机制，本章节选取了 Lertaro 官方仓库自带的四个典型开源插件进行深度案例剖析。
+为了帮助开发者深入理解 `Lertaro.PluginSdk` 的各模块协同机制，本章节深入剖析随 Lertaro 官方仓库发布的四个典型开源插件。
 
 ## 1. CoreExtensions —— 动作、Shell 菜单与快速面板
 
@@ -9,7 +9,7 @@
 ### 核心实现要点
 
 - **静态结果动作（`IActionProvider.GetActions()`）**：注册了一组常用的基础文件动作，包括打开与定位项目、复制路径和文件、添加到收藏夹、重命名、终端命令、删除以及管理员身份运行等。
-- **原生 Shell 菜单集成（`IDynamicActionProvider`）**：通过 `ShellMenuActionProvider` 与 Windows Shell COM 接口交互，将完整的 Windows 右键级联菜单（如“发送到”、7-Zip、VS Code 打开等）无缝渲染至 Lertaro 的 `Ctrl+O` 动作菜单中。
+- **原生 Shell 菜单集成（`IDynamicActionProvider`）**：通过 `ShellMenuActionProvider` 与 Windows Shell COM 接口交互，将完整的 Windows 右键级联菜单（如“发送到”、7-Zip、VS Code 打开等）渲染至 Lertaro 的 `Ctrl+O` 动作菜单中。
 - **模式驱动的配置表单（`IConfigurable`）**：展示了如何定义包含嵌套分组（`Group`）、多行字符串列表（`StringList`）与快捷键录制（`Hotkey`）的复杂配置表单，无需手写任何 XAML 即可在设置中心中自动生成。
 - **多样化的快速面板标签（`IQuickPanelTabProvider`）**：
   - `FavoritesTabProvider` / `HistoryTabProvider`：直接使用宿主已经加载好的收藏与历史，而不是再从磁盘重新读取；历史查询会通过 `Task.Run` 派发离开 UI 线程执行，因此呼出面板时不会等待它。
@@ -29,7 +29,7 @@
 
 ## 3. FlowLauncherBridge —— 跨生态桥接与隔离运行时
 
-`FlowLauncherBridge` 插件展示了如何构建一个大型复合型桥接系统，将外部开源社区生态无缝吸纳进 Lertaro 体系。
+`FlowLauncherBridge` 插件展示了如何构建一个大型复合型桥接系统，将外部开源社区生态接入 Lertaro 体系。
 
 ### 核心实现要点
 

@@ -1,11 +1,11 @@
 # Space Analyzer
 
-Lertaro includes a blazing-fast disk and directory **Space Analyzer**. Unlike traditional disk analyzers that require lengthy physical drive scans, it leverages Lertaro's existing in-memory index tree to render storage breakdowns instantly in sub-seconds — even on drives hosting millions of files.
+Lertaro includes a disk and directory **Space Analyzer**. Unlike traditional disk analyzers that require lengthy physical drive scans, it leverages Lertaro's existing in-memory index tree to render storage breakdowns in seconds — even on drives hosting millions of files.
 
 ## 1. Accessing Space Analyzer
 
 - **Automatic Presentation**: Open the Full Search Window (`Ctrl+F`) with an **empty search box**; Space Analyzer appears automatically as the default home view.
-- **Seamless Transition**: Typing any character in the search box instantly switches to the search results list; clearing the search box returns immediately to the Space Analyzer view.
+- **Instant Transition**: Typing any character in the search box switches right away to the search results list; clearing the search box returns to the Space Analyzer view.
 
 ## 2. Layout & Visual Overview
 
@@ -43,4 +43,4 @@ Space Analyzer uses a dual-pane layout designed to provide immediate clarity on 
 ### Real-Time Change Tracking & Self-Healing
 
 - **Live Change Updates**: Receives filesystem change notifications from the background index service, debouncing updates smoothly.
-- **Self-Healing Path Fallback**: If the active directory is renamed, deleted, or removed from indexing, Space Analyzer intelligently steps back to the nearest valid parent folder without crashing.
+- **Self-Healing Path Fallback**: If the active directory is renamed, deleted, or removed from indexing, Space Analyzer steps back automatically to the nearest valid parent folder without crashing.

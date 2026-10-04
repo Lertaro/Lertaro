@@ -1,6 +1,6 @@
 # About & Updates
 
-The About page displays component versions, provides one-click access to user and system storage directories, and supports manual update checks and seamless in-place upgrades. The page is located at **Settings → About**.
+The About page displays component versions, provides one-click access to user and system storage directories, and supports manual update checks and one-click in-place upgrades. The page is located at **Settings → About**.
 
 ## 1. Component Versions & Project Info
 
@@ -29,12 +29,12 @@ Clickable links directly open storage directories in File Explorer (folders are 
 ### Storage Path Architecture
 
 - **Installer Version**: User data is placed in `%LocalAppData%\Lertaro`, and machine data in `%ProgramData%\Lertaro`.
-- **Portable Version**: User data is placed in `Data\Users\<SID hash>`, and machine data in `Data\Machine` next to the executable (see [**Portable Data Isolation**](../getting-started#portable-data-isolation-architecture)).
+- **Portable Version**: User data is placed in `Data\Users\<SID hash>`, and machine data in `Data\Machine` next to the executable (see [**Portable Data Isolation**](../getting-started)).
 
 ## 3. Update Checks & In-Place Upgrades
 
 - **Check for Updates**: Manually queries online repositories for newer releases with dynamic button state feedback ("Checking for updates..." → "Up to date" or release version details).
 - **Upgrade Paths When Updates Are Found**:
-  - **Silent In-Place Update** — Downloads and installs updates in the background, restarting Lertaro seamlessly.
+  - **Silent In-Place Update** — Downloads and installs updates in the background and restarts Lertaro when done.
   - **Go to Download Page** — Opens the GitHub Releases page in your default browser for manual package downloads.
 - **Permission Safety Notices**: If running under a non-administrator account unable to restart the background service for in-place updates, a clear guidance banner directs you to the manual download page.

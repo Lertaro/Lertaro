@@ -7,7 +7,6 @@ The **Quick Panel** is a floating workspace designed for high-frequency file ret
 - **Enable Quick Panel**: Master switch; when disabled, the hotkey does not intercept input.
 - **Summon Hotkey**: Default **`Ctrl+F2`** (customizable under [**Settings → Hotkeys**](./hotkeys-page)).
 - **Smart Docking & Sizing**: Sized by default to half the width and height of the host window (constrained to a minimum of `280 × 200px` to guarantee legibility). If a Lertaro window is already focused, summon requests are ignored to avoid stacking; pressing the hotkey while the panel is open closes it.
-- **Quick Jump Integration**: While open, the physical folder of the active group is tracked as the working directory. Pressing Quick Jump (`Ctrl+G`) in file dialogs navigates straight there.
 
 ## 2. Workspaces
 
@@ -26,9 +25,10 @@ Each source represents a distinct group within the workspace:
 
 - **Add Folder**: Selects the target directory on disk.
 - **Display Mode**:
-  - **Recent modified files** — Queries the memory index in sub-milliseconds to show recently changed files (newest first).
-  - **All files, newest first** — Shows all files sorted by last modified date in descending order.
-  - **All files, by name** — Functions as a pinned shortcut launcher.
+  - **Recently modified files** — Queries the memory index in sub-milliseconds to show recently changed files (newest first).
+  - **All contents** — Shows every file, optionally ordered by last modified date (descending) or by name (handy as a pinned shortcut launcher).
+  - **Folders only** — Lists directories only.
+  - **Files only** — Lists files only.
 - **Include Subfolders**: Recursively includes descendant files when checked.
 - **Accept Dropped Files**: Allows dragging files, folders, or web images from other windows into this group. Lertaro executes a native Windows copy with conflict prompts and undo support.
 - **Filtering Rules**: Uses wildcard patterns or search-syntax `@` filters to constrain displayed file types (e.g. `*.mp4;*.mkv`, `*.lnk;:@doc;:@img`, or `*.lnk;:@doc|img`).
@@ -57,7 +57,7 @@ Each plugin tab can be enabled/disabled and configured with List or Tile views.
 ## 6. Panel Navigation Guide
 
 - **Live Fuzzy Filtering**: A search box in the top-right corner supports fzf fuzzy matching and pinyin aliases to filter the active workspace. It filters **names only** and never reorders a list; a group whose items all drop out disappears, while its tab stays. `Escape` clears the filter first and only a **second** `Escape` closes the panel.
-- **Keyboard Navigation**: Arrow keys navigate seamlessly across group boundaries; press `Enter` to open the highlighted item and the panel stays up. The sequence does **not** wrap: the first and last visible items are hard ends, empty groups are stepped over, and with nothing selected yet both `↑` and `↓` land on the first item. In tile view the four arrows move around the visual grid instead — `←`/`→` follow reading order and cross row boundaries, `↑`/`↓` keep the column.
+- **Keyboard Navigation**: Arrow keys navigate across group boundaries; press `Enter` to open the highlighted item and the panel stays up. The sequence does **not** wrap: the first and last visible items are hard ends, empty groups are stepped over, and with nothing selected yet both `↑` and `↓` land on the first item. In tile view the four arrows move around the visual grid instead — `←`/`→` follow reading order and cross row boundaries, `↑`/`↓` keep the column.
 - **Tab Switching**: Press `Ctrl` + `1`–`9` to jump directly across workspace and plugin tabs.
 - **QuickLook & Pinning**: Press `Alt+P` to open the docked instant preview; press `Ctrl+T` — or the pin button in the header — to pin the panel so it stays open when focus is lost.
 - **Where Focus Lands**: Summoning puts the caret in the filter box with the first entry already selected, so typing narrows immediately. While that box holds focus, plugin action hotkeys deliberately stand down — `Ctrl+A` and `Ctrl+C` mean text editing here, not file operations.

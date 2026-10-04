@@ -48,7 +48,7 @@ If your plugin implements the [`ITranslationProvider`](./sdk/ui-extensions) inte
 </ItemGroup>
 ```
 
-Organize files as `Resources/Translations/{culture}/{type}.json`, where `{type}` is the `typeName` you pass to `TranslationService.LoadEmbeddedTranslations(assembly, cultureKey, typeName)`. Every plugin in this repository uses the fixed file name **`Plugin.json`** (`Resources/Translations/zh-CN/Plugin.json`, `Resources/Translations/en-US/Plugin.json`, …) and passes `"Plugin"`; `App.json` is not a plugin convention — it exists only in CoreExtensions, which also supplies the host's own UI strings. The culture folders follow the app's seven locales, and a culture with no folder simply falls back to the caller's default text.
+Organize files as `Resources/Translations/{culture}/{type}.json`, where `{type}` is the `typeName` you pass to `TranslationService.LoadEmbeddedTranslations(assembly, cultureKey, typeName)`. Every plugin in this repository uses the fixed file name **`Plugin.json`** (`Resources/Translations/zh-CN/Plugin.json`, `Resources/Translations/en-US/Plugin.json`, …) and passes `"Plugin"`; `App.json` is not a plugin convention — it exists only in CoreExtensions, which also supplies the host's own UI strings. The culture folders follow the app's seven locales; when the requested culture has no folder, the translation manager falls back to the plugin's first supported culture, then to `en-US`, and only then to the `[key]` placeholder.
 
 ## 4. Versioning & Metadata
 
@@ -67,8 +67,9 @@ This version and description string will be presented automatically inside the *
 
 ## 5. Release Build & Architecture Artifacts
 
-Run `make.bat` from the repository root on Windows with the .NET SDK and the [64-bit edition of Inno Setup 7](https://jrsoftware.org/isdl.php#v7) installed. As it stands the script invokes its build routine **once, for x64**, and produces:
+Run `make.bat` from the repository root on Windows with the .NET SDK and the [64-bit edition of Inno Setup 7](https://jrsoftware.org/isdl.php#v7) installed (the script verifies the compiler really is 7.x). It calls `:build_arch` twice: once with `ARCH=x64` (published with no RID, as it always has been) and once with `ARCH=arm64` (a cross-publish with `-r win-arm64 --self-contained false`), producing four files in `dist/`:
 
-- `Lertaro-Setup.exe` and `Lertaro-Portable.zip` in `dist/`.
+- `Lertaro-Setup.exe` and `Lertaro-Portable.zip` (x64).
+- `Lertaro-Setup-arm64.exe` and `Lertaro-Portable-arm64.zip` (arm64).
 
-Its header comment describes two architectures ("x64 publishes with no RID exactly as it always has; arm64 is a cross-publish") and its closing banner prints the arm64 paths, but no second `:build_arch` call sets `ARCH=x64`→`arm64`, so a local run does not create `Lertaro-Setup-arm64.exe` or `Lertaro-Portable-arm64.zip` — even though the release workflow hashes and uploads exactly those names. Keep that in mind before trusting the banner. The arm64 installer differs from the x64 one only in `ArchitecturesAllowed` (`arm64` vs `x64compatible`) plus `SetupArchitecture=x64` in `Installer/installer.iss`; the payload inside each is native to its architecture. Keep artifact names aligned with `make.bat`, `Installer/installer.iss`, and the release workflow's asset list.
+The two architectures ship as separate artifacts rather than one combined installer because the BrowserData plugin carries a native library, and its flat, deps.json-less load directory can hold only one architecture's native copy (see the header comment in the script). The arm64 installer differs from the x64 one in `Installer/installer.iss` in `ArchitecturesAllowed` (`arm64` vs `x64compatible`), `ArchitecturesInstallIn64BitMode`, `SetupArchitecture=x64` (set only for x64), the bundled .NET desktop runtime file and download URL, `PublishDir`, and the output file name; the payload inside each is native to its architecture. The release workflow hashes and uploads exactly these four names, and `UpdateAssetSelector` matches older installs by name — renaming an artifact would strand existing users. Keep artifact names aligned with `make.bat`, `Installer/installer.iss`, and the release workflow's asset list.

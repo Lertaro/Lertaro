@@ -29,12 +29,12 @@ Enlaces interactivos para abrir los directorios de almacenamiento en el Explorad
 ### Estructura de rutas de almacenamiento
 
 - **Versión instalable**: Los datos de usuario se guardan en `%LocalAppData%\Lertaro` y los de máquina en `%ProgramData%\Lertaro`.
-- **Versión portátil**: Los datos se guardan en `Data\Users\<SID hash>` y `Data\Machine` junto al ejecutable (ver [**Aislamiento de datos en versión portátil**](../getting-started#arquitectura-de-aislamiento-de-datos-en-version-portatil)).
+- **Versión portátil**: Los datos se guardan en `Data\Users\<SID hash>` y `Data\Machine` junto al ejecutable (ver [**Aislamiento de datos en versión portátil**](../getting-started)).
 
 ## 3. Comprobación y aplicación de actualizaciones
 
 - **Buscar actualizaciones**: Consulta en línea nuevas versiones con información dinámica en el propio botón ("Buscando actualizaciones..." → "Ya tienes la última versión" o detalles de la nueva versión).
 - **Vías de actualización**:
-  - **Actualización silenciosa** —— Descarga e instala en segundo plano, reiniciando Lertaro de forma transparente.
+  - **Actualización silenciosa** —— Descarga e instala en segundo plano y reinicia Lertaro al terminar.
   - **Ir a la página de descargas** —— Abre la página de lanzamientos de GitHub en el navegador predeterminado para su descarga manual.
 - **Avisos de permisos**: Si se ejecuta con una cuenta sin permisos de administrador para reiniciar el servicio, un aviso guiará hacia la página de descarga manual.

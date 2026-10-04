@@ -1,13 +1,13 @@
 # 开发者手册
 
-欢迎查阅 Lertaro 开发者参考手册。Lertaro 采用先进的解耦架构与开放的插件化生态体系，提供了官方 SDK 程序集 `Lertaro.PluginSdk`。开发者可以通过引用该 SDK，为 Lertaro 贡献自定义搜索源、扩展右键上下文动作、深度适配第三方文件管理器与原生对话框，或者定制美化主题与文件预览组件。
+欢迎查阅 Lertaro 开发者参考手册。Lertaro 采用解耦架构与开放的插件生态，提供官方 SDK 程序集 `Lertaro.PluginSdk`。开发者可以通过引用该 SDK，为 Lertaro 贡献自定义搜索源、扩展右键上下文动作、适配第三方文件管理器与原生对话框，或者定制主题与文件预览组件。
 
 ## 1. 架构与开发流程
 
 - **[系统架构设计](./architecture)** —— 详解 SYSTEM 级 Windows 索引服务、用户态 WPF 交互进程与独立键盘钩子进程的三进程隔离模型与命名管道 IPC 通信机制。
 - **[快速上手指南](./getting-started)** —— 从零创建插件类库工程、引用 SDK、实现 `IPlugin` 入口以及本地调试的最佳实践。
 - **[打包与分发](./packaging)** —— 插件程序集目录结构规范、第三方托管/原生依赖库打包、多语言 JSON 资源内嵌与 PostBuild 自动部署。
-- **[官方插件范例](./examples)** —— 深度剖析随包开源的 `CoreExtensions`、`PinyinAlias`、`FlowLauncherBridge` 与 `FileUnlocker` 等真实插件的最佳实践代码。
+- **[官方插件范例](./examples)** —— 剖析随包开源的 `CoreExtensions`、`PinyinAlias`、`FlowLauncherBridge` 与 `FileUnlocker` 等真实插件的实现代码。
 
 ## 2. 插件 SDK 接口参考
 

@@ -1,18 +1,18 @@
 # 系统架构设计
 
-Lertaro 采用先进的多进程隔离架构与模块化分层设计，确保在实现系统级毫秒检索与全方位窗口集成的同时，兼顾最高级别的运行安全与稳定性。
+Lertaro 采用多进程隔离与模块化分层设计，在实现毫秒级检索与窗口集成的同时，保证运行安全与稳定。
 
 ![Lertaro 架构图](/architecture-zh-CN.svg)
 
 ## 1. 三进程隔离模型
 
-为了彻底规避单个组件异常导致整个系统崩溃，并将 Windows 特权限制在最小范围内，Lertaro 的运行时被明确划分为三个独立的进程：
+为了避免单个组件异常导致整个系统崩溃，并将 Windows 特权限制在最小范围内，Lertaro 的运行时被明确划分为三个独立的进程：
 
-### 1. 后台索引服务（`Lertaro.Service`）
+### 1. 后台索引服务（`Lertaro.Service.exe`）
 
 - **运行身份**：以 Windows 系统级 `LocalSystem` 身份常驻运行的 Windows 服务。
-- **职责范围**：承担全盘文件索引与增量监听的核心重任。直接读取 NTFS / ReFS 磁盘底层的 USN 变更日志与 \$MFT 主文件表；实时监听 FAT32 / exFAT 磁盘变更；定时抓取并缓存 SMB / NAS 网络共享。
-- **安全与性能考量**：运行在 SYSTEM 级别使服务无需弹出任何 UAC 提权弹窗即可直接读取原始磁盘卷的元数据；同时通过高性能命名管道向用户态 App 返回检索结果，彻底避免了让前台 UI 进程持有不必要的全局高权限。
+- **职责范围**：负责全盘文件索引与增量监听。直接读取 NTFS / ReFS 磁盘底层的 USN 变更日志与 \$MFT 主文件表；实时监听 FAT32 / exFAT 磁盘变更；定时抓取并缓存 SMB / NAS 网络共享。
+- **安全与性能考量**：运行在 SYSTEM 级别使服务无需弹出任何 UAC 提权弹窗即可直接读取原始磁盘卷的元数据；同时通过高性能命名管道向用户态 App 返回检索结果，避免前台 UI 进程持有不必要的全局高权限。
 
 ### 2. 用户交互主程序（`Lertaro.App`）
 
@@ -30,7 +30,7 @@ Lertaro 采用先进的多进程隔离架构与模块化分层设计，确保在
 
 `Lertaro.Core` 是被 Service、App 和 Hook 进程同时引用的基础类库，主要包含以下关键模块：
 
-- **自研 fzf 模糊匹配引擎（`Core/SearchIndex/Fzf/*`）**：高效复刻并优化了知名 `fzf` 算法的跳跃字符模糊匹配、子串分段与字符级高亮计算，配合 `SearchQueryParser` 实现盘符定向与路径模式切分。
+- **自研 fzf 模糊匹配引擎（`Core/SearchIndex/Fzf/*`）**：复刻并优化了知名 `fzf` 算法的跳跃字符模糊匹配、子串分段与字符级高亮计算，配合 `SearchQueryParser` 实现盘符定向与路径模式切分。
 - **列式内存索引（`Core/IndexV2/*`）**：采用内存映射列式快照（Columnar Snapshot）与内存增量覆盖层（Delta Overlay），实现亿级文件条目的亚毫秒级检索。
 - **二进制 IPC 通信契约**：定义了 `SearchRequestMessage`、`SearchResponseBinarySerializer` 等标准二进制数据协议，确保多进程间零拷贝高效序列化。
 - **统一多进程日志系统（`Logger`）**：分别输出至 `service.log`、`app.log` 与 `hook.log`，并由 App 的设置中心日志查看器统一代理读取与呈现。

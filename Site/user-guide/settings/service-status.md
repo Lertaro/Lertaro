@@ -18,7 +18,7 @@ The top card displays real-time health metrics of the elevated Windows indexing 
 The integrated log viewer below is split into three dedicated tabs mapping to Lertaro's three active processes:
 
 - **App Tab**: Logs user interactions, search queries, UI rendering, and hotkey activations from the foreground WPF application.
-- **Hook Tab**: Logs low-level keyboard hook events and isolation states from the hook process (`Lertaro.Hook.exe`).
+- **Hook Tab**: Logs low-level keyboard hook events and isolation states from the hook process (`Lertaro.Service.exe --hook`).
 - **Service Tab**: Logs USN change journal parsing, filesystem scanning, in-memory tree building, and IPC communications from the background service (`Lertaro.Service.exe`).
 
 ### Filtering & Log Maintenance

@@ -6,8 +6,8 @@ La página de Atajos de teclado centraliza la gestión de atajos de invocación 
 
 ### Atajos globales
 
-- **Mostrar/Ocultar búsqueda rápida**: Grabador de teclas dedicado. Admite **modo de doble pulsación** (por defecto doble `Ctrl`, configurable a doble `Alt` o `Shift`) y **combinaciones estándar** (p. ej. `Alt+Space`, `Win+Space`).
-- **Abrir el panel principal de forma predeterminada**: Casilla (desactivada por defecto). Al activarla, el atajo global abre la Ventana principal en lugar de la Ventana rápida. La primera vez solo la lleva al primer plano y le da el foco; si está visible pero inactiva la vuelve a activar, y si ya está activa la cierra al pulsar de nuevo. No se mantiene automáticamente siempre encima.
+- **Mostrar/Ocultar búsqueda rápida**: Grabador de teclas dedicado. Admite **modo de doble pulsación** (por defecto doble `Ctrl`, configurable a doble `Alt` o `Shift`) y **combinaciones estándar** (p. ej. `Alt+Space`).
+- **Abrir el panel principal de forma predeterminada**: Casilla (desactivada por defecto). Al activarla, el atajo global abre la Ventana principal en lugar de la Ventana rápida. La primera vez solo la lleva al primer plano y le da el foco; si está visible pero inactiva la vuelve a activar, y si ya está activa, al pulsar de nuevo vuelve a la Ventana rápida de forma predeterminada (o se cierra directamente cuando **Cerrar al repetir el atajo** está activado). No se mantiene automáticamente siempre encima.
 - **Responder al enfocar aplicaciones a pantalla completa**: Casilla (desactivada por defecto). Permite responder a los atajos incluso con juegos o reproductores a pantalla completa; si está desactivada, los atajos se omiten para no interrumpir.
 - **Salto rápido (Quick Jump)**: Por defecto `Ctrl+G`. En diálogos de archivos, salta a la carpeta navegada recientemente en exploradores compatibles.
 - **Menú de Navegación rápida**: No tiene atajo predeterminado. Puedes asignar un atajo global opcional para abrir el menú en cascada. Desde el escritorio o una aplicación normal usa el contexto del escritorio; en el Explorador de archivos y los cuadros de diálogo nativos usa el contexto de la ventana actual. Los exploradores y los cuadros de diálogo siguen permitidos aunque la protección normal de primer plano suprima los atajos globales.
@@ -41,7 +41,7 @@ Cada pulsación de tecla va al cuadro en lugar de a la aplicación que hay detr�
 
 - **`Escape`** cancela la grabación y borra el valor. No existe un "descartar y restaurar": el cuadro queda vacío en el momento en que lo pulsas.
 - **`✕`** vacía el cuadro; **`↺`** devuelve el valor de fábrica de esa fila. Solo se muestra uno de los dos a la vez: vaciar mientras hay una combinación asignada, restaurar cuando ya está vacío.
-- **Un modificador aislado** (`Ctrl`, `Alt`, `Shift`) se acepta únicamente en las filas que significan algo por sí solas — el atajo de invocación, que pasa a ser de doble pulsación, y el modificador de salto numérico. En una fila de combinación normal, pulsar y soltar un modificador solo **vacía** la fila en lugar de guardar un valor que nunca podría activarse.
+- **Un modificador aislado** (`Ctrl`, `Alt`, `Shift`) se acepta únicamente en las filas que significan algo por sí solas: el atajo de invocación, que pasa a ser de doble pulsación, y el modificador de salto numérico. En una fila de combinación normal, pulsar y soltar un modificador solo **vacía** la fila en lugar de guardar un valor que nunca podría activarse.
 - **Las combinaciones reservadas por Windows** (`Win+E`, `Win+D`, …) se rechazan: el valor se fuerza a vacío, así que el cuadro simplemente se queda en blanco.
 - **Sin detección de conflictos.** Dos filas pueden contener la misma combinación y nada te avisa; solo los atajos de los elementos favoritos informan de un duplicado o de una combinación rechazada por el sistema, y solo después de aplicar.
 

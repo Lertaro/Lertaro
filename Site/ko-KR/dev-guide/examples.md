@@ -29,7 +29,7 @@
 
 ## 3. FlowLauncherBridge —— 커뮤니티 플러그인 호환 및 격리 런타임
 
-`FlowLauncherBridge` 플러그인은 외부 Flow Launcher 생태계를 네이티브급으로 수용하기 위한 대규모 브리지 시스템입니다.
+`FlowLauncherBridge` 플러그인은 외부 Flow Launcher 생태계를 Lertaro에 통합하기 위한 대규모 브리지 시스템입니다.
 
 ### 핵심 구현 사항
 

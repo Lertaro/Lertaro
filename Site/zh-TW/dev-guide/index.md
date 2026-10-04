@@ -1,13 +1,13 @@
 # 開發者手冊
 
-歡迎查閱 Lertaro 開發者參考手冊。Lertaro 採用先進的解耦架構與開放的外掛模組化生態體系，提供了官方 SDK 組件 `Lertaro.PluginSdk`。開發者可以透過引用該 SDK，為 Lertaro 貢獻自訂搜尋來源、擴充快顯動作、深度適配第三方檔案管理器與原生對話方塊，或者自訂美化主題與檔案預覽元件。
+歡迎查閱 Lertaro 開發者參考手冊。Lertaro 採用解耦架構與開放的外掛模組生態，提供官方 SDK 組件 `Lertaro.PluginSdk`。開發者可以透過引用該 SDK，為 Lertaro 貢獻自訂搜尋來源、擴充快顯動作、適配第三方檔案管理器與原生對話方塊，或者自訂主題與檔案預覽元件。
 
 ## 1. 架構與開發流程
 
 - **[系統架構設計](./architecture)** —— 詳解 SYSTEM 級 Windows 索引服務、使用者態 WPF 互動處理程序與獨立鍵盤攔截處理程序的三處理程序隔離模型與具名管道 IPC 通訊機制。
 - **[快速上手指南](./getting-started)** —— 從零建立外掛模組類別庫專案、引用 SDK、實作 `IPlugin` 入口以及本機偵錯的最佳實踐。
 - **[封裝與分發](./packaging)** —— 外掛模組組件目錄結構規範、第三方託管/原生相依庫打包、多語言 JSON 資源內嵌與 PostBuild 自動部署。
-- **[官方外掛模組範例](./examples)** —— 深度剖析隨包開源的 `CoreExtensions`、`PinyinAlias`、`FlowLauncherBridge` 與 `FileUnlocker` 等真實外掛模組的最佳實踐程式碼。
+- **[官方外掛模組範例](./examples)** —— 剖析隨包開源的 `CoreExtensions`、`PinyinAlias`、`FlowLauncherBridge` 與 `FileUnlocker` 等真實外掛模組的實作程式碼。
 
 ## 2. 外掛模組 SDK 介面參考
 

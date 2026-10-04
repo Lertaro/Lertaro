@@ -1,6 +1,6 @@
 # Supported File Managers & Dialog Integrations
 
-Lertaro is more than a standalone search launcher — it deeply embeds into Windows File Explorer, third-party file managers, and software dialogs, dramatically streamlining file opening, saving, and folder navigation.
+Lertaro works both as a standalone search launcher and embedded inside Windows File Explorer, third-party file managers, and software dialogs, streamlining file opening, saving, and folder navigation.
 
 ## 1. Three Core Integration Capabilities
 
@@ -39,14 +39,14 @@ For advanced users relying on third-party file managers, Lertaro offers dedicate
 | **Files** | Supported | Middle-click in the file list area | Supported | Windows UI Automation framework |
 | **One Commander** | Supported | Middle-click in the file list area | Supported | Windows UI Automation framework |
 
-### Directory Opus Exclusive Deep Integration
+### Directory Opus Exclusive Integration
 
 - **Recursive Folder Size Column (Lertaro Size)**: When "Enable Lertaro Size Column" is enabled, Lertaro installs a custom script column into Directory Opus. This column reads recursive folder sizes directly from Lertaro's in-memory index, displaying total folder sizes across entire drives in sub-seconds **with zero disk I/O**.
 - **Persistent Format**: Add the "Lertaro Size" column in Directory Opus, then click **Folder → Folder Formats → Save → Save Format to All Folders** to make it permanent globally.
 
 ### Everything Compatibility Service (IPC)
 
-Under [**Settings → General → System**](./settings/general#system), enable **Enable Everything Compatibility Service (IPC)** to emulate the standard Everything Win32 IPC interface. Tools like Directory Opus, Total Commander, and Flow Launcher can query Lertaro's fast in-memory index directly via their existing Everything plugins.
+Under [**Settings → General → System**](./settings/general#_1-system), enable **Enable Everything Compatibility Service (IPC)** to emulate the standard Everything Win32 IPC interface. Tools like Directory Opus, Total Commander, and Flow Launcher can query Lertaro's in-memory index directly via their existing Everything plugins.
 
 ## 4. Custom Application Dialogs (Dedicated Plugins)
 

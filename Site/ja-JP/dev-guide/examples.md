@@ -9,7 +9,7 @@
 ### 主な実装ポイント
 
 - **静的アクション（`IActionProvider.GetActions()`）**：開く、エクスプローラーで表示、パスやファイルのコピー、お気に入りへの追加、名前の変更、コマンドプロンプト、削除、管理者としての実行など、基本的なファイル操作を提供。
-- **Shell コンテキストメニュー統合（`IDynamicActionProvider`）**：`ShellMenuActionProvider` を介して Windows Shell の COM インターフェイスと連携し、階層化された右クリックメニュー（「送る」、7-Zip、VS Code など）を `Ctrl+O` アクションメニュー内に忠実に描画。
+- **Shell コンテキストメニュー統合（`IDynamicActionProvider`）**：`ShellMenuActionProvider` を介して Windows Shell の COM インターフェイスと連携し、階層化された右クリックメニュー（「送る」、7-Zip、VS Code など）を `Ctrl+O` アクションメニュー内に描画。
 - **スキーマ駆動の設定フォーム（`IConfigurable`）**：グループ化（`Group`）、文字列リスト（`StringList`）、ホットキー登録（`Hotkey`）を含むフォームスキーマを定義し、XAML を書かずに設定センターへ UI を自動生成。
 - **多彩なクイックパネルタブ（`IQuickPanelTabProvider`）**：
   - `FavoritesTabProvider` / `HistoryTabProvider`：ホストがすでに読み込んでいるお気に入りと履歴を返すだけで、ディスクから読み直すことはしません。履歴の問い合わせは UI スレッド外（`Task.Run`）にディスパッチされるため、パネルの呼び出しがそれによって待たされることはありません。
@@ -29,7 +29,7 @@
 
 ## 3. FlowLauncherBridge —— コミュニティプラグインの相互運用
 
-`FlowLauncherBridge` は、外部の Flow Launcher プラグインをネイティブレベルで透過的に動かすための大規模ブリッジプラグインです。
+`FlowLauncherBridge` は、外部の Flow Launcher プラグインをネイティブレベルで動かすための大規模ブリッジプラグインです。
 
 ### 主な実装ポイント
 

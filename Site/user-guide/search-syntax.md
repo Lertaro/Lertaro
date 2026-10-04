@@ -1,6 +1,6 @@
 # Search Syntax
 
-Lertaro's search bar supports far more than simple plain-text search. Equipped with a blazing-fast matching algorithm, it supports fuzzy jump matching, boolean logic, word boundary operators, drive and path scoping, secondary filtering query tokens, and multilingual aliases. All syntaxes can be freely mixed within the same query.
+Lertaro's search bar supports fuzzy jump matching, boolean logic, word boundary operators, drive and path scoping, secondary filtering query tokens, and multilingual aliases. All syntaxes can be freely mixed within the same query.
 
 ## 1. Basic Matching & Case
 
@@ -90,7 +90,7 @@ A quoted phrase `'...'` never spans a pipe — the pipe always ends the phrase's
 
 ### Escaping Spaces & Quoted Phrases
 
-To search for a phrase containing spaces within a single term, escape the space with a backslash `\ `, or enclose the phrase in single quotes `'...'` or double quotes `"..."`:
+To search for a phrase containing spaces within a single term, escape the space with a backslash `\ `, or enclose the phrase in single quotes `'...'`:
 
 ```text
 final\ report
@@ -184,17 +184,17 @@ Even if `dcj` never appears in the file's own name, Lertaro finds `d01j.txt` loc
 
 Lertaro supports appending **Query Tokens** guided by a colon prefix `:` (customizable in **Settings → General → System → Query Token Global Prefix Character**) to perform chained secondary filtering and sorting on primary results.
 
-Multiple tokens can be combined in a single `:` suffix separated by commas `,`, such as `report :@doc,M-,:-F`.
+Multiple tokens can be combined in a single `:` suffix separated by commas `,`, such as `report :@doc,M-`.
 
 ### Category Filters (`:@<category>`)
 
 Quickly apply preset file extension category rules, supporting `|` combinations:
 
-- `:@doc`: Documents (`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps`)
-- `:@img`: Images (`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai`)
+- `:@doc`: Documents (`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps; *.et; *.dps; *.odf; *.odt; *.ods; *.odg; *.odb; *.eqp; *.mmx; *.tex`)
+- `:@img`: Images (`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai; *.jxl; *.avif`)
 - `:@video`: Videos (`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts`)
 - `:@audio`: Audio (`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape`)
-- `:@zip`: Archives (`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso`)
+- `:@zip`: Archives (`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd`)
 
 **Examples**:
 
@@ -230,7 +230,7 @@ The bare letter indicates **ascending order** (smallest / oldest first); adding 
 | `:F` | **Folders only** (filters out regular files) | `config :F` (find only directories named config) |
 | `:-F` or `:F-` | **Files only** (filters out folders/directories) | `config :-F` (find only files named config) |
 
-### Wildcard Secondary Filters (`:?<expression>` or `?<expression>`)
+### Wildcard Secondary Filters (`:?<expression>`)
 
 Use standard Windows wildcards (`?` for single character, `*` for zero or more characters) for precise matching, supporting `|` or `;` for multiple OR conditions:
 
@@ -249,14 +249,14 @@ Requires ancestor directory names or the filename itself to match the specified 
 Tokens can be combined together after a single `:` prefix:
 
 - `report :@doc,M-`: Searches "report", filters to documents, sorted by modified time descending (newest first).
-- `backup :.zip,S-,:-F`: Searches "backup", filters to `.zip` archives, sorted by size descending, files only.
+- `backup :.zip,S-,F-`: Searches "backup", filters to `.zip` archives, sorted by size descending, files only.
 - `icon ::assets,?*128*`: Searches "icon", located under `assets` paths, with `128` size tags in the name.
 
 ## 6. Special Search Features
 
 ### Bypassing Exclusion Rules for One Search
 
-Prefix a query with `*` to temporarily bypass user-configured path exclusions, globs, and regular expressions in [**Exclusion Rules**](./settings/index-drives#exclusion-rules) for this single search, without modifying settings:
+Prefix a query with `*` to temporarily bypass user-configured path exclusions, globs, and regular expressions in [**Exclusion Rules**](./settings/index-drives#_5-exclusions) for this single search, without modifying settings:
 
 ```text
 *node_modules
@@ -274,7 +274,7 @@ Typing the trigger as the very first character in the quick search window displa
 ;vs
 ```
 
-If `;` is assigned to "Applications", the above query searches Visual Studio exclusively among applications. In Quick and Inline search windows, History and Favorites remain pinned at the top regardless of triggers.
+If `;` is assigned to "Applications", the above query searches Visual Studio exclusively among applications. In the Quick Search Window, typing a trigger temporarily suppresses history candidates, while Favorites stay pinned at the top regardless of triggers.
 
 ## 7. Multilingual Aliases
 
@@ -290,7 +290,7 @@ You can verify that `PinyinAlias` is active under **Settings → Plugins**.
 
 ### Spanish filenames: accent aliasing
 
-Bundled with the `SpanishAlias` plugin, filenames containing Spanish accented characters (`á`, `é`, `í`, `ó`, `ú`, `ü`, `ñ`) can be searched seamlessly using unaccented ASCII letters:
+Bundled with the `SpanishAlias` plugin, filenames containing Spanish accented characters (`á`, `é`, `í`, `ó`, `ú`, `ü`, `ñ`) can be searched using unaccented ASCII letters:
 
 - Typing `cancion` matches `Canción.mp3`.
 - Typing `nino` matches `Niño.txt`.
@@ -305,6 +305,6 @@ Matched characters (including accented vowels in the original name) are accurate
 Lertaro does not provide a generic "custom search alias/macro" mechanism. The closest native solutions:
 
 - [**Favorites**](./settings/favorites): pin any file, folder, or URL under a custom display name, making it searchable by that custom title (marked with a ★ icon in results).
-- **File Filters** (see [**Instant Answers**](./instant-answers#file-filters)): bind a trigger keyword to chosen folders, then typing `keyword term` in the quick search window restricts a normal index search to those folders.
+- **File Filters** (see [**Instant Answers**](./instant-answers#_5-file-filters)): bind a trigger keyword to chosen folders, then typing `keyword term` in the quick search window restricts a normal index search to those folders.
 
-If you want to trigger custom scripts or launch programs using custom keywords, see [**Custom Commands**](./instant-answers#custom-commands).
+If you want to trigger custom scripts or launch programs using custom keywords, see [**Custom Commands**](./instant-answers#_6-custom-commands).

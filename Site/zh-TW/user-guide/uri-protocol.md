@@ -33,12 +33,14 @@ Hotkeys      - 快速鍵設定
 Plugins      - 外掛模組管理
 Favorites    - 我的最愛
 History      - 搜尋歷程記錄
+QuickLaunch  - 快速啟動
 QuickPanel   - 快速面板
+LocalSend    - LocalSend 傳輸
 About        - 關於與更新
 ```
 
 > [!NOTE]
-> `lertaro://settings/entry/[序號]` 中的序號是由內建的[**設定搜尋**](./instant-answers#2-關鍵字觸發功能內建外掛模組)功能動態產生的。由於內部序號在版本更新或重啟後可能會重新分配，建議在外部指令碼中優先使用 `lertaro://settings/page/[分區]`。
+> `lertaro://settings/entry/[序號]` 中的序號是由內建的[**設定搜尋**](./instant-answers#_2-關鍵字觸發功能-內建外掛模組)功能動態產生的。由於內部序號在版本更新或重啟後可能會重新分配，建議在外部指令碼中優先使用 `lertaro://settings/page/[分區]`。
 
 ## 3. LocalSend 路由與參數編碼規範
 

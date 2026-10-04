@@ -6,8 +6,8 @@ The Hotkeys settings page centralizes management of global summon hotkeys, in-ap
 
 ### Global Hotkeys Group
 
-- **Show/Hide Quick Search**: Dedicated key recording box. Supports **double-tap mode** (default double `Ctrl`, configurable to double `Alt` or `Shift`) as well as **standard key combinations** (e.g. `Alt+Space`, `Win+Space`).
-- **Open full panel by default**: Checkbox (default disabled). When enabled, the global summon hotkey opens the Full Window instead of the Quick Window. The first summon brings it to the foreground once; pressing the hotkey while it is visible but inactive refocuses it, while pressing it again when it is active closes it. The window is not automatically kept topmost.
+- **Show/Hide Quick Search**: Dedicated key recording box. Supports **double-tap mode** (default double `Ctrl`, configurable to double `Alt` or `Shift`) as well as **standard key combinations** (e.g. `Alt+Space`).
+- **Open full panel by default**: Checkbox (default disabled). When enabled, the global summon hotkey opens the Full Window instead of the Quick Window. The first summon brings it to the foreground once; pressing the hotkey while it is visible but inactive refocuses it, and pressing it again when it is active returns to the Quick Window by default (or closes outright when **Close Full Window on Repeat Hotkey** is enabled). The window is not automatically kept topmost.
 - **Respond when focused on full-screen applications**: Checkbox (default disabled). When enabled, Lertaro responds to hotkeys even when an exclusive fullscreen game or media player is active; when disabled, keys are bypassed silently to protect gameplay.
 - **Quick Jump**: Default `Ctrl+G`. In file dialogs, jumps immediately to the directory most recently browsed in supported file managers.
 - **Quick Navigation Menu**: No shortcut is assigned by default. You can assign an optional global shortcut to open the cascading menu. From the desktop or an ordinary app it uses desktop context; in File Explorer and native file dialogs it uses the current window context. File managers and file dialogs remain allowed even when ordinary foreground protections suppress global hotkeys.
@@ -63,4 +63,4 @@ Configures silence rules for specific foreground applications. When a blackliste
 - **Case-Insensitive**: Both `game.exe` and `game` are matched.
 - **Add Single Entry**: Type the process name and click **Add Process**.
 - **Batch Editing**: Click **Generate Text** to export current entries to multi-line text, or paste a list and click **Apply to List** for batch updates.
-- **File Dialog Exemption**: Even if an application is blacklisted, its native file selection dialogs remain exempted, ensuring seamless Inline Search and Quick Navigation.
+- **File Dialog Exemption**: Even if an application is blacklisted, its native file selection dialogs remain exempted, so Inline Search and Quick Navigation keep working.

@@ -48,7 +48,7 @@ Lertaro/
 </ItemGroup>
 ```
 
-按 `Resources/Translations/{culture}/{type}.json` 组织文件，其中 `{type}` 就是你传给 `TranslationService.LoadEmbeddedTranslations(assembly, cultureKey, typeName)` 的 `typeName`。本仓库中每个插件都使用固定文件名 **`Plugin.json`**（`Resources/Translations/zh-CN/Plugin.json`、`Resources/Translations/en-US/Plugin.json`……）并传入 `"Plugin"`；`App.json` 并不是插件的约定——它只存在于 CoreExtensions 中，因为后者还要提供宿主自身的界面文案。语言文件夹跟随应用的七种界面语言，某个语言没有对应文件夹时，直接回退到调用方给出的默认文本。
+按 `Resources/Translations/{culture}/{type}.json` 组织文件，其中 `{type}` 就是你传给 `TranslationService.LoadEmbeddedTranslations(assembly, cultureKey, typeName)` 的 `typeName`。本仓库中每个插件都使用固定文件名 **`Plugin.json`**（`Resources/Translations/zh-CN/Plugin.json`、`Resources/Translations/en-US/Plugin.json`……）并传入 `"Plugin"`；`App.json` 并不是插件的约定——它只存在于 CoreExtensions 中，因为后者还要提供宿主自身的界面文案。语言文件夹跟随应用的七种界面语言；请求的语言没有对应文件夹时，翻译管理器会先回退到该插件自己支持的第一个语言，再回退到 `en-US`，都找不到才落到 `[key]` 占位文本。
 
 ## 4. 插件版本与元数据定义
 
@@ -67,8 +67,9 @@ Lertaro/
 
 ## 5. Release 构建与架构产物
 
-在 Windows 上从仓库根目录运行 `make.bat` 前，需要安装 .NET SDK 和[64 位 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)。就现状而言，该脚本**只调用了一次构建例程，用于 x64**，产出：
+在 Windows 上从仓库根目录运行 `make.bat` 前，需要安装 .NET SDK 和[64 位 Inno Setup 7](https://jrsoftware.org/isdl.php#v7)（脚本会校验编译器确实是 7.x）。脚本先后调用两次 `:build_arch`：一次 `ARCH=x64`（不带 RID 发布，一如既往），一次 `ARCH=arm64`（以 `-r win-arm64 --self-contained false` 交叉发布），在 `dist/` 产出四个文件：
 
-- 位于 `dist/` 中的 `Lertaro-Setup.exe` 与 `Lertaro-Portable.zip`。
+- `Lertaro-Setup.exe` 与 `Lertaro-Portable.zip`（x64）。
+- `Lertaro-Setup-arm64.exe` 与 `Lertaro-Portable-arm64.zip`（arm64）。
 
-脚本的头部注释描述了两种架构（“x64 不带 RID 发布，一如既往；arm64 是一次交叉发布”），结尾横幅也会打印 arm64 的路径，但并没有第二次 `:build_arch` 调用把 `ARCH=x64` 换成 `arm64`，所以本地运行并不会生成 `Lertaro-Setup-arm64.exe` 或 `Lertaro-Portable-arm64.zip`——尽管发布工作流恰恰按这两个名字计算哈希并上传。在看到那条横幅之前请牢记这一点。arm64 安装包与 x64 安装包的差别只有 `Installer/installer.iss` 中的 `ArchitecturesAllowed`（`arm64` 对 `x64compatible`）以及 `SetupArchitecture=x64`；每个包内的应用程序载荷都是各自架构的原生版本。请保持产物命名与 `make.bat`、`Installer/installer.iss` 以及发布工作流的资源清单一致。
+两种架构之所以发布为独立产物而不是合成一个安装包，是因为 BrowserData 插件携带原生库，而那个平铺、无 `.deps.json` 的加载目录只能容纳一种架构的原生副本（见脚本头部注释）。arm64 安装包与 x64 安装包在 `Installer/installer.iss` 中的差别包括：`ArchitecturesAllowed`（`arm64` 对 `x64compatible`）、`ArchitecturesInstallIn64BitMode`、`SetupArchitecture=x64`（仅 x64 设置）、内嵌的 .NET 桌面运行时文件与下载地址、`PublishDir` 以及输出文件名；每个包内的应用程序载荷都是各自架构的原生版本。发布工作流按这四个名字计算哈希并上传，`UpdateAssetSelector` 也按名字为旧版本匹配更新通道，改名字会让已装用户失联——请保持产物命名与 `make.bat`、`Installer/installer.iss` 以及发布工作流的资源清单一致。

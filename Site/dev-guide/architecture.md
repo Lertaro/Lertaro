@@ -1,6 +1,6 @@
 # System Architecture
 
-Lertaro is built upon a multi-process isolation model and a layered architecture, ensuring sub-millisecond retrieval speeds and deep desktop integration while maintaining maximum system stability and security.
+Lertaro is built upon a multi-process isolation model and a layered architecture, delivering sub-millisecond retrieval and desktop integration while keeping the system stable and secure.
 
 ![Lertaro Architecture](/architecture.svg)
 
@@ -8,7 +8,7 @@ Lertaro is built upon a multi-process isolation model and a layered architecture
 
 To prevent single component failures from crashing the entire system and to minimize elevated Windows privileges, Lertaro's runtime is decoupled into three independent processes:
 
-### 1. Background Indexing Service (`Lertaro.Service`)
+### 1. Background Indexing Service (`Lertaro.Service.exe`)
 
 - **Identity**: Runs continuously as a Windows Service under the `LocalSystem` account.
 - **Responsibilities**: Performs disk indexing and change tracking. Reads NTFS / ReFS USN Change Journals and \$MFT tables; listens to FAT32 / exFAT change events; periodically crawls and caches SMB / NAS network shares.

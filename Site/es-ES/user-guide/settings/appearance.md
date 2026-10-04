@@ -1,6 +1,6 @@
 # Apariencia y temas
 
-Lertaro cuenta con un moderno y cuidado sistema de diseño visual con controles de modo de tema precisos y ricas paletas de color. La página de Apariencia se encuentra en la parte inferior de la barra lateral izquierda (justo encima de "Acerca de").
+Lertaro admite cambio de modo de tema y varias paletas de color. La página de Apariencia se encuentra en la parte inferior de la barra lateral izquierda (justo encima de "Acerca de").
 
 ## 1. Modos de tema
 
@@ -27,7 +27,7 @@ Los temas se presentan en una cuadrícula interactiva. Cada tarjeta renderiza un
 - **Temas Anime (AnimeThemes, incluidos)**:
   - **Evangelion**, **Sakura Blossom** y **Weathering with You**.
 - **Parejas de temas seleccionados (Curated Themes, incluidos)**:
-  - 10 combinaciones emparejadas claro/oscuro: **Azul glaciar (Glacier Blue)**, **Terracota (Terracotta)**, **Verde bosque (Forest Green)**, **Amatista (Amethyst)**, **Carmesí (Crimson)**, **Grafito (Graphite)**, **Noche índigo (Indigo Night)**, **Cian menta (Mint Cyan)**, **Oro champán (Champagne Gold)** y **Oro ámbar (Amber Gold)**.
+  - 20 combinaciones emparejadas claro/oscuro: **Glaciar**, **Terracota**, **Bosque**, **Amatista**, **Carmesí**, **Grafito**, **Índigo**, **Menta**, **Champán**, **Ámbar**, **Rosé**, **Azul cerceta**, **Matcha**, **Moca**, **Obsidiana**, **Coral atardecer**, **Lavanda**, **Verde salvia**, **Pergamino** y **Azul cobalto**.
 
 ### Extensibilidad de temas mediante plugins
 

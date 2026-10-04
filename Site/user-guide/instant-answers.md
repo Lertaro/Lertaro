@@ -1,6 +1,6 @@
 # Instant Answers & Keyword Features
 
-Beyond local file search, Lertaro includes a powerful suite of instant calculations, system tools, and keyword-triggered plugin extensions. Answers appear instantly without waiting for file search results.
+Beyond local file search, Lertaro includes a suite of instant calculations, system tools, and keyword-triggered plugin extensions. Answers appear immediately without waiting for file search results.
 
 ## 1. Always Active Instant Answers
 
@@ -32,16 +32,16 @@ Common number base conversions are supported out of the box:
 
 Run commands directly without launching a terminal window first:
 
-- `#<command>`: Opens a command prompt and executes the command **with Administrator privileges** (e.g. `#sfc /scannow` or `#net start Lertaro.Service`).
+- `#<command>`: Opens a command prompt and executes the command **with Administrator privileges** (e.g. `#sfc /scannow` or `#net start LertaroService`).
 - `$<command>`: Opens a command prompt and executes the command with **standard user permissions** (e.g. `$ping 1.1.1.1` or `$ipconfig /all`).
 
 ### Direct URL Navigation
 
-Type or paste any URL beginning with `http://` or `https://` and press `Enter` to open it immediately in your default browser. Entering a valid protocol-less web address such as `example.com` generates two instant results in the Quick Search Window: `https://...` and `http://...`. The protocol-less guess only applies to a built-in list of common domain suffixes (`.com`, `.net`, `.org`, `.cn`, `.io`, ...). That list is hard-coded and not configurable, and anything else stays a file search, so `abc.txt` produces no browser row; add the protocol yourself to open a suffix the list does not cover. Each result uses the two-line browser-open presentation, the query text is not modified, and an address that already includes a protocol produces one result.
+Type or paste any URL beginning with `http://` or `https://` and press `Enter` to open it immediately in your default browser. Entering a valid protocol-less web address such as `example.com` generates two instant results in the Quick Search Window: `https://...` and `http://...`. The protocol-less guess only applies to a hard-coded whitelist of common top-level domains (over a hundred suffixes such as `.com`, `.cn`, and `.io`, plus `xn--` internationalized domains) and is not configurable; suffixes that double as common file extensions are deliberately left out, and anything else stays a file search, so `abc.txt` produces no browser row. Add the protocol yourself to open a URL the list does not cover. Each result uses the two-line browser-open presentation, the query text is not modified, and an address that already includes a protocol produces one result.
 
 ### Clipboard text in the Quick Search Window
 
-When the Quick Search Window is summoned without prefilled text, a non-empty clipboard text is imported and selected automatically if it differs from the last clipboard value imported by that window. The same value is not imported repeatedly, and prefilled queries from a URI or from returning from the full search window are never overwritten.
+With **Settings → General → Quick Search Window → Auto-fill Quick Search box from clipboard** enabled (off by default), when the Quick Search Window is summoned without prefilled text, a non-empty clipboard text is imported and selected automatically if it differs from the last clipboard value imported by that window. The same value is not imported repeatedly, and prefilled queries from a URI or from returning from the full search window are never overwritten.
 
 ## 2. Keyword-Triggered Plugin Extensions
 
@@ -98,4 +98,4 @@ Under **Settings → Plugins → File Filters → Configure**, you can bind a tr
 Under **Settings → Plugins → Custom Commands → Configure**, wrap complex scripts, tools, or applications into concise commands:
 
 - **Parameter Placeholders**: Supports positional placeholders `%s1`, `%s2`... and full query capture `%s`.
-- **Quick Navigation Integration**: Check "Show in Quick Navigation" to pin the command directly into the [**Quick Navigation**](./hotkeys#3-quick-navigation-mouse-triggers) menu, with optional `/` submenu paths (e.g. `DevTools/RestartService`).
+- **Quick Navigation Integration**: Check "Show in Quick Navigation" to pin the command directly into the [**Quick Navigation**](./hotkeys#_3-quick-navigation-mouse-triggers) menu, with optional `/` submenu paths (e.g. `DevTools/RestartService`).

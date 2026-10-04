@@ -1,6 +1,6 @@
 # Sintaxis de búsqueda
 
-La barra de búsqueda de Lertaro admite mucho más que una simple búsqueda de texto plano. Equipada con un algoritmo de coincidencia ultrarrápido, admite coincidencia difusa con salto de caracteres, operadores lógicos, modificadores de límite de palabra, delimitación por unidad y ruta, fichas de consulta (Query Tokens) para filtrado secundario y alias multilingües inteligentes. Todas las sintaxis se pueden combinar libremente en la misma consulta.
+La barra de búsqueda de Lertaro admite coincidencia difusa con salto de caracteres, operadores lógicos, modificadores de límite de palabra, delimitación por unidad y ruta, fichas de consulta (Query Tokens) para filtrado secundario y alias multilingües inteligentes. Todas las sintaxis se pueden combinar libremente en la misma consulta.
 
 ## 1. Modos de coincidencia básica y distinción entre mayúsculas y minúsculas
 
@@ -14,7 +14,7 @@ Lertaro activa la coincidencia difusa (Fuzzy Matching) de forma predeterminada. 
 | `vsc` | `Visual Studio Code.lnk` | Coincide con las iniciales de cada palabra (**V**isual **S**tudio **C**ode) |
 | `rt-fin` | `Q3-report-final.docx` | Coincide con la subcadena continua (Q3-repo**rt-fin**al.docx) |
 
-Desactiva esta opción en **Configuración → General → Sistema → Habilitar coincidencia difusa** y los términos de búsqueda simples (sin operadores) requerirán una subcadena continua — `abc` solo coincidirá con nombres que contengan `abc` continuo, ya no con `a-b-c`. Esta opción solo afecta a los términos simples; todos los operadores descritos a continuación mantienen su comportamiento exacto.
+Desactiva esta opción en **Configuración → General → Sistema → Habilitar coincidencia difusa** y los términos de búsqueda simples (sin operadores) requerirán una subcadena continua; `abc` solo coincidirá con nombres que contengan `abc` continuo, ya no con `a-b-c`. Esta opción solo afecta a los términos simples; todos los operadores descritos a continuación mantienen su comportamiento exacto.
 
 ### Sin distinción entre mayúsculas y minúsculas (Case Insensitive)
 
@@ -90,7 +90,7 @@ Una frase entre comillas simples `'...'` nunca cruza una barra vertical: la barr
 
 ### Espacios en términos y frases entre comillas
 
-Para buscar una frase que contenga espacios dentro de un solo término, escapa el espacio con una barra invertida `\ `, o encierra la frase entre comillas simples `'...'` o dobles `"..."`:
+Para buscar una frase que contenga espacios dentro de un solo término, escapa el espacio con una barra invertida `\ `, o encierra la frase entre comillas simples `'...'`:
 
 ```text
 final\ report
@@ -184,17 +184,17 @@ Incluso si `dcj` nunca aparece en el propio nombre del archivo, Lertaro encuentr
 
 Lertaro permite añadir **fichas de consulta (Query Tokens)** encabezadas por dos puntos `:` (personalizable en **Configuración → General → Sistema → Carácter de prefijo global de token de consulta**) al final de la búsqueda para realizar filtrados y ordenaciones secundarias en cadena.
 
-Puedes combinar varias fichas tras un solo prefijo `:` separándolas por comas `,`, como en `report :@doc,M-,:-F`.
+Puedes combinar varias fichas tras un solo prefijo `:` separándolas por comas `,`, como en `report :@doc,M-`.
 
 ### Filtros de categoría de archivo (`:@<categoría>`)
 
 Aplica rápidamente reglas preestablecidas de extensión de archivo, admitiendo combinaciones con `|`:
 
-- `:@doc`: Documentos (`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps`)
-- `:@img`: Imágenes (`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai`)
+- `:@doc`: Documentos (`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps; *.et; *.dps; *.odf; *.odt; *.ods; *.odg; *.odb; *.eqp; *.mmx; *.tex`)
+- `:@img`: Imágenes (`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai; *.jxl; *.avif`)
 - `:@video`: Vídeos (`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts`)
 - `:@audio`: Audio (`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape`)
-- `:@zip`: Archivos comprimidos (`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso`)
+- `:@zip`: Archivos comprimidos (`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd`)
 
 **Ejemplos**:
 
@@ -230,7 +230,7 @@ La letra sin signo indica **orden ascendente** (menor tamaño / más antiguo pri
 | `:F` | **Solo carpetas** (excluye archivos normales) | `config :F` (buscar solo directorios llamados config) |
 | `:-F` o `:F-` | **Solo archivos** (excluye carpetas/directorios) | `config :-F` (buscar solo archivos llamados config) |
 
-### Filtros secundarios con comodines (`:?<expresión>` o `?<expresión>`)
+### Filtros secundarios con comodines (`:?<expresión>`)
 
 Usa comodines estándar de Windows (`?` para un carácter, `*` para cero o más caracteres) para una coincidencia precisa, admitiendo `|` o `;` para varias condiciones OR:
 
@@ -249,14 +249,14 @@ Requiere que los nombres de las carpetas superiores o el propio archivo coincida
 Las fichas se pueden combinar juntas tras un único prefijo `:`:
 
 - `informe :@doc,M-`: Busca "informe", filtra por documentos y ordena por fecha de modificación descendente (más recientes primero).
-- `backup :.zip,S-,:-F`: Busca "backup", filtra por archivos `.zip`, ordena por tamaño de mayor a menor y muestra solo archivos.
+- `backup :.zip,S-,F-`: Busca "backup", filtra por archivos `.zip`, ordena por tamaño de mayor a menor y muestra solo archivos.
 - `icon ::assets,?*128*`: Busca "icon", ubicado bajo rutas `assets` y con indicador de tamaño `128` en el nombre.
 
 ## 6. Funciones especiales de búsqueda
 
 ### Omitir reglas de exclusión en una sola búsqueda
 
-Escribe `*` al principio de la consulta para ignorar temporalmente las rutas excluidas, globs y expresiones regulares configuradas en [**Reglas de exclusión**](./settings/index-drives#reglas-de-exclusion) para esa búsqueda puntual, sin modificar la configuración:
+Escribe `*` al principio de la consulta para ignorar temporalmente las rutas excluidas, globs y expresiones regulares configuradas en [**Reglas de exclusión**](./settings/index-drives#_5-reglas-de-exclusion) para esa búsqueda puntual, sin modificar la configuración:
 
 ```text
 *node_modules
@@ -274,7 +274,7 @@ Escribir el activador como el primer carácter en la ventana de búsqueda rápid
 ;vs
 ```
 
-Si `;` está asignado a "Aplicaciones", la consulta anterior buscará Visual Studio exclusivamente entre aplicaciones. En las ventanas rápida e incrustada, el Historial y los Favoritos permanecen fijados en la parte superior independientemente de los activadores.
+Si `;` está asignado a "Aplicaciones", la consulta anterior buscará Visual Studio exclusivamente entre aplicaciones. En la ventana de búsqueda rápida, escribir un activador oculta temporalmente las candidatas del historial, mientras que los Favoritos permanecen fijados en la parte superior independientemente de los activadores.
 
 ## 7. Alias multilingües
 
@@ -290,7 +290,7 @@ Puedes verificar que `PinyinAlias` esté activo en **Configuración → Plugins*
 
 ### Nombres de archivo en español: alias de acentos
 
-Con el plugin integrado `SpanishAlias`, los nombres de archivo que contienen caracteres con acento o tilde en español (`á`, `é`, `í`, `ó`, `ú`, `ü`, `ñ`) se pueden buscar directamente usando letras ASCII normales sin acentos:
+Con el plugin integrado `SpanishAlias`, los nombres de archivo que contienen caracteres con acento o tilde en español (`á`, `é`, `í`, `ó`, `ú`, `ü`, `ñ`) se pueden buscar usando letras ASCII normales sin acentos:
 
 - Escribir `cancion` coincide con `Canción.mp3`.
 - Escribir `nino` coincide con `Niño.txt`.
@@ -305,6 +305,6 @@ Los caracteres coincidentes (incluidas las vocales acentuadas en el nombre origi
 Lertaro no dispone de un sistema genérico de "alias/macros de búsqueda personalizados". Las soluciones nativas más cercanas:
 
 - [**Favoritos**](./settings/favorites): fija cualquier archivo, carpeta o URL con un nombre de visualización personalizado y podrás buscarlo directamente por ese título (marcado con un icono ★ en los resultados).
-- **Filtros de archivos** (consulta [**Respuestas instantáneas**](./instant-answers#filtros-de-archivos)): vincula una palabra clave a carpetas concretas y, al escribir `palabraclave término` en la ventana de búsqueda rápida, la búsqueda normal del índice quedará limitada a esas carpetas.
+- **Filtros de archivos** (consulta [**Respuestas instantáneas**](./instant-answers#_5-filtros-de-archivos)): vincula una palabra clave a carpetas concretas y, al escribir `palabraclave término` en la ventana de búsqueda rápida, la búsqueda normal del índice quedará limitada a esas carpetas.
 
-Si deseas ejecutar programas o scripts mediante palabras clave personalizadas, consulta [**Comandos personalizados**](./instant-answers#comandos-personalizados).
+Si deseas ejecutar programas o scripts mediante palabras clave personalizadas, consulta [**Comandos personalizados**](./instant-answers#_6-comandos-personalizados).

@@ -18,7 +18,7 @@ La tarjeta superior muestra el estado del servicio de Windows con privilegios el
 La consola inferior está dividida en tres pestañas que corresponden a los procesos de Lertaro:
 
 - **Pestaña App**: Registros de la interfaz de usuario WPF, interacción de búsqueda y atajos.
-- **Pestaña Hook**: Eventos del proceso de interceptación de teclado de bajo nivel (`Lertaro.Hook.exe`).
+- **Pestaña Hook**: Eventos del proceso de interceptación de teclado de bajo nivel (`Lertaro.Service.exe --hook`).
 - **Pestaña Service**: Procesamiento del diario USN, escaneo de disco, árbol en memoria y comunicaciones IPC del servicio (`Lertaro.Service.exe`).
 
 ### Filtrado y mantenimiento

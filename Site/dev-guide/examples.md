@@ -29,7 +29,7 @@ The `PinyinAlias` plugin provides full pinyin and initialism alias search suppor
 
 ## 3. FlowLauncherBridge —— Cross-Ecosystem Compatibility & Isolated Runtimes
 
-The `FlowLauncherBridge` plugin demonstrates building a large-scale bridge system to integrate external community ecosystems seamlessly.
+The `FlowLauncherBridge` plugin demonstrates building a large-scale bridge system to integrate external community ecosystems into Lertaro.
 
 ### Key Implementation Highlights
 

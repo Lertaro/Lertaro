@@ -3,7 +3,7 @@ layout: home
 hero:
   name: Lertaro
   text: 高性能、可扩展的 Windows 本地检索系统
-  tagline: 基于 USN 日志与列式内存索引，毫秒级快速定位文件与启动应用，兼具深度对话框挂载与开放插件生态。
+  tagline: 基于 USN 日志与列式内存索引，毫秒级定位文件与启动应用，兼具文件对话框挂载与开放插件生态。
   image:
     src: /logo.png
     alt: Lertaro Logo
@@ -13,15 +13,15 @@ securityWarning:
 features:
   - icon: 💡
     title: Listary 的开源替代
-    details: 现代化高颜值且高度可扩展的开源文件检索与启动工具，完美替代并拓展传统商业级桌面检索工作流。
+    details: 可扩展的开源文件检索与启动工具，替代并扩展传统商业级桌面检索工作流。
   - icon: ⚡
     title: USN 与 MFT 底层索引
     details: 基于 Windows NTFS / ReFS 底层 USN Journal 与 $MFT 机制快速构建索引，支持 FAT32 / exFAT 变动监听与网络驱动器缓存。
   - icon: 🎯
     title: fzf 模糊匹配与拼音别名
-    details: 支持字符跳跃模糊命中与路径定向操作符，内置拼音别名引擎，支持中文文件名首字母与全拼极速检索。
+    details: 支持字符跳跃模糊命中与路径定向操作符，内置拼音别名引擎，支持中文文件名首字母与全拼检索。
   - icon: 🖱️
-    title: 原生文件对话框深度挂载
+    title: 原生文件对话框挂载
     details: 自动挂载于 Windows 原生“打开 / 另存为”对话框及 Explorer、Total Commander，双向同步选中状态与当前工作路径。
   - icon: 🎬
     title: 动作菜单与 QuickLook 预览

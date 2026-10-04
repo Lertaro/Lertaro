@@ -1,16 +1,16 @@
 # Referencia de configuración
 
-Lertaro ofrece un conjunto exhaustivo y granular de opciones de personalización. Tanto si deseas ajustar las dimensiones en píxeles de la barra de búsqueda como personalizar atajos globales, modificar la frecuencia de indexación o gestionar plugins y espacios de trabajo, todo se configura desde el Centro de Configuración.
+Lertaro ofrece un conjunto granular de opciones de personalización. Tanto si deseas ajustar las dimensiones en píxeles de la barra de búsqueda como personalizar atajos globales, modificar la frecuencia de indexación o gestionar plugins y espacios de trabajo, todo se configura desde el Centro de Configuración.
 
 ## 1. Características de la ventana e interacción
 
-- **Ventana redimensionable y maximizable**: La ventana de Configuración permite ajustar libremente sus bordes, maximizar con doble clic en la barra de título y recuerda sus dimensiones automáticamente.
-- **Búsqueda global en Configuración**: En la esquina superior derecha de la barra de título se incluye un buscador dedicado. Utiliza el motor de coincidencia difusa fzf de Lertaro para buscar entre todas las secciones, incluidos los ajustes de plugins y acciones. Al pulsar Intro, salta directamente a la opción y la resalta con un borde parpadeante.
+- **Ventana redimensionable y maximizable**: La ventana de Configuración permite ajustar libremente sus bordes y maximizar con doble clic en la barra de título.
+- **Búsqueda global en Configuración**: En el centro de la barra de título se incluye un buscador dedicado. Utiliza el motor de coincidencia difusa fzf de Lertaro para buscar entre todas las secciones, incluidos los ajustes de plugins y acciones. Al pulsar Intro, salta directamente a la opción y la resalta con un borde parpadeante.
 - **Barras de pestañas desplazables**: En las secciones con varias subpestañas (como General, Atajos, Indexación), aparecen flechas de navegación a ambos lados para garantizar que todas las pestañas permanezcan visibles en cualquier idioma.
 
 ## 2. Resumen de secciones de configuración
 
-La barra lateral izquierda contiene las siguientes diez secciones principales:
+La barra lateral izquierda contiene las siguientes secciones principales:
 
 | Sección | Contenido principal |
 | :--- | :--- |

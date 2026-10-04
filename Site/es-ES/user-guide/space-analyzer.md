@@ -1,15 +1,15 @@
 # Analizador de espacio
 
-Lertaro incluye un **Analizador de espacio (Space Analyzer)** ultrarrápido para discos y carpetas. A diferencia de las herramientas tradicionales que requieren escaneos físicos completos de los sectores, aprovecha el árbol de índices en memoria de Lertaro para desglosar el almacenamiento en milisegundos, incluso en unidades con millones de archivos.
+Lertaro incluye un **Analizador de espacio (Space Analyzer)** para discos y carpetas. A diferencia de las herramientas tradicionales que requieren escaneos físicos completos de los sectores, aprovecha el árbol de índices en memoria de Lertaro para desglosar el almacenamiento en segundos, incluso en unidades con millones de archivos.
 
 ## 1. Acceso al Analizador de espacio
 
 - **Aparición automática**: Abre la Ventana principal de búsqueda (`Ctrl+F`) dejando la **barra de búsqueda vacía**; el Analizador de espacio se mostrará automáticamente como vista principal.
-- **Transición fluida**: Escribir cualquier carácter cambia al instante a la lista de resultados de búsqueda; borrar la búsqueda regresa de inmediato a la vista del Analizador de espacio.
+- **Transición inmediata**: Escribir cualquier carácter cambia al instante a la lista de resultados de búsqueda; borrar la búsqueda regresa a la vista del Analizador de espacio.
 
 ## 2. Diseño y visualización
 
-El Analizador de espacio utiliza una disposición en dos paneles sincronizados para ofrecer máxima claridad:
+El Analizador de espacio utiliza una disposición en dos paneles sincronizados para ofrecer una visión clara del uso del almacenamiento:
 
 ### Panel izquierdo: Gráfico Treemap
 
@@ -43,4 +43,4 @@ El Analizador de espacio utiliza una disposición en dos paneles sincronizados p
 ### Seguimiento de cambios y autorrecuperación
 
 - **Actualizaciones en vivo**: Recibe notificaciones de cambios del servicio de indexación y actualiza la vista de forma fluida.
-- **Recuperación automática de rutas**: Si la carpeta activa es eliminada o renombrada externamente, el Analizador de espacio retrocede de forma inteligente a la carpeta superior válida más cercana sin bloquearse.
+- **Recuperación automática de rutas**: Si la carpeta activa es eliminada o renombrada externamente, el Analizador de espacio retrocede automáticamente a la carpeta superior válida más cercana sin bloquearse.

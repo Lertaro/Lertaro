@@ -1,6 +1,6 @@
 # 🎁 Donaciones y apoyo
 
-Si Lertaro te resulta de gran utilidad, mejora tu productividad diaria y deseas apoyar su mantenimiento y desarrollo continuo, ¡agradecemos enormemente tu generosidad y contribución!
+Si Lertaro te resulta útil, mejora tu productividad diaria y deseas apoyar su mantenimiento y desarrollo continuo, ¡agradecemos enormemente tu generosidad y contribución!
 
 ## Canales de donación
 

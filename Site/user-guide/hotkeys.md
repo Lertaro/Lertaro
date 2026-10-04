@@ -6,11 +6,11 @@ Lertaro embraces a keyboard-first interaction philosophy while offering rich mou
 
 | Action | Default Hotkey | Description & Interaction Details |
 | :--- | :--- | :--- |
-| **Toggle Quick Window** | Double-tap `Ctrl` | Can be set to a double-tap mode or standard key combinations (e.g. `Alt+Space`, `Win+Space`). A double-tap is two presses of the **same** modifier key released **100–300 ms** apart — left and right `Ctrl` are different keys, and any other key pressed in between restarts the count. In the double-tap form the modifier itself is never swallowed, so ordinary `Ctrl`+`C` style shortcuts keep working. When **Open full panel by default** is enabled, this shortcut opens the Full Window instead: it is brought to the foreground once when first shown, refocused when visible but inactive, and closed when already active. It is not automatically kept topmost. |
-| **Quick Jump** | `Ctrl+G` | Jumps file dialogs directly to the directory most recently browsed in a supported file manager or Quick Panel. |
+| **Toggle Quick Window** | Double-tap `Ctrl` | Can be set to a double-tap mode or standard key combinations (e.g. `Alt+Space`). A double-tap is two presses of the **same** modifier key released **100–300 ms** apart — left and right `Ctrl` are different keys, and any other key pressed in between restarts the count. In the double-tap form the modifier itself is never swallowed, so ordinary `Ctrl`+`C` style shortcuts keep working. When **Open full panel by default** is enabled, this shortcut opens the Full Window instead: it is brought to the foreground once when first shown, refocused when visible but inactive, and when already active a repeat press returns to the Quick Window by default (or closes outright when **Close Full Window on Repeat Hotkey** is enabled). It is not automatically kept topmost. |
+| **Quick Jump** | `Ctrl+G` | Jumps file dialogs directly to the directory most recently browsed in Explorer, a supported file manager, or a file dialog. |
 | **Quick Navigation Menu** | No default | An optional global shortcut opens the cascading Quick Navigation menu. From the desktop or an ordinary app it uses desktop context; in File Explorer and native file dialogs it uses the active window context. File managers and file dialogs remain allowed even when ordinary foreground protections suppress global hotkeys. |
-| **Select Next Item** | `Ctrl+N` or `↓` | Moves highlight down. Navigates seamlessly across groups in the Quick Panel. In Quick Launch, the arrow keys follow the visible grid; **←** and **→** cross row boundaries, while **↑** and **↓** seek the nearest item in the same column, including across groups. If that column has no item anywhere in the adjacent direction, selection stays where it is. When Quick Launch is visible with an empty query, `Ctrl+N` cycles to the next data source and wraps at the end. |
-| **Select Previous Item** | `Ctrl+P` or `↑` | Moves highlight up. Navigates seamlessly across groups in the Quick Panel. In Quick Launch, the arrow keys follow the visible grid; **←** and **→** cross row boundaries, while **↑** and **↓** seek the nearest item in the same column, including across groups. If that column has no item anywhere in the adjacent direction, selection stays where it is. When Quick Launch is visible with an empty query, `Ctrl+P` cycles to the previous data source and wraps at the beginning. |
+| **Select Next Item** | `Ctrl+N` or `↓` | Moves highlight down. Navigates across groups in the Quick Panel. In Quick Launch, the arrow keys follow the visible grid; **←** and **→** follow the reading order across row boundaries, while **↑** and **↓** keep the current column and only move between adjacent rows, stopping where the target row has no item in that column. When Quick Launch is visible with an empty query, `Ctrl+N` cycles to the next data source and wraps at the end. |
+| **Select Previous Item** | `Ctrl+P` or `↑` | Moves highlight up. Navigates across groups in the Quick Panel. In Quick Launch, the arrow keys follow the visible grid; **←** and **→** follow the reading order across row boundaries, while **↑** and **↓** keep the current column and only move between adjacent rows, stopping where the target row has no item in that column. When Quick Launch is visible with an empty query, `Ctrl+P` cycles to the previous data source and wraps at the beginning. |
 | **Jump to Results 1–9** | `Ctrl` + `1`–`9` | Modifier is customizable. Number badges appear next to visible items for instant activation. The number means the Nth selectable row **from the first visible row**, so the badges renumber as you scroll; `0` is not bound. The Quick Launch panel is the exception — it binds `1`–`9`, `0` and `A`–`Z` for up to 36 tiles. |
 | **Open Action Menu** | `Ctrl+O` or `→` | Expands the context action menu (copy path, properties, run as admin, file operations, etc.). Works in the Quick Window and in the inline card **outside** file dialogs; the Full Window opens the same menu with right-click or the `Apps` key (`Shift+F10`) instead. |
 | **Autocomplete from Selection** | `Ctrl+Tab` | Fills the search box with the selected item's name or full path for secondary refinement. |
@@ -25,7 +25,7 @@ Lertaro embraces a keyboard-first interaction philosophy while offering rich mou
 
 ### Empty Inline Search in File Dialogs
 
-When an inline search box is embedded in a native file dialog and the query is empty, the list shows the **Previous Directory** group first. If **Show Currently Open Folders in Inline Search** is enabled, it also shows a **Currently Open Folders** group collected from supported file managers. The dialog's current folder is omitted, duplicate paths are removed, empty groups stay hidden, and group headers do not receive shortcut badges. The setting is enabled by default and can be changed under [**Settings → General → System**](./settings/general). This behavior applies only to inline search in file dialogs; Quick and Full Windows are unchanged.
+When an inline search box is embedded in a native file dialog and the query is empty, the list shows the **Previous Directory** group first. If **Show Currently Open Folders in Inline Search** is enabled, it also shows a **Currently Open Folders** group collected from supported file managers, deliberately including the folder the dialog itself is in; duplicate paths are removed, empty groups stay hidden, and group headers do not receive shortcut badges. The setting is enabled by default and can be changed under [**Settings → General → System**](./settings/general). This behavior applies only to inline search in file dialogs; Quick and Full Windows are unchanged.
 
 ### Summoning and Focus Handover in the Inline Window
 
@@ -45,11 +45,11 @@ A card docked in a native file dialog deliberately **does not steal the keyboard
 
 ## 2. Search Box Icon & Mouse Gestures
 
-The small logo inside the search box is not just an indicator — it provides several quick mouse gestures:
+Besides branding, the small logo inside the search box also provides several quick mouse gestures:
 
 ### Quick Window Icon Gestures
 
-- **Left-click**: Pops up the main context menu at the cursor (Show Full Window, Toggle Hotkey, Settings, About, Clean Exit, Exit). "Show Full Window" carries over your active query.
+- **Left-click**: Pops up the main context menu at the cursor (the same menu as the tray icon: Show Full Window, Send to other devices, Disable/Enable Hotkeys, Settings, About, Clean Exit, Exit). "Show Full Window" carries over your active query.
 - **Left-click & Drag**: Drags the search bar to reposition it. **Holding `Ctrl` while dragging** locks movement strictly to the **vertical axis**, keeping horizontal alignment intact.
 - **Right-click**: Instantly resets the Quick Window back to its default centered screen position without altering configured dimensions.
 - **Middle-click**: Toggles the "Pin Window" state. The logo illuminates while pinned.
@@ -59,7 +59,7 @@ The small logo inside the search box is not just an indicator — it provides se
 
 ### Inline and Full Window Icons
 
-- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows. Dragging the logo moves the card itself, and the offset is re-applied on every later dock.
+- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#_3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows. Dragging the logo moves the card itself, and the offset is re-applied on every later dock.
 - **Full Window**: Left-clicking the logo opens the context menu; **Open Full Window** is hidden there because the window is already open. Middle-clicking toggles the window's pinned state.
 
 ### Search Box Gestures (Quick Window)
@@ -85,7 +85,7 @@ You can also assign an optional global keyboard shortcut under [**Settings → H
 - **Desktop Blank Area**: Middle-click (or optional double-left-click) to open the menu. Clicking a folder or file opens it directly.
 - **File Explorer**: Middle-click empty areas in File Explorer; clicking an item navigates the current window directly to that folder.
 - **Third-party File Managers**: Middle-click file list areas in Directory Opus, Total Commander, XYplorer, Files, and One Commander (see [**Supported File Managers**](./file-manager-support)).
-- **File Dialogs**: Middle-click or click the embedded logo inside Open/Save/Browse dialogs to jump instantly to the target folder without accidentally triggering confirmation.
+- **File Dialogs**: Middle-click or click the embedded logo inside Open/Save/Browse dialogs to jump to the target folder without accidentally triggering confirmation.
 
 ### Cascading Menu Structure
 
@@ -128,4 +128,4 @@ Two guards make the destructive keys safe under a search box. A chord only reach
 ### Process Blacklist & Fullscreen Bypass
 
 - **Automatic Fullscreen Bypass**: When a focused foreground application runs in exclusive fullscreen mode (e.g. 3D games or video players), Lertaro automatically bypasses all global hotkeys to avoid interrupting gameplay.
-- **Custom Process Blacklist**: Add executable names under [**Settings → Hotkeys**](./settings/hotkeys-page#process-blacklist) (e.g. `game.exe`) to silence hotkeys and mouse triggers while that process is focused.
+- **Custom Process Blacklist**: Add executable names under [**Settings → Hotkeys**](./settings/hotkeys-page#_3-process-blacklist) (e.g. `game.exe`) to silence hotkeys and mouse triggers while that process is focused.

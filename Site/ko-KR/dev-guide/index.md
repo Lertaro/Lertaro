@@ -1,13 +1,13 @@
 # 개발자 가이드
 
-Lertaro 개발자 참조 매뉴얼에 오신 것을 환영합니다. Lertaro는 강력한 결합도 분리 다중 프로세스 아키텍처와 개방형 플러그인 생태계를 갖추고 있으며 공식 SDK 어셈블리 `Lertaro.PluginSdk`를 제공합니다. 개발자는 이 SDK를 참조하여 커스텀 검색 소스를 추가하고, 컨텍스트 액션 메뉴를 확장하며, 타사 파일 관리자 및 네이티브 대화상자와 깊이 연동하거나, 테마 및 파일 미리보기 핸들러를 자유롭게 구현할 수 있습니다.
+Lertaro 개발자 참조 매뉴얼에 오신 것을 환영합니다. Lertaro는 결합도 분리 다중 프로세스 아키텍처와 개방형 플러그인 생태계를 갖추고 있으며 공식 SDK 어셈블리 `Lertaro.PluginSdk`를 제공합니다. 개발자는 이 SDK를 참조하여 커스텀 검색 소스를 추가하고, 컨텍스트 액션 메뉴를 확장하며, 타사 파일 관리자 및 네이티브 대화상자와 연동하거나, 테마 및 파일 미리보기 핸들러를 자유롭게 구현할 수 있습니다.
 
 ## 1. 아키텍처 및 개발 워크플로
 
 - **[시스템 아키텍처 설계](./architecture)** —— SYSTEM 권한 Windows 서비스, 사용자 모드 WPF UI, 키보드 후크 프로세스의 3 프로세스 격리 모델과 명명된 파이프 IPC 통신 구조.
 - **[빠른 시작 가이드](./getting-started)** —— 클래스 라이브러리 프로젝트 생성, SDK 참조, `IPlugin` 진입점 구현 및 로컬 디버깅 모범 사례.
 - **[패키징 및 배포](./packaging)** —— 어셈블리 디렉토리 구조 표준, 서드파티 관리/네이티브 DLL 패키징, 다국어 JSON 리소스 임베딩 및 PostBuild 자동 배포.
-- **[공식 플러그인 예제 분석](./examples)** —— 오픈소스로 제공되는 `CoreExtensions`, `PinyinAlias`, `FlowLauncherBridge`, `FileUnlocker` 플러그인의 실전 코드 심층 분석.
+- **[공식 플러그인 예제 분석](./examples)** —— 오픈소스로 제공되는 `CoreExtensions`, `PinyinAlias`, `FlowLauncherBridge`, `FileUnlocker` 플러그인의 실전 코드 분석.
 
 ## 2. 플러그인 SDK API 레퍼런스
 

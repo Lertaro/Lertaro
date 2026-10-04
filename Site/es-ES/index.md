@@ -13,7 +13,7 @@ securityWarning:
 features:
   - icon: 💡
     title: Alternativa Open Source a Listary
-    details: Un buscador y lanzador de archivos de código abierto moderno, personalizable y altamente extensible para Windows.
+    details: Un buscador y lanzador de archivos de código abierto personalizable y extensible para Windows.
   - icon: ⚡
     title: Indexación de Bajo Nivel USN y MFT
     details: Lee directamente el USN Journal y las tablas $MFT en NTFS/ReFS para crear índices instantáneos, con soporte para FAT32/exFAT y carpetas compartidas SMB.

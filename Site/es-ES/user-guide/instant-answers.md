@@ -1,6 +1,6 @@
 # Respuestas instantáneas y funciones con palabras clave
 
-Más allá de la búsqueda de archivos locales, Lertaro incluye un potente conjunto de herramientas de cálculo instantáneo, utilidades del sistema y extensiones de plugins mediante palabras clave. Las respuestas aparecen de inmediato sin esperar a los resultados de búsqueda de archivos.
+Más allá de la búsqueda de archivos locales, Lertaro incluye un conjunto de herramientas de cálculo instantáneo, utilidades del sistema y extensiones de plugins mediante palabras clave. Las respuestas aparecen de inmediato sin esperar a los resultados de búsqueda de archivos.
 
 ## 1. Respuestas instantáneas siempre activas
 
@@ -32,16 +32,16 @@ Admite conversiones de base numérica habituales:
 
 Ejecuta comandos directamente sin abrir una terminal previamente:
 
-- `#<comando>`: Abre el símbolo del sistema y ejecuta el comando **con privilegios de administrador** (p. ej. `#sfc /scannow` o `#net start Lertaro.Service`).
+- `#<comando>`: Abre el símbolo del sistema y ejecuta el comando **con privilegios de administrador** (p. ej. `#sfc /scannow` o `#net start LertaroService`).
 - `$<comando>`: Abre el símbolo del sistema y ejecuta el comando con **permisos de usuario estándar** (p. ej. `$ping 1.1.1.1` o `$ipconfig /all`).
 
 ### Apertura directa de URLs
 
-Escribe o pega cualquier dirección que comience por `http://` o `https://` y pulsa `Enter` para abrirla de inmediato en tu navegador predeterminado. Al introducir una dirección web válida sin protocolo, como `example.com`, la ventana de búsqueda rápida genera dos resultados instantáneos: `https://...` y `http://...`. La detección sin protocolo solo se aplica a una lista integrada de sufijos de dominio habituales (`.com`, `.net`, `.org`, `.cn`, `.io`, ...). Esa lista está fija en el código y no es configurable; cualquier otro texto sigue siendo una búsqueda de archivos, así que `abc.txt` ya no genera una fila del navegador. Escribe tú mismo el protocolo para abrir una dirección con un sufijo que no esté en la lista. Cada resultado usa la presentación de dos líneas con la indicación para abrirlo en el navegador; el texto de búsqueda no se modifica y una dirección que ya incluye un protocolo produce un solo resultado.
+Escribe o pega cualquier dirección que comience por `http://` o `https://` y pulsa `Enter` para abrirla de inmediato en tu navegador predeterminado. Al introducir una dirección web válida sin protocolo, como `example.com`, la ventana de búsqueda rápida genera dos resultados instantáneos: `https://...` y `http://...`. La detección sin protocolo solo se aplica a una lista blanca fija en el código de dominios de nivel superior habituales (más de cien sufijos como `.com`, `.cn` y `.io`, además de los dominios internacionalizados `xn--`) y no es configurable; los sufijos que coinciden con extensiones de archivo habituales quedan fuera a propósito, y cualquier otro texto sigue siendo una búsqueda de archivos, así que `abc.txt` no genera una fila del navegador. Escribe tú mismo el protocolo para abrir una dirección que la lista no cubre. Cada resultado usa la presentación de dos líneas con la indicación para abrirlo en el navegador; el texto de búsqueda no se modifica y una dirección que ya incluye un protocolo produce un solo resultado.
 
 ### Importar texto del portapapeles en la ventana de búsqueda rápida
 
-Al mostrar la ventana de búsqueda rápida sin texto prellenado, importa y selecciona automáticamente el texto no vacío del portapapeles si es distinto del último valor importado por esa ventana. El mismo valor no se importa repetidamente y nunca se sobrescriben las consultas prellenadas desde una URI o al volver desde la ventana de búsqueda completa.
+Cuando está activada la opción **Configuración → General → Ventana de búsqueda rápida → Rellenar automáticamente el texto del portapapeles** (desactivada de forma predeterminada), al mostrar la ventana de búsqueda rápida sin texto prellenado se importa y selecciona automáticamente el texto no vacío del portapapeles si es distinto del último valor importado por esa ventana. El mismo valor no se importa repetidamente y nunca se sobrescriben las consultas prellenadas desde una URI o al volver desde la ventana de búsqueda completa.
 
 ## 2. Extensiones activadas por palabra clave (Plugins integrados)
 
@@ -98,4 +98,4 @@ En **Configuración → Plugins → Filtros de archivos → Configurar**, puedes
 En **Configuración → Plugins → Comandos personalizados → Configurar**, convierte scripts complejos, herramientas de consola o aplicaciones en comandos concisos:
 
 - **Marcadores de posición de parámetros**: Admite marcadores posicionales `%s1`, `%s2`... y captura completa de consulta `%s`.
-- **Integración con Navegación rápida**: Marca "Mostrar en Navegación rápida" para fijar el comando en el menú de [**Navegación rápida**](./hotkeys#3-navegacion-rapida-activadores-de-raton), con rutas de submenú usando `/` (p. ej. `HerramientasDev/ReiniciarServicio`).
+- **Integración con Navegación rápida**: Marca "Mostrar en Navegación rápida" para fijar el comando en el menú de [**Navegación rápida**](./hotkeys#_3-navegacion-rapida-activadores-de-raton), con rutas de submenú usando `/` (p. ej. `HerramientasDev/ReiniciarServicio`).

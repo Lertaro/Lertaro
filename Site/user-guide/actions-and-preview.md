@@ -1,6 +1,6 @@
 # Actions & Instant Preview
 
-Lertaro does more than find files at blazing speeds — it integrates a comprehensive context action system and a rich instant preview panel, letting you inspect, manage, and dispatch files without switching to File Explorer.
+Lertaro locates files and integrates a context action system and an instant preview panel, letting you inspect, manage, and dispatch files without constantly switching to File Explorer.
 
 ## 1. Action Menu Deep Dive
 
@@ -12,14 +12,14 @@ Not every row has a menu. It is withheld from the **Show More** row, plugin-prov
 
 | Action | Default Hotkey | Description |
 | :--- | :--- | :--- |
-| **Open** | `Enter` | Opens the selected item or launches the application with the system default program. In the Full Search Window, `Enter` and double-click act on **every** selected row. |
+| **Open** | `Enter` | Opens the selected item or launches the application with the system default program. In the Full Search Window, `Enter` acts on **every** selected row; double-click opens only the row you double-clicked. |
 | **Reveal in Explorer** | `Ctrl+Enter` | Opens the parent directory and highlights the item in Windows File Explorer. |
 | **Run as Administrator** | `Ctrl+Shift+Enter` | Launches the selected application or script with elevated administrative permissions. |
 | **Copy Full Path** | `Ctrl+Shift+C` | Copies the absolute path (e.g. `D:\Projects\app.exe`) to the clipboard. |
 | **Copy Name** | `Shift+C` | Copies the names of the selected files or folders to the clipboard, without their paths. |
 | **Copy File** | `Ctrl+C` | Places the file itself on the clipboard, ready to paste into Explorer or any folder. |
 | **Cut / Copy File** | `Ctrl+X` / `Ctrl+C` | Places the file itself on the clipboard, ready to paste into Explorer or any folder. With text selected in the search box these stay text commands. |
-| **Paste into Folder** | `Ctrl+V` | When a folder is highlighted, pastes clipboard files directly into that directory. Needs a real file list on the clipboard, so pasting text into the query is unaffected. |
+| **Paste into Folder** | `Ctrl+V` | When a folder is highlighted, pastes clipboard files directly into that directory; when a file is highlighted, pastes into its parent folder. Needs a real file list on the clipboard, so pasting text into the query is unaffected. |
 | **Delete (Recycle Bin)** | `Delete` | Safely moves the selected file or directory to the Windows Recycle Bin. A bare key only reaches the action when the caret is already at the end of the query, and the native Recycle Bin confirmation follows. |
 | **Permanent Delete** | `Shift+Delete` | Permanently deletes the selected item (native "permanently delete?" prompt; after that it cannot be recovered). |
 | **Rename** | — | Renames one existing file or folder through the Windows Shell. The dialog preselects the filename portion for convenient replacement. |
@@ -40,8 +40,8 @@ Not every row has a menu. It is withheld from the **Show More** row, plugin-prov
 
 The Full Search Window (`Ctrl+F`) is designed for high-density file management and exploration:
 
-- **Double-click Path Column**: Double-clicking the **Name** column opens the file; double-clicking the **Path** column opens the containing parent folder directly. Double-click means the *left* button only, and a double-click on a column header maximizes or restores the window instead.
-- **Multi-Selection**: The grid is a normal Windows list — `Ctrl`+click adds or removes rows, `Shift`+click takes a range, and `Enter` or double-click then acts on **all** selected rows at once. Right-clicking a row that is already part of a selection keeps the whole selection instead of collapsing it to that one row.
+- **Double-click Path Column**: Double-clicking the **Name** column opens the file; double-clicking the **Path** column opens the containing parent folder directly. Double-click means the *left* button only; double-clicking a column header does nothing, and maximize/restore is the double-click on the window's top non-input band.
+- **Multi-Selection**: The grid is a normal Windows list — `Ctrl`+click adds or removes rows, `Shift`+click takes a range, and `Enter` then acts on **all** selected rows at once, while a double-click opens only the row you double-clicked. Right-clicking a row that is already part of a selection keeps the whole selection instead of collapsing it to that one row.
 - **Infinite Streaming Results**: When scanning millions of items, results stream into the view incrementally without waiting for the full index scan to conclude. You can interact with rows immediately as they arrive, and appending new rows keeps your selection and scroll position; a genuinely new result set starts again from the top.
 - **Wrap-around Navigation**: Pressing `↑` on the top row wraps around to the last item; pressing `↓` on the bottom row wraps back to the first. The same wrap applies in the Quick Window and the inline card — pressing `↑` with nothing selected yet lands on the last row, `↓` on the first. Only the Quick Panel walks its groups as one continuous list **without** wrapping.
 - **Horizontal Scrolling**: `Shift` + mouse wheel over the grid scrolls three columns per notch, which is how you reach the far columns on a narrow window.
@@ -52,7 +52,7 @@ The Full Search Window (`Ctrl+F`) is designed for high-density file management a
 
 ## 3. Built-in QuickLook Instant Preview
 
-Press `Alt+P` on a previewable result to summon the docked preview panel alongside the search window — or **middle-click the row**, which toggles the same panel. Neither gesture exists in the inline file-dialog card; the Quick Panel supports both.
+Press `Alt+P` on a previewable result to summon the docked preview panel alongside the search window — or **middle-click the row**, which toggles the same panel. Neither gesture is available in the inline window; the Quick Panel supports both.
 
 ### Preview Has No Keyboard
 
@@ -60,17 +60,17 @@ The panel is deliberately non-activating: it never takes focus from the search w
 
 ### Supported Formats & Rich Capabilities
 
-- **Images & Vector Graphics**: Crisp rendering and scaling for JPG, PNG, GIF (animated playback), BMP, WebP, ICO, SVG, and more.
-- **Documents & Code Syntax**: Highlighting and formatting for TXT, Markdown, JSON, XML, YAML, C#, Python, JS, HTML, etc.
-- **Audio & Video Playback**: Media files (MP4, MKV, AVI, MOV, WMV, MP3, WAV, FLAC, WMA) **auto-play immediately** with a theme-aware mini playback bar (play/pause, progress scrubbing, duration, mute). Playback stops instantly when switching items.
+- **Images**: Scaling render for JPG, PNG, GIF, BMP, and ICO images.
+- **Text & Code**: Plain monospaced rendering for TXT, Markdown, JSON, XML, YAML, C#, Python, JS, HTML, etc. (no syntax highlighting).
+- **Audio & Video Playback**: Video files (MP4, M4V, WMV, AVI, MOV, MPG/MPEG) and audio files (MP3, WAV, WMA, M4A, AAC) **auto-play immediately** with a theme-aware mini playback bar (play/pause, progress scrubbing, duration, mute). Playback stops instantly when switching items.
 - **Folder Structural Inspection**: Shows up to 30 direct child items with file icons and sizes, automatically filtering system and hidden files.
 
 ### Adaptive Layout & Pop-up Handling
 
-- **Adaptive Screen Bounds**: Preview dimensions can be customized under [**Settings → General → Preview**](./settings/general#preview); Lertaro guarantees the panel remains within the visible monitor bounds.
+- **Adaptive Screen Bounds**: Preview dimensions can be customized under [**Settings → General → Preview**](./settings/general#_4-preview-window); Lertaro guarantees the panel remains within the visible monitor bounds.
 - **Docking Side**: The panel docks to the **right** of its search window and flips to the left only when the right cannot fit it — it does not chase the roomier side, so it stays put while you scroll a wide window. It then follows the owner as you move or resize that window.
 - **Resize Memory Is Per Session**: Dragging the resize grip or moving the panel is remembered while the preview stays in play, but the next time the search window is hidden or closed the panel returns to the configured size and docking side.
-- **Native Dialog Avoidance**: When previewing password-protected Office documents, Lertaro temporarily hides both windows so the native password dialog can be interacted with, restoring seamlessly afterwards.
+- **Native Dialog Avoidance**: When previewing password-protected Office documents, Lertaro temporarily hides both windows so the native password dialog can be interacted with, and restores them afterwards.
 - **Drag Source**: The top area of the preview panel acts as a drag source — drag the previewed file directly into editors, browsers, or chat applications. The footer bar drags the panel itself.
 
 ## 4. Plugin Interactive & Rich Text Previews
@@ -85,7 +85,7 @@ QuickLook supports custom interactive preview cards provided by plugins:
 If you have installed the standalone open-source tool **QuickLook** ([QL-Win/QuickLook on GitHub](https://github.com/QL-Win/QuickLook)), enable the **QuickLook Bridge** plugin under [**Settings → Plugins**](./settings/plugins).
 
 - **External Preview Takeover**: Connects via local named pipes to host external QuickLook preview windows anchored directly beside Lertaro.
-- **Seamless Fallback**: If the external QuickLook process is not running, Lertaro smoothly falls back to its built-in preview engine.
+- **Automatic Fallback**: If the external QuickLook process is not running, Lertaro falls back to its built-in preview engine.
 
 ## 6. Release File Occupation
 

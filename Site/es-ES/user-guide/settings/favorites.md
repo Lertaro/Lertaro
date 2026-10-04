@@ -25,5 +25,5 @@ También puedes añadir directamente a Favoritos un único archivo o carpeta exi
 ## 3. Aparición en búsquedas y aspectos visuales
 
 - **Distintivo de estrella (★)**: Los elementos favoritos coincidentes muestran un icono **★** destacado junto a su ruta en los resultados.
-- **Búsqueda por alias personalizado**: Asigna nombres fáciles de recordar a rutas complejas (p. ej., nombrar `D:\Workspace\2026\Q1\Financial\Summary.xlsx` como `Finanzas Q1`). Al buscar el alias, el archivo se recupera al instante.
-- **Sincronización multidispositivo**: Los favoritos se sincronizan automáticamente con el menú de [**Navegación rápida**](../hotkeys#3-navegacion-rapida-activadores-de-raton) y la pestaña Favoritos del [**Panel rápido**](./quick-panel#4-pestañas-de-plugins-plugin-tabs).
+- **Búsqueda por alias personalizado**: Asigna nombres fáciles de recordar a rutas complejas (p. ej., nombrar `D:\Workspace\2026\Q1\Financial\Summary.xlsx` como `Finanzas Q1`). Al buscar el alias, el archivo se recupera.
+- **Sincronización multidispositivo**: Los favoritos se sincronizan automáticamente con el menú de [**Navegación rápida**](../hotkeys#_3-navegacion-rapida-activadores-de-raton) y la pestaña Favoritos del [**Panel rápido**](./quick-panel#_4-pestanas-de-plugins-plugin-tabs).

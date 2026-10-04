@@ -10,7 +10,7 @@ The Indexing settings page controls indexing scopes, refresh schedules, and excl
   - **Filesystem & Status**: Displays underlying filesystem (NTFS, ReFS, FAT32, exFAT), health state, and indexed count.
   - **Per-Drive Actions**: Individual **Rebuild** and **Remove** buttons; displays a dynamic **Stop** button during active scans.
 - **Real-Time Tracking**: NTFS / ReFS volumes sync incrementally via Windows USN Change Journals; FAT32 / exFAT volumes monitor filesystem change events.
-- **Uninterrupted Rebuilds**: While a drive is rebuilding, its existing index answers user queries until the new index completes, swapping seamlessly. If interrupted, scanning resumes from the last checkpoint on the next launch.
+- **Uninterrupted Rebuilds**: While a drive is rebuilding, its existing index answers user queries until the new index completes and replaces it in one step. If interrupted, scanning resumes from the last checkpoint on the next launch.
 
 ## 2. Network Drives
 

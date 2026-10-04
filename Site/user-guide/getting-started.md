@@ -1,6 +1,6 @@
 # Getting Started
 
-Welcome to Lertaro! Lertaro is an ultra-fast file search launcher and productivity tool purpose-built for Windows. This guide walks you through installation options, core architecture, three distinct window modes, and essential search workflows.
+Welcome to Lertaro! Lertaro is a file search launcher and productivity tool built for Windows. This guide walks you through installation options, core architecture, three distinct window modes, and essential search workflows.
 
 ## 1. Download & Installation
 
@@ -8,8 +8,8 @@ You can get the latest release from the official homepage. Each release provides
 
 ### Installer (`Lertaro-Setup.exe`, Recommended)
 
-- **Automated Configuration**: The setup wizard automatically registers the background indexing service (`Lertaro.Service`), configures startup entries, and installs required .NET desktop runtime components.
-- **Seamless Upgrades**: Supports background update checks and one-click in-place upgrades.
+- **Automated Configuration**: The setup wizard automatically installs the required .NET desktop runtime; on first launch, Lertaro itself registers the background indexing service and configures the startup entry.
+- **In-Place Upgrades**: Supports background update checks and one-click in-place upgrades.
 
 ### Portable Edition (`Lertaro-Portable.zip`)
 
@@ -23,9 +23,9 @@ You can get the latest release from the official homepage. Each release provides
 
 ## 2. Architecture Overview
 
-When running Lertaro for the first time, it installs and launches a dedicated Windows service (`Lertaro.Service`). Understanding this separation helps you get the most out of the system:
+When running Lertaro for the first time, it installs and launches a dedicated Windows service (service name `LertaroService`, binary `Lertaro.Service.exe`). Understanding this separation helps you get the most out of the system:
 
-- **Foreground App (UI & Interaction)**: Renders search windows, floating panels, action menus, keyboard hooks, and interactive previews. The foreground process maintains a minimal memory footprint and instant responsiveness.
+- **Foreground App (UI & Interaction)**: Renders search windows, floating panels, action menus, keyboard hooks, and interactive previews. The foreground process keeps a low memory footprint and instant responsiveness.
 - **Background Service (Indexing & Data)**: Runs with service privileges in the background, continuously monitoring NTFS / ReFS USN change journals, tracking filesystem events, managing network drives, and maintaining an in-memory index tree.
 - **Architectural Benefits**: Restarting, updating, or closing the UI never loses the background index or triggers full rescans. Heavy indexing tasks never stutter your keystrokes. You can check service status and health at any time under [**Settings → Service Status**](./settings/service-status).
 
@@ -35,9 +35,9 @@ Lertaro is not limited to a single search window. It adapts to different workflo
 
 | Window Mode | Default Trigger | Key Features & Design Focus | Best Used For |
 | :--- | :--- | :--- | :--- |
-| **Quick Window** | Double-tap `Ctrl` (Customizable) | Compact centered floating bar, optimized for muscle memory, number key jumps, and pure keyboard navigation | Frequent app launching, quick calculations, translations, and fast file lookup |
+| **Quick Window** | Double-tap `Ctrl` (Customizable) | Compact centered floating bar with type-to-search, number key jumps, and full keyboard navigation | Frequent app launching, quick calculations, translations, and fast file lookup |
 | **Full Window** | Taskbar/Start shortcut, or `Ctrl+F` | Full-featured large window with tabular results, sidebar filter groups, column sorting, and built-in Space Analyzer | Deep file browsing, broad exploration, disk space cleaning, and batch management |
-| **Inline Window** | Type a letter or digit inside a file dialog / file manager (or dock it in Explorer) | Embedded seamlessly into standard Windows file dialogs or third-party file managers. The card never steals the keyboard: keep typing in the dialog's own field, and double-tap `Ctrl` (your configured summon hotkey) to move the caret into the card | Quick destination locating when opening or saving files in external software |
+| **Inline Window** | Type a letter or digit inside a file dialog / file manager (or dock it in Explorer) | Embedded directly into standard Windows file dialogs or third-party file managers. The card never steals the keyboard: keep typing in the dialog's own field, and double-tap `Ctrl` (your configured summon hotkey) to move the caret into the card | Quick destination locating when opening or saving files in external software |
 
 All three window modes share the exact same underlying search engine, shortcut scheme, filter rules, and action menus.
 
@@ -57,4 +57,4 @@ Simply open the search window and start typing. Results appear in real time (sub
 
 ### Action Menu & Context Actions
 
-Press `Ctrl+O` or `→` on the highlighted item to expand the comprehensive **Action Menu**, offering path copying, file operations, properties, and plugin extensions. Those two keys belong to the Quick Window (and to the inline card outside file dialogs); in the Full Window use right-click or the `Apps` key instead. Read [**Actions & Preview**](./actions-and-preview) and [**Hotkeys**](./hotkeys) for more tips.
+Press `Ctrl+O` or `→` on the highlighted item to expand the **Action Menu**, offering path copying, file operations, properties, and plugin extensions. Those two keys belong to the Quick Window (and to the inline card outside file dialogs); in the Full Window use right-click or the `Apps` key instead. Read [**Actions & Preview**](./actions-and-preview) and [**Hotkeys**](./hotkeys) for more tips.

@@ -1,6 +1,6 @@
 # Búsqueda por línea de comandos (lff)
 
-Lertaro incluye una herramienta complementaria de consola ligera y eficiente denominada **`lff`** (Lertaro Fuzzy Finder), un buscador difuso interactivo diseñado para usuarios avanzados de terminal y scripts. Se comunica mediante canalizaciones con nombre locales con Lertaro App para reutilizar el árbol de índices en memoria sin reescanear las unidades.
+Lertaro incluye una herramienta complementaria de consola ligera denominada **`lff`** (Lertaro Fuzzy Finder), un buscador difuso interactivo diseñado para usuarios avanzados de terminal y scripts. Se comunica mediante canalizaciones con nombre locales con Lertaro App para reutilizar el árbol de índices en memoria sin reescanear las unidades.
 
 ## 1. Por qué elegir lff
 

@@ -1,6 +1,6 @@
 # 官方外掛模組範例
 
-為了幫助開發者深入理解 `Lertaro.PluginSdk` 的各模組協同機制，本章節選取了 Lertaro 官方存放庫自帶的四個典型開源外掛模組進行深度案例剖析。
+為了幫助開發者深入理解 `Lertaro.PluginSdk` 的各模組協同機制，本章節深入剖析隨 Lertaro 官方存放庫發布的四個典型開源外掛模組。
 
 ## 1. CoreExtensions —— 動作、Shell 選單與快速面板
 
@@ -9,7 +9,7 @@
 ### 核心實作要點
 
 - **靜態結果動作（`IActionProvider.GetActions()`）**：註冊了一組常用的基礎檔案動作，包括開啟與定位項目、複製路徑和檔案、加入我的最愛、重新命名、終端機命令、刪除以及以管理員身分執行等。
-- **原生 Shell 選單整合（`IDynamicActionProvider`）**：透過 `ShellMenuActionProvider` 與 Windows Shell COM 介面互動，將完整的 Windows 快顯級聯選單（如「傳送到」、7-Zip、VS Code 開啟等）無縫轉譯至 Lertaro 的 `Ctrl+O` 動作選單中。
+- **原生 Shell 選單整合（`IDynamicActionProvider`）**：透過 `ShellMenuActionProvider` 與 Windows Shell COM 介面互動，將完整的 Windows 快顯級聯選單（如「傳送到」、7-Zip、VS Code 開啟等）轉譯至 Lertaro 的 `Ctrl+O` 動作選單中。
 - **結構描述驅動的設定表單（`IConfigurable`）**：展示了如何定義包含巢狀分組（`Group`）、多行字串清單（`StringList`）與快速鍵錄製（`Hotkey`）的複雜設定表單，無需手寫任何 XAML 即可在設定中心中自動產生。
 - **多樣化的快速面板標籤（`IQuickPanelTabProvider`）**：
   - `FavoritesTabProvider` / `HistoryTabProvider`：直接使用宿主已載入好的我的最愛與歷程資料，而非再從磁碟重讀一次；歷程查詢會派工到 UI 執行緒之外（`Task.Run`），因此呼叫快速面板時絕不會等待它。
@@ -29,7 +29,7 @@
 
 ## 3. FlowLauncherBridge —— 跨生態橋接與隔離執行階段
 
-`FlowLauncherBridge` 外掛模組展示了如何建置一個大型複合型橋接系統，將外部開源社群生態無縫吸納進 Lertaro 體系。
+`FlowLauncherBridge` 外掛模組展示了如何建置一個大型複合型橋接系統，將外部開源社群生態接入 Lertaro 體系。
 
 ### 核心實作要點
 

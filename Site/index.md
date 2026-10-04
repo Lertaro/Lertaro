@@ -13,7 +13,7 @@ securityWarning:
 features:
   - icon: 💡
     title: Open-Source Listary Alternative
-    details: A modern, beautiful, and extensible open-source file search launcher for Windows, replacing and upgrading classic desktop workflows.
+    details: An extensible open-source file search launcher for Windows, replacing and upgrading classic desktop workflows.
   - icon: ⚡
     title: USN & MFT Low-Level Indexing
     details: Leverages the Windows USN Change Journal and MFT tables on NTFS/ReFS for instant indexing, with FAT32/exFAT change notifications and network share caching.
@@ -22,7 +22,7 @@ features:
     details: Type-ahead jump matching with directory path tokens and prefix/suffix filters, plus non-ASCII pinyin alias transliteration for instant multilingual hits.
   - icon: 🖱️
     title: Native File Dialog Docking
-    details: Seamlessly embeds inside Windows Open/Save file dialogs, File Explorer, and Total Commander with two-way selection and active path synchronization.
+    details: Embeds inside Windows Open/Save file dialogs, File Explorer, and Total Commander with two-way selection and active path synchronization.
   - icon: 🎬
     title: Actions Menu & QuickLook Preview
     details: Press Ctrl+O on any item to open the actions menu with native Shell right-click integration, or press Alt+P to trigger QuickLook file preview.

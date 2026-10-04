@@ -1,6 +1,6 @@
 # CLI Search (lff)
 
-Lertaro includes a lightweight and highly efficient command-line companion named **`lff`** (Lertaro Fuzzy Finder) — an interactive fuzzy finder built specifically for terminal power users and shell scripts. It communicates via local named pipes with the running Lertaro App to reuse the in-memory index tree without rescanning drives.
+Lertaro includes a lightweight command-line companion named **`lff`** (Lertaro Fuzzy Finder) — an interactive fuzzy finder built specifically for terminal power users and shell scripts. It communicates via local named pipes with the running Lertaro App to reuse the in-memory index tree without rescanning drives.
 
 ## 1. Why Choose lff
 

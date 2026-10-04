@@ -29,7 +29,7 @@ El plugin `CoreExtensions` constituye el paquete de extensiones principal de Ler
 
 ## 3. FlowLauncherBridge —— Compatibilidad entre ecosistemas y entornos aislados
 
-El plugin `FlowLauncherBridge` demuestra la creación de un sistema de puente a gran escala para integrar plugins de la comunidad Flow Launcher.
+El plugin `FlowLauncherBridge` demuestra la creación de un sistema de puente a gran escala para integrar los ecosistemas externos de la comunidad en Lertaro.
 
 ### Puntos clave de implementación
 

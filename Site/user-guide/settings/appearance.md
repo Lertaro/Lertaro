@@ -1,6 +1,6 @@
 # Appearance & Themes
 
-Lertaro features a sleek, modern visual design system with granular theme mode controls and rich color palettes. The Appearance settings page is docked near the bottom of the left sidebar (just above "About").
+Lertaro supports theme mode switching and multiple color palettes. The Appearance settings page is docked near the bottom of the left sidebar (just above "About").
 
 ## 1. Theme Modes
 
@@ -20,14 +20,14 @@ Themes are presented in an interactive card grid. Each card renders an accurate 
 ### Built-in & Bundled Themes
 
 - **Core Built-in Themes (CoreExtensions)**:
-  - **Light** / **Dark**: Clean and minimalistic designs that integrate seamlessly with native Windows styling.
+  - **Light** / **Dark**: Clean and minimalistic designs that integrate with native Windows styling.
   - **Nordic Blue**: Cool-toned geek aesthetic featuring soft ice-blue accents against a deep navy backdrop.
   - **Sakura Pink**: Gentle, refreshing pastel rose and white palette.
   - **Cyberpunk**: High-contrast neon yellow and midnight purple for a futuristic flair.
 - **Anime Themes (AnimeThemes, Bundled)**:
   - **Evangelion**, **Sakura Blossom**, and **Weathering with You**.
 - **Curated Theme Pairs (Curated Themes, Bundled)**:
-  - 10 paired light/dark palettes: **Glacier Blue**, **Terracotta**, **Forest Green**, **Amethyst**, **Crimson**, **Graphite**, **Indigo Night**, **Mint Cyan**, **Champagne Gold**, and **Amber Gold**.
+  - 20 paired light/dark palettes: **Glacier**, **Terracotta**, **Forest**, **Amethyst**, **Crimson**, **Graphite**, **Indigo**, **Mint**, **Champagne**, **Amber**, **Rosé**, **Ocean Teal**, **Matcha**, **Mocha**, **Obsidian**, **Coral Sunset**, **Lavender**, **Nordic Sage**, **Parchment Sepia**, and **Cobalt Blue**.
 
 ### Plugin Theme Extensibility
 

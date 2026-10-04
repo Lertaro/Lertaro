@@ -1,6 +1,6 @@
 # Developer Guide
 
-Welcome to the Lertaro Developer Reference Manual. Built upon a decoupled multi-process architecture and an extensible plugin ecosystem, Lertaro provides an official SDK assembly: `Lertaro.PluginSdk`. By referencing this SDK, third-party developers can contribute custom search sources, extend context action menus, deeply integrate with third-party file managers and native file dialogs, and customize themes and preview handlers.
+Welcome to the Lertaro Developer Reference Manual. Built upon a decoupled multi-process architecture and an extensible plugin ecosystem, Lertaro provides an official SDK assembly: `Lertaro.PluginSdk`. By referencing this SDK, third-party developers can contribute custom search sources, extend context action menus, integrate with third-party file managers and native file dialogs, and customize themes and preview handlers.
 
 ## 1. Architecture & Workflow
 

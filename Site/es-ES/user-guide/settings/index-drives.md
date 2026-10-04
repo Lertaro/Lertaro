@@ -10,7 +10,7 @@ La página de Indexación controla el alcance, la frecuencia de actualización y
   - **Sistema de archivos y estado**: Muestra el tipo de sistema de archivos (NTFS, ReFS, FAT32, exFAT), estado y recuento de elementos.
   - **Acciones por unidad**: Botones independientes de **Reconstruir** y **Eliminar**; muestra un botón dinámico de **Detener** durante el escaneo.
 - **Seguimiento en tiempo real**: Los volúmenes NTFS / ReFS se sincronizan leyendo el diario de cambios USN de Windows; los volúmenes FAT32 / exFAT monitorizan eventos del sistema de archivos.
-- **Reconstrucción sin interrupciones**: Durante la reconstrucción de una unidad, el índice existente sigue respondiendo a las consultas hasta que el nuevo esté listo, realizándose un intercambio instantáneo. Si se interrumpe, se reanuda desde el último punto en el siguiente inicio.
+- **Reconstrucción sin interrupciones**: Durante la reconstrucción de una unidad, el índice existente sigue respondiendo a las consultas hasta que el nuevo termina y lo reemplaza de una sola vez. Si se interrumpe, se reanuda desde el último punto en el siguiente inicio.
 
 ## 2. Unidades de red
 

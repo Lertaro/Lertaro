@@ -1,6 +1,6 @@
 # Exploradores de archivos compatibles e integración de diálogos
 
-Lertaro va más allá de ser un lanzador independiente: se integra profundamente en el Explorador de Windows, exploradores de terceros y cuadros de diálogo de software, agilizando enormemente la apertura, guardado y navegación de carpetas.
+Lertaro funciona tanto como lanzador independiente como incrustado en el Explorador de Windows, exploradores de terceros y cuadros de diálogo de software, agilizando la apertura, guardado y navegación de carpetas.
 
 ## 1. Tres capacidades principales de integración
 
@@ -11,7 +11,7 @@ En función de las características de la ventana anfitriona, Lertaro ofrece has
 - **Detección de ruta activa (Active Path Detection)**: Reconoce en tiempo real el directorio físico abierto en la ventana anfitriona, limitando automáticamente el ámbito de búsqueda y resolviendo rutas relativas.
 
 > [!TIP]
-> Una tarjeta incrustada acoplada en un diálogo de archivos **deja el teclado en el lado del diálogo** a propósito, así que escribir sigue funcionando exactamente igual que antes. Una doble pulsación de `Ctrl` — o el atajo de invocación que configures — mueve el cursor a la tarjeta, y vuelve a pulsarlo con la tarjeta vacía para devolver el foco. Consulta la sección "Invocación y traspaso del foco en la Ventana incrustada" de [**Atajos de teclado**](./hotkeys).
+> Una tarjeta incrustada acoplada en un diálogo de archivos **deja el teclado en el lado del diálogo** a propósito, así que escribir sigue funcionando exactamente igual que antes. Una doble pulsación de `Ctrl` (o el atajo de invocación que configures) mueve el cursor a la tarjeta, y vuelve a pulsarlo con la tarjeta vacía para devolver el foco. Consulta la sección "Invocación y traspaso del foco en la Ventana incrustada" de [**Atajos de teclado**](./hotkeys).
 
 ## 2. Componentes nativos de Windows (Integrados de serie)
 
@@ -39,14 +39,14 @@ Para usuarios avanzados que utilicen exploradores de terceros, Lertaro ofrece pl
 | **Files** | Compatible | Clic central en la lista de archivos | Compatible | Marco Windows UI Automation |
 | **One Commander** | Compatible | Clic central en la lista de archivos | Compatible | Marco Windows UI Automation |
 
-### Integración avanzada con Directory Opus
+### Integración con Directory Opus
 
 - **Columna de tamaño recursivo (Lertaro Tamaño)**: Al activar "Habilitar columna de tamaño Lertaro", se instala una columna de script personalizada en Directory Opus. Lee los tamaños recursivos directamente del índice en memoria de Lertaro, mostrando el tamaño total de todas las carpetas **sin operaciones de E/S en disco**.
 - **Guardado permanente**: Tras añadir la columna "Lertaro Tamaño", haz clic en **Carpeta → Formato de carpetas → Guardar → Guardar formato para todas las carpetas**.
 
 ### Servicio de compatibilidad con Everything (IPC)
 
-En [**Configuración → General → Sistema**](./settings/general#sistema), activa **Habilitar servicio de compatibilidad Everything (IPC)** para emular la interfaz Win32 IPC de Everything. Herramientas como Directory Opus, Total Commander y Flow Launcher pueden consultar el índice en memoria de Lertaro mediante sus plugins existentes de Everything.
+En [**Configuración → General → Sistema**](./settings/general#_1-sistema), activa **Habilitar servicio de compatibilidad Everything (IPC)** para emular la interfaz Win32 IPC de Everything. Herramientas como Directory Opus, Total Commander y Flow Launcher pueden consultar el índice en memoria de Lertaro mediante sus plugins existentes de Everything.
 
 ## 4. Diálogos personalizados de software (Plugins dedicados)
 

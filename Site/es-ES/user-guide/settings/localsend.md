@@ -1,6 +1,6 @@
 # LocalSend (Configuración)
 
-Lertaro incluye un motor de transmisión inalámbrica local nativamente compatible con el protocolo de código abierto [LocalSend](https://localsend.org). Sin necesidad de internet ni cables, permite compartir archivos, carpetas y texto plano a máxima velocidad entre ordenadores Windows, Mac, Linux, iPhone, iPad y dispositivos Android en la misma red local. La página se encuentra en **Configuración → LocalSend**.
+Lertaro incluye un motor de transmisión inalámbrica local nativamente compatible con el protocolo de código abierto [LocalSend](https://localsend.org). Sin necesidad de internet ni cables, permite compartir archivos, carpetas y texto plano entre ordenadores Windows, Mac, Linux, iPhone, iPad y dispositivos Android en la misma red local. La página se encuentra en **Configuración → LocalSend**.
 
 ## 1. Configuración básica del servicio
 
@@ -11,12 +11,12 @@ Lertaro incluye un motor de transmisión inalámbrica local nativamente compatib
 ## 2. Seguridad, cifrado y almacenamiento
 
 - **Transferencia cifrada (HTTPS)**: Activado por defecto. Utiliza TLS en las comunicaciones locales para evitar interceptaciones de paquetes.
-- **Código PIN de recepción**: PIN numérico opcional (4–6 dígitos). Si se activa, el emisor debe introducir el mismo PIN antes de iniciar la transferencia (dejar vacío para desactivar).
+- **Código PIN de recepción**: PIN opcional (dejar vacío para desactivar). Si se configura, el emisor debe introducir el PIN coincidente antes de que se acepte la transferencia.
 - **Guardar archivos automáticamente**: Acepta y guarda transferencias de dispositivos locales automáticamente sin requerir confirmación manual.
-- **Directorio de guardado**: Carpeta de destino predeterminada para los archivos recibidos (por defecto `Downloads\LocalSend`), personalizable mediante el botón Examinar.
+- **Directorio de guardado**: Carpeta de destino predeterminada para los archivos recibidos (por defecto la carpeta Descargas del sistema), personalizable mediante el botón Examinar.
 
 ## 3. Ventana de envío y flujo de trabajo
 
 - **Invocación por atajo**: Pulsa el atajo global predeterminado **`Ctrl+S`** (reasignable en [**Configuración → Atajos de teclado**](./hotkeys-page)) para abrir la ventana de envío de LocalSend.
-- **Modos de envío**: Alterna fácilmente entre los modos **[Enviar archivos / carpetas]** y **[Enviar texto]** en la parte superior.
+- **Modos de envío**: Alterna entre los modos **[Enviar archivos / carpetas]** y **[Enviar texto]** en la parte superior.
 - **Envío por arrastre**: Arrastra archivos directamente desde los resultados de Lertaro, el Panel rápido o el Explorador hacia la ventana. El radar detecta automáticamente los dispositivos en línea; pulsa sobre el destinatario para transferir los archivos.
