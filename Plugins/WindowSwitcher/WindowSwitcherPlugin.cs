@@ -25,12 +25,12 @@ public class WindowSwitcherPlugin : IPlugin, IConfigurable, IActionProvider
             new PluginConfigField
             {
                 Key = "TriggerKeyword",
-                IsTriggerWord = true,
                 LabelKey = "WindowSwitcher_Config_TriggerKeywordLabel",
                 DescriptionKey = "WindowSwitcher_Config_TriggerKeywordDesc",
                 FieldType = ConfigFieldType.Text,
                 DefaultValue = "win",
-                RequireNonEmpty = true
+                RequireNonEmpty = true,
+                Validation = ConfigFieldValidation.TriggerKeyword
             },
             new PluginConfigField
             {

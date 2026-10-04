@@ -115,6 +115,12 @@ public class EnvironmentVariableInstantProvider : IInstantResultProvider
         if (!EnvVarRegex.IsMatch(trimmed))
             yield break;
 
+        // A path BUILT from a variable ("%TEMP%\a\b") is the folder-jump row's subject -- the user is
+        // navigating somewhere, not asking what a variable holds, and two rows would both open the same
+        // folder on Enter. A bare "%TEMP%" stays here, which is where "what does this hold" is answered.
+        if (DirectoryJumpInstantProvider.TryResolve(trimmed, out _))
+            yield break;
+
         string expanded;
         try
         {

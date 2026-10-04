@@ -28,13 +28,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="lunar-csharp" Version="1.6.8" />
+    <PackageReference Include="lunar-csharp" />
     <!-- OpenCC's dictionaries behind a managed binding: the almanac needs phrase-level Simplified to
          Traditional (谷雨 is 穀雨 while 干支 must stay 干支), which the OS's character mapping cannot do.
          This binding ships the dictionaries compressed inside the assembly (hence ZstdSharp and Cbor),
          takes no further dependencies and converts synchronously, so a first call costs ~30ms on the
          calling thread and nothing is ever awaited on it. -->
-    <PackageReference Include="OpenccNetLib" Version="1.7.0" />
+    <PackageReference Include="OpenccNetLib" />
   </ItemGroup>
 
   <ItemGroup>
