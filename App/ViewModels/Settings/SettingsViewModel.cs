@@ -24,6 +24,7 @@ public class SettingsViewModel : ViewModelBase
     private bool _isServiceReady = true;
     private bool _isApplying;
     private bool _retryAfterFailure;
+    private int _bindingErrorCount;
 
     public SettingsViewModel()
     {
@@ -34,6 +35,7 @@ public class SettingsViewModel : ViewModelBase
         LocalDrive = new LocalDriveSettingsViewModel(_searchService, RefreshLists);
         NetworkDrive = new NetworkDriveSettingsViewModel(_searchService, RefreshLists);
         General = new GeneralSettingsViewModel(_userSettings);
+        Validation = new SettingsValidationGate(General, () => _plugins);
         Exclusions = new ExclusionSettingsViewModel(_userSettings);
         Blacklist = new BlacklistSettingsViewModel(_userSettings);
         Hotkeys = new HotkeySettingsViewModel(_userSettings, Blacklist);
@@ -42,7 +44,7 @@ public class SettingsViewModel : ViewModelBase
         QuickPanel = new QuickPanel.QuickPanelSettingsViewModel(_userSettings);
         LocalSend = new LocalSend.LocalSendSettingsViewModel(_userSettings);
         RefreshCommand = new RelayCommand(Refresh);
-        ApplyCommand = new RelayCommand(Apply, () => CanApply);
+        ApplyCommand = new RelayCommand(() => Apply(), () => CanApply);
         _deferred = new DeferredSettingsViewModels(_userSettings, _searchService);
         _statusMonitor = new SettingsStatusMonitor(_searchService, ApplyUiState);
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;
@@ -120,11 +122,58 @@ public class SettingsViewModel : ViewModelBase
     public bool CanApply
     {
         get => _canApply && !_isApplying;
-        set { if (SetProperty(ref _canApply, value)) CommandManager.InvalidateRequerySuggested(); }
+        private set { if (SetProperty(ref _canApply, value)) CommandManager.InvalidateRequerySuggested(); }
     }
 
+    /// <summary>
+    /// Reports the window's binding-level error count, from WPF's own Validation.Error. Routed through the
+    /// view model rather than assigned onto CanApply directly, because the gate has more than one input --
+    /// writing the flag from the window used to erase whatever service readiness had set it to, and be
+    /// erased by it in turn, so whichever ran last won.
+    /// </summary>
+    public void SetBindingErrorCount(int count)
+    {
+        if (_bindingErrorCount == count)
+            return;
+        _bindingErrorCount = count;
+        RefreshCanApply();
+    }
+
+    // Deliberately not including ValidationErrors: this is the BUTTON's state, and re-reading the pages'
+    // errors here would put that walk on the status-push path (ApplyUiState runs up to ~10x/s while a
+    // drive indexes) to keep a cosmetic flag fresh. Apply() refuses on those errors itself, and the page
+    // that raised one is already showing it next to the field.
+    private void RefreshCanApply() => CanApply = _bindingErrorCount == 0;
+
+    /// <summary>
+    /// Every validation error the settings pages are currently showing.
+    ///
+    /// WPF's Validation.Error only fires for rules expressed in a binding -- IDataErrorInfo, exception
+    /// validation, converters -- so a rule a page works out for itself (a trigger character the search
+    /// syntax would consume, two plugins claiming the same prefix) never reached Apply, which would then
+    /// save a value the page was visibly reporting as broken.
+    ///
+    /// Only pages already constructed are asked. An unvisited page holds no staged edit and so can report
+    /// no error, and going through a lazy property to ask would construct it (see Plugins) purely to be
+    /// told so.
+    /// </summary>
+    /// <summary>
+    /// Every blocking error the settings pages are currently showing, and the status-bar reason shown when
+    /// Apply refused because of them. Public because SettingsWindow.xaml binds it -- see the type's own
+    /// comment on why a binding path needs public members.
+    /// </summary>
+    public SettingsValidationGate Validation { get; }
+
+    /// <summary>The gate's own list, kept as the name callers and tests already read.</summary>
+    public IReadOnlyList<string> ValidationErrors => Validation.Errors;
+
     public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
-    public bool IsServiceReady { get => _isServiceReady; set => SetProperty(ref _isServiceReady, value); }
+
+    public bool IsServiceReady
+    {
+        get => _isServiceReady;
+        set { if (SetProperty(ref _isServiceReady, value)) RefreshCanApply(); }
+    }
 
     private bool _isSaved;
 
@@ -171,6 +220,16 @@ public class SettingsViewModel : ViewModelBase
     {
         if (!CanApply)
             return false;
+
+        var errors = ValidationErrors;
+        if (errors.Count > 0)
+        {
+            Logger.Log($"[SettingsViewModel] Apply refused: {errors.Count} setting error(s): {string.Join(" | ", errors)}", LogLevel.Warn);
+            Validation.Refuse(errors.Count);
+            return false;
+        }
+        Validation.Clear();
+
         _isApplying = true;
         OnPropertyChanged(nameof(CanApply));
         try

@@ -103,7 +103,35 @@ internal static class SettingsWindowSearchActivationHelper
         "QuickLaunch" => window.PageQuickLaunch,
         "QuickPanel" => window.PageQuickPanel,
         "LocalSend" => window.PageLocalSend,
+        "SearchSyntax" => window.PageSearchSyntax,
         "About" => window.PageAbout,
         _ => null,
     };
+
+    // The launch panel's tab-strip menu lands on the data-source checkbox for one tab, not just the
+    // QuickLaunch page: the page opens on the item list, so the section switch happens here too before
+    // the same deferred container-resolution + highlight the search reveal uses.
+    internal static void ShowQuickLaunchSource(this SettingsWindow window, string sourceId)
+    {
+        if (window.DataContext is not SettingsViewModel vm)
+            return;
+
+        var source = vm.QuickLaunch.Sources.FirstOrDefault(option =>
+            string.Equals(option.Id, sourceId, StringComparison.OrdinalIgnoreCase));
+
+        window.SelectSection("QuickLaunch");
+        vm.QuickLaunch.SelectedSection = "Sources";
+        if (source == null)
+            return;
+
+        window.Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (window.PageQuickLaunch.FindName("QuickLaunchSourcesList") is ItemsControl list
+                && list.ItemContainerGenerator.ContainerFromItem(source) is FrameworkElement target)
+            {
+                target.BringIntoView();
+                SettingsSearchHighlight.Show(target);
+            }
+        }), DispatcherPriority.ContextIdle);
+    }
 }

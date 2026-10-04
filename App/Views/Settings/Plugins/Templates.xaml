@@ -140,12 +140,21 @@
                 <Setter Property="ContentTemplate">
                     <Setter.Value>
                         <DataTemplate>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" local:PluginConfigTemplates.ApplyInitialSelection="True" Width="{Binding EditorWidth}" TextAlignment="{Binding TextAlignment}" Height="26"/>
-                                <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" Visibility="{Binding IsIconField, Converter={StaticResource InvertBoolToVis}}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Visibility="{Binding IsIconField, Converter={StaticResource BoolToVis}}" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <Path Data="{Binding Value}" Fill="{DynamicResource DefaultPluginIconColor}" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                </Border>
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" local:PluginConfigTemplates.ApplyInitialSelection="True" Width="{Binding EditorWidth}" TextAlignment="{Binding TextAlignment}" Height="26"/>
+                                    <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" Visibility="{Binding IsIconField, Converter={StaticResource InvertBoolToVis}}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Visibility="{Binding IsIconField, Converter={StaticResource BoolToVis}}" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <Path Data="{Binding Value}" Fill="{DynamicResource DefaultPluginIconColor}" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    </Border>
+                                </StackPanel>
+                                <!-- Empty unless this field declares itself a trigger keyword: one starting
+                                     with a character the search syntax consumes is stripped before the
+                                     provider sees the query, so the trigger would silently never fire. -->
+                                <TextBlock Text="{Binding TriggerKeywordError}"
+                                           Foreground="{DynamicResource ErrorBrush}"
+                                           FontSize="12" TextWrapping="Wrap" MaxWidth="360" Margin="0,4,0,0"
+                                           Visibility="{Binding TriggerKeywordError, Converter={StaticResource NullToVis}}"/>
                             </StackPanel>
                         </DataTemplate>
                     </Setter.Value>
