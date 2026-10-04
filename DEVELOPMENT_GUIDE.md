@@ -8,21 +8,28 @@ When interacting with this repository, performing code modification, compilation
     - This maximizes compilation efficiency, reduces resource usage, and avoids file lock conflicts in large workspaces.
     - **Full Test Suite Rule**: Running `dotnet test Tests/Tests.slnx` for the full solution test suite is **strictly prohibited during regular development, bug fixing, or feature modification tasks**. You must only build and run the specific test project(s) you modified (e.g., `dotnet test Tests/App/App.csproj`). Running the full aggregate test suite (`dotnet test Tests/Tests.slnx`) is **ONLY** allowed during the formal release process (Release Flow) as a final pre-release validation step after the touched test projects pass.
 
-2. **Do Not Terminate App and Service**
-    - **Do NOT proactively terminate the app and background service processes. Only perform testing and compilation. The build process does not conflict with the running app and service.**
+2. **Terminating This Project's Own App and Service**
+    - Lertaro is the project under development, so its own running `Lertaro.App` / `Lertaro.Service` processes **may be terminated directly** to deploy or debug, with no per-instance permission needed. Compiling does not conflict with a running install; only a deploy does, because it overwrites DLLs those processes hold open.
 
-    - Only when a binary/DLL lock conflict occurs during compilation leading to a build failure, and with explicit user authorization or instruction, you may release the locks using the following sequence:
+    - **Identify processes by identity, never by image name.** `taskkill /f /im Lertaro.App.exe` also kills a released or installed copy of Lertaro from another checkout, and `Stop-Process -Name ...` has exactly the same problem. The App runs at the user's own integrity level, so its path is readable and it can be matched exactly:
 
         ```powershell
-        # Stop the Lertaro Windows Service (requires Admin privileges)
-        powershell -Command "Start-Process net -ArgumentList 'stop Lertaro.Service' -Verb RunAs -WindowStyle Hidden"
-        # Force kill running processes
-        taskkill /f /im Lertaro.App.exe
-        taskkill /f /im Lertaro.Service.exe
-        # Elevate taskkill to runas to kill if running with admin privileges
-        powershell -Command "Start-Process taskkill -ArgumentList '/f /im Lertaro.App.exe' -Verb RunAs -WindowStyle Hidden"
-        powershell -Command "Start-Process taskkill -ArgumentList '/f /im Lertaro.Service.exe' -Verb RunAs -WindowStyle Hidden"
+        Get-Process Lertaro.App -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -like 'D:\App protable\Lertaro\*' } |
+            ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
         ```
+
+    - **The service is a separate case: it runs elevated, so a normal shell cannot identify it either.** `(Get-Process Lertaro.Service).Path` and `.MainModule.FileName` both come back **empty** without elevation — verified on this machine — so no path-based match can see it, and `taskkill`/`Stop-Process` fail with "Access is denied". It can only be stopped through the SCM from an elevated shell:
+
+        ```powershell
+        sc.exe stop LertaroService
+        ```
+
+        In practice killing the App is enough: the service has been observed to go down with it, which is why `Deploy-Local.ps1 -Full` completes from an ordinary shell. Prefer that script over a hand-rolled kill.
+
+    - **Never kill by name in bulk** (`taskkill /f /im ...`, `Stop-Process -Name ...`). A same-named process belonging to another project or to the user's installed release gets taken down with it, which is how this went wrong before.
+
+    - This authorization covers **this project's own processes only**. Other projects' processes, unrelated applications, and system services still require asking first.
 
 3. **Code Formatting Before Committing & Authorized Git Actions**
     - Before committing any changes, you must run code formatting on the target project/solution to enforce code styles (configured in `.editorconfig`):
