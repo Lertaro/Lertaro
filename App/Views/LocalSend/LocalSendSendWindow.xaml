@@ -14,6 +14,9 @@
                 <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles.xaml"/>
                 <ResourceDictionary Source="pack://application:,,,/Lertaro.App;component/Resources/Styles/Windows/SearchWindow.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <!-- WindowChrome's resize border puts this window's client corner further in than the grip's
+                 default inset assumes, so the lines need the extra room to stay inside the card. -->
+            <Thickness x:Key="ResizeGripInset">4,4,14,14</Thickness>
         </ResourceDictionary>
     </Window.Resources>
     <WindowChrome.WindowChrome>
