@@ -184,6 +184,29 @@ public sealed class UpdatePackageTests : IDisposable
     }
 
     [TestMethod]
+    public void TryReadStagedPackage_PackageOverTheCeiling_IsRefusedBeforeReading()
+    {
+        // Without the ceiling, naming one huge readable file makes the LocalSystem service allocate it before
+        // any signature has been checked. The shipped ceiling is far above these bytes; it is a parameter so a
+        // test can trip it without writing 64 megabytes to disk.
+        var stagingDir = CreateStagedPackage();
+
+        Assert.IsFalse(UpdatePackage.TryReadStagedPackage(stagingDir, maxZipBytes: 1, out var zip, out var signature, out var error));
+
+        Assert.IsNull(zip);
+        Assert.IsNull(signature);
+        StringAssert.Contains(error!, "larger than this process will read");
+    }
+
+    [TestMethod]
+    public void MaxPackageBytes_SitsAboveEveryRealPackage()
+    {
+        // A ceiling below what the product ships would make every update refuse itself. Measured against the
+        // v5.8.1 release assets, where the largest portable zip is 8,197,983 bytes.
+        Assert.IsTrue(UpdatePackage.MaxPackageBytes > 8_197_983);
+    }
+
+    [TestMethod]
     public void TryVerifyAndExtract_FlatPackage_UnpacksAndReturnsTargetRoot()
     {
         var (zip, signature) = Read(CreateStagedPackage());

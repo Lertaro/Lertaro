@@ -88,11 +88,27 @@ public static class UpdatePackage
     }
 
     /// <summary>
+    /// Ceiling on what this process will hold in memory for one package file. The staged paths are the
+    /// caller's to name, and <see cref="TryReadStagedPackage"/> allocates before anything has been
+    /// verified, so the size of a refusal attempt is whatever the caller's disk holds. The shipped portable
+    /// packages are ~8 MB each and their signatures 70 bytes.
+    /// </summary>
+    internal const long MaxPackageBytes = 64 * 1024 * 1024;
+
+    private const long MaxSignatureBytes = 4 * 1024;
+
+    /// <summary>
     /// Reads the staged zip and its signature into memory. The service calls this while impersonating the
     /// App that asked, so the read happens with that user's rights (and, through any link the user planted,
     /// that user's credentials) rather than LocalSystem's.
     /// </summary>
-    public static bool TryReadStagedPackage(string? stagingDir, out byte[]? zip, out byte[]? signature, out string? error)
+    /// <overloads>
+    /// Takes the ceiling as a parameter so a test can trip it without writing 64 megabytes to disk.
+    /// </overloads>
+    public static bool TryReadStagedPackage(string? stagingDir, out byte[]? zip, out byte[]? signature, out string? error) =>
+        TryReadStagedPackage(stagingDir, MaxPackageBytes, out zip, out signature, out error);
+
+    internal static bool TryReadStagedPackage(string? stagingDir, long maxZipBytes, out byte[]? zip, out byte[]? signature, out string? error)
     {
         zip = null;
         signature = null;
@@ -101,17 +117,29 @@ public static class UpdatePackage
 
         try
         {
-            zip = File.ReadAllBytes(zipPath!);
-            signature = File.ReadAllBytes(signaturePath!);
+            zip = ReadCapped(zipPath!, maxZipBytes);
+            signature = ReadCapped(signaturePath!, MaxSignatureBytes);
+            if (zip is null || signature is null)
+            {
+                zip = null;
+                signature = null;
+                error = "Staged update package is larger than this process will read.";
+                return false;
+            }
+
             return true;
         }
         catch (Exception ex)
         {
             zip = null;
+            signature = null;
             error = ex.Message;
             return false;
         }
     }
+
+    private static byte[]? ReadCapped(string path, long maxBytes) =>
+        new FileInfo(path).Length > maxBytes ? null : File.ReadAllBytes(path);
 
     public static bool Verify(string zipPath, string signaturePath) => Verify(zipPath, signaturePath, PUBLIC_KEY_PEM);
 
