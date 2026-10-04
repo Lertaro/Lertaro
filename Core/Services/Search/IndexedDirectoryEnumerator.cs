@@ -23,7 +23,11 @@ public static class IndexedDirectoryEnumerator
 
         // A local drive enabled in the service is the authoritative source for that drive. Waiting on
         // its status prevents a cold-start request from falling through to a raw filesystem walk.
-        if (!IsInProcessIndexedSource(path) && !SearchServiceHelper.CheckNeedsLiveSearch(path, exclusions))
+        // DirectoryEnumeration, deliberately: this API has no live-scan fallback (its "yes" branch below
+        // routes to the in-process sources, which do not cover a local drive), so it must keep answering
+        // an excluded local directory from the index that holds it. See LiveSearchIntent.
+        if (!IsInProcessIndexedSource(path) && !SearchServiceHelper.CheckNeedsLiveSearch(path, exclusions,
+                machineSettings: null, intent: SearchServiceHelper.LiveSearchIntent.DirectoryEnumeration))
         {
             if (await WaitForLocalIndexAsync(path, token).ConfigureAwait(false)
                 && await TryServiceIndexAsync(path, recursive, filterPattern, onResult, limit, token).ConfigureAwait(false))

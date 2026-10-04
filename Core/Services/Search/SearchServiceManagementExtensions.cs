@@ -70,11 +70,57 @@ public static class SearchServiceManagementExtensions
         return new MachineSettings();
     }
 
+    /// <summary>
+    /// Sends the drive selection together with the user's walk exclusion rules.
+    /// </summary>
+    /// <remarks>
+    /// The rules are attached here, from <see cref="UserSettings.Load"/> at send time, rather than being
+    /// passed in by each caller: this is the one request that carries them, so putting them on it means
+    /// every existing caller -- the settings page's save, and the reconnect path in
+    /// <see cref="ResendSettingsOnConnectAsync"/> -- re-sends the current rules without having to know
+    /// they exist. The service keeps them in memory only (see SearchEngine.UpdateMachineSettings).
+    /// </remarks>
     public static async Task<bool> SaveMachineSettingsAsync(this SearchService service, MachineSettings settings, CancellationToken token = default)
     {
-        var resp = await service.SendPipeCommandAsync(new SearchRequestMessage { Id = SearchRequestId.SetMachineSettings, MachineSettings = settings }, token).ConfigureAwait(false);
+        var user = UserSettings.Load();
+        var resp = await service.SendPipeCommandAsync(new SearchRequestMessage
+        {
+            Id = SearchRequestId.SetMachineSettings,
+            MachineSettings = settings,
+            ExcludedPaths = user.ExcludedPaths?.ToList() ?? new(),
+            IgnoredPathGlobs = user.IgnoredPathGlobs?.ToList() ?? new(),
+            IgnoredPathRegexes = user.IgnoredPathRegexes?.ToList() ?? new()
+        }, token).ConfigureAwait(false);
         SearchScopeCoverage.Invalidate();
         return resp.Kind == PipeResponseKind.Ok;
+    }
+
+    /// <summary>
+    /// Re-sends the drive selection and the exclusion rules to a service that is reachable again.
+    /// </summary>
+    /// <remarks>
+    /// A restarted service starts with no rules at all -- they are held in memory only, so a restart
+    /// loses them (see SearchEngine.UpdateMachineSettings). Nothing else reapplies them: the App writes
+    /// them nowhere, and the service cannot read the per-user settings file. So this is the one place
+    /// that restores the state after the service comes back, called from the connect/status path.
+    ///
+    /// The selection is read back off the service first, so this is a genuine hand-off of what the
+    /// service already has plus the current rules, not an overwrite with a stale local copy.
+    /// </remarks>
+    public static async Task<bool> ResendSettingsOnConnectAsync(this SearchService service, CancellationToken token = default)
+    {
+        try
+        {
+            var current = await service.GetMachineSettingsAsync(token).ConfigureAwait(false);
+            return await service.SaveMachineSettingsAsync(current, token).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // A service that is mid-restart can drop the pipe here; the next status poll retries. This
+            // must never take the caller's own path down with it.
+            Logger.Log($"[SearchService] Could not re-send the settings after reconnecting: {ex.Message}", LogLevel.Warn);
+            return false;
+        }
     }
 
     // In-memory index lookup only (no disk I/O) -- paths the service isn't tracking are simply

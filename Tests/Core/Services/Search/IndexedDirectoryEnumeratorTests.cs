@@ -49,4 +49,38 @@ public sealed class IndexedDirectoryEnumeratorTests
         Assert.IsFalse(IndexedDirectoryEnumerator.IsUnderRoot(@"\\server\share2\file", @"\\server\share\"));
         Assert.IsFalse(IndexedDirectoryEnumerator.IsUnderRoot(@"C:\Users\other", @"C:\Users\testuser\"));
     }
+
+    // This API's routing predicate must keep answering "no live search" for a local directory its index
+    // holds, even when an exclusion rule matches it. Its "yes" branch below routes to the in-process
+    // sources, which cannot answer for a local drive, so switching this to the search path's
+    // exclusion-aware answer would have dropped a directory the index genuinely has. Upstream requires
+    // the enumeration API's behavior to be unchanged, which is what this pins.
+    [TestMethod]
+    public void EnumerateRouting_ExcludedDirectoryOnAnEnabledLocalDrive_StaysWithTheIndex()
+    {
+        var settings = new UserSettings
+        {
+            ExcludedPaths = [@"c:\windows"],
+            IgnoredPathGlobs = new List<string>(),
+            IgnoredPathRegexes = new List<string>()
+        };
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+        var machineSettings = new MachineSettings
+        {
+            LocalDriveSelectionConfigured = true,
+            LocalDrives = [VolumeHelper.GetVolumeId("C") ?? throw new AssertInconclusiveException("Drive C has no volume ID.")]
+        };
+
+        var enumerationSays = SearchServiceHelper.CheckNeedsLiveSearch(@"c:\windows", rules, machineSettings,
+            SearchServiceHelper.LiveSearchIntent.DirectoryEnumeration);
+        var searchSays = SearchServiceHelper.CheckNeedsLiveSearch(@"c:\windows", rules, machineSettings,
+            SearchServiceHelper.LiveSearchIntent.Search);
+
+        // The enumeration API takes the index path; the search path is the one that gained the live scan.
+        // On C: -- journal-capable, so fully indexed -- both agree "no live search", which is the
+        // pre-existing answer this API must keep. The divergence itself is pinned in
+        // SearchServiceHelperCheckNeedsLiveSearchTests, where it can be reached without a real drive.
+        Assert.IsFalse(enumerationSays);
+        Assert.IsFalse(searchSays);
+    }
 }

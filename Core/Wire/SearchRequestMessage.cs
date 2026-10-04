@@ -53,6 +53,14 @@ public struct SearchRequestMessage
     // Drive maintenance: drive key. GetSpaceEntries: null/empty for roots, otherwise a directory path.
     public string? Drive { get; set; }
     public MachineSettings? MachineSettings { get; set; }
+    // SetMachineSettings: the interactive user's walk exclusion rules, carried because the service runs as
+    // LocalSystem and cannot read that user's settings file. The service keeps these in memory only --
+    // never on disk (see SearchEngine.UpdateMachineSettings). Same struct-default reasoning as ExactMatch
+    // below: a caller that forgets one sends no rules, which the service reads as "filter nothing", the
+    // upstream default for a service that has never been told otherwise.
+    public List<string>? ExcludedPaths { get; set; }
+    public List<string>? IgnoredPathGlobs { get; set; }
+    public List<string>? IgnoredPathRegexes { get; set; }
     public List<string>? DisabledAliasComponents { get; set; }
     public List<string>? FilePaths { get; set; }
     // Target directories for GetRecentFiles -- distinct from FilePaths above (individual file paths

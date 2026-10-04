@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using Lertaro.Core.Indexer.NetworkDrive.Walk;
 using Lertaro.Core.Services.HookLaunch;
 using Lertaro.Core.Services.Pipe;
 using Lertaro.Core.Wire;
@@ -79,7 +80,7 @@ internal static class UsnServicePipeRequestProcessor
                     if (settings == null)
                         return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Invalid settings" };
                     Logger.Log("[UsnService] Received SET_MACHINE_SETTINGS request.");
-                    engine?.UpdateMachineSettings(settings);
+                    engine?.UpdateMachineSettings(settings, ResolveExclusionRules(msg));
                     return new PipeResponse { Kind = PipeResponseKind.Ok };
 
                 case SearchRequestId.GetFileMetadata:
@@ -119,6 +120,25 @@ internal static class UsnServicePipeRequestProcessor
             return new PipeResponse { Kind = PipeResponseKind.Error, Message = ex.Message };
         }
     }
+
+    /// <summary>
+    /// The rules a SetMachineSettings request carries, or null when it carried none at all.
+    /// </summary>
+    /// <remarks>
+    /// The rules ride along with the drive selection and are handed to the engine as an in-memory field --
+    /// never written to a machine-level file (see UsnIndexer.WalkOptions).
+    ///
+    /// Null and "three empty lists" mean different things here, and the difference is load-bearing. Null is
+    /// a request that never mentioned the rules -- an older App, or the drive-selection-only update the
+    /// settings page sends -- and must leave the engine's held rules untouched, because clearing them
+    /// would make an unrelated drive edit silently stop the walk filtering anything. Three empty lists are
+    /// the user's current settings saying "no rules", which must replace whatever was held, or a user
+    /// deleting their last exclusion would keep being filtered by it.
+    /// </remarks>
+    internal static WalkOptions? ResolveExclusionRules(SearchRequestMessage msg) =>
+        msg.ExcludedPaths == null && msg.IgnoredPathGlobs == null && msg.IgnoredPathRegexes == null
+            ? null
+            : WalkOptions.From(msg.ExcludedPaths ?? [], msg.IgnoredPathGlobs ?? [], msg.IgnoredPathRegexes ?? []);
 
     private static bool IsAuthorizedControlClient(NamedPipeServerStream pipe)
     {

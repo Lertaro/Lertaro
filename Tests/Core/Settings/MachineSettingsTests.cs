@@ -148,4 +148,45 @@ public sealed class MachineSettingsTests
             lockStream?.Dispose();
         }
     }
+
+    // --- The walk exclusion rules used to be mirrored here, and must not come back ------------------
+    // They are the interactive user's settings, and the service now receives them over
+    // SetMachineSettings and holds them in memory (UsnIndexer.WalkOptions) instead of a machine-level
+    // file. This pins that no rule field survives on this type: reintroducing one would silently start
+    // persisting a user's settings under a machine-wide directory again, which is exactly what upstream
+    // asked to be removed. Checked as source text because a stray property is invisible to a behavior
+    // test -- the type would simply keep working, with the extra field along for the ride.
+    [TestMethod]
+    public void MachineSettings_CarriesNoUserExclusionRuleFields()
+    {
+        var offenders = typeof(MachineSettings).GetProperties()
+            .Select(p => p.Name)
+            .Where(name => name.Contains("Excluded", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("Ignored", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        Assert.IsEmpty(offenders,
+            "the walk's exclusion rules belong to the user and travel over IPC only; found on MachineSettings: "
+            + string.Join(", ", offenders));
+    }
+
+    // Back-compat: a machine-settings.json written while the rules were mirrored here still contains the
+    // three fields. It has to keep loading, and the extra JSON keys have to be ignored rather than
+    // rejected, or every install that ran that build would fail to read its own drive selection.
+    [TestMethod]
+    public void TryLoadFromFile_FileLeftOverFromTheMirrorEra_LoadsAndIgnoresTheRuleFields()
+    {
+        var path = Path.Combine(_dir, "machine-settings.json");
+        File.WriteAllText(path, """
+            {"LocalDrives":["volume-c"],"LocalDriveSelectionConfigured":true,"ServiceLogLevel":"Warn",
+             "ExcludedPaths":["C:\\excluded"],"IgnoredPathGlobs":["node_modules"],"IgnoredPathRegexes":["^secret-"]}
+            """);
+
+        var settings = MachineSettings.TryLoadFromFile(path);
+
+        Assert.IsNotNull(settings);
+        CollectionAssert.AreEqual(new[] { "volume-c" }, settings.LocalDrives);
+        Assert.IsTrue(settings.LocalDriveSelectionConfigured);
+        Assert.AreEqual("Warn", settings.ServiceLogLevel);
+    }
 }

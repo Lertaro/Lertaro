@@ -28,6 +28,10 @@ internal sealed class SettingsStatusMonitor
     private IReadOnlyList<NetworkIndexStatus> _latestNetworkStatuses = Array.Empty<NetworkIndexStatus>();
     private MachineSettings _latestMachineSettings = new();
 
+    // Whether the last RefreshLists found the service reachable -- the edge into "yes" is what triggers
+    // the settings hand-off, since a restarted service comes up holding no exclusion rules at all.
+    private bool _wasServiceReady;
+
     // 1 while a Dispatcher.BeginInvoke(_onStatusUpdated) is queued or running, 0 otherwise -- Interlocked
     // since ScheduleApplyUiState is called from both the UI thread and background threads (the
     // status-stream callback, RefreshLists' Task.Run continuation). Coalesces bursts of status pushes (up
@@ -90,6 +94,16 @@ internal sealed class SettingsStatusMonitor
         _latestMachineSettings = settings;
         if (!isServiceReady)
             _latestStatus = new UsnIndexer.IndexerStatus { State = "error" };
+
+        // A service that has just become reachable -- first connect after startup, or a reconnect after
+        // a restart -- has no exclusion rules at all, because they are only ever held in its memory
+        // (see SearchEngine.UpdateMachineSettings). This poll is where that transition is observed, so
+        // it is where they are handed back. Only on the false -> true edge: re-sending on every tick
+        // would put a write on the pipe every 5 seconds for a state that only changes on a restart.
+        var justBecameReachable = isServiceReady && !_wasServiceReady;
+        _wasServiceReady = isServiceReady;
+        if (justBecameReachable)
+            await _searchService.ResendSettingsOnConnectAsync().ConfigureAwait(false);
 
         EnsureStatusSubscription();
         ScheduleApplyUiState();

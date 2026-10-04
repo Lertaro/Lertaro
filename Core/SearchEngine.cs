@@ -1,5 +1,7 @@
 using Lertaro.Core.Indexer.Usn;
 
+using Lertaro.Core.Indexer.NetworkDrive.Walk;
+
 using Lertaro.Core.DriveMonitoring;
 
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
@@ -96,16 +98,53 @@ public class SearchEngine : IDisposable
 
     public MachineSettings GetMachineSettings() => _machineSettings;
 
-    public void UpdateMachineSettings(MachineSettings settings)
+    /// <summary>
+    /// The walk's exclusion rules as last sent by the App -- held by the indexer in memory only.
+    /// </summary>
+    /// <remarks>
+    /// See <see cref="UsnIndexer.WalkOptions"/> for why these are not persisted anywhere, and why the
+    /// default (never having been sent a rule) is "filter nothing". Internal because
+    /// <see cref="WalkOptions"/> is: this is plumbing between the pipe request and the walk, not part of
+    /// the engine's public surface.
+    /// </remarks>
+    internal WalkOptions ExclusionRules
     {
+        get => _indexer.WalkOptions;
+        set => _indexer.WalkOptions = value;
+    }
+
+    /// <summary>
+    /// Applies a SetMachineSettings request: the drive selection is persisted, the walk exclusion rules
+    /// are kept in memory for this process's lifetime only.
+    /// </summary>
+    /// <remarks>
+    /// The split is deliberate. The drive selection is this service's own configuration, so it still
+    /// round-trips through machine-settings.json (which the service owns and the log level lives in). The
+    /// three rule lists are the interactive user's settings, and are read off the request and held in
+    /// <see cref="ExclusionRules"/> rather than written into that file -- see
+    /// <see cref="UsnIndexer.WalkOptions"/> for why.
+    /// </remarks>
+    internal void UpdateMachineSettings(MachineSettings settings, WalkOptions? exclusionRules = null)    {
         var oldDrives = _machineSettings?.LocalDrives ?? new List<string>();
         var newDrives = settings.LocalDrives ?? new List<string>();
 
         var drivesChanged = !oldDrives.OrderBy(d => d).SequenceEqual(newDrives.OrderBy(d => d), StringComparer.OrdinalIgnoreCase);
 
-        settings.LocalDriveSelectionConfigured = true;
-        _machineSettings = settings;
+        // The pipe carries only the drive selection (see SearchRequestValueCodec) while the file holds
+        // fields this message never contained -- the log level, edited by hand. Saving the message as-is
+        // would wipe it, so take the selection off the message and the rest off the file.
+        var merged = MachineSettings.Load();
+        merged.LocalDrives = newDrives;
+        merged.LocalDriveSelectionConfigured = true;
+        _machineSettings = merged;
         _machineSettings.Save();
+
+        // A caller that sent no rules at all is a drive-selection-only update from an older App, and it
+        // must not silently clear rules a previous request did send: keep what is already held. An
+        // explicitly supplied (even empty) rule set is what the user's settings say right now, so it
+        // replaces the held one wholesale.
+        if (exclusionRules != null)
+            ExclusionRules = exclusionRules;
 
         if (drivesChanged)
         {

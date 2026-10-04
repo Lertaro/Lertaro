@@ -147,9 +147,10 @@ internal static class UserSettingsPersistence
 
     public static void RestoreFrom(string sourcePath)
     {
+        UserSettings restored;
         lock (CacheLock)
         {
-            var restored = WriteRestored(sourcePath, SettingsPath, BackupCount, out var json);
+            restored = WriteRestored(sourcePath, SettingsPath, BackupCount, out var json);
             _cachedSettings = restored;
             _lastJsonOnDisk = json;
         }

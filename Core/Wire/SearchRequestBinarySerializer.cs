@@ -9,12 +9,15 @@ public static class SearchRequestBinarySerializer
     private const int Magic = 0x51504C53; // SLPQ
     // v5: Search/SearchDir gained ExactMatch; v6: EnumerateDir; v7: in-memory space entries; v8: file-name filtering.
     // v9: Search/SearchDir gained OrFirstPrecedence. v10: ApplyUpdate.
+    // v11: SetMachineSettings also carries the user's three walk exclusion lists, so the service can filter
+    // a local drive walk without the App having to write them into a machine-level file (see
+    // SearchEngine.UpdateMachineSettings -- they stay in that process's memory and never touch a disk).
     // Bumped for a new request id too, not only for a changed payload layout: the set of ids IS part of
     // this contract, and the version is what makes an App/Service pair that disagree about it fail
     // loudly and at once, in both directions, instead of one side quietly answering "Unknown command"
     // to a request the other believes is supported. App and Service always ship and restart together,
     // so a mismatch is an install-time transient, not a state worth degrading gracefully into.
-    private const int VersionSearchRequest = 10;
+    private const int VersionSearchRequest = 11;
 
     public static async Task WriteSearchRequestAsync(Stream stream, SearchRequestMessage msg, CancellationToken token = default)
     {
@@ -22,7 +25,7 @@ public static class SearchRequestBinarySerializer
         switch (msg.Id)
         {
             case SearchRequestId.SetMachineSettings:
-                payloadSize += SearchRequestValueCodec.CalculateSettingsSize(msg.MachineSettings ?? new MachineSettings());
+                payloadSize += SearchRequestValueCodec.CalculateSettingsSize(msg);
                 break;
             case SearchRequestId.RebuildDrive:
             case SearchRequestId.DeleteDriveIndex:
@@ -67,7 +70,7 @@ public static class SearchRequestBinarySerializer
             switch (msg.Id)
             {
                 case SearchRequestId.SetMachineSettings:
-                    SearchRequestValueCodec.WriteSettings(span, ref offset, msg.MachineSettings ?? new MachineSettings());
+                    SearchRequestValueCodec.WriteSettings(span, ref offset, msg);
                     break;
                 case SearchRequestId.RebuildDrive:
                 case SearchRequestId.DeleteDriveIndex:
@@ -163,7 +166,7 @@ public static class SearchRequestBinarySerializer
         switch (id)
         {
             case SearchRequestId.SetMachineSettings:
-                msg.MachineSettings = SearchRequestValueCodec.ReadSettings(payload, ref offset);
+                SearchRequestValueCodec.ReadSettings(payload, ref offset, msg);
                 break;
             case SearchRequestId.RebuildDrive:
             case SearchRequestId.DeleteDriveIndex:

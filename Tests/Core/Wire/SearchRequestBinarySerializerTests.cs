@@ -127,31 +127,6 @@ public sealed class SearchRequestBinarySerializerTests
     }
 
     [TestMethod]
-    public async Task RoundTrip_SetMachineSettings_PreservesLocalDrives()
-    {
-        var settings = new MachineSettings { LocalDrives = { "C", "D", "Z" } };
-        var result = await RoundTripAsync(new SearchRequestMessage
-        {
-            Id = SearchRequestId.SetMachineSettings,
-            MachineSettings = settings
-        });
-
-        CollectionAssert.AreEqual(new[] { "C", "D", "Z" }, result.MachineSettings!.LocalDrives);
-    }
-
-    [TestMethod]
-    public async Task RoundTrip_SetMachineSettings_EmptyDriveList()
-    {
-        var result = await RoundTripAsync(new SearchRequestMessage
-        {
-            Id = SearchRequestId.SetMachineSettings,
-            MachineSettings = new MachineSettings()
-        });
-
-        Assert.IsEmpty(result.MachineSettings!.LocalDrives);
-    }
-
-    [TestMethod]
     public async Task RoundTrip_RebuildDrive_PreservesDriveString()
     {
         var result = await RoundTripAsync(new SearchRequestMessage

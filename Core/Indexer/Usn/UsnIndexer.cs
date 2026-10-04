@@ -1,5 +1,6 @@
 using Lertaro.Core.IndexV2;
 using Lertaro.Core.DriveMonitoring;
+using Lertaro.Core.Indexer.NetworkDrive.Walk;
 
 using Lertaro.Core.Indexer.Usn.Journal;
 namespace Lertaro.Core.Indexer.Usn;
@@ -33,6 +34,25 @@ public partial class UsnIndexer : IDisposable
     public IndexerStatus Status { get; } = new();
     public object LockObj => _lockObj;
 
+    /// <summary>
+    /// The walk's exclusion rules, as last sent by the App over SetMachineSettings.
+    /// </summary>
+    /// <remarks>
+    /// Held here, in memory, rather than in a machine-level settings file the service writes: these are
+    /// the interactive user's own settings, and a service running as LocalSystem has no business
+    /// persisting them under a machine-wide directory the user does not own (nor is that directory
+    /// reliably writable on a trimmed-down Windows install). The App re-sends them on every settings save
+    /// and on every service (re)connect, so this field is exactly as fresh as the last successful
+    /// hand-off; there is deliberately nothing to read back after a restart.
+    ///
+    /// Default: empty, meaning "filter nothing". A service that has never been told a rule must not
+    /// invent one -- an empty rule set is the upstream default, and the only alternative, holding rules
+    /// from some other source, would exclude paths the user never configured.
+    ///
+    /// Read by every local-drive walk via <see cref="BuildDrives"/>, so a rules change reaches the next
+    /// rebuild of any drive without the caller having to thread it through.
+    /// </remarks>
+    internal WalkOptions WalkOptions { get; set; } = WalkOptions.Empty;
     internal IDisposable SuspendDirectoryChangeNotifications() => _directoryChangeNotificationGate.Begin();
 
     internal void PublishDirectoryChange(string drive, IReadOnlyCollection<string>? changedDirectories)

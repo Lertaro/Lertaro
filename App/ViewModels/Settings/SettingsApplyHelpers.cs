@@ -1,13 +1,9 @@
 using Lertaro.Core;
 
-using Lertaro.Core.Services.Search;
-
 namespace Lertaro.App.ViewModels.Settings;
 
-internal sealed record LocalDriveSnapshot(string Drive, string Id, bool IsEnabled);
-
-// Comparison/rebuild helpers used only by SettingsViewModel.Apply() -- split out to keep that file
-// under the line-count limit.
+// Comparison helpers used only by SettingsViewModel.Apply() -- split out to keep that file under the
+// line-count limit.
 internal static class SettingsApplyHelpers
 {
     /// <summary>
@@ -17,32 +13,6 @@ internal static class SettingsApplyHelpers
     /// </summary>
     public static void RebindFavoriteHotkeys(FavoritesSettingsViewModel favorites) =>
         FavoriteHotkeySettingsSupport.ApplyHotkeys(favorites);
-    public static async Task RebuildScanBasedLocalDrivesAsync(SearchService searchService, IReadOnlyList<LocalDriveSnapshot> drives, IReadOnlyList<string> enabledLocalDriveIds)
-    {
-        var enabled = enabledLocalDriveIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var drive in drives.Where(d => ShouldRebuildScanBasedLocalDrive(d, enabled)))
-        {
-            var fs = VolumeHelper.GetFileSystemType(drive.Drive);
-            if (!fs.Equals("NTFS", StringComparison.OrdinalIgnoreCase) &&
-                await searchService.RebuildDriveIndexAsync(drive.Drive))
-                await WaitForLocalDriveRebuildAsync(searchService, drive.Drive);
-        }
-    }
-
-    internal static bool ShouldRebuildScanBasedLocalDrive(LocalDriveSnapshot drive, IReadOnlySet<string> enabledIds) =>
-        drive.IsEnabled && enabledIds.Contains(drive.Id);
-
-    private static async Task WaitForLocalDriveRebuildAsync(SearchService searchService, string drive)
-    {
-        for (var i = 0; i < 120; i++)
-        {
-            await Task.Delay(500);
-            var status = await searchService.GetStatusAsync();
-            var item = status.Drives.FirstOrDefault(d => d.Drive.Equals(drive, StringComparison.OrdinalIgnoreCase));
-            if (item?.State is not ("pending" or "indexing"))
-                return;
-        }
-    }
 
     public static bool NetworkSettingsChanged(IReadOnlyList<NetworkDriveSetting> oldSettings, IReadOnlyList<NetworkDriveSetting> newSettings)
     {
