@@ -33,7 +33,7 @@ Hotkeys      - 快捷键设置
 Plugins      - 插件管理
 Favorites    - 收藏夹
 History      - 历史记录
-QuickLaunch  - 快速启动
+QuickLaunch  - 起始页
 QuickPanel   - 快速面板
 LocalSend    - LocalSend 传输
 About        - 关于与更新
