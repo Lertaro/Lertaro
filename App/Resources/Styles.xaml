@@ -10,5 +10,9 @@
         <ResourceDictionary Source="Styles/Controls/Controls.xaml"/>
         <ResourceDictionary Source="Styles/Controls/Menu.xaml"/>
         <ResourceDictionary Source="Styles/Controls/TabStripScrollView.xaml"/>
+        <!-- Restyles a window's WPF-drawn resize grip. Application-wide on purpose: the grip is not a
+             control any window declares, so a per-window dictionary only reaches the windows that
+             remember to merge it, which is how half of them ended up with two different grips. -->
+        <ResourceDictionary Source="Styles/Controls/ResizeGrip.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 </ResourceDictionary>

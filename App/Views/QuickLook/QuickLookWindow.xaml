@@ -16,6 +16,9 @@
     <Window.Resources>
         <ResourceDictionary>
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+            <!-- This window's card sits 12 DIP in rather than the 8 the grip's default inset assumes, so the
+                 lines need the extra room to stay inside it instead of in the transparent margin. -->
+            <Thickness x:Key="ResizeGripInset">4,4,14,14</Thickness>
         </ResourceDictionary>
     </Window.Resources>
     

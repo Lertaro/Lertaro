@@ -38,6 +38,14 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
     internal const string ReminderDurationKey = "ReminderDurationSeconds";
     internal const int DefaultReminderDurationSeconds = 8;
 
+    /// <summary>
+    /// Whether the quick window's clock line carries this plugin's 农历 reading. Owned here rather than in the
+    /// host's own Layout settings on purpose: the text is this plugin's data, so switching it off belongs in
+    /// the same page as the rest of the calendar's settings, and a plugin the user has disabled is never asked
+    /// for it at all -- which is the difference the host-side flag could not express.
+    /// </summary>
+    internal const string LunarInClockKey = "LunarInClock";
+
     private static readonly string PluginDllName = Path.GetFileName(typeof(CalendarPlugin).Assembly.Location);
     private static readonly object RuntimeLock = new();
 
@@ -119,6 +127,14 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
             },
             new PluginConfigField
             {
+                Key = LunarInClockKey,
+                LabelKey = "Calendar_Config_ClockLabel",
+                DescriptionKey = "Calendar_Config_ClockDesc",
+                FieldType = ConfigFieldType.Boolean,
+                DefaultValue = true
+            },
+            new PluginConfigField
+            {
                 Key = ReminderDurationKey,
                 LabelKey = "Calendar_Config_DurationLabel",
                 DescriptionKey = "Calendar_Config_DurationDesc",
@@ -148,7 +164,7 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
     private static PluginConfigSchema PruneForLanguage(PluginConfigSchema schema)
     {
         if (!CalendarText.ShowsChineseCalendar)
-            schema.Fields.RemoveAll(f => f.Key is "LunarDisplay" or "ShowStatutoryHolidays");
+            schema.Fields.RemoveAll(f => f.Key is "LunarDisplay" or "ShowStatutoryHolidays" or LunarInClockKey);
         return schema;
     }
 
@@ -166,6 +182,10 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
 
     internal static bool ShowStatutoryHolidays() =>
         PluginSettingsService.GetSetting(PluginId, "ShowStatutoryHolidays", true);
+
+    /// <summary>Whether the clock line takes this plugin's 农历 reading. On unless turned off here.</summary>
+    internal static bool ShowLunarInClock() =>
+        PluginSettingsService.GetSetting(PluginId, LunarInClockKey, true);
 
     internal static int ReminderDurationSeconds() =>
         PluginSettingsService.GetSetting(PluginId, ReminderDurationKey, DefaultReminderDurationSeconds);

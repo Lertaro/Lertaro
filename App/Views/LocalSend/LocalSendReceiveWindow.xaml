@@ -23,9 +23,11 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="36" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0"/>
-    </WindowChrome.WindowChrome>
+    <!-- No WindowChrome, deliberately. On an AllowsTransparency="True" window its resize border cannot be
+         drawn or grabbed, and setting one also takes the window's own hit-testing away from the
+         ResizeGrip: the grip was painted and did nothing, which is the whole of what
+         ResizeMode="CanResizeWithGrip" is supposed to provide. Its other job here, a draggable caption, is
+         already done by the title bar itself (TitleBar_MouseLeftButtonDown). -->
 
     <Border CornerRadius="12" Background="{DynamicResource ContentBg}"
             BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">

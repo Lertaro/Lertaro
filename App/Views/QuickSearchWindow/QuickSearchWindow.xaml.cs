@@ -111,7 +111,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private void InitializeChildControls()
     {
         _menuPresenter = new ShellMenuPresenter(this);
-        _trayService = new TrayIconService(_viewModel, ShowWindow, ToggleVisibility);
+        _trayService = new TrayIconService(_viewModel);
         // Wire up event handlers to subcontrols
         SearchBox.IconRightClicked += _controller.ResetPosition;
         SearchBox.IconMiddleClicked += _controller.ToggleStayOpen;

@@ -1,6 +1,6 @@
 # Extensiones de interfaz y vista previa
 
-Este capítulo describe las interfaces de `Lertaro.PluginSdk` para ampliar la barra lateral de la ventana de búsqueda, añadir columnas de tabla personalizadas, aportar pestañas dinámicas al Panel rápido, crear visores de vista previa de archivos y extractores de miniaturas para QuickLook, y distribuir temas WPF y paquetes de localización i18n.
+Este capítulo describe las interfaces de `Lertaro.PluginSdk` para ampliar la barra lateral de la ventana de búsqueda, añadir columnas de tabla personalizadas, aportar pestañas dinámicas al Panel rápido, aportar el texto de fecha de la línea de reloj de la ventana de búsqueda, crear visores de vista previa de archivos y extractores de miniaturas para QuickLook, y distribuir temas WPF y paquetes de localización i18n.
 
 Todas ellas viven en `Lertaro.PluginSdk.Abstractions.Plugins` (los proveedores de vista previa, en `…Abstractions.Plugins.Preview`) y cada una deriva de `IPluginComponent`, que aporta el `Name` que el anfitrión muestra en **Configuración → Plugins**.
 
@@ -108,7 +108,26 @@ Ese único método es todo el contrato: no hay recepción de arrastrar y soltar,
 - Un proveedor que no devuelve nada no obtiene pestaña, y no hay nada que configurar para eso.
 - La pestaña existe en cuanto existe el plugin, a diferencia de una carpeta que el usuario tiene que añadir. Puede cerrarse desde la tira de pestañas y reabrirse en **Configuración → Panel rápido**, lo cual es una pregunta distinta de desactivar el componente en **Configuración → Plugins** (eso impide que se cargue en absoluto).
 
-## 4. Vista previa de archivos y miniaturas
+## 4. Proveedor de texto de calendario `ICalendarTextProvider`
+
+Aporta la descripción de la fecha para la línea de reloj de la ventana de búsqueda, que el anfitrión añade después de su propia fecha y hora cuando el cuadro de búsqueda rápida está vacío:
+
+```csharp
+namespace Lertaro.PluginSdk.Abstractions.Plugins;
+
+public interface ICalendarTextProvider : IPluginComponent
+{
+    // La descripción adicional de esta fecha. Una cadena vacía significa que no hay nada que añadir.
+    string GetCalendarText(DateTime date);
+}
+```
+
+- Gana el primer proveedor que devuelva texto no vacío, así que un segundo plugin de calendario no compite con el primero por la misma línea.
+- La fecha la pasa el anfitrión en lugar de leerla tú del reloj: la respuesta depende solo de su argumento y se puede probar.
+- Las tablas de fechas lunares, términos solares y festividades las conserva el plugin; el anfitrión no guarda copia, que es la razón de que esta línea pregunte a un plugin en vez de llevar una tabla propia.
+- El anfitrión deja de llamarlo cuando este componente se desactiva en **Ajustes → Plugins**, o cuando se desactiva el plugin entero.
+
+## 5. Vista previa de archivos y miniaturas
 
 ### Proveedor de vista previa personalizada `IFilePreviewProvider`
 
@@ -165,7 +184,7 @@ public interface IThumbnailProvider : IPluginComponent
 }
 ```
 
-## 5. Temas y localización
+## 6. Temas y localización
 
 ### Proveedor de temas `IThemeProvider`
 

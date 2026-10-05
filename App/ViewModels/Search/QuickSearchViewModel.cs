@@ -236,7 +236,8 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     // SearchBoxControl.xaml's TxtPlaceholder) -- while the box is empty there's nothing to type-hint
     // about, and once typing starts the placeholder (clock included) disappears anyway, so there's no
     // real conflict between "show the time" and "show how to search". Inherits the placeholder's own
-    // font size/color, so no separate scaling property is needed here either.
+    // font size/color, so no separate scaling property is needed here either. The calendar half of the
+    // line comes from a loaded plugin -- see UpdateClockText.
     private string _clockText = string.Empty;
     public string ClockText
     {
@@ -249,9 +250,16 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         var culture = System.Globalization.CultureInfo.GetCultureInfo(Services.TranslationManager.Instance.CurrentCulture);
         var now = DateTime.Now;
         var dayName = culture.DateTimeFormat.GetAbbreviatedDayName(now.DayOfWeek);
+        // The 农历 reading, with a 节气 or festival in its place when one falls on today, comes from whichever
+        // enabled plugin offers it -- the Calendar plugin does, see ICalendarTextProvider. The host owns no
+        // switch for it and keeps no lunar table: whether 农历 belongs on this line is the plugin's own
+        // setting, and a disabled plugin is never asked, so nothing shows while it is off. A plugin that
+        // answers with nothing leaves the line exactly as it was before any of this existed.
+        var calendar = CalendarTextService.Describe(now);
+        var date = calendar.Length > 0 ? $"{now.ToString("d", culture)}（{calendar}）" : now.ToString("d", culture);
         // Leading space keeps the text off the caret, which otherwise renders flush against this
         // TextBlock's left edge (same slot as the search box's own cursor).
-        ClockText = $" {now.ToString("d", culture)} {dayName} {now:HH:mm}";
+        ClockText = $" {date} {dayName} {now:HH:mm}";
     }
 
     // Called when the window is actually shown (ShowWindow) -- pulls whatever the settings currently

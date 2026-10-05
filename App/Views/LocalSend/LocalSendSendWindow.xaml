@@ -16,9 +16,9 @@
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
-    <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="36" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0"/>
-    </WindowChrome.WindowChrome>
+    <!-- No WindowChrome, deliberately: see the note in LocalSendReceiveWindow. On a transparent window it
+         cannot draw or grab its resize border and it takes the ResizeGrip's hit-testing with it, leaving a
+         grip that is painted but does not resize. -->
     <Border CornerRadius="12" Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
         <Border CornerRadius="12" helpers:RoundedClip.IsEnabled="True">
             <Grid>
