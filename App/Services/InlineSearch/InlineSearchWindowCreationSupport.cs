@@ -26,20 +26,9 @@ internal sealed class InlineSearchWindowCreationSupport
         var tracker = _manager.ExplorerTracker;
         var viewModel = new QuickSearchViewModel();
 
-        // The window this card is summoned over. The mirrored ActivePath is taken as it stands, and the
-        // accurate answer is asked for afterwards through the tracker's paced channel (RequestInlineScopeAsync
-        // below): that mirror moves on the hook's activation event, while the card is created in the very
-        // instant the host is made foreground, so it can still describe the PREVIOUS window -- measured on a
-        // lister sitting in "D:\Projects\音乐" as "D:\Projects", and at other times as "D:\" or a drive root.
-        // Reading the adapter right here was the previous answer to that, and it put a cross-process host read
-        // on this (UI) thread for EVERY summon, before the window is even shown: Directory Opus answers such a
-        // read with a bare SendMessage(WM_GETTEXT) and no SMTO_ABORTIFHUNG, so a host that stops answering
-        // hangs the card, and the read also bypassed the pacing the poller uses. The late answer arrives via
-        // UpdatePath -- the same OnPathCaptured path a polled answer takes -- and the manager re-runs the
-        // search with it, so the first keystroke still points at the right folder.
-        var scope = tracker.ActivePath;
-
-        viewModel.SearchScope = scope;
+        // Show from the mirror immediately. IsInlineWindowOnScreen below asks the Hook's paced poller
+        // for a fresh path; its normal PathCaptured event repairs this scope and re-runs the current query.
+        viewModel.SearchScope = tracker.ActivePath;
         viewModel.IsInlineSearchContext = true;
 
         var window = new InlineSearchWindow(viewModel, _manager);
@@ -53,19 +42,6 @@ internal sealed class InlineSearchWindowCreationSupport
         window.Positioner.PositionWindowImmediate();
         window.Show();
         window.ViewModel.EnsureServiceMonitoringActive();
-
-        // Ask for the accurate scope through the paced channel, and publish it the way a polled answer is
-        // published. The floor may refuse this read (it can be inside its interval for this host); the poller's
-        // own cycle then delivers the same answer, so nothing here is load-bearing for correctness.
-        var summonHwnd = tracker.ActiveHwnd;
-        if (summonHwnd != IntPtr.Zero)
-        {
-            _ = tracker.RequestInlineScopeAsync(summonHwnd).ContinueWith(task =>
-            {
-                if (task.Status == TaskStatus.RanToCompletion && !string.IsNullOrEmpty(task.Result))
-                    tracker.UpdatePath(task.Result, false);
-            }, TaskScheduler.Default);
-        }
 
         var foreground = ExplorerNativeHooks.GetForegroundWindow();
         var isTextInputFocused = foreground != IntPtr.Zero && InputFocusEvaluator.IsForegroundTextInputFocused(foreground);

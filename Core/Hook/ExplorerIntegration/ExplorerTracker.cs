@@ -328,25 +328,23 @@ public class ExplorerTracker : IDisposable
     internal void RaiseExplorerActivated(IntPtr hwnd, string title, string cls, bool isDesktop) => OnExplorerActivated?.Invoke(hwnd, title, cls, isDesktop);
     internal void RaisePathCaptured(string path, bool isDesktop, bool isDialog) => OnPathCaptured?.Invoke(path, isDesktop, isDialog);
     internal void RaiseError(string msg) => OnError?.Invoke(msg);
-    public ExplorerTracker()
+    public ExplorerTracker() : this(ExplorerNativeHooks.GetForegroundWindow) { }
+
+    internal ExplorerTracker(Func<IntPtr> getForeground)
     {
         _classifier = new ExplorerWindowClassifier(this, _dialogTracker);
-        _pathPoller = new ExplorerActivePathPoller(_classifier);
+        _pathPoller = new ExplorerActivePathPoller(this, _classifier, getForeground);
     }
 
-    /// <summary>
-    /// Asks for the inline scope of <paramref name="hwnd"/> through the poller's paced channel.
-    /// </summary>
-    /// <remarks>
-    /// The inline window is summoned in the instant its host becomes foreground, so the mirrored
-    /// <see cref="ActivePath"/> can still describe the previous window. A caller that wants the accurate
-    /// answer asks for it here instead of reading the adapter itself: this goes through the same read
-    /// floor, STA marshalling and timeout the poller uses, so a summon cannot add a synchronous
-    /// cross-process read to the UI thread, cannot bypass the pacing, and cannot hang on a host that stops
-    /// answering. Publish the result with <see cref="UpdatePath"/> so it travels the path a polled answer
-    /// takes.
-    /// </remarks>
-    public Task<string?> RequestInlineScopeAsync(IntPtr hwnd) => _pathPoller.ReadInlineScopeAsync(hwnd);
+    internal void UpdateObservedPath(IntPtr hwnd, string path)
+    {
+        lock (StateLock)
+        {
+            if (ExplorerActivePathPoller.IsObservedWindowStillActive(hwnd, ActiveHwnd))
+                UpdatePath(path, IsDesktop);
+        }
+    }
+
     public void Start()
     {
         if (_isRunning) return;

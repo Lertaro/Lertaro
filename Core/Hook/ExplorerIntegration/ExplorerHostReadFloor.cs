@@ -37,6 +37,8 @@ internal sealed class ExplorerHostReadFloor
     /// <summary>Steady demand: the inline window is on screen and has to keep following the host.</summary>
     public bool CardOnScreen { get; set; }
 
+    internal bool HasPendingRead => Volatile.Read(ref _requested) != 0;
+
     /// <summary>
     /// One-shot demand, for a user action that needs the path now (a keystroke that may summon the card).
     /// Allocation- and lock-free: it is called from the low-level keyboard hook thread, where stalling past
