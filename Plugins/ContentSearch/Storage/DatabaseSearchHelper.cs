@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using System.Text;
 
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
@@ -29,7 +30,11 @@ public static class DatabaseSearchHelper
         var tokens = rawQuery.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
         var emitted = 0;
 
-        if (!string.IsNullOrWhiteSpace(ftsQuery) && tokens.Any(t => t.Length >= 3))
+        // The trigram index holds three-character sequences only, so a query carrying any
+        // shorter term cannot be answered by it: that term's half of the AND matches nothing and
+        // the whole query comes back empty however much the document matches. Such a query is
+        // answered by the content scan below instead, which evaluates every term of it.
+        if (!string.IsNullOrWhiteSpace(ftsQuery) && !RequiresContentScan(tokens))
         {
             foreach (var hit in ExecuteFts(conn, ftsQuery, limit - emitted, seenFileIds))
             {
@@ -55,15 +60,23 @@ public static class DatabaseSearchHelper
             yield break;
         }
 
-        // FTS5's trigram index cannot answer a term shorter than three characters, so those fall to a scan
-        // of the text itself. A query holding any long-enough term is answered by the index above and never
-        // comes here.
-        if (tokens.Length == 0 || tokens.Any(t => t.Length >= 3))
+        // No terms at all (a query of separators only) would build the scan's WHERE clause with
+        // no conditions, i.e. match every indexed document; stop instead.
+        if (tokens.Length == 0)
             yield break;
 
         foreach (var hit in ScanContentForShortTokens(conn, tokens, rawQuery, limit - emitted, seenFileIds))
             yield return hit;
     }
+
+    /// <summary>
+    /// True when the term set has to be answered by the content scan rather than by the trigram
+    /// index: FTS5's trigram tokenizer indexes three-character sequences only, so a one- or
+    /// two-character term has no entry to match and ANDing it into an index query discards every
+    /// hit. Kept out of the iterator so the branch decision is testable on its own.
+    /// </summary>
+    internal static bool RequiresContentScan(IReadOnlyList<string> tokens) =>
+        tokens.Any(t => t.EnumerateRunes().Take(3).Count() < 3);
 
     // How many matched sources one duplicate-expansion query carries. Bounded only because a statement's
     // parameter count is -- the expansion itself is capped by nothing but the matches above it, exactly as
@@ -91,8 +104,18 @@ public static class DatabaseSearchHelper
         // connection while the first is still reading.
         using (var cmd = conn.CreateCommand())
         {
+            // Long terms narrow the candidate set through trigram MATCH; only all-short queries
+            // need to visit every document. Apply every literal term before LIMIT.
+            var longTerms = tokens.Where(t => !RequiresContentScan([t])).ToArray();
+            var source = "files_fts";
+            if (longTerms.Length > 0)
+            {
+                source = "files_fts(@longQuery)";
+                cmd.Parameters.AddWithValue("@longQuery", string.Join(" AND ",
+                    longTerms.Select(t => "\"" + t.Replace("\"", "\"\"") + "\"")));
+            }
             for (var i = 0; i < tokens.Length; i++)
-                cmd.Parameters.AddWithValue($"@token{i}", "%" + tokens[i] + "%");
+                cmd.Parameters.AddWithValue($"@token{i}", "%" + tokens[i].Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%");
             cmd.Parameters.AddWithValue("@limit", limit);
             // A window, not the document. The WHERE already reads every indexed document, but returning
             // `content` handed the caller the WHOLE of every match on top of that: measured on a 496-document
@@ -110,9 +133,9 @@ public static class DatabaseSearchHelper
             cmd.CommandText = $"""
                 SELECT f.id, f.path, files_fts.rowid,
                        substr(files_fts.content, max(1, instr(files_fts.content, @window) - 300), 1000)
-                FROM files_fts
+                FROM {source}
                 JOIN files f ON f.id = files_fts.rowid
-                WHERE {string.Join(" AND ", tokens.Select((_, i) => $"files_fts.content LIKE @token{i}"))}
+                WHERE {string.Join(" AND ", tokens.Select((_, i) => $"files_fts.content LIKE @token{i} ESCAPE '\\'"))}
                 LIMIT @limit;
                 """;
 

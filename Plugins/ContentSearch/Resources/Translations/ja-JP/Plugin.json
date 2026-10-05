@@ -8,7 +8,7 @@
   "ContentSearch_Config_FoldersLabel": "監視フォルダのホワイトリスト",
   "ContentSearch_Config_FoldersDesc": "インデックスを作成するローカルフォルダのリスト。環境変数をサポート（例: %USERPROFILE%）",
   "ContentSearch_Config_MaxSizeLabel": "単一ファイルの最大サイズ (MB)",
-  "ContentSearch_Config_MaxSizeDesc": "メモリとパフォーマンスの消費を抑えるため、このサイズを超えるファイルはスキップされます",
+  "ContentSearch_Config_MaxSizeDesc": "メモリとパフォーマンスの消費を抑えるため、このサイズを超えるファイルはスキップされます（0 = 無制限）",
   "ContentSearch_Config_ExtensionsLabel": "インデックス対象の拡張子",
   "ContentSearch_Config_ExtensionsDesc": "カンマ区切りのファイル拡張子リスト（例: txt,md,docx,pdf）",
   "ContentSearch_Config_ExclusionsLabel": "除外パスパターン",
@@ -24,5 +24,13 @@
   "ContentSearch_NoResultsTitle": "一致するコンテンツが見つかりません",
   "ContentSearch_NoResultsDesc": "インデックス登録されたファイル内に「{0}」を含むコンテンツは見つかりませんでした",
   "ContentSearch_IndexingDesc": "バックグラウンドでファイルをインデックス中（{0} 個のファイル登録済み）...",
-  "ContentSearch_IndexingWithRemainingDesc": "バックグラウンドでファイルをインデックス中（{0} 個登録済み、残り {1} 個）..."
+  "ContentSearch_IndexingWithRemainingDesc": "バックグラウンドでファイルをインデックス中（{0} 個登録済み、残り {1} 個）...",
+  "ContentSearch_NotificationCapReachedTitle": "コンテンツインデックスが上限に達しました",
+  "ContentSearch_NotificationCapReachedMessage": "インデックスサイズ上限を引き上げるか、インデックスを削除するまでインデックス作成は停止しています。",
+  "ContentSearch_NotificationIndexFinishedTitle": "コンテンツインデックス作成が完了しました",
+  "ContentSearch_NotificationIndexFinishedMessage": "{0} 個のファイルを検索できるようになりました。",
+  "ContentSearch_NotificationIndexStoppedTitle": "コンテンツインデックス作成が中断されました",
+  "ContentSearch_NotificationIndexStoppedMessage": "インデックス作成は中断され、{0} 個のファイルを検索できます。",
+  "ContentSearch_NotificationIndexPausedTitle": "コンテンツインデックス作成を断念しました",
+  "ContentSearch_NotificationIndexPausedMessage": "サイズ上限に達してインデックス作成を停止しました。{0} 個のファイルを検索できます。続行するには上限を引き上げるかインデックスを削除してください。"
 }

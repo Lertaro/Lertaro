@@ -11,6 +11,17 @@ public static class MissingObservationHelper
 {
     private const int RetryLimit = 3;
 
+    /// <summary>
+    /// Counts one missed observation for a path and reports whether its row is now due for
+    /// deletion. Both the scan-time retention pass and the batch-time "discovered but not
+    /// visible" case funnel through here, so the two paths cannot disagree on the grace period.
+    /// </summary>
+    public static (int NewCount, bool Prune) ObserveMiss(int currentMissingCount)
+    {
+        var newCount = currentMissingCount + 1;
+        return (newCount, newCount >= RetryLimit);
+    }
+
     public static MissingObservationResult ApplyRetention(
         ContentSearchDatabase database,
         Dictionary<string, (long LastModified, long FileSize, int MissingCount)> existingMeta,
@@ -28,8 +39,8 @@ public static class MissingObservationHelper
         var toUpdateMissing = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in missingPaths)
         {
-            var newCount = existingMeta[path].MissingCount + 1;
-            if (newCount >= RetryLimit)
+            var (newCount, prune) = ObserveMiss(existingMeta[path].MissingCount);
+            if (prune)
             {
                 toDelete.Add(path);
             }

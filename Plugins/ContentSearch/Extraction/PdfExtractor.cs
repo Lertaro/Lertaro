@@ -9,11 +9,10 @@ namespace Lertaro.Plugins.ContentSearch.Extraction;
 /// </summary>
 public sealed class PdfExtractor : ITextExtractor
 {
-    // Extraction is not bounded by page or character count: a long reference PDF can put the
-    // term of interest hundreds of pages in (the Merck Veterinary Manual reaches page 300+
-    // before its index entries start). Fixed page/character caps truncate exactly those
-    // documents, so the page loop runs to the end of the document; the database-level size
-    // cap is the only index-size guard.
+    // There is deliberately no page ceiling: a long text-only reference PDF is cheap per page
+    // (the Merck Veterinary Manual reaches page 300+ before its index entries start), and what
+    // bounds the work is the per-file size cap, the per-file extraction timeout and the
+    // character ceiling below -- plus the two give-up signals on unreadable pages.
 
     // An unbroken run of this many unparseable pages gives up on the whole document:
     // a long failing run predicts the rest fails the same way, even when the overall
@@ -96,6 +95,14 @@ public sealed class PdfExtractor : ITextExtractor
                     if (!string.IsNullOrWhiteSpace(pageText))
                     {
                         builder.AppendLine(pageText);
+                    }
+
+                    if (builder.Length > ExtractionLimits.MaxExtractedTextChars)
+                    {
+                        PluginSdk.Logger.Log(
+                            $"[ContentSearch] Giving up on PDF '{filePath}': extracted text exceeds the {ExtractionLimits.MaxExtractedTextChars}-character extraction limit",
+                            PluginSdk.LogLevel.Warn);
+                        return null;
                     }
 
                 }

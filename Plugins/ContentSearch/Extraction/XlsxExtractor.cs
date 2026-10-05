@@ -93,7 +93,7 @@ public sealed class XlsxExtractor : ITextExtractor
         foreach (var entry in sheetEntries)
         {
             ct.ThrowIfCancellationRequested();
-            using var sheetStream = entry.Open();
+            using var sheetStream = ExtractionLimits.ReadEntryBounded(entry);
             var xDoc = XDocument.Load(sheetStream);
             if (xDoc.Root == null) continue;
 
@@ -107,6 +107,7 @@ public sealed class XlsxExtractor : ITextExtractor
                 // Flatten in-cell line breaks to spaces (same as dnGrep) so a single cell's
                 // phrase stays contiguous for FTS5 phrase matching.
                 builder.AppendLine(cellText.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' '));
+                ExtractionLimits.ThrowIfOverTextLimit(builder);
             }
         }
 
@@ -201,7 +202,7 @@ public sealed class XlsxExtractor : ITextExtractor
         var entry = archive.GetEntry("xl/sharedStrings.xml");
         if (entry == null) return shared;
 
-        using var stream = entry.Open();
+        using var stream = ExtractionLimits.ReadEntryBounded(entry);
         var xDoc = XDocument.Load(stream);
         if (xDoc.Root == null) return shared;
 
@@ -221,7 +222,7 @@ public sealed class XlsxExtractor : ITextExtractor
         var entry = archive.GetEntry("xl/styles.xml");
         if (entry == null) return (xfNumberFormats, customFormats);
 
-        using var stream = entry.Open();
+        using var stream = ExtractionLimits.ReadEntryBounded(entry);
         var xDoc = XDocument.Load(stream);
         if (xDoc.Root == null) return (xfNumberFormats, customFormats);
 
@@ -250,7 +251,7 @@ public sealed class XlsxExtractor : ITextExtractor
         var entry = archive.GetEntry("xl/workbook.xml");
         if (entry == null) return false;
 
-        using var stream = entry.Open();
+        using var stream = ExtractionLimits.ReadEntryBounded(entry);
         var xDoc = XDocument.Load(stream);
         return (string?)xDoc.Root?.Element(SpreadsheetNs + "workbookPr")?.Attribute("date1904") == "1";
     }
