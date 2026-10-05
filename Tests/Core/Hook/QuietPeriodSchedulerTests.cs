@@ -11,6 +11,20 @@ public class QuietPeriodSchedulerTests
 {
     private const int QuietMs = 40;
 
+    [TestMethod]
+    public void DisposedScheduler_IgnoresLateRearmAndImmediateRequests()
+    {
+        var runs = 0;
+        var scheduler = new QuietPeriodScheduler(() => runs++, QuietMs);
+        scheduler.Dispose();
+
+        scheduler.RunWhenQuiet();
+        scheduler.RunNow();
+        scheduler.Cancel();
+
+        Assert.AreEqual(0, runs);
+    }
+
     // How long to wait for something that is supposed to happen. Generous because it is only ever reached
     // when the test is about to fail anyway: a passing run returns as soon as the signal arrives, so
     // raising this costs nothing and buys tolerance for a machine running nineteen test assemblies at

@@ -328,11 +328,23 @@ public class ExplorerTracker : IDisposable
     internal void RaiseExplorerActivated(IntPtr hwnd, string title, string cls, bool isDesktop) => OnExplorerActivated?.Invoke(hwnd, title, cls, isDesktop);
     internal void RaisePathCaptured(string path, bool isDesktop, bool isDialog) => OnPathCaptured?.Invoke(path, isDesktop, isDialog);
     internal void RaiseError(string msg) => OnError?.Invoke(msg);
-    public ExplorerTracker()
+    public ExplorerTracker() : this(ExplorerNativeHooks.GetForegroundWindow) { }
+
+    internal ExplorerTracker(Func<IntPtr> getForeground)
     {
         _classifier = new ExplorerWindowClassifier(this, _dialogTracker);
-        _pathPoller = new ExplorerActivePathPoller(_classifier);
+        _pathPoller = new ExplorerActivePathPoller(this, _classifier, getForeground);
     }
+
+    internal void UpdateObservedPath(IntPtr hwnd, string path)
+    {
+        lock (StateLock)
+        {
+            if (ExplorerActivePathPoller.IsObservedWindowStillActive(hwnd, ActiveHwnd))
+                UpdatePath(path, IsDesktop);
+        }
+    }
+
     public void Start()
     {
         if (_isRunning) return;

@@ -17,6 +17,7 @@ internal sealed class QuietPeriodScheduler : IDisposable
     private readonly int _quietMs;
     private readonly Timer _timer;
     private readonly Lock _runLock = new();
+    private volatile bool _disposed;
 
     public QuietPeriodScheduler(Action run, int quietMs)
     {
@@ -38,9 +39,15 @@ internal sealed class QuietPeriodScheduler : IDisposable
     /// Asks for a run once nothing has asked again for the quiet period. Each call restarts that period,
     /// so a continuous burst produces exactly one run, after it ends.
     /// </summary>
-    public void RunWhenQuiet() => _timer.Change(_quietMs, Timeout.Infinite);
+    public void RunWhenQuiet() => ChangeTimer(_quietMs);
 
-    public void Cancel() => _timer.Change(Timeout.Infinite, Timeout.Infinite);
+    public void Cancel() => ChangeTimer(Timeout.Infinite);
+
+    private void ChangeTimer(int dueTime)
+    {
+        try { _timer.Change(dueTime, Timeout.Infinite); }
+        catch (ObjectDisposedException) when (_disposed) { }
+    }
 
     private void Execute(bool rearmIfBusy)
     {
@@ -58,7 +65,7 @@ internal sealed class QuietPeriodScheduler : IDisposable
 
         try
         {
-            _run();
+            if (!_disposed) _run();
         }
         finally
         {
@@ -66,5 +73,9 @@ internal sealed class QuietPeriodScheduler : IDisposable
         }
     }
 
-    public void Dispose() => _timer.Dispose();
+    public void Dispose()
+    {
+        _disposed = true;
+        _timer.Dispose();
+    }
 }

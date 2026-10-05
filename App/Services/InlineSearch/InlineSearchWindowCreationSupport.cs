@@ -25,17 +25,10 @@ internal sealed class InlineSearchWindowCreationSupport
 
         var tracker = _manager.ExplorerTracker;
         var viewModel = new QuickSearchViewModel();
-        var scope = tracker.ActivePath;
-        if (string.IsNullOrEmpty(scope) && tracker.ActiveHwnd != IntPtr.Zero)
-        {
-            // ActiveInlineAdapter is null for a plain IFileDialogAdapter host, so use the dialog adapter
-            // when a recreated window needs a scope before the next poller cycle arrives.
-            if (tracker.ActiveInlineAdapter != null)
-                scope = tracker.ActiveInlineAdapter.GetSearchScope(tracker.ActiveHwnd);
-            else if (tracker.ActiveAdapter != null)
-                scope = tracker.ActiveAdapter.GetCurrentPath(tracker.ActiveHwnd);
-        }
-        viewModel.SearchScope = scope;
+
+        // Show from the mirror immediately. IsInlineWindowOnScreen below asks the Hook's paced poller
+        // for a fresh path; its normal PathCaptured event repairs this scope and re-runs the current query.
+        viewModel.SearchScope = tracker.ActivePath;
         viewModel.IsInlineSearchContext = true;
 
         var window = new InlineSearchWindow(viewModel, _manager);

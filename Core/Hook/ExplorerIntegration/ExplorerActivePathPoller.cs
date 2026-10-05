@@ -35,7 +35,9 @@ internal sealed class ExplorerActivePathPoller : IDisposable
     private readonly ExplorerWindowClassifier _classifier;
     private readonly QuietPeriodScheduler _scheduler;
     private readonly ExplorerHostReadFloor _readFloor = new();
-    private ExplorerTracker? _tracker;
+    private readonly ExplorerTracker _tracker;
+    private readonly Func<IntPtr> _getForeground;
+    private bool _disposed;
 
     // The budget belongs to the window, not to the poller: one dialog that never becomes interesting must not
     // spend the retries of the next one.
@@ -45,20 +47,19 @@ internal sealed class ExplorerActivePathPoller : IDisposable
     private IntPtr _askedFor;
     private int _askedLeft = UnclaimedDialogRetryLimit;
 
-    public ExplorerActivePathPoller(ExplorerWindowClassifier classifier)
+    public ExplorerActivePathPoller(ExplorerTracker tracker, ExplorerWindowClassifier classifier, Func<IntPtr> getForeground)
     {
+        _tracker = tracker;
+        _getForeground = getForeground;
         _classifier = classifier;
         _scheduler = new QuietPeriodScheduler(() =>
         {
-            var tracker = _tracker;
-            if (tracker != null) PollCore(tracker);
+            if (!_disposed) PollCore(_tracker);
         }, LocationSettleMs);
     }
 
     public void Poll(ExplorerTracker tracker, uint eventType, IntPtr eventHwnd)
     {
-        _tracker = tracker;
-
         // Every WinEvent in the session used to reach this method with its hwnd never consulted, so a
         // tooltip appearing in ANY application bought a full path read for the tracked window -- and for a
         // host like XYplorer that read is a script round trip on its own UI thread, which dismisses the
@@ -132,17 +133,32 @@ internal sealed class ExplorerActivePathPoller : IDisposable
     internal static bool PollsImmediately(uint eventType) =>
         eventType == ExplorerNativeHooks.EVENT_SYSTEM_FOREGROUND;
 
-    public void Dispose() => _scheduler.Dispose();
+    public void Dispose()
+    {
+        _disposed = true;
+        _readFloor.ClearCardOnScreen();
+        _scheduler.Dispose();
+    }
 
     // Demand sources, forwarded to the floor. Both are called from threads that must not stall on this one:
     // the low-level keyboard hook (RequestHostPathRead) and the App's IPC link (SetInlineWindowOnScreen).
-    public void RequestHostPathRead() => _readFloor.RequestRead();
+    public void RequestHostPathRead()
+    {
+        _readFloor.RequestRead();
+        _scheduler.RunWhenQuiet();
+    }
 
     // Closing the window drops steady demand AND any pending one-shot: with nothing on screen, a request left
     // over from the keystroke that summoned it would buy a read for nobody.
     public void SetInlineWindowOnScreen(bool onScreen)
     {
-        if (onScreen) _readFloor.CardOnScreen = true;
+        if (onScreen)
+        {
+            _readFloor.CardOnScreen = true;
+            // This arrives through the existing App -> Hook message, where the real read floor lives.
+            // Scheduling is essential: a stationary host may produce no further WinEvent after summon.
+            RequestHostPathRead();
+        }
         else _readFloor.ClearCardOnScreen();
     }
 
@@ -183,8 +199,11 @@ internal sealed class ExplorerActivePathPoller : IDisposable
         // and the read itself is what cancels the host's transient UI. See ExplorerHostReadFloor.
         var nowTicks = Environment.TickCount64;
         var hostReadAllowed = _readFloor.AllowsRead(tracker.ActiveHwnd, nowTicks);
+        // A paced request must finish even if the user types only one character and the host goes quiet.
+        if (!hostReadAllowed && _readFloor.HasPendingRead && !_disposed)
+            _scheduler.RunWhenQuiet();
 
-        var currentFg = ExplorerNativeHooks.GetForegroundWindow();
+        var currentFg = _getForeground();
         if (currentFg != IntPtr.Zero && currentFg != tracker.ActiveHwnd)
         {
             var sbClass = new StringBuilder(256);
@@ -217,7 +236,7 @@ internal sealed class ExplorerActivePathPoller : IDisposable
             if (!IsObservedWindowStillActive(dialogHwnd, tracker.ActiveHwnd)) return;
             if (!string.IsNullOrEmpty(activePath) && activePath != tracker.LastPath)
             {
-                tracker.UpdatePath(activePath, false);
+                tracker.UpdateObservedPath(dialogHwnd, activePath);
             }
         }
 
@@ -260,12 +279,12 @@ internal sealed class ExplorerActivePathPoller : IDisposable
                     {
                         if (activePath != tracker.LastPath)
                         {
-                            tracker.UpdatePath(activePath, false);
+                            tracker.UpdateObservedPath(collectorHwnd, activePath);
                         }
                     }
                     else if (!string.IsNullOrEmpty(tracker.LastPath))
                     {
-                        tracker.UpdatePath(string.Empty, false);
+                        tracker.UpdateObservedPath(collectorHwnd, string.Empty);
                     }
                     break;
                 }
@@ -283,12 +302,12 @@ internal sealed class ExplorerActivePathPoller : IDisposable
             {
                 if (activePath != tracker.LastPath)
                 {
-                    tracker.UpdatePath(activePath, false);
+                    tracker.UpdateObservedPath(inlineHwnd, activePath);
                 }
             }
             else if (!string.IsNullOrEmpty(tracker.LastPath))
             {
-                tracker.UpdatePath(string.Empty, false);
+                tracker.UpdateObservedPath(inlineHwnd, string.Empty);
             }
         }
     }
