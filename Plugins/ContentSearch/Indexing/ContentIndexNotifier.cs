@@ -25,7 +25,7 @@ internal static class ContentIndexNotifier
         // rather than from words reordered by the sender's language.
         Show(
             "ContentSearch_NotificationCapReachedTitle",
-            TranslationService.Get("ContentSearch_NotificationCapReachedMessage"),
+            "ContentSearch_NotificationCapReachedMessage",
             NotificationLevel.Warn);
     }
 
@@ -49,21 +49,20 @@ internal static class ContentIndexNotifier
             _ => "ContentSearch_NotificationIndexPausedMessage"
         };
 
-        Show(titleKey, TranslationService.Format(messageKey, indexedFiles), NotificationLevel.Info);
+        Show(titleKey, messageKey, NotificationLevel.Info, indexedFiles);
     }
 
     /// <summary>
-    /// Translation lookups stay outside the failure guard: a lookup that throws (the host supplies it,
-    /// so this plugin does not own it) must not abort a caller mid-index either.
+    /// Notification and translation failures must not abort an indexing batch.
     /// </summary>
-    private static void Show(string titleKey, string message, NotificationLevel level)
+    private static void Show(string titleKey, string messageKey, NotificationLevel level, int? indexedFiles = null)
     {
         try
         {
             PluginNotificationService.Show(new NotificationRequest
             {
                 Title = TranslationService.Get(titleKey),
-                Message = message,
+                Message = indexedFiles is { } count ? TranslationService.Format(messageKey, count) : TranslationService.Get(messageKey),
                 Level = level
             });
         }

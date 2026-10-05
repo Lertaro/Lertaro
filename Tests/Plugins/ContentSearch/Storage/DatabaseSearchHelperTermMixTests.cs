@@ -70,6 +70,35 @@ public sealed class DatabaseSearchHelperTermMixTests
     }
 
     [TestMethod]
+    [DataRow("report %", "report 50% growth", "report growth")]
+    [DataRow("report _", "report a_b", "report ab")]
+    [DataRow("😀a", "contains 😀a", "contains ab")]
+    public void Search_ShortTermsAreLiteralAndCountUnicodeCharacters(string query, string wanted, string unwanted)
+    {
+        _database.InsertOrUpdateBatch([
+            new FileIndexBatchItem(@"C:\Docs\wrong.txt", DateTime.UtcNow, 40, unwanted),
+            new FileIndexBatchItem(@"C:\Docs\wanted.txt", DateTime.UtcNow, 40, wanted)]);
+
+        var hits = _database.SearchFts(query, 10);
+
+        Assert.HasCount(1, hits);
+        Assert.AreEqual(@"C:\Docs\wanted.txt", hits[0].FilePath);
+    }
+
+    [TestMethod]
+    public void Search_MixedTerms_AppliesShortTermBeforeLimit()
+    {
+        _database.InsertOrUpdateBatch([
+            new FileIndexBatchItem(@"C:\Docs\long-only.txt", DateTime.UtcNow, 40, "report text"),
+            new FileIndexBatchItem(@"C:\Docs\both.txt", DateTime.UtcNow, 40, "report ab")]);
+
+        var hits = _database.SearchFts("report ab", 1);
+
+        Assert.HasCount(1, hits);
+        Assert.AreEqual(@"C:\Docs\both.txt", hits[0].FilePath);
+    }
+
+    [TestMethod]
     public void Search_AllLongTerms_IsStillAnsweredByTheTrigramIndex()
     {
         // The index ranks hits by bm25 and scores each one differently; the content scan hands rows

@@ -1,3 +1,5 @@
+using Microsoft.Data.Sqlite;
+
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
@@ -119,10 +121,10 @@ public static class DatabaseBatchWriteHelper
     {
         var idByPath = new Dictionary<string, long>(items.Count, StringComparer.OrdinalIgnoreCase);
 
-        // ponytail: a batch in which nothing can be written costs one transaction per item while
-        // it is halved down, instead of the single transaction the atomic write used to spend.
-        // That only happens when the database itself is refusing writes, where the caller's
-        // failed-row write throws and the batch is dropped and retried as before.
+        // Only per-item SQLite size/constraint errors are isolated. Busy, full, readonly and I/O
+        // failures affect the database; propagate them without discarding healthy document contents.
+        // ponytail: n bad items cost up to 2n-1 attempts; batch size bounds this. A bulk size precheck
+        // would avoid retries if real traces show repeated oversized values.
         var pending = new Stack<IReadOnlyList<FileIndexBatchItem>>();
         pending.Push(items);
 
@@ -140,13 +142,13 @@ public static class DatabaseBatchWriteHelper
                 // seeing it, exactly as it did when the write was a single call.
                 throw;
             }
-            catch (Exception) when (chunk.Count > 1)
+            catch (SqliteException ex) when (ex.SqliteErrorCode is 18 or 19 && chunk.Count > 1)
             {
                 var mid = chunk.Count / 2;
                 pending.Push(chunk.Skip(mid).ToList());
                 pending.Push(chunk.Take(mid).ToList());
             }
-            catch (Exception ex)
+            catch (SqliteException ex) when (ex.SqliteErrorCode is 18 or 19)
             {
                 failures.Add((chunk[0], ex));
             }

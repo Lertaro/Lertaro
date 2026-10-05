@@ -9,11 +9,17 @@ namespace Lertaro.Plugins.ContentSearch.Tests.Indexing;
 [DoNotParallelize]
 public sealed class ContentIndexRunReporterTests
 {
+    private Func<string, string> _previousLookup = null!;
+
     private readonly List<NotificationRequest> _requests = new();
 
     [TestInitialize]
     public void CaptureNotifications()
     {
+        _previousLookup = PluginSdk.Services.TranslationService.LookupFunc;
+        PluginSdk.Services.TranslationService.LookupFunc = key => key is
+            "ContentSearch_NotificationIndexFinishedMessage" or "ContentSearch_NotificationIndexStoppedMessage" or "ContentSearch_NotificationIndexPausedMessage"
+            ? $"[{key}] {{0}}" : $"[{key}]";
         _requests.Clear();
         PluginSdk.Services.PluginNotificationService.ShowRequestFunc = (request, _) =>
         {
@@ -23,7 +29,11 @@ public sealed class ContentIndexRunReporterTests
     }
 
     [TestCleanup]
-    public void ReleaseNotifications() => PluginSdk.Services.PluginNotificationService.ShowRequestFunc = null;
+    public void ReleaseNotifications()
+    {
+        PluginSdk.Services.TranslationService.LookupFunc = _previousLookup;
+        PluginSdk.Services.PluginNotificationService.ShowRequestFunc = null;
+    }
 
     [TestMethod]
     public void Observe_EmptyQueueWithNoRunOpen_SaysNothing()
@@ -102,6 +112,29 @@ public sealed class ContentIndexRunReporterTests
         reporter.Observe(hasPendingFiles: false, pausedAtCap: false, wasCancelled: true, indexedFiles: 3);
 
         Assert.IsEmpty(_requests);
+    }
+
+    [TestMethod]
+    public void Observe_CancelledWithPendingFiles_ClosesRunAndReportsInterruption()
+    {
+        var reporter = new ContentIndexRunReporter();
+        reporter.Observe(true, false, false, 0);
+        reporter.Observe(true, false, true, 3);
+
+        Assert.IsFalse(reporter.IsRunOpen);
+        Assert.HasCount(1, _requests);
+        Assert.AreEqual(TranslationKey("ContentSearch_NotificationIndexStoppedTitle"), _requests[0].Title);
+    }
+
+    [TestMethod]
+    public void Observe_DrainedBySkippingAtCap_ReportsPausedInsteadOfCompleted()
+    {
+        var reporter = new ContentIndexRunReporter();
+        reporter.Observe(true, false, false, 0);
+        reporter.Observe(false, true, false, 3);
+
+        Assert.HasCount(1, _requests);
+        Assert.AreEqual(TranslationKey("ContentSearch_NotificationIndexPausedTitle"), _requests[0].Title);
     }
 
     [TestMethod]

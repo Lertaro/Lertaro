@@ -28,6 +28,7 @@ internal enum ContentIndexRunOutcome
 internal sealed class ContentIndexRunReporter
 {
     private bool _runOpen;
+    public bool IsRunOpen => _runOpen;
 
     /// <summary>
     /// Call where a batch ended with files still queued, or with the queue drained. When that drain
@@ -39,7 +40,7 @@ internal sealed class ContentIndexRunReporter
     /// <param name="indexedFiles">Files searchable now, for the summary's count.</param>
     public void Observe(bool hasPendingFiles, bool pausedAtCap, bool wasCancelled, int indexedFiles)
     {
-        if (hasPendingFiles)
+        if (hasPendingFiles && !wasCancelled)
         {
             _runOpen = true;
             return;
@@ -57,9 +58,6 @@ internal sealed class ContentIndexRunReporter
     /// reason it was stuck; otherwise the user switched the plugin off under it.
     /// </summary>
     private static ContentIndexRunOutcome Classify(bool pausedAtCap, bool wasCancelled) =>
-        !wasCancelled
-            ? ContentIndexRunOutcome.Completed
-            : pausedAtCap
-                ? ContentIndexRunOutcome.GaveUp
-                : ContentIndexRunOutcome.Interrupted;
+        pausedAtCap ? ContentIndexRunOutcome.GaveUp
+            : wasCancelled ? ContentIndexRunOutcome.Interrupted : ContentIndexRunOutcome.Completed;
 }

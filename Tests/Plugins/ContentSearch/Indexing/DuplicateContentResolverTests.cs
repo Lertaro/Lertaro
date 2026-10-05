@@ -37,22 +37,22 @@ public sealed class DuplicateContentResolverTests
     public async Task ComputeHashIfLarge_SmallFile_ReturnsNull()
     {
         var file = await WriteFileAsync("small.bin", 1024);
-        Assert.IsNull(DuplicateContentResolver.ComputeHashIfLarge(file, 1024));
+        Assert.IsNull(await DuplicateContentResolver.ComputeHashIfLargeAsync(file, 1024));
     }
 
     [TestMethod]
     public async Task ComputeHashIfLarge_LargeFile_ReturnsStableDigest()
     {
         var (fileA, fileB, fileC) = await WriteLargeFilesAsync();
-        var hashA = DuplicateContentResolver.ComputeHashIfLarge(fileA, new FileInfo(fileA).Length);
+        var hashA = await DuplicateContentResolver.ComputeHashIfLargeAsync(fileA, new FileInfo(fileA).Length);
 
         Assert.IsNotNull(hashA);
         Assert.AreEqual(32, hashA.Length); // XxHash128 = 16 bytes = 32 hex chars
 
         // Identical content under a different path hashes identically; a one-byte
         // difference must not collide.
-        Assert.AreEqual(hashA, DuplicateContentResolver.ComputeHashIfLarge(fileB, new FileInfo(fileB).Length));
-        Assert.AreNotEqual(hashA, DuplicateContentResolver.ComputeHashIfLarge(fileC, new FileInfo(fileC).Length));
+        Assert.AreEqual(hashA, await DuplicateContentResolver.ComputeHashIfLargeAsync(fileB, new FileInfo(fileB).Length));
+        Assert.AreNotEqual(hashA, await DuplicateContentResolver.ComputeHashIfLargeAsync(fileC, new FileInfo(fileC).Length));
     }
 
     [TestMethod]
@@ -65,7 +65,7 @@ public sealed class DuplicateContentResolverTests
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        var hash = DuplicateContentResolver.ComputeHashIfLarge(fileA, new FileInfo(fileA).Length, cts.Token);
+        var hash = await DuplicateContentResolver.ComputeHashIfLargeAsync(fileA, new FileInfo(fileA).Length, cts.Token);
 
         Assert.IsNull(hash);
         Assert.AreEqual(1, _logLines.Count(l => l.Contains("Gave up hashing", StringComparison.Ordinal)),
@@ -83,7 +83,7 @@ public sealed class DuplicateContentResolverTests
     public async Task FindDuplicateSource_IndexedSourceOtherPath_ReturnsSourceId()
     {
         var (fileA, _, _) = await WriteLargeFilesAsync();
-        var hash = DuplicateContentResolver.ComputeHashIfLarge(fileA, new FileInfo(fileA).Length)!;
+        var hash = await DuplicateContentResolver.ComputeHashIfLargeAsync(fileA, new FileInfo(fileA).Length)!;
 
         _database.InsertOrUpdateBatch(new[] { new FileIndexBatchItem(fileA, DateTime.UtcNow, DuplicateContentResolver.HashThresholdBytes, "duplicate text body", hash) });
         var sourceId = _database.GetFileRecord(fileA)!.Id;
@@ -96,7 +96,7 @@ public sealed class DuplicateContentResolverTests
     public async Task FindDuplicateSource_FailedOrSelfOrDuplicateRows_NeverUsedAsSource()
     {
         var (fileA, _, _) = await WriteLargeFilesAsync();
-        var hash = DuplicateContentResolver.ComputeHashIfLarge(fileA, new FileInfo(fileA).Length)!;
+        var hash = await DuplicateContentResolver.ComputeHashIfLargeAsync(fileA, new FileInfo(fileA).Length)!;
         var resolver = new DuplicateContentResolver(_database);
 
         // A failed row has no text to reuse.

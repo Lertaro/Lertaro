@@ -10,6 +10,8 @@ namespace Lertaro.Plugins.ContentSearch.Tests.Indexing;
 [DoNotParallelize]
 public sealed class ContentIndexNotifierTests
 {
+    private Func<string, string> _previousLookup = null!;
+
     private readonly List<NotificationRequest> _requests = new();
     private readonly List<Assembly> _sources = new();
     private readonly List<string> _logLines = new();
@@ -17,6 +19,10 @@ public sealed class ContentIndexNotifierTests
     [TestInitialize]
     public void CaptureNotifications()
     {
+        _previousLookup = PluginSdk.Services.TranslationService.LookupFunc;
+        PluginSdk.Services.TranslationService.LookupFunc = key => key is
+            "ContentSearch_NotificationIndexFinishedMessage" or "ContentSearch_NotificationIndexStoppedMessage" or "ContentSearch_NotificationIndexPausedMessage"
+            ? $"[{key}] {{0}}" : $"[{key}]";
         _requests.Clear();
         _sources.Clear();
         _logLines.Clear();
@@ -32,6 +38,7 @@ public sealed class ContentIndexNotifierTests
     [TestCleanup]
     public void ReleaseNotifications()
     {
+        PluginSdk.Services.TranslationService.LookupFunc = _previousLookup;
         PluginSdk.Services.PluginNotificationService.ShowRequestFunc = null;
         PluginSdk.Logger.LogAction = null;
     }
@@ -91,7 +98,7 @@ public sealed class ContentIndexNotifierTests
         ContentIndexNotifier.NotifyRunFinished(ContentIndexRunOutcome.Completed, 1);
 
         Assert.HasCount(1, _logLines, $"the refusal is logged, not propagated: [{string.Join("; ", _logLines)}]");
-        Assert.Contains("Could not show", _logLines[0]);
+        Assert.Contains("Host refused the notification", _logLines[0]);
     }
 
     [TestMethod]
@@ -110,7 +117,7 @@ public sealed class ContentIndexNotifierTests
     // a sentence the tests would then have to keep in step with the JSON files.
     private static string TranslationKey(string key) => $"[{key}]";
 
-    private static string TranslationKeyWith(string key, int value) => string.Format($"[{key}]", value);
+    private static string TranslationKeyWith(string key, int value) => $"[{key}] {value}";
 
     private string Describe() => string.Join("; ", _requests.Select(r => $"{r.Level}:{r.Title}"));
 }

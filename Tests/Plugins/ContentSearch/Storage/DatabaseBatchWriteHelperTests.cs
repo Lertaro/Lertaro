@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Lertaro.Plugins.ContentSearch.Storage;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Storage;
@@ -52,7 +53,7 @@ public sealed class DatabaseBatchWriteHelperTests
         var failed = DatabaseBatchWriteHelper.Write(items, chunk =>
         {
             if (chunk.Any(i => i.Path == PoisonPath))
-                throw new InvalidOperationException("string or blob too big");
+                throw new SqliteException("string or blob too big", 18);
             written.AddRange(chunk.Select(i => i.Path));
             return chunk.ToDictionary(i => i.Path, _ => 1L);
         });
@@ -73,18 +74,21 @@ public sealed class DatabaseBatchWriteHelperTests
     }
 
     [TestMethod]
-    public void Write_EveryItemRefused_ReportsOneBatchLineAndStillReturnsThemAllAsFailed()
+    [DataRow(5)] // busy
+    [DataRow(8)] // readonly
+    [DataRow(10)] // I/O
+    [DataRow(13)] // disk full
+    public void Write_DatabaseUnavailable_PropagatesWithoutSplittingOrFailingFiles(int errorCode)
     {
-        // A database refusing every write (out of disk space) is one condition, not one condition
-        // per file: the batch is halved down and every item comes back failed, but the log says so
-        // once. The failed-row write that follows is what surfaces a database that is still broken.
+        var calls = 0;
         var items = new[] { Item(@"C:\Docs\a.txt"), Item(@"C:\Docs\b.txt") };
-
-        var failed = DatabaseBatchWriteHelper.Write(items, _ => throw new InvalidOperationException("disk I/O error"));
-
-        Assert.HasCount(2, failed);
-        Assert.HasCount(1, _logLines, $"one line for the batch, not one per file: [{string.Join("; ", _logLines)}]");
-        Assert.IsTrue(_logLines[0].Contains("None of the 2 file(s)", StringComparison.Ordinal), _logLines[0]);
+        Assert.ThrowsExactly<SqliteException>(() => DatabaseBatchWriteHelper.Write(items, _ =>
+        {
+            calls++;
+            throw new SqliteException("database unavailable", errorCode);
+        }));
+        Assert.AreEqual(1, calls);
+        Assert.IsEmpty(_logLines);
     }
 
     [TestMethod]

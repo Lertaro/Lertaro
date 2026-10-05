@@ -27,30 +27,19 @@ public sealed class DuplicateContentResolver
     /// below the dedup threshold (no hashing) and unreadable files. The token bounds the
     /// read: a stalled network share must not block the extraction lane that called this.
     /// </summary>
-    public static string? ComputeHashIfLarge(string filePath, long fileLength, CancellationToken cancellationToken = default)
+    public static async Task<string?> ComputeHashIfLargeAsync(string filePath, long fileLength, CancellationToken cancellationToken = default)
     {
         if (fileLength < HashThresholdBytes)
             return null;
 
         try
         {
-            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            // Disposing the stream from the deadline token unblocks a read that is already
-            // stuck on a hung share (same trick the extractors use); the abandoned read then
-            // throws instead of blocking this lane forever.
-            using var cancellationRegistration = cancellationToken.Register(stream.Dispose);
+            cancellationToken.ThrowIfCancellationRequested();
+            await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite,
+                64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
             var hasher = new XxHash128();
-            var buffer = new byte[64 * 1024];
-            int read;
-            while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    return LogGaveUpHashing(filePath);
-                }
-
-                hasher.Append(buffer.AsSpan(0, read));
-            }
+            await hasher.AppendAsync(stream, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
 
             return Convert.ToHexString(hasher.GetCurrentHash());
         }

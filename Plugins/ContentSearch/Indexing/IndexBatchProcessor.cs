@@ -169,7 +169,7 @@ public sealed class IndexBatchProcessor
             // document reuses the source row's text instead of paying for a second parse
             // and a second full copy of the text and FTS entry. A hash that times out or is
             // cancelled yields no hash (logged once) rather than an exception.
-            var contentHash = DuplicateContentResolver.ComputeHashIfLarge(filePath, fileInfo.Length, hardTimeoutCts.Token);
+            var contentHash = await DuplicateContentResolver.ComputeHashIfLargeAsync(filePath, fileInfo.Length, hardTimeoutCts.Token);
             if (_duplicateResolver.FindDuplicateSource(contentHash, filePath) is { } sourceId)
             {
                 PluginSdk.Logger.Log(

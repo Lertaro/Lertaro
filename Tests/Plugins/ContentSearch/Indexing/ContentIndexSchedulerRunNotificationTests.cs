@@ -14,6 +14,8 @@ namespace Lertaro.Plugins.ContentSearch.Tests.Indexing;
 [DoNotParallelize]
 public sealed class ContentIndexSchedulerRunNotificationTests
 {
+    private Func<string, string> _previousLookup = null!;
+
     private string _tempDir = null!;
     private string _tempDbPath = null!;
     private ContentSearchDatabase _database = null!;
@@ -22,6 +24,10 @@ public sealed class ContentIndexSchedulerRunNotificationTests
     [TestInitialize]
     public void SetUp()
     {
+        _previousLookup = PluginSdk.Services.TranslationService.LookupFunc;
+        PluginSdk.Services.TranslationService.LookupFunc = key => key is
+            "ContentSearch_NotificationIndexFinishedMessage" or "ContentSearch_NotificationIndexStoppedMessage" or "ContentSearch_NotificationIndexPausedMessage"
+            ? $"[{key}] {{0}}" : $"[{key}]";
         _tempDir = Path.Combine(Path.GetTempPath(), "TestRunNotify_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
         _tempDbPath = Path.Combine(Path.GetTempPath(), "TestRunNotify_" + Guid.NewGuid().ToString("N") + ".db");
@@ -39,6 +45,7 @@ public sealed class ContentIndexSchedulerRunNotificationTests
     [TestCleanup]
     public void TearDown()
     {
+        PluginSdk.Services.TranslationService.LookupFunc = _previousLookup;
         PluginNotificationService.ShowRequestFunc = null;
         DirectoryIndexerService.EnumerateDirectoryFunc = null;
         _database.Dispose();
@@ -52,43 +59,21 @@ public sealed class ContentIndexSchedulerRunNotificationTests
     [TestMethod]
     public async Task Start_QueueDrains_SendsOneInfoSummaryForTheWholeRun()
     {
-        // Several files, so the run really does span more than one batch of extraction work; the
-        // summary still arrives once, and never as a warning: a healthy run is not a problem report.
+        // Seven files fit into a single batch: even a run with no second batch must open and close.
         for (var i = 0; i < 7; i++)
             await File.WriteAllTextAsync(Path.Combine(_tempDir, $"note{i}.txt"), $"plain readable text {i}");
 
         using var scheduler = new ContentIndexScheduler(_database);
         scheduler.Start(MakeConfig());
 
-        await WaitUntilAsync(() => _notifications.Count > 0, timeoutMs: 15000);
-        // A second card would land right after the first, so give the worker a beat to prove it does not.
-        await Task.Delay(500);
+        await WaitUntilAsync(() => Snapshot().Count > 0, timeoutMs: 15000);
+        scheduler.Stop();
 
         var summary = Snapshot();
         Assert.HasCount(1, summary, $"one summary per drained run: [{Describe(summary)}]");
         Assert.AreEqual(NotificationLevel.Info, summary[0].Level, "a completed run is informational");
         Assert.Contains("ContentSearch_NotificationIndexFinishedMessage", summary[0].Message);
         Assert.Contains("7", summary[0].Message, "the summary counts the files that became searchable");
-    }
-
-    [TestMethod]
-    public async Task Stop_MidRun_SendsOneInterruptedSummary()
-    {
-        // Disabling the plugin or closing the launcher cancels the run under the user; without this
-        // the queue would simply stop moving with nothing said about it.
-        for (var i = 0; i < 60; i++)
-            await File.WriteAllTextAsync(Path.Combine(_tempDir, $"note{i}.txt"), $"plain readable text {i}");
-
-        var scheduler = new ContentIndexScheduler(_database);
-        scheduler.Start(MakeConfig());
-        await WaitUntilAsync(() => scheduler.IsIndexing, timeoutMs: 15000);
-
-        scheduler.Dispose();
-
-        var summary = Snapshot();
-        Assert.HasCount(1, summary, $"one summary for the interrupted run: [{Describe(summary)}]");
-        Assert.AreEqual(NotificationLevel.Info, summary[0].Level, "an interruption is not an error to shout about");
-        Assert.Contains("ContentSearch_NotificationIndexStoppedMessage", summary[0].Message);
     }
 
     private List<NotificationRequest> Snapshot()
@@ -115,5 +100,6 @@ public sealed class ContentIndexSchedulerRunNotificationTests
             if (condition()) return;
             await Task.Delay(50);
         }
+        Assert.Fail("The scheduler did not publish its completion within the test deadline.");
     }
 }

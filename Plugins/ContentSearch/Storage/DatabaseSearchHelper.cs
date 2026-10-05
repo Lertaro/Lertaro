@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using System.Text;
 
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
@@ -75,7 +76,7 @@ public static class DatabaseSearchHelper
     /// hit. Kept out of the iterator so the branch decision is testable on its own.
     /// </summary>
     internal static bool RequiresContentScan(IReadOnlyList<string> tokens) =>
-        tokens.Any(t => t.Length < 3);
+        tokens.Any(t => t.EnumerateRunes().Take(3).Count() < 3);
 
     // How many matched sources one duplicate-expansion query carries. Bounded only because a statement's
     // parameter count is -- the expansion itself is capped by nothing but the matches above it, exactly as
@@ -103,8 +104,18 @@ public static class DatabaseSearchHelper
         // connection while the first is still reading.
         using (var cmd = conn.CreateCommand())
         {
+            // Long terms narrow the candidate set through trigram MATCH; only all-short queries
+            // need to visit every document. Apply every literal term before LIMIT.
+            var longTerms = tokens.Where(t => !RequiresContentScan([t])).ToArray();
+            var source = "files_fts";
+            if (longTerms.Length > 0)
+            {
+                source = "files_fts(@longQuery)";
+                cmd.Parameters.AddWithValue("@longQuery", string.Join(" AND ",
+                    longTerms.Select(t => "\"" + t.Replace("\"", "\"\"") + "\"")));
+            }
             for (var i = 0; i < tokens.Length; i++)
-                cmd.Parameters.AddWithValue($"@token{i}", "%" + tokens[i] + "%");
+                cmd.Parameters.AddWithValue($"@token{i}", "%" + tokens[i].Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%");
             cmd.Parameters.AddWithValue("@limit", limit);
             // A window, not the document. The WHERE already reads every indexed document, but returning
             // `content` handed the caller the WHOLE of every match on top of that: measured on a 496-document
@@ -122,9 +133,9 @@ public static class DatabaseSearchHelper
             cmd.CommandText = $"""
                 SELECT f.id, f.path, files_fts.rowid,
                        substr(files_fts.content, max(1, instr(files_fts.content, @window) - 300), 1000)
-                FROM files_fts
+                FROM {source}
                 JOIN files f ON f.id = files_fts.rowid
-                WHERE {string.Join(" AND ", tokens.Select((_, i) => $"files_fts.content LIKE @token{i}"))}
+                WHERE {string.Join(" AND ", tokens.Select((_, i) => $"files_fts.content LIKE @token{i} ESCAPE '\\'"))}
                 LIMIT @limit;
                 """;
 

@@ -217,6 +217,7 @@ public sealed class ContentIndexScheduler : IDisposable
 
                 idleCycles = 0;
                 hasPendingOptimizations = true;
+                _runReporter.Observe(true, false, false, 0);
                 try
                 {
                     // Blocking wait is fine here: this is the dedicated below-normal scheduler
@@ -273,8 +274,11 @@ public sealed class ContentIndexScheduler : IDisposable
     /// <summary>
     /// Hands the run's state to the reporter, which owns the one-summary-per-run rule and the wording.
     /// </summary>
-    private void ReportRunEnded(bool cancelled) =>
-        _runReporter.Observe(_pendingFiles.Count > 0, _capPauseReported, cancelled, _database.CountIndexedFiles());
+    private void ReportRunEnded(bool cancelled)
+    {
+        if (_runReporter.IsRunOpen && (cancelled || _pendingFiles.IsEmpty))
+            _runReporter.Observe(!_pendingFiles.IsEmpty, _capPauseReported, cancelled, _database.CountIndexedFiles());
+    }
 
     internal void NotifyProgressChanged(bool force)
     {
