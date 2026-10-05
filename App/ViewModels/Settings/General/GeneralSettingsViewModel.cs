@@ -54,7 +54,6 @@ public class GeneralSettingsViewModel : ViewModelBase
         ActionMenuGroupOrder = new ActionMenuGroupOrderViewModel(userSettings);
         FilePreviewProviderOrder = new FilePreviewProviderOrderViewModel(userSettings);
         ThumbnailProviderOrder = new ThumbnailProviderOrderViewModel(userSettings);
-        SettingsItemAliases = new SettingsItemAliasViewModel(userSettings);
 
         _startWithWindows = userSettings.StartWithWindows;
         _autoCheckUpdates = userSettings.AutoCheckUpdates;
@@ -278,7 +277,6 @@ public class GeneralSettingsViewModel : ViewModelBase
     public ActionMenuGroupOrderViewModel ActionMenuGroupOrder { get; }
     public FilePreviewProviderOrderViewModel FilePreviewProviderOrder { get; }
     public ThumbnailProviderOrderViewModel ThumbnailProviderOrder { get; }
-    public SettingsItemAliasViewModel SettingsItemAliases { get; }
 
     public void Cleanup()
     {

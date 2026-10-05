@@ -43,6 +43,10 @@ El campo **Lista de bloqueo** acepta una cadena literal por línea. Un marcador 
 
 Si la base de datos local del navegador contiene un favicon coincidente, el plugin lo lee en modo de solo lectura y lo muestra en el resultado sin copiar el archivo de base de datos. Si no se puede leer el favicon, se usa el icono del navegador configurado y, después, el icono predeterminado de marcador o historial.
 
+### Búsqueda de configuración del sistema
+
+El complemento de configuración del sistema usa las palabras clave localizadas de Windows para las tareas del Panel de control. Por ejemplo, `env` encuentra las variables de entorno sin configurar alias. Cada palabra de la consulta debe coincidir con el inicio de una palabra del título o de las palabras clave. Estas dependen de la versión y del idioma de Windows.
+
 ## 3. Soporte del ecosistema de plugins de Flow Launcher
 
 Además de los plugins nativos de `Lertaro.PluginSdk`, el módulo integrado **Flow Launcher Bridge** ofrece compatibilidad con el extenso catálogo de Flow Launcher.

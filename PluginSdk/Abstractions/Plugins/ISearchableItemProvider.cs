@@ -34,10 +34,7 @@ public class SearchableItem
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
 
-    /// <summary>Optional stable provider-specific identifier, independent of the localized title.</summary>
-    public string Id { get; set; } = string.Empty;
-
-    /// <summary>Whole-query keywords. Several items may share a keyword.</summary>
+    /// <summary>Optional search keywords. Each query word must prefix a title or keyword word.</summary>
     public IReadOnlyList<string> Keywords { get; set; } = Array.Empty<string>();
 
     /// <summary>Optional vector path string for a custom icon.</summary>

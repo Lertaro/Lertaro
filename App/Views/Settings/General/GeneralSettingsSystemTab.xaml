@@ -49,28 +49,6 @@
                     </Setter.Value>
                 </Setter>
             </Style>
-            <!-- One alias may have several target rows. -->
-            <DataTemplate x:Key="SettingsItemAliasItemTemplate">
-                <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,6">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="150"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <TextBox Grid.Column="0" Style="{StaticResource SettingsTextBox}" Margin="0,0,8,0"
-                                 Text="{Binding Alias, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                        <TextBox Grid.Column="1" Style="{StaticResource SettingsTextBox}" Margin="0,0,8,0"
-                                 Text="{Binding Target, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                        <Button Grid.Column="2" Content="&#xE74D;"
-                                ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Delete]}"
-                                Style="{StaticResource BrowseIconButton}"
-                                Command="{Binding DataContext.General.SettingsItemAliases.RemoveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding}"/>
-                    </Grid>
-                </Border>
-            </DataTemplate>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -217,32 +195,6 @@
                              Style="{StaticResource SettingsTextBox}"
                              Text="{Binding General.FileManager.Parameter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
-            </StackPanel>
-        </Border>
-        <Border Style="{StaticResource SettingsCard}" Margin="0,12,0,0">
-            <StackPanel>
-                <TextBlock x:Name="RowSettingsItemAliasList" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SettingsItemAliasTitle]}"
-                           FontWeight="SemiBold" FontSize="13" Margin="0,0,0,4"/>
-                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SettingsItemAliasHint]}"
-                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-
-                <Grid Margin="0,0,0,2">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="150"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Margin="0,0,8,0" Style="{StaticResource SettingsHintText}" TextWrapping="Wrap"
-                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SettingsItemAliasColumnAlias]}"/>
-                    <TextBlock Grid.Column="1" Margin="0,0,8,0" Style="{StaticResource SettingsHintText}" TextWrapping="Wrap"
-                               Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SettingsItemAliasColumnTarget]}"/>
-                </Grid>
-
-                <ItemsControl ItemsSource="{Binding General.SettingsItemAliases.Items}" ItemTemplate="{StaticResource SettingsItemAliasItemTemplate}"/>
-
-                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Add]}"
-                        Command="{Binding General.SettingsItemAliases.AddCommand}"
-                        Style="{StaticResource SettingsButton}"
-                        Margin="0,10,0,0" HorizontalAlignment="Left"/>
             </StackPanel>
         </Border>
     </StackPanel>

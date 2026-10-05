@@ -11,12 +11,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Lertaro.App.Tests" />
     <ProjectReference Include="..\..\PluginSdk\PluginSdk.csproj" Private="false" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\Translations\**\*.json" />
-    <InternalsVisibleTo Include="Lertaro.App.Tests" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">

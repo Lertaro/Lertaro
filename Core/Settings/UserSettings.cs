@@ -177,13 +177,6 @@ public class UserSettings
     /// </summary>
     public Dictionary<string, string> ResultTypeTriggers { get; set; } = new();
 
-    /// <summary>
-    /// Whole-query aliases mapped to one or more exact item titles or provider item IDs.
-    /// The converter also reads the original single-target string values.
-    /// </summary>
-    [System.Text.Json.Serialization.JsonConverter(typeof(SettingsItemAliasJsonConverter))]
-    public Dictionary<string, List<string>> SettingsItemAliases { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-
     public Dictionary<string, Dictionary<string, object>> PluginSettings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public T GetPluginSetting<T>(string pluginId, string key, T defaultValue) =>
@@ -203,3 +196,4 @@ public class UserSettings
     internal static UserSettings WriteRestored(string sourcePath, string settingsPath, int backupCount, out string json)
         => UserSettingsPersistence.WriteRestored(sourcePath, settingsPath, backupCount, out json);
 }
+

@@ -46,7 +46,20 @@ public class SystemSettingsItemProvider : ISearchableItemProvider
 
                 var hBitmap = ShellPathHelper.TryGetIconHBitmapForShellItem(item);
                 var capturedPath = path;
-                list.Add(CreateItem(name, capturedPath, desc, hBitmap));
+                // Windows exposes the localized task-link synonyms through the Shell property store.
+                // A missing property must not discard an otherwise usable settings item.
+                string[] keywords;
+                try { keywords = ParseKeywords((object?)item.ExtendedProperty("System.Keywords")); }
+                catch { keywords = []; }
+                list.Add(new SearchableItem
+                {
+                    Title = name,
+                    Keywords = keywords,
+                    Description = desc,
+                    HBitmapIcon = hBitmap,
+                    ActionType = "None",
+                    OnExecute = () => ShellInvokeHelper.InvokeShellItem(GodModePath, capturedPath)
+                });
             }
         }
         catch { }
@@ -54,18 +67,16 @@ public class SystemSettingsItemProvider : ISearchableItemProvider
         return list;
     }
 
-    internal static SearchableItem CreateItem(string name, string path, string description, IntPtr icon = default) => new()
+    internal static string[] ParseKeywords(object? value)
     {
-        Title = name,
-        Id = path,
-        Description = description,
-        HBitmapIcon = icon,
-        // GodMode task IDs survive localization; both environment-variable tasks share these keywords.
-        Keywords = path.EndsWith("\\{37092408-D49C-451D-B56D-78B243DC475C}", StringComparison.OrdinalIgnoreCase)
-                   || path.EndsWith("\\{E2394C16-F45A-496F-83CC-49E163281662}", StringComparison.OrdinalIgnoreCase)
-            ? new[] { "env", "environment", "environment variables" }
-            : Array.Empty<string>(),
-        ActionType = "None",
-        OnExecute = () => ShellInvokeHelper.InvokeShellItem(GodModePath, path)
-    };
+        // FolderItem2 may return a semicolon-delimited string or a SAFEARRAY of strings.
+        var values = value switch
+        {
+            string text => new[] { text },
+            Array array => array.OfType<string>(),
+            _ => Enumerable.Empty<string>()
+        };
+        return values.SelectMany(text => text.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
 }

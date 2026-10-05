@@ -17,9 +17,6 @@ Configuración general abarca el comportamiento central del sistema, las dimensi
 - **Nivel de registro**: Selecciona Error / Advertencia / Información (predeterminado) / Depuración para la verbosidad de los registros.
 - **Idioma de la interfaz**: Selecciona el idioma global de la aplicación.
 
-
-- **Alias de búsqueda de elementos de configuración**: Solo búsqueda rápida. Un alias exacto puede coincidir con varios elementos: añade una fila por destino. Usa el nombre exacto o el identificador. Las variables de entorno del sistema y de la cuenta ya incluyen la palabra clave env.
-
 ## 2. Ventana de búsqueda rápida
 
 Permite ajustar con precisión las dimensiones geométricas y las prioridades de la barra flotante centrada:

@@ -11,7 +11,12 @@ namespace Lertaro.App.ViewModels.Search;
 // still owns the actual query-matching and AppSearchResult-building logic.
 internal static class SearchableItemCache
 {
-    public sealed record CacheEntry(SearchableItem Item, List<string> Aliases, System.Windows.Media.ImageSource? Icon);
+    public sealed record CacheEntry(SearchableItem Item, List<string> Aliases, System.Windows.Media.ImageSource? Icon)
+    {
+        public string[] KeywordWords { get; } = Item.Keywords.Count == 0 ? [] : Item.Keywords.Prepend(Item.Title)
+            .SelectMany(text => text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
 
     private static readonly ConcurrentDictionary<string, List<CacheEntry>> _cache = new();
     private static readonly ConcurrentDictionary<string, Task> _loadingTasks = new();

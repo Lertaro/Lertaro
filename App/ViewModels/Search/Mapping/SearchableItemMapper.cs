@@ -63,8 +63,7 @@ public static class SearchableItemMapper
         // title and every alias (2+ parses per text, and Parse re-runs each alias provider's
         // GetQueryForms), which dominated this loop's cost on a single keystroke.
         var fuzzy = FuzzyQuery.Parse(q);
-
-        var aliasTargets = FindAliasTargets(q, UserSettings.Load().SettingsItemAliases);
+        var queryWords = q.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
 
         // Every matched entry -- across ALL providers, not just within one -- gets ranked by the same
         // match rank the file search hot path uses (FuzzyMatcher.ComputeBestMatch, against the entry's
@@ -81,7 +80,13 @@ public static class SearchableItemMapper
 
             foreach (var entry in entries)
             {
-                var match = MatchCatalogEntry(fuzzy, entry.Item, entry.Aliases, aliasTargets);
+                // The standard match contract (FuzzyMatcher.ComputeBestMatch): title first,
+                // then each curated alias, via the same FzfPattern Parse Core's real file search uses
+                // -- a multi-word query like "gsh ypfq" correctly requires BOTH words to match
+                // somewhere. (Keyword-scoped directory search used to live here as a FileFilter_
+                // ResultKind routing over materialized files; it is now a real scoped engine search --
+                // see FileFilterScopeResolver.)
+                var match = MatchCatalogEntry(fuzzy, queryWords, entry);
                 if (match.IsMatch)
                     matched.Add((entry, match, provider, q));
             }
@@ -102,25 +107,17 @@ public static class SearchableItemMapper
         return candidates;
     }
 
-    // Explicit keywords can belong to multiple items. Keep ordinary title/transliteration matching,
-    // and give each exact keyword hit the same full-name rank, without parsing a title as query syntax.
-    internal static MatchRank MatchCatalogEntry(
-        FuzzyQuery query, SearchableItem item, List<string> aliases, IReadOnlySet<string> aliasTargets)
+    internal static MatchRank MatchCatalogEntry(FuzzyQuery query, string[] queryWords, SearchableItemCache.CacheEntry entry)
     {
-        if (aliasTargets.Contains(item.Title) || (item.Id.Length > 0 && aliasTargets.Contains(item.Id))
-            || item.Keywords.Contains(query.Text, StringComparer.OrdinalIgnoreCase))
-            return new MatchRank(MatchRank.TierName, 0, 1);
-        return query.BestMatch(item.Title, aliases);
+        var match = query.BestMatch(entry.Item.Title, entry.Aliases);
+        if (match.IsMatch) return match;
+        // Match Windows Control Panel task links: every query token prefixes a title/keyword word.
+        // Keyword-only hits have no title highlight evidence, so retain zero weight as a fallback.
+        return queryWords.Length > 0 && queryWords.All(token => entry.KeywordWords.Any(
+                word => word.StartsWith(token, StringComparison.OrdinalIgnoreCase)))
+            ? new MatchRank(MatchRank.TierFull, 0, 0)
+            : MatchRank.NoMatch;
     }
-
-    // Exact and whole-query, ignoring case only: "env" resolves, "en" and "environment" do not. Anything
-    // looser would steal matches from the ordinary search of the same letters, which the catalog scan
-    // already ranks on its own.
-    internal static HashSet<string> FindAliasTargets(string query, IReadOnlyDictionary<string, List<string>> aliases) =>
-        aliases.Where(entry => string.Equals(entry.Key, query, StringComparison.OrdinalIgnoreCase))
-            .SelectMany(entry => entry.Value)
-            .Where(target => !string.IsNullOrWhiteSpace(target))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     // Split out of the matches loop below purely to keep this file's per-method length down -- no
     // other caller.

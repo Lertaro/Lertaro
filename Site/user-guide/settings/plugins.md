@@ -25,6 +25,10 @@ Clicking any plugin on the left displays its icon, name, version, and overview i
 - **Multiline Configuration Editors**: `StringList` fields use soft wrapping in the expanded editor. Actual line breaks show a subtle `↵` marker for readability; the marker is visual only and is never saved or included in copied text.
 - **Safe Staging & Rollback**: Modifications are staged in memory and survive switching to another plugin or leaving the page, so nothing is lost while you compare plugins. The Settings window's **Apply**/**OK** saves the configuration of every plugin you edited in one go before the window closes; **Cancel** (or closing the window without applying) restores the previously saved values.
 
+### System Settings Search
+
+The **System Settings Search** plugin uses the localized keywords supplied by Windows for Control Panel tasks. For example, `env` finds environment-variable tasks without a custom alias table. Each query word must match the start of a title or keyword word. Available keywords depend on the Windows version and system language.
+
 ### CoreExtensions Search Type Filters
 
 Under **Settings → Plugins → CoreExtensions → Configure → Search Filters**, you can control the type filters shown in the left side of the full search window. File and Folder are always available; Document, Image, and Video can be disabled individually.

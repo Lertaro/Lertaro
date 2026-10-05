@@ -17,9 +17,6 @@ General Settings covers core application behaviors, search window dimensions and
 - **Log Level**: Dropdown selecting Error / Warning / Info (default) / Debug, controlling log verbosity across all processes.
 - **UI Language**: Selects the active display language across the entire application.
 
-
-- **Settings Item Search Aliases**: Quick search only. An exact alias can match multiple items: add a row for each target. Use the exact display name or item ID. Both system and account environment-variable tasks already include the env keyword.
-
 ## 2. Quick Search Window
 
 Fine-tunes the dimensions, layout, and priority rankings of the centered floating search bar:
