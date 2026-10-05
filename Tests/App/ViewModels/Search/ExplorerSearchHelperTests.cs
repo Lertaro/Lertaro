@@ -54,7 +54,9 @@ public sealed class ExplorerSearchHelperTests
     }
 
     // Folders group ahead of files rather than interleaving with them, matching Explorer -- so a folder
-    // whose name sorts after a file's still leads, and one sorting before a file's still trails it.
+    // whose name sorts after a file's still leads, and one sorting before a file's still trails it. The
+    // grouping is a tie-break on the match POSITION: a file matching further left than every folder leads
+    // them all, which is the leftmost-match test below.
     [TestMethod]
     public void OrderByDirectoryTier_DirectChildren_FoldersGroupBeforeFiles()
     {
@@ -72,7 +74,8 @@ public sealed class ExplorerSearchHelperTests
             result.Select(item => item.FullPath).ToArray());
     }
 
-    // Each group keeps the name ordering inside it.
+    // Each group keeps the name ordering inside it (every row here matches at position 0, so the groups are
+    // the only thing separating them).
     [TestMethod]
     public void OrderByDirectoryTier_DirectChildren_NameOrderAppliesWithinEachGroup()
     {
@@ -90,8 +93,8 @@ public sealed class ExplorerSearchHelperTests
             result.Select(item => item.FullPath).ToArray());
     }
 
-    // Folder-first is the OUTER key, so it holds even when a file matches better -- but tier and start
-    // still order items WITHIN a group.
+    // Folder-first separates rows whose matches START at the same position, so it still holds when a file
+    // has the better match TIER -- but tier and start still order items WITHIN a group.
     [TestMethod]
     public void OrderByDirectoryTier_DirectChildren_FolderGroupLeadsRegardlessOfMatchTier()
     {
@@ -105,6 +108,26 @@ public sealed class ExplorerSearchHelperTests
 
         CollectionAssert.AreEqual(
             new[] { @"C:\Root\better-folder", @"C:\Root\weak-folder", @"C:\Root\perfect.txt" },
+            result.Select(item => item.FullPath).ToArray());
+    }
+
+    // The match POSITION is the strongest direct-child key: it leads the folder/file grouping, so a plain
+    // file matching at position 0 sits above a folder matching at position 3 -- a file whose match is
+    // leftmost must not be buried under the folders, however few rows fit on screen. Rows whose matches
+    // start at the same position still group folders ahead of files, which the first two rows show.
+    [TestMethod]
+    public void OrderByDirectoryTier_DirectChildren_LeftmostMatchOutranksTheFolderGroup()
+    {
+        var result = ExplorerSearchHelper.OrderByDirectoryTier(
+            [
+                Row(@"C:\Root\Downloads", isDir: true, start: 3),
+                Row(@"C:\Root\notes.txt", start: 0),
+                Row(@"C:\Root\Network", isDir: true, start: 0),
+            ],
+            @"C:\Root");
+
+        CollectionAssert.AreEqual(
+            new[] { @"C:\Root\Network", @"C:\Root\notes.txt", @"C:\Root\Downloads" },
             result.Select(item => item.FullPath).ToArray());
     }
 
