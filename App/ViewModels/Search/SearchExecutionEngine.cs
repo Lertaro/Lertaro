@@ -124,12 +124,16 @@ internal sealed class SearchExecutionEngine : IDisposable
         }
 
         var token = cts.Token;
+        var sourceTracker = InlineSearchManager.Instance.ExplorerTracker;
+        var commandDirectory = isInlineSearchContext
+            ? (!string.IsNullOrWhiteSpace(searchScope) ? searchScope : sourceTracker.ActivePath ?? sourceTracker.LastActiveExplorerPath)
+            : sourceTracker.LastActiveExplorerPath;
         // Providers are invoked with the box text as typed (the owner of a trigger word has to keep
         // recognising it), but their rows are highlighted against `query` -- what the file search beside
         // them was matched with, with that word (and any :token suffix) already taken off. Same split
         // BuildQuickResults makes, so a row painted from either path highlights identically.
         if (emitInstantResults)
-            EmitInstantResults(instantQuery ?? query, query, isInlineSearchContext, searchVersion, token, onResultsUpdated, shouldEmitInstantResults);
+            EmitInstantResults(instantQuery ?? query, query, isInlineSearchContext, searchVersion, token, onResultsUpdated, shouldEmitInstantResults, commandDirectory);
         _ = Task.Run(async () =>
         {
             try
@@ -143,9 +147,7 @@ internal sealed class SearchExecutionEngine : IDisposable
                 if (isInlineSearchContext && tracker.ActiveHwnd != IntPtr.Zero
                     && (tracker.IsActiveWindowExplorer || (tracker.IsActiveWindowDialog && dialogAdapter != null)))
                 {
-                    var contextDirectory = !string.IsNullOrWhiteSpace(searchScope)
-                        ? searchScope
-                        : tracker.ActivePath ?? tracker.LastActiveExplorerPath;
+                    var contextDirectory = commandDirectory;
                     if (!string.IsNullOrEmpty(contextDirectory))
                     {
                         await RenderInlineSearchAsync(query, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable, bypassExclusions, folderScope).ConfigureAwait(false);
@@ -154,9 +156,7 @@ internal sealed class SearchExecutionEngine : IDisposable
                 }
 
                 var streamingScope = tracker.IsActiveWindowExplorer ? searchScope : null;
-                var streamingContextDirectory = isInlineSearchContext
-                    ? (!string.IsNullOrWhiteSpace(searchScope) ? searchScope : tracker.ActivePath ?? tracker.LastActiveExplorerPath)
-                    : tracker.LastActiveExplorerPath;
+                var streamingContextDirectory = commandDirectory;
                 await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective, foldersOnly: folderScope).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -282,10 +282,10 @@ internal sealed class SearchExecutionEngine : IDisposable
         int searchVersion,
         CancellationToken token,
         Action<List<AppSearchResult>, string, bool> onResultsUpdated,
-        Func<bool>? shouldEmitInstantResults) => _ = Task.Run(() =>
+        Func<bool>? shouldEmitInstantResults, string? contextDirectory) => _ = Task.Run(() =>
                                                       {
                                                           var instantResults = new List<AppSearchResult>();
-                                                          PluginSearchResultMapper.AddInstantResults(instantResults, query, highlightQuery, isInlineSearchContext);
+                                                          PluginSearchResultMapper.AddInstantResults(instantResults, query, highlightQuery, isInlineSearchContext, contextDirectory);
                                                           if (instantResults.Count == 0 || token.IsCancellationRequested)
                                                               return;
 

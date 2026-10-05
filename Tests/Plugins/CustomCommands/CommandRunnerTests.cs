@@ -3,6 +3,28 @@ namespace Lertaro.Plugins.CustomCommands.Tests;
 [TestClass]
 public sealed class CommandRunnerTests
 {
+    [TestMethod]
+    public void BuildStartInfo_CurrentDirectory_PreservesArgumentsAndLaunchOptions()
+    {
+        var command = new CustomCommandsInstantProvider.CommandItem
+        {
+            Path = "tool.exe", Parameter = "--flag", WorkingDir = @"C:\fixed",
+            UseCurrentDirectory = true, RunAsAdmin = true, RunSilently = true
+        };
+        var info = CommandRunner.BuildStartInfo(command, @"D:\current", (configured, current, context) =>
+        {
+            Assert.AreEqual(@"C:\fixed", configured);
+            Assert.IsTrue(current);
+            Assert.AreEqual(@"D:\current", context);
+            return context;
+        });
+        Assert.AreEqual(@"D:\current", info.WorkingDirectory);
+        Assert.AreEqual("tool.exe", info.FileName);
+        Assert.AreEqual("--flag", info.Arguments);
+        Assert.AreEqual("runas", info.Verb);
+        Assert.AreEqual(System.Diagnostics.ProcessWindowStyle.Hidden, info.WindowStyle);
+    }
+
     private static CustomCommandsInstantProvider.CommandItem MakeCommand(string parameter) =>
         new() { Parameter = parameter };
 

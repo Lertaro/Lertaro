@@ -51,32 +51,7 @@ public static class PluginActionExecutor
                     {
                         var json = arg.Substring(8).Trim();
                         using var doc = System.Text.Json.JsonDocument.Parse(json);
-                        var root = doc.RootElement;
-                        var path = root.GetProperty("Path").GetString() ?? "";
-                        var args = root.GetProperty("Arguments").GetString() ?? "";
-                        var workingDir = root.GetProperty("WorkingDir").GetString() ?? "";
-                        var runSilently = root.GetProperty("RunSilently").GetBoolean();
-                        var targetRunAsAdmin = root.GetProperty("RunAsAdmin").GetBoolean();
-
-                        var targetPsi = new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = path,
-                            Arguments = args,
-                            UseShellExecute = true
-                        };
-                        if (!string.IsNullOrWhiteSpace(workingDir))
-                        {
-                            targetPsi.WorkingDirectory = workingDir;
-                        }
-                        if (runSilently)
-                        {
-                            targetPsi.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                            targetPsi.CreateNoWindow = true;
-                        }
-                        if (targetRunAsAdmin)
-                        {
-                            targetPsi.Verb = "runas";
-                        }
+                        var targetPsi = BuildCustomCommandStartInfo(doc.RootElement, PluginSdk.Helpers.ShellCommandLauncher.ResolveWorkingDirectory);
                         System.Diagnostics.Process.Start(targetPsi);
                         return true;
                     }
@@ -162,9 +137,11 @@ public static class PluginActionExecutor
                     System.Diagnostics.Process.Start(psi);
                 }
             }
+            catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223) { }
             catch (Exception ex)
             {
                 Logger.Log($"[PluginActionExecutor] Failed to execute instant result action: {ex.Message}", LogLevel.Error);
+                PluginSdk.Services.PluginNotificationService.Show(result.Name, ex.Message);
             }
             return true;
         }
@@ -200,5 +177,21 @@ public static class PluginActionExecutor
             Logger.Log($"[PluginActionExecutor] Shortcut command '{registration.Action.GetType().Name}' threw: {ex.Message}", LogLevel.Error);
         }
         return true;
+    }
+
+    internal static System.Diagnostics.ProcessStartInfo BuildCustomCommandStartInfo(System.Text.Json.JsonElement root,
+        Func<string?, bool, string?, string?> resolveDirectory)
+    {
+        var directory = root.GetProperty("WorkingDir").GetString() ?? "";
+        var useCurrent = root.TryGetProperty("UseCurrentDirectory", out var option) && option.GetBoolean();
+        return new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = root.GetProperty("Path").GetString() ?? "",
+            Arguments = root.GetProperty("Arguments").GetString() ?? "",
+            WorkingDirectory = resolveDirectory(directory, useCurrent, directory) ?? "",
+            UseShellExecute = true,
+            WindowStyle = root.GetProperty("RunSilently").GetBoolean() ? System.Diagnostics.ProcessWindowStyle.Hidden : System.Diagnostics.ProcessWindowStyle.Normal,
+            Verb = root.GetProperty("RunAsAdmin").GetBoolean() ? "runas" : ""
+        };
     }
 }

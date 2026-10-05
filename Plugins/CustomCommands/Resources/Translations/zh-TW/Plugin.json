@@ -23,5 +23,7 @@
   "CustomCommands_PluginDesc": "自訂命令外掛。允許使用者定義快捷指令、別名與外部命令觸發器。",
   "Plugin_Comp_Desc_CustomCommandsInstantProvider": "透過在搜尋框中鍵入自訂縮寫、快捷別名，極速觸發對應的命令列指令碼或應用程式。",
   "Plugin_Comp_Desc_CustomCommandsQuickNavProvider": "把標記了\"在快速導航中顯示\"的自訂命令，作為條目（可選巢狀子選單）列在快速導航選單裡。",
-  "Plugin_Comp_Desc_CustomCommandsTranslationProvider": "為自訂命令列和別名主控台提供翻譯轉換字典。"
+  "Plugin_Comp_Desc_CustomCommandsTranslationProvider": "為自訂命令列和別名主控台提供翻譯轉換字典。",
+  "CustomCommands_Config_CurrentDirectory": "在目前目錄中執行",
+  "CustomCommands_Config_CurrentDirectoryDesc": "優先使用選單來源目錄、內嵌搜尋目錄或快速搜尋中最近瀏覽的目錄，覆寫下方工作目錄。目錄無法使用時停止執行。"
 }

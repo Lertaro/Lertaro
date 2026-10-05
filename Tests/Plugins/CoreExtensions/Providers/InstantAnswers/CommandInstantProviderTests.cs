@@ -11,20 +11,18 @@ public sealed class CommandInstantProviderTests
     public void GetInstantResults_EmptyQuery_ReturnsNothing() => Assert.IsEmpty(Provider.GetInstantResults(""));
 
     [TestMethod]
-    public void GetInstantResults_HashPrefix_ReturnsRunAsAdminCommand()
+    [DataRow("#dir", true)]
+    [DataRow("$dir", false)]
+    public void GetInstantResults_PrefixControlsElevationWhenExecuted(string query, bool expectedAdmin)
     {
-        var result = Provider.GetInstantResults("#dir").Single();
-
-        Assert.AreEqual("runas:cmd.exe /k dir", result.ActionArgument);
+        (string Command, bool Admin)? executed = null;
+        var provider = new CommandInstantProvider((command, _, admin, _, _) => executed = (command, admin));
+        var result = Assert.ContainsSingle(provider.GetInstantResults(query));
         Assert.AreEqual("Execute", result.ActionType);
-    }
-
-    [TestMethod]
-    public void GetInstantResults_DollarPrefix_ReturnsNormalCommand()
-    {
-        var result = Provider.GetInstantResults("$dir").Single();
-
-        Assert.AreEqual("cmd.exe /k dir", result.ActionArgument);
+        Assert.IsNull(executed);
+        Assert.IsNotNull(result.OnExecute);
+        result.OnExecute();
+        Assert.AreEqual(("dir", expectedAdmin), executed);
     }
 
     [TestMethod]

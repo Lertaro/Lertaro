@@ -41,7 +41,7 @@ public static class SearchResultMapper
         // than the stripped keyword everything else here uses -- a plugin like a calculator or unit
         // converter may care about the suffix itself, and it has no other way to see it since the token
         // is consumed before reaching here for every other purpose (file search, highlighting, ...).
-        PluginSearchResultMapper.AddInstantResults(pass.Rows, rawQuery, query, isInlineWindow);
+        PluginSearchResultMapper.AddInstantResults(pass.Rows, rawQuery, query, isInlineWindow, contextDirectory);
 
         // Plugin actions keep their own grouped-by-GroupName display (unlike everything below, these
         // are explicit keyword triggers the user deliberately typed, not fuzzy-guessed candidates, so

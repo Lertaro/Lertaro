@@ -70,6 +70,14 @@ public class CustomCommandsPlugin : IPlugin, IConfigurable
                     },
                     new PluginConfigField
                     {
+                        Key = "UseCurrentDirectory",
+                        LabelKey = "CustomCommands_Config_CurrentDirectory",
+                        DescriptionKey = "CustomCommands_Config_CurrentDirectoryDesc",
+                        FieldType = ConfigFieldType.Boolean,
+                        DefaultValue = false
+                    },
+                    new PluginConfigField
+                    {
                         Key = "WorkingDir",
                         LabelKey = "CustomCommands_Config_WorkingDirLabel",
                         FieldType = ConfigFieldType.FolderPath,

@@ -18,6 +18,26 @@ public sealed class CustomCommandsInstantProviderTests
             pluginId == "Lertaro.Plugins.CustomCommands" && key == "Commands" ? commands : defaultValue;
 
     [TestMethod]
+    public void GetInstantResults_CurrentDirectory_IsCapturedInsteadOfFixedDirectory()
+    {
+        ConfigureCommands(new() { new() { Keyword = "here", Path = "tool.exe", WorkingDir = @"C:\fixed", UseCurrentDirectory = true } });
+        var item = Assert.ContainsSingle(new CustomCommandsInstantProvider().GetInstantResults("here", @"D:\source"));
+        using var doc = JsonDocument.Parse(item.ActionArgument["cc_exec:".Length..]);
+        Assert.AreEqual(@"D:\source", doc.RootElement.GetProperty("WorkingDir").GetString());
+        Assert.IsTrue(doc.RootElement.GetProperty("UseCurrentDirectory").GetBoolean());
+    }
+
+    [TestMethod]
+    public void GetInstantResults_MissingCurrentDirectory_KeepsRequiredFlagInsteadOfFallingBack()
+    {
+        ConfigureCommands(new() { new() { Keyword = "here", Path = "tool.exe", WorkingDir = @"C:\fixed", UseCurrentDirectory = true } });
+        var item = Assert.ContainsSingle(new CustomCommandsInstantProvider().GetInstantResults("here", null));
+        using var doc = JsonDocument.Parse(item.ActionArgument["cc_exec:".Length..]);
+        Assert.AreEqual("", doc.RootElement.GetProperty("WorkingDir").GetString());
+        Assert.IsTrue(doc.RootElement.GetProperty("UseCurrentDirectory").GetBoolean());
+    }
+
+    [TestMethod]
     public void GetInstantResults_EmptyQuery_ReturnsNothing() =>
         Assert.IsEmpty(new CustomCommandsInstantProvider().GetInstantResults(""));
 

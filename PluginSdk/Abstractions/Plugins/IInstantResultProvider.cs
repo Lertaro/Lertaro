@@ -14,6 +14,12 @@ public interface IInstantResultProvider : IPluginComponent
     /// </summary>
     IEnumerable<InstantResultItem> GetInstantResults(string query);
 
+    /// <summary>Directory captured for this search. Existing providers keep their original entry point.</summary>
+    IEnumerable<InstantResultItem> GetInstantResults(string query, string? contextDirectory) => GetInstantResults(query);
+
+    /// <summary>Opt in to the explorer inline window; command providers can use its directory context.</summary>
+    bool SupportsInlineSearch => false;
+
     /// <summary>
     /// Returns a custom highlight mask if supported.
     /// </summary>

@@ -35,6 +35,12 @@ Run commands directly without launching a terminal window first:
 - `#<command>`: Opens a command prompt and executes the command **with Administrator privileges** (e.g. `#sfc /scannow` or `#net start LertaroService`).
 - `$<command>`: Opens a command prompt and executes the command with **standard user permissions** (e.g. `$ping 1.1.1.1` or `$ipconfig /all`).
 
+Under **Settings → Plugins → Core Extensions → Configure → Command Executor**, choose CMD (default), Windows PowerShell, or PowerShell (pwsh). **Run in current directory** uses the inline window's directory or the last browsed directory for quick search. An unavailable directory stops execution.
+
+Enable **Show in cascading folder browser** to add **Run command in this directory**. Its prompt lets you choose an interpreter and elevation for each command, always using the menu's source directory; a child folder's context menu uses that folder. Empty input opens the selected shell, and `#`/`$` overrides the elevation checkbox. Exact `cmd`, `powershell`, or `pwsh` after the prefix (case-insensitive, trimming whitespace) opens that program directly; only a missing executable falls back to CMD with the original input. A missing interpreter selected for an ordinary command reports an error without changing script syntax.
+
+CMD expands `%CD%` in a startup command before changing directory. If elevation or a UNC path makes Windows override the initial directory, that variable may still refer to the old directory. Choose PowerShell and use `$PWD` when a startup command needs to read the directory.
+
 ### Direct URL Navigation
 
 Type or paste any URL beginning with `http://` or `https://` and press `Enter` to open it immediately in your default browser. Entering a valid protocol-less web address such as `example.com` generates two instant results in the Quick Search Window: `https://...` and `http://...`. The protocol-less guess only applies to a hard-coded whitelist of common top-level domains (over a hundred suffixes such as `.com`, `.cn`, and `.io`, plus `xn--` internationalized domains) and is not configurable; suffixes that double as common file extensions are deliberately left out, and anything else stays a file search, so `abc.txt` produces no browser row. Add the protocol yourself to open a URL the list does not cover. Each result uses the two-line browser-open presentation, the query text is not modified, and an address that already includes a protocol produces one result.
@@ -98,4 +104,5 @@ Under **Settings → Plugins → File Filters → Configure**, you can bind a tr
 Under **Settings → Plugins → Custom Commands → Configure**, wrap complex scripts, tools, or applications into concise commands:
 
 - **Parameter Placeholders**: Supports positional placeholders `%s1`, `%s2`... and full query capture `%s`.
+- **Run in current directory**: Overrides the fixed working directory with the cascading menu's source directory, the inline window's directory, or the last browsed directory for quick search. An unavailable directory stops execution. Disabled by default to preserve existing configurations.
 - **Quick Navigation Integration**: Check "Show in Quick Navigation" to pin the command directly into the [**Quick Navigation**](./hotkeys#_3-quick-navigation-mouse-triggers) menu, with optional `/` submenu paths (e.g. `DevTools/RestartService`).

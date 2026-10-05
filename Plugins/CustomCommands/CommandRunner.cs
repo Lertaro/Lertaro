@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.IO;
 using System.Text.RegularExpressions;
 
 namespace Lertaro.Plugins.CustomCommands;
@@ -90,29 +89,32 @@ internal static class CommandRunner
     // CustomCommandsInstantProvider.GetInstantResults, since by the time the user activates a result
     // the original CommandItem object is long gone). Mirrors CustomActions.DynamicActionProvider's own
     // RunMulti -- same direct ProcessStartInfo approach, no string round-trip needed here either.
-    public static void Run(CustomCommandsInstantProvider.CommandItem cmd)
+    public static void Run(CustomCommandsInstantProvider.CommandItem cmd, string? contextDirectory = null)
     {
         if (string.IsNullOrWhiteSpace(cmd.Path)) return;
-
-        var resolvedParam = ResolveParameter(cmd, "");
-        var psi = new ProcessStartInfo
-        {
-            FileName = cmd.Path,
-            Arguments = resolvedParam,
-            UseShellExecute = true
-        };
-        if (!string.IsNullOrWhiteSpace(cmd.WorkingDir) && Directory.Exists(cmd.WorkingDir))
-            psi.WorkingDirectory = cmd.WorkingDir;
-        if (cmd.RunSilently) psi.WindowStyle = ProcessWindowStyle.Hidden;
-        if (cmd.RunAsAdmin) psi.Verb = "runas";
-
-        try { Process.Start(psi); }
+        try { Process.Start(BuildStartInfo(cmd, contextDirectory)); }
+        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223) { }
         catch (Exception ex)
         {
             // A vanished/moved/renamed command target fails silently otherwise -- the user clicks
             // and nothing happens, with no trace. CreateNoWindow is not set here: it has no effect
             // under UseShellExecute (WindowStyle.Hidden is the effective suppression).
             PluginSdk.Logger.Log($"[CustomCommands] Failed to launch '{cmd.Path}': {ex.Message}", PluginSdk.LogLevel.Error);
+            PluginSdk.Services.PluginNotificationService.Show(PluginSdk.Services.TranslationService.Get("CustomCommands_PluginName"), ex.Message);
         }
     }
+
+    internal static ProcessStartInfo BuildStartInfo(CustomCommandsInstantProvider.CommandItem cmd, string? contextDirectory) =>
+        BuildStartInfo(cmd, contextDirectory, PluginSdk.Helpers.ShellCommandLauncher.ResolveWorkingDirectory);
+
+    internal static ProcessStartInfo BuildStartInfo(CustomCommandsInstantProvider.CommandItem cmd, string? contextDirectory,
+        Func<string?, bool, string?, string?> resolveDirectory) => new()
+    {
+        FileName = cmd.Path,
+        Arguments = ResolveParameter(cmd, ""),
+        UseShellExecute = true,
+        WorkingDirectory = resolveDirectory(cmd.WorkingDir, cmd.UseCurrentDirectory, contextDirectory) ?? "",
+        WindowStyle = cmd.RunSilently ? ProcessWindowStyle.Hidden : ProcessWindowStyle.Normal,
+        Verb = cmd.RunAsAdmin ? "runas" : ""
+    };
 }

@@ -23,5 +23,7 @@
   "CustomCommands_PluginDesc": "Custom commands plugin. Allows users to define shortcuts, aliases, and external command triggers.",
   "Plugin_Comp_Desc_CustomCommandsInstantProvider": "Executes customized script commands, short aliases, or applications directly by typing them in the search box.",
   "Plugin_Comp_Desc_CustomCommandsQuickNavProvider": "Lists custom commands flagged \"Show in Quick Navigation\" as entries (optionally nested into submenus) in the Quick Navigation menu.",
-  "Plugin_Comp_Desc_CustomCommandsTranslationProvider": "Provides translation maps for Custom Commands and script triggers."
+  "Plugin_Comp_Desc_CustomCommandsTranslationProvider": "Provides translation maps for Custom Commands and script triggers.",
+  "CustomCommands_Config_CurrentDirectory": "Run in the current directory",
+  "CustomCommands_Config_CurrentDirectoryDesc": "Overrides the configured working directory with the menu source folder, inline search folder, or last browsed folder in quick search. Stops if the directory is unavailable."
 }

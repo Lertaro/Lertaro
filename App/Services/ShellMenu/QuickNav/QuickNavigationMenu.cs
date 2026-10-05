@@ -39,10 +39,11 @@ public static class QuickNavigationMenu
             IsDesktop: tracker.IsDesktop);
 
         var path = tracker.ActivePath;
+        var contextDirectory = path;
         if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
             path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-        ShowCore(mouseX, mouseY, trigger, path);
+        ShowCore(mouseX, mouseY, trigger, path, contextDirectory);
     }
 
     public static void ShowFromKeyboard()
@@ -59,16 +60,17 @@ public static class QuickNavigationMenu
             point.X,
             point.Y,
             new QuickNavTriggerContext(IntPtr.Zero, IntPtr.Zero, null, IsDesktop: true),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
     }
 
-    private static void ShowCore(int mouseX, int mouseY, QuickNavTriggerContext trigger, string path)
+    private static void ShowCore(int mouseX, int mouseY, QuickNavTriggerContext trigger, string path, string? contextDirectory)
     {
         var generation = ++_sessionGeneration;
-        _ = ShowAsync(mouseX, mouseY, generation, trigger, path);
+        _ = ShowAsync(mouseX, mouseY, generation, trigger, path, contextDirectory);
     }
 
-    private static async Task ShowAsync(int mouseX, int mouseY, int generation, QuickNavTriggerContext trigger, string path)
+    private static async Task ShowAsync(int mouseX, int mouseY, int generation, QuickNavTriggerContext trigger, string path, string? contextDirectory)
     {
         var hookClient = App.HookClient;
         if (hookClient?.IsConnected == true)
@@ -93,7 +95,7 @@ public static class QuickNavigationMenu
         if (generation != _sessionGeneration)
             return;
 
-        var dummyResult = new AppSearchResult { FullPath = path, Name = Path.GetFileName(path), IsDir = true };
+        var dummyResult = new AppSearchResult { FullPath = path, Name = Path.GetFileName(path), IsDir = true, ContextDirectory = contextDirectory ?? string.Empty };
         var contextMenu = new ContextMenu();
         contextMenu.PreviewKeyDown += (s, e) => { if (e.Key == System.Windows.Input.Key.Escape) { contextMenu.IsOpen = false; e.Handled = true; } };
 

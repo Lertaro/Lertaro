@@ -23,5 +23,7 @@
   "CustomCommands_PluginDesc": "カスタムコマンドプラグイン。ショートカット、エイリアス、外部コマンドトリガーをユーザーが定義できるようにします。",
   "Plugin_Comp_Desc_CustomCommandsInstantProvider": "検索ボックスに直接入力することで、カスタマイズしたスクリプトコマンド、短いエイリアス、またはアプリケーションを実行します。",
   "Plugin_Comp_Desc_CustomCommandsQuickNavProvider": "「クイックナビゲーションに表示」が設定されたカスタムコマンドを、クイックナビゲーションメニューの項目として（任意でサブメニューにネストして）一覧表示します。",
-  "Plugin_Comp_Desc_CustomCommandsTranslationProvider": "カスタムコマンドとスクリプトトリガー用の翻訳マップを提供します。"
+  "Plugin_Comp_Desc_CustomCommandsTranslationProvider": "カスタムコマンドとスクリプトトリガー用の翻訳マップを提供します。",
+  "CustomCommands_Config_CurrentDirectory": "現在のフォルダーで実行",
+  "CustomCommands_Config_CurrentDirectoryDesc": "設定された作業フォルダーより、メニュー元、インライン検索、またはクイック検索で最後に表示したフォルダーを優先します。利用できない場合は停止します。"
 }

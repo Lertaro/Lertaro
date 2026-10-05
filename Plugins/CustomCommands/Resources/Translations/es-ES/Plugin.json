@@ -23,5 +23,7 @@
   "CustomCommands_PluginDesc": "Complemento de comandos personalizados. Permite a los usuarios definir atajos, alias y activadores de comandos externos.",
   "Plugin_Comp_Desc_CustomCommandsInstantProvider": "Ejecuta comandos de script personalizados, alias cortos o aplicaciones directamente al escribirlos en el cuadro de búsqueda.",
   "Plugin_Comp_Desc_CustomCommandsQuickNavProvider": "Lista los comandos personalizados marcados como \"Mostrar en Navegación Rápida\" como entradas (opcionalmente anidadas en submenús) en el menú de Navegación Rápida.",
-  "Plugin_Comp_Desc_CustomCommandsTranslationProvider": "Ofrece mapas de traducción para Comandos Personalizados y activadores de scripts."
+  "Plugin_Comp_Desc_CustomCommandsTranslationProvider": "Ofrece mapas de traducción para Comandos Personalizados y activadores de scripts.",
+  "CustomCommands_Config_CurrentDirectory": "Ejecutar en el directorio actual",
+  "CustomCommands_Config_CurrentDirectoryDesc": "Sustituye el directorio configurado por la carpeta de origen del menú, de búsqueda integrada o la última visitada en búsqueda rápida. Se detiene si no está disponible."
 }

@@ -41,9 +41,13 @@ public static class PluginSearchResultMapper
         }
     }
 
-    public static void AddInstantResults(List<AppSearchResult> uiResults, string query, string? highlightQuery, bool isInlineWindow)
+    public static void AddInstantResults(List<AppSearchResult> uiResults, string query, string? highlightQuery, bool isInlineWindow, string? contextDirectory = null)
+        => AddInstantResults(uiResults, query, highlightQuery, isInlineWindow, contextDirectory, PluginManager.Instance.InstantResultProviders);
+
+    internal static void AddInstantResults(List<AppSearchResult> uiResults, string query, string? highlightQuery, bool isInlineWindow,
+        string? contextDirectory, IEnumerable<IInstantResultProvider> providers)
     {
-        if (isInlineWindow)
+        if (isInlineWindow && !PluginSettingsService.GetSetting(CoreExtensionsPluginId, InlineSearchActionsSettingKey, true))
             return;
 
         // highlightQuery defaults to `query` for callers that already pass the clean (token-stripped)
@@ -55,11 +59,12 @@ public static class PluginSearchResultMapper
         // garbage and light up nothing (or something misleading).
         var effectiveHighlightQuery = highlightQuery ?? query;
 
-        foreach (var provider in PluginManager.Instance.InstantResultProviders)
+        foreach (var provider in providers)
         {
+            if (isInlineWindow && !provider.SupportsInlineSearch) continue;
             try
             {
-                var results = PluginPerformanceMonitor.Measure(provider, () => provider.GetInstantResults(query)?.ToList());
+                var results = PluginPerformanceMonitor.Measure(provider, () => provider.GetInstantResults(query, contextDirectory)?.ToList());
                 if (results == null)
                     continue;
 
@@ -69,6 +74,7 @@ public static class PluginSearchResultMapper
                         continue;
 
                     MapItem(uiResults, item, effectiveHighlightQuery, provider);
+                    uiResults[^1].ContextDirectory = contextDirectory ?? string.Empty;
                 }
 
             }

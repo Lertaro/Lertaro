@@ -40,7 +40,7 @@ internal static class SearchResultExecutionHelper
         }
         else
         {
-            PluginSearchResultMapper.AddInstantResults(current, searchQuery, searchQuery, isInlineWindow);
+            PluginSearchResultMapper.AddInstantResults(current, searchQuery, searchQuery, isInlineWindow, result.ContextDirectory);
         }
 
         return current.FirstOrDefault(candidate => SearchResultsReconciler.ItemsEqual(result, candidate));

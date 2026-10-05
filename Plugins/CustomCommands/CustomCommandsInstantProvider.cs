@@ -6,6 +6,7 @@ namespace Lertaro.Plugins.CustomCommands;
 public class CustomCommandsInstantProvider : IInstantResultProvider
 {
     public string Name => TranslationService.Get("CustomCommands_ProviderName");
+    public bool SupportsInlineSearch => true;
 
     // Every ENABLED command's keyword, published so the host strips the one the user typed before matching
     // file names -- the same treatment "mkdir" and "cs" get. A disabled command has no feature to serve, so
@@ -26,6 +27,7 @@ public class CustomCommandsInstantProvider : IInstantResultProvider
         public string Parameter { get; set; } = string.Empty;
         public string Icon { get; set; } = string.Empty;
         public string WorkingDir { get; set; } = string.Empty;
+        public bool UseCurrentDirectory { get; set; }
         public bool RunSilently { get; set; } = false;
         public bool RunAsAdmin { get; set; } = false;
         // Consumed by CustomCommandsQuickNavProvider, not this instant-answer path.
@@ -53,7 +55,9 @@ public class CustomCommandsInstantProvider : IInstantResultProvider
         return new List<CommandItem>();
     }
 
-    public IEnumerable<InstantResultItem> GetInstantResults(string query)
+    public IEnumerable<InstantResultItem> GetInstantResults(string query) => GetInstantResults(query, null);
+
+    public IEnumerable<InstantResultItem> GetInstantResults(string query, string? contextDirectory)
     {
         if (string.IsNullOrEmpty(query))
         {
@@ -80,13 +84,14 @@ public class CustomCommandsInstantProvider : IInstantResultProvider
             // appended.
             var resolvedParam = CommandRunner.ResolveParameter(cmd, argSuffix);
 
-            if (!string.IsNullOrWhiteSpace(cmd.WorkingDir) || cmd.RunSilently)
+            if (cmd.UseCurrentDirectory || !string.IsNullOrWhiteSpace(cmd.WorkingDir) || cmd.RunSilently)
             {
                 var payload = new
                 {
                     Path = cmd.Path,
                     Arguments = resolvedParam,
-                    WorkingDir = cmd.WorkingDir,
+                    WorkingDir = cmd.UseCurrentDirectory ? contextDirectory ?? "" : cmd.WorkingDir,
+                    UseCurrentDirectory = cmd.UseCurrentDirectory,
                     RunSilently = cmd.RunSilently,
                     RunAsAdmin = cmd.RunAsAdmin
                 };

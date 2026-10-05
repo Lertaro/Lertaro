@@ -35,6 +35,12 @@ Ejecuta comandos directamente sin abrir una terminal previamente:
 - `#<comando>`: Abre el símbolo del sistema y ejecuta el comando **con privilegios de administrador** (p. ej. `#sfc /scannow` o `#net start LertaroService`).
 - `$<comando>`: Abre el símbolo del sistema y ejecuta el comando con **permisos de usuario estándar** (p. ej. `$ping 1.1.1.1` o `$ipconfig /all`).
 
+En **Ajustes → Plugins → Core Extensions → Configurar → Ejecutor de comandos**, elige CMD (predeterminado), Windows PowerShell o PowerShell (pwsh). **Ejecutar en el directorio actual** usa el directorio de la búsqueda integrada o el último directorio visitado para la búsqueda rápida. Si no está disponible, se detiene la ejecución.
+
+Activa **Mostrar en el explorador de carpetas en cascada** para ejecutar comandos desde el directorio de origen del menú; el menú contextual de una subcarpeta usa esa subcarpeta. El diálogo permite elegir intérprete y permisos. Dejarlo vacío abre el intérprete; `#`/`$` prevalece sobre la casilla de administrador. Los nombres exactos `cmd`, `powershell` y `pwsh` tras el prefijo abren directamente el programa, ignorando mayúsculas y espacios exteriores. Solo si no existe se ejecuta el texto original en CMD. Un intérprete configurado que falte para un comando normal produce un error.
+
+CMD expande `%CD%` antes de cambiar de directorio. Si la elevación o una ruta UNC cambia el directorio inicial, la variable puede señalar el anterior. Para leer el directorio en el comando inicial, puedes usar PowerShell y `$PWD`.
+
 ### Apertura directa de URLs
 
 Escribe o pega cualquier dirección que comience por `http://` o `https://` y pulsa `Enter` para abrirla de inmediato en tu navegador predeterminado. Al introducir una dirección web válida sin protocolo, como `example.com`, la ventana de búsqueda rápida genera dos resultados instantáneos: `https://...` y `http://...`. La detección sin protocolo solo se aplica a una lista blanca fija en el código de dominios de nivel superior habituales (más de cien sufijos como `.com`, `.cn` y `.io`, además de los dominios internacionalizados `xn--`) y no es configurable; los sufijos que coinciden con extensiones de archivo habituales quedan fuera a propósito, y cualquier otro texto sigue siendo una búsqueda de archivos, así que `abc.txt` no genera una fila del navegador. Escribe tú mismo el protocolo para abrir una dirección que la lista no cubre. Cada resultado usa la presentación de dos líneas con la indicación para abrirlo en el navegador; el texto de búsqueda no se modifica y una dirección que ya incluye un protocolo produce un solo resultado.
@@ -94,6 +100,8 @@ En **Configuración → Plugins → Filtros de archivos → Configurar**, puedes
 - **Palabra clave activadora**: tras vincular un prefijo (p. ej. `cad`), al escribir `cad plano_pieza` en la ventana de búsqueda rápida la búsqueda normal del índice (coincidencia difusa por nombre de archivo, alias pinyin incluidos) se limita a las carpetas vinculadas. Si solo escribes la palabra clave, se te pedirá seguir escribiendo.
 
 ## 6. Comandos personalizados
+
+Cada comando puede activar **Ejecutar en el directorio actual** para sustituir el directorio fijo por el origen del menú, el directorio de la búsqueda integrada o el último visitado en la búsqueda rápida. Si no está disponible, se detiene la ejecución. La opción está desactivada por defecto.
 
 En **Configuración → Plugins → Comandos personalizados → Configurar**, convierte scripts complejos, herramientas de consola o aplicaciones en comandos concisos:
 

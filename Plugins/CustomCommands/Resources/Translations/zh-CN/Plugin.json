@@ -23,5 +23,7 @@
   "CustomCommands_PluginDesc": "自定义命令插件。允许用户定义快捷指令、别名与外部命令触发器。",
   "Plugin_Comp_Desc_CustomCommandsInstantProvider": "通过在搜索框中键入自定义缩写、快捷别名，极速触发对应的命令行脚本或应用程序。",
   "Plugin_Comp_Desc_CustomCommandsQuickNavProvider": "把标记了\"在快速导航中显示\"的自定义命令，作为条目（可选嵌套子菜单）列在快速导航菜单里。",
-  "Plugin_Comp_Desc_CustomCommandsTranslationProvider": "为自定义命令行和别名控制台提供翻译转换字典。"
+  "Plugin_Comp_Desc_CustomCommandsTranslationProvider": "为自定义命令行和别名控制台提供翻译转换字典。",
+  "CustomCommands_Config_CurrentDirectory": "在当前目录中执行",
+  "CustomCommands_Config_CurrentDirectoryDesc": "优先使用菜单来源目录、内联搜索目录或快速搜索中最近浏览的目录，覆盖下方工作目录。目录不可用时停止执行。"
 }

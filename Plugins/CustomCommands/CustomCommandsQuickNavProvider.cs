@@ -6,10 +6,17 @@ using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 namespace Lertaro.Plugins.CustomCommands;
 
 // Surfaces commands with ShowInQuickNav=true as root-level entries in the quick navigation cascader.
-// Global, not tied to any path/context the way FolderCascader's own provider is -- CanProvide/GetMenuItems
-// ignore the ISearchResult they're given entirely.
+// The source directory is captured with the menu item, before closing the popup can change focus.
 public class CustomCommandsQuickNavProvider : IQuickNavigationProvider
 {
+    private readonly Action<CustomCommandsInstantProvider.CommandItem, string?> _run;
+    private readonly Func<string, bool> _directoryExists;
+    public CustomCommandsQuickNavProvider() : this(CommandRunner.Run, System.IO.Directory.Exists) { }
+    internal CustomCommandsQuickNavProvider(Action<CustomCommandsInstantProvider.CommandItem, string?> run, Func<string, bool> directoryExists)
+    {
+        _run = run;
+        _directoryExists = directoryExists;
+    }
     public string GroupName => TranslationService.Get("CustomCommands_PluginName");
 
     // Handle -> the submenu path segments already consumed to reach that node (e.g. ["a", "b"] for a
@@ -48,11 +55,13 @@ public class CustomCommandsQuickNavProvider : IQuickNavigationProvider
             if (segments.Length == prefix!.Length)
             {
                 var capturedCmd = cmd;
+                var directory = result.ContextDirectory;
                 yield return new DynamicMenuItem
                 {
                     Text = !string.IsNullOrEmpty(cmd.Title) ? cmd.Title : cmd.Keyword,
                     HBitmapItem = QuickNavIcon.GetCommandHBitmap(cmd.Icon),
-                    OnExecute = () => CommandRunner.Run(capturedCmd)
+                    IsDisabled = cmd.UseCurrentDirectory && (string.IsNullOrWhiteSpace(directory) || !_directoryExists(directory)),
+                    OnExecute = () => _run(capturedCmd, directory)
                 };
                 continue;
             }

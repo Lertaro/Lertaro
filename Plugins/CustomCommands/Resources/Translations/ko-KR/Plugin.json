@@ -23,5 +23,7 @@
   "CustomCommands_PluginDesc": "사용자 지정 명령 플러그인입니다. 사용자가 바로 가기, 별칭, 외부 명령 트리거를 정의할 수 있게 합니다.",
   "Plugin_Comp_Desc_CustomCommandsInstantProvider": "검색 상자에 직접 입력하여 사용자 지정 스크립트 명령, 짧은 별칭, 애플리케이션을 실행합니다.",
   "Plugin_Comp_Desc_CustomCommandsQuickNavProvider": "\"빠른 탐색에 표시\"로 표시된 사용자 지정 명령을 빠른 탐색 메뉴에 항목(선택적으로 하위 메뉴에 중첩)으로 나열합니다.",
-  "Plugin_Comp_Desc_CustomCommandsTranslationProvider": "사용자 지정 명령 및 스크립트 트리거에 대한 번역 매핑을 제공합니다."
+  "Plugin_Comp_Desc_CustomCommandsTranslationProvider": "사용자 지정 명령 및 스크립트 트리거에 대한 번역 매핑을 제공합니다.",
+  "CustomCommands_Config_CurrentDirectory": "현재 디렉터리에서 실행",
+  "CustomCommands_Config_CurrentDirectoryDesc": "설정한 작업 폴더 대신 메뉴 원본, 인라인 검색 폴더 또는 빠른 검색에서 마지막으로 탐색한 폴더를 사용합니다. 사용할 수 없으면 중지합니다."
 }
