@@ -12,6 +12,29 @@ namespace Lertaro.Core.Tests.Hook.Commands;
 public sealed class InlineAdapterIpcCoordinatorTests
 {
     [TestMethod]
+    public async Task LocateItem_UsesDistinctCommandAndPreservesDirectoryAcrossWire()
+    {
+        IpcMessage sent = default;
+        var success = InlineAdapterIpcCoordinator.LocateItem(new IntPtr(12345), @"C:\Parent\Folder", true,
+            message =>
+            {
+                sent = message;
+                InlineAdapterIpcCoordinator.SetExecuteItemResult(message.IntVal, true);
+            }, out var lateResult);
+        using var stream = new MemoryStream();
+        await PipeRequestBinarySerializer.WriteMessageAsync(stream, sent);
+        stream.Position = 0;
+        var received = await PipeRequestBinarySerializer.ReadMessageAsync(stream);
+
+        Assert.IsTrue(success);
+        Assert.IsTrue(await lateResult);
+        Assert.AreEqual(IpcMessageId.LocateInlineItem, received.Id);
+        Assert.AreEqual(12345L, received.Hwnd);
+        Assert.AreEqual(@"C:\Parent\Folder\", received.StringVal1);
+        Assert.AreEqual(sent.IntVal, received.IntVal);
+    }
+
+    [TestMethod]
     public void ExecuteItem_ReplyResolvesTrueSynchronously_ReturnsTrueWithoutWaiting()
     {
         var result = InlineAdapterIpcCoordinator.ExecuteItem(

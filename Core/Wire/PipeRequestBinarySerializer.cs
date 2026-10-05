@@ -123,6 +123,7 @@ public static class PipeRequestBinarySerializer
                 break;
 
             case IpcMessageId.ExecuteInlineItem:
+            case IpcMessageId.LocateInlineItem:
                 writer.Write(msg.Hwnd);
                 writer.Write(msg.StringVal1 ?? string.Empty);
                 writer.Write(msg.StringVal2 ?? string.Empty);
@@ -246,6 +247,7 @@ public static class PipeRequestBinarySerializer
                 break;
 
             case IpcMessageId.ExecuteInlineItem:
+            case IpcMessageId.LocateInlineItem:
                 msg.Hwnd = reader.ReadInt64();
                 msg.StringVal1 = reader.ReadString();
                 msg.StringVal2 = reader.ReadString();

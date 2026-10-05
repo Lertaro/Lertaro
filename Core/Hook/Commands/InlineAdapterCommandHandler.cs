@@ -50,6 +50,7 @@ internal static class InlineAdapterCommandHandler
         switch (msg.Id)
         {
             case IpcMessageId.ExecuteInlineItem:
+            case IpcMessageId.LocateInlineItem:
                 var path = msg.StringVal1 ?? string.Empty;
                 var searchInput = msg.StringVal2 ?? string.Empty;
                 var requestId = msg.IntVal;
@@ -62,7 +63,10 @@ internal static class InlineAdapterCommandHandler
                     var result = false;
                     try
                     {
-                        result = ResolveAdapter(process, hwnd)?.ExecuteItem(hwnd, path, searchInput) ?? false;
+                        var adapter = ResolveAdapter(process, hwnd);
+                        result = adapter != null && (msg.Id == IpcMessageId.LocateInlineItem
+                            ? adapter.LocateItem(hwnd, path)
+                            : adapter.ExecuteItem(hwnd, path, searchInput));
                     }
                     catch (Exception ex)
                     {

@@ -105,6 +105,13 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
         }
     }
 
+    public bool LocateItem(IntPtr hwnd, string path)
+    {
+        var item = Path.TrimEndingDirectorySeparator(path);
+        // The file branch already navigates to the parent then selects by name, for either item kind.
+        return !string.IsNullOrEmpty(Path.GetDirectoryName(item)) && ExecuteItem(hwnd, item, string.Empty);
+    }
+
     public bool ExecuteItem(IntPtr hwnd, string path, string searchInput)
     {
         try

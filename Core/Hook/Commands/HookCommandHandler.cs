@@ -199,6 +199,7 @@ public sealed class HookCommandHandler
                     _process.KeyboardHook?.IsHotkeysDisabledTemporarily = msg.BoolVal;
                     break;
                 case IpcMessageId.ExecuteInlineItem:
+                case IpcMessageId.LocateInlineItem:
                 case IpcMessageId.InlineSelectionChanged:
                 case IpcMessageId.InlineSearchFinished:
                     InlineAdapterCommandHandler.Handle(_process, msg);

@@ -129,10 +129,6 @@ internal sealed class ExplorerWindowClassifier
                         _tracker.IsActiveWindowExplorer = !isDesktop && (_tracker.ActiveInlineAdapter?.IsFileExplorer ?? false);
                         _tracker.LastActiveExplorerClassName = windowClassName;
 
-                        // Remembered for the dialog follow: this is the window whose folder a file dialog
-                        // raised after it should be navigated to.
-                        _tracker.RememberPathProvider(_tracker.ActiveInlineAdapter, rootHwnd);
-
                         if (rootHwnd != _tracker.LastActiveHwnd)
                         {
                             _tracker.LastActiveHwnd = rootHwnd;
@@ -224,19 +220,16 @@ internal sealed class ExplorerWindowClassifier
 
     private void TrackFileDialogWindow(IntPtr mainDialog, bool previousWasPathProvider, TimeSpan pluginReadTimeout)
     {
+        // Capture the actual departing provider before ActiveHwnd selects the dialog's adapters.
+        var providerAdapter = previousWasPathProvider ? _tracker.ActiveInlineAdapter : null;
+        var providerHwnd = _tracker.ActiveHwnd;
         _tracker.IsExplorerOrDesktopActive = true;
         _tracker.IsDesktop = false;
         _tracker.ActiveHwnd = mainDialog;
 
-        // The follow below navigates the dialog to the folder its file manager is showing. Navigating INSIDE
-        // that window raises no activation event, so the stored path can be a whole poll interval old exactly
-        // when the user switches back -- which pointed the dialog at the folder the manager had been in a
-        // moment earlier, and made the follow look like it "remembers the previous window". One bounded read
-        // of the remembered provider here makes it use the folder that window shows right now.
-        var freshProviderPath = _tracker.ReadPathProviderScopeNow(pluginReadTimeout);
-        if (!string.IsNullOrEmpty(freshProviderPath)) _dialogTracker.SetLastActiveExplorerPath(freshProviderPath);
-
-        _dialogTracker.HandleDialogSeen(mainDialog, _tracker.ActiveAdapter, previousWasPathProvider);
+        _ = _dialogTracker.HandleDialogSeenAsync(mainDialog, _tracker.ActiveAdapter, previousWasPathProvider,
+            providerAdapter == null ? null : () => ExplorerStaInvoker.RunOnStaWithTimeout(
+                () => providerAdapter.GetSearchScope(providerHwnd), null, pluginReadTimeout));
 
         // Bounded dispatch (see the collector loop above). On timeout the null fallback flows into the
         // keep-last-known branch below, matching the empty-result handling.

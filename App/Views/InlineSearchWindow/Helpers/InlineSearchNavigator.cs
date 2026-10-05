@@ -18,18 +18,16 @@ public static class InlineSearchNavigator
         var tracker = window.Manager.ExplorerTracker;
 
         // An Explorer window that is already open is driven in place.
-        if (tracker.IsExplorerOrDesktopActive && !tracker.IsDesktop && tracker.ActiveHwnd != IntPtr.Zero
+        if (ExplorerShellWindowsHelper.IsExplorerWindow(tracker.ActiveHwnd)
             && FileExecutor.TryLocateInExistingExplorer(path, tracker.ActiveHwnd))
         {
             return;
         }
 
-        // Any other file manager -- Directory Opus, Total Commander, ... -- is asked to go to the item and
-        // select it through its own adapter. Locating used to fall through to the shell from here, and the
-        // shell can only open a NEW Explorer window: with Directory Opus as the only file manager running
-        // and no Explorer window open at all, "locate" therefore did nothing the user could see, while the
-        // adapter's own go-and-select (the very call Enter makes) was already available.
-        if (!tracker.IsExplorerOrDesktopActive && tracker.ActiveInlineAdapter != null && tracker.ActiveHwnd != IntPtr.Zero
+        // "ExplorerOrDesktop" also includes third-party collectors. Ask a file-manager adapter for
+        // explicit locate semantics; ExecuteItem may enter a directory or even launch a selected file.
+        if (!tracker.IsDesktop && !tracker.IsActiveWindowDialog
+            && tracker.ActiveInlineAdapter?.IsFileExplorer == true && tracker.ActiveHwnd != IntPtr.Zero
             && ResolveIsDir(path) is { } isDir
             && TryLocateInActiveHost(window, tracker.ActiveHwnd, path, isDir))
         {
@@ -39,15 +37,8 @@ public static class InlineSearchNavigator
         FileExecutor.LocateInExplorer(path);
     }
 
-    /// <summary>
-    /// Asks the hosting file manager to go to <paramref name="path"/> and select it, the way Enter does.
-    /// </summary>
-    /// <remarks>
-    /// The card is hidden first, for the reason given in OpenPathFromInline: the call blocks the UI thread
-    /// until the Hook process confirms the adapter's own native call finished, and a third-party adapter can
-    /// be slow. When the adapter does not confirm, this falls back to the shell locate rather than opening
-    /// the item -- this action is a locate, not an open.
-    /// </remarks>
+    // Hide before the bounded IPC wait. A timed-out response is awaited before the shell fallback,
+    // so the host and the fallback cannot both navigate after a slow success.
     private static bool TryLocateInActiveHost(Lertaro.App.InlineSearchWindow window, IntPtr targetHwnd, string path, bool isDir)
     {
         var hookClient = App.HookClient;
@@ -56,7 +47,7 @@ public static class InlineSearchNavigator
         window.Manager.IsExecuting = true;
         window.HideWindow();
 
-        if (InlineAdapterIpcCoordinator.ExecuteItem(targetHwnd, path, isDir, window.SearchText, hookClient.SendMessage, out var lateResult))
+        if (InlineAdapterIpcCoordinator.LocateItem(targetHwnd, path, isDir, hookClient.SendMessage, out var lateResult))
         {
             window.Manager.IsExecuting = false;
             return true;

@@ -65,7 +65,8 @@ public enum IpcMessageId : byte
     // lifetime (see Logger), and it usually runs elevated, so the App can neither reopen nor delete the
     // file -- it has to ask. Carries nothing, and like every other command here is only reachable by the
     // App the hook actually launched (see HookPipePeer).
-    ClearHookLog = 46
+    ClearHookLog = 46,
+    LocateInlineItem = 47
 }
 
 public struct IpcMessage
