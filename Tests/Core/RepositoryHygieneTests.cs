@@ -79,7 +79,13 @@ public sealed class RepositoryHygieneTests
 
     private static IEnumerable<string> SourceFiles(string root)
     {
-        foreach (var path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+        // IgnoreInaccessible, and not the SearchOption overload: that one descends into every directory
+        // before this method's skip list can filter the path, and throws on one the account may not read. The
+        // directories that can end up unreadable here are exactly the ones already skipped below -- a service
+        // that locked debug\Data\Machine (issue #316) turned this scan into a failure nobody could read a
+        // finding out of -- and nothing named in them was ever going to be reported either way.
+        foreach (var path in Directory.EnumerateFiles(root, "*",
+                     new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true }))
         {
             var relative = Path.GetRelativePath(root, path);
             if (relative.Split(Path.DirectorySeparatorChar).Any(seg => SkipDirectories.Contains(seg, StringComparer.OrdinalIgnoreCase)))
