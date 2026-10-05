@@ -27,19 +27,21 @@ internal static class TreeBuilderEnumerationExtensions
         failure = null;
         for (var attempt = 0; attempt < EnumerateAttempts; attempt++)
         {
+            builder._token.ThrowIfCancellationRequested();
             try
             {
                 children = NativeFileEnumerator.Enumerate(directoryPath);
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (IsEnumerationFailure(ex))
             {
                 failure = ex;
                 // The last attempt breaks instead of sleeping, and so does an already-cancelled walk:
                 // there is nothing left to wait for either way.
-                if (attempt == EnumerateAttempts - 1 || builder._token.IsCancellationRequested)
+                if (attempt == EnumerateAttempts - 1)
                     break;
-                Thread.Sleep(EnumerateBackoffMilliseconds[Math.Min(attempt, EnumerateBackoffMilliseconds.Length - 1)]);
+                if (builder._token.WaitHandle.WaitOne(EnumerateBackoffMilliseconds[attempt]))
+                    builder._token.ThrowIfCancellationRequested();
             }
         }
 

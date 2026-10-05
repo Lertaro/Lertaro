@@ -9,6 +9,16 @@ namespace Lertaro.Core.Tests.Indexer.NetworkDrive.Scheduling;
 public sealed class DriveRefreshRunnerTests
 {
     [TestMethod]
+    public void SetUncapturedMarker_UnwritablePath_ReportsFailure()
+    {
+        using var dir = new TempDirectory();
+        var cachePath = Path.Combine(dir.Path, "cache.idx");
+        Directory.CreateDirectory(DriveRefreshRunner.GetUncapturedMarkerPath(cachePath));
+
+        Assert.IsFalse(DriveRefreshRunner.SetUncapturedMarker(cachePath, uncaptured: true));
+    }
+
+    [TestMethod]
     public void UncapturedMarker_SetThenCleared_RoundTripsNextToTheCacheFile()
     {
         using var dir = new TempDirectory();

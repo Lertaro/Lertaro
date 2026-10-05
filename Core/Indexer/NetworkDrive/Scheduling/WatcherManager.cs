@@ -56,7 +56,12 @@ internal class WatcherManager : IDisposable
                 drive,
                 Directory.Exists,
                 ConfigureWatcher,
-                message => Logger.Log(message, LogLevel.Info));
+                message => Logger.Log(message, LogLevel.Info),
+                onStarted: () =>
+                {
+                    if (!_disposed && _lossGate.Recovered(drive))
+                        _queueRefresh(drive, "watcher recovered, reconcile the outage");
+                });
             _watchers[drive] = host;
             host.Start();
         }
@@ -122,10 +127,6 @@ internal class WatcherManager : IDisposable
 
     private bool ConfigureWatcher(FileSystemWatcher watcher, string drive, Action restart, Action retry, Action<string> logError)
     {
-        // (Re)configuring means monitoring is back: the outage that requested a refresh is over, so a later
-        // error is a new one. Runs again for every watcher the retry path brings up, which is when that
-        // becomes true.
-        _lossGate.Recovered(drive);
         watcher.IncludeSubdirectories = true;
         watcher.InternalBufferSize = 64 * 1024;
         watcher.NotifyFilter = NotifyFilters.FileName |

@@ -9,6 +9,7 @@ internal sealed class DriveWatcherHost : IDisposable
     private readonly Func<string, bool> _exists;
     private readonly Func<FileSystemWatcher, string, Action, Action, Action<string>, bool> _configure;
     private readonly Action<string> _onLog;
+    private readonly Action? _onStarted;
     private readonly TimeSpan _retryDelay;
     private readonly object _gate = new();
     private FileSystemWatcher? _watcher;
@@ -17,7 +18,7 @@ internal sealed class DriveWatcherHost : IDisposable
 
     public DriveWatcherHost(string name, string drive, Func<string, bool> exists,
         Func<FileSystemWatcher, string, Action, Action, Action<string>, bool> configure, Action<string> onLog,
-        TimeSpan? retryDelay = null)
+        TimeSpan? retryDelay = null, Action? onStarted = null)
     {
         _name = name;
         _drive = drive;
@@ -29,6 +30,7 @@ internal sealed class DriveWatcherHost : IDisposable
         _exists = exists;
         _configure = configure;
         _onLog = onLog;
+        _onStarted = onStarted;
         _retryDelay = retryDelay ?? TimeSpan.FromSeconds(10);
     }
 
@@ -46,18 +48,26 @@ internal sealed class DriveWatcherHost : IDisposable
 
     private void EnsureWatcher()
     {
+        var started = false;
         lock (_gate)
         {
-            if (_disposed || _watcher != null || !_exists(_rootPath))
+            if (_disposed || _watcher != null)
                 return;
+            if (!_exists(_rootPath))
+            {
+                ScheduleRetry();
+                return;
+            }
 
+            FileSystemWatcher? watcher = null;
             try
             {
-                var watcher = new FileSystemWatcher(_rootPath);
+                watcher = new FileSystemWatcher(_rootPath);
                 if (_configure(watcher, _drive, RestartWatcher, ScheduleRetry, LogError))
                 {
                     watcher.EnableRaisingEvents = true;
                     _watcher = watcher;
+                    started = true;
                     _onLog($"[{_name}] Started monitoring {_drive}: via FileSystemWatcher.");
                 }
                 else
@@ -67,10 +77,13 @@ internal sealed class DriveWatcherHost : IDisposable
             }
             catch (Exception ex)
             {
+                watcher?.Dispose();
                 LogError($"Failed to start monitoring {_drive}: {ex.Message}");
                 ScheduleRetry();
             }
         }
+        // Reconciliation must start after events are enabled, closing the gap during the outage.
+        if (started && !_disposed) _onStarted?.Invoke();
     }
 
     private void RestartWatcher()

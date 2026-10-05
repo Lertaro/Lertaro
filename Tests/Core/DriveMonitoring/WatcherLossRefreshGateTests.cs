@@ -27,7 +27,8 @@ public sealed class WatcherLossRefreshGateTests
         var gate = new WatcherLossRefreshGate();
         gate.ShouldRequestRefresh("Z");
 
-        gate.Recovered("Z");
+        Assert.IsTrue(gate.Recovered("Z"));
+        Assert.IsFalse(gate.Recovered("Z"));
 
         Assert.IsTrue(gate.ShouldRequestRefresh("Z"));
     }
@@ -39,7 +40,7 @@ public sealed class WatcherLossRefreshGateTests
     {
         var gate = new WatcherLossRefreshGate();
 
-        gate.Recovered("Z");
+        Assert.IsFalse(gate.Recovered("Z"));
 
         Assert.IsTrue(gate.ShouldRequestRefresh("Z"));
     }

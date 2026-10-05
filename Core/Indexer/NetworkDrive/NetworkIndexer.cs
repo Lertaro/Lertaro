@@ -170,12 +170,8 @@ public sealed class NetworkIndexer : IDisposable
             NotifyDirectoriesChanged(root, null);
     }
 
-    // "Complete" on its own only means the walk drained its queue; an index that finished with enumeration
-    // errors still holds directories it never captured (persisted as DriveRefreshRunner's marker file).
-    // Treating that as fully cached is what left those directories missing under the default Manual refresh
-    // mode: nothing ever ran a second pass. Not fully cached instead means Scheduler.StartRefresh queues one
-    // more pass, which stays incremental -- TreeDiffBaseline reuses every directory already Listed and only
-    // the un-Listed (never captured) ones are listed again.
+    // A completed pass can still have failed listings. The sidecar requests another pass on startup;
+    // Listed flags permit record reuse, but the diff walker still compares live directory contents.
     internal static bool IsFullyCached(bool isComplete, bool hasUncapturedDirectories)
         => isComplete && !hasUncapturedDirectories;
 

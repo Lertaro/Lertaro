@@ -149,12 +149,14 @@ internal sealed class TreeBuilder
 
     private void WalkDirectory(WorkItem current)
     {
-        if (_diffBaseline != null && this.TryReuseUnchangedDirectory(current, out _))
+        IReadOnlyList<NativeFileEntry>? liveEntries = null;
+        if (_diffBaseline != null && this.TryReuseUnchangedDirectory(current, out liveEntries))
             return;
 
         var ignoreRules = _filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules);
         var stopwatch = Stopwatch.StartNew();
-        if (!this.TryEnumerateChildren(current.Path, out var children, out var failure))
+        IEnumerable<NativeFileEntry> children = liveEntries!;
+        if (liveEntries == null && !this.TryEnumerateChildren(current.Path, out children, out var failure))
         {
             this.CountEnumerationFailure(current.Path, failure!);
             return;

@@ -28,9 +28,9 @@ internal sealed class WatcherLossRefreshGate
     // the caller's own per-drive refresh debounce/dedupe (SchedulerQueueRunner, SearchEngineDriveMaintenance),
     // which keeps that to at most one walk per retry interval; the upgrade path is to require a minimum
     // uptime before re-arming.
-    public void Recovered(string drive)
+    public bool Recovered(string drive)
     {
         lock (_gate)
-            _lost.Remove(drive);
+            return _lost.Remove(drive);
     }
 }

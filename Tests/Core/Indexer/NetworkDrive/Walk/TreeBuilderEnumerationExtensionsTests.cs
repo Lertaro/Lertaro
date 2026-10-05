@@ -42,22 +42,17 @@ public sealed class TreeBuilderEnumerationExtensionsTests
         Assert.AreEqual(1, builder._enumerateErrors);
     }
 
-    // The other half of the same handling: a directory that fails to OPEN. The retry budget itself is not
-    // asserted here (its whole point is a real multi-second backoff), only that a final failure is handed
-    // back with the real exception rather than swallowed -- that is what CountEnumerationFailure turns into
-    // the counted, logged, un-Listed directory.
+    // Cancellation must win before any native open or backoff.
     [TestMethod]
-    public void TryEnumerateChildren_UnreachableDirectory_SurfacesTheRealFailure()
+    public void TryEnumerateChildren_CancelledWalk_DoesNotAttemptToOpenDirectory()
     {
         using var dir = new TempDirectory();
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();
         var builder = CreateBuilder(dir.Path, cancelled.Token);
 
-        var enumerated = builder.TryEnumerateChildren(Path.Combine(dir.Path, "missing"), out _, out var failure);
-
-        Assert.IsFalse(enumerated);
-        Assert.IsInstanceOfType<Win32Exception>(failure);
+        Assert.ThrowsExactly<OperationCanceledException>(() =>
+            builder.TryEnumerateChildren(Path.Combine(dir.Path, "missing"), out _, out _));
     }
 
     // Cancellation is not an enumeration failure: it has to keep propagating, so the worker exits as

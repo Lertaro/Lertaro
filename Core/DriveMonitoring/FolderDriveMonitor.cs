@@ -28,16 +28,18 @@ internal sealed class FolderDriveMonitor : IDisposable
             drive,
             Directory.Exists,
             ConfigureWatcher,
-            message => Logger.Log(message, LogLevel.Warn));
+            message => Logger.Log(message, LogLevel.Warn),
+            onStarted: () =>
+            {
+                if (!_disposed && !_token.IsCancellationRequested && _lossGate.Recovered(_drive))
+                    _onReindexRequired?.Invoke();
+            });
     }
 
     public void Start() => _host.Start();
 
     private bool ConfigureWatcher(FileSystemWatcher watcher, string drive, Action restart, Action retry, Action<string> logError)
     {
-        // (Re)configuring means monitoring is back: the outage that requested a re-walk is over, so a later
-        // error is a new one -- this runs again for every watcher DriveWatcherHost's retry path brings up.
-        _lossGate.Recovered(_drive);
         watcher.IncludeSubdirectories = true;
         watcher.InternalBufferSize = 64 * 1024;
         watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite |
