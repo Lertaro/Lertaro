@@ -112,9 +112,11 @@ public static class ExplorerSearchHelper
 
     // Rows ordered by proximity to the window's folder, then by the rule that suits their level:
     //
-    //   * DIRECT children (tier 0) -- folders first, then files (Explorer's own convention, and the user
-    //     asked for the two groups NOT to interleave), each group in match START, then match TIER, then
-    //     Explorer's own file-name order.
+    //   * DIRECT children (tier 0) -- strongest match first: the row whose match starts furthest left in its
+    //     name leads, whatever it is. Folders lead files only at equal match positions (the grouping the user
+    //     asked for), then match TIER, then Explorer's own file-name order. The left-match weight leads the
+    //     folder/file weight deliberately: a file matching at position 0 belongs above a folder matching at
+    //     position 3, and ranking the groups outright buried exactly that file below the card's visible rows.
     //
     //     The coverage WEIGHT is deliberately not used here, unlike the global ladder: its coverage term is
     //     matched-chars / name-length, which is bound to name length, so for the query "l" it ranked
@@ -142,10 +144,14 @@ public static class ExplorerSearchHelper
             .OrderBy(row => DirectoryProximity.Tier(row.Result.FullPath, contextDirectory))
             .Select(row => row.Result);
 
-        // Direct children first, folders before files, then start -> tier -> Explorer name order.
+        // Direct children: strongest match first, then folders before files, then start -> tier -> Explorer
+        // name order. The match's own start leads because that is the weight the user asked for: how far left
+        // in the name the query hit outweighs whether the row is a folder or a file, so a file whose match
+        // starts before every matched folder's is the section's first row. Folders still lead files at equal
+        // match positions, which is the grouping the earlier request was about.
         var orderedDirect = direct
-            .OrderBy(row => row.Result.IsDir ? 0 : 1)
-            .ThenBy(row => row.Match.Start)
+            .OrderBy(row => row.Match.Start)
+            .ThenBy(row => row.Result.IsDir ? 0 : 1)
             .ThenBy(row => row.Match.Tier)
             .ThenBy(row => row.Result.Name, NaturalNameComparer.Instance)
             .Select(row => row.Result);
