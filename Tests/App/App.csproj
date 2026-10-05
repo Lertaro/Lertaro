@@ -9,6 +9,11 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>Lertaro.App.Tests</AssemblyName>
     <RootNamespace>Lertaro.App.Tests</RootNamespace>
+    <!-- Run the tests through Microsoft.Testing.Platform: the .NET 10 SDK no longer supports the VSTest
+         target, and with this runner the tests execute in-process. -->
+    <OutputType>Exe</OutputType>
+    <EnableMSTestRunner>true</EnableMSTestRunner>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
 
   <ItemGroup>
