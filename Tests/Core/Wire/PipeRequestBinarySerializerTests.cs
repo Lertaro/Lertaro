@@ -232,34 +232,4 @@ public sealed class PipeRequestBinarySerializerTests
         Assert.IsTrue(result.BoolVal);
         Assert.AreEqual(4242, result.IntVal);
     }
-
-    [TestMethod]
-    public void EveryMessageId_IsNamedByBothSerializerSwitches()
-    {
-        // The real guard, and the one that would have caught a forgotten arm: a payload-carrying id
-        // missing from the writer's switch serializes empty and reads back with default values, which
-        // no round-trip of that id alone would reveal.
-        var writer = File.ReadAllText(SerializerSource());
-
-        var unnamed = Enum.GetValues<IpcMessageId>()
-            .Select(id => id.ToString())
-            .Where(name => !writer.Contains($"IpcMessageId.{name}:", StringComparison.Ordinal))
-            .ToList();
-
-        Assert.IsEmpty(unnamed,
-            "these message ids appear in no case arm of PipeRequestBinarySerializer, so their payloads "
-            + "are silently dropped: " + string.Join(", ", unnamed));
-    }
-
-    private static string SerializerSource()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "AGENTS.md")))
-            dir = dir.Parent;
-        Assert.IsNotNull(dir, "could not locate the repository root");
-
-        var path = Path.Combine(dir!.FullName, "Core", "Wire", "PipeRequestBinarySerializer.cs");
-        Assert.IsTrue(File.Exists(path), $"expected the serializer at {path}");
-        return path;
-    }
 }

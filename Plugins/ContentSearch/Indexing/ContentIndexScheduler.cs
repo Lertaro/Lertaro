@@ -145,7 +145,8 @@ public sealed class ContentIndexScheduler : IDisposable
         }
     }
 
-    public void TriggerFullScan(IReadOnlyList<string>? changedDirectories = null) =>
+    // Completion covers discovery and retention; queued extraction runs independently.
+    public Task TriggerFullScan(IReadOnlyList<string>? changedDirectories = null) =>
         _scanCoordinator.TriggerFullScan(changedDirectories);
 
     public void EnqueueFile(string filePath)

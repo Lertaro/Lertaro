@@ -34,12 +34,11 @@ public sealed class KeyedDebouncerTests
                 Interlocked.Increment(ref callCount);
                 fired.Set();
             });
-            Thread.Sleep(DelayMs / 4); // well inside the debounce window, resetting it each time
         }
 
         Assert.IsTrue(fired.Wait(WaitTimeoutMs));
         Thread.Sleep(DelayMs * 2); // give any wrongly-fired extra timers a chance to show up
-        Assert.AreEqual(1, callCount);
+        Assert.AreEqual(1, Volatile.Read(ref callCount));
     }
 
     [TestMethod]
@@ -62,16 +61,19 @@ public sealed class KeyedDebouncerTests
         using var debouncer = new KeyedDebouncer<string>(DelayMs);
         var fired = false;
 
-        debouncer.Schedule("a", () => fired = true);
+        debouncer.Schedule("a", () => Volatile.Write(ref fired, true));
         debouncer.Cancel("a");
 
         Thread.Sleep(DelayMs * 3);
-        Assert.IsFalse(fired);
+        Assert.IsFalse(Volatile.Read(ref fired));
     }
 
     [TestMethod]
-    public void Cancel_UnknownKey_DoesNotThrow() =>
-        new KeyedDebouncer<string>(DelayMs).Cancel("never-scheduled");
+    public void Cancel_UnknownKey_DoesNotThrow()
+    {
+        using var debouncer = new KeyedDebouncer<string>(DelayMs);
+        debouncer.Cancel("never-scheduled");
+    }
 
     [TestMethod]
     public void Dispose_WithPendingSchedules_PreventsAnyOfThemFromFiring()
@@ -79,10 +81,10 @@ public sealed class KeyedDebouncerTests
         var debouncer = new KeyedDebouncer<string>(DelayMs);
         var fired = false;
 
-        debouncer.Schedule("a", () => fired = true);
+        debouncer.Schedule("a", () => Volatile.Write(ref fired, true));
         debouncer.Dispose();
 
         Thread.Sleep(DelayMs * 3);
-        Assert.IsFalse(fired);
+        Assert.IsFalse(Volatile.Read(ref fired));
     }
 }

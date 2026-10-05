@@ -38,8 +38,8 @@ public sealed class DopusRtPathQueryTests
 
             // Opus writes the file asynchronously, so poll exactly as the production reader does rather
             // than assuming the content is on disk the moment the process exits.
-            var deadline = DateTime.UtcNow.AddSeconds(2);
-            while (new FileInfo(output).Length == 0 && DateTime.UtcNow < deadline) Thread.Sleep(50);
+            var elapsed = Stopwatch.StartNew();
+            while (new FileInfo(output).Length == 0 && elapsed.Elapsed < TimeSpan.FromSeconds(2)) Thread.Sleep(50);
 
             var file = new FileInfo(output);
             Assert.IsTrue(file.Exists);

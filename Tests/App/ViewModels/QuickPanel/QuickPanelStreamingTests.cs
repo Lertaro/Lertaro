@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using Lertaro.App.ViewModels.QuickPanel;
 using Lertaro.Core;
 
@@ -18,10 +19,10 @@ public sealed class QuickPanelStreamingTests
     };
 
     // One gate per source, so a test decides the order things finish in rather than hoping for one.
-    private sealed class Gates
+    private sealed class Gates : IDisposable
     {
         private readonly Dictionary<string, TaskCompletionSource<List<SearchResult>>> _gates = new();
-        private readonly HashSet<string> _started = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, TaskCompletionSource> _started = new(StringComparer.OrdinalIgnoreCase);
         private readonly object _sync = new();
 
         public TaskCompletionSource<List<SearchResult>> For(string sourceId)
@@ -41,16 +42,44 @@ public sealed class QuickPanelStreamingTests
 
         public Task<List<SearchResult>> Load(QuickPanelFolderSource source, CancellationToken _)
         {
-            lock (_sync)
-                _started.Add(source.Id);
+            Started(source.Id).TrySetResult();
             return For(source.Id).Task;
         }
 
-        public bool HasStarted(string sourceId)
+        private TaskCompletionSource Started(string sourceId)
         {
             lock (_sync)
-                return _started.Contains(sourceId);
+            {
+                if (!_started.TryGetValue(sourceId, out var started))
+                    _started[sourceId] = started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                return started;
+            }
         }
+
+        public bool HasStarted(string sourceId) => Started(sourceId).Task.IsCompleted;
+        public Task WaitForStart(string sourceId) => Started(sourceId).Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        public void Dispose()
+        {
+            lock (_sync)
+                foreach (var gate in _gates.Values) gate.TrySetCanceled();
+        }
+    }
+
+    private static async Task DeliverAndWaitAsync(INotifyCollectionChanged collection, Func<bool> arrived, Action deliver)
+    {
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Changed(object? sender, NotifyCollectionChangedEventArgs args)
+        {
+            if (arrived()) completed.TrySetResult();
+        }
+        collection.CollectionChanged += Changed;
+        try
+        {
+            deliver();
+            await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally { collection.CollectionChanged -= Changed; }
     }
 
     private static QuickPanelFolderSource Folder(string id) => new() { Id = id, Path = @"C:\" + id };
@@ -77,14 +106,15 @@ public sealed class QuickPanelStreamingTests
             ActiveTabId = "w2",
         };
         var (vm, gates) = Build(settings);
+        using var gatesCleanup = gates;
 
         var refresh = vm.RefreshAsync();
         Assert.IsTrue(gates.HasStarted("s2"));
         Assert.IsFalse(gates.HasStarted("s1"));
 
         gates.Deliver("s2", @"C:\s2", "shown.txt");
-        await refresh;
-        await Task.Delay(50);
+        await refresh.WaitAsync(TimeSpan.FromSeconds(5));
+        await gates.WaitForStart("s1");
 
         Assert.IsTrue(gates.HasStarted("s1"));
         gates.Deliver("s1", @"C:\s1", "background.txt");
@@ -99,14 +129,14 @@ public sealed class QuickPanelStreamingTests
             ActiveTabId = "w2",
         };
         var (vm, gates) = Build(settings);
+        using var gatesCleanup = gates;
 
         var refresh = vm.RefreshAsync();
-        for (var attempt = 0; attempt < 50 && !gates.HasStarted("s1"); attempt++)
-            await Task.Delay(20);
+        await gates.WaitForStart("s1");
 
         Assert.IsTrue(gates.HasStarted("s1"));
         gates.Deliver("s1", @"C:\s1", "fallback.txt");
-        await refresh;
+        await refresh.WaitAsync(TimeSpan.FromSeconds(5));
         gates.DeliverNothing("s2");
     }
 
@@ -120,12 +150,13 @@ public sealed class QuickPanelStreamingTests
             ActiveTabId = "w1",
         };
         var (vm, gates) = Build(settings);
+        using var gatesCleanup = gates;
 
         var refresh = vm.RefreshAsync();
         Assert.IsFalse(refresh.IsCompleted, "nothing has arrived yet");
 
         gates.Deliver("fast", @"C:\fast", "a.txt");
-        await refresh;
+        await refresh.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.IsTrue(vm.HasContent, "the panel can open on what has landed");
         CollectionAssert.AreEqual(new[] { "fast" }, vm.Groups.Select(g => g.SourceId).ToList());
@@ -133,8 +164,8 @@ public sealed class QuickPanelStreamingTests
         // And the slow one still lands, into a panel that is already up.
         var groupChanges = new List<System.Collections.Specialized.NotifyCollectionChangedAction>();
         vm.Groups.CollectionChanged += (_, e) => groupChanges.Add(e.Action);
-        gates.Deliver("slow", @"C:\slow", "b.txt");
-        await Task.Delay(50);
+        await DeliverAndWaitAsync(vm.Groups, () => vm.Groups.Count == 2,
+            () => gates.Deliver("slow", @"C:\slow", "b.txt"));
         CollectionAssert.AreEqual(new[] { "fast", "slow" }, vm.Groups.Select(g => g.SourceId).ToList());
         CollectionAssert.AreEqual(new[] { System.Collections.Specialized.NotifyCollectionChangedAction.Add }, groupChanges,
             "a late group should be inserted without rebuilding groups that are already visible");
@@ -151,14 +182,17 @@ public sealed class QuickPanelStreamingTests
             ActiveTabId = "w1",
         };
         var (vm, gates) = Build(settings);
+        using var gatesCleanup = gates;
 
         var refresh = vm.RefreshAsync();
         gates.Deliver("third", @"C:\third", "c.txt");
-        await refresh;
+        await refresh.WaitAsync(TimeSpan.FromSeconds(5));
 
-        gates.Deliver("first", @"C:\first", "a.txt");
-        gates.Deliver("second", @"C:\second", "b.txt");
-        await Task.Delay(50);
+        await DeliverAndWaitAsync(vm.Groups, () => vm.Groups.Count == 3, () =>
+        {
+            gates.Deliver("first", @"C:\first", "a.txt");
+            gates.Deliver("second", @"C:\second", "b.txt");
+        });
 
         CollectionAssert.AreEqual(new[] { "first", "second", "third" }, vm.Groups.Select(g => g.SourceId).ToList());
     }
@@ -172,14 +206,17 @@ public sealed class QuickPanelStreamingTests
             ActiveTabId = "w1",
         };
         var (vm, gates) = Build(settings);
+        using var gatesCleanup = gates;
 
         var refresh = vm.RefreshAsync();
         gates.Deliver("s3", @"C:\s3", "c.txt");
-        await refresh;
+        await refresh.WaitAsync(TimeSpan.FromSeconds(5));
 
-        gates.Deliver("s2", @"C:\s2", "b.txt");
-        gates.Deliver("s1", @"C:\s1", "a.txt");
-        await Task.Delay(50);
+        await DeliverAndWaitAsync(vm.Tabs, () => vm.Tabs.Count == 3, () =>
+        {
+            gates.Deliver("s2", @"C:\s2", "b.txt");
+            gates.Deliver("s1", @"C:\s1", "a.txt");
+        });
 
         CollectionAssert.AreEqual(new[] { "w1", "w2", "w3" }, vm.Tabs.Select(t => t.Id).ToList());
     }
@@ -195,15 +232,16 @@ public sealed class QuickPanelStreamingTests
             ActiveTabId = "w2",
         };
         var (vm, gates) = Build(settings);
+        using var gatesCleanup = gates;
 
         var refresh = vm.RefreshAsync();
         gates.Deliver("s1", @"C:\s1", "a.txt");
-        await refresh;
+        await refresh.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.AreEqual("w1", vm.Tabs.Single(t => t.IsSelected).Id, "it shows what it has");
 
-        gates.Deliver("s2", @"C:\s2", "b.txt");
-        await Task.Delay(50);
+        await DeliverAndWaitAsync(vm.Groups, () => vm.Groups.Any(g => g.SourceId == "s2"),
+            () => gates.Deliver("s2", @"C:\s2", "b.txt"));
 
         Assert.AreEqual("w2", vm.Tabs.Single(t => t.IsSelected).Id, "and hands over when the wanted one lands");
         CollectionAssert.AreEqual(new[] { "s2" }, vm.Groups.Select(g => g.SourceId).ToList());
@@ -220,11 +258,12 @@ public sealed class QuickPanelStreamingTests
             ActiveTabId = "w1",
         };
         var (vm, gates) = Build(settings);
+        using var gatesCleanup = gates;
 
         var refresh = vm.RefreshAsync();
         gates.DeliverNothing("s1");
         gates.DeliverNothing("s2");
-        await refresh;
+        await refresh.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.IsFalse(vm.HasContent);
         Assert.IsEmpty(vm.Tabs);
@@ -240,11 +279,12 @@ public sealed class QuickPanelStreamingTests
             ActiveTabId = "w1",
         };
         var (vm, gates) = Build(settings);
+        using var gatesCleanup = gates;
 
         var refresh = vm.RefreshAsync();
         gates.For("bad").TrySetException(new UnauthorizedAccessException("no"));
         gates.Deliver("good", @"C:\good", "a.txt");
-        await refresh;
+        await refresh.WaitAsync(TimeSpan.FromSeconds(5));
 
         CollectionAssert.AreEqual(new[] { "good" }, vm.Groups.Select(g => g.SourceId).ToList());
     }

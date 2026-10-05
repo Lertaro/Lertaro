@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using Lertaro.Plugins.ContentSearch.Indexing;
 using Lertaro.Plugins.ContentSearch.Storage;
 
@@ -10,7 +12,7 @@ public sealed class ContentIndexSchedulerTests
 {
     private string _tempDbPath = null!;
     private ContentSearchDatabase _database = null!;
-    private readonly List<string> _logLines = new();
+    private readonly ConcurrentQueue<string> _logLines = new();
     [TestInitialize]
     public void SetUp()
     {
@@ -18,7 +20,7 @@ public sealed class ContentIndexSchedulerTests
         _database = new ContentSearchDatabase(_tempDbPath);
         _database.Initialize();
         _logLines.Clear();
-        PluginSdk.Logger.LogAction = (message, level) => _logLines.Add($"{level}: {message}");
+        PluginSdk.Logger.LogAction = (message, level) => _logLines.Enqueue($"{level}: {message}");
         PluginSdk.Services.DirectoryIndexerService.EnumerateDirectoryFunc =
             TestSupport.LiveDirectoryEnumerator.EnumerateAsync;
     }
@@ -111,7 +113,7 @@ public sealed class ContentIndexSchedulerTests
     }
 
     [TestMethod]
-    public void TriggerFullScan_DisallowedExtensions_PrunedFromDatabaseImmediately()
+    public async Task TriggerFullScan_DisallowedExtensions_PrunedFromDatabaseImmediately()
     {
         _database.InsertOrUpdateFile(@"C:\MyDocs\doc1.pdf", DateTime.UtcNow, 1024, "PDF text");
         _database.InsertOrUpdateFile(@"C:\MyDocs\doc2.txt", DateTime.UtcNow, 512, "TXT text");
@@ -125,9 +127,7 @@ public sealed class ContentIndexSchedulerTests
             AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".txt" } // PDF disallowed
         };
         scheduler.UpdateConfig(config);
-        scheduler.TriggerFullScan();
-
-        Thread.Sleep(300);
+        await scheduler.TriggerFullScan().WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.IsNull(_database.GetFileRecord(@"C:\MyDocs\doc1.pdf"));
     }
@@ -161,16 +161,17 @@ public sealed class ContentIndexSchedulerTests
             Assert.AreEqual(1, warningsAfterFirstScan,
                 $"Expected exactly one skip warning after the first scan: [{string.Join("; ", _logLines)}]");
 
-            _scheduler.TriggerFullScan();
-            await WaitUntilAsync(() => _scheduler.PendingCount == 0, timeoutMs: 1500);
-            await Task.Delay(400); // give the worker a beat to finish the drained batch
+            // Pause extraction so a regression that requeues the failed file is observable.
+            _scheduler.Stop();
+            await _scheduler.TriggerFullScan().WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.AreEqual(0, _scheduler.PendingCount, "an unchanged failed file must not be queued again");
 
             Assert.AreEqual(1, CountLogLines("Skipped binary file"),
                 $"Second scan must not re-extract the unchanged failed file: [{string.Join("; ", _logLines)}]");
 
             // Changing the file (new mtime/size) must clear the failure and retry.
             await File.WriteAllTextAsync(binaryTxt, "now it is plain readable text");
-            _scheduler.TriggerFullScan();
+            _scheduler.Start(config);
             await WaitUntilAsync(() =>
                 _database.GetFileRecord(binaryTxt) is { FailedAt: null });
 
@@ -209,9 +210,7 @@ public sealed class ContentIndexSchedulerTests
                 ExcludedPatterns = ContentIndexConfig.ParseExcludedPatterns(@"\\Backup\\")
             };
             scheduler.UpdateConfig(config);
-            scheduler.TriggerFullScan();
-
-            Thread.Sleep(300);
+            await scheduler.TriggerFullScan().WaitAsync(TimeSpan.FromSeconds(10));
 
             Assert.IsNull(_database.GetFileRecord(Path.Combine(tempDir, "Backup", "old.txt")));
             Assert.IsNotNull(_database.GetFileRecord(Path.Combine(tempDir, "keep.txt")));
@@ -223,7 +222,7 @@ public sealed class ContentIndexSchedulerTests
     }
 
     [TestMethod]
-    public void TriggerFullScan_UnreachableMonitoredFolder_KeepsExistingRows()
+    public async Task TriggerFullScan_UnreachableMonitoredFolder_KeepsExistingRows()
     {
         // A disconnected NAS/share is not on disk; a scan must not prune its indexed files.
         var offlineRoot = Path.Combine(Path.GetTempPath(), "TestIndexScheduler_OfflineNas_" + Guid.NewGuid().ToString("N"));
@@ -236,8 +235,8 @@ public sealed class ContentIndexSchedulerTests
             AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".pdf" }
         };
         scheduler.UpdateConfig(config);
-        scheduler.TriggerFullScan();
-        Thread.Sleep(300);
+        await scheduler.TriggerFullScan().WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.AreEqual(0, CountLogLines("Full scan failed"), string.Join("; ", _logLines));
         Assert.IsNotNull(_database.GetFileRecord(offlineFile));
     }
 
@@ -290,11 +289,12 @@ public sealed class ContentIndexSchedulerTests
 
     private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMs = 5000)
     {
-        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while (DateTime.UtcNow < deadline)
+        var elapsed = Stopwatch.StartNew();
+        while (elapsed.ElapsedMilliseconds < timeoutMs)
         {
             if (condition()) return;
             await Task.Delay(50);
         }
+        Assert.Fail("The scheduler did not reach the expected state within the test deadline.");
     }
 }

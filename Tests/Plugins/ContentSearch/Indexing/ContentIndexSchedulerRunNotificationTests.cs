@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.ContentSearch.Indexing;
@@ -94,8 +95,8 @@ public sealed class ContentIndexSchedulerRunNotificationTests
 
     private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMs = 5000)
     {
-        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while (DateTime.UtcNow < deadline)
+        var elapsed = Stopwatch.StartNew();
+        while (elapsed.ElapsedMilliseconds < timeoutMs)
         {
             if (condition()) return;
             await Task.Delay(50);

@@ -57,20 +57,26 @@ public sealed class ExplorerStaInvokerTests
     }
 
     [TestMethod]
-    public void RunOnStaWithTimeout_TimedOut_ReturnsFallbackAndSetsTimedOut()
+    public async Task RunOnStaWithTimeout_TimedOut_ReturnsFallbackAndSetsTimedOut()
     {
         var workerGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var result = ExplorerStaInvoker.RunOnStaWithTimeout(() =>
+        var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
         {
-            workerGate.Task.GetAwaiter().GetResult();
-            return "late";
-        }, "fallback", TimeSpan.FromMilliseconds(20), out var timedOut);
+            var result = ExplorerStaInvoker.RunOnStaWithTimeout(() =>
+            {
+                workerGate.Task.GetAwaiter().GetResult();
+                finished.TrySetResult();
+                return "late";
+            }, "fallback", TimeSpan.FromMilliseconds(20), out var timedOut);
 
-        Assert.AreEqual("fallback", result);
-        Assert.IsTrue(timedOut);
-
-        // Release the abandoned STA thread so it can finish and clean up its budget/event.
-        workerGate.SetResult(true);
-        Thread.Sleep(50);
+            Assert.AreEqual("fallback", result);
+            Assert.IsTrue(timedOut);
+        }
+        finally
+        {
+            workerGate.TrySetResult(true);
+            await finished.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
     }
 }

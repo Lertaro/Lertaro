@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Lertaro.App.Services;
 
 namespace Lertaro.App.Tests.Services;
@@ -72,22 +71,28 @@ public sealed class ShellThreadTests
     }
 
     [TestMethod]
-    public void Run_ReturnsBeforeTheActionFinishes()
+    public async Task Run_ReturnsBeforeTheActionFinishes()
     {
-        using var started = new ManualResetEventSlim();
-        using var release = new ManualResetEventSlim();
-
-        var elapsed = Stopwatch.StartNew();
-        ShellThread.Run("Test.Blocked", () =>
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var posting = Task.Run(() => ShellThread.Run("Test.Blocked", () =>
         {
-            started.Set();
-            release.Wait(TimeSpan.FromSeconds(10));
-        });
-        elapsed.Stop();
-        release.Set();
-
-        Assert.IsTrue(started.Wait(TimeSpan.FromSeconds(5)), "the action never started");
-        Assert.IsTrue(elapsed.Elapsed < TimeSpan.FromSeconds(1),
-            $"Run waited {elapsed.ElapsedMilliseconds}ms for the shell work instead of handing it off");
+            started.SetResult();
+            release.Task.GetAwaiter().GetResult();
+            finished.SetResult();
+        }));
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await posting.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.IsFalse(finished.Task.IsCompleted, "Run must return while the action is still blocked");
+        }
+        finally
+        {
+            release.TrySetResult();
+            await posting.WaitAsync(TimeSpan.FromSeconds(5));
+            await finished.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
     }
 }

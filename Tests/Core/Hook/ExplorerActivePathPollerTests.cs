@@ -56,23 +56,24 @@ public sealed class ExplorerActivePathPollerTests
         var hwnd = NextSentinel();
         using var tracker = new ExplorerTracker(() => hwnd);
         var path = @"C:\First";
-        tracker.SetActiveInlineAdapterDirectly(new ScopeAdapter(() => path), hwnd);
+        tracker.SetActiveInlineAdapterDirectly(new ScopeAdapter(() => Volatile.Read(ref path)), hwnd);
         var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var second = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        long firstAt = 0, secondAt = 0;
         tracker.OnPathCaptured += (value, _, _) =>
         {
-            if (value == @"C:\First") first.TrySetResult();
-            if (value == @"C:\Second") second.TrySetResult();
+            if (value == @"C:\First") { firstAt = Stopwatch.GetTimestamp(); first.TrySetResult(); }
+            if (value == @"C:\Second") { secondAt = Stopwatch.GetTimestamp(); second.TrySetResult(); }
         };
         tracker.SetInlineWindowOnScreen(true);
         await first.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        path = @"C:\Second";
-        var elapsed = Stopwatch.StartNew();
+        Volatile.Write(ref path, @"C:\Second");
 
         tracker.RequestHostPathRead();
         await second.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        Assert.IsGreaterThan(1500L, elapsed.ElapsedMilliseconds, "The explicit request must respect the existing host read interval.");
+        Assert.IsGreaterThan(1500d, Stopwatch.GetElapsedTime(firstAt, secondAt).TotalMilliseconds,
+            "Measure between callbacks, so a delayed test continuation cannot shorten the observed interval.");
         Assert.AreEqual(path, tracker.ActivePath);
         tracker.SetInlineWindowOnScreen(false);
     }

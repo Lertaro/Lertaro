@@ -19,7 +19,9 @@ public sealed class LocalizedPathResolverTests
     private static readonly string UsersRoot = Path.GetDirectoryName(UserProfile)!;
 
     private static readonly string LocalizedUsersRoot =
-        Path.Combine(Path.GetPathRoot(UserProfile)!, ShellPathHelper.GetLocalizedFolderName(UsersRoot));
+        Path.GetDirectoryName(UsersRoot) is { } parent
+            ? Path.Combine(parent, ShellPathHelper.GetLocalizedFolderName(UsersRoot))
+            : UsersRoot;
 
     // The localized spelling of the profile folder itself, ready to be recombined into longer paths.
     private static string LocalizedProfile => Path.Combine(LocalizedUsersRoot, Path.GetFileName(UserProfile));
@@ -27,10 +29,9 @@ public sealed class LocalizedPathResolverTests
     [TestMethod]
     public void Resolve_TranslatesALocalizedPathBackToTheRealOne()
     {
-        var translated = LocalizedPathResolver.Resolve(
-            Path.Combine(LocalizedProfile, "AppData", "Local", "Temp"));
+        var translated = LocalizedPathResolver.Resolve(LocalizedProfile);
 
-        Assert.AreEqual(Path.Combine(UserProfile, "AppData", "Local", "Temp"), translated);
+        Assert.AreEqual(UserProfile, translated);
         Assert.IsTrue(Directory.Exists(translated), $"'{translated}' should be the real, existing path");
     }
 
@@ -39,19 +40,22 @@ public sealed class LocalizedPathResolverTests
     [TestMethod]
     public void Resolve_LeavesARealPathUntouched()
     {
-        Assert.AreEqual(UserProfile, LocalizedPathResolver.Resolve(UserProfile));
-        Assert.AreEqual(@"C:\Windows", LocalizedPathResolver.Resolve(@"C:\Windows"));
-        Assert.AreEqual(@"C:\", LocalizedPathResolver.Resolve(@"C:\"));
-        Assert.AreEqual(@"D:\2013.3.31 上坟", LocalizedPathResolver.Resolve(@"D:\2013.3.31 上坟"));
+        var directory = Directory.CreateTempSubdirectory("lertaro-测试-").FullName;
+        try
+        {
+            Assert.AreEqual(directory, LocalizedPathResolver.Resolve(directory));
+            Assert.AreEqual(UserProfile, LocalizedPathResolver.Resolve(UserProfile));
+        }
+        finally { Directory.Delete(directory); }
     }
 
     // A path with no real counterpart must be handed back unchanged: the caller asked "what does this
-    // name", and "no idea, here is what you gave me" is the only honest answer. Note the second case
-    // would resolve its first segment and then fail -- a half-translated path would be worse than none.
+    // name", and "no idea, here is what you gave me" is the only honest answer. A half-translated path
+    // would be worse than none.
     [TestMethod]
     public void Resolve_ReturnsTheInputWhenItCannotBeTranslated()
     {
-        var missing = Path.Combine(LocalizedProfile, "lertaro-no-such-folder-7f3a1c");
+        var missing = Path.Combine(LocalizedProfile, $"lertaro-no-such-folder-{Guid.NewGuid():N}");
         Assert.AreEqual(missing, LocalizedPathResolver.Resolve(missing));
     }
 

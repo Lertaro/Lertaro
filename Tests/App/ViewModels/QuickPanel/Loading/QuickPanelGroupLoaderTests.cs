@@ -22,14 +22,23 @@ public sealed class QuickPanelGroupLoaderTests
         var source = new QuickPanelFolderSource { Id = "source", Path = @"C:\source", Kind = QuickPanelSourceKind.All, SortByModified = false };
 
         var loading = loader.LoadAsync(workspace, source, group => appeared.TrySetResult(group), CancellationToken.None);
-        var group = await appeared.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        try
+        {
+            // This deadline detects a hang, not a performance regression under concurrent suite load.
+            var group = await appeared.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.IsFalse(loading.IsCompleted, "the first batch makes the group available before enumeration finishes");
+            CollectionAssert.AreEqual(new[] { "z", "a" }, group.Items.Select(item => item.Name).ToList());
 
-        Assert.IsFalse(loading.IsCompleted, "the first batch makes the group available before enumeration finishes");
+            finished.SetResult();
+            await loading.WaitAsync(TimeSpan.FromSeconds(10));
 
-        finished.SetResult();
-        await loading;
-
-        CollectionAssert.AreEqual(new[] { "a", "z" }, group.Items.Select(item => item.Name).ToList());
+            CollectionAssert.AreEqual(new[] { "a", "z" }, group.Items.Select(item => item.Name).ToList());
+        }
+        finally
+        {
+            finished.TrySetResult();
+            await loading.WaitAsync(TimeSpan.FromSeconds(10));
+        }
     }
 
     private static SearchResult Entry(string name) => new()

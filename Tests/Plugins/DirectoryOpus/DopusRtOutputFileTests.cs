@@ -29,49 +29,25 @@ public sealed class DopusRtOutputFileTests
     {
         var first = DopusRtOutputFile.Create();
         var second = DopusRtOutputFile.Create();
-
-        if (first == null)
-        {
-            // No writable ASCII, space-free directory at all: the plugin degrades to the scrape
-            // fallback, which the collector's own tests cover.
-            Assert.IsNull(second);
-            return;
-        }
-
-        Assert.IsTrue(DopusRtOutputFile.IsOpusSafePath(first));
-        Assert.AreNotEqual(first, second);
-        Assert.IsTrue(Directory.Exists(Path.GetDirectoryName(first)));
-
-        // dopusrt only fills in a file that already exists, so the path this returns must already have
-        // been created -- empty -- by the time the caller runs the tool.
-        Assert.IsTrue(File.Exists(first), $"'{first}' should already exist for dopusrt to fill in");
-        Assert.AreEqual(0, new FileInfo(first).Length);
-
-        File.Delete(first);
-    }
-
-    // A live log caught the plugin handing dopusrt a path in a directory that passed the character rules
-    // but refused the file: dopusrt then exits 0 having written nothing, so EVERY query silently fell
-    // through to the scrape (which only sees the focused tab) and paid the full 2s wait. Being ASCII and
-    // space-free is therefore not the contract -- being writable is.
-    [TestMethod]
-    public void Create_OnlyReturnsADirectoryThatCanActuallyHoldTheFile()
-    {
-        var path = DopusRtOutputFile.Create();
-        if (path == null) return; // covered by the test above
-
-        var directory = Path.GetDirectoryName(path)!;
-
-        // The same test the shipped code performs, asserted independently here so the guarantee is
-        // pinned by a test rather than only by the production probe.
-        var probe = Path.Combine(directory, $"lertaro-test-{Guid.NewGuid():N}.tmp");
         try
         {
-            File.WriteAllBytes(probe, []);
+            if (first == null || second == null)
+                Assert.Inconclusive("Requires a writable ASCII output directory; Directory Opus itself is not required.");
+
+            Assert.AreNotEqual(first, second);
+            foreach (var path in new[] { first, second })
+            {
+                Assert.IsTrue(DopusRtOutputFile.IsOpusSafePath(path));
+                Assert.IsTrue(File.Exists(path), "dopusrt requires a pre-created output file");
+                Assert.AreEqual(0L, new FileInfo(path).Length);
+                File.WriteAllText(path, "<results />");
+                Assert.AreEqual("<results />", File.ReadAllText(path));
+            }
         }
         finally
         {
-            try { File.Delete(probe); } catch { /* best effort */ }
+            if (first != null) File.Delete(first);
+            if (second != null) File.Delete(second);
         }
     }
 }

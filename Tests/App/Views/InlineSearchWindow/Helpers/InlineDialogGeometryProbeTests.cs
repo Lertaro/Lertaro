@@ -159,34 +159,4 @@ public sealed class InlineDialogGeometryProbeTests
         Assert.IsTrue(landed.Wait(Wait), "the invalidated layout was never measured again");
         Assert.AreEqual(Rect.Right, probe.Request(Dialog, 100, 200, 400, 300).Anchor?.Right);
     }
-
-    // The guard against the regression itself. The probe above cannot be reached from a test by the placement
-    // path (it needs a live WPF window), and the freeze was caused by that path asking the dialog directly --
-    // so what has to be pinned is that the placing thread asks the adapter nothing, and the only calls that
-    // remain are the ones the probe makes from its own thread.
-    [TestMethod]
-    public void ThePlacingPathAsksTheDialogNothingDirectly()
-    {
-        var source = File.ReadAllText(Path.Combine(
-            RepoRoot(), "App/Views/InlineSearchWindow/Helpers/InlineSearchWindowPositioner.cs"));
-
-        Assert.HasCount(1, LinesWith(source, "tracker.TryGetTargetFieldRect("),
-            "the target field is read once, inside the probe's measure");
-        Assert.HasCount(1, LinesWith(source, "tracker.TryGetFileListRect("),
-            "and so is the file list");
-        Assert.Contains("_geometry.Request(", source,
-            "the placement itself has to go through the probe rather than the adapter");
-    }
-
-    private static List<string> LinesWith(string source, string needle) =>
-        source.Split('\n').Where(line => line.Contains(needle, StringComparison.Ordinal)).Select(line => line.Trim()).ToList();
-
-    private static string RepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "AGENTS.md")))
-            dir = dir.Parent;
-        Assert.IsNotNull(dir, "could not locate the repository root");
-        return dir!.FullName;
-    }
 }

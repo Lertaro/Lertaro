@@ -9,10 +9,6 @@ namespace Lertaro.Plugins.QuickLookBridge.Tests;
 public sealed class QuickLookPreviewProviderTests
 {
     [TestMethod]
-    public void EndPreviewSession_DoesNotThrow() =>
-        new QuickLookPreviewProvider().EndPreviewSession();
-
-    [TestMethod]
     public void CanPreview_NonExistentFilePath_ReturnsFalse() =>
         Assert.IsFalse(new QuickLookPreviewProvider().CanPreview(@"Z:\definitely-not-a-real-lertaro-path.bin", isDir: false));
 

@@ -19,7 +19,7 @@ internal sealed class ContentIndexScanCoordinator : IDisposable
         _database = database;
     }
 
-    public void TriggerFullScan(IReadOnlyList<string>? changedDirectories = null)
+    public Task TriggerFullScan(IReadOnlyList<string>? changedDirectories = null)
     {
         var newCts = new CancellationTokenSource();
         var oldCts = Interlocked.Exchange(ref _scanCts, newCts);
@@ -29,7 +29,7 @@ internal sealed class ContentIndexScanCoordinator : IDisposable
         // Deliberately do NOT clear pending files here: the work remains valid, and clearing it
         // lets a watcher-triggered scan enqueue the same files a second time.
         var ct = newCts.Token;
-        Task.Run(async () =>
+        return Task.Run(async () =>
         {
             try { await _scanGate.WaitAsync(ct).ConfigureAwait(false); }
             catch (OperationCanceledException) { return; }

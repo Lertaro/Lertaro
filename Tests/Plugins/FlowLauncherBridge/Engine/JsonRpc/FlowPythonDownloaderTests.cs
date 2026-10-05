@@ -24,14 +24,18 @@ public sealed class FlowPythonDownloaderTests
     }
 
     [TestMethod]
-    public void EnsureSiteCustomizeInstalled_DoesNotInjectLegacySettingsRemapping()
+    public void EnsureSiteCustomizeInstalled_ReplacesLegacySettingsRemappingWithImportHook()
     {
+        var file = Path.Combine(_tempDir, "sitecustomize.py");
+        File.WriteAllText(file, "def _remap_settings_path(path): return path\n_hooked_stat = _hooked_exists = _hooked_open = None");
+
         FlowPythonDownloader.EnsureSiteCustomizeInstalled(_tempDir);
 
-        var file = Path.Combine(_tempDir, "sitecustomize.py");
         Assert.IsTrue(File.Exists(file));
 
         var content = File.ReadAllText(file);
+        StringAssert.Contains(content, "class _FloxMetaFinder");
+        StringAssert.Contains(content, "sys.meta_path.insert(0, _FloxMetaFinder())");
         Assert.IsFalse(content.Contains("_remap_settings_path", StringComparison.Ordinal));
         Assert.IsFalse(content.Contains("_hooked_stat", StringComparison.Ordinal));
         Assert.IsFalse(content.Contains("_hooked_exists", StringComparison.Ordinal));
