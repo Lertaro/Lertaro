@@ -422,7 +422,7 @@
   "General_SearchWindowCloseOnRepeatHotkey": "Cerrar la ventana completa al pulsar de nuevo el atajo",
   "General_SearchWindowCloseOnRepeatHotkeyHint": "Al activarlo, pulsar de nuevo el atajo global con la ventana de búsqueda completa en primer plano la cierra directamente en lugar de volver a la ventana de búsqueda rápida. Si la ventana completa está visible pero no tiene el foco, el atajo solo la trae de vuelta al frente.",
   "General_SettingsItemAliasTitle": "Alias de Búsqueda de Elementos de Configuración",
-  "General_SettingsItemAliasHint": "Escribe el alias completo en el cuadro de búsqueda para ir directo al elemento de configuración que representa. Los alias no usan búsqueda difusa. El nombre del destino debe coincidir exactamente con el que muestra la fila de resultados, y un alias representa un solo elemento.",
+  "General_SettingsItemAliasHint": "Solo búsqueda rápida. Un alias exacto puede coincidir con varios elementos: añade una fila por destino. Usa el nombre exacto o el identificador. Las variables de entorno del sistema y de la cuenta ya incluyen la palabra clave env.",
   "General_SettingsItemAliasColumnAlias": "Alias",
   "General_SettingsItemAliasColumnTarget": "Nombre del elemento de destino",
   "General_SidebarGroupOrderTitle": "Orden de Filtros de la Barra Lateral",

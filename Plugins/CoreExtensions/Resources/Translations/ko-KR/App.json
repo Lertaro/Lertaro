@@ -422,7 +422,7 @@
   "General_SearchWindowCloseOnRepeatHotkey": "단축키 재입력 시 전체 창 닫기",
   "General_SearchWindowCloseOnRepeatHotkeyHint": "활성화하면 전체 검색 창에 포커스가 있는 상태에서 호출 단축키를 다시 누르면 퀵 검색 창으로 돌아가지 않고 전체 창을 바로 닫습니다. 전체 창이 보이지만 포커스가 없는 경우에는 호출 단축키가 창을 앞으로 가져오기만 합니다.",
   "General_SettingsItemAliasTitle": "설정 항목 검색 별칭",
-  "General_SettingsItemAliasHint": "검색창에 별칭을 그대로 입력하면 해당 설정 항목으로 바로 이동합니다. 별칭은 퍼지 검색 대상이 아닙니다. 대상 이름은 검색 결과에 표시되는 이름과 완전히 일치해야 하며, 별칭 하나에 설정 항목 하나만 지정됩니다.",
+  "General_SettingsItemAliasHint": "빠른 검색에서만 적용됩니다. 같은 별칭으로 여러 항목을 찾으려면 대상마다 행을 추가하세요. 정확한 표시 이름 또는 항목 ID를 입력하세요. 시스템 및 계정 환경 변수에는 env 키워드가 기본 제공됩니다.",
   "General_SettingsItemAliasColumnAlias": "별칭",
   "General_SettingsItemAliasColumnTarget": "대상 설정 항목 이름",
   "General_SidebarGroupOrderTitle": "사이드바 필터 순서",

@@ -422,7 +422,7 @@
   "General_SearchWindowCloseOnRepeatHotkey": "再次按下快捷键时关闭完整窗口",
   "General_SearchWindowCloseOnRepeatHotkeyHint": "开启后，在完整搜索窗口已获得焦点的状态下再次按下全局呼出快捷键，将直接关闭完整窗口，而不是返回快速搜索窗口。完整窗口可见但未获得焦点时，按下快捷键仍只会将其拉回前台。",
   "General_SettingsItemAliasTitle": "设置项搜索别名",
-  "General_SettingsItemAliasHint": "在搜索框中完整键入别名，即可直达它对应的设置项。别名不做模糊匹配，只输入一部分不会命中。目标名称要与搜索结果中显示的名称完全一致，一个别名只对应一个设置项。",
+  "General_SettingsItemAliasHint": "仅作用于快速搜索。完整输入别名可命中多个设置项；同一别名可以填写多行。目标填写完整显示名称或条目标识。系统环境变量和账户环境变量已内置 env 关键词，无需配置。",
   "General_SettingsItemAliasColumnAlias": "别名",
   "General_SettingsItemAliasColumnTarget": "目标设置项名称",
   "General_SidebarGroupOrderTitle": "侧边栏筛选顺序",

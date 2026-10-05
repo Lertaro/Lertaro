@@ -4,8 +4,7 @@ using Lertaro.Core;
 namespace Lertaro.App.Tests.ViewModels.Settings.General;
 
 // The row list is the only place a hand-typed alias gets turned into the dictionary the search reads, so
-// what matters here is what Save() refuses to write: half-typed rows, untrimmed padding, and a second row
-// for a word that is already taken.
+// saving must preserve every distinct target of a shared word.
 [TestClass]
 public sealed class SettingsItemAliasViewModelTests
 {
@@ -18,7 +17,7 @@ public sealed class SettingsItemAliasViewModelTests
 
         vm.Save();
 
-        Assert.AreEqual("编辑系统环境变量", settings.SettingsItemAliases["env"]);
+        Assert.AreEqual("编辑系统环境变量", Assert.ContainsSingle(settings.SettingsItemAliases["env"]));
     }
 
     [TestMethod]
@@ -33,11 +32,11 @@ public sealed class SettingsItemAliasViewModelTests
         vm.Save();
 
         Assert.HasCount(1, settings.SettingsItemAliases);
-        Assert.AreEqual("事件查看器", settings.SettingsItemAliases["log"]);
+        Assert.AreEqual("事件查看器", Assert.ContainsSingle(settings.SettingsItemAliases["log"]));
     }
 
     [TestMethod]
-    public void Save_SecondRowForSameWord_KeepsTheFirst()
+    public void Save_SecondRowForSameWord_KeepsBothTargets()
     {
         var settings = new UserSettings();
         var vm = new SettingsItemAliasViewModel(settings);
@@ -47,14 +46,16 @@ public sealed class SettingsItemAliasViewModelTests
         vm.Save();
 
         Assert.HasCount(1, settings.SettingsItemAliases);
-        Assert.AreEqual("编辑系统环境变量", settings.SettingsItemAliases["env"]);
+        Assert.HasCount(2, settings.SettingsItemAliases["env"]);
+        Assert.Contains("编辑系统环境变量", settings.SettingsItemAliases["env"]);
+        Assert.Contains("编辑账户的环境变量", settings.SettingsItemAliases["env"]);
     }
 
     [TestMethod]
     public void Save_RemovesTheRowTheUserDeleted()
     {
         var settings = new UserSettings();
-        settings.SettingsItemAliases["log"] = "事件查看器";
+        settings.SettingsItemAliases["log"] = ["事件查看器"];
         var vm = new SettingsItemAliasViewModel(settings);
         Assert.HasCount(1, vm.Items);
 
@@ -68,14 +69,14 @@ public sealed class SettingsItemAliasViewModelTests
     public void Constructor_SeedsOneRowPerSavedEntry()
     {
         var settings = new UserSettings();
-        settings.SettingsItemAliases["env"] = "编辑系统环境变量";
-        settings.SettingsItemAliases["log"] = "事件查看器";
+        settings.SettingsItemAliases["env"] = ["编辑系统环境变量", "编辑账户的环境变量"];
+        settings.SettingsItemAliases["log"] = ["事件查看器"];
 
         var vm = new SettingsItemAliasViewModel(settings);
 
-        Assert.HasCount(2, vm.Items);
+        Assert.HasCount(3, vm.Items);
         CollectionAssert.AreEquivalent(
-            new[] { "env", "log" },
+            new[] { "env", "env", "log" },
             vm.Items.Select(item => item.Alias).ToArray());
     }
 }

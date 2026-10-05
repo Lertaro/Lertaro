@@ -8,8 +8,7 @@ namespace Lertaro.App.ViewModels.Settings.General;
 // Edits the alias -> item-name table SearchableItemMapper reads when a query is exactly one of the words
 // the user registered. Rows stage here and only reach UserSettings.SettingsItemAliases when Save() runs
 // (called from GeneralSettingsApplier), same as the order lists beside this one.
-// One word per row: the table is a dictionary, so a word already taken by a row above it is dropped on
-// Save(), which is why the hint asks for a distinct word per item.
+// A word can appear on several rows, one for each target it should surface.
 public class SettingsItemAliasViewModel : ViewModelBase
 {
     private readonly UserSettings _userSettings;
@@ -19,7 +18,8 @@ public class SettingsItemAliasViewModel : ViewModelBase
         _userSettings = userSettings;
 
         foreach (var entry in userSettings.SettingsItemAliases)
-            Items.Add(new SettingsItemAliasItem(entry.Key, entry.Value));
+            foreach (var target in entry.Value)
+                Items.Add(new SettingsItemAliasItem(entry.Key, target));
 
         AddCommand = new RelayCommand(() => Items.Add(new SettingsItemAliasItem(string.Empty, string.Empty)));
         RemoveCommand = new RelayCommand<SettingsItemAliasItem>(item =>
@@ -37,13 +37,14 @@ public class SettingsItemAliasViewModel : ViewModelBase
     // target with no alias would sit in the file doing nothing.
     public void Save()
     {
-        var aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var aliases = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in Items)
         {
             var alias = item.Alias.Trim();
             var target = item.Target.Trim();
             if (alias.Length == 0 || target.Length == 0) continue;
-            aliases.TryAdd(alias, target);
+            if (!aliases.TryGetValue(alias, out var targets)) aliases[alias] = targets = [];
+            if (!targets.Contains(target, StringComparer.OrdinalIgnoreCase)) targets.Add(target);
         }
 
         _userSettings.SettingsItemAliases = aliases;
@@ -67,8 +68,7 @@ public class SettingsItemAliasItem : ViewModelBase
         set => SetProperty(ref _alias, value);
     }
 
-    // The result's own display name, matched exactly. Windows names these items, so what to type here
-    // is whatever the row shows in the search results.
+    // Exact display name for compatibility, or a provider's stable item ID.
     public string Target
     {
         get => _target;

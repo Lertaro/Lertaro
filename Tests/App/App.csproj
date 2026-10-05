@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\App\App.csproj" />
+    <ProjectReference Include="..\..\Plugins\SystemSettings\SystemSettings.csproj" />
   </ItemGroup>
 
 </Project>

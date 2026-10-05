@@ -46,18 +46,26 @@ public class SystemSettingsItemProvider : ISearchableItemProvider
 
                 var hBitmap = ShellPathHelper.TryGetIconHBitmapForShellItem(item);
                 var capturedPath = path;
-                list.Add(new SearchableItem
-                {
-                    Title = name,
-                    Description = desc,
-                    HBitmapIcon = hBitmap,
-                    ActionType = "None",
-                    OnExecute = () => ShellInvokeHelper.InvokeShellItem(GodModePath, capturedPath)
-                });
+                list.Add(CreateItem(name, capturedPath, desc, hBitmap));
             }
         }
         catch { }
 
         return list;
     }
+
+    internal static SearchableItem CreateItem(string name, string path, string description, IntPtr icon = default) => new()
+    {
+        Title = name,
+        Id = path,
+        Description = description,
+        HBitmapIcon = icon,
+        // GodMode task IDs survive localization; both environment-variable tasks share these keywords.
+        Keywords = path.EndsWith("\\{37092408-D49C-451D-B56D-78B243DC475C}", StringComparison.OrdinalIgnoreCase)
+                   || path.EndsWith("\\{E2394C16-F45A-496F-83CC-49E163281662}", StringComparison.OrdinalIgnoreCase)
+            ? new[] { "env", "environment", "environment variables" }
+            : Array.Empty<string>(),
+        ActionType = "None",
+        OnExecute = () => ShellInvokeHelper.InvokeShellItem(GodModePath, path)
+    };
 }

@@ -32,21 +32,38 @@ public sealed class UserSettingsParseTests
         Assert.AreEqual(new HotkeyPageSettings().ToggleWindowHotkey, settings.Hotkeys.ToggleWindowHotkey);
     }
 
-    // The alias table is read by the search hot path with its own case-insensitive comparison, because a
-    // dictionary materialised from JSON comes back with the default ordinal comparer -- the property's
-    // own initializer comparer is gone by then, so nothing may rely on it.
     [TestMethod]
     public void TryParse_SettingsItemAliases_SurvivesRoundTrip()
     {
         var json = JsonSerializer.Serialize(new UserSettings
         {
-            SettingsItemAliases = { ["env"] = "编辑系统环境变量", ["log"] = "事件查看器" },
+            SettingsItemAliases = { ["env"] = ["编辑系统环境变量", "编辑账户的环境变量"], ["log"] = ["事件查看器"] },
         });
 
         var settings = UserSettings.TryParse(json);
 
         Assert.IsNotNull(settings);
-        Assert.AreEqual("编辑系统环境变量", settings.SettingsItemAliases["env"]);
-        Assert.IsFalse(settings.SettingsItemAliases.ContainsKey("ENV"));
+        Assert.HasCount(2, settings.SettingsItemAliases["ENV"]);
+        Assert.Contains("编辑系统环境变量", settings.SettingsItemAliases["env"]);
+        Assert.Contains("编辑账户的环境变量", settings.SettingsItemAliases["env"]);
+    }
+
+    [TestMethod]
+    public void TryParse_LegacyAliasAndNewAliasArrays_MergesCaseInsensitiveTargets()
+    {
+        var settings = UserSettings.TryParse("""
+            {"SettingsItemAliases":{"env":"编辑系统环境变量","ENV":["编辑账户的环境变量","编辑系统环境变量"]}}
+            """);
+        Assert.IsNotNull(settings);
+        Assert.HasCount(1, settings.SettingsItemAliases);
+        Assert.HasCount(2, settings.SettingsItemAliases["env"]);
+    }
+
+    [TestMethod]
+    public void TryParse_NullAliasTable_UsesEmptyTable()
+    {
+        var settings = UserSettings.TryParse("""{"SettingsItemAliases":null}""");
+        Assert.IsNotNull(settings);
+        Assert.IsEmpty(settings.SettingsItemAliases);
     }
 }

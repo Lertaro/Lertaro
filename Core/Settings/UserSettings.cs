@@ -178,12 +178,11 @@ public class UserSettings
     public Dictionary<string, string> ResultTypeTriggers { get; set; } = new();
 
     /// <summary>
-    /// Whole-word shortcuts for search results the user names by hand: key is the alias, value is the
-    /// exact Title of the item it should surface (a Windows settings entry such as "编辑系统环境变量", or
-    /// any other provider item with that title). One alias stands for one item, and the query has to be
-    /// the alias itself -- see SearchableItemMapper.FindAliasTarget.
+    /// Whole-query aliases mapped to one or more exact item titles or provider item IDs.
+    /// The converter also reads the original single-target string values.
     /// </summary>
-    public Dictionary<string, string> SettingsItemAliases { get; set; } = new();
+    [System.Text.Json.Serialization.JsonConverter(typeof(SettingsItemAliasJsonConverter))]
+    public Dictionary<string, List<string>> SettingsItemAliases { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public Dictionary<string, Dictionary<string, object>> PluginSettings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -204,4 +203,3 @@ public class UserSettings
     internal static UserSettings WriteRestored(string sourcePath, string settingsPath, int backupCount, out string json)
         => UserSettingsPersistence.WriteRestored(sourcePath, settingsPath, backupCount, out json);
 }
-

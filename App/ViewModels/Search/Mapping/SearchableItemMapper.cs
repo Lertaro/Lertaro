@@ -64,11 +64,7 @@ public static class SearchableItemMapper
         // GetQueryForms), which dominated this loop's cost on a single keystroke.
         var fuzzy = FuzzyQuery.Parse(q);
 
-        // A curated alias stands in for the item's own name, so the query is replaced for that one
-        // candidate only -- the rest of the catalog still competes on what the user actually typed.
-        // Parsed lazily: a query that is not an alias costs one dictionary pass and no extra parse.
-        var aliasTarget = FindAliasTarget(q, UserSettings.Load().SettingsItemAliases);
-        FuzzyQuery? aliasQuery = aliasTarget == null ? null : FuzzyQuery.Parse(aliasTarget);
+        var aliasTargets = FindAliasTargets(q, UserSettings.Load().SettingsItemAliases);
 
         // Every matched entry -- across ALL providers, not just within one -- gets ranked by the same
         // match rank the file search hot path uses (FuzzyMatcher.ComputeBestMatch, against the entry's
@@ -85,7 +81,7 @@ public static class SearchableItemMapper
 
             foreach (var entry in entries)
             {
-                var match = MatchCatalogEntry(fuzzy, entry.Item.Title, entry.Aliases, aliasQuery, aliasTarget);
+                var match = MatchCatalogEntry(fuzzy, entry.Item, entry.Aliases, aliasTargets);
                 if (match.IsMatch)
                     matched.Add((entry, match, provider, q));
             }
@@ -106,39 +102,25 @@ public static class SearchableItemMapper
         return candidates;
     }
 
-    // The standard match contract (FuzzyMatcher.ComputeBestMatch): title first, then each curated alias,
-    // via the same FzfPattern Parse Core's real file search uses -- a multi-word query like "gsh ypfq"
-    // correctly requires BOTH words to match somewhere. (Keyword-scoped directory search used to live in
-    // the caller as a FileFilter_ ResultKind routing over materialized files; it is now a real scoped
-    // engine search -- see FileFilterScopeResolver.)
-    //
-    // A user-defined alias is the one extra chance: its letters usually appear nowhere in the name it
-    // stands for ("env" for 编辑系统环境变量), so the miss is retried against the target name, which ranks the
-    // row as if the user had typed that name. Kept separate from the scan for the same reason the other
-    // pure helpers here are -- the plugin registry and the item cache are process-wide singletons.
+    // Explicit keywords can belong to multiple items. Keep ordinary title/transliteration matching,
+    // and give each exact keyword hit the same full-name rank, without parsing a title as query syntax.
     internal static MatchRank MatchCatalogEntry(
-        FuzzyQuery query, string title, List<string> aliases, FuzzyQuery? aliasQuery, string? aliasTarget)
+        FuzzyQuery query, SearchableItem item, List<string> aliases, IReadOnlySet<string> aliasTargets)
     {
-        var match = query.BestMatch(title, aliases);
-        if (!match.IsMatch && aliasQuery != null && string.Equals(title, aliasTarget, StringComparison.OrdinalIgnoreCase))
-            return aliasQuery.Value.BestMatch(title);
-
-        return match;
+        if (aliasTargets.Contains(item.Title) || (item.Id.Length > 0 && aliasTargets.Contains(item.Id))
+            || item.Keywords.Contains(query.Text, StringComparer.OrdinalIgnoreCase))
+            return new MatchRank(MatchRank.TierName, 0, 1);
+        return query.BestMatch(item.Title, aliases);
     }
 
     // Exact and whole-query, ignoring case only: "env" resolves, "en" and "environment" do not. Anything
     // looser would steal matches from the ordinary search of the same letters, which the catalog scan
     // already ranks on its own.
-    internal static string? FindAliasTarget(string query, IReadOnlyDictionary<string, string> aliases)
-    {
-        foreach (var entry in aliases)
-        {
-            if (string.Equals(entry.Key, query, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(entry.Value))
-                return entry.Value;
-        }
-
-        return null;
-    }
+    internal static HashSet<string> FindAliasTargets(string query, IReadOnlyDictionary<string, List<string>> aliases) =>
+        aliases.Where(entry => string.Equals(entry.Key, query, StringComparison.OrdinalIgnoreCase))
+            .SelectMany(entry => entry.Value)
+            .Where(target => !string.IsNullOrWhiteSpace(target))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     // Split out of the matches loop below purely to keep this file's per-method length down -- no
     // other caller.
