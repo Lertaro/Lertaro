@@ -185,6 +185,13 @@ public class TotalCommanderInlineSearchAdapter : IInlineSearchAdapter
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(IntPtr hWnd);
 
+    public bool LocateItem(IntPtr hwnd, string path)
+    {
+        var item = Path.TrimEndingDirectorySeparator(path);
+        return !string.IsNullOrEmpty(Path.GetDirectoryName(item))
+            && Win32Helper.ChangeSourcePanelDirectory(hwnd, item, placeCursorOnItem: true);
+    }
+
     public bool ExecuteItem(IntPtr hwnd, string path, string searchInput)
     {
         try

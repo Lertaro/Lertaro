@@ -1,65 +1,57 @@
 using System.Collections.Concurrent;
-
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+
 namespace Lertaro.Core.Hook;
 
 internal sealed class FileDialogNavigationTracker
 {
-    private readonly ConcurrentDictionary<IntPtr, DateTime> _dialogFirstSeenTimes = new();
+    private readonly ConcurrentDictionary<IntPtr, long> _dialogPathVersions = new();
     private string? _lastActiveExplorerPath;
-    private DateTime _lastExplorerPathUpdateTime = DateTime.MinValue;
+    private long _pathVersion;
 
     public string? LastActiveExplorerPath => _lastActiveExplorerPath;
 
     public void SetLastActiveExplorerPath(string? path)
     {
+        if (string.Equals(path, _lastActiveExplorerPath, StringComparison.OrdinalIgnoreCase)) return;
         _lastActiveExplorerPath = path;
-        _lastExplorerPathUpdateTime = DateTime.Now;
+        _pathVersion++;
     }
 
-    public void HandleDialogSeen(IntPtr mainDialog, IFileDialogAdapter? adapter, bool previousWasPathProvider)
+    public Task HandleDialogSeenAsync(IntPtr mainDialog, IFileDialogAdapter? adapter, bool previousWasPathProvider,
+        Func<string?>? readProviderPath = null)
     {
-        var isNewDialog = false;
-        var dialogFirstSeenTime = _dialogFirstSeenTimes.GetOrAdd(mainDialog, _ =>
+        if (_dialogPathVersions.TryAdd(mainDialog, _pathVersion))
         {
-            isNewDialog = true;
-            return DateTime.Now;
+            if (_dialogPathVersions.Count > 100)
+                foreach (var key in _dialogPathVersions.Keys)
+                    if (!ExplorerNativeHooks.IsWindow(key)) _dialogPathVersions.TryRemove(key, out _);
+            return Task.CompletedTask;
+        }
+
+        // Only a real return from a provider needs a fresh host read. Re-reading an unrelated remembered
+        // window on every dialog activation made a manual dialog navigation jump back to an old folder.
+        if (previousWasPathProvider && readProviderPath?.Invoke() is { Length: > 0 } freshPath)
+            SetLastActiveExplorerPath(freshPath);
+
+        if (!previousWasPathProvider && _dialogPathVersions[mainDialog] == _pathVersion)
+            return Task.CompletedTask;
+
+        _dialogPathVersions[mainDialog] = _pathVersion;
+        var path = _lastActiveExplorerPath;
+        if (string.IsNullOrEmpty(path) || adapter == null) return Task.CompletedTask;
+
+        return Task.Run(() =>
+        {
+            try { adapter.NavigateTo(mainDialog, path); }
+            catch (Exception ex) { Logger.Log($"[ExplorerTracker] Dialog follow failed: {ex.Message}", LogLevel.Warn); }
         });
-
-        if (isNewDialog)
-        {
-            Logger.Log($"[ExplorerTracker] Dialog 0x{mainDialog:X} newly detected. Created/Seen at: {dialogFirstSeenTime}", LogLevel.Debug);
-            if (_dialogFirstSeenTimes.Count > 100)
-            {
-                foreach (var key in _dialogFirstSeenTimes.Keys)
-                {
-                    if (!ExplorerNativeHooks.IsWindow(key))
-                    {
-                        _dialogFirstSeenTimes.TryRemove(key, out _);
-                    }
-                }
-            }
-        }
-        else
-        {
-            if (_lastExplorerPathUpdateTime > dialogFirstSeenTime || previousWasPathProvider)
-            {
-                var currentPath = _lastActiveExplorerPath;
-                if (!string.IsNullOrEmpty(currentPath))
-                {
-                    Logger.Log($"[ExplorerTracker] Dialog 0x{mainDialog:X} reactivated. PreviousWasPathProvider={previousWasPathProvider}, PathUpdatedLater={_lastExplorerPathUpdateTime > dialogFirstSeenTime}. Auto-navigating!", LogLevel.Debug);
-                    ThreadPool.QueueUserWorkItem(_ => adapter?.NavigateTo(mainDialog, currentPath));
-                }
-
-                _dialogFirstSeenTimes[mainDialog] = DateTime.Now;
-            }
-        }
     }
 
     public void Clear()
     {
-        _dialogFirstSeenTimes.Clear();
+        _dialogPathVersions.Clear();
         _lastActiveExplorerPath = null;
-        _lastExplorerPathUpdateTime = DateTime.MinValue;
+        _pathVersion = 0;
     }
 }

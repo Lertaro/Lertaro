@@ -16,15 +16,51 @@ public static class InlineSearchNavigator
     public static void LocateInExplorerExternal(this Lertaro.App.InlineSearchWindow window, string path)
     {
         var tracker = window.Manager.ExplorerTracker;
-        if (tracker.IsExplorerOrDesktopActive && !tracker.IsDesktop && tracker.ActiveHwnd != IntPtr.Zero)
+
+        // An Explorer window that is already open is driven in place.
+        if (ExplorerShellWindowsHelper.IsExplorerWindow(tracker.ActiveHwnd)
+            && FileExecutor.TryLocateInExistingExplorer(path, tracker.ActiveHwnd))
         {
-            if (FileExecutor.TryLocateInExistingExplorer(path, tracker.ActiveHwnd))
-            {
-                return;
-            }
+            return;
+        }
+
+        // "ExplorerOrDesktop" also includes third-party collectors. Ask a file-manager adapter for
+        // explicit locate semantics; ExecuteItem may enter a directory or even launch a selected file.
+        if (!tracker.IsDesktop && !tracker.IsActiveWindowDialog
+            && tracker.ActiveInlineAdapter?.IsFileExplorer == true && tracker.ActiveHwnd != IntPtr.Zero
+            && ResolveIsDir(path) is { } isDir
+            && TryLocateInActiveHost(window, tracker.ActiveHwnd, path, isDir))
+        {
+            return;
         }
 
         FileExecutor.LocateInExplorer(path);
+    }
+
+    // Hide before the bounded IPC wait. A timed-out response is awaited before the shell fallback,
+    // so the host and the fallback cannot both navigate after a slow success.
+    private static bool TryLocateInActiveHost(Lertaro.App.InlineSearchWindow window, IntPtr targetHwnd, string path, bool isDir)
+    {
+        var hookClient = App.HookClient;
+        if (hookClient is not { IsConnected: true }) return false;
+
+        window.Manager.IsExecuting = true;
+        window.HideWindow();
+
+        if (InlineAdapterIpcCoordinator.LocateItem(targetHwnd, path, isDir, hookClient.SendMessage, out var lateResult))
+        {
+            window.Manager.IsExecuting = false;
+            return true;
+        }
+
+        _ = InlineAdapterIpcCoordinator.RunAfterLateResultAsync(lateResult,
+            onSuccess: () => window.Manager.IsExecuting = false,
+            onFallback: () =>
+            {
+                window.Manager.IsExecuting = false;
+                FileExecutor.LocateInExplorer(path);
+            });
+        return true;
     }
 
     // forceRealOpen: true -- this is the explicit "Open"/"Open (Admin)" action, reached by the user

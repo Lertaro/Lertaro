@@ -220,11 +220,16 @@ internal sealed class ExplorerWindowClassifier
 
     private void TrackFileDialogWindow(IntPtr mainDialog, bool previousWasPathProvider, TimeSpan pluginReadTimeout)
     {
+        // Capture the actual departing provider before ActiveHwnd selects the dialog's adapters.
+        var providerAdapter = previousWasPathProvider ? _tracker.ActiveInlineAdapter : null;
+        var providerHwnd = _tracker.ActiveHwnd;
         _tracker.IsExplorerOrDesktopActive = true;
         _tracker.IsDesktop = false;
         _tracker.ActiveHwnd = mainDialog;
 
-        _dialogTracker.HandleDialogSeen(mainDialog, _tracker.ActiveAdapter, previousWasPathProvider);
+        _ = _dialogTracker.HandleDialogSeenAsync(mainDialog, _tracker.ActiveAdapter, previousWasPathProvider,
+            providerAdapter == null ? null : () => ExplorerStaInvoker.RunOnStaWithTimeout(
+                () => providerAdapter.GetSearchScope(providerHwnd), null, pluginReadTimeout));
 
         // Bounded dispatch (see the collector loop above). On timeout the null fallback flows into the
         // keep-last-known branch below, matching the empty-result handling.

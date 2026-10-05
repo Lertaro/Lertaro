@@ -40,6 +40,10 @@ public interface IInlineSearchAdapter : IPluginComponent
     /// </remarks>
     bool ExecuteItem(IntPtr hwnd, string path, string searchInput);
 
+    /// <summary>Shows the item's parent and selects it, without opening the item. The path uses the same
+    /// trailing-directory marker as ExecuteItem. Return false when locate is unsupported.</summary>
+    bool LocateItem(IntPtr hwnd, string path) => false;
+
     /// <summary>
     /// Gets the window bounds for positioning/docking the inline search window.
     /// </summary>

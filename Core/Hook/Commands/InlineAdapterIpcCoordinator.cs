@@ -34,6 +34,12 @@ public static class InlineAdapterIpcCoordinator
     // timeout as a real failure (e.g. falling back to Process.Start) wait a bit longer off the UI thread
     // first, so a slow-but-eventually-successful call and that fallback can't both fire for the same item.
     public static bool ExecuteItem(IntPtr hwnd, string path, bool isDir, string searchInput, Action<IpcMessage> sendMsg, out Task<bool> lateResult)
+        => SendItem(IpcMessageId.ExecuteInlineItem, hwnd, path, isDir, searchInput, sendMsg, out lateResult);
+
+    public static bool LocateItem(IntPtr hwnd, string path, bool isDir, Action<IpcMessage> sendMsg, out Task<bool> lateResult)
+        => SendItem(IpcMessageId.LocateInlineItem, hwnd, path, isDir, string.Empty, sendMsg, out lateResult);
+
+    private static bool SendItem(IpcMessageId command, IntPtr hwnd, string path, bool isDir, string searchInput, Action<IpcMessage> sendMsg, out Task<bool> lateResult)
     {
         var normalizedPath = NormalizePath(path, isDir);
 
@@ -45,7 +51,7 @@ public static class InlineAdapterIpcCoordinator
             _executeItemEvent = evt;
             _executeItemResult = false;
 
-            sendMsg(new IpcMessage { Id = IpcMessageId.ExecuteInlineItem, Hwnd = hwnd.ToInt64(), StringVal1 = normalizedPath, StringVal2 = searchInput, IntVal = requestId });
+            sendMsg(new IpcMessage { Id = command, Hwnd = hwnd.ToInt64(), StringVal1 = normalizedPath, StringVal2 = searchInput, IntVal = requestId });
 
             if (evt.WaitOne(1000))
             {
