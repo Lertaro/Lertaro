@@ -194,7 +194,7 @@ public sealed class InstallDirectoryLockTests
     }
 
     [TestMethod]
-    public void HasZone_OnlyForATreeLockedWithThatSameZone()
+    public void GrantsAtLeast_OnlyForATreeLockedWithThatZone()
     {
         var root = Directory.CreateDirectory(Path.Combine(_temp, "root")).FullName;
         var current = OwnedByMe();
@@ -206,13 +206,37 @@ public sealed class InstallDirectoryLockTests
                 : ace)],
         };
 
-        Assert.IsFalse(InstallDirectoryLock.HasZone(root, current), "never locked");
+        Assert.IsFalse(InstallDirectoryLock.GrantsAtLeast(root, current), "never locked");
 
         InstallDirectoryLock.Lock(root, stale, _ => null);
-        Assert.IsFalse(InstallDirectoryLock.HasZone(root, current), "locked by an older build");
+        Assert.IsFalse(InstallDirectoryLock.GrantsAtLeast(root, current), "locked by an older build");
 
         InstallDirectoryLock.Lock(root, current, _ => null);
-        Assert.IsTrue(InstallDirectoryLock.HasZone(root, current));
+        Assert.IsTrue(InstallDirectoryLock.GrantsAtLeast(root, current));
+    }
+
+    [TestMethod]
+    public void GrantsAtLeast_AGrantNobodyAskedFor_IsCurrentRatherThanStale()
+    {
+        // An ACE an administrator added by hand -- a backup tool's grant, say -- is not a build that locked the
+        // tree differently. Treating it as one made every service start re-walk the tree and wipe it.
+        var root = Directory.CreateDirectory(Path.Combine(_temp, "root")).FullName;
+        var asked = new InstallDirectoryLock.Zone(CurrentUser, [.. InstallDirectoryLock.ReadOnlyForUsers.Aces]);
+        var carrying = asked with
+        {
+            Aces = [.. asked.Aces, InstallDirectoryLock.Allow(CurrentUser, FileSystemRights.FullControl,
+                AceFlags.ObjectInherit | AceFlags.ContainerInherit)],
+        };
+
+        InstallDirectoryLock.Lock(root, carrying, _ => null);
+
+        Assert.IsTrue(InstallDirectoryLock.GrantsAtLeast(root, asked), "more rights than asked for is still current");
+        Assert.IsTrue(InstallDirectoryLock.GrantsAtLeast(root, carrying));
+
+        InstallDirectoryLock.Lock(root, asked, _ => null);
+
+        Assert.IsFalse(InstallDirectoryLock.GrantsAtLeast(root, carrying), "a right nobody granted has to be walked in");
+        Assert.IsTrue(InstallDirectoryLock.GrantsAtLeast(root, asked));
     }
 
     // The production zones make Administrators the owner, which a non-elevated test cannot assign; the walk

@@ -86,26 +86,34 @@ public static class InstallDirectoryLock
     }
 
     /// <summary>
-    /// Whether <paramref name="directory"/> already has the owner and protected DACL that <see cref="Lock"/>
-    /// gives the top of <paramref name="zone"/>. For a tree that is locked once and re-checked on every start:
-    /// the walk is only needed again when the zone itself has changed since (a tree locked by an older build).
+    /// Whether <paramref name="directory"/> is locked at least as tightly as <see cref="Lock"/> would lock it
+    /// for <paramref name="zone"/> now: the zone's owner, a protected DACL, and every ACE the zone grants
+    /// present with those rights. For a tree locked once and re-checked on every start, so the walk runs again
+    /// only when a build with different zones wrote it (5.8.2 denied Users the Synchronize bit every open asks
+    /// for, which refused even starting the App: issue #316).
     /// </summary>
-    internal static bool HasZone(string directory, Zone zone)
+    /// <remarks>
+    /// Rights beyond what the zone asks for count as current rather than stale, deliberately: comparing the
+    /// DACL byte for byte made an ACE an administrator added by hand -- a backup tool's grant -- disagree with
+    /// every build forever, so each service start re-walked the tree and quietly wiped it.
+    ///
+    /// ponytail: this is a drift probe, not tamper detection. It reads the one entry and never the ones below,
+    /// which is sound only because a locked tree is writable by nobody but SYSTEM and Administrators, and
+    /// <c>--install</c> still walks whatever it finds.
+    /// </remarks>
+    internal static bool GrantsAtLeast(string directory, Zone zone)
     {
         var expected = Describe(zone, isZoneRoot: true, isDirectory: true);
         var actual = new RawSecurityDescriptor(new DirectoryInfo(directory)
             .GetAccessControl(AccessControlSections.Owner | AccessControlSections.Access).GetSecurityDescriptorBinaryForm(), 0);
 
-        return actual.Owner == expected.Owner &&
-               actual.ControlFlags.HasFlag(ControlFlags.DiscretionaryAclProtected) &&
-               actual.DiscretionaryAcl is { } acl && Binary(acl).SequenceEqual(Binary(expected.DiscretionaryAcl!));
+        if (actual.Owner != expected.Owner || !actual.ControlFlags.HasFlag(ControlFlags.DiscretionaryAclProtected) ||
+            actual.DiscretionaryAcl is not { } acl)
+            return false;
 
-        static byte[] Binary(GenericAcl acl)
-        {
-            var bytes = new byte[acl.BinaryLength];
-            acl.GetBinaryForm(bytes, 0);
-            return bytes;
-        }
+        return expected.DiscretionaryAcl!.Cast<CommonAce>().All(wanted => acl.Cast<CommonAce>().Any(has =>
+            has.AceQualifier == wanted.AceQualifier && has.SecurityIdentifier == wanted.SecurityIdentifier &&
+            (has.AccessMask & wanted.AccessMask) == wanted.AccessMask));
     }
 
     internal static void Merge(Report into, Report from)

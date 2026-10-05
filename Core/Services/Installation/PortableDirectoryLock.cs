@@ -74,7 +74,7 @@ public static class PortableDirectoryLock
     /// service applies updates in place, without running --install again, so it checks this on every start.
     /// </summary>
     public static bool IsCurrent(string appDirectory) =>
-        InstallDirectoryLock.HasZone(Path.TrimEndingDirectorySeparator(Path.GetFullPath(appDirectory)), ReadOnlyForUsers);
+        InstallDirectoryLock.GrantsAtLeast(Path.TrimEndingDirectorySeparator(Path.GetFullPath(appDirectory)), ReadOnlyForUsers);
 
     /// <summary>
     /// Which zone starts where in a portable copy at <paramref name="appDirectory"/> (null: inherit), and the
