@@ -16,15 +16,60 @@ public static class InlineSearchNavigator
     public static void LocateInExplorerExternal(this Lertaro.App.InlineSearchWindow window, string path)
     {
         var tracker = window.Manager.ExplorerTracker;
-        if (tracker.IsExplorerOrDesktopActive && !tracker.IsDesktop && tracker.ActiveHwnd != IntPtr.Zero)
+
+        // An Explorer window that is already open is driven in place.
+        if (tracker.IsExplorerOrDesktopActive && !tracker.IsDesktop && tracker.ActiveHwnd != IntPtr.Zero
+            && FileExecutor.TryLocateInExistingExplorer(path, tracker.ActiveHwnd))
         {
-            if (FileExecutor.TryLocateInExistingExplorer(path, tracker.ActiveHwnd))
-            {
-                return;
-            }
+            return;
+        }
+
+        // Any other file manager -- Directory Opus, Total Commander, ... -- is asked to go to the item and
+        // select it through its own adapter. Locating used to fall through to the shell from here, and the
+        // shell can only open a NEW Explorer window: with Directory Opus as the only file manager running
+        // and no Explorer window open at all, "locate" therefore did nothing the user could see, while the
+        // adapter's own go-and-select (the very call Enter makes) was already available.
+        if (!tracker.IsExplorerOrDesktopActive && tracker.ActiveInlineAdapter != null && tracker.ActiveHwnd != IntPtr.Zero
+            && ResolveIsDir(path) is { } isDir
+            && TryLocateInActiveHost(window, tracker.ActiveHwnd, path, isDir))
+        {
+            return;
         }
 
         FileExecutor.LocateInExplorer(path);
+    }
+
+    /// <summary>
+    /// Asks the hosting file manager to go to <paramref name="path"/> and select it, the way Enter does.
+    /// </summary>
+    /// <remarks>
+    /// The card is hidden first, for the reason given in OpenPathFromInline: the call blocks the UI thread
+    /// until the Hook process confirms the adapter's own native call finished, and a third-party adapter can
+    /// be slow. When the adapter does not confirm, this falls back to the shell locate rather than opening
+    /// the item -- this action is a locate, not an open.
+    /// </remarks>
+    private static bool TryLocateInActiveHost(Lertaro.App.InlineSearchWindow window, IntPtr targetHwnd, string path, bool isDir)
+    {
+        var hookClient = App.HookClient;
+        if (hookClient is not { IsConnected: true }) return false;
+
+        window.Manager.IsExecuting = true;
+        window.HideWindow();
+
+        if (InlineAdapterIpcCoordinator.ExecuteItem(targetHwnd, path, isDir, window.SearchText, hookClient.SendMessage, out var lateResult))
+        {
+            window.Manager.IsExecuting = false;
+            return true;
+        }
+
+        _ = InlineAdapterIpcCoordinator.RunAfterLateResultAsync(lateResult,
+            onSuccess: () => window.Manager.IsExecuting = false,
+            onFallback: () =>
+            {
+                window.Manager.IsExecuting = false;
+                FileExecutor.LocateInExplorer(path);
+            });
+        return true;
     }
 
     // forceRealOpen: true -- this is the explicit "Open"/"Open (Admin)" action, reached by the user

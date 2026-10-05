@@ -8,6 +8,11 @@
     <IsPackable>false</IsPackable>
     <AssemblyName>Lertaro.Core.Tests</AssemblyName>
     <RootNamespace>Lertaro.Core.Tests</RootNamespace>
+    <!-- Run the tests through Microsoft.Testing.Platform: the .NET 10 SDK no longer supports the VSTest
+         target, and with this runner the tests execute in-process. -->
+    <OutputType>Exe</OutputType>
+    <EnableMSTestRunner>true</EnableMSTestRunner>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
 
   <ItemGroup>
