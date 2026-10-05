@@ -21,6 +21,10 @@ internal class WatcherManager : IDisposable
     private const int PublishDebounceMs = 1000;
     private readonly KeyedDebouncer<string> _publishDebounce = new(PublishDebounceMs, StringComparer.OrdinalIgnoreCase);
 
+    // A watcher that died dropped every change it would otherwise have reported (see the Error handler in
+    // ConfigureWatcher); this is what keeps that from queueing one refresh per failed retry.
+    private readonly WatcherLossRefreshGate _lossGate = new();
+
     public WatcherManager(
         Action<string, string> queueRefresh,
         Func<string, NetworkIndex?> getIndex,
@@ -52,7 +56,12 @@ internal class WatcherManager : IDisposable
                 drive,
                 Directory.Exists,
                 ConfigureWatcher,
-                message => Logger.Log(message, LogLevel.Info));
+                message => Logger.Log(message, LogLevel.Info),
+                onStarted: () =>
+                {
+                    if (!_disposed && _lossGate.Recovered(drive))
+                        _queueRefresh(drive, "watcher recovered, reconcile the outage");
+                });
             _watchers[drive] = host;
             host.Start();
         }
@@ -138,10 +147,18 @@ internal class WatcherManager : IDisposable
             logError($"Watcher error on {drive}: {ex?.Message ?? "unknown"}");
             RemoveWatcher(drive);
 
+            // The watcher is gone, and every change it failed to deliver (the classic case is a buffer
+            // overflow on a busy share) is only recoverable by re-walking the drive: the retry below resumes
+            // live monitoring, it never replays the gap. Gated per loss episode (WatcherLossRefreshGate) so
+            // a sustained outage -- each failed retry can raise its own error -- queues one refresh.
+            if (!_disposed && _lossGate.ShouldRequestRefresh(drive))
+                _queueRefresh(drive, "watcher lost, changes may have been missed");
+
             if (_getIndex(drive) != null)
             {
-                // Existing index is still valid; keep retrying until the watcher comes back up.
-                // ponytail: fixed 10 s back-off; upgrade to exponential if flapping becomes an issue.
+                // Existing index is still valid for live search; keep retrying until the watcher comes
+                // back up. ponytail: fixed 10 s back-off; upgrade to exponential if flapping becomes an
+                // issue.
                 _ = Task.Run(async () =>
                 {
                     while (!_disposed)
@@ -157,10 +174,6 @@ internal class WatcherManager : IDisposable
                         }
                     }
                 });
-            }
-            else
-            {
-                _queueRefresh(drive, "watcher error");
             }
         };
         return true;

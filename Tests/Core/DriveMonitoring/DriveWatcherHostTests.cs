@@ -6,6 +6,49 @@ namespace Lertaro.Core.Tests.DriveMonitoring;
 public sealed class DriveWatcherHostTests
 {
     [TestMethod]
+    public async Task Start_OfflineRoot_ReturnsOnlineAndNotifiesOnlyAfterWatching()
+    {
+        using var dir = new TempDirectory();
+        var online = 0;
+        FileSystemWatcher? watcher = null;
+        var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var host = new DriveWatcherHost("Test", dir.Path,
+            _ => Volatile.Read(ref online) != 0,
+            (current, _, _, _, _) => { watcher = current; return true; },
+            _ => { }, TimeSpan.FromMilliseconds(20),
+            onStarted: () => started.TrySetResult(watcher!.EnableRaisingEvents));
+
+        host.Start();
+        Assert.IsFalse(started.Task.IsCompleted);
+        Volatile.Write(ref online, 1);
+
+        Assert.IsTrue(await started.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    [TestMethod]
+    public async Task Restart_QueuesReconciliationAfterNewWatcherIsEnabled()
+    {
+        using var dir = new TempDirectory();
+        Action? restart = null;
+        FileSystemWatcher? watcher = null;
+        var starts = 0;
+        var recovered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var host = new DriveWatcherHost("Test", dir.Path, _ => true,
+            (current, _, restartWatcher, _, _) => { watcher = current; restart = restartWatcher; return true; },
+            _ => { }, TimeSpan.FromMilliseconds(20), onStarted: () =>
+            {
+                if (Interlocked.Increment(ref starts) == 2) recovered.TrySetResult(watcher!.EnableRaisingEvents);
+            });
+
+        host.Start();
+        Assert.IsNotNull(restart);
+        restart();
+
+        Assert.IsTrue(await recovered.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.AreEqual(2, starts);
+    }
+
+    [TestMethod]
     public void Start_RootDoesNotExist_NeverConfiguresOrLogs()
     {
         var configureCalled = false;

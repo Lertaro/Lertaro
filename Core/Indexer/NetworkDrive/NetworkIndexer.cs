@@ -143,15 +143,16 @@ public sealed class NetworkIndexer : IDisposable
                         _indexes[drive] = index;
                         _statuses[drive] = NetworkIndexerHelper.CreateStatus(drive, "cached", index.Count, index, null);
                         // An incomplete cache (interrupted scan) must not be mistaken for "nothing to do" --
-                        // only a fully-finished index skips the initial refresh below.
-                        if (index.IsComplete)
+                        // and neither must a complete one that finished with directories it never captured
+                        // (see IsFullyCached). Only a fully captured index skips the initial refresh below.
+                        if (IsFullyCached(index.IsComplete, DriveRefreshRunner.HasUncapturedMarker(IndexerHelper.GetCachePath(drive))))
                             cachedDrives.Add(drive);
                         lastUpdatedTimes[drive] = index.LastUpdated;
                     }
                 }
                 else
                 {
-                    if (_indexes[drive].IsComplete)
+                    if (IsFullyCached(_indexes[drive].IsComplete, DriveRefreshRunner.HasUncapturedMarker(IndexerHelper.GetCachePath(drive))))
                         cachedDrives.Add(drive);
                     lastUpdatedTimes[drive] = _indexes[drive].LastUpdated;
                 }
@@ -168,6 +169,11 @@ public sealed class NetworkIndexer : IDisposable
         foreach (var root in changedRoots)
             NotifyDirectoriesChanged(root, null);
     }
+
+    // A completed pass can still have failed listings. The sidecar requests another pass on startup;
+    // Listed flags permit record reuse, but the diff walker still compares live directory contents.
+    internal static bool IsFullyCached(bool isComplete, bool hasUncapturedDirectories)
+        => isComplete && !hasUncapturedDirectories;
 
     public bool RefreshDrive(string drive)
     {

@@ -8,24 +8,32 @@ internal sealed class FolderDriveMonitor : IDisposable
 
     private readonly string _drive;
     private readonly Action<WatcherChangeTypes, string, string?> _onChange;
+    private readonly Action? _onReindexRequired;
     private readonly CancellationToken _token;
     private readonly object _gate = new();
     private readonly DriveWatcherHost _host;
     private readonly List<PendingChange> _pending = new();
+    private readonly WatcherLossRefreshGate _lossGate = new();
     private Timer? _debounce;
     private bool _disposed;
 
-    public FolderDriveMonitor(string drive, Action<WatcherChangeTypes, string, string?> onChange, CancellationToken token)
+    public FolderDriveMonitor(string drive, Action<WatcherChangeTypes, string, string?> onChange, CancellationToken token, Action? onReindexRequired = null)
     {
         _drive = drive;
         _onChange = onChange;
+        _onReindexRequired = onReindexRequired;
         _token = token;
         _host = new DriveWatcherHost(
             nameof(FolderDriveMonitor),
             drive,
             Directory.Exists,
             ConfigureWatcher,
-            message => Logger.Log(message, LogLevel.Warn));
+            message => Logger.Log(message, LogLevel.Warn),
+            onStarted: () =>
+            {
+                if (!_disposed && !_token.IsCancellationRequested && _lossGate.Recovered(_drive))
+                    _onReindexRequired?.Invoke();
+            });
     }
 
     public void Start() => _host.Start();
@@ -46,9 +54,28 @@ internal sealed class FolderDriveMonitor : IDisposable
         {
             var ex = e.GetException();
             logError($"Watcher error on {drive}: {ex?.Message ?? "unknown"}");
+            // restart() only brings live monitoring back: the changes this watcher failed to report (a
+            // buffer overflow on a busy volume is the usual cause) are gone for good unless the drive is
+            // re-walked, so ask for one. Requested once per outage -- see WatcherLossRefreshGate -- since
+            // the retry path can raise several errors before the watcher is up again.
+            if (RequestReindex())
+                _onReindexRequired?.Invoke();
             restart();
         };
         return true;
+    }
+
+    // The callback is invoked outside the lock (it leads to a drive rebuild), but the decision itself is
+    // taken under it so it observes the same _disposed/cancellation state Schedule does.
+    private bool RequestReindex()
+    {
+        lock (_gate)
+        {
+            if (_disposed || _token.IsCancellationRequested)
+                return false;
+
+            return _lossGate.ShouldRequestRefresh(_drive);
+        }
     }
 
     private void Schedule(WatcherChangeTypes changeType, string path, string? oldPath = null)
