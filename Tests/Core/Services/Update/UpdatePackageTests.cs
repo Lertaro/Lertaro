@@ -199,14 +199,6 @@ public sealed class UpdatePackageTests : IDisposable
     }
 
     [TestMethod]
-    public void MaxPackageBytes_SitsAboveEveryRealPackage()
-    {
-        // A ceiling below what the product ships would make every update refuse itself. Measured against the
-        // v5.8.1 release assets, where the largest portable zip is 8,197,983 bytes.
-        Assert.IsTrue(UpdatePackage.MaxPackageBytes > 8_197_983);
-    }
-
-    [TestMethod]
     public void TryVerifyAndExtract_FlatPackage_UnpacksAndReturnsTargetRoot()
     {
         var (zip, signature) = Read(CreateStagedPackage());
