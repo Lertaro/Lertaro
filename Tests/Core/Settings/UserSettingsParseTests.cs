@@ -31,4 +31,22 @@ public sealed class UserSettingsParseTests
         Assert.IsNotNull(settings);
         Assert.AreEqual(new HotkeyPageSettings().ToggleWindowHotkey, settings.Hotkeys.ToggleWindowHotkey);
     }
+
+    // The alias table is read by the search hot path with its own case-insensitive comparison, because a
+    // dictionary materialised from JSON comes back with the default ordinal comparer -- the property's
+    // own initializer comparer is gone by then, so nothing may rely on it.
+    [TestMethod]
+    public void TryParse_SettingsItemAliases_SurvivesRoundTrip()
+    {
+        var json = JsonSerializer.Serialize(new UserSettings
+        {
+            SettingsItemAliases = { ["env"] = "编辑系统环境变量", ["log"] = "事件查看器" },
+        });
+
+        var settings = UserSettings.TryParse(json);
+
+        Assert.IsNotNull(settings);
+        Assert.AreEqual("编辑系统环境变量", settings.SettingsItemAliases["env"]);
+        Assert.IsFalse(settings.SettingsItemAliases.ContainsKey("ENV"));
+    }
 }

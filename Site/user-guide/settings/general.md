@@ -47,6 +47,7 @@ Configures default window geometry, columns, and sidebars for the main search wi
 - **Result Table Column Order**: Customize the display order of columns (Name, Path, Date Modified, etc.) in the tabular view.
 - **Sidebar Filter Order**: Reorder filter groups in the left sidebar; each category dynamically displays live matching item counts.
 - **Action Menu Group Order**: Reorder action groups inside the context action menu (`Ctrl+O`).
+- **Settings Item Search Aliases**: Register a whole-word alias for a settings item and type that alias in the search box to bring the item straight up. An alias is never matched fuzzily, the target has to be spelled exactly as the result row shows it, and one alias covers one item.
 
 ## 4. Preview Window
 

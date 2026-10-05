@@ -177,6 +177,14 @@ public class UserSettings
     /// </summary>
     public Dictionary<string, string> ResultTypeTriggers { get; set; } = new();
 
+    /// <summary>
+    /// Whole-word shortcuts for search results the user names by hand: key is the alias, value is the
+    /// exact Title of the item it should surface (a Windows settings entry such as "编辑系统环境变量", or
+    /// any other provider item with that title). One alias stands for one item, and the query has to be
+    /// the alias itself -- see SearchableItemMapper.FindAliasTarget.
+    /// </summary>
+    public Dictionary<string, string> SettingsItemAliases { get; set; } = new();
+
     public Dictionary<string, Dictionary<string, object>> PluginSettings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public T GetPluginSetting<T>(string pluginId, string key, T defaultValue) =>

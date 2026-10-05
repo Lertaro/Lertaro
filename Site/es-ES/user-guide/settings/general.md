@@ -47,6 +47,7 @@ Configura las dimensiones predeterminadas y la vista de tabla para la ventana pr
 - **Orden de columnas en la tabla**: Personaliza el orden de las columnas (Nombre, Ruta, Fecha de modificación, etc.).
 - **Orden de filtros en la barra lateral**: Reordena las categorías laterales; cada una muestra en tiempo real el recuento de coincidencias activas.
 - **Orden de grupos del menú de acciones**: Modifica la disposición de los grupos dentro del menú de acciones contextuales (`Ctrl+O`).
+- **Alias de búsqueda de elementos de configuración**: Registra un alias de palabra completa para un elemento de configuración y escribe ese alias en el cuadro de búsqueda para mostrarlo directamente. Los alias no usan búsqueda difusa, el nombre del destino debe coincidir exactamente con el que muestra la fila de resultados y un alias representa un solo elemento.
 
 ## 4. Ventana de vista previa
 

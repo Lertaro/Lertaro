@@ -84,6 +84,7 @@ internal static class GeneralSettingsApplier
         vm.ActionMenuGroupOrder.Save();
         vm.FilePreviewProviderOrder.Save();
         vm.ThumbnailProviderOrder.Save();
+        vm.SettingsItemAliases.Save();
 
         userSettings.Save();
     }
