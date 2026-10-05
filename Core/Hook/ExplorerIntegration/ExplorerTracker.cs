@@ -333,6 +333,20 @@ public class ExplorerTracker : IDisposable
         _classifier = new ExplorerWindowClassifier(this, _dialogTracker);
         _pathPoller = new ExplorerActivePathPoller(_classifier);
     }
+
+    /// <summary>
+    /// Asks for the inline scope of <paramref name="hwnd"/> through the poller's paced channel.
+    /// </summary>
+    /// <remarks>
+    /// The inline window is summoned in the instant its host becomes foreground, so the mirrored
+    /// <see cref="ActivePath"/> can still describe the previous window. A caller that wants the accurate
+    /// answer asks for it here instead of reading the adapter itself: this goes through the same read
+    /// floor, STA marshalling and timeout the poller uses, so a summon cannot add a synchronous
+    /// cross-process read to the UI thread, cannot bypass the pacing, and cannot hang on a host that stops
+    /// answering. Publish the result with <see cref="UpdatePath"/> so it travels the path a polled answer
+    /// takes.
+    /// </remarks>
+    public Task<string?> RequestInlineScopeAsync(IntPtr hwnd) => _pathPoller.ReadInlineScopeAsync(hwnd);
     public void Start()
     {
         if (_isRunning) return;

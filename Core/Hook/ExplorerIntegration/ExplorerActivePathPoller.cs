@@ -55,6 +55,33 @@ internal sealed class ExplorerActivePathPoller : IDisposable
         }, LocationSettleMs);
     }
 
+    /// <summary>
+    /// One paced inline-scope read for <paramref name="hwnd"/>, off the caller's thread.
+    /// </summary>
+    /// <remarks>
+    /// The App's summon path needs the scope of the window it is being summoned over, and used to take it
+    /// with a direct adapter call on its own (UI) thread. That put a cross-process host read on the summon
+    /// path for every summon and bypassed this floor, which is why the read is offered here instead: same
+    /// floor, same STA marshalling, same timeout as the poller's own inline read, and never on the caller's
+    /// thread. Returns null when the floor does not allow a read now or the host does not answer -- the
+    /// poller's next cycle covers that case, so a null here costs latency, never correctness.
+    /// </remarks>
+    internal Task<string?> ReadInlineScopeAsync(IntPtr hwnd)
+    {
+        var adapter = _tracker?.ActiveInlineAdapter;
+        if (adapter == null || hwnd == IntPtr.Zero) return Task.FromResult<string?>(null);
+
+        return Task.Run(() =>
+        {
+            var nowTicks = Environment.TickCount64;
+            if (!_readFloor.AllowsRead(hwnd, nowTicks)) return (string?)null;
+
+            _readFloor.NoteRead(hwnd, nowTicks);
+            return ExplorerStaInvoker.RunOnStaWithTimeout(
+                () => adapter.GetSearchScope(hwnd), null, TimeSpan.FromSeconds(2));
+        });
+    }
+
     public void Poll(ExplorerTracker tracker, uint eventType, IntPtr eventHwnd)
     {
         _tracker = tracker;

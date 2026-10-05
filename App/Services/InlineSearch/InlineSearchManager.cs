@@ -102,8 +102,17 @@ public class InlineSearchManager : IDisposable
                         _window.ViewModel.SearchScope = path;
                         Logger.Log($"[InlineSearchManager] Updated SearchScope dynamically to: {path}", LogLevel.Debug);
 
-                        if (string.IsNullOrEmpty(_window.SearchText))
-                            _window.ViewModel.Search.PerformSearch(string.Empty);
+                        // Re-run with the text as it stands, not only when the box is empty. The scope just
+                        // replaced is the one the CURRENT results were computed against, so leaving them on
+                        // screen shows the previous folder's rows -- measured as "the first character does not
+                        // locate the folder, the second one does", because that second keystroke was the only
+                        // thing that re-ran the search with the repaired scope. No extra waiting and no extra
+                        // work when the path did not change: this is the same call the empty-box case made.
+                        // The box itself is asked rather than the tracked string: they agree once a keystroke
+                        // has been handled, but while an IME is composing the box is already ahead of it, and
+                        // re-running with the older text would compute the delayed scope against a query the
+                        // user has moved on from.
+                        _window.ViewModel.Search.PerformSearch(_window.SearchBox.SearchText ?? string.Empty);
                     }
                 }
                 else if (_explorerTracker.IsActiveWindowDialog)
