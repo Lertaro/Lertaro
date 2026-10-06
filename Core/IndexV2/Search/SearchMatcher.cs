@@ -171,7 +171,7 @@ internal static class SearchMatcher
         // whole unique-name table before this returns -- during normal rapid typing, every keystroke's
         // scan used to run to completion regardless of whether a newer keystroke had already superseded
         // it, piling up CPU contention across several abandoned scans at once. The CancellationToken
-        // here lets a superseded scan abort between chunks instead of always running to the end.
+        // here lets a superseded scan abort between candidates, including slow regex matches.
         Parallel.For(
             0,
             Math.Max(chunkCount, 1),
@@ -199,13 +199,19 @@ internal static class SearchMatcher
                         for (var lane = 0; lane < 4; lane++)
                         {
                             if ((bits & (1u << lane)) != 0 && PassesOrSets(masks[i + lane], ctx.OrSetMasks))
+                            {
+                                token.ThrowIfCancellationRequested();
                                 MatchOne(snapshot, ctx, i + lane, worker, fileNamePatterns);
+                            }
                         }
                     }
                     for (; i < end; i++)
                     {
                         if ((masks[i] & ctx.RequiredMask) == ctx.RequiredMask && PassesOrSets(masks[i], ctx.OrSetMasks))
+                        {
+                            token.ThrowIfCancellationRequested();
                             MatchOne(snapshot, ctx, i, worker, fileNamePatterns);
+                        }
                     }
                 }
                 else
@@ -214,6 +220,7 @@ internal static class SearchMatcher
                     {
                         if (ctx.CanFilter && ((masks[uid] & ctx.RequiredMask) != ctx.RequiredMask || !PassesOrSets(masks[uid], ctx.OrSetMasks)))
                             continue;
+                        token.ThrowIfCancellationRequested();
                         MatchOne(snapshot, ctx, uid, worker, fileNamePatterns);
                     }
                 }

@@ -1,6 +1,6 @@
 # Search Syntax
 
-Lertaro's search bar supports fuzzy jump matching, boolean logic, exclusion, drive and path scoping, sorting and filtering query tokens, and multilingual aliases. All syntaxes can be freely mixed within the same query.
+Lertaro's search bar supports fuzzy jump matching, boolean logic, exclusion, drive and path scoping, sorting and filtering query tokens, and multilingual aliases. The rules for combining these syntaxes are described below.
 
 ## 1. Basic Matching & Case
 
@@ -18,9 +18,9 @@ Turn this off under **Settings → General → System → Enable fuzzy matching*
 
 ### Case Insensitivity
 
-Matching always ignores case, in both directions — the case you type never changes what matches, and the case of the file name never does either. `myfile`, `MyFile` and `MYFILE` all match each other.
+Ordinary search terms ignore case: `myfile`, `MyFile`, and `MYFILE` match each other.
 
-There is no case-sensitive mode: typing a capital never narrows a term to exact-case matches.
+Ordinary terms have no case-sensitive mode. Regex clauses follow .NET rules and can disable case folding with `(?-i)`.
 
 ### Pinyin Aliases & Ranking
 
@@ -92,7 +92,7 @@ There is no quoting syntax that can change how precedence is read; grouping is f
 
 ### The Space Rule
 
-A space is the AND separator, so a query with spaces is always several ANDed terms — this is the one place where Lertaro reads punctuation as structure:
+Spaces between ordinary terms mean AND; terms joined by single quotes follow the rules below.
 
 ```text
 final report
@@ -100,7 +100,7 @@ final report
 
 is `final` AND `report`, which is not the same as a single phrase `final report`.
 
-**A plugin token is the only place a space survives.** `\ ` (backslash + space) carries a space inside a plugin-token keyword: `\my\ key` is one token whose keyword is `my key`. In an ordinary term the escape is turned back into the separator, so `final\ report` reaches the matcher as the two ANDed terms `final` and `report`, and `?final\ report` asks for a contiguous `final` plus a separate `report`. A space inside a regex clause cuts the clause apart, so `/^final report/` and `/^final\ report/` both match nothing. Quoting solves nothing: `'final report'` and `"final report"` are not phrase syntax — quotes are matched as literal characters, so those queries look for names containing a quote mark, and they find nothing.
+**Plugin tokens can carry spaces.** `\ ` (backslash plus space) makes `\my\ key` one token with the keyword `my key`. In ordinary text the escape becomes a space, so `final\ report` is two AND terms and `?final\ report` requires only `final` to be contiguous. Literal or escaped spaces split regex clauses; use `\s` instead. Apostrophes are legal in Windows file names. The parser joins paired single quotes and the words between them into one term, retaining the quotes and spaces, so `'final report'` can match a name containing those characters. Double quotes are also literal, but cannot occur in Windows file names.
 
 When the two words are adjacent in the name you want, searching for the more distinctive half and letting the ranking put it on top works. To require the adjacency, use a regex clause, which matches the name as one whole string (see below), and write the space as `\s`:
 
@@ -141,10 +141,10 @@ Pastes automatically as:
 
 ### Detailed Operator Behaviors & Combinations
 
-1. **Exclusion `:`** — `:term` drops every result whose name contains `term`. The exclusion is written **without a space** after the colon (`:temp`, not `: temp`), and it must not be the only thing in the query: because an exclusion can only remove results, a query of nothing but exclusions shows no results at all. In practice that means always keeping at least one ordinary term alongside it.
+1. **Exclusion `:`** — `:term` drops every result whose name contains `term`. The exclusion is written **without a space** after the colon (`:temp`, not `: temp`), and it must not be the only thing in the query: because an exclusion can only remove results, a query of nothing but exclusions shows no results at all. In practice that means always keeping at least one ordinary term or regex clause alongside it.
 2. **Exclusions are always exact** — they are matched as a contiguous substring even when fuzzy matching is on, and they are not expanded through pinyin aliases. A loose subsequence or a pinyin spelling would otherwise remove files you never named.
 3. **A lone colon is ignored** — `:` with nothing after it is not an operator; it is simply dropped from the query.
-4. **The drive colon is different** — a drive letter follows the colon (`d:`, see [section 4](#_4-path-mode-drive-scoping)) while an exclusion precedes it (`:temp`). The two can never be confused, and a colon inside a word (`c:\path`) is ordinary text.
+4. **Drive and exclusion colons**: in `d:`, the drive letter precedes the colon; in `:temp`, the excluded text follows it. The colon in `c:\path` belongs to the path.
 5. **A regex clause is lifted out before the query is read as a path or split into terms** — that is what keeps its backslashes and slashes from being mistaken for a path, and it means a clause can sit anywhere in the query (`/\.md$/ report` and `report /\.md$/` are the same search).
 6. **Precision inversion `?`** — `?term` takes the **opposite** of whatever the fuzzy-matching setting says: with fuzzy matching on the term becomes a contiguous substring, with fuzzy matching off it becomes a scattered subsequence. It is the only way to mix the two readings within one query — `?report draft` requires `report` contiguously while `draft` may be scattered. The trigger is read from the **first character of a word only**, so `rep?ort` is the literal text `rep?ort` (which cannot occur in a file name and therefore matches nothing), and it affects that word alone. Like a lone `:`, a lone `?` is dropped. The colon is read first, so `:?temp` excludes the literal text `?temp`.
 
@@ -168,20 +168,20 @@ Four things are worth knowing:
 
 - **It matches the name, not the path**, and not file contents. Use a path query for folders.
 - **It does not go through pinyin aliases.** A regex describes the characters actually in the name, so a Chinese name is matched by its own characters, not by a pinyin spelling of them.
-- **The slashes are the delimiter, and `\` escapes.** Write `\.` for a literal dot (`.` alone means any character). To match a literal slash, write `\/`. Because `/` is also Windows' alternate path separator, a clause has to be a whole word that both opens and closes with `/`, and an unescaped `/` inside it closes the clause — which is what keeps a forward-slash path such as `C:/Users/me`, `/mnt/c/Users` or `/usr/local/` an ordinary path rather than a regex. An unclosed clause is treated as ordinary text rather than swallowing the rest of the query.
-- **A regex cannot be accelerated the way a term can**, because it is not a fixed string. Lertaro pulls the longest run of literal characters the expression requires — `.exe` from `/\.exe$/`, nothing at all from `/^(ogg|mp3)$/` — and uses that to skip most candidates before running the real expression. Adding an ordinary word alongside a literal-free regex is the reliable way to keep such a search fast.
+- **Slashes delimit clauses and backslashes escape characters.** Write a literal dot as `\.` and a literal slash as `\/`. A clause must be a complete word ending in an unescaped `/`. An unescaped slash inside it makes the entire word path text. Thus `C:/Users/me`, `/mnt/c/Users`, and `/usr/local/` remain paths. An unclosed clause also remains ordinary text.
+- **Regex prefiltering extracts only literals proven necessary.** `/\.exe$/` provides `.exe`; `/^(ogg|mp3)$/` has no required literal. Complex escapes, extended whitespace mode, comments, class subtraction, and long expressions skip this optimization to avoid losing valid results. Add an ordinary term to narrow candidates. The engine prefers non-backtracking matching; expressions needing backtracking have a 250 ms budget per candidate, and timed-out candidates are skipped.
 
 ## 4. Path Mode & Drive Scoping
 
 ### Targeting a Drive
 
-Start your query with a drive letter followed by a colon to restrict results strictly to that drive:
+A standalone drive term in a name search restricts results to that drive.
 
 ```text
 d: report
 ```
 
-The drive spec must be a **standalone, two-character token**: the colon has to be followed by a space. `d:report` is no longer a drive spec — it is an ordinary term searching for the literal text `d:report`, because guessing a drive from the first two characters produced false positives. Only ASCII letters are recognized, so `中: x` is not a drive either.
+A drive term consists of exactly one ASCII letter and a colon. It may appear anywhere in the query; separate any following term with a space. If several drive terms occur, the last wins. `d:` alone lists results on that drive. `d:report` and `中: x` are not drive restrictions.
 
 ### Full Path Mode
 
@@ -226,7 +226,7 @@ Even if `dcj` never appears in the file's own name, Lertaro finds `d01j.txt` loc
 
 ## 5. Query Tokens: Sorting & Filtering
 
-Query tokens are the words that start with a character that cannot occur in a Windows file name, so they can never be confused with text you want to search for. There are two families:
+Query tokens are recognized by the trigger at the start of a word and fall into these two groups.
 
 | Family | Trigger | Example | Owned by |
 | :--- | :--- | :--- | :--- |
@@ -256,7 +256,7 @@ The first character picks the sort direction, the next letter picks the property
 | `<c` / `>c` | Sort by creation time, oldest / newest first |
 | `<m` / `>m` | Sort by modified time, oldest / newest first |
 | `<a` / `>a` | Sort by accessed time, oldest / newest first |
-| `<f` / `>f` | Sort files first / folders first |
+| `<f` / `>f` | Files first / folders first |
 
 Add a second trigger plus a threshold to keep only one side of it:
 
@@ -279,7 +279,7 @@ Dates must be written **year first**. These shapes are accepted (a two-digit yea
 | `/` | 4 or 2 | padded or not | `2003/01/03`, `2003/1/3`, `03/1/3` |
 | none | 4 | — | `20030103` |
 
-Separators may not be mixed (`2003-08.03` is not a date), and the month-first reading `01-03-2003` is not accepted — the order is always year, month, day, so one query can never mean two different days on two machines. Year-only (`2008`) and year-month (`2008.8`) forms are also accepted, meaning "during 2008" and "during August 2008".
+Separators may not be mixed (`2003-08.03` is not a date), and the month-first reading `01-03-2003` is not accepted — the order is always year, month, day, so one query can never mean two different days on two machines. Year-only (`2008`) and year-month (`2008.8`) forms are also accepted, resolving to `2008-01-01 00:00:00` and `2008-08-01 00:00:00`; the second trigger then applies a strict greater-than or less-than comparison.
 
 ### Plugin Tokens (`\`)
 
@@ -304,7 +304,7 @@ The full search window's left type-filter sidebar is configured separately in th
 
 ### Chained Tokens
 
-Because tokens are independent words, several can appear in one query and each one applies in turn:
+Tokens transform the fetched file and directory results in query order. Quick searches with tokens fetch at most 1,000 file results, so sorting and thresholds apply to that candidate set, not the first 1,000 items after sorting the entire drive. Open the full search window for complete results. Tokens alone do not start a file search; add a search term, drive term, or regex clause.
 
 - `report \doc >m`: Searches "report", keeps documents only, sorted by modified time (newest first).
 - `backup \zip <s`: Searches "backup", keeps `.zip` archives, sorted by size (smallest first).
@@ -341,7 +341,7 @@ If `;` is assigned to "Applications", the above query searches Visual Studio exc
 
 ### Chinese filenames: pinyin aliasing
 
-Bundled with the `PinyinAlias` plugin, Chinese filenames are searchable via pinyin out of the box with zero configuration:
+The bundled `PinyinAlias` plugin supports pinyin searches for Chinese file names without additional configuration.
 
 - **Full Pinyin**: Typing `chongqing` matches `重庆.docx`.
 - **Pinyin Initials**: Typing `cq` also matches `重庆.docx`; typing `wzry` matches `王者荣耀.exe`.
@@ -351,7 +351,7 @@ You can verify that `PinyinAlias` is active under **Settings → Plugins**.
 
 ### Spanish filenames: accent aliasing
 
-Bundled with the `SpanishAlias` plugin, filenames containing Spanish accented characters (`á`, `é`, `í`, `ó`, `ú`, `ü`, `ñ`) can be searched using unaccented ASCII letters:
+The bundled `SpanishAlias` plugin lets unaccented ASCII letters match Spanish file names containing `á`, `é`, `í`, `ó`, `ú`, `ü`, or `ñ`.
 
 - Typing `cancion` matches `Canción.mp3`.
 - Typing `nino` matches `Niño.txt`.

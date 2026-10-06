@@ -7,6 +7,24 @@ namespace Lertaro.Core.Tests.SearchIndex.Query;
 public sealed class RegexQueryParserTests
 {
     [TestMethod]
+    [DataRow("C:/docs /report/", "C:/docs")]
+    [DataRow("/usr/local/ /report/", "/usr/local/")]
+    [DataRow("a/b /report/", "a/b")]
+    public void Split_AfterPathSeparators_StillExtractsLaterClauses(string query, string expectedText)
+    {
+        Assert.AreEqual(expectedText, RegexQueryParser.Split(query, out var patterns));
+        Assert.AreEqual("report", Assert.ContainsSingle(patterns!));
+    }
+
+    [TestMethod]
+    public void Split_EscapedClosingDelimiter_RemainsPathText()
+    {
+        const string query = @"/report\/";
+        Assert.AreEqual(query, RegexQueryParser.Split(query, out var patterns));
+        Assert.IsNull(patterns);
+    }
+
+    [TestMethod]
     public void Split_RegexAlone_LeavesNoText()
     {
         var rest = RegexQueryParser.Split("/^ab.c\\..{3}$/", out var patterns);

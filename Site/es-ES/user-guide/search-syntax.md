@@ -1,6 +1,6 @@
 # Sintaxis de búsqueda
 
-La barra de búsqueda de Lertaro admite coincidencia difusa con salto de caracteres, lógica booleana, exclusión, delimitación por unidad y ruta, tokens de consulta de ordenación y filtrado, y alias multilingües. Todas las sintaxis se pueden combinar libremente en la misma consulta.
+La barra de búsqueda de Lertaro admite coincidencia difusa con salto de caracteres, lógica booleana, exclusión, delimitación por unidad y ruta, tokens de consulta de ordenación y filtrado, y alias multilingües. Las reglas para combinar estas sintaxis se explican a continuación.
 
 ## 1. Coincidencia básica y distinción entre mayúsculas y minúsculas
 
@@ -18,9 +18,9 @@ Desactívala en **Configuración → General → Sistema → Habilitar coinciden
 
 ### Sin distinción entre mayúsculas y minúsculas
 
-La coincidencia ignora siempre las mayúsculas y minúsculas, en ambos sentidos: las mayúsculas que escribas nunca cambian lo que coincide, y las del nombre del archivo tampoco. `myfile`, `MyFile` y `MYFILE` coinciden entre sí.
+Los términos normales no distinguen mayúsculas: `myfile`, `MyFile` y `MYFILE` coinciden entre sí.
 
-No existe ningún modo sensible a mayúsculas: escribir una mayúscula nunca restringe un término a coincidencias con mayúsculas exactas.
+Los términos normales no tienen un modo sensible a mayúsculas. Las cláusulas regex siguen las reglas de .NET y pueden distinguirlas con `(?-i)`.
 
 ### Alias de pinyin y orden de prioridad
 
@@ -92,7 +92,7 @@ No existe ninguna sintaxis de comillas que cambie cómo se lee la precedencia; l
 
 ### La regla del espacio
 
-El espacio es el separador AND, así que una consulta con espacios es siempre varios términos unidos por AND: este es el único punto en el que Lertaro lee la puntuación como estructura:
+Los espacios entre términos normales indican AND; los términos unidos por comillas simples siguen las reglas siguientes.
 
 ```text
 final report
@@ -100,7 +100,7 @@ final report
 
 es `final` AND `report`, que no es lo mismo que una única frase `final report`.
 
-**La barra invertida solo conserva un espacio dentro de un token.** `\ ` (barra invertida + espacio) lleva un espacio únicamente en la palabra clave de un token de plugin: `\my\ key` es un token cuya palabra clave es `my key`. En un término normal el escapado se convierte en el separador, así que `final\ report` llega al comparador como los dos términos AND `final` y `report`, y `?final\ report` exige `final` contigua más `report` como término aparte. Un espacio dentro de una cláusula regex también la parte, así que `/^final report/` y `/^final\ report/` no encuentran nada. Las comillas no resuelven nada: `'final report'` y `"final report"` no son sintaxis de frase — las comillas se comparan como caracteres literales, así que esas consultas buscan nombres que contengan una comilla y no encuentran nada.
+**Los tokens de plugins pueden contener espacios.** `\ ` (barra inversa y espacio) convierte `\my\ key` en un token cuya palabra clave es `my key`. En el texto normal, el escape se convierte en espacio: `final\ report` son dos términos AND y `?final\ report` solo exige que `final` sea contiguo. Los espacios literales o escapados separan las cláusulas regex; usa `\s`. Los apóstrofos son válidos en nombres de archivos de Windows. El analizador une las comillas simples emparejadas y las palabras intermedias en un término, conservando comillas y espacios; `'final report'` puede coincidir con un nombre que contenga esos caracteres. Las comillas dobles también son literales, pero no son válidas en nombres de archivos de Windows.
 
 Cuando las dos palabras son adyacentes en el nombre que buscas, también basta buscar solo la mitad más distintiva y dejar que la ordenación la ponga arriba. Para exigir esa adyacencia, usa una cláusula de expresión regular, que compara el nombre como un todo (ver más abajo), y escribe el espacio como `\s`:
 
@@ -141,10 +141,10 @@ Se pega automáticamente como:
 
 ### Comportamiento detallado de operadores y combinaciones
 
-1. **Exclusión `:`** — `:term` descarta todos los resultados cuyo nombre contenga `term`. La exclusión se escribe **sin espacio** después de los dos puntos (`:temp`, no `: temp`), y no puede ser lo único que haya en la consulta: como una exclusión solo puede quitar resultados, una consulta formada únicamente por exclusiones no muestra ningún resultado. En la práctica, eso significa mantener siempre al menos un término normal junto a ella.
+1. **Exclusión `:`** — `:term` descarta todos los resultados cuyo nombre contenga `term`. La exclusión se escribe **sin espacio** después de los dos puntos (`:temp`, no `: temp`), y no puede ser lo único que haya en la consulta: como una exclusión solo puede quitar resultados, una consulta formada únicamente por exclusiones no muestra ningún resultado. En la práctica, eso significa mantener siempre al menos un término normal o una cláusula regex junto a ella.
 2. **Las exclusiones son siempre exactas** — se comparan como una subcadena contigua incluso con la coincidencia difusa activada, y no se expanden mediante alias de pinyin. De lo contrario, una subsecuencia laxa o una grafía en pinyin eliminaría archivos que nunca nombraste.
 3. **Unos dos puntos solos se ignoran** — `:` sin nada detrás no es un operador; simplemente se descarta de la consulta.
-4. **Los dos puntos de unidad son distintos** — una letra de unidad va después de los dos puntos (`d:`, ver la [sección 4](#_4-modo-de-ruta-y-delimitacion-por-unidad)), mientras que una exclusión va antes (`:temp`). Es imposible confundirlos, y unos dos puntos dentro de una palabra (`c:\path`) son texto normal.
+4. **Unidad y exclusión**: en `d:`, la letra de unidad precede a los dos puntos; en `:temp`, el texto excluido los sigue. Los dos puntos de `c:\path` pertenecen a la ruta.
 5. **Una cláusula regex se extrae antes de que la consulta se lea como una ruta o se divida en términos** — eso es lo que evita que sus barras invertidas y sus barras se confundan con una ruta, y significa que una cláusula puede situarse en cualquier parte de la consulta (`/\.md$/ report` y `report /\.md$/` son la misma búsqueda).
 6. **Inversión de precisión `?`** — `?term` toma el valor **contrario** al de la configuración de coincidencia difusa: con la coincidencia difusa activada el término pasa a ser una subcadena contigua, y con ella desactivada pasa a ser una subsecuencia dispersa. Es la única forma de mezclar las dos lecturas en una misma consulta (`?report draft` exige `report` de forma contigua mientras que `draft` puede estar disperso). El activador se lee **solo del primer carácter de una palabra**, así que `rep?ort` es el texto literal `rep?ort` (que no puede aparecer en un nombre de archivo y por tanto no coincide con nada), y afecta únicamente a esa palabra. Igual que unos `:` solos, un `?` solo se descarta. Los dos puntos se leen primero, así que `:?temp` excluye el texto literal `?temp`.
 
@@ -168,20 +168,20 @@ Hay cuatro cosas que conviene saber:
 
 - **Coincide con el nombre, no con la ruta**, y tampoco con el contenido del archivo. Usa una consulta de ruta para las carpetas.
 - **No pasa por los alias de pinyin.** Una expresión regular describe los caracteres que hay realmente en el nombre, así que un nombre en chino coincide por sus propios caracteres, no por una grafía en pinyin de ellos.
-- **Las barras son el delimitador, y `\` escapa.** Escribe `\.` para un punto literal (`.` por sí solo significa cualquier carácter). Para que coincida con una barra literal, escribe `\/`. Como `/` es también el separador de ruta alternativo de Windows, una cláusula tiene que ser una palabra completa que abra y cierre con `/`, y una `/` sin escapar dentro de ella cierra la cláusula: eso es lo que mantiene una ruta con barras como `C:/Users/me`, `/mnt/c/Users` o `/usr/local/` como una ruta normal en lugar de una regex. Una cláusula sin cerrar se trata como texto normal en lugar de tragarse el resto de la consulta.
-- **Una expresión regular no se puede acelerar como un término**, porque no es una cadena fija. Lertaro extrae la tirada más larga de caracteres literales que la expresión exige — `.exe` de `/\.exe$/`, nada en absoluto de `/^(ogg|mp3)$/` — y la usa para saltarse la mayoría de los candidatos antes de ejecutar la expresión real. Añadir una palabra normal junto a una expresión regular sin literales es la forma fiable de mantener rápida ese tipo de búsqueda.
+- **La barra delimita la cláusula y la barra inversa escapa caracteres.** Escribe `\.` para un punto literal y `\/` para una barra literal. La cláusula debe ocupar una palabra completa terminada en `/` sin escapar. Una barra interior sin escapar hace que toda la palabra se trate como ruta. Por eso `C:/Users/me`, `/mnt/c/Users` y `/usr/local/` siguen siendo rutas. Una cláusula sin cerrar también se conserva como texto normal.
+- **El prefiltro regex solo extrae literales cuya presencia es obligatoria.** `/\.exe$/` aporta `.exe`; `/^(ogg|mp3)$/` no tiene un literal obligatorio. Los escapes complejos, el modo de espacios extendido, los comentarios, la resta de clases y las expresiones largas omiten esta optimización para no perder resultados válidos. Añade un término normal para reducir los candidatos. El motor prefiere la ejecución sin retroceso; cuando se necesita retroceso, cada candidato dispone de 250 ms y se omite si agota ese tiempo.
 
 ## 4. Modo de ruta y delimitación por unidad
 
 ### Limitar la búsqueda a una unidad
 
-Empieza la consulta con una letra de unidad seguida de dos puntos para restringir los resultados estrictamente a esa unidad:
+Un término de unidad independiente limita la búsqueda por nombre a esa unidad.
 
 ```text
 d: report
 ```
 
-La especificación de unidad debe ser un **token independiente de dos caracteres**: después de los dos puntos tiene que haber un espacio. `d:report` ya no es una especificación de unidad, sino un término normal que busca el texto literal `d:report`, porque adivinar la unidad a partir de los dos primeros caracteres producía falsos positivos. Solo se reconocen letras ASCII, así que `中: x` tampoco es una unidad.
+El término de unidad consta de una letra ASCII y dos puntos. Puede aparecer en cualquier posición; separa con un espacio el término siguiente. Si hay varias unidades, prevalece la última. `d:` por sí solo muestra resultados de esa unidad. `d:report` y `中: x` no limitan la unidad.
 
 ### Modo de ruta completa
 
@@ -226,7 +226,7 @@ Aunque `dcj` no aparezca nunca en el propio nombre del archivo, Lertaro encuentr
 
 ## 5. Tokens de consulta: ordenación y filtrado
 
-Los tokens de consulta son las palabras que empiezan por un carácter que no puede aparecer en un nombre de archivo de Windows, por lo que nunca se pueden confundir con el texto que quieres buscar. Hay dos familias:
+Los tokens se reconocen por el carácter inicial de la palabra y se dividen en estos dos grupos.
 
 | Familia | Desencadenante | Ejemplo | Propiedad de |
 | :--- | :--- | :--- | :--- |
@@ -256,7 +256,7 @@ El primer carácter elige la dirección de ordenación y la letra siguiente, la 
 | `<c` / `>c` | Ordenar por fecha de creación, los más antiguos / más recientes primero |
 | `<m` / `>m` | Ordenar por fecha de modificación, los más antiguos / más recientes primero |
 | `<a` / `>a` | Ordenar por fecha de acceso, los más antiguos / más recientes primero |
-| `<f` / `>f` | Carpetas primero / archivos primero |
+| `<f` / `>f` | Archivos primero / carpetas primero |
 
 Añade un segundo desencadenante más un umbral para conservar solo un lado:
 
@@ -279,7 +279,7 @@ Las fechas deben escribirse **primero el año**. Se aceptan estas formas (un añ
 | `/` | 4 o 2 | con relleno o sin él | `2003/01/03`, `2003/1/3`, `03/1/3` |
 | ninguno | 4 | — | `20030103` |
 
-Los separadores no se pueden mezclar (`2003-08.03` no es una fecha), y no se acepta la lectura con el mes primero `01-03-2003`: el orden es siempre año, mes, día, de modo que una consulta nunca puede significar dos días distintos en dos máquinas. También se aceptan las formas solo con año (`2008`) y año-mes (`2008.8`), que significan «durante 2008» y «durante agosto de 2008».
+Los separadores no se pueden mezclar (`2003-08.03` no es una fecha), y no se acepta la lectura con el mes primero `01-03-2003`: el orden es siempre año, mes, día, de modo que una consulta nunca puede significar dos días distintos en dos máquinas. También se aceptan las formas solo con año (`2008`) y año-mes (`2008.8`), que se interpretan como `2008-01-01 00:00:00` y `2008-08-01 00:00:00`; el segundo activador aplica una comparación estricta de mayor o menor que.
 
 ### Tokens de plugin (`\`)
 
@@ -304,7 +304,7 @@ La barra lateral de filtros de tipo de la ventana de búsqueda completa se confi
 
 ### Tokens encadenados
 
-Como los tokens son palabras independientes, pueden aparecer varios en una misma consulta y cada uno se aplica por turno:
+Los tokens transforman en orden los archivos y carpetas ya obtenidos. La búsqueda rápida con tokens obtiene como máximo 1.000 archivos; la ordenación y los umbrales se aplican a esos candidatos, no a los primeros 1.000 elementos de toda la unidad ordenada. Abre la ventana de búsqueda completa para obtener todos los resultados. Los tokens solos no inician la búsqueda de archivos: añade un término, una unidad o una cláusula regex.
 
 - `report \doc >m`: Busca «report», conserva solo los documentos y ordena por fecha de modificación (los más recientes primero).
 - `backup \zip <s`: Busca «backup», conserva los archivos `.zip` y ordena por tamaño (los más pequeños primero).
@@ -341,7 +341,7 @@ Si `;` está asignado a «Aplicaciones», la consulta anterior busca Visual Stud
 
 ### Nombres de archivo en chino: alias de pinyin
 
-Incluido con el plugin `PinyinAlias`, los nombres de archivo en chino se pueden buscar por pinyin directamente y sin ninguna configuración:
+El plugin incluido `PinyinAlias` permite buscar nombres de archivos chinos por pinyin sin configuración adicional.
 
 - **Pinyin completo**: Escribir `chongqing` coincide con `重庆.docx`.
 - **Iniciales de pinyin**: Escribir `cq` también coincide con `重庆.docx`; escribir `wzry` coincide con `王者荣耀.exe`.
@@ -351,7 +351,7 @@ Puedes comprobar que `PinyinAlias` está activo en **Configuración → Plugins*
 
 ### Nombres de archivo en español: alias de acentos
 
-Incluido con el plugin `SpanishAlias`, los nombres de archivo que contienen caracteres acentuados del español (`á`, `é`, `í`, `ó`, `ú`, `ü`, `ñ`) se pueden buscar sin problemas con letras ASCII sin acentos:
+El plugin incluido `SpanishAlias` permite buscar con letras ASCII sin acento nombres que contengan `á`, `é`, `í`, `ó`, `ú`, `ü` o `ñ`.
 
 - Escribir `cancion` coincide con `Canción.mp3`.
 - Escribir `nino` coincide con `Niño.txt`.

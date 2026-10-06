@@ -1,6 +1,6 @@
 # Búsqueda central y acciones
 
-Este capítulo describe las interfaces y estructuras principales de `Lertaro.PluginSdk` para aportar fuentes de búsqueda, respuestas de cálculo instantáneo, motores de transliteración de alias, manejadores de tokens de sufijo y menús contextuales.
+Este capítulo describe las interfaces y estructuras principales de `Lertaro.PluginSdk` para aportar fuentes de búsqueda, respuestas de cálculo instantáneo, motores de transliteración de alias, manejadores de tokens de consulta y menús contextuales.
 
 ## 1. Especificaciones base: `IPluginComponent` e `IPlugin`
 
@@ -97,15 +97,21 @@ public interface IAliasProvider : IPluginComponent   // El nombre viene de IPlug
 }
 ```
 
-### Manejador de tokens de sufijo de consulta `IQueryTokenProvider`
+### Manejador de tokens de consulta `IQueryTokenProvider`
 
-Procesa tokens situados al final de la consulta (p. ej. `report :size`, `doc :@today`, `image ::"hello world"`), aplicando transformaciones (ordenación, filtrado) sobre los resultados:
+Reclama tokens completos en cualquier posición, como `report <s` o `report \doc`. El anfitrión elige el primer proveedor registrado que reclama cada token, conserva su carácter inicial y transforma archivos y carpetas en el orden de los tokens. Lee el prefijo actual con `SearchSyntaxService.TokenPrefix`. Devuelve solo instancias de entrada filtradas o reordenadas. Un token sin proveedor, una lista inválida o un fallo deja vacíos los resultados de archivos de esa cadena. Los proveedores asíncronos deben sobrescribir la sobrecarga con cancelación.
 
 ```csharp
 public interface IQueryTokenProvider : IPluginComponent
 {
     bool CanHandle(string token);
     Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results);
+
+    Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ApplyAsync(token, results);
+    }
 
     // El texto que debe seguir resaltado en las filas de resultados una vez que este token se ha
     // consumido de la consulta. Null (el valor por defecto) deja intacto el resaltado del anfitrión.

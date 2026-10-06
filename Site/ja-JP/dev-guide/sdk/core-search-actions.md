@@ -1,6 +1,6 @@
 # 検索コアとアクション
 
-この章では、`Lertaro.PluginSdk` における検索データソースの提供、即時計算クエリ、非 ASCII エイリアス変換エンジン、クエリ末尾トークンハンドラー、およびコンテキストメニューに関する主要なインターフェイスを解説します。
+この章では、`Lertaro.PluginSdk` における検索データソースの提供、即時計算クエリ、非 ASCII エイリアス変換エンジン、クエリトークンハンドラー、およびコンテキストメニューに関する主要なインターフェイスを解説します。
 
 ## 1. 基本コンポーネント仕様 `IPluginComponent` と `IPlugin`
 
@@ -94,15 +94,21 @@ public interface IAliasProvider : IPluginComponent   // Name は IPluginComponen
 }
 ```
 
-### クエリ末尾トークンハンドラー `IQueryTokenProvider`
+### クエリトークンハンドラー `IQueryTokenProvider`
 
-検索語の末尾にあるトークン（例: `report :size`, `doc :@today`, `image ::"hello world"`）を処理し、結果一覧にフィルターやソートを適用します。
+`report <s` や `report \doc` など、クエリ内の任意の位置にある完全なトークンを担当します。ホストは登録順で最初に認識したプロバイダーを選び、トリガー文字を残したまま、トークンの順にファイルとフォルダーの結果を変換します。現在の接頭辞は `SearchSyntaxService.TokenPrefix` から取得します。戻り値は入力インスタンスの絞り込みまたは並べ替えに限定します。担当者がないトークン、不正なリスト、処理失敗があれば、その連鎖のファイル結果は空になります。非同期処理を行うプロバイダーはキャンセル引数付きのオーバーロードを実装してください。
 
 ```csharp
 public interface IQueryTokenProvider : IPluginComponent
 {
     bool CanHandle(string token);
     Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results);
+
+    Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ApplyAsync(token, results);
+    }
 
     // このトークンがクエリから消費された後に、結果行内でハイライトし続けるテキスト。
     // null（既定）はホスト自身のハイライトをそのまま残す。
