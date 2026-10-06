@@ -73,8 +73,26 @@ public static class PortableDirectoryLock
     /// (5.8.2 granted Users read without SYNCHRONIZE, which refused even starting the App: issue #316). The
     /// service applies updates in place, without running --install again, so it checks this on every start.
     /// </summary>
-    public static bool IsCurrent(string appDirectory) =>
-        InstallDirectoryLock.GrantsAtLeast(Path.TrimEndingDirectorySeparator(Path.GetFullPath(appDirectory)), ReadOnlyForUsers);
+    public static bool IsCurrent(string appDirectory)
+    {
+        appDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(appDirectory));
+        return IsCurrent(appDirectory, Directory.Exists(Path.Combine(appDirectory, "Data")),
+            UserProfiles.Read().Keys, (folder, zone) => Directory.Exists(folder) && InstallDirectoryLock.GrantsAtLeast(folder, zone));
+    }
+
+    internal static bool IsCurrent(string appDirectory, bool hasPortableData, IEnumerable<string> profileSids,
+        Func<string, Zone, bool> grantsAtLeast)
+    {
+        if (!grantsAtLeast(appDirectory, ReadOnlyForUsers))
+            return false;
+        if (!hasPortableData)
+            return true;
+
+        // #327: a correct binary-directory ACL says nothing about the separately protected user zones.
+        var (zoneFor, userFolders) = Zones(appDirectory, profileSids);
+        return userFolders.Prepend(Path.Combine(appDirectory, "Data", "Users"))
+            .All(folder => grantsAtLeast(folder, zoneFor(folder)!));
+    }
 
     /// <summary>
     /// Which zone starts where in a portable copy at <paramref name="appDirectory"/> (null: inherit), and the
@@ -86,7 +104,11 @@ public static class PortableDirectoryLock
         var indexes = Path.Combine(appDirectory, "Data", "Machine", "indexes");
         var userFolders = profileSids
             .Where(UserProfiles.IsAccount)
-            .ToDictionary(sid => Path.Combine(users, CurrentUserIdentity.Hash(sid)), sid => OwnedBy(new SecurityIdentifier(sid)),
+            // Logger passes SidHash to ResolveUser, which hashes it again. Preserve existing data paths
+            // and recognize both names; otherwise the live folder is locked as an unknown account (#327).
+            .SelectMany(sid => new[] { CurrentUserIdentity.Hash(sid), CurrentUserIdentity.Hash(CurrentUserIdentity.Hash(sid)) }
+                .Select(hash => (Path: Path.Combine(users, hash), Sid: sid)))
+            .ToDictionary(user => user.Path, user => OwnedBy(new SecurityIdentifier(user.Sid)),
                 StringComparer.OrdinalIgnoreCase);
 
         Zone? ZoneFor(string path) =>

@@ -48,7 +48,118 @@ public sealed class PortableDirectoryLockTests
     {
         var (_, userFolders) = PortableDirectoryLock.Zones(App, ProfileSids);
 
-        CollectionAssert.AreEqual(new[] { Path.Combine(Users, CurrentUserIdentity.Hash(AliceSid)) }, userFolders.ToArray());
+        CollectionAssert.AreEquivalent(new[]
+        {
+            Path.Combine(Users, CurrentUserIdentity.Hash(AliceSid)),
+            DataDirectoryResolver.ResolveUser(InstallationMode.Portable, App, @"C:\Unused", CurrentUserIdentity.Hash(AliceSid),
+                portableDataDirectoryExists: true, installedDataDirectoryExists: false)
+        }, userFolders.ToArray());
+    }
+
+    [TestMethod]
+    public void Zones_ActualAppDataDirectoryGrantsTheUserWriteAccessToSettingsAndIndex()
+    {
+        var folder = DataDirectoryResolver.ResolveUser(InstallationMode.Portable, App, @"C:\Unused",
+            CurrentUserIdentity.Hash(AliceSid), portableDataDirectoryExists: true, installedDataDirectoryExists: false);
+        var (zoneFor, _) = PortableDirectoryLock.Zones(App, ProfileSids);
+        var zone = zoneFor(folder);
+        Assert.IsNotNull(zone);
+        Assert.AreEqual(new SecurityIdentifier(AliceSid), zone.Owner);
+
+        foreach (var isDirectory in new[] { true, false })
+        {
+            var aces = InstallDirectoryLockTests.Aces(InstallDirectoryLock.Describe(zone, false, isDirectory));
+            var user = aces.Single(ace => ace.SecurityIdentifier == new SecurityIdentifier(AliceSid));
+            Assert.AreEqual(FileSystemRights.FullControl, (FileSystemRights)user.AccessMask);
+            Assert.IsFalse(aces.Any(ace => ace.SecurityIdentifier == InstallDirectoryLock.Users));
+        }
+    }
+
+    [TestMethod]
+    public void IsCurrent_CorrectRootButStaleUserDataPermissions_RequiresRepair()
+    {
+        var actualFolder = DataDirectoryResolver.ResolveUser(InstallationMode.Portable, App, @"C:\Unused",
+            CurrentUserIdentity.Hash(AliceSid), portableDataDirectoryExists: true, installedDataDirectoryExists: false);
+        var checkedFolders = new List<string>();
+        var current = PortableDirectoryLock.IsCurrent(App, true, ProfileSids, (folder, zone) =>
+        {
+            checkedFolders.Add(folder);
+            return folder != actualFolder;
+        });
+
+        Assert.IsFalse(current);
+        Assert.Contains(App, checkedFolders);
+        Assert.Contains(actualFolder, checkedFolders);
+    }
+
+    [TestMethod]
+    public void IsCurrent_AllZonesRepaired_AcceptsCurrentPermissions()
+    {
+        var checkedFolders = new List<string>();
+        Assert.IsTrue(PortableDirectoryLock.IsCurrent(App, true, ProfileSids, (folder, _) =>
+        {
+            checkedFolders.Add(folder);
+            return true;
+        }));
+        Assert.HasCount(4, checkedFolders); // binaries, Users, single-hash and double-hash account folders
+    }
+
+    [TestMethod]
+    public void IsCurrent_ExternalData_OnlyChecksBinaries()
+    {
+        var checkedFolders = new List<string>();
+        Assert.IsTrue(PortableDirectoryLock.IsCurrent(App, false, ProfileSids, (folder, _) =>
+        {
+            checkedFolders.Add(folder);
+            return true;
+        }));
+        Assert.AreEqual(App, Assert.ContainsSingle(checkedFolders));
+    }
+
+    [TestMethod]
+    public void Lock_CorrectedUserZone_RestoresWritesWithoutLosingExistingData()
+    {
+        var user = WindowsIdentity.GetCurrent().User!;
+        var root = Path.Combine(Path.GetTempPath(), $"LertaroUserLock_{Guid.NewGuid():N}");
+        var folder = DataDirectoryResolver.ResolveUser(InstallationMode.Portable, root, @"C:\Unused",
+            CurrentUserIdentity.Hash(user.Value), portableDataDirectoryExists: true, installedDataDirectoryExists: false);
+        var indexFolder = Directory.CreateDirectory(Path.Combine(folder, "ContentIndex")).FullName;
+        var settings = Path.Combine(folder, "user-settings.json");
+        var index = Path.Combine(indexFolder, "content_index.db");
+        File.WriteAllText(settings, "existing settings");
+        File.WriteAllText(index, "existing index");
+        var (zoneFor, _) = PortableDirectoryLock.Zones(root, [user.Value]);
+        var zone = zoneFor(folder);
+        Assert.IsNotNull(zone);
+
+        try
+        {
+            // Keep ACL-management rights so the repair runs without elevation, but deny data writes.
+            var stale = new InstallDirectoryLock.Zone(user,
+                [InstallDirectoryLock.Allow(user, FileSystemRights.ReadAndExecute | FileSystemRights.ChangePermissions |
+                    FileSystemRights.TakeOwnership | FileSystemRights.Delete,
+                    AceFlags.ObjectInherit | AceFlags.ContainerInherit)]);
+            InstallDirectoryLock.Lock(folder, stale, _ => null);
+            Assert.ThrowsExactly<UnauthorizedAccessException>(() => File.WriteAllText(Path.Combine(folder, "history.tmp"), "history"));
+
+            var report = InstallDirectoryLock.Lock(folder, zone, _ => null);
+
+            Assert.IsEmpty(report.Failed);
+            Assert.IsEmpty(report.Removed);
+            Assert.AreEqual("existing settings", File.ReadAllText(settings));
+            Assert.AreEqual("existing index", File.ReadAllText(index));
+            File.WriteAllText(Path.Combine(folder, "history.tmp"), "history");
+            File.AppendAllText(index, " updated");
+            Assert.AreEqual("existing index updated", File.ReadAllText(index));
+        }
+        finally
+        {
+            var restore = new DirectorySecurity();
+            restore.AddAccessRule(new FileSystemAccessRule(user, FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+            new DirectoryInfo(folder).SetAccessControl(restore);
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     [TestMethod]
