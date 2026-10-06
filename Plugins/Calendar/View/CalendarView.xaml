@@ -56,16 +56,16 @@
                     </Grid.ColumnDefinitions>
 
                     <Button x:Name="PinButton" Grid.Column="0" MinWidth="0" Margin="0"
-                            Content="&#xE718;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                            Content="&#xE718;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="20"
                             Style="{DynamicResource SettingsButton}" Padding="8,2" Click="Pin_Click"/>
                     <Button x:Name="PrevMonthButton" Grid.Column="1" MinWidth="0" Margin="6,0,0,0"
-                            Content="&#xE76B;" FontFamily="Segoe MDL2 Assets" FontSize="16"
+                            Content="&#xE76B;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="16"
                             Style="{DynamicResource SettingsButton}" Padding="8,2" Click="PrevMonth_Click"/>
                     <Button x:Name="TodayButton" Grid.Column="2" MinWidth="0" Margin="6,0,0,0"
                             FontSize="16" Style="{DynamicResource SettingsButton}"
                             Padding="10,2" Click="Today_Click"/>
                     <Button x:Name="NextMonthButton" Grid.Column="3" MinWidth="0" Margin="6,0,0,0"
-                            Content="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="16"
+                            Content="&#xE76C;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="16"
                             Style="{DynamicResource SettingsButton}" Padding="8,2" Click="NextMonth_Click"/>
                 </Grid>
             </Grid>
@@ -219,7 +219,7 @@
                                                        TextTrimming="CharacterEllipsis"
                                                        Foreground="{DynamicResource TextPrimary}"/>
                                             <Button Grid.Column="2" Content="&#xE738;"
-                                                    FontFamily="Segoe MDL2 Assets"
+                                                    FontFamily="{DynamicResource AppIconFontFamily}"
                                                     Style="{DynamicResource SettingsButton}" MinWidth="0"
                                                     Margin="0" Padding="6,2"
                                                     ToolTipService.ToolTip="{Binding DeleteLabel}"

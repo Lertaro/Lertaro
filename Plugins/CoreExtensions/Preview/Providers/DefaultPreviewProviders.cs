@@ -116,11 +116,11 @@ public class TextPreviewProvider : IFilePreviewProvider
         };
         var txt = new TextBlock
         {
-            FontFamily = new FontFamily("Consolas, Courier New, monospace"),
             FontSize = 12.5,
             Margin = new Thickness(4),
             TextWrapping = TextWrapping.Wrap
         };
+        txt.SetResourceReference(TextBlock.FontFamilyProperty, "AppMonospaceFontFamily");
         txt.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimary");
         scroll.Content = txt;
         try
