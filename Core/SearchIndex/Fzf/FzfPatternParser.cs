@@ -236,21 +236,26 @@ internal static class FzfPatternParser
     private static List<string> MergeQuotedPhrases(string[] tokens)
     {
         var merged = new List<string>(tokens.Length);
+        var noCloseBefore = 0;
         for (var i = 0; i < tokens.Length; i++)
         {
             var token = tokens[i];
             var open = QuoteStartIndex(token);
-            if (open < 0 || IsSelfClosingQuote(token, open))
+            if (open < 0 || IsSelfClosingQuote(token, open) || i < noCloseBefore)
             {
                 merged.Add(token);
                 continue;
             }
 
             var close = -1;
+            var scanEnd = tokens.Length;
             for (var j = i + 1; j < tokens.Length; j++)
             {
                 if (tokens[j] == "|")
+                {
+                    scanEnd = j;
                     break;
+                }
                 if (tokens[j].EndsWith("'", StringComparison.Ordinal))
                 {
                     close = j;
@@ -260,6 +265,8 @@ internal static class FzfPatternParser
 
             if (close < 0)
             {
+                // No later opening quote in this pipe segment can find a closer either.
+                noCloseBefore = scanEnd;
                 merged.Add(token);
                 continue;
             }

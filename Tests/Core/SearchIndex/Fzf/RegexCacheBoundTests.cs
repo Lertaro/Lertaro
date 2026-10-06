@@ -6,8 +6,21 @@ namespace Lertaro.Core.Tests.SearchIndex.Fzf;
 // key is the raw pattern text, and every intermediate state of an edit is a distinct pattern, so a long
 // editing session is unbounded input even though any single query holds only a handful of clauses.
 [TestClass]
+[DoNotParallelize]
 public sealed class RegexCacheBoundTests
 {
+    [TestMethod]
+    public void AllMatch_QueryExceedsSharedCacheCapacity_DoesNotRepopulateCacheForEachCandidate()
+    {
+        var patterns = Enumerable.Range(0, 257).Select(i => $"a{{0,{i}}}").ToArray();
+        Assert.IsTrue(RegexClauses.AllMatch(patterns, "a"));
+        var cachedCount = RegexClauses.CachedCount;
+
+        Assert.IsTrue(RegexClauses.AllMatch(patterns, "aa"));
+        Assert.AreEqual(cachedCount, RegexClauses.CachedCount);
+        Assert.IsLessThanOrEqualTo(256, cachedCount);
+    }
+
     [TestMethod]
     public void AllMatch_ManyDistinctPatterns_KeepsTheCacheBounded()
     {
