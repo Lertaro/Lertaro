@@ -26,6 +26,7 @@ internal sealed class PluginConfigArrayFieldSupport
             dict.TryGetValue(sf.Key, out var val);
             var childVM = new PluginConfigFieldViewModel(_field.PluginId, sf, _field.Settings, SaveObjectFromChildren)
             {
+                GetTokenPrefix = () => _field.TokenPrefix,
                 LocalValueStore = ConfigValueHelper.UnpackValue(val ?? sf.DefaultValue)
             };
             _field.Children.Add(childVM);

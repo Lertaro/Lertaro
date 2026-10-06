@@ -23,7 +23,7 @@ internal static class FzfPatternParser
     {
         string? targetDrive = null;
         var terms = new List<string>();
-        foreach (var rawTerm in text.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var rawTerm in text.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
         {
             // A drive spec is exactly "X:" -- one ASCII letter followed by the half-width colon, and
             // nothing else. "d:report" remains literal text; only the bare "d:" token selects a drive.
@@ -81,22 +81,17 @@ internal static class FzfPatternParser
     // OR-first shape: sets are ANDed, terms inside a set are OR alternatives. A '|' merges the terms
     // around it into the same set (the pipe binds tighter than the space).
     //
-    // "\ " is protected here so it survives the split into words. The search box never hands this method a
-    // backslash-space -- QueryTokenScanner has already unescaped it -- so this path serves the plugin-facing
-    // seam (FuzzyMatcher.IsMatch), which parses a raw string it was given.
     private static FzfTermSet[] ParseTermSets(string query)
     {
         if (string.IsNullOrWhiteSpace(query))
             return Array.Empty<FzfTermSet>();
 
-        query = query.Replace("\\ ", "\t");
         var sets = new List<FzfTermSet>();
         var current = new List<FzfTerm>();
         var afterBar = false;
 
-        foreach (var rawToken in MergeQuotedPhrases(query.Split(' ', StringSplitOptions.RemoveEmptyEntries)))
+        foreach (var token in query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
         {
-            var token = rawToken.Replace('\t', ' ');
             if (current.Count > 0 && !afterBar && token == "|")
             {
                 afterBar = true;
@@ -133,13 +128,11 @@ internal static class FzfPatternParser
         if (string.IsNullOrWhiteSpace(query))
             return Array.Empty<FzfTermGroup>();
 
-        query = query.Replace("\\ ", "\t");
         var currentGroup = new List<FzfTermSet>();
         var currentSet = new List<FzfTerm>();
 
-        foreach (var rawToken in MergeQuotedPhrases(query.Split(' ', StringSplitOptions.RemoveEmptyEntries)))
+        foreach (var token in query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
         {
-            var token = rawToken.Replace('\t', ' ');
             if (token == "|")
             {
                 sawPipe = true;
@@ -173,7 +166,7 @@ internal static class FzfPatternParser
         return groups.ToArray();
     }
 
-    // Turns one already-phrase-merged token into the FzfTerm(s) it denotes: whatever TermTriggers reads from
+    // Turns one whitespace-separated token into the FzfTerm(s) it denotes: whatever TermTriggers reads from
     // its first character (a ':' exclusion, a '?' precision inversion, or neither), plus the alias
     // spellings a provider offers for it.
     //
@@ -233,56 +226,4 @@ internal static class FzfPatternParser
         }
     }
 
-    private static List<string> MergeQuotedPhrases(string[] tokens)
-    {
-        var merged = new List<string>(tokens.Length);
-        var noCloseBefore = 0;
-        for (var i = 0; i < tokens.Length; i++)
-        {
-            var token = tokens[i];
-            var open = QuoteStartIndex(token);
-            if (open < 0 || IsSelfClosingQuote(token, open) || i < noCloseBefore)
-            {
-                merged.Add(token);
-                continue;
-            }
-
-            var close = -1;
-            var scanEnd = tokens.Length;
-            for (var j = i + 1; j < tokens.Length; j++)
-            {
-                if (tokens[j] == "|")
-                {
-                    scanEnd = j;
-                    break;
-                }
-                if (tokens[j].EndsWith("'", StringComparison.Ordinal))
-                {
-                    close = j;
-                    break;
-                }
-            }
-
-            if (close < 0)
-            {
-                // No later opening quote in this pipe segment can find a closer either.
-                noCloseBefore = scanEnd;
-                merged.Add(token);
-                continue;
-            }
-
-            merged.Add(string.Join(' ', tokens, i, close - i + 1));
-            i = close;
-        }
-        return merged;
-    }
-
-    // The last piece of the retired quoting grammar. Quotes are ordinary text now (see TermTriggers), so a
-    // word opening with ' is kept whole across spaces rather than split into AND terms -- which only decides
-    // how a query naming a real apostrophe in a file name reads, since no other name can match either way.
-    private static int QuoteStartIndex(string token)
-        => token.StartsWith("'", StringComparison.Ordinal) ? 0 : -1;
-
-    private static bool IsSelfClosingQuote(string token, int open)
-        => token.Length > open + 2 && token.EndsWith("'", StringComparison.Ordinal);
 }
