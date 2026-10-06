@@ -7,8 +7,8 @@ using LinqExpr = System.Linq.Expressions.Expression;
 namespace Lertaro.Plugins.FlowLauncherBridge.Providers;
 
 /// <summary>
-/// Enhances Flow.Launcher preview controls with modern typography, dark/light theme CSS,
-/// slim scrollbars, and clean layout adjustments via reflection without tight assembly dependencies.
+/// Applies dark/light theme colors to Flow.Launcher preview controls via reflection,
+/// preserving the document's typography and layout.
 /// </summary>
 public static class FlowPreviewStyler
 {
@@ -148,16 +148,11 @@ public static class FlowPreviewStyler
         var scrollThumb = isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)";
         var scrollThumbHover = isDark ? "rgba(255,255,255,0.38)" : "rgba(0,0,0,0.38)";
 
+        // ponytail: keep theme overrides paint-only; late injection must not reflow dictionary content.
         var css = $@"
             html, body {{
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft YaHei', 'PingFang SC', sans-serif !important;
-                font-size: 14px !important;
-                line-height: 1.65 !important;
                 color: {textColor} !important;
                 background-color: transparent !important;
-                margin: 0 !important;
-                padding: 10px 14px !important;
-                word-break: break-word !important;
             }}
             body, p, span, div, font, table, tr, td, th, li, ul, ol, h1, h2, h3, h4, h5, h6 {{
                 color: {textColor} !important;
@@ -165,19 +160,15 @@ public static class FlowPreviewStyler
             }}
             b, strong, h1, h2, h3, .DC, .YX, .headword, .word, .hw {{
                 color: {headColor} !important;
-                font-weight: 600 !important;
             }}
             i, em, .DX, .pos, .grammar {{
                 color: {posColor} !important;
-                font-style: italic !important;
             }}
             .CB, .phonetic, .pron, .ipa {{
                 color: {phonColor} !important;
-                font-family: 'Segoe UI', 'Lucida Sans Unicode', sans-serif !important;
             }}
             .entryNum, .entryDot {{
                 color: {numColor} !important;
-                font-weight: bold !important;
             }}
             a {{
                 color: {linkColor} !important;
@@ -185,10 +176,6 @@ public static class FlowPreviewStyler
             }}
             a:hover {{
                 text-decoration: underline !important;
-            }}
-            ::-webkit-scrollbar {{
-                width: 6px !important;
-                height: 6px !important;
             }}
             ::-webkit-scrollbar-track {{
                 background: transparent !important;
