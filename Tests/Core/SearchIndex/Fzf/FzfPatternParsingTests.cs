@@ -14,6 +14,19 @@ namespace Lertaro.Core.Tests.SearchIndex.Fzf;
 public sealed class FzfPatternParsingTests
 {
     [TestMethod]
+    [DataRow("'cad\tacb'")]
+    [DataRow("'cad\nacb'")]
+    [DataRow("'cad acb'")]
+    public void Parse_WhitespaceAndQuotes_UseTheSameRulesAsScan(string query)
+    {
+        var direct = FzfPattern.Parse(query);
+        var scanned = FzfPattern.Parse(Core.SearchIndex.Query.QueryTokenScanner.Scan(query).Text);
+        Assert.HasCount(2, direct.TermSets);
+        CollectionAssert.AreEqual(scanned.TermSets.Select(s => s.Terms[0].Text).ToArray(),
+            direct.TermSets.Select(s => s.Terms[0].Text).ToArray());
+    }
+
+    [TestMethod]
     public void Parse_ApostropheInsideWord_IsLiteralText()
     {
         var pattern = FzfPattern.Parse("don't stop");
@@ -112,18 +125,16 @@ public sealed class FzfPatternParsingTests
     }
 
     [TestMethod]
-    public void Parse_QuotedPhrase_StaysOneLiteralTerm()
+    public void Parse_QuotedPhrase_SplitsIntoAndTerms()
     {
-        // The quote characters were dropped from the operator set, but the phrase merger still folds a matched
-        // pair into ONE term -- and the delimiters survive into its text, which is the documented behaviour
-        // rather than a defect: the user guide states that quoting is not phrase syntax, that the quotes are
-        // matched as literal characters. Apostrophes are legal in Windows names, so the merged term can
-        // match a name containing the apostrophes and the intervening space.
+        // Quotes remain literal characters; whitespace separates terms even between paired quotes.
         var pattern = FzfPattern.Parse("'cad acb'");
 
-        Assert.HasCount(1, pattern.TermSets);
+        Assert.HasCount(2, pattern.TermSets);
         Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
-        Assert.AreEqual("'cad acb'", pattern.TermSets[0].Terms[0].Text);
+        Assert.AreEqual("'cad", pattern.TermSets[0].Terms[0].Text);
+        Assert.AreEqual("acb'", pattern.TermSets[1].Terms[0].Text);
+        Assert.IsTrue(pattern.TryMatch("acb'--'cad", out _, FzfScoringScheme.Default));
     }
 
     [TestMethod]

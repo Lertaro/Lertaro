@@ -29,7 +29,7 @@ internal static class PathSearch
         token.ThrowIfCancellationRequested();
         if (parsed.ExactPathLower == null || parsed.TargetDrive == null)
             return false;
-        if (!DirectoryFilterResolver.TryResolve(snapshot, delta, parsed.ExactPathLower, forceLastSegmentAsQuery: !parsed.PathEndsWithSeparator, out var current, out var childPrefix))
+        if (!DirectoryFilterResolver.TryResolve(snapshot, delta, parsed.ExactPathLower, forceLastSegmentAsQuery: !parsed.PathEndsWithSeparator && parsed.Regexes is not { Length: > 0 }, out var current, out var childPrefix))
             return false;
 
         // See NameSearch: bounded by the index, and widened so a large limit cannot overflow.
@@ -39,7 +39,7 @@ internal static class PathSearch
             ? null
             : FzfPattern.ParseText(childPrefix, parsed.Regexes);
 
-        if (childPrefix.Length == 0 && !DirectoryFilterResolver.IsVisiblyDeleted(snapshot, delta, current))
+        if (childPrefix.Length == 0 && parsed.Regexes is not { Length: > 0 } && !DirectoryFilterResolver.IsVisiblyDeleted(snapshot, delta, current))
         {
             var currentName = DirectoryFilterResolver.GetName(snapshot, delta, current);
             if (pattern == null || pattern.TryMatch(currentName, out _, FzfScoringScheme.Default))

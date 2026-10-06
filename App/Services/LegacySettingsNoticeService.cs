@@ -20,11 +20,8 @@ public static class LegacySettingsNoticeService
     /// after the window is up, so the notice does not arrive ahead of the startup windows.
     /// </summary>
     /// <remarks>
-    /// Three different legacies, one notice: at most one of them is worth interrupting startup for, and they
-    /// are checked in the order of how much the user needs to know.
-    ///
-    /// Every check MUTATES the settings (that is what makes each one unrepeatable), so the save below is not
-    /// optional: without it the same notice comes back on the next launch.
+    /// Shows at most one notice per launch. Obsolete filter-prefix cleanup and the one-time notice flag
+    /// are persisted; conflicting search prefixes and trigger keywords are preserved for manual editing.
     /// </remarks>
     public static void RunOnStartup() => _ = Task.Run(async () =>
     {
@@ -79,40 +76,41 @@ public static class LegacySettingsNoticeService
                 true);
         }
 
-        var precisionItems = TakePrecisionTriggerCollisions(settings);
-        if (precisionItems.Count > 0)
-        {
-            return (
-                TranslationManager.Instance["General_PrecisionTriggerTitle"],
-                string.Format(TranslationManager.Instance["General_PrecisionTriggerNotice"], string.Join(", ", precisionItems)),
-                true);
-        }
+        if (settings.LegacyTokenPrefixNoticeShown)
+            return (null, null, false);
 
-        if (!LegacySettingsAdvisor.ShouldShowNotice(settings))
+        var conflicts = DescribeTriggerConflicts(settings, PluginTriggerKeywordMigration.Candidates());
+        if (conflicts.Count == 0)
             return (null, null, false);
 
         settings.LegacyTokenPrefixNoticeShown = true;
         return (
             TranslationManager.Instance["General_LegacyTokenPrefixTitle"],
-            TranslationManager.Instance["General_LegacyTokenPrefixNotice"],
+            string.Format(TranslationManager.Instance["General_SearchTriggerConflictNotice"], string.Join(", ", conflicts)),
             true);
     }
 
-    // The '?' collisions, as the human-readable list the notice interpolates: every entry names the value that
-    // was there and, where one exists, the localized label of the setting it lived in. Interpolating labels
-    // rather than writing names here is what keeps this sentence true in all seven languages.
-    private static List<string> TakePrecisionTriggerCollisions(UserSettings settings)
+    // Report saved conflicts without changing any trigger. Only the notice flag is persisted above.
+    internal static List<string> DescribeTriggerConflicts(UserSettings settings,
+        IEnumerable<(string PluginId, string PluginName, PluginConfigField Field)> candidates)
     {
         var items = new List<string>();
+        var prefix = QueryTokenPrefixRules.PrefixFor(settings);
 
-        if (LegacySettingsAdvisor.TakePrecisionTriggerTokenPrefix(settings))
-            items.Add($"? ({TranslationManager.Instance["General_GlobalTokenPrefix"]})");
+        if (QueryTokenPrefixRules.GlobalPrefixConflict(settings.GlobalTokenPrefix, settings.ResultTypeTriggers.Values) != null)
+            items.Add($"{settings.GlobalTokenPrefix} ({TranslationManager.Instance["General_GlobalTokenPrefix"]})");
 
-        foreach (var (typeId, trigger) in LegacySettingsAdvisor.TakePrecisionTriggerResultTypes(settings))
-            items.Add($"{trigger} ({SearchResultTypePriority.GetDisplayName(typeId) ?? typeId})");
+        foreach (var (typeId, trigger) in settings.ResultTypeTriggers)
+            if (!string.IsNullOrEmpty(trigger) && SearchSyntaxReserved.ValidateLeadingCharacter(trigger, prefix) != null)
+                items.Add($"{trigger} ({SearchResultTypePriority.GetDisplayName(typeId) ?? typeId})");
 
-        foreach (var (_, pluginName, _, value) in PluginTriggerKeywordMigration.TakeUnusable(settings, PluginTriggerKeywordMigration.Candidates()))
-            items.Add($"{value} ({pluginName})");
+        foreach (var (pluginId, pluginName, field) in candidates)
+        {
+            if (field.Validation != ConfigFieldValidation.TriggerKeyword) continue;
+            var value = settings.GetPluginSetting<string?>(pluginId, field.Key, null);
+            if (!string.IsNullOrWhiteSpace(value) && QueryTokenPrefixRules.TriggerKeywordConflict(value, prefix) != null)
+                items.Add($"{value} ({pluginName})");
+        }
 
         return items;
     }

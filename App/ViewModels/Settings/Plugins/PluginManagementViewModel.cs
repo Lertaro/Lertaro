@@ -21,11 +21,14 @@ public class PluginManagementViewModel : ViewModelBase
 
     /// <summary>Every trigger error in this page's config fields, for the Settings window's Apply gate.</summary>
     internal IEnumerable<string> ValidationErrors => Plugins.SelectMany(p => p.ConfigFields).SelectMany(f => f.Validation.Errors);
+    internal IEnumerable<PluginConfigFieldViewModel> LoadedFields => Plugins.SelectMany(p => p.ConfigFields).SelectMany(f => f.Validation.LoadedFields());
 
-    public PluginManagementViewModel(UserSettings userSettings)
+    public PluginManagementViewModel(UserSettings userSettings, Func<char>? getTokenPrefix = null)
     {
         _userSettings = userSettings;
         Plugins = new ObservableCollection<PluginInfoViewModel>(PluginLoaderHelper.BuildPluginList(_userSettings));
+        foreach (var field in Plugins.SelectMany(plugin => plugin.ConfigFields))
+            field.GetTokenPrefix = getTokenPrefix;
         ShowPluginManagementCommand = new RelayCommand(() => IsRuntimeStatusTab = false);
         ShowRuntimeStatusCommand = new RelayCommand(() => IsRuntimeStatusTab = true);
         // The default sort splits enabled from disabled, so reconcile the freshly built list to it once

@@ -182,11 +182,13 @@ public sealed class FzfPatternTests
     // makes SearchQueryParser classify it as path mode, which routes to PathSearch before
     // FzfPattern.Parse is ever called.
     [TestMethod]
-    public void TryMatch_EscapedSpace_IsTreatedAsLiteralSpaceInOneTerm()
+    public void TryMatch_BackslashBeforeSpace_RemainsLiteral()
     {
         var pattern = FzfPattern.Parse(@"my\ file");
 
-        Assert.IsTrue(pattern.TryMatch("my file.txt", out _, FzfScoringScheme.Default));
+        Assert.IsFalse(pattern.TryMatch("my file.txt", out _, FzfScoringScheme.Default));
+        Assert.AreEqual(@"my\", pattern.TermSets[0].Terms[0].Text);
+        Assert.AreEqual("file", pattern.TermSets[1].Terms[0].Text);
         Assert.IsFalse(pattern.TryMatch("myfile.txt", out _, FzfScoringScheme.Default));
     }
 

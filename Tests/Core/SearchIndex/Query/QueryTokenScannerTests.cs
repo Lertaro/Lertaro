@@ -7,6 +7,20 @@ namespace Lertaro.Core.Tests.SearchIndex.Query;
 public sealed class QueryTokenScannerTests
 {
     [TestMethod]
+    [DataRow(@"D:\abc\ /xxx/")]
+    [DataRow(@"D:/abc/ /xxx/")]
+    [DataRow(@"D:\abc /xxx/")]
+    public void Scan_DirectoryBeforeRegex_PreservesPathAndClause(string query)
+    {
+        var scan = QueryTokenScanner.Scan(query + @" \audio");
+        var parsed = SearchQueryParser.Parse(scan.Text);
+        Assert.AreEqual(query, scan.Text);
+        Assert.IsTrue(parsed.IsPathMode);
+        CollectionAssert.AreEqual(new[] { "xxx" }, parsed.Regexes);
+        CollectionAssert.AreEqual(new[] { @"\audio" }, scan.Tokens.ToArray());
+    }
+
+    [TestMethod]
     public void Scan_PlainQuery_ReturnsItUnchangedWithNoTokens()
     {
         var result = QueryTokenScanner.Scan("readme");
@@ -191,12 +205,11 @@ public sealed class QueryTokenScannerTests
     [TestMethod]
     public void Scan_EscapedSpaceInOrdinaryText_LeavesTwoAndedTerms()
     {
-        // The escape carries a space only inside a token. Ordinary words are re-joined with plain spaces,
-        // so "final\ report" is two ANDed terms at the matcher, not one term with a space in it.
+        // A backslash in ordinary text is preserved, including directly before a separator.
         var scan = QueryTokenScanner.Scan(@"final\ report");
         var pattern = FzfPattern.Parse(scan.Text);
 
-        Assert.AreEqual("final report", scan.Text);
+        Assert.AreEqual(@"final\ report", scan.Text);
         Assert.HasCount(2, pattern.TermSets);
     }
 

@@ -18,6 +18,8 @@ public class PluginConfigFieldViewModel : ViewModelBase
     public string PluginVersion { get; }
     public PluginConfigField SchemaField { get; }
     public UserSettings Settings { get; }
+    internal Func<char>? GetTokenPrefix { get; set; }
+    internal char TokenPrefix => GetTokenPrefix?.Invoke() ?? QueryTokenPrefixRules.PrefixFor(Settings);
 
     internal bool HasValueChangedCallback => _onValueChanged != null;
     internal PluginConfigArrayFieldSupport ArraySupport => _arraySupport;
@@ -279,6 +281,7 @@ public class PluginConfigFieldViewModel : ViewModelBase
     /// this type -- public, not internal, because a binding path only ever resolves public members (see the
     /// comment on SearchViewModel.Hints).</summary>
     public string? TriggerKeywordError => Validation.TriggerKeywordError;
+    internal void RefreshTriggerValidation() => OnPropertyChanged(nameof(TriggerKeywordError));
 
     public PluginConfigFieldViewModel(string pluginId, PluginConfigField field, UserSettings settings, Action? onValueChanged = null, string pluginVersion = "")
     {

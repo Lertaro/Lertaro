@@ -116,13 +116,12 @@ public static class RegexQueryParser
     }
 
     // The end of the word the clause opens, so the closing delimiter can be required to be its last
-    // character. An escaped space is text rather than a separator, the same convention QueryTokenScanner
-    // applies when it splits a query into words.
+    // character. Whitespace always separates words; regex whitespace is written as \s.
     private static int FindWordEnd(string query, int start)
     {
         for (var i = start; i < query.Length; i++)
         {
-            if (char.IsWhiteSpace(query[i]) && !IsEscaped(query, i))
+            if (char.IsWhiteSpace(query[i]))
                 return i;
         }
 

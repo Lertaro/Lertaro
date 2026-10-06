@@ -35,6 +35,10 @@ public class SettingsViewModel : ViewModelBase
         LocalDrive = new LocalDriveSettingsViewModel(_searchService, RefreshLists);
         NetworkDrive = new NetworkDriveSettingsViewModel(_searchService, RefreshLists);
         General = new GeneralSettingsViewModel(_userSettings);
+        General.PendingTriggerKeywords = () => _plugins?.LoadedFields
+            .Where(field => field.SchemaField.Validation == PluginSdk.Abstractions.ConfigFieldValidation.TriggerKeyword)
+            .Select(field => field.Value as string ?? string.Empty) ?? [];
+        General.PropertyChanged += OnGeneralValidationChanged;
         Validation = new SettingsValidationGate(General, () => _plugins);
         Exclusions = new ExclusionSettingsViewModel(_userSettings);
         Blacklist = new BlacklistSettingsViewModel(_userSettings);
@@ -83,7 +87,7 @@ public class SettingsViewModel : ViewModelBase
     // which forces it via the property access in SettingsWindowSearchExtensions.BuildAllEntries) never
     // pays that scan at all.
     private PluginManagementViewModel? _plugins;
-    public PluginManagementViewModel Plugins => _plugins ??= new PluginManagementViewModel(_userSettings);
+    public PluginManagementViewModel Plugins => _plugins ??= new PluginManagementViewModel(_userSettings, () => General.DraftTokenPrefix);
 
     public HotkeySettingsViewModel Hotkeys { get; }
     public BlacklistSettingsViewModel Blacklist { get; }
@@ -177,8 +181,16 @@ public class SettingsViewModel : ViewModelBase
 
     private bool _isSaved;
 
+    private void OnGeneralValidationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(General.GlobalTokenPrefix) || _plugins == null) return;
+        foreach (var field in _plugins.LoadedFields)
+            field.RefreshTriggerValidation();
+    }
+
     public void Cleanup()
     {
+        General.PropertyChanged -= OnGeneralValidationChanged;
         _statusMonitor.Dispose();
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
         // Null-conditional: a window closed without visiting these tabs must not construct them to dispose.

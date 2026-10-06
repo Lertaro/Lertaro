@@ -21,9 +21,8 @@ namespace Lertaro.Core.SearchIndex.Query;
 // Nothing else here is syntax. Quoting came from the trailing-segment parser this replaces and went with
 // the rest of that grammar, so '"' and '\'' are ordinary characters now.
 //
-// "\ " is the one escape left, and it carries a space only inside a TOKEN. Ordinary words are re-joined
-// with plain spaces below, so "final\ report" leaves this class as "final report" and the matcher reads it
-// as two ANDed terms -- the escape buys a phrase nowhere, not even inside a regex clause.
+// Only plugin/sort tokens support escaped whitespace. Ordinary text preserves backslashes, including
+// the final separator in "D:\abc\ /xxx/". Quotes never group ordinary words.
 public static class QueryTokenScanner
 {
     // The characters that start a token. '\' is the plugin-token prefix (GlobalTokenPrefix); '<' and
@@ -34,7 +33,7 @@ public static class QueryTokenScanner
         if (string.IsNullOrWhiteSpace(query))
             return new ScanResult(query, Array.Empty<string>());
 
-        var words = SplitWords(query);
+        var words = SplitWords(query, pluginPrefix);
         var tokens = new List<string>();
         var kept = new List<string>();
 
@@ -63,9 +62,8 @@ public static class QueryTokenScanner
         return first == '<' || first == '>';
     }
 
-    // Splits on unescaped whitespace. "\ " inside a word is a literal space (not a separator), which is
-    // how a token can carry a space.
-    private static List<string> SplitWords(string query)
+    // Whitespace separates ordinary words. Only a recognized token can carry escaped whitespace.
+    private static List<string> SplitWords(string query, char pluginPrefix)
     {
         var words = new List<string>();
         var current = new System.Text.StringBuilder();
@@ -74,7 +72,7 @@ public static class QueryTokenScanner
         {
             var c = query[i];
 
-            if (char.IsWhiteSpace(c) && !IsEscaped(query, i))
+            if (char.IsWhiteSpace(c))
             {
                 if (current.Length > 0)
                 {
@@ -85,7 +83,9 @@ public static class QueryTokenScanner
             }
 
             // An escaped space is text, not a separator -- drop the backslash and keep the space.
-            if (c == '\\' && i + 1 < query.Length && char.IsWhiteSpace(query[i + 1]))
+            if (c == '\\' && i + 1 < query.Length && char.IsWhiteSpace(query[i + 1])
+                && current.Length > 1
+                && (current[0] is '<' or '>' || current[0] == pluginPrefix && current[1] != pluginPrefix))
             {
                 current.Append(query[i + 1]);
                 i++;
@@ -98,15 +98,6 @@ public static class QueryTokenScanner
         if (current.Length > 0)
             words.Add(current.ToString());
         return words;
-    }
-
-    private static bool IsEscaped(string text, int index)
-    {
-        var backslashCount = 0;
-        for (var i = index - 1; i >= 0 && text[i] == '\\'; i--)
-            backslashCount++;
-
-        return backslashCount % 2 != 0;
     }
 
     // Strips a leading "*" -- the marker that opts one search out of the user's own exclusion rules
