@@ -25,6 +25,9 @@ namespace Lertaro.App.ViewModels.Search.Mapping;
 /// </remarks>
 internal sealed class StreamingResultAccumulator
 {
+    internal const int RegexPathResultLimit = 8000;
+    internal bool IsRegexPath { get; }
+    internal bool RegexLimitExceeded { get; private set; }
     private readonly record struct Entry(SearchResult Raw, AppSearchResult Row);
 
     private readonly string _query;
@@ -60,6 +63,8 @@ internal sealed class StreamingResultAccumulator
         Func<string, string?>? resolveQueriedDirectory = null)
     {
         _query = query;
+        var ordinary = Core.SearchIndex.Query.RegexQueryParser.Split(query, out var regexes);
+        IsRegexPath = regexes is { Length: > 0 } && Core.SearchIndex.Query.SearchQueryParser.Parse(ordinary).IsPathMode;
         // Constructed on input, consumed by the background mapper. Directory.Exists can block on a
         // remote path; even an empty content-prefix paint on the UI thread must not resolve it.
         _queriedDirectory = new Lazy<string?>(() => (resolveQueriedDirectory ?? SearchResultMapper.GetQueriedDirectory)(query));
@@ -230,6 +235,11 @@ internal sealed class StreamingResultAccumulator
                     continue;
                 if (_seedPaths.Contains(NormalizePath(raw.Path)))
                     continue;
+                if (IsRegexPath && _ranked.Count + chunk.Count >= RegexPathResultLimit)
+                {
+                    RegexLimitExceeded = true;
+                    continue;
+                }
                 // Decorated once, on arrival, so the section and score of a row are final before it is
                 // merged in: the merge and every later paint only read those fields.
                 SearchResultRanking.Decorate(raw, _rankContext);
