@@ -16,7 +16,7 @@ public sealed class ContentIndexScheduler : IDisposable
     private readonly ContentFolderWatcher _folderWatcher;
     private readonly IndexBatchProcessor _batchProcessor;
     private readonly ContentIndexScanCoordinator _scanCoordinator;
-    private readonly ContentIndexRunReporter _runReporter = new();
+    private readonly ContentIndexRunReporter _runReporter;
     private readonly ConcurrentQueue<string> _pendingFiles = new();
     private readonly HashSet<string> _enqueuedPaths = new(StringComparer.OrdinalIgnoreCase);
     // Files the worker has dequeued and is currently extracting/writing. A watcher-triggered
@@ -56,6 +56,7 @@ public sealed class ContentIndexScheduler : IDisposable
     public ContentIndexScheduler(ContentSearchDatabase database)
     {
         _database = database;
+        _runReporter = new ContentIndexRunReporter(database);
         _batchProcessor = new IndexBatchProcessor(database);
         _folderWatcher = new ContentFolderWatcher(changedDirectories =>
             TriggerFullScan(changedDirectories.Count == 0 ? null : changedDirectories));
@@ -121,6 +122,14 @@ public sealed class ContentIndexScheduler : IDisposable
         // deletions had already brought the index under the old cap.
         _capPauseReported = false;
         _folderWatcher.UpdateFolders(config.MonitoredFolders, config.FilterPattern);
+    }
+
+    public void RebuildIndex()
+    {
+        Stop();
+        _database.ClearAll();
+        _database.InitialIndexCompleted = false;
+        Start(_config);
     }
 
     public static string NormalizeFolderPath(string rawFolder)
@@ -241,8 +250,7 @@ public sealed class ContentIndexScheduler : IDisposable
 
                 NotifyProgressChanged(force: _pendingFiles.IsEmpty);
 
-                // One summary per drained run, never per batch: the run spans every batch the
-                // scheduler needed to empty the queue, which on a real corpus is thousands of files.
+                // Incremental queue drains stay silent after the initial index has completed.
                 ReportRunEnded(cancelled: false);
                 if (ct.WaitHandle.WaitOne(20)) break;
             }
@@ -263,22 +271,19 @@ public sealed class ContentIndexScheduler : IDisposable
             }
         }
 
-        // Every exit path above is a plain break once the stop token has been signalled (the wait and
-        // the loop condition both break, and a cancellation inside a batch throws and is caught), so
-        // the single report lives here rather than on each of them. An interrupted run reaches this
-        // with files still queued and reports itself; a worker that stopped with an idle queue has no
-        // open run and this is a no-op.
+        // Cancellation never announces completion or consumes the pending initial/rebuild notice.
         if (ct.IsCancellationRequested)
             ReportRunEnded(cancelled: true);
     }
 
     /// <summary>
-    /// Hands the run's state to the reporter, which owns the one-summary-per-run rule and the wording.
+    /// Discovery must finish before an empty extraction queue counts as completion.
     /// </summary>
     private void ReportRunEnded(bool cancelled)
     {
-        if (_runReporter.IsRunOpen && (cancelled || _pendingFiles.IsEmpty))
-            _runReporter.Observe(!_pendingFiles.IsEmpty, _capPauseReported, cancelled, _database.CountIndexedFiles());
+        if ((_runReporter.IsRunOpen || _database.CountIndexedFiles() > 0) && (cancelled || _pendingFiles.IsEmpty))
+            _runReporter.Observe(!_pendingFiles.IsEmpty, _capPauseReported, cancelled, _database.CountIndexedFiles(),
+                _scanCoordinator.IsScanCompleted);
     }
 
     internal void NotifyProgressChanged(bool force)

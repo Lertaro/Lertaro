@@ -4,14 +4,12 @@ using Lertaro.PluginSdk.Services;
 namespace Lertaro.Plugins.ContentSearch.Indexing;
 
 /// <summary>
-/// The one place a content-index run turns into something the user can see: the cap pause that
-/// persists without their action, and the one summary line each finished run leaves behind.
+/// Presents the size-cap warning and the completion summary selected by the run reporter.
 /// </summary>
 /// <remarks>
 /// Every failure the index hits in passing stays in the log -- a bad document is not news a user can
-/// act on. What does reach them is the two things they can act on: the index has stopped because the
-/// size cap is reached, and a run has ended. Both are edge-triggered by their callers, so neither can
-/// turn into a per-batch or per-file stream of cards.
+/// act on. The size cap warns once per pause; completion is reported only for the initial index
+/// and an explicit rebuild. Incremental updates stay silent.
 /// </remarks>
 internal static class ContentIndexNotifier
 {
@@ -19,15 +17,13 @@ internal static class ContentIndexNotifier
     /// Tells the user indexing has stopped at the configured size cap. Called once per paused
     /// episode, when the cap is first reached, never again until the index drops back under it.
     /// </summary>
-    public static void NotifyIndexCapReached()
-    {
+    public static void NotifyIndexCapReached() =>
         // Kept to two translated pieces so the sentence assembles from whole translated clauses
         // rather than from words reordered by the sender's language.
         Show(
             "ContentSearch_NotificationCapReachedTitle",
             "ContentSearch_NotificationCapReachedMessage",
             NotificationLevel.Warn);
-    }
 
     /// <summary>
     /// Reports the end of one indexing run: completed, interrupted (the plugin stopped) or given up

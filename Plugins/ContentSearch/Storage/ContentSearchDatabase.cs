@@ -14,6 +14,25 @@ public sealed class ContentSearchDatabase : IDisposable
     private bool _initialized;
     private int _cachedTotalFiles;
     private int _cachedIndexedFiles;
+    private volatile bool _initialIndexCompleted;
+
+    internal bool InitialIndexCompleted
+    {
+        get { Initialize(); return _initialIndexCompleted; }
+        set
+        {
+            Initialize();
+            lock (_writeLock)
+            {
+                using var conn = OpenConnection();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "UPDATE index_state SET initial_index_completed = $completed WHERE id = 1;";
+                cmd.Parameters.AddWithValue("$completed", value);
+                cmd.ExecuteNonQuery();
+                _initialIndexCompleted = value;
+            }
+        }
+    }
 
     public int TotalFiles => _cachedTotalFiles;
     public int TotalChunks => _cachedTotalFiles;
@@ -52,6 +71,9 @@ public sealed class ContentSearchDatabase : IDisposable
             using var conn = OpenConnection();
             DatabaseSchemaHelper.InitializeSchema(conn);
             RefreshStatsInternal(conn);
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT initial_index_completed FROM index_state WHERE id = 1;";
+            _initialIndexCompleted = Convert.ToBoolean(cmd.ExecuteScalar());
             _initialized = true;
         }
     }
@@ -335,6 +357,7 @@ public sealed class ContentSearchDatabase : IDisposable
                     TryDeleteFile(_dbPath);
                     TryDeleteFile(_dbPath + "-wal");
                     TryDeleteFile(_dbPath + "-shm");
+                    _initialized = false;
                 }
                 catch { }
             }

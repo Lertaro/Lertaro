@@ -1,7 +1,9 @@
+using Lertaro.Plugins.ContentSearch.Storage;
+
 namespace Lertaro.Plugins.ContentSearch.Indexing;
 
 /// <summary>
-/// How one indexing run ended, for the single summary the user gets when the queue drains.
+/// Available summary wording; automatic reporting uses Completed only.
 /// </summary>
 internal enum ContentIndexRunOutcome
 {
@@ -16,29 +18,26 @@ internal enum ContentIndexRunOutcome
 }
 
 /// <summary>
-/// Decides whether an indexing run has ended, and how, so exactly one summary reaches the user per
-/// run instead of one per batch.
+/// Reports only the first completed content index, or the first completion after an explicit rebuild.
 /// </summary>
 /// <remarks>
-/// The scheduler serves any number of monitored folders and drains them batch by batch, so "a run" is
-/// the whole drained queue, not a batch: the run opens when a file is taken from an idle queue and
-/// closes when the queue is empty again. Sending the summary from the run's own edge is what keeps a
-/// scan of thousands of files, or several folders watched at once, from filling the screen.
+/// Queue drains during file copies are incremental updates, not new completion announcements.
+/// The database retains the completion flag across plugin and application restarts.
 /// </remarks>
-internal sealed class ContentIndexRunReporter
+internal sealed class ContentIndexRunReporter(ContentSearchDatabase database)
 {
     private bool _runOpen;
     public bool IsRunOpen => _runOpen;
 
     /// <summary>
-    /// Call where a batch ended with files still queued, or with the queue drained. When that drain
-    /// closes an open run, the run's one summary goes out; every other call is silent.
+    /// A drained queue is complete only after discovery finishes. Stopping or reaching the cap does
+    /// not consume the completion notification; the cap has its own actionable warning.
     /// </summary>
     /// <param name="hasPendingFiles">Whether anything is still waiting to be indexed.</param>
     /// <param name="pausedAtCap">Whether the index is paused at its size cap.</param>
     /// <param name="wasCancelled">Whether the run was stopped rather than left to drain.</param>
     /// <param name="indexedFiles">Files searchable now, for the summary's count.</param>
-    public void Observe(bool hasPendingFiles, bool pausedAtCap, bool wasCancelled, int indexedFiles)
+    public void Observe(bool hasPendingFiles, bool pausedAtCap, bool wasCancelled, int indexedFiles, bool scanCompleted = true)
     {
         if (hasPendingFiles && !wasCancelled)
         {
@@ -46,18 +45,17 @@ internal sealed class ContentIndexRunReporter
             return;
         }
 
-        if (!_runOpen)
+        if (database.InitialIndexCompleted)
+        {
+            _runOpen = false;
+            return;
+        }
+
+        if ((!_runOpen && indexedFiles == 0) || !scanCompleted || pausedAtCap || wasCancelled)
             return;
 
+        database.InitialIndexCompleted = true;
         _runOpen = false;
-        ContentIndexNotifier.NotifyRunFinished(Classify(pausedAtCap, wasCancelled), indexedFiles);
+        ContentIndexNotifier.NotifyRunFinished(ContentIndexRunOutcome.Completed, indexedFiles);
     }
-
-    /// <summary>
-    /// Names why an ended run stopped. A cancelled run is only a cap give-up when the cap is the
-    /// reason it was stuck; otherwise the user switched the plugin off under it.
-    /// </summary>
-    private static ContentIndexRunOutcome Classify(bool pausedAtCap, bool wasCancelled) =>
-        pausedAtCap ? ContentIndexRunOutcome.GaveUp
-            : wasCancelled ? ContentIndexRunOutcome.Interrupted : ContentIndexRunOutcome.Completed;
 }

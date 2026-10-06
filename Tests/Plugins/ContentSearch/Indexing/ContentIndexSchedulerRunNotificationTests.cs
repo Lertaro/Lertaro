@@ -25,8 +25,8 @@ public sealed class ContentIndexSchedulerRunNotificationTests
     [TestInitialize]
     public void SetUp()
     {
-        _previousLookup = PluginSdk.Services.TranslationService.LookupFunc;
-        PluginSdk.Services.TranslationService.LookupFunc = key => key is
+        _previousLookup = TranslationService.LookupFunc;
+        TranslationService.LookupFunc = key => key is
             "ContentSearch_NotificationIndexFinishedMessage" or "ContentSearch_NotificationIndexStoppedMessage" or "ContentSearch_NotificationIndexPausedMessage"
             ? $"[{key}] {{0}}" : $"[{key}]";
         _tempDir = Path.Combine(Path.GetTempPath(), "TestRunNotify_" + Guid.NewGuid().ToString("N"));
@@ -46,7 +46,7 @@ public sealed class ContentIndexSchedulerRunNotificationTests
     [TestCleanup]
     public void TearDown()
     {
-        PluginSdk.Services.TranslationService.LookupFunc = _previousLookup;
+        TranslationService.LookupFunc = _previousLookup;
         PluginNotificationService.ShowRequestFunc = null;
         DirectoryIndexerService.EnumerateDirectoryFunc = null;
         _database.Dispose();
@@ -75,6 +75,40 @@ public sealed class ContentIndexSchedulerRunNotificationTests
         Assert.AreEqual(NotificationLevel.Info, summary[0].Level, "a completed run is informational");
         Assert.Contains("ContentSearch_NotificationIndexFinishedMessage", summary[0].Message);
         Assert.Contains("7", summary[0].Message, "the summary counts the files that became searchable");
+    }
+
+    [TestMethod]
+    public async Task Start_IncrementalCopiesAndRestartStaySilent_RebuildNotifiesOnce()
+    {
+        await File.WriteAllTextAsync(Path.Combine(_tempDir, "initial.txt"), "initial content");
+        using (var scheduler = new ContentIndexScheduler(_database))
+        {
+            scheduler.Start(MakeConfig());
+            await WaitUntilAsync(() => Snapshot().Count == 1);
+            for (var batch = 0; batch < 3; batch++)
+            {
+                await File.WriteAllTextAsync(Path.Combine(_tempDir, $"copy{batch}.txt"), $"copied content {batch}");
+                await scheduler.TriggerFullScan();
+                await WaitUntilAsync(() => _database.CountIndexedFiles() == batch + 2);
+            }
+            scheduler.Stop();
+            Assert.HasCount(1, Snapshot());
+        }
+
+        using var reopened = new ContentSearchDatabase(_tempDbPath);
+        using var restarted = new ContentIndexScheduler(reopened);
+        restarted.Start(MakeConfig());
+        await File.WriteAllTextAsync(Path.Combine(_tempDir, "after-restart.txt"), "new content after restart");
+        await restarted.TriggerFullScan();
+        await WaitUntilAsync(() => reopened.CountIndexedFiles() == 5);
+        Assert.HasCount(1, Snapshot());
+        restarted.RebuildIndex();
+        await WaitUntilAsync(() => Snapshot().Count == 2);
+        restarted.Stop();
+        var notifications = Snapshot();
+        Assert.HasCount(2, notifications);
+        Assert.Contains("5", notifications[1].Message);
+        Assert.Contains("ContentSearch_NotificationIndexFinishedMessage", notifications[1].Message);
     }
 
     private List<NotificationRequest> Snapshot()

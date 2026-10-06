@@ -146,8 +146,16 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                 // Off the UI thread: ClearAll runs DELETE + VACUUM, seconds on a large index.
                 OnClick = () => Task.Run(() =>
                 {
-                    Database?.ClearAll();
-                    Scheduler?.TriggerFullScan();
+                    lock (RuntimeLock)
+                    {
+                        if (Scheduler is { } scheduler)
+                            scheduler.RebuildIndex();
+                        else if (Database is { } database)
+                        {
+                            database.ClearAll();
+                            database.InitialIndexCompleted = false;
+                        }
+                    }
                 })
             }
         },

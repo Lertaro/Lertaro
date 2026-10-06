@@ -12,6 +12,10 @@ internal sealed class ContentIndexScanCoordinator : IDisposable
     private readonly ContentSearchDatabase _database;
     private readonly SemaphoreSlim _scanGate = new(1, 1);
     private CancellationTokenSource? _scanCts;
+    private CancellationTokenSource? _completedScan;
+
+    internal bool IsScanCompleted => Volatile.Read(ref _scanCts) is { } current &&
+        ReferenceEquals(current, Volatile.Read(ref _completedScan));
 
     public ContentIndexScanCoordinator(ContentIndexScheduler scheduler, ContentSearchDatabase database)
     {
@@ -21,6 +25,8 @@ internal sealed class ContentIndexScanCoordinator : IDisposable
 
     public Task TriggerFullScan(IReadOnlyList<string>? changedDirectories = null)
     {
+        // A replacement scan must cover all folders until the initial discovery has finished.
+        if (!IsScanCompleted) changedDirectories = null;
         var newCts = new CancellationTokenSource();
         var oldCts = Interlocked.Exchange(ref _scanCts, newCts);
         oldCts?.Cancel();
@@ -88,6 +94,8 @@ internal sealed class ContentIndexScanCoordinator : IDisposable
                     reachableConfig,
                     scanDirectories);
 
+                if (!ct.IsCancellationRequested) Volatile.Write(ref _completedScan, newCts);
+
                 _scheduler.NotifyProgressChanged(force: _scheduler.PendingCount == 0);
 
                 if (_scheduler.PendingCount > 0)
@@ -114,6 +122,9 @@ internal sealed class ContentIndexScanCoordinator : IDisposable
         var scanCts = Interlocked.Exchange(ref _scanCts, null);
         scanCts?.Cancel();
         scanCts?.Dispose();
+        // Rebuild cannot clear the database while old discovery is still enqueueing files.
+        _scanGate.Wait();
+        _scanGate.Release();
     }
 
     public void Dispose() => CancelPendingScan();

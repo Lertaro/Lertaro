@@ -22,11 +22,17 @@ The keyword must be followed by a space. Replace `cs` with another keyword in th
 
 Files are only searched after their text has been extracted successfully. Binary files without a suitable document extractor are skipped instead of being indexed as unreadable text.
 
+Document extraction has additional safety limits even when the configured file-size limit is unlimited: each decompressed Office ZIP entry is limited to 128 MiB and extracted Office/PDF text to 32 Mi characters per document. Documents exceeding a limit fail extraction instead of being partially indexed; individual extraction or write failures are logged and do not stop later files.
+
 ## Searching
 
 Type `cs` followed by a space and your keywords in the Quick Search Window. Matching files are shown with a text snippet and their containing folder; press `Enter` to open the selected file. When the query has results, the same file results are also available in the full search window when no type filter is active.
 
 While the index is being built, the `cs` placeholder shows the number of indexed files and any remaining work. New and changed directories are reported by the host watcher and processed in the background, so regular filename search remains available during indexing. The plugin does not run a recurring filesystem scan after indexing has settled.
+
+One- and two-character terms are supported, including queries that combine short and longer terms. Short terms are checked as literal substrings; use a longer term where possible for faster searches.
+
+Completion is announced once after the initial content index and once after each explicit rebuild. Copying or editing files, saving settings, and restarting the app do not produce further completion notices. A size-cap pause has a separate warning; stopping or pausing indexing does not count as completion.
 
 ## Clearing and rebuilding
 

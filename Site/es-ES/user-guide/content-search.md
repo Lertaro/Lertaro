@@ -22,11 +22,17 @@ La palabra clave debe ir seguida de un espacio. Si `cs` entra en conflicto con t
 
 Solo se buscan los archivos cuyo texto se ha extraído correctamente. Los archivos binarios sin un extractor de documentos adecuado se omiten en lugar de indexarse como texto ilegible.
 
+La extracción mantiene límites de seguridad aunque el tamaño de archivo configurado sea ilimitado: 128 MiB por entrada descomprimida de un ZIP de Office y 32 Mi caracteres de texto por documento de Office/PDF. Si se supera un límite, la extracción falla sin indexar contenido parcial. Los fallos individuales de extracción o escritura se registran y no detienen los archivos siguientes.
+
 ## Cómo buscar
 
 Escribe `cs`, un espacio y tus palabras clave en la ventana de búsqueda rápida. Los resultados muestran un fragmento de texto y la carpeta contenedora; pulsa `Enter` para abrir el archivo seleccionado. Cuando hay resultados y no se ha elegido un filtro de tipo, esos archivos también aparecen en la ventana de búsqueda completa.
 
 Durante la creación inicial del índice, el marcador de posición `cs` muestra cuántos archivos están indexados y cuántas tareas quedan. Cuando el observador del anfitrión informa de directorios nuevos o modificados, el plugin procesa sus archivos en segundo plano, por lo que la búsqueda normal de nombres sigue disponible. Una vez estabilizado el índice, el plugin no vuelve a recorrer periódicamente el sistema de archivos.
+
+Se admiten términos de uno o dos caracteres y consultas que combinan términos cortos y largos. Los términos cortos se comparan como subcadenas literales; cuando sea posible, use términos más largos para acelerar la búsqueda.
+
+La finalización se anuncia una sola vez tras el primer índice de contenido y una vez después de cada reconstrucción explícita. Copiar o editar archivos, guardar ajustes y reiniciar la aplicación no genera nuevos avisos de finalización. La pausa por el límite de tamaño tiene su propia advertencia; detener o pausar la indexación no cuenta como completarla.
 
 ## Borrar y reconstruir
 

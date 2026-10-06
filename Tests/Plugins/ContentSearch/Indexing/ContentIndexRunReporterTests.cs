@@ -1,26 +1,27 @@
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.Plugins.ContentSearch.Indexing;
+using Lertaro.Plugins.ContentSearch.Storage;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Indexing;
 
-// Captures the process-wide PluginSdk notification hook, so it must not run concurrently with
-// anything that reads or resets it.
+// Captures the process-wide SDK notification and translation hooks.
 [TestClass]
 [DoNotParallelize]
 public sealed class ContentIndexRunReporterTests
 {
     private Func<string, string> _previousLookup = null!;
-
-    private readonly List<NotificationRequest> _requests = new();
+    private string _dbPath = null!;
+    private ContentSearchDatabase _database = null!;
+    private readonly List<NotificationRequest> _requests = [];
 
     [TestInitialize]
     public void CaptureNotifications()
     {
         _previousLookup = PluginSdk.Services.TranslationService.LookupFunc;
-        PluginSdk.Services.TranslationService.LookupFunc = key => key is
-            "ContentSearch_NotificationIndexFinishedMessage" or "ContentSearch_NotificationIndexStoppedMessage" or "ContentSearch_NotificationIndexPausedMessage"
-            ? $"[{key}] {{0}}" : $"[{key}]";
-        _requests.Clear();
+        PluginSdk.Services.TranslationService.LookupFunc = key => key.EndsWith("Message") ? $"[{key}] {{0}}" : $"[{key}]";
+        _dbPath = Path.Combine(Path.GetTempPath(), $"run_reporter_{Guid.NewGuid():N}.db");
+        _database = new ContentSearchDatabase(_dbPath);
+        _database.Initialize();
         PluginSdk.Services.PluginNotificationService.ShowRequestFunc = (request, _) =>
         {
             _requests.Add(request);
@@ -33,126 +34,117 @@ public sealed class ContentIndexRunReporterTests
     {
         PluginSdk.Services.TranslationService.LookupFunc = _previousLookup;
         PluginSdk.Services.PluginNotificationService.ShowRequestFunc = null;
+        _database.Dispose();
+        File.Delete(_dbPath);
+        File.Delete(_dbPath + "-wal");
+        File.Delete(_dbPath + "-shm");
     }
 
     [TestMethod]
-    public void Observe_EmptyQueueWithNoRunOpen_SaysNothing()
+    public void Observe_IdleWithoutAnyIndexing_SaysNothing()
     {
-        // The worker loop passes through an idle queue constantly; only a queue that drained after
-        // holding files ends a run.
-        var reporter = new ContentIndexRunReporter();
-
-        reporter.Observe(hasPendingFiles: false, pausedAtCap: false, wasCancelled: false, indexedFiles: 0);
-
+        var reporter = new ContentIndexRunReporter(_database);
+        reporter.Observe(false, false, false, 0);
+        reporter.Observe(false, false, true, 0);
         Assert.IsEmpty(_requests);
     }
 
     [TestMethod]
-    public void Observe_QueueStillBusy_SaysNothingForEveryBatchOfTheRun()
+    public void Observe_QueueDrainsDuringDiscovery_WaitsForAllBatchesAndTheFullScan()
     {
-        // A run of thousands of files is dozens of batches; the user gets one card at the end, not
-        // one every twenty-five files.
-        var reporter = new ContentIndexRunReporter();
-
-        reporter.Observe(hasPendingFiles: true, pausedAtCap: false, wasCancelled: false, indexedFiles: 0);
-        reporter.Observe(hasPendingFiles: true, pausedAtCap: false, wasCancelled: false, indexedFiles: 25);
-        reporter.Observe(hasPendingFiles: true, pausedAtCap: false, wasCancelled: false, indexedFiles: 50);
-
-        Assert.IsEmpty(_requests, "a run reports when it ends, never while it is still working");
-    }
-
-    [TestMethod]
-    public void Observe_DrainedQueue_ReportsCompletionOnce()
-    {
-        var reporter = new ContentIndexRunReporter();
-
-        reporter.Observe(hasPendingFiles: true, pausedAtCap: false, wasCancelled: false, indexedFiles: 0);
-        reporter.Observe(hasPendingFiles: false, pausedAtCap: false, wasCancelled: false, indexedFiles: 12);
-        reporter.Observe(hasPendingFiles: false, pausedAtCap: false, wasCancelled: false, indexedFiles: 12);
-
-        Assert.HasCount(1, _requests, "the summary belongs to the run that ended, not to every later idle pass");
-        Assert.AreEqual(TranslationKey("ContentSearch_NotificationIndexFinishedTitle"), _requests[0].Title);
-        Assert.Contains("12", _requests[0].Message, "the summary counts what became searchable");
-    }
-
-    [TestMethod]
-    public void Observe_CancelledRun_ReportsInterruption()
-    {
-        var reporter = new ContentIndexRunReporter();
-
-        reporter.Observe(hasPendingFiles: true, pausedAtCap: false, wasCancelled: false, indexedFiles: 0);
-        reporter.Observe(hasPendingFiles: false, pausedAtCap: false, wasCancelled: true, indexedFiles: 5);
-
-        Assert.HasCount(1, _requests);
-        Assert.AreEqual(TranslationKey("ContentSearch_NotificationIndexStoppedTitle"), _requests[0].Title);
-    }
-
-    [TestMethod]
-    public void Observe_CancelledRunAtTheCap_ReportsWhyItGaveUp()
-    {
-        // Both endings truncate the run, and they are not the same news: the cap one asks the user to
-        // raise a setting, the other is the plugin being switched off under them.
-        var reporter = new ContentIndexRunReporter();
-
-        reporter.Observe(hasPendingFiles: true, pausedAtCap: true, wasCancelled: false, indexedFiles: 0);
-        reporter.Observe(hasPendingFiles: false, pausedAtCap: true, wasCancelled: true, indexedFiles: 9);
-
-        Assert.HasCount(1, _requests);
-        Assert.AreEqual(TranslationKey("ContentSearch_NotificationIndexPausedTitle"), _requests[0].Title);
-        Assert.AreEqual(NotificationLevel.Info, _requests[0].Level, "the cap pause already warned; the ending only informs");
-    }
-
-    [TestMethod]
-    public void Observe_CancelledWithAnIdleQueue_SaysNothing()
-    {
-        // The scheduler reports once after its loop with wasCancelled set by the stop token alone; a
-        // worker stopped between runs must not announce an interruption of work nobody queued.
-        var reporter = new ContentIndexRunReporter();
-
-        reporter.Observe(hasPendingFiles: false, pausedAtCap: false, wasCancelled: true, indexedFiles: 3);
-
+        var reporter = new ContentIndexRunReporter(_database);
+        reporter.Observe(true, false, false, 0);
+        reporter.Observe(false, false, false, 25, scanCompleted: false);
         Assert.IsEmpty(_requests);
+        reporter.Observe(true, false, false, 25);
+        reporter.Observe(false, false, false, 50, scanCompleted: true);
+        reporter.Observe(false, false, false, 50);
+        var summary = Assert.ContainsSingle(_requests);
+        Assert.AreEqual("[ContentSearch_NotificationIndexFinishedTitle]", summary.Title);
+        Assert.Contains("50", summary.Message);
+        Assert.AreEqual(NotificationLevel.Info, summary.Level);
     }
 
     [TestMethod]
-    public void Observe_CancelledWithPendingFiles_ClosesRunAndReportsInterruption()
+    public void Observe_IncrementalCopiesAfterCompletion_StaySilent()
     {
-        var reporter = new ContentIndexRunReporter();
-        reporter.Observe(true, false, false, 0);
-        reporter.Observe(true, false, true, 3);
-
-        Assert.IsFalse(reporter.IsRunOpen);
+        var reporter = new ContentIndexRunReporter(_database);
+        for (var batch = 0; batch < 100; batch++)
+        {
+            reporter.Observe(true, false, false, batch);
+            reporter.Observe(false, false, false, batch + 1);
+        }
         Assert.HasCount(1, _requests);
-        Assert.AreEqual(TranslationKey("ContentSearch_NotificationIndexStoppedTitle"), _requests[0].Title);
     }
 
     [TestMethod]
-    public void Observe_DrainedBySkippingAtCap_ReportsPausedInsteadOfCompleted()
+    [DataRow(false, true)]
+    [DataRow(true, false)]
+    [DataRow(true, true)]
+    public void Observe_CapOrCancellation_KeepsCompletionPendingUntilResume(bool cap, bool cancelled)
     {
-        var reporter = new ContentIndexRunReporter();
+        var reporter = new ContentIndexRunReporter(_database);
         reporter.Observe(true, false, false, 0);
-        reporter.Observe(false, true, false, 3);
-
-        Assert.HasCount(1, _requests);
-        Assert.AreEqual(TranslationKey("ContentSearch_NotificationIndexPausedTitle"), _requests[0].Title);
+        reporter.Observe(false, cap, cancelled, 2);
+        Assert.IsEmpty(_requests);
+        Assert.IsFalse(_database.InitialIndexCompleted);
+        reporter.Observe(true, false, false, 2);
+        reporter.Observe(false, false, false, 7);
+        var summary = Assert.ContainsSingle(_requests);
+        Assert.Contains("7", summary.Message);
     }
 
     [TestMethod]
-    public void Observe_SecondRunAfterAReportedOne_ReportsAgain()
+    public void Observe_RestartBeforeFirstSummary_CompletesAfterDiscoveryWithoutAnotherBatch()
     {
-        // A watcher-triggered scan starts a new run; the summary must not be a once-per-session event.
-        var reporter = new ContentIndexRunReporter();
-
-        reporter.Observe(hasPendingFiles: true, pausedAtCap: false, wasCancelled: false, indexedFiles: 0);
-        reporter.Observe(hasPendingFiles: false, pausedAtCap: false, wasCancelled: false, indexedFiles: 4);
-        reporter.Observe(hasPendingFiles: true, pausedAtCap: false, wasCancelled: false, indexedFiles: 4);
-        reporter.Observe(hasPendingFiles: false, pausedAtCap: false, wasCancelled: false, indexedFiles: 8);
-
-        Assert.HasCount(2, _requests);
+        _database.InsertOrUpdateFile("resumed.txt", DateTime.UtcNow, 10, "indexed text");
+        using var reopened = new ContentSearchDatabase(_dbPath);
+        var reporter = new ContentIndexRunReporter(reopened);
+        reporter.Observe(false, false, false, reopened.CountIndexedFiles(), scanCompleted: false);
+        Assert.IsEmpty(_requests);
+        reporter.Observe(false, false, false, reopened.CountIndexedFiles());
+        Assert.HasCount(1, _requests);
+        Assert.IsTrue(reopened.InitialIndexCompleted);
     }
 
-    // No host runs in the test process, so TranslationService.LookupFunc keeps its default and returns
-    // the key in brackets; asserting on that proves the intended key was asked for without hardcoding
-    // a sentence the tests would then have to keep in step with the JSON files.
-    private static string TranslationKey(string key) => $"[{key}]";
+    [TestMethod]
+    public void Observe_ExistingIndexFromBeforeCompletionTracking_DoesNotNotifyAgain()
+    {
+        _database.InsertOrUpdateFile("existing.txt", DateTime.UtcNow, 10, "indexed text");
+        using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={_dbPath}"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "DROP TABLE index_state;";
+            command.ExecuteNonQuery();
+        }
+        using var reopened = new ContentSearchDatabase(_dbPath);
+        var reporter = new ContentIndexRunReporter(reopened);
+        reporter.Observe(true, false, false, 1);
+        reporter.Observe(false, false, false, 2);
+        Assert.IsEmpty(_requests);
+        Assert.IsTrue(reopened.InitialIndexCompleted);
+    }
+
+    [TestMethod]
+    public void Observe_RestartThenExplicitRebuild_OnlyRebuildEnablesAnotherNotification()
+    {
+        var reporter = new ContentIndexRunReporter(_database);
+        reporter.Observe(true, false, false, 0);
+        reporter.Observe(false, false, false, 5);
+        using var reopened = new ContentSearchDatabase(_dbPath);
+        var restarted = new ContentIndexRunReporter(reopened);
+        restarted.Observe(true, false, false, 5);
+        restarted.Observe(false, false, false, 10);
+        Assert.HasCount(1, _requests, "completion survives reopening the database");
+
+        reopened.ClearAll();
+        Assert.IsTrue(reopened.InitialIndexCompleted, "clear alone does not rearm completion");
+        reopened.InitialIndexCompleted = false;
+        restarted.Observe(true, false, false, 0);
+        restarted.Observe(false, false, false, 10);
+        restarted.Observe(true, false, false, 10);
+        restarted.Observe(false, false, false, 11);
+        Assert.HasCount(2, _requests, "rebuild grants exactly one more completion");
+    }
 }

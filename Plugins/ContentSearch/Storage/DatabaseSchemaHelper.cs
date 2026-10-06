@@ -48,6 +48,12 @@ public static class DatabaseSchemaHelper
                     content,
                     tokenize = 'trigram'
                 );
+
+                CREATE TABLE IF NOT EXISTS index_state (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    initial_index_completed INTEGER NOT NULL
+                );
+                INSERT OR IGNORE INTO index_state VALUES (1, EXISTS(SELECT 1 FROM files));
                 """;
         tableCmd.ExecuteNonQuery();
 
