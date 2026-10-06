@@ -593,7 +593,7 @@ public class NotificationQueueTests
     }
 
     [TestMethod]
-    public void Dismiss_WithSynchronousWindowCloseCallback_PromotesOnlyOnce()
+    public void Dismiss_WithSynchronousWindowCloseCallback_WaitsForFeedThenPromotesOnlyOnce()
     {
         _queue = new NotificationQueue(() => false, _screen.Show, item =>
         {
@@ -605,6 +605,8 @@ public class NotificationQueueTests
         cards[0].Dismiss();
 
         Assert.HasCount(1, _screen.Hidden);
+        Assert.HasCount(1, _screen.Shown);
+        _queue.Feed();
         Assert.HasCount(2, _screen.Shown);
         Assert.AreSame(cards[1], _screen.Shown[^1]);
     }
@@ -645,6 +647,8 @@ public class NotificationQueueTests
         first.Dismiss();
         Assert.HasCount(hidden, _screen.Hidden);
         Assert.AreEqual(NotificationResult.Success, ResultOf(first));
+        Assert.AreSame(first, _screen.Shown[^1]);
+        _queue.Feed();
         Assert.AreSame(next, _screen.Shown[^1]);
     }
 
