@@ -92,7 +92,7 @@ There is no quoting syntax that can change how precedence is read; grouping is f
 
 ### The Space Rule
 
-Spaces between ordinary terms mean AND; terms joined by single quotes follow the rules below.
+Whitespace between ordinary terms means AND; quotes do not change this rule.
 
 ```text
 final report
@@ -100,7 +100,7 @@ final report
 
 is `final` AND `report`, which is not the same as a single phrase `final report`.
 
-**Plugin tokens can carry spaces.** `\ ` (backslash plus space) makes `\my\ key` one token with the keyword `my key`. In ordinary text the escape becomes a space, so `final\ report` is two AND terms and `?final\ report` requires only `final` to be contiguous. Literal or escaped spaces split regex clauses; use `\s` instead. Apostrophes are legal in Windows file names. The parser joins paired single quotes and the words between them into one term, retaining the quotes and spaces, so `'final report'` can match a name containing those characters. Double quotes are also literal, but cannot occur in Windows file names.
+**Ordinary queries do not escape spaces or join quoted words.** Whitespace separates AND terms; single and double quotes are literal. `final\ report` retains its backslash and is not a phrase. Use `/final\sreport/` for a file name containing a space. Plugin tokens still accept `\ ` inside a keyword, for example `\my\ key`.
 
 When the two words are adjacent in the name you want, searching for the more distinctive half and letting the ranking put it on top works. To require the adjacency, use a regex clause, which matches the name as one whole string (see below), and write the space as `\s`:
 
@@ -171,6 +171,8 @@ Four things are worth knowing:
 - **Slashes delimit clauses and backslashes escape characters.** Write a literal dot as `\.` and a literal slash as `\/`. A clause must be a complete word ending in an unescaped `/`. An unescaped slash inside it makes the entire word path text. Thus `C:/Users/me`, `/mnt/c/Users`, and `/usr/local/` remain paths. An unclosed clause also remains ordinary text.
 - **Regex prefiltering extracts only literals proven necessary.** `/\.exe$/` provides `.exe`; `/^(ogg|mp3)$/` has no required literal. Complex escapes, extended whitespace mode, comments, class subtraction, and long expressions skip this optimization to avoid losing valid results. Add an ordinary term to narrow candidates. The engine prefers non-backtracking matching; expressions needing backtracking have a 250 ms budget per candidate, and timed-out candidates are skipped.
 
+In the full search window, path queries containing regex clauses retain at most 8,000 matches and discard later results. The count shows “Regex result limit exceeded” only after an 8,001st match is found. Sorting and subsequent filters apply to the retained results. Ordinary fuzzy searches and regex searches without a path do not use this limit. A regex match timeout still skips that candidate without terminating the whole query; users can cancel the search.
+
 ## 4. Path Mode & Drive Scoping
 
 ### Targeting a Drive
@@ -192,6 +194,8 @@ D:\Projects\Lertaro
 ```
 
 Ending with a path separator (e.g. `D:\Projects\`) searches the direct contents **inside** that folder.
+
+A trailing `/` or `\` is preserved. `D:\abc\ /xxx/` searches the direct children of `D:\abc` and matches their names with `/xxx/`; `D:\abc /xxx/` does the same when the directory exists. We recommend entering directories without a trailing slash or backslash.
 
 ### Jumping To A Folder
 
@@ -298,7 +302,7 @@ Plugin tokens are provided by plugins, and the plugin decides what each one mean
 
 Rename the categories, change which extensions each one covers, or add your own under **Settings → Plugins → CoreExtensions**. The keyword itself is matched longest-first, so a `\a` rule and an `\audio` rule can coexist and `\audio` still wins.
 
-The prefix character is configurable under **Settings → General → System → Plugin Query Token Prefix**. It cannot be empty, it cannot be a character the search syntax already consumes (`<` `>` `:` `*` `/` `?`) — `\` itself is the shipped default, so it is usable.
+Configure the prefix under **Settings → General → System → Plugin Query Token Prefix**; the default is `\`. New values cannot claim search syntax characters, `#`, `$`, `%`, or configured triggers; whitespace and double quotes are also unavailable. Result-type and instant-answer fields validate against the current or pending plugin prefix. Existing conflicts show a warning and await manual correction. A prefix that is a legal file-name character warns of possible conflicts with ordinary search terms.
 
 The full search window's left type-filter sidebar is configured separately in the same plugin's **Search Filters** group. Sidebar filter names are display-only; prefix references are parsed only inside a sidebar filter rule and refer to keywords from the **Custom Filters** list, including disabled custom filters.
 

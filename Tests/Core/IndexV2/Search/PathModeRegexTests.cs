@@ -29,11 +29,13 @@ public sealed class PathModeRegexTests
     [TestMethod]
     [DataRow(@"T:\projects\ /^report\.md$/")]
     [DataRow(@"T:/projects/ /^report\.md$/")]
+    [DataRow(@"T:\projects /^report\.md$/")]
+    [DataRow(@"T:/projects /^report\.md$/")]
     public void SearchStreaming_PathModeWithRegex_RequiresThePathAndTheRegex(string query)
     {
         using var fixture = BuildProjectsDrive();
 
-        var results = Search(fixture, query);
+        var results = Search(fixture, Lertaro.Core.SearchIndex.Query.QueryTokenScanner.Scan(query).Text);
 
         // "notes.txt" is under the path but fails the regex; the root "report.md" passes the regex but is
         // outside the path. Only the row that satisfies both may come back.

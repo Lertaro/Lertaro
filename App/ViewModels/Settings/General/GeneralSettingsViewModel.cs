@@ -27,7 +27,8 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _showOpenedFoldersInInlineSearch;
     private bool _hideTrayIcon;
     private bool _openFoldersInNewExplorerTabs;
-    private string _globalTokenPrefix;
+    private string _globalTokenPrefix = "\\";
+    internal char DraftTokenPrefix => string.IsNullOrEmpty(_globalTokenPrefix) ? Helpers.GlobalTokenPrefix.Default : _globalTokenPrefix[0];
 
     // Tab navigation for the System/Layout/Preview Window split of this page.
     private string _selectedTab = "System";
@@ -48,7 +49,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         MainWindow = new MainWindowSettingsViewModel(userSettings);
         FileManager = new DefaultFileManagerSettingsViewModel(userSettings);
         QuickNavigationOrder = new QuickNavigationOrderViewModel(userSettings);
-        ResultTypeOrder = new ResultTypeOrderViewModel(userSettings);
+        ResultTypeOrder = new ResultTypeOrderViewModel(userSettings, () => DraftTokenPrefix);
         SidebarGroupOrder = new SidebarGroupOrderViewModel(userSettings);
         ColumnOrder = new ColumnOrderViewModel(userSettings);
         ActionMenuGroupOrder = new ActionMenuGroupOrderViewModel(userSettings);
@@ -68,6 +69,8 @@ public class GeneralSettingsViewModel : ViewModelBase
         _hideTrayIcon = userSettings.HideTrayIcon;
         _openFoldersInNewExplorerTabs = userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs;
         _globalTokenPrefix = userSettings.GlobalTokenPrefix;
+        ResultTypeOrder.TriggersChanged += RefreshPrefixValidation;
+        ResultTypeOrder.ValidateTriggers();
 
         _selectedLogLevel = LogLevelOptions.FirstOrDefault(o => o.Value == SettingsOptionGenerator.NormalizeLogLevel(_userSettings.LogLevel))
                             ?? LogLevelOptions[2]; // Default to Info
@@ -218,6 +221,8 @@ public class GeneralSettingsViewModel : ViewModelBase
             // value is what the user is looking at while they type it.
             OnPropertyChanged(nameof(PrefixError));
             OnPropertyChanged(nameof(HasPrefixError));
+            OnPropertyChanged(nameof(PrefixWarning));
+            ResultTypeOrder.ValidateTriggers();
         }
     }
 
@@ -225,7 +230,25 @@ public class GeneralSettingsViewModel : ViewModelBase
     /// Why this prefix cannot be used, or null when it is fine. A collision is otherwise invisible --
     /// the plugin's tokens would simply stop filtering, with nothing on screen to explain it.
     /// </summary>
-    public string? PrefixError => QueryTokenPrefixRules.GlobalPrefixConflict(_globalTokenPrefix);
+    internal Func<IEnumerable<string>>? PendingTriggerKeywords { get; set; }
+    public string? PrefixError => QueryTokenPrefixRules.GlobalPrefixConflict(_globalTokenPrefix,
+        ViewModels.Search.Dispatch.PluginTriggerQuery.Collect()
+            .Where(entry => entry.OwnerId != ViewModels.Search.Dispatch.PluginTriggerCollisionReport.HostTriggerOwnerId)
+            .Select(entry => entry.Word)
+            .Concat(ResultTypeOrder.Items.Select(item => item.TriggerChar))
+            .Concat(_userSettings.ResultTypeTriggers.Where(entry => ResultTypeOrder.Items.All(item => item.Id != entry.Key)).Select(entry => entry.Value))
+            .Concat(PendingTriggerKeywords?.Invoke() ?? []));
+
+    internal void RefreshPrefixValidation()
+    {
+        OnPropertyChanged(nameof(PrefixError));
+        OnPropertyChanged(nameof(HasPrefixError));
+        OnPropertyChanged(nameof(PrefixWarning));
+    }
+
+    public string? PrefixWarning => _globalTokenPrefix.Length == 1 && PrefixError == null
+        && !System.IO.Path.GetInvalidFileNameChars().Contains(_globalTokenPrefix[0])
+        ? TranslationManager.Instance["General_GlobalTokenPrefixTextWarning"] : null;
 
     public bool HasPrefixError => !string.IsNullOrEmpty(PrefixError);
 
@@ -299,6 +322,7 @@ public class GeneralSettingsViewModel : ViewModelBase
 
     public void Cleanup()
     {
+        ResultTypeOrder.TriggersChanged -= RefreshPrefixValidation;
         QuickNavigationOrder.Cleanup();
         ResultTypeOrder.Cleanup();
         SidebarGroupOrder.Cleanup();

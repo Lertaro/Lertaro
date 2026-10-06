@@ -39,6 +39,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
     // costs a full scan of it -- see _filterSource.
     private bool _allResultsHoldContentRows;
     private string _resultCountText = "";
+    private bool _regexLimitExceeded;
     private bool _isSearching;
     private bool _isResultsListEnabled = true;
     private SearchSidebarCountHelper? _sidebarCountHelper;
@@ -76,7 +77,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
             FilteredResults,
             () => _renderExtendsContent,
             finalResults => ReferenceEquals(finalResults, _allResults) ? _renderUnchangedPrefix : 0,
-            count => ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count),
+            SetResultCount,
             () => Hints.Refresh());
 
         _dispatcher = new SearchQueryDispatchController(
@@ -94,12 +95,13 @@ public class SearchViewModel : ViewModelBase, IDisposable
             setReceivedCount: count =>
             {
                 if (DynamicSidebarGroups.All(group => group.CombinedPredicate == null))
-                    ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count);
+                    SetResultCount(count);
             },
             updateSidebarCounts: (batch, final) => _sidebarCountHelper?.Update(batch, final),
             replaceSidebarCounts: results => _sidebarCountHelper?.Replace(results),
             applyFiltersAndRender: ApplyFiltersAndRender,
-            isTypeFilterSelected: () => IsTypeFilterSelected);
+            isTypeFilterSelected: () => IsTypeFilterSelected,
+            setRegexLimitExceeded: value => _regexLimitExceeded = value);
 
         // Initialize dynamic plugin sidebar groups -- PluginManager.SidebarFilterProviders already
         // applies the user's saved order (falling back to each provider's own SortOrder).
@@ -159,7 +161,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
         {
             OnPropertyChanged(nameof(WindowTitle));
             // Refresh the formatted count too; it was created with the previous language's template.
-            ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], FilteredResults.Count);
+            SetResultCount(FilteredResults.Count);
             DynamicSidebarTranslationHelper.Refresh(DynamicSidebarGroups);
         }
     }
@@ -179,6 +181,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _advancedQuery, value))
             {
+                _regexLimitExceeded = false;
                 _sidebarCountHelper?.Reset();
                 if (string.IsNullOrWhiteSpace(value))
                 {
@@ -209,6 +212,10 @@ public class SearchViewModel : ViewModelBase, IDisposable
         get => _resultCountText;
         private set => SetProperty(ref _resultCountText, value);
     }
+
+    private void SetResultCount(int count) => ResultCountText =
+        string.Format(TranslationManager.Instance["Search_Total"], count)
+        + (_regexLimitExceeded ? " · " + TranslationManager.Instance["Search_RegexLimitExceeded"] : string.Empty);
 
     public bool IsSearchBoxEnabled
     {

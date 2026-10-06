@@ -15,6 +15,22 @@ internal sealed class PluginConfigFieldValidationSupport
 
     internal PluginConfigFieldValidationSupport(PluginConfigFieldViewModel field) => _field = field;
 
+    internal IEnumerable<PluginConfigFieldViewModel> LoadedFields()
+    {
+        yield return _field;
+        if (_field.HasLoadedChildren)
+            foreach (var child in _field.Children.SelectMany(child => child.Validation.LoadedFields()))
+                yield return child;
+        if (_field.HasLoadedArrayItems)
+            foreach (var item in _field.ArrayItems)
+            {
+                foreach (var child in item.Children.SelectMany(child => child.Validation.LoadedFields()))
+                    yield return child;
+                if (item.SimpleValueViewModel != null)
+                    yield return item.SimpleValueViewModel;
+            }
+    }
+
     /// <summary>
     /// Why this instant-answer trigger keyword cannot be used, or null when it is fine. The keyword is a
     /// prefix of the whole query, so one starting with a character the search syntax consumes is stripped
@@ -31,7 +47,7 @@ internal sealed class PluginConfigFieldValidationSupport
     /// </remarks>
     internal string? TriggerKeywordError => _field.SchemaField.Validation == ConfigFieldValidation.TriggerKeyword
         && !string.IsNullOrWhiteSpace(_field.Value as string)
-        ? QueryTokenPrefixRules.TriggerKeywordConflict(_field.Value as string)
+        ? QueryTokenPrefixRules.TriggerKeywordConflict(_field.Value as string, _field.TokenPrefix)
         : null;
 
     /// <summary>

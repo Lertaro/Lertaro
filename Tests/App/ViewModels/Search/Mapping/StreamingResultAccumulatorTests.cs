@@ -7,6 +7,34 @@ namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 [TestClass]
 public sealed class StreamingResultAccumulatorTests
 {
+    [TestMethod]
+    [DataRow(7999, false)]
+    [DataRow(8000, false)]
+    [DataRow(8001, true)]
+    public void AbsorbBatch_RegexPath_TruncatesOnlyBeyondLimit(int count, bool exceeded)
+    {
+        var accumulator = new StreamingResultAccumulator(@"D:\abc\ /xxx/", NoHistory);
+        var arrivals = Enumerable.Range(0, count).Select(i => Result(@"D:\abc\xxx" + i)).ToList();
+        accumulator.AbsorbBatch(arrivals.GetRange(0, 4000));
+        var rows = accumulator.AbsorbBatch(arrivals.GetRange(4000, count - 4000));
+        Assert.HasCount(Math.Min(count, 8000), rows);
+        Assert.AreEqual(exceeded, accumulator.RegexLimitExceeded);
+        Assert.IsTrue(accumulator.IsRegexPath);
+        if (exceeded)
+            Assert.IsFalse(rows.Any(row => row.FullPath == @"D:\abc\xxx8000"));
+    }
+
+    [TestMethod]
+    [DataRow("/xxx/")]
+    [DataRow(@"D:\abc\xxx")]
+    public void AbsorbBatch_OrdinaryOrNameOnlyRegex_DoesNotApplyPathRegexLimit(string query)
+    {
+        var accumulator = new StreamingResultAccumulator(query, NoHistory);
+        var rows = accumulator.AbsorbBatch(Enumerable.Range(0, 8001).Select(i => Result(@"D:\abc\xxx" + i)).ToList());
+        Assert.HasCount(8001, rows);
+        Assert.IsFalse(accumulator.RegexLimitExceeded);
+    }
+
     private static readonly Dictionary<string, int> NoHistory = new();
     // With no history and no rank key set, SearchResultRankComparer falls through to path LENGTH before
     // the path itself -- so paths of differing length give a ranked order that is deliberately not the

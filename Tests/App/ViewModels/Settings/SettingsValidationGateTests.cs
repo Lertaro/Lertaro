@@ -15,6 +15,75 @@ namespace Lertaro.App.Tests.ViewModels.Settings;
 [TestClass]
 public sealed class SettingsValidationGateTests
 {
+    [TestMethod]
+    public void GlobalPrefix_ConflictsWithAStoredHiddenResultType()
+    {
+        var settings = new UserSettings();
+        settings.ResultTypeTriggers["hidden-provider"] = "!";
+        var general = new GeneralSettingsViewModel(settings);
+        try
+        {
+            general.GlobalTokenPrefix = "!";
+            Assert.IsNotNull(general.PrefixError);
+            Assert.IsNotEmpty(general.ValidationErrors.ToList());
+        }
+        finally { general.Cleanup(); }
+    }
+
+    [TestMethod]
+    public void StartupConflictNotice_PreservesSavedPrefixTypeAndPluginKeyword()
+    {
+        var settings = new UserSettings { GlobalTokenPrefix = "?" };
+        settings.ResultTypeTriggers["Files"] = "?";
+        settings.SetPluginSetting("plugin", "keyword", "?go");
+        var conflicts = Lertaro.App.Services.LegacySettingsNoticeService.DescribeTriggerConflicts(settings,
+            [("plugin", "Plugin", new PluginConfigField { Key = "keyword", Validation = ConfigFieldValidation.TriggerKeyword })]);
+        Assert.HasCount(3, conflicts);
+        Assert.AreEqual("?", settings.GlobalTokenPrefix);
+        Assert.AreEqual("?", settings.ResultTypeTriggers["Files"]);
+        Assert.AreEqual("?go", settings.GetPluginSetting<string>("plugin", "keyword", ""));
+    }
+
+    [TestMethod]
+    public void DraftPrefix_IsSharedByResultTypeAndPluginKeywordValidation()
+    {
+        var settings = new UserSettings();
+        var general = new GeneralSettingsViewModel(settings);
+        try
+        {
+            general.GlobalTokenPrefix = "!";
+            var row = general.ResultTypeOrder.Items[0];
+            row.TriggerChar = "!";
+            Assert.IsTrue(row.HasError);
+            Assert.IsNotNull(general.PrefixError);
+            var field = new PluginConfigFieldViewModel("test", new PluginConfigField
+            {
+                Key = "keyword", FieldType = ConfigFieldType.Text, Validation = ConfigFieldValidation.TriggerKeyword
+            }, settings) { GetTokenPrefix = () => general.DraftTokenPrefix };
+            field.Value = "!tr";
+            Assert.IsNotNull(field.TriggerKeywordError);
+            general.GlobalTokenPrefix = ";";
+            Assert.IsFalse(row.HasError);
+            Assert.IsNull(field.TriggerKeywordError);
+        }
+        finally { general.Cleanup(); }
+    }
+
+    [TestMethod]
+    [DataRow("#")]
+    [DataRow("$")]
+    [DataRow("%")]
+    public void LegacyProviderPrefix_WarnsButDoesNotBlockUnrelatedSettings(string prefix)
+    {
+        var general = new GeneralSettingsViewModel(new UserSettings { GlobalTokenPrefix = prefix });
+        try
+        {
+            Assert.IsNotNull(general.PrefixError);
+            Assert.IsEmpty(general.ValidationErrors.ToList());
+        }
+        finally { general.Cleanup(); }
+    }
+
     // ':' is read by the search syntax as the exclusion operator, so a trigger claiming it never fires.
     private const string Reserved = ":";
 

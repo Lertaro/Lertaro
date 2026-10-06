@@ -12,6 +12,28 @@ namespace Lertaro.App.Tests.Helpers;
 public sealed class QueryTokenPrefixRulesTests
 {
     [TestMethod]
+    public void DraftPrefix_TwoDialogsSharingSettings_RemainIndependent()
+    {
+        var settings = new Core.UserSettings { GlobalTokenPrefix = "\\" };
+        var first = new Lertaro.App.ViewModels.Settings.General.GeneralSettingsViewModel(settings);
+        var second = new Lertaro.App.ViewModels.Settings.General.GeneralSettingsViewModel(settings);
+        try
+        {
+            first.GlobalTokenPrefix = "!";
+            second.GlobalTokenPrefix = ";";
+            Assert.AreEqual('!', first.DraftTokenPrefix);
+            Assert.AreEqual(';', second.DraftTokenPrefix);
+            Assert.AreEqual("\\", settings.GlobalTokenPrefix);
+            first.ResultTypeOrder.Items[0].TriggerChar = ";";
+            second.ResultTypeOrder.Items[0].TriggerChar = ";";
+            Assert.IsFalse(first.ResultTypeOrder.Items[0].HasError);
+            Assert.IsTrue(second.ResultTypeOrder.Items[0].HasError);
+        }
+        finally { first.Cleanup(); second.Cleanup(); }
+        Assert.AreEqual('\\', QueryTokenPrefixRules.PrefixFor(settings));
+    }
+
+    [TestMethod]
     public void GlobalPrefixConflict_EmptyPrefix_IsReported()
         // Nothing could be tokenized at all, which is worth saying out loud rather than silently
         // disabling every plugin token.
@@ -37,12 +59,25 @@ public sealed class QueryTokenPrefixRulesTests
     public void GlobalPrefixConflict_ShippedDefault_IsAccepted()
         => Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("\\"));
 
-    // Only the search SYNTAX is this field's business. '#' is claimed by an instant-answer provider, which
-    // is a different surface with its own rule -- and deliberately not consulted here, or this field would
-    // refuse characters over a collision it cannot see.
+    // Built-in commands and environment variables must remain reachable too.
     [TestMethod]
-    public void GlobalPrefixConflict_CharacterTheSyntaxDoesNotRead_IsAccepted()
-        => Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("#"));
+    [DataRow("#")]
+    [DataRow("$")]
+    [DataRow("%")]
+    [DataRow("|")]
+    [DataRow(" ")]
+    public void GlobalPrefixConflict_ProviderAndSyntaxCharacters_AreRejected(string prefix)
+        => Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict(prefix));
+
+    [TestMethod]
+    public void GlobalPrefixConflict_ConfiguredTrigger_IsRejected()
+    {
+        Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict("t", ["tr"]));
+        Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict("T", ["tr"]));
+        Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("!", ["tr"]));
+        Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict("!tr", '!'));
+        Assert.IsNull(QueryTokenPrefixRules.TriggerKeywordConflict(@"\tr", '!'));
+    }
 
     // An instant-answer trigger keyword is matched against the START of the query, so it competes with the
     // search syntax for the same character position. One starting with a reserved character is stripped

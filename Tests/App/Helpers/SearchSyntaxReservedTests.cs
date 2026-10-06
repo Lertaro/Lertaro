@@ -169,7 +169,8 @@ public sealed class SearchSyntaxReservedTests
         var usable = SearchSyntaxReserved.UnusableTokenPrefixCharacters;
 
         Assert.DoesNotContain(SearchSyntaxReserved.TokenPrefixCharacter, usable);
-        Assert.HasCount(SearchSyntaxReserved.LeadingCharacters.Count - 1, usable);
+        foreach (var c in SearchSyntaxReserved.ProviderClaimedCharacters)
+            Assert.Contains(c, usable);
         foreach (var c in SearchSyntaxReserved.LeadingCharacters)
         {
             if (c != SearchSyntaxReserved.TokenPrefixCharacter)
