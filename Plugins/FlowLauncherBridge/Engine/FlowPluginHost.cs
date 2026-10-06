@@ -272,17 +272,23 @@ public class FlowPluginHost : IAsyncDisposable
 
     public void UpdateCulture(string cultureName) => FlowPluginLanguageHelper.UpdatePluginsCulture(_loadedPlugins.Values, cultureName);
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync() => StopAsync(requireSave: false);
+
+    public ValueTask PrepareForSettingsTransferAsync() => StopAsync(requireSave: true);
+
+    private async ValueTask StopAsync(bool requireSave)
     {
         try { SaveAll(); }
-        catch (Exception ex) { PluginSdk.Logger.Log($"[FlowLauncherBridge] Could not save before shutdown: {ex.Message}", PluginSdk.LogLevel.Error); }
+        catch (Exception ex) when (!requireSave) { PluginSdk.Logger.Log($"[FlowLauncherBridge] Could not save before shutdown: {ex.Message}", PluginSdk.LogLevel.Error); }
         foreach (var pair in _loadedPlugins.Values)
         {
             if (pair.Plugin is IAsyncDisposable asyncDisposable)
-                try { await asyncDisposable.DisposeAsync().ConfigureAwait(false); } catch { }
+                try { await asyncDisposable.DisposeAsync().ConfigureAwait(false); } catch when (!requireSave) { }
             else if (pair.Plugin is IDisposable disposable)
-                try { disposable.Dispose(); } catch { }
+                try { disposable.Dispose(); } catch when (!requireSave) { }
         }
+
+        if (requireSave) _storage.SaveAll();
 
         foreach (var loader in _loaders.Values) try { loader.Unload(); } catch { }
 

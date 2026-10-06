@@ -277,7 +277,7 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
 
     // Config Management card: the flows (file pickers, confirms, message boxes) live in
     // UserConfigBackups to keep this page under the repo's per-file line limit.
-    private async void BtnExportConfig_Click(object sender, RoutedEventArgs e) => await UserConfigBackups.RunExportFlowAsync();
+    private async void BtnExportConfig_Click(object sender, RoutedEventArgs e) => await UserConfigBackups.RunExportFlowAsync(DataContext as ViewModels.Settings.SettingsViewModel);
 
     private async void BtnImportConfig_Click(object sender, RoutedEventArgs e) => await UserConfigBackups.RunImportFlowAsync();
 

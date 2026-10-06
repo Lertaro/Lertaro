@@ -142,7 +142,7 @@ public class SettingsViewModel : ViewModelBase
 
     public async void Apply() => await ApplyAsync();
 
-    public async Task<bool> ApplyAsync()
+    public async Task<bool> ApplyAsync(bool personalOnly = false)
     {
         if (!CanApply)
             return false;
@@ -220,6 +220,9 @@ public class SettingsViewModel : ViewModelBase
             // window's launch panel otherwise only rebuilds on its next show, and its live result list
             // keeps the rows the previous query read -- see OpenSearchWindowRefresher.
             OpenSearchWindowRefresher.AfterSettingsSaved();
+            // A settings export needs no machine/service mutation or elevation. Startup reloads the
+            // personal network/folder preferences after the offline snapshot has been taken.
+            if (personalOnly) return true;
             var exclusionsChanged = SettingsChangeSnapshot.ExclusionsChanged(previousExclusions, SettingsChangeSnapshot.CaptureExclusions(_userSettings));
             var newDisabledAliases = _userSettings.DisabledPluginComponents
                 .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))

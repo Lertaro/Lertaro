@@ -17,6 +17,7 @@ public class FlowLauncherBridgePlugin : IPlugin, IConfigurable
     private static readonly Lazy<FlowQueryDispatcher> SharedDispatcher = new(() => new FlowQueryDispatcher(SharedHost.Value));
     private static readonly SemaphoreSlim HostLifecycleGate = new(1, 1);
     private static bool _hostInitialized;
+    private static bool _settingsTransferPending;
 
     public static FlowSettingsStorage Storage => SharedStorage.Value;
     public static FlowPluginHost Host => SharedHost.Value;
@@ -44,6 +45,7 @@ public class FlowLauncherBridgePlugin : IPlugin, IConfigurable
         await HostLifecycleGate.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (_settingsTransferPending) return;
             var dllName = Path.GetFileName(typeof(FlowLauncherBridgePlugin).Assembly.Location);
             var shouldRun = FlowLauncherBridgeEnablement.IsRuntimeEnabled(
                 PluginSdk.Services.PluginSettingsService.IsComponentEnabled, dllName);
@@ -67,6 +69,19 @@ public class FlowLauncherBridgePlugin : IPlugin, IConfigurable
         {
             HostLifecycleGate.Release();
         }
+    }
+
+    public async Task PrepareForSettingsTransferAsync()
+    {
+        await HostLifecycleGate.WaitAsync();
+        try
+        {
+            if (SharedHost.IsValueCreated) await SharedHost.Value.PrepareForSettingsTransferAsync();
+            else if (SharedStorage.IsValueCreated) SharedStorage.Value.SaveAll();
+            _settingsTransferPending = true;
+            _hostInitialized = false;
+        }
+        finally { HostLifecycleGate.Release(); }
     }
 
     private static void OnSettingChanged(string pluginId, string key, object? val)

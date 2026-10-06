@@ -6,6 +6,13 @@ namespace Lertaro.PluginSdk.Abstractions.Plugins;
 public interface IPlugin : IPluginComponent
 {
     /// <summary>
+    /// Flush pending settings and stop external writers before a settings-transfer restart.
+    /// Optional for existing plugins; the host still inventories disk data for unloaded plugins.
+    /// Throw on failure so the transfer is cancelled rather than reported as a complete backup.
+    /// </summary>
+    Task PrepareForSettingsTransferAsync() => Task.CompletedTask;
+
+    /// <summary>
     /// Optional website, repository, or plugin store URL for this plugin.
     /// When set, a clickable hyperlink is displayed on the plugin's details card in settings.
     /// </summary>

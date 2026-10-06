@@ -17,6 +17,35 @@ internal static partial class DirectoryLockNativeMethods
     private const int ErrorSharingViolation = 32;
     private const int FileDispositionInfo = 4;
 
+    // Backup reads need neither DELETE nor WRITE_DAC. Pin directories against rename while allowing
+    // creation of children; pin files against writes until their contents have been copied.
+    internal static SafeFileHandle OpenForBackup(string path, SafeFileHandle? parent, bool directory)
+    {
+        const uint access = FileReadAttributes | 0x00100001u;
+        var share = directory ? Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE : Win32Api.FILE_SHARE_READ;
+        var error = 0;
+        var handle = parent != null ? OpenRelative(parent, path, access, share, out error)
+            : Win32Api.CreateFileW(path, access, share, IntPtr.Zero, Win32Api.OPEN_EXISTING,
+                Win32Api.FILE_FLAG_BACKUP_SEMANTICS | Win32Api.FILE_FLAG_OPEN_REPARSE_POINT, IntPtr.Zero);
+        if (handle.IsInvalid)
+        {
+            if (parent == null) error = Marshal.GetLastWin32Error();
+            handle.Dispose();
+            if (error is 2 or 3) throw new FileNotFoundException("Backup path does not exist.", path);
+            if (error == 5) throw new UnauthorizedAccessException($"Cannot access backup path '{path}'.");
+            throw new IOException($"Cannot open backup path '{path}'.", new Win32Exception(error));
+        }
+        var info = GetInfo(handle);
+        var attributes = (FileAttributes)info.dwFileAttributes;
+        if (attributes.HasFlag(FileAttributes.ReparsePoint) || (!directory && info.nNumberOfLinks > 1) ||
+            attributes.HasFlag(FileAttributes.Directory) != directory)
+        {
+            handle.Dispose();
+            throw new IOException($"Backup paths must be ordinary {(directory ? "directories" : "files")}, not links: {path}");
+        }
+        return handle;
+    }
+
     /// <summary>
     /// Opens <paramref name="path"/> itself, never what a reparse point there refers to. Asks for DELETE so a
     /// link can be removed through the same handle; a file another process holds open without sharing

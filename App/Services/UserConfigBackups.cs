@@ -3,22 +3,22 @@ using System.IO;
 using Lertaro.App.Views.Controls.Dialogs;
 using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions;
+using Lertaro.App.ViewModels.Settings;
 using MessageBox = Lertaro.App.Views.Controls.Dialogs.CustomMessageBox;
 using MessageBoxButton = System.Windows.MessageBoxButton;
 using MessageBoxImage = System.Windows.MessageBoxImage;
 using MessageBoxResult = System.Windows.MessageBoxResult;
-using Application = System.Windows.Application;
 
 namespace Lertaro.App.Services;
 
 /// <summary>
 /// Behind the About page's Config Management card: enumerating the .bak.N rotation of
-/// user-settings.json for the restore picker, copying the live settings out for export, and the
+/// user-settings.json for the restore picker, packaging settings for export, and the
 /// interactive export/import/restore flows themselves. The flows live here rather than in
 /// AboutSettingsPage to keep that page under the repo's per-file line limit -- the same
 /// Services-class-shows-localized-message-boxes split ExplorerLocateHelper and FileExecutor already
 /// embody. Actual replacement of the settings (import/restore) goes through
-/// UserSettings.RestoreFrom in Core; the background service is never touched.
+/// SettingsBackup in Core before plugin initialization; the background service is never stopped.
 /// </summary>
 internal static class UserConfigBackups
 {
@@ -65,22 +65,18 @@ internal static class UserConfigBackups
         return choices;
     }
 
-    /// <summary>Copies the live user settings into <paramref name="targetFolder"/>. Returns the
+    /// <summary>Packages persisted user settings into <paramref name="targetFolder"/>. Returns the
     /// destination path, or null when there is no settings file yet (fresh install).</summary>
     internal static string? Export(string targetFolder) => Export(UserSettings.SettingsPath, targetFolder);
 
-    // Path-parameterized overload so tests run against temp directories; the UI always calls the
-    // one-argument overload above.
+    // Noninteractive path for callers that have already stopped all writers; the UI uses a restart.
     internal static string? Export(string settingsPath, string targetFolder)
     {
-        string json;
-        try { json = File.ReadAllText(settingsPath); }
+        try { using var input = File.OpenRead(settingsPath); }
         catch (FileNotFoundException) { return null; }
         catch (DirectoryNotFoundException) { return null; }
-        var destination = Path.Combine(targetFolder, Path.GetFileName(settingsPath));
-        if (string.Equals(Path.GetFullPath(settingsPath), Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
-            throw new IOException("Choose a backup folder different from the live settings folder.");
-        AtomicFileStore.Write(destination, json);
+        var destination = Path.Combine(targetFolder, SettingsBackup.FileName);
+        SettingsBackup.Export(Path.GetDirectoryName(settingsPath)!, destination, typeof(App).Assembly.GetName().Version?.ToString() ?? "");
         return destination;
     }
 
@@ -88,47 +84,43 @@ internal static class UserConfigBackups
     // Each flow is fully try-wrapped so an unexpected error surfaces through the shared failure
     // message box instead of escaping the page's async void click handler.
 
-    /// <summary>Picks a folder and copies user-settings.json into it. Never exits the app.</summary>
-    internal static async Task RunExportFlowAsync()
+    private static bool _transferRunning;
+
+    /// <summary>Save personal edits, flush plugin writers, then take the snapshot on restart.</summary>
+    internal static async Task RunExportFlowAsync(SettingsViewModel? settings = null)
     {
+        if (_transferRunning) return;
+        _transferRunning = true;
         try
         {
-            var dialog = new Microsoft.Win32.OpenFolderDialog();
+            var dialog = new Microsoft.Win32.SaveFileDialog { FileName = SettingsBackup.FileName, DefaultExt = ".zip", Filter = "ZIP (*.zip)|*.zip" };
             if (dialog.ShowDialog() != true) return;
-
-            var destination = Path.Combine(dialog.FolderName, Path.GetFileName(UserSettings.SettingsPath));
-            if (File.Exists(destination) && !Confirm(string.Format(TranslationManager.Instance["About_ConfigExportOverwrite"], destination)))
-                return;
-
-            var exported = await Task.Run(() => Export(dialog.FolderName));
-            if (exported == null)
-            {
-                // The settings file vanished while the folder picker was open.
-                ShowMissingSettings();
-                return;
-            }
-
-            ShowInfo(string.Format(TranslationManager.Instance["About_ConfigExportSuccess"], exported));
+            var options = PromptPluginFiles();
+            if (options == null || !Confirm(TranslationManager.Instance["About_ConfigExportConfirm"])) return;
+            if (settings != null && !await settings.ApplyAsync(personalOnly: true)) return;
+            var directory = SettingsTransferRestart.CreateRequestDirectory();
+            await SettingsTransferRestart.RestartAsync(directory, new(true, dialog.FileName, options.Value,
+                TranslationManager.Instance["About_ConfigExportSuccess"]));
         }
         catch (Exception ex)
         {
             ShowActionFailed(ex);
         }
+        finally { _transferRunning = false; }
     }
 
-    /// <summary>Picks an external JSON and replaces the live settings with it, then exits.</summary>
+    /// <summary>Stages an external ZIP or legacy JSON and restarts to apply it.</summary>
     internal static async Task RunImportFlowAsync()
     {
+        if (_transferRunning) return;
+        _transferRunning = true;
         try
         {
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
-                Filter = $"{TranslationManager.Instance["About_ConfigFileFilter"]} (*.json)|*.json|All files (*.*)|*.*"
+                Filter = $"{TranslationManager.Instance["About_ConfigFileFilter"]} (*.zip;*.json)|*.zip;*.json|All files (*.*)|*.*"
             };
             if (dialog.ShowDialog() != true) return;
-
-            if (!Confirm(string.Format(TranslationManager.Instance["About_ConfigImportConfirm"], dialog.FileName)))
-                return;
 
             await ApplySourceAsync(dialog.FileName);
         }
@@ -136,11 +128,14 @@ internal static class UserConfigBackups
         {
             ShowActionFailed(ex);
         }
+        finally { _transferRunning = false; }
     }
 
-    /// <summary>Offers the on-disk .bak.N backups newest first and restores the picked one, then exits.</summary>
+    /// <summary>Offers the on-disk .bak.N backups newest first and restarts to restore the selection.</summary>
     internal static async Task RunRestoreFlowAsync()
     {
+        if (_transferRunning) return;
+        _transferRunning = true;
         try
         {
             var backups = Enumerate(Logger.UserDataDir);
@@ -176,38 +171,49 @@ internal static class UserConfigBackups
         {
             ShowActionFailed(ex);
         }
+        finally { _transferRunning = false; }
     }
 
-    // Shared tail of Import and Restore: swap the settings file via Core's RestoreFrom -- it
-    // validates the source and rotates the current file into the backup chain first -- then prompt
-    // and exit so a restart picks everything up. Deliberately NOT TrayCleanExitHelper: the
-    // background service must keep running.
+    // Validate/stage before confirmation. The live tree changes only after every old plugin is gone.
     private static async Task ApplySourceAsync(string sourcePath)
     {
+        var directory = SettingsTransferRestart.CreateRequestDirectory();
+        var preserveForRestart = false;
         try
         {
-            await Task.Run(() => UserSettings.RestoreFrom(sourcePath));
+            // Staging code is never executed. Consent to install any included plugin files comes below.
+            var manifest = await Task.Run(() => SettingsBackup.Prepare(sourcePath, Path.Combine(directory, "payload"), allowPluginFiles: true));
+            var details = string.Format(TranslationManager.Instance["About_ConfigImportConfirm"], sourcePath, manifest.Files.Count);
+            if (manifest.IsLegacyJson) details += "\n\n" + TranslationManager.Instance["About_ConfigLegacyOnly"];
+            if (manifest.IncludesPluginFiles) details += "\n\n" + TranslationManager.Instance["About_ConfigPluginFilesWarning"];
+            if (!Confirm(details)) return;
+            preserveForRestart = true;
+            await SettingsTransferRestart.RestartAsync(directory, new(false, null, manifest.IncludesPluginFiles,
+                TranslationManager.Instance["About_ConfigImportSuccess"]));
         }
-        catch (InvalidDataException)
+        finally
         {
-            ShowError(string.Format(TranslationManager.Instance["About_ConfigInvalidFile"], sourcePath));
-            return;
+            if (!preserveForRestart)
+            {
+                try { using var staging = new SettingsBackupPaths(directory); staging.ClearFiles("payload"); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Logger.Log($"[SettingsTransfer] Could not clean staging: {ex.Message}", LogLevel.Warn); }
+            }
         }
-
-        PromptRestartAndExit();
     }
 
-    private static void PromptRestartAndExit()
+    private static bool? PromptPluginFiles()
     {
-        ShowInfo(TranslationManager.Instance["About_ConfigRestartPrompt"]);
-        Application.Current.Shutdown();
+        const string key = "IncludePluginFiles";
+        var values = PluginFieldPromptWindow.ShowPrompt(TranslationManager.Instance["About_ConfigSection"],
+            [new PluginConfigField { Key = key, LabelKey = TranslationManager.Instance["About_ConfigIncludePluginFiles"],
+                FieldType = ConfigFieldType.Boolean, DefaultValue = false }], initialValues: null);
+        return values == null ? null : values.TryGetValue(key, out var value) && value is true;
     }
 
     // Localized message boxes; Service_Error captions failures, About_ConfigSection captions feature
     // messaging -- the same convention AboutSettingsPage's own handlers use.
     private static void ShowInfo(string text) => MessageBox.Show(text, TranslationManager.Instance["About_ConfigSection"], MessageBoxButton.OK, MessageBoxImage.Information);
     private static void ShowError(string text) => MessageBox.Show(text, TranslationManager.Instance["Service_Error"], MessageBoxButton.OK, MessageBoxImage.Error);
-    private static void ShowMissingSettings() => MessageBox.Show(string.Format(TranslationManager.Instance["About_ConfigMissing"], UserSettings.SettingsPath), TranslationManager.Instance["Service_Error"], MessageBoxButton.OK, MessageBoxImage.Warning);
     private static void ShowActionFailed(Exception ex) => ShowError(string.Format(TranslationManager.Instance["About_ConfigActionFailed"], ex.Message));
     private static bool Confirm(string text) => MessageBox.Show(text, TranslationManager.Instance["About_ConfigSection"], MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;
 }

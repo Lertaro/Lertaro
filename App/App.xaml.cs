@@ -37,6 +37,7 @@ public partial class App : Application
     private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
     private Mutex? _appMutex;
     private bool _startupInitialized;
+    private System.IO.FileStream? _settingsSession;
     public static HookIpcClient? HookClient { get; private set; }
 
     // Held for the process lifetime so its hotkey registration and message window stay alive.
@@ -89,8 +90,19 @@ public partial class App : Application
         DispatcherUnhandledException += _dispatcherExceptionHandler.Handle;
         TaskScheduler.UnobservedTaskException += (s, args) => { Helpers.App.AppCrashHandler.LogException("TaskScheduler UnobservedTaskException", args.Exception); args.SetObserved(); };
 
+        string? transferMessage;
+        try { _settingsSession = SettingsTransferRestart.StartSession(e.Args, out transferMessage); }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"Settings transfer could not complete. No plugins were started.\n配置传输未完成，插件尚未启动。请关闭其他 Lertaro 实例后重试。\n\n{ex.Message}", "Lertaro",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+            return;
+        }
+
         UserSettings settings;
-        try { settings = UserSettings.Load(); }
+        // WPF resources can touch UserSettings before OnStartup; discard any pre-transfer cache.
+        try { settings = UserSettings.ForceReload(); }
         catch (Exception ex)
         {
             System.Windows.MessageBox.Show($"Unable to load settings:\n{UserSettings.SettingsPath}\n\n{ex.Message}", "Lertaro",
@@ -261,7 +273,10 @@ public partial class App : Application
                 return cachedSettingsSearchEntries;
             };
             PluginSdk.Logger.LogAction = (msg, lvl) => Logger.Log(msg, (LogLevel)(int)lvl);
-            TranslationManager.Instance.ReloadTranslations();
+            if (TranslationManager.Instance.CurrentCulture != settings.PreferredLanguage)
+                TranslationManager.Instance.CurrentCulture = settings.PreferredLanguage;
+            else
+                TranslationManager.Instance.ReloadTranslations();
             Logger.Log("[App] TranslationManager initialized.");
 
             // Preload app searchable items now that translations are fully loaded and settled
@@ -306,6 +321,8 @@ public partial class App : Application
 
         // LocalSend transfer service runs in App process
         Helpers.LocalSend.LocalSendAppEventHandler.Initialize(settings);
+        if (transferMessage != null)
+            _ = Dispatcher.BeginInvoke(new Action(() => Views.Controls.Dialogs.CustomMessageBox.Show(transferMessage, "Lertaro", MessageBoxButton.OK, MessageBoxImage.Information)));
     }
 
     public static void HideInlineSearch() => InlineSearchManager.Instance.CloseInlineSearch();
@@ -318,6 +335,7 @@ public partial class App : Application
     {
         if (!_startupInitialized)
         {
+            _settingsSession?.Dispose();
             _appMutex?.Dispose();
             base.OnExit(e);
             return;
@@ -331,6 +349,8 @@ public partial class App : Application
         HookClient?.Stop(); HookClient?.Dispose(); HookClient = null;
         AppPipeService.StopServer(); AppSearchPipeService.StopServer(); Services.Everything.EverythingServiceBootstrapper.Stop(); InlineSearchManager.Instance.Dispose(); CloseAllManagedWindows();
         if (_appMutex != null) { try { _appMutex.ReleaseMutex(); } catch { } _appMutex.Dispose(); }
+        // ponytail: keep the runtime lease until OS process teardown, including any plugin
+        // Exit/ProcessExit callbacks that can still save after this OnExit method returns.
         base.OnExit(e);
     }
 }

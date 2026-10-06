@@ -1,4 +1,5 @@
 using System.IO;
+using System.IO.Compression;
 using Lertaro.App.Services;
 
 namespace Lertaro.App.Tests.Services;
@@ -86,7 +87,7 @@ public sealed class UserConfigBackupsTests
     }
 
     [TestMethod]
-    public void Export_CopiesSettingsFile()
+    public void Export_PackagesSettingsFile()
     {
         using var source = new TempDirectory();
         using var target = new TempDirectory();
@@ -96,8 +97,10 @@ public sealed class UserConfigBackupsTests
         var exported = UserConfigBackups.Export(settingsPath, target.Path);
 
         Assert.IsNotNull(exported);
-        Assert.AreEqual(Path.Combine(target.Path, "user-settings.json"), exported);
-        Assert.AreEqual(File.ReadAllText(settingsPath), File.ReadAllText(exported));
+        Assert.AreEqual(Path.Combine(target.Path, "lertaro-settings.zip"), exported);
+        using var zip = ZipFile.OpenRead(exported);
+        using var reader = new StreamReader(zip.GetEntry("user-settings.json")!.Open());
+        Assert.AreEqual(File.ReadAllText(settingsPath), reader.ReadToEnd());
     }
 
     [TestMethod]

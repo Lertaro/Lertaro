@@ -127,14 +127,16 @@ public static class FlowJsonRpcSession
 
                 if (!process.WaitForExit(300))
                 {
-                    process.Kill();
+                    process.Kill(entireProcessTree: true);
                 }
             }
         }
         catch
         {
-            try { process.Kill(); } catch { }
+            if (!process.HasExited) process.Kill(entireProcessTree: true);
         }
+
+        await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
         return finalOutput;
     }

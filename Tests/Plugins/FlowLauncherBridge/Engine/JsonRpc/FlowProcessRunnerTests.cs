@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Flow.Launcher.Plugin;
 using Flow.Launcher.Plugin.SharedModels;
+using Lertaro.Plugins.FlowLauncherBridge.Engine;
 using Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Tests.Engine.JsonRpc;
@@ -132,6 +133,61 @@ public sealed class FlowProcessRunnerTests
         Assert.HasCount(1, results);
         Assert.AreEqual("Raw", results[0].Title);
         Assert.AreEqual(60, results[0].Score);
+    }
+
+    [TestMethod]
+    [DoNotParallelize]
+    public async Task DisposeAsync_WaitsForExternalWriterAndPreventsNewProcesses()
+    {
+        var root = Directory.CreateTempSubdirectory("FlowWriter-").FullName;
+        var oldDirectory = Lertaro.PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc;
+        var oldStatePath = FlowPluginStateStore.CustomFilePath;
+        Lertaro.PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = () => root;
+        FlowPluginStateStore.CustomFilePath = Path.Combine(root, "Plugins.json");
+        var script = Path.Combine(root, "writer.ps1");
+        var release = Path.Combine(root, "release");
+        var started = Path.Combine(root, "started");
+        var saved = Path.Combine(root, "saved");
+        File.WriteAllText(script, """
+            param($request)
+            [void][Console]::ReadLine()
+            [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'started'), 'started')
+            while (-not [IO.File]::Exists((Join-Path $PSScriptRoot 'release'))) { Start-Sleep -Milliseconds 10 }
+            [Console]::WriteLine('[]')
+            [void][Console]::ReadLine()
+            [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'saved'), 'closed')
+            """);
+        var executable = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "PowerShell", "7", "pwsh.exe");
+        var runner = new FlowProcessRunner(new PluginMetadata { ID = "writer", Name = "writer" }, executable, script);
+        var api = new FakePublicApi((_, _) => { });
+        try
+        {
+            Assert.IsTrue(File.Exists(executable), "This external-writer integration test requires the installed PowerShell 7 host.");
+            var query = runner.ExecuteQueryAsync(new Query { Search = "test" }, api);
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (!File.Exists(started) && !query.IsCompleted && DateTime.UtcNow < deadline) await Task.Delay(20);
+            Assert.IsTrue(File.Exists(started), "The actual child process must start before checking shutdown.");
+            var stopping = runner.DisposeAsync().AsTask();
+            Assert.IsFalse(stopping.IsCompleted, "Disposal must wait for the active writer.");
+            File.WriteAllText(release, "finish");
+            await stopping.WaitAsync(TimeSpan.FromSeconds(10));
+            await query;
+            Assert.AreEqual("closed", File.ReadAllText(saved));
+            File.Delete(started);
+            await runner.ExecuteQueryAsync(new Query { Search = "after dispose" }, api);
+            Assert.IsFalse(File.Exists(started));
+        }
+        finally
+        {
+            File.WriteAllText(release, "finish");
+            try { await runner.DisposeAsync(); }
+            finally
+            {
+                Lertaro.PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = oldDirectory;
+                FlowPluginStateStore.CustomFilePath = oldStatePath;
+                Directory.Delete(root, true);
+            }
+        }
     }
 
     private sealed class FakePublicApi : IPublicAPI

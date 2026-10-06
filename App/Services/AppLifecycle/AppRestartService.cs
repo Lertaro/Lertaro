@@ -12,7 +12,9 @@ public static class AppRestartService
     private const int ParentWaitTimeoutMilliseconds = 30000;
     private static int _restartRequested;
 
-    public static bool RequestRestart()
+    public static bool RequestRestart() => RequestRestart(null);
+
+    public static bool RequestRestart(string? additionalArgument)
     {
         var application = Application.Current;
         if (application == null || application.Dispatcher.HasShutdownStarted)
@@ -36,6 +38,7 @@ public static class AppRestartService
                 UseShellExecute = true
             };
             startInfo.ArgumentList.Add(WaitForProcessArgument + Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
+            if (additionalArgument != null) startInfo.ArgumentList.Add(additionalArgument);
             if (Process.Start(startInfo) == null)
                 throw new InvalidOperationException("The replacement process could not be started.");
 

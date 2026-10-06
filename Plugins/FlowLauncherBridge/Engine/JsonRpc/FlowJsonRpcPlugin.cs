@@ -8,7 +8,7 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 /// Plugin adapter hosting external Flow.Launcher plugins (Python, Node.js, Executable).
 /// Implements ISettingProvider dynamically when SettingsTemplate.yaml/json exists.
 /// </summary>
-public class FlowJsonRpcPlugin : IAsyncPlugin
+public class FlowJsonRpcPlugin : IAsyncPlugin, IAsyncDisposable
 {
     private readonly FlowProcessRunner _runner;
     private readonly PluginMetadata _metadata;
@@ -34,6 +34,8 @@ public class FlowJsonRpcPlugin : IAsyncPlugin
 
         return _runner.ExecuteQueryAsync(query, _api, token);
     }
+
+    public ValueTask DisposeAsync() => _runner.DisposeAsync();
 
     public static bool HasSettingsTemplate(string? pluginDirectory) => GetSettingsTemplatePath(pluginDirectory) != null;
 

@@ -8,11 +8,14 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 /// <summary>
 /// Executes external Flow.Launcher plugins via subprocess stdin/stdout JSON-RPC communication.
 /// </summary>
-public class FlowProcessRunner
+public class FlowProcessRunner : IAsyncDisposable
 {
     private readonly PluginMetadata _metadata;
     private readonly string _executable;
     private readonly string? _scriptPath;
+    private readonly object _sessionGate = new();
+    private readonly HashSet<Task<string>> _sessions = [];
+    private bool _stopping;
 
     public FlowProcessRunner(PluginMetadata metadata, string executable, string? scriptPath = null)
     {
@@ -32,7 +35,7 @@ public class FlowProcessRunner
         };
 
         var json = JsonSerializer.Serialize(request);
-        var output = await FlowJsonRpcSession.RunProcessAsync(_executable, _scriptPath, _metadata, json, api, cancellationToken).ConfigureAwait(false);
+        var output = await RunSessionAsync(json, api, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(output))
             return [];
 
@@ -108,7 +111,37 @@ public class FlowProcessRunner
         };
 
         var json = JsonSerializer.Serialize(request);
-        _ = await FlowJsonRpcSession.RunProcessAsync(_executable, _scriptPath, _metadata, json, api, CancellationToken.None).ConfigureAwait(false);
+        _ = await RunSessionAsync(json, api, CancellationToken.None).ConfigureAwait(false);
+    }
+
+    private Task<string> RunSessionAsync(string json, IPublicAPI api, CancellationToken token)
+    {
+        lock (_sessionGate)
+        {
+            if (_stopping) return Task.FromResult(string.Empty);
+            var session = FlowJsonRpcSession.RunProcessAsync(_executable, _scriptPath, _metadata, json, api, token);
+            _sessions.Add(session);
+            return CompleteSessionAsync(session);
+        }
+    }
+
+    private async Task<string> CompleteSessionAsync(Task<string> session)
+    {
+        try { return await session.ConfigureAwait(false); }
+        finally { lock (_sessionGate) _sessions.Remove(session); }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Task<string>[] pending;
+        lock (_sessionGate)
+        {
+            _stopping = true;
+            pending = _sessions.ToArray();
+        }
+        // Let JSON-RPC close/save finish before the restart snapshots its files. A wedged external
+        // writer fails the transfer instead of leaving an apparently complete backup.
+        await Task.WhenAll(pending).WaitAsync(TimeSpan.FromSeconds(25)).ConfigureAwait(false);
     }
 
     private IReadOnlyDictionary<string, object>? LoadPluginSettings()
