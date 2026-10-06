@@ -92,7 +92,7 @@ No existe ninguna sintaxis de comillas que cambie cómo se lee la precedencia; l
 
 ### La regla del espacio
 
-Los espacios entre términos normales indican AND; los términos unidos por comillas simples siguen las reglas siguientes.
+Los espacios entre términos normales indican AND; las comillas no cambian esta regla.
 
 ```text
 final report
@@ -100,7 +100,7 @@ final report
 
 es `final` AND `report`, que no es lo mismo que una única frase `final report`.
 
-**Los tokens de plugins pueden contener espacios.** `\ ` (barra inversa y espacio) convierte `\my\ key` en un token cuya palabra clave es `my key`. En el texto normal, el escape se convierte en espacio: `final\ report` son dos términos AND y `?final\ report` solo exige que `final` sea contiguo. Los espacios literales o escapados separan las cláusulas regex; usa `\s`. Los apóstrofos son válidos en nombres de archivos de Windows. El analizador une las comillas simples emparejadas y las palabras intermedias en un término, conservando comillas y espacios; `'final report'` puede coincidir con un nombre que contenga esos caracteres. Las comillas dobles también son literales, pero no son válidas en nombres de archivos de Windows.
+**Las consultas normales no escapan espacios ni unen palabras entre comillas.** Los espacios separan términos AND; las comillas simples y dobles son literales. `final\ report` conserva la barra inversa y no es una frase. Usa `/final\sreport/` para nombres con espacios. Los tokens de plugins siguen admitiendo `\ ` dentro de una palabra clave, como `\my\ key`.
 
 Cuando las dos palabras son adyacentes en el nombre que buscas, también basta buscar solo la mitad más distintiva y dejar que la ordenación la ponga arriba. Para exigir esa adyacencia, usa una cláusula de expresión regular, que compara el nombre como un todo (ver más abajo), y escribe el espacio como `\s`:
 
@@ -171,6 +171,8 @@ Hay cuatro cosas que conviene saber:
 - **La barra delimita la cláusula y la barra inversa escapa caracteres.** Escribe `\.` para un punto literal y `\/` para una barra literal. La cláusula debe ocupar una palabra completa terminada en `/` sin escapar. Una barra interior sin escapar hace que toda la palabra se trate como ruta. Por eso `C:/Users/me`, `/mnt/c/Users` y `/usr/local/` siguen siendo rutas. Una cláusula sin cerrar también se conserva como texto normal.
 - **El prefiltro regex solo extrae literales cuya presencia es obligatoria.** `/\.exe$/` aporta `.exe`; `/^(ogg|mp3)$/` no tiene un literal obligatorio. Los escapes complejos, el modo de espacios extendido, los comentarios, la resta de clases y las expresiones largas omiten esta optimización para no perder resultados válidos. Añade un término normal para reducir los candidatos. El motor prefiere la ejecución sin retroceso; cuando se necesita retroceso, cada candidato dispone de 250 ms y se omite si agota ese tiempo.
 
+En la ventana de búsqueda completa, las consultas de ruta con regex conservan como máximo 8,000 coincidencias y descartan las posteriores. El contador muestra «Límite de resultados regex superado» solo al encontrar la coincidencia 8,001. La ordenación y los filtros posteriores se aplican a los resultados conservados. Las búsquedas difusas normales y las regex sin ruta no usan este límite. Un tiempo de espera agotado sigue omitiendo ese candidato sin terminar toda la consulta; el usuario puede cancelarla.
+
 ## 4. Modo de ruta y delimitación por unidad
 
 ### Limitar la búsqueda a una unidad
@@ -192,6 +194,8 @@ D:\Projects\Lertaro
 ```
 
 Si termina con un separador de ruta (p. ej. `D:\Projects\`), busca el contenido directo **dentro** de esa carpeta.
+
+Se conserva la `/` o `\` final. `D:\abc\ /xxx/` busca los elementos directamente dentro de `D:\abc` y compara sus nombres con `/xxx/`; `D:\abc /xxx/` hace lo mismo si existe la carpeta. Se recomienda introducir carpetas sin barra final.
 
 ### Saltar a una carpeta
 
@@ -298,7 +302,7 @@ Los tokens de plugin los proporcionan los plugins, y cada plugin decide qué sig
 
 Puedes renombrar las categorías, cambiar las extensiones que cubre cada una o añadir las tuyas en **Configuración → Plugins → CoreExtensions**. La propia palabra clave se compara de la más larga a la más corta, así que una regla `\a` y una regla `\audio` pueden coexistir y `\audio` sigue ganando.
 
-El carácter de prefijo se configura en **Configuración → General → Sistema → Prefijo de tokens de consulta de plugins**. No puede estar vacío, no puede ser un carácter que ya use la sintaxis de búsqueda (`<` `>` `:` `*` `/` `?`) — `\` en sí es el valor predeterminado, así que se puede usar.
+Configura el prefijo en **Configuración → General → Sistema → Prefijo de tokens de consulta de plugins**; el valor predeterminado es `\`. Los nuevos valores no pueden ocupar caracteres de la sintaxis, `#`, `$`, `%` ni activadores configurados; tampoco espacios o comillas dobles. Los campos de tipo de resultado y respuesta instantánea se validan con el prefijo actual o pendiente. Los conflictos existentes muestran un aviso hasta su corrección manual. Un prefijo válido en nombres de archivos advierte de posibles conflictos con términos normales.
 
 La barra lateral de filtros de tipo de la ventana de búsqueda completa se configura por separado en el grupo **Filtros de búsqueda** del mismo plugin. Los nombres de los filtros de la barra lateral solo sirven para mostrar; las referencias de prefijo solo se analizan dentro de una regla de filtro de la barra lateral y se refieren a palabras clave de la lista **Filtros personalizados**, incluidos los filtros personalizados deshabilitados.
 

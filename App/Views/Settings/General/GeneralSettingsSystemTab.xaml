@@ -126,6 +126,8 @@
                            Foreground="{DynamicResource ErrorBrush}"
                            FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"
                            Visibility="{Binding General.HasPrefixError, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Text="{Binding General.PrefixWarning}" Style="{StaticResource SettingsHintText}"
+                           TextWrapping="Wrap" Margin="0,4,0,0"/>
 
                 <Grid x:Name="RowLogLevel" Margin="0,12,0,0">
                     <Grid.ColumnDefinitions>

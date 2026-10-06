@@ -37,7 +37,7 @@ public static class SearchQueryParser
 
         string? targetDrive = null;
 
-        var rawTerms = normalizedQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var rawTerms = normalizedQuery.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var rawTerm in rawTerms)
         {
