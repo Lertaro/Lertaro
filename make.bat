@@ -157,6 +157,8 @@ copy "%ROOT%portable-updater.bat" "%OUT%\" >nul
 if errorlevel 1 (
     echo [Warning] Failed to copy portable-updater.bat.
 )
+copy "%ROOT%portable-updater.ps1" "%OUT%\" >nul
+if errorlevel 1 exit /b 1
 copy "%ROOT%install-dotnet-runtime.bat" "%OUT%\" >nul
 if errorlevel 1 (
     echo [Warning] Failed to copy install-dotnet-runtime.bat.

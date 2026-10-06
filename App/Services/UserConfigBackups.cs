@@ -73,9 +73,14 @@ internal static class UserConfigBackups
     // one-argument overload above.
     internal static string? Export(string settingsPath, string targetFolder)
     {
-        if (!File.Exists(settingsPath)) return null;
+        string json;
+        try { json = File.ReadAllText(settingsPath); }
+        catch (FileNotFoundException) { return null; }
+        catch (DirectoryNotFoundException) { return null; }
         var destination = Path.Combine(targetFolder, Path.GetFileName(settingsPath));
-        File.Copy(settingsPath, destination, overwrite: true);
+        if (string.Equals(Path.GetFullPath(settingsPath), Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
+            throw new IOException("Choose a backup folder different from the live settings folder.");
+        AtomicFileStore.Write(destination, json);
         return destination;
     }
 
@@ -88,13 +93,6 @@ internal static class UserConfigBackups
     {
         try
         {
-            // Existence is checked first so the folder picker is not shown for nothing.
-            if (!File.Exists(UserSettings.SettingsPath))
-            {
-                ShowMissingSettings();
-                return;
-            }
-
             var dialog = new Microsoft.Win32.OpenFolderDialog();
             if (dialog.ShowDialog() != true) return;
 

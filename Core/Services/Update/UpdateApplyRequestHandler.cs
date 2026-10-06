@@ -34,10 +34,17 @@ namespace Lertaro.Core.Services.Update;
 /// </remarks>
 internal static class UpdateApplyRequestHandler
 {
+    private static readonly object UpdateGate = new();
+    private static System.Diagnostics.Process? _applier;
     /// <summary>Subdirectory of the install directory the verified payload is unpacked into for the copier.</summary>
     internal const string PayloadStagingFolderName = "update-payload";
 
     public static PipeResponse Handle(NamedPipeServerStream pipe, string? sourceDir)
+    {
+        lock (UpdateGate) return HandleCore(pipe, sourceDir);
+    }
+
+    private static PipeResponse HandleCore(NamedPipeServerStream pipe, string? sourceDir)
     {
         try
         {
@@ -45,19 +52,21 @@ internal static class UpdateApplyRequestHandler
                 !PipeClientIdentity.TryGetClientSessionId(pipe, out var sessionId))
                 return Reject("Unable to identify caller.");
 
-            if (!HookLaunchRequestHandler.IsGenuineAppProcess(callerPid))
-                return Reject($"PID {callerPid} is not this install's Lertaro.App.exe.");
+            if (!PipeClientIdentity.IsAuthorizedApp(pipe, administrator: true))
+                return Reject("Updating this installation requires an administrator account running this installation's App.");
+            if (_applier is { HasExited: false }) return Reject("An update is already running.");
+            _applier?.Dispose();
+            _applier = null;
 
             var installDir = Path.TrimEndingDirectorySeparator(AppDomain.CurrentDomain.BaseDirectory);
-            var updaterBat = Path.Combine(installDir, "portable-updater.bat");
-            if (!File.Exists(updaterBat))
+            using var lease = AcquireUpdateLock(installDir);
+            var updaterScript = Path.Combine(installDir, "portable-updater.ps1");
+            if (!File.Exists(updaterScript))
                 return Reject("Updater script is missing from this install.");
 
             // A leftover from a run that died between unpacking and copying would otherwise be copied over
             // as part of this one.
-            var unpackDir = Path.Combine(installDir, PayloadStagingFolderName);
-            if (Directory.Exists(unpackDir))
-                Directory.Delete(unpackDir, true);
+            var unpackDir = Path.Combine(installDir, PayloadStagingFolderName, Guid.NewGuid().ToString("N"));
 
             // Read as the caller, not as LocalSystem: the staging directory is the caller's to name, and
             // this process must not reach into it (or through a link in it, or out to a share) with its own
@@ -74,23 +83,17 @@ internal static class UpdateApplyRequestHandler
             if (!UpdatePackage.TryVerifyAndExtract(zip!, signature!, unpackDir, out var payloadDir, out var packageError))
                 return Reject(packageError ?? "Unusable update package.");
 
-            // cmd.exe rather than a copy of this executable, because whatever does the copying must not be
-            // one of the files being copied: an applier running from the install directory would hold
-            // Lertaro.Service.exe and Lertaro.Core.dll locked and could not overwrite them. The script lives
-            // in System32, so nothing it replaces is in use by it.
+            // Run the script in the system PowerShell host, which holds none of our binaries open.
             //
             // Recorded before the copier starts, because the copier stops this service and this service is
             // the only process that can hand the App back to the session at its own integrity level.
             UpdateRelaunchMarker.Write(sessionId, DateTimeOffset.UtcNow);
 
-            // /d: no HKCU\...\Command Processor\AutoRun, which the (non-elevated) user controls and this
-            // cmd.exe would otherwise run elevated. System32 goes to the script as an argument because the
-            // environment it inherits is built from the user's settings, and the script calls every tool by
-            // full path from there rather than trusting PATH or SystemRoot.
+            // No user profile, no PATH lookup for the host; the script also restricts module discovery.
             var system32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
-            var arguments = $"/d /c \"\"{updaterBat}\" \"{payloadDir}\" \"{installDir}\" \"{system32}\"\"";
-            var cmdExe = Path.Combine(system32, "cmd.exe");
-            if (!SessionProcessLauncher.TryLaunch(sessionId, cmdExe, arguments, requestElevation: true,
+            var arguments = $"-NoLogo -NoProfile -NonInteractive -File \"{updaterScript}\" -Source \"{payloadDir}\" -Destination \"{installDir}\"";
+            var powershell = Path.Combine(system32, "WindowsPowerShell", "v1.0", "powershell.exe");
+            if (!SessionProcessLauncher.TryLaunch(sessionId, powershell, arguments, requestElevation: true,
                     detachFromConsole: false, out var pid, out var error))
             {
                 // Nothing was copied and this service stays running, so the note would only make some later
@@ -98,6 +101,10 @@ internal static class UpdateApplyRequestHandler
                 UpdateRelaunchMarker.Clear();
                 return Reject(error ?? "Could not start the updater.");
             }
+
+            // Covers the handoff until the updater opens the same lock file. It acquires that lock
+            // before stopping the service and holds it through copy/rollback and service restart.
+            _applier = System.Diagnostics.Process.GetProcessById(pid);
 
             Logger.Log($"[UsnService] Update applier launched (PID {pid}) into session {sessionId} for PID {callerPid}.");
             return new PipeResponse { Kind = PipeResponseKind.Ok };
@@ -108,6 +115,9 @@ internal static class UpdateApplyRequestHandler
             return new PipeResponse { Kind = PipeResponseKind.Error, Message = ex.Message };
         }
     }
+
+    internal static FileStream AcquireUpdateLock(string installDirectory) =>
+        new(Path.Combine(installDirectory, "update.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
 
     private static PipeResponse Reject(string reason)
     {

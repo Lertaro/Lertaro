@@ -4,7 +4,7 @@ using Lertaro.Core.Services.Installation;
 namespace Lertaro.Service;
 
 // Windows service install/uninstall via sc.exe (through ServiceControlRunner), including the one-time
-// security-descriptor change that lets the non-elevated App start/stop the service without a UAC prompt.
+// security-descriptor change that lets a signed-in user start/query the service without a UAC prompt.
 // Kept separate from Program's CLI dispatch and hook-mode bootstrap -- service lifecycle administration
 // has nothing to do with either of those.
 static class ServiceInstaller
@@ -17,7 +17,7 @@ static class ServiceInstaller
 
     // ponytail: not in a Debug build, which is a developer's build output (build_and_run.bat's debug\) that the
     // next non-elevated build has to delete and rewrite. Release zips are what ship.
-    internal static bool LocksPortableFolder => !IsDebugBuild && InstallationDetector.Detect() == InstallationMode.Portable;
+    internal static bool LocksApplicationFolder => !IsDebugBuild;
 
     public static void Install()
     {
@@ -32,12 +32,14 @@ static class ServiceInstaller
             // A portable copy lives wherever it was unzipped, usually somewhere every user can write, and the
             // service about to run from it as LocalSystem would load whatever anyone put there. Locked before
             // the service is pointed at it; a folder that cannot be locked is not one to install it from.
-            if (LocksPortableFolder)
+            if (LocksApplicationFolder)
             {
                 Logger.Log("Locking the portable folder to SYSTEM and Administrators before installing the service.");
                 var report = PortableDirectoryLock.Lock(Path.GetDirectoryName(serviceExePath)!);
                 foreach (var path in report.Removed)
                     Logger.Log($"[InstallDirectoryLock] Removed a link that was not this product's: {path}", LogLevel.Warn);
+                foreach (var path in report.UserDataFailed)
+                    Logger.Log($"[InstallDirectoryLock] Personal data repair incomplete: {path}", LogLevel.Warn);
                 if (report.Failed.Count > 0)
                     throw new InvalidOperationException($"Could not lock the portable folder: {string.Join("; ", report.Failed)}");
             }
@@ -64,14 +66,7 @@ static class ServiceInstaller
                     throw new InvalidOperationException("sc create failed. See service.log for details.");
             }
 
-            // Grant all authenticated users START/STOP/QUERY on the service so the non-elevated app can
-            // start and stop it without a UAC prompt every time. Install is already elevated here, so this
-            // one-time descriptor change is free. SYSTEM and Administrators keep full control.
-            // AU ACE = CC LC SW RP WP LO RC = query-config/status, enum-deps, start, stop, interrogate, read.
-            Logger.Log("Setting service security descriptor to allow non-admin start/stop.");
-            var sdset = ServiceControlRunner.Run("sdset LertaroService D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;IU)(A;;CCLCSWLOCRRC;;;SU)(A;;CCLCSWRPWPLORC;;;AU)S:(AU;FA;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;WD)");
-            if (!sdset.IsSuccess(0))
-                Logger.Log("[ServiceInstaller] Service was created but sdset failed; non-admin start/stop may require elevation.", LogLevel.Warn);
+            ApplySecurity();
 
             Logger.Log("Starting service: sc.exe start LertaroService");
             var start = ServiceControlRunner.Run("start LertaroService", 0, 1056);
@@ -86,6 +81,14 @@ static class ServiceInstaller
             Console.WriteLine($"Failed to install service: {ex.Message}");
             Logger.Log($"Failed to install service: {ex}", LogLevel.Error);
         }
+    }
+
+    internal static void ApplySecurity()
+    {
+        // A user may start the shared search service, but cannot stop it for every other session.
+        // Reapply on service startup too: in-place upgrades do not run --install.
+        var result = ServiceControlRunner.Run("sdset LertaroService D:(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;IU)(A;;CCLCSWLOCRRC;;;SU)(A;;CCLCSWRPLORC;;;AU)");
+        if (!result.IsSuccess(0)) throw new IOException("Could not apply the service access policy.");
     }
 
     public static void Uninstall()

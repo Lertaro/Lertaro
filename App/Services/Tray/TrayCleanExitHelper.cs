@@ -1,64 +1,35 @@
-using System.Diagnostics;
 using Lertaro.Core;
+using Lertaro.Core.Services.Search;
 using Application = System.Windows.Application;
 
 namespace Lertaro.App.Services.Tray;
 
 internal static class TrayCleanExitHelper
 {
-    public static void CleanExit()
-    {
-        if (IsOnlyAppProcessRunning())
-        {
-            TryStopService();
-        }
+    private static int _exiting;
 
-        Application.Current.Shutdown();
-    }
-
-    public static bool IsOnlyAppProcessRunning()
+    public static async void CleanExit()
     {
+        if (Interlocked.Exchange(ref _exiting, 1) != 0) return;
         try
         {
-            using var current = Process.GetCurrentProcess();
-            var processes = Process.GetProcessesByName(current.ProcessName);
             try
             {
-                return processes.Length == 1;
+                if (App.HookClient is { } hook) await hook.StopAsync().ConfigureAwait(false);
             }
-            finally
-            {
-                foreach (var process in processes)
-                    process.Dispose();
-            }
+            catch (Exception ex) { Logger.Log($"[TrayCleanExitHelper] Hook shutdown failed: {ex.Message}", LogLevel.Warn); }
+            using var service = new SearchService();
+            if (!await service.StopServiceAsync().ConfigureAwait(false))
+                Logger.Log("[TrayCleanExitHelper] Service shutdown could not be confirmed.", LogLevel.Error);
         }
         catch (Exception ex)
         {
-            Logger.Log($"[TrayCleanExitHelper] Failed to count app processes: {ex.Message}", LogLevel.Warn);
-            return false;
+            Logger.Log($"[TrayCleanExitHelper] Shutdown failed: {ex.Message}", LogLevel.Error);
         }
-    }
-
-    private static void TryStopService()
-    {
-        try
+        finally
         {
-            // No elevation: the service grants START/STOP to authenticated users at install time, so a
-            // normal-user stop succeeds without a UAC prompt. (Older installs lacking that grant just fail
-            // here and the service keeps running, which is harmless.)
-            var psi = new ProcessStartInfo
-            {
-                FileName = "sc.exe",
-                Arguments = "stop LertaroService",
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var proc = Process.Start(psi);
-            _ = proc;
-        }
-        catch (Exception ex)
-        {
-            Logger.Log($"[TrayCleanExitHelper] Failed to stop service: {ex.Message}", LogLevel.Warn);
+            // Update completion also enters here from a worker thread.
+            await Application.Current.Dispatcher.InvokeAsync(() => Application.Current.Shutdown());
         }
     }
 }

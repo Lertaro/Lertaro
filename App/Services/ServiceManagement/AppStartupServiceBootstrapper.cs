@@ -1,10 +1,41 @@
 using Lertaro.Core;
+using System.IO;
 
 using Lertaro.Core.Services.Search;
 namespace Lertaro.App.Services;
 
 internal static class AppStartupServiceBootstrapper
 {
+    public static async Task<bool> PrepareUserSettingsAsync()
+    {
+        try
+        {
+            try { Core.Services.Installation.UserDataAccess.Verify(Logger.UserDataDir); return true; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+
+            // 5.8.2–5.8.4 could lock the user's own directory. Give the current service a chance to
+            // repair it before asking for elevation, and finish this before loading settings or plugins.
+            if (await Task.Run(ServiceInstallManager.TryStartExistingService))
+            {
+                for (var attempt = 0; attempt < 20; attempt++)
+                {
+                    try { Core.Services.Installation.UserDataAccess.Verify(Logger.UserDataDir); return true; }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                    await Task.Delay(250);
+                }
+            }
+            await Task.Run(ServiceInstallManager.RepairPermissions);
+            Core.Services.Installation.UserDataAccess.Verify(Logger.UserDataDir);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"Unable to read or save settings in:\n{Logger.UserDataDir}\n\n{ex.Message}",
+                "Lertaro", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            return false;
+        }
+    }
+
     public static void EnsureServiceStarted()
     {
         var settings = UserSettings.Load();

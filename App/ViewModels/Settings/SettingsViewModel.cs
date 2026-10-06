@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using System.IO;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.Core;
@@ -21,6 +22,8 @@ public class SettingsViewModel : ViewModelBase
     private bool _canApply = true;
     private bool _isBusy;
     private bool _isServiceReady = true;
+    private bool _isApplying;
+    private bool _retryAfterFailure;
 
     public SettingsViewModel()
     {
@@ -96,7 +99,7 @@ public class SettingsViewModel : ViewModelBase
 
     public bool CanApply
     {
-        get => _canApply;
+        get => _canApply && !_isApplying;
         set { if (SetProperty(ref _canApply, value)) CommandManager.InvalidateRequerySuggested(); }
     }
 
@@ -137,136 +140,160 @@ public class SettingsViewModel : ViewModelBase
 
     public void RefreshLists() => _statusMonitor.RefreshLists();
 
-    public void Apply()
+    public async void Apply() => await ApplyAsync();
+
+    public async Task<bool> ApplyAsync()
     {
         if (!CanApply)
-            return;
-
-        _isSaved = true;
-
-        var previousNetworkDrives = _userSettings.NetworkDrives
-            .Select(d => new NetworkDriveSetting { Id = d.Id, RefreshMode = d.RefreshMode })
-            .ToList();
-        var previousWslDrives = _userSettings.WslSettings
-            .Select(w => new WslSetting { Id = w.Id, RefreshMode = w.RefreshMode })
-            .ToList();
-        var previousFolderIndexes = _userSettings.FolderIndexes
-            .Select(f => new FolderIndexSetting { Path = f.Path, RefreshMode = f.RefreshMode })
-            .ToList();
-        var previousExclusions = SettingsChangeSnapshot.CaptureExclusions(_userSettings);
-        var previousDisabledAliases = _userSettings.DisabledPluginComponents
-            .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        var machineSettings = new MachineSettings
+            return false;
+        _isApplying = true;
+        OnPropertyChanged(nameof(CanApply));
+        try
         {
-            LocalDrives = LocalDrive.LocalDrives.Where(d => d.IsEnabled && !string.IsNullOrWhiteSpace(d.Id)).Select(d => d.Id).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
-        };
 
-        var newNetworkDrives = NetworkDrive.NetworkDrives.Where(d => d.IsEnabled && !string.IsNullOrWhiteSpace(d.Id)).Select(d => new NetworkDriveSetting
-        {
-            Id = d.Id,
-            RefreshMode = d.RefreshMode
-        }).ToList();
-        var newWslDrives = NetworkDrive.WslDrives.Where(w => w.IsEnabled && !string.IsNullOrWhiteSpace(w.Id)).Select(w => new WslSetting
-        {
-            Id = w.Id,
-            RefreshMode = w.RefreshMode
-        }).ToList();
-        var newFolderIndexes = NetworkDrive.FolderIndexes.Where(f => f.IsEnabled && !string.IsNullOrWhiteSpace(f.Path)).Select(f => new FolderIndexSetting
-        {
-            Path = f.Path,
-            RefreshMode = f.RefreshMode
-        }).ToList();
-        var localDriveSnapshots = LocalDrive.LocalDrives
-            .Select(d => new LocalDriveSnapshot(d.Drive, d.Id, d.IsEnabled))
-            .ToList();
-        _userSettings.NetworkDrives = newNetworkDrives;
-        _userSettings.WslSettings = newWslDrives;
-        _userSettings.FolderIndexes = newFolderIndexes;
-        Exclusions.Save();
-        General.Apply();
-        // _plugins, not the Plugins property: an untouched Plugins tab was never constructed, so it has
-        // nothing dirty to save -- going through the property here would force that reflection scan
-        // (see the Plugins property's own comment) just to immediately no-op.
-        _plugins?.Save();
-        Hotkeys.Apply();
-        Blacklist.Save();
-        // _history, not History: an untouched History tab was never constructed, so there is nothing
-        // staged to save -- going through the property would construct it (loading both history files)
-        // purely to write back what it already read.
-        _deferred.ExistingHistory?.Save();
-        Favorites.Save(); SettingsApplyHelpers.RebindFavoriteHotkeys(Favorites);
-        QuickLaunch.Save();
-        QuickPanel.Save();
-        LocalSend.Apply();
-        _userSettings.Save();
-        Core.Services.LocalSend.LocalSendServiceManager.Instance.ApplySettings(_userSettings);
-        App.HookClient?.SendMessage(new IpcMessage { Id = IpcMessageId.ReloadSettings });
-        PluginManager.Instance.RefreshDisabledComponents();
-        InlineSearchManager.Instance.ExplorerTracker.RefreshActiveWindowAdapters();
-        NetworkDrive.ResetPendingEdits();
-        // Favorites/quick-launch edits must reach search windows that are already open: the quick
-        // window's launch panel otherwise only rebuilds on its next show, and its live result list
-        // keeps the rows the previous query read -- see OpenSearchWindowRefresher.
-        OpenSearchWindowRefresher.AfterSettingsSaved();
-        var exclusionsChanged = SettingsChangeSnapshot.ExclusionsChanged(previousExclusions, SettingsChangeSnapshot.CaptureExclusions(_userSettings));
-        var newDisabledAliases = _userSettings.DisabledPluginComponents
-            .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-        var aliasProviderEnabled = previousDisabledAliases.Any(c => !newDisabledAliases.Contains(c, StringComparer.OrdinalIgnoreCase));
+            var previousNetworkDrives = _userSettings.NetworkDrives
+                .Select(d => new NetworkDriveSetting { Id = d.Id, RefreshMode = d.RefreshMode })
+                .ToList();
+            var previousWslDrives = _userSettings.WslSettings
+                .Select(w => new WslSetting { Id = w.Id, RefreshMode = w.RefreshMode })
+                .ToList();
+            var previousFolderIndexes = _userSettings.FolderIndexes
+                .Select(f => new FolderIndexSetting { Path = f.Path, RefreshMode = f.RefreshMode })
+                .ToList();
+            var previousExclusions = SettingsChangeSnapshot.CaptureExclusions(_userSettings);
+            var previousDisabledAliases = _userSettings.DisabledPluginComponents
+                .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
-        _ = Task.Run(async () =>
-        {
-            try
+            var machineSettings = new MachineSettings
             {
-            var previousLocalDrives = (await _searchService.GetMachineSettingsAsync()).LocalDrives.ToList();
-            if (SettingsChangeSnapshot.StringListChanged(previousLocalDrives, machineSettings.LocalDrives))
-                await _searchService.SaveMachineSettingsAsync(machineSettings);
+                LocalDrives = LocalDrive.LocalDrives.Where(d => d.IsEnabled && !string.IsNullOrWhiteSpace(d.Id)).Select(d => d.Id).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            };
 
-            if (exclusionsChanged)
+            var newNetworkDrives = NetworkDrive.NetworkDrives.Where(d => d.IsEnabled && !string.IsNullOrWhiteSpace(d.Id)).Select(d => new NetworkDriveSetting
             {
-                _searchService.RefreshNetworkIndexes();
-            }
-            else if (SettingsApplyHelpers.NetworkSettingsChanged(previousNetworkDrives, newNetworkDrives)
-                || SettingsApplyHelpers.WslSettingsChanged(previousWslDrives, newWslDrives)
-                || SettingsApplyHelpers.FolderIndexesChanged(previousFolderIndexes, newFolderIndexes))
+                Id = d.Id,
+                RefreshMode = d.RefreshMode
+            }).ToList();
+            var newWslDrives = NetworkDrive.WslDrives.Where(w => w.IsEnabled && !string.IsNullOrWhiteSpace(w.Id)).Select(w => new WslSetting
             {
-                await NetworkDriveApplyHelper.ApplyChangesAsync(_searchService, previousNetworkDrives, newNetworkDrives);
-                foreach (var wsl in newWslDrives)
+                Id = w.Id,
+                RefreshMode = w.RefreshMode
+            }).ToList();
+            var newFolderIndexes = NetworkDrive.FolderIndexes.Where(f => f.IsEnabled && !string.IsNullOrWhiteSpace(f.Path)).Select(f => new FolderIndexSetting
+            {
+                Path = f.Path,
+                RefreshMode = f.RefreshMode
+            }).ToList();
+            var localDriveSnapshots = LocalDrive.LocalDrives
+                .Select(d => new LocalDriveSnapshot(d.Drive, d.Id, d.IsEnabled))
+                .ToList();
+            _userSettings.NetworkDrives = newNetworkDrives;
+            _userSettings.WslSettings = newWslDrives;
+            _userSettings.FolderIndexes = newFolderIndexes;
+            Exclusions.Save();
+            General.Apply();
+            // _plugins, not the Plugins property: an untouched Plugins tab was never constructed, so it has
+            // nothing dirty to save -- going through the property here would force that reflection scan
+            // (see the Plugins property's own comment) just to immediately no-op.
+            _plugins?.Save();
+            Hotkeys.Apply();
+            Blacklist.Save();
+            // _history, not History: an untouched History tab was never constructed, so there is nothing
+            // staged to save -- going through the property would construct it (loading both history files)
+            // purely to write back what it already read.
+            _deferred.ExistingHistory?.Save();
+            Favorites.Save();
+            QuickLaunch.Save();
+            QuickPanel.Save();
+            LocalSend.Apply();
+            if (!_userSettings.Save())
+                throw new IOException($"Could not save settings to {UserSettings.SettingsPath}.");
+            _isSaved = true;
+            SettingsApplyHelpers.RebindFavoriteHotkeys(Favorites);
+            Core.Services.LocalSend.LocalSendServiceManager.Instance.ApplySettings(_userSettings);
+            App.HookClient?.SendMessage(new IpcMessage { Id = IpcMessageId.ReloadSettings });
+            PluginManager.Instance.RefreshDisabledComponents();
+            InlineSearchManager.Instance.ExplorerTracker.RefreshActiveWindowAdapters();
+            NetworkDrive.ResetPendingEdits();
+            // Favorites/quick-launch edits must reach search windows that are already open: the quick
+            // window's launch panel otherwise only rebuilds on its next show, and its live result list
+            // keeps the rows the previous query read -- see OpenSearchWindowRefresher.
+            OpenSearchWindowRefresher.AfterSettingsSaved();
+            var exclusionsChanged = SettingsChangeSnapshot.ExclusionsChanged(previousExclusions, SettingsChangeSnapshot.CaptureExclusions(_userSettings));
+            var newDisabledAliases = _userSettings.DisabledPluginComponents
+                .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var aliasProviderEnabled = previousDisabledAliases.Any(c => !newDisabledAliases.Contains(c, StringComparer.OrdinalIgnoreCase));
+
+            var canManageLocalDrives = LocalDrive.IsUserAdmin && IsServiceReady;
+            var saveLocalDrives = LocalDrive.HasPendingEdits;
+            if (saveLocalDrives && !canManageLocalDrives)
+                throw new IOException("Personal settings were saved, but the local drive selection could not be applied. Check service access and retry.");
+            await Task.Run(async () =>
+            {
+                if (saveLocalDrives)
                 {
-                    if (!previousWslDrives.Any(w => w.Id.Equals(wsl.Id, StringComparison.OrdinalIgnoreCase)))
+                    var previousLocalDrives = (await _searchService.GetMachineSettingsAsync()).LocalDrives.ToList();
+                    if (SettingsChangeSnapshot.StringListChanged(previousLocalDrives, machineSettings.LocalDrives) &&
+                        !await _searchService.SaveMachineSettingsAsync(machineSettings))
+                        throw new IOException("The service could not save the local drive selection.");
+                }
+
+                if (exclusionsChanged || _retryAfterFailure)
+                {
+                    _searchService.RefreshNetworkIndexes();
+                }
+                else if (SettingsApplyHelpers.NetworkSettingsChanged(previousNetworkDrives, newNetworkDrives)
+                    || SettingsApplyHelpers.WslSettingsChanged(previousWslDrives, newWslDrives)
+                    || SettingsApplyHelpers.FolderIndexesChanged(previousFolderIndexes, newFolderIndexes))
+                {
+                    await NetworkDriveApplyHelper.ApplyChangesAsync(_searchService, previousNetworkDrives, newNetworkDrives);
+                    foreach (var wsl in newWslDrives)
                     {
-                        var unc = $@"\\wsl$\{wsl.Id}";
-                        _searchService.RefreshNetworkDriveIndex(unc);
+                        if (!previousWslDrives.Any(w => w.Id.Equals(wsl.Id, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            var unc = $@"\\wsl$\{wsl.Id}";
+                            _searchService.RefreshNetworkDriveIndex(unc);
+                        }
+                    }
+                    // Unlike a network drive, a folder path never needs resolving from the OS, so there's
+                    // nothing to wait for -- ConfigureNetworkIndexes() (already called above via
+                    // ApplyChangesAsync) already auto-queues an initial refresh for it; this just requests it
+                    // directly, same as a newly-added WSL distro above.
+                    foreach (var folder in newFolderIndexes)
+                    {
+                        if (!previousFolderIndexes.Any(f => f.Path.Equals(folder.Path, StringComparison.OrdinalIgnoreCase)))
+                            _searchService.RefreshNetworkDriveIndex(folder.Path);
                     }
                 }
-                // Unlike a network drive, a folder path never needs resolving from the OS, so there's
-                // nothing to wait for -- ConfigureNetworkIndexes() (already called above via
-                // ApplyChangesAsync) already auto-queues an initial refresh for it; this just requests it
-                // directly, same as a newly-added WSL distro above.
-                foreach (var folder in newFolderIndexes)
-                {
-                    if (!previousFolderIndexes.Any(f => f.Path.Equals(folder.Path, StringComparison.OrdinalIgnoreCase)))
-                        _searchService.RefreshNetworkDriveIndex(folder.Path);
-                }
-            }
 
-            if (exclusionsChanged)
-                await SettingsApplyHelpers.RebuildScanBasedLocalDrivesAsync(_searchService, localDriveSnapshots, machineSettings.LocalDrives);
+                if (exclusionsChanged && canManageLocalDrives)
+                    await SettingsApplyHelpers.RebuildScanBasedLocalDrivesAsync(_searchService, localDriveSnapshots, machineSettings.LocalDrives);
 
-            if (aliasProviderEnabled)
-                await _searchService.InitializeOrLoadIndexAsync(false);
-            }
-            catch (Exception ex)
-            {
-                Logger.Log($"[Settings] Apply pipeline failed: {ex}", LogLevel.Error);
-            }
-            finally
-            {
-                RefreshLists();
-            }
-        });
+                if (aliasProviderEnabled)
+                    await _searchService.InitializeOrLoadIndexAsync(false);
+            });
+            LocalDrive.ResetPendingEdits();
+            _retryAfterFailure = false;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _retryAfterFailure = true;
+            Logger.Log($"[Settings] Apply failed: {ex}", LogLevel.Error);
+            Views.Controls.Dialogs.CustomMessageBox.Show(
+                string.Format(TranslationManager.Instance["About_ConfigActionFailed"], ex.Message),
+                TranslationManager.Instance["Service_Error"], System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            return false;
+        }
+        finally
+        {
+            _isApplying = false;
+            OnPropertyChanged(nameof(CanApply));
+            CommandManager.InvalidateRequerySuggested();
+            RefreshLists();
+        }
     }
 
     private void ApplyUiState()
@@ -294,6 +321,6 @@ public class SettingsViewModel : ViewModelBase
         IsServiceReady = isServiceReady;
         _deferred.ExistingLog?.IsServiceReady = isServiceReady;
         IsBusy = !isServiceReady;
-        CanApply = isServiceReady;
+        // Personal settings do not require the machine index service. Its controls keep their own gates.
     }
 }

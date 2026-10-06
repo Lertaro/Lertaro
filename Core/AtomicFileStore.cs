@@ -5,7 +5,7 @@ namespace Lertaro.Core;
 /// call sites: UserSettings, MachineSettings, SearchHistoryStore, KeywordHistoryStore, and the
 /// settings data-directory migrator). Extracted for that reuse, not for any line limit; owns no state.
 /// </summary>
-internal static class AtomicFileStore
+public static class AtomicFileStore
 {
     private const int RetryCount = 5;
     private const int RetryDelayMilliseconds = 50;
@@ -23,41 +23,38 @@ internal static class AtomicFileStore
         if (!string.IsNullOrEmpty(directory))
             Directory.CreateDirectory(directory);
 
-        // Process-scoped temp name: two processes may write the same destination (the App and the
-        // service both touch machine-settings.json), and a shared temp path makes them contend on the
-        // very file they are each trying to swap in.
-        var tempPath = $"{path}.{Environment.ProcessId}.tmp";
-        // ponytail: a process death between writing the temp file and the replace leaves a lingering
-        // .tmp file behind; harmless, and the next Write from the same process recreates it via
-        // FileMode.Create. A failure that exhausts the retries deletes its own temp below.
-        for (var attempt = 0; ; attempt++)
+        // Unique per write, not per process: concurrent saves and pre-planted links must never share
+        // a temporary file. CreateNew also refuses an existing entry instead of following it.
+        var tempPath = $"{path}.{Guid.NewGuid():N}.tmp";
+        var created = false;
+        try
         {
-            try
+            using (var stream = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var writer = new StreamWriter(stream))
             {
-                // Write and fully close the temp file before the swap: File.Replace and File.Move
-                // cannot move a file this process still holds open.
-                using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.Read))
-                using (var writer = new StreamWriter(stream))
+                created = true;
+                writer.Write(content);
+                writer.Flush();
+                stream.Flush(flushToDisk: true);
+            }
+            for (var attempt = 0; ; attempt++)
+            {
+                try
                 {
-                    writer.Write(content);
+                    if (File.Exists(path))
+                        File.Replace(tempPath, path, backupPath);
+                    else
+                        File.Move(tempPath, path);
+                    return;
                 }
-
-                if (File.Exists(path))
-                    File.Replace(tempPath, path, backupPath);
-                else
-                    File.Move(tempPath, path);
-                return;
+                catch (IOException) when (attempt < RetryCount) { Thread.Sleep(RetryDelayMilliseconds); }
             }
-            catch (IOException) when (attempt < RetryCount)
-            {
-                Thread.Sleep(RetryDelayMilliseconds);
-            }
-            catch (IOException)
-            {
-                // Best effort: a lingering temp file is recreated by the next Write anyway.
-                try { File.Delete(tempPath); } catch (IOException) { }
-                throw;
-            }
+        }
+        finally
+        {
+            if (created)
+                try { File.Delete(tempPath); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
     }
 }

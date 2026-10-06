@@ -26,6 +26,7 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
     private readonly DispatcherTimer _refreshTimer;
     private readonly Dictionary<string, DateTime> _lastLoadedWriteTimes = new();
     private List<LogLineViewModel> _allLines = new();
+    private int _loadVersion;
 
     private string _selectedTab = "App";
     public string SelectedTab
@@ -35,6 +36,8 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _selectedTab, value))
             {
+                _allLines.Clear();
+                ApplyFilter();
                 Load(force: true);
                 CommandManager.InvalidateRequerySuggested();
             }
@@ -114,7 +117,7 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
     // also why ClearAsync reports a failure instead of hiding one.
     private bool CanClear() => SelectedTab switch
     {
-        "Service" => IsServiceReady,
+        "Service" => IsServiceReady && ElevationHelper.IsUserAdmin(),
         "Hook" => IsHookReady,
         _ => true,
     };
@@ -164,10 +167,20 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
         _ => Path.Combine(Logger.UserDataDir, "logs", "app.log"),
     };
 
-    private void Load(bool force)
+    private async void Load(bool force)
     {
+        var version = ++_loadVersion;
         try
         {
+            if (SelectedTab == "Service")
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                var text = await _searchService.GetServiceLogAsync(timeout.Token);
+                if (version != _loadVersion) return;
+                _allLines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(ParseLine).ToList();
+                ApplyFilter();
+                return;
+            }
             var path = CurrentLogPath;
             if (!File.Exists(path))
             {
@@ -185,9 +198,11 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
             _allLines = Logger.ReadLogLines(path).TakeLast(MaxLines).Select(ParseLine).ToList();
             ApplyFilter();
         }
-        catch
+        catch (Exception ex)
         {
-            // Log file locked/missing/inaccessible -- leave the last successfully loaded content as-is.
+            if (version != _loadVersion) return;
+            _allLines = [new LogLineViewModel(ex.Message, LogLevel.Warn)];
+            ApplyFilter();
         }
     }
 
@@ -258,6 +273,7 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        ++_loadVersion;
         _refreshTimer.Stop();
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
     }

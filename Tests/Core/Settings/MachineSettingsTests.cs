@@ -130,7 +130,7 @@ public sealed class MachineSettingsTests
     public void TryLoadFromFile_MissingFile_ReturnsNull() => Assert.IsNull(MachineSettings.TryLoadFromFile(Path.Combine(_dir, "machine-settings.json")));
 
     [TestMethod]
-    public void TryLoadFromFile_LockedFile_ReturnsNullInsteadOfThrowing()
+    public void TryLoadFromFile_LockedFile_ReportsFailureInsteadOfMissingSettings()
     {
         var path = Path.Combine(_dir, "machine-settings.json");
         File.WriteAllText(path, """{"LocalDrives":["volume-c"]}""");
@@ -141,7 +141,7 @@ public sealed class MachineSettingsTests
         try
         {
             lockStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
-            Assert.IsNull(MachineSettings.TryLoadFromFile(path));
+            Assert.Throws<IOException>(() => MachineSettings.TryLoadFromFile(path));
         }
         finally
         {

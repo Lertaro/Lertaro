@@ -1,3 +1,6 @@
+using Lertaro.Core.Services.Installation;
+using Microsoft.Win32.SafeHandles;
+
 namespace Lertaro.Core;
 
 /// <summary>
@@ -15,43 +18,58 @@ internal static class SettingsDataDirectoryMigrator
             return;
 
         var legacyDirectory = Path.Combine(parentDirectory, LegacyProductName);
-        try
-        {
-            if (!Directory.Exists(legacyDirectory))
-                return;
-
-            if (!Directory.Exists(currentDirectory))
-                Directory.Move(legacyDirectory, currentDirectory);
-            else
-                MergeDirectory(legacyDirectory, currentDirectory);
-
-            if (updateUserSettings)
-                UpdateUserSettings(currentDirectory, legacyDirectory);
-        }
-        catch
-        {
-            // A later settings load can retry when the current process has the required directory access.
-        }
+        if (!Directory.Exists(legacyDirectory)) return;
+        using var source = DirectoryLockNativeMethods.OpenWithoutFollowing(legacyDirectory, migration: true);
+        MergeDirectory(source, currentDirectory);
+        if (updateUserSettings) UpdateUserSettings(currentDirectory, legacyDirectory);
     }
 
-    private static void MergeDirectory(string sourceDirectory, string destinationDirectory)
+    private static void MergeDirectory(SafeFileHandle source, string destinationDirectory)
     {
-        foreach (var sourceSubdirectory in Directory.EnumerateDirectories(sourceDirectory))
+        // Moving on the same volume retains explicit legacy ACLs. Copy bytes into newly created
+        // entries instead, so the destination's user/machine/private-index zone controls access.
+        // Leave links in the old tree; never traverse user-selected targets as the service.
+        if (((FileAttributes)DirectoryLockNativeMethods.GetInfo(source).dwFileAttributes).HasFlag(FileAttributes.ReparsePoint))
+            return;
+        Directory.CreateDirectory(destinationDirectory);
+        if (File.GetAttributes(destinationDirectory).HasFlag(FileAttributes.ReparsePoint))
+            throw new IOException("A settings migration destination cannot be a link.");
+        foreach (var name in DirectoryLockNativeMethods.EnumerateNames(source))
         {
-            var destinationSubdirectory = Path.Combine(destinationDirectory, Path.GetFileName(sourceSubdirectory));
-            if (!Directory.Exists(destinationSubdirectory))
-                Directory.Move(sourceSubdirectory, destinationSubdirectory);
-            else
-                MergeDirectory(sourceSubdirectory, destinationSubdirectory);
+            using var child = DirectoryLockNativeMethods.OpenWithoutFollowing(name, source, migration: true);
+            var info = DirectoryLockNativeMethods.GetInfo(child);
+            var attributes = (FileAttributes)info.dwFileAttributes;
+            if (attributes.HasFlag(FileAttributes.ReparsePoint))
+                continue;
+            if (attributes.HasFlag(FileAttributes.Directory))
+            {
+                MergeDirectory(child, Path.Combine(destinationDirectory, name));
+                continue;
+            }
+            if (info.nNumberOfLinks > 1) continue;
+            var destinationFile = FindAvailablePath(Path.Combine(destinationDirectory, name));
+            var temporary = destinationFile + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    var buffer = new byte[81920];
+                    long offset = 0;
+                    int count;
+                    while ((count = RandomAccess.Read(child, buffer, offset)) != 0)
+                    {
+                        output.Write(buffer, 0, count);
+                        offset += count;
+                    }
+                    output.Flush(flushToDisk: true);
+                }
+                File.Move(temporary, destinationFile);
+                DirectoryLockNativeMethods.Delete(child);
+            }
+            finally { File.Delete(temporary); }
         }
-
-        foreach (var sourceFile in Directory.EnumerateFiles(sourceDirectory))
-        {
-            var destinationFile = Path.Combine(destinationDirectory, Path.GetFileName(sourceFile));
-            File.Move(sourceFile, FindAvailablePath(destinationFile));
-        }
-
-        Directory.Delete(sourceDirectory);
+        if (!DirectoryLockNativeMethods.EnumerateNames(source).Any())
+            DirectoryLockNativeMethods.Delete(source);
     }
 
     private static string FindAvailablePath(string path)

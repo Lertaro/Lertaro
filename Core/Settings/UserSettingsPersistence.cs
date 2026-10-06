@@ -43,46 +43,32 @@ internal static class UserSettingsPersistence
 
     private static UserSettings LoadFromDisk()
     {
-        var json = TryReadMainJson();
-        var settings = json != null ? TryParse(json) : null;
-        if (settings != null)
-        {
-            lock (CacheLock) _lastJsonOnDisk = json;
-            return settings;
-        }
-        if (json != null)
-        {
-            settings = UserSettingsBackupStore.TryLoadNewest(SettingsPath, BackupCount, backupJson =>
-            {
-                var restored = TryParse(backupJson);
-                if (restored != null)
-                {
-                    lock (CacheLock) _lastJsonOnDisk = backupJson;
-                }
-                return restored;
-            });
-        }
-        return settings ?? new UserSettings();
+        var settings = LoadFromPath(SettingsPath, out var json);
+        _lastJsonOnDisk = json;
+        return settings;
     }
 
-    private static string? TryReadMainJson()
+    internal static UserSettings LoadFromPath(string path, out string? persistedJson)
     {
-        if (!File.Exists(SettingsPath)) return null;
-        var retries = 5;
-        while (true)
+        var json = SettingsFileReader.ReadIfPresent(path);
+        var settings = json == null ? null : TryParse(json);
+        var hasPersistedData = json != null;
+        persistedJson = json;
+        if (settings != null)
+            return settings;
+        for (var index = 1; index <= BackupCount; index++)
         {
-            try
-            {
-                using var stream = new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                using var reader = new StreamReader(stream);
-                return reader.ReadToEnd();
-            }
-            catch (IOException)
-            {
-                if (--retries <= 0) throw;
-                Thread.Sleep(50);
-            }
+            var backup = SettingsFileReader.ReadIfPresent($"{path}.bak.{index}");
+            if (backup == null) continue;
+            hasPersistedData = true;
+            settings = TryParse(backup);
+            if (settings == null) continue;
+            // The primary still needs restoring, even when the next save changes no preferences.
+            persistedJson = null;
+            return settings;
         }
+        return !hasPersistedData ? new UserSettings()
+            : throw new InvalidDataException($"No valid user settings remain at '{path}'. Restore a backup before saving.");
     }
 
     /// <summary>Parses settings JSON with hotkey normalization; null when it cannot be parsed.</summary>
@@ -90,7 +76,8 @@ internal static class UserSettingsPersistence
     {
         try
         {
-            var settings = JsonSerializer.Deserialize<UserSettings>(json) ?? new UserSettings();
+            var settings = JsonSerializer.Deserialize<UserSettings>(json);
+            if (settings is null) return null;
             NormalizeHotkeys(settings);
             return settings;
         }
@@ -115,12 +102,15 @@ internal static class UserSettingsPersistence
     public static bool Save(UserSettings settings)
     {
         NormalizeHotkeys(settings);
-        Directory.CreateDirectory(Logger.UserDataDir);
         lock (CacheLock)
         {
             var json = JsonSerializer.Serialize(settings, WriteOptions);
-            if (json == _lastJsonOnDisk) { _cachedSettings = settings; return true; }
-            if (!TryPersist(json, SettingsPath)) return false;
+            // Persist even an unchanged object: another process may have removed/replaced the file.
+            if (!TryPersist(json, SettingsPath))
+            {
+                _cachedSettings = _lastJsonOnDisk == null ? null : TryParse(_lastJsonOnDisk);
+                return false;
+            }
             _cachedSettings = settings;
             _lastJsonOnDisk = json;
         }

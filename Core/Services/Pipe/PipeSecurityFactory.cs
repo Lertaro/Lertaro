@@ -25,6 +25,8 @@ public static class PipeSecurityFactory
         try
         {
             var pipeSecurity = new PipeSecurity();
+            pipeSecurity.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.NetworkSid, null),
+                PipeAccessRights.FullControl, AccessControlType.Deny));
 
             // Creating an instance of a named pipe that already exists is access-checked against THIS
             // DACL, and the server creates instances while previous ones are still live (UsnServicePipeServer
@@ -99,6 +101,8 @@ public static class PipeSecurityFactory
         try
         {
             var pipeSecurity = new PipeSecurity();
+            pipeSecurity.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.NetworkSid, null),
+                PipeAccessRights.FullControl, AccessControlType.Deny));
             var currentUserSid = WindowsIdentity.GetCurrent().User
                 ?? throw new InvalidOperationException("Could not resolve the current process's user SID.");
 

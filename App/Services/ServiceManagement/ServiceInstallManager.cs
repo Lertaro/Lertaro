@@ -6,6 +6,16 @@ namespace Lertaro.App.Services;
 
 public static class ServiceInstallManager
 {
+    public static void RepairPermissions()
+    {
+        var sid = System.Security.Principal.WindowsIdentity.GetCurrent().User!.Value;
+        using var process = Process.Start(new ProcessStartInfo(GetServiceExePath(), $"--repair-permissions {sid}")
+        { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden })
+            ?? throw new IOException("Could not start the permission repair.");
+        if (!process.WaitForExit(InstallerTimeoutMs) || process.ExitCode != 0)
+            throw new IOException("Permission repair did not complete successfully.");
+    }
+
     private const int InstallerTimeoutMs = 30000;
     private const int StartTimeoutMs = 10000;
     private static int _silentInstallInFlight;

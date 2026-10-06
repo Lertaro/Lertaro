@@ -220,7 +220,6 @@ public class FavoritesSettingsViewModel : ViewModelBase
     public void Save()
     {
         _userSettings.Favorites = Items.Select(x => new FavoriteItemSetting { Name = x.Name, Path = x.Path, Hotkey = x.Hotkey }).ToList();
-        _userSettings.Save();
     }
 
     /// <summary>

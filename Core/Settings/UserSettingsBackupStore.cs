@@ -2,35 +2,23 @@ namespace Lertaro.Core;
 
 /// <summary>
 /// Split from <see cref="UserSettings"/> to keep that settings model under the repository line limit.
-/// This class owns no state and performs the same best-effort backup rotation for its caller.
+/// Rotation must succeed before a save/import may overwrite the current settings.
 /// </summary>
 internal static class UserSettingsBackupStore
 {
     public static void Rotate(string filePath, int maxBackups)
     {
-        try
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxBackups, 1);
+        var current = SettingsFileReader.ReadIfPresent(filePath);
+        if (current == null) return;
+        for (var index = maxBackups - 1; index >= 1; index--)
         {
-            if (!File.Exists(filePath)) return;
-
-            string BackupPath(int index) => $"{filePath}.bak.{index}";
-
-            var oldest = BackupPath(maxBackups);
-            if (File.Exists(oldest))
-                File.Delete(oldest);
-
-            for (var index = maxBackups - 1; index >= 1; index--)
-            {
-                var source = BackupPath(index);
-                if (File.Exists(source))
-                    File.Move(source, BackupPath(index + 1));
-            }
-
-            File.Copy(filePath, BackupPath(1), overwrite: true);
+            var previous = SettingsFileReader.ReadIfPresent($"{filePath}.bak.{index}");
+            if (previous != null)
+                AtomicFileStore.Write($"{filePath}.bak.{index + 1}", previous);
         }
-        catch (Exception ex)
-        {
-            Logger.Log($"[UserSettings] Failed to rotate settings backups for '{filePath}': {ex.Message}", LogLevel.Warn);
-        }
+        // Copy content rather than file attributes/ACLs; leave every source intact on failure.
+        AtomicFileStore.Write($"{filePath}.bak.1", current);
     }
 
     /// <summary>

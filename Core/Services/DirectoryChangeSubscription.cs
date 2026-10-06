@@ -74,7 +74,11 @@ internal static class DirectoryChangeSubscription
                     pending.Clear();
                 }
 
-                await PipeResponseBinarySerializer.WriteDirectoriesChangedAsync(pipe, hits, token).ConfigureAwait(false);
+                // A public parent is not permission to reveal every private descendant. Check at send
+                // time too: a subscription can outlive an ACL change or an account's profile creation.
+                hits = hits.Where(visibility.IsVisible).ToList();
+                if (hits.Count > 0)
+                    await PipeResponseBinarySerializer.WriteDirectoriesChangedAsync(pipe, hits, token).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)

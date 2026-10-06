@@ -25,5 +25,13 @@ public static class UserProfiles
     }
 
     /// <summary>Whether <paramref name="sid"/> is a real account (local or domain) rather than a built-in service one.</summary>
-    public static bool IsAccount(string sid) => sid.StartsWith("S-1-5-21-", StringComparison.OrdinalIgnoreCase);
+    public static bool IsAccount(string sid) =>
+        (sid.StartsWith("S-1-5-21-", StringComparison.OrdinalIgnoreCase) ||
+         sid.StartsWith("S-1-12-1-", StringComparison.OrdinalIgnoreCase)) && IsValid(sid);
+
+    private static bool IsValid(string sid)
+    {
+        try { _ = new System.Security.Principal.SecurityIdentifier(sid); return true; }
+        catch (ArgumentException) { return false; }
+    }
 }

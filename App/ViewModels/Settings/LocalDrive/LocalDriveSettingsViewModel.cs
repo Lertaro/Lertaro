@@ -87,6 +87,8 @@ public class LocalDriveSettingsViewModel : ViewModelBase
     }
 
     public bool IsUserAdmin => ElevationHelper.IsUserAdmin();
+    internal bool HasPendingEdits { get; private set; }
+    internal void ResetPendingEdits() => HasPendingEdits = false;
 
     public bool IsDriveCheckboxEnabled
     {
@@ -96,6 +98,12 @@ public class LocalDriveSettingsViewModel : ViewModelBase
 
     public void UpdateStatus(UsnIndexer.IndexerStatus status, MachineSettings settings)
     {
+        if (status.State == "error")
+        {
+            CanRebuild = IsDriveCheckboxEnabled = false;
+            foreach (var item in LocalDrives) item.CanRunRowAction = item.CanEditEnabled = false;
+            return; // Keep unsaved checkboxes while the service is unavailable.
+        }
         foreach (var drive in status.Drives.OrderBy(d => d.Drive))
         {
             var item = LocalDrives.FirstOrDefault(d => d.Drive.Equals(drive.Drive, StringComparison.OrdinalIgnoreCase));
@@ -223,6 +231,7 @@ public class LocalDriveSettingsViewModel : ViewModelBase
         if (e.PropertyName != nameof(LocalDriveSettingsItem.IsEnabled) || sender is not LocalDriveSettingsItem item)
             return;
 
+        HasPendingEdits = true;
         item.CanRunRowAction = !_isBusy && item.CanRunRowAction;
     }
 

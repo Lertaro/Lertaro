@@ -34,7 +34,7 @@ public sealed class ServiceLogViewModelTests
             "the clear is a pipe round trip, so an unreachable service cannot answer it");
 
         _vm.IsServiceReady = true;
-        Assert.IsTrue(_vm.ClearCommand.CanExecute(null));
+        Assert.AreEqual(Lertaro.App.Services.ElevationHelper.IsUserAdmin(), _vm.ClearCommand.CanExecute(null));
     }
 
     [TestMethod]

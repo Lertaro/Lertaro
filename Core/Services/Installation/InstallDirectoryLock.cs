@@ -17,15 +17,10 @@ namespace Lertaro.Core.Services.Installation;
 ///
 /// So the walk never trusts a path twice. Each entry is opened once, without following reparse points, and
 /// everything after that goes through the handle: what the entry is, its new owner and DACL, or its removal.
-/// Links are removed rather than followed (a junction or symlink here was never written by this product, and
-/// the name of a hard link is dropped without touching the file it shares). It runs top-down, so by the time
-/// a directory is listed it and every parent already belong to Administrators, and nobody else can swap a
-/// name inside it any more. SetKernelObjectSecurity rather than SetNamedSecurityInfo because the latter
-/// resolves paths and walks children by itself, following the same links this is trying to strip.
-///
-/// ponytail: an attacker holding a handle opened before the reset keeps the access that handle was granted,
-/// so a determined local user could still race the walk from a pre-opened directory handle. Closing that
-/// needs the enumeration itself done by handle (NtQueryDirectoryFile relative to the parent handle).
+/// Links in privileged zones are removed without touching their targets. Personal data keeps legitimate
+/// links without traversing them. Enumeration uses the open directory handle, and each child is opened
+/// relative to that same handle, so even a pre-opened directory handle cannot redirect the walk by renaming
+/// a parent. SetKernelObjectSecurity avoids the automatic path-based child traversal of SetNamedSecurityInfo.
 /// </remarks>
 public static class InstallDirectoryLock
 {
@@ -38,7 +33,7 @@ public static class InstallDirectoryLock
     /// <summary>
     /// The protected DACL at the top of a locked tree, and the owner of every entry that inherits it.
     /// </summary>
-    internal sealed record Zone(SecurityIdentifier Owner, IReadOnlyList<CommonAce> Aces);
+    internal sealed record Zone(SecurityIdentifier Owner, IReadOnlyList<CommonAce> Aces, bool PreserveLinks = false);
 
     /// <summary>SYSTEM and Administrators full control, Users read and execute, applied to everything below.</summary>
     internal static Zone ReadOnlyForUsers { get; } = new(Administrators,
@@ -63,6 +58,7 @@ public static class InstallDirectoryLock
     {
         public List<string> Removed { get; } = [];
         public List<string> Failed { get; } = [];
+        public List<string> UserDataFailed { get; } = [];
     }
 
     /// <summary>
@@ -71,7 +67,19 @@ public static class InstallDirectoryLock
     /// the caller to log: this runs before the service's log is opened, because opening it is one of the
     /// writes a planted link would redirect.
     /// </summary>
-    public static Report LockSharedDataDirectory(string directory)
+    public static Report LockSharedDataDirectory(string directory) =>
+        LockSharedDataDirectory(directory, ReadOnlyForUsers, PrivateToService);
+
+    public static Report PrepareSharedDataDirectory(string directory)
+    {
+        var report = LockSharedDataDirectory(directory);
+        if (report.Failed.Count != 0) return report;
+        SettingsDataDirectoryMigrator.Migrate(directory, updateUserSettings: false);
+        Merge(report, LockSharedDataDirectory(directory));
+        return report;
+    }
+
+    internal static Report LockSharedDataDirectory(string directory, Zone sharedZone, Zone indexZone)
     {
         // A pre-planted junction in place of the directory itself: remove the link, not what it points at
         // (Directory.Delete without recursion on a reparse point deletes only the link).
@@ -81,8 +89,18 @@ public static class InstallDirectoryLock
 
         // LocalDriveCacheLocator.DefaultCacheDir, relative to the directory being locked.
         var indexes = Path.Combine(directory, "indexes");
-        return Lock(directory, ReadOnlyForUsers,
-            path => string.Equals(path, indexes, StringComparison.OrdinalIgnoreCase) ? PrivateToService : null);
+        var logs = Path.Combine(directory, "logs");
+        var report = Lock(directory, sharedZone,
+            path => string.Equals(path, indexes, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(path, logs, StringComparison.OrdinalIgnoreCase) ? indexZone : null);
+        // The first snapshot must inherit the private ACL too. Only create this after the parent has
+        // been secured and any planted link removed; no index bytes are written before it is locked.
+        foreach (var privateDirectory in new[] { indexes, logs }.Where(path => !Directory.Exists(path)))
+        {
+            Directory.CreateDirectory(privateDirectory);
+            Merge(report, Lock(privateDirectory, indexZone, _ => null));
+        }
+        return report;
     }
 
     /// <summary>
@@ -111,15 +129,29 @@ public static class InstallDirectoryLock
             actual.DiscretionaryAcl is not { } acl)
             return false;
 
-        return expected.DiscretionaryAcl!.Cast<CommonAce>().All(wanted => acl.Cast<CommonAce>().Any(has =>
+        var aces = acl.OfType<CommonAce>().ToArray();
+        if (aces.Any(ace => ace.AceQualifier == AceQualifier.AccessDenied))
+            return false;
+
+        const FileSystemRights writes = FileSystemRights.Write | FileSystemRights.Delete |
+            FileSystemRights.DeleteSubdirectoriesAndFiles | FileSystemRights.ChangePermissions | FileSystemRights.TakeOwnership;
+        if (aces.Any(ace => ace.AceQualifier == AceQualifier.AccessAllowed &&
+            ace.SecurityIdentifier != LocalSystem && ace.SecurityIdentifier != Administrators && ace.SecurityIdentifier != zone.Owner &&
+            (ace.AccessMask & (int)writes) != 0 && !zone.Aces.Any(wanted => wanted.SecurityIdentifier == ace.SecurityIdentifier &&
+                (wanted.AccessMask & ace.AccessMask) == ace.AccessMask && wanted.AceFlags == ace.AceFlags)))
+            return false;
+
+        return expected.DiscretionaryAcl!.Cast<CommonAce>().All(wanted => aces.Any(has =>
             has.AceQualifier == wanted.AceQualifier && has.SecurityIdentifier == wanted.SecurityIdentifier &&
-            (has.AccessMask & wanted.AccessMask) == wanted.AccessMask));
+            (has.AccessMask & wanted.AccessMask) == wanted.AccessMask &&
+            (has.AceFlags & ~AceFlags.Inherited) == wanted.AceFlags));
     }
 
     internal static void Merge(Report into, Report from)
     {
         into.Removed.AddRange(from.Removed);
         into.Failed.AddRange(from.Failed);
+        into.UserDataFailed.AddRange(from.UserDataFailed);
     }
 
     /// <summary>
@@ -143,15 +175,19 @@ public static class InstallDirectoryLock
     /// walk, where the caller named it and gets to decide.
     /// </summary>
     private static bool Apply(string path, Zone zone, bool isZoneRoot, Func<string, Zone?> zoneFor, Report report,
-        bool isTop = false)
+        bool isTop = false, SafeFileHandle? parent = null)
     {
-        using var handle = DirectoryLockNativeMethods.OpenWithoutFollowing(path);
+        using var handle = DirectoryLockNativeMethods.OpenWithoutFollowing(parent == null ? path : Path.GetFileName(path), parent);
         var info = DirectoryLockNativeMethods.GetInfo(handle);
         var attributes = (FileAttributes)info.dwFileAttributes;
         var isDirectory = attributes.HasFlag(FileAttributes.Directory);
 
         if (attributes.HasFlag(FileAttributes.ReparsePoint) || (!isDirectory && info.nNumberOfLinks > 1))
         {
+            // Personal plugin data may deliberately use links. Neither change the target's ACL nor
+            // remove its name. The service never loads executable code from these user-owned zones.
+            if (zone.PreserveLinks && !isZoneRoot)
+                return true;
             if (isTop)
                 return false;
             DirectoryLockNativeMethods.Delete(handle);
@@ -163,17 +199,19 @@ public static class InstallDirectoryLock
         if (!isDirectory)
             return true;
 
-        var options = new EnumerationOptions { AttributesToSkip = 0, IgnoreInaccessible = false, RecurseSubdirectories = false };
-        foreach (var child in Directory.EnumerateFileSystemEntries(path, "*", options))
+        foreach (var name in DirectoryLockNativeMethods.EnumerateNames(handle))
         {
+            var child = Path.Combine(path, name);
+            Zone? childZone = null;
             try
             {
-                var childZone = zoneFor(child);
-                Apply(child, childZone ?? zone, childZone is not null, zoneFor, report);
+                childZone = zoneFor(child);
+                Apply(child, childZone ?? zone, childZone is not null, zoneFor, report, parent: handle);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                report.Failed.Add($"{child}: {ex.Message}");
+                var failures = (childZone ?? zone).PreserveLinks ? report.UserDataFailed : report.Failed;
+                failures.Add($"{child}: {ex.Message}");
             }
         }
 

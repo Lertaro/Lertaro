@@ -6,7 +6,7 @@ namespace Lertaro.Core.Indexer.Usn;
 /// <summary>Queries the local drives already loaded by the service; no cache files are opened.</summary>
 internal static class UsnIndexerSpaceExtensions
 {
-    public static List<SpaceIndexEntry> GetSpaceEntries(this UsnIndexer indexer, string? directory)
+    public static List<SpaceIndexEntry> GetSpaceEntries(this UsnIndexer indexer, string? directory, Func<string, bool>? isVisible = null)
     {
         LiveIndex[] indexes;
         lock (indexer.LockObj)
@@ -17,7 +17,7 @@ internal static class UsnIndexerSpaceExtensions
         {
             try
             {
-                var query = LiveSpaceQuery.GetEntries(live, directory);
+                var query = LiveSpaceQuery.GetEntries(live, directory, isVisible);
                 if (!query.Found)
                     continue;
                 result.AddRange(query.Entries);

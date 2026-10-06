@@ -36,6 +36,7 @@ public partial class App : Application
     [System.Runtime.InteropServices.DllImport("shell32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
     private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
     private Mutex? _appMutex;
+    private bool _startupInitialized;
     public static HookIpcClient? HookClient { get; private set; }
 
     // Held for the process lifetime so its hotkey registration and message window stay alive.
@@ -74,7 +75,12 @@ public partial class App : Application
         // under CPU contention without making the whole process compete unfairly against everything else.
         Thread.CurrentThread.Priority = ThreadPriority.Highest;
 
-        // Initialize logger first so we can log elevation decisions and issues
+        if (!await AppStartupServiceBootstrapper.PrepareUserSettingsAsync())
+        {
+            Shutdown(1);
+            return;
+        }
+        // Initialize logger only after the user's data is accessible.
         Logger.Initialize("app.log", overwrite: true);
 
         // Global exception handlers, registered as early as possible: anything thrown before the old
@@ -83,7 +89,15 @@ public partial class App : Application
         DispatcherUnhandledException += _dispatcherExceptionHandler.Handle;
         TaskScheduler.UnobservedTaskException += (s, args) => { Helpers.App.AppCrashHandler.LogException("TaskScheduler UnobservedTaskException", args.Exception); args.SetObserved(); };
 
-        var settings = UserSettings.Load();
+        UserSettings settings;
+        try { settings = UserSettings.Load(); }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"Unable to load settings:\n{UserSettings.SettingsPath}\n\n{ex.Message}", "Lertaro",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+            return;
+        }
         AppTypography.Initialize(Resources, TranslationManager.Instance.CurrentCulture);
         Logger.MinimumLevel = SettingsOptionGenerator.ParseLogLevel(settings.LogLevel);
         // Everything this process matches outside the search pipeline -- plugin catalog items,
@@ -271,6 +285,9 @@ public partial class App : Application
         UrlProtocolManager.EnsureRegistered();
         Logger.Log("Starting normal WPF GUI client mode.");
         base.OnStartup(e);
+        _startupInitialized = true;
+        MainWindow = new QuickSearchWindow();
+        MainWindow.Show();
 
         _ = Dispatcher.BeginInvoke(new Action(() =>
         {
@@ -299,6 +316,12 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        if (!_startupInitialized)
+        {
+            _appMutex?.Dispose();
+            base.OnExit(e);
+            return;
+        }
         Core.Services.LocalSend.LocalSendServiceManager.Instance.Stop();
         // Before anything else: a notification still open must be ended rather than left with a caller
         // awaiting a task no one will ever complete.

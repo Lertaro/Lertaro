@@ -17,12 +17,14 @@ public sealed class UsnServicePipeServer : IDisposable
 {
     private SearchEngine? _engine;
     private CancellationTokenSource? _pipeCts;
+    private Action? _stopService;
 
-    public void Start(SearchEngine engine)
+    public void Start(SearchEngine engine, Action? stopService = null)
     {
         _engine = engine;
-        _pipeCts = new CancellationTokenSource();
-        Task.Run(() => PipeServerLoop(_pipeCts.Token));
+        _stopService = stopService;
+        var cts = _pipeCts = new CancellationTokenSource();
+        Task.Run(() => PipeServerLoop(cts.Token));
     }
 
     public void Stop()
@@ -39,6 +41,8 @@ public sealed class UsnServicePipeServer : IDisposable
     {
         Logger.Log("[PipeServer] Pipe server loop started.", LogLevel.Debug);
         var pipeSecurity = PipeSecurityFactory.Create();
+        if (pipeSecurity == null)
+            throw new UnauthorizedAccessException("The service pipe security descriptor could not be created.");
 
         // Pre-create 2 parallel listener loops to serve as a connection pool
         var listeners = Enumerable.Range(0, 2)
@@ -49,16 +53,14 @@ public sealed class UsnServicePipeServer : IDisposable
         Logger.Log("[PipeServer] Pipe server loop stopped.");
     }
 
-    private async Task ListenLoopAsync(PipeSecurity? pipeSecurity, CancellationToken token)
+    private async Task ListenLoopAsync(PipeSecurity pipeSecurity, CancellationToken token)
     {
         while (!token.IsCancellationRequested)
         {
             NamedPipeServerStream? pipeServer = null;
             try
             {
-                if (pipeSecurity != null)
-                {
-                    pipeServer = NamedPipeServerStreamAcl.Create(
+                pipeServer = NamedPipeServerStreamAcl.Create(
                         "LertaroPipe",
                         PipeDirection.InOut,
                         NamedPipeServerStream.MaxAllowedServerInstances,
@@ -67,21 +69,14 @@ public sealed class UsnServicePipeServer : IDisposable
                         65536, 65536,
                         pipeSecurity
                     );
-                }
-                else
-                {
-                    pipeServer = new NamedPipeServerStream(
-                        "LertaroPipe",
-                        PipeDirection.InOut,
-                        NamedPipeServerStream.MaxAllowedServerInstances,
-                        PipeTransmissionMode.Byte,
-                        PipeOptions.Asynchronous,
-                        65536, 65536
-                    );
-                }
 
                 await pipeServer.WaitForConnectionAsync(token).ConfigureAwait(false);
-                _ = Task.Run(() => HandleClientAsync(pipeServer, token), token);
+                _ = Task.Run(() => HandleClientAsync(pipeServer, token));
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                pipeServer?.Dispose();
+                return;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -147,6 +142,12 @@ public sealed class UsnServicePipeServer : IDisposable
                         continue;
                     }
 
+                    if (request.Id == SearchRequestId.StopService)
+                    {
+                        await HandleStopRequestAsync(pipe, _stopService, token);
+                        break;
+                    }
+
                     if (!pipe.IsConnected)
                     {
                         break;
@@ -170,6 +171,7 @@ public sealed class UsnServicePipeServer : IDisposable
             }
             finally
             {
+                visibility?.Dispose();
                 try
                 {
                     GC.Collect(1, GCCollectionMode.Optimized, blocking: false, compacting: false);
@@ -179,6 +181,19 @@ public sealed class UsnServicePipeServer : IDisposable
         }
 
         Logger.Log("[PipeServer] Client disconnected from pipe.", LogLevel.Debug);
+    }
+
+    internal static async Task HandleStopRequestAsync(NamedPipeServerStream pipe, Action? stopService, CancellationToken token)
+    {
+        // Clean exit is available to every genuine App, including standard accounts. SCM STOP remains
+        // restricted; no arbitrary PID/path is accepted and no UAC round trip is needed.
+        if (stopService == null || !PipeClientIdentity.IsAuthorizedApp(pipe))
+        {
+            await PipeResponseBinarySerializer.WriteErrorAsync(pipe, "Unauthorized caller or shutdown unavailable.", token);
+            return;
+        }
+        await PipeResponseBinarySerializer.WriteOkAsync(pipe, token);
+        stopService();
     }
 
     private async Task StreamStatusUpdatesAsync(NamedPipeServerStream pipe, CancellationToken token)
@@ -238,6 +253,7 @@ public sealed class UsnServicePipeServer : IDisposable
         PipeResponseKind.RecentFiles => RecentFilesResponseCodec.WriteRecentFilesAsync(stream, response.RecentFiles ?? new List<SearchResult>(), token),
         PipeResponseKind.HookLaunched => PipeResponseBinarySerializer.WriteHookLaunchAsync(stream, response.Pid, token),
         PipeResponseKind.SpaceEntries => PipeResponseBinarySerializer.WriteSpaceEntriesAsync(stream, response.SpaceEntries ?? Array.Empty<IndexV2.Space.SpaceIndexEntry>(), token),
+        PipeResponseKind.ServiceLog => PipeResponseBinarySerializer.WriteAsync(stream, response, token),
         _ => PipeResponseBinarySerializer.WriteErrorAsync(stream, "Unknown response kind", token)
     };
 

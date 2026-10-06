@@ -40,7 +40,10 @@ public enum SearchRequestId : byte
     // holding a runas/UAC prompt of its own. Carries the staging directory and nothing else: where the
     // files go is decided by the service, from its own location, so a caller cannot point the elevated copy
     // at a directory of its choosing.
-    ApplyUpdate = 20
+    ApplyUpdate = 20,
+    // No payload. A genuine App may ask the service to stop itself for tray "clean exit".
+    StopService = 21,
+    GetServiceLog = 22
 }
 
 public struct SearchRequestMessage

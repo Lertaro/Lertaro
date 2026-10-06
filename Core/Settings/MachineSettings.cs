@@ -4,6 +4,8 @@ namespace Lertaro.Core;
 
 public class MachineSettings
 {
+    [System.Text.Json.Serialization.JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalSettings { get; set; }
     public List<string> LocalDrives { get; set; } = new();
 
     // Older settings files used an empty LocalDrives list to mean "all drives". This persisted marker
@@ -31,19 +33,13 @@ public class MachineSettings
     /// </remarks>
     public string ServiceLogLevel { get; set; } = "Info";
 
-    private static readonly Lazy<string> SharedDataDirectory = new(() =>
-    {
-        SettingsDataDirectoryMigrator.Migrate(Logger.SharedDataDir, updateUserSettings: false);
-        return Logger.SharedDataDir;
-    });
 
     // One shared instance: a freshly built JsonSerializerOptions re-derives the contract metadata for
     // the whole object graph on every call.
     private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
 
-    public static string SettingsPath => Path.Combine(SharedDataDirectory.Value, "machine-settings.json");
+    public static string SettingsPath => Path.Combine(Logger.SharedDataDir, "machine-settings.json");
 
-    private static string BackupPath => SettingsPath + ".bak";
 
     /// <summary>
     /// <see cref="ServiceLogLevel"/> as a level, defaulting to Info for anything unrecognised.
@@ -65,15 +61,21 @@ public class MachineSettings
         _ => LogLevel.Info
     };
 
-    public static MachineSettings Load()
+    public static MachineSettings Load() => Load(SettingsPath);
+
+    internal static MachineSettings Load(string path)
     {
         // A missing file is a fresh install and gets defaults; an existing file that cannot be read
         // or parsed falls back to the backup the atomic writer left behind, because returning bare
         // defaults here would read as "no drives configured" and let the next Save() persist them
         // over the real drive selection.
-        var settings = File.Exists(SettingsPath) ? TryLoadFromFile(SettingsPath) ?? TryLoadFromFile(BackupPath) : null;
+        var json = SettingsFileReader.ReadIfPresent(path);
+        var settings = json == null ? null : Parse(json);
+        var backupJson = settings == null ? SettingsFileReader.ReadIfPresent(path + ".bak") : null;
+        settings ??= backupJson == null ? null : Parse(backupJson);
         if (settings == null)
-            return CreateDefault();
+            return json == null && backupJson == null ? CreateDefault()
+                : throw new InvalidDataException($"No readable, valid machine settings remain at '{path}'.");
 
         settings.LocalDrives = settings.LocalDrives
             .Where(id => !string.IsNullOrWhiteSpace(id))
@@ -84,36 +86,24 @@ public class MachineSettings
     }
 
     /// <summary>
-    /// Reads and parses one settings file; null when it is missing or still fails to read or parse.
+    /// Reads one settings file; null when missing or malformed. Access and I/O failures propagate.
     /// Per-file parser: it deliberately does not apply the drive-list normalization Load() runs on
     /// the result it settles for.
     /// </summary>
     internal static MachineSettings? TryLoadFromFile(string path)
     {
-        if (!File.Exists(path))
-            return null;
+        var json = SettingsFileReader.ReadIfPresent(path);
+        return json == null ? null : Parse(json);
+    }
 
-        // The service reads this file while the app atomically replaces it, so a sharing violation is
-        // transient: retry a few times before giving up. The filter's decrement is the retry budget;
-        // once spent, an IOException falls through to the general handler below and fails over to the
-        // backup via the null return.
-        var retries = 3;
-        while (true)
+    private static MachineSettings? Parse(string json)
+    {
+        try
         {
-            try
-            {
-                return JsonSerializer.Deserialize<MachineSettings>(File.ReadAllText(path)) ?? new MachineSettings();
-            }
-            catch (IOException) when (retries-- > 0)
-            {
-                Thread.Sleep(50);
-            }
-            catch (Exception ex)
-            {
-                Logger.Log($"[MachineSettings] Failed to load settings from '{path}': {ex.Message}", LogLevel.Error);
-                return null;
-            }
+            var settings = JsonSerializer.Deserialize<MachineSettings>(json);
+            return settings?.LocalDrives == null ? null : settings;
         }
+        catch (JsonException) { return null; }
     }
 
     internal void MigrateLegacyLocalDriveSelection(IEnumerable<string> detectedVolumeIds)
@@ -138,9 +128,7 @@ public class MachineSettings
         .OfType<string>()
         .Where(id => !string.IsNullOrWhiteSpace(id));
 
-    public void Save()
-    {
-        Directory.CreateDirectory(Logger.SharedDataDir);
-        AtomicFileStore.Write(SettingsPath, JsonSerializer.Serialize(this, WriteOptions), BackupPath);
-    }
+    public void Save() => Save(SettingsPath);
+
+    internal void Save(string path) => AtomicFileStore.Write(path, JsonSerializer.Serialize(this, WriteOptions), path + ".bak");
 }

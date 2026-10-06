@@ -45,7 +45,7 @@ public class UsnService : ServiceBase
             _engine.InitializeOrLoadIndex(false);
 
             _pipeServer = new UsnServicePipeServer();
-            _pipeServer.Start(_engine);
+            _pipeServer.Start(_engine, Stop);
             RelaunchAppAfterUpdate();
             Logger.Log("[UsnService] Service Started successfully.");
         }
@@ -62,6 +62,8 @@ public class UsnService : ServiceBase
         _pipeServer?.Stop();
         _pipeServer?.Dispose();
         _pipeServer = null;
+
+        HookProcessBroker.StopAll();
 
         _engine?.Dispose();
         _engine = null;

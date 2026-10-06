@@ -85,6 +85,6 @@ internal static class GeneralSettingsApplier
         vm.FilePreviewProviderOrder.Save();
         vm.ThumbnailProviderOrder.Save();
 
-        userSettings.Save();
+        // SettingsViewModel persists all pages together and handles failure before notifying the Hook.
     }
 }

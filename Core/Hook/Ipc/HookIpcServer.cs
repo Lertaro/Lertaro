@@ -67,8 +67,8 @@ public sealed class HookIpcServer : IDisposable
 
     public void Start()
     {
-        _cts = new CancellationTokenSource();
-        _listenTask = Task.Run(() => ServerLoop(_cts.Token));
+        var cts = _cts = new CancellationTokenSource();
+        _listenTask = Task.Run(() => ServerLoop(cts.Token));
     }
 
     /// <summary>
@@ -135,7 +135,7 @@ public sealed class HookIpcServer : IDisposable
         {
             try
             {
-                var eventPipe = NamedPipeServerStreamAcl.Create(
+                using var eventPipe = NamedPipeServerStreamAcl.Create(
 
                     HookIpcNames.EventPipeName,
                     PipeDirection.Out,
@@ -147,7 +147,7 @@ public sealed class HookIpcServer : IDisposable
 
                 );
 
-                var cmdPipe = NamedPipeServerStreamAcl.Create(
+                using var cmdPipe = NamedPipeServerStreamAcl.Create(
 
                     HookIpcNames.CmdPipeName,
                     PipeDirection.In,
@@ -163,13 +163,16 @@ public sealed class HookIpcServer : IDisposable
 
                 try
                 {
+                    using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    connectTimeout.CancelAfter(TimeSpan.FromSeconds(10));
                     await Task.WhenAll(
 
-                        eventPipe.WaitForConnectionAsync(token),
-                        cmdPipe.WaitForConnectionAsync(token)
+                        eventPipe.WaitForConnectionAsync(connectTimeout.Token),
+                        cmdPipe.WaitForConnectionAsync(connectTimeout.Token)
 
                     ).ConfigureAwait(false);
                 }
+                catch (OperationCanceledException) when (!token.IsCancellationRequested) { continue; }
                 catch
                 {
                     // The fields the finally block below disposes are only assigned once BOTH sides are
@@ -181,6 +184,12 @@ public sealed class HookIpcServer : IDisposable
                     cmdPipe.Dispose();
                     throw;
                 }
+                if (!PipeClientIdentity.IsAuthorizedApp(cmdPipe) ||
+                    !PipeClientIdentity.TryGetClientProcessId(cmdPipe, out var commandPid) ||
+                    !PipeClientIdentity.TryGetClientProcessId(eventPipe, out var eventPid) || commandPid != eventPid ||
+                    !PipeClientIdentity.TryGetClientSessionId(cmdPipe, out var session) ||
+                    session != System.Diagnostics.Process.GetCurrentProcess().SessionId)
+                    throw new UnauthorizedAccessException("Hook pipes must connect to this session's App process.");
                 Logger.Log("[HookIpcServer] App connected on both pipes.", LogLevel.Debug);
                 _eventPipe = eventPipe;
                 _cmdPipe = cmdPipe;

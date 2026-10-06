@@ -75,6 +75,7 @@ public class SearchEngine : IDisposable
 
     public List<SearchResult> GetRecentFiles(IReadOnlyList<string> directories, int limit, int maxAgeMinutes) => _indexer.GetRecentFiles(directories, limit, maxAgeMinutes);
     public List<SpaceIndexEntry> GetSpaceEntries(string? directory) => _indexer.GetSpaceEntries(directory);
+    internal List<SpaceIndexEntry> GetSpaceEntries(string? directory, Func<string, bool> isVisible) => _indexer.GetSpaceEntries(directory, isVisible);
 
     /// <summary>
     /// The status snapshot, composed in one place: <see cref="SearchEngineDriveMaintenance.BuildStatusSnapshot"/>
@@ -98,19 +99,28 @@ public class SearchEngine : IDisposable
 
     public void UpdateMachineSettings(MachineSettings settings)
     {
-        var oldDrives = _machineSettings?.LocalDrives ?? new List<string>();
-        var newDrives = settings.LocalDrives ?? new List<string>();
-
-        var drivesChanged = !oldDrives.OrderBy(d => d).SequenceEqual(newDrives.OrderBy(d => d), StringComparer.OrdinalIgnoreCase);
-
-        settings.LocalDriveSelectionConfigured = true;
-        _machineSettings = settings;
-        _machineSettings.Save();
-
-        if (drivesChanged)
+        // The wire command edits drive selection only. Preserve diagnostics and future fields from
+        // the authoritative file rather than replacing them with the client's default values.
+        lock (_startLock)
         {
-            RefreshDrivesInStatus();
-            _indexer.RaiseDirectoriesChanged(string.Empty, null);
+            var updated = MachineSettings.Load();
+            updated.LocalDrives = settings.LocalDrives.Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            settings = updated;
+            var oldDrives = _machineSettings?.LocalDrives ?? new List<string>();
+            var newDrives = settings.LocalDrives ?? new List<string>();
+
+            var drivesChanged = !oldDrives.OrderBy(d => d).SequenceEqual(newDrives.OrderBy(d => d), StringComparer.OrdinalIgnoreCase);
+
+            settings.LocalDriveSelectionConfigured = true;
+            settings.Save();
+            _machineSettings = settings;
+
+            if (drivesChanged)
+            {
+                RefreshDrivesInStatus();
+                _indexer.RaiseDirectoriesChanged(string.Empty, null);
+            }
         }
     }
 

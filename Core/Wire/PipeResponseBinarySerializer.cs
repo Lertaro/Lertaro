@@ -18,7 +18,8 @@ public enum PipeResponseKind : byte
     // change just landed under. Carries only what the subscriber asked about, so it is a few paths on
     // the rare occasion one is touched, not a running commentary on the volume.
     DirectoriesChanged = 8,
-    SpaceEntries = 9
+    SpaceEntries = 9,
+    ServiceLog = 10
 }
 public readonly struct PipeResponse
 {
@@ -79,6 +80,7 @@ public static class PipeResponseBinarySerializer
         {
             PipeResponseKind.Ok => new PipeResponse { Kind = kind },
             PipeResponseKind.Error => new PipeResponse { Kind = kind, Message = ReadString(payload, ref offset) },
+            PipeResponseKind.ServiceLog => new PipeResponse { Kind = kind, Message = ReadString(payload, ref offset) },
             PipeResponseKind.Status => new PipeResponse { Kind = kind, Status = PipeResponseStatusSerializer.Read(payload, ref offset) },
             PipeResponseKind.MachineSettings => new PipeResponse { Kind = kind, MachineSettings = ReadMachineSettings(payload, ref offset) },
             PipeResponseKind.FileMetadata => new PipeResponse { Kind = kind, FileMetadata = FileMetadataResponseCodec.Read(payload, ref offset) },
@@ -96,6 +98,7 @@ public static class PipeResponseBinarySerializer
         switch (response.Kind)
         {
             case PipeResponseKind.Error:
+            case PipeResponseKind.ServiceLog:
                 payloadSize += GetStringByteCount(response.Message) + 5;
                 break;
             case PipeResponseKind.Status:
@@ -133,6 +136,7 @@ public static class PipeResponseBinarySerializer
             switch (response.Kind)
             {
                 case PipeResponseKind.Error:
+                case PipeResponseKind.ServiceLog:
                     WriteString(span, ref offset, response.Message);
                     break;
                 case PipeResponseKind.Status:

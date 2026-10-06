@@ -2,6 +2,8 @@ namespace Lertaro.Core;
 
 public class UserSettings
 {
+    [System.Text.Json.Serialization.JsonExtensionData]
+    public Dictionary<string, System.Text.Json.JsonElement>? AdditionalSettings { get; set; }
     public List<NetworkDriveSetting> NetworkDrives { get; set; } = new();
     public List<WslSetting> WslSettings { get; set; } = new();
     public List<FolderIndexSetting> FolderIndexes { get; set; } = new();
@@ -196,4 +198,3 @@ public class UserSettings
     internal static UserSettings WriteRestored(string sourcePath, string settingsPath, int backupCount, out string json)
         => UserSettingsPersistence.WriteRestored(sourcePath, settingsPath, backupCount, out json);
 }
-

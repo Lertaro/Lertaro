@@ -223,6 +223,8 @@ public sealed class HookCommandHandler
                                     // tool launched through it), and entireProcessTree:true would take
                                     // those down too even though the user only asked to end this one.
                                     using var proc = System.Diagnostics.Process.GetProcessById(pid);
+                                    if (!Services.Pipe.PipeClientIdentity.IsCurrentUsersProcess(proc))
+                                        throw new UnauthorizedAccessException("Cannot terminate another user's or session's process.");
                                     proc.Kill();
                                     Logger.Log($"[HookCommandHandler] Killed process {pid} successfully", LogLevel.Info);
                                 }

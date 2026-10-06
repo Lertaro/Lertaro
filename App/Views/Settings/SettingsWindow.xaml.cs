@@ -239,12 +239,10 @@ public partial class SettingsWindow : Window
 
     private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
-    private void BtnOk_Click(object sender, RoutedEventArgs e)
+    private async void BtnOk_Click(object sender, RoutedEventArgs e)
     {
-        if (DataContext is SettingsViewModel vm)
-            vm.ApplyCommand.Execute(null);
-
-        Close();
+        if (DataContext is SettingsViewModel vm && await vm.ApplyAsync())
+            Close();
     }
 
     // The bottom-docked "About" entry lives in its own ListBox (see XAML comment on LstSectionsBottom) so

@@ -83,6 +83,7 @@ internal sealed class SettingsStatusMonitor
         }
         catch
         {
+            isServiceReady = false;
             settings = new MachineSettings();
             _latestNetworkStatuses = Array.Empty<NetworkIndexStatus>();
         }

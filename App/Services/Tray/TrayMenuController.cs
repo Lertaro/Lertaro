@@ -78,7 +78,6 @@ internal sealed class TrayMenuController : IDisposable
     {
         if (_menu == null)
             Initialize();
-        _cleanExit!.Visibility = TrayCleanExitHelper.IsOnlyAppProcessRunning() ? Visibility.Visible : Visibility.Collapsed;
         _send!.Visibility = UserSettings.Load().LocalSend.Enabled ? Visibility.Visible : Visibility.Collapsed;
     }
 

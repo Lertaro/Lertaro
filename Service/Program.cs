@@ -27,7 +27,36 @@ static class Program
         {
             // Before the log is opened: the service writes this directory as LocalSystem, and until it is
             // locked any user may have planted a link in it that redirects exactly that write.
-            var (lockReport, lockErrors) = LockDirectories(isService: args.Length > 0 && args[0].Equals("--service", StringComparison.OrdinalIgnoreCase));
+            var repair = args.Length > 0 && args[0].Equals("--repair-permissions", StringComparison.OrdinalIgnoreCase);
+            var isService = args.Length > 0 && args[0].Equals("--service", StringComparison.OrdinalIgnoreCase);
+            var (lockReport, lockErrors) = LockDirectories(isService: isService || repair);
+            var install = args.Length > 0 && args[0] is "--install" or "-i";
+            if ((isService || repair || install) && (lockReport.Failed.Count > 0 || lockErrors.Count > 0))
+            {
+                // Do not open logs, indexes or plugins through a tree whose ACL preparation failed.
+                Console.Error.WriteLine(string.Join(Environment.NewLine, lockReport.Failed.Concat(lockErrors)));
+                Environment.ExitCode = 1;
+                return;
+            }
+            if (repair)
+            {
+                try
+                {
+                    if (args.Length != 2 || !UserProfiles.IsAccount(args[1]) ||
+                        !UserProfiles.Read().TryGetValue(args[1], out var profile))
+                        throw new UnauthorizedAccessException("Unknown settings owner.");
+                    // Derived from Windows' profile map, never an arbitrary path supplied by a low-integrity process.
+                    var localData = Path.Combine(profile, "AppData", "Local", "Lertaro");
+                    if (Directory.Exists(localData))
+                    {
+                        var repaired = PortableDirectoryLock.RepairProfileUserDirectory(profile, new System.Security.Principal.SecurityIdentifier(args[1]));
+                        if (repaired.Failed.Count > 0 || repaired.UserDataFailed.Count > 0)
+                            throw new IOException(string.Join(Environment.NewLine, repaired.Failed.Concat(repaired.UserDataFailed)));
+                    }
+                }
+                catch (Exception ex) { Console.Error.WriteLine(ex.Message); Environment.ExitCode = 1; }
+                return;
+            }
             Logger.Initialize("service.log", Logger.SharedDataDir, overwrite: true);
             // Before the first line, so the level applies to everything this run writes. The service is
             // the one process that cannot read the per-user log-level setting -- it runs as LocalSystem
@@ -41,6 +70,8 @@ static class Program
                 Logger.Log($"[InstallDirectoryLock] Removed a link that was not this product's: {path}", LogLevel.Warn);
             foreach (var failure in lockReport.Failed)
                 Logger.Log($"[InstallDirectoryLock] Could not reset {failure}", LogLevel.Error);
+            foreach (var failure in lockReport.UserDataFailed)
+                Logger.Log($"[InstallDirectoryLock] Personal data repair incomplete: {failure}", LogLevel.Warn);
             foreach (var error in lockErrors)
                 Logger.Log($"[InstallDirectoryLock] Could not lock {error}", LogLevel.Error);
         }
@@ -50,6 +81,7 @@ static class Program
             var cmd = args[0].ToLowerInvariant();
             if (cmd == "--service")
             {
+                ServiceInstaller.ApplySecurity();
                 Logger.Log("Running as Windows Service.");
                 ServiceBase.Run(new UsnService());
                 return;
@@ -102,9 +134,9 @@ static class Program
         var report = new InstallDirectoryLock.Report();
         var errors = new List<string>();
 
-        Lock(Logger.SharedDataDir, () => InstallDirectoryLock.LockSharedDataDirectory(Logger.SharedDataDir));
+        Lock(Logger.SharedDataDir, () => InstallDirectoryLock.PrepareSharedDataDirectory(Logger.SharedDataDir));
         var appDirectory = AppContext.BaseDirectory;
-        if (isService && ServiceInstaller.LocksPortableFolder)
+        if (isService && ServiceInstaller.LocksApplicationFolder)
             Lock(appDirectory, () => PortableDirectoryLock.IsCurrent(appDirectory) ? null : PortableDirectoryLock.Lock(appDirectory));
         return (report, errors);
 
@@ -116,6 +148,7 @@ static class Program
                 {
                     report.Removed.AddRange(locked.Removed);
                     report.Failed.AddRange(locked.Failed);
+                    report.UserDataFailed.AddRange(locked.UserDataFailed);
                 }
             }
             catch (Exception ex)

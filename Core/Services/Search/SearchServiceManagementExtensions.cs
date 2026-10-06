@@ -10,6 +10,27 @@ namespace Lertaro.Core.Services.Search;
 // SearchService.cs under the repo's per-file line limit.
 public static class SearchServiceManagementExtensions
 {
+    public static async Task<string> GetServiceLogAsync(this SearchService service, CancellationToken token = default)
+    {
+        var response = await service.SendPipeCommandAsync(new SearchRequestMessage { Id = SearchRequestId.GetServiceLog }, token).ConfigureAwait(false);
+        return response.Kind == PipeResponseKind.ServiceLog ? response.Message : throw new IOException(response.Message);
+    }
+
+    public static async Task<bool> StopServiceAsync(this SearchService service, CancellationToken token = default)
+    {
+        if (ServicePipe.IsStopped) return true;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        try
+        {
+            var response = await service.SendPipeCommandAsync(new SearchRequestMessage { Id = SearchRequestId.StopService }, timeout.Token).ConfigureAwait(false);
+            if (response.Kind != PipeResponseKind.Ok && !response.IsTransportError) return false;
+            // The service can close its process before the acknowledgement reaches us.
+            return await ServicePipe.WaitForStoppedAsync(timeout.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested) { return false; }
+    }
+
     public static void RefreshNetworkIndexes(this SearchService service)
     {
         UserNetworkDriveSearch.Refresh();
@@ -67,7 +88,7 @@ public static class SearchServiceManagementExtensions
         var resp = await service.SendPipeCommandAsync(new SearchRequestMessage { Id = SearchRequestId.GetMachineSettings }, token).ConfigureAwait(false);
         if (resp.Kind == PipeResponseKind.MachineSettings && resp.MachineSettings != null) return resp.MachineSettings;
         if (resp.Kind == PipeResponseKind.Error) Logger.Log($"[SearchService] GetMachineSettings failed: {resp.Message}", LogLevel.Error);
-        return new MachineSettings();
+        throw new IOException(resp.Message ?? "Machine settings are unavailable.");
     }
 
     public static async Task<bool> SaveMachineSettingsAsync(this SearchService service, MachineSettings settings, CancellationToken token = default)

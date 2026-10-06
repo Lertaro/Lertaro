@@ -111,6 +111,27 @@ public sealed class UserConfigBackupsTests
         Assert.IsNull(exported);
     }
 
+    [TestMethod]
+    public void Export_ReadOnlySource_ProducesWritableBackup()
+    {
+        using var source = new TempDirectory();
+        using var target = new TempDirectory();
+        var path = Path.Combine(source.Path, "user-settings.json");
+        File.WriteAllText(path, "{\"Theme\":\"Dark\"}");
+        File.SetAttributes(path, FileAttributes.ReadOnly);
+        var exported = UserConfigBackups.Export(path, target.Path)!;
+        try
+        {
+            Assert.IsFalse(File.GetAttributes(exported).HasFlag(FileAttributes.ReadOnly));
+            File.AppendAllText(exported, " ");
+        }
+        finally
+        {
+            File.SetAttributes(path, FileAttributes.Normal);
+            File.SetAttributes(exported, FileAttributes.Normal);
+        }
+    }
+
     // Creates a .bak file with an exact last-write time; returns the path for order assertions.
     private static string WriteBackup(string directory, string fileName, DateTime modifiedTime)
     {

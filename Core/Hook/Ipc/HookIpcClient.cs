@@ -12,6 +12,9 @@ public sealed class HookIpcClient : IDisposable
     private NamedPipeClientStream? _cmdPipe;
     private CancellationTokenSource? _cts;
     private Task? _listenTask;
+    private Task? _stopTask;
+    private readonly object _lifecycleGate = new();
+    private int _stopping;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
     public int ServiceProcessId { get; private set; }
     // False during cold-start or hook downtime, so IPC-bound calls fail fast instead of waiting for an unreachable reply.
@@ -72,15 +75,33 @@ public sealed class HookIpcClient : IDisposable
 
     public void Start()
     {
-        if (_cts != null) return; // already started
-        _cts = new CancellationTokenSource();
-        _listenTask = Task.Run(() => RunLoop(_cts.Token));
+        lock (_lifecycleGate)
+        {
+            if (_cts != null || _stopping != 0) return;
+            var cts = _cts = new CancellationTokenSource();
+            _listenTask = Task.Run(() => RunLoop(cts.Token));
+        }
     }
-    public void Stop()
+    public void Stop() => _ = StopAsync();
+
+    public Task StopAsync()
     {
+        lock (_lifecycleGate)
+            return _stopTask ??= StopCoreAsync();
+    }
+
+    private async Task StopCoreAsync()
+    {
+        Interlocked.Exchange(ref _stopping, 1);
+        // Keep the receive loop alive until Stop has been written; its finally disposes both pipes.
+        await SendMessageAsync(new IpcMessage { Id = IpcMessageId.Stop }).ConfigureAwait(false);
         _cts?.Cancel();
-        SendMessage(new IpcMessage { Id = IpcMessageId.Stop });
-        _ = ClosePipesAsync();
+        await ClosePipesAsync().ConfigureAwait(false);
+        if (_listenTask != null)
+        {
+            try { await _listenTask.ConfigureAwait(false); }
+            catch (OperationCanceledException) { }
+        }
     }
     public void SendMessage(IpcMessage msg) => _ = SendMessageAsync(msg);
 
@@ -112,17 +133,18 @@ public sealed class HookIpcClient : IDisposable
 
     private async Task<bool> SendMessageAsync(IpcMessage msg)
     {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         // False until a write is confirmed, so a pipe that died mid-write still reports not sent.
         var sent = false;
         try
         {
-            await _writeGate.WaitAsync().ConfigureAwait(false);
+            await _writeGate.WaitAsync(timeout.Token).ConfigureAwait(false);
 
             try
             {
                 if (_cmdPipe is { IsConnected: true } cmdPipe)
                 {
-                    await PipeRequestBinarySerializer.WriteMessageAsync(cmdPipe, msg).ConfigureAwait(false);
+                    await PipeRequestBinarySerializer.WriteMessageAsync(cmdPipe, msg, timeout.Token).ConfigureAwait(false);
                     sent = true;
                 }
 
@@ -159,17 +181,18 @@ public sealed class HookIpcClient : IDisposable
     /// </summary>
     private async Task ResendPendingStateAsync()
     {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         foreach (var state in _pendingState.Values.ToList())
         {
             if (_cmdPipe is not { IsConnected: true })
                 return;
 
-            await PipeRequestBinarySerializer.WriteMessageAsync(_cmdPipe, state).ConfigureAwait(false);
+            await PipeRequestBinarySerializer.WriteMessageAsync(_cmdPipe, state, timeout.Token).ConfigureAwait(false);
         }
     }
     private async Task RunLoop(CancellationToken token)
     {
-        while (!token.IsCancellationRequested)
+        while (!token.IsCancellationRequested && Volatile.Read(ref _stopping) == 0)
         {
             try
             {
@@ -290,7 +313,7 @@ public sealed class HookIpcClient : IDisposable
                 }
 
                 try { _hookProcess?.Kill(); } catch { }
-
+                _hookProcess?.Dispose();
                 _hookProcess = null;
             }
 
@@ -383,8 +406,6 @@ public sealed class HookIpcClient : IDisposable
         // Cancel without Dispose: the receive loop still holds this token and registers on it while
         // unwinding (a disposed CTS throws ObjectDisposedException there; it holds no unmanaged
         // resources, so skipping Dispose is safe).
-        _cts?.Cancel();
-        _cts = null;
         _launchBroker.Dispose();
     }
 }

@@ -30,7 +30,7 @@ public static class SearchStreamPump
     internal static async Task RunAsync(SearchEngine? engine, SearchRequestMessage msg, Stream stream, CallerVisibility visibility,
         CancellationToken token)
     {
-        Logger.Log($"[SearchStreamPump] Starting query: '{msg.Query}', limit={msg.Limit}, appLimit={msg.AppLimit}, directoryFilter='{msg.DirectoryFilter}'", LogLevel.Debug);
+        Logger.Log($"[SearchStreamPump] Starting request {msg.Id}, limit={msg.Limit}, appLimit={msg.AppLimit}", LogLevel.Debug);
         using var queryCts = CancellationTokenSource.CreateLinkedTokenSource(token);
         var queryToken = queryCts.Token;
 
@@ -86,6 +86,12 @@ public static class SearchStreamPump
             {
                 try
                 {
+                    if (msg.Id is SearchRequestId.SearchDir or SearchRequestId.EnumerateDir &&
+                        !visibility.IsVisible(msg.DirectoryFilter))
+                    {
+                        channel.Writer.TryComplete();
+                        return;
+                    }
                     if (msg.Id == SearchRequestId.EnumerateDir)
                     {
                         // Query carries the filename filter here, not a search term (see EnumerateDir).

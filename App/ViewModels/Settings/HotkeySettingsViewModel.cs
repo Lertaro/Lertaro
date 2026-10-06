@@ -288,10 +288,7 @@ public class HotkeySettingsViewModel : ViewModelBase
         }
         hotkeys.PluginActionHotkeys = pluginActionHotkeys;
 
-        _userSettings.Save();
-
-        // Notify hook service process via IPC to reload settings!
-        App.HookClient?.SendMessage(new IpcMessage { Id = IpcMessageId.ReloadSettings });
+        // The settings owner saves every page first, then tells the Hook to reload the persisted file.
 
         if (taken.Count > 0)
         {

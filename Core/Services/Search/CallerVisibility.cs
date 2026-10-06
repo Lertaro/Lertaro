@@ -9,43 +9,42 @@ namespace Lertaro.Core.Services.Search;
 /// LocalSystem; without this, any signed-in user could list the contents of every other user's profile.
 /// </summary>
 /// <remarks>
-/// Decided once per connection from the caller's own token. An elevated administrator sees everything. Any
-/// other caller, including an administrator running without elevation (a filtered token, the same one
-/// Explorer would stop at another user's profile with a UAC prompt), does not see the profile folders of
-/// the other accounts on this machine, taken from ProfileList in the registry.
-///
-/// ponytail: only other users' profile folders are hidden. A folder elsewhere that its owner locked down with
-/// its own permissions stays visible to searches, and GetSpaceEntries' folder sizes above a profile (C:\Users)
-/// still count the files inside other profiles. The upgrade is a per-directory AccessCheck against the
-/// caller's token, cached per SID.
-///
-/// The profile map is read from the registry once per connection too, and it is the dearer half of the round
-/// trip <see cref="ServicePipe"/> counts: measured at 203 us median, 357 us p95 with five accounts on this
-/// machine, one key opened per account, so it grows with the profile count. That still fits inside one
-/// keystroke's budget. Caching it would need an invalidation story ProfileList does not offer -- a profile
-/// appears at a new account's first logon and nothing announces it -- so the map is read fresh.
+/// Captures the caller token after reading its first request, then checks actual read/list access under
+/// impersonation for every returned path. This covers custom ACLs outside profile folders, deny ACEs and
+/// UAC-filtered administrators. Permissions are not cached across requests or index revisions.
+/// Space queries also apply this predicate to descendants before summing sizes.
 /// </remarks>
-internal sealed class CallerVisibility
+internal sealed class CallerVisibility : IDisposable
 {
     public static readonly CallerVisibility Everything = new([]);
 
     private readonly string[] _hiddenRoots;
+    private WindowsIdentity? _caller;
+    private bool _denyAll;
 
     internal CallerVisibility(IEnumerable<string> hiddenRoots) =>
         _hiddenRoots = hiddenRoots
             .Where(root => !string.IsNullOrWhiteSpace(root))
-            .Select(root => Path.TrimEndingDirectorySeparator(root))
+            .Select(root => Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     /// <summary>
-    /// Whether <paramref name="path"/> is outside every hidden root. Matching is on whole path components:
+    /// Whether <paramref name="path"/> is readable and outside every hidden root. Matching is on whole path components:
     /// hiding <c>C:\Users\Bob</c> hides <c>C:\Users\Bob</c> and everything under it, not <c>C:\Users\Bobby</c>.
     /// </summary>
     public bool IsVisible(string? path)
     {
+        if (_denyAll) return false;
         if (string.IsNullOrEmpty(path))
             return true;
+
+        try
+        {
+            if (!Path.IsPathFullyQualified(path) || path.StartsWith(@"\\", StringComparison.Ordinal)) return false;
+            path = Path.GetFullPath(path);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { return false; }
 
         foreach (var root in _hiddenRoots)
         {
@@ -54,7 +53,20 @@ internal sealed class CallerVisibility
                 return false;
         }
 
-        return true;
+        if (_caller == null) return true;
+        try
+        {
+            return WindowsIdentity.RunImpersonated(_caller.AccessToken, () =>
+            {
+                // Opening both files and directories for read/listing lets Windows evaluate the actual
+                // DACL, group membership and deny rules. No per-SID cache: ACL changes apply immediately.
+                using var handle = Win32Api.CreateFileW(path, Win32Api.GENERIC_READ,
+                    Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE | Win32Api.FILE_SHARE_DELETE,
+                    IntPtr.Zero, Win32Api.OPEN_EXISTING, Win32Api.FILE_FLAG_BACKUP_SEMANTICS, IntPtr.Zero);
+                return !handle.IsInvalid;
+            });
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException) { return false; }
     }
 
     /// <summary>
@@ -75,24 +87,23 @@ internal sealed class CallerVisibility
     /// </summary>
     public static CallerVisibility ForClient(NamedPipeServerStream pipe)
     {
-        SecurityIdentifier? user = null;
-        var isElevatedAdmin = false;
+        WindowsIdentity? caller = null;
         try
         {
             pipe.RunAsClient(() =>
             {
-                using var identity = WindowsIdentity.GetCurrent();
-                user = identity.User;
-                isElevatedAdmin = new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+                caller = WindowsIdentity.GetCurrent();
             });
+            if (caller?.User == null) throw new UnauthorizedAccessException("The pipe client has no user SID.");
+            return new CallerVisibility([]) { _caller = caller };
         }
         catch (Exception ex)
         {
-            Logger.Log($"[CallerVisibility] Could not identify the pipe client, hiding every profile: {ex.Message}", LogLevel.Warn);
-            user = null;
-            isElevatedAdmin = false;
+            caller?.Dispose();
+            Logger.Log($"[CallerVisibility] Could not identify the pipe client: {ex.Message}", LogLevel.Warn);
+            return new CallerVisibility([]) { _denyAll = true };
         }
-
-        return For(user, isElevatedAdmin, UserProfiles.Read());
     }
+
+    public void Dispose() => _caller?.Dispose();
 }

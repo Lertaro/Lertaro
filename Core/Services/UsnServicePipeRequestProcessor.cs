@@ -17,6 +17,12 @@ internal static class UsnServicePipeRequestProcessor
         try
         {
             token.ThrowIfCancellationRequested();
+            var administrative = msg.Id is SearchRequestId.Rebuild or SearchRequestId.RebuildDrive or
+                SearchRequestId.DeleteDriveIndex or SearchRequestId.CancelDriveIndex or
+                SearchRequestId.SetMachineSettings or SearchRequestId.ClearServiceLog or SearchRequestId.GetServiceLog;
+            if ((administrative || msg.Id is SearchRequestId.Initialize or SearchRequestId.ClearPathCaches) &&
+                !PipeClientIdentity.IsAuthorizedApp(pipe, administrative))
+                return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
             switch (msg.Id)
             {
                 case SearchRequestId.Ping:
@@ -31,8 +37,6 @@ internal static class UsnServicePipeRequestProcessor
                     };
 
                 case SearchRequestId.Rebuild:
-                    if (!IsAuthorizedControlClient(pipe))
-                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
                     Logger.Log("[UsnService] Received REBUILD request from client.");
                     engine?.InitializeOrLoadIndex(true);
                     return new PipeResponse { Kind = PipeResponseKind.Ok };
@@ -43,8 +47,6 @@ internal static class UsnServicePipeRequestProcessor
                     return new PipeResponse { Kind = PipeResponseKind.Ok };
 
                 case SearchRequestId.RebuildDrive:
-                    if (!IsAuthorizedControlClient(pipe))
-                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
                     var drive = msg.Drive ?? string.Empty;
                     Logger.Log($"[UsnService] Received REBUILD_DRIVE request from client: {drive}");
                     return engine?.RebuildDriveIndex(drive) == true
@@ -52,8 +54,6 @@ internal static class UsnServicePipeRequestProcessor
                         : new PipeResponse { Kind = PipeResponseKind.Error, Message = "Invalid or disabled drive" };
 
                 case SearchRequestId.DeleteDriveIndex:
-                    if (!IsAuthorizedControlClient(pipe))
-                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
                     var deleteDrive = msg.Drive ?? string.Empty;
                     Logger.Log($"[UsnService] Received DELETE_DRIVE_INDEX request from client: {deleteDrive}");
                     return engine?.DeleteDriveIndex(deleteDrive) == true
@@ -68,38 +68,42 @@ internal static class UsnServicePipeRequestProcessor
                         : new PipeResponse { Kind = PipeResponseKind.Error, Message = "Not currently rebuilding" };
 
                 case SearchRequestId.GetMachineSettings:
+                    if (engine == null)
+                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Machine settings are not ready." };
                     return new PipeResponse
                     {
                         Kind = PipeResponseKind.MachineSettings,
-                        MachineSettings = engine?.GetMachineSettings() ?? new MachineSettings()
+                        MachineSettings = engine.GetMachineSettings()
                     };
 
                 case SearchRequestId.SetMachineSettings:
-                    if (!IsAuthorizedControlClient(pipe))
-                        return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
                     var settings = msg.MachineSettings;
-                    if (settings == null)
+                    if (settings?.LocalDrives == null || engine == null)
                         return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Invalid settings" };
                     Logger.Log("[UsnService] Received SET_MACHINE_SETTINGS request.");
-                    engine?.UpdateMachineSettings(settings);
+                    engine.UpdateMachineSettings(settings);
                     return new PipeResponse { Kind = PipeResponseKind.Ok };
 
                 case SearchRequestId.GetFileMetadata:
                     // The request's own paths are filtered, not just the reply: an answer at all says whether
                     // the file exists.
-                    var paths = (msg.FilePaths ?? new List<string>()).Where(visibility.IsVisible).ToList();
+                    var paths = (msg.FilePaths ?? new List<string>()).Where(visibility.IsVisible).Select(Path.GetFullPath).ToList();
                     var metadata = engine?.GetFileMetadataBatch(paths) ?? new Dictionary<string, FileMetadataEntry>();
                     return new PipeResponse { Kind = PipeResponseKind.FileMetadata, FileMetadata = metadata };
 
                 case SearchRequestId.GetRecentFiles:
-                    var directories = msg.Directories ?? new List<string>();
+                    var directories = (msg.Directories ?? []).Where(visibility.IsVisible).Select(Path.GetFullPath).ToList();
                     var recentFiles = (engine?.GetRecentFiles(directories, msg.Limit, msg.MaxAgeMinutes) ?? new List<SearchResult>())
                         .Where(result => visibility.IsVisible(result.Path)).ToList();
                     return new PipeResponse { Kind = PipeResponseKind.RecentFiles, RecentFiles = recentFiles };
 
                 case SearchRequestId.GetSpaceEntries:
-                    var spaceEntries = (engine?.GetSpaceEntries(msg.Drive) ?? new List<IndexV2.Space.SpaceIndexEntry>())
-                        .Where(entry => visibility.IsVisible(entry.Path)).ToList();
+                    var spaceEntries = visibility.IsVisible(msg.Drive)
+                        ? engine?.GetSpaceEntries(string.IsNullOrEmpty(msg.Drive) ? null : Path.GetFullPath(msg.Drive), path =>
+                        {
+                            token.ThrowIfCancellationRequested();
+                            return visibility.IsVisible(path);
+                        }) ?? [] : [];
                     return new PipeResponse { Kind = PipeResponseKind.SpaceEntries, SpaceEntries = spaceEntries };
 
                 case SearchRequestId.ClearServiceLog:
@@ -107,6 +111,10 @@ internal static class UsnServicePipeRequestProcessor
                     return Logger.ClearCurrentLog()
                         ? new PipeResponse { Kind = PipeResponseKind.Ok }
                         : new PipeResponse { Kind = PipeResponseKind.Error, Message = "The service could not truncate its own log file" };
+
+                case SearchRequestId.GetServiceLog:
+                    return new PipeResponse { Kind = PipeResponseKind.ServiceLog,
+                        Message = string.Join('\n', Logger.ReadLogLines(Path.Combine(Logger.SharedDataDir, "logs", "service.log")).TakeLast(500)) };
 
                 case SearchRequestId.ClearPathCaches:
                     engine?.ClearPathCaches();
@@ -126,16 +134,4 @@ internal static class UsnServicePipeRequestProcessor
         }
     }
 
-    private static bool IsAuthorizedControlClient(NamedPipeServerStream pipe)
-    {
-        try
-        {
-            return PipeClientIdentity.TryGetClientProcessId(pipe, out var callerPid) &&
-                HookLaunchRequestHandler.IsGenuineAppProcess(callerPid);
-        }
-        catch
-        {
-            return false;
-        }
-    }
 }

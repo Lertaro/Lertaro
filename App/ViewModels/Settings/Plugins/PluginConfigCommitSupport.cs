@@ -52,7 +52,8 @@ internal static class PluginConfigCommitSupport
 
         if (committed.Count == 0) return;
 
-        settings!.Save();
+        if (!settings!.Save())
+            throw new System.IO.IOException("Could not save plugin settings.");
 
         foreach (var plugin in committed)
             plugin.OnSave?.Invoke();

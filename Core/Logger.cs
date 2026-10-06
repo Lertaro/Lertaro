@@ -151,8 +151,8 @@ public static class Logger
             try
             {
                 _logDir = Path.Combine(baseDirectory ?? UserDataDir, "logs");
-                Directory.CreateDirectory(_logDir);
                 _logPath = Path.Combine(_logDir, logFileName);
+                Directory.CreateDirectory(_logDir);
                 _lastMessage = null;
                 _repeatsSinceFirst = 0;
 
@@ -163,10 +163,9 @@ public static class Logger
             }
             catch
             {
-                // Fallback: try writing next to the executable
+                // Keep the intended ACL boundary. Falling back beside the executable can disclose
+                // private service paths through an ordinary Users-readable file.
                 CloseWriter();
-                _logDir = AppDomain.CurrentDomain.BaseDirectory;
-                _logPath = Path.Combine(_logDir, logFileName);
             }
         }
     }
@@ -229,8 +228,7 @@ public static class Logger
         var writer = _writer;
         if (writer is null)
         {
-            // No writer (never initialized, or the log directory was unusable and Initialize fell back to
-            // the executable directory): behave exactly as before -- one open/close per line.
+            // Retry only the intended log path, never a less restricted fallback directory.
             File.AppendAllText(_logPath, line);
             return;
         }

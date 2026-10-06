@@ -72,6 +72,9 @@ public static class UpdateCheckService
                 var progress = new Action<double>(p =>
                     SilentUpdateState.Report(string.Format(downloadingFormat, (int)(p * 100))));
 
+                // Record before handing off: a copy failure rolls back and restarts this version,
+                // whose next startup must not immediately repeat the same failed installation.
+                if (!RememberFailedAttempt(settings, release.TagName)) return;
                 if (await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.BrowserDownloadUrl, progress))
                 {
                     SilentUpdateState.Report(TranslationManager.Instance["About_Success"]);
@@ -82,7 +85,6 @@ public static class UpdateCheckService
                     // Nothing is running, so nothing should be claimed to be running. The reason is in the
                     // log, and the release will be offered again after the cooldown.
                     SilentUpdateState.Report(null);
-                    RememberFailedAttempt(settings, release.TagName);
                 }
                 return;
             }
@@ -133,10 +135,10 @@ public static class UpdateCheckService
         return now > failedAt && now - failedAt < UpdateRetryCooldown;
     }
 
-    private static void RememberFailedAttempt(UserSettings settings, string tagName)
+    private static bool RememberFailedAttempt(UserSettings settings, string tagName)
     {
         settings.LastFailedUpdateTag = tagName;
         settings.LastFailedUpdateUtcTicks = DateTime.UtcNow.Ticks;
-        settings.Save();
+        return settings.Save();
     }
 }
